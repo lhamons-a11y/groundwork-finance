@@ -593,6 +593,91 @@ def main():
     r = c.post('/api/debt/ledger/999999/unlink', headers=HJ, data=json.dumps({}))
     check('POST unlink 404s for unknown entry', r.status_code == 404)
 
+    # ── 20. Debt Reconciliation Phase E (balance sync + compliance) ──────────
+    with _dbs() as session:
+        debt5 = _DA(name='Phase E Smoke Card', current_balance=1000.0)
+        session.add(debt5)
+        session.commit()
+        _debt5_id = debt5.id
+
+    def _bal():
+        r = c.get('/api/debt', headers=H)
+        rows = (r.get_json() or {}).get('data') or []
+        return next(d['current_balance'] for d in rows if d['id'] == _debt5_id)
+
+    check('starting balance is 1000', _bal() == 1000.0)
+
+    r = c.post(f'/api/debt/{_debt5_id}/ledger', headers=HJ,
+               data=json.dumps({'entry_type': 'charge', 'amount': 150.0, 'entry_date': '2026-07-20'}))
+    check('charge entry increases balance (1000 -> 1150)', r.status_code == 201 and _bal() == 1150.0)
+    _charge5_id = (r.get_json() or {}).get('data', {}).get('id')
+
+    r = c.post(f'/api/debt/{_debt5_id}/ledger', headers=HJ,
+               data=json.dumps({'entry_type': 'payment', 'amount': 200.0, 'entry_date': '2026-07-22'}))
+    check('payment entry decreases balance (1150 -> 950)', r.status_code == 201 and _bal() == 950.0)
+    _payment5_id = (r.get_json() or {}).get('data', {}).get('id')
+
+    r = c.delete(f'/api/debt/ledger/{_payment5_id}', headers=H)
+    check('deleting a manual entry reverses its balance effect (950 -> 1150)',
+          r.status_code == 200 and _bal() == 1150.0)
+
+    # A draft must NOT move the balance until it's actually confirmed.
+    with _dbs() as session:
+        rp5 = _RDP(debt_account_id=_debt5_id, scheduled_date_of_month=(_date.today() + _timedelta(days=1)).day,
+                    amount=80.0, frequency='monthly', is_active=True)
+        session.add(rp5)
+        session.commit()
+        _rp5_id = rp5.id
+
+    r = c.get('/api/debt/drafts/pending', headers=H)
+    pending5 = [d for d in ((r.get_json() or {}).get('data') or []) if d.get('debt_account_id') == _debt5_id]
+    check('a pending draft does not move the balance', len(pending5) == 1 and _bal() == 1150.0)
+
+    _draft5 = pending5[0]
+    r = c.post(f'/api/debt/drafts/{_draft5["id"]}/confirm', headers=HJ, data=json.dumps({'amount': 70.0}))
+    check('confirming a draft applies its (possibly edited) balance effect (1150 -> 1080)',
+          r.status_code == 200 and _bal() == 1080.0)
+
+    r = c.get(f'/api/debt/{_debt5_id}/recurring', headers=H)
+    recur5 = next(rp for rp in (r.get_json() or {}).get('data') or [] if rp['id'] == _rp5_id)
+    comp = recur5.get('compliance') or {}
+    # (70 - 80) / 80 * 100 = -12.5% — outside the ±5% on-time band, so under_plan.
+    check('compliance reflects the confirmed variance vs. the pattern amount',
+          comp.get('total') == 1 and comp.get('under_plan') == 1 and comp.get('avg_variance_pct') == -12.5)
+
+    # Skipping a draft must never move the balance — it never represented
+    # money moving in the first place.
+    with _dbs() as session:
+        rp5b = _RDP(debt_account_id=_debt5_id, scheduled_date_of_month=(_date.today() + _timedelta(days=1)).day,
+                     amount=40.0, frequency='monthly', is_active=True)
+        session.add(rp5b)
+        session.commit()
+
+    r = c.get('/api/debt/drafts/pending', headers=H)
+    pending5b = [d for d in ((r.get_json() or {}).get('data') or []) if d.get('debt_account_id') == _debt5_id]
+    _draft5b = next(d for d in pending5b if d['id'] != _draft5['id'])
+    r = c.post(f'/api/debt/drafts/{_draft5b["id"]}/skip', headers=HJ, data=json.dumps({}))
+    check('skipping a draft does not move the balance', r.status_code == 200 and _bal() == 1080.0)
+
+    # Linking from the checking side also applies the balance effect.
+    with _dbs() as session:
+        acct5 = _Acct(name='Phase E Smoke Checking', type='checking')
+        session.add(acct5); session.flush()
+        txn5 = _Txn(date=_date(2026, 7, 23), amount=30.0, type='debit',
+                     account_id=acct5.id, description='Transfer to Phase E Smoke Card')
+        session.add(txn5)
+        session.commit()
+        _txn5_id = txn5.id
+
+    r = c.post(f'/api/transactions/{_txn5_id}/link-debt', headers=HJ, data=json.dumps({'debt_account_id': _debt5_id}))
+    check('linking from the checking side applies the balance effect (1080 -> 1050)',
+          r.status_code == 201 and _bal() == 1050.0)
+    _linked5_id = (r.get_json() or {}).get('data', {}).get('id')
+
+    r = c.post(f'/api/debt/ledger/{_linked5_id}/unlink', headers=HJ, data=json.dumps({}))
+    check('unlinking does NOT reverse the balance (the payment still happened, only the link is gone)',
+          r.status_code == 200 and _bal() == 1050.0)
+
     return finish()
 
 

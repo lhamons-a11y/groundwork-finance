@@ -13523,11 +13523,22 @@ function _recurringListHTML(c) {
   const FREQ_LABEL = { monthly: '/month', biweekly: '/2wk', weekly: '/week' };
   const rows = patterns.map(r => {
     const dayLabel = r.scheduled_date_of_month ? `day ${r.scheduled_date_of_month}` : 'last day of month';
+    const comp = r.compliance;
+    // "the plan" here is the pattern's own saved amount — this codebase has
+    // no persisted payoff-plan entity to compare against (see server.py ::
+    // get_payment_compliance). Only worth a line once there's real history.
+    const complianceLine = (comp && comp.total > 0) ? `
+      <div style="font-size:11px;color:var(--slate-2);margin-top:2px">
+        ${comp.on_time}/${comp.total} on-time (±5%)${comp.under_plan ? ` · ${comp.under_plan} under-plan` : ''}${comp.over_plan ? ` · ${comp.over_plan} over-plan` : ''} · avg variance ${comp.avg_variance_pct > 0 ? '+' : ''}${comp.avg_variance_pct}%
+      </div>` : '';
     return `
-      <div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12px;${r.is_active?'':'opacity:.55'}">
-        <div style="flex:1">${fmt(r.amount)}${FREQ_LABEL[r.frequency]||''} · ${dayLabel}${r.is_active?'':' · paused'}</div>
-        <button class="btn btn-ghost btn-sm" onclick="toggleRecurringActive(${c.id},${r.id},${!r.is_active})">${r.is_active?'Pause':'Resume'}</button>
-        <button class="btn btn-ghost btn-sm" onclick="removeRecurringPayment(${c.id},${r.id})">Remove</button>
+      <div style="padding:5px 0;font-size:12px;${r.is_active?'':'opacity:.55'}">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="flex:1">${fmt(r.amount)}${FREQ_LABEL[r.frequency]||''} · ${dayLabel}${r.is_active?'':' · paused'}</div>
+          <button class="btn btn-ghost btn-sm" onclick="toggleRecurringActive(${c.id},${r.id},${!r.is_active})">${r.is_active?'Pause':'Resume'}</button>
+          <button class="btn btn-ghost btn-sm" onclick="removeRecurringPayment(${c.id},${r.id})">Remove</button>
+        </div>
+        ${complianceLine}
       </div>`;
   }).join('');
 

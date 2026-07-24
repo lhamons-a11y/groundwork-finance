@@ -1824,6 +1824,24 @@ def get_checking_transaction_link(session, checking_transaction_id: int) -> 'Che
 _LEDGER_ENTRY_TYPES = {'charge', 'payment', 'interest', 'fee'}
 
 
+def _apply_ledger_balance_effect(debt: DebtAccount, entry: DebtLedgerEntry, sign: int = 1):
+    """
+    Debt Reconciliation Phase E. Adjust a debt account's current_balance by
+    a ledger entry's real-money effect: sign=+1 when the entry newly takes
+    effect (created as manual, or a draft just confirmed), sign=-1 to
+    reverse it (the entry is being deleted).
+
+    Only call this for an entry that actually represents money having
+    moved — never for 'draft' or 'skipped' source_type. Without this, the
+    ledger is cosmetic: a user could log $500 of charges and $300 of
+    payments and never see the card balance (or the avalanche/snowball
+    payoff projection, which reads current_balance) reflect any of it —
+    the entire point of "reconciliation" is that this number is real.
+    """
+    delta = entry.amount if entry.entry_type in ('charge', 'interest', 'fee') else -entry.amount
+    debt.current_balance = round(debt.current_balance + sign * delta, 2)
+
+
 @debt_bp.route('/<int:debt_id>/ledger', methods=['GET'])
 def list_debt_ledger(debt_id):
     with db_session() as session:
@@ -1890,6 +1908,7 @@ def create_debt_ledger_entry(debt_id):
                 user_confirmed_at=datetime.utcnow(),
             ))
 
+        _apply_ledger_balance_effect(debt, entry, sign=1)
         session.commit()
         return ok(serialize_debt_ledger_entry(entry), status=201)
 
@@ -1905,6 +1924,13 @@ def delete_debt_ledger_entry(entry_id):
         session.query(CheckingTransactionLink).filter_by(
             debt_ledger_entry_id=entry_id
         ).delete()
+        # Reverse the balance effect — but only if this entry ever applied
+        # one. 'draft'/'skipped' entries never touched current_balance, so
+        # reversing them here would incorrectly move the balance.
+        if entry.source_type not in ('draft', 'skipped'):
+            debt = session.get(DebtAccount, entry.debt_account_id)
+            if debt:
+                _apply_ledger_balance_effect(debt, entry, sign=-1)
         session.delete(entry)
         session.commit()
         return ok({'deleted': entry_id})
@@ -2002,6 +2028,35 @@ def _validate_recurring_payload(body: dict):
     return fields, None
 
 
+def get_payment_compliance(session, recurring_id: int) -> dict:
+    """
+    Debt Reconciliation Phase E. On-time/under-plan/over-plan counts and
+    average variance % for a recurring pattern's confirmed payments, compared
+    against the pattern's own saved amount — the closest thing to "the plan"
+    this codebase has. No persisted payoff-plan table exists here (payoff
+    projections are computed client-side on demand, not stored — see Phase
+    A/E notes), so this reads "the plan" as what the user told the recurring
+    pattern to expect, not a payoff-plan entity's suggestion.
+    """
+    rp = session.get(RecurringDebtPayment, recurring_id)
+    empty = {'total': 0, 'on_time': 0, 'under_plan': 0, 'over_plan': 0, 'avg_variance_pct': None}
+    if not rp or not rp.amount:
+        return empty
+    entries = session.query(DebtLedgerEntry).filter_by(
+        linked_recurring_payment_id=recurring_id, source_type='manual'
+    ).all()
+    if not entries:
+        return empty
+    variances = [((e.amount - rp.amount) / rp.amount) * 100 for e in entries]
+    return {
+        'total':            len(entries),
+        'on_time':          sum(1 for v in variances if abs(v) <= 5),
+        'under_plan':       sum(1 for v in variances if v < -5),
+        'over_plan':        sum(1 for v in variances if v > 5),
+        'avg_variance_pct': round(sum(variances) / len(variances), 1),
+    }
+
+
 @debt_bp.route('/<int:debt_id>/recurring', methods=['GET'])
 def list_recurring_payments(debt_id):
     with db_session() as session:
@@ -2010,7 +2065,12 @@ def list_recurring_payments(debt_id):
         rows = session.query(RecurringDebtPayment).filter_by(
             debt_account_id=debt_id
         ).order_by(RecurringDebtPayment.created_at.desc()).all()
-        return ok([serialize_recurring_debt_payment(r) for r in rows])
+        result = []
+        for r in rows:
+            row = serialize_recurring_debt_payment(r)
+            row['compliance'] = get_payment_compliance(session, r.id)
+            result.append(row)
+        return ok(result)
 
 
 @debt_bp.route('/<int:debt_id>/recurring', methods=['POST'])
@@ -2115,6 +2175,10 @@ def confirm_debt_draft(entry_id):
             if rp:
                 rp.last_confirmed_at = datetime.utcnow()
                 rp.last_executed_at = datetime.utcnow()
+
+        debt = session.get(DebtAccount, entry.debt_account_id)
+        if debt:
+            _apply_ledger_balance_effect(debt, entry, sign=1)   # draft → manual: takes effect now
         session.commit()
         return ok(serialize_debt_ledger_entry(entry))
 
@@ -2213,6 +2277,7 @@ def link_checking_txn_to_debt(txn_id):
             link_indicator='payment_to_card',
             user_confirmed_at=datetime.utcnow(),
         ))
+        _apply_ledger_balance_effect(debt, entry, sign=1)
         session.commit()
         return ok(serialize_debt_ledger_entry(entry), status=201)
 
