@@ -3938,6 +3938,87 @@ def clear_byb_items():
 trip_bp = Blueprint('trip', __name__)
 
 
+def _extract_trip_region(dest: str):
+    """'Denver, CO' -> 'CO'. Best-effort region tag for trip_history —
+    returns the raw string when there's no comma-separated state code
+    (e.g. a destination typed without one), never raises."""
+    if not dest or not dest.strip():
+        return None
+    parts = dest.rsplit(',', 1)
+    return parts[-1].strip() if len(parts) == 2 else dest.strip()
+
+
+def get_improved_trip_estimate(session, region: str, base_estimate: float) -> dict:
+    """
+    Phase H2 Feature 3 (adaptive learning — trip spending forecast). Adjusts
+    a base trip estimate using real regional variance from trip_history
+    (Phase H1). Returns the base estimate unchanged, with confidence='none',
+    when there's no real data for the region yet — an unadjusted estimate is
+    correct output here, not a fallback to hide.
+    """
+    variance = get_trip_variance_by_region(session, region)
+    if variance['trip_count'] == 0 or variance['variance_pct'] is None:
+        return {'estimate': base_estimate, 'adjustment_pct': 0, 'confidence': 'none', 'trip_count': 0}
+    adjusted = round(base_estimate * (1 + variance['variance_pct'] / 100), 2)
+    confidence = 'low' if variance['trip_count'] < 2 else 'medium' if variance['trip_count'] < 4 else 'high'
+    return {
+        'estimate': adjusted, 'adjustment_pct': variance['variance_pct'],
+        'confidence': confidence, 'trip_count': variance['trip_count'],
+    }
+
+
+@trip_bp.route('/forecast', methods=['GET'])
+def trip_forecast():
+    # Normalize the same way the two write hooks do (save_trip_budget,
+    # save_trip_learned_actual) — callers may pass a raw "City, ST" destination
+    # string (the trip planner UI does) or an already-extracted region code;
+    # trip_history always stores the extracted form, so the lookup must match it.
+    region = _extract_trip_region(request.args.get('region', ''))
+    try:
+        base_estimate = float(request.args.get('base_estimate', 0))
+    except (TypeError, ValueError):
+        return err('base_estimate must be a number')
+    with db_session() as session:
+        return ok(get_improved_trip_estimate(session, region, base_estimate))
+
+
+@trip_bp.route('/learned-actual', methods=['POST'])
+@require_json
+def save_trip_learned_actual():
+    """
+    Write hook 2/2 for trip_history (deferred from Phase H1 to here, per
+    HISTORIAN_GUIDE.md — this is the code that actually knows what "actual"
+    means). Fires when the user applies a past trip's real spending
+    (_applyTripLearnedBasis in app.js) to the trip they're currently
+    planning. Region is approximated from the CURRENT trip's destination
+    field, since learning happens in service of planning that trip — the
+    common case (the blueprint's own example: learning from past Colorado
+    trips while planning a new one) is learning from a trip to the same
+    region, but this is a best-effort tag, not a verified fact.
+    """
+    body = request.json
+    region = _extract_trip_region(body.get('region_hint', ''))
+    hotel_per_night = body.get('hotel_per_night')
+    dining_per_person_day = body.get('dining_per_person_day')
+    activities_per_person_day = body.get('activities_per_person_day')
+    actual_total = body.get('actual_total')
+
+    with db_session() as session:
+        row = TripHistory(
+            trip_label=(body.get('label') or '')[:120],
+            region=region,
+            actual_total=actual_total,
+            actual_by_category=json.dumps({
+                'hotel_per_night': hotel_per_night,
+                'dining_per_person_day': dining_per_person_day,
+                'activities_per_person_day': activities_per_person_day,
+            }),
+        )
+        session.add(row)
+        session.commit()
+        return ok({'saved': True, 'id': row.id})
+
+
 @trip_bp.route('/oil-check', methods=['GET'])
 def check_oil_change():
     """
@@ -4030,6 +4111,31 @@ def save_trip_budget():
             row.value = val
         else:
             session.add(AppSetting(key='trip_budget', value=val))
+
+        # Write hook 1/2 for trip_history (Phase H2 Feature 3, deferred from
+        # Phase H1). Matched on (region, start_date, end_date) so re-saves
+        # during the same planning session (e.g. the AI-refine step re-POSTs)
+        # update the estimate rather than accumulating duplicate rows.
+        try:
+            region = _extract_trip_region(body.get('dest', ''))
+            start_date = date.fromisoformat(body['depart']) if body.get('depart') else None
+            end_date = date.fromisoformat(body['ret']) if body.get('ret') else None
+            if region and start_date and end_date and body.get('total') is not None:
+                trip_row = session.query(TripHistory).filter_by(
+                    region=region, start_date=start_date, end_date=end_date
+                ).first()
+                if not trip_row:
+                    trip_row = TripHistory(region=region, start_date=start_date, end_date=end_date)
+                    session.add(trip_row)
+                trip_row.trip_label = (body.get('dest') or '')[:120]
+                trip_row.estimated_total = float(body['total'])
+                trip_row.estimated_by_category = json.dumps({
+                    'transport': body.get('transport'), 'hotel': body.get('hotel'),
+                    'dining': body.get('dining'), 'activities': body.get('activities'),
+                })
+        except (ValueError, TypeError, KeyError) as e:
+            logging.getLogger('groundwork').warning('trip_history estimate write skipped: %s', e)
+
         session.commit()
         return ok({'saved': True})
 

@@ -10200,6 +10200,29 @@ function _applyTripLearnedBasis() {
   if (resultEl) resultEl.innerHTML = `<div style="font-size:12px;color:var(--pine)">✓ Using ${esc(_tripLearnedBasis.label)}'s real spending as this trip's budget basis. <button onclick="_clearTripLearnedBasis()" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:12px;padding:0;margin-left:6px">Clear</button></div>`;
   showToast(`Using real numbers from ${_tripLearnedBasis.label}`, '', 'success');
   tripUpdateBudget();
+
+  // Write hook 2/2 for trip_history (Phase H2 Feature 3, deferred from
+  // Phase H1 — see server.py :: save_trip_learned_actual). region_hint
+  // comes from the CURRENT trip's destination, since learning happens in
+  // service of planning that trip — an approximation, not a verified fact
+  // that the past trip was to the same place.
+  const depart = g('tripDepart')?.value, ret = g('tripReturn')?.value;
+  const travelers = parseInt(g('tripTravelers')?.value) || 1;
+  const nights = (depart && ret) ? Math.max(1, Math.round((new Date(ret) - new Date(depart)) / 86400000)) : null;
+  const days   = nights != null ? nights + 1 : null;
+  const actualTotal = (nights != null)
+    ? Math.round(_tripLearnedBasis.hotelPerNight * nights
+        + _tripLearnedBasis.diningPerPersonDay * days * travelers
+        + _tripLearnedBasis.activitiesPerPersonDay * days * travelers)
+    : null;
+  API.post('/api/trip/learned-actual', {
+    label: _tripLearnedBasis.label,
+    region_hint: g('tripDestination')?.value?.trim() || '',
+    hotel_per_night: _tripLearnedBasis.hotelPerNight,
+    dining_per_person_day: _tripLearnedBasis.diningPerPersonDay,
+    activities_per_person_day: _tripLearnedBasis.activitiesPerPersonDay,
+    actual_total: actualTotal,
+  }).catch(_gwErr('_applyTripLearnedBasis:saveActual'));
 }
 
 function _clearTripLearnedBasis() {
@@ -10579,6 +10602,32 @@ function tripUpdateBudget() {
     saveOpts.style.display = '';
     if (!_tripFunding) setTripFunding('now');
     else _renderFundingDetail();
+  }
+
+  _showTripForecastHint(dest, total);
+}
+
+// Phase H2 Feature 3: adjust the estimate using real regional variance from
+// trip_history, once there's data to adjust from (server.py ::
+// get_improved_trip_estimate). Silent no-op — no hint shown — until then.
+let _tripForecastReqId = 0;
+async function _showTripForecastHint(dest, baseTotal) {
+  const hint = g('tripForecastHint');
+  if (!hint) return;
+  const reqId = ++_tripForecastReqId;   // dest changes fast while typing — only the latest fetch may render
+  try {
+    const res = await API.get(`/api/trip/forecast?region=${encodeURIComponent(dest)}&base_estimate=${baseTotal}`);
+    if (reqId !== _tripForecastReqId) return;
+    if (res.confidence === 'none') { hint.style.display = 'none'; return; }
+    const dir = res.adjustment_pct > 0 ? 'higher' : 'lower';
+    hint.style.display = '';
+    hint.innerHTML = `<div style="padding:10px 14px;border-radius:var(--r-md);background:var(--mist);border:0.5px solid var(--steel);font-size:12px;color:var(--slate)">
+      📍 Your past trips to this region ran ${Math.abs(res.adjustment_pct)}% ${dir} than estimated (${res.trip_count} trip${res.trip_count!==1?'s':''} tracked · ${res.confidence} confidence).
+      Adjusted estimate: <strong style="color:var(--ink)">${fmt(res.estimate)}</strong>.
+    </div>`;
+  } catch (e) {
+    if (reqId === _tripForecastReqId) hint.style.display = 'none';
+    _gwErr('_showTripForecastHint')(e);
   }
 }
 

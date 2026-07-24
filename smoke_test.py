@@ -952,6 +952,77 @@ def main():
     check('GET /api/budget/variance route works end-to-end',
           r.status_code == 200 and route_data.get('suggested_budget') == 575.0)
 
+    # ── 25. Adaptive Learning Feature 3 (trip spending forecast) ──────────────
+    from server import get_improved_trip_estimate, _extract_trip_region
+
+    check('_extract_trip_region parses "City, ST"', _extract_trip_region('Denver, CO') == 'CO')
+    check('_extract_trip_region falls back to the raw string with no comma',
+          _extract_trip_region('Somewhere') == 'Somewhere')
+    check('_extract_trip_region handles blank input', _extract_trip_region('') is None)
+
+    with _dbs() as session:
+        empty_forecast = get_improved_trip_estimate(session, 'ZzNoTripsHereZz', 1500.0)
+        check('get_improved_trip_estimate returns the base estimate unchanged with no regional data',
+              empty_forecast == {'estimate': 1500.0, 'adjustment_pct': 0, 'confidence': 'none', 'trip_count': 0})
+
+        # Two past CO trips, both ~15% over their estimate.
+        session.add(_TH(region='CO', trip_label='CO Trip 1', estimated_total=1200.0, actual_total=1380.0))
+        session.add(_TH(region='CO', trip_label='CO Trip 2', estimated_total=1300.0, actual_total=1495.0))
+        session.commit()
+
+    with _dbs() as session:
+        forecast = get_improved_trip_estimate(session, 'CO', 1500.0)
+        check('get_improved_trip_estimate adjusts upward from real regional overspend',
+              forecast['confidence'] == 'medium' and forecast['trip_count'] == 2
+              and forecast['estimate'] > 1500.0)
+
+    r = c.get('/api/trip/forecast?region=CO&base_estimate=1500', headers=H)
+    check('GET /api/trip/forecast route works end-to-end',
+          r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('trip_count') == 2)
+
+    # Regression: the trip planner UI sends the full "City, ST" destination
+    # string as region, not a pre-extracted code — caught in browser testing
+    # when the route did an exact match against "Denver, CO" while
+    # trip_history stores the already-extracted "CO", silently finding
+    # nothing and hiding the forecast hint.
+    r = c.get('/api/trip/forecast?region=Denver%2C+CO&base_estimate=1500', headers=H)
+    check('GET /api/trip/forecast normalizes a full "City, ST" region string',
+          r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('trip_count') == 2)
+
+    r = c.get('/api/trip/forecast?region=CO&base_estimate=not-a-number', headers=H)
+    check('GET /api/trip/forecast rejects a non-numeric base_estimate (400)', r.status_code == 400)
+
+    # Write hook 1/2: saving a trip budget writes/updates the estimate side.
+    trip_body = {
+        'dest': 'Nashville, TN', 'depart': '2026-09-01', 'ret': '2026-09-05',
+        'total': 1800.0, 'transport': 300, 'hotel': 900, 'dining': 400, 'activities': 200,
+    }
+    c.post('/api/trip/budget', headers=HJ, data=json.dumps(trip_body))
+    with _dbs() as session:
+        saved_trip = session.query(_TH).filter_by(region='TN', start_date=_date(2026, 9, 1)).first()
+        check('saving a trip budget writes a trip_history row (estimate side)',
+              saved_trip is not None and saved_trip.estimated_total == 1800.0)
+
+    # Re-saving the same trip (same region/dates) updates rather than duplicates.
+    trip_body['total'] = 1850.0
+    c.post('/api/trip/budget', headers=HJ, data=json.dumps(trip_body))
+    with _dbs() as session:
+        matching = session.query(_TH).filter_by(region='TN', start_date=_date(2026, 9, 1)).all()
+        check('re-saving the same trip updates the existing row instead of duplicating',
+              len(matching) == 1 and matching[0].estimated_total == 1850.0)
+
+    # Write hook 2/2: applying a learned basis writes the actual side.
+    r = c.post('/api/trip/learned-actual', headers=HJ, data=json.dumps({
+        'label': 'Past Nashville Trip', 'region_hint': 'Nashville, TN',
+        'hotel_per_night': 150.0, 'dining_per_person_day': 60.0, 'activities_per_person_day': 40.0,
+        'actual_total': 1000.0,
+    }))
+    check('POST trip/learned-actual succeeds', r.status_code == 200)
+    with _dbs() as session:
+        actual_row = session.query(_TH).filter_by(region='TN', actual_total=1000.0).first()
+        check('the learned-actual write hook creates a trip_history row with the actual side filled',
+              actual_row is not None and actual_row.trip_label == 'Past Nashville Trip')
+
     return finish()
 
 
