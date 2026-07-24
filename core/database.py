@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from sqlalchemy import (
     create_engine, Column, Integer, Float, String,
-    Boolean, DateTime, Text, ForeignKey, Date, Index
+    Boolean, DateTime, Text, ForeignKey, Date, Index, UniqueConstraint
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session, relationship
 from sqlalchemy.pool import NullPool
@@ -142,6 +142,8 @@ class DebtAccount(Base):
     linked_account_id = Column(Integer, ForeignKey('accounts.id'), nullable=True)
     linked_account    = relationship('Account')
     credit_limit      = Column(Float, nullable=True)
+    debt_type         = Column(String(20), default='credit')
+    end_date          = Column(Date, nullable=True)
 
 
 class DebtBalanceHistory(Base):
@@ -160,6 +162,95 @@ class DebtBalanceHistory(Base):
     interest_charged      = Column(Float, nullable=True)
     statement_period_end  = Column(String(10), nullable=True)
     saved_at              = Column(DateTime, default=datetime.utcnow)
+
+
+class DebtLedgerEntry(Base):
+    """
+    Manual-entry ledger line for a debt account — charge/payment/interest/fee —
+    independent of CSV/OFX import. Debt Reconciliation Blueprint, Phase A.
+
+    No linked_payoff_plan_id column: this codebase has no persisted payoff-plan
+    table — payoff projections are computed on the fly client-side
+    (_calcDebtIntelligence in app.js), not stored server-side. Phase E decides
+    how a "suggested amount" gets computed for drafts; deliberately not
+    pointing a FK at a table that doesn't exist.
+    """
+    __tablename__ = 'debt_ledger_entries'
+    id               = Column(Integer, primary_key=True)
+    debt_account_id  = Column(Integer, ForeignKey('debt_accounts.id'), nullable=False)
+    entry_type       = Column(String(10), nullable=False)   # 'charge' | 'payment' | 'interest' | 'fee'
+    amount           = Column(Float, nullable=False)
+    entry_date       = Column(Date, nullable=False)
+    description      = Column(String(255), default='')
+    category         = Column(String(80), default='')
+    merchant         = Column(String(120), default='')
+    linked_checking_transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=True)
+    # 'manual' | 'imported' | 'inferred' | 'draft' (draft = Phase C scheduler,
+    # becomes 'manual' once the user confirms it)
+    source_type      = Column(String(10), nullable=False, default='manual')
+    created_at       = Column(DateTime, default=datetime.utcnow)
+    updated_at       = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    debt_account                = relationship('DebtAccount')
+    linked_checking_transaction = relationship('Transaction')
+
+    __table_args__ = (
+        Index('ix_dle_account_date', 'debt_account_id', 'entry_date'),
+        Index('ix_dle_source_type',  'source_type'),
+        Index('ix_dle_entry_type',   'entry_type'),
+    )
+
+
+class RecurringDebtPayment(Base):
+    """
+    Saved payment pattern (e.g. "$735 on the 15th of the month") that
+    generates draft ledger entries ahead of the due date. Schema lands in
+    Phase A; the draft generator itself is Phase C.
+    """
+    __tablename__ = 'recurring_debt_payments'
+    id                      = Column(Integer, primary_key=True)
+    debt_account_id         = Column(Integer, ForeignKey('debt_accounts.id'), nullable=False)
+    scheduled_date_of_month = Column(Integer, nullable=True)   # 1-31; null = "last day"
+    amount                  = Column(Float, nullable=False)
+    frequency               = Column(String(10), default='monthly')   # 'monthly' | 'biweekly' | 'weekly'
+    is_active               = Column(Boolean, default=True)
+    is_auto_confirm         = Column(Boolean, default=False)   # reserved — user opt-in, not wired yet
+    created_at              = Column(DateTime, default=datetime.utcnow)
+    last_confirmed_at       = Column(DateTime, nullable=True)
+    last_executed_at        = Column(DateTime, nullable=True)
+    created_from_transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=True)
+
+    debt_account = relationship('DebtAccount')
+
+    __table_args__ = (
+        Index('ix_rdp_account_active',  'debt_account_id', 'is_active'),
+        Index('ix_rdp_schedule_active', 'scheduled_date_of_month', 'is_active'),
+    )
+
+
+class CheckingTransactionLink(Base):
+    """
+    Explicit link between a checking-account payment (Transaction) and a debt
+    ledger entry. The checking transaction stays the single source of truth
+    for the payment; this table just records the association so nothing gets
+    double-entered, and can be removed (unlinked) without deleting either side.
+    """
+    __tablename__ = 'checking_transaction_links'
+    id                      = Column(Integer, primary_key=True)
+    checking_transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
+    debt_ledger_entry_id    = Column(Integer, ForeignKey('debt_ledger_entries.id'), nullable=False)
+    link_indicator          = Column(String(20), nullable=False)   # 'payment_to_card' | 'charge_from_card'
+    created_at              = Column(DateTime, default=datetime.utcnow)
+    user_confirmed_at       = Column(DateTime, nullable=True)
+
+    checking_transaction = relationship('Transaction')
+    debt_entry           = relationship('DebtLedgerEntry')
+
+    __table_args__ = (
+        Index('ix_ctl_checking_txn', 'checking_transaction_id'),
+        Index('ix_ctl_debt_entry',   'debt_ledger_entry_id'),
+        UniqueConstraint('checking_transaction_id', 'debt_ledger_entry_id', name='uq_checking_debt_link'),
+    )
 
 
 class PdfExtractCache(Base):

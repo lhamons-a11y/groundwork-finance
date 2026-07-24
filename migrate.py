@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260719-p4a'
+SCHEMA_VERSION = '20260724-drB'
 
 
 def _stored_schema_version():
@@ -45,6 +45,13 @@ _NEW_DEBT_COLUMNS = [
     # doubles as the "paid · March 2026" label. Model line required in
     # core/database.py: paid_off_at = Column(Date, nullable=True)
     ('paid_off_at',       "DATE"),
+    # create_debt()/update_debt() in server.py pass debt_type and end_date
+    # to the DebtAccount constructor/setattr long before these existed as
+    # real columns — same TypeError-on-INSERT failure mode as the other
+    # columns in this list. Model lines required in core/database.py:
+    # debt_type = Column(String(20), default='credit'); end_date = Column(Date, nullable=True)
+    ('debt_type',         "VARCHAR(20) DEFAULT 'credit'"),
+    ('end_date',          "DATE"),
 ]
 
 _NEW_ACCOUNT_COLUMNS = [

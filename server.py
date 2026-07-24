@@ -43,6 +43,7 @@ from core.database import ( db_session, DATA_DIR,
     AppSetting, BYBItem, NetWorthSnapshot,
     InvestmentTransaction, InvestmentLot, PriceCache,
     DebtBalanceHistory, PdfExtractCache,
+    DebtLedgerEntry, RecurringDebtPayment, CheckingTransactionLink,
 )
 from migrate import run_migration_if_needed
 
@@ -1690,6 +1691,118 @@ CFPB_CANT_PAY_URL = (
     'https://www.consumerfinance.gov/ask-cfpb/'
     'what-should-i-do-if-i-cant-pay-my-credit-card-bills-en-1697/'
 )
+
+
+# ── Debt Reconciliation (Phase A: data layer) ──────────────────────────────────
+# Debt Reconciliation Blueprint, Phase A. Query helpers + serializers only —
+# no routes yet (those land with the UI in Phases B-D). Two helpers from the
+# blueprint's original Phase A list are deliberately not implemented here:
+#   - logHistorianEvent(): there is no historian_entries table in this
+#     codebase yet (see GROUNDWORK_1_0_ROADMAP.md Phase H1) — writing to a
+#     table that doesn't exist isn't an option, and a stub that discards the
+#     event would just be dead code. Lands in Phase H1.
+#   - getPayoffPlanSuggestedAmount(): there is no persisted payoff-plan
+#     entity in this codebase — payoff projections are computed client-side
+#     on demand (_calcDebtIntelligence in app.js), not stored. Phase E has
+#     to decide how a suggested amount gets computed server-side; faking one
+#     now would be a half-finished implementation.
+
+def serialize_debt_ledger_entry(e: DebtLedgerEntry) -> dict:
+    return {
+        'id':                              e.id,
+        'debt_account_id':                 e.debt_account_id,
+        'entry_type':                      e.entry_type,
+        'amount':                          e.amount,
+        'entry_date':                      e.entry_date.isoformat() if e.entry_date else None,
+        'description':                     e.description or '',
+        'category':                        e.category or '',
+        'merchant':                        e.merchant or '',
+        'linked_checking_transaction_id':  e.linked_checking_transaction_id,
+        'source_type':                     e.source_type,
+        'created_at':                      e.created_at.isoformat() if e.created_at else None,
+        'updated_at':                      e.updated_at.isoformat() if e.updated_at else None,
+    }
+
+
+def serialize_recurring_debt_payment(r: RecurringDebtPayment) -> dict:
+    return {
+        'id':                          r.id,
+        'debt_account_id':             r.debt_account_id,
+        'scheduled_date_of_month':     r.scheduled_date_of_month,
+        'amount':                      r.amount,
+        'frequency':                   r.frequency,
+        'is_active':                   r.is_active,
+        'is_auto_confirm':             r.is_auto_confirm,
+        'created_at':                  r.created_at.isoformat() if r.created_at else None,
+        'last_confirmed_at':           r.last_confirmed_at.isoformat() if r.last_confirmed_at else None,
+        'last_executed_at':            r.last_executed_at.isoformat() if r.last_executed_at else None,
+        'created_from_transaction_id': r.created_from_transaction_id,
+    }
+
+
+def serialize_checking_transaction_link(link: CheckingTransactionLink) -> dict:
+    return {
+        'id':                        link.id,
+        'checking_transaction_id':   link.checking_transaction_id,
+        'debt_ledger_entry_id':      link.debt_ledger_entry_id,
+        'link_indicator':            link.link_indicator,
+        'created_at':                link.created_at.isoformat() if link.created_at else None,
+        'user_confirmed_at':         link.user_confirmed_at.isoformat() if link.user_confirmed_at else None,
+    }
+
+
+def get_debt_ledger_for_account(session, account_id: int, start_date=None, end_date=None) -> list:
+    """All debt ledger entries for an account, newest first. Caller supplies
+    an open session (matches this file's convention — see list_transactions)."""
+    q = session.query(DebtLedgerEntry).filter_by(debt_account_id=account_id)
+    if start_date:
+        q = q.filter(DebtLedgerEntry.entry_date >= start_date)
+    if end_date:
+        q = q.filter(DebtLedgerEntry.entry_date <= end_date)
+    return q.order_by(DebtLedgerEntry.entry_date.desc(), DebtLedgerEntry.id.desc()).all()
+
+
+def get_recurring_payments_due(session, range_start, range_end) -> list:
+    """Active recurring payments whose scheduled_date_of_month falls within
+    [range_start, range_end] for the months that range spans. Phase C's
+    scheduler calls this with a 3-5 day lookahead window; this function only
+    resolves *which* recurring patterns are due, not draft generation itself
+    (that's Phase C)."""
+    from calendar import monthrange
+
+    recurring = session.query(RecurringDebtPayment).filter_by(is_active=True).all()
+    due = []
+    # Walk each calendar month the range touches (almost always 1, occasionally
+    # 2 near a month boundary) so "last day of month" (None) resolves correctly
+    # per month rather than assuming range_start's month throughout.
+    months_seen = set()
+    cursor = date(range_start.year, range_start.month, 1)
+    while cursor <= range_end:
+        months_seen.add((cursor.year, cursor.month))
+        cursor = date(cursor.year + (cursor.month == 12), (cursor.month % 12) + 1, 1)
+
+    for r in recurring:
+        if r.frequency != 'monthly':
+            # weekly/biweekly due-date math isn't defined by a day-of-month
+            # field — out of scope until a phase actually needs it.
+            continue
+        for (yr, mo) in months_seen:
+            last_day = monthrange(yr, mo)[1]
+            day = r.scheduled_date_of_month or last_day
+            day = min(day, last_day)   # e.g. "31st" in a 30-day month
+            due_date = date(yr, mo, day)
+            if range_start <= due_date <= range_end:
+                due.append({'recurring': r, 'due_date': due_date})
+    return due
+
+
+def get_checking_transaction_link(session, checking_transaction_id: int) -> 'CheckingTransactionLink | None':
+    """The link row for a checking transaction, if it's been linked to a debt
+    payment. Returns None (not an empty list) — a checking transaction can be
+    linked to at most one debt entry, enforced by the unique constraint."""
+    return session.query(CheckingTransactionLink).filter_by(
+        checking_transaction_id=checking_transaction_id
+    ).first()
 
 
 # ── Achievements ──────────────────────────────────────────────────────────────

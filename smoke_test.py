@@ -249,6 +249,112 @@ def main():
     check("app.js has a 'not reachable' fallback for local AI",
           'Not reachable' in app_src)
 
+    # ── 16. Debt Reconciliation Phase A (data layer) ──────────────────────────
+    # No routes exist yet (Phase A is schema + query helpers only — UI lands
+    # in Phase B), so this exercises the models and helpers directly against
+    # the same temp DB the server booted against.
+    from datetime import date as _date, timedelta as _timedelta
+    from core.database import (
+        DebtAccount as _DA, DebtLedgerEntry as _DLE,
+        RecurringDebtPayment as _RDP, CheckingTransactionLink as _CTL,
+        Account as _Acct, Transaction as _Txn, db_session as _dbs,
+    )
+    from server import (
+        get_debt_ledger_for_account, get_recurring_payments_due,
+        get_checking_transaction_link, serialize_debt_ledger_entry,
+    )
+
+    with engine.connect() as conn:
+        _new_tables = {row[0] for row in conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name IN "
+            "('debt_ledger_entries','recurring_debt_payments','checking_transaction_links')"
+        ))}
+    check('debt reconciliation tables exist (3)', len(_new_tables) == 3)
+
+    with engine.connect() as conn:
+        _new_idx = {row[0] for row in conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name IN "
+            "('debt_ledger_entries','recurring_debt_payments','checking_transaction_links')"
+        ))}
+    check('debt reconciliation indexes exist (>=7)', len(_new_idx) >= 7)
+
+    with _dbs() as session:
+        debt = _DA(name='Smoke Test Card', current_balance=1000.0)
+        session.add(debt)
+        session.flush()
+
+        charge  = _DLE(debt_account_id=debt.id, entry_type='charge',  amount=60.0,
+                        entry_date=_date(2026, 7, 3), merchant='Costco', source_type='manual')
+        payment = _DLE(debt_account_id=debt.id, entry_type='payment', amount=50.0,
+                        entry_date=_date(2026, 7, 15), source_type='manual')
+        session.add_all([charge, payment])
+        session.flush()
+
+        entries = get_debt_ledger_for_account(session, debt.id)
+        check('get_debt_ledger_for_account returns both entries', len(entries) == 2)
+        check('get_debt_ledger_for_account orders newest-first',
+              entries and entries[0].entry_date == _date(2026, 7, 15))
+
+        ser = serialize_debt_ledger_entry(charge)
+        check('serialize_debt_ledger_entry shape',
+              ser.get('entry_type') == 'charge' and ser.get('amount') == 60.0
+              and ser.get('entry_date') == '2026-07-03')
+
+        acct = _Acct(name='Smoke Checking', type='checking')
+        session.add(acct)
+        session.flush()
+        txn = _Txn(date=_date(2026, 7, 15), amount=50.0, type='debit',
+                    account_id=acct.id, description='Transfer to Smoke Test Card')
+        session.add(txn)
+        session.flush()
+
+        link = _CTL(checking_transaction_id=txn.id, debt_ledger_entry_id=payment.id,
+                     link_indicator='payment_to_card')
+        session.add(link)
+        session.flush()
+
+        found = get_checking_transaction_link(session, txn.id)
+        check('get_checking_transaction_link finds the link',
+              found is not None and found.debt_ledger_entry_id == payment.id)
+        check('get_checking_transaction_link returns None for unlinked txn',
+              get_checking_transaction_link(session, 999999) is None)
+
+        # Edge case: same checking txn linked to the same debt entry twice must
+        # be rejected (UniqueConstraint), not silently duplicated.
+        dup_rejected = False
+        try:
+            session.add(_CTL(checking_transaction_id=txn.id, debt_ledger_entry_id=payment.id,
+                              link_indicator='payment_to_card'))
+            session.flush()
+        except Exception:
+            dup_rejected = True
+            session.rollback()
+        check('duplicate checking-debt link is rejected', dup_rejected)
+
+        recurring = _RDP(debt_account_id=debt.id, scheduled_date_of_month=15,
+                          amount=735.0, frequency='monthly', is_active=True)
+        session.add(recurring)
+        session.flush()
+
+        due_in_window     = get_recurring_payments_due(session, _date(2026, 8, 10), _date(2026, 8, 20))
+        due_outside_window= get_recurring_payments_due(session, _date(2026, 8, 1),  _date(2026, 8, 9))
+        check('get_recurring_payments_due finds a payment due on the 15th',
+              len(due_in_window) == 1 and due_in_window[0]['due_date'] == _date(2026, 8, 15))
+        check('get_recurring_payments_due excludes payments outside the window',
+              len(due_outside_window) == 0)
+
+        # "Last day of month" (scheduled_date_of_month=None) must clamp to the
+        # real last day, not overflow into the next month.
+        recurring_eom = _RDP(debt_account_id=debt.id, scheduled_date_of_month=None,
+                              amount=100.0, frequency='monthly', is_active=True)
+        session.add(recurring_eom)
+        session.flush()
+        due_eom = get_recurring_payments_due(session, _date(2026, 2, 25), _date(2026, 2, 28))
+        check('get_recurring_payments_due clamps "last day" for a 28-day month',
+              any(d['due_date'] == _date(2026, 2, 28) for d in due_eom))
+
+        session.rollback()   # smoke fixtures never persist past this check
+
     return finish()
 
 
