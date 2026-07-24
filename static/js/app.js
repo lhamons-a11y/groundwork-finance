@@ -23661,8 +23661,26 @@ async function _rcRenderDistanceTraveled() {
     }
   } catch (e) { _gwErr('_rcRenderDistanceTraveled:compliance')(e); }
 
+  // Phase H2 Feature 5 (adaptive learning — payoff confidence scoring):
+  // thin read of Phase H1's get_payment_compliance_confidence per account.
+  // Averaged (unweighted) across accounts that have a real score — blending
+  // confidence across unrelated debts has no precise meaning, so this is
+  // presented as a simple average, not a single deterministic figure.
+  let payoffConfidence = null;
+  try {
+    const confResults = await Promise.all(
+      S.debtCards.filter(c => c._dbId).map(c =>
+        API.get(`/api/debt/${c._dbId}/confidence`).catch(() => ({confidence_pct: null})))
+    );
+    const scored = confResults.filter(r => r.confidence_pct !== null);
+    if (scored.length) {
+      payoffConfidence = Math.round(scored.reduce((s,r) => s + r.confidence_pct, 0) / scored.length);
+    }
+  } catch (e) { _gwErr('_rcRenderDistanceTraveled:confidence')(e); }
+
   const d = _dtComputeDistance();
   d.paymentCompliance = paymentCompliance;
+  d.payoffConfidence = payoffConfidence;
 
   if (!d.perCard.length) {
     body.innerHTML = `
@@ -23710,6 +23728,11 @@ async function _rcRenderDistanceTraveled() {
     <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Payments on schedule</div>
     <div style="font-family:var(--font-mono);font-size:24px;font-weight:600;color:var(--ink)">${d.paymentCompliance.onTime}/${d.paymentCompliance.total}</div>
     <div style="font-size:11px;color:var(--slate);margin-top:2px">±5% of plan · avg variance ${d.paymentCompliance.avgVariancePct > 0 ? '+' : ''}${d.paymentCompliance.avgVariancePct}%</div>
+  </div>`);
+  if (d.payoffConfidence != null) hero.push(`<div class="card" style="padding:16px">
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Payoff confidence</div>
+    <div style="font-family:var(--font-mono);font-size:24px;font-weight:600;color:${d.payoffConfidence>=70?'var(--pine)':d.payoffConfidence>=40?'var(--gold)':'var(--ember)'}">${d.payoffConfidence}%</div>
+    <div style="font-size:11px;color:var(--slate);margin-top:2px">from your real payment reliability</div>
   </div>`);
 
   // Per-debt distance rows — retired cards get the struck-through display,
@@ -23824,6 +23847,9 @@ function _rcDistanceTraveledAI(d) {
       ...(d.paymentCompliance.over > 0 ? [`Payments above the planned amount: ${d.paymentCompliance.over}`] : []),
       `Average variance from the planned payment amount: ${d.paymentCompliance.avgVariancePct > 0 ? '+' : ''}${d.paymentCompliance.avgVariancePct}%`,
     ] : []),
+    // Payoff confidence (Phase H2 Feature 5) — from real payment reliability,
+    // not a payoff-plan entity (see server.py :: get_payment_compliance_confidence).
+    ...(d.payoffConfidence != null ? [`Payoff confidence, from real payment reliability: ${d.payoffConfidence}%`] : []),
     ...(d.allClear ? ['All debts are paid.'] : [`Current total balance: ${fmt(d.totalNow)}`]),
   ];
 

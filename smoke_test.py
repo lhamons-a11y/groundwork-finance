@@ -1069,6 +1069,38 @@ def main():
     check('GET /api/budget/detect-recurring route works end-to-end',
           r.status_code == 200 and not any(p['merchant'] == 'Netflix' for p in route_data))
 
+    # ── 27. Adaptive Learning Feature 5 (payoff confidence scoring) ──────────
+    # The scoring function itself (get_payment_compliance_confidence) was
+    # already built and tested in Phase H1 — Feature 5 IS that function; this
+    # just verifies the new HTTP route that exposes it for the narrative.
+    with _dbs() as session:
+        debt11 = _DA(name='Confidence Route Smoke Card', current_balance=100.0)
+        session.add(debt11); session.commit()
+        _debt11_id = debt11.id
+
+    r = c.get(f'/api/debt/{_debt11_id}/confidence', headers=H)
+    conf_data = (r.get_json() or {}).get('data') or {}
+    check('GET /api/debt/<id>/confidence returns an honest null for an account with no history',
+          r.status_code == 200 and conf_data.get('confidence_pct') is None)
+
+    r = c.get('/api/debt/999999/confidence', headers=H)
+    check('GET /api/debt/<id>/confidence 404s for an unknown account', r.status_code == 404)
+
+    with _dbs() as session:
+        log_historian_event(session, 'payment_confirmed', debt_account_id=_debt11_id,
+                             expected_value=100.0, actual_value=100.0)
+        session.commit()
+    r = c.get(f'/api/debt/{_debt11_id}/confidence', headers=H)
+    conf_data2 = (r.get_json() or {}).get('data') or {}
+    check('GET /api/debt/<id>/confidence scores a perfect on-time history at 100%',
+          conf_data2.get('confidence_pct') == 100)
+
+    # app.js wiring check — matches the pattern used for Phase F's other
+    # static-content checks (no new server surface beyond the route above).
+    check('app.js Distance Traveled fetches and narrates payoff confidence',
+          "get(`/api/debt/${c._dbId}/confidence`)" in app_src
+          and 'Payoff confidence, from real payment reliability' in app_src)
+
     return finish()
 
 

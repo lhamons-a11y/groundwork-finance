@@ -2199,6 +2199,18 @@ def get_payment_compliance(session, recurring_id: int) -> dict:
     }
 
 
+@debt_bp.route('/<int:debt_id>/confidence', methods=['GET'])
+def debt_payoff_confidence(debt_id):
+    """Phase H2 Feature 5 (adaptive learning — payoff confidence scoring).
+    Thin wrapper around Phase H1's get_payment_compliance_confidence —
+    that function already IS this feature; H1 built it in anticipation of
+    this exact use, per its own docstring."""
+    with db_session() as session:
+        if not session.get(DebtAccount, debt_id):
+            return err('Not found', 404)
+        return ok(get_payment_compliance_confidence(session, debt_id))
+
+
 @debt_bp.route('/<int:debt_id>/recurring', methods=['GET'])
 def list_recurring_payments(debt_id):
     with db_session() as session:
