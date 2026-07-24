@@ -1,5 +1,25 @@
 [
   {
+    "version": "20260724-v1",
+    "date": "2026-07-24",
+    "headline": "Groundwork 1.0 — debt reconciliation, adaptive learning",
+    "added": [
+      "Debt reconciliation: manual charge/payment entries directly on a debt card, with semantic Charged/Payment/Interest verbs and a running total",
+      "Recurring debt payments — save a payment pattern once, confirm/edit/skip a draft each month instead of re-entering it",
+      "Link a checking-account payment to a debt entry from either the debt ledger or the main Ledger — no double-entry, and unlinking keeps both records intact",
+      "Debt ledger activity now actually moves the account balance, so the avalanche/snowball payoff projection reflects what you've really paid",
+      "Distance Traveled report shows payment compliance (on-time vs. under/over plan) and a payoff confidence score, from your real payment history",
+      "Category suggestions when entering a debt charge, from your own merchant history",
+      "Budget variance learning — see which categories run volatile vs. stable, with a suggested buffer",
+      "Trip spending forecast — past trips to a region adjust a new trip's estimate",
+      "Recurring-transaction detection in the Ledger — spots subscription-shaped patterns (consistent merchant + amount) and offers to add them to your budget",
+      "AI narrative gate health panel in Settings — see what the validation gate has caught before it ever reached your screen"
+    ],
+    "improved": [
+      "Historian: a structured, queryable record of what happened vs. what was expected, underneath the debt reconciliation and adaptive-learning features above"
+    ]
+  },
+  {
     "version": "20260706-d18",
     "date": "2026-07-06",
     "headline": "Beta re-invitation build",
