@@ -4925,6 +4925,23 @@ def ai_voice_miss():
     return ok({'logged': True})
 
 
+@ai_bp.route('/miss-log', methods=['GET'])
+def ai_miss_log_summary():
+    """
+    Phase H2 Feature 6 (adaptive learning — LLM gate improvement). Exposes
+    Phase H1's get_llm_miss_log() so gate flags can actually be reviewed:
+    which rules are failing most, on which surfaces, and the raw rejected
+    text to read. "Improvement" itself (tightening a wordlist, rewording a
+    prompt rule) is a human-in-the-loop step informed by this data, not
+    something this route does automatically — there's no real observed
+    failure pattern to react to until an actual gate miss happens in the
+    field, and fabricating a "fix" without one would be exactly the kind
+    of invented confidence this whole gate exists to prevent.
+    """
+    days = int(request.args.get('days', 30))
+    return ok(get_llm_miss_log(time_range_days=days))
+
+
 # ── Auto-import queue (Downloads folder watcher bridge) ───────────────────────
 # launch.py POSTs detected files here; the frontend polls /pending to retrieve them.
 

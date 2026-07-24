@@ -20496,6 +20496,34 @@ function renderAISettings() {
   if (g('aiLocalEndpoint') && !g('aiLocalEndpoint').value) g('aiLocalEndpoint').value = S.localEndpoint || '';
 
   if (!isCloud) _loadAiLocalStatus();
+  _loadGateHealth();
+}
+
+// Phase H2 Feature 6 (adaptive learning — LLM gate improvement). Surfaces
+// gate-flag stats so misses can actually be reviewed. Improvement itself —
+// tightening a wordlist, rewording a prompt rule — is a human judgment call
+// informed by this data, not something computed here.
+async function _loadGateHealth() {
+  const panel = g('gateHealthPanel');
+  if (!panel) return;
+  try {
+    const data = await API.get('/api/ai/miss-log?days=30');
+    const counts = data.gate_flag_count_by_type || {};
+    const total = Object.values(counts).reduce((s,n) => s+n, 0);
+    if (!total) {
+      panel.innerHTML = `<span style="color:var(--pine)">●</span> No gate rejections in the last 30 days.`;
+      return;
+    }
+    const rows = Object.entries(counts).sort((a,b) => b[1]-a[1])
+      .map(([rule,n]) => `<div style="display:flex;justify-content:space-between;padding:3px 0"><span>${esc(rule)}</span><span style="font-family:var(--font-mono)">${n}</span></div>`)
+      .join('');
+    panel.innerHTML = `
+      <div style="margin-bottom:6px"><span style="color:var(--gold)">●</span> ${total} rejection${total!==1?'s':''} in the last 30 days (each one caught before you saw it):</div>
+      ${rows}`;
+  } catch (e) {
+    panel.innerHTML = `<span style="color:var(--slate-2)">Could not load gate health.</span>`;
+    _gwErr('_loadGateHealth')(e);
+  }
 }
 
 async function _loadAiLocalStatus() {

@@ -2500,6 +2500,13 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div class="text-xs text-muted mt-4">Free key at <a href="https://console.anthropic.com" target="_blank" rel="noopener" onclick="openExternal('https://console.anthropic.com');return false;" style="color:var(--sky)">console.anthropic.com</a>. Stays on your computer.</div>
             </div>
           </div>
+          <!-- Phase H2 Feature 6: LLM gate health — surfaces Phase H1's
+               get_llm_miss_log() so gate flags can actually be reviewed. -->
+          <div class="card mb-4">
+            <div class="card-label">AI narrative gate health</div>
+            <div class="text-xs text-muted mb-4">How often generated narratives get rejected before you see them, and why — the validation gate that keeps invented numbers off the screen.</div>
+            <div id="gateHealthPanel" style="font-size:12px;color:var(--slate)">Loading…</div>
+          </div>
           <div class="card">
             <div class="card-label">Budget settings</div>
             <div class="field mb-4"><label>Default savings target (%)</label><input type="number" id="settingsSavingsPct" placeholder="10" min="0" max="50"></div>

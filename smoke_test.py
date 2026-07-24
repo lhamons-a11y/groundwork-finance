@@ -1101,6 +1101,19 @@ def main():
           "get(`/api/debt/${c._dbId}/confidence`)" in app_src
           and 'Payoff confidence, from real payment reliability' in app_src)
 
+    # ── 28. Adaptive Learning Feature 6 (LLM gate improvement) ────────────────
+    r = c.get('/api/ai/miss-log?days=30', headers=H)
+    miss_route_data = (r.get_json() or {}).get('data') or {}
+    check('GET /api/ai/miss-log route works end-to-end and reflects the earlier logged miss',
+          r.status_code == 200 and miss_route_data.get('gate_flag_count_by_type', {}).get('R8_number_provenance', 0) >= 1)
+
+    r = c.get('/api/ai/miss-log?days=0', headers=H)
+    check('GET /api/ai/miss-log with a zero-day window finds nothing (honest, not an error)',
+          r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('gate_flag_count_by_type') == {})
+
+    check('app.js Settings renders the gate-health panel',
+          'gateHealthPanel' in app_src and "get('/api/ai/miss-log" in app_src)
+
     return finish()
 
 
