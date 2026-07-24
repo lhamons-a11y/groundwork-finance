@@ -1121,6 +1121,70 @@ def _serialize_account(a: Account, session=None) -> dict:
 budget_bp = Blueprint('budget', __name__)
 
 
+def get_budget_variance_for_category(session, category_name: str, months: int = 6) -> dict:
+    """
+    Phase H2 Feature 2 (adaptive learning — budget variance). Real spending
+    volatility for a budgeted category, from actual transactions over a
+    trailing window — not the historian scaffold (nothing writes
+    budget_variance_observed yet), a direct computation against real data,
+    matching how Feature 1's category suggestion also reads real history
+    directly rather than waiting on a historian writer that doesn't exist.
+    """
+    empty = {'category': category_name, 'budgeted': None, 'avg_actual': None,
+              'volatility': None, 'classification': None, 'months_sampled': 0}
+    item = session.query(BudgetItem).filter_by(category=category_name, is_active=True).first()
+    if not item or not item.amount:
+        return empty
+
+    cutoff = date.today() - timedelta(days=30 * months)
+    rows = session.query(
+        func.strftime('%Y-%m', Transaction.date).label('month'),
+        func.sum(Transaction.amount).label('total')
+    ).join(Category, Transaction.category_id == Category.id).filter(
+        Category.name == category_name, Transaction.type == 'debit', Transaction.date >= cutoff
+    ).group_by('month').all()
+    if not rows:
+        return {**empty, 'budgeted': item.amount}
+
+    actuals = [r[1] for r in rows]
+    avg_actual = sum(actuals) / len(actuals)
+    per_month_variance_pct = [abs(a - item.amount) / item.amount * 100 for a in actuals]
+    volatility = sum(per_month_variance_pct) / len(per_month_variance_pct)
+    classification = 'stable' if volatility < 10 else 'volatile' if volatility > 30 else 'moderate'
+
+    return {
+        'category': category_name, 'budgeted': item.amount, 'avg_actual': round(avg_actual, 2),
+        'volatility': round(volatility, 1), 'classification': classification, 'months_sampled': len(actuals),
+    }
+
+
+def suggest_budget_adjustment(proposed_budget: float, volatility_pct) -> float:
+    """Add a buffer to volatile categories, tighten stable ones. A no-op
+    (returns proposed_budget unchanged) when volatility isn't known —
+    never adjust based on a guess."""
+    if volatility_pct is None:
+        return proposed_budget
+    if volatility_pct > 30:
+        return round(proposed_budget * 1.15, 2)
+    if volatility_pct < 10:
+        return round(proposed_budget * 0.95, 2)
+    return proposed_budget
+
+
+@budget_bp.route('/variance', methods=['GET'])
+def budget_variance():
+    category = request.args.get('category', '')
+    months = int(request.args.get('months', 6))
+    with db_session() as session:
+        variance = get_budget_variance_for_category(session, category, months)
+        result = dict(variance)
+        if variance['budgeted'] is not None:
+            result['suggested_budget'] = suggest_budget_adjustment(variance['budgeted'], variance['volatility'])
+        else:
+            result['suggested_budget'] = None
+        return ok(result)
+
+
 @budget_bp.route('/items', methods=['GET'])
 def get_budget_items():
     with db_session() as session:

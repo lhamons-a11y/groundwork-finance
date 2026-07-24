@@ -904,6 +904,54 @@ def main():
     check('GET /api/categories/suggest handles a missing merchant param gracefully',
           r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('category') is None)
 
+    # ── 24. Adaptive Learning Feature 2 (budget variance learning) ───────────
+    from server import get_budget_variance_for_category, suggest_budget_adjustment
+    from core.database import BudgetItem as _BI
+
+    with _dbs() as session:
+        session.add(_BI(name='Smoke Volatile Item', category='Restaurants', amount=500.0, type='expense'))
+        session.add(_BI(name='Smoke Stable Item', category='Coffee Shops', amount=300.0, type='expense'))
+        session.commit()
+
+        acct9 = _Acct(name='Budget Variance Smoke Checking', type='checking')
+        session.add(acct9); session.flush()
+        restaurants = session.query(_Cat).filter_by(name='Restaurants').first()
+        coffee = session.query(_Cat).filter_by(name='Coffee Shops').first()
+        # Volatile: 200, 800, 200 vs budgeted 500 -> 60% avg variance each month.
+        for i, amt in enumerate([200.0, 800.0, 200.0]):
+            session.add(_Txn(date=_date(2026, 4 + i, 15), amount=amt, type='debit',
+                              account_id=acct9.id, category_id=restaurants.id))
+        # Stable: 310, 295, 305 vs budgeted 300 -> ~3.3% avg variance.
+        for i, amt in enumerate([310.0, 295.0, 305.0]):
+            session.add(_Txn(date=_date(2026, 4 + i, 20), amount=amt, type='debit',
+                              account_id=acct9.id, category_id=coffee.id))
+        session.commit()
+
+    with _dbs() as session:
+        volatile = get_budget_variance_for_category(session, 'Restaurants', months=6)
+        check('volatile category is classified correctly from real spending',
+              volatile['classification'] == 'volatile' and volatile['months_sampled'] == 3)
+        check('suggest_budget_adjustment adds a 15% buffer for a volatile category',
+              suggest_budget_adjustment(500.0, volatile['volatility']) == 575.0)
+
+        stable = get_budget_variance_for_category(session, 'Coffee Shops', months=6)
+        check('stable category is classified correctly from real spending',
+              stable['classification'] == 'stable')
+        check('suggest_budget_adjustment tightens a stable category by 5%',
+              suggest_budget_adjustment(300.0, stable['volatility']) == 285.0)
+
+        no_budget = get_budget_variance_for_category(session, 'ZzNoBudgetItemZz', months=6)
+        check('get_budget_variance_for_category returns honest empty shape with no budget item',
+              no_budget['classification'] is None and no_budget['months_sampled'] == 0)
+
+        check('suggest_budget_adjustment is a no-op when volatility is unknown',
+              suggest_budget_adjustment(400.0, None) == 400.0)
+
+    r = c.get('/api/budget/variance?category=Restaurants&months=6', headers=H)
+    route_data = (r.get_json() or {}).get('data') or {}
+    check('GET /api/budget/variance route works end-to-end',
+          r.status_code == 200 and route_data.get('suggested_budget') == 575.0)
+
     return finish()
 
 
