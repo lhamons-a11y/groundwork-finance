@@ -4086,11 +4086,20 @@ function _ledgerRowHTML(t) {
   const iconBg     = _catTint(catStyle.color);
   const iconBorder = _catTintBorder(catStyle.color);
 
+  // Debt Reconciliation Phase D — 💳 if already linked to a debt payment
+  // (click jumps to that entry), a faint 🔗 offer to link if not (debits
+  // only — a debt payment is money leaving checking).
+  const debtLinkIcon = t.linked_debt_entry_id
+    ? `<span title="Linked to a debt payment — click to view" style="cursor:pointer;margin-left:5px" onclick="event.stopPropagation();jumpToLinkedDebtEntry(${t.linked_debt_entry_id})">💳</span>`
+    : (t.type === 'debit'
+        ? `<span title="Link to a debt account" style="cursor:pointer;margin-left:5px;opacity:.3" onclick="event.stopPropagation();openLinkToDebtPicker(${t.id})">🔗</span>`
+        : '');
+
   return `<div class="row" data-id="${t.id}" ondblclick="ledgerRowDblClick(${t.id})">
     <div class="row-check"><input type="checkbox" class="txn-check" data-id="${t.id}" onclick="event.stopPropagation();_onTxnCheckChange()"></div>
     <div><div class="cat-icon" style="background:${iconBg};border-color:${iconBorder};color:${catStyle.color}">${_renderCatIcon(catStyle.icon, catStyle.color, 18)}</div></div>
     <div class="cell-date">${fmtDate(t.date)}</div>
-    <div class="cell-desc" title="${esc(fullDesc)}">${esc(primary)}${sub ? `<div class="merchant-sub">${esc(sub)}</div>` : ''}</div>
+    <div class="cell-desc" title="${esc(fullDesc)}">${esc(primary)}${debtLinkIcon}${sub ? `<div class="merchant-sub">${esc(sub)}</div>` : ''}</div>
     <div class="cell-account">${esc(acctMain)}${acctTail ? `<span class="acct-suffix">${esc(acctTail)}</span>` : ''}</div>
     <div class="cell-cat"><span class="cat-dot" style="background:${catStyle.color}"></span><span class="cat-name">${esc(t.category||'Other')}</span></div>
     <div class="cell-amount ${sign}">${prefix}${fmtD(t.amount)}</div>
@@ -13472,10 +13481,14 @@ function _debtLedgerBodyHTML(c) {
   const rows = entries.length ? entries.map(e => {
     const skipped = e.source_type === 'skipped';
     const verb = skipped ? 'Skipped' : (VERB[e.entry_type] || e.entry_type);
+    const linkIcon = e.linked_checking_transaction_id
+      ? ` <span title="Linked to a checking transaction — click to view" style="cursor:pointer" onclick="jumpToLinkedCheckingTxn(${e.linked_checking_transaction_id})">💳</span>
+          <span title="Unlink (keeps both entries)" style="cursor:pointer;font-size:10px" onclick="unlinkDebtLedgerEntry(${c.id},${e.id})">⛓️‍💥</span>`
+      : '';
     return `
-    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--steel);font-size:12px;${skipped?'opacity:.55':''}">
+    <div id="dle-${e.id}" style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--steel);font-size:12px;${skipped?'opacity:.55':''}">
       <div style="width:72px;flex-shrink:0;color:var(--slate-2);font-family:var(--font-mono)">${e.entry_date}</div>
-      <div style="flex:1;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${skipped?'text-decoration:line-through':''}">${esc(verb)}${e.merchant ? ' · ' + esc(e.merchant) : ''}${e.description ? ' · ' + esc(e.description) : ''}${e.linked_checking_transaction_id ? ' <span title="Linked to a checking transaction">💳</span>' : ''}</div>
+      <div style="flex:1;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${skipped?'text-decoration:line-through':''}">${esc(verb)}${e.merchant ? ' · ' + esc(e.merchant) : ''}${e.description ? ' · ' + esc(e.description) : ''}${linkIcon}</div>
       <div style="font-family:var(--font-mono);flex-shrink:0;color:${skipped ? 'var(--slate-2)' : e.entry_type==='payment' ? 'var(--pine)' : 'var(--ink)'}">${skipped?'':(e.entry_type==='payment'?'−':'+')}${fmt(e.amount)}</div>
       <div style="font-family:var(--font-mono);flex-shrink:0;width:70px;text-align:right;color:var(--slate-2)" title="Running total of manual entries">${skipped ? '' : fmt(runningById[e.id])}</div>
       <button class="row-del" onclick="deleteDebtLedgerEntry(${c.id},${e.id})" title="Remove">×</button>
@@ -13679,6 +13692,94 @@ async function skipDraft(entryId) {
     _gwErr('skipDraft')(e);
     showToast('Could not skip payment', e.message || '', 'error');
   }
+}
+
+// ── Checking transaction linking (Phase D) ──────────────────────────────────
+function _flashHighlight(el) {
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const prev = el.style.outline;
+  el.style.outline = '2px solid var(--gold)';
+  el.style.outlineOffset = '2px';
+  setTimeout(() => { el.style.outline = prev; }, 2000);
+}
+
+async function jumpToLinkedDebtEntry(entryId) {
+  let entry;
+  try {
+    entry = await API.get(`/api/debt/ledger/${entryId}`);
+  } catch (e) {
+    _gwErr('jumpToLinkedDebtEntry')(e);
+    showToast('Could not open the linked debt entry', e.message || '', 'error');
+    return;
+  }
+  showView('debt');
+  const card = S.debtCards.find(c => c._dbId === entry.debt_account_id);
+  if (!card) return;
+  _collapsedCards.delete(card.id);
+  _renderCardList();
+  await loadDebtLedger(card._dbId);
+  setTimeout(() => _flashHighlight(g(`dle-${entryId}`)), 150);
+}
+
+function jumpToLinkedCheckingTxn(txnId) {
+  showView('ledger');
+  setTimeout(() => {
+    _flashHighlight(document.querySelector(`#ledgerBody .row[data-id="${txnId}"]`));
+  }, 150);
+}
+
+function openLinkToDebtPicker(txnId) {
+  const debts = (S.debtCards || []).filter(c => c._dbId);
+  if (!debts.length) {
+    showToast('No debt accounts yet', 'Add a card or loan first, on the Debt Payoff page', 'info');
+    return;
+  }
+  const options = debts.map(c => `<option value="${c._dbId}">${esc(c.name || 'Card')}</option>`).join('');
+  const html = `
+    <div style="margin-top:10px;text-align:left">
+      <label style="font-size:12px;color:var(--slate);display:block;margin-bottom:6px">Link this transaction to:</label>
+      <select id="linkDebtPicker" style="width:100%">${options}</select>
+    </div>`;
+  confirmAction('Link to a debt account', html, () => {
+    const debtId = parseInt(g('linkDebtPicker')?.value);
+    if (debtId) submitLinkCheckingTxnToDebt(txnId, debtId);
+  }, 'Link', false);
+}
+
+async function submitLinkCheckingTxnToDebt(txnId, debtId) {
+  try {
+    await API.post(`/api/transactions/${txnId}/link-debt`, { debt_account_id: debtId });
+    showToast('Linked to debt account');
+    delete _debtLedgerCache[String(debtId)];
+    // linked_debt_entry_id lives server-side only — re-fetch this page of
+    // transactions rather than guessing the new entry id client-side.
+    const res = await API.get('/api/transactions?per_page=5000');
+    const payload = res.data || res;
+    S.transactions = Array.isArray(payload) ? payload : (payload?.items || payload?.transactions || []);
+    if (document.querySelector('#view-ledger.active')) renderLedger();
+  } catch (e) {
+    _gwErr('submitLinkCheckingTxnToDebt')(e);
+    showToast('Could not link transaction', e.message || '', 'error');
+  }
+}
+
+function unlinkDebtLedgerEntry(cardId, entryId) {
+  const c = S.debtCards.find(x => x.id === cardId);
+  if (!c || !c._dbId) return;
+  confirmAction('Unlink this entry?', 'The debt entry and the checking transaction both stay — only the connection between them is removed.', async () => {
+    try {
+      await API.post(`/api/debt/ledger/${entryId}/unlink`, {});
+      delete _debtLedgerCache[String(c._dbId)];
+      await loadDebtLedger(c._dbId);
+      const res = await API.get('/api/transactions?per_page=5000');   // clears the checking side's 💳 too
+      const payload = res.data || res;
+      S.transactions = Array.isArray(payload) ? payload : (payload?.items || payload?.transactions || []);
+    } catch (e) {
+      _gwErr('unlinkDebtLedgerEntry')(e);
+      showToast('Could not unlink', e.message || '', 'error');
+    }
+  }, 'Unlink', false);
 }
 
 function _debtLedgerAddFormHTML(c, type) {

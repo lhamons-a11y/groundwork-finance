@@ -530,6 +530,69 @@ def main():
     check('soft-deleted recurring pattern still appears in list (audit trail)',
           any(rp['id'] == _recurring_id for rp in still_listed))
 
+    # ── 19. Debt Reconciliation Phase D (checking transaction linking) ───────
+    with _dbs() as session:
+        debt4 = _DA(name='Phase D Smoke Card', current_balance=150.0)
+        session.add(debt4); session.flush()
+        acct4 = _Acct(name='Phase D Smoke Checking', type='checking')
+        session.add(acct4); session.flush()
+        txn4 = _Txn(date=_date(2026, 7, 22), amount=80.0, type='debit',
+                     account_id=acct4.id, description='Transfer to Phase D Smoke Card')
+        session.add(txn4)
+        session.commit()
+        _debt4_id, _txn4_id = debt4.id, txn4.id
+
+    r = c.get('/api/transactions', headers=H)
+    txn_list = (r.get_json() or {}).get('data') or []
+    check('GET transactions includes linked_debt_entry_id (null pre-link)',
+          any(t['id'] == _txn4_id and t.get('linked_debt_entry_id') is None for t in txn_list))
+
+    r = c.post(f'/api/transactions/{_txn4_id}/link-debt', headers=HJ,
+               data=json.dumps({'debt_account_id': _debt4_id}))
+    check('POST link-debt succeeds (201)', r.status_code == 201)
+    linked_entry = (r.get_json() or {}).get('data') or {}
+    _linked_entry_id = linked_entry.get('id')
+    check('link-debt-created entry is a payment for the txn amount',
+          linked_entry.get('entry_type') == 'payment' and linked_entry.get('amount') == 80.0)
+
+    r = c.get('/api/transactions', headers=H)
+    txn_list2 = (r.get_json() or {}).get('data') or []
+    check('GET transactions now reports linked_debt_entry_id',
+          any(t['id'] == _txn4_id and t.get('linked_debt_entry_id') == _linked_entry_id for t in txn_list2))
+
+    r = c.post(f'/api/transactions/{_txn4_id}/link-debt', headers=HJ,
+               data=json.dumps({'debt_account_id': _debt4_id}))
+    check('POST link-debt rejects an already-linked txn (400)', r.status_code == 400)
+
+    r = c.post('/api/transactions/999999/link-debt', headers=HJ,
+               data=json.dumps({'debt_account_id': _debt4_id}))
+    check('POST link-debt 404s for unknown transaction', r.status_code == 404)
+
+    r = c.get(f'/api/debt/ledger/{_linked_entry_id}', headers=H)
+    check('GET single ledger entry succeeds', r.status_code == 200)
+
+    r = c.get('/api/debt/ledger/999999', headers=H)
+    check('GET single ledger entry 404s for unknown id', r.status_code == 404)
+
+    r = c.post(f'/api/debt/ledger/{_linked_entry_id}/unlink', headers=HJ, data=json.dumps({}))
+    check('POST unlink succeeds', r.status_code == 200)
+    unlinked_entry = (r.get_json() or {}).get('data') or {}
+    check('unlinked debt entry still exists with no checking link',
+          unlinked_entry.get('linked_checking_transaction_id') is None)
+
+    r = c.get('/api/transactions', headers=H)
+    txn_list3 = (r.get_json() or {}).get('data') or []
+    check('unlink clears linked_debt_entry_id on the checking side too',
+          any(t['id'] == _txn4_id and t.get('linked_debt_entry_id') is None for t in txn_list3))
+
+    r = c.get(f'/api/debt/{_debt4_id}/ledger', headers=H)
+    ledger_after_unlink = (r.get_json() or {}).get('data') or []
+    check('debt entry was NOT deleted by unlink (distinct from Phase B delete)',
+          any(e['id'] == _linked_entry_id for e in ledger_after_unlink))
+
+    r = c.post('/api/debt/ledger/999999/unlink', headers=HJ, data=json.dumps({}))
+    check('POST unlink 404s for unknown entry', r.status_code == 404)
+
     return finish()
 
 

@@ -408,7 +408,7 @@ def require_json(f):
     return decorated
 
 
-def serialize_transaction(t: Transaction) -> dict:
+def serialize_transaction(t: Transaction, linked_debt_entry_id=None) -> dict:
     # BUG FIX (July 6): `date` was calling .isoformat() with no null guard,
     # unlike posted_date right below it which correctly handles None. A
     # single transaction with a null date would throw and crash the entire
@@ -436,6 +436,11 @@ def serialize_transaction(t: Transaction) -> dict:
         'card_last4':      t.card_last4 or '',
         'source':          t.source or 'manual',
         'check_number':    t.check_number or '',
+        # Debt Reconciliation Phase D — which debt_ledger_entries row this
+        # checking transaction is linked to (payment/charge), if any. None
+        # here means "not linked", not "unknown" — every call site that
+        # matters for the 💳 indicator (list_transactions) passes it.
+        'linked_debt_entry_id': linked_debt_entry_id,
     }
 
 
@@ -571,7 +576,18 @@ def list_transactions():
         txns = q.order_by(desc(Transaction.date), desc(Transaction.id)) \
                 .offset((page - 1) * per_page).limit(per_page).all()
 
-        return ok([serialize_transaction(t) for t in txns],
+        # Bulk-fetch link status for this page — one indexed query, not N+1.
+        # (Debt Reconciliation Phase D: feeds the checking-ledger's 💳 indicator.)
+        txn_ids = [t.id for t in txns]
+        linked_map = {}
+        if txn_ids:
+            for row in session.query(
+                CheckingTransactionLink.checking_transaction_id,
+                CheckingTransactionLink.debt_ledger_entry_id
+            ).filter(CheckingTransactionLink.checking_transaction_id.in_(txn_ids)).all():
+                linked_map[row[0]] = row[1]
+
+        return ok([serialize_transaction(t, linked_map.get(t.id)) for t in txns],
                   total=total, page=page, per_page=per_page)
 
 
@@ -2117,6 +2133,88 @@ def skip_debt_draft(entry_id):
         entry.source_type = 'skipped'
         session.commit()
         return ok(serialize_debt_ledger_entry(entry))
+
+
+# ── Debt Reconciliation Phase D: checking transaction linking ──────────────────
+
+@debt_bp.route('/ledger/<int:entry_id>', methods=['GET'])
+def get_debt_ledger_entry(entry_id):
+    """Single-entry lookup — used by the checking ledger's 💳 jump-to-entry
+    navigation to find which debt account (and therefore which card to
+    expand) a linked entry belongs to."""
+    with db_session() as session:
+        entry = session.get(DebtLedgerEntry, entry_id)
+        if not entry:
+            return err('Not found', 404)
+        return ok(serialize_debt_ledger_entry(entry))
+
+
+@debt_bp.route('/ledger/<int:entry_id>/unlink', methods=['POST'])
+def unlink_debt_ledger_entry(entry_id):
+    """Remove the association between a debt entry and a checking
+    transaction WITHOUT deleting either side — distinct from Phase B's
+    DELETE /ledger/<id>, which removes the debt entry entirely. Unlink is
+    for "these were never actually the same payment"; delete is for
+    "this entry shouldn't exist." Callable from either the debt ledger or
+    the checking ledger, since both know the debt entry id (the checking
+    ledger gets it from GET /transactions' linked_debt_entry_id field)."""
+    with db_session() as session:
+        entry = session.get(DebtLedgerEntry, entry_id)
+        if not entry:
+            return err('Not found', 404)
+        session.query(CheckingTransactionLink).filter_by(debt_ledger_entry_id=entry_id).delete()
+        entry.linked_checking_transaction_id = None
+        session.commit()
+        return ok(serialize_debt_ledger_entry(entry))
+
+
+@transactions_bp.route('/<int:txn_id>/link-debt', methods=['POST'])
+@require_json
+def link_checking_txn_to_debt(txn_id):
+    """Link an EXISTING checking transaction to a debt account, initiated
+    from the checking ledger side (mirror of Phase B's create_debt_ledger_entry,
+    which links from the debt-card side by creating the debt entry first).
+    Creates a new debt_ledger_entries row + the link in one call; amount/date
+    default from the checking transaction itself."""
+    body = request.json
+    debt_id = body.get('debt_account_id')
+    if not debt_id:
+        return err('debt_account_id is required')
+
+    with db_session() as session:
+        txn = session.get(Transaction, txn_id)
+        if not txn:
+            return err('Not found', 404)
+        debt = session.get(DebtAccount, debt_id)
+        if not debt:
+            return err('debt_account_id not found', 404)
+        if get_checking_transaction_link(session, txn_id):
+            return err('That checking transaction is already linked to a debt entry')
+
+        # Linking from the checking side is specifically "this movement of
+        # money WAS a payment toward this debt" (the blueprint's own example:
+        # "Transfer to Capital One $500" tagged as a payment) — always
+        # 'payment', regardless of the checking transaction's debit/credit
+        # type, rather than guessing at 'charge' for the rare credit case.
+        entry = DebtLedgerEntry(
+            debt_account_id=debt_id,
+            entry_type='payment',
+            amount=abs(txn.amount),
+            entry_date=txn.date,
+            description=(body.get('description') or '').strip(),
+            source_type='manual',
+            linked_checking_transaction_id=txn_id,
+        )
+        session.add(entry)
+        session.flush()
+        session.add(CheckingTransactionLink(
+            checking_transaction_id=txn_id,
+            debt_ledger_entry_id=entry.id,
+            link_indicator='payment_to_card',
+            user_confirmed_at=datetime.utcnow(),
+        ))
+        session.commit()
+        return ok(serialize_debt_ledger_entry(entry), status=201)
 
 
 # ── Achievements ──────────────────────────────────────────────────────────────
