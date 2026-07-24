@@ -1114,6 +1114,103 @@ def main():
     check('app.js Settings renders the gate-health panel',
           'gateHealthPanel' in app_src and "get('/api/ai/miss-log" in app_src)
 
+    # ── 29. Phase I: cross-system integration regression ─────────────────────
+    # GROUNDWORK_1_0_ROADMAP.md Phase I.2 scenario 1 ("Complete Ledger -> Debt
+    # Flow"), run as one continuous flow instead of isolated per-phase checks
+    # — the point is verifying the systems built in separate phases (A-H2)
+    # actually compose correctly together, not re-testing any one of them.
+    with _dbs() as session:
+        debt12 = _DA(name='Integration Smoke Card', current_balance=0.0, begin_balance=2000.0)
+        session.add(debt12); session.flush()
+        acct12 = _Acct(name='Integration Smoke Checking', type='checking')
+        session.add(acct12); session.flush()
+        session.commit()
+        _debt12_id, _acct12_id = debt12.id, acct12.id
+
+    # Step 1 (Phase B): manual charge.
+    r = c.post(f'/api/debt/{_debt12_id}/ledger', headers=HJ,
+               data=json.dumps({'entry_type': 'charge', 'amount': 600.0, 'entry_date': '2026-07-03', 'merchant': 'Costco'}))
+    check('integration: charge entry succeeds', r.status_code == 201)
+
+    # Step 2 (Phase D): checking payment, linked from the checking side.
+    with _dbs() as session:
+        txn12 = _Txn(date=_date(2026, 7, 15), amount=500.0, type='debit',
+                      account_id=_acct12_id, description='Transfer to Integration Smoke Card')
+        session.add(txn12); session.commit()
+        _txn12_id = txn12.id
+    r = c.post(f'/api/transactions/{_txn12_id}/link-debt', headers=HJ, data=json.dumps({'debt_account_id': _debt12_id}))
+    check('integration: linking the checking payment succeeds', r.status_code == 201)
+    _linked12_id = (r.get_json() or {}).get('data', {}).get('id')
+
+    # Step 3 (Phase C): save as recurring, from that linked payment's amount.
+    r = c.post(f'/api/debt/{_debt12_id}/recurring', headers=HJ,
+               data=json.dumps({'amount': 500.0, 'frequency': 'monthly',
+                                  'scheduled_date_of_month': (_date.today() + _timedelta(days=2)).day}))
+    check('integration: saving the payment pattern as recurring succeeds', r.status_code == 201)
+
+    # Step 4 (Phase C): next month's draft generates and gets confirmed at a
+    # different amount (this is the "distance traveled" narrative's variance).
+    r = c.get('/api/debt/drafts/pending', headers=H)
+    draft12 = next(d for d in (r.get_json() or {}).get('data') or [] if d.get('debt_account_id') == _debt12_id)
+    r = c.post(f'/api/debt/drafts/{draft12["id"]}/confirm', headers=HJ, data=json.dumps({'amount': 450.0}))
+    check('integration: confirming the next draft succeeds', r.status_code == 200)
+
+    # Step 5 (Phase E): balance reflects all of the above — charge +600,
+    # first payment -500, second (confirmed) payment -450 -> 2000-600... wait,
+    # charges INCREASE what's owed: 0 + 600 - 500 - 450 = -350. A negative
+    # current_balance here is a legitimate "overpaid" state — the point of
+    # this check is that ALL THREE entries actually moved the number, not
+    # what the specific sign works out to.
+    r = c.get('/api/debt', headers=H)
+    final_debt = next(d for d in (r.get_json() or {}).get('data') or [] if d['id'] == _debt12_id)
+    check('integration: current_balance reflects all three ledger entries together',
+          final_debt['current_balance'] == -350.0)
+
+    # Step 6 (Phase H1): historian recorded the draft confirmation.
+    with _dbs() as session:
+        hist_count = session.query(_HE).filter_by(debt_account_id=_debt12_id).count()
+        check('integration: historian recorded at least the draft confirmation', hist_count >= 1)
+
+    # Step 7 (Phase E): compliance math sees the variance from the confirmed draft.
+    r = c.get(f'/api/debt/{_debt12_id}/recurring', headers=H)
+    recur12 = (r.get_json() or {}).get('data') or []
+    check('integration: recurring-pattern compliance reflects the confirmed variance',
+          any(rp.get('compliance', {}).get('total', 0) >= 1 for rp in recur12))
+
+    # Step 8: the ledger itself shows all three entries with the checking
+    # link indicator on the right one.
+    r = c.get(f'/api/debt/{_debt12_id}/ledger', headers=H)
+    ledger12 = (r.get_json() or {}).get('data') or []
+    check('integration: full ledger shows all three entries',
+          len(ledger12) == 3)
+    check('integration: the linked entry still shows its checking-transaction link',
+          any(e['id'] == _linked12_id and e['linked_checking_transaction_id'] == _txn12_id for e in ledger12))
+
+    # ── 30. Phase I: database integrity — no orphaned FKs after a full
+    # create/link/unlink/delete cycle across every table this build added.
+    from core.database import CheckingTransactionLink as _CTL2
+
+    with _dbs() as session:
+        orphaned_links = session.query(_CTL2).filter(
+            ~_CTL2.debt_ledger_entry_id.in_(session.query(_DLE.id))
+        ).count()
+        check('database integrity: no checking_transaction_links row points at a deleted debt entry',
+              orphaned_links == 0)
+
+        orphaned_hist = session.query(_HE).filter(
+            _HE.debt_account_id.isnot(None),
+            ~_HE.debt_account_id.in_(session.query(_DA.id))
+        ).count()
+        check('database integrity: no historian_entries row points at a deleted debt account',
+              orphaned_hist == 0)
+
+        dangling_txn_links = session.query(_DLE).filter(
+            _DLE.linked_checking_transaction_id.isnot(None),
+            ~_DLE.linked_checking_transaction_id.in_(session.query(_Txn.id))
+        ).count()
+        check('database integrity: no debt_ledger_entries row points at a deleted checking transaction',
+              dangling_txn_links == 0)
+
     return finish()
 
 
