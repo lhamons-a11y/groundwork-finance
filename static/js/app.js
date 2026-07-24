@@ -23517,7 +23517,38 @@ async function _rcRenderDistanceTraveled() {
     if (rows.length >= 2) { nwFirst = rows[0]; nwLast = rows[rows.length-1]; }
   } catch(e) { /* net worth section simply doesn't render */ }
 
+  // Recurring-payment compliance (Debt Reconciliation Phase F) — same
+  // fetch-ahead-of-render shape as the net worth window above. Aggregates
+  // every recurring pattern's compliance (server.py :: get_payment_compliance)
+  // across all cards; only rendered/narrated when at least one confirmed
+  // payment exists to report on.
+  let paymentCompliance = null;
+  try {
+    const results = await Promise.all(
+      S.debtCards.filter(c => c._dbId).map(c =>
+        API.get(`/api/debt/${c._dbId}/recurring`).catch(() => []))
+    );
+    let onTime = 0, under = 0, over = 0, total = 0, varianceWeighted = 0;
+    for (const rows of results) {
+      for (const r of (rows || [])) {
+        const comp = r.compliance;
+        if (comp && comp.total > 0) {
+          onTime += comp.on_time; under += comp.under_plan; over += comp.over_plan;
+          total  += comp.total;
+          varianceWeighted += comp.avg_variance_pct * comp.total;
+        }
+      }
+    }
+    if (total > 0) {
+      paymentCompliance = {
+        total, onTime, under, over,
+        avgVariancePct: Math.round((varianceWeighted / total) * 10) / 10,
+      };
+    }
+  } catch (e) { _gwErr('_rcRenderDistanceTraveled:compliance')(e); }
+
   const d = _dtComputeDistance();
+  d.paymentCompliance = paymentCompliance;
 
   if (!d.perCard.length) {
     body.innerHTML = `
@@ -23560,6 +23591,11 @@ async function _rcRenderDistanceTraveled() {
     <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Interest never to be charged</div>
     <div style="font-family:var(--font-mono);font-size:24px;font-weight:600;color:var(--pine)">${fmt(d.interestNeverCharged)}</div>
     <div style="font-size:11px;color:var(--slate);margin-top:2px">vs the path you were on ${d.earliestMonth ? 'in ' + _dtMonthLabel(d.earliestMonth) : 'at the start'}</div>
+  </div>`);
+  if (d.paymentCompliance) hero.push(`<div class="card" style="padding:16px">
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Payments on schedule</div>
+    <div style="font-family:var(--font-mono);font-size:24px;font-weight:600;color:var(--ink)">${d.paymentCompliance.onTime}/${d.paymentCompliance.total}</div>
+    <div style="font-size:11px;color:var(--slate);margin-top:2px">±5% of plan · avg variance ${d.paymentCompliance.avgVariancePct > 0 ? '+' : ''}${d.paymentCompliance.avgVariancePct}%</div>
   </div>`);
 
   // Per-debt distance rows — retired cards get the struck-through display,
@@ -23665,6 +23701,15 @@ function _rcDistanceTraveledAI(d) {
     ...(d.freedMonthly > 0 ? [`Monthly cash flow freed: ${fmt(d.freedMonthly)}/mo`] : []),
     ...(d.monthsPulled ? [`Debt-free date pulled ${d.monthsPulled} months closer`] : []),
     ...(d.interestNeverCharged ? [`Interest that will never be charged: ${fmt(d.interestNeverCharged)}`] : []),
+    // Recurring-payment compliance (Phase F) — "plan" here means the amount
+    // saved on the recurring pattern itself, not a payoff-plan entity (this
+    // codebase has none — see server.py :: get_payment_compliance).
+    ...(d.paymentCompliance ? [
+      `Recurring debt payments logged: ${d.paymentCompliance.total}, of which ${d.paymentCompliance.onTime} were within 5% of the planned amount`,
+      ...(d.paymentCompliance.under > 0 ? [`Payments below the planned amount: ${d.paymentCompliance.under}`] : []),
+      ...(d.paymentCompliance.over > 0 ? [`Payments above the planned amount: ${d.paymentCompliance.over}`] : []),
+      `Average variance from the planned payment amount: ${d.paymentCompliance.avgVariancePct > 0 ? '+' : ''}${d.paymentCompliance.avgVariancePct}%`,
+    ] : []),
     ...(d.allClear ? ['All debts are paid.'] : [`Current total balance: ${fmt(d.totalNow)}`]),
   ];
 
@@ -23679,7 +23724,9 @@ function _rcDistanceTraveledAI(d) {
     '- Narrate the ground covered, not what remains. Lead with the single most meaningful win.',
     '- Translate wins into what they free up: name the monthly dollar amount and what it changes.',
     '- Use only the numbers above. No invented projections, no percentages not given.',
-    '- Never shame slow months.',
+    '- Never shame slow months or below-plan payments — report the compliance numbers neutrally,',
+    '  as fact, the same way a paid-down-balance number is reported. Being below plan sometimes',
+    '  is not a failure worth narrating as one.',
     '- Do not give advice or suggest a next step of any kind — describe only what already',
     '  happened and what it freed up. No "consider", "should", "crucial", or similar.',
     '- 3 short paragraphs max. Plain prose. No headers, no bullets, no greeting.',

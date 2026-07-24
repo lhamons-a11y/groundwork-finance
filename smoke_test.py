@@ -593,6 +593,20 @@ def main():
     r = c.post('/api/debt/ledger/999999/unlink', headers=HJ, data=json.dumps({}))
     check('POST unlink 404s for unknown entry', r.status_code == 404)
 
+    # ── 19b. Debt Reconciliation Phase F (narrative integration) ─────────────
+    # Phase F is entirely client-side (reuses Phase E's compliance endpoint,
+    # no new server routes) — the compliance math and R8 gate are already
+    # covered above/elsewhere, so this is a static-content check that the
+    # wiring exists, matching the pattern already used for the AI surfaces
+    # (e.g. "app.js has a 'no model resolved' fallback string").
+    check("app.js Distance Traveled pulls in payment compliance",
+          'paymentCompliance' in app_src and 'get(`/api/debt/${c._dbId}/recurring`)' in app_src)
+    check("app.js Distance Traveled dataLines include compliance figures",
+          'Recurring debt payments logged' in app_src
+          and 'Average variance from the planned payment amount' in app_src)
+    check("app.js Distance Traveled prompt forbids shaming below-plan payments",
+          'below-plan payments' in app_src)
+
     # ── 20. Debt Reconciliation Phase E (balance sync + compliance) ──────────
     with _dbs() as session:
         debt5 = _DA(name='Phase E Smoke Card', current_balance=1000.0)
