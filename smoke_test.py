@@ -746,6 +746,121 @@ def main():
     check('debt entry survives the checking transaction delete, now unlinked',
           r.status_code == 200 and surviving_entry.get('linked_checking_transaction_id') is None)
 
+    # ── 22. Historian Infrastructure (Phase H1) ───────────────────────────────
+    from core.database import HistorianEntry as _HE, TripHistory as _TH
+    from server import (
+        log_historian_event, get_payment_variance_for_account,
+        get_payment_compliance_confidence, get_late_payment_pattern,
+        get_category_patterns, get_budget_variance_by_category,
+        get_trip_variance_by_region, get_llm_miss_log,
+    )
+
+    with engine.connect() as conn:
+        hist_tables = {row[0] for row in conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name IN "
+            "('historian_entries','trip_history')"
+        ))}
+    check('historian_entries and trip_history tables exist', len(hist_tables) == 2)
+
+    with _dbs() as session:
+        debt7 = _DA(name='Historian Smoke Card', current_balance=500.0)
+        session.add(debt7); session.commit()
+        _debt7_id = debt7.id
+
+    # log_historian_event: variance computed correctly when both values given.
+    with _dbs() as session:
+        e = log_historian_event(session, 'payment_confirmed', debt_account_id=_debt7_id,
+                                 expected_value=100.0, actual_value=95.0, context={'note': 'test'})
+        session.commit()
+        _hist_entry_id = e.id
+    with _dbs() as session:
+        stored = session.get(_HE, _hist_entry_id)
+        check('log_historian_event computes variance_pct/variance_amount',
+              stored.variance_amount == -5.0 and stored.variance_pct == -5.0)
+        check('log_historian_event stores context as JSON',
+              json.loads(stored.context_json or '{}').get('note') == 'test')
+
+    with _dbs() as session:
+        empty_variance = get_payment_variance_for_account(session, 999999)
+        check('get_payment_variance_for_account returns an honest empty shape for an account with no history',
+              empty_variance == {'on_time': 0, 'under_plan': 0, 'over_plan': 0, 'avg_variance_pct': None, 'total_payments': 0})
+
+    # End-to-end: confirming a draft actually writes a historian event now
+    # (Phase H1 wiring into Phase C's confirm route).
+    # Isolated account for the confirm/confidence checks below — _debt7_id
+    # already has one manually-logged historian event from the check above,
+    # which would otherwise skew these averages.
+    with _dbs() as session:
+        debt7c = _DA(name='Historian Confirm Smoke Card', current_balance=500.0)
+        session.add(debt7c); session.flush()
+        rp7 = _RDP(debt_account_id=debt7c.id, scheduled_date_of_month=(_date.today() + _timedelta(days=1)).day,
+                    amount=200.0, frequency='monthly', is_active=True)
+        session.add(rp7); session.commit()
+        _debt7c_id = debt7c.id
+    r = c.get('/api/debt/drafts/pending', headers=H)
+    draft7 = next(d for d in (r.get_json() or {}).get('data') or [] if d.get('debt_account_id') == _debt7c_id)
+    c.post(f'/api/debt/drafts/{draft7["id"]}/confirm', headers=HJ, data=json.dumps({'amount': 180.0}))
+
+    with _dbs() as session:
+        variance = get_payment_variance_for_account(session, _debt7c_id)
+        check('confirming a draft writes a historian event the query helper can read',
+              variance['total_payments'] == 1 and variance['avg_variance_pct'] == -10.0)
+        confidence = get_payment_compliance_confidence(session, _debt7c_id)
+        # 1 payment, variance -10% -> outside +/-5%, so 0 on-time / 1 total -> 0% - 0 late fees = 0
+        check('get_payment_compliance_confidence scores a below-plan-only history low',
+              confidence['confidence_pct'] == 0)
+
+    # Skipping a draft writes payment_skipped.
+    with _dbs() as session:
+        rp7b = _RDP(debt_account_id=_debt7_id, scheduled_date_of_month=(_date.today() + _timedelta(days=1)).day,
+                     amount=50.0, frequency='monthly', is_active=True)
+        session.add(rp7b); session.commit()
+    r = c.get('/api/debt/drafts/pending', headers=H)
+    draft7b = next(d for d in (r.get_json() or {}).get('data') or []
+                   if d.get('debt_account_id') == _debt7_id)
+    c.post(f'/api/debt/drafts/{draft7b["id"]}/skip', headers=HJ, data=json.dumps({}))
+    with _dbs() as session:
+        skipped_events = session.query(_HE).filter_by(
+            debt_account_id=_debt7_id, event_category='payment_skipped').count()
+        check('skipping a draft writes a payment_skipped historian event', skipped_events == 1)
+
+    # A manual charge writes charge_observation.
+    c.post(f'/api/debt/{_debt7_id}/ledger', headers=HJ,
+           data=json.dumps({'entry_type': 'charge', 'amount': 40.0, 'merchant': 'Historian Test Merchant'}))
+    with _dbs() as session:
+        charge_events = session.query(_HE).filter_by(
+            debt_account_id=_debt7_id, event_category='charge_observation').count()
+        check('a manual charge writes a charge_observation historian event', charge_events == 1)
+
+    with _dbs() as session:
+        check('get_late_payment_pattern returns an honest empty result (nothing writes this event yet)',
+              get_late_payment_pattern(session, _debt7_id) ==
+              {'late_fee_count': 0, 'avg_days_late': None, 'months_affected': 0})
+
+        # 1.1-scaffold reads — real functions, honest empty/neutral shapes.
+        check('get_budget_variance_by_category returns honest empty shape (nothing writes budget_variance_observed yet)',
+              get_budget_variance_by_category(session, 1) ==
+              {'avg_variance': None, 'variance_pct': None, 'months_over': 0, 'months_under': 0})
+        check('get_trip_variance_by_region returns honest empty shape (no trip_history rows yet)',
+              get_trip_variance_by_region(session, 'CO') ==
+              {'avg_estimated': None, 'avg_actual': None, 'variance_pct': None, 'trip_count': 0})
+        check('get_category_patterns returns honest empty shape for an unseen merchant',
+              get_category_patterns(session, 'ZzUnseenMerchantZz') ==
+              {'most_common_category': None, 'frequency': 0, 'edge_cases': []})
+
+    # get_llm_miss_log reads voice_miss_log.jsonl, not historian_entries.
+    from datetime import datetime as _dt
+    miss_log_path = Path(_TMP) / 'voice_miss_log.jsonl'
+    with open(miss_log_path, 'a', encoding='utf-8') as f:
+        f.write(json.dumps({
+            'ts': _dt.utcnow().isoformat() + 'Z', 'surface': 'distance_traveled',
+            'model': 'phi3.5', 'rules': ['R8_number_provenance'], 'text': 'fabricated test line',
+        }) + '\n')
+    miss = get_llm_miss_log(time_range_days=30)
+    check('get_llm_miss_log reads voice_miss_log.jsonl and counts flags by rule',
+          miss['gate_flag_count_by_type'].get('R8_number_provenance', 0) >= 1
+          and len(miss['most_recent_flags']) >= 1)
+
     return finish()
 
 

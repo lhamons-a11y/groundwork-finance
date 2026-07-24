@@ -44,6 +44,7 @@ from core.database import ( db_session, DATA_DIR,
     InvestmentTransaction, InvestmentLot, PriceCache,
     DebtBalanceHistory, PdfExtractCache,
     DebtLedgerEntry, RecurringDebtPayment, CheckingTransactionLink,
+    HistorianEntry, TripHistory,
 )
 from migrate import run_migration_if_needed
 
@@ -1935,6 +1936,11 @@ def create_debt_ledger_entry(debt_id):
             ))
 
         _apply_ledger_balance_effect(debt, entry, sign=1)
+        if entry_type == 'charge':
+            log_historian_event(
+                session, 'charge_observation', debt_account_id=debt_id,
+                actual_value=amount, context={'merchant': entry.merchant, 'entry_id': entry.id},
+            )
         session.commit()
         return ok(serialize_debt_ledger_entry(entry), status=201)
 
@@ -2196,6 +2202,8 @@ def confirm_debt_draft(entry_id):
         entry.source_type = 'manual'
         if entry.description == 'Recurring payment (draft)':
             entry.description = 'Recurring payment'
+
+        rp = None
         if entry.linked_recurring_payment_id:
             rp = session.get(RecurringDebtPayment, entry.linked_recurring_payment_id)
             if rp:
@@ -2205,6 +2213,18 @@ def confirm_debt_draft(entry_id):
         debt = session.get(DebtAccount, entry.debt_account_id)
         if debt:
             _apply_ledger_balance_effect(debt, entry, sign=1)   # draft → manual: takes effect now
+
+        # Historian (Phase H1): log against the pattern's saved amount — "the
+        # plan" — the same reference point Phase E's compliance math uses.
+        if rp and rp.amount:
+            variance_pct = round((entry.amount - rp.amount) / rp.amount * 100, 1)
+            category = 'payment_confirmed' if abs(variance_pct) <= 5 else 'payment_amount_variance'
+            log_historian_event(
+                session, category, debt_account_id=entry.debt_account_id,
+                expected_value=rp.amount, actual_value=entry.amount,
+                context={'recurring_payment_id': rp.id, 'entry_id': entry.id},
+            )
+
         session.commit()
         return ok(serialize_debt_ledger_entry(entry))
 
@@ -2221,6 +2241,11 @@ def skip_debt_draft(entry_id):
         if not entry or entry.source_type != 'draft':
             return err('Not found', 404)
         entry.source_type = 'skipped'
+        log_historian_event(
+            session, 'payment_skipped', debt_account_id=entry.debt_account_id,
+            expected_value=entry.amount,
+            context={'recurring_payment_id': entry.linked_recurring_payment_id, 'entry_id': entry.id},
+        )
         session.commit()
         return ok(serialize_debt_ledger_entry(entry))
 
@@ -2306,6 +2331,196 @@ def link_checking_txn_to_debt(txn_id):
         _apply_ledger_balance_effect(debt, entry, sign=1)
         session.commit()
         return ok(serialize_debt_ledger_entry(entry), status=201)
+
+
+# ── Historian Infrastructure (Phase H1) ─────────────────────────────────────────
+# GROUNDWORK_1_0_ROADMAP.md Phase H1. Genuinely new construction — see
+# HistorianEntry's docstring in core/database.py for why. Query helpers here
+# split into two groups: three read from event types Phase H1 itself starts
+# writing (wired into the debt-reconciliation routes below); four are
+# 1.1-scaffold reads for event types nothing writes yet (Phase H2 wires the
+# writers when it builds each adaptive feature) — each returns an honest
+# empty/neutral result rather than fabricating one in the meantime.
+
+def log_historian_event(session, event_category: str, debt_account_id=None, category_id=None,
+                         expected_value=None, actual_value=None, context=None):
+    """Atomic historian insert. Computes variance_pct/variance_amount when
+    both expected_value and actual_value are given; leaves them null
+    otherwise rather than guessing. context is a plain dict, stored as JSON."""
+    variance_amount = None
+    variance_pct = None
+    if expected_value is not None and actual_value is not None:
+        variance_amount = round(actual_value - expected_value, 2)
+        if expected_value:
+            variance_pct = round((variance_amount / expected_value) * 100, 1)
+    entry = HistorianEntry(
+        event_category=event_category,
+        debt_account_id=debt_account_id,
+        category_id=category_id,
+        expected_value=expected_value,
+        actual_value=actual_value,
+        variance_pct=variance_pct,
+        variance_amount=variance_amount,
+        context_json=json.dumps(context) if context else None,
+    )
+    session.add(entry)
+    return entry
+
+
+def get_payment_variance_for_account(session, debt_account_id: int, months: int = 12) -> dict:
+    """Payment compliance metrics for a debt account from real historian
+    events (payment_confirmed / payment_amount_variance), over a trailing
+    window. Distinct from server.py :: get_payment_compliance (Phase E),
+    which reads current ledger state per recurring pattern — this reads the
+    historian's point-in-time record of what happened at confirm time,
+    which survives even if the underlying ledger entry is later edited."""
+    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    entries = session.query(HistorianEntry).filter(
+        HistorianEntry.debt_account_id == debt_account_id,
+        HistorianEntry.event_category.in_(['payment_confirmed', 'payment_amount_variance']),
+        HistorianEntry.created_at >= cutoff,
+    ).all()
+    if not entries:
+        return {'on_time': 0, 'under_plan': 0, 'over_plan': 0, 'avg_variance_pct': None, 'total_payments': 0}
+    on_time = sum(1 for e in entries if e.variance_pct is not None and abs(e.variance_pct) <= 5)
+    under   = sum(1 for e in entries if e.variance_pct is not None and e.variance_pct < -5)
+    over    = sum(1 for e in entries if e.variance_pct is not None and e.variance_pct > 5)
+    variances = [e.variance_pct for e in entries if e.variance_pct is not None]
+    return {
+        'on_time': on_time, 'under_plan': under, 'over_plan': over,
+        'avg_variance_pct': round(sum(variances) / len(variances), 1) if variances else None,
+        'total_payments': len(entries),
+    }
+
+
+def get_payment_compliance_confidence(session, debt_account_id: int) -> dict:
+    """0-100 confidence score for a debt account's payoff timeline, from
+    payment reliability — on-time rate, penalized for late fees. Returns
+    confidence=None (not a fabricated number) when there's no history yet."""
+    variance = get_payment_variance_for_account(session, debt_account_id)
+    if variance['total_payments'] == 0:
+        return {'confidence_pct': None, 'reasoning': 'No confirmed payments yet.'}
+    late_fee_count = session.query(HistorianEntry).filter_by(
+        debt_account_id=debt_account_id, event_category='late_fee_trigger'
+    ).count()
+    on_time_pct = (variance['on_time'] / variance['total_payments']) * 100
+    confidence = max(0, min(100, round(on_time_pct - (late_fee_count * 5))))
+    reasoning = f"{variance['on_time']}/{variance['total_payments']} payments on-time (±5%)"
+    if late_fee_count:
+        reasoning += f"; {late_fee_count} late fee event(s)"
+    return {'confidence_pct': confidence, 'reasoning': reasoning}
+
+
+def get_late_payment_pattern(session, debt_account_id: int) -> dict:
+    """Late-payment frequency from payment_timing_slippage events. This
+    event type isn't written anywhere yet (nothing in this codebase computes
+    a due-date-vs-confirmed-date offset) — this returns an honest empty
+    result until that write path exists, rather than a fake zero."""
+    entries = session.query(HistorianEntry).filter_by(
+        debt_account_id=debt_account_id, event_category='payment_timing_slippage'
+    ).all()
+    if not entries:
+        return {'late_fee_count': 0, 'avg_days_late': None, 'months_affected': 0}
+    days_late = [e.actual_value for e in entries if e.actual_value is not None]
+    return {
+        'late_fee_count': len(entries),
+        'avg_days_late': round(sum(days_late) / len(days_late), 1) if days_late else None,
+        'months_affected': len(entries),
+    }
+
+
+# ── 1.1-scaffold reads — see module docstring above ─────────────────────────
+
+def get_category_patterns(session, merchant_name: str) -> dict:
+    """How the user has categorized this merchant historically, from
+    categorization_suggestion_confirm/reject events. Nothing writes those
+    yet (Phase H2 Feature 1) — until then this reads directly from the
+    ledger/transaction history that already exists, which is a reasonable
+    real answer today, not a placeholder."""
+    rows = session.query(DebtLedgerEntry.category, func.count(DebtLedgerEntry.id)).filter(
+        DebtLedgerEntry.merchant.ilike(f'%{merchant_name}%'), DebtLedgerEntry.category != ''
+    ).group_by(DebtLedgerEntry.category).order_by(desc(func.count(DebtLedgerEntry.id))).all()
+    if not rows:
+        return {'most_common_category': None, 'frequency': 0, 'edge_cases': []}
+    total = sum(r[1] for r in rows)
+    return {
+        'most_common_category': rows[0][0],
+        'frequency': round(rows[0][1] / total * 100, 1),
+        'edge_cases': [r[0] for r in rows[1:]],
+    }
+
+
+def get_budget_variance_by_category(session, category_id: int, months: int = 12) -> dict:
+    """Budget vs. actual variance for a category. Scaffold for Phase H2
+    Feature 2 — budget_variance_observed isn't written anywhere yet."""
+    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    entries = session.query(HistorianEntry).filter(
+        HistorianEntry.category_id == category_id,
+        HistorianEntry.event_category == 'budget_variance_observed',
+        HistorianEntry.created_at >= cutoff,
+    ).all()
+    if not entries:
+        return {'avg_variance': None, 'variance_pct': None, 'months_over': 0, 'months_under': 0}
+    over  = sum(1 for e in entries if e.variance_pct is not None and e.variance_pct > 0)
+    under = sum(1 for e in entries if e.variance_pct is not None and e.variance_pct < 0)
+    pcts  = [e.variance_pct for e in entries if e.variance_pct is not None]
+    return {
+        'avg_variance': round(sum(e.variance_amount for e in entries if e.variance_amount is not None) / len(entries), 2),
+        'variance_pct': round(sum(pcts) / len(pcts), 1) if pcts else None,
+        'months_over': over, 'months_under': under,
+    }
+
+
+def get_trip_variance_by_region(session, region: str) -> dict:
+    """Regional trip spending variance from trip_history (Phase H1 addition,
+    not historian_entries — trips are per-trip rows, not point events).
+    Scaffold until Phase H2 Feature 3 wires the write hooks that give this
+    real data to aggregate."""
+    rows = session.query(TripHistory).filter(
+        TripHistory.region == region, TripHistory.actual_total.isnot(None)
+    ).all()
+    if not rows:
+        return {'avg_estimated': None, 'avg_actual': None, 'variance_pct': None, 'trip_count': 0}
+    avg_est = sum(r.estimated_total or 0 for r in rows) / len(rows)
+    avg_act = sum(r.actual_total for r in rows) / len(rows)
+    return {
+        'avg_estimated': round(avg_est, 2),
+        'avg_actual': round(avg_act, 2),
+        'variance_pct': round((avg_act - avg_est) / avg_est * 100, 1) if avg_est else None,
+        'trip_count': len(rows),
+    }
+
+
+def get_llm_miss_log(time_range_days: int = 30) -> dict:
+    """Gate-flag counts and recent misses, read from the existing
+    voice_miss_log.jsonl (ai_voice_miss route) — not historian_entries.
+    That file is already the real miss-log (Phase 1E); no separate
+    'llm_gate_flag' event type is written in parallel."""
+    log_path = DATA_DIR / 'voice_miss_log.jsonl'
+    if not log_path.exists():
+        return {'gate_flag_count_by_type': {}, 'most_recent_flags': []}
+    cutoff = datetime.utcnow() - timedelta(days=time_range_days)
+    counts, recent = {}, []
+    try:
+        with open(log_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+                try:
+                    ts = datetime.fromisoformat(entry.get('ts', '').rstrip('Z'))
+                except ValueError:
+                    continue
+                if ts < cutoff:
+                    continue
+                for rule in entry.get('rules', []):
+                    counts[rule] = counts.get(rule, 0) + 1
+                recent.append(entry)
+    except Exception:
+        pass
+    recent.sort(key=lambda e: e.get('ts', ''), reverse=True)
+    return {'gate_flag_count_by_type': counts, 'most_recent_flags': recent[:20]}
 
 
 # ── Achievements ──────────────────────────────────────────────────────────────

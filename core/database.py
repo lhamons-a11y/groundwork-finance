@@ -263,6 +263,88 @@ class CheckingTransactionLink(Base):
     )
 
 
+class HistorianEntry(Base):
+    """
+    GROUNDWORK_1_0_ROADMAP.md Phase H1. A structured, queryable event log —
+    genuinely new construction, not a rename of anything: before this, the
+    only thing called "historian" in this codebase was the informal
+    debt_balance_history monthly-snapshot table (see DebtBalanceHistory).
+    This is what Phase H2's adaptive features (and Phase F/E's compliance
+    reporting, going forward) actually read from.
+
+    event_category values (source noted for each — several are 1.1-scaffold,
+    logged nowhere yet, but the column supports them so Phase H2 doesn't need
+    another migration to start writing them):
+      'payment_confirmed'                 — debt reconciliation (Phase C confirm)
+      'payment_amount_variance'           — debt reconciliation (confirmed != suggested)
+      'payment_timing_slippage'           — debt reconciliation (confirmed late vs. due date)
+      'payment_skipped'                   — debt reconciliation (Phase C skip)
+      'balance_correction'                — manual balance correction
+      'apr_correction'                    — card terms update
+      'charge_observation'                — manual charge entry (Phase B)
+      'interest_discrepancy'              — interest calc correction
+      'late_fee_trigger'                  — late payment event
+      'categorization_suggestion_confirm' — 1.1-scaffold: category learning
+      'categorization_suggestion_reject'  — 1.1-scaffold: category learning
+      'budget_variance_observed'          — 1.1-scaffold: budget learning
+      'trip_expense_variance'             — 1.1-scaffold: trip learning
+      'llm_gate_flag'                     — LLM gate miss-log
+    No payoff_plan_id column: same reason as DebtLedgerEntry — there is no
+    persisted payoff-plan table in this codebase.
+    """
+    __tablename__   = 'historian_entries'
+    id              = Column(Integer, primary_key=True)
+    event_category  = Column(String(40), nullable=False)
+    debt_account_id = Column(Integer, ForeignKey('debt_accounts.id'), nullable=True)
+    category_id     = Column(Integer, ForeignKey('categories.id'), nullable=True)
+    expected_value  = Column(Float, nullable=True)
+    actual_value    = Column(Float, nullable=True)
+    variance_pct    = Column(Float, nullable=True)
+    variance_amount = Column(Float, nullable=True)
+    context_json    = Column(Text, nullable=True)
+    created_at      = Column(DateTime, default=datetime.utcnow)
+
+    debt_account = relationship('DebtAccount')
+    category     = relationship('Category')
+
+    __table_args__ = (
+        Index('ix_hist_category_debt',    'event_category', 'debt_account_id'),
+        Index('ix_hist_debt_created',     'debt_account_id', 'created_at'),
+        Index('ix_hist_category_created', 'event_category', 'created_at'),
+    )
+
+
+class TripHistory(Base):
+    """
+    GROUNDWORK_1_0_ROADMAP.md Phase H1 addition. Persisted trip records —
+    this codebase previously had none; a trip only ever existed as a single
+    'trip_budget' JSON blob in AppSetting (server.py), so getTripVarianceByRegion
+    (Phase H2 Feature 3) would have had nothing to query across multiple trips.
+    Two write hooks populate this (wired when Feature 3 is built, not here):
+    trip budget save -> estimate side; "Use these numbers" in
+    _applyTripLearnedBasis (app.js) -> actual side, for the date range that
+    was run through _learnFromPastTrip.
+    """
+    __tablename__       = 'trip_history'
+    id                  = Column(Integer, primary_key=True)
+    trip_label          = Column(String(120), default='')
+    region               = Column(String(80), nullable=True)
+    start_date          = Column(Date, nullable=True)
+    end_date            = Column(Date, nullable=True)
+    estimated_total     = Column(Float, nullable=True)
+    actual_total        = Column(Float, nullable=True)
+    estimated_by_category = Column(Text, nullable=True)   # JSON
+    actual_by_category    = Column(Text, nullable=True)   # JSON
+    learned_basis_json   = Column(Text, nullable=True)
+    created_at           = Column(DateTime, default=datetime.utcnow)
+    updated_at           = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index('ix_trip_history_region', 'region'),
+        Index('ix_trip_history_dates',  'start_date', 'end_date'),
+    )
+
+
 class PdfExtractCache(Base):
     """SHA-256-keyed cache of validated PDF statement extractions (Phase 4E) —
     re-uploading the same statement returns the already-validated numbers
