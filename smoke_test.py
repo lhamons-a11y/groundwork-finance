@@ -1023,6 +1023,52 @@ def main():
         check('the learned-actual write hook creates a trip_history row with the actual side filled',
               actual_row is not None and actual_row.trip_label == 'Past Nashville Trip')
 
+    # ── 26. Adaptive Learning Feature 4 (recurring transaction detection) ────
+    from server import detect_recurring_patterns
+
+    with _dbs() as session:
+        acct10 = _Acct(name='Recurring Detect Smoke Checking', type='checking')
+        session.add(acct10); session.flush()
+        # Consistent: Netflix $15.99 x4, no variance -> should be detected.
+        for i in range(4):
+            session.add(_Txn(date=_date(2026, 3 + i, 5), amount=15.99, type='debit',
+                              account_id=acct10.id, merchant='Netflix'))
+        # Inconsistent: "Corner Store" varies wildly -> should NOT be detected
+        # even though it appears 4 times too.
+        for amt in [12.0, 45.0, 8.0, 60.0]:
+            session.add(_Txn(date=_date(2026, 3, 10), amount=amt, type='debit',
+                              account_id=acct10.id, merchant='Corner Store'))
+        # Only 2 occurrences -> below the minimum, should NOT be detected.
+        for i in range(2):
+            session.add(_Txn(date=_date(2026, 5 + i, 1), amount=9.99, type='debit',
+                              account_id=acct10.id, merchant='Spotify'))
+        session.commit()
+
+    with _dbs() as session:
+        patterns = detect_recurring_patterns(session, months=6)
+        by_merchant = {p['merchant']: p for p in patterns}
+        check('a consistent-amount merchant seen 4x is detected as recurring',
+              'Netflix' in by_merchant and by_merchant['Netflix']['frequency'] == 4
+              and by_merchant['Netflix']['avg_amount'] == 15.99)
+        check('a high-variance merchant is NOT flagged despite meeting the frequency bar',
+              'Corner Store' not in by_merchant)
+        check('a merchant below the minimum occurrence count is NOT flagged',
+              'Spotify' not in by_merchant)
+
+    # Already-budgeted merchants are excluded even if the pattern matches.
+    with _dbs() as session:
+        session.add(_BI(name='Netflix', category='Streaming Video', amount=15.99, type='expense'))
+        session.commit()
+    with _dbs() as session:
+        patterns_after_budget = detect_recurring_patterns(session, months=6)
+        check('a merchant that already has an active budget item is excluded from detection',
+              not any(p['merchant'] == 'Netflix' for p in patterns_after_budget))
+
+    r = c.get('/api/budget/detect-recurring?months=6', headers=H)
+    route_data = (r.get_json() or {}).get('data') or []
+    check('GET /api/budget/detect-recurring route works end-to-end',
+          r.status_code == 200 and not any(p['merchant'] == 'Netflix' for p in route_data))
+
     return finish()
 
 

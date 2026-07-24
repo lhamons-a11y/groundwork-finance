@@ -1677,7 +1677,7 @@ function showView(name) {
 
   // Lazy init each view
   if (name === 'dashboard') renderDashboard();
-  if (name === 'ledger')    { renderLedger(); updateLedgerStats(); renderRecentWin('ledger','ledgerRecentWin'); }
+  if (name === 'ledger')    { renderLedger(); updateLedgerStats(); renderRecentWin('ledger','ledgerRecentWin'); loadRecurringDetection(); }
   if (name === 'budget')    { renderBudget(); renderRecentWin('budget','budgetRecentWin'); loadSinkingFunds(); renderSubscriptionAudit(); }
   if (name === 'debt')      { try { _renderCardList(); calculate(); renderDebtAchievements(); renderRecentWin('debt','debtRecentWin'); renderLoanFlags(); _debtShowTab(_debtActiveTab); loadPendingDrafts(); } catch(e) { _gwLogError('debt',e); } }
   if (name === 'byb')       renderBYB();
@@ -13926,6 +13926,52 @@ async function suggestCategoryFor(cardId) {
   } catch (e) {
     _gwErr('suggestCategoryFor')(e);
   }
+}
+
+// Phase H2 Feature 4 (adaptive learning): recurring-transaction
+// auto-detection. Dismissal is session-only (in-memory, not persisted) —
+// a real, complete behavior for "stop showing me this today," just not
+// "forever," which would need a new persisted table this feature doesn't
+// have yet.
+const _recurringDismissed = new Set();
+
+async function loadRecurringDetection() {
+  const banner = g('recurringDetectedBanner');
+  if (!banner) return;
+  try {
+    const patterns = (await API.get('/api/budget/detect-recurring')).filter(p => !_recurringDismissed.has(p.merchant));
+    if (!patterns.length) { banner.style.display = 'none'; return; }
+    banner.style.display = '';
+    banner.innerHTML = `
+      <div style="padding:10px 14px;border-radius:var(--r-md);background:var(--mist);border:0.5px solid var(--steel)">
+        <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Recurring patterns spotted</div>
+        ${patterns.map(p => `
+          <div style="display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px">
+            <div style="flex:1;color:var(--ink)">${esc(p.merchant)} ${fmt(p.avg_amount)} — seen ${p.frequency} times, consistently</div>
+            <button class="btn btn-secondary btn-sm" onclick="acceptRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}', ${p.avg_amount})">Add to budget</button>
+            <button class="btn btn-ghost btn-sm" onclick="dismissRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}')">Dismiss</button>
+          </div>`).join('')}
+      </div>`;
+  } catch (e) {
+    _gwErr('loadRecurringDetection')(e);
+  }
+}
+
+async function acceptRecurringDetection(merchant, avgAmount) {
+  try {
+    await API.post('/api/budget/items', { type: 'expense', name: merchant, amount: avgAmount, category: '' });
+    showToast('Added to budget', `${merchant} — ${fmt(avgAmount)}/mo`);
+    _recurringDismissed.add(merchant);
+    loadRecurringDetection();
+  } catch (e) {
+    _gwErr('acceptRecurringDetection')(e);
+    showToast('Could not add to budget', e.message || '', 'error');
+  }
+}
+
+function dismissRecurringDetection(merchant) {
+  _recurringDismissed.add(merchant);
+  loadRecurringDetection();
 }
 
 async function loadDebtLedger(dbId) {

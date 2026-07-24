@@ -1185,6 +1185,52 @@ def budget_variance():
         return ok(result)
 
 
+def detect_recurring_patterns(session, months: int = 6, min_occurrences: int = 3, tolerance_pct: float = 5.0) -> list:
+    """
+    Phase H2 Feature 4 (adaptive learning — recurring transaction
+    auto-detection). Merchants with 3+ transactions of consistent amount
+    (within tolerance_pct of their own average) over the trailing window —
+    the "Netflix $15.99 every month" pattern. Skips merchants that already
+    have an active budget item, since flagging something the user already
+    budgets for isn't a suggestion, it's noise.
+    """
+    cutoff = date.today() - timedelta(days=30 * months)
+    rows = session.query(Transaction.merchant, Transaction.amount).filter(
+        Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.merchant != ''
+    ).all()
+
+    by_merchant = {}
+    for merchant, amount in rows:
+        by_merchant.setdefault(merchant, []).append(amount)
+
+    existing_budgeted = {
+        b[0] for b in session.query(BudgetItem.name).filter_by(is_active=True).all()
+    }
+
+    patterns = []
+    for merchant, amounts in by_merchant.items():
+        if len(amounts) < min_occurrences or merchant in existing_budgeted:
+            continue
+        avg = sum(amounts) / len(amounts)
+        if avg <= 0:
+            continue
+        max_deviation_pct = max(abs(a - avg) / avg * 100 for a in amounts)
+        if max_deviation_pct <= tolerance_pct:
+            patterns.append({
+                'merchant': merchant, 'avg_amount': round(avg, 2), 'frequency': len(amounts),
+                'max_deviation_pct': round(max_deviation_pct, 1),
+            })
+    patterns.sort(key=lambda p: -p['frequency'])
+    return patterns
+
+
+@budget_bp.route('/detect-recurring', methods=['GET'])
+def budget_detect_recurring():
+    months = int(request.args.get('months', 6))
+    with db_session() as session:
+        return ok(detect_recurring_patterns(session, months=months))
+
+
 @budget_bp.route('/items', methods=['GET'])
 def get_budget_items():
     with db_session() as session:
