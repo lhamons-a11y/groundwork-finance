@@ -13,7 +13,7 @@ import sys
 import json
 import logging
 import threading
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from pathlib import Path
 from functools import wraps
 from typing import Any
@@ -1918,6 +1918,205 @@ def list_linkable_transactions(debt_id):
             'id': t.id, 'date': t.date.isoformat(), 'amount': t.amount,
             'type': t.type, 'description': t.description or '', 'merchant': t.merchant or '',
         } for t in candidates])
+
+
+# ── Debt Reconciliation Phase C: recurring payment drafts ──────────────────────
+_FREQUENCIES = {'monthly', 'biweekly', 'weekly'}
+
+
+def generate_recurring_payment_drafts(session, lookahead_days: int = 5) -> list:
+    """Materialize draft ledger entries for recurring payments due within the
+    lookahead window. Idempotent: a (recurring pattern, due date) pair that
+    already has an entry — draft or already-confirmed — is never duplicated,
+    so this is safe to call on every debt-page load rather than needing a
+    real background scheduler (this is a desktop app with no daemon)."""
+    today_ = date.today()
+    due = get_recurring_payments_due(session, today_, today_ + timedelta(days=lookahead_days))
+    created = []
+    for item in due:
+        r, due_date = item['recurring'], item['due_date']
+        exists = session.query(DebtLedgerEntry).filter_by(
+            linked_recurring_payment_id=r.id, entry_date=due_date
+        ).first()
+        if exists:
+            continue
+        draft = DebtLedgerEntry(
+            debt_account_id=r.debt_account_id,
+            entry_type='payment',
+            amount=r.amount,
+            entry_date=due_date,
+            description='Recurring payment (draft)',
+            source_type='draft',
+            linked_recurring_payment_id=r.id,
+        )
+        session.add(draft)
+        created.append(draft)
+    if created:
+        session.commit()
+    return created
+
+
+def _validate_recurring_payload(body: dict):
+    """Shared validation for create/update. Returns (cleaned_fields, error_or_None)."""
+    fields = {}
+    if 'amount' in body:
+        try:
+            amt = float(body['amount'])
+        except (TypeError, ValueError):
+            return None, 'amount must be a number'
+        if amt <= 0:
+            return None, 'amount must be greater than 0'
+        fields['amount'] = amt
+    if 'frequency' in body:
+        if body['frequency'] not in _FREQUENCIES:
+            return None, f'frequency must be one of {sorted(_FREQUENCIES)}'
+        fields['frequency'] = body['frequency']
+    if 'scheduled_date_of_month' in body:
+        sched = body['scheduled_date_of_month']
+        if sched is not None:
+            try:
+                sched = int(sched)
+                if not (1 <= sched <= 31):
+                    raise ValueError
+            except (TypeError, ValueError):
+                return None, 'scheduled_date_of_month must be an integer 1-31'
+        fields['scheduled_date_of_month'] = sched
+    if 'is_active' in body:
+        fields['is_active'] = bool(body['is_active'])
+    return fields, None
+
+
+@debt_bp.route('/<int:debt_id>/recurring', methods=['GET'])
+def list_recurring_payments(debt_id):
+    with db_session() as session:
+        if not session.get(DebtAccount, debt_id):
+            return err('Not found', 404)
+        rows = session.query(RecurringDebtPayment).filter_by(
+            debt_account_id=debt_id
+        ).order_by(RecurringDebtPayment.created_at.desc()).all()
+        return ok([serialize_recurring_debt_payment(r) for r in rows])
+
+
+@debt_bp.route('/<int:debt_id>/recurring', methods=['POST'])
+@require_json
+def create_recurring_payment(debt_id):
+    fields, error = _validate_recurring_payload(request.json)
+    if error:
+        return err(error)
+    if 'amount' not in fields:
+        return err('amount is required')
+
+    with db_session() as session:
+        debt = session.get(DebtAccount, debt_id)
+        if not debt:
+            return err('Not found', 404)
+        r = RecurringDebtPayment(
+            debt_account_id=debt_id,
+            amount=fields['amount'],
+            frequency=fields.get('frequency', 'monthly'),
+            scheduled_date_of_month=fields.get('scheduled_date_of_month'),
+            is_active=True,
+        )
+        session.add(r)
+        session.commit()
+        return ok(serialize_recurring_debt_payment(r), status=201)
+
+
+@debt_bp.route('/recurring/<int:rid>', methods=['PATCH'])
+@require_json
+def update_recurring_payment(rid):
+    fields, error = _validate_recurring_payload(request.json)
+    if error:
+        return err(error)
+    with db_session() as session:
+        r = session.get(RecurringDebtPayment, rid)
+        if not r:
+            return err('Not found', 404)
+        for k, v in fields.items():
+            setattr(r, k, v)
+        session.commit()
+        return ok(serialize_recurring_debt_payment(r))
+
+
+@debt_bp.route('/recurring/<int:rid>', methods=['DELETE'])
+def delete_recurring_payment(rid):
+    """Soft-delete: mark inactive rather than removing the row — preserves
+    the audit trail for any drafts/confirmed entries this pattern already
+    generated, and matches the blueprint's stated behavior."""
+    with db_session() as session:
+        r = session.get(RecurringDebtPayment, rid)
+        if not r:
+            return err('Not found', 404)
+        r.is_active = False
+        session.commit()
+        return ok(serialize_recurring_debt_payment(r))
+
+
+@debt_bp.route('/drafts/pending', methods=['GET'])
+def list_pending_drafts():
+    with db_session() as session:
+        generate_recurring_payment_drafts(session)
+        drafts = session.query(DebtLedgerEntry).filter_by(
+            source_type='draft'
+        ).order_by(DebtLedgerEntry.entry_date.asc()).all()
+        result = []
+        for d in drafts:
+            debt = session.get(DebtAccount, d.debt_account_id)
+            row = serialize_debt_ledger_entry(d)
+            row['debt_account_name'] = debt.name if debt else ''
+            result.append(row)
+        return ok(result)
+
+
+@debt_bp.route('/drafts/<int:entry_id>/confirm', methods=['POST'])
+@require_json
+def confirm_debt_draft(entry_id):
+    body = request.json
+    with db_session() as session:
+        entry = session.get(DebtLedgerEntry, entry_id)
+        if not entry or entry.source_type != 'draft':
+            return err('Not found', 404)
+
+        if body.get('amount') is not None:
+            try:
+                amt = float(body['amount'])
+            except (TypeError, ValueError):
+                return err('amount must be a number')
+            if amt <= 0:
+                return err('amount must be greater than 0')
+            entry.amount = amt
+        if body.get('entry_date'):
+            try:
+                entry.entry_date = date.fromisoformat(body['entry_date'])
+            except ValueError:
+                return err('entry_date must be YYYY-MM-DD')
+
+        entry.source_type = 'manual'
+        if entry.description == 'Recurring payment (draft)':
+            entry.description = 'Recurring payment'
+        if entry.linked_recurring_payment_id:
+            rp = session.get(RecurringDebtPayment, entry.linked_recurring_payment_id)
+            if rp:
+                rp.last_confirmed_at = datetime.utcnow()
+                rp.last_executed_at = datetime.utcnow()
+        session.commit()
+        return ok(serialize_debt_ledger_entry(entry))
+
+
+@debt_bp.route('/drafts/<int:entry_id>/skip', methods=['POST'])
+def skip_debt_draft(entry_id):
+    """Mark a single due-date occurrence as skipped — NOT a delete. Deleting
+    would let generate_recurring_payment_drafts() see no entry for that
+    (recurring, due_date) pair and silently regenerate the exact draft it
+    was just told to skip on the next page load. The recurring pattern
+    itself stays active; only this occurrence is dismissed."""
+    with db_session() as session:
+        entry = session.get(DebtLedgerEntry, entry_id)
+        if not entry or entry.source_type != 'draft':
+            return err('Not found', 404)
+        entry.source_type = 'skipped'
+        session.commit()
+        return ok(serialize_debt_ledger_entry(entry))
 
 
 # ── Achievements ──────────────────────────────────────────────────────────────

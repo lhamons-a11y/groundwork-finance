@@ -1679,7 +1679,7 @@ function showView(name) {
   if (name === 'dashboard') renderDashboard();
   if (name === 'ledger')    { renderLedger(); updateLedgerStats(); renderRecentWin('ledger','ledgerRecentWin'); }
   if (name === 'budget')    { renderBudget(); renderRecentWin('budget','budgetRecentWin'); loadSinkingFunds(); renderSubscriptionAudit(); }
-  if (name === 'debt')      { try { _renderCardList(); calculate(); renderDebtAchievements(); renderRecentWin('debt','debtRecentWin'); renderLoanFlags(); _debtShowTab(_debtActiveTab); } catch(e) { _gwLogError('debt',e); } }
+  if (name === 'debt')      { try { _renderCardList(); calculate(); renderDebtAchievements(); renderRecentWin('debt','debtRecentWin'); renderLoanFlags(); _debtShowTab(_debtActiveTab); loadPendingDrafts(); } catch(e) { _gwLogError('debt',e); } }
   if (name === 'byb')       renderBYB();
   if (name === 'investments') { try { initInvestments();      } catch(e) { console.error('Investments render:', e); _showViewError(name, e); } }
   if (name === 'networth')  { renderNetWorth(); renderPensionList(); _retirementToolsExpanded = false; const s = g('retirementToolsSection'); if(s) s.style.display='none'; const ch = g('retirementToolsChevron'); if(ch) ch.style.transform=''; }
@@ -13439,6 +13439,7 @@ function _debtCardRowHTML(c, opts={}) {
 const _debtLedgerCache     = {};   // dbId (string) -> array of entries, or undefined = not loaded
 const _debtLinkableCache   = {};   // dbId (string) -> array of linkable checking transactions
 const _debtLedgerOpenForm  = {};   // dbId (string) -> 'charge' | 'payment' | null
+const _recurringCache      = {};   // dbId (string) -> array of recurring payment patterns
 
 function _debtLedgerSectionHTML(c) {
   if (!c._dbId) return '';   // card not saved yet — no debt_account_id to attach entries to
@@ -13456,23 +13457,30 @@ function _debtLedgerBodyHTML(c) {
   const openForm= _debtLedgerOpenForm[key];
 
   // Running total, oldest-first: charge/interest/fee add, payment subtracts.
+  // Skipped occurrences never moved money — excluded from the total, not just
+  // zero-valued, so they don't reserve a row in runningById at all.
   const chrono = entries.slice().reverse();
   let running = 0;
   const runningById = {};
   for (const e of chrono) {
+    if (e.source_type === 'skipped') continue;
     running += (e.entry_type === 'payment') ? -e.amount : e.amount;
     runningById[e.id] = running;
   }
 
   const VERB = { charge: 'Charged', payment: 'Payment', interest: 'Interest', fee: 'Fee' };
-  const rows = entries.length ? entries.map(e => `
-    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--steel);font-size:12px">
+  const rows = entries.length ? entries.map(e => {
+    const skipped = e.source_type === 'skipped';
+    const verb = skipped ? 'Skipped' : (VERB[e.entry_type] || e.entry_type);
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--steel);font-size:12px;${skipped?'opacity:.55':''}">
       <div style="width:72px;flex-shrink:0;color:var(--slate-2);font-family:var(--font-mono)">${e.entry_date}</div>
-      <div style="flex:1;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(VERB[e.entry_type] || e.entry_type)}${e.merchant ? ' · ' + esc(e.merchant) : ''}${e.description ? ' · ' + esc(e.description) : ''}${e.linked_checking_transaction_id ? ' <span title="Linked to a checking transaction">💳</span>' : ''}</div>
-      <div style="font-family:var(--font-mono);flex-shrink:0;color:${e.entry_type==='payment' ? 'var(--pine)' : 'var(--ink)'}">${e.entry_type==='payment'?'−':'+'}${fmt(e.amount)}</div>
-      <div style="font-family:var(--font-mono);flex-shrink:0;width:70px;text-align:right;color:var(--slate-2)" title="Running total of manual entries">${fmt(runningById[e.id])}</div>
+      <div style="flex:1;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${skipped?'text-decoration:line-through':''}">${esc(verb)}${e.merchant ? ' · ' + esc(e.merchant) : ''}${e.description ? ' · ' + esc(e.description) : ''}${e.linked_checking_transaction_id ? ' <span title="Linked to a checking transaction">💳</span>' : ''}</div>
+      <div style="font-family:var(--font-mono);flex-shrink:0;color:${skipped ? 'var(--slate-2)' : e.entry_type==='payment' ? 'var(--pine)' : 'var(--ink)'}">${skipped?'':(e.entry_type==='payment'?'−':'+')}${fmt(e.amount)}</div>
+      <div style="font-family:var(--font-mono);flex-shrink:0;width:70px;text-align:right;color:var(--slate-2)" title="Running total of manual entries">${skipped ? '' : fmt(runningById[e.id])}</div>
       <button class="row-del" onclick="deleteDebtLedgerEntry(${c.id},${e.id})" title="Remove">×</button>
-    </div>`).join('') : `<div style="font-size:11px;color:var(--slate-2);padding:6px 0">No manual entries yet.</div>`;
+    </div>`;
+  }).join('') : `<div style="font-size:11px;color:var(--slate-2);padding:6px 0">No manual entries yet.</div>`;
 
   return `
     <div style="margin-top:12px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);border:1px solid var(--steel)">
@@ -13485,7 +13493,192 @@ function _debtLedgerBodyHTML(c) {
       </div>
       ${openForm ? _debtLedgerAddFormHTML(c, openForm) : ''}
       ${rows}
+      ${_recurringListHTML(c)}
     </div>`;
+}
+
+// ── Recurring payment patterns (Phase C) ────────────────────────────────────
+function _recurringListHTML(c) {
+  const key = String(c._dbId);
+  if (_recurringCache[key] === undefined) {
+    loadRecurringPayments(c._dbId);
+    return '';   // nothing to show yet — loader will re-render when it resolves
+  }
+  const patterns = _recurringCache[key];
+  if (!patterns.length) return '';
+
+  const FREQ_LABEL = { monthly: '/month', biweekly: '/2wk', weekly: '/week' };
+  const rows = patterns.map(r => {
+    const dayLabel = r.scheduled_date_of_month ? `day ${r.scheduled_date_of_month}` : 'last day of month';
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12px;${r.is_active?'':'opacity:.55'}">
+        <div style="flex:1">${fmt(r.amount)}${FREQ_LABEL[r.frequency]||''} · ${dayLabel}${r.is_active?'':' · paused'}</div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleRecurringActive(${c.id},${r.id},${!r.is_active})">${r.is_active?'Pause':'Resume'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="removeRecurringPayment(${c.id},${r.id})">Remove</button>
+      </div>`;
+  }).join('');
+
+  return `
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--steel)">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Recurring payments</div>
+      ${rows}
+    </div>`;
+}
+
+async function loadRecurringPayments(dbId) {
+  try {
+    _recurringCache[String(dbId)] = await API.get(`/api/debt/${dbId}/recurring`);
+  } catch (e) {
+    _recurringCache[String(dbId)] = [];
+    _gwErr('loadRecurringPayments')(e);
+  }
+  const card = S.debtCards.find(x => x._dbId === dbId);
+  const el = card && g(`ledgerSection-${card.id}`);
+  if (el) el.innerHTML = _debtLedgerBodyHTML(card);
+}
+
+async function toggleRecurringActive(cardId, rid, makeActive) {
+  const c = S.debtCards.find(x => x.id === cardId);
+  if (!c || !c._dbId) return;
+  try {
+    await API.patch(`/api/debt/recurring/${rid}`, { is_active: makeActive });
+    delete _recurringCache[String(c._dbId)];
+    await loadRecurringPayments(c._dbId);
+  } catch (e) {
+    _gwErr('toggleRecurringActive')(e);
+    showToast('Could not update recurring payment', e.message || '', 'error');
+  }
+}
+
+function removeRecurringPayment(cardId, rid) {
+  const c = S.debtCards.find(x => x.id === cardId);
+  if (!c || !c._dbId) return;
+  confirmAction('Remove this recurring payment?', 'No more drafts will be generated from it. Past entries are unaffected.', async () => {
+    try {
+      await API.delete(`/api/debt/recurring/${rid}`);
+      delete _recurringCache[String(c._dbId)];
+      await loadRecurringPayments(c._dbId);
+    } catch (e) {
+      _gwErr('removeRecurringPayment')(e);
+      showToast('Could not remove recurring payment', e.message || '', 'error');
+    }
+  });
+}
+
+// ── Pending draft confirmations (Phase C) ───────────────────────────────────
+let _pendingDrafts = [];
+
+async function loadPendingDrafts() {
+  try {
+    _pendingDrafts = await API.get('/api/debt/drafts/pending');
+  } catch (e) {
+    _pendingDrafts = [];
+    _gwErr('loadPendingDrafts')(e);
+  }
+  _renderPendingDrafts();
+}
+
+function _renderPendingDrafts() {
+  const card = g('pendingDraftsCard');
+  const list = g('pendingDraftsList');
+  if (!card || !list) return;
+  if (!_pendingDrafts.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  list.innerHTML = _pendingDrafts.map(_pendingDraftRowHTML).join('');
+}
+
+function _pendingDraftRowHTML(d) {
+  return `
+    <div style="padding:8px 0;border-bottom:1px solid var(--steel);font-size:13px" id="draftRow-${d.id}">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1">
+          <div style="color:var(--ink);font-weight:600">${esc(d.debt_account_name)}</div>
+          <div style="font-size:11px;color:var(--slate-2)">Due ${d.entry_date} · your usual ${fmt(d.amount)}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-secondary btn-sm" onclick="confirmDraftAsIs(${d.id})">Confirm</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleDraftEditForm(${d.id})">Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="skipDraft(${d.id})">Skip</button>
+        </div>
+      </div>
+      <div id="draftEditArea-${d.id}"></div>
+    </div>`;
+}
+
+function toggleDraftEditForm(entryId) {
+  const area = g(`draftEditArea-${entryId}`);
+  if (!area) return;
+  if (area.innerHTML.trim()) { area.innerHTML = ''; return; }
+  const d = _pendingDrafts.find(x => x.id === entryId);
+  if (!d) return;
+  area.innerHTML = `
+    <div style="margin-top:8px;padding:10px;background:var(--paper);border:1px solid var(--steel-2);border-radius:var(--r-sm)">
+      <div class="field-row" style="margin-bottom:8px">
+        <div class="field" style="margin:0"><label>Date</label><input type="date" id="draftDate-${d.id}" value="${d.entry_date}"></div>
+        <div class="field" style="margin:0"><label>Amount ($)</label><input type="number" id="draftAmount-${d.id}" min="0.01" step="0.01" value="${d.amount}"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-secondary btn-sm" onclick="confirmDraftWithEdits(${d.id})">Save &amp; confirm</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleDraftEditForm(${d.id})">Cancel</button>
+        <span id="draftError-${d.id}" style="font-size:11px;color:var(--ember)"></span>
+      </div>
+    </div>`;
+}
+
+function _refreshDebtLedgerAfterDraftChange(debtAccountId) {
+  delete _debtLedgerCache[String(debtAccountId)];
+  const card = S.debtCards.find(x => x._dbId === debtAccountId);
+  if (card && g(`ledgerSection-${card.id}`)) loadDebtLedger(debtAccountId);
+}
+
+async function confirmDraftAsIs(entryId) {
+  const draft = _pendingDrafts.find(d => d.id === entryId);
+  try {
+    await API.post(`/api/debt/drafts/${entryId}/confirm`, {});
+    _pendingDrafts = _pendingDrafts.filter(d => d.id !== entryId);
+    _renderPendingDrafts();
+    showToast('Payment confirmed');
+    if (draft) _refreshDebtLedgerAfterDraftChange(draft.debt_account_id);
+  } catch (e) {
+    _gwErr('confirmDraftAsIs')(e);
+    showToast('Could not confirm payment', e.message || '', 'error');
+  }
+}
+
+async function confirmDraftWithEdits(entryId) {
+  const draft  = _pendingDrafts.find(d => d.id === entryId);
+  const errEl  = g(`draftError-${entryId}`);
+  const amount = parseFloat(g(`draftAmount-${entryId}`)?.value);
+  const dateVal= g(`draftDate-${entryId}`)?.value;
+  if (!(amount > 0) || !dateVal) {
+    if (errEl) errEl.textContent = 'Enter a date and an amount greater than $0.';
+    return;
+  }
+  try {
+    await API.post(`/api/debt/drafts/${entryId}/confirm`, { amount, entry_date: dateVal });
+    _pendingDrafts = _pendingDrafts.filter(d => d.id !== entryId);
+    _renderPendingDrafts();
+    showToast('Payment confirmed');
+    if (draft) _refreshDebtLedgerAfterDraftChange(draft.debt_account_id);
+  } catch (e) {
+    if (errEl) errEl.textContent = e.message || 'Could not save.';
+  }
+}
+
+async function skipDraft(entryId) {
+  const draft = _pendingDrafts.find(d => d.id === entryId);
+  try {
+    // Not a delete — a deleted draft has no idempotency record, so it would
+    // silently regenerate on the next load. skip marks the occurrence
+    // dismissed instead (server.py :: skip_debt_draft).
+    await API.post(`/api/debt/drafts/${entryId}/skip`, {});
+    _pendingDrafts = _pendingDrafts.filter(d => d.id !== entryId);
+    _renderPendingDrafts();
+    if (draft) _refreshDebtLedgerAfterDraftChange(draft.debt_account_id);
+  } catch (e) {
+    _gwErr('skipDraft')(e);
+    showToast('Could not skip payment', e.message || '', 'error');
+  }
 }
 
 function _debtLedgerAddFormHTML(c, type) {
@@ -13514,12 +13707,35 @@ function _debtLedgerAddFormHTML(c, type) {
           ${linkable.map(t => `<option value="${t.id}">${t.date} · ${esc(t.description||t.merchant||'')} · ${fmt(Math.abs(t.amount))}</option>`).join('')}
         </select>
       </div>` : ''}
+      ${isPayment ? `
+      <div style="margin:0 0 8px 0">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--slate)">
+          <input type="checkbox" id="ledgerSaveRecurring-${c.id}" onchange="_toggleRecurringFields(${c.id})">
+          Save this as a recurring payment
+        </label>
+        <div id="ledgerRecurringFields-${c.id}" style="display:none;margin-top:8px" class="field-row">
+          <div class="field" style="margin:0"><label>Day of month (blank = last day)</label><input type="number" id="ledgerRecurDay-${c.id}" min="1" max="31" placeholder="e.g. 15"></div>
+          <div class="field" style="margin:0"><label>Frequency</label>
+            <select id="ledgerRecurFreq-${c.id}">
+              <option value="monthly">Monthly</option>
+              <option value="biweekly">Biweekly</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </div>
+        </div>
+      </div>` : ''}
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-secondary btn-sm" onclick="submitDebtLedgerEntry(${c.id},'${type}')">Add ${isPayment?'payment':'charge'}</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleDebtLedgerAdd(${c.id},'${type}')">Cancel</button>
         <span id="ledgerError-${c.id}" style="font-size:11px;color:var(--ember)"></span>
       </div>
     </div>`;
+}
+
+function _toggleRecurringFields(cardId) {
+  const box = g(`ledgerSaveRecurring-${cardId}`);
+  const area = g(`ledgerRecurringFields-${cardId}`);
+  if (area) area.style.display = box?.checked ? '' : 'none';
 }
 
 function toggleDebtLedgerAdd(cardId, type) {
@@ -13583,6 +13799,21 @@ async function submitDebtLedgerEntry(cardId, type) {
 
   try {
     await API.post(`/api/debt/${c._dbId}/ledger`, payload);
+
+    if (type === 'payment' && g(`ledgerSaveRecurring-${cardId}`)?.checked) {
+      const dayVal = g(`ledgerRecurDay-${cardId}`)?.value;
+      try {
+        await API.post(`/api/debt/${c._dbId}/recurring`, {
+          amount: amountVal,
+          frequency: g(`ledgerRecurFreq-${cardId}`)?.value || 'monthly',
+          scheduled_date_of_month: dayVal ? parseInt(dayVal) : null,
+        });
+        delete _recurringCache[String(c._dbId)];
+      } catch (e) {
+        _gwErr('submitDebtLedgerEntry:saveRecurring')(e);   // ledger entry already saved — don't block on this
+      }
+    }
+
     delete _debtLedgerCache[String(c._dbId)];
     delete _debtLinkableCache[String(c._dbId)];   // the linked txn, if any, is no longer a candidate
     _debtLedgerOpenForm[String(c._dbId)] = null;

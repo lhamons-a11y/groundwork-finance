@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260724-drB'
+SCHEMA_VERSION = '20260724-drC'
 
 
 def _stored_schema_version():
@@ -73,6 +73,15 @@ _NEW_CATEGORY_COLUMNS = [
 _NEW_DEBT_HISTORY_COLUMNS = [
     ('interest_charged',     "FLOAT"),
     ('statement_period_end', "VARCHAR(10)"),
+]
+
+# Phase C: debt_ledger_entries already exists on any post-Phase-A install
+# (created via create_all when the table itself was new) — this column is
+# new on top of that existing table, so it needs the same ALTER TABLE path
+# as everything else in this file. Model line required in core/database.py:
+# linked_recurring_payment_id = Column(Integer, ForeignKey('recurring_debt_payments.id'), nullable=True)
+_NEW_DEBT_LEDGER_COLUMNS = [
+    ('linked_recurring_payment_id', "INTEGER REFERENCES recurring_debt_payments(id)"),
 ]
 
 
@@ -191,6 +200,9 @@ _PERFORMANCE_INDEXES = [
     ('ix_txn_account_import', 'transactions(account_id, import_id)'),
     ('ix_txn_account_date',   'transactions(account_id, date)'),
     ('ix_txn_category',       'transactions(category_id)'),
+    # Phase C: covers the idempotency check in generate_recurring_payment_drafts
+    # (has a draft already been made for this recurring pattern + due date?).
+    ('ix_dle_recurring',      'debt_ledger_entries(linked_recurring_payment_id)'),
 ]
 
 
@@ -213,6 +225,7 @@ def run_migration_if_needed():
     _add_missing_columns('accounts',             _NEW_ACCOUNT_COLUMNS)
     _add_missing_columns('categories',           _NEW_CATEGORY_COLUMNS)
     _add_missing_columns('debt_balance_history', _NEW_DEBT_HISTORY_COLUMNS)
+    _add_missing_columns('debt_ledger_entries',  _NEW_DEBT_LEDGER_COLUMNS)
     _ensure_indexes()
 
     # Audit note (d20 deferred → d21): debt_balance_history used to be defined

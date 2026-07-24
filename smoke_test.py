@@ -425,6 +425,111 @@ def main():
     r = c.delete('/api/debt/ledger/999999', headers=H)
     check('DELETE unknown ledger entry 404s', r.status_code == 404)
 
+    # ── 18. Debt Reconciliation Phase C (recurring drafts) ────────────────────
+    with _dbs() as session:
+        debt3 = _DA(name='Phase C Smoke Card', current_balance=200.0)
+        session.add(debt3)
+        session.commit()
+        _debt3_id = debt3.id
+
+    r = c.post(f'/api/debt/{_debt3_id}/recurring', headers=HJ, data=json.dumps({
+        'amount': 60.0, 'frequency': 'monthly', 'scheduled_date_of_month': 15}))
+    check('POST recurring succeeds (201)', r.status_code == 201)
+    _recurring_id = (r.get_json() or {}).get('data', {}).get('id')
+
+    r = c.post(f'/api/debt/{_debt3_id}/recurring', headers=HJ, data=json.dumps({
+        'amount': 10.0, 'frequency': 'yearly'}))
+    check('POST recurring rejects invalid frequency (400)', r.status_code == 400)
+
+    r = c.post(f'/api/debt/{_debt3_id}/recurring', headers=HJ, data=json.dumps({
+        'amount': 10.0, 'scheduled_date_of_month': 45}))
+    check('POST recurring rejects out-of-range day (400)', r.status_code == 400)
+
+    r = c.get(f'/api/debt/{_debt3_id}/recurring', headers=H)
+    recurring_list = (r.get_json() or {}).get('data') or []
+    check('GET recurring lists the created pattern',
+          any(rp['id'] == _recurring_id for rp in recurring_list))
+
+    # Force this pattern's due date into the generator's lookahead window
+    # regardless of what day "today" is in this run, so draft generation is
+    # actually exercised rather than skipped by chance.
+    with _dbs() as session:
+        rp = session.query(_RDP).get(_recurring_id)
+        rp.scheduled_date_of_month = (_date.today() + _timedelta(days=2)).day
+        session.commit()
+
+    r = c.get('/api/debt/drafts/pending', headers=H)
+    pending = (r.get_json() or {}).get('data') or []
+    _draft = next((d for d in pending if d.get('debt_account_id') == _debt3_id), None)
+    check('GET drafts/pending materializes a draft for the due pattern', _draft is not None)
+
+    # Idempotency: fetching again must not create a second draft for the same
+    # (recurring, due_date) pair.
+    r = c.get('/api/debt/drafts/pending', headers=H)
+    pending_again = (r.get_json() or {}).get('data') or []
+    check('GET drafts/pending is idempotent (no duplicate draft)',
+          len([d for d in pending_again if d.get('debt_account_id') == _debt3_id]) == 1)
+
+    if _draft:
+        r = c.post(f'/api/debt/drafts/{_draft["id"]}/confirm', headers=HJ, data=json.dumps({'amount': 65.0}))
+        check('POST draft confirm with edited amount succeeds', r.status_code == 200)
+        confirmed = (r.get_json() or {}).get('data') or {}
+        check('confirmed draft has edited amount and source_type manual',
+              confirmed.get('amount') == 65.0 and confirmed.get('source_type') == 'manual')
+        check('confirmed draft description no longer says "(draft)"',
+              confirmed.get('description') == 'Recurring payment')
+
+    r = c.post(f'/api/debt/drafts/999999/confirm', headers=HJ, data=json.dumps({}))
+    check('POST draft confirm 404s for unknown draft', r.status_code == 404)
+
+    # Regression test for the skip-then-regenerate bug caught during Phase C
+    # browser testing: skipping must be a durable marker, not a delete —
+    # otherwise generate_recurring_payment_drafts sees no entry for that due
+    # date and silently recreates the exact draft the user just dismissed.
+    with _dbs() as session:
+        rp2 = _RDP(debt_account_id=_debt3_id, scheduled_date_of_month=(_date.today() + _timedelta(days=1)).day,
+                    amount=30.0, frequency='monthly', is_active=True)
+        session.add(rp2)
+        session.commit()
+        _rp2_id = rp2.id
+
+    r = c.get('/api/debt/drafts/pending', headers=H)
+    pending2 = (r.get_json() or {}).get('data') or []
+    _draft2 = next((d for d in pending2 if d.get('debt_account_id') == _debt3_id and d['id'] != (_draft or {}).get('id')), None)
+    check('a second due pattern produces a second draft', _draft2 is not None)
+
+    if _draft2:
+        r = c.post(f'/api/debt/drafts/{_draft2["id"]}/skip', headers=HJ, data=json.dumps({}))
+        check('POST draft skip succeeds', r.status_code == 200)
+        skipped_entry = (r.get_json() or {}).get('data') or {}
+        check('skipped entry has source_type skipped (not deleted)',
+              skipped_entry.get('source_type') == 'skipped')
+
+        r = c.get('/api/debt/drafts/pending', headers=H)
+        pending3 = (r.get_json() or {}).get('data') or []
+        check('skipped draft does not reappear in pending list',
+              not any(d['id'] == _draft2['id'] for d in pending3))
+
+        r = c.get('/api/debt/drafts/pending', headers=H)   # call again — the actual regression scenario
+        pending4 = (r.get_json() or {}).get('data') or []
+        check('skipped draft does not regenerate on a second fetch (regression)',
+              not any(d.get('debt_account_id') == _debt3_id and d['entry_date'] == skipped_entry['entry_date']
+                      for d in pending4))
+
+    r = c.patch(f'/api/debt/recurring/{_recurring_id}', headers=HJ, data=json.dumps({'is_active': False}))
+    check('PATCH recurring pauses the pattern', r.status_code == 200
+          and (r.get_json() or {}).get('data', {}).get('is_active') is False)
+
+    r = c.delete(f'/api/debt/recurring/{_recurring_id}', headers=H)
+    soft_deleted = (r.get_json() or {}).get('data') or {}
+    check('DELETE recurring soft-deletes (is_active False, row still exists)',
+          r.status_code == 200 and soft_deleted.get('is_active') is False)
+
+    r = c.get(f'/api/debt/{_debt3_id}/recurring', headers=H)
+    still_listed = (r.get_json() or {}).get('data') or []
+    check('soft-deleted recurring pattern still appears in list (audit trail)',
+          any(rp['id'] == _recurring_id for rp in still_listed))
+
     return finish()
 
 

@@ -185,19 +185,29 @@ class DebtLedgerEntry(Base):
     category         = Column(String(80), default='')
     merchant         = Column(String(120), default='')
     linked_checking_transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=True)
-    # 'manual' | 'imported' | 'inferred' | 'draft' (draft = Phase C scheduler,
-    # becomes 'manual' once the user confirms it)
+    # 'manual' | 'imported' | 'inferred' | 'draft' | 'skipped'
+    # (draft = Phase C scheduler, becomes 'manual' on confirm or 'skipped' if
+    # the user dismisses that occurrence — 'skipped' isn't a delete, so the
+    # generator's idempotency check still sees an entry for that due date
+    # and won't regenerate it)
     source_type      = Column(String(10), nullable=False, default='manual')
+    # Phase C: which recurring pattern generated this entry, if any. Doubles
+    # as the idempotency key for draft generation — (linked_recurring_payment_id,
+    # entry_date) is checked before materializing a new draft, so re-running
+    # the generator never creates duplicates for a due date already handled.
+    linked_recurring_payment_id = Column(Integer, ForeignKey('recurring_debt_payments.id'), nullable=True)
     created_at       = Column(DateTime, default=datetime.utcnow)
     updated_at       = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     debt_account                = relationship('DebtAccount')
     linked_checking_transaction = relationship('Transaction')
+    linked_recurring_payment    = relationship('RecurringDebtPayment')
 
     __table_args__ = (
         Index('ix_dle_account_date', 'debt_account_id', 'entry_date'),
         Index('ix_dle_source_type',  'source_type'),
         Index('ix_dle_entry_type',   'entry_type'),
+        Index('ix_dle_recurring',    'linked_recurring_payment_id'),
     )
 
 
