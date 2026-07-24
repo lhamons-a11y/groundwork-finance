@@ -1,0 +1,48 @@
+# Groundwork — Python dependencies
+# Install with: pip install -r requirements.txt
+#
+# Platform notes:
+#   Windows: all packages below work as-is
+#   macOS:   all packages below work as-is (tkinter included with Python from python.org)
+#   Linux:   install system packages FIRST (see README), then pip install below
+
+# Core web framework
+flask>=3.1.0,<4.0
+flask-cors>=4.0.0
+
+# Database
+sqlalchemy>=2.0.0,<3.0
+
+# Desktop window (cross-platform)
+pywebview>=4.4.0
+
+# HTTP client (for live price lookups + Anthropic AI)
+requests>=2.31.0
+
+# Anthropic AI (optional — only needed for AI report feature)
+anthropic>=0.25.0
+
+# PDF statement extraction (Phase 4 — layout-to-text only, never interprets meaning)
+pdfplumber>=0.11.0
+
+# Free-RAM detection for first-run local-model tiering (Phase 2B)
+psutil>=5.9.0
+
+# ── Platform-specific ─────────────────────────────────────────────────────────
+# Linux only: install these via your package manager, NOT pip
+#
+#   Ubuntu 22.04 / Debian:
+#     sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.0 python3-tk
+#
+#   Ubuntu 23.04+ / Debian 12+:
+#     sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-tk
+#
+#   Fedora:
+#     sudo dnf install python3-gobject webkit2gtk4.0 python3-tkinter
+#
+#   Arch Linux:
+#     sudo pacman -S python-gobject webkit2gtk python-tk
+#
+# macOS: tkinter is included with Python from python.org
+#   If you installed Python via Homebrew:
+#     brew install python-tk

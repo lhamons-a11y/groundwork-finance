@@ -1,0 +1,2946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Groundwork — Personal Finance</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@1,700&display=swap">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet"></noscript>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;font-size:14px;color:#0d1117;background:#f8fafc;line-height:1.5;-webkit-font-smoothing:antialiased}
+
+/* ── Splash screen ──────────────────────────────────────────────────────────── */
+#splashScreen{position:fixed;inset:0;z-index:99999;background:#12141f;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s ease}
+#splashScreen.fade-out{opacity:0;pointer-events:none}
+.splash-dot{width:7px;height:7px;border-radius:50%;background:#2563eb;animation:splashPulse 1.2s ease infinite}
+@keyframes splashPulse{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1)}}
+
+:root{
+  /* ── Alias map: new naming → existing variables ────────────────────────────
+     Many components use --color-* and --border-radius-* naming.
+     These aliases ensure nothing renders as 'unset'.              */
+  --color-background-primary:   var(--paper);
+  --color-background-secondary: var(--mist);
+  --color-text-primary:         var(--ink);
+  --color-text-secondary:       var(--slate);
+  --color-text-success:         var(--pine);
+  --color-text-warning:         #b45309;
+  --color-text-danger:          #dc2626;
+  --color-border-secondary:     var(--steel);
+  --color-border-tertiary:      var(--steel-2);
+  --border:                     1px solid var(--steel);
+  --border-radius-md:           var(--r-md);
+  --border-radius-lg:           var(--r-lg);
+  --r-xl:                       16px;
+  --ink:#0d1117; --ink-2:#1e2530;
+  --paper:#ffffff;
+  --mist:#f8fafc; --mist-2:#f0f4f8;
+  --steel:#e2e8f0; --steel-2:#cbd5e1;
+  --slate:#64748b; --slate-2:#94a3b8;
+  --pine:#16a34a; --pine-bg:#f0fdf4; --pine-border:#bbf7d0;
+  --ember:#dc2626; --ember-bg:#fef2f2; --ember-border:#fecaca;
+  --gold:#d97706; --gold-bg:#fffbeb; --gold-border:#fde68a;
+  --sky:#2563eb; --sky-bg:#eff6ff; --sky-border:#bfdbfe;
+  /* Category colors are NOT stored as CSS tokens anymore — they're stored
+     on each Category row in the database and applied per-row at render
+     time via _categoryStyle(). This means whatever color the user picks
+     in Settings → Categories shows up everywhere a category is drawn,
+     without any code change. See _ledgerRowHTML() and _categoryStyle(). */
+  --font-body:'Inter',system-ui,sans-serif;
+  --font-mono:'DM Mono','Courier New',monospace;
+  --font-display:'Playfair Display',Georgia,serif;
+  --r-sm:4px; --r-md:8px; --r-lg:12px;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
+  --sidebar-w:224px;
+}
+
+/* App shell */
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* Sidebar */
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--ink);display:flex;flex-direction:column;height:100vh}
+.sidebar-logo{display:flex;align-items:center;gap:10px;padding:20px 16px 16px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sidebar-wordmark-text{font-family:var(--font-display);font-style:italic;font-weight:700;font-size:18px;color:#fff;letter-spacing:-.3px;line-height:1}
+.sidebar-wordmark-text span{color:var(--pine)}
+.sidebar-wordmark-sub{font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
+.sidebar-nav{flex:1;overflow-y:auto;padding:16px 0}
+.nav-section{margin-bottom:20px}
+.nav-section-label{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.25);padding:0 16px;margin-bottom:6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:13px;color:rgba(255,255,255,.5);cursor:pointer;border-left:2px solid transparent;transition:color .12s,background .12s;user-select:none}
+.nav-item:hover{color:rgba(255,255,255,.85);background:rgba(255,255,255,.05)}
+.nav-item.active{color:#fff;background:rgba(37,99,235,.18);border-left-color:var(--sky)}
+.nav-item-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0;opacity:.7}
+.nav-badge{margin-left:auto;background:var(--ember);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;min-width:16px;text-align:center}
+.sidebar-footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.07)}
+.ai-status{display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,.35)}
+.ai-status-dot{width:6px;height:6px;border-radius:50%;background:var(--slate-2);flex-shrink:0;transition:background .3s}
+.ai-status-dot.ready{background:var(--pine);box-shadow:0 0 6px var(--pine)}
+/* Toggle switch */
+#settingsAiToggle:checked + #settingsAiTrack{background:var(--sky)}
+#settingsAiToggle:checked + #settingsAiTrack::before{transform:translateX(18px)}
+#settingsAiTrack::before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+
+/* Universal toggle knob — applies to all settings toggles */
+.toggle-track::before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+input:checked + .toggle-track{background:var(--pine) !important}
+input:checked + .toggle-track::before{transform:translateX(18px)}
+
+/* Main */
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+
+/* Topbar */
+.topbar{background:var(--paper);border-bottom:1px solid var(--steel);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.topbar-title{font-size:15px;font-weight:600;color:var(--ink)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-date{font-family:var(--font-mono);font-size:11px;color:var(--slate-2)}
+/* Trip Planner — Phase 10 */
+.trip-mode-btn.active{background:var(--sky);color:#fff;border-color:var(--sky)}
+.trip-fund-btn.active{background:var(--pine);color:#fff;border-color:var(--pine)}
+.trip-budget-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--steel);font-size:13px}
+.trip-budget-row:last-child{border-bottom:none;font-weight:600;font-size:14px;padding-top:10px}
+.trip-budget-cat{color:var(--ink)}
+.trip-budget-amt{font-family:var(--font-mono);color:var(--ink)}
+.trip-budget-note{font-size:10px;color:var(--slate-2);margin-left:8px}
+.trip-cell{background:var(--mist);border-radius:var(--r-md);padding:12px 14px}
+.trip-cell-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px}
+.trip-cell-value{font-size:18px;font-weight:500;font-family:var(--font-mono);color:var(--ink)}
+.trip-cell-sub{font-size:11px;color:var(--slate-2);margin-top:2px}
+
+/* Onboarding — Phase 9A */
+.ob-step{height:4px;flex:1;border-radius:99px;background:var(--steel);transition:background .3s}
+.ob-step-active{background:var(--sky)}
+.ob-step-done{background:var(--pine)}
+.ob-debt-row{display:grid;grid-template-columns:2fr 1.2fr 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:8px}
+.ob-debt-row input{font-size:12px;padding:7px 10px;min-width:0;width:100%}
+.ob-start-option{display:block;width:100%;text-align:left;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);padding:16px 18px;margin-bottom:12px;cursor:pointer;transition:border-color .12s,background .12s;font-family:inherit}
+.ob-start-option:hover{border-color:var(--sky);background:var(--sky-bg)}
+.ob-start-title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:3px}
+.ob-start-sub{font-size:12px;color:var(--slate);line-height:1.5}
+.ob-back-link{font-size:12px;color:var(--slate-2);cursor:pointer;margin-bottom:16px;display:inline-flex;align-items:center;gap:4px;transition:color .12s;user-select:none}
+.ob-back-link:hover{color:var(--sky)}
+
+/* Phase 9 dashboard additions */
+.dash-interest-burn{font-size:11px;color:var(--ember);font-family:var(--font-mono);margin-top:3px}
+.dash-payoff-date{font-size:11px;color:var(--pine);margin-top:3px}
+
+/* ── Help system — Layer 1, 2, 3 ── */
+.help-icon{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--steel);color:var(--slate);font-size:9px;font-weight:700;cursor:pointer;margin-left:4px;vertical-align:middle;flex-shrink:0;transition:background .15s}
+.help-icon:hover{background:var(--sky);color:#fff}
+.help-card{position:fixed;z-index:9500;background:var(--ink);border:1px solid rgba(255,255,255,.15);border-radius:var(--r-lg);padding:16px 18px;max-width:280px;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:helpIn .15s ease}
+.help-card-title{font-size:12px;font-weight:600;color:#fff;margin-bottom:6px}
+.help-card-body{font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;white-space:pre-line}
+.help-card-close{position:absolute;top:10px;right:12px;color:rgba(255,255,255,.3);cursor:pointer;font-size:14px;line-height:1}
+.help-card-close:hover{color:#fff}
+@keyframes helpIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.first-visit-banner{background:linear-gradient(135deg,rgba(96,165,250,.08),rgba(96,165,250,.03));border:1px solid rgba(96,165,250,.2);border-radius:var(--r-md);padding:14px 16px;margin-bottom:20px;display:flex;gap:14px;align-items:flex-start}
+.first-visit-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.first-visit-body{flex:1}
+.first-visit-title{font-size:12px;font-weight:600;color:var(--sky);margin-bottom:3px}
+.first-visit-text{font-size:11px;color:var(--slate);line-height:1.5}
+.first-visit-dismiss{font-size:10px;color:var(--slate-2);cursor:pointer;margin-top:6px;display:inline-block}
+.first-visit-dismiss:hover{color:var(--sky)}
+.empty-guide{text-align:center;padding:40px 24px;color:var(--slate-2)}
+.empty-guide-icon{font-size:32px;margin-bottom:12px}
+.empty-guide-title{font-size:14px;font-weight:500;color:var(--slate);margin-bottom:6px}
+.empty-guide-text{font-size:12px;line-height:1.6;margin-bottom:16px}
+
+/* ── Magazine report layout ── */
+.report-cover{margin-bottom:48px;padding-bottom:32px;border-bottom:1px solid rgba(255,255,255,.1)}
+.report-wordmark{font-family:var(--font-display);font-style:italic;font-size:14px;color:rgba(255,255,255,.35);letter-spacing:.08em;margin-bottom:20px;display:block}
+.report-month{font-family:var(--font-display);font-style:italic;font-size:clamp(42px,6vw,72px);font-weight:400;color:#fff;line-height:1;margin-bottom:8px}
+.report-status{font-size:13px;color:rgba(255,255,255,.5);letter-spacing:.12em;text-transform:uppercase;margin-bottom:32px}
+.report-hero-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:hidden;margin-bottom:48px}
+.report-hero-cell{padding:20px 24px;background:rgba(255,255,255,.03)}
+.report-hero-label{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px}
+.report-hero-value{font-family:var(--font-mono);font-size:26px;font-weight:500;color:#fff;line-height:1}
+.report-hero-delta{font-size:11px;margin-top:5px}
+.report-hero-delta.good{color:#4ade80}
+.report-hero-delta.bad{color:#f87171}
+.report-hero-delta.neutral{color:rgba(255,255,255,.4)}
+.report-section{margin-bottom:40px}
+.report-section-label{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:20px;display:flex;align-items:center;gap:12px}
+.report-section-label::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.08)}
+.report-narrative{font-size:15px;color:rgba(255,255,255,.82);line-height:1.85;font-family:var(--font-body)}
+.report-narrative p{margin-bottom:20px}
+.report-narrative p:last-child{margin-bottom:0}
+.report-pullquote{font-family:var(--font-display);font-style:italic;font-size:22px;color:#fff;line-height:1.5;padding:24px 0;border-top:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(255,255,255,.15);margin:32px 0}
+.report-bva-row{display:flex;align-items:center;gap:16px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px}
+.report-bva-row:last-child{border-bottom:none}
+.report-bva-cat{color:rgba(255,255,255,.7);min-width:120px}
+.report-bva-bar{flex:1;height:3px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden}
+.report-bva-fill{height:100%;border-radius:99px;background:rgba(255,255,255,.4)}
+.report-bva-fill.over{background:#f87171}
+.report-bva-fill.good{background:#4ade80}
+.report-bva-amt{font-family:var(--font-mono);font-size:11px;color:rgba(255,255,255,.4);min-width:80px;text-align:right}
+.report-interest-block{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:20px 24px;margin-bottom:32px;display:flex;align-items:center;gap:20px}
+.report-interest-num{font-family:var(--font-mono);font-size:32px;font-weight:500;color:#f87171}
+.report-interest-label{font-size:12px;color:rgba(255,255,255,.5);line-height:1.5}
+.report-ai-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.08em;text-transform:uppercase;margin-top:24px}
+
+/* Print styles */
+@media print {
+  body > *:not(#reportModal):not(#view-reports){display:none!important}
+  #reportModal{position:static!important;background:#fff!important;overflow:visible!important}
+  #reportToolbar,#reportModal > div:nth-child(2){display:none!important}
+  #reportContent{padding:0!important;max-width:100%!important}
+  /* Report Center print */
+  #view-reports{display:block!important;background:#fff!important}
+  #reportCenterContent .card{border:1px solid #ddd!important;background:#fff!important;break-inside:avoid}
+  #rcReportBody button,#rcReportBody select,.rc-back-btn{display:none!important}
+  #view-reports [onclick="_rcBackToCatalog()"]{display:none!important}
+  .report-month{color:#000!important;font-size:48px!important}
+  .report-wordmark,.report-status,.report-hero-label,.report-section-label,.report-bva-amt,.report-hero-delta{color:#555!important}
+  .report-hero-cell{background:#f5f5f5!important}
+  .report-hero-value,.report-bva-cat{color:#000!important}
+  .report-hero-delta.good{color:#166534!important}
+  .report-hero-delta.bad{color:#991b1b!important}
+  .report-narrative p{color:#222!important}
+  .report-pullquote{color:#000!important;border-color:#ccc!important}
+  .report-interest-block{background:#fff5f5!important;border-color:#fca5a5!important}
+  .report-interest-num{color:#dc2626!important}
+  .report-bva-fill{background:#374151!important}
+  .report-bva-fill.over{background:#dc2626!important}
+  .report-bva-fill.good{background:#166534!important}
+  .ai-disclosure{display:none!important}
+  .report-section-label::after{background:#ccc!important}
+  .report-ai-badge{display:none!important}
+  .report-hero-grid{background:#e5e7eb!important;border-color:#e5e7eb!important}
+}
+
+/* save indicator removed Phase 8 — DB writes are immediate */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Content */
+.content{flex:1;overflow-y:auto;padding:24px}
+.view{display:none}
+.view.active{display:block}
+
+/* Recent win strip */
+.recent-win{display:flex;align-items:center;gap:10px;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-md);padding:10px 14px;margin-bottom:20px;font-size:12px;color:#166534}
+.recent-win-icon{font-size:16px}
+.recent-win-time{font-family:var(--font-mono);font-size:10px;opacity:.6;margin-left:auto}
+
+/* Section header */
+.section-header{margin-bottom:24px}
+.section-title{font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:700;letter-spacing:-.3px;color:var(--ink)}
+.section-sub{font-size:13px;color:var(--slate);margin-top:3px}
+
+/* Cards */
+.card{background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow-sm)}
+.card-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-label::after{content:'';flex:1;height:1px;background:var(--steel)}
+
+/* Stat cards */
+.stat-card{background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+.stat-card::after{content:'';position:absolute;top:0;left:0;width:100%;height:3px;background:var(--steel)}
+.stat-card.positive::after{background:var(--pine)}
+.stat-card.negative::after{background:var(--ember)}
+.stat-card.accent::after{background:var(--sky)}
+.stat-card.warning::after{background:var(--gold)}
+.stat-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px}
+.stat-value{font-family:var(--font-mono);font-size:26px;font-weight:500;color:var(--ink);letter-spacing:-.5px;line-height:1}
+.stat-value.positive{color:var(--pine)}
+.stat-value.negative{color:var(--ember)}
+.stat-value.muted{color:var(--slate)}
+.stat-delta{font-size:11px;color:var(--slate-2);margin-top:5px}
+
+/* Grids */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.grid-stat-6{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.col-span-2{grid-column:span 2}
+
+/* Data tables */
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);text-align:left;padding:8px 12px;background:var(--mist);border-bottom:1px solid var(--steel)}
+.data-table td{padding:10px 12px;border-bottom:1px solid var(--steel);vertical-align:middle}
+.data-table tbody tr:last-child td{border-bottom:none}
+.data-table tbody tr:hover td{background:var(--mist)}
+.data-table .mono{font-family:var(--font-mono)}
+.data-table .amount{text-align:right;font-family:var(--font-mono);font-weight:500}
+.data-table .debit{color:var(--ember)}
+.data-table .credit{color:var(--pine)}
+
+/* Fields */
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate)}
+.field input,.field select,.field textarea{background:var(--paper);border:1px solid var(--steel-2);border-radius:var(--r-md);color:var(--ink);font-size:13px;padding:8px 11px;outline:none;transition:border-color .12s,box-shadow .12s;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--sky);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:500;border-radius:var(--r-md);border:1px solid transparent;transition:all .12s;white-space:nowrap;text-decoration:none}
+.btn-primary{background:var(--sky);color:#fff;border-color:var(--sky)}
+.btn-primary:hover{background:#1d4ed8}
+.btn-secondary{background:var(--paper);color:var(--ink);border-color:var(--steel-2)}
+.btn-secondary:hover{background:var(--mist)}
+.btn-ghost{background:transparent;color:var(--slate);border-color:transparent}
+.btn-ghost:hover{background:var(--mist);color:var(--ink)}
+.btn-danger{background:var(--paper);color:var(--ember);border-color:var(--ember-border)}
+.btn-danger:hover{background:var(--ember-bg)}
+.btn-pine{background:var(--pine);color:#fff;border-color:var(--pine)}
+.btn-pine:hover{background:#15803d}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-lg{padding:11px 22px;font-size:14px}
+.btn-full{width:100%}
+.btn-add{width:100%;padding:9px;background:transparent;border:1px dashed var(--steel-2);border-radius:var(--r-md);color:var(--slate-2);font-size:12px;transition:all .12s;margin-top:8px}
+.btn-add:hover{border-color:var(--sky);color:var(--sky);background:var(--sky-bg)}
+
+/* Period toggle */
+.period-toggle{display:inline-flex;background:var(--mist-2);border:1px solid var(--steel);border-radius:var(--r-md);padding:2px;gap:2px}
+.period-btn{padding:5px 12px;font-size:12px;font-weight:500;color:var(--slate);background:transparent;border:none;border-radius:5px;transition:all .12s}
+.period-btn.active{background:var(--paper);color:var(--ink);box-shadow:var(--shadow-sm)}
+/* ── Ledger (pamphlet-standard layout) ─────────────────────────────────
+   Replaces the d59 switch/sum/edit-row CSS. The "switch" class is kept
+   below in compatibility form so other places in the build don't break,
+   but the Ledger view uses the new structure below.                       */
+
+/* Page header */
+.ledger-page-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--steel);flex-wrap:wrap;gap:16px}
+.ledger-page-head h1{font-family:var(--font-display);font-style:italic;font-weight:700;font-size:38px;letter-spacing:-.5px;color:var(--ink);margin:0;line-height:1}
+.ledger-page-head .sub{font-size:12px;color:var(--slate);margin-top:6px;font-family:var(--font-mono);letter-spacing:.02em}
+.ledger-page-head .ph-right{display:flex;gap:24px;align-items:baseline}
+.ledger-head-stat{text-align:right}
+.ledger-head-stat .lbl{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px}
+.ledger-head-stat .val{font-family:var(--font-mono);font-size:16px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+.ledger-head-stat .val.pos{color:var(--pine)} .ledger-head-stat .val.neg{color:var(--ember)}
+
+/* New toolbar — month left, account+search+actions right */
+.ledger-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.month-range-tabs{display:flex;align-items:center;gap:2px;margin-left:10px}
+.range-tab{font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.04em;padding:3px 7px;border:1px solid var(--steel);border-radius:20px;background:none;color:var(--slate);cursor:pointer;transition:all .12s}
+.range-tab:hover{border-color:var(--slate-2);color:var(--ink)}
+.range-tab.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.ledger-bar-left{display:flex;align-items:center;gap:10px}
+.ledger-bar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.month-nav{display:flex;align-items:center;gap:2px;background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-md);padding:2px}
+.month-arrow{width:28px;height:28px;background:transparent;border:none;font-size:13px;color:var(--slate);cursor:pointer;border-radius:var(--r-sm);display:inline-flex;align-items:center;justify-content:center}
+.month-arrow:hover:not(:disabled){background:var(--mist);color:var(--ink)}
+.month-arrow:disabled{opacity:.3;cursor:default}
+.month-label{font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--ink);padding:0 10px;min-width:96px;text-align:center}
+.acct-switcher{display:inline-flex;align-items:center;gap:6px;background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-md);padding:7px 10px 7px 12px;font-size:12px;font-weight:500;color:var(--ink);cursor:pointer;font-family:inherit;transition:border-color .12s,background .12s}
+.acct-switcher:hover{border-color:var(--steel-2);background:var(--mist)}
+.acct-switcher .acct-dot{width:8px;height:8px;border-radius:50%;background:var(--pine)}
+.acct-switcher .acct-num{font-family:var(--font-mono);font-size:11px;color:var(--slate-2);margin-left:1px}
+.acct-switcher .chev{color:var(--slate-2);font-size:9px;margin-left:4px}
+.acct-switcher-menu{position:absolute;top:calc(100% + 4px);right:0;min-width:240px;background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-md);box-shadow:var(--shadow-md);padding:4px;z-index:30;display:none}
+.acct-switcher-menu.open{display:block}
+.acct-switcher-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;color:var(--ink);cursor:pointer;min-width:220px}
+.acct-switcher-item:hover{background:var(--mist)}
+.acct-switcher-item.active{background:var(--pine-bg)}
+.acct-switcher-item .acct-item-dot{width:7px;height:7px;border-radius:50%;background:var(--pine);flex-shrink:0}
+.acct-switcher-item .acct-item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct-switcher-item .acct-item-meta{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--slate-2);white-space:nowrap;flex-shrink:0;padding-left:8px}
+.acct-switcher-wrap{position:relative}
+.ledger-search{position:relative;width:260px}
+.ledger-search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--slate-2);font-size:13px;pointer-events:none}
+.ledger-search input{width:100%;background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-md);padding:9px 12px 9px 32px;font-size:13px;color:var(--ink);font-family:inherit;outline:none;transition:border-color .12s,box-shadow .12s}
+.ledger-search input:focus{border-color:var(--pine);box-shadow:0 0 0 3px rgba(22,163,74,.08)}
+.tb-btn{display:inline-flex;align-items:center;gap:6px;background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-md);padding:9px 14px;font-size:12px;font-weight:500;color:var(--ink);cursor:pointer;font-family:inherit;transition:border-color .12s,background .12s}
+.tb-btn:hover{border-color:var(--steel-2);background:var(--mist)}
+.tb-btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.tb-btn.primary:hover{background:#000}
+.tb-btn.danger{color:var(--ember)}
+.tb-btn.danger:hover{border-color:var(--ember);background:var(--ember-bg)}
+
+/* The table — divs not rows so the bloom can sit between siblings */
+.ledger{background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-lg);overflow:hidden;
+  --c-icon:48px; --c-date:120px; --c-desc:1fr; --c-account:200px; --c-category:160px; --c-amount:130px; --c-balance:130px;
+}
+.col-head{display:grid;grid-template-columns:36px var(--c-icon) var(--c-date) var(--c-desc) var(--c-account) var(--c-category) var(--c-amount) var(--c-balance) 80px;padding:14px 20px;border-bottom:1px solid var(--steel);background:var(--mist);position:relative}
+.col-head .ch{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);position:relative;padding-right:8px;cursor:default;user-select:none}
+.col-head .ch.sortable{cursor:pointer}
+.col-head .ch.sortable:hover{color:var(--slate)}
+.col-head .ch.r{text-align:right;padding-right:0;padding-left:8px}
+.col-head .ch.c{text-align:center}
+.col-head .ch .sort-mark{font-family:var(--font-mono);margin-left:3px;opacity:.5}
+.col-head .ch.sort-active{color:var(--ink)}
+.col-head .ch.sort-active .sort-mark{opacity:1;color:var(--pine)}
+.col-resize{position:absolute;top:6px;right:-3px;bottom:6px;width:6px;cursor:col-resize;z-index:2}
+.col-resize::after{content:'';position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--steel-2);transition:background .12s}
+.col-resize:hover::after,.col-resize.resizing::after{background:var(--pine)}
+
+/* Day groups */
+.day-group{border-bottom:1px solid var(--steel)}
+.day-group:last-child{border-bottom:none}
+.day-head{padding:13px 20px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);font-family:var(--font-mono);background:var(--mist);border-bottom:1px solid var(--steel);cursor:pointer;user-select:none;display:flex;align-items:center;gap:10px;transition:background .12s}
+.day-head:hover{background:var(--mist-2)}
+.day-head .dh-toggle{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;color:var(--slate-2);font-size:9px;transition:transform .15s;flex-shrink:0}
+.day-group.collapsed .day-head{border-bottom-color:transparent}
+.day-group.collapsed .day-head .dh-toggle{transform:rotate(-90deg)}
+.day-head .dh-date{display:inline-block;min-width:140px}
+.day-head .dh-meta{color:var(--slate-2);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px}
+.day-head .dh-spacer{flex:1}
+.day-head .dh-net{font-family:var(--font-mono);font-size:12px;font-weight:500;letter-spacing:0;text-transform:none}
+.day-head .dh-net.pos{color:var(--pine)} .day-head .dh-net.neg{color:var(--ember)}
+.day-rows{overflow:hidden;max-height:8000px;transition:max-height .25s ease}
+.day-group.collapsed .day-rows{max-height:0}
+
+/* Rows */
+.ledger .row{display:grid;grid-template-columns:36px var(--c-icon) var(--c-date) var(--c-desc) var(--c-account) var(--c-category) var(--c-amount) var(--c-balance) 80px;padding:14px 20px;align-items:center;border-bottom:1px solid var(--mist-2);transition:background .1s;cursor:pointer;user-select:none}
+.ledger .row:last-child{border-bottom:none}
+.ledger .row:hover{background:var(--mist)}
+.ledger .row.editing{background:var(--pine-bg);border-left:3px solid var(--pine);padding-left:17px;cursor:default}
+.row-check{display:inline-flex;align-items:center;justify-content:center}
+.row-check input{margin:0;accent-color:var(--pine);width:14px;height:14px;cursor:pointer}
+/* Round category icon and 7px dot — colors come from inline styles set by
+   _categoryStyle() at render time, pulled from each row's Category in
+   S.categories (the Settings source of truth). The base styles here only
+   handle shape/size; color is dynamic. */
+.cat-icon{width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;background:var(--mist);border:1px solid var(--steel);color:var(--ink)}
+.cat-icon svg{width:18px;height:18px;display:block;flex-shrink:0}
+
+.cell-date{font-family:var(--font-mono);font-size:12px;color:var(--slate)}
+.cell-desc{font-size:13.5px;color:var(--ink);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:16px;min-width:0}
+.cell-desc .merchant-sub{font-size:11px;color:var(--slate-2);font-weight:400;margin-top:1px;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell-account{font-size:12.5px;color:var(--slate);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cell-account .acct-suffix{font-family:var(--font-mono);color:var(--slate-2);font-size:11px;margin-left:4px}
+.cell-cat{display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden}
+.cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--slate-2)}
+.cell-cat .cat-name{font-size:13px;color:var(--slate);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell-amount{font-family:var(--font-mono);font-size:14px;font-weight:500;text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
+.cell-amount.neg{color:var(--ember)} .cell-amount.pos{color:var(--pine)}
+.cell-balance{font-family:var(--font-mono);font-size:13px;text-align:right;color:var(--slate);font-variant-numeric:tabular-nums}
+.cell-cleared{text-align:center}
+.cell-cleared input{margin:0;accent-color:var(--pine);width:14px;height:14px}
+
+/* Empty state inside the new ledger card */
+.ledger-empty{padding:48px 24px;text-align:center;color:var(--slate)}
+.ledger-empty .icon{font-size:32px;margin-bottom:12px}
+.ledger-empty .title{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.ledger-empty .sub{font-size:13px;margin-bottom:18px}
+.ledger-empty .actions{display:flex;gap:10px;justify-content:center}
+
+/* Footer (count + delete-all + pagination) */
+.ledger-foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12px;color:var(--slate);font-family:var(--font-mono);letter-spacing:.02em}
+
+/* ── Inline edit (the row blooms — full edit, no popup) ──────────── */
+.edit-bloom{display:none;background:var(--pine-bg);border-left:3px solid var(--pine);padding:22px 24px 22px 17px;border-bottom:1px solid var(--mist-2);animation:bloomIn .18s ease}
+.row.editing + .edit-bloom{display:block}
+@keyframes bloomIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.edit-bloom .bloom-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px 18px}
+.edit-bloom .bloom-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.edit-bloom .bloom-field.span-2{grid-column:span 2}
+.edit-bloom .bloom-field.span-3{grid-column:span 3}
+.edit-bloom .bloom-field.span-4{grid-column:span 4}
+.edit-bloom .bloom-field.span-5{grid-column:span 5}
+.edit-bloom .bloom-field.span-6{grid-column:span 6}
+.edit-bloom .bloom-field.span-12{grid-column:span 12}
+.edit-bloom .bloom-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2)}
+.edit-bloom input.edit-field,.edit-bloom select.edit-field,.edit-bloom textarea.edit-field{width:100%;background:var(--paper);border:1px solid var(--steel-2);border-radius:var(--r-sm);padding:8px 10px;font-size:13px;color:var(--ink);font-family:inherit;outline:none;transition:border-color .12s,box-shadow .12s}
+.edit-bloom input.edit-field:focus,.edit-bloom select.edit-field:focus,.edit-bloom textarea.edit-field:focus{border-color:var(--pine);box-shadow:0 0 0 2px rgba(22,163,74,.12)}
+.edit-bloom .edit-field.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.edit-bloom textarea.edit-field{resize:vertical;min-height:54px;line-height:1.45}
+.edit-bloom .bloom-meta{margin-top:14px;padding-top:14px;border-top:1px solid var(--pine-border);display:flex;flex-wrap:wrap;gap:6px 22px;font-size:11px;font-family:var(--font-mono);color:var(--slate);letter-spacing:.02em}
+.edit-bloom .bloom-meta b{color:var(--slate-2);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-right:5px}
+.edit-bloom .cleared-toggle{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);cursor:pointer;user-select:none;padding:8px 0}
+.edit-bloom .cleared-toggle input{margin:0;accent-color:var(--pine);width:16px;height:16px}
+.edit-bloom .bloom-actions{margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.edit-bloom .bloom-actions .danger{background:none;border:none;color:var(--slate-2);font-size:12px;font-family:inherit;cursor:pointer;padding:6px 0;transition:color .12s}
+.edit-bloom .bloom-actions .danger:hover{color:var(--ember)}
+.edit-bloom .bloom-actions-right{display:flex;gap:8px}
+/* Defensive: kill any inherited pseudo-elements, force buttons to paint
+   above the pine border-left strip of the bloom, replace browser-default
+   focus outline with an intentional pine ring. Was getting a stray pine
+   wedge artifact at the Cancel button's corner from some combination of
+   these — couldn't isolate the exact cause this session. */
+.edit-bloom .edit-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r-md);font-size:12.5px;font-weight:500;font-family:inherit;cursor:pointer;border:1px solid var(--steel-2);background:var(--paper);color:var(--ink);transition:all .12s;position:relative;z-index:1;outline:none;-webkit-appearance:none;appearance:none}
+.edit-bloom .edit-btn::before,.edit-bloom .edit-btn::after{content:none !important;display:none !important;background:none !important}
+.edit-bloom .edit-btn:focus-visible{box-shadow:0 0 0 2px rgba(22,163,74,.25)}
+.edit-bloom .edit-btn.cancel:hover{border-color:var(--ember);color:var(--ember)}
+.edit-bloom .edit-btn.save{background:var(--pine);border-color:var(--pine);color:#fff}
+.edit-bloom .edit-btn.save:hover{background:#15803d}
+.edit-bloom .edit-btn .kbd{font-family:var(--font-mono);font-size:10px;opacity:.7;margin-left:4px}
+
+/* Compatibility — legacy switch/sum classes still referenced by other
+   code paths in app.js (e.g. _renderLedgerMonthSwitcher prior to port). */
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--steel);flex-wrap:wrap}
+.switch-left{display:flex;align-items:center;gap:4px}
+.switch-month{font-size:15px;font-weight:600;min-width:118px;text-align:center}
+.switch-arrow{background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);width:28px;height:28px;font-size:14px;color:var(--slate);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.switch-arrow:hover:not(:disabled){border-color:var(--pine);color:var(--pine)}
+.switch-arrow:disabled{opacity:.35;cursor:default}
+.switch-allmonths{font-size:12px;color:var(--slate-2);font-style:italic}
+.sum{display:flex;gap:22px;align-items:baseline;flex-wrap:wrap}
+.sum .it{font-size:11px;color:var(--slate)}
+.sum .it b{font-family:var(--font-mono);font-weight:500;font-size:13px;color:var(--ink);margin-left:5px}
+.sum .it b.pos{color:var(--pine)} .sum .it b.neg{color:var(--ember)}
+
+/* ── Category icon gallery (Settings → Categories) ──────────────────────
+   Visual picker that replaces the typed-slug input. Collapsed by default;
+   opens by clicking the round preview bubble in the form. Grouped into
+   icon families so users can scan semantically (Food, Transport, etc.).
+   Selected cell shows a soft ring in the user's chosen color. */
+.cat-icon-gallery{margin-top:12px;padding:14px 0;border-bottom:0.5px solid var(--steel);overflow:hidden;max-height:600px;transition:max-height .22s ease,padding .22s ease,opacity .18s ease;opacity:1}
+.cat-icon-gallery.gallery-closed{max-height:0;padding-top:0;padding-bottom:0;border-bottom-color:transparent;opacity:0}
+.icon-group{margin-bottom:14px}
+.icon-group:last-child{margin-bottom:0}
+.icon-group-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px}
+.icon-group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:6px;max-width:520px}
+.icon-cell{width:40px;height:40px;border-radius:50%;background:var(--mist);border:1px solid var(--steel);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:transform .1s,border-color .12s,background .12s;outline:none}
+.icon-cell:hover{border-color:var(--slate-2);background:var(--mist-2);transform:translateY(-1px)}
+.icon-cell:focus-visible{box-shadow:0 0 0 2px var(--pine) !important;border-color:var(--pine)}
+.icon-cell svg{width:18px;height:18px;display:block;pointer-events:none}
+
+
+/* Progress bars */
+.prog-row{margin-bottom:12px}
+.prog-header{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.prog-track{height:6px;background:var(--mist-2);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;transition:width .5s ease;background:var(--sky)}
+.prog-fill.over{background:var(--ember)}
+.prog-fill.good{background:var(--pine)}
+.prog-fill.warn{background:var(--gold)}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.badge-green{background:var(--pine-bg);color:#166534;border:1px solid var(--pine-border)}
+.badge-red{background:var(--ember-bg);color:#991b1b;border:1px solid var(--ember-border)}
+.badge-blue{background:var(--sky-bg);color:#1e40af;border:1px solid var(--sky-border)}
+.badge-gold{background:var(--gold-bg);color:#92400e;border:1px solid var(--gold-border)}
+.badge-neutral{background:var(--mist-2);color:var(--slate);border:1px solid var(--steel)}
+
+/* Achievement badges */
+.ach-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;background:var(--mist-2);border:1px solid var(--steel);color:var(--slate)}
+.ach-badge.earned{background:var(--pine-bg);border-color:var(--pine-border);color:#166534}
+
+/* Toast */
+.toast-stack{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:9999;pointer-events:none}
+.toast{display:flex;align-items:flex-start;gap:10px;background:var(--ink-2);color:#fff;padding:12px 16px;border-radius:var(--r-lg);box-shadow:var(--shadow-md);font-size:13px;max-width:340px;pointer-events:all;animation:toast-in .2s ease;border-left:3px solid var(--pine)}
+.toast.error{border-left-color:var(--ember)}
+.toast.warning{border-left-color:var(--gold)}
+.toast.info{border-left-color:var(--sky)}
+.toast-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.toast-title{font-weight:600;font-size:13px}
+.toast-sub{font-size:11px;color:rgba(255,255,255,.55);margin-top:2px}
+.toast-undo{margin-left:auto;padding:2px 10px;font-size:12px;font-weight:600;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;color:#fff;cursor:pointer;white-space:nowrap;flex-shrink:0;align-self:center}
+@keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Modals */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000;padding:24px}
+.modal-overlay.hidden{display:none}
+#confirmDialog{z-index:9500}
+#importModal{z-index:9500}
+.modal{background:var(--paper);border-radius:var(--r-lg);box-shadow:var(--shadow-md);width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--steel)}
+.modal-title{font-size:16px;font-weight:600}
+.modal-close{background:none;border:none;color:var(--slate-2);font-size:20px;padding:2px 6px;border-radius:4px;transition:color .12s;line-height:1}
+.modal-close:hover{color:var(--ink)}
+.modal-body{padding:20px 24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--steel);display:flex;justify-content:flex-end;gap:12px}
+
+/* Ledger */
+.ledger-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+.ledger-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ledger-actions{display:flex;gap:8px}
+.filter-input{background:var(--paper);border:1px solid var(--steel-2);border-radius:var(--r-md);padding:6px 10px;font-size:12px;color:var(--ink);outline:none;transition:border-color .12s;width:160px}
+.filter-input:focus{border-color:var(--sky)}
+.filter-select{background:var(--paper);border:1px solid var(--steel-2);border-radius:var(--r-md);padding:6px 10px;font-size:12px;color:var(--ink);outline:none;cursor:pointer}
+
+/* Budget rows */
+/* Legacy budget-row — kept for OB wizard and any remaining callers */
+.budget-row{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);margin-bottom:6px}
+.budget-row input{background:transparent;border:none;outline:none;font-size:13px;color:var(--ink);padding:2px 4px;min-width:0;font-family:var(--font-body)}
+.budget-row input.name-input{flex:2}
+.budget-row input.amount-input{flex:1;text-align:right;font-family:var(--font-mono);font-size:13px}
+/* Budget CP0 — bloom-pattern rows */
+#budgetContent .ledger-row:hover{background:var(--mist);border-radius:var(--r-sm);transition:background .12s}
+#budgetContent .ledger-row:last-child{border-bottom:none}
+.budget-bloom input:focus,.budget-bloom select:focus{outline:2px solid var(--pine);outline-offset:1px}
+.row-del{background:none;border:none;color:var(--slate-2);font-size:14px;padding:3px 6px;border-radius:4px;transition:color .12s;flex-shrink:0}
+.row-del:hover{color:var(--ember)}
+.row-type{font-size:10px;color:var(--slate-2);min-width:62px;font-weight:500;letter-spacing:.04em}
+
+/* Debt card rows */
+.debt-card-row{background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-lg);padding:16px;margin-bottom:12px;position:relative}
+.debt-card-name{font-weight:600;font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.debt-card-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.debt-meta-label{font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:2px}
+.debt-meta-value{font-family:var(--font-mono);font-size:13px;color:var(--ink)}
+
+/* Method toggle */
+.method-toggle{display:inline-flex;background:var(--mist-2);border:1px solid var(--steel);border-radius:var(--r-md);padding:2px;gap:2px}
+.method-btn{padding:6px 14px;font-size:12px;font-weight:500;color:var(--slate);background:transparent;border:none;border-radius:5px;transition:all .12s}
+.method-btn.active{background:var(--paper);color:var(--ink);box-shadow:var(--shadow-sm)}
+
+/* Empty states */
+.empty-state{text-align:center;padding:40px 24px;color:var(--slate-2)}
+.empty-state-icon{font-size:36px;margin-bottom:16px;opacity:.5}
+.empty-state-title{font-size:15px;font-weight:600;color:var(--slate);margin-bottom:8px}
+.empty-state-sub{font-size:13px;color:var(--slate-2);margin-bottom:20px;max-width:300px;margin-left:auto;margin-right:auto;line-height:1.6}
+
+/* BVA */
+.bva-row{display:grid;grid-template-columns:160px 1fr 90px 80px;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--steel);font-size:13px}
+.bva-row:last-child{border-bottom:none}
+.bva-row.header{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);padding-bottom:6px}
+.bva-bar-wrap{height:8px;background:var(--mist-2);border-radius:4px;overflow:hidden;position:relative}
+.bva-bar-budget{position:absolute;top:0;left:0;height:100%;background:var(--steel-2);border-radius:4px}
+.bva-bar-actual{position:absolute;top:0;left:0;height:100%;background:var(--sky);border-radius:4px;transition:width .4s ease}
+.bva-bar-actual.over{background:var(--ember)}
+
+/* Dashboard v2 — Phase 8 */
+.dash-mission-cell{background:var(--mist);border-radius:var(--r-md);padding:12px 14px}
+.dash-mission-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:5px}
+.dash-mission-value{font-size:18px;font-weight:500;font-family:var(--font-mono);color:var(--ink)}
+.dash-mission-delta{font-size:11px;margin-top:3px}
+.dash-proj-chain{margin-top:10px;padding:10px 14px;background:var(--mist);border-radius:var(--r-md);border-left:2px solid var(--sky);font-size:12px;color:var(--slate);line-height:1.7}
+.dash-proj-chain strong{color:var(--ink);font-weight:600}
+.dash-next-ach{display:flex;align-items:center;gap:14px}
+.dash-next-ach-icon{font-size:22px;flex-shrink:0}
+.dash-next-ach-prog{height:3px;background:var(--steel);border-radius:99px;margin-top:7px;overflow:hidden}
+.dash-next-ach-fill{height:100%;border-radius:99px;background:var(--pine)}
+.trophy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.trophy-card{background:var(--paper);border:0.5px solid var(--steel);border-radius:var(--r-lg);padding:18px;transition:border-color .2s;display:flex;flex-direction:column;gap:6px}
+.trophy-card.earned{border-color:var(--pine);background:var(--pine-bg)}
+.trophy-card.mastery.earned{border-color:var(--sky);background:var(--sky-bg)}
+.trophy-card.locked{opacity:.38}
+.trophy-card.in-progress{opacity:.75}
+.trophy-card-icon{font-size:24px;line-height:1;margin-bottom:4px;display:block}
+.trophy-card-type{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2);margin-bottom:2px}
+.trophy-card-name{font-size:13px;font-weight:600;color:var(--ink)}
+.trophy-card-desc{font-size:11px;color:var(--slate);line-height:1.45}
+.trophy-card-hint{font-size:10px;color:var(--slate-2);font-style:italic;line-height:1.4;margin-top:2px}
+.trophy-card-date{font-size:10px;font-family:var(--font-mono);color:var(--pine);margin-top:4px}
+.trophy-card.mastery.earned .trophy-card-date{color:var(--sky)}
+.trophy-prog{height:2px;background:var(--steel);border-radius:99px;margin-top:6px;overflow:hidden}
+.trophy-prog-fill{height:100%;border-radius:99px;background:var(--pine);transition:width .4s ease}
+.trophy-prog-label{font-size:10px;font-family:var(--font-mono);color:var(--slate);margin-top:3px}
+.trophy-section-header{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2);margin:28px 0 14px;display:flex;align-items:center;gap:10px}
+.trophy-section-header span{height:1px;flex:1;background:var(--steel)}
+/* Dashboard achievement strip */
+.dash-ach-strip{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--pine-bg);border:0.5px solid var(--pine-border);border-radius:var(--r-md);margin-bottom:20px;font-size:12px}
+.dash-ach-strip-icon{font-size:18px;flex-shrink:0}
+.dash-ach-strip-text{flex:1;color:var(--ink)}
+.dash-ach-strip-date{font-size:10px;color:var(--slate-2);font-family:var(--font-mono);flex-shrink:0}
+.trophy-section-header::after{content:'';flex:1;height:1px;background:var(--steel)}
+
+/* Net worth hero */
+.nw-hero{text-align:center;padding:32px}
+.nw-label{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px}
+.nw-value{font-family:var(--font-mono);font-size:52px;font-weight:500;letter-spacing:-2px;color:var(--ink);line-height:1}
+.nw-value.positive{color:var(--pine)}
+.nw-value.negative{color:var(--ember)}
+.nw-delta{font-size:13px;color:var(--slate);margin-top:8px}
+
+/* DFM banner */
+.dfm-banner{background:linear-gradient(135deg,#052e16,#14532d);border:1px solid rgba(22,163,74,.3);border-radius:var(--r-lg);padding:16px 20px;margin-bottom:20px;color:#86efac;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.dfm-banner-title{font-family:var(--font-display);font-style:italic;font-size:16px;margin-bottom:3px}
+.dfm-banner-sub{font-size:12px;opacity:.7}
+.dfm-stat-val{font-family:var(--font-mono);font-size:18px;font-weight:500;display:block}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--steel-2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--slate-2)}
+
+/* Spinner */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--steel);border-top-color:var(--sky);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Utilities */
+.text-mono{font-family:var(--font-mono)}
+.text-right{text-align:right}
+.text-pine{color:var(--pine)}
+.text-ember{color:var(--ember)}
+.text-gold{color:var(--gold)}
+.text-sky{color:var(--sky)}
+.text-muted{color:var(--slate-2)}
+.text-sm{font-size:12px}
+.text-xs{font-size:11px}
+.gap-row{display:flex;align-items:center;gap:12px}
+.mt-3{margin-top:12px} .mt-4{margin-top:16px} .mt-5{margin-top:20px} .mt-6{margin-top:24px}
+.mb-3{margin-bottom:12px} .mb-4{margin-bottom:16px} .mb-5{margin-bottom:20px} .mb-6{margin-bottom:24px}
+.hidden{display:none!important}
+/* Phase I: Dashboard two-column responsive layout */
+@media (max-width: 700px) {
+  #dashTwoCol { grid-template-columns: 1fr !important; }
+}
+
+/* Before You Buy — sandbox wizard */
+.byb-type-btn {
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:12px 8px;border-radius:var(--r-md);border:1.5px solid var(--steel);
+  background:var(--paper);cursor:pointer;transition:border-color .15s,background .15s;
+}
+.byb-type-btn.active, .byb-type-btn:hover {
+  border-color:var(--ink);background:var(--mist);
+}
+.byb-sub-btn {
+  padding:6px 16px;border-radius:20px;border:1px solid var(--steel);
+  background:var(--paper);cursor:pointer;font-size:12px;color:var(--slate);
+}
+.byb-sub-btn.active {
+  background:var(--ink);color:var(--paper);border-color:var(--ink);
+}
+.byb-dot {
+  width:6px;height:6px;border-radius:50%;background:var(--steel);display:inline-block;
+}
+.byb-dot.active { background:var(--ink); }
+.byb-sandbox-row {
+  display:flex;align-items:center;gap:8px;padding:7px 0;
+  border-bottom:0.5px solid var(--steel-2);
+}
+.byb-sandbox-row:last-child { border-bottom:none; }
+.byb-sandbox-row input[type=number] {
+  width:80px;padding:4px 8px;border:1px solid var(--steel);border-radius:var(--r-sm);
+  font-family:var(--font-mono);font-size:13px;text-align:right;background:var(--paper);
+}
+.byb-sandbox-row input[type=number]:focus {
+  outline:none;border-color:var(--ink);
+}
+.byb-sandbox-section {
+  font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--slate-2);padding:10px 0 4px;
+}
+</style>
+</head>
+<body>
+
+<!-- SPLASH SCREEN — visible immediately, removed once app boots -->
+<div id="splashScreen">
+  <svg width="72" height="72" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg"
+       style="border-radius:16px;margin-bottom:22px;box-shadow:0 8px 32px rgba(0,0,0,.4)">
+    <rect width="96" height="96" rx="18" fill="#1a3a5c"/>
+    <rect x="10" y="74" width="76" height="7" rx="3.5" fill="#16a34a"/>
+    <rect x="14" y="52" width="14" height="22" rx="3" fill="#4a9fd4" opacity=".55"/>
+    <rect x="33" y="38" width="14" height="36" rx="3" fill="#5dade2" opacity=".8"/>
+    <rect x="52" y="23" width="14" height="51" rx="3" fill="#5dade2"/>
+    <rect x="71" y="41" width="14" height="33" rx="3" fill="#16a34a"/>
+  </svg>
+  <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:30px;
+              color:#fff;letter-spacing:-.5px;margin-bottom:6px">Groundwork</div>
+  <div style="font-size:12px;color:rgba(255,255,255,.35);letter-spacing:.06em;
+              text-transform:uppercase;margin-bottom:36px">Personal Finance</div>
+  <div style="display:flex;gap:10px">
+    <div class="splash-dot" style="animation-delay:0s"></div>
+    <div class="splash-dot" style="animation-delay:.2s"></div>
+    <div class="splash-dot" style="animation-delay:.4s"></div>
+  </div>
+  <div id="splashStatus" style="font-size:11px;color:rgba(255,255,255,.2);
+       margin-top:20px;letter-spacing:.04em">Starting up…</div>
+</div>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg width="32" height="32" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+        <rect width="96" height="96" rx="18" fill="#1a3a5c"/>
+        <rect x="10" y="74" width="76" height="7" rx="3.5" fill="#16a34a"/>
+        <rect x="14" y="52" width="14" height="22" rx="3" fill="#4a9fd4" opacity=".55"/>
+        <rect x="33" y="38" width="14" height="36" rx="3" fill="#5dade2" opacity=".8"/>
+        <rect x="52" y="23" width="14" height="51" rx="3" fill="#5dade2"/>
+        <rect x="71" y="41" width="14" height="33" rx="3" fill="#16a34a"/>
+      </svg>
+      <div>
+        <div class="sidebar-wordmark-text">Ground<span>work</span></div>
+        <div class="sidebar-wordmark-sub">Personal Finance</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+
+      <div class="nav-section">
+        <div class="nav-section-label">Overview</div>
+        <div class="nav-item active" data-view="dashboard" onclick="showView('dashboard')">
+          <span class="nav-item-icon">◈</span>Dashboard
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Track</div>
+        <div class="nav-item" data-view="ledger" onclick="showView('ledger')">
+          <span class="nav-item-icon">≡</span>Ledger
+        </div>
+        <div class="nav-item" data-view="budget" onclick="showView('budget')">
+          <span class="nav-item-icon">◎</span>Budget
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Decide</div>
+        <div class="nav-item" data-view="byb" onclick="showView('byb')">
+          <span class="nav-item-icon">◷</span>Before You Buy
+        </div>
+        <div class="nav-item" data-view="trip" onclick="showView('trip')">
+          <span class="nav-item-icon">✈</span>Trip Planner
+        </div>
+        <div class="nav-item" data-view="gifts" onclick="showView('gifts')">
+          <span class="nav-item-icon">❖</span>Gift Budget
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Debt</div>
+        <div class="nav-item" data-view="debt" onclick="showView('debt')">
+          <span class="nav-item-icon">⬡</span>Debt Payoff
+          <span class="nav-badge hidden" id="debtAlertBadge">!</span>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Build</div>
+        <div class="nav-item" data-view="investments" onclick="showView('investments')">
+          <span class="nav-item-icon">◱</span>Investments
+        </div>
+        <div class="nav-item" data-view="networth" onclick="showView('networth')">
+          <span class="nav-item-icon">△</span>Net Worth
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Achievements</div>
+        <div class="nav-item" data-view="trophy" onclick="showView('trophy')">
+          <span class="nav-item-icon">✦</span>Trophy Room
+        </div>
+        <div class="nav-item" data-view="reports" onclick="showView('reports')">
+          <span class="nav-item-icon">◫</span>Reports
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-label">Preferences</div>
+        <div class="nav-item" data-view="settings" onclick="showView('settings')">
+          <span class="nav-item-icon">⊙</span>Settings
+        </div>
+      </div>
+
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="ai-status" id="aiStatus">
+        <div class="ai-status-dot" id="aiStatusDot"></div>
+        <span id="aiStatusText">AI features off</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+<!-- HELP OVERLAY — Layer 3 FAQ -->
+    <div id="helpOverlay" class="hidden" style="
+      position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);
+      display:flex;align-items:center;justify-content:center;padding:24px">
+      <div style="background:var(--paper);border-radius:var(--r-xl);max-width:560px;
+                  width:100%;max-height:80vh;overflow-y:auto;padding:32px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+          <div style="font-family:var(--font-display);font-style:italic;font-size:22px">Help &amp; FAQ</div>
+          <button class="btn btn-ghost btn-sm" onclick="closeHelpOverlay()">✕ Close</button>
+        </div>
+        <div id="helpFaqContent"></div>
+      </div>
+    </div>
+
+    <!-- Floating help card — Layer 1 contextual tooltips -->
+    <div id="helpCard" style="display:none"></div>
+
+    <!-- ONBOARDING OVERLAY — shown once on empty DB (Phase 9A) -->
+    <div id="onboardingOverlay" class="hidden" style="
+      position:fixed;inset:0;background:var(--ink);z-index:9000;
+      display:flex;align-items:center;justify-content:center;padding:24px">
+
+      <div style="background:var(--paper);border-radius:var(--r-xl);max-width:520px;width:100%;padding:40px;box-shadow:0 32px 64px rgba(0,0,0,.4)">
+
+        <!-- Shown only when re-running onboarding for testing via Settings.
+             Persistence is skipped while this is active — exiting reloads
+             your real data, nothing here is saved. -->
+        <div id="obTestBanner" class="hidden" style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);padding:10px 14px;margin-bottom:20px;font-size:12px;color:var(--slate)">
+          <span>🧪 Testing mode — nothing here will be saved to your real data.</span>
+          <button class="btn btn-ghost btn-sm" style="flex-shrink:0" onclick="exitOnboardingTest()">Exit test</button>
+        </div>
+
+        <!-- Step 0: Welcome — how are you getting started? -->
+        <div id="obStep0">
+          <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">Welcome to Groundwork.</div>
+          <div style="font-size:13px;color:var(--slate);margin-bottom:24px;line-height:1.6">How would you like to get started?</div>
+
+          <button class="ob-start-option" onclick="obChooseFresh()">
+            <div class="ob-start-title">Start fresh</div>
+            <div class="ob-start-sub">Set up your income, debts, and goals from scratch — takes about five minutes.</div>
+          </button>
+
+          <button class="ob-start-option" onclick="g('restoreUploadInput').click()">
+            <div class="ob-start-title">Restore from a backup</div>
+            <div class="ob-start-sub">Bring your data over from another computer using a Groundwork backup file.</div>
+          </button>
+
+          <button class="ob-start-option" onclick="obChooseMigrate()">
+            <div class="ob-start-title">Import from another program</div>
+            <div class="ob-start-sub">Bring in transaction history from Quicken, Mint, or a bank export (CSV, TXT, OFX, QFX, QIF).</div>
+          </button>
+        </div>
+
+        <!-- Step indicator -->
+        <div style="display:flex;gap:6px;margin-bottom:32px" id="onboardSteps">
+          <div class="ob-step" data-step="1"></div>
+          <div class="ob-step" data-step="2"></div>
+          <div class="ob-step" data-step="3"></div>
+          <div class="ob-step" data-step="4"></div>
+          <div class="ob-step" data-step="5"></div>
+          <div class="ob-step" data-step="6"></div>
+        </div>
+
+        <!-- Step 1: Income -->
+        <div id="obStep1" class="hidden">
+          <div class="ob-back-link" onclick="obBack(1)">← Back</div>
+          <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">Let's start with what comes in.</div>
+          <div style="font-size:13px;color:var(--slate);margin-bottom:20px;line-height:1.6">One number — or two, if you're sharing finances with someone. There's no right amount here — we just need a starting point, and you can always update it later.</div>
+
+          <!-- Household toggle -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md)">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--ink)">Sharing finances with a partner?</div>
+              <div style="font-size:11px;color:var(--slate-2);margin-top:2px">We'll track both incomes together from the start.</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0;margin-left:12px;cursor:pointer">
+              <input type="checkbox" id="obHouseholdToggle" style="opacity:0;position:absolute;width:0;height:0"
+                onchange="obToggleHousehold(this.checked)">
+              <span class="toggle-track" id="obHouseholdTrack" style="position:absolute;inset:0;background:var(--steel);border-radius:24px;transition:.25s"></span>
+            </label>
+          </div>
+
+          <!-- Names — shown when household mode is on -->
+          <div id="obNamesRow" class="field-row hidden" style="margin-bottom:16px">
+            <div class="field">
+              <label>Your name</label>
+              <input type="text" id="obUser1Name" placeholder="e.g. Rob" oninput="obUpdateIncomeLabels()">
+            </div>
+            <div class="field">
+              <label>Partner's name</label>
+              <input type="text" id="obUser2Name" placeholder="e.g. Jamie" oninput="obUpdateIncomeLabels()">
+            </div>
+          </div>
+
+          <div class="field">
+            <label id="obIncomeLabel">Monthly take-home income</label>
+            <input type="number" id="obIncome" placeholder="e.g. 4200" min="0" step="100"
+              style="font-size:22px;font-family:var(--font-mono);padding:14px"
+              oninput="obUpdateStep1()">
+          </div>
+
+          <!-- Partner income — shown when household mode is on -->
+          <div id="obIncome2Field" class="field hidden mt-4">
+            <label id="obIncome2Label">Partner's monthly take-home income</label>
+            <input type="number" id="obIncome2" placeholder="e.g. 3800" min="0" step="100"
+              style="font-size:22px;font-family:var(--font-mono);padding:14px"
+              oninput="obUpdateStep1()">
+          </div>
+
+          <div id="obIncomeSub" style="font-size:11px;color:var(--slate-2);margin-top:8px;min-height:18px"></div>
+          <button class="btn btn-primary btn-full mt-5" onclick="obNext(1)" id="obBtn1" disabled>
+            Next — add your debts →
+          </button>
+        </div>
+
+        <!-- Step 2: Expenses -->
+        <div id="obStep2" class="hidden">
+          <div class="ob-back-link" onclick="obBack(2)">← Back</div>
+
+          <!-- Fresh-start path: granular fixed bills -->
+          <div id="obExpFresh">
+            <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">And what regularly goes out?</div>
+            <div style="font-size:13px;color:var(--slate);margin-bottom:20px;line-height:1.6">Just your steady fixed bills. Leave anything blank that doesn't apply — ballpark numbers are completely fine. You can fine-tune everything later in Budget.</div>
+
+            <!-- Housing -->
+            <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">Housing</div>
+            <div class="field">
+              <label>Mortgage or rent ($/month)</label>
+              <input type="number" id="obExpHousing" placeholder="e.g. 1,500" min="0" step="50">
+            </div>
+
+            <!-- Utilities -->
+            <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin:20px 0 8px">Utilities</div>
+            <div class="grid-2" style="gap:12px">
+              <div class="field" style="margin:0">
+                <label>Electric ($/month)</label>
+                <input type="number" id="obExpElectric" placeholder="e.g. 120" min="0" step="5">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Gas ($/month)</label>
+                <input type="number" id="obExpGas" placeholder="e.g. 45" min="0" step="5">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Water / Sewer ($/month)</label>
+                <input type="number" id="obExpWater" placeholder="e.g. 35" min="0" step="5">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Internet ($/month)</label>
+                <input type="number" id="obExpInternet" placeholder="e.g. 65" min="0" step="5">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Phone / Cell ($/month)</label>
+                <input type="number" id="obExpPhone" placeholder="e.g. 80" min="0" step="5">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Trash ($/month)</label>
+                <input type="number" id="obExpTrash" placeholder="e.g. 25" min="0" step="5">
+              </div>
+            </div>
+
+            <!-- Food -->
+            <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin:20px 0 8px">Food</div>
+            <div class="grid-2" style="gap:12px">
+              <div class="field" style="margin:0">
+                <label>Groceries ($/month)</label>
+                <input type="number" id="obExpGroceries" placeholder="e.g. 500" min="0" step="25">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Dining out / takeout ($/month)</label>
+                <input type="number" id="obExpDining" placeholder="e.g. 200" min="0" step="10">
+              </div>
+            </div>
+
+            <!-- Transportation -->
+            <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin:20px 0 8px">Transportation</div>
+            <div class="grid-2" style="gap:12px">
+              <div class="field" style="margin:0">
+                <label>Gas / Fuel ($/month)</label>
+                <input type="number" id="obExpFuel" placeholder="e.g. 150" min="0" step="10">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Car lease ($/month)</label>
+                <input type="number" id="obExpCarLease" placeholder="e.g. 0" min="0" step="10">
+              </div>
+            </div>
+          </div>
+
+          <!-- Import path: confirm category averages from recent transactions -->
+          <div id="obExpImport" class="hidden">
+            <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">Here's what you've been spending.</div>
+            <div style="font-size:13px;color:var(--slate);margin-bottom:20px;line-height:1.6">We looked at your recent activity and found your typical monthly costs. Nothing here is final — adjust anything that doesn't look right.</div>
+            <div id="obExpImportRows"></div>
+          </div>
+
+          <button class="btn btn-primary btn-full mt-5" onclick="obNext(2)">
+            Next — add your debts →
+          </button>
+        </div>
+
+        <!-- Step 3: Debts -->
+        <div id="obStep3" class="hidden">
+          <div class="ob-back-link" onclick="obBack(3)">← Back</div>
+          <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">Now, let's get it all down.</div>
+          <div style="font-size:13px;color:var(--slate);margin-bottom:8px;line-height:1.6">Every card, every loan — balance, rate, minimum payment. This is the only time you'll need to gather all of this in one place. Once it's here, Groundwork keeps track of it so you don't have to carry it in your head.</div>
+          <div style="font-size:13px;color:var(--slate);margin-bottom:8px;line-height:1.6">There's nothing to judge in these numbers — just information we'll use to build a plan that fits your life.</div>
+          <div id="obDebtList" style="margin-bottom:16px"></div>
+          <button class="btn btn-secondary btn-sm" onclick="obAddDebtRow()">+ Add a card or loan</button>
+          <div id="obDebtSummary" style="margin-top:16px;padding:14px;background:var(--mist);border-radius:var(--r-md);display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:12px;color:var(--slate)">Total debt</span>
+              <span style="font-family:var(--font-mono);font-size:18px;font-weight:500;color:var(--ember)" id="obTotalDebt">$0</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+              <span style="font-size:12px;color:var(--slate)">Interest at minimums only</span>
+              <span style="font-family:var(--font-mono);font-size:14px;color:var(--ember)" id="obMinInterest">$0</span>
+            </div>
+            <div style="font-size:11px;color:var(--slate-2);margin-top:6px" id="obMinDebtFree"></div>
+          </div>
+          <button class="btn btn-primary btn-full mt-5" onclick="obNext(3)" id="obBtn2">
+            Next — see what's possible →
+          </button>
+          <button class="btn btn-ghost btn-full mt-2" style="font-size:12px;color:var(--slate-2)" onclick="obNext(3)">
+            Skip for now — I'll add these later
+          </button>
+        </div>
+
+        <!-- Step 4: Commitment -->
+        <div id="obStep4" class="hidden">
+          <div class="ob-back-link" onclick="obBack(4)">← Back</div>
+          <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">What could you put toward debt?</div>
+          <div style="font-size:13px;color:var(--slate);margin-bottom:24px;line-height:1.6">The minimum payments keep you stuck — every dollar above them attacks the principal. Drag the slider to explore what different amounts do to your payoff date. This isn't a commitment: once your real transactions are in, Groundwork will show you what you can actually afford, and you can adjust anytime.</div>
+
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+            <label style="font-size:12px;color:var(--slate);white-space:nowrap">Monthly payment</label>
+            <input type="range" id="obPaymentSlider" min="0" max="2000" step="25" value="0"
+              oninput="obUpdatePayment(this.value)" style="flex:1">
+            <span class="text-mono" style="font-size:16px;font-weight:500;min-width:60px;text-align:right" id="obPaymentVal">$0</span>
+          </div>
+
+          <div id="obPaymentResult" style="padding:16px;background:var(--mist);border-radius:var(--r-md);min-height:80px">
+            <div style="font-size:12px;color:var(--slate-2)">Move the slider to see your payoff date</div>
+          </div>
+
+          <button class="btn btn-primary btn-full mt-5" onclick="obNext(4)" id="obBtn3" disabled>
+            This is my commitment →
+          </button>
+        </div>
+
+        <!-- Step 5: Savings goal -->
+        <div id="obStep5" class="hidden">
+          <div class="ob-back-link" onclick="obBack(5)">← Back</div>
+          <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">Where are you headed?</div>
+          <div style="font-size:13px;color:var(--slate);margin-bottom:24px;line-height:1.6">Getting out of debt is the first victory. But what comes after? Set a net worth target — even a rough one. It gives everything a destination.</div>
+
+          <div class="grid-2" style="gap:16px;margin-bottom:20px">
+            <div class="field">
+              <label>Net worth target</label>
+              <input type="number" id="obNWGoal" placeholder="e.g. 250000" min="0" step="10000"
+                oninput="obUpdateGoal()">
+            </div>
+            <div class="field">
+              <label>By when</label>
+              <input type="month" id="obNWDate" oninput="obUpdateGoal()">
+            </div>
+          </div>
+
+          <div id="obGoalPreview" style="padding:14px;background:var(--mist);border-radius:var(--r-md);display:none;font-size:12px;color:var(--slate);line-height:1.7" ></div>
+
+          <button class="btn btn-primary btn-full mt-5" onclick="obFinishGoals()">
+            See my numbers →
+          </button>
+          <button class="btn btn-ghost btn-full mt-2" style="font-size:12px;color:var(--slate-2)" onclick="obFinishGoals()">
+            Skip — I'll set a goal later
+          </button>
+        </div>
+
+        <!-- Step 6: Here's where you stand -->
+        <div id="obStep6" class="hidden">
+          <div class="ob-back-link" onclick="obBack(6)">← Back</div>
+          <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">Here's where you stand.</div>
+          <div id="obStep5Sub" style="font-size:13px;color:var(--slate);margin-bottom:24px;line-height:1.6"></div>
+          <div id="obPlanSummary"></div>
+          <div style="margin-top:20px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);font-size:12px;color:var(--slate);line-height:1.6">
+            <strong style="color:var(--ink)">Auto-import tip:</strong>
+            Save a bank statement (.csv, .ofx, .qfx) to your Downloads folder and Groundwork detects it automatically — a one-click import notification appears without you having to find the file.
+          </div>
+          <button class="btn btn-primary btn-full mt-5" onclick="obLaunch()">
+            Open Groundwork →
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      <div class="topbar-right">
+        <div class="topbar-date" id="topbarDate"></div>
+        <button class="btn btn-ghost btn-sm" onclick="openFeedbackModal()" style="font-size:11px;color:var(--slate);border-color:var(--steel)" title="Report a problem">⚑ Report</button>
+        <span id="gwSaveIndicator" style="display:none;font-size:11px;color:var(--ember);padding:3px 8px"></span>
+        <span id="gwErrorIndicator" onclick="showGwErrors()" title="JS errors detected — click to view"
+          style="display:none;font-size:11px;color:var(--ember);cursor:pointer;padding:3px 8px;
+                 border:1px solid var(--ember-border);border-radius:20px;background:var(--ember-bg)"></span>
+        <button class="btn btn-sm btn-secondary" onclick="showView('reports')">◫ Reports</button>
+        <button class="btn btn-sm btn-secondary" onclick="openBackupModal()">Backup</button>
+        <button class="btn btn-sm btn-secondary" onclick="showHelpOverlay()" title="Help">?</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="view-dashboard" class="view active">
+
+        <!-- Achievement strip (stays exactly as-is) -->
+        <div id="dashRecentWin"></div>
+
+        <!-- Sunday number card — visible Sundays only -->
+        <div id="dashSundayCard" class="card mb-5" style="display:none;border-color:var(--sky)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div class="card-label" style="margin-bottom:0;color:var(--sky)">Sunday check-in</div>
+            <span id="dashSundayBadge" style="font-size:10px;color:var(--slate-2)"></span>
+          </div>
+          <div id="dashSundayContent" style="font-size:13px;color:var(--ink);line-height:1.75"></div>
+        </div>
+
+        <!-- Getting-started checklist — new users only -->
+        <div id="gettingStartedCard" class="card mb-5" style="display:none;border-color:var(--sky)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div>
+              <div class="card-label" style="margin-bottom:2px;color:var(--sky)">Week 1 — get set up</div>
+              <div style="font-size:12px;color:var(--slate)">Five steps and the app knows enough to guide you.</div>
+            </div>
+            <button onclick="dismissGettingStarted()"
+              style="font-size:11px;background:none;border:none;color:var(--slate);cursor:pointer;padding:4px">
+              Dismiss
+            </button>
+          </div>
+          <div id="gettingStartedSteps"></div>
+        </div>
+
+        <!-- Greeting — Playfair Display italic, full width -->
+        <div class="section-header" style="margin-bottom:20px">
+          <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-weight:700;
+                      font-size:28px;letter-spacing:-.3px;color:var(--ink);line-height:1.1"
+               id="dashGreeting">Good morning.</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+            <div class="section-sub" id="dashGreetingSub">Here's where things stand.</div>
+            <button id="quarterlyToggleBtn" onclick="toggleQuarterlyMode()"
+              style="font-size:11px;padding:3px 10px;border-radius:20px;border:0.5px solid var(--steel);
+                     background:none;cursor:pointer;color:var(--slate);white-space:nowrap;flex-shrink:0">
+              Monthly
+            </button>
+          </div>
+        </div>
+
+        <!-- Full-width: month health card (unchanged) -->
+        <div class="card mb-5" id="dashHealthCard">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <div class="card-label" style="margin-bottom:6px">This month</div>
+              <div id="dashHealthVerdict" style="font-size:22px;font-weight:600;color:var(--pine)">On track</div>
+              <div id="dashHealthSub" style="font-size:13px;color:var(--slate);margin-top:4px;line-height:1.6"></div>
+            </div>
+            <div style="flex-shrink:0;text-align:right">
+              <span id="dashMonthLabel" style="font-size:12px;color:var(--slate-2);font-family:var(--font-mono)"></span>
+            </div>
+          </div>
+          <!-- Pace bar -->
+          <div id="dashPaceBar" style="margin:14px 0 4px">
+            <div style="height:5px;background:var(--steel);border-radius:99px;overflow:hidden">
+              <div id="dashPaceFill" style="height:100%;border-radius:99px;background:var(--pine);transition:width .5s ease;width:0%"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px">
+              <span style="font-size:10px;color:var(--slate-2)">$0</span>
+              <span id="dashPaceMarker" style="font-size:10px;font-family:var(--font-mono);color:var(--pine)"></span>
+              <span id="dashPaceIncome" style="font-size:10px;color:var(--slate-2)"></span>
+            </div>
+          </div>
+          <!-- Meta row: days left · streak · DTI -->
+          <div id="dashHealthMeta" style="display:flex;gap:20px;margin-top:12px;flex-wrap:wrap;font-size:11px;color:var(--slate-2)"></div>
+        </div>
+
+        <!-- Phase I: Two-column layout -->
+        <div style="display:grid;grid-template-columns:3fr 2fr;gap:16px;align-items:start"
+             id="dashTwoCol">
+
+          <!-- LEFT COLUMN (60%) -->
+          <div style="display:flex;flex-direction:column;gap:16px" id="dashLeftCol">
+
+            <!-- Hero card — stage-aware -->
+            <div class="card" id="dashHeroCard" style="display:none"></div>
+
+            <!-- Freed minimums (CP5) — moved here from standalone card -->
+            <div class="card" id="dashFreedMinimumsCard" style="display:none">
+              <div id="dashFreedMinimumsContent"></div>
+            </div>
+
+            <!-- AI insight — no label, no badge -->
+            <div id="dashProjectionCard" style="display:none;background:var(--mist);border-radius:var(--r-md);
+                 padding:14px 16px;border:1px solid var(--steel)">
+              <div id="dashProjectionContent" style="font-size:13px;color:var(--ink);line-height:1.75"></div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT COLUMN (40%) -->
+          <div style="display:flex;flex-direction:column;gap:16px" id="dashRightCol">
+
+            <!-- Spending donut -->
+            <div class="card" id="dashDonutCard" style="display:none">
+              <div class="card-label" style="margin-bottom:10px">Spending this month</div>
+              <div id="dashDonutContent"></div>
+            </div>
+
+            <!-- Upcoming bills / due dates -->
+            <div class="card" id="dashUpcomingCard" style="display:none">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <div class="card-label" style="margin-bottom:0">Upcoming</div>
+                <span onclick="showView('ledger')"
+                  style="font-size:11px;color:var(--pine);cursor:pointer;text-decoration:underline;
+                         text-underline-offset:2px">View all →</span>
+              </div>
+              <div id="dashUpcomingContent"></div>
+            </div>
+
+            <!-- Seasonal alert (quiet, one line, requires B6d) -->
+            <div id="dashSeasonalAlert" style="display:none;font-size:12px;color:var(--slate);
+                 padding:10px 14px;background:var(--gold-bg);border:1px solid var(--gold-border);
+                 border-radius:var(--r-md);line-height:1.6"></div>
+
+          </div>
+        </div>
+
+        <!-- Legacy mission card — hidden in Phase I, kept for JS compat -->
+        <div id="dashMissionCard" style="display:none">
+          <div id="dashMissionCells"></div>
+        </div>
+        <!-- Legacy BVA — hidden in Phase I -->
+        <div style="display:none">
+          <div id="bvaRows"></div>
+          <span id="bvaMonthLabel"></span>
+        </div>
+        <!-- Legacy next achievement — hidden in Phase I -->
+        <div id="dashNextAchCard" style="display:none">
+          <div id="dashNextAchContent"></div>
+        </div>
+
+      </div>
+      <!-- LEDGER -->
+      <div id="view-ledger" class="view">
+        <div id="fvb-ledger"></div>
+        <div id="ledgerRecentWin"></div>
+
+        <!-- Page head: title + sub + In/Out/Net summary -->
+        <div class="ledger-page-head">
+          <div>
+            <h1>Ledger</h1>
+            <div class="sub" id="ledgerSub">—</div>
+          </div>
+          <div class="ph-right" id="ledgerHeadStats">
+            <div class="ledger-head-stat"><div class="lbl">In</div><div class="val pos" id="lhs-in">$0</div></div>
+            <div class="ledger-head-stat"><div class="lbl">Out</div><div class="val neg" id="lhs-out">$0</div></div>
+            <div class="ledger-head-stat"><div class="lbl">Net</div><div class="val" id="lhs-net">$0</div></div>
+          </div>
+        </div>
+
+        <!-- Toolbar: month left, account + search + filter + add right -->
+        <div class="ledger-bar">
+          <div class="ledger-bar-left">
+            <div class="month-nav">
+              <button class="month-arrow" id="ledgerMonthPrev" onclick="ledgerMonthStep(1)" title="Older month">‹</button>
+              <span class="month-label" id="ledgerMonthLabel">—</span>
+              <button class="month-arrow" id="ledgerMonthNext" onclick="ledgerMonthStep(-1)" title="Newer month">›</button>
+            </div>
+            <div class="month-range-tabs" id="ledgerRangeTabs">
+              <button class="range-tab active" data-range="1"  onclick="setLedgerRange(1)">1M</button>
+              <button class="range-tab"        data-range="3"  onclick="setLedgerRange(3)">3M</button>
+              <button class="range-tab"        data-range="6"  onclick="setLedgerRange(6)">6M</button>
+              <button class="range-tab"        data-range="12" onclick="setLedgerRange(12)">12M</button>
+            </div>
+          </div>
+          <div class="ledger-bar-right">
+            <div class="acct-switcher-wrap">
+              <button class="acct-switcher" id="ledgerAcctSwitcher" onclick="toggleAcctSwitcher(event)">
+                <span class="acct-dot"></span>
+                <span class="acct-name" id="ledgerAcctSwitcherName">All accounts</span>
+                <span class="acct-num"  id="ledgerAcctSwitcherNum"></span>
+                <span class="chev">▾</span>
+              </button>
+              <div class="acct-switcher-menu" id="ledgerAcctSwitcherMenu"></div>
+              <!-- Kept as hidden compat shim for code paths still reading the select -->
+              <select id="ledgerAccountFilter" style="display:none" onchange="renderLedger()"><option value="">All accounts</option></select>
+            </div>
+            <div class="ledger-search">
+              <span class="ledger-search-icon">⌕</span>
+              <input type="text" placeholder="Search transactions…" id="ledgerSearch" oninput="ledgerSearchInput()">
+            </div>
+            <!-- Hidden compat shims for code paths that still set these filters -->
+            <select id="ledgerCatFilter"  style="display:none" onchange="renderLedger()"><option value="">All categories</option></select>
+            <select id="ledgerTypeFilter" style="display:none" onchange="renderLedger()"><option value="">All types</option><option value="debit">Expenses</option><option value="credit">Income</option></select>
+            <button class="tb-btn" id="ledgerUnclearedBtn" onclick="toggleUnclearedFilter()" title="Show only uncleared transactions">Uncleared</button>
+            <button class="tb-btn" onclick="openReconcilePanel()" title="Reconcile against your bank statement">Reconcile</button>
+            <button class="tb-btn" onclick="_runDedupBot()" title="Scan for and remove duplicate transactions">Dedup</button>
+            <button class="tb-btn" onclick="showImportModal()">↑ Import</button>
+            <button class="tb-btn primary" onclick="openAddModal()">+ Add</button>
+          </div>
+        </div>
+
+        <!-- Reconciliation panel — shown when Reconcile is clicked -->
+        <div id="reconcilePanel" style="display:none;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-lg);padding:14px 18px;margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="font-size:13px;font-weight:600;color:var(--ink)">Reconcile with statement</div>
+            <button onclick="closeReconcilePanel()" style="background:none;border:none;cursor:pointer;color:var(--slate-2);font-size:16px;line-height:1">×</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+            <div style="font-size:12px;color:var(--slate)">Statement closing balance</div>
+            <input type="number" id="reconcileTarget" placeholder="0.00" step="0.01"
+              oninput="updateReconcileStatus()"
+              style="width:130px;font-family:var(--font-mono);font-size:13px;padding:6px 10px;border:1px solid var(--pine-border);border-radius:var(--r-sm);background:var(--paper)">
+            <div style="font-size:12px;color:var(--slate)">Check off transactions as you match them to your statement.</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <div style="font-size:12px;color:var(--slate)">Cleared total: <span id="reconClearedTotal" style="font-family:var(--font-mono);font-weight:600;color:var(--ink)">$0.00</span></div>
+            <div style="font-size:12px;color:var(--slate)">Difference: <span id="reconDifference" style="font-family:var(--font-mono);font-weight:600">—</span></div>
+            <div id="reconMatch" style="font-size:12px;display:none"></div>
+            <button onclick="markVisibleCleared()" style="font-size:12px;font-family:inherit;background:var(--pine);color:#fff;border:none;border-radius:var(--r-md);padding:6px 12px;cursor:pointer;margin-left:auto">
+              ✓ Mark all visible cleared
+            </button>
+          </div>
+        </div>
+
+        <!-- Table (divs, not <table>, so the bloom can sit between siblings) -->
+        <div class="ledger" id="ledgerCard">
+          <div class="col-head" id="ledgerColHead">
+            <div class="ch c"><input type="checkbox" id="selectAllTxns" onchange="toggleSelectAll(this)" title="Select all"></div>
+            <div class="ch"><span class="col-resize" data-col="icon"></span></div>
+            <div class="ch sortable" data-sort="date" onclick="sortLedger('date')">Date<span class="sort-mark"></span><span class="col-resize" data-col="date"></span></div>
+            <div class="ch sortable" data-sort="description" onclick="sortLedger('description')">Description<span class="sort-mark"></span><span class="col-resize" data-col="desc"></span></div>
+            <div class="ch">Account<span class="col-resize" data-col="account"></span></div>
+            <div class="ch">Category<span class="col-resize" data-col="category"></span></div>
+            <div class="ch r sortable" data-sort="amount" onclick="sortLedger('amount')">Amount<span class="sort-mark"></span><span class="col-resize" data-col="amount"></span></div>
+            <div class="ch r">Balance</div>
+            <div class="ch c">Cleared</div>
+          </div>
+          <div id="ledgerBody">
+            <div class="ledger-empty">
+              <div class="icon">📒</div>
+              <div class="title">No transactions yet</div>
+              <div class="sub">Import a CSV or OFX file from your bank, or add transactions manually.</div>
+              <div class="actions">
+                <button class="tb-btn primary" onclick="showImportModal()">↑ Import file</button>
+                <button class="tb-btn" onclick="openAddModal()">+ Add manually</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer: transaction count -->
+        <div class="ledger-foot">
+          <span id="ledgerCount"></span>
+        </div>
+      </div>
+
+      <!-- BUDGET -->
+      <div id="view-budget" class="view">
+        <div id="fvb-budget"></div>
+        <div id="budgetRecentWin"></div>
+        <div id="budgetContent"></div>
+
+        <!-- Subscription audit — only shown when profile has detected recurring charges -->
+        <div class="card mt-5" id="subscriptionAuditCard" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div>
+              <div class="card-label" style="margin-bottom:2px">Recurring charges detected</div>
+              <div style="font-size:12px;color:var(--slate)">Based on merchants that appear monthly at consistent amounts.</div>
+            </div>
+            <div id="subscriptionAuditTotal" style="font-family:var(--font-mono);font-size:18px;font-weight:500;color:var(--ember)"></div>
+          </div>
+          <div id="subscriptionAuditList" style="margin-top:12px"></div>
+        </div>
+
+        <!-- Sinking Funds — hidden until funds exist -->
+        <div class="card mt-5" id="sinkingFundsCard" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div>
+              <div class="card-label" style="margin-bottom:2px">Sinking funds</div>
+              <div style="font-size:12px;color:var(--slate)">Set money aside monthly for irregular expenses so they never derail your budget.</div>
+            </div>
+            <button class="btn btn-sm btn-secondary" onclick="showAddSinkingFund()">+ Fund</button>
+          </div>
+          <div id="sinkingFundsList" style="margin-top:14px"></div>
+          <!-- Add fund form (hidden by default) -->
+          <div id="sinkingFundForm" style="display:none;margin-top:14px;padding-top:14px;border-top:0.5px solid var(--steel-2)">
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;flex-wrap:wrap">
+              <div class="field" style="margin:0">
+                <label>Name</label>
+                <input class="field-input" type="text" id="sfName" placeholder="e.g. Car repairs">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Monthly contribution</label>
+                <input class="field-input" type="number" id="sfMonthly" placeholder="e.g. 60" min="1">
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="saveSinkingFund()" style="margin-bottom:2px">Add</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+              <div class="field" style="margin:0">
+                <label>Starting balance (optional)</label>
+                <input class="field-input" type="number" id="sfBalance" placeholder="0">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Target amount (optional)</label>
+                <input class="field-input" type="number" id="sfTarget" placeholder="e.g. 1200">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+              <div class="field" style="margin:0">
+                <label>Deadline (optional)</label>
+                <input class="field-input" type="date" id="sfDeadline">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Note (optional)</label>
+                <input class="field-input" type="text" id="sfNote" placeholder="e.g. Christmas fund">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DEBT -->
+      <div id="view-debt" class="view">
+        <div id="fvb-debt"></div>
+        <div id="debtRecentWin"></div>
+
+        <!-- ── HERO BAND ─────────────────────────────────────────────────── -->
+        <div id="debtHeroBand" class="card mb-4" style="border:1px solid var(--steel);position:relative;overflow:hidden">
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px" id="debtHeroEyebrow">YOUR PATH TO ZERO</div>
+          <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:4px">
+            <div id="debtHeroDate" style="font-family:var(--font-serif);font-style:italic;font-size:28px;color:var(--pine);transition:color 0.3s ease;line-height:1.1">—</div>
+            <div id="debtHeroDuration" style="font-family:var(--font-mono);font-size:13px;color:var(--slate)"></div>
+          </div>
+          <div id="debtHeroStats" style="font-family:var(--font-mono);font-size:12px;color:var(--slate-2);margin-bottom:10px"></div>
+
+          <!-- What-if expander -->
+          <div id="debtHeroWhatIf" style="margin-bottom:10px">
+            <span id="debtHeroWhatIfToggle"
+              onclick="_debtToggleWhatIf()"
+              style="font-size:12px;color:var(--pine);cursor:pointer;user-select:none">▸ What if you paid extra?</span>
+            <div id="debtHeroWhatIfPanel" style="display:none;margin-top:8px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <label style="font-size:12px;color:var(--slate);white-space:nowrap">Extra / month</label>
+                <input type="range" min="0" max="500" step="10" value="0" id="whatIfSlider"
+                  oninput="runWhatIf(this.value);_debtSyncWhatIfHero(this.value)" style="flex:1">
+                <span class="text-mono" style="font-size:13px;font-weight:500;min-width:48px;text-align:right" id="whatIfSliderVal">$0</span>
+              </div>
+              <div class="grid-3 mt-3" id="whatIfStats">
+                <div class="stat-card">
+                  <div class="stat-label">Debt-free</div>
+                  <div class="stat-value" id="whatIfFreeDate">—</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Interest saved</div>
+                  <div class="stat-value positive" id="whatIfIntSaved">$0</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">% of income to debt</div>
+                  <div class="stat-value" id="whatIfDTI">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Progress bar -->
+          <div id="debtHeroBarWrap" style="display:none">
+            <div style="background:var(--steel);border-radius:9999px;height:5px;overflow:hidden;margin-bottom:4px">
+              <div id="debtHeroBarFill" style="height:100%;background:var(--pine);border-radius:9999px;width:0%;transition:width 0.5s ease"></div>
+            </div>
+            <div id="debtHeroBarLabel" style="font-family:var(--font-mono);font-size:11px;color:var(--pine);text-align:right"></div>
+          </div>
+        </div>
+
+        <!-- ── TAB STRIP ───────────────────────────────────────────────── -->
+        <div style="display:flex;align-items:center;gap:0;border-bottom:1px solid var(--steel);margin-bottom:20px;position:relative">
+          <div style="display:flex;align-items:center;flex:1;gap:0">
+            <button id="debtTab-setup" onclick="_debtShowTab('setup')"
+              style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;color:var(--pine);border-bottom:2px solid var(--pine);margin-bottom:-1px;font-family:var(--font-sans);font-weight:500">Setup</button>
+            <button id="debtTab-tracker" onclick="_debtShowTab('tracker')"
+              style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;color:var(--slate);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--font-sans)">Month Tracker</button>
+            <button id="debtTab-advisor" onclick="_debtShowTab('advisor')"
+              style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;color:var(--slate);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--font-sans)">Advisor</button>
+          </div>
+        </div>
+
+        <!-- ── SETUP TAB ───────────────────────────────────────────────── -->
+        <div id="debtPanel-setup">
+          <div id="debtAchievementShelf" class="hidden mb-5">
+            <div class="text-xs text-muted mb-3" style="letter-spacing:.08em;text-transform:uppercase">Recent debt achievements</div>
+            <div id="debtAchievementBadges" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
+          <div class="grid-2 mb-4">
+            <div class="card">
+              <div class="card-label">Monthly payment budget</div>
+              <div class="field">
+                <label>Total available for debt each month ($)</label>
+                <input type="number" id="monthlyBudget" placeholder="e.g. 1500" min="0" step="10" oninput="this.dataset.userSet='1';const _sc=g('debtSuggestedCommitment');if(_sc)_sc.style.display='none';calculate()" value="1500">
+              </div>
+              <div id="debtSuggestedCommitment" style="display:none;margin-top:8px;font-size:12px;color:var(--slate)"></div>
+              <div class="text-xs text-muted mt-3" style="line-height:1.6">Include minimums plus any extra. The more you put in, the faster you get out.</div>
+            </div>
+            <div class="card">
+              <div class="card-label">Payoff strategy</div>
+              <div class="method-toggle mb-4">
+                <button class="method-btn active" id="btnAvalanche" onclick="setMethod('avalanche')">Avalanche</button>
+                <button class="method-btn" id="btnSnowball" onclick="setMethod('snowball')">Snowball</button>
+                <span id="strategyHelpIcon"></span>
+              </div>
+              <div class="text-sm text-muted" id="strategyTip" style="line-height:1.6">Avalanche: pay minimums on all cards, then apply extra cash to the highest-interest card first. Saves the most money.</div>
+            </div>
+          </div>
+
+          <div class="card mb-4">
+            <div class="card-label">Your cards &amp; loans</div>
+            <div id="cardList"></div>
+            <button class="btn-add" onclick="addCard()">+ Add card or loan</button>
+          </div>
+
+          <!-- Loan Forgiveness — PSLF / IBR / SAVE -->
+          <div class="card mb-4" id="loanFlagsCard" style="display:none">
+            <div class="card-label">Loan Forgiveness</div>
+            <div style="font-size:12px;color:var(--slate);margin-bottom:12px;line-height:1.6">
+              Loans flagged for income-driven forgiveness (PSLF, IBR, SAVE) live here, separate from your other cards. Edit balance, payments, and forgiveness progress all in one place. The app won't recommend accelerating payoff on these; strategic minimum payment is the correct move. Uncheck the flag on a loan to move it back.
+            </div>
+            <div id="loanFlagsList"></div>
+          </div>
+
+          <!-- Legacy results div — kept for backward compat, hidden once hero band renders -->
+          <div id="results" style="display:none"></div>
+          <!-- Legacy due-date alerts — now inline on card rows; kept as empty stub -->
+          <div id="dueDateAlerts" style="display:none"></div>
+        </div>
+
+        <!-- ── MONTH TRACKER TAB ───────────────────────────────────────── -->
+        <div id="debtPanel-tracker" style="display:none">
+          <!-- Populated by _debtRenderTrackerTab() on tab switch -->
+        </div>
+
+        <!-- ── ADVISOR TAB ─────────────────────────────────────────────── -->
+        <div id="debtPanel-advisor" style="display:none">
+          <!-- DTI stat row -->
+          <div class="grid-4 mb-5" id="debtDTIRow">
+            <div class="stat-card">
+              <div class="stat-label">Debt-to-income ratio</div>
+              <div class="stat-value" id="dtiValue">—</div>
+              <div class="stat-delta" id="dtiStatus"></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Total interest</div>
+              <div class="stat-value text-mono" id="advisorTotalInterest">$0</div>
+              <div class="stat-delta">at current plan</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Debt-free date</div>
+              <div class="stat-value" id="advisorFreeDate">—</div>
+              <div class="stat-delta" id="advisorFreeSub"></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Once debt-free</div>
+              <div class="stat-value positive" id="dtiAfterPayoff">—</div>
+              <div class="stat-delta">freed monthly cash</div>
+            </div>
+          </div>
+
+          <!-- Groundwork's acceleration analysis (was: AI acceleration advisor) -->
+          <div class="card mb-5" id="debtAIAdvisorCard" style="border:1.5px solid var(--sky);display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div class="card-label" style="margin-bottom:0;color:var(--sky)">Groundwork's acceleration analysis</div>
+              <span style="font-size:10px;color:var(--slate-2)">✦ AI</span>
+            </div>
+            <div id="debtAIAdvisorContent" style="font-size:13px;color:var(--ink);line-height:1.75"></div>
+            <div class="grid-3 mt-4" id="debtAIAdvisorStats" style="display:none">
+              <div class="stat-card">
+                <div class="stat-label">Interest saved</div>
+                <div class="stat-value positive" id="advisorIntSaved">$0</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Months sooner</div>
+                <div class="stat-value" id="advisorMonthsSooner">0</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">New free date</div>
+                <div class="stat-value" id="advisorNewDate">—</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- What-if surplus reference (advisor tab version) -->
+          <div id="whatIfSurplusRef" style="font-size:12px;color:var(--slate);margin-bottom:10px;display:none"></div>
+
+          <!-- DTI + advisor section wrapper (backward compat) -->
+          <div id="debtAdvisorSection" style="display:block"></div>
+          <!-- Legacy what-if card — stub kept for backward compat (content in hero now) -->
+          <div id="debtWhatIfCard" style="display:none"></div>
+        </div>
+
+      </div>
+
+      <!-- TRACKER -->
+      <!-- BEFORE YOU BUY -->
+      <div id="view-byb" class="view">
+        <div class="section-header">
+          <div class="section-title">Before You Buy</div>
+          <div class="section-sub">See what a purchase really costs your debt-free date before you decide.</div>
+        </div>
+        <div id="fvb-byb"></div>
+        <div id="bybRecentWin"></div>
+        <div id="bybContent"></div>
+      </div>
+
+      <!-- INVESTMENTS -->
+      <div id="view-investments" class="view">
+        <div id="fvb-investments"></div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="section-title">Investments</div>
+            <div class="section-sub">Portfolio positions and performance.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <select class="filter-select" id="invAccountFilter" onchange="loadInvestments()" style="font-size:12px">
+              <option value="">All accounts</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="openAddHoldingModal()">+ Add holding</button>
+            <button class="btn btn-secondary btn-sm" onclick="createInvestmentAccount()">+ Account</button>
+            <button class="btn btn-secondary btn-sm" onclick="openRecordTransactionModal()">Record buy / sell</button>
+          </div>
+        </div>
+
+        <!-- Analytics panel -->
+        <div class="grid-4 mb-5">
+          <div class="stat-card accent">
+            <div class="stat-label">Portfolio value</div>
+            <div class="stat-value text-mono" id="invTotalValue" style="font-size:22px">$0</div>
+            <div class="stat-delta" id="invTotalCost">$0 invested</div>
+          </div>
+          <div class="stat-card" id="invGainCard">
+            <div class="stat-label">Unrealized gain</div>
+            <div class="stat-value" id="invTotalGain">$0</div>
+            <div class="stat-delta" id="invTotalGainPct">0.0%</div>
+          </div>
+          <div class="stat-card" id="invDayCard">
+            <div class="stat-label">Today's change</div>
+            <div class="stat-value" id="invDayChange">$0</div>
+            <div class="stat-delta" id="invDayChangePct">0.0%</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Positions</div>
+            <div class="stat-value" id="invPositionCount">0</div>
+            <div class="stat-delta">across all accounts</div>
+          </div>
+        </div>
+
+        <!-- Analytics row: allocation + performance + dividends -->
+        <div class="grid-3 mb-5" id="invAnalyticsRow" style="display:none">
+          <!-- Allocation donut -->
+          <div class="card">
+            <div class="card-label">Allocation</div>
+            <div style="display:flex;align-items:center;gap:20px">
+              <svg id="invAllocChart" width="110" height="110" viewBox="0 0 110 110" style="flex-shrink:0"></svg>
+              <div id="invAllocLegend" style="flex:1;font-size:11px;line-height:1.9"></div>
+            </div>
+          </div>
+          <!-- Performers: best and worst -->
+          <div class="card">
+            <div class="card-label">Performers</div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--color-text-success);margin-bottom:6px">Best</div>
+            <div id="invTopPerformers" style="font-size:12px;margin-bottom:12px"></div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--color-text-danger);margin-bottom:6px">Worst</div>
+            <div id="invBottomPerformers" style="font-size:12px"></div>
+          </div>
+          <!-- Returns overview — uses real summary data, no empty shelves -->
+          <div class="card" id="invOverviewCard">
+            <div class="card-label">Returns overview</div>
+            <div id="invOverviewContent">
+              <div style="font-size:12px;color:var(--slate-2)">Loading…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Target allocation vs actual — hidden until targets are set -->
+        <div id="invTargetAllocCard" class="card mb-5" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div class="card-label" style="margin-bottom:0">Allocation vs target</div>
+            <button class="btn btn-ghost btn-sm" onclick="showSetTargetsPanel()" style="font-size:11px">Edit targets</button>
+          </div>
+          <div id="invAllocDriftRows"></div>
+          <div id="invRebalanceSuggestion" style="margin-top:12px;font-size:12px;
+               color:var(--slate);line-height:1.7"></div>
+        </div>
+
+        <!-- Set targets panel — inline, not a modal -->
+        <div id="invSetTargetsPanel" class="card mb-5" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div class="card-label" style="margin-bottom:0">Set target allocation</div>
+            <button class="btn btn-ghost btn-sm" onclick="hideSetTargetsPanel()" style="font-size:11px">Cancel</button>
+          </div>
+          <div style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.6">
+            Set your target % for each asset class. Values must sum to 100%.
+            <span id="invTargetSum" style="font-weight:500;margin-left:6px"></span>
+          </div>
+          <div id="invTargetInputRows"></div>
+          <button class="btn btn-primary btn-sm mt-4" onclick="saveTargetAllocation()">Save targets</button>
+        </div>
+
+        <!-- Tag nudge — shown when holdings are untagged -->
+        <div id="invTagNudge" style="font-size:12px;color:var(--slate);
+             padding:8px 18px;background:var(--mist);
+             border:0.5px solid var(--steel-2);border-radius:var(--r-md);
+             margin-bottom:10px;display:none"></div>
+
+        <!-- Positions table -->
+        <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--steel);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2)">Positions</div>
+            <button class="btn btn-ghost btn-sm" id="invRefreshBtn" onclick="refreshPrices()" style="font-size:11px">↺ Refresh prices</button>
+            <button class="btn btn-ghost btn-sm" onclick="showSetTargetsPanel()" style="font-size:11px">Set targets</button>
+          </div>
+          <table class="data-table" id="invPositionsTable">
+            <thead>
+              <tr>
+                <th style="padding:10px 16px">Security</th>
+                <th style="text-align:right;padding:10px 16px">Value · Alloc</th>
+                <th style="text-align:right;padding:10px 16px">Return</th>
+              </tr>
+            </thead>
+            <tbody id="invPositionsBody">
+              <tr><td colspan="3">
+                <div class="empty-state">
+                  <div class="empty-state-icon">📈</div>
+                  <div class="empty-state-title">No positions yet</div>
+                  <div class="empty-state-sub">Add your first holding to start tracking your portfolio.</div>
+                  <button class="btn btn-primary btn-sm" onclick="openAddHoldingModal()">+ Add holding</button>
+                </div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Transaction history -->
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--steel);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2)">Transaction history</div>
+            <select class="filter-select" id="invTxnTickerFilter" onchange="filterInvTransactions()" style="font-size:11px">
+              <option value="">All tickers</option>
+            </select>
+          </div>
+          <table class="data-table" id="invTxnTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Ticker</th>
+                <th style="text-align:right">Shares</th>
+                <th style="text-align:right">Price</th>
+                <th style="text-align:right">Total</th>
+                <th>Note</th>
+                <th style="width:40px"></th>
+              </tr>
+            </thead>
+            <tbody id="invTxnBody">
+              <tr><td colspan="8" style="padding:20px;text-align:center;font-size:12px;color:var(--slate-2)">No transactions recorded.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- NET WORTH -->
+      <div id="view-networth" class="view">
+        <div id="fvb-networth"></div>
+        <div class="section-header"><div class="section-title">Net Worth</div><div class="section-sub">Assets minus liabilities.</div></div>
+        <div class="card mb-5">
+          <div class="nw-hero">
+            <div class="nw-label">Current net worth</div>
+            <div class="nw-value" id="nwTotal">$0</div>
+            <div class="nw-delta" id="nwDelta"></div>
+          </div>
+          <!-- Trend chart — _renderNWChart() draws history + projection here.
+               The container was lost in a redesign; the render fn silently
+               no-op'd ever since. -->
+          <div id="nwChart" style="margin-top:16px"></div>
+        </div>
+        <div class="grid-2 mb-5">
+          <div class="card">
+            <div class="card-label">Assets</div>
+            <div id="nwAssetRows"></div>
+            <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;font-weight:600"><span>Total assets</span><span class="text-mono text-pine" id="nwTotalAssets">$0</span></div>
+          </div>
+          <div class="card">
+            <div class="card-label">Liabilities</div>
+            <div id="nwLiabilityRows"></div>
+            <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;font-weight:600"><span>Total liabilities</span><span class="text-mono text-ember" id="nwTotalLiabilities">$0</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-label">Update balances</div>
+          <div class="grid-2">
+            <div>
+              <div style="font-weight:600;margin-bottom:12px;font-size:13px">Assets</div>
+              <div class="field mb-4"><label>Checking &amp; savings ($)</label><input type="number" id="nwSavings" placeholder="0" oninput="updateNetWorth()"></div>
+              <div class="field mb-4"><label>Investment accounts ($) <span style="font-weight:400;font-size:10px;color:var(--slate-2)">brokerage, taxable</span></label><input type="number" id="nwInvestments" placeholder="0" oninput="updateNetWorth(); this.dataset.portfolioSync='';"><div id="nwInvSyncBadge" style="font-size:10px;color:var(--pine);margin-top:3px;display:none"></div></div>
+              <!-- Retirement accounts — Phase 11 -->
+              <div class="field mb-4">
+                <label>401(k) / 403(b) ($) ${helpIcon('retirement_account')}</label>
+                <input type="number" id="nw401k" placeholder="0" oninput="updateNetWorth()">
+              </div>
+              <div class="field mb-4">
+                <label>IRA / Roth IRA ($)</label>
+                <input type="number" id="nwIRA" placeholder="0" oninput="updateNetWorth()">
+              </div>
+              <!-- Defined benefit pension — estimated present value -->
+              <div id="nwPensionSection">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                  <div style="font-size:12px;font-weight:500;color:var(--slate)">Defined benefit pension</div>
+                  <button class="btn btn-ghost btn-sm" onclick="showAddPension()" style="font-size:11px">+ Add pension</button>
+                </div>
+                <div id="nwPensionList"></div>
+              </div>
+              <div class="field mb-4"><label>Cash on hand ($)</label><input type="number" id="nwCash" placeholder="0" oninput="updateNetWorth()"></div>
+              <div class="field mb-4"><label>Home estimated value ($)</label><input type="number" id="nwHomeValue" placeholder="0" oninput="updateNetWorth()"></div>
+            </div>
+            <div>
+              <div style="font-weight:600;margin-bottom:12px;font-size:13px">Liabilities</div>
+              <div class="field mb-4"><label>Mortgage balance ($)</label><input type="number" id="nwMortgage" placeholder="0" oninput="updateNetWorth()"></div>
+              <div class="card mb-4" style="background:var(--mist);border-color:var(--steel)">
+                <div class="text-xs text-muted mb-3" style="letter-spacing:.06em;text-transform:uppercase">Credit card &amp; loan debt</div>
+                <div class="text-mono" style="font-size:20px;color:var(--ember)" id="nwDebtFromCards">$0</div>
+                <div class="text-xs text-muted mt-3">Auto-calculated from Debt Payoff</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:16px;border-top:1px solid var(--steel)">
+            <div style="font-size:12px;color:var(--slate-2)" id="nwSnapshotStatus">
+              Snapshots save automatically on the first launch of each month.
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="saveNWSnapshot(false)" id="nwSnapshotBtn">
+              Save snapshot now
+            </button>
+          </div>
+        </div>
+
+        <!-- Snapshot history placeholder — populated by Phase 5B -->
+        <div id="nwHistorySection" style="display:none" class="mt-5">
+          <div id="nwHistoryContent"></div>
+        </div>
+
+        <!-- Net worth milestones (up to 3 named goals) -->
+        <div class="card mt-5" id="nwGoalCard">
+          <div class="card-label">Milestones</div>
+          <div id="nwMilestonesDisplay" style="margin-bottom:16px"></div>
+          <div id="nwAddMilestoneForm">
+            <div style="font-size:12px;font-weight:500;color:var(--slate);margin-bottom:10px">Add a milestone</div>
+            <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
+              <div class="field" style="flex:1;min-width:130px">
+                <label>Name</label>
+                <input class="field-input" type="text" id="nwGoalName" placeholder="e.g. Emergency floor">
+              </div>
+              <div class="field" style="flex:1;min-width:130px">
+                <label>Target ($)</label>
+                <input class="field-input" type="number" id="nwGoalAmount" placeholder="e.g. 100000" min="0" step="1000">
+              </div>
+              <div class="field" style="flex:1;min-width:130px">
+                <label>Target date</label>
+                <input class="field-input" type="month" id="nwGoalDate">
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="saveNWGoal()" style="margin-bottom:2px">Add</button>
+            </div>
+          </div>
+          <div id="nwGoalPreview" style="display:none"></div>
+        </div>
+
+        <!-- Retirement & planning tools toggle -->
+        <div class="mt-5" id="retirementToolsToggle">
+          <button onclick="toggleRetirementTools()" style="
+            width:100%;padding:12px 16px;background:var(--mist);
+            border:0.5px solid var(--steel-2);border-radius:var(--r-lg);
+            font-size:13px;font-weight:500;cursor:pointer;color:var(--ink);
+            display:flex;align-items:center;justify-content:space-between;
+          ">
+            <span>Retirement &amp; planning tools</span>
+            <span id="retirementToolsChevron" style="font-size:12px;color:var(--slate);transition:transform .2s">▼</span>
+          </button>
+        </div>
+
+        <!-- Collapsible retirement tools section -->
+        <div id="retirementToolsSection" style="display:none">
+          <div class="card mt-4" id="retirementReadinessCard">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div class="card-label" style="margin-bottom:0">Retirement readiness</div>
+            <button class="btn btn-ghost btn-sm" onclick="showRetirementInputs()" style="font-size:11px">Edit inputs</button>
+          </div>
+          <div id="retirementReadinessContent"></div>
+
+          <!-- Inputs panel — hidden by default -->
+          <div id="retirementInputsPanel" style="display:none;margin-top:14px;padding-top:14px;border-top:0.5px solid var(--steel-2)">
+            <div style="font-size:12px;font-weight:500;color:var(--slate);margin-bottom:10px">Readiness inputs</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="field" style="margin:0">
+                <label>Retirement age</label>
+                <input class="field-input" type="number" id="retireAge" placeholder="65" min="50" max="80">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Social Security / pension income ($/mo)</label>
+                <input class="field-input" type="number" id="retireSSIncome" placeholder="0">
+              </div>
+            </div>
+            <div style="font-size:11px;color:var(--slate);margin-top:8px;line-height:1.6">
+              Social Security and pension income reduce how much your portfolio needs to cover.
+              Add your estimated monthly SS benefit or pension here.
+            </div>
+            <button class="btn btn-primary btn-sm mt-4" onclick="saveRetirementInputs()">Update</button>
+          </div>
+          </div><!-- end retirementReadinessCard -->
+
+        <!-- Debt vs invest analysis -->
+        <div class="card mt-5" id="debtVsInvestCard" style="display:none">
+          <div class="card-label">Debt vs invest</div>
+          <div id="debtVsInvestContent"></div>
+        </div>
+
+        <!-- RMD Tracker — shown for users 72+ or who have opted in -->
+        <div class="card mt-5" id="rmdCard" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div>
+              <div class="card-label" style="margin-bottom:2px">Required Minimum Distribution</div>
+              <div style="font-size:12px;color:var(--slate)">IRS requires annual withdrawals from tax-deferred accounts after age 73.</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="showRMDInputs()" style="font-size:11px">Edit age</button>
+          </div>
+          <div id="rmdContent"></div>
+          <div id="rmdInputsPanel" style="display:none;margin-top:14px;padding-top:14px;border-top:0.5px solid var(--steel-2)">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="field" style="margin:0">
+                <label>Your current age</label>
+                <input class="field-input" type="number" id="rmdCurrentAge" placeholder="73" min="60" max="100">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Tax-deferred balance ($)</label>
+                <input class="field-input" type="number" id="rmdBalance" placeholder="0">
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm mt-4" onclick="saveRMDInputs()">Calculate</button>
+          </div>
+        </div>
+
+        <!-- Withdrawal sustainability — how long does this portfolio last? -->
+        <div class="card mt-5" id="withdrawalCard" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div>
+              <div class="card-label" style="margin-bottom:2px">Withdrawal sustainability</div>
+              <div style="font-size:12px;color:var(--slate)">At your current spending, how long does this portfolio last?</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="showWithdrawalInputs()" style="font-size:11px">Edit rate</button>
+          </div>
+          <div id="withdrawalContent"></div>
+          <div id="withdrawalInputsPanel" style="display:none;margin-top:14px;padding-top:14px;border-top:0.5px solid var(--steel-2)">
+            <div class="field" style="margin:0">
+              <label>Annual withdrawal rate (%)</label>
+              <input class="field-input" type="number" id="withdrawalRate" value="4" min="1" max="10" step="0.1">
+            </div>
+            <div style="font-size:11px;color:var(--slate);margin-top:6px;line-height:1.6">
+              The 4% rule is the historical standard for a 30-year retirement. Lower rates extend the portfolio longer. Higher rates risk depletion.
+            </div>
+            <button class="btn btn-primary btn-sm mt-4" onclick="saveWithdrawalRate()">Update</button>
+          </div>
+        </div>
+
+        <!-- 529 / College savings tracker -->
+        <div class="card mt-5" id="collegeSavingsCard" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div>
+              <div class="card-label" style="margin-bottom:2px">College savings (529)</div>
+              <div style="font-size:12px;color:var(--slate)">Track savings toward college costs alongside your other goals.</div>
+            </div>
+            <button class="btn btn-sm btn-secondary" onclick="showAddCollegeFund()">+ Add fund</button>
+          </div>
+          <div id="collegeFundsList" style="margin-top:12px"></div>
+        </div>
+
+        <!-- SS timing optimizer -->
+        <div class="card mt-5" id="ssTimingCard" style="display:none">
+          <div class="card-label">Social Security timing</div>
+          <div style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.6">
+            When you claim SS affects your monthly benefit for life. Enter your estimated benefit at full retirement age.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+            <div class="field" style="margin:0">
+              <label>Monthly benefit at full retirement age ($)</label>
+              <input class="field-input" type="number" id="ssFRABenefit" placeholder="e.g. 2200"
+                oninput="renderSSTimingAnalysis()">
+            </div>
+            <div class="field" style="margin:0">
+              <label>Your current age</label>
+              <input class="field-input" type="number" id="ssCurrentAge" placeholder="e.g. 60" min="50" max="72"
+                oninput="renderSSTimingAnalysis()">
+            </div>
+            <div class="field" style="margin:0">
+              <label>Birth year <span style="font-weight:400;font-size:10px;color:var(--slate)">(for exact FRA)</span></label>
+              <input class="field-input" type="number" id="ssBirthYear" placeholder="e.g. 1962" min="1943" max="1975"
+                oninput="renderSSTimingAnalysis()">
+            </div>
+          </div>
+          <div id="ssTimingResult"></div>
+        </div>
+
+        <!-- Roth vs Traditional distinction -->
+        <div class="card mt-5" id="rothTraditionalCard" style="display:none">
+          <div class="card-label">Roth vs traditional</div>
+          <div style="font-size:12px;color:var(--slate);margin-bottom:14px;line-height:1.6">
+            Pre-tax and post-tax accounts are taxed differently in retirement. Tracking the split matters for withdrawal planning.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:8px">Pre-tax (taxable in retirement)</div>
+              <div class="field" style="margin:0 0 10px 0">
+                <label>Traditional 401k / 403b</label>
+                <input class="field-input" type="number" id="nwTraditional401k" placeholder="0" oninput="updateRothTraditionalSplit()">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Traditional IRA</label>
+                <input class="field-input" type="number" id="nwTraditionalIRA" placeholder="0" oninput="updateRothTraditionalSplit()">
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:8px">Post-tax (tax-free in retirement)</div>
+              <div class="field" style="margin:0 0 10px 0">
+                <label>Roth 401k / 403b</label>
+                <input class="field-input" type="number" id="nwRoth401k" placeholder="0" oninput="updateRothTraditionalSplit()">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Roth IRA</label>
+                <input class="field-input" type="number" id="nwRothIRA" placeholder="0" oninput="updateRothTraditionalSplit()">
+              </div>
+            </div>
+          </div>
+          <div id="rothTraditionalSummary"></div>
+        </div>
+        </div><!-- end retirementToolsSection -->
+
+      </div><!-- end view-networth -->
+
+      <!-- TROPHY ROOM -->
+      <div id="view-trophy" class="view">
+        <div class="section-header"><div class="section-title">Trophy Room</div><div class="section-sub" id="trophyProgress">Your financial achievements.</div></div>
+        <div id="trophyContent"></div>
+      </div>
+
+      <!-- TRIP PLANNER — Phase 10 -->
+      <div id="view-trip" class="view">
+        <div id="fvb-trip"></div>
+        <div class="section-header">
+          <div class="section-title">Trip Planner</div>
+          <div class="section-sub">Plan a trip that fits your finances — without touching your debt payoff.</div>
+        </div>
+
+        <!-- Step 1: Where & when -->
+        <div id="tripStep1" class="card mb-5">
+          <div class="card-label">Where are you going?</div>
+          <div class="field-row-3" style="margin-bottom:16px">
+            <div class="field">
+              <label>Destination</label>
+              <input type="text" id="tripDestination" placeholder="Nashville, TN"
+                oninput="tripUpdateBudget()">
+            </div>
+            <div class="field">
+              <label>Departure date</label>
+              <input type="date" id="tripDepart" oninput="tripUpdateBudget()">
+            </div>
+            <div class="field">
+              <label>Return date</label>
+              <input type="date" id="tripReturn" oninput="tripUpdateBudget()">
+            </div>
+          </div>
+          <div class="field-row" style="margin-bottom:16px">
+            <div class="field">
+              <label>Travelers</label>
+              <input type="number" id="tripTravelers" value="1" min="1" max="10"
+                oninput="tripUpdateBudget()">
+            </div>
+            <div class="field">
+              <label>Home city (for driving distance)</label>
+              <input type="text" id="tripOrigin" placeholder="Chicago, IL"
+                oninput="tripUpdateBudget()">
+            </div>
+          </div>
+
+          <!-- Fly vs drive toggle -->
+          <div style="margin-bottom:16px">
+            <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">How are you getting there?</div>
+            <div style="display:flex;gap:10px">
+              <button id="tripModeDrive" class="btn btn-secondary active trip-mode-btn"
+                onclick="setTripMode('drive')" style="flex:1;gap:8px">
+                🚗 Drive
+              </button>
+              <button id="tripModeFly" class="btn btn-secondary trip-mode-btn"
+                onclick="setTripMode('fly')" style="flex:1;gap:8px">
+                ✈ Fly
+              </button>
+            </div>
+          </div>
+
+          <!-- Drive details -->
+          <div id="tripDriveDetails" style="background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:16px;border:0.5px solid var(--steel-2)">
+            <div style="font-size:12px;font-weight:500;color:var(--ink);margin-bottom:10px">Vehicle details</div>
+            <div class="field-row-3">
+              <div class="field">
+                <label>Make &amp; model</label>
+                <input type="text" id="tripVehicle" placeholder="Honda Civic"
+                  oninput="tripSaveVehicle(); tripUpdateBudget()">
+              </div>
+              <div class="field">
+                <label>Year</label>
+                <input type="number" id="tripVehicleYear" placeholder="2019"
+                  min="1990" max="2030" oninput="tripSaveVehicle()">
+              </div>
+              <div class="field">
+                <label>MPG (highway)</label>
+                <input type="number" id="tripMPG" placeholder="32" min="10" max="150"
+                  oninput="tripSaveVehicle(); tripUpdateBudget()">
+              </div>
+            </div>
+            <div id="tripOilChangeAlert" style="display:none;margin-top:10px;padding:8px 12px;background:var(--gold-bg);border:0.5px solid var(--gold-border);border-radius:var(--r-md);font-size:12px;color:var(--ink)"></div>
+          </div>
+
+          <!-- Fly details -->
+          <div id="tripFlyDetails" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:16px;border:0.5px solid var(--steel-2)">
+            <div class="field">
+              <label>Departure airport (IATA code)</label>
+              <input type="text" id="tripAirport" placeholder="ORD" maxlength="3"
+                style="text-transform:uppercase;width:120px"
+                oninput="this.value=this.value.toUpperCase(); tripUpdateBudget()">
+            </div>
+            <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Flight price estimates are retrieved by AI when you generate the trip budget.</div>
+          </div>
+        </div>
+
+        <!-- Step 2: Budget calculator -->
+        <div id="tripBudgetCalc" class="card mb-5" style="display:none">
+          <div class="card-label">Your trip budget</div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px" id="tripBudgetCells"></div>
+
+          <!-- Payoff impact -->
+          <div id="tripPayoffImpact" style="padding:12px 16px;border-radius:var(--r-md);border:0.5px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:16px"></div>
+
+          <!-- Save for it vs spend now -->
+          <div id="tripSaveOptions" style="display:none;margin-bottom:16px">
+            <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">How do you want to fund this?</div>
+            <div style="display:flex;gap:10px">
+              <button id="tripFundNow" class="btn btn-secondary trip-fund-btn"
+                onclick="setTripFunding('now')" style="flex:1">
+                Use this month's surplus
+              </button>
+              <button id="tripFundSave" class="btn btn-secondary trip-fund-btn"
+                onclick="setTripFunding('save')" style="flex:1">
+                Save for it first
+              </button>
+            </div>
+            <div id="tripFundDetail" style="margin-top:10px;font-size:12px;color:var(--slate-2)"></div>
+          </div>
+
+          <button class="btn btn-primary" id="tripGenerateBtn"
+            onclick="generateTripBudget()" style="min-width:200px">
+            Generate my trip budget →
+          </button>
+        </div>
+
+        <!-- Step 3: AI trip budget output -->
+        <div id="tripBudgetOutput" class="card mb-5" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div class="card-label" style="margin-bottom:0">Your trip budget</div>
+            <div style="display:flex;gap:8px">
+              <span id="tripAIBadge" style="font-size:10px;color:var(--slate-2)"></span>
+              <button class="btn btn-ghost btn-sm" onclick="generateTripBudget()">↺ Regenerate</button>
+            </div>
+          </div>
+          <div id="tripBudgetContent"></div>
+        </div>
+
+      </div>
+
+      <!-- GIFT BUDGET -->
+      <div id="view-gifts" class="view">
+        <div id="fvb-gifts"></div>
+        <div class="section-header">
+          <div class="section-title">Gift Budget</div>
+          <div class="section-sub">Everyone you buy for, every occasion — planned and funded.</div>
+        </div>
+        <div id="giftContent"><!-- Rendered by renderGiftBudget() --></div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="view-settings" class="view">
+        <div class="section-header"><div class="section-title">Settings</div><div class="section-sub">Preferences &amp; data.</div></div>
+
+        <!-- Group: Core settings -->
+        <div class="grid-2">
+
+          <!-- Household mode -->
+          <div class="card">
+            <div class="card-label">Household</div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+              <div>
+                <div style="font-size:13px;font-weight:500">Household mode</div>
+                <div style="font-size:11px;color:var(--slate);margin-top:2px;max-width:260px">Two people, one app. Enables partner name and couples check-in.</div>
+              </div>
+              <label style="position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0;margin-top:2px;cursor:pointer">
+                <input type="checkbox" id="settingsHouseholdMode" style="opacity:0;position:absolute;width:0;height:0"
+                  onchange="toggleHouseholdMode(this.checked)">
+                <span id="householdModeTrack" style="position:absolute;inset:0;background:var(--steel);border-radius:24px;transition:.25s"></span>
+                <span id="householdModeKnob" style="position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></span>
+              </label>
+            </div>
+            <div id="householdNamesPanel" style="display:none">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div class="field" style="margin:0">
+                  <label>Your name</label>
+                  <input class="field-input" type="text" id="settingsUser1Name" placeholder="e.g. Rob"
+                    oninput="saveHouseholdNames()">
+                </div>
+                <div class="field" style="margin:0">
+                  <label>Partner's name</label>
+                  <input class="field-input" type="text" id="settingsUser2Name" placeholder="e.g. Jamie"
+                    oninput="saveHouseholdNames()">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-label">AI features</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div>
+                <div style="font-size:13px;font-weight:500">Enable AI features</div>
+                <div style="font-size:11px;color:var(--slate-2);margin-top:2px">Dashboard insights, smarter Before You Buy, monthly reports</div>
+              </div>
+              <label style="position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0;cursor:pointer">
+                <input type="checkbox" id="settingsAiToggle" checked style="opacity:0;position:absolute;width:0;height:0"
+                  onchange="toggleAI(this)">
+                <span id="settingsAiTrack" style="position:absolute;inset:0;background:var(--sky);border-radius:24px;transition:.25s"></span>
+                <span id="settingsAiKnob" style="position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.3);transform:translateX(18px)"></span>
+              </label>
+            </div>
+            <div class="field mb-4">
+              <label>Anthropic API key</label>
+              <input type="password" class="field-input" id="settingsApiKey"
+                placeholder="sk-ant-…" autocomplete="off">
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div id="settingsApiKeyStatus" style="font-size:11px;color:var(--slate-2)">
+                No API key — AI features will be disabled.
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="saveApiKey()">Save key</button>
+            </div>
+            <div class="text-xs text-muted mt-4">Free key at <a href="https://console.anthropic.com" target="_blank" rel="noopener" onclick="openExternal('https://console.anthropic.com');return false;" style="color:var(--sky)">console.anthropic.com</a>. Stays on your computer.</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Budget settings</div>
+            <div class="field mb-4"><label>Default savings target (%)</label><input type="number" id="settingsSavingsPct" placeholder="10" min="0" max="50"></div>
+            <div class="field mb-4"><label>Default debt budget ($/month)</label><input type="number" id="settingsMonthlyBudget" placeholder="1500" min="0"></div>
+            <div class="field mb-4">
+              <label>Debt payoff strategy</label>
+              <select id="settingsDebtMethod" class="field-input" onchange="setMethod(this.value)">
+                <option value="avalanche">Avalanche — highest rate first (saves most money)</option>
+                <option value="snowball">Snowball — smallest balance first (fastest wins)</option>
+              </select>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="saveSettings()">Save</button>
+          </div>
+
+        </div><!-- end core settings grid -->
+
+        <!-- Group: Smart features -->
+        <div style="margin-top:24px;margin-bottom:12px;padding-bottom:8px;border-bottom:0.5px solid var(--steel-2)">
+          <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--slate)">Smart features</div>
+          <div style="font-size:12px;color:var(--slate);margin-top:2px">Income awareness, loan flags, import automation</div>
+        </div>
+        <div class="grid-2">
+
+          <!-- Transaction categorization rules -->
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div>
+                <div class="card-label" style="margin-bottom:2px">Import rules</div>
+                <div style="font-size:11px;color:var(--slate)">Auto-categorize transactions on every import</div>
+              </div>
+              <button class="btn btn-sm btn-secondary" onclick="showAddImportRule()">+ Add rule</button>
+            </div>
+            <div id="importRulesContent"></div>
+          </div>
+
+          <!-- Recurring transactions -->
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div>
+                <div class="card-label" style="margin-bottom:2px">Recurring transactions</div>
+                <div style="font-size:11px;color:var(--slate)">Bills that auto-log every month so you never forget</div>
+              </div>
+              <button class="btn btn-sm btn-secondary" onclick="showAddRecurring()">+ Add</button>
+            </div>
+            <div id="recurringList"></div>
+          </div>
+
+          <!-- Life stage flags -->
+          <div class="card">
+            <div class="card-label">Income &amp; pay settings</div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+              <div>
+                <div style="font-size:13px;font-weight:500">Achievement sound</div>
+                <div style="font-size:11px;color:var(--slate);margin-top:2px;max-width:260px">Play a short trumpet fanfare when you earn an achievement.</div>
+              </div>
+              <label style="position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0;margin-top:2px;cursor:pointer">
+                <input type="checkbox" id="settingsSoundEnabled" style="opacity:0;position:absolute;width:0;height:0"
+                  onchange="S.prefs.soundEnabled = this.checked; scheduleSave(); updateSoundToggle(this.checked);" checked>
+                <span id="soundEnabledTrack" style="position:absolute;inset:0;background:var(--pine);border-radius:24px;transition:.25s"></span>
+                <span id="soundEnabledKnob" style="position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.3);transform:translateX(18px)"></span>
+              </label>
+            </div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+              <div>
+                <div style="font-size:13px;font-weight:500">Commission or irregular income</div>
+                <div style="font-size:11px;color:var(--slate);margin-top:2px;max-width:260px">Freelance, sales commission, seasonal work. Stops the app from treating slow months as failures.</div>
+              </div>
+              <label style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;margin-top:2px">
+                <input type="checkbox" id="settingsCommissionMode" style="opacity:0;width:0;height:0"
+                  onchange="saveLifeStageFlag('commission_mode', this.checked)">
+                <span class="toggle-track" style="position:absolute;cursor:pointer;inset:0;background:var(--steel);border-radius:22px;transition:.2s"
+                  id="commissionModeTrack"></span>
+              </label>
+            </div>
+            <div class="field mb-4">
+              <label>Pay frequency</label>
+              <select class="field-input" id="settingsPayFrequency"
+                onchange="saveLifeStageFlag('pay_frequency', this.value)">
+                <option value="monthly">Monthly</option>
+                <option value="semimonthly">Twice a month</option>
+                <option value="biweekly">Every two weeks</option>
+                <option value="weekly">Weekly</option>
+                <option value="irregular">Irregular</option>
+              </select>
+            </div>
+          </div>
+        </div><!-- end smart features grid -->
+
+        <!-- Group: Data -->
+        <div style="margin-top:24px;margin-bottom:12px;padding-bottom:8px;border-bottom:0.5px solid var(--steel-2)">
+          <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--slate)">Data</div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-label">Data &amp; Backup</div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <button class="btn btn-secondary" onclick="createBackup()">Create backup now</button>
+              <button class="btn btn-secondary" onclick="openBackupModal()">Manage backups</button>
+            </div>
+            <div style="margin-top:14px;padding:10px 12px;background:var(--mist);border-radius:var(--r-md);font-size:12px;color:var(--slate);line-height:1.6">
+              <strong style="color:var(--ink)">Auto-import from Downloads</strong><br>
+              Save any bank statement (.csv, .ofx, .qfx, .qif) to your Downloads folder — Groundwork detects it and offers a one-click import.
+            </div>
+            <div style="margin-top:10px;padding:10px 12px;background:var(--mist);border-radius:var(--r-md);font-size:12px;color:var(--slate);line-height:1.6">
+              <strong style="color:var(--ink)">Backup location</strong><br>
+              <span id="backupLocationPath" style="font-family:var(--font-mono);font-size:11px;word-break:break-all">Loading…</span>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn btn-secondary btn-sm" onclick="chooseBackupFolder()">Choose folder…</button>
+                <button class="btn btn-ghost btn-sm hidden" id="resetBackupFolderBtn" onclick="resetBackupFolder()">Use default</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-label">About</div>
+            <div class="text-sm" style="line-height:1.8;color:var(--slate)">
+              <div><strong>Groundwork</strong> <span id="aboutVersion">v1.0.0.0</span></div>
+              <div>Personal Finance — Desktop Edition</div>
+              <div class="mt-4 text-xs text-muted">All data stored locally. No cloud. No ads. No subscriptions.</div>
+            </div>
+            <div style="margin-top:16px;padding-top:14px;border-top:0.5px solid var(--steel-2)">
+              <button class="btn btn-secondary btn-sm" onclick="startOnboardingTest()" style="font-size:11px">
+                ↩ Re-run onboarding (testing)
+              </button>
+              <div style="font-size:11px;color:var(--slate);margin-top:6px">
+                Walk through the onboarding screens to test them — your real income, debts, and settings are not changed.
+              </div>
+            </div>
+          </div>
+        </div><!-- end data grid -->
+
+        <!-- Smart backfill — re-categorize Other/Personal rows -->
+        <div class="card mt-5">
+          <div class="card-label">Re-categorize uncategorized transactions</div>
+          <div style="font-size:12px;color:var(--slate);margin-bottom:12px;line-height:1.6">
+            Find transactions still in <b>Other</b> or <b>Personal</b> and apply
+            Groundwork's current categorization rules to them. Only those two
+            catch-all categories are affected — anything you've already categorized
+            manually is left alone.
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-sm" onclick="runSmartBackfill(false)"
+              style="background:var(--pine);color:#fff;border:none">
+              Re-categorize now
+            </button>
+            <button class="btn btn-sm" onclick="runSmartBackfill(true)"
+              style="background:none;border:1px solid var(--steel-2);color:var(--slate)">
+              Preview (dry run)
+            </button>
+            <span id="backfillStatus" style="font-size:12px;color:var(--slate-2);font-family:var(--font-mono)"></span>
+          </div>
+        </div>
+
+        <!-- Danger zone — full width -->
+        <div class="card mt-5" style="border:0.5px solid var(--ember, #dc2626)">
+          <div class="card-label" style="color:var(--ember, #dc2626)">Danger Zone</div>
+          <div style="font-size:12px;color:var(--slate);margin-bottom:12px;line-height:1.6">
+            Delete every transaction in the Ledger. A backup is created automatically before
+            anything is deleted, but this cannot be undone from within the app — use it only
+            if you're about to re-import your full history from scratch.
+          </div>
+          <button class="btn btn-sm" style="background:var(--ember, #dc2626);color:#fff;border:none" onclick="deleteAllTransactions()">
+            Delete all transactions
+          </button>
+        </div>
+
+        <!-- Category manager — full width -->
+        <div class="card mt-5">
+          <div class="card-label">Categories</div>
+          <div id="settingsCategoryManager">
+            <div style="font-size:12px;color:var(--slate-2)">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Account manager — full width -->
+        <div class="card mt-5">
+          <div class="card-label" style="font-size:14px">Accounts</div>
+          <div id="settingsAccountManager">
+            <div style="font-size:12px;color:var(--slate-2)">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Data export — full width -->
+        <div class="card mt-5">
+          <div class="card-label">Export your data</div>
+          <div style="font-size:12px;color:var(--slate);margin-bottom:16px;line-height:1.6">
+            Your data belongs to you. Export a full copy at any time — transactions, budgets, net worth history, debt accounts, and settings.
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm" onclick="exportData('csv')">
+              Download CSV
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="exportData('json')">
+              Download JSON
+            </button>
+          </div>
+          <div id="exportStatus" style="font-size:11px;color:var(--slate);margin-top:10px;display:none"></div>
+        </div>
+      </div>
+
+      <!-- REPORT CENTER -->
+      <div id="view-reports" class="view">
+        <div id="reportCenterContent"></div>
+      </div>
+
+    </div><!-- /content -->
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- BEFORE YOU BUY — Wizard overlay -->
+<div id="bybOverlay" class="modal-overlay hidden">
+  <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header" style="position:sticky;top:0;background:var(--paper);z-index:2;border-bottom:1px solid var(--steel)">
+      <div style="display:flex;align-items:center;gap:12px;flex:1">
+        <button onclick="closeBYBWizard()" style="background:none;border:none;font-size:18px;color:var(--slate);cursor:pointer;padding:0">←</button>
+        <div>
+          <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:17px;font-weight:700;color:var(--ink)" id="bybModalTitle">Before You Buy</div>
+          <div style="display:flex;gap:5px;margin-top:4px" id="bybStepDots">
+            <span class="byb-dot active" data-step="1"></span>
+            <span class="byb-dot" data-step="2"></span>
+            <span class="byb-dot" data-step="3"></span>
+            <span class="byb-dot" data-step="4"></span>
+          </div>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeBYBWizard()">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px">
+
+      <!-- Step 1: What and How Much -->
+      <div id="bybStep1">
+        <div style="font-size:13px;color:var(--slate);margin-bottom:20px;line-height:1.6">
+          Enter what you're considering. We'll load your real budget so you can see what has to move to make it work.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px">
+          <button class="byb-type-btn active" data-type="vehicle" onclick="_bybSelectType('vehicle',this)">
+            <span style="font-size:20px">🚗</span>
+            <span style="font-weight:600;font-size:13px">Vehicle</span>
+            <span style="font-size:10px;color:var(--slate)">Lease or loan</span>
+          </button>
+          <button class="byb-type-btn" data-type="subscription" onclick="_bybSelectType('subscription',this)">
+            <span style="font-size:20px">🔄</span>
+            <span style="font-weight:600;font-size:13px">Subscription</span>
+            <span style="font-size:10px;color:var(--slate)">Monthly recurring</span>
+          </button>
+          <button class="byb-type-btn" data-type="purchase" onclick="_bybSelectType('purchase',this)">
+            <span style="font-size:20px">💳</span>
+            <span style="font-weight:600;font-size:13px">Credit purchase</span>
+            <span style="font-size:10px;color:var(--slate)">Pay over time</span>
+          </button>
+          <button class="byb-type-btn" data-type="other" onclick="_bybSelectType('other',this)">
+            <span style="font-size:20px">📦</span>
+            <span style="font-weight:600;font-size:13px">Other</span>
+            <span style="font-size:10px;color:var(--slate)">Any monthly cost</span>
+          </button>
+        </div>
+        <div class="field mb-3">
+          <label>What are you considering?</label>
+          <input type="text" id="bybItemName" class="field-input" placeholder="e.g. Honda CR-V Lease, Netflix, New laptop">
+        </div>
+        <div class="field mb-3">
+          <label>Monthly payment ($)</label>
+          <input type="number" id="bybMonthlyAmount" class="field-input" placeholder="0.00" min="0" step="1" oninput="_bybLiveUpdate()">
+        </div>
+        <div id="bybVehicleFields" style="margin-bottom:16px">
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button id="bybSubLease" class="byb-sub-btn active" onclick="_bybSelectSubtype('lease')">Lease</button>
+            <button id="bybSubLoan"  class="byb-sub-btn"        onclick="_bybSelectSubtype('loan')">Loan</button>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label style="margin-bottom:6px;display:block">Replacing an existing vehicle?</label>
+            <select id="bybReplaceCard" class="field-input" onchange="_bybLiveUpdate()">
+              <option value="">No — adding to current obligations</option>
+            </select>
+          </div>
+        </div>
+        <div id="bybCreditFields" style="display:none;margin-bottom:16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field" style="margin:0">
+              <label>APR (%)</label>
+              <input type="number" id="bybCreditAPR" class="field-input" placeholder="0.00" step=".01" oninput="_bybComputeCreditPayment()">
+            </div>
+            <div class="field" style="margin:0">
+              <label>Term (months)</label>
+              <input type="number" id="bybCreditTerm" class="field-input" placeholder="60" step="1" oninput="_bybComputeCreditPayment()">
+            </div>
+          </div>
+          <div id="bybCreditPaymentPreview" style="font-size:12px;color:var(--pine);margin-top:6px;min-height:16px"></div>
+        </div>
+        <div id="bybStep1Preview" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:10px 14px;margin-bottom:16px;font-size:12px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--slate)">What's Left change</span>
+            <span id="bybPrevWL" style="font-family:var(--font-mono);color:var(--ember)"></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--slate)">DTI</span>
+            <span id="bybPrevDTI" style="font-family:var(--font-mono)"></span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--slate)">Debt-free date</span>
+            <span id="bybPrevPayoff" style="font-family:var(--font-mono)"></span>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="_bybGoStep(2)" style="width:100%">Open budget sandbox →</button>
+        <button onclick="closeBYBWizard()" style="width:100%;margin-top:8px;background:none;border:none;font-size:12px;color:var(--slate);cursor:pointer;padding:8px">Walk away</button>
+      </div>
+
+      <!-- Step 2: Budget Sandbox -->
+      <div id="bybStep2" style="display:none">
+        <div style="margin-bottom:14px">
+          <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:2px" id="bybSandboxTitle">Adjust your budget to make room</div>
+          <div style="font-size:12px;color:var(--slate);line-height:1.5">Your real budget below. Adjust any row — nothing saves until you commit.</div>
+        </div>
+        <div style="background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--ink)" id="bybSandboxNewName">New purchase</div>
+            <div style="font-size:10px;color:var(--slate-2)">The item you're evaluating</div>
+          </div>
+          <div style="font-family:var(--font-mono);font-size:14px;color:var(--gold);font-weight:600" id="bybSandboxNewAmt"></div>
+        </div>
+        <div id="bybSandboxRows" style="margin-bottom:14px"></div>
+        <div style="position:sticky;bottom:0;background:var(--paper);padding:10px 0;border-top:1px solid var(--steel)">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+            <div>
+              <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">What's Left</div>
+              <div id="bybScoreWL" style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine)">—</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">DTI</div>
+              <div id="bybScoreDTI" style="font-family:var(--font-mono);font-size:16px;font-weight:600">—</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">Debt-free</div>
+              <div id="bybScorePayoff" style="font-family:var(--font-mono);font-size:13px;font-weight:600">—</div>
+            </div>
+          </div>
+          <button id="bybMakeItWorkBtn" onclick="_bybMakeItWork()" style="width:100%;margin-top:10px;background:var(--ink);color:var(--paper);border:none;border-radius:var(--r-md);padding:11px;font-size:13px;font-weight:600;cursor:pointer">✦ Make It Work</button>
+          <div id="bybMakeItWorkNote" style="font-size:11px;color:var(--slate);text-align:center;margin-top:5px;min-height:14px"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-secondary" onclick="_bybGoStep(1)" style="flex:1">← Back</button>
+          <button class="btn btn-primary" onclick="_bybGoStep(3)" style="flex:2">See comparison →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Side-by-side comparison -->
+      <div id="bybStep3" style="display:none">
+        <div id="bybComparisonContent"></div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button class="btn btn-secondary" onclick="_bybGoStep(2)" style="flex:1">← Adjust</button>
+        </div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-primary" onclick="_bybCommit('commit')" style="width:100%">Commit — update my budget</button>
+          <button class="btn btn-secondary" onclick="_bybCommit('track')" style="width:100%">Track it — add to history only</button>
+          <button onclick="_bybCommit('walkaway')" style="width:100%;background:none;border:none;font-size:12px;color:var(--slate);cursor:pointer;padding:8px">Walk away — not buying it</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Done -->
+      <div id="bybStep4" style="display:none;text-align:center;padding:20px 0">
+        <div style="font-size:36px;margin-bottom:12px" id="bybDoneIcon">✓</div>
+        <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:18px;color:var(--ink);margin-bottom:8px" id="bybDoneTitle">Decision saved.</div>
+        <div style="font-size:13px;color:var(--slate);line-height:1.6;margin-bottom:20px" id="bybDoneNote"></div>
+        <button class="btn btn-secondary" onclick="closeBYBWizard()" style="width:100%">Done</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+<!-- MODALS -->
+<div class="modal-overlay hidden" id="confirmDialog">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header"><div class="modal-title" id="confirmTitle">Are you sure?</div><button class="modal-close" onclick="closeConfirm()">×</button></div>
+    <div class="modal-body"><p id="confirmMessage" style="color:var(--slate);line-height:1.6"></p></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeConfirm()">Cancel</button><button class="btn btn-danger" id="confirmOkBtn" onclick="runConfirm()">Confirm</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="importModal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header"><div class="modal-title">Import transactions</div><button class="modal-close" onclick="closeImportModal()">×</button></div>
+    <div class="modal-body">
+      <div class="field mb-4">
+        <label>Account</label>
+        <select id="importAccount" onchange="toggleImportFileReady(); _importAccountLinkedNote(this)"><option value="">Select account…</option></select>
+        <div id="importLinkedNote" style="display:none;font-size:12px;color:var(--pine);margin-top:5px;padding:6px 8px;background:var(--pine-bg);border-radius:var(--r-sm)"></div>
+        <div style="font-size:11px;color:var(--slate-2);margin-top:4px">To add a new account, go to Settings → Accounts first.</div>
+      </div>
+      <div class="field mb-4">
+        <label>File (CSV, TXT, OFX, QFX, or QIF)</label>
+        <input type="file" id="importFile" accept=".csv,.ofx,.qfx,.qif,.txt" onchange="handleImportFile(event)" disabled style="opacity:.45;cursor:not-allowed">
+        <div id="importFileHint" style="font-size:12px;color:var(--slate);margin-top:4px">Select an account above to continue.</div>
+      </div>
+      <div id="importPreview"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button><button class="btn btn-primary" onclick="confirmImport()" id="importConfirmBtn">Import</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="addTxnModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><div class="modal-title" id="addTxnModalTitle">Add Transaction</div><button class="modal-close" onclick="closeAddModal()">×</button></div>
+    <div class="modal-body">
+      <div class="field-row mb-4">
+        <div class="field"><label>Date</label><input type="date" id="txnDate"></div>
+        <div class="field"><label>Type</label><select id="txnType"><option value="debit">Expense</option><option value="credit">Income</option></select></div>
+      </div>
+      <div class="field mb-4"><label>Description</label><input type="text" id="txnDesc" placeholder="e.g. Kroger"></div>
+      <div class="field-row mb-4">
+        <div class="field"><label>Amount ($)</label><input type="number" id="txnAmount" placeholder="0.00" min="0" step="0.01"></div>
+        <div class="field"><label>Category</label><input type="text" id="txnCategory" list="categoryList" placeholder="e.g. Food"><datalist id="categoryList"></datalist></div>
+      </div>
+      <div class="field mb-4"><label>Account</label><input type="text" id="txnAccount" list="accountList" placeholder="e.g. Chase Checking"><datalist id="accountList"></datalist></div>
+      <div class="field mb-4"><label>Memo <span style="font-weight:400;color:var(--slate-2)">(optional)</span></label><input type="text" id="txnMemo" placeholder="Notes about this transaction"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeAddModal()">Cancel</button><button class="btn btn-primary" id="txnSaveBtn" onclick="saveTransaction()">Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="backupModal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <div class="modal-title">Backups</div>
+      <button class="modal-close" onclick="closeBackupModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
+        <div style="font-size:12px;color:var(--slate);line-height:1.5;flex:1;min-width:180px">
+          Create a backup before making big changes. Use Recover to restore a previous state — or restore from a backup file if you're setting up on a new computer.
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <button class="btn btn-secondary btn-sm" onclick="g('restoreUploadInput').click()">
+            ↩ Restore from a file…
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="createBackup()">
+            + Create backup
+          </button>
+        </div>
+      </div>
+      <div id="backupList"></div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="restoreUploadInput" accept=".db" onchange="handleRestoreUpload(event)" style="display:none">
+
+<!-- REPORT — full-screen magazine layout -->
+<div id="reportModal" class="hidden" style="
+  position:fixed;inset:0;z-index:8000;background:var(--ink);
+  overflow-y:auto;display:flex;flex-direction:column">
+
+      <!-- Report toolbar -->
+      <div id="reportToolbar" style="
+        background:var(--ink);border-bottom:1px solid rgba(255,255,255,.1);
+        padding:12px 24px;display:flex;align-items:center;gap:16px;
+        position:sticky;top:0;z-index:1;flex-shrink:0">
+        <button class="btn btn-ghost btn-sm" onclick="closeReportModal()"
+          style="color:rgba(255,255,255,.6);font-size:12px">← Back</button>
+        <div style="flex:1"></div>
+        <div class="field" style="margin:0;flex-direction:row;align-items:center;gap:10px">
+          <label style="color:rgba(255,255,255,.5);font-size:11px;white-space:nowrap;text-transform:uppercase;letter-spacing:.08em">Month</label>
+          <select id="reportMonth" onchange="updateReportPreview()"
+            style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+                   color:#fff;font-size:12px;padding:5px 10px;border-radius:6px;
+                   font-family:var(--font-mono)"></select>
+        </div>
+        <button class="btn btn-sm" onclick="generateReport()"
+          id="reportGenerateBtn"
+          style="background:var(--sky);color:#fff;border-color:var(--sky);font-size:12px">
+          ✦ Generate Groundwork's analysis
+        </button>
+        <button class="btn btn-sm btn-secondary" onclick="printReport()"
+          style="font-size:12px">⎙ Print</button>
+      </div>
+
+      <!-- Annotation bar -->
+      <div style="background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.07);
+                  padding:10px 24px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;color:rgba(255,255,255,.4);white-space:nowrap;
+                     letter-spacing:.06em;text-transform:uppercase">Anything unusual?</span>
+        <input type="text" id="reportAnnotation"
+          placeholder="car repair, holiday spending, medical bill…"
+          oninput="saveReportAnnotation()"
+          style="flex:1;background:transparent;border:none;outline:none;
+                 color:rgba(255,255,255,.7);font-size:12px;font-family:var(--font-body)">
+        <span style="font-size:10px;color:rgba(255,255,255,.25)">AI reads this</span>
+      </div>
+
+      <!-- Past reports sidebar strip -->
+      <div style="background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.07);
+                  padding:10px 24px;display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <span style="font-size:11px;color:rgba(255,255,255,.4);white-space:nowrap;padding-top:2px;
+                     letter-spacing:.06em;text-transform:uppercase;flex-shrink:0">Past reports</span>
+        <div id="pastReportsList" style="display:flex;gap:8px;flex-wrap:wrap;flex:1;
+             font-size:12px;color:rgba(255,255,255,.35)">Loading…</div>
+      </div>
+
+      <!-- Report content area -->
+      <div id="reportContent" style="flex:1;max-width:780px;margin:0 auto;
+           width:100%;padding:48px 24px 80px"></div>
+
+    </div>
+
+<!-- Add Holding modal -->
+<div class="modal-overlay hidden" id="addHoldingModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title">Add holding</div>
+      <button class="modal-close" onclick="closeAddHoldingModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--slate);margin-bottom:16px;line-height:1.6">
+        Record your current position. Enter your average purchase price if you have multiple lots,
+        or use "Record buy / sell" to track individual lots for accurate cost basis.
+      </p>
+      <div class="field-row mb-4">
+        <div class="field">
+          <label>Ticker symbol</label>
+          <input class="field-input" type="text" id="holdingTicker" placeholder="e.g. VOO" style="text-transform:uppercase" oninput="onHoldingTickerInput()">
+          <div id="holdingTickerHint" style="font-size:11px;margin-top:3px;min-height:14px"></div>
+        </div>
+        <div class="field">
+          <label>Security type</label>
+          <select class="field-input" id="holdingSecType">
+            <option value="stock">Stock</option>
+            <option value="etf" selected>ETF</option>
+            <option value="mutual_fund">Mutual fund</option>
+            <option value="bond">Bond</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row mb-4">
+        <div class="field">
+          <label>Shares owned</label>
+          <input class="field-input" type="number" id="holdingShares" placeholder="10.0" min="0" step="0.0001">
+        </div>
+        <div class="field">
+          <label>Average purchase price ($)</label>
+          <input class="field-input" type="number" id="holdingCostBasis" placeholder="412.34" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="field-row mb-4">
+        <div class="field">
+          <label>Purchase date</label>
+          <input class="field-input" type="date" id="holdingDate">
+        </div>
+        <div class="field">
+          <label>Account</label>
+          <select class="field-input" id="holdingAccount">
+            <option value="">Select account…</option>
+          </select>
+        </div>
+      </div>
+      <div class="field mb-4">
+        <label>Current price ($) — optional, overrides live data</label>
+        <input class="field-input" type="number" id="holdingCurrentPrice" placeholder="Leave blank to fetch automatically" min="0" step="0.01">
+      </div>
+      <div class="field">
+        <label>Note</label>
+        <input class="field-input" type="text" id="holdingNote" placeholder="e.g. Monthly 401k contribution">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeAddHoldingModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveHolding()">Add holding</button>
+    </div>
+  </div>
+</div>
+
+<!-- Record buy/sell modal -->
+<div class="modal-overlay hidden" id="recordTxnModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title">Record transaction</div>
+      <button class="modal-close" onclick="closeRecordTransactionModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field mb-4">
+        <label>Transaction type</label>
+        <div class="period-toggle" style="display:inline-flex">
+          <button class="period-btn active" id="invTxnTypeBuy"   onclick="setInvTxnType('buy')">Buy</button>
+          <button class="period-btn" id="invTxnTypeSell"  onclick="setInvTxnType('sell')">Sell</button>
+          <button class="period-btn" id="invTxnTypeDiv"   onclick="setInvTxnType('dividend')">Dividend</button>
+          <button class="period-btn" id="invTxnTypeSplit" onclick="setInvTxnType('split')">Split</button>
+        </div>
+      </div>
+      <div class="field-row mb-4">
+        <div class="field">
+          <label>Ticker symbol</label>
+          <input class="field-input" type="text" id="invTxnTicker" placeholder="e.g. MSFT" style="text-transform:uppercase">
+        </div>
+        <div class="field">
+          <label>Account
+            <button onclick="_showInvAcctModal()" title="Create an investment account"
+              style="float:right;font-size:11px;font-family:inherit;background:none;border:none;
+                     color:var(--sky);cursor:pointer;padding:0">+ New</button>
+          </label>
+          <select class="field-input" id="invTxnAccount">
+            <option value="">Select account…</option>
+          </select>
+        </div>
+      </div>
+      <div id="invTxnSharesRow" class="field-row mb-4">
+        <div class="field">
+          <label id="invTxnSharesLabel">Shares</label>
+          <input class="field-input" type="number" id="invTxnShares" placeholder="0.0" min="0" step="0.0001" oninput="updateInvTxnTotal()">
+        </div>
+        <div class="field" id="invTxnPriceField">
+          <label>Price per share ($)</label>
+          <input class="field-input" type="number" id="invTxnPrice" placeholder="0.00" min="0" step="0.01" oninput="updateInvTxnTotal()">
+        </div>
+      </div>
+      <div class="field-row mb-4" id="invTxnTotalRow">
+        <div class="field">
+          <label id="invTxnTotalLabel">Total amount ($)</label>
+          <input class="field-input" type="number" id="invTxnTotal" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="field">
+          <label>Fees ($)</label>
+          <input class="field-input" type="number" id="invTxnFees" placeholder="0.00" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="field-row mb-4">
+        <div class="field">
+          <label>Date</label>
+          <input class="field-input" type="date" id="invTxnDate">
+        </div>
+        <div class="field" id="invSplitRatioField" style="display:none">
+          <label>Split ratio (e.g. 2 for 2:1)</label>
+          <input class="field-input" type="number" id="invSplitRatio" placeholder="2" min="0" step="0.5">
+        </div>
+      </div>
+      <div class="field">
+        <label>Note</label>
+        <input class="field-input" type="text" id="invTxnNote" placeholder="Optional note">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeRecordTransactionModal()">Cancel</button>
+      <button class="btn btn-primary" id="invTxnSaveBtn" onclick="saveInvTransaction()">Record buy</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- end .app -->
+
+<div class="toast-stack" id="toastStack"></div>
+<script src="/js/app.js?v=20260703-d18"></script>
+</body>
+</html>

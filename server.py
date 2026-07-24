@@ -1,0 +1,4829 @@
+"""
+Groundwork — Flask API Server
+==============================
+Clean REST API. All data access through the database layer.
+No business logic in routes — just request/response handling.
+"""
+
+import os
+import re
+import secrets
+import uuid as _uuid
+import sys
+import json
+import logging
+import threading
+from datetime import datetime, date
+from pathlib import Path
+from functools import wraps
+from typing import Any
+
+from flask import Flask, jsonify, request, send_from_directory
+
+# Session ID — changes on every server start so client can detect restarts
+_GW_SESSION_ID = str(_uuid.uuid4())[:8]
+GW_VERSION     = '20260723-failcache'  # must match app.js GW_VERSION constant
+
+# ── Security: session token ────────────────────────────────────────────────────
+# Generated fresh on every startup. Lives in RAM only — never written to disk.
+# Injected into index.html at serve time so the JS client can include it in
+# every API request header. Any request missing the token is rejected with 403.
+# This means even if another process on the same machine finds port 8765, it
+# cannot read or write Groundwork data without the token.
+_GW_TOKEN = secrets.token_hex(32)
+
+from sqlalchemy import func, desc, text
+
+# Add parent to path
+sys.path.insert(0, str(Path(__file__).parent))
+
+from core.database import ( db_session, DATA_DIR,
+    Account, Category, Transaction, BudgetItem,
+    DebtAccount, BudgetPlan, BudgetMonth, Achievement,
+    AppSetting, BYBItem, NetWorthSnapshot,
+    InvestmentTransaction, InvestmentLot, PriceCache,
+    DebtBalanceHistory, PdfExtractCache,
+)
+from migrate import run_migration_if_needed
+
+
+# ── App setup ─────────────────────────────────────────────────────────────────
+
+def create_app(static_folder: str = None) -> Flask:
+    """
+    Application factory. Separates app creation from startup
+    so tests can create isolated instances.
+    """
+    if static_folder is None:
+        static_folder = str(Path(__file__).parent / 'static')
+
+    # static_folder=None: disable Flask's built-in static route. It was
+    # registered before serve_frontend and intercepted /index.html, serving
+    # it raw WITHOUT token injection → every API call 403'd. All static
+    # files are served manually by serve_frontend below.
+    app = Flask(__name__, static_folder=None)
+
+    # ── File logging (Phase 1) ────────────────────────────────────────────────
+    # Errors used to vanish: pywebview has no visible console, so anything
+    # printed to stderr was lost. Everything now also lands in a rotating log
+    # in the data dir, and /api/debug/log-tail feeds it into beta bug reports.
+    from logging.handlers import RotatingFileHandler
+    from core.database import DATA_DIR
+    log_path = DATA_DIR / 'groundwork.log'
+    root = logging.getLogger()
+    if not any(isinstance(h, RotatingFileHandler) for h in root.handlers):
+        fh = RotatingFileHandler(log_path, maxBytes=512_000, backupCount=2,
+                                 encoding='utf-8')
+        fh.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s %(name)s: %(message)s'))
+        fh.setLevel(logging.INFO)
+        root.addHandler(fh)
+        if root.level > logging.INFO:
+            root.setLevel(logging.INFO)
+    logging.getLogger('groundwork').info('Groundwork %s starting', GW_VERSION)
+
+    @app.errorhandler(Exception)
+    def _log_unhandled(e):
+        from werkzeug.exceptions import HTTPException
+        if isinstance(e, HTTPException):
+            return e  # 404s etc. keep their normal handling
+        logging.getLogger('groundwork').exception(
+            'Unhandled error on %s %s', request.method, request.path)
+        return err('Internal error (logged)', 500)
+
+    @app.route('/api/debug/log-tail')
+    def debug_log_tail():
+        """Last 60 log lines — appended to ⚑ beta bug reports."""
+        try:
+            lines = log_path.read_text(encoding='utf-8',
+                                       errors='replace').splitlines()[-60:]
+        except OSError:
+            lines = []
+        return ok({'log': lines, 'path': str(log_path)})
+
+    # ── Update channel (Phase 2) ──────────────────────────────────────────────
+    # Fetches a static version.json from the website, server-side (the webview
+    # never makes external requests — no CORS, no IP exposure beyond one GET
+    # of a static file, no telemetry sent). Successes cache 6h; failures 30min
+    # so recovery after an outage is quick. Version strings YYYYMMDD-dNN
+    # compare correctly as plain strings (day number is zero-padded).
+    _update_cache = {'ts': 0.0, 'data': None}
+    UPDATE_MANIFEST_URL = 'https://groundworkfinance.app/version.json'
+    OFFICIAL_DOWNLOAD_PREFIX = 'https://groundworkfinance.app/'
+
+    @app.route('/api/update-check')
+    def update_check():
+        import time as _t
+        import urllib.request
+        now = _t.time()
+        ttl = 6 * 3600 if (_update_cache['data'] or {}).get('latest') else 1800
+        if _update_cache['data'] is not None and now - _update_cache['ts'] < ttl:
+            return ok(_update_cache['data'])
+        try:
+            req = urllib.request.Request(UPDATE_MANIFEST_URL,
+                                         headers={'User-Agent': 'Groundwork'})
+            with urllib.request.urlopen(req, timeout=4) as r:
+                info = json.loads(r.read(65536).decode('utf-8'))
+            latest = str(info.get('latest', '')).strip()
+            url    = str(info.get('url', '')).strip()
+            # Never hand the client a download link pointing anywhere but the
+            # official site, no matter what the manifest says.
+            if not url.startswith(OFFICIAL_DOWNLOAD_PREFIX):
+                url = ''
+            data = {
+                'update_available': bool(latest) and latest > GW_VERSION and bool(url),
+                'current': GW_VERSION,
+                'latest':  latest or None,
+                'url':     url,
+                'notes':   str(info.get('notes', ''))[:300],
+            }
+        except Exception as e:
+            logging.getLogger('groundwork').info('update check unavailable: %s', e)
+            data = {'update_available': False, 'current': GW_VERSION,
+                    'latest': None, 'url': '', 'notes': '', 'offline': True}
+        _update_cache['ts']   = now
+        _update_cache['data'] = data
+        return ok(data)
+
+
+    # Initialize database — runs schema migrations (new columns on an
+    # existing DB) in addition to creating any missing tables. Previously
+    # this called bare init_db(), which only creates tables that don't
+    # exist yet and silently never alters a table that's already on disk.
+    run_migration_if_needed()
+
+    # Register all blueprints
+    app.register_blueprint(transactions_bp,  url_prefix='/api/transactions')
+    app.register_blueprint(accounts_bp,      url_prefix='/api/accounts')
+    app.register_blueprint(categories_bp,    url_prefix='/api/categories')
+    app.register_blueprint(investments_bp,   url_prefix='/api/investments')
+    app.register_blueprint(networth_bp,      url_prefix='/api/net-worth')
+    app.register_blueprint(byb_bp,           url_prefix='/api/byb')
+    app.register_blueprint(trip_bp,          url_prefix='/api/trip')
+    app.register_blueprint(utility_bp,       url_prefix='/api/utility')
+    app.register_blueprint(budget_bp,        url_prefix='/api/budget')
+    app.register_blueprint(debt_bp,          url_prefix='/api/debt')
+    app.register_blueprint(achievements_bp,  url_prefix='/api/achievements')
+    app.register_blueprint(settings_bp,      url_prefix='/api/settings')
+    app.register_blueprint(ai_bp,            url_prefix='/api/ai')
+    app.register_blueprint(backup_bp,        url_prefix='/api/backup')
+    app.register_blueprint(import_bp,        url_prefix='/api/import')
+    app.register_blueprint(bank_import_bp,   url_prefix='/api/import')
+    app.register_blueprint(auto_import_bp,   url_prefix='/api/auto-import')
+    app.register_blueprint(sinking_funds_bp,  url_prefix='/api/sinking-funds')
+
+    # System routes
+    @app.route('/api/ping')
+    def ping():
+        try:
+            from version import VERSION
+        except ImportError:
+            VERSION = '1.0.0.0'
+        return jsonify({'status': 'ok', 'version': VERSION,
+                        'timestamp': datetime.utcnow().isoformat()})
+
+    @app.route('/api/save', methods=['GET', 'POST'])
+    def save_snapshot():
+        """
+        v1 compatibility shim — persists the full app state snapshot from app.js.
+        POST: accepts JSON body (buildSnapshot output), stores in app_settings.
+        GET:  returns the stored snapshot.
+        """
+        if request.method == 'POST':
+            snapshot = request.get_json(silent=True) or {}
+            with db_session() as session:
+                setting = _get_setting(session, 'app_snapshot')
+                payload = json.dumps(snapshot)
+                if setting:
+                    setting.value      = payload
+                    setting.updated_at = datetime.utcnow()
+                else:
+                    session.add(AppSetting(key='app_snapshot', value=payload))
+                session.commit()
+            return jsonify({'ok': True, 'saved': True})
+        else:
+            with db_session() as session:
+                setting = _get_setting(session, 'app_snapshot')
+                if setting:
+                    try:
+                        return jsonify(json.loads(setting.value))
+                    except (ValueError, TypeError):
+                        pass
+            return jsonify(None)
+
+    @app.route('/api/load', methods=['GET'])
+    def load_snapshot():
+        """v1 compatibility shim — returns the stored app snapshot."""
+        with db_session() as session:
+            setting = _get_setting(session, 'app_snapshot')
+            if setting:
+                try:
+                    return jsonify(json.loads(setting.value))
+                except (ValueError, TypeError):
+                    pass
+        return jsonify(None)
+
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve_frontend(path):
+        """Serve the frontend SPA and static assets.
+
+        For index.html we inject the session token as a JS constant so the
+        client can authenticate every API request. The token is generated fresh
+        on each server start and never written to disk.
+        """
+        # index.html must NEVER be served raw — it needs the session token
+        # injected. Route it (and '') to the injection branch below.
+        if path in ('index.html', 'index'):
+            path = ''
+        # Check static folder first
+        static_path = Path(static_folder) / path
+        if path and static_path.exists():
+            response = send_from_directory(static_folder, path)
+        # Check assets folder (images, icons)
+        elif path and (Path(static_folder).parent / path).exists():
+            response = send_from_directory(str(Path(static_folder).parent), path)
+        else:
+            # Serve index.html with the token injected
+            index_path = Path(static_folder) / 'index.html'
+            html = index_path.read_text(encoding='utf-8')
+            # Inject token as the very first script so it's available before
+            # any other JS runs. Replace a known placeholder or prepend to <head>.
+            token_script = f'<script>window.GW_SESSION_TOKEN="{_GW_TOKEN}";</script>'
+            if '<head>' in html:
+                html = html.replace('<head>', f'<head>\n    {token_script}', 1)
+            from flask import Response
+            response = Response(html, mimetype='text/html')
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma']        = 'no-cache'
+        return response
+
+    @app.before_request
+    def _check_session_token():
+        """Reject any /api/* request that lacks our session token.
+
+        Exemptions:
+          - /api/health  — used by the heartbeat before token may be loaded
+          - Static assets — JS, CSS, images, index.html itself
+          - /api/ping    — legacy liveness check
+
+        This is our primary defence against other processes on the same machine
+        reading or modifying Groundwork data by hitting localhost:8765 directly.
+        """
+        path = request.path
+
+        # Only protect API endpoints
+        if not path.startswith('/api/'):
+            return None
+
+        # Exempt lightweight system endpoints that run before or outside auth
+        exempt = {'/api/health', '/api/ping'}
+        if path in exempt:
+            return None
+
+        token = request.headers.get('X-GW-Token', '')
+        if not secrets.compare_digest(token, _GW_TOKEN):
+            return jsonify({'error': 'Unauthorized', 'code': 403}), 403
+
+        return None  # allow through
+
+    @app.route('/api/health')
+    def health_check():
+        """Lightweight health check — used by client heartbeat to detect
+        server restarts and version mismatches."""
+        import platform as _platform
+        try:
+            with db_session() as session:
+                result = session.execute(text('PRAGMA integrity_check')).fetchone()
+                db_ok  = result and result[0] == 'ok'
+        except Exception:
+            db_ok = False
+        return jsonify({
+            'ok':         True,
+            'version':    GW_VERSION,
+            'session_id': _GW_SESSION_ID,
+            'db_ok':      db_ok,
+            'platform':   _platform.system(),   # Windows / Darwin / Linux
+            'py_version': _platform.python_version(),
+        })
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return jsonify({'error': 'Not found'}), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        import traceback
+        tb = traceback.format_exc()
+        logging.exception('Internal error')
+        return jsonify({'error': 'Internal server error', 'detail': str(e), 'trace': tb}), 500
+
+    @app.route('/api/debug/bootstrap')
+    def debug_bootstrap():
+        """Diagnostic — shows exact bootstrap error with full traceback."""
+        import traceback
+        try:
+            from core.database import db_session, DebtAccount
+            with db_session() as session:
+                debts = session.query(DebtAccount).filter_by(is_active=True).all()
+                results = []
+                for d in debts:
+                    try:
+                        results.append(serialize_debt_account(d, session))
+                    except Exception as e:
+                        results.append({
+                            'id': d.id,
+                            'name': d.name,
+                            'ERROR': str(e),
+                            'traceback': traceback.format_exc()
+                        })
+                return {'status': 'ok', 'debt_count': len(debts), 'results': results}
+        except Exception as e:
+            return {'status': 'error', 'error': str(e), 'traceback': traceback.format_exc()}, 500
+        import traceback
+        try:
+            from core.database import BudgetItem, DebtAccount, Category, Transaction, AppSetting, Account, DB_PATH
+            with db_session() as session:
+                step = 'settings'
+                settings = {s.key: s.value for s in session.query(AppSetting).all()}
+                step = 'budget_items'
+                items = session.query(BudgetItem).filter_by(is_active=True)\
+                               .order_by(BudgetItem.type, BudgetItem.sort_order).all()
+                step = 'debts'
+                debts = session.query(DebtAccount).filter_by(is_active=True).all()
+                step = 'categories'
+                cats = session.query(Category).all()
+                step = 'transactions_count'
+                count = session.query(Transaction).count()
+                step = 'accounts'
+                accts = session.query(Account).all()
+                return jsonify({'ok': True, 'steps_completed': step,
+                                'budget_items': len(items), 'debts': len(debts),
+                                'categories': len(cats), 'transactions': count,
+                                'accounts': len(accts),
+                                'db_path': str(DB_PATH),
+                                'account_names': [a.name for a in accts]})
+        except Exception as e:
+            return jsonify({'ok': False, 'failed_at': step,
+                            'error': str(e), 'trace': traceback.format_exc()}), 200
+
+    return app
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+from flask import Blueprint
+
+def ok(data: Any = None, status: int = 200, **kwargs) -> tuple:
+    resp = {'ok': True}
+    if data is not None:
+        resp['data'] = data
+    resp.update(kwargs)
+    return jsonify(resp), status
+
+
+def err(msg: str, status: int = 400) -> tuple:
+    return jsonify({'ok': False, 'error': msg}), status
+
+
+def _get_setting(session, key: str):
+    """
+    Look up an AppSetting by its `key` column.
+
+    AppSetting's primary key is `id` (auto-increment integer), not `key`,
+    so _get_setting(session, key_string) ALWAYS returns None — it does
+    a primary-key lookup, not a key-column lookup. Use this everywhere
+    instead.
+    """
+    return session.query(AppSetting).filter_by(key=key).first()
+
+
+def require_json(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not request.is_json:
+            return err('Content-Type must be application/json')
+        return f(*args, **kwargs)
+    return decorated
+
+
+def serialize_transaction(t: Transaction) -> dict:
+    # BUG FIX (July 6): `date` was calling .isoformat() with no null guard,
+    # unlike posted_date right below it which correctly handles None. A
+    # single transaction with a null date would throw and crash the entire
+    # export for every transaction, not just the bad one. Confirmed
+    # plausible in the field: export was failing with a generic "Internal
+    # error (logged)" on an account with 959 transactions — one bad row is
+    # enough. Fixed to match the same safe pattern already used elsewhere
+    # in this same function.
+    return {
+        'id':          t.id,
+        'account_id':  t.account_id,
+        'account':     t.account.name if t.account else '',
+        'category_id': t.category_id,
+        'category':    t.category.name if t.category else 'Other',
+        'date':        t.date.isoformat() if t.date else None,
+        'description': t.description,
+        'amount':      round(t.amount, 2),
+        'type':        t.type,
+        'cleared':     t.cleared,
+        'memo':        t.memo,
+        'merchant':        t.merchant or '',
+        'posted_date':     t.posted_date.isoformat() if t.posted_date else None,
+        'running_balance': t.running_balance,
+        'mcc':             t.mcc or '',
+        'card_last4':      t.card_last4 or '',
+        'source':          t.source or 'manual',
+        'check_number':    t.check_number or '',
+    }
+
+
+def serialize_debt_account(d: DebtAccount, session=None) -> dict:
+    # If this debt card is linked to an imported account, calculate the
+    # real balance from transaction data.
+    #
+    # Priority:
+    # 1. running_balance on the most recent transaction — the bank's own
+    #    running total, accurate regardless of how far back the import goes.
+    # 2. Net debits - credits — only correct when full history is imported.
+    #
+    # When a running_balance is found, we also update current_balance on the
+    # debt card itself so the debt page always reflects the most recent import.
+    #
+    # ALL new column accesses use getattr(..., None) so this function never
+    # crashes when the migration hasn't run yet (e.g. on first boot after
+    # upgrading). The migration adds the columns; until it runs, we return
+    # safe nulls.
+    calculated_balance  = None
+    balance_basis       = None
+    linked_account_name = None
+    linked_txn_count    = 0
+    linked_account_id   = getattr(d, 'linked_account_id', None)
+
+    if linked_account_id and session:
+        try:
+            from core.database import Transaction as Txn, Account
+            acct = session.get(Account, linked_account_id)
+            if acct:
+                linked_account_name = acct.name
+                txns = session.query(Txn).filter_by(
+                    account_id=linked_account_id
+                ).order_by(Txn.date.desc(), Txn.id.desc()).all()
+                linked_txn_count = len(txns)
+                if txns:
+                    # d21: same-day rows from newest-first exports made
+                    # "latest by (date, id)" pick a stale intraday balance —
+                    # use the chain-resolved anchor (see _resolve_bank_anchor).
+                    latest_with_bal, _chain_ok = _resolve_bank_anchor(txns)
+                    if latest_with_bal:
+                        # Bank-reported balance. OFX convention for credit
+                        # cards is negative-when-owed; debt cards store owed
+                        # as positive. Normalize so the cross-check compares
+                        # like with like.
+                        calculated_balance = round(abs(latest_with_bal.running_balance), 2)
+                        balance_basis = 'bank'
+                    else:
+                        calc = sum(
+                            t.amount if t.type == 'debit' else -t.amount
+                            for t in txns
+                        )
+                        # Activity sum can't see the balance that existed
+                        # before imported history begins. If payments exceed
+                        # imported charges it goes negative — a number we
+                        # can't stand behind, so report nothing rather than
+                        # mislead the cross-check.
+                        if calc > 0:
+                            calculated_balance = round(calc, 2)
+                            balance_basis = 'activity'
+                    # NOTE: no write to d.current_balance here. This is a
+                    # serializer — viewing data must never change it. The
+                    # client owns applying the bank number, either silently
+                    # (diff under $1) or via the cross-check buttons.
+        except Exception as _e:
+            import logging
+            logging.warning('serialize_debt_account linked_account query failed: %s', _e)
+
+    # Safe accessors for columns added in migrations — return None if the
+    # column doesn't exist yet rather than crashing the bootstrap endpoint.
+    debt_type   = getattr(d, 'debt_type',   None) or 'credit'
+    end_date    = getattr(d, 'end_date',    None)
+    credit_limit= getattr(d, 'credit_limit',None)
+    paid_off_at = getattr(d, 'paid_off_at', None)
+
+    return {
+        'id':                   d.id,
+        'name':                 d.name,
+        'begin_balance':        d.begin_balance,
+        'current_balance':      d.current_balance,
+        'calculated_balance':   calculated_balance,
+        'balance_basis':        balance_basis,
+        'linked_txn_count':     linked_txn_count,
+        'linked_account_id':    linked_account_id,
+        'linked_account_name':  linked_account_name,
+        'debt_type':            debt_type,
+        'start_date':           d.start_date.isoformat() if d.start_date else None,
+        'end_date':             end_date.isoformat() if end_date else None,
+        'interest_rate':        d.interest_rate,
+        'minimum_payment':      d.minimum_payment,
+        'due_day':              d.due_day,
+        'credit_limit':         credit_limit,
+        'is_active':            d.is_active,
+        'paid_off_at':          paid_off_at.isoformat() if paid_off_at else None,
+    }
+
+
+# ── Transactions ──────────────────────────────────────────────────────────────
+
+transactions_bp = Blueprint('transactions', __name__)
+
+
+@transactions_bp.route('', methods=['GET'])
+def list_transactions():
+    """
+    List transactions with filtering.
+    Query params: account_id, category, type, from_date, to_date,
+                  cleared, search, page, per_page
+    """
+    with db_session() as session:
+        q = session.query(Transaction)
+
+        if request.args.get('account_id'):
+            q = q.filter(Transaction.account_id == int(request.args['account_id']))
+        if request.args.get('category'):
+            # Join and filter by category name
+            q = q.join(Category).filter(Category.name == request.args['category'])
+        if request.args.get('type'):
+            q = q.filter(Transaction.type == request.args['type'])
+        if request.args.get('from_date'):
+            q = q.filter(Transaction.date >= date.fromisoformat(request.args['from_date']))
+        if request.args.get('to_date'):
+            q = q.filter(Transaction.date <= date.fromisoformat(request.args['to_date']))
+        if request.args.get('cleared') is not None:
+            q = q.filter(Transaction.cleared == (request.args['cleared'] == 'true'))
+        if request.args.get('search'):
+            term = f"%{request.args['search']}%"
+            q = q.filter(Transaction.description.ilike(term))
+
+        total = q.count()
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 100))
+        txns = q.order_by(desc(Transaction.date), desc(Transaction.id)) \
+                .offset((page - 1) * per_page).limit(per_page).all()
+
+        return ok([serialize_transaction(t) for t in txns],
+                  total=total, page=page, per_page=per_page)
+
+
+@transactions_bp.route('', methods=['DELETE'])
+def delete_all_transactions():
+    """
+    Delete EVERY transaction. Irreversible through the app's own undo
+    mechanism, so this always makes a full database backup first — done
+    server-side (not left to the client to remember) so there's no way to
+    skip the safety net. If the backup fails, nothing is deleted.
+    """
+    import shutil
+    from core.database import DB_PATH
+
+    try:
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_name = f'groundwork_backup_pre-delete-all_{ts}.db'
+        backup_path = _backups_dir() / backup_name
+        shutil.copy2(DB_PATH, backup_path)
+    except Exception as e:
+        return err(f'Could not create a safety backup, aborting (nothing was deleted): {e}', 500)
+
+    with db_session() as session:
+        count = session.query(Transaction).count()
+        session.query(Transaction).delete()
+        session.commit()
+
+    return ok({'deleted': count, 'backup_filename': backup_name})
+
+
+@transactions_bp.route('', methods=['POST'])
+@require_json
+def create_transaction():
+    body = request.json
+    for field in ('date', 'account_id', 'description', 'amount'):
+        if body.get(field) in (None, ''):
+            return err(f'{field} is required')
+    try:
+        txn_date = date.fromisoformat(body['date'])
+        account_id = int(body['account_id'])
+        amount = abs(float(body['amount']))
+    except (ValueError, TypeError):
+        return err('date, account_id, and amount must be valid')
+    with db_session() as session:
+
+        # Resolve or create category
+        cat_name = body.get('category', 'Other')
+        cat = session.query(Category).filter(
+            func.lower(Category.name) == cat_name.lower()
+        ).first()
+        if not cat:
+            # Resolve-never-create — unknown names go to Other (ghost
+            # categories broke the budget hierarchy; see import commit).
+            cat = session.query(Category).filter(
+                func.lower(Category.name) == 'other'
+            ).first()
+
+        txn = Transaction(
+            account_id=account_id,
+            category_id=cat.id,
+            date=txn_date,
+            description=body['description'],
+            amount=amount,
+            type=body.get('type', 'debit'),
+            cleared=bool(body.get('cleared', False)),
+            memo=body.get('memo'),
+            merchant=body.get('merchant', ''),
+            posted_date=date.fromisoformat(body['posted_date']) if body.get('posted_date') else None,
+            running_balance=body.get('running_balance'),
+            mcc=body.get('mcc', ''),
+            card_last4=body.get('card_last4', ''),
+            source=body.get('source', 'manual'),
+        )
+        session.add(txn)
+        session.flush()
+        session.commit()
+        return ok(serialize_transaction(txn), status=201)
+
+
+@transactions_bp.route('/<int:txn_id>', methods=['PATCH'])
+@require_json
+def update_transaction(txn_id):
+    body = request.json
+    with db_session() as session:
+        txn = session.get(Transaction, txn_id)
+        if not txn:
+            return err('Transaction not found', 404)
+
+        if 'cleared' in body:
+            txn.cleared = bool(body['cleared'])
+        if 'category' in body:
+            cat = session.query(Category).filter(
+                func.lower(Category.name) == body['category'].lower()
+            ).first()
+            if not cat:
+                cat = Category(name=body['category'])
+                session.add(cat)
+                session.flush()
+            txn.category_id = cat.id
+        if 'description' in body:
+            txn.description = body['description']
+        if 'amount' in body:
+            txn.amount = abs(float(body['amount']))
+        if 'memo' in body:
+            txn.memo = body['memo']
+        if 'check_number' in body:
+            txn.check_number = body.get('check_number', '')
+        if 'date' in body:
+            txn.date = date.fromisoformat(body['date'])
+        if 'type' in body and body['type'] in ('debit', 'credit'):
+            txn.type = body['type']
+        if 'account_id' in body:
+            txn.account_id = int(body['account_id'])
+        if 'merchant' in body:
+            txn.merchant = body['merchant']
+
+        session.commit()
+        return ok(serialize_transaction(txn))
+
+
+@transactions_bp.route('/<int:txn_id>', methods=['DELETE'])
+def delete_transaction(txn_id):
+    with db_session() as session:
+        txn = session.get(Transaction, txn_id)
+        if not txn:
+            return err('Transaction not found', 404)
+        session.delete(txn)
+        session.commit()
+        return ok({'deleted': txn_id})
+
+
+@transactions_bp.route('/bulk-clear', methods=['POST'])
+@require_json
+def bulk_clear():
+    """Mark multiple transactions as cleared."""
+    body = request.json
+    ids = body.get('ids', [])
+    cleared = bool(body.get('cleared', True))
+    with db_session() as session:
+        updated = session.query(Transaction) \
+            .filter(Transaction.id.in_(ids)) \
+            .all()
+        for t in updated:
+            t.cleared = cleared
+        session.commit()
+        return ok({'updated': len(updated)})
+
+
+# ── Accounts ──────────────────────────────────────────────────────────────────
+
+accounts_bp = Blueprint('accounts', __name__)
+
+
+@accounts_bp.route('', methods=['GET'])
+def list_accounts():
+    with db_session() as session:
+        accounts = session.query(Account).filter_by(is_active=True) \
+                          .order_by(Account.sort_order, Account.name).all()
+        return ok([{
+            'id': a.id, 'name': a.name, 'type': a.type,
+            'institution': a.institution, 'currency': a.currency,
+        } for a in accounts])
+
+
+@accounts_bp.route('', methods=['POST'])
+@require_json
+def create_account():
+    body = request.json
+    name = (body.get('name') or '').strip()
+    if not name:
+        return err('name is required')
+    with db_session() as session:
+        existing = session.query(Account).filter(
+            func.lower(Account.name) == name.lower()
+        ).first()
+        if existing:
+            # Re-activate if archived
+            if not existing.is_active:
+                existing.is_active  = True
+                existing.type       = body.get('type', existing.type)
+                existing.institution= body.get('institution', existing.institution)
+                session.commit()
+                return ok(_serialize_account(existing, session))
+            return err(f'Account "{name}" already exists')
+        account = Account(
+            name=name,
+            type=body.get('type', 'checking'),
+            institution=body.get('institution', ''),
+            sort_order=body.get('sort_order', 0),
+            is_active=True,
+        )
+        session.add(account)
+        session.flush()
+        session.commit()
+        return ok(_serialize_account(account, session), status=201)
+
+
+@accounts_bp.route('/<int:account_id>', methods=['PATCH'])
+@require_json
+def update_account(account_id):
+    body = request.json
+    with db_session() as session:
+        acct = session.get(Account, account_id)
+        if not acct:
+            return err('Account not found', 404)
+        if 'name'            in body and body['name'].strip():
+            acct.name            = body['name'].strip()
+        if 'type'            in body: acct.type            = body['type']
+        if 'institution'     in body: acct.institution     = body['institution']
+        if 'currency'        in body: acct.currency        = body['currency']
+        if 'sort_order'      in body: acct.sort_order      = int(body['sort_order'])
+        if 'minimum_balance' in body: acct.minimum_balance = float(body['minimum_balance'] or 0)
+        session.commit()
+        return ok(_serialize_account(acct, session))
+
+
+@accounts_bp.route('/<int:account_id>', methods=['DELETE'])
+def archive_account(account_id):
+    """
+    Archive (soft-delete) an account. Transactions are preserved.
+    Archived accounts are hidden from import dropdowns and summaries
+    but can be re-activated by POSTing with the same name.
+    """
+    with db_session() as session:
+        acct = session.get(Account, account_id)
+        if not acct:
+            return err('Account not found', 404)
+        txn_count = session.query(Transaction).filter_by(account_id=account_id).count()
+        acct.is_active = False
+        session.commit()
+        return ok({'archived': account_id, 'transactions_preserved': txn_count})
+
+
+@accounts_bp.route('/<int:account_id>/summary', methods=['GET'])
+def account_summary(account_id):
+    """
+    Per-account balance and transaction summary.
+    Returns running balance (credits − debits), transaction count,
+    date of first and last transaction.
+    """
+    with db_session() as session:
+        acct = session.get(Account, account_id)
+        if not acct:
+            return err('Account not found', 404)
+
+        txns = session.query(Transaction).filter_by(account_id=account_id).all()
+        if not txns:
+            return ok({
+                'id': account_id, 'name': acct.name,
+                'balance': 0.0, 'transaction_count': 0,
+                'first_date': None, 'last_date': None,
+                'total_credits': 0.0, 'total_debits': 0.0,
+            })
+
+        credits = sum(t.amount for t in txns if t.type == 'credit')
+        debits  = sum(t.amount for t in txns if t.type == 'debit')
+        dates   = sorted(t.date for t in txns)
+
+        return ok({
+            'id':                account_id,
+            'name':              acct.name,
+            'type':              acct.type,
+            'institution':       acct.institution or '',
+            'balance':           round(credits - debits, 2),
+            'transaction_count': len(txns),
+            'first_date':        dates[0].isoformat()  if dates else None,
+            'last_date':         dates[-1].isoformat() if dates else None,
+            'total_credits':     round(credits, 2),
+            'total_debits':      round(debits, 2),
+        })
+
+
+def _resolve_bank_anchor(txns):
+    """
+    Pick the transaction whose running_balance is the account's CURRENT bank-
+    reported balance. (d21, field-caught: Superior CU CSVs are newest-first
+    and post several rows per day, so 'latest by (date, id)' selects the
+    physically-last-inserted row — a stale intraday balance.)
+
+    Same-day rows are ordered by the bank's own arithmetic: undoing a row
+    (running_balance + amount for a debit, − amount for a credit) yields the
+    balance BEFORE it. The latest row of the day is the one whose
+    running_balance is not any other row's balance-before. This both orders
+    the day and verifies the chain links — a broken chain means the rows
+    don't reconcile, and we fall back to insertion order.
+
+    Returns (anchor_txn, chain_ok) or (None, True) when no row carries a
+    bank-reported balance.
+    """
+    with_rb = [t for t in txns
+               if getattr(t, 'running_balance', None) not in (None, 0)]
+    if not with_rb:
+        return None, True
+    last_date = max(t.date for t in with_rb)
+    day_rows  = [t for t in with_rb if t.date == last_date]
+    if len(day_rows) == 1:
+        return day_rows[0], True
+    EPS = 0.005
+    priors = []
+    for t in day_rows:
+        prior = t.running_balance + t.amount if t.type == 'debit' \
+                else t.running_balance - t.amount
+        priors.append(round(prior, 2))
+    candidates = [t for i, t in enumerate(day_rows)
+                  if not any(abs(t.running_balance - p) <= EPS
+                             for j, p in enumerate(priors) if j != i)]
+    if len(candidates) == 1:
+        return candidates[0], True
+    # Chain didn't resolve cleanly (missing rows, duplicate balances) —
+    # best-effort by insertion id, flagged so the caller can label it.
+    return max(day_rows, key=lambda t: t.id), False
+
+
+@accounts_bp.route('/with-balances', methods=['GET'])
+def accounts_with_balances():
+    """
+    List all active accounts with pre-computed balances and transaction counts.
+
+    d21 (field-caught): 'balance' was the raw activity sum (credits − debits)
+    over imported rows — the net of imported ACTIVITY, not the account's
+    balance. Any partial import made it wrong (three imported rows produced
+    −$3,918.88 for an account the bank showed at $4,989.14), and that number
+    cascaded into net worth, the profile, and every report. The debt
+    serializer already refused to report unanchored sums; this endpoint now
+    follows the same honesty rules:
+      balance_basis 'bank'     — anchored on the bank's own running balance
+      balance_basis 'activity' — credits − debits, only when no bank balance
+                                 exists; correct only for full-history imports
+    """
+    import traceback
+    try:
+        with db_session() as session:
+            # Auto-heal accounts that were broken during data recovery —
+            # accounts with is_active=False that HAVE transactions are
+            # clearly real accounts that got their flag corrupted, not
+            # intentionally archived accounts. Fix only those.
+            broken = session.query(Account).filter(
+                Account.is_active == False
+            ).all()
+            for a in broken:
+                txn_count = session.query(Transaction).filter_by(account_id=a.id).count()
+                if txn_count > 0:
+                    a.is_active = True
+            if any(a.is_active for a in broken):
+                session.commit()
+
+            accounts = session.query(Account).filter_by(is_active=True) \
+                              .order_by(Account.sort_order, Account.name).all()
+            result = []
+            for a in accounts:
+                try:
+                    txns    = session.query(Transaction).filter_by(account_id=a.id).all()
+                    credits = sum(t.amount for t in txns if t.type == 'credit')
+                    debits  = sum(t.amount for t in txns if t.type == 'debit')
+                    dates   = sorted(t.date for t in txns if t.date)
+
+                    anchor, chain_ok = _resolve_bank_anchor(txns)
+                    if anchor is not None:
+                        balance       = round(anchor.running_balance, 2)
+                        balance_basis = 'bank' if chain_ok else 'bank_unordered'
+                        balance_as_of = anchor.date.isoformat() if anchor.date else None
+                    else:
+                        balance       = round(credits - debits, 2)
+                        balance_basis = 'activity'
+                        balance_as_of = None
+
+                    result.append({
+                        **_serialize_account(a, session),
+                        'balance':           balance,
+                        'balance_basis':     balance_basis,
+                        'balance_as_of':     balance_as_of,
+                        'activity_net':      round(credits - debits, 2),
+                        'transaction_count': len(txns),
+                        'last_date':         dates[-1].isoformat() if dates else None,
+                        'total_credits':     round(credits, 2),
+                        'total_debits':      round(debits, 2),
+                    })
+                except Exception as e:
+                    # Surface per-account errors instead of silently dropping
+                    result.append({
+                        'id': a.id, 'name': a.name, 'error': str(e),
+                        'balance': 0, 'transaction_count': 0,
+                    })
+            return ok(result)
+    except Exception as e:
+        return ok([], error=str(e), trace=traceback.format_exc()[:500])
+
+
+@accounts_bp.route('/<int:account_id>/recalculate-balances', methods=['POST'])
+def recalculate_running_balances(account_id):
+    """
+    Reconcile running balances from an anchor point.
+
+    The anchor is a known balance at a known date — either:
+      - "backward": the user enters today's balance and we work backward
+      - "forward":  the user enters what the balance was on a historical date
+
+    Body:
+      {
+        "anchor_balance": 4231.00,   -- known balance at the anchor date
+        "anchor_date":    "2026-06-22",  -- date the anchor balance is valid
+        "direction":      "backward" | "forward"
+      }
+
+    Algorithm:
+      1. Sort all transactions by (date, id)
+      2. Find the anchor row — the last transaction on or before anchor_date
+      3. Walk FORWARD from anchor: balance_after = balance_before +/- amount
+      4. Walk BACKWARD from anchor: balance_before = balance_after -/+ amount
+      5. Store the anchor row's import_id so the Ledger can mark it
+
+    Returns:
+      { "updated": N, "anchor_txn_id": X, "final_balance": Y }
+    """
+    body           = request.get_json(silent=True) or {}
+    anchor_balance = float(body.get('anchor_balance', 0.0))
+    anchor_date_s  = body.get('anchor_date') or date.today().isoformat()
+    direction      = body.get('direction', 'backward')  # 'backward' or 'forward'
+
+    try:
+        anchor_date = date.fromisoformat(anchor_date_s)
+    except ValueError:
+        return err('Invalid anchor_date — use YYYY-MM-DD format')
+
+    with db_session() as session:
+        txns = session.query(Transaction).filter_by(
+            account_id=account_id
+        ).order_by(Transaction.date, Transaction.id).all()
+
+        if not txns:
+            return ok({'updated': 0, 'anchor_txn_id': None, 'final_balance': anchor_balance})
+
+        # ── Find the anchor index ───────────────────────────────────────
+        # For backward mode: anchor is the last txn on or before today's
+        # date — the most recent transaction whose balance we know.
+        # For forward mode: anchor is the last txn on or before the
+        # historical date the user supplies.
+        anchor_idx = None
+        for i, t in enumerate(txns):
+            if t.date <= anchor_date:
+                anchor_idx = i
+            else:
+                break
+        if anchor_idx is None:
+            anchor_idx = 0  # all txns are after anchor date; start from beginning
+
+        # ── Walk forward from anchor ─────────────────────────────────────
+        # The anchor row gets the anchor_balance as its balance AFTER the
+        # transaction. Rows after it are calculated from that running total.
+        running = anchor_balance
+        for i in range(anchor_idx, len(txns)):
+            txns[i].running_balance = round(running, 2)
+            if i + 1 < len(txns):
+                t = txns[i + 1]
+                running = running + t.amount if t.type == 'credit' else running - t.amount
+
+        # ── Walk backward from anchor ────────────────────────────────────
+        # To find what the balance was BEFORE each prior transaction, we
+        # invert the operation: if a debit reduced the balance by X, the
+        # prior balance was current + X; if a credit added X, prior was
+        # current − X.
+        running = anchor_balance
+        for i in range(anchor_idx - 1, -1, -1):
+            t = txns[i]
+            # running is the balance AFTER txns[i+1], i.e. AFTER this txn.
+            # Invert to get balance AFTER this txn (which is before the next).
+            next_t = txns[i + 1]
+            running = running - next_t.amount if next_t.type == 'credit' else running + next_t.amount
+            txns[i].running_balance = round(running, 2)
+
+        # Mark the anchor transaction so the Ledger can show the reconciliation marker
+        anchor_txn = txns[anchor_idx]
+        anchor_txn_id = anchor_txn.id
+
+        session.commit()
+
+        # Direction-aware: forward ends at the newest row, backward at the
+        # oldest — previously always reported txns[-1], wrong for backward.
+        final = txns[-1].running_balance if direction == 'forward' else txns[0].running_balance
+        return ok({
+            'updated':       len(txns),
+            'anchor_txn_id': anchor_txn_id,
+            'final_balance': round(final or 0, 2),
+        })
+
+
+def _serialize_account(a: Account, session=None) -> dict:
+    return {
+        'id':              a.id,
+        'name':            a.name,
+        'type':            a.type,
+        'institution':     a.institution or '',
+        'currency':        a.currency or 'USD',
+        'is_active':       a.is_active,
+        'sort_order':      a.sort_order,
+        # minimum_balance was added in d94 — use getattr with default 0.0
+        # so existing DBs that haven't migrated yet don't crash here.
+        'minimum_balance': getattr(a, 'minimum_balance', None) or 0.0,
+    }
+
+
+# ── Budget ────────────────────────────────────────────────────────────────────
+
+budget_bp = Blueprint('budget', __name__)
+
+
+@budget_bp.route('/items', methods=['GET'])
+def get_budget_items():
+    with db_session() as session:
+        items = session.query(BudgetItem).filter_by(is_active=True) \
+                       .order_by(BudgetItem.type, BudgetItem.sort_order).all()
+        return ok([{
+            'id': i.id, 'type': i.type, 'name': i.name,
+            'amount': i.amount, 'category': i.category,
+        } for i in items])
+
+
+@budget_bp.route('/items', methods=['POST'])
+@require_json
+def create_budget_item():
+    body = request.json
+    with db_session() as session:
+        cat_name = (body.get('category') or '').strip()
+        if cat_name:
+            # Resolve or create the category, same pattern as transactions —
+            # a Budget category is the same category, not a separate concept.
+            cat = session.query(Category).filter(
+                func.lower(Category.name) == cat_name.lower()
+            ).first()
+            if not cat:
+                cat = Category(name=cat_name)
+                session.add(cat)
+                session.flush()
+            cat_name = cat.name  # normalize to existing casing if it matched
+
+        item = BudgetItem(
+            type=body['type'],
+            name=body['name'],
+            amount=float(body['amount']),
+            category=cat_name,
+        )
+        session.add(item)
+        session.flush()
+        session.commit()
+        return ok({'id': item.id}, status=201)
+
+
+@budget_bp.route('/items/<int:item_id>', methods=['PATCH'])
+@require_json
+def update_budget_item(item_id):
+    body = request.json
+    with db_session() as session:
+        item = session.get(BudgetItem, item_id)
+        if not item:
+            return err('Not found', 404)
+        if 'name'   in body: item.name   = body['name']
+        if 'amount' in body: item.amount = float(body['amount'])
+        if 'category' in body:
+            cat_name = (body['category'] or '').strip()
+            if cat_name:
+                cat = session.query(Category).filter(
+                    func.lower(Category.name) == cat_name.lower()
+                ).first()
+                if not cat:
+                    cat = Category(name=cat_name)
+                    session.add(cat)
+                    session.flush()
+                cat_name = cat.name
+            item.category = cat_name
+        session.commit()
+        return ok({'id': item.id, 'type': item.type, 'name': item.name,
+                    'amount': item.amount, 'category': item.category})
+
+
+@budget_bp.route('/items/<int:item_id>', methods=['DELETE'])
+def delete_budget_item(item_id):
+    with db_session() as session:
+        item = session.get(BudgetItem, item_id)
+        if not item:
+            return err('Not found', 404)
+        session.delete(item)
+        session.commit()
+        return ok({'deleted': item_id})
+
+
+@budget_bp.route('/plan', methods=['GET'])
+def get_active_plan():
+    with db_session() as session:
+        plan = session.query(BudgetPlan).filter_by(is_active=True) \
+                      .order_by(desc(BudgetPlan.created_at)).first()
+        if not plan:
+            return ok(None)
+
+        months = [{
+            'month_key':    m.month_key,
+            'targets':      json.loads(m.targets or '{}'),
+            'actuals':      json.loads(m.actuals or '{}'),
+            'is_complete':  m.is_complete,
+            'is_over':      m.is_over,
+            'saved_amount': m.saved_amount,
+            'coach_note':   m.coach_note,
+        } for m in plan.months]
+
+        return ok({
+            'id':           plan.id,
+            'goal_amount':  plan.goal_amount,
+            'goal_months':  plan.goal_months,
+            'start_month':  plan.start_month,
+            'total_saved':  plan.total_saved,
+            'streak_count': plan.streak_count,
+            'months':       months,
+        })
+
+
+@budget_bp.route('/plan', methods=['POST'])
+@require_json
+def create_plan():
+    body = request.json
+    with db_session() as session:
+        # Deactivate any existing plan
+        for old in session.query(BudgetPlan).filter_by(is_active=True).all():
+            old.is_active = False
+
+        plan = BudgetPlan(
+            goal_amount=float(body['goal_amount']),
+            goal_months=int(body['goal_months']),
+            start_month=body['start_month'],
+        )
+        session.add(plan)
+        session.flush()
+
+        for month_data in body.get('months', []):
+            session.add(BudgetMonth(
+                plan_id=plan.id,
+                month_key=month_data['month_key'],
+                targets=json.dumps(month_data.get('targets', {})),
+            ))
+
+        session.commit()
+        return ok({'id': plan.id}, status=201)
+
+
+@budget_bp.route('/plan/<int:plan_id>/checkin', methods=['POST'])
+@require_json
+def monthly_checkin(plan_id):
+    """Record a monthly check-in with actuals and coach note."""
+    body = request.json
+    with db_session() as session:
+        plan = session.get(BudgetPlan, plan_id)
+        if not plan:
+            return err('Plan not found', 404)
+
+        month = session.query(BudgetMonth).filter_by(
+            plan_id=plan_id, month_key=body['month_key']
+        ).first()
+        if not month:
+            return err('Month not found in plan', 404)
+
+        month.actuals     = json.dumps(body.get('actuals', {}))
+        month.is_complete = True
+        month.is_over     = bool(body.get('is_over', False))
+        month.saved_amount= float(body.get('saved_amount', 0))
+        month.coach_note  = body.get('coach_note', '')
+
+        plan.total_saved  += month.saved_amount
+
+        # Grace logic: one hard month costs 1 off the streak, not everything.
+        # The grace_period flag (true when user marks a life event — deployment,
+        # illness, emergency) holds the streak completely intact.
+        grace = bool(body.get('grace_period', False))
+        if grace:
+            pass  # streak unchanged — life happened
+        elif not month.is_over:
+            plan.streak_count += 1
+        else:
+            plan.streak_count = max(0, plan.streak_count - 1)
+
+        session.commit()
+        return ok({'streak': plan.streak_count, 'total_saved': plan.total_saved})
+
+
+# ── Debt ──────────────────────────────────────────────────────────────────────
+
+debt_bp = Blueprint('debt', __name__)
+
+
+@debt_bp.route('', methods=['GET'])
+def list_debt():
+    with db_session() as session:
+        debts = session.query(DebtAccount).filter_by(is_active=True).all()
+        return ok([serialize_debt_account(d, session) for d in debts])
+
+
+@debt_bp.route('', methods=['POST'])
+@require_json
+def create_debt():
+    body = request.json
+    with db_session() as session:
+        start_date = None
+        if body.get('start_date'):
+            try:
+                start_date = date.fromisoformat(body['start_date'])
+            except ValueError:
+                pass
+
+        end_date = None
+        if body.get('end_date'):
+            try:
+                end_date = date.fromisoformat(body['end_date'])
+            except ValueError:
+                pass
+
+        debt = DebtAccount(
+            name=body['name'],
+            begin_balance=float(body.get('begin_balance', 0)),
+            current_balance=float(body.get('current_balance', 0)),
+            interest_rate=float(body.get('interest_rate', 0)),
+            minimum_payment=float(body.get('minimum_payment', 0)),
+            due_day=body.get('due_day'),
+            start_date=start_date,
+            end_date=end_date,
+            debt_type=body.get('debt_type', 'credit'),
+        )
+        session.add(debt)
+        session.flush()  # get debt.id
+
+        # Auto-create a companion Account so the user can import transactions
+        # against this debt card immediately. The account uses the same name
+        # as the card. If an account with this name already exists, link to
+        # it instead of creating a duplicate.
+        if body.get('name', '').strip():
+            existing_acct = session.query(Account).filter_by(name=body['name'].strip()).first()
+            if existing_acct:
+                debt.linked_account_id = existing_acct.id
+            else:
+                acct = Account(
+                    name=body['name'].strip(),
+                    type='credit',
+                    institution='',
+                    is_active=True,
+                )
+                session.add(acct)
+                session.flush()
+                debt.linked_account_id = acct.id
+
+        session.commit()
+        return ok(serialize_debt_account(debt, session), status=201)
+
+
+@debt_bp.route('/<int:debt_id>', methods=['PATCH'])
+@require_json
+def update_debt(debt_id):
+    body = request.json
+    with db_session() as session:
+        debt = session.get(DebtAccount, debt_id)
+        if not debt:
+            return err('Not found', 404)
+        for field in ['name', 'current_balance', 'interest_rate',
+                      'minimum_payment', 'due_day', 'linked_account_id',
+                      'credit_limit', 'debt_type']:
+            if field in body:
+                setattr(debt, field, body[field])
+        # Date fields need explicit parsing. paid_off_at (d21): the serializer
+        # already emitted it defensively via getattr, but nothing ever accepted
+        # or stored it — the paid flag lived only in client memory and died on
+        # every restart. Requires the DebtAccount model line in core/database.py
+        # (paid_off_at = Column(Date, nullable=True)); until that line exists,
+        # setattr writes an inert instance attribute and persistence stays off.
+        for date_field in ['start_date', 'end_date', 'paid_off_at']:
+            if date_field in body:
+                raw = body[date_field]
+                if raw:
+                    try:
+                        setattr(debt, date_field, date.fromisoformat(raw))
+                    except (ValueError, TypeError):
+                        logging.getLogger('groundwork').warning(
+                            'debt PATCH: invalid %s %r ignored', date_field, raw)
+                else:
+                    setattr(debt, date_field, None)
+        session.commit()
+        return ok(serialize_debt_account(debt, session))
+
+
+@debt_bp.route('/<int:debt_id>', methods=['DELETE'])
+def delete_debt(debt_id):
+    with db_session() as session:
+        debt = session.get(DebtAccount, debt_id)
+        if not debt:
+            return err('Not found', 404)
+        debt.is_active = False
+        session.commit()
+        return ok({'deleted': debt_id})
+
+
+@debt_bp.route('/history', methods=['POST'])
+def save_debt_history():
+    """
+    Blueprint §11 — write a monthly snapshot for each active debt.
+    Called when the user saves the budget for a given month.
+    POST body: { month: 'YYYY-MM', snapshots: [{ debt_id, balance, payment, min_payment, apr }] }
+    UNIQUE(debt_id, month) — re-saving the same month just updates.
+    """
+    from core.database import DebtBalanceHistory
+    body      = request.get_json(force=True) or {}
+    month     = body.get('month', '')
+    snapshots = body.get('snapshots', [])
+    if not month or not snapshots:
+        return err('month and snapshots required', 400)
+
+    with db_session() as session:
+        for snap in snapshots:
+            debt_id = int(snap.get('debt_id', 0))
+            if not debt_id:
+                continue
+            existing = session.query(DebtBalanceHistory).filter_by(
+                debt_id=debt_id, month=month
+            ).first()
+            if existing:
+                existing.balance              = float(snap.get('balance', 0))
+                existing.payment              = float(snap.get('payment', 0))
+                existing.min_payment          = float(snap.get('min_payment', 0))
+                existing.apr                  = snap.get('apr')
+                if 'interest_charged' in snap:
+                    existing.interest_charged     = snap.get('interest_charged')
+                if 'statement_period_end' in snap:
+                    existing.statement_period_end = snap.get('statement_period_end')
+            else:
+                session.add(DebtBalanceHistory(
+                    debt_id              = debt_id,
+                    month                = month,
+                    balance              = float(snap.get('balance', 0)),
+                    payment              = float(snap.get('payment', 0)),
+                    min_payment          = float(snap.get('min_payment', 0)),
+                    apr                  = snap.get('apr'),
+                    interest_charged     = snap.get('interest_charged'),
+                    statement_period_end = snap.get('statement_period_end'),
+                ))
+        session.commit()
+    return ok({'saved': len(snapshots)})
+
+
+@debt_bp.route('/history/all', methods=['GET'])
+def get_all_debt_history():
+    """
+    Return recent history for ALL active debts in one call.
+    Used by Budget-CP4 to compute minimum decay and freed-minimums.
+    Returns: { debt_id: [{ month, balance, payment, min_payment, apr }, ...] }
+    """
+    from core.database import DebtBalanceHistory
+    with db_session() as session:
+        rows = session.query(DebtBalanceHistory)\
+                      .order_by(DebtBalanceHistory.debt_id,
+                                DebtBalanceHistory.month.desc())\
+                      .all()
+        result = {}
+        for r in rows:
+            key = str(r.debt_id)
+            if key not in result:
+                result[key] = []
+            result[key].append({
+                'month':                r.month,
+                'balance':              r.balance,
+                'payment':              r.payment,
+                'min_payment':          r.min_payment,
+                'apr':                  r.apr,
+                'interest_charged':     r.interest_charged,
+                'statement_period_end': r.statement_period_end,
+            })
+        return ok(result)
+
+
+@debt_bp.route('/history/<int:debt_id>', methods=['GET'])
+def get_debt_history(debt_id):
+    """Return all monthly snapshots for one debt, newest first."""
+    from core.database import DebtBalanceHistory
+    with db_session() as session:
+        rows = session.query(DebtBalanceHistory)\
+                      .filter_by(debt_id=debt_id)\
+                      .order_by(DebtBalanceHistory.month.desc())\
+                      .all()
+        return ok([{
+            'month':                r.month,
+            'balance':              r.balance,
+            'payment':              r.payment,
+            'min_payment':          r.min_payment,
+            'apr':                  r.apr,
+            'interest_charged':     r.interest_charged,
+            'statement_period_end': r.statement_period_end,
+        } for r in rows])
+
+
+# ── Phase 4: PDF statement extraction (issuer-agnostic) ───────────────────────
+# Two-destination routing: transactions flow through the SAME
+# /api/import/commit path every other import source uses (dedup,
+# categorization, the existing B3.5/B6b auto-writes); the statement's own
+# authoritative summary figures land here via pdf-reconcile, overwriting
+# whatever B3.5/B6b derived from transaction arithmetic. The statement's
+# printed balance is trusted over our own sum — it catches a miscategorized
+# fee or a transaction extraction miss that would otherwise drift silently.
+
+def _ai_complete_text(system: str, user: str, max_tokens: int = 4000):
+    """
+    Call the active AI provider directly — no HTTP round-trip through
+    /api/ai/chat — for server-side pipelines (like PDF extraction) that need
+    a model call but aren't themselves handling a chat request. Returns the
+    response text, or None if AI is disabled/unreachable/unavailable.
+    """
+    if not _ai_is_enabled():
+        return None
+    body = {'system': system, 'messages': [{'role': 'user', 'content': user}],
+            'max_tokens': max_tokens}
+    resp = _ai_chat_cloud(body) if _ai_provider() == 'cloud' else _ai_chat_local(body)
+    resp_obj = resp[0] if isinstance(resp, tuple) else resp
+    try:
+        data = resp_obj.get_json()
+    except Exception:
+        return None
+    if not data or data.get('ai_available') is False:
+        return None
+    content = data.get('content') or []
+    text = '\n'.join(b.get('text', '') for b in content if b.get('text'))
+    return text or None
+
+
+@debt_bp.route('/pdf-extract', methods=['POST'])
+def debt_pdf_extract():
+    """
+    4A/4B/4E — accept a PDF statement, extract its text (layout only, never
+    interprets meaning), have the model return strict JSON, then validate
+    every figure against the source text (R8-style number provenance) before
+    it's trusted. Returns transactions in bank_importer's exact record shape
+    so they flow through the existing /api/import/preview+commit path.
+    """
+    if 'file' not in request.files:
+        return err('No file uploaded')
+    f = request.files['file']
+    pdf_bytes = f.read()
+    if not pdf_bytes:
+        return err('Empty file')
+
+    import pdf_statement as ps
+
+    source_hash = ps.sha256_bytes(pdf_bytes)
+
+    # SHA-256 cache — a re-upload of the identical statement returns the
+    # already-validated numbers instead of re-running the model.
+    with db_session() as session:
+        cached = session.query(PdfExtractCache).filter_by(source_hash=source_hash).first()
+        if cached:
+            try:
+                payload = json.loads(cached.extracted_json)
+                return ok({**payload, 'source_hash': source_hash, 'cached': True})
+            except (ValueError, TypeError):
+                pass  # corrupt cache row — fall through and re-extract
+
+    try:
+        statement_text = ps.extract_text(pdf_bytes)
+    except ValueError as e:
+        return err(str(e), 422)
+    except Exception as e:
+        logging.exception('PDF text extraction failed')
+        return err(f'Could not read PDF: {e}', 500)
+
+    # A real multi-page statement is mostly legal boilerplate — send the
+    # model a condensed version so it stays focused on account data instead
+    # of drifting into summarizing disclosure text. Validation below still
+    # runs against the FULL untrimmed text, never the condensed prompt.
+    prompt_text = ps.condense_for_prompt(statement_text)
+
+    ai_text = _ai_complete_text(ps.PDF_STATEMENT_SYSTEM_PROMPT, ps.build_user_prompt(prompt_text))
+    if not ai_text:
+        return ok({'ai_available': False, 'reason': 'no_model',
+                    'message': 'AI extraction is unavailable — check your AI settings and try again.'})
+
+    try:
+        raw = ps.parse_json_response(ai_text)
+    except (ValueError, json.JSONDecodeError):
+        return err('The model did not return valid JSON for this statement. '
+                    'Try again, or enter this statement manually.', 502)
+
+    cleaned, warnings = ps.validate_and_clean(raw, statement_text)
+
+    # Normalize into bank_importer's exact record shape — the SAME shape
+    # /api/import/commit already expects from CSV/OFX/QIF, so PDF-sourced
+    # transactions get identical dedup, categorization, and B3.5/B6b handling.
+    from bank_importer import auto_category
+    records = []
+    for t in cleaned['transactions']:
+        txn_type = t.get('type') if t.get('type') in ('debit', 'credit') else 'debit'
+        records.append({
+            'date':         t.get('date'),
+            'description':  (t.get('description') or '').strip(),
+            'amount':       abs(float(t.get('amount', 0))),
+            'type':         txn_type,
+            'category':     auto_category(t.get('description') or ''),
+            'raw_category': '',
+            'cleared':      True,
+            'source':       'pdf',
+        })
+
+    from bank_importer import get_category_summary
+    result = {
+        'bank':             'Credit Card',
+        'records':          records,        # full list — client stores for commit step
+        'records_count':    len(records),
+        'category_summary': get_category_summary(records),
+        'sample_records':   records[:5],    # matches /api/import/preview's contract —
+                                             # renderImportPreview() reuses that renderer
+        'summary':          cleaned['summary'],
+        'warnings':         warnings,
+        'cached':           False,
+    }
+
+    try:
+        with db_session() as session:
+            session.add(PdfExtractCache(
+                source_hash=source_hash, issuer=ps.ISSUER_GENERIC,
+                extracted_json=json.dumps(result),
+            ))
+            session.commit()
+    except Exception as e:
+        logging.warning('PDF extract cache write failed: %s', e)
+
+    return ok({**result, 'source_hash': source_hash})
+
+
+@debt_bp.route('/pdf-reconcile', methods=['POST'])
+@require_json
+def debt_pdf_reconcile():
+    """
+    4D — the point of the whole feature. Writes the PDF statement's own
+    authoritative figures (not transaction-derived sums) into
+    debt_balance_history and the debt card itself. Call AFTER
+    /api/import/commit has already landed the statement's transactions —
+    this reads the debt's current_balance (by then already updated by B3.5
+    from the newly-committed transactions) as the "implied" balance and
+    cross-checks it against the statement's own stated balance before the
+    stated figure overwrites it.
+    Body: { debt_id, summary: {newBalance, apr, minimumPayment,
+            interestCharged, paymentReceived, statementPeriod} }
+    """
+    body    = request.json or {}
+    debt_id = body.get('debt_id')
+    summary = body.get('summary') or {}
+    if not debt_id:
+        return err('debt_id required')
+
+    period = summary.get('statementPeriod')
+    if not period or len(str(period)) < 7:
+        return err('summary.statementPeriod is required — this statement has no readable closing date')
+    month = str(period)[:7]
+
+    new_balance = summary.get('newBalance')
+    if new_balance is None:
+        return err('summary.newBalance is required — a statement without a readable balance cannot be reconciled')
+    new_balance = round(float(new_balance), 2)
+
+    apr               = summary.get('apr')
+    min_payment       = summary.get('minimumPayment')
+    interest_charged  = summary.get('interestCharged')
+    payment_received  = summary.get('paymentReceived')
+
+    with db_session() as session:
+        debt = session.query(DebtAccount).filter_by(id=int(debt_id)).first()
+        if not debt:
+            return err('Debt account not found', 404)
+
+        implied_balance = debt.current_balance
+
+        existing = session.query(DebtBalanceHistory).filter_by(debt_id=debt.id, month=month).first()
+        if existing:
+            existing.balance              = new_balance
+            existing.payment              = round(float(payment_received), 2) if payment_received is not None else existing.payment
+            existing.min_payment          = round(float(min_payment), 2) if min_payment is not None else existing.min_payment
+            existing.apr                  = float(apr) if apr is not None else existing.apr
+            existing.interest_charged     = round(float(interest_charged), 2) if interest_charged is not None else existing.interest_charged
+            existing.statement_period_end = str(period)
+        else:
+            session.add(DebtBalanceHistory(
+                debt_id=debt.id, month=month,
+                balance=new_balance,
+                payment=round(float(payment_received), 2) if payment_received is not None else 0.0,
+                min_payment=round(float(min_payment), 2) if min_payment is not None else round(float(debt.minimum_payment or 0), 2),
+                apr=float(apr) if apr is not None else debt.interest_rate,
+                interest_charged=round(float(interest_charged), 2) if interest_charged is not None else None,
+                statement_period_end=str(period),
+            ))
+
+        # The statement's own printed balance wins over anything derived from
+        # our own transaction arithmetic — that's the entire point of this
+        # feature (Blueprint §6): a verified figure, not an inference.
+        debt.current_balance = new_balance
+        if apr is not None:
+            debt.interest_rate = float(apr)
+        if min_payment is not None:
+            debt.minimum_payment = round(float(min_payment), 2)
+
+        session.commit()
+
+        balance_check = {
+            'implied':  implied_balance,
+            'stated':   new_balance,
+            'diff':     round(new_balance - implied_balance, 2) if implied_balance is not None else None,
+            'matches':  implied_balance is not None and abs(new_balance - implied_balance) < 0.01,
+        }
+        result = {
+            'debt_id': debt.id, 'debt_name': debt.name,
+            'new_balance': debt.current_balance, 'month': month,
+            'balance_check': balance_check,
+        }
+
+    return ok(result)
+
+
+# CFPB guidance URL — stored as a constant so it can be updated if the URL changes.
+CFPB_CANT_PAY_URL = (
+    'https://www.consumerfinance.gov/ask-cfpb/'
+    'what-should-i-do-if-i-cant-pay-my-credit-card-bills-en-1697/'
+)
+
+
+# ── Achievements ──────────────────────────────────────────────────────────────
+
+achievements_bp = Blueprint('achievements', __name__)
+
+
+@achievements_bp.route('', methods=['GET'])
+def list_achievements():
+    """Return all earned achievements, optionally filtered by section."""
+    with db_session() as session:
+        q = session.query(Achievement)
+        if request.args.get('section'):
+            q = q.filter(Achievement.section == request.args['section'])
+        achs = q.order_by(Achievement.earned_at).all()
+        return ok([{
+            'id':             a.id,
+            'achievement_id': a.achievement_id,
+            'section':        a.section,
+            'earned_at':      a.earned_at.isoformat(),
+            'notified':       a.notified,
+        } for a in achs])
+
+
+@achievements_bp.route('', methods=['POST'])
+@require_json
+def award_achievement():
+    """Award an achievement. Idempotent — safe to call multiple times."""
+    body = request.json
+    ach_id = body.get('achievement_id')
+    if not ach_id:
+        return err('achievement_id required')
+
+    with db_session() as session:
+        existing = session.query(Achievement).filter_by(
+            achievement_id=ach_id
+        ).first()
+        if existing:
+            return ok({'already_earned': True, 'earned_at': existing.earned_at.isoformat()})
+
+        ach = Achievement(
+            achievement_id=ach_id,
+            section=body.get('section', 'general'),
+            extra_data=json.dumps(body.get('metadata', {})),
+            notified=False,
+        )
+        session.add(ach)
+        session.flush()
+        session.commit()
+        return ok({
+            'earned': True,
+            'earned_at': ach.earned_at.isoformat(),
+        }, 201)
+
+
+# ── Settings ──────────────────────────────────────────────────────────────────
+
+settings_bp = Blueprint('settings', __name__)
+
+
+@settings_bp.route('', methods=['GET'])
+def get_settings():
+    """
+    Return all app settings as a flat key-value dict.
+    Also includes derived flags: api_key_configured (bool as string).
+    Never returns the actual API key value — only whether one is set.
+    """
+    with db_session() as session:
+        settings = {s.key: s.value for s in session.query(AppSetting).all()}
+
+    # Add derived flags (never expose the raw key)
+    api_key = _get_api_key()
+    settings['api_key_configured'] = 'true' if api_key else 'false'
+    settings.pop('api_key', None)   # never send the key value to the frontend
+
+    # Default ai_enabled to 'true' if not yet set
+    if 'ai_enabled' not in settings:
+        settings['ai_enabled'] = 'true'
+
+    return ok(settings)
+
+
+@settings_bp.route('', methods=['PATCH'])
+@require_json
+def update_settings():
+    """Update one or more app settings. Never accepts api_key directly."""
+    body = request.json
+    # Security: API key must go through /api/settings/api-key, not here
+    body.pop('api_key', None)
+
+    with db_session() as session:
+        for key, value in body.items():
+            setting = _get_setting(session, key)
+            if setting:
+                setting.value = str(value)
+            else:
+                session.add(AppSetting(key=key, value=str(value)))
+        session.commit()
+        return ok({'updated': list(body.keys())})
+
+
+@settings_bp.route('/api-key', methods=['POST'])
+@require_json
+def save_api_key():
+    """
+    Securely save the Anthropic API key to config.json on disk.
+    Never stored in the database — stays in the filesystem config only.
+    Returns only a success flag, never echoes the key back.
+    """
+    key = (request.json.get('key') or '').strip()
+    if not key:
+        return err('key is required')
+    if not key.startswith('sk-ant-'):
+        return err('Invalid key format — Anthropic keys start with sk-ant-')
+
+    # Write to config.json in the app data directory
+    config_path = DATA_DIR / 'config.json'
+    try:
+        cfg = {}
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                cfg = json.load(f)
+        cfg['ANTHROPIC_API_KEY'] = key
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(cfg, f, indent=2)
+        return ok({'saved': True, 'configured': True})
+    except Exception as e:
+        logging.error('Failed to save API key: %s', e)
+        return err(f'Could not save key: {e}', 500)
+
+
+@settings_bp.route('/bootstrap', methods=['GET'])
+def bootstrap():
+    """
+    Single endpoint that returns everything needed to boot the app from the DB.
+    Replaces the old /api/load snapshot pattern.
+    Returns all core state in one round trip.
+    """
+    import sys, traceback
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    try:
+        with db_session() as session:
+            # ── Settings & preferences ─────────────────────────────────────────
+            settings = {s.key: s.value for s in session.query(AppSetting).all()}
+            api_key  = _get_api_key()
+            settings['api_key_configured'] = 'true' if api_key else 'false'
+            settings.pop('api_key', None)
+            if 'ai_enabled' not in settings:
+                settings['ai_enabled'] = 'true'
+
+            # ── Budget items ───────────────────────────────────────────────────
+            from core.database import BudgetItem
+            budget_items = session.query(BudgetItem).filter_by(is_active=True) \
+                                  .order_by(BudgetItem.type, BudgetItem.sort_order).all()
+            incomes  = [{'id':i.id,'name':i.name,'amount':i.amount}
+                        for i in budget_items if i.type == 'income']
+            expenses = [{'id':i.id,'name':i.name,'amount':i.amount,
+                         'cat': i.category or 'Other'}
+                        for i in budget_items if i.type == 'expense']
+
+            # ── Debt accounts ──────────────────────────────────────────────────
+            debt_accounts = session.query(DebtAccount).filter_by(is_active=True).all()
+            try:
+                debts = [serialize_debt_account(d, session) for d in debt_accounts]
+            except Exception as _debt_err:
+                logging.error('bootstrap: serialize_debt_account failed: %s\n%s',
+                              _debt_err, traceback.format_exc())
+                debts = [{
+                    'id':               d.id,
+                    'name':             d.name,
+                    'begin_balance':    d.begin_balance,
+                    'current_balance':  d.current_balance,
+                    'interest_rate':    d.interest_rate,
+                    'minimum_payment':  d.minimum_payment,
+                    'due_day':          d.due_day,
+                    'is_active':        d.is_active,
+                    'debt_type':        'credit',
+                    'calculated_balance': None,
+                    'linked_account_id':  None,
+                    'linked_account_name':None,
+                    'linked_txn_count':   0,
+                    'start_date':       None,
+                    'end_date':         None,
+                    'credit_limit':     None,
+                    'paid_off_at':      None,
+                } for d in debt_accounts]
+
+            # ── Achievements ───────────────────────────────────────────────────
+            achievements = session.query(Achievement).all()
+            earned_ids   = [a.achievement_id for a in achievements]
+
+            # ── BYB items ──────────────────────────────────────────────────────
+            byb_items = session.query(BYBItem).order_by(BYBItem.created_at).all()
+            byb = [{
+                'id':       b.id,
+                'type':     b.item_type,
+                'name':     b.name,
+                'category': b.category,
+                'monthly':  b.monthly_cost,
+                'replacing': {'name': b.replacing_name, 'amount': b.replacing_amount}
+                              if b.replacing_name else None,
+            } for b in byb_items]
+
+            # ── Net worth settings ─────────────────────────────────────────────
+            # BUG FIX (July 6): retirement401k/retirementIRA were missing from
+            # this dict entirely. app.js reads S.netWorth.retirement401k from
+            # here (with a fallback to `prefs`, which never had it either —
+            # see below), so both paths were always undefined and always
+            # defaulted to 0 regardless of what was actually saved via
+            # PATCH /api/settings. Confirmed in the field: these values never
+            # survived a reboot. Added here, reading the same settings keys
+            # updateNetWorth() in app.js already correctly saves to.
+            net_worth = {
+                'savings':        float(settings.get('savings_balance',    0) or 0),
+                'investments':    float(settings.get('investments_balance',0) or 0),
+                'cash':           float(settings.get('cash_balance',       0) or 0),
+                'homeValue':      float(settings.get('home_value',        0) or 0),
+                'mortgage':       float(settings.get('mortgage_balance',  0) or 0),
+                'retirement401k': float(settings.get('retirement_401k',   0) or 0),
+                'retirementIRA':  float(settings.get('retirement_ira',    0) or 0),
+            }
+
+            # ── App preferences (previously in snapshot) ───────────────────────
+            prefs = {
+                'monthlyBudget':  float(settings.get('monthly_budget',  1500) or 1500),
+                'savingsPct':     float(settings.get('savings_pct',      10)  or 10),
+                'debtMethod':     settings.get('debt_method',     'avalanche'),
+                'dfmActive':      settings.get('dfm_active',      'false') == 'true',
+                'dfmSavingsCut':  float(settings.get('dfm_savings_cut', 5) or 5),
+                'strategyStreak': int(settings.get('strategy_streak',   0) or 0),
+                'paymentStreak':  int(settings.get('payment_streak',    0) or 0),
+            }
+
+            return ok({
+                'incomes':           incomes,
+                'expenses':          expenses,
+                'debts':             debts,
+                'earnedAchievements':earned_ids,
+                'bybItems':          byb,
+                'netWorth':          net_worth,
+                'prefs':             prefs,
+                'settings':          settings,
+            })
+
+    except Exception as _boot_err:
+        tb = traceback.format_exc()
+        logging.error('bootstrap CRASHED: %s\n%s', _boot_err, tb)
+        # Return the actual error in the response so it shows in browser dev tools
+        return jsonify({
+            'error':     'Bootstrap failed',
+            'detail':    str(_boot_err),
+            'traceback': tb,
+        }), 500
+
+
+categories_bp = Blueprint('categories', __name__)
+
+
+def serialize_category(c: Category) -> dict:
+    return {
+        'id':          c.id,
+        'name':        c.name,
+        'icon':        c.icon or '',
+        'color':       c.color or '#8a9bac',
+        'parent_id':   c.parent_id,
+        'is_system':   c.is_system,
+        'is_optional': getattr(c, 'is_optional', False) or False,
+        'is_enabled':  getattr(c, 'is_enabled', True) if getattr(c, 'is_enabled', None) is not None else True,
+        'sort_order':  c.sort_order,
+        'type':        c.type or 'expense',
+    }
+
+
+@categories_bp.route('', methods=['GET'])
+def list_categories():
+    with_counts = request.args.get('counts', 'false').lower() == 'true'
+    with db_session() as session:
+        cats = session.query(Category).order_by(
+            Category.is_system.desc(), Category.sort_order, Category.name
+        ).all()
+        result = []
+        for c in cats:
+            d = serialize_category(c)
+            if with_counts:
+                d['transaction_count'] = session.query(Transaction)\
+                    .filter_by(category_id=c.id).count()
+            result.append(d)
+        return ok(result)
+
+
+@categories_bp.route('', methods=['POST'])
+@require_json
+def create_category():
+    body = request.json
+    name = (body.get('name') or '').strip()
+    if not name:
+        return err('name is required')
+    with db_session() as session:
+        existing = session.query(Category).filter(
+            func.lower(Category.name) == name.lower()
+        ).first()
+        if existing:
+            return err(f'Category "{name}" already exists')
+        cat = Category(
+            name=name,
+            icon=body.get('icon', ''),
+            color=body.get('color', '#8a9bac'),
+            type=body.get('type', 'expense'),
+            parent_id=body.get('parent_id'),
+            is_system=False,
+            sort_order=999,
+        )
+        session.add(cat)
+        session.flush()
+        session.commit()
+        return ok(serialize_category(cat), status=201)
+
+
+@categories_bp.route('/<int:cat_id>', methods=['PATCH'])
+@require_json
+def update_category(cat_id):
+    body = request.json
+    with db_session() as session:
+        cat = session.get(Category, cat_id)
+        if not cat:
+            return err('Category not found', 404)
+        if 'name' in body and body['name'].strip():
+            if cat.is_system:
+                return err('System category names cannot be changed')
+            cat.name = body['name'].strip()
+        if 'icon'  in body: cat.icon       = body['icon']
+        if 'is_enabled' in body:  cat.is_enabled  = bool(body['is_enabled'])
+        if 'parent_id'  in body:  cat.parent_id   = body.get('parent_id')
+        if 'color' in body: cat.color      = body['color']
+        if 'sort_order' in body: cat.sort_order = int(body['sort_order'])
+        session.commit()
+        return ok(serialize_category(cat))
+
+
+@categories_bp.route('/<int:cat_id>', methods=['DELETE'])
+def delete_category(cat_id):
+    with db_session() as session:
+        cat = session.get(Category, cat_id)
+        if not cat:
+            return err('Category not found', 404)
+        if cat.is_system:
+            return err('System categories cannot be deleted')
+        other     = session.query(Category).filter_by(name='Other').first()
+        other_id  = other.id if other else None
+        moved     = session.query(Transaction).filter_by(category_id=cat_id).all()
+        for t in moved:
+            t.category_id = other_id
+        session.delete(cat)
+        session.commit()
+        return ok({'deleted': cat_id, 'transactions_moved': len(moved)})
+
+
+@categories_bp.route('/<int:cat_id>/merge', methods=['POST'])
+@require_json
+def merge_category(cat_id):
+    body      = request.json
+    target_id = body.get('target_id')
+    if not target_id:
+        return err('target_id required')
+    with db_session() as session:
+        source = session.get(Category, cat_id)
+        target = session.get(Category, int(target_id))
+        if not source: return err('Source category not found', 404)
+        if not target: return err('Target category not found', 404)
+        if source.id == target.id: return err('Source and target cannot be the same')
+        moved = session.query(Transaction).filter_by(category_id=source.id).all()
+        for t in moved: t.category_id = target.id
+        bmoved = session.query(BudgetItem).filter_by(category_id=source.id).all()
+        for b in bmoved: b.category_id = target.id
+        if not source.is_system: session.delete(source)
+        session.commit()
+        return ok({'transactions_moved': len(moved), 'budget_items_moved': len(bmoved),
+                   'target': serialize_category(target)})
+
+
+@categories_bp.route('/bulk-categorize', methods=['POST'])
+@require_json
+def bulk_categorize():
+    """Recategorize a specific list of transaction IDs to a new category."""
+    body     = request.json
+    ids      = body.get('ids', [])
+    category = (body.get('category') or '').strip()
+    if not ids or not category:
+        return err('ids and category required')
+    with db_session() as session:
+        cat = session.query(Category).filter(
+            func.lower(Category.name) == category.lower()
+        ).first()
+        if not cat:
+            return err(f'Category "{category}" not found')
+        txns = session.query(Transaction).filter(Transaction.id.in_(ids)).all()
+        for t in txns:
+            t.category_id = cat.id
+        session.commit()
+        return ok({'updated': len(txns), 'category': category})
+
+
+@categories_bp.route('/smart-backfill', methods=['POST'])
+@require_json
+def smart_backfill():
+    """
+    Re-categorize transactions that are still in 'Other' or 'Personal'
+    (the two catch-all buckets) using the current bank_importer categorization
+    engine. Leaves any other category alone — this is explicitly a cleanup
+    pass, not a wholesale recategorization.
+
+    Body: { "dry_run": false }
+    Returns: { "updated": N, "skipped": M, "sample": [...] }
+    """
+    import importlib, sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+    try:
+        bi = importlib.import_module('bank_importer')
+        importlib.reload(bi)
+    except Exception as e:
+        return err(f'Could not load bank_importer: {e}')
+
+    dry_run    = bool((request.json or {}).get('dry_run', False))
+
+    with db_session() as session:
+        cat_map = {c.name.lower(): c for c in session.query(Category).all()}
+
+        # Only target rows currently in Other or Personal
+        target_ids = {c.id for name, c in cat_map.items()
+                      if name in ('other', 'personal')}
+        if not target_ids:
+            return ok({'updated': 0, 'skipped': 0, 'message': 'No Other/Personal categories found'})
+
+        txns    = session.query(Transaction).filter(
+            Transaction.category_id.in_(target_ids)
+        ).all()
+
+        updated  = 0
+        skipped  = 0
+        sample   = []
+
+        for t in txns:
+            desc = t.description or ''
+            mcc  = t.mcc or ''
+            new_cat_name = bi.auto_category(desc, mcc)
+
+            # Only update if we found something better than Other/Personal
+            if new_cat_name.lower() in ('other', 'personal'):
+                skipped += 1
+                continue
+
+            new_cat = cat_map.get(new_cat_name.lower())
+            if not new_cat:
+                # Category doesn't exist yet — create it
+                new_cat = Category(name=new_cat_name, is_system=False)
+                session.add(new_cat)
+                session.flush()
+                cat_map[new_cat_name.lower()] = new_cat
+
+            if len(sample) < 10:
+                sample.append({
+                    'description': desc[:60],
+                    'from': t.category.name if t.category else 'Other',
+                    'to':   new_cat_name,
+                })
+
+            if not dry_run:
+                t.category_id = new_cat.id
+            updated += 1
+
+        if not dry_run:
+            session.commit()
+
+        return ok({
+            'updated':   updated,
+            'skipped':   skipped,
+            'dry_run':   dry_run,
+            'sample':    sample,
+            'message':   f"{'Would update' if dry_run else 'Updated'} {updated} transactions. {skipped} remain in Other/Personal (no better match found).",
+        })
+
+
+@categories_bp.route('/reclassify-income', methods=['POST'])
+@require_json
+def reclassify_income():
+    """
+    One-time backfill for a categorization bug (fixed same day as this route
+    was added): Transfer's generic \\bdeposit\\b pattern used to be checked
+    BEFORE Income's payroll/direct-deposit patterns in bank_importer.py's
+    first-match-wins list, so every real paycheck deposit landed in Transfer
+    instead of Income. That ordering is now fixed for new imports — this
+    route re-runs the corrected categorizer against existing credit
+    transactions still sitting in Transfer, and moves any that now resolve
+    to Income. Scoped tightly (credits only, Transfer only) so it can't
+    reclassify anything else.
+
+    Body: { "dry_run": false }
+    Returns: { "updated": N, "sample": [...] }
+    """
+    import importlib, sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+    try:
+        bi = importlib.import_module('bank_importer')
+        importlib.reload(bi)
+    except Exception as e:
+        return err(f'Could not load bank_importer: {e}')
+
+    dry_run = bool((request.json or {}).get('dry_run', False))
+
+    with db_session() as session:
+        transfer_cat = session.query(Category).filter(
+            func.lower(Category.name) == 'transfer'
+        ).first()
+        income_cat = session.query(Category).filter(
+            func.lower(Category.name) == 'income'
+        ).first()
+        if not transfer_cat or not income_cat:
+            return ok({'updated': 0, 'sample': [], 'message': 'No Transfer/Income category found'})
+
+        txns = session.query(Transaction).filter(
+            Transaction.category_id == transfer_cat.id,
+            Transaction.type == 'credit',
+        ).all()
+
+        updated = 0
+        sample  = []
+        for t in txns:
+            new_cat_name = bi.auto_category(t.description or '', t.mcc or '')
+            if new_cat_name.lower() != 'income':
+                continue
+            if len(sample) < 10:
+                sample.append({'description': (t.description or '')[:60], 'amount': t.amount})
+            if not dry_run:
+                t.category_id = income_cat.id
+            updated += 1
+
+        if not dry_run:
+            session.commit()
+
+        return ok({
+            'updated': updated,
+            'dry_run': dry_run,
+            'sample':  sample,
+            'message': f"{'Would move' if dry_run else 'Moved'} {updated} transaction(s) from Transfer to Income.",
+        })
+
+
+# ── Investments (Phase 4B) ────────────────────────────────────────────────────
+
+investments_bp = Blueprint('investments', __name__)
+
+
+def _serialize_inv_txn(t) -> dict:
+    return {
+        'id':              t.id,
+        'account_id':      t.account_id,
+        'type':            t.type,
+        'ticker':          t.ticker.upper(),
+        'security_type':   t.security_type,
+        'shares':          t.shares,
+        'price_per_share': t.price_per_share,
+        'total_amount':    t.total_amount,
+        'fees':            t.fees or 0.0,
+        'date':            t.date.isoformat(),
+        'note':            t.note or '',
+    }
+
+
+def _apply_splits(ticker: str, purchase_date, cost_basis: float,
+                  shares: float, session) -> tuple[float, float]:
+    """
+    Adjust cost_basis_per_share and shares for any splits that occurred
+    after the purchase_date for this ticker.
+    Returns (adjusted_cost_basis, adjusted_shares).
+    """
+    import json
+
+    splits = session.query(InvestmentTransaction).filter(
+        InvestmentTransaction.ticker == ticker.upper(),
+        InvestmentTransaction.type == 'split',
+        InvestmentTransaction.date > purchase_date,
+    ).order_by(InvestmentTransaction.date).all()
+
+    for split in splits:
+        try:
+            meta  = json.loads(split.meta or '{}')
+            ratio = float(meta.get('ratio', 1.0))
+            if ratio > 0:
+                shares    *= ratio
+                cost_basis /= ratio
+        except (ValueError, TypeError, json.JSONDecodeError):
+            logging.getLogger('groundwork').warning(
+                'corrupt split meta on txn — ratio ignored', exc_info=True)
+
+    return cost_basis, shares
+
+
+@investments_bp.route('/transactions', methods=['GET'])
+def list_inv_transactions():
+    """List investment transactions, optionally filtered by account or ticker."""
+    account_id = request.args.get('account_id')
+    ticker     = request.args.get('ticker', '').upper()
+    with db_session() as session:
+        q = session.query(InvestmentTransaction)
+        if account_id: q = q.filter_by(account_id=int(account_id))
+        if ticker:     q = q.filter_by(ticker=ticker)
+        txns = q.order_by(desc(InvestmentTransaction.date)).all()
+        return ok([_serialize_inv_txn(t) for t in txns])
+
+
+@investments_bp.route('/transactions', methods=['POST'])
+@require_json
+def create_inv_transaction():
+    """
+    Record a buy, sell, dividend, split, or other investment transaction.
+    For buys: automatically creates a new lot.
+    For sells: reduces existing lots using FIFO (default) and records realized gain.
+    For splits: stores the split ratio in meta JSON.
+    """
+    body       = request.json
+    txn_type   = body.get('type', 'buy').lower()
+    ticker     = (body.get('ticker') or '').strip().upper()
+    account_id = int(body.get('account_id', 1))
+
+    if not ticker:
+        return err('ticker is required')
+
+    try:
+        txn_date = date.fromisoformat(body['date'])
+    except (KeyError, ValueError):
+        return err('valid date required (YYYY-MM-DD)')
+
+    shares    = abs(float(body.get('shares', 0)))
+    price     = abs(float(body.get('price_per_share', 0)))
+    total     = abs(float(body.get('total_amount', 0) or shares * price))
+    fees      = abs(float(body.get('fees', 0)))
+    note      = body.get('note', '')
+    security_type = body.get('security_type', 'stock')
+    meta_raw  = body.get('meta', {})
+
+    with db_session() as session:
+        # ── Oversell guard (July 8, audit week) ──────────────────────────────
+        # Previously a sell exceeding open lots consumed everything available,
+        # logged a server-side warning, and still returned 201 — the client
+        # showed a normal success toast while the transaction row permanently
+        # recorded the phantom quantity (a typo'd extra zero committed
+        # silently). The client has no shares-held validation of its own, so
+        # this check is the only line of defense. It runs BEFORE the txn row
+        # is created or anything is added to the session, so an early return
+        # cannot leave a half-applied transaction behind regardless of
+        # db_session's commit-on-exit semantics.
+        if txn_type == 'sell':
+            if shares <= 0:
+                return err('share quantity is required for a sell')
+            available = session.query(
+                func.sum(InvestmentLot.shares_remaining)
+            ).filter_by(
+                account_id=account_id, ticker=ticker, is_closed=False
+            ).scalar() or 0.0
+            if shares > available + 0.00001:
+                return err(
+                    f'Sell of {shares:g} exceeds shares held — this account '
+                    f'has {available:g} open share(s) of {ticker}. '
+                    f'Adjust the quantity or record the missing purchase first.',
+                    400
+                )
+
+        # Record the transaction
+        txn = InvestmentTransaction(
+            account_id      = account_id,
+            type            = txn_type,
+            ticker          = ticker,
+            security_type   = security_type,
+            shares          = shares if txn_type in ('buy','transfer_in','reinvested_dividend') else -shares,
+            price_per_share = price,
+            total_amount    = total,
+            fees            = fees,
+            date            = txn_date,
+            note            = note,
+            meta            = json.dumps(meta_raw) if meta_raw else None,
+            import_source   = 'manual',
+        )
+        session.add(txn)
+        session.flush()
+
+        # ── Buy / transfer in / reinvested dividend → create a lot ──────────
+        if txn_type in ('buy', 'transfer_in', 'reinvested_dividend'):
+            cost_per_share = price if price > 0 else (total / shares if shares else 0)
+            lot = InvestmentLot(
+                account_id           = account_id,
+                source_transaction_id= txn.id,
+                ticker               = ticker,
+                security_type        = security_type,
+                shares_original      = shares,
+                shares_remaining     = shares,
+                cost_basis_per_share = cost_per_share,
+                purchase_date        = txn_date,
+            )
+            session.add(lot)
+
+        # ── Sell → reduce lots per cost-basis method ──────────────────────────
+        elif txn_type == 'sell':
+            remaining_to_sell = shares
+            sell_price        = price if price > 0 else (total / shares if shares else 0)
+
+            # Determine cost basis method for this account
+            method_key = f'cost_basis_method_{account_id}'
+            method_row = _get_setting(session, method_key)
+            method     = (method_row.value if method_row else None) or 'fifo'
+
+            # Specific-lot IDs supplied in meta?
+            specific_lot_ids = []
+            if meta_raw and isinstance(meta_raw, dict):
+                specific_lot_ids = [int(x) for x in meta_raw.get('lot_ids', [])]
+
+            # Query open lots for this position
+            q = session.query(InvestmentLot).filter_by(
+                account_id=account_id, ticker=ticker, is_closed=False
+            )
+
+            if specific_lot_ids:
+                # User chose specific lots — apply in the order supplied
+                lots = [session.get(InvestmentLot, lid) for lid in specific_lot_ids
+                        if session.get(InvestmentLot, lid) and
+                           not session.get(InvestmentLot, lid).is_closed]
+            elif method == 'lifo':
+                lots = q.order_by(InvestmentLot.purchase_date.desc()).all()
+            elif method == 'hifo':
+                lots = q.order_by(InvestmentLot.cost_basis_per_share.desc()).all()
+            else:  # fifo (default)
+                lots = q.order_by(InvestmentLot.purchase_date).all()
+
+            for lot in lots:
+                if remaining_to_sell <= 0.00001:
+                    break
+                if lot is None:
+                    continue
+
+                shares_from_lot   = min(lot.shares_remaining, remaining_to_sell)
+                lot.shares_remaining -= shares_from_lot
+                remaining_to_sell    -= shares_from_lot
+
+                # Record realized gain for the shares sold from this lot
+                holding_days = (txn_date - lot.purchase_date).days if txn_date > lot.purchase_date else 0
+                cost         = lot.cost_basis_per_share * shares_from_lot
+                proceeds     = sell_price * shares_from_lot
+                gain         = proceeds - cost
+                gain_pct     = (gain / cost * 100) if cost else 0
+
+                if lot.shares_remaining <= 0.00001:
+                    # Lot fully exhausted — close it
+                    lot.is_closed              = True
+                    lot.closed_date            = txn_date
+                    lot.sell_price_per_share   = sell_price
+                    lot.realized_gain          = round(gain, 4)
+                    lot.realized_gain_pct      = round(gain_pct, 4)
+                    lot.holding_period_days    = holding_days
+                    lot.shares_remaining       = 0.0
+                else:
+                    # Partial fill — accumulate realized gain on the lot
+                    # (additional sells from this lot will add to it)
+                    current_gain = lot.realized_gain or 0.0
+                    lot.realized_gain = round(current_gain + gain, 4)
+
+            if remaining_to_sell > 0.001:
+                # Should be unreachable — the oversell guard above rejects
+                # before mutation. If this ever fires, the guard and the lot
+                # consumption disagree (e.g. a lot closed mid-request).
+                logging.error('OVERSELL PAST GUARD: %s (acct %s) exceeds open lots by %.4f shares',
+                              ticker, account_id, remaining_to_sell)
+
+        session.flush()
+        session.commit()
+        return ok(_serialize_inv_txn(txn), status=201)
+
+
+@investments_bp.route('/transactions/<int:txn_id>', methods=['DELETE'])
+def delete_inv_transaction(txn_id):
+    """
+    Delete an investment transaction.
+    For buys: also closes/removes the associated lot.
+    For sells: re-opens reduced lots (best-effort).
+    """
+    with db_session() as session:
+        txn = session.get(InvestmentTransaction, txn_id)
+        if not txn:
+            return err('Transaction not found', 404)
+
+        if txn.type in ('buy', 'transfer_in', 'reinvested_dividend'):
+            lot = session.query(InvestmentLot).filter_by(
+                source_transaction_id=txn_id
+            ).first()
+            if lot:
+                session.delete(lot)
+
+        session.delete(txn)
+        session.commit()
+        return ok({'deleted': txn_id})
+
+
+@investments_bp.route('/positions', methods=['GET'])
+def get_positions():
+    """
+    Return current portfolio positions aggregated from open lots.
+    Each position: ticker, total_shares, avg_cost_basis,
+                   total_cost, current_price (from cache),
+                   market_value, unrealized_gain, unrealized_pct,
+                   day_change, day_change_pct.
+
+    Optional ?account_id= filter.
+    Automatically refreshes stale prices before computing positions.
+    """
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    account_id   = request.args.get('account_id')
+    skip_refresh = request.args.get('skip_refresh', 'false').lower() == 'true'
+
+    with db_session() as session:
+        # Auto-refresh stale prices (silent — never blocks the response)
+        if not skip_refresh:
+            try:
+                from price_engine import refresh_stale_prices
+                refresh_stale_prices(session)
+            except ImportError:
+                # price_engine isn't part of this build (investments price
+                # feed is dormant). Log once, not on every request.
+                global _PRICE_ENGINE_WARNED
+                if not globals().get('_PRICE_ENGINE_WARNED'):
+                    _PRICE_ENGINE_WARNED = True
+                    logging.info('price_engine not present — price auto-refresh disabled')
+            except Exception as e:
+                logging.warning('Price refresh skipped: %s', e)
+
+        q = session.query(InvestmentLot).filter_by(is_closed=False)
+        if account_id:
+            q = q.filter_by(account_id=int(account_id))
+        lots = q.order_by(InvestmentLot.ticker, InvestmentLot.purchase_date).all()
+
+        # Group lots by (account_id, ticker)
+        positions = {}
+        for lot in lots:
+            key = (lot.account_id, lot.ticker)
+            if key not in positions:
+                positions[key] = {
+                    'ticker':        lot.ticker,
+                    'account_id':    lot.account_id,
+                    'security_type': lot.security_type,
+                    'lots':          [],
+                    'total_shares':  0.0,
+                    'total_cost':    0.0,
+                }
+            p = positions[key]
+
+            # Apply splits to this lot's cost basis and shares
+            adj_cost, adj_shares = _apply_splits(
+                lot.ticker, lot.purchase_date,
+                lot.cost_basis_per_share, lot.shares_remaining, session
+            )
+            p['lots'].append({
+                'lot_id':        lot.id,
+                'shares':        adj_shares,
+                'cost_basis':    adj_cost,
+                'purchase_date': lot.purchase_date.isoformat(),
+            })
+            p['total_shares'] += adj_shares
+            p['total_cost']   += adj_shares * adj_cost
+
+        # Attach prices from cache
+        result = []
+        for pos in positions.values():
+            if pos['total_shares'] < 0.00001:
+                continue
+
+            avg_cost = pos['total_cost'] / pos['total_shares'] if pos['total_shares'] else 0
+
+            price_row = session.get(PriceCache, pos['ticker'])
+            if price_row:
+                current_price    = price_row.price
+                company_name     = price_row.company_name or pos['ticker']
+                day_change       = price_row.day_change or 0
+                day_change_pct   = price_row.day_change_pct or 0
+            else:
+                # No price yet — use avg cost as placeholder
+                current_price    = avg_cost
+                company_name     = pos['ticker']
+                day_change       = 0
+                day_change_pct   = 0
+
+            market_value    = pos['total_shares'] * current_price
+            unrealized_gain = market_value - pos['total_cost']
+            unrealized_pct  = (unrealized_gain / pos['total_cost'] * 100) if pos['total_cost'] else 0
+
+            result.append({
+                'ticker':          pos['ticker'],
+                'account_id':      pos['account_id'],
+                'security_type':   pos['security_type'],
+                'company_name':    company_name,
+                'total_shares':    round(pos['total_shares'], 6),
+                'avg_cost_basis':  round(avg_cost, 4),
+                'total_cost':      round(pos['total_cost'], 2),
+                'current_price':   round(current_price, 4),
+                'market_value':    round(market_value, 2),
+                'unrealized_gain': round(unrealized_gain, 2),
+                'unrealized_pct':  round(unrealized_pct, 2),
+                'day_change':      round(day_change, 4),
+                'day_change_pct':  round(day_change_pct, 2),
+                'price_stale':     price_row is None,
+                'lots':            pos['lots'],
+            })
+
+        # Sort by market_value descending
+        result.sort(key=lambda x: x['market_value'], reverse=True)
+
+        # Inject user-defined asset_class and expense_ratio from app_settings
+        ac_setting = _get_setting(session, 'inv_asset_classes_json')
+        er_setting = _get_setting(session, 'inv_expense_ratios_json')
+        asset_classes   = json.loads(ac_setting.value)  if ac_setting  else {}
+        expense_ratios  = json.loads(er_setting.value)  if er_setting  else {}
+
+        # Smart defaults for common tickers
+        _ASSET_CLASS_DEFAULTS = {
+            'BND':'fixed_income','BNDX':'fixed_income','AGG':'fixed_income',
+            'TLT':'fixed_income','IEF':'fixed_income','SHY':'fixed_income',
+            'VTIP':'fixed_income','VGLT':'fixed_income','VCIT':'fixed_income',
+            'VXUS':'international_equity','VEU':'international_equity',
+            'EFA':'international_equity','EEM':'international_equity',
+            'SCHE':'international_equity','VWO':'international_equity',
+            'VYMI':'international_equity','IEFA':'international_equity',
+            'VNQ':'real_estate','VNQI':'real_estate','REZ':'real_estate',
+            'SCHH':'real_estate','IYR':'real_estate',
+        }
+        _EXPENSE_RATIO_DEFAULTS = {
+            'VOO':0.03,'VTI':0.03,'VUG':0.04,'VTV':0.04,'VXUS':0.07,
+            'BND':0.03,'VNQ':0.13,'VWO':0.08,'EFA':0.07,'EEM':0.68,
+            'SCHB':0.03,'SCHA':0.04,'SCHG':0.04,'SCHD':0.06,
+            'IVV':0.03,'SPY':0.0945,'QQQ':0.2,'GLD':0.4,'SLV':0.5,
+        }
+
+        for p in result:
+            t = p['ticker']
+            p['asset_class']    = asset_classes.get(t) or _ASSET_CLASS_DEFAULTS.get(t) or None
+            p['expense_ratio']  = expense_ratios.get(t) if t in expense_ratios else _EXPENSE_RATIO_DEFAULTS.get(t)
+
+        # Portfolio totals
+        total_cost         = sum(p['total_cost']    for p in result)
+        total_market_value = sum(p['market_value']  for p in result)
+        total_gain         = sum(p['unrealized_gain'] for p in result)
+        total_gain_pct     = (total_gain / total_cost * 100) if total_cost else 0
+
+        return ok({
+            'positions': result,
+            'summary': {
+                'total_cost':         round(total_cost, 2),
+                'total_market_value': round(total_market_value, 2),
+                'total_gain':         round(total_gain, 2),
+                'total_gain_pct':     round(total_gain_pct, 2),
+                'position_count':     len(result),
+            }
+        })
+
+
+@investments_bp.route('/price', methods=['PATCH'])
+@require_json
+def set_manual_price():
+    """
+    Set a manual price for a ticker. Marks it as manual so auto-refresh skips it.
+    Body: { ticker: str, price: float }
+    """
+    body   = request.json
+    ticker = (body.get('ticker') or '').strip().upper()
+    price  = float(body.get('price', 0))
+    if not ticker or price <= 0:
+        return err('ticker and price > 0 required')
+
+    with db_session() as session:
+        row = session.get(PriceCache, ticker)
+        if row:
+            row.price        = price
+            row.day_change   = price - (row.previous_close or price)
+            row.day_change_pct = ((price - (row.previous_close or price)) / (row.previous_close or price) * 100) if row.previous_close else 0
+            row.is_manual    = True
+            row.last_updated = datetime.utcnow()
+        else:
+            session.add(PriceCache(
+                ticker       = ticker,
+                price        = price,
+                is_manual    = True,
+                last_updated = datetime.utcnow(),
+                source       = 'manual',
+            ))
+        session.commit()
+        return ok({'ticker': ticker, 'price': price, 'manual': True})
+
+
+@investments_bp.route('/accounts', methods=['GET'])
+def list_investment_accounts():
+    """List accounts of type 'investment' with their total market value."""
+    with db_session() as session:
+        accts = session.query(Account).filter_by(
+            type='investment', is_active=True
+        ).order_by(Account.sort_order, Account.name).all()
+        return ok([_serialize_account(a, session) for a in accts])
+
+
+@investments_bp.route('/prices/refresh', methods=['POST'])
+def refresh_prices():
+    """
+    Trigger a price refresh for all stale positions.
+    Body (optional): { force: bool, tickers: [str] }
+
+    Returns: { refreshed: [tickers], skipped: [tickers], errors: int, prices: {...} }
+    """
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    body    = request.json or {}
+    force   = bool(body.get('force', False))
+    tickers = body.get('tickers', [])  # optional: refresh only specific tickers
+
+    try:
+        try:
+            from price_engine import refresh_stale_prices, fetch_prices
+        except ImportError:
+            # The price-feed module isn't part of this build. Tell the truth —
+            # the client was showing "check your connection" for this.
+            return err('Price lookups aren\'t included in this beta build yet. '
+                       'Your holdings and cost basis still track normally.', 501)
+        with db_session() as session:
+            if tickers:
+                results = fetch_prices([t.upper() for t in tickers], session)
+                return ok({
+                    'refreshed': list(results.keys()),
+                    'skipped':   [],
+                    'errors':    len(tickers) - len(results),
+                    'prices':    results,
+                })
+            else:
+                result = refresh_stale_prices(session, force=force)
+                return ok(result)
+    except Exception as e:
+        logging.exception('Price refresh failed')
+        return err(f'Price refresh failed: {e}', 500)
+
+
+@investments_bp.route('/prices/validate', methods=['GET'])
+def validate_ticker():
+    """
+    Validate a ticker symbol and return basic info.
+    Query param: ?ticker=VOO
+    """
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    symbol = request.args.get('ticker', '').strip().upper()
+    if not symbol:
+        return err('ticker parameter required')
+
+    try:
+        from price_engine import validate_ticker as _validate
+        result = _validate(symbol)
+        return ok(result)
+    except Exception as e:
+        return ok({'valid': False, 'symbol': symbol, 'error': str(e)})
+
+
+@investments_bp.route('/prices', methods=['GET'])
+def get_cached_prices():
+    """
+    Return all cached prices.
+    Used by the frontend to check freshness without triggering a refresh.
+    """
+    with db_session() as session:
+        rows = session.query(PriceCache).order_by(PriceCache.ticker).all()
+        return ok([{
+            'ticker':          r.ticker,
+            'price':           r.price,
+            'previous_close':  r.previous_close,
+            'day_change':      r.day_change,
+            'day_change_pct':  r.day_change_pct,
+            'company_name':    r.company_name,
+            'currency':        r.currency,
+            'market_state':    r.market_state,
+            'last_updated':    r.last_updated.isoformat() if r.last_updated else None,
+            'is_manual':       r.is_manual,
+            'source':          r.source,
+        } for r in rows])
+
+
+# ── Cost basis & lot accounting endpoints (Phase 4D) ─────────────────────────
+
+
+@investments_bp.route('/realized-gains', methods=['GET'])
+def get_realized_gains():
+    """
+    List all closed lots (realized gains/losses).
+    Query params: ?account_id=  ?ticker=  ?year=2025  ?term=short|long
+    """
+    account_id = request.args.get('account_id')
+    ticker     = request.args.get('ticker', '').upper()
+    year       = request.args.get('year')
+    term       = request.args.get('term', '').lower()  # 'short' | 'long'
+
+    with db_session() as session:
+        q = session.query(InvestmentLot).filter_by(is_closed=True)
+        if account_id: q = q.filter_by(account_id=int(account_id))
+        if ticker:     q = q.filter_by(ticker=ticker)
+        if year:
+            from sqlalchemy import extract
+            q = q.filter(extract('year', InvestmentLot.closed_date) == int(year))
+        lots = q.order_by(InvestmentLot.closed_date.desc()).all()
+
+        result = []
+        for lot in lots:
+            holding_days = lot.holding_period_days or 0
+            is_long_term = holding_days >= 366
+
+            if term == 'short' and is_long_term:  continue
+            if term == 'long'  and not is_long_term: continue
+
+            result.append({
+                'id':                   lot.id,
+                'ticker':               lot.ticker,
+                'account_id':           lot.account_id,
+                'shares_sold':          lot.shares_original - (lot.shares_remaining or 0),
+                'cost_basis_per_share': lot.cost_basis_per_share,
+                'sell_price_per_share': lot.sell_price_per_share,
+                'realized_gain':        lot.realized_gain,
+                'realized_gain_pct':    lot.realized_gain_pct,
+                'purchase_date':        lot.purchase_date.isoformat(),
+                'sell_date':            lot.closed_date.isoformat() if lot.closed_date else None,
+                'holding_period_days':  holding_days,
+                'is_long_term':         is_long_term,
+                'term_label':           'Long-term' if is_long_term else 'Short-term',
+            })
+
+        total_gain  = sum(r['realized_gain'] or 0 for r in result)
+        short_gain  = sum(r['realized_gain'] or 0 for r in result if not r['is_long_term'])
+        long_gain   = sum(r['realized_gain'] or 0 for r in result if r['is_long_term'])
+
+        return ok({
+            'lots':        result,
+            'summary': {
+                'total_gain':    round(total_gain,  2),
+                'short_term':    round(short_gain,  2),
+                'long_term':     round(long_gain,   2),
+                'count':         len(result),
+            }
+        })
+
+
+@investments_bp.route('/tax-summary', methods=['GET'])
+def get_tax_summary():
+    """
+    Realized gains grouped by tax year and short/long-term.
+    Useful for tax planning and Schedule D prep.
+    Query param: ?account_id=
+    """
+    account_id = request.args.get('account_id')
+
+    with db_session() as session:
+        q = session.query(InvestmentLot).filter_by(is_closed=True)
+        if account_id: q = q.filter_by(account_id=int(account_id))
+        lots = q.order_by(InvestmentLot.closed_date).all()
+
+        years = {}
+        for lot in lots:
+            if not lot.closed_date: continue
+            year          = lot.closed_date.year
+            holding_days  = lot.holding_period_days or 0
+            is_long       = holding_days >= 366
+            gain          = lot.realized_gain or 0
+
+            if year not in years:
+                years[year] = {'year': year, 'short_term': 0.0, 'long_term': 0.0,
+                               'total': 0.0, 'lots': 0}
+            key = 'long_term' if is_long else 'short_term'
+            years[year][key]  += gain
+            years[year]['total'] += gain
+            years[year]['lots']  += 1
+
+        result = sorted(years.values(), key=lambda x: x['year'], reverse=True)
+        for r in result:
+            r['short_term'] = round(r['short_term'], 2)
+            r['long_term']  = round(r['long_term'],  2)
+            r['total']      = round(r['total'],       2)
+
+        return ok(result)
+
+
+@investments_bp.route('/asset-classes', methods=['GET', 'PATCH'])
+def manage_asset_classes():
+    """Get or update the ticker → asset_class mapping stored in app_settings."""
+    with db_session() as session:
+        if request.method == 'GET':
+            s = _get_setting(session, 'inv_asset_classes_json')
+            return ok(json.loads(s.value) if s else {})
+
+        body = request.get_json(silent=True) or {}
+        existing = _get_setting(session, 'inv_asset_classes_json')
+        current  = json.loads(existing.value) if existing else {}
+        current.update({k.upper(): v for k, v in body.items() if v is not None})
+        # Remove entries explicitly set to null
+        current = {k: v for k, v in current.items() if v}
+        payload = json.dumps(current)
+        if existing:
+            existing.value      = payload
+            existing.updated_at = datetime.utcnow()
+        else:
+            session.add(AppSetting(key='inv_asset_classes_json', value=payload))
+        session.commit()
+        return ok(current)
+
+
+@investments_bp.route('/expense-ratios', methods=['GET', 'PATCH'])
+def manage_expense_ratios():
+    """Get or update the ticker → expense_ratio mapping stored in app_settings."""
+    with db_session() as session:
+        if request.method == 'GET':
+            s = _get_setting(session, 'inv_expense_ratios_json')
+            return ok(json.loads(s.value) if s else {})
+
+        body = request.get_json(silent=True) or {}
+        existing = _get_setting(session, 'inv_expense_ratios_json')
+        current  = json.loads(existing.value) if existing else {}
+        current.update({k.upper(): float(v) for k, v in body.items() if v is not None})
+        payload = json.dumps(current)
+        if existing:
+            existing.value      = payload
+            existing.updated_at = datetime.utcnow()
+        else:
+            session.add(AppSetting(key='inv_expense_ratios_json', value=payload))
+        session.commit()
+        return ok(current)
+
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+
+
+# ── Before You Buy (Phase 0B) ─────────────────────────────────────────────────
+
+byb_bp = Blueprint('byb', __name__)
+
+
+def _serialize_byb(item) -> dict:
+    return {
+        'id':              item.id,
+        'type':            item.item_type,
+        'name':            item.name,
+        'category':        item.category,
+        'monthly':         item.monthly_cost,
+        'replacing': {
+            'name':   item.replacing_name,
+            'amount': item.replacing_amount,
+        } if item.replacing_name else None,
+        'created_at': item.created_at.isoformat() if item.created_at else None,
+    }
+
+
+@byb_bp.route('', methods=['GET'])
+def list_byb_items():
+    """Return all active BYB sandbox items."""
+    with db_session() as session:
+        items = session.query(BYBItem).order_by(BYBItem.created_at).all()
+        return ok([_serialize_byb(i) for i in items])
+
+
+@byb_bp.route('', methods=['POST'])
+@require_json
+def create_byb_item():
+    """Add an item to the BYB sandbox."""
+    body = request.json
+    with db_session() as session:
+        replacing = body.get('replacing') or {}
+        item = BYBItem(
+            item_type        = body.get('type', 'other'),
+            name             = body['name'],
+            category         = body.get('category', 'Other'),
+            monthly_cost     = float(body.get('monthly', 0)),
+            replacing_name   = replacing.get('name'),
+            replacing_amount = float(replacing['amount']) if replacing.get('amount') else None,
+        )
+        session.add(item)
+        session.flush()
+        session.commit()
+        return ok(_serialize_byb(item))
+
+
+@byb_bp.route('/<int:item_id>', methods=['DELETE'])
+def delete_byb_item(item_id):
+    """Remove an item from the BYB sandbox."""
+    with db_session() as session:
+        item = session.get(BYBItem, item_id)
+        if not item:
+            return err('Item not found', 404)
+        session.delete(item)
+        session.commit()
+        return ok({'deleted': item_id})
+
+
+@byb_bp.route('', methods=['DELETE'])
+def clear_byb_items():
+    """Clear all BYB sandbox items (user clicks Not Buying It)."""
+    with db_session() as session:
+        session.query(BYBItem).delete()
+        session.commit()
+        return ok({'cleared': True})
+
+
+# ── Trip Planner (Phase 10) ───────────────────────────────────────────────────
+
+trip_bp = Blueprint('trip', __name__)
+
+
+@trip_bp.route('/oil-check', methods=['GET'])
+def check_oil_change():
+    """
+    Check the ledger for the last oil change transaction.
+    Looks for known oil change merchants in transaction descriptions.
+    Returns last date, description, and miles_ago estimate if mileage tracked.
+    """
+    OIL_PATTERNS = [
+        'jiffy lube', 'valvoline', 'firestone', 'goodyear', 'midas',
+        'pep boys', 'oil change', 'quick lube', 'take 5', 'express oil',
+        "jiffy", 'meineke', 'monro', 'ntb ', 'sears auto',
+    ]
+    with db_session() as session:
+        txns = session.query(Transaction)\
+            .order_by(Transaction.date.desc())\
+            .limit(500).all()
+
+        for t in txns:
+            desc = (t.description or '').lower()
+            if any(p in desc for p in OIL_PATTERNS):
+                from datetime import date as date_cls
+                days_ago = (date_cls.today() - t.date).days if t.date else None
+                return ok({
+                    'found':       True,
+                    'date':        t.date.isoformat() if t.date else None,
+                    'description': t.description,
+                    'amount':      t.amount,
+                    'days_ago':    days_ago,
+                    'overdue':     days_ago > 90 if days_ago else False,
+                })
+
+        return ok({'found': False})
+
+
+@trip_bp.route('/gas-price', methods=['GET'])
+def trip_gas_price():
+    """
+    Phase 5A — the real national-average gas price for trip fuel estimates,
+    replacing the hardcoded $3.40 placeholder. Zero user-data egress: this
+    is a fixed query for the national average, nothing about the user's
+    trip or finances is ever sent. Degrades honestly (live:false) rather
+    than breaking when no EIA key is configured yet.
+    """
+    import gas_price
+    result = gas_price.get_national_gas_price(_get_eia_api_key())
+    return ok(result)
+
+
+@trip_bp.route('/distance', methods=['GET'])
+def trip_distance_estimate():
+    """
+    Phase 5E — real driving-distance estimate for trip fuel-cost math,
+    replacing the hardcoded 400-miles-each-way placeholder. Geocodes via
+    OpenStreetMap Nominatim (free, keyless) then great-circle x road-factor.
+    Only the origin/destination place names are sent — no other trip or
+    financial data.
+    """
+    import trip_distance
+    origin      = (request.args.get('origin') or '').strip()
+    destination = (request.args.get('destination') or '').strip()
+    if not destination:
+        return err('destination required')
+    return ok(trip_distance.get_drive_distance(origin, destination))
+
+
+@trip_bp.route('/budget', methods=['GET'])
+def get_trip_budget():
+    """Return any saved trip budget from app_settings."""
+    with db_session() as session:
+        row = _get_setting(session, 'trip_budget')
+        if row and row.value:
+            try:
+                return ok(json.loads(row.value))
+            except Exception:
+                logging.getLogger('groundwork').warning(
+                    'trip_budget setting is corrupt JSON — returning None',
+                    exc_info=True)
+        return ok(None)
+
+
+@trip_bp.route('/budget', methods=['POST'])
+@require_json
+def save_trip_budget():
+    """Save a trip budget to app_settings for tracking."""
+    body = request.json
+    with db_session() as session:
+        row = _get_setting(session, 'trip_budget')
+        val = json.dumps(body)
+        if row:
+            row.value = val
+        else:
+            session.add(AppSetting(key='trip_budget', value=val))
+        session.commit()
+        return ok({'saved': True})
+
+
+# ── Utility price benchmarks ───────────────────────────────────────────────────
+# Real residential natural-gas/electricity prices for the user's own state
+# (or national, if no home state is set) — a budget benchmark, not a
+# billing figure. See utility_price.py.
+
+utility_bp = Blueprint('utility', __name__)
+
+
+def _home_state() -> str:
+    """The user's configured home state (2-letter USPS code), '' if unset."""
+    try:
+        with db_session() as session:
+            row = _get_setting(session, 'home_state')
+            return (row.value if row else '').strip().upper()[:2]
+    except Exception:
+        return ''
+
+
+@utility_bp.route('/natural-gas-price', methods=['GET'])
+def utility_natural_gas_price():
+    import utility_price
+    return ok(utility_price.get_natural_gas_price(_get_eia_api_key(), _home_state()))
+
+
+@utility_bp.route('/electricity-price', methods=['GET'])
+def utility_electricity_price():
+    import utility_price
+    return ok(utility_price.get_electricity_price(_get_eia_api_key(), _home_state()))
+
+
+# ── Net Worth snapshots ────────────────────────────────────────────────────────
+
+networth_bp = Blueprint('networth', __name__)
+
+
+def _serialize_snapshot(s) -> dict:
+    """Serialize a NetWorthSnapshot row. Handles string snapshot_date."""
+    from datetime import datetime as _dt
+    date_str = s.snapshot_date or ''
+    try:
+        # snapshot_date stored as YYYY-MM or YYYY-MM-DD
+        if len(date_str) == 7:
+            label = _dt.strptime(date_str, '%Y-%m').strftime('%b %Y')
+        elif len(date_str) >= 10:
+            label = _dt.strptime(date_str[:7], '%Y-%m').strftime('%b %Y')
+        else:
+            label = date_str
+    except ValueError:
+        label = date_str
+    return {
+        'id':               s.id,
+        'date':             date_str,
+        'month_label':      label,
+        'total_assets':     round(s.assets      or 0, 2),
+        'total_liabilities':round(s.liabilities or 0, 2),
+        'net_worth':        round(s.net_worth   or 0, 2),
+        'breakdown':        {},
+    }
+
+
+@networth_bp.route('/snapshots', methods=['GET'])
+def list_snapshots():
+    """Return snapshot history for the trending chart."""
+    months = int(request.args.get('months', 24))
+    with db_session() as session:
+        rows = (session.query(NetWorthSnapshot)
+                .order_by(NetWorthSnapshot.snapshot_date.desc())
+                .limit(months)
+                .all())
+        rows.reverse()
+        return ok([_serialize_snapshot(r) for r in rows])
+
+
+@networth_bp.route('/snapshot', methods=['POST'])
+def create_snapshot():
+    """Manually take a net worth snapshot for the current month."""
+    body  = request.get_json(silent=True) or {}
+    force = bool(body.get('force', False))
+    month_key = date.today().strftime('%Y-%m')
+
+    with db_session() as session:
+        existing = session.query(NetWorthSnapshot).filter_by(
+            snapshot_date=month_key).first()
+        if existing and not force:
+            return ok({'taken': False,
+                       'message': 'Snapshot already exists. Pass force=true to overwrite.'})
+        assets      = float(body.get('assets',      0))
+        liabilities = float(body.get('liabilities', 0))
+        net_worth   = assets - liabilities
+        if existing:
+            existing.assets      = assets
+            existing.liabilities = liabilities
+            existing.net_worth   = net_worth
+            snap = existing
+        else:
+            snap = NetWorthSnapshot(
+                snapshot_date=month_key,
+                assets=assets,
+                liabilities=liabilities,
+                net_worth=net_worth,
+            )
+            session.add(snap)
+        session.commit()
+        return ok({'taken': True, 'snapshot': _serialize_snapshot(snap)})
+
+
+@networth_bp.route('/snapshots/<int:snapshot_id>', methods=['DELETE'])
+def delete_snapshot(snapshot_id):
+    """Delete a specific snapshot (e.g. to correct bad data)."""
+    with db_session() as session:
+        s = session.get(NetWorthSnapshot, snapshot_id)
+        if not s:
+            return err('Snapshot not found', 404)
+        session.delete(s)
+        session.commit()
+        return ok({'deleted': snapshot_id})
+
+
+@networth_bp.route('/goal', methods=['GET'])
+def get_goal():
+    """Return the saved net worth goal (amount + date)."""
+    with db_session() as session:
+        amount_row = _get_setting(session, 'nw_goal_amount')
+        date_row   = _get_setting(session, 'nw_goal_date')
+        return ok({
+            'amount': float(amount_row.value) if amount_row else None,
+            'date':   date_row.value          if date_row   else None,
+        })
+
+
+@networth_bp.route('/goal', methods=['PUT'])
+@require_json
+def save_goal():
+    """
+    Save or update the net worth goal.
+    Body: { amount: float, date: 'YYYY-MM' }
+    """
+    body   = request.json
+    amount = body.get('amount')
+    target = (body.get('date') or '').strip()
+
+    if amount is None or not target:
+        return err('amount and date required')
+    try:
+        float(amount)
+        # Validate YYYY-MM format
+        from datetime import datetime
+        datetime.strptime(target + '-01', '%Y-%m-%d')
+    except (ValueError, TypeError):
+        return err('amount must be a number and date must be YYYY-MM')
+
+    with db_session() as session:
+        for key, val in [('nw_goal_amount', str(amount)),
+                         ('nw_goal_date',   target)]:
+            row = _get_setting(session, key)
+            if row:
+                row.value = val
+            else:
+                session.add(AppSetting(key=key, value=val))
+        session.commit()
+    return ok({'amount': float(amount), 'date': target})
+
+
+@networth_bp.route('/goal', methods=['DELETE'])
+def delete_goal():
+    """Clear the saved goal."""
+    with db_session() as session:
+        for key in ('nw_goal_amount', 'nw_goal_date'):
+            row = _get_setting(session, key)
+            if row:
+                session.delete(row)
+        session.commit()
+    return ok({'cleared': True})
+
+
+@settings_bp.route('/export-to-file', methods=['POST'])
+def export_to_file():
+    """
+    Save export directly to the user's Downloads folder.
+    Returns the full path so the app can tell the user exactly where it is.
+    """
+    from pathlib import Path as P
+    import io
+
+    body       = request.get_json(silent=True) or {}
+    fmt_param  = body.get('format', 'json').lower()
+    if fmt_param not in ('json', 'csv'):
+        return err('format must be "json" or "csv"')
+
+    # Build the export content (reuse the same logic)
+    with db_session() as session:
+        # BUG FIX (July 6): these were bare list comprehensions — one bad
+        # record anywhere (a null date, a malformed debt account, whatever)
+        # threw an unhandled exception that killed the ENTIRE export for
+        # every other record too, surfacing to the user as a generic
+        # "Internal error (logged)" with no indication what actually broke
+        # or how many records were affected. Confirmed as a real risk: the
+        # 'date' field crash below was found on inspection, not from a live
+        # traceback — this per-item guard means whatever the next such gap
+        # turns out to be, it degrades to "one row skipped" instead of
+        # "nobody's export works."
+        txns        = session.query(Transaction).order_by(desc(Transaction.date)).all()
+        txn_rows, txn_skipped = [], 0
+        for t in txns:
+            try:
+                txn_rows.append(serialize_transaction(t))
+            except Exception as _e:
+                txn_skipped += 1
+                logging.warning('export: skipped transaction id=%s (%s)', getattr(t,'id',None), _e)
+
+        from core.database import BudgetItem
+        budget_rows = [{'type':i.type,'name':i.name,'amount':i.amount}
+                       for i in session.query(BudgetItem).filter_by(is_active=True).all()]
+
+        debt_rows, debt_skipped = [], 0
+        for d in session.query(DebtAccount).filter_by(is_active=True).all():
+            try:
+                debt_rows.append(serialize_debt_account(d, session))
+            except Exception as _e:
+                debt_skipped += 1
+                logging.warning('export: skipped debt account id=%s (%s)', getattr(d,'id',None), _e)
+
+        nw_rows, nw_skipped = [], 0
+        for s in session.query(NetWorthSnapshot).order_by(NetWorthSnapshot.snapshot_date).all():
+            try:
+                nw_rows.append({'date': str(s.snapshot_date), 'assets': s.total_assets,
+                                 'liabilities': s.total_liabilities, 'net_worth': s.net_worth})
+            except Exception as _e:
+                nw_skipped += 1
+                logging.warning('export: skipped net worth snapshot id=%s (%s)', getattr(s,'id',None), _e)
+
+        if txn_skipped or debt_skipped or nw_skipped:
+            logging.warning('export: completed with skipped records — transactions=%d debts=%d net_worth=%d',
+                             txn_skipped, debt_skipped, nw_skipped)
+
+        all_settings = {r.key: r.value for r in session.query(AppSetting).all()
+                        if r.key not in ('api_key', 'app_snapshot')}
+
+        ts       = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'groundwork_export_{ts}.{fmt_param}'
+        dest     = P.home() / 'Downloads' / filename
+
+        try:
+            if fmt_param == 'csv':
+                import csv
+                output = io.StringIO()
+                w = csv.writer(output)
+                w.writerow(['--- TRANSACTIONS ---'])
+                if txn_rows:
+                    w.writerow(txn_rows[0].keys())
+                    for r in txn_rows: w.writerow(r.values())
+                w.writerow([]); w.writerow(['--- DEBT ACCOUNTS ---'])
+                if debt_rows:
+                    w.writerow(debt_rows[0].keys())
+                    for r in debt_rows: w.writerow(r.values())
+                w.writerow([]); w.writerow(['--- NET WORTH HISTORY ---'])
+                if nw_rows:
+                    w.writerow(nw_rows[0].keys())
+                    for r in nw_rows: w.writerow(r.values())
+                dest.write_text(output.getvalue(), encoding='utf-8')
+            else:
+                payload = {
+                    'exported_at':   datetime.utcnow().isoformat(),
+                    'transactions':  txn_rows,
+                    'budget':        budget_rows,
+                    'debt_accounts': debt_rows,
+                    'net_worth':     nw_rows,
+                    'settings':      all_settings,
+                }
+                dest.write_text(json.dumps(payload, indent=2, default=str), encoding='utf-8')
+
+            resp = {'saved': True, 'path': str(dest), 'filename': filename}
+            total_skipped = txn_skipped + debt_skipped + nw_skipped
+            if total_skipped:
+                resp['skipped'] = total_skipped
+                resp['warning'] = (f'{total_skipped} record(s) could not be exported and were skipped — '
+                                    f'check the app log for details.')
+            return ok(resp)
+        except Exception as e:
+            return err(f'Export failed: {e}', 500)
+
+
+# ── AI proxy ──────────────────────────────────────────────────────────────────
+
+ai_bp = Blueprint('ai', __name__)
+
+
+@ai_bp.route('/chat', methods=['POST'])
+@require_json
+def ai_chat():
+    """
+    AI proxy with a pluggable provider. Routes to a LOCAL LLM (Ollama) by
+    default so Groundwork is free out of the box, and falls back to the
+    Anthropic cloud API when ai_provider == 'cloud'.
+
+    Both paths return the Anthropic response shape
+    ({content:[{type:'text', text:...}]}) so the frontend callAI() contract
+    is byte-identical regardless of provider — no app.js changes required.
+    """
+    # Respect the user's AI toggle — return a friendly message, not an error code
+    if not _ai_is_enabled():
+        return ok({
+            'ai_available': False,
+            'reason':       'disabled',
+            'message':      'AI features are turned off. You can enable them in Settings.',
+        })
+
+    body = request.json or {}
+    if _ai_provider() == 'cloud':
+        return _ai_chat_cloud(body)
+    return _ai_chat_local(body)
+
+
+def _ai_provider() -> str:
+    """Active AI provider: 'local' (default, free) or 'cloud' (Anthropic)."""
+    try:
+        with db_session() as session:
+            row = _get_setting(session, 'ai_provider')
+            val = (row.value if row else '').strip().lower()
+            return 'cloud' if val == 'cloud' else 'local'
+    except Exception:
+        return 'local'
+
+
+# ── Local LLM (Ollama) ────────────────────────────────────────────────────────
+DEFAULT_OLLAMA_ENDPOINT = 'http://localhost:11434'
+
+
+def _local_endpoint() -> str:
+    """Ollama base URL. Overridable via the local_endpoint setting."""
+    try:
+        with db_session() as session:
+            row = _get_setting(session, 'local_endpoint')
+            val = (row.value if row else '').strip()
+            return val or DEFAULT_OLLAMA_ENDPOINT
+    except Exception:
+        return DEFAULT_OLLAMA_ENDPOINT
+
+
+def _resolve_local_model(endpoint: str) -> str:
+    """
+    Which local model to narrate with. Resolution order:
+      1. local_model setting, if the user pinned one
+      2. auto-detect from Ollama's installed tags, preferring Qwen → Llama
+      3. '' when nothing is reachable (caller degrades gracefully)
+
+    The auto-detect step is what makes "Qwen got pulled from the registry"
+    a non-event: swap in any other installed model and it's picked up with
+    no code change.
+    """
+    try:
+        with db_session() as session:
+            row = _get_setting(session, 'local_model')
+            configured = (row.value if row else '').strip()
+            if configured:
+                return configured
+    except Exception:
+        pass
+
+    try:
+        import urllib.request
+        req = urllib.request.Request(f'{endpoint}/api/tags', method='GET')
+        with urllib.request.urlopen(req, timeout=5) as r:
+            tags = json.loads(r.read().decode('utf-8')).get('models', [])
+        names = [m.get('name', '') for m in tags if m.get('name')]
+        if not names:
+            return ''
+        for pref in ('qwen', 'llama', 'phi', 'mistral', 'gemma'):
+            for n in names:
+                if pref in n.lower():
+                    return n
+        return names[0]
+    except Exception:
+        return ''
+
+
+def _ai_chat_local(body: dict):
+    """Call a local Ollama model; return the Anthropic response shape."""
+    import urllib.request
+    import urllib.error
+
+    endpoint = _local_endpoint()
+    model = _resolve_local_model(endpoint)
+    if not model:
+        return ok({
+            'ai_available': False,
+            'reason':       'no_local_model',
+            'message':      ('No local model reachable. Start Ollama and pull a model '
+                             '(e.g. `ollama pull qwen2.5:7b-instruct`), or switch to the '
+                             'cloud provider in Settings.'),
+        })
+
+    # Anthropic-style payload → Ollama messages (system becomes a leading message)
+    messages = []
+    if body.get('system'):
+        messages.append({'role': 'system', 'content': body['system']})
+    messages.extend(body.get('messages', []))
+
+    # Qwen3-generation models "think" by default in Ollama: a long hidden
+    # reasoning pass that, on CPU, either exceeds the timeout or consumes the
+    # whole token budget before any answer is written — the response comes
+    # back with empty `content`, which looks identical to a broken model.
+    # voice_discipline_test.py hit and fixed this exact issue for the test
+    # harness; mirror the same fix here so production doesn't quietly ship a
+    # dead AI feature to anyone whose Ollama resolves a qwen3 model. Disable
+    # via Ollama's documented top-level `think: false` switch (the
+    # `/no_think` prompt token alone did not suppress it in testing).
+    # Belt-and-suspenders: also send /no_think, raise the token budget, and
+    # strip any residual <think> block from the response.
+    is_qwen3 = 'qwen3' in model.lower()
+    max_tokens = int(body.get('max_tokens', 1000))
+    if is_qwen3 and messages:
+        messages = [*messages[:-1], {**messages[-1], 'content': messages[-1]['content'] + ' /no_think'}]
+        max_tokens = max(max_tokens, 768)
+
+    payload = {
+        'model':      model,
+        'messages':   messages,
+        'stream':     False,
+        # Ollama's default keep_alive is 5 minutes — anything slower than
+        # that between two reports (very normal usage: read one, go do
+        # something else, come back) pays a full model-reload-from-disk
+        # penalty on top of actual generation, on every single call. Keeping
+        # it loaded for the length of a realistic session avoids that.
+        'keep_alive': '30m',
+        'options':  {
+            # Low temperature keeps a small model on the voice rails and
+            # discourages the invented certainty _GW_VOICE forbids.
+            'temperature': float(body.get('temperature', 0.3)),
+            'num_predict': max_tokens,
+        },
+    }
+    if is_qwen3:
+        payload['think'] = False  # Ollama API switch to turn off qwen3 reasoning
+
+    try:
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(f'{endpoint}/api/chat', data=data, method='POST')
+        req.add_header('Content-Type', 'application/json')
+        # First token on a cold small model can be slow — be patient.
+        with urllib.request.urlopen(req, timeout=180) as r:
+            result = json.loads(r.read().decode('utf-8'))
+        text = (result.get('message') or {}).get('content', '')
+        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+        return jsonify({
+            'content':  [{'type': 'text', 'text': text}],
+            'model':    model,
+            'provider': 'local',
+        })
+    except urllib.error.URLError as e:
+        # Ollama not running / unreachable — degrade to the frontend fallbacks
+        return ok({
+            'ai_available': False,
+            'reason':       'local_unreachable',
+            'message':      (f'Local model not reachable at {endpoint}. '
+                             'Is Ollama running? (`ollama serve`)'),
+        })
+    except Exception as e:
+        return err(f'Local AI request failed: {e}', 500)
+
+
+def _ai_chat_cloud(body: dict):
+    """Proxy to the Anthropic API (opt-in cloud provider)."""
+    import urllib.request
+    import urllib.error
+
+    api_key = _get_api_key()
+    if not api_key:
+        return ok({
+            'ai_available': False,
+            'reason':       'no_key',
+            'message':      ('Cloud AI is selected but no Anthropic key is configured. '
+                             'Add one in Settings → AI features, or switch to the local provider.'),
+        })
+
+    payload = {
+        'model': 'claude-haiku-4-5-20251001',
+        'max_tokens': body.get('max_tokens', 1000),
+        'messages': body.get('messages', []),
+    }
+    if body.get('system'):
+        payload['system'] = body['system']
+
+    try:
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            'https://api.anthropic.com/v1/messages',
+            data=data, method='POST'
+        )
+        req.add_header('Content-Type', 'application/json')
+        req.add_header('x-api-key', api_key)
+        req.add_header('anthropic-version', '2023-06-01')
+
+        with urllib.request.urlopen(req, timeout=60) as r:
+            result = json.loads(r.read().decode('utf-8'))
+            # Explicit marker (not just the absence of one) so the frontend's
+            # attribution line ("Analyzed on your machine" vs "Powered by
+            # Claude") never has to infer provider from a missing field.
+            result['provider'] = 'cloud'
+            return jsonify(result)
+
+    except urllib.error.HTTPError as e:
+        body_txt = e.read().decode('utf-8')
+        try:
+            msg = json.loads(body_txt).get('error', {}).get('message', body_txt)
+        except Exception:
+            msg = body_txt[:200]
+        return err(f'AI API error: {msg}', 502)
+    except Exception as e:
+        return err(f'AI request failed: {e}', 500)
+
+
+def _get_config_value(name: str) -> str:
+    """
+    Locate a secret/config value by name. Checks in order:
+      1. <name> environment variable
+      2. config.json in the app data directory (DATA_DIR)
+      3. config.json next to server.py
+      4. config.json in the user's home directory
+    Never reads from the database — keys stay on the filesystem only.
+    Shared by every external API key this app uses (Anthropic, EIA, ...) —
+    one lookup convention, not a copy per key.
+    """
+    val = os.environ.get(name, '').strip()
+    if val and val != 'your-api-key-here':
+        return val
+
+    for search_dir in [DATA_DIR, Path(__file__).parent, Path.home()]:
+        cfg = search_dir / 'config.json'
+        if cfg.exists():
+            try:
+                with open(cfg, 'r', encoding='utf-8') as f:
+                    v = json.load(f).get(name, '').strip()
+                if v and v != 'your-api-key-here':
+                    return v
+            except Exception:
+                pass
+    return ''
+
+
+def _get_api_key() -> str:
+    """The Anthropic API key — see _get_config_value for the lookup order."""
+    return _get_config_value('ANTHROPIC_API_KEY')
+
+
+def _get_eia_api_key() -> str:
+    """
+    The EIA (U.S. Energy Information Administration) open-data API key, for
+    Phase 5A's real national-average gas price. Free, self-service key at
+    https://www.eia.gov/opendata/register.php — same config.json/env lookup
+    convention as the Anthropic key. Trip planning degrades to an honest
+    estimate (gas_price.FALLBACK_PRICE) when this isn't configured, never
+    a crash or a silently wrong "live" number.
+    """
+    return _get_config_value('EIA_API_KEY')
+
+
+def _ai_is_enabled() -> bool:
+    """Check if AI features are enabled in app_settings."""
+    try:
+        with db_session() as session:
+            row = _get_setting(session, 'ai_enabled')
+            # Default to enabled if key not yet set
+            return row is None or row.value != 'false'
+    except Exception:
+        return True  # default on if DB not available
+
+
+@ai_bp.route('/status', methods=['GET'])
+def ai_status():
+    """
+    Diagnostic: which provider is active, whether it's reachable, and which
+    model resolves. Powers a 'Test connection' button and lets beta testers
+    confirm the local LLM is wired without touching a terminal.
+    """
+    provider = _ai_provider()
+    out = {'enabled': _ai_is_enabled(), 'provider': provider}
+
+    if provider == 'local':
+        endpoint = _local_endpoint()
+        out['endpoint'] = endpoint
+        try:
+            import urllib.request
+            req = urllib.request.Request(f'{endpoint}/api/tags', method='GET')
+            with urllib.request.urlopen(req, timeout=5) as r:
+                tags = json.loads(r.read().decode('utf-8')).get('models', [])
+            out['reachable']        = True
+            out['installed_models'] = [m.get('name') for m in tags if m.get('name')]
+            out['active_model']     = _resolve_local_model(endpoint)
+        except Exception as e:
+            out['reachable']        = False
+            out['installed_models'] = []
+            out['active_model']     = ''
+            out['error']            = str(e)
+    else:
+        out['reachable']    = bool(_get_api_key())
+        out['active_model'] = 'claude-haiku-4-5-20251001'
+
+    return ok(out)
+
+
+@ai_bp.route('/system-ram', methods=['GET'])
+def ai_system_ram():
+    """
+    Phase 2B — the first-run trust surface (Blueprint §11.1). Reports free
+    RAM so setup can honestly state what THIS machine can run, before
+    anything else happens. Every tier is a legitimate path — no tier is
+    framed as a downgrade or a failure to meet a spec.
+      16GB+ free -> 'high' (qwen2.5:7b, ~5GB, sharper analysis)
+      8-16GB free -> 'mid'  (phi3.5, ~2.2GB, the default)
+      <8GB free  -> 'low'  (cloud key or fully structured, no local model)
+    Uses available (not total) memory — total installed RAM overstates what
+    a machine can actually spare for a model alongside everything else
+    already running.
+    """
+    try:
+        import psutil
+        vm = psutil.virtual_memory()
+        free_gb  = round(vm.available / (1024 ** 3), 1)
+        total_gb = round(vm.total / (1024 ** 3), 1)
+    except Exception as e:
+        return ok({'available': False, 'error': str(e)})
+
+    tier = 'high' if free_gb >= 16 else 'mid' if free_gb >= 8 else 'low'
+    return ok({'available': True, 'free_gb': free_gb, 'total_gb': total_gb, 'tier': tier})
+
+
+# ── Phase 6A: first-run model pull ────────────────────────────────────────────
+# Completes the trust surface Phase 2B started: it's not enough to detect what
+# a machine CAN run and set a preference — first run should actually fetch the
+# model, with a real progress bar, so local AI works offline immediately after
+# setup instead of silently failing the first time a narrative surface calls
+# it. One pull at a time; state is in-process (a single desktop app instance),
+# polled by the client rather than streamed, to keep the transport simple.
+_pull_lock  = threading.Lock()
+_pull_state = {'active': False, 'model': '', 'status': '', 'percent': 0, 'done': False, 'error': ''}
+
+
+def _run_model_pull(model: str):
+    import urllib.request
+    endpoint = _local_endpoint()
+    try:
+        payload = json.dumps({'name': model, 'stream': True}).encode('utf-8')
+        req = urllib.request.Request(f'{endpoint}/api/pull', data=payload, method='POST')
+        req.add_header('Content-Type', 'application/json')
+        with urllib.request.urlopen(req, timeout=1800) as r:
+            for raw_line in r:
+                line = raw_line.strip()
+                if not line:
+                    continue
+                try:
+                    evt = json.loads(line.decode('utf-8'))
+                except (ValueError, UnicodeDecodeError):
+                    continue
+                total     = evt.get('total') or 0
+                completed = evt.get('completed') or 0
+                with _pull_lock:
+                    _pull_state['status'] = evt.get('status', _pull_state['status'])
+                    if total:
+                        _pull_state['percent'] = round(completed / total * 100, 1)
+                    if evt.get('error'):
+                        _pull_state['error'] = str(evt['error'])
+        with _pull_lock:
+            _pull_state['done']   = True
+            _pull_state['active'] = False
+            if not _pull_state['error']:
+                _pull_state['percent'] = 100
+    except Exception as e:
+        with _pull_lock:
+            _pull_state['error']  = str(e)
+            _pull_state['done']   = True
+            _pull_state['active'] = False
+
+
+@ai_bp.route('/pull-model', methods=['POST'])
+@require_json
+def ai_pull_model():
+    """Start pulling a model in the background; poll /pull-status for progress."""
+    model = (request.json.get('model') or '').strip()
+    if not model:
+        return err('model required')
+
+    with _pull_lock:
+        if _pull_state['active']:
+            return err('A model pull is already in progress', 409)
+        _pull_state.update({'active': True, 'model': model, 'status': 'starting',
+                            'percent': 0, 'done': False, 'error': ''})
+
+    threading.Thread(target=_run_model_pull, args=(model,), daemon=True).start()
+    return ok({'started': True, 'model': model})
+
+
+@ai_bp.route('/pull-status', methods=['GET'])
+def ai_pull_status():
+    with _pull_lock:
+        return ok(dict(_pull_state))
+
+
+@ai_bp.route('/voice-miss', methods=['POST'])
+def ai_voice_miss():
+    """
+    Phase 1E miss-log: the frontend's _voiceGateCheck() posts here every time
+    a model's narration is rejected (fabricated number, assigned intent,
+    self-narration, etc.), whether or not the retry-once recovers it. This is
+    what makes residual R3 leakage visible in production instead of silently
+    vanishing into the fallback — the record hardening depends on.
+
+    Best-effort only: logging must never be able to break narration, so any
+    failure here is swallowed and still returns ok().
+    """
+    body = request.get_json(silent=True) or {}
+    entry = {
+        'ts':      datetime.utcnow().isoformat() + 'Z',
+        'surface': str(body.get('surface', 'unknown'))[:80],
+        'model':   str(body.get('model', ''))[:80],
+        'rules':   body.get('rules') if isinstance(body.get('rules'), list) else [],
+        'text':    str(body.get('text', ''))[:2000],
+    }
+    try:
+        log_path = DATA_DIR / 'voice_miss_log.jsonl'
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(entry) + '\n')
+    except Exception:
+        pass
+    return ok({'logged': True})
+
+
+# ── Auto-import queue (Downloads folder watcher bridge) ───────────────────────
+# launch.py POSTs detected files here; the frontend polls /pending to retrieve them.
+
+_auto_import_queue = []   # list of {filename, content} dicts — cleared on read
+
+auto_import_bp = Blueprint('auto_import', __name__)
+
+
+@auto_import_bp.route('/queue', methods=['POST'])
+def auto_import_queue():
+    """Receive a detected file from the Downloads watcher in launch.py."""
+    body     = request.get_json(silent=True) or {}
+    filename = (body.get('filename') or '').strip()
+    content  = body.get('content', '')
+    path     = (body.get('path') or '').strip()
+    if not filename or not content:
+        return ok({'queued': False})
+    _auto_import_queue.append({'filename': filename, 'content': content, 'path': path})
+    while len(_auto_import_queue) > 5:
+        _auto_import_queue.pop(0)
+    return ok({'queued': True, 'filename': filename})
+
+
+@auto_import_bp.route('/delete-file', methods=['POST'])
+def auto_import_delete_file():
+    """
+    Delete a file that failed validation.
+    Security: only deletes files inside the user's Downloads folder.
+    """
+    body      = request.get_json(silent=True) or {}
+    file_path = (body.get('path') or '').strip()
+    if not file_path:
+        return err('No path provided', 400)
+
+    from pathlib import Path as P
+    try:
+        target    = P(file_path).resolve()
+        downloads = P.home() / 'Downloads'
+        target.relative_to(downloads)
+    except (ValueError, OSError):
+        return err('File path is not within the Downloads folder', 403)
+
+    if not target.exists():
+        return ok({'deleted': False, 'reason': 'File no longer exists'})
+
+    try:
+        target.unlink()
+        print(f'[Security] Deleted invalid import file: {target.name}')
+        return ok({'deleted': True, 'filename': target.name})
+    except OSError as e:
+        return err(f'Could not delete file: {e}', 500)
+
+
+@auto_import_bp.route('/pending', methods=['GET'])
+def auto_import_pending():
+    """Return and clear the next queued file for the frontend to process."""
+    if not _auto_import_queue:
+        return ok(None)
+    item = _auto_import_queue.pop(0)
+    return ok(item)
+
+
+# ── Backup ────────────────────────────────────────────────────────────────────
+
+backup_bp = Blueprint('backup', __name__)
+
+
+def _backups_dir() -> Path:
+    """
+    Where backups are written. Defaults to the app's data directory, but
+    the user can point this at external storage (e.g. a USB drive) via
+    Settings -> Data & Backup -> Choose folder.
+
+    If the configured folder is missing or unwritable (e.g. a USB drive
+    that's been unplugged), silently fall back to the default rather than
+    failing a backup/restore outright.
+    """
+    default = DATA_DIR / 'backups'
+    try:
+        with db_session() as session:
+            setting = session.query(AppSetting).filter_by(key='backup_dir').first()
+            custom = (setting.value or '').strip() if setting else ''
+    except Exception:
+        custom = ''
+
+    if custom:
+        p = Path(custom)
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            if os.access(p, os.W_OK):
+                return p
+        except OSError:
+            logging.getLogger('groundwork').warning(
+                'custom backup dir %s not writable — falling back to default', p)
+
+    default.mkdir(parents=True, exist_ok=True)
+    return default
+
+
+@backup_bp.route('/location', methods=['GET'])
+def get_backup_location():
+    """Return the effective backup directory and whether it's custom."""
+    with db_session() as session:
+        setting = session.query(AppSetting).filter_by(key='backup_dir').first()
+        custom = (setting.value or '').strip() if setting else ''
+    effective = _backups_dir()
+    return ok({
+        'path':       str(effective),
+        'is_custom':  bool(custom),
+        'is_default': str(effective) == str(DATA_DIR / 'backups'),
+    })
+
+
+@backup_bp.route('/location', methods=['POST'])
+@require_json
+def set_backup_location():
+    """
+    Set (or clear) a custom backup folder.
+    Body: { path: str }  — empty string reverts to the default location.
+    """
+    path = (request.json.get('path') or '').strip()
+
+    with db_session() as session:
+        setting = _get_setting(session, 'backup_dir')
+
+        if not path:
+            if setting:
+                session.delete(setting)
+                session.commit()
+            return ok({'path': str(DATA_DIR / 'backups'), 'is_custom': False, 'is_default': True})
+
+        p = Path(path)
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            return err(f'Could not use that folder: {e}', 400)
+        if not os.access(p, os.W_OK):
+            return err('That folder is not writable', 400)
+
+        if setting:
+            setting.value = str(p)
+        else:
+            session.add(AppSetting(key='backup_dir', value=str(p)))
+        session.commit()
+        return ok({'path': str(p), 'is_custom': True, 'is_default': False})
+
+
+@backup_bp.route('', methods=['POST'])
+@backup_bp.route('/create', methods=['POST'])
+def create_backup():
+    """Create a timestamped backup of the database."""
+    import shutil
+    from core.database import DB_PATH
+
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_name = f'groundwork_backup_{ts}.db'
+    backup_path = _backups_dir() / backup_name
+
+    try:
+        shutil.copy2(DB_PATH, backup_path)
+        return ok({'filename': backup_name, 'size': backup_path.stat().st_size})
+    except Exception as e:
+        return err(f'Backup failed: {e}', 500)
+
+
+@backup_bp.route('/restore', methods=['POST'])
+def restore_backup():
+    """
+    Restore the database from a named backup file.
+    Safety checks:
+      - File must exist in the backups directory (no path traversal)
+      - File must be a valid SQLite database (magic bytes check)
+    Process:
+      - Close all active SQLAlchemy sessions and dispose engine connections
+      - Copy backup file over the live database
+      - Reinitialize the database layer
+    """
+    import shutil
+    from core.database import DB_PATH, db_session, engine, init_db
+
+    body     = request.get_json(silent=True) or {}
+    filename = (body.get('filename') or '').strip()
+
+    if not filename:
+        return err('No filename provided', 400)
+
+    # Security — must be inside backups directory, no traversal
+    backup_path = (_backups_dir() / filename).resolve()
+    allowed_dir = _backups_dir().resolve()
+    if not str(backup_path).startswith(str(allowed_dir)):
+        return err('Invalid backup path', 403)
+
+    if not backup_path.exists():
+        return err('Backup file not found', 404)
+
+    # Validate it's a real SQLite file (not something malicious)
+    try:
+        with open(backup_path, 'rb') as f:
+            magic = f.read(16)
+        if not magic.startswith(b'SQLite format 3'):
+            return err('File does not appear to be a valid Groundwork backup', 400)
+    except OSError as e:
+        return err(f'Could not read backup file: {e}', 500)
+
+    try:
+        # Close all active sessions and release file locks
+        db_session.remove()
+        engine.dispose()
+
+        # Copy backup over the live database
+        shutil.copy2(str(backup_path), str(DB_PATH))
+
+        # Reinitialize — reconnects SQLAlchemy to the restored database, and
+        # runs migrations in case the restored backup predates a schema
+        # change (e.g. an older backup missing the CP3 Transaction columns).
+        run_migration_if_needed()
+
+        return ok({'restored': True, 'filename': filename})
+    except Exception as e:
+        return err(f'Restore failed: {e}', 500)
+
+
+@backup_bp.route('/restore-upload', methods=['POST'])
+def restore_backup_upload():
+    """
+    Restore the database from an uploaded backup file.
+
+    Unlike /restore (which only accepts a filename already in this
+    machine's backups folder), this accepts a file the user picked from
+    anywhere on disk — the common case being a backup copied over from a
+    previous computer. Same SQLite validation and restore process as
+    /restore; the uploaded file is also saved into the backups directory
+    so it shows up in future "Manage backups" lists.
+    """
+    import shutil
+    from core.database import DB_PATH, db_session, engine, init_db
+
+    if 'file' not in request.files:
+        return err('No file uploaded', 400)
+
+    upload = request.files['file']
+    if not upload.filename:
+        return err('No file selected', 400)
+
+    # Validate SQLite magic bytes before touching anything
+    try:
+        header = upload.stream.read(16)
+        upload.stream.seek(0)
+    except OSError as e:
+        return err(f'Could not read uploaded file: {e}', 500)
+
+    if not header.startswith(b'SQLite format 3'):
+        return err('That file does not look like a Groundwork backup', 400)
+
+    ts          = datetime.now().strftime('%Y%m%d_%H%M%S')
+    safe_name   = f'restored_{ts}.db'
+    backup_path = _backups_dir() / safe_name
+
+    try:
+        upload.save(str(backup_path))
+
+        # Close all active sessions and release file locks
+        db_session.remove()
+        engine.dispose()
+
+        # Copy uploaded backup over the live database
+        shutil.copy2(str(backup_path), str(DB_PATH))
+
+        # Reinitialize — reconnects SQLAlchemy to the restored database, and
+        # runs migrations in case the restored backup predates a schema
+        # change (e.g. an older backup missing the CP3 Transaction columns).
+        run_migration_if_needed()
+
+        return ok({'restored': True, 'filename': safe_name})
+    except Exception as e:
+        return err(f'Restore failed: {e}', 500)
+
+
+@backup_bp.route('', methods=['GET'])
+@backup_bp.route('/list', methods=['GET'])
+def list_backups():
+    backup_dir = _backups_dir()
+    files = []
+    for f in sorted(backup_dir.glob('*.db'), reverse=True):
+        files.append({
+            'filename': f.name,
+            'size':     f.stat().st_size,
+            'modified': datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
+        })
+    return ok(files)
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+
+# ── Sinking Funds ─────────────────────────────────────────────────────────────
+sinking_funds_bp = Blueprint('sinking_funds', __name__)
+
+def _serialize_sinking_fund(f) -> dict:
+    from datetime import date
+    today  = date.today()
+    target = float(f.target_amount or 0)
+    saved  = float(f.current_amount or 0)
+    contrib = float(f.monthly_contribution or 0)
+
+    # Auto-calculate monthly needed from deadline if no override
+    monthly_needed = contrib
+    if not contrib and f.deadline:
+        try:
+            d = date.fromisoformat(f.deadline)
+            months = max(1, (d.year - today.year) * 12 + (d.month - today.month))
+            monthly_needed = max(0, round((target - saved) / months, 2))
+        except Exception:
+            pass
+
+    return {
+        'id':                   f.id,
+        'name':                 f.name,
+        'target_amount':        target,
+        'current_amount':       saved,
+        'deadline':             f.deadline or '',
+        'monthly_contribution': contrib,
+        'monthly_needed':       monthly_needed,
+        'note':                 f.note or '',
+        'is_active':            f.is_active,
+        'last_contributed_month': f.last_contributed_month or '',
+        'pct_funded':           round((saved / target * 100) if target > 0 else 0, 1),
+        # Legacy aliases for old JS code paths
+        'balance':              saved,
+        'target':               target,
+        'monthlyContrib':       monthly_needed,
+    }
+
+
+@sinking_funds_bp.route('', methods=['GET'])
+def list_sinking_funds():
+    with db_session() as session:
+        from core.database import SinkingFund
+        funds = session.query(SinkingFund).filter_by(is_active=True).order_by(SinkingFund.id).all()
+        return ok([_serialize_sinking_fund(f) for f in funds])
+
+
+@sinking_funds_bp.route('', methods=['POST'])
+@require_json
+def create_sinking_fund():
+    body = request.json
+    with db_session() as session:
+        from core.database import SinkingFund
+        f = SinkingFund(
+            name=body.get('name','').strip(),
+            target_amount=float(body.get('target_amount',0) or 0),
+            current_amount=float(body.get('current_amount',0) or 0),
+            deadline=body.get('deadline','') or None,
+            monthly_contribution=float(body.get('monthly_contribution',0) or 0),
+            note=body.get('note',''),
+        )
+        if not f.name:
+            return err('Name is required')
+        session.add(f)
+        session.flush()
+        session.commit()
+        return ok(_serialize_sinking_fund(f))
+
+
+@sinking_funds_bp.route('/<int:fund_id>', methods=['PATCH'])
+@require_json
+def update_sinking_fund(fund_id):
+    body = request.json
+    with db_session() as session:
+        from core.database import SinkingFund
+        f = session.get(SinkingFund, fund_id)
+        if not f:
+            return err('Fund not found', 404)
+        if 'name' in body:               f.name = body['name'].strip()
+        if 'target_amount' in body:      f.target_amount = float(body['target_amount'] or 0)
+        if 'current_amount' in body:     f.current_amount = float(body['current_amount'] or 0)
+        if 'deadline' in body:           f.deadline = body['deadline'] or None
+        if 'monthly_contribution' in body: f.monthly_contribution = float(body['monthly_contribution'] or 0)
+        if 'note' in body:               f.note = body['note']
+        if 'is_active' in body:          f.is_active = bool(body['is_active'])
+        if 'last_contributed_month' in body: f.last_contributed_month = body['last_contributed_month']
+        session.commit()
+        return ok(_serialize_sinking_fund(f))
+
+
+@sinking_funds_bp.route('/<int:fund_id>', methods=['DELETE'])
+def delete_sinking_fund(fund_id):
+    with db_session() as session:
+        from core.database import SinkingFund
+        f = session.get(SinkingFund, fund_id)
+        if not f:
+            return err('Fund not found', 404)
+        session.delete(f)
+        session.commit()
+        return ok({'deleted': fund_id})
+
+
+@sinking_funds_bp.route('/<int:fund_id>/deposit', methods=['POST'])
+@require_json
+def deposit_sinking_fund(fund_id):
+    """Add an amount to a sinking fund's current balance."""
+    body = request.json
+    amount = float(body.get('amount', 0) or 0)
+    if amount <= 0:
+        return err('Amount must be positive')
+    with db_session() as session:
+        from core.database import SinkingFund
+        f = session.get(SinkingFund, fund_id)
+        if not f:
+            return err('Fund not found', 404)
+        target = float(f.target_amount or 0)
+        f.current_amount = min(target, float(f.current_amount or 0) + amount) if target > 0                            else float(f.current_amount or 0) + amount
+        session.commit()
+        return ok(_serialize_sinking_fund(f))
+
+
+@sinking_funds_bp.route('/<int:fund_id>/spend', methods=['POST'])
+def spend_sinking_fund(fund_id):
+    """Mark a fund as spent — reset balance to 0 for next cycle."""
+    with db_session() as session:
+        from core.database import SinkingFund
+        f = session.get(SinkingFund, fund_id)
+        if not f:
+            return err('Fund not found', 404)
+        f.current_amount       = 0
+        f.last_contributed_month = ''
+        session.commit()
+        return ok(_serialize_sinking_fund(f))
+
+
+@sinking_funds_bp.route('/auto-credit', methods=['POST'])
+def auto_credit_sinking_funds():
+    """
+    Auto-credit monthly contributions for the current month.
+    Called on app boot or from the budget page.
+    Idempotent — only credits once per month per fund.
+    """
+    from datetime import date
+    this_month = date.today().strftime('%Y-%m')
+    credited   = 0
+    with db_session() as session:
+        from core.database import SinkingFund
+        funds = session.query(SinkingFund).filter_by(is_active=True).all()
+        for f in funds:
+            if f.last_contributed_month == this_month:
+                continue  # already credited this month
+            contrib = float(f.monthly_contribution or 0)
+            if contrib <= 0:
+                # Auto-calculate from deadline
+                if f.deadline:
+                    try:
+                        d    = date.fromisoformat(f.deadline)
+                        today = date.today()
+                        months = max(1, (d.year-today.year)*12+(d.month-today.month))
+                        contrib = max(0, (float(f.target_amount or 0) - float(f.current_amount or 0)) / months)
+                    except Exception:
+                        pass
+            if contrib > 0:
+                target = float(f.target_amount or 0)
+                f.current_amount = min(target, float(f.current_amount or 0) + contrib) if target > 0                                    else float(f.current_amount or 0) + contrib
+                f.last_contributed_month = this_month
+                credited += 1
+        session.commit()
+    return ok({'credited': credited, 'month': this_month})
+
+# ── Quicken import endpoint ───────────────────────────────────────────────────
+from flask import Blueprint
+import_bp = Blueprint('import', __name__)
+
+@import_bp.route('/quicken', methods=['POST'])
+def import_quicken_file():
+    """
+    Deprecated. The legacy /api/import/quicken endpoint depended on the
+    no-longer-shipped quicken_import.py module. The modern flow uses
+    /api/import/preview followed by /api/import/commit, which routes
+    every file type (CSV / QFX / OFX / QIF / TXT) through
+    bank_importer.detect_and_parse(). Returning a clear 410 so any old
+    callers know to migrate rather than silently breaking.
+    """
+    return err(
+        'This endpoint is deprecated. Use /api/import/preview followed '
+        'by /api/import/commit instead.',
+        410
+    )
+
+
+# ── Bank CSV import endpoint  (Phase 3B) ─────────────────────────────────────
+bank_import_bp = Blueprint('bank_import', __name__)
+
+@bank_import_bp.route('/preview', methods=['POST'])
+def bank_import_preview():
+    """
+    Accept a CSV/OFX/QIF file, detect the bank, and return a preview
+    without writing anything to the database.
+
+    Returns: { bank, records_count, category_summary, sample_records, warnings }
+    """
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    if 'file' not in request.files:
+        return err('No file uploaded')
+
+    f        = request.files['file']
+    text     = f.read().decode('utf-8', errors='replace')
+    filename = f.filename or 'import.csv'
+
+    try:
+        # bank_importer.detect_and_parse now handles CSV/QFX/OFX/QIF/TXT
+        # internally — dispatch by content shape, not extension, so a .txt
+        # holding CSV or a .csv that's actually OFX still parses correctly.
+        from bank_importer import detect_and_parse, get_category_summary
+        records, bank, warnings = detect_and_parse(text, filename)
+
+        return ok({
+            'bank':             bank,
+            'records_count':    len(records),
+            'category_summary': get_category_summary(records),
+            'records':          records,        # full list — client stores for commit step
+            'sample_records':   records[:5],    # first 5 for preview table display only
+            'warnings':         warnings[:10],
+        })
+
+    except Exception as e:
+        logging.exception('Bank import preview failed')
+        return err(f'Preview failed: {e}', 500)
+
+
+def _record_rb(r):
+    """Parse a preview record's running_balance; None when absent/zero/garbage."""
+    v = r.get('running_balance')
+    try:
+        f = float(v)
+        return f if f != 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_record_order(records):
+    """
+    Insert imported rows in true chronological order regardless of how the
+    bank orders its file. (d21 field-caught: Superior CU exports newest-first;
+    same-day rows carry no intraday timestamp, so the Ledger's same-day order
+    is insertion order — file order — which reversed each day's chronology:
+    the deposit displayed where the day's newest transaction belonged.)
+
+    Stage 1 — file direction: if the date sequence runs newest→oldest,
+    reverse the whole file.
+    Stage 2 — within each same-date group, order by the bank's own
+    running-balance arithmetic when every row in the group carries one:
+    undoing a row (running_balance + amount for a debit, − amount for a
+    credit) yields its balance-before; the oldest remaining row is the one
+    whose balance-before is not any remaining row's running balance. A break
+    in the chain keeps stage-1 order for the rest of that group — best
+    effort, never worse than the old behavior.
+    """
+    if len(records) < 2:
+        return records
+    dated = [r for r in records if r.get('date')]
+    if len(dated) >= 2 and dated[0]['date'] > dated[-1]['date']:
+        records = list(reversed(records))
+
+    out, i = [], 0
+    while i < len(records):
+        j = i
+        while j < len(records) and records[j].get('date') == records[i].get('date'):
+            j += 1
+        group = records[i:j]
+        if len(group) > 1 and all(_record_rb(r) is not None for r in group):
+            def prior(r):
+                amt = abs(float(r.get('amount', 0) or 0))
+                rb  = _record_rb(r)
+                return round(rb + amt, 2) if (r.get('type', 'debit') == 'debit') else round(rb - amt, 2)
+            ordered, remaining = [], list(group)
+            while remaining:
+                rbs = [round(_record_rb(r), 2) for r in remaining]
+                oldest = [r for k, r in enumerate(remaining)
+                          if not any(abs(prior(r) - b) <= 0.005
+                                     for m, b in enumerate(rbs) if m != k)]
+                if len(oldest) != 1:
+                    ordered.extend(remaining)   # chain broken — keep stage-1 order
+                    break
+                ordered.append(oldest[0])
+                remaining.remove(oldest[0])
+            group = ordered
+        out.extend(group)
+        i = j
+    return out
+
+
+@bank_import_bp.route('/commit', methods=['POST'])
+@require_json
+def bank_import_commit():
+    """
+    Commit a previously-previewed import.
+    Body: { records: [...], account_id: int, account_name: str }
+    Each record may have user-overridden category from the preview UI.
+    """
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    body       = request.json
+    records    = body.get('records', [])
+    account_id = body.get('account_id')
+    acct_name  = body.get('account_name', 'Imported').strip()
+
+    # d21: insert in true chronological order so same-day Ledger order and
+    # id-based tiebreaks reflect what actually happened at the bank.
+    records = _normalize_record_order(records)
+
+    created = duplicates = errors = 0
+    # BUG FIX (July 6): tracks (amount, type) for every transaction actually
+    # created in THIS import batch — needed below because the debt-balance
+    # auto-update only ever trusted the bank's own reported running_balance
+    # column, which many real exports (confirmed: Capital One) simply don't
+    # include. When that's the case, the update silently did nothing at
+    # all — not a wrong direction, a complete no-op. Confirmed in the
+    # field: a real Capital One charge posted correctly to the Ledger, but
+    # the linked debt card's balance never moved either way.
+    new_txn_deltas = []
+
+    with db_session() as session:
+        # Resolve account
+        if account_id:
+            account_id = int(account_id)
+        else:
+            from core.database import Account
+            acct = session.query(Account).filter_by(name=acct_name).first()
+            if not acct:
+                acct = Account(name=acct_name, type='checking')
+                session.add(acct)
+                session.flush()
+            account_id = acct.id
+
+        for rec in records:
+            try:
+                txn_date    = date.fromisoformat(rec['date'])
+                amount      = abs(float(rec.get('amount', 0)))
+                description = (rec.get('description') or '').strip()
+                txn_type    = rec.get('type', 'debit')
+                cat_name    = rec.get('category', 'Other')
+                fitid       = (rec.get('fitid') or '').strip()
+
+                if not description or amount <= 0:
+                    continue
+
+                # ── Dedup ──────────────────────────────────────────────────
+                # QFX/OFX files contain a FITID (Financial Institution
+                # Transaction ID) — a globally unique ID the bank assigns to
+                # each transaction. Use it as the primary dedup key when
+                # available: it's exact, handles same-day same-amount
+                # transactions correctly (two Clark Gas fill-ups on the same
+                # day for the same amount are different transactions and both
+                # should import), and survives date/description changes.
+                #
+                # CSV rows have no FITID; fall back to the date+amount+desc
+                # heuristic, which is imperfect but better than no dedup.
+                if fitid:
+                    existing = session.query(Transaction).filter(
+                        Transaction.account_id == account_id,
+                        Transaction.import_id  == fitid,
+                    ).first()
+                else:
+                    # CSV rows have no FITID — use date + type + amount + description.
+                    # Case-insensitive description comparison catches normalization
+                    # differences ("INTEREST CHARGE" vs "Interest Charge").
+                    # Type is included so a same-day same-amount refund/purchase pair
+                    # doesn't get incorrectly deduplicated against each other.
+                    existing = session.query(Transaction).filter(
+                        Transaction.account_id == account_id,
+                        Transaction.date       == txn_date,
+                        Transaction.type       == txn_type,
+                        Transaction.amount.between(amount - 0.005, amount + 0.005),
+                        func.lower(Transaction.description) == description.lower(),
+                    ).first()
+
+                if existing:
+                    duplicates += 1
+                    continue
+
+                # Category — resolve against the existing taxonomy, NEVER
+                # create. The DB carries the tuned hierarchy (parents, colors,
+                # icons); a row created here is a parentless ghost the budget
+                # doesn't track. Unknown names land in Other instead.
+                cat = session.query(Category).filter(
+                    func.lower(Category.name) == cat_name.lower()
+                ).first()
+                if not cat:
+                    cat = session.query(Category).filter(
+                        func.lower(Category.name) == 'other'
+                    ).first()
+
+                # CP3 fields — parsed upstream in bank_importer.py, simply
+                # weren't being persisted here before. posted_date defaults
+                # to the transaction date when the parser didn't find a
+                # separate true date (decision #2 — always store both).
+                posted_date_raw = rec.get('posted_date')
+                posted_date = date.fromisoformat(posted_date_raw) if posted_date_raw else txn_date
+
+                session.add(Transaction(
+                    account_id=account_id,
+                    category_id=cat.id,
+                    date=txn_date,
+                    description=description,
+                    amount=amount,
+                    type=txn_type,
+                    cleared=bool(rec.get('cleared', True)),
+                    memo=rec.get('memo', ''),
+                    merchant=rec.get('merchant', '') or description,
+                    posted_date=posted_date,
+                    running_balance=rec.get('running_balance'),
+                    mcc=rec.get('mcc', ''),
+                    card_last4=rec.get('card_last4', ''),
+                    import_id=fitid,   # FITID from QFX — enables exact dedup on reimport
+                    source=rec.get('source', 'csv'),
+                    check_number=rec.get('check_number', ''),
+                ))
+                new_txn_deltas.append((amount, txn_type))
+                created += 1
+
+            except Exception as e:
+                errors += 1
+                logging.warning('Row error: %s', e)
+
+        session.commit()
+
+    # B3.5: Auto-update linked debt card current_balance from the most recent
+    # imported transaction's running_balance. This keeps the debt page current
+    # after every import without the user having to manually type the new balance.
+    #
+    # BUG FIX (July 6): this only ever worked when the bank's own export
+    # included a running_balance column — Superior Credit Union's checking
+    # export has one, but plenty of real, common exports don't (confirmed:
+    # Capital One's CSV has only Debit/Credit columns, no balance). For
+    # those, `latest` below was always None, so the whole block quietly did
+    # nothing — a real charge would post correctly to the Ledger while the
+    # linked debt card's balance never moved at all. Fixed with a fallback:
+    # when no bank-reported balance is available, compute the delta
+    # ourselves from the transactions actually created in this import batch
+    # — a debit (charge) increases what's owed, a credit (payment) decreases
+    # it — and apply that delta to the debt's existing balance instead of
+    # leaving it frozen.
+    balance_updates = []
+    try:
+        from core.database import DebtAccount, Transaction as TxnQ
+        with db_session() as session:
+            linked_debts = session.query(DebtAccount).filter_by(
+                linked_account_id=account_id, is_active=True
+            ).all()
+            for debt in linked_debts:
+                latest = session.query(TxnQ).filter(
+                    TxnQ.account_id == account_id,
+                    TxnQ.running_balance != None,
+                    TxnQ.running_balance != 0,
+                ).order_by(TxnQ.date.desc(), TxnQ.id.desc()).first()
+
+                old_bal = debt.current_balance
+                new_bal = None
+
+                if latest and latest.running_balance:
+                    # Bank reports its own running balance — trust it directly,
+                    # same as before.
+                    new_bal = round(latest.running_balance, 2)
+                elif new_txn_deltas:
+                    # No bank-reported balance available at all — compute the
+                    # change ourselves from what actually got imported this
+                    # batch. Debit (charge) increases the balance owed;
+                    # credit (payment) decreases it.
+                    delta = 0.0
+                    for amt, typ in new_txn_deltas:
+                        delta += amt if typ == 'debit' else -amt
+                    if abs(delta) > 0.01:
+                        new_bal = round((old_bal or 0) + delta, 2)
+
+                if new_bal is not None and abs(old_bal - new_bal) > 0.01:
+                    debt.current_balance = new_bal
+                    balance_updates.append({
+                        'debt_id':   debt.id,
+                        'debt_name': debt.name,
+                        'old_bal':   old_bal,
+                        'new_bal':   new_bal,
+                    })
+            if balance_updates:
+                session.commit()
+    except Exception as e:
+        logging.warning('Balance auto-update failed: %s', e)
+
+    # B6b: Auto-write debt_balance_history on every import.
+    # When an imported account is linked to a debt card, write (or update) a
+    # monthly historian snapshot using real transaction data from this import.
+    # This fires automatically — no user action required. It replaces the
+    # manual-only path that only wrote when the user opened the Budget page.
+    #
+    # Fields derived from imported transactions:
+    #   balance              = running_balance on the latest transaction
+    #   payment              = sum of credit transactions (payments TO the card)
+    #   interest_charged     = sum of Interest-category debit transactions
+    #   statement_period_end = date of the last transaction in the import
+    #   month                = YYYY-MM from statement_period_end
+    #   min_payment          = stored minimum_payment on the debt card
+    #   apr                  = stored interest_rate on the debt card
+    #
+    # UNIQUE(debt_id, month) → re-importing the same statement just updates.
+    history_written = []
+    try:
+        from core.database import DebtAccount, Transaction as TxnQ, DebtBalanceHistory
+        with db_session() as session:
+            linked_debts = session.query(DebtAccount).filter_by(
+                linked_account_id=account_id, is_active=True
+            ).all()
+
+            for debt in linked_debts:
+                # Get all transactions for this account, newest first
+                all_txns = session.query(TxnQ).filter_by(
+                    account_id=account_id
+                ).order_by(TxnQ.date.desc(), TxnQ.id.desc()).all()
+
+                if not all_txns:
+                    continue
+
+                # statement_period_end = date of the latest transaction
+                latest_txn = all_txns[0]
+                period_end = latest_txn.date.isoformat() if hasattr(latest_txn.date, 'isoformat') else str(latest_txn.date)
+                month      = period_end[:7]   # YYYY-MM
+
+                # balance = running_balance from latest txn, or net-change fallback
+                if latest_txn.running_balance and latest_txn.running_balance != 0:
+                    balance = round(latest_txn.running_balance, 2)
+                else:
+                    balance = round(sum(
+                        t.amount if t.type == 'debit' else -t.amount
+                        for t in all_txns
+                    ), 2)
+
+                # Scope to this month's transactions for payment and interest
+                month_txns = [
+                    t for t in all_txns
+                    if str(t.date)[:7] == month
+                ]
+
+                # payment = sum of credit transactions (payments received by the card)
+                payment = round(sum(
+                    t.amount for t in month_txns if t.type == 'credit'
+                ), 2)
+
+                # interest_charged = sum of Interest-category debits this month
+                # Join via category to check name (category_id FK)
+                from core.database import Category as CatModel
+                interest_cat = session.query(CatModel).filter(
+                    CatModel.name.ilike('interest')
+                ).first()
+                if interest_cat:
+                    interest_charged = round(sum(
+                        t.amount for t in month_txns
+                        if t.type == 'debit' and t.category_id == interest_cat.id
+                    ), 2)
+                else:
+                    # Fallback: match by description pattern
+                    INTEREST_KEYWORDS = ['interest charge', 'finance charge', 'interest charged']
+                    interest_charged = round(sum(
+                        t.amount for t in month_txns
+                        if t.type == 'debit' and
+                        any(kw in (t.description or '').lower() for kw in INTEREST_KEYWORDS)
+                    ), 2)
+
+                min_payment = round(float(debt.minimum_payment or 0), 2)
+                apr         = float(debt.interest_rate or 0)
+
+                # Upsert: update existing row for this month or insert new
+                existing = session.query(DebtBalanceHistory).filter_by(
+                    debt_id=debt.id, month=month
+                ).first()
+
+                if existing:
+                    existing.balance              = balance
+                    existing.payment              = payment
+                    existing.min_payment          = min_payment
+                    existing.apr                  = apr
+                    existing.interest_charged     = interest_charged if interest_charged > 0 else existing.interest_charged
+                    existing.statement_period_end = period_end
+                else:
+                    session.add(DebtBalanceHistory(
+                        debt_id              = debt.id,
+                        month                = month,
+                        balance              = balance,
+                        payment              = payment,
+                        min_payment          = min_payment,
+                        apr                  = apr,
+                        interest_charged     = interest_charged if interest_charged > 0 else None,
+                        statement_period_end = period_end,
+                    ))
+
+                history_written.append({
+                    'debt_id':   debt.id,
+                    'debt_name': debt.name,
+                    'month':     month,
+                    'balance':   balance,
+                    'interest':  interest_charged,
+                })
+
+            if history_written:
+                session.commit()
+
+    except Exception as e:
+        logging.warning('B6b historian auto-write failed: %s', e)
+
+    # B4: APR change detection — scan newly imported transactions for interest
+    # charges on linked debt card accounts. If implied APR differs from stored
+    # rate by > 1 percentage point, flag it for user confirmation.
+    # Never auto-updates APR. Always surfaces and requires user confirmation.
+    apr_alerts = []
+    try:
+        from core.database import DebtAccount
+        with db_session() as session:
+            # Find debt cards linked to this account
+            linked_debts = session.query(DebtAccount).filter_by(
+                linked_account_id=account_id, is_active=True
+            ).all()
+
+            INTEREST_PATTERNS = [
+                'interest charge', 'interest charged', 'finance charge',
+                'periodic rate', 'purchase interest', 'cash advance interest',
+                'balance transfer interest', 'int chg', 'finance chg',
+            ]
+
+            for debt in linked_debts:
+                # Find interest charge transactions in the just-imported records
+                interest_txns = [
+                    r for r in records
+                    if any(p in (r.get('description','') or '').lower()
+                           for p in INTEREST_PATTERNS)
+                    and r.get('type','debit') == 'debit'
+                ]
+                if not interest_txns:
+                    continue
+
+                # Use the largest interest charge (most recent full month)
+                interest_charge = max(float(r.get('amount', 0)) for r in interest_txns)
+                if interest_charge <= 0:
+                    continue
+
+                # Find prev_balance: use running_balance from the transaction
+                # before the interest charge when available, else current_balance
+                prev_balance = None
+                for r in interest_txns:
+                    if r.get('running_balance'):
+                        prev_balance = float(r['running_balance']) + interest_charge
+                        break
+                if not prev_balance:
+                    prev_balance = float(debt.current_balance) if debt.current_balance else None
+                if not prev_balance or prev_balance <= 0:
+                    continue
+
+                implied_apr = round((interest_charge / prev_balance) * 12 * 100, 2)
+                stored_apr  = float(debt.interest_rate or 0)
+
+                if abs(implied_apr - stored_apr) > 1.0:
+                    # Determine statement month from the interest charge date
+                    charge_month = interest_txns[0].get('date', '')[:7]
+                    apr_alerts.append({
+                        'debt_id':        debt.id,
+                        'debt_name':      debt.name,
+                        'stored_apr':     stored_apr,
+                        'implied_apr':    implied_apr,
+                        'interest_charge': interest_charge,
+                        'basis_balance':  round(prev_balance, 2),
+                        'month':          charge_month,
+                    })
+    except Exception as e:
+        logging.warning('APR detection failed: %s', e)
+
+    result = {
+        'created':    created,
+        'duplicates': duplicates,
+        'errors':     errors,
+    }
+    if apr_alerts:
+        result['apr_alerts'] = apr_alerts
+    if balance_updates:
+        result['balance_updates'] = balance_updates
+    if history_written:
+        result['history_written'] = history_written
+
+    return ok(result)
+
+
+if __name__ == '__main__':
+    app = create_app()
+    logging.basicConfig(level=logging.INFO)
+    app.run(host='127.0.0.1', port=8765, debug=False, threaded=True)

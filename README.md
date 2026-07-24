@@ -1,0 +1,58 @@
+# Groundwork
+
+A free personal finance app for Windows, macOS, and Linux.
+Built for people who want to get out of debt and start building wealth.
+
+## Quick Start
+
+**1. Install dependencies**
+```
+pip install -r requirements.txt
+```
+Linux users — read INSTALL.md first for system packages.
+
+**2. Run**
+```
+python launch.py
+```
+
+That's it. Your data is stored locally on your machine — nothing goes to the cloud.
+
+## Where your data lives
+
+| Platform | Location |
+|----------|----------|
+| Windows  | `%LOCALAPPDATA%\Groundwork\groundwork.db` |
+| macOS    | `~/Library/Application Support/Groundwork/groundwork.db` |
+| Linux    | `~/.local/share/Groundwork/groundwork.db` |
+
+## Project structure
+
+```
+Groundwork/
+├── launch.py           ← Run this to start the app
+├── server.py           ← Flask REST API (runs on localhost:8765)
+├── requirements.txt    ← Python dependencies
+├── INSTALL.md          ← Platform-specific setup guide
+├── core/
+│   ├── database.py     ← SQLAlchemy models + data directory
+│   ├── migrate.py      ← Safe schema migrations (run on every boot)
+│   └── bank_importer.py ← CSV/OFX/QIF parser
+└── static/
+    ├── index.html      ← App UI
+    └── js/
+        └── app.js      ← All frontend logic
+```
+
+## Reporting a problem
+
+Open Groundwork, click **⚑ Report** in the top bar, describe what happened,
+and tap **Open in mail app**. The report goes to a-personal-address@example.invalid with your
+error log and system info pre-filled.
+
+## Notes
+
+- The app runs entirely on your machine. No account needed, no subscription.
+- Your Anthropic API key (for AI reports) is stored in Settings → AI.
+- Backups: Settings → Data & Backup → Back up now.
+- The server runs on port 8765 and only accepts connections from this machine.

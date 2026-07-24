@@ -1,0 +1,28 @@
+[
+  {
+    "version": "20260706-d18",
+    "date": "2026-07-06",
+    "headline": "Beta re-invitation build",
+    "fixed": [
+      "Record-transaction Account dropdown now populates and buys/sells save correctly (was silently failing on every submit)",
+      "Net Worth trend chart appears again — it had been invisible after a redesign dropped its container",
+      "Refresh Prices now says honestly that this beta doesn't include price lookups instead of blaming your internet",
+      "Sub-category creation from Settings works on desktop (was a silent no-op)",
+      "Recurring bills now appear in the dashboard's Upcoming card",
+      "Categorization no longer creates ghost buckets — unknown names land in Other where the budget can find them"
+    ],
+    "added": [
+      "Downloads folder auto-import — bank exports downloaded from your browser land in Groundwork automatically",
+      "In-app update banner when a new version is available",
+      "Recurring-bill offer when you categorize a monthly merchant, alongside the import-rule offer",
+      "Full-text search inside the built-in help",
+      "Debt cards can link to an imported account for a bank-basis cross-check on balances"
+    ],
+    "improved": [
+      "Every silent error path in the app now writes to a log the ⚑ Report button attaches",
+      "Ledger stays snappy on large histories (row cap with 'show all', debounced search)",
+      "Database gained performance indexes; imports and re-imports are noticeably faster",
+      "The deploy pipeline gates every release through 23 automated checks — no more version-string drift or silent regressions"
+    ]
+  }
+]

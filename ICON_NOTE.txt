@@ -1,0 +1,19 @@
+Groundwork Icon
+===============
+
+The installer scripts reference groundwork.ico in C:\Groundwork\
+
+If you have an icon file, place it at C:\Groundwork\groundwork.ico
+
+If you don't have one yet:
+  1. Open groundwork.spec and comment out the icon= line
+  2. Open groundwork.iss and comment out the SetupIconFile= line
+  Both lines are marked clearly in each file.
+
+The build will work without an icon - Groundwork will just use
+the default Python icon until you add a custom one.
+
+Free icon tools:
+  - GIMP (free) can export .ico files
+  - https://icoconvert.com converts PNG to ICO online
+  - Minimum size: 256x256 PNG → convert to .ico
