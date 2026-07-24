@@ -13426,7 +13426,187 @@ function _debtCardRowHTML(c, opts={}) {
             </div>
           </div>`;
       })()}
+      ${_debtLedgerSectionHTML(c)}
     </div>`;
+}
+
+// ── Debt ledger — manual charge/payment entries (Debt Reconciliation Phase B) ──
+// Charges/payments the user enters directly (no CSV/OFX import needed).
+// current_balance on the debt account itself stays the single source of
+// truth for what's owed; this ledger is a supplementary activity record —
+// its "running total" column is the net of the manual entries themselves,
+// not a re-derivation of the account balance.
+const _debtLedgerCache     = {};   // dbId (string) -> array of entries, or undefined = not loaded
+const _debtLinkableCache   = {};   // dbId (string) -> array of linkable checking transactions
+const _debtLedgerOpenForm  = {};   // dbId (string) -> 'charge' | 'payment' | null
+
+function _debtLedgerSectionHTML(c) {
+  if (!c._dbId) return '';   // card not saved yet — no debt_account_id to attach entries to
+  const key = String(c._dbId);
+  if (_debtLedgerCache[key] === undefined) {
+    loadDebtLedger(c._dbId);
+    return `<div id="ledgerSection-${c.id}" style="margin-top:12px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);border:1px solid var(--steel);font-size:11px;color:var(--slate-2)">Loading ledger…</div>`;
+  }
+  return `<div id="ledgerSection-${c.id}">${_debtLedgerBodyHTML(c)}</div>`;
+}
+
+function _debtLedgerBodyHTML(c) {
+  const key     = String(c._dbId);
+  const entries = _debtLedgerCache[key] || [];
+  const openForm= _debtLedgerOpenForm[key];
+
+  // Running total, oldest-first: charge/interest/fee add, payment subtracts.
+  const chrono = entries.slice().reverse();
+  let running = 0;
+  const runningById = {};
+  for (const e of chrono) {
+    running += (e.entry_type === 'payment') ? -e.amount : e.amount;
+    runningById[e.id] = running;
+  }
+
+  const VERB = { charge: 'Charged', payment: 'Payment', interest: 'Interest', fee: 'Fee' };
+  const rows = entries.length ? entries.map(e => `
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--steel);font-size:12px">
+      <div style="width:72px;flex-shrink:0;color:var(--slate-2);font-family:var(--font-mono)">${e.entry_date}</div>
+      <div style="flex:1;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(VERB[e.entry_type] || e.entry_type)}${e.merchant ? ' · ' + esc(e.merchant) : ''}${e.description ? ' · ' + esc(e.description) : ''}${e.linked_checking_transaction_id ? ' <span title="Linked to a checking transaction">💳</span>' : ''}</div>
+      <div style="font-family:var(--font-mono);flex-shrink:0;color:${e.entry_type==='payment' ? 'var(--pine)' : 'var(--ink)'}">${e.entry_type==='payment'?'−':'+'}${fmt(e.amount)}</div>
+      <div style="font-family:var(--font-mono);flex-shrink:0;width:70px;text-align:right;color:var(--slate-2)" title="Running total of manual entries">${fmt(runningById[e.id])}</div>
+      <button class="row-del" onclick="deleteDebtLedgerEntry(${c.id},${e.id})" title="Remove">×</button>
+    </div>`).join('') : `<div style="font-size:11px;color:var(--slate-2);padding:6px 0">No manual entries yet.</div>`;
+
+  return `
+    <div style="margin-top:12px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);border:1px solid var(--steel)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2)">Ledger — manual entries</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="toggleDebtLedgerAdd(${c.id},'charge')">+ Charge</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleDebtLedgerAdd(${c.id},'payment')">+ Payment</button>
+        </div>
+      </div>
+      ${openForm ? _debtLedgerAddFormHTML(c, openForm) : ''}
+      ${rows}
+    </div>`;
+}
+
+function _debtLedgerAddFormHTML(c, type) {
+  const isPayment = type === 'payment';
+  const linkable  = isPayment ? (_debtLinkableCache[String(c._dbId)] || []) : [];
+  if (isPayment && _debtLinkableCache[String(c._dbId)] === undefined) {
+    loadLinkableTransactions(c._dbId, c.id);
+  }
+  return `
+    <div style="margin-bottom:10px;padding:10px;background:var(--paper);border:1px solid var(--steel-2);border-radius:var(--r-sm)">
+      <div class="field-row" style="margin-bottom:8px">
+        <div class="field" style="margin:0"><label>Date</label><input type="date" id="ledgerDate-${c.id}" value="${today()}"></div>
+        <div class="field" style="margin:0"><label>Amount ($)</label><input type="number" id="ledgerAmount-${c.id}" min="0.01" step="0.01" placeholder="0.00"></div>
+      </div>
+      ${!isPayment ? `
+      <div class="field-row" style="margin-bottom:8px">
+        <div class="field" style="margin:0"><label>Merchant</label><input type="text" id="ledgerMerchant-${c.id}" placeholder="e.g. Costco"></div>
+        <div class="field" style="margin:0"><label>Category</label><input type="text" id="ledgerCategory-${c.id}" placeholder="optional"></div>
+      </div>` : ''}
+      <div class="field" style="margin:0 0 8px 0"><label>Description (optional)</label><input type="text" id="ledgerDesc-${c.id}"></div>
+      ${isPayment && linkable.length ? `
+      <div class="field" style="margin:0 0 8px 0">
+        <label>Link to a checking transaction? (optional)</label>
+        <select id="ledgerLinkTxn-${c.id}">
+          <option value="">— none —</option>
+          ${linkable.map(t => `<option value="${t.id}">${t.date} · ${esc(t.description||t.merchant||'')} · ${fmt(Math.abs(t.amount))}</option>`).join('')}
+        </select>
+      </div>` : ''}
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-secondary btn-sm" onclick="submitDebtLedgerEntry(${c.id},'${type}')">Add ${isPayment?'payment':'charge'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleDebtLedgerAdd(${c.id},'${type}')">Cancel</button>
+        <span id="ledgerError-${c.id}" style="font-size:11px;color:var(--ember)"></span>
+      </div>
+    </div>`;
+}
+
+function toggleDebtLedgerAdd(cardId, type) {
+  const c = S.debtCards.find(x => x.id === cardId);
+  if (!c || !c._dbId) return;
+  const key = String(c._dbId);
+  _debtLedgerOpenForm[key] = (_debtLedgerOpenForm[key] === type) ? null : type;
+  const el = g(`ledgerSection-${cardId}`);
+  if (el) el.innerHTML = _debtLedgerBodyHTML(c);
+  if (_debtLedgerOpenForm[key]) g(`ledgerAmount-${cardId}`)?.focus();
+}
+
+async function loadDebtLedger(dbId) {
+  try {
+    _debtLedgerCache[String(dbId)] = await API.get(`/api/debt/${dbId}/ledger`);
+  } catch (e) {
+    _debtLedgerCache[String(dbId)] = [];
+    _gwErr('loadDebtLedger')(e);
+  }
+  const card = S.debtCards.find(x => x._dbId === dbId);
+  const el = card && g(`ledgerSection-${card.id}`);
+  if (el) el.innerHTML = _debtLedgerBodyHTML(card);
+}
+
+async function loadLinkableTransactions(dbId, cardId) {
+  try {
+    _debtLinkableCache[String(dbId)] = await API.get(`/api/debt/${dbId}/linkable-transactions`);
+  } catch (e) {
+    _debtLinkableCache[String(dbId)] = [];
+    _gwErr('loadLinkableTransactions')(e);
+  }
+  const card = S.debtCards.find(x => x.id === cardId);
+  if (card && _debtLedgerOpenForm[String(dbId)]) {
+    const el = g(`ledgerSection-${cardId}`);
+    if (el) el.innerHTML = _debtLedgerBodyHTML(card);
+  }
+}
+
+async function submitDebtLedgerEntry(cardId, type) {
+  const c = S.debtCards.find(x => x.id === cardId);
+  if (!c || !c._dbId) return;
+  const errEl    = g(`ledgerError-${cardId}`);
+  const dateVal  = g(`ledgerDate-${cardId}`)?.value;
+  const amountVal= parseFloat(g(`ledgerAmount-${cardId}`)?.value);
+  if (!dateVal || !(amountVal > 0)) {
+    if (errEl) errEl.textContent = 'Enter a date and an amount greater than $0.';
+    return;
+  }
+  const payload = {
+    entry_type:  type,
+    amount:      amountVal,
+    entry_date:  dateVal,
+    description: g(`ledgerDesc-${cardId}`)?.value || '',
+  };
+  if (type === 'charge') {
+    payload.merchant = g(`ledgerMerchant-${cardId}`)?.value || '';
+    payload.category = g(`ledgerCategory-${cardId}`)?.value || '';
+  }
+  const linkSel = g(`ledgerLinkTxn-${cardId}`);
+  if (linkSel && linkSel.value) payload.linked_checking_transaction_id = parseInt(linkSel.value);
+
+  try {
+    await API.post(`/api/debt/${c._dbId}/ledger`, payload);
+    delete _debtLedgerCache[String(c._dbId)];
+    delete _debtLinkableCache[String(c._dbId)];   // the linked txn, if any, is no longer a candidate
+    _debtLedgerOpenForm[String(c._dbId)] = null;
+    await loadDebtLedger(c._dbId);
+    showToast(`${type === 'payment' ? 'Payment' : 'Charge'} added`, fmt(amountVal));
+  } catch (e) {
+    if (errEl) errEl.textContent = e.message || 'Could not save entry.';
+  }
+}
+
+function deleteDebtLedgerEntry(cardId, entryId) {
+  const c = S.debtCards.find(x => x.id === cardId);
+  if (!c || !c._dbId) return;
+  confirmAction('Remove this ledger entry?', 'This cannot be undone.', async () => {
+    try {
+      await API.delete(`/api/debt/ledger/${entryId}`);
+      delete _debtLedgerCache[String(c._dbId)];
+      delete _debtLinkableCache[String(c._dbId)];
+      await loadDebtLedger(c._dbId);
+    } catch (e) {
+      _gwErr('deleteDebtLedgerEntry')(e);
+      showToast('Could not remove entry', e.message || '', 'error');
+    }
+  });
 }
 
 // ── Debt card → account link UI ───────────────────────────────────────────

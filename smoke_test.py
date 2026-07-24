@@ -355,6 +355,76 @@ def main():
 
         session.rollback()   # smoke fixtures never persist past this check
 
+    # ── 17. Debt Reconciliation Phase B (ledger routes) ───────────────────────
+    # Exercises the actual HTTP routes (list_debt_ledger, create_debt_ledger_entry,
+    # delete_debt_ledger_entry, list_linkable_transactions) through the Flask
+    # test client, not the helpers directly — those were covered in section 16.
+    with _dbs() as session:
+        debt2 = _DA(name='Phase B Smoke Card', current_balance=500.0)
+        session.add(debt2)
+        session.flush()
+        acct2 = _Acct(name='Phase B Smoke Checking', type='checking')
+        session.add(acct2)
+        session.flush()
+        debt2.linked_account_id = acct2.id
+        txn2 = _Txn(date=_date(2026, 7, 20), amount=75.0, type='debit',
+                     account_id=acct2.id, description='Transfer to Phase B Smoke Card')
+        session.add(txn2)
+        session.commit()
+        _debt2_id, _acct2_id, _txn2_id = debt2.id, acct2.id, txn2.id
+
+    r = c.post(f'/api/debt/{_debt2_id}/ledger', headers=HJ, data=json.dumps({
+        'entry_type': 'charge', 'amount': 40.0, 'entry_date': '2026-07-15', 'merchant': 'Target'}))
+    check('POST ledger charge succeeds (201)', r.status_code == 201)
+    _charge_id = (r.get_json() or {}).get('data', {}).get('id')
+
+    r = c.get(f'/api/debt/{_debt2_id}/ledger', headers=H)
+    ledger_data = (r.get_json() or {}).get('data') or []
+    check('GET ledger returns the created charge', any(e['id'] == _charge_id for e in ledger_data))
+
+    r = c.post(f'/api/debt/{_debt2_id}/ledger', headers=HJ, data=json.dumps({
+        'entry_type': 'nonsense', 'amount': 10.0}))
+    check('POST ledger rejects invalid entry_type (400)', r.status_code == 400)
+
+    r = c.post(f'/api/debt/{_debt2_id}/ledger', headers=HJ, data=json.dumps({
+        'entry_type': 'charge', 'amount': -5.0}))
+    check('POST ledger rejects non-positive amount (400)', r.status_code == 400)
+
+    r = c.post('/api/debt/999999/ledger', headers=HJ, data=json.dumps({
+        'entry_type': 'charge', 'amount': 10.0}))
+    check('POST ledger 404s for unknown debt account', r.status_code == 404)
+
+    r = c.get(f'/api/debt/{_debt2_id}/linkable-transactions', headers=H)
+    linkable = (r.get_json() or {}).get('data') or []
+    check('linkable-transactions lists the unlinked checking txn',
+          any(t['id'] == _txn2_id for t in linkable))
+
+    r = c.post(f'/api/debt/{_debt2_id}/ledger', headers=HJ, data=json.dumps({
+        'entry_type': 'payment', 'amount': 75.0, 'entry_date': '2026-07-20',
+        'linked_checking_transaction_id': _txn2_id}))
+    check('POST ledger payment with link succeeds (201)', r.status_code == 201)
+    _payment_id = (r.get_json() or {}).get('data', {}).get('id')
+
+    r = c.post(f'/api/debt/{_debt2_id}/ledger', headers=HJ, data=json.dumps({
+        'entry_type': 'payment', 'amount': 1.0, 'linked_checking_transaction_id': _txn2_id}))
+    check('POST ledger rejects re-linking an already-linked txn (400)', r.status_code == 400)
+
+    r = c.get(f'/api/debt/{_debt2_id}/linkable-transactions', headers=H)
+    linkable_after = (r.get_json() or {}).get('data') or []
+    check('linkable-transactions excludes the now-linked txn',
+          not any(t['id'] == _txn2_id for t in linkable_after))
+
+    r = c.delete(f'/api/debt/ledger/{_payment_id}', headers=H)
+    check('DELETE ledger entry succeeds', r.status_code == 200)
+
+    r = c.get(f'/api/debt/{_debt2_id}/linkable-transactions', headers=H)
+    linkable_restored = (r.get_json() or {}).get('data') or []
+    check('deleting the entry frees the checking txn to link again',
+          any(t['id'] == _txn2_id for t in linkable_restored))
+
+    r = c.delete('/api/debt/ledger/999999', headers=H)
+    check('DELETE unknown ledger entry 404s', r.status_code == 404)
+
     return finish()
 
 

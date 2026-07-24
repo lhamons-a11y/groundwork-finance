@@ -1805,6 +1805,121 @@ def get_checking_transaction_link(session, checking_transaction_id: int) -> 'Che
     ).first()
 
 
+_LEDGER_ENTRY_TYPES = {'charge', 'payment', 'interest', 'fee'}
+
+
+@debt_bp.route('/<int:debt_id>/ledger', methods=['GET'])
+def list_debt_ledger(debt_id):
+    with db_session() as session:
+        debt = session.get(DebtAccount, debt_id)
+        if not debt:
+            return err('Not found', 404)
+        entries = get_debt_ledger_for_account(session, debt_id)
+        return ok([serialize_debt_ledger_entry(e) for e in entries])
+
+
+@debt_bp.route('/<int:debt_id>/ledger', methods=['POST'])
+@require_json
+def create_debt_ledger_entry(debt_id):
+    body = request.json
+    entry_type = body.get('entry_type')
+    if entry_type not in _LEDGER_ENTRY_TYPES:
+        return err(f"entry_type must be one of {sorted(_LEDGER_ENTRY_TYPES)}")
+    try:
+        amount = float(body.get('amount'))
+    except (TypeError, ValueError):
+        return err('amount must be a number')
+    if amount <= 0:
+        return err('amount must be greater than 0')
+
+    entry_date = date.today()
+    if body.get('entry_date'):
+        try:
+            entry_date = date.fromisoformat(body['entry_date'])
+        except ValueError:
+            return err('entry_date must be YYYY-MM-DD')
+
+    with db_session() as session:
+        debt = session.get(DebtAccount, debt_id)
+        if not debt:
+            return err('Not found', 404)
+
+        entry = DebtLedgerEntry(
+            debt_account_id=debt_id,
+            entry_type=entry_type,
+            amount=amount,
+            entry_date=entry_date,
+            description=(body.get('description') or '').strip(),
+            category=(body.get('category') or '').strip(),
+            merchant=(body.get('merchant') or '').strip(),
+            source_type='manual',
+        )
+        session.add(entry)
+        session.flush()   # get entry.id before optionally linking
+
+        linked_txn_id = body.get('linked_checking_transaction_id')
+        if linked_txn_id:
+            txn = session.get(Transaction, linked_txn_id)
+            if not txn:
+                session.rollback()
+                return err('linked_checking_transaction_id not found', 404)
+            if get_checking_transaction_link(session, linked_txn_id):
+                session.rollback()
+                return err('That checking transaction is already linked to a debt entry')
+            entry.linked_checking_transaction_id = linked_txn_id
+            session.add(CheckingTransactionLink(
+                checking_transaction_id=linked_txn_id,
+                debt_ledger_entry_id=entry.id,
+                link_indicator='payment_to_card' if entry_type == 'payment' else 'charge_from_card',
+                user_confirmed_at=datetime.utcnow(),
+            ))
+
+        session.commit()
+        return ok(serialize_debt_ledger_entry(entry), status=201)
+
+
+@debt_bp.route('/ledger/<int:entry_id>', methods=['DELETE'])
+def delete_debt_ledger_entry(entry_id):
+    with db_session() as session:
+        entry = session.get(DebtLedgerEntry, entry_id)
+        if not entry:
+            return err('Not found', 404)
+        # A link row FKs to this entry with no ON DELETE CASCADE (SQLite
+        # default) — remove it first or it dangles.
+        session.query(CheckingTransactionLink).filter_by(
+            debt_ledger_entry_id=entry_id
+        ).delete()
+        session.delete(entry)
+        session.commit()
+        return ok({'deleted': entry_id})
+
+
+@debt_bp.route('/<int:debt_id>/linkable-transactions', methods=['GET'])
+def list_linkable_transactions(debt_id):
+    """Recent transactions on this debt card's linked checking/credit account
+    that aren't already linked to a debt ledger entry — candidates for the
+    "+ Payment → link to checking" dropdown (Phase B)."""
+    with db_session() as session:
+        debt = session.get(DebtAccount, debt_id)
+        if not debt:
+            return err('Not found', 404)
+        if not debt.linked_account_id:
+            return ok([])
+
+        linked_entry_txn_ids = {
+            row[0] for row in session.query(CheckingTransactionLink.checking_transaction_id).all()
+        }
+        txns = session.query(Transaction).filter_by(
+            account_id=debt.linked_account_id
+        ).order_by(Transaction.date.desc(), Transaction.id.desc()).limit(50).all()
+
+        candidates = [t for t in txns if t.id not in linked_entry_txn_ids]
+        return ok([{
+            'id': t.id, 'date': t.date.isoformat(), 'amount': t.amount,
+            'type': t.type, 'description': t.description or '', 'merchant': t.merchant or '',
+        } for t in candidates])
+
+
 # ── Achievements ──────────────────────────────────────────────────────────────
 
 achievements_bp = Blueprint('achievements', __name__)
