@@ -2797,6 +2797,37 @@ def serialize_category(c: Category) -> dict:
     }
 
 
+def suggest_category_for_merchant(session, merchant_name: str) -> dict:
+    """
+    Phase H2 Feature 1 (adaptive learning — category suggestions). Most
+    common category this user has actually picked for a merchant, from real
+    transaction history — not a guess, a frequency count over what already
+    happened. Reads the main Transaction table (checking/credit ledger),
+    where merchant categorization history actually lives.
+    """
+    if not merchant_name or not merchant_name.strip():
+        return {'category': None, 'confidence_pct': None, 'sample_size': 0}
+    term = merchant_name.strip()
+    rows = session.query(Category.name, func.count(Transaction.id).label('freq')).join(
+        Transaction, Transaction.category_id == Category.id
+    ).filter(Transaction.merchant.ilike(f'%{term}%')).group_by(Category.name).order_by(desc('freq')).all()
+    if not rows:
+        return {'category': None, 'confidence_pct': None, 'sample_size': 0}
+    total = sum(r[1] for r in rows)
+    return {
+        'category': rows[0][0],
+        'confidence_pct': round(rows[0][1] / total * 100, 1),
+        'sample_size': total,
+    }
+
+
+@categories_bp.route('/suggest', methods=['GET'])
+def suggest_category():
+    merchant = request.args.get('merchant', '')
+    with db_session() as session:
+        return ok(suggest_category_for_merchant(session, merchant))
+
+
 @categories_bp.route('', methods=['GET'])
 def list_categories():
     with_counts = request.args.get('counts', 'false').lower() == 'true'

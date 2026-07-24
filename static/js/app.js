@@ -13807,8 +13807,8 @@ function _debtLedgerAddFormHTML(c, type) {
       </div>
       ${!isPayment ? `
       <div class="field-row" style="margin-bottom:8px">
-        <div class="field" style="margin:0"><label>Merchant</label><input type="text" id="ledgerMerchant-${c.id}" placeholder="e.g. Costco"></div>
-        <div class="field" style="margin:0"><label>Category</label><input type="text" id="ledgerCategory-${c.id}" placeholder="optional"></div>
+        <div class="field" style="margin:0"><label>Merchant</label><input type="text" id="ledgerMerchant-${c.id}" placeholder="e.g. Costco" onblur="suggestCategoryFor(${c.id})"></div>
+        <div class="field" style="margin:0"><label>Category <span id="ledgerCatSuggest-${c.id}" style="font-weight:400;color:var(--slate-2)"></span></label><input type="text" id="ledgerCategory-${c.id}" placeholder="optional"></div>
       </div>` : ''}
       <div class="field" style="margin:0 0 8px 0"><label>Description (optional)</label><input type="text" id="ledgerDesc-${c.id}"></div>
       ${isPayment && linkable.length ? `
@@ -13858,6 +13858,25 @@ function toggleDebtLedgerAdd(cardId, type) {
   const el = g(`ledgerSection-${cardId}`);
   if (el) el.innerHTML = _debtLedgerBodyHTML(c);
   if (_debtLedgerOpenForm[key]) g(`ledgerAmount-${cardId}`)?.focus();
+}
+
+// Phase H2 Feature 1 (adaptive learning): suggest a category from real
+// merchant history (server.py :: suggest_category_for_merchant). Only fills
+// the category field if it's still empty — never overwrites something the
+// user already typed.
+async function suggestCategoryFor(cardId) {
+  const merchantEl = g(`ledgerMerchant-${cardId}`);
+  const catEl       = g(`ledgerCategory-${cardId}`);
+  const suggestEl   = g(`ledgerCatSuggest-${cardId}`);
+  if (!merchantEl || !catEl || !merchantEl.value.trim()) return;
+  try {
+    const res = await API.get(`/api/categories/suggest?merchant=${encodeURIComponent(merchantEl.value.trim())}`);
+    if (!res.category || res.sample_size < 2) { if (suggestEl) suggestEl.textContent = ''; return; }
+    if (suggestEl) suggestEl.textContent = `· ${res.category}? (${res.confidence_pct}% of ${res.sample_size})`;
+    if (!catEl.value.trim()) catEl.value = res.category;
+  } catch (e) {
+    _gwErr('suggestCategoryFor')(e);
+  }
 }
 
 async function loadDebtLedger(dbId) {

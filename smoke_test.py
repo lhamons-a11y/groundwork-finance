@@ -861,6 +861,49 @@ def main():
           miss['gate_flag_count_by_type'].get('R8_number_provenance', 0) >= 1
           and len(miss['most_recent_flags']) >= 1)
 
+    # ── 23. Adaptive Learning Feature 1 (category suggestions) ───────────────
+    from server import suggest_category_for_merchant
+    from core.database import Category as _Cat
+
+    with _dbs() as session:
+        groceries = session.query(_Cat).filter_by(name='Groceries').first()
+        household = session.query(_Cat).filter_by(name='Household Supplies').first()
+        check('fixture categories exist (Groceries, Household Supplies)',
+              groceries is not None and household is not None)
+        acct8 = _Acct(name='Suggest Smoke Checking', type='checking')
+        session.add(acct8); session.flush()
+        # 3x "Groceries" for Whole Foods, 1x "Household Supplies" — Groceries
+        # should win, at 75% confidence over a sample of 4.
+        for i in range(3):
+            session.add(_Txn(date=_date(2026, 7, 10 + i), amount=50.0, type='debit',
+                              account_id=acct8.id, merchant='Whole Foods', category_id=groceries.id))
+        session.add(_Txn(date=_date(2026, 7, 14), amount=20.0, type='debit',
+                          account_id=acct8.id, merchant='Whole Foods', category_id=household.id))
+        session.commit()
+
+    with _dbs() as session:
+        suggestion = suggest_category_for_merchant(session, 'Whole Foods')
+        check('suggest_category_for_merchant picks the most frequent category',
+              suggestion['category'] == 'Groceries' and suggestion['confidence_pct'] == 75.0
+              and suggestion['sample_size'] == 4)
+
+        no_history = suggest_category_for_merchant(session, 'ZzTotallyUnseenMerchantZz')
+        check('suggest_category_for_merchant returns honest empty shape for an unseen merchant',
+              no_history == {'category': None, 'confidence_pct': None, 'sample_size': 0})
+
+        empty_input = suggest_category_for_merchant(session, '   ')
+        check('suggest_category_for_merchant handles blank input without querying',
+              empty_input == {'category': None, 'confidence_pct': None, 'sample_size': 0})
+
+    r = c.get('/api/categories/suggest?merchant=Whole+Foods', headers=H)
+    route_data = (r.get_json() or {}).get('data') or {}
+    check('GET /api/categories/suggest route works end-to-end',
+          r.status_code == 200 and route_data.get('category') == 'Groceries')
+
+    r = c.get('/api/categories/suggest', headers=H)
+    check('GET /api/categories/suggest handles a missing merchant param gracefully',
+          r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('category') is None)
+
     return finish()
 
 
