@@ -47,8 +47,8 @@ Groundwork/
 ## Reporting a problem
 
 Open Groundwork, click **⚑ Report** in the top bar, describe what happened,
-and tap **Open in mail app**. The report goes to a-personal-address@example.invalid with your
-error log and system info pre-filled.
+and tap **Open in mail app**. The report goes to support@groundworkfinance.app
+with your error log and system info pre-filled.
 
 ## Notes
 
