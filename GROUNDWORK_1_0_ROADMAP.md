@@ -75,8 +75,25 @@ Each feature ships with its `scripts/explore_*.py` exploratory script per the so
 ### Phase I: Subsystem Verification (2–3 days)
 Per `GROUNDWORK_1_0_WITH_ADAPTIVE_LEARNING.md` (Final Foundation's version plus the six adaptive smoke checks). Expand `smoke_test.py` using its existing `check(name, condition)` pattern — do not introduce pytest. Cover: ledger, budget, payoff, net worth, PDF import, trips, flights (if in scope), LLM gate, encryption, EIA, historian, and all six adaptive features.
 
-### Phase J: Release Readiness (1 day)
-Per either blueprint (identical in both): version bump to 1.0.0, changelog, release notes, deploy.bat test on Windows (macOS/Ubuntu if available), go/no-go gate.
+### Phase J: Release Readiness (1.5–2 days)
+
+#### J.0: Personal Data & Secrets Audit (0.5–1 day) — NEW, hard gate before J.1
+**Why this exists:** during git setup for this roadmap (2026-07-24), a first pass over the repo root turned up, in minutes, with no dedicated audit: a live EIA API key hardcoded in a config file, a real bank statement PDF, a diagnostic dump with real debt-account balances (TJ Max, Old Navy, Harbor Amazon, Cashback), and an import-rules file naming Rob's actual bank/credit union and employer. None of those are in the shipped app itself (confirmed: `EIA_API_KEY` is correctly pulled via `_get_config_value()` in `server.py`/`gas_price.py`, never hardcoded in source; `home_install_import_rules.json` isn't referenced anywhere in `server.py`, so it isn't loaded or bundled) — but the fact that four separate leaks turned up unprompted in one directory listing means a real pre-ship audit, not a spot-check, is warranted before anything goes out the door.
+
+**Scope — two separate things, both required:**
+1. **Source & repo audit:** grep every `.py`/`.js`/`.html`/`.json`/`.txt`/`.md` file that will be **committed and/or built** (not just what's `.gitignore`d) for: hardcoded API keys/tokens/passwords (pattern: long alphanumeric strings assigned to `key=`/`token=`/`api_key=`/`secret=`), real names, real bank/credit union/employer names, real account numbers, and dollar figures that look like actual balances rather than illustrative examples (blueprint docs using `$735`/`$5,000` as spec examples are fine — those never ship; anything in `server.py`, `app.js`, fixtures, or seed/demo data is not).
+2. **Built-artifact audit:** after `build.bat` runs, inspect `dist/Groundwork/` — every file `groundwork.spec` bundles via `datas`/`hiddenimports` — to confirm nothing personal got swept in by accident (e.g. a stray root file referenced in a debug path, a leftover fixture with real data). Check the app's demo/seed data (README references first-run demo data) is synthetic, not derived from a real account export.
+
+**Definition of Done:**
+- [ ] Full grep sweep of source for hardcoded secrets — zero hits
+- [ ] Full sweep of every `.txt`/`.json`/`.md` in the repo for real names/accounts/balances — zero hits in anything committed or built
+- [ ] `dist/Groundwork/` contents (post-build) inspected file-by-file against `groundwork.spec`'s `datas` list — confirmed no personal file is bundled
+- [ ] Demo/seed data confirmed synthetic
+- [ ] `.gitignore` reflects every category of personal data found (update it, don't just delete the file, so it can't silently reappear)
+- **Gate: nothing proceeds to J.1 until this is clean**
+
+#### J.1–J.3: Version, Deploy, Go/No-Go (1–1.5 days)
+Per either source blueprint (identical in both): version bump to 1.0.0, changelog, release notes, deploy.bat test on Windows (macOS/Ubuntu if available), go/no-go gate.
 
 ---
 
@@ -89,9 +106,9 @@ Per either blueprint (identical in both): version bump to 1.0.0, changelog, rele
 | 3 | F (narrative) → G (testing/polish) → H1 (historian build) |
 | 4 | H2.1–H2.3 (category suggestions, budget variance, trip forecast) |
 | 5 | H2.4–H2.6 (recurring detection, payoff confidence, gate improvement) → I (subsystem verification incl. adaptive smoke tests) |
-| 6 (Mon) | J (version bump, deploy test, go/no-go) → **ship 1.0.0** |
+| 6 (Mon–Tue) | J.0 (personal data & secrets audit, hard gate) → J.1–J.3 (version bump, deploy test, go/no-go) → **ship 1.0.0** |
 
-**Total: ~27.5–33 days solo**, up from the Final Foundation blueprint's 19–25 days — the difference is Phase H2 (adaptive learning) plus H1 being real construction (schema, queries, docs, and now the `trip_history` table) rather than a verification pass.
+**Total: ~28–35 days solo**, up from the Final Foundation blueprint's 19–25 days — the difference is Phase H2 (adaptive learning), H1 being real construction (schema, queries, docs, and the `trip_history` table) rather than a verification pass, and the new J.0 data-audit gate.
 
 ---
 
@@ -101,7 +118,8 @@ Per either blueprint (identical in both): version bump to 1.0.0, changelog, rele
 - [ ] **H1:** Historian schema + queries + docs built and tested
 - [ ] **H2:** All six adaptive features built, each validated against real data, success criteria met
 - [ ] **I:** Smoke tests expanded (existing `check()` style) covering all subsystems + adaptive features; integration regression scenarios pass; DB integrity verified
-- [ ] **J:** Version 1.0.0 tagged, changelog/release notes written, deploy tested, go/no-go = GO
+- [ ] **J.0:** Personal data & secrets audit clean (source + built artifact) — hard gate, see below
+- [ ] **J.1–J.3:** Version 1.0.0 tagged, changelog/release notes written, deploy tested, go/no-go = GO
 
 ---
 
