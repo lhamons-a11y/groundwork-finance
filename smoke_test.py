@@ -692,6 +692,60 @@ def main():
     check('unlinking does NOT reverse the balance (the payment still happened, only the link is gone)',
           r.status_code == 200 and _bal() == 1050.0)
 
+    # ── 21. Debt Reconciliation Phase G (edge cases) ──────────────────────────
+    # Recurring payment on a $0-balance account — nothing in the create path
+    # should reject this (e.g. a card paid to zero but still tracked for
+    # future charges).
+    with _dbs() as session:
+        debt6 = _DA(name='Phase G Zero Balance Card', current_balance=0.0)
+        session.add(debt6); session.commit()
+        _debt6_id = debt6.id
+    r = c.post(f'/api/debt/{_debt6_id}/recurring', headers=HJ,
+               data=json.dumps({'amount': 25.0, 'frequency': 'monthly', 'scheduled_date_of_month': 1}))
+    check('recurring payment allowed on a $0-balance account', r.status_code == 201)
+
+    # Multiple recurring patterns on the same account.
+    r2 = c.post(f'/api/debt/{_debt6_id}/recurring', headers=HJ,
+                data=json.dumps({'amount': 15.0, 'frequency': 'monthly', 'scheduled_date_of_month': 20}))
+    r_list = c.get(f'/api/debt/{_debt6_id}/recurring', headers=H)
+    check('multiple recurring patterns on one account both persist',
+          r2.status_code == 201 and len((r_list.get_json() or {}).get('data') or []) == 2)
+
+    # A draft generated from a pattern that gets paused afterward must still
+    # be confirmable — pausing stops NEW drafts, it doesn't invalidate ones
+    # already sitting in front of the user.
+    with _dbs() as session:
+        rp6 = _RDP(debt_account_id=_debt6_id, scheduled_date_of_month=(_date.today() + _timedelta(days=1)).day,
+                    amount=10.0, frequency='monthly', is_active=True)
+        session.add(rp6); session.commit()
+        _rp6_id = rp6.id
+    r = c.get('/api/debt/drafts/pending', headers=H)
+    draft6 = next(d for d in (r.get_json() or {}).get('data') or [] if d.get('debt_account_id') == _debt6_id)
+    c.patch(f'/api/debt/recurring/{_rp6_id}', headers=HJ, data=json.dumps({'is_active': False}))
+    r = c.post(f'/api/debt/drafts/{draft6["id"]}/confirm', headers=HJ, data=json.dumps({}))
+    check('a draft from a since-paused recurring pattern is still confirmable', r.status_code == 200)
+
+    # Deleting a linked checking transaction must unlink, not orphan, the
+    # debt entry — the dangling-FK edge case from the blueprint's own list
+    # ("User deletes checking transaction (cascade to debt?)").
+    with _dbs() as session:
+        acct6 = _Acct(name='Phase G Smoke Checking', type='checking')
+        session.add(acct6); session.flush()
+        txn6 = _Txn(date=_date(2026, 7, 24), amount=25.0, type='debit',
+                     account_id=acct6.id, description='Transfer to Phase G Zero Balance Card')
+        session.add(txn6); session.commit()
+        _txn6_id = txn6.id
+    r = c.post(f'/api/transactions/{_txn6_id}/link-debt', headers=HJ, data=json.dumps({'debt_account_id': _debt6_id}))
+    _linked6_id = (r.get_json() or {}).get('data', {}).get('id')
+
+    r = c.delete(f'/api/transactions/{_txn6_id}', headers=H)
+    check('deleting the linked checking transaction succeeds', r.status_code == 200)
+
+    r = c.get(f'/api/debt/ledger/{_linked6_id}', headers=H)
+    surviving_entry = (r.get_json() or {}).get('data') or {}
+    check('debt entry survives the checking transaction delete, now unlinked',
+          r.status_code == 200 and surviving_entry.get('linked_checking_transaction_id') is None)
+
     return finish()
 
 

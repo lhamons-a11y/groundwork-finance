@@ -612,6 +612,14 @@ def delete_all_transactions():
 
     with db_session() as session:
         count = session.query(Transaction).count()
+        # Same dangling-FK edge case as the single-transaction delete, at
+        # bulk scale: every checking_transaction_links row and every debt
+        # entry's linked_checking_transaction_id would otherwise point at
+        # a transaction that's about to stop existing.
+        session.query(DebtLedgerEntry).filter(
+            DebtLedgerEntry.linked_checking_transaction_id.isnot(None)
+        ).update({DebtLedgerEntry.linked_checking_transaction_id: None})
+        session.query(CheckingTransactionLink).delete()
         session.query(Transaction).delete()
         session.commit()
 
@@ -708,12 +716,30 @@ def update_transaction(txn_id):
         return ok(serialize_transaction(txn))
 
 
+def _unlink_debt_for_deleted_transaction(session, txn_id: int):
+    """
+    Debt Reconciliation Phase G edge case: deleting a checking transaction
+    that's linked to a debt ledger entry must not leave a dangling FK.
+    Same "unlink, don't delete" rule as the explicit unlink endpoint — the
+    debt entry (someone's real charge or payment record) survives, it just
+    stops pointing at a transaction that no longer exists.
+    """
+    link = session.query(CheckingTransactionLink).filter_by(checking_transaction_id=txn_id).first()
+    if not link:
+        return
+    entry = session.get(DebtLedgerEntry, link.debt_ledger_entry_id)
+    if entry:
+        entry.linked_checking_transaction_id = None
+    session.delete(link)
+
+
 @transactions_bp.route('/<int:txn_id>', methods=['DELETE'])
 def delete_transaction(txn_id):
     with db_session() as session:
         txn = session.get(Transaction, txn_id)
         if not txn:
             return err('Transaction not found', 404)
+        _unlink_debt_for_deleted_transaction(session, txn_id)
         session.delete(txn)
         session.commit()
         return ok({'deleted': txn_id})
