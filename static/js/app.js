@@ -67,6 +67,16 @@ const API = {
     if (!r.ok) throw new Error(j.error || `${r.status} ${path}`);
     return j.data !== undefined ? j.data : j;
   },
+  async put(path, body = {}) {
+    const r = await _gwFetch(path, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || `${r.status} ${path}`);
+    return j.data !== undefined ? j.data : j;
+  },
   async delete(path) {
     const r = await _gwFetch(path, { method: 'DELETE' });
     const j = await r.json();
@@ -16194,6 +16204,7 @@ async function saveNWSnapshot(force=false) {
     awardAchievement('first_snapshot');
     await loadSnapshotStatus();
     await loadNWHistory();
+    loadNWGoal();       // refresh milestone pace confidence — the snapshot just logged new Historian variance
     renderDashboard();  // freed minimums widget reads debtHistory — refresh
   } catch(e) {
     showToast('Error', 'Could not save snapshot', 'error');
@@ -18414,17 +18425,39 @@ function loadNWGoal() {
   }).catch(_gwErr('loadNWGoal'));
 }
 
-function _renderNWMilestones(goals) {
+function _nwCurrentTotal() {
+  // Single source of truth for "current net worth" — matches updateNetWorth()'s
+  // authoritative totals (savings+investments+cash+home equity+pension, minus
+  // debt+mortgage). Milestones used to recompute a simpler formula here that
+  // silently omitted pension value; fall back to it only if updateNetWorth()
+  // hasn't populated the totals yet (e.g. milestones rendered before the
+  // Net Worth view's own inputs have ever been touched this session).
+  const nw = S.netWorth || {};
+  if (nw._totalAssets != null && nw._totalLiab != null) return nw._totalAssets - nw._totalLiab;
+  const assets = (nw.savings||0)+(nw.investments||0)+(nw.cash||0)+(nw.homeValue||0);
+  const liab   = (nw.mortgage||0)+_activeDebtCards().reduce((s,c)=>s+(_cardBal(c)),0);
+  return assets - liab;
+}
+
+async function _renderNWMilestones(goals) {
   const el = g('nwMilestonesDisplay');
   if (!el) return;
   if (!goals.length) {
     el.innerHTML = `<div style="font-size:12px;color:var(--slate-2)">No milestones set yet. Add up to 3 below.</div>`;
     return;
   }
-  const nw     = S.netWorth;
-  const assets = (nw.savings||0)+(nw.investments||0)+(nw.cash||0)+(nw.homeValue||0);
-  const liab   = (nw.mortgage||0)+_activeDebtCards().reduce((s,c)=>s+(_cardBal(c)),0);
-  const current = assets - liab;
+  const current = _nwCurrentTotal();
+
+  // Pace confidence, Historian-backed (mirrors debt payoff confidence,
+  // Phase H2 Feature 5) — real snapshot-vs-linear-pace variance over time,
+  // not just today's static projection. Only milestones with an id (added
+  // after this feature shipped) have any history to read; older ones just
+  // render without the badge, same honest-empty pattern as debt confidence.
+  const confResults = await Promise.all(goals.map(goal =>
+    goal.id != null
+      ? API.get(`/api/net-worth/milestone/${goal.id}/confidence`).catch(() => ({confidence_pct: null}))
+      : Promise.resolve({confidence_pct: null})
+  ));
 
   el.innerHTML = goals.map((goal, idx) => {
     const pct     = goal.amount > 0 ? Math.min(100, Math.max(0, (current / goal.amount) * 100)) : 0;
@@ -18432,6 +18465,11 @@ function _renderNWMilestones(goals) {
     const [yr, mo] = goal.date ? goal.date.split('-').map(Number) : [0, 0];
     const months   = yr ? (yr - new Date().getFullYear())*12 + (mo - new Date().getMonth() - 1) : 0;
     const needed   = months > 0 ? Math.round((goal.amount - current) / months) : null;
+    const conf      = confResults[idx];
+    const confPct   = conf && conf.confidence_pct;
+    const confBadge = (confPct != null)
+      ? `<span style="font-size:11px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine)':confPct>=40?'var(--gold)':'var(--ember)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>`
+      : '';
     return `
       <div style="padding:14px;border:0.5px solid var(--steel-2);border-radius:var(--r-md);margin-bottom:10px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -18441,7 +18479,7 @@ function _renderNWMilestones(goals) {
             ${goal.date ? `<span style="font-size:11px;color:var(--slate-2);margin-left:8px">${new Date(yr,mo-1).toLocaleDateString('en-US',{month:'short',year:'numeric'})}</span>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:8px">
-            ${reached ? '<span style="font-size:11px;color:var(--pine)">✓ Reached</span>' : ''}
+            ${reached ? '<span style="font-size:11px;color:var(--pine)">✓ Reached</span>' : confBadge}
             <button onclick="removeNWMilestone(${idx})" style="font-size:11px;background:none;border:none;color:var(--slate-2);cursor:pointer;padding:2px 6px">×</button>
           </div>
         </div>
@@ -18479,7 +18517,14 @@ async function saveNWGoal() {
   } catch(e) { _gwErr('saveNWGoal')(e); }
 
   if (goals.length >= 3) { showToast('3 milestones maximum', 'Remove one to add another', 'warning'); return; }
-  goals.push({ name, amount, date });
+  // id/startAmount/startDate captured once, here, at creation — lets a
+  // future snapshot log real pace variance for this milestone (Historian;
+  // see _log_net_worth_milestone_variance in server.py). Never recomputed
+  // after this, so the pace line stays anchored to when the goal was set.
+  goals.push({
+    id: Date.now(), name, amount, date,
+    startAmount: _nwCurrentTotal(), startDate: new Date().toISOString().slice(0,10),
+  });
 
   await API.patch('/api/settings', { nw_goals_json: JSON.stringify(goals) }).catch(_gwErr('saveNWGoal'));
   // Also save as legacy single goal for backward compat
@@ -18488,7 +18533,7 @@ async function saveNWGoal() {
   if (g('nwGoalName'))   g('nwGoalName').value   = '';
   if (g('nwGoalAmount')) g('nwGoalAmount').value  = '';
   if (g('nwGoalDate'))   g('nwGoalDate').value    = '';
-  _renderNWMilestones(goals);
+  await _renderNWMilestones(goals);
   showToast('Milestone added', name, 'success');
 }
 
@@ -18502,7 +18547,7 @@ async function removeNWMilestone(idx) {
   await API.patch('/api/settings', { nw_goals_json: JSON.stringify(goals) }).catch(_gwErr('removeNWMilestone'));
   const form = g('nwAddMilestoneForm');
   if (form) form.style.display = '';
-  _renderNWMilestones(goals);
+  await _renderNWMilestones(goals);
 }
 
 function updateGoalPreview() {

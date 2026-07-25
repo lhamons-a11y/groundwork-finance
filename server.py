@@ -2489,6 +2489,92 @@ def log_historian_event(session, event_category: str, debt_account_id=None, cate
     return entry
 
 
+def _months_between(start_str: str, end_str: str) -> int:
+    """Whole calendar months between two 'YYYY-MM' or 'YYYY-MM-DD' strings."""
+    sy, sm = int(start_str[:4]), int(start_str[5:7])
+    ey, em = int(end_str[:4]), int(end_str[5:7])
+    return (ey - sy) * 12 + (em - sm)
+
+
+def _log_net_worth_milestone_variance(session, month_key: str, net_worth: float):
+    """
+    Net worth's Historian write-hook — this module's mirror of the debt
+    reconciliation write-hooks above, called from create_snapshot() below.
+
+    Milestones aren't a DB table (see HistorianEntry docstring) — they live
+    in AppSetting.nw_goals_json, a JSON array app.js manages. A milestone is
+    only eligible once it carries id/startAmount/startDate, which app.js
+    stamps on new milestones going forward; milestones saved before this
+    existed lack those fields and are silently skipped here rather than
+    backfilling a guessed start point for them.
+    """
+    try:
+        goals_row = session.query(AppSetting).filter_by(key='nw_goals_json').first()
+        goals = json.loads(goals_row.value) if goals_row and goals_row.value else []
+    except (json.JSONDecodeError, TypeError):
+        return
+    for goal in goals:
+        gid        = goal.get('id')
+        start_amt  = goal.get('startAmount')
+        start_date = goal.get('startDate')
+        target_amt = goal.get('amount')
+        target_date = goal.get('date')
+        if gid is None or start_amt is None or not start_date or not target_date or target_amt is None:
+            continue
+        try:
+            total_months   = _months_between(start_date, target_date)
+            elapsed_months = _months_between(start_date, month_key)
+        except (ValueError, IndexError):
+            continue
+        if total_months <= 0:
+            continue  # target at/before start — no valid pace to compare against
+        expected = start_amt + (target_amt - start_amt) * (elapsed_months / total_months)
+        log_historian_event(
+            session, 'net_worth_milestone_variance',
+            expected_value=round(expected, 2), actual_value=round(net_worth, 2),
+            context={'milestone_id': gid, 'milestone_name': goal.get('name', '')},
+        )
+
+
+def get_net_worth_milestone_confidence(session, milestone_id, months: int = 12) -> dict:
+    """0-100 pace confidence for a net worth milestone, from real snapshot
+    variance history logged by _log_net_worth_milestone_variance. Mirrors
+    get_payment_compliance_confidence's shape and honesty rule: returns
+    confidence=None (not a fabricated number) when there's no snapshot
+    history yet for this milestone, rather than guessing from the static
+    linear projection the UI already shows without any history at all."""
+    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    entries = session.query(HistorianEntry).filter(
+        HistorianEntry.event_category == 'net_worth_milestone_variance',
+        HistorianEntry.created_at >= cutoff,
+    ).all()
+    matched = []
+    for e in entries:
+        try:
+            ctx = json.loads(e.context_json or '{}')
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if str(ctx.get('milestone_id')) == str(milestone_id):
+            matched.append(e)
+    if not matched:
+        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
+                'samples': 0, 'reasoning': 'No snapshot history yet for this milestone.'}
+    variances = [e.variance_pct for e in matched if e.variance_pct is not None]
+    if not variances:
+        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
+                'samples': len(matched), 'reasoning': 'No variance data yet.'}
+    avg_variance = sum(variances) / len(variances)
+    # variance_pct = (actual-expected)/expected*100 — positive means AHEAD of
+    # pace, which never lowers confidence; only running behind pace does.
+    confidence = max(0, min(100, round(100 + min(0, avg_variance) * 2)))
+    trend = 'ahead' if avg_variance > 5 else 'behind' if avg_variance < -5 else 'on_pace'
+    return {
+        'confidence_pct': confidence, 'trend': trend,
+        'avg_variance_pct': round(avg_variance, 1), 'samples': len(matched),
+        'reasoning': f'{len(matched)} snapshot(s) tracked, {trend.replace("_", " ")}',
+    }
+
+
 def get_payment_variance_for_account(session, debt_account_id: int, months: int = 12) -> dict:
     """Payment compliance metrics for a debt account from real historian
     events (payment_confirmed / payment_amount_variance), over a trailing
@@ -4330,8 +4416,19 @@ def create_snapshot():
                 net_worth=net_worth,
             )
             session.add(snap)
+        _log_net_worth_milestone_variance(session, month_key, net_worth)
         session.commit()
         return ok({'taken': True, 'snapshot': _serialize_snapshot(snap)})
+
+
+@networth_bp.route('/milestone/<milestone_id>/confidence', methods=['GET'])
+def net_worth_milestone_confidence(milestone_id):
+    """Net worth's mirror of GET /api/debt/<id>/confidence — thin read of
+    get_net_worth_milestone_confidence, this feature's version of Phase H2
+    Feature 5 (payoff confidence scoring), for milestone pace instead of
+    debt payoff."""
+    with db_session() as session:
+        return ok(get_net_worth_milestone_confidence(session, milestone_id))
 
 
 @networth_bp.route('/snapshots/<int:snapshot_id>', methods=['DELETE'])

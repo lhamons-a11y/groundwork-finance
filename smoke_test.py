@@ -171,6 +171,22 @@ def main():
     check('app.js has no merge-conflict markers', '<<<<<<<' not in app_src)
     check('index.html has closing </html>', '</html>' in html_src)
 
+    # API.put existed as a call site (saveNWGoal's legacy net-worth-goal
+    # compat write, and the same call in obFinishGoals) with no matching
+    # method ever defined on the API object — found by actually exercising
+    # "add a net worth milestone" in a browser, where it threw
+    # "API.put is not a function" and aborted the whole save. General
+    # regression: every API.<verb>( call site anywhere in app.js must name
+    # a verb that's actually defined on the API object, not just the ones
+    # known about today.
+    _api_block = app_src[app_src.index('const API = {'):app_src.index('const API = {')+1500]
+    _api_defined_verbs = set(re.findall(r'\basync (\w+)\(', _api_block))
+    _api_called_verbs  = set(re.findall(r'\bAPI\.(\w+)\(', app_src))
+    check(f'API object defines get/post/patch/put/delete ({sorted(_api_defined_verbs)})',
+          {'get', 'post', 'patch', 'put', 'delete'} <= _api_defined_verbs)
+    check('every API.<verb>( call site names a verb the API object actually defines',
+          _api_called_verbs <= _api_defined_verbs)
+
     # ── 13. API contract: every client path has a server route ───────────────
     # After the July 8 dead-route sweep, this is the moment a typo'd client
     # path or a deleted-but-still-called route becomes a silent 404 in the
@@ -1396,6 +1412,84 @@ def main():
     ]
     check(f'{len(_currency_field_ids)} sampled currency fields all accept cents (step="0.01")',
           not _missing_cents_support)
+
+    # ── 35. Net Worth Historian integration ───────────────────────────────────
+    # Net worth was explicitly scoped OUT of Historian for 1.0 (roadmap: "Net
+    # worth ... unchanged, already correct") — added after the fact to bring
+    # it to parity with debt's payoff confidence feature. Milestones aren't a
+    # DB table (they live in AppSetting.nw_goals_json), so this writes/reads
+    # that directly, the same way app.js does.
+    from server import _log_net_worth_milestone_variance, get_net_worth_milestone_confidence
+    from core.database import AppSetting as _AS
+
+    r = c.get('/api/net-worth/milestone/nonexistent-id/confidence', headers=H)
+    nw_conf_empty = (r.get_json() or {}).get('data') or {}
+    check('GET /api/net-worth/milestone/<id>/confidence is honest-empty for an unknown milestone',
+          r.status_code == 200 and nw_conf_empty.get('confidence_pct') is None
+          and nw_conf_empty.get('samples') == 0)
+
+    # Seed a milestone the same shape app.js's saveNWGoal() writes: start
+    # pace 2026-01-01 -> $0, target 2026-12 -> $10,000.
+    _nw_goal = {'id': 'smoke-ms-1', 'name': 'Smoke Test Goal', 'amount': 10000,
+                'date': '2026-12', 'startAmount': 0, 'startDate': '2026-01-01'}
+    with _dbs() as session:
+        session.add(_AS(key='nw_goals_json', value=json.dumps([_nw_goal])))
+        session.commit()
+
+    # A snapshot at 2026-07 (6 of 11 months elapsed) with actual net worth
+    # $4,000 vs. an on-pace expectation of $10,000 * 6/11 = $5,454.55 —
+    # deliberately behind pace, to verify the trend classification.
+    with _dbs() as session:
+        _log_net_worth_milestone_variance(session, '2026-07', 4000.0)
+        session.commit()
+    with _dbs() as session:
+        hist_nw = session.query(_HE).filter_by(
+            event_category='net_worth_milestone_variance').order_by(_HE.id.desc()).first()
+        check('_log_net_worth_milestone_variance writes a historian entry with the expected linear-pace value',
+              hist_nw is not None and abs(hist_nw.expected_value - 5454.55) < 0.5
+              and hist_nw.actual_value == 4000.0)
+        check('the historian entry carries milestone_id in context_json (no FK column for it)',
+              json.loads(hist_nw.context_json or '{}').get('milestone_id') == 'smoke-ms-1')
+
+        conf = get_net_worth_milestone_confidence(session, 'smoke-ms-1')
+        check('get_net_worth_milestone_confidence classifies a below-pace snapshot as "behind"',
+              conf['trend'] == 'behind' and conf['confidence_pct'] is not None
+              and conf['confidence_pct'] < 100 and conf['samples'] == 1)
+
+    r = c.get('/api/net-worth/milestone/smoke-ms-1/confidence', headers=H)
+    nw_conf_route = (r.get_json() or {}).get('data') or {}
+    check('GET /api/net-worth/milestone/<id>/confidence route reflects the logged variance',
+          r.status_code == 200 and nw_conf_route.get('trend') == 'behind')
+
+    # A milestone missing startAmount/startDate (pre-feature, or malformed)
+    # must be silently skipped, not crash the snapshot route.
+    with _dbs() as session:
+        session.query(_AS).filter_by(key='nw_goals_json').delete()
+        session.add(_AS(key='nw_goals_json', value=json.dumps(
+            [{'id': 'no-start', 'name': 'Old Goal', 'amount': 5000, 'date': '2026-12'}])))
+        session.commit()
+        try:
+            _log_net_worth_milestone_variance(session, '2026-07', 1000.0)
+            session.commit()
+            _nw_no_crash = True
+        except Exception:
+            _nw_no_crash = False
+    check('a milestone missing startAmount/startDate is skipped, not a crash',
+          _nw_no_crash)
+
+    # End-to-end through the real route: POST /api/net-worth/snapshot must
+    # not error with a milestone present, and confidence must resolve
+    # afterward — proves the write-hook is actually wired into
+    # create_snapshot(), not just callable standalone.
+    with _dbs() as session:
+        session.query(_AS).filter_by(key='nw_goals_json').delete()
+        session.add(_AS(key='nw_goals_json', value=json.dumps([_nw_goal])))
+        session.commit()
+    r = c.post('/api/net-worth/snapshot', headers=H, json={'force': True, 'assets': 6000, 'liabilities': 0})
+    check('POST /api/net-worth/snapshot succeeds with a milestone present',
+          r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('taken') is True)
+
+    return finish()
 
 
 def finish():
