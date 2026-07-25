@@ -1837,6 +1837,18 @@ def main():
     check('app.js wires occasion actual-spend logging (data-action="spend-occ")',
           "'spend-occ'" in app_src and '_giftLogOccasionSpend' in app_src)
 
+    # ── Ledger: re-render after the optimistic-id swap (regression) ────────────
+    # saveTransaction() swapped the temp negative id for the real DB id in
+    # S.transactions but never re-rendered, so a freshly-added row's baked-in
+    # data-id/onclick handlers (link-to-debt, dblclick-edit, checkbox select)
+    # stayed wired to an id that no longer existed until the next page reload.
+    save_txn_fn = app_src[app_src.index('async function saveTransaction()'):]
+    save_txn_fn = save_txn_fn[:save_txn_fn.index('\nfunction deleteTransaction')]
+    check('saveTransaction() re-renders the ledger after swapping in the real id '
+          '(regression: stale temp id broke link-to-debt/dblclick/checkbox on new rows)',
+          'if (row && saved?.id)' in save_txn_fn
+          and 'renderLedger(); updateLedgerStats();' in save_txn_fn)
+
     return finish()
 
 
