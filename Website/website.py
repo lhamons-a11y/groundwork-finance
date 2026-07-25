@@ -538,33 +538,31 @@ HOME_CONTENT = """
   </div>
 </section>
 
-<section class="mission">
-  <div class="container" style="display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center">
-    <div class="mission-text">
-      <div class="section-label">Why Groundwork exists</div>
-      <h2>Built for people who are tired of being broke</h2>
-      <p>Most personal finance apps are built for people who already have money. They're beautiful, expensive, and completely useless if you're trying to figure out how to make rent and pay off $12,000 in credit card debt at the same time.</p>
-      <p>Groundwork is different. It was built by someone who's been there — who knows that what you need isn't another budgeting philosophy, but a concrete plan with real numbers and a real date when things get better.</p>
-      <p>It's free. Always will be.</p>
-      <a href="/about" class="btn btn-ghost" style="margin-top:8px">Our story →</a>
+<section class="mission container">
+  <div class="mission-text">
+    <div class="section-label">Why Groundwork exists</div>
+    <h2>Built for people who are tired of being broke</h2>
+    <p>Most personal finance apps are built for people who already have money. They're beautiful, expensive, and completely useless if you're trying to figure out how to make rent and pay off $12,000 in credit card debt at the same time.</p>
+    <p>Groundwork is different. It was built by someone who's been there — who knows that what you need isn't another budgeting philosophy, but a concrete plan with real numbers and a real date when things get better.</p>
+    <p>It's free. Always will be.</p>
+    <a href="/about" class="btn btn-ghost" style="margin-top:8px">Our story →</a>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-num">78%</div>
+      <div class="stat-lbl">of Americans live paycheck to paycheck</div>
     </div>
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="stat-num">78%</div>
-        <div class="stat-lbl">of Americans live paycheck to paycheck</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">$0</div>
-        <div class="stat-lbl">Cost of Groundwork. Free forever.</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">100%</div>
-        <div class="stat-lbl">of your data stays on your machine</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">1 app</div>
-        <div class="stat-lbl">Budget · Debt · Net worth · Reports</div>
-      </div>
+    <div class="stat-card">
+      <div class="stat-num">$0</div>
+      <div class="stat-lbl">Cost of Groundwork. Free forever.</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">100%</div>
+      <div class="stat-lbl">of your data stays on your machine</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">1 app</div>
+      <div class="stat-lbl">Budget · Debt · Net worth · Reports</div>
     </div>
   </div>
 </section>
