@@ -293,7 +293,18 @@ BASE_TEMPLATE = """<!DOCTYPE html>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }} — Groundwork</title>
-  <meta name="description" content="Groundwork is a free personal finance app that helps you stop living paycheck to paycheck and build a real plan to get out of debt.">
+  <meta name="description" content="{{ description }}">
+  <link rel="canonical" href="{{ canonical }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Groundwork">
+  <meta property="og:title" content="{{ title }} — Groundwork">
+  <meta property="og:description" content="{{ description }}">
+  <meta property="og:url" content="{{ canonical }}">
+  <meta property="og:image" content="https://groundworkfinance.app/static/groundwork_256.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ title }} — Groundwork">
+  <meta name="twitter:description" content="{{ description }}">
+  <meta name="twitter:image" content="https://groundworkfinance.app/static/groundwork_256.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>""" + SITE_CSS + """</style>
@@ -343,7 +354,9 @@ BASE_TEMPLATE = """<!DOCTYPE html>
 def home():
     return render_template_string(BASE_TEMPLATE.replace(
         '{% block content %}{% endblock %}', HOME_CONTENT
-    ), title='Stop living paycheck to paycheck')
+    ), title='Stop living paycheck to paycheck',
+       description='Groundwork is a free personal finance app that helps you stop living paycheck to paycheck and build a real plan to get out of debt.',
+       canonical=SITE_URL + '/')
 
 HOME_CONTENT = """
 <section class="hero">
@@ -643,7 +656,9 @@ def download():
 """
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
-        title='Download'
+        title='Download',
+        description='Download Groundwork free for Windows, macOS, or Linux. No account, no subscription — your financial data stays on your machine.',
+        canonical=SITE_URL + '/download'
     )
 
 # ── Knowledge Base ────────────────────────────────────────────────────────────
@@ -876,7 +891,9 @@ python3 launch.py</pre>
 """
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
-        title='Knowledge Base'
+        title='Knowledge Base',
+        description='Help and documentation for Groundwork — installation, importing transactions, budgeting, debt payoff, and every feature explained.',
+        canonical=SITE_URL + '/knowledge-base'
     )
 
 # ── About page ────────────────────────────────────────────────────────────────
@@ -917,7 +934,9 @@ def about():
 """
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
-        title='About'
+        title='About',
+        description='Groundwork is a free, privacy-first personal finance app built to help you get out of debt and stop living paycheck to paycheck.',
+        canonical=SITE_URL + '/about'
     )
 
 # ── Privacy page ──────────────────────────────────────────────────────────────
@@ -955,7 +974,9 @@ def privacy():
 """
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
-        title='Privacy Policy'
+        title='Privacy Policy',
+        description='Groundwork stores your financial data locally on your machine. No account, no cloud, no telemetry. Read our full privacy policy.',
+        canonical=SITE_URL + '/privacy'
     )
 
 # ── Features page ─────────────────────────────────────────────────────────────
@@ -1004,7 +1025,9 @@ def features():
 """
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
-        title='Features'
+        title='Features',
+        description='Budgeting, debt payoff, net worth tracking, gift planning, and more — see everything Groundwork does to help you take control of your money.',
+        canonical=SITE_URL + '/features'
     )
 
 
@@ -1056,7 +1079,9 @@ async function submitSignup() {
 """
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
-        title='Sign up for updates'
+        title='Sign up for updates',
+        description="Get notified about new Groundwork releases, including macOS and Linux availability. No spam, unsubscribe any time.",
+        canonical=SITE_URL + '/signup'
     )
 
 # ── Update manifest (Phase 2 dependency) ──────────────────────────────────────
@@ -1146,7 +1171,9 @@ def changelog():
 </div>"""
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', body),
-        title='Changelog'
+        title='Changelog',
+        description='Everything shipped in Groundwork, honest and dated — bug fixes, new features, and platform availability updates.',
+        canonical=SITE_URL + '/changelog'
     )
 
 # ── SEO: sitemap + robots ─────────────────────────────────────────────────────
@@ -1250,7 +1277,9 @@ def confirm(token):
 </div>"""
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
-        title='Confirmed'
+        title='Confirmed',
+        description='Your Groundwork updates subscription is confirmed.',
+        canonical=SITE_URL + '/signup'
     )
 
 # ── Unsubscribe ───────────────────────────────────────────────────────────────
@@ -1266,7 +1295,9 @@ def unsubscribe(token):
 </div>"""
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
-        title='Unsubscribed'
+        title='Unsubscribed',
+        description='You have been unsubscribed from Groundwork updates.',
+        canonical=SITE_URL + '/signup'
     )
 
 # ── Admin login ───────────────────────────────────────────────────────────────
