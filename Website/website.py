@@ -603,30 +603,32 @@ def download():
     </div>
   </div>
 
-  <div class="download-card" style="opacity:.7">
+  <div class="download-card">
     <div class="os-icon">🍎</div>
     <h3>macOS</h3>
-    <p>Coming soon. Sign up for updates and we'll email you when it's ready.</p>
-    <a href="/signup" class="btn btn-ghost" style="width:100%;text-align:center">
-      Get notified →
+    <p>Apple Silicon and Intel Macs. Unzip and drag Groundwork into Applications.</p>
+    <a href="/static/download/Groundwork-macos.zip" class="btn btn-primary" style="width:100%;text-align:center">
+      ⬇ Download for macOS
     </a>
     <div class="requirements">
+      <strong>Requirements:</strong><br>
       macOS 12 Monterey or later<br>
-      Coming in a future update
+      ~150MB disk space
     </div>
   </div>
 
-  <div class="download-card" style="opacity:.7">
+  <div class="download-card">
     <div class="os-icon">🐧</div>
     <h3>Linux</h3>
-    <p>Available now for technical users via Python. Full installer coming soon.</p>
-    <a href="/knowledge-base#linux" class="btn btn-ghost" style="width:100%;text-align:center">
-      Install from source →
+    <p>Prebuilt x86_64 binary — no Python or system packages required. Extract and run.</p>
+    <a href="/static/download/Groundwork-linux-x86_64.tar.gz" class="btn btn-primary" style="width:100%;text-align:center">
+      ⬇ Download for Linux
     </a>
     <div class="requirements">
-      Ubuntu 22.04+, Fedora 38+, or Arch<br>
-      Python 3.11+ required<br>
-      See Knowledge Base for instructions
+      <strong>Requirements:</strong><br>
+      Ubuntu 22.04+, Debian 12+, Fedora 38+, or similar (x86_64)<br>
+      ~150MB disk space<br>
+      <a href="/knowledge-base#linux">Installing from source →</a>
     </div>
   </div>
 </div>
@@ -659,6 +661,7 @@ def knowledge_base():
     <a href="#install">Installation</a>
     <a href="#first-run">First run & onboarding</a>
     <a href="#import">Importing transactions</a>
+    <a href="#macos">macOS install</a>
     <a href="#linux">Linux install</a>
     <h3 style="margin-top:20px">Features</h3>
     <a href="#budget">Budget</a>
@@ -722,15 +725,32 @@ def knowledge_base():
 
     <div class="kb-article" id="linux">
       <h2>Installing on Linux</h2>
-      <p>Linux installation requires Python 3.11+ and a few system packages.</p>
-      <h3>Ubuntu / Debian</h3>
+      <p>Fastest way: download the prebuilt binary from the <a href="/download">Download page</a> — no Python or system packages needed.</p>
+      <pre style="background:var(--ink);color:#fff;padding:16px;border-radius:var(--r);font-size:13px;overflow-x:auto">tar -xzf Groundwork-linux-x86_64.tar.gz
+cd Groundwork
+./Groundwork</pre>
+      <div class="kb-tip">💡 x86_64 only for now. If you're on a different architecture, or prefer to run from source, see below.</div>
+      <h3>Running from source instead</h3>
+      <p>Requires Python 3.11+ and a few system packages — the exact webkit2gtk package name depends on your distro version.</p>
+      <h4>Ubuntu 22.04 / Debian 11</h4>
       <pre style="background:var(--ink);color:#fff;padding:16px;border-radius:var(--r);font-size:13px;overflow-x:auto">sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.0 python3-tk
 pip3 install -r requirements.txt
 python3 launch.py</pre>
-      <h3>Fedora</h3>
+      <h4>Ubuntu 23.04+ / Debian 12+</h4>
+      <pre style="background:var(--ink);color:#fff;padding:16px;border-radius:var(--r);font-size:13px;overflow-x:auto">sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-tk
+pip3 install -r requirements.txt
+python3 launch.py</pre>
+      <h4>Fedora</h4>
       <pre style="background:var(--ink);color:#fff;padding:16px;border-radius:var(--r);font-size:13px;overflow-x:auto">sudo dnf install python3-gobject webkit2gtk4.0 python3-tkinter
 pip3 install -r requirements.txt
 python3 launch.py</pre>
+    </div>
+
+    <div class="kb-article" id="macos">
+      <h2>Installing on macOS</h2>
+      <p>Download the .zip from the <a href="/download">Download page</a>, unzip it, and drag <strong>Groundwork.app</strong> into your Applications folder.</p>
+      <p>macOS may show a Gatekeeper warning — "Groundwork can't be opened because it is from an unidentified developer." This happens because the app isn't yet code-signed. Right-click the app, choose <strong>Open</strong>, then confirm <strong>Open</strong> again in the dialog. You only need to do this once.</p>
+      <div class="kb-tip">💡 Apple Silicon and Intel Macs are both supported.</div>
     </div>
 
     <div class="kb-article" id="budget">

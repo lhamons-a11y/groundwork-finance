@@ -1,5 +1,19 @@
 [
   {
+    "version": "20260725-d21",
+    "date": "2026-07-25",
+    "headline": "Groundwork is now on macOS and Linux, plus a serious import fix",
+    "added": [
+      "Groundwork is now available for macOS (Apple Silicon and Intel) and Linux (x86_64) — no Python required for either, just download and run.",
+      "The Ledger's transaction rows now have a real button to attach a payment to a debt account, in both the collapsed row and the edit view — previously it only existed as a small icon that was easy to miss."
+    ],
+    "fixed": [
+      "Importing the same account once via CSV and again via QFX/OFX no longer creates duplicate transactions. Banks format the same transaction differently between file formats (a generic \"Withdrawal\" prefix in CSV, and QFX/OFX truncating long transaction descriptions) — the duplicate checker now recognizes these as the same transaction instead of silently doubling your spending totals.",
+      "A transaction added manually and then immediately edited or linked to a debt in the same session now behaves correctly — previously it could reference the wrong internal record until the page was reloaded.",
+      "Editing a debt's balance, APR, or payment on the Debt Payoff page now properly records that month's numbers, so the \"your minimum payment is dropping\" indicator can actually track your progress over time. It previously only recorded this from a secondary editing screen most people never use."
+    ]
+  },
+  {
     "version": "20260712-d20",
     "date": "2026-07-12",
     "headline": "Bug fixes and more accurate numbers",

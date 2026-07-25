@@ -12,6 +12,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["server.py"],
       "port": 8765
+    },
+    {
+      "name": "website",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["Website/website.py"],
+      "port": 5000
     }
   ]
 }
