@@ -8935,7 +8935,7 @@ function _budgetBuildDebtBloom(card) {
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
       <div>
         <label style="font-size:11px;color:var(--slate);display:block;margin-bottom:3px">Current balance</label>
-        <input type="number" class="bloom-debt-bal" min="0" step="1" value="${bal!=null?bal:''}"
+        <input type="number" class="bloom-debt-bal" min="0" step="0.01" value="${bal!=null?bal:''}"
           oninput="_budgetDebtBloomCalc(this.closest('.budget-bloom'))"
           style="width:100%;font-family:var(--font-mono);font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
       </div>
@@ -13277,7 +13277,7 @@ function _debtBalanceField(c) {
   return `
       <div class="field" style="margin:0">
         <label>Balance${paid ? ' <span style="color:var(--pine);font-weight:600">· Paid in full</span>' : ''}</label>
-        <input type="number" value="${c.currentBal ?? c.beginBal ?? ''}" min="0" step="10"
+        <input type="number" value="${c.currentBal ?? c.beginBal ?? ''}" min="0" step="0.01"
           style="${paid ? 'text-decoration:line-through;color:var(--slate-2)' : ''}"
           oninput="setCardField(${c.id},'currentBal',this.value)">
       </div>`;

@@ -1352,6 +1352,22 @@ def main():
     check('_parse_qif maps a Parent:Child legacy category via the live import path',
           _qif_records[1]['category'] == 'Coffee Shops')
 
+    # ── 33. Debt balance fields accept cents (regression) ────────────────────
+    # Both the Debt page's own balance field (_debtBalanceField) and the
+    # Budget page's quick-edit debt bloom (bloom-debt-bal) previously used
+    # step="10" / step="1" — a currency field with a whole-number step
+    # triggers the browser's native stepMismatch/:invalid state on any
+    # typed cents value (confirmed via simulated keystroke entry: the typed
+    # value still lands in .value, but validity.stepMismatch becomes true),
+    # which is what made "add cents to a debt balance" appear broken. Every
+    # other dollar-amount field in this codebase uses step="0.01" — these
+    # two were the only outliers.
+    _debt_bal_field_src = app_src.split('function _debtBalanceField')[1][:400]
+    check('_debtBalanceField uses step="0.01" so typed cents are valid (not step="10")',
+          'min="0" step="0.01"' in _debt_bal_field_src)
+    check('the budget-bloom quick-edit balance field uses step="0.01" (not step="1")',
+          'class="bloom-debt-bal" min="0" step="0.01"' in app_src)
+
     return finish()
 
 
