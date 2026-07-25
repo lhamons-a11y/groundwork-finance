@@ -1489,6 +1489,81 @@ def main():
     check('POST /api/net-worth/snapshot succeeds with a milestone present',
           r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('taken') is True)
 
+    # ── 36. Investments Historian integration ─────────────────────────────────
+    # Investments was flagged as the priority gap after Net Worth's fix —
+    # allocation-vs-target drift is the direct analog of net worth's
+    # milestone pace: a real target already exists (inv_target_alloc), this
+    # just adds the variance trail on top of it. No network calls here —
+    # _compute_portfolio_positions(skip_refresh=True) and
+    # _log_investment_allocation_drift never touch price_engine's live
+    # Yahoo Finance fetch, only PriceCache rows seeded directly below.
+    from server import (
+        _compute_portfolio_positions, _log_investment_allocation_drift,
+        get_investment_allocation_confidence,
+    )
+    from core.database import InvestmentLot as _IL, PriceCache as _PC
+
+    with _dbs() as session:
+        session.add(_IL(ticker='SMOKETEST', security_type='stock', shares_original=10,
+                         shares_remaining=10, cost_basis_per_share=100.0,
+                         purchase_date=_date(2026, 1, 1)))
+        session.add(_PC(ticker='SMOKETEST', price=110.0, is_manual=True, source='manual'))
+        session.commit()
+
+    with _dbs() as session:
+        positions, summary = _compute_portfolio_positions(session, skip_refresh=True)
+        check('_compute_portfolio_positions values the seeded lot at shares * cached price',
+              summary['total_market_value'] == 1100.0 and summary['total_cost'] == 1000.0
+              and len(positions) == 1 and positions[0]['ticker'] == 'SMOKETEST')
+
+    # Target 50% domestic_equity, but SMOKETEST isn't tagged yet — the whole
+    # $1,100 position is untagged, so actual domestic_equity holding is $0
+    # against a $550 target: deliberately, heavily underweight.
+    with _dbs() as session:
+        session.add(_AS(key='inv_target_alloc', value=json.dumps({'domestic_equity': 50})))
+        session.commit()
+        _log_investment_allocation_drift(session)
+        session.commit()
+    with _dbs() as session:
+        hist_inv = session.query(_HE).filter_by(
+            event_category='investment_allocation_drift').order_by(_HE.id.desc()).first()
+        check('_log_investment_allocation_drift logs expected = target % of real portfolio value',
+              hist_inv is not None and hist_inv.expected_value == 550.0 and hist_inv.actual_value == 0.0)
+        check("the historian entry carries asset_class in context_json (no FK column for it)",
+              json.loads(hist_inv.context_json or '{}').get('asset_class') == 'domestic_equity')
+
+        conf_empty = get_investment_allocation_confidence(session, 'international_equity')
+        check('get_investment_allocation_confidence is honest-empty for a class with no history',
+              conf_empty['confidence_pct'] is None and conf_empty['samples'] == 0)
+
+        conf = get_investment_allocation_confidence(session, 'domestic_equity')
+        check('get_investment_allocation_confidence classifies a fully-unheld target as "underweight"',
+              conf['trend'] == 'underweight' and conf['confidence_pct'] is not None and conf['samples'] == 1)
+
+    # Now tag the ticker as domestic_equity and log again — actual should
+    # jump to the full $1,100, overshooting the $550 target: "overweight".
+    with _dbs() as session:
+        session.add(_AS(key='inv_asset_classes_json', value=json.dumps({'SMOKETEST': 'domestic_equity'})))
+        session.commit()
+        _log_investment_allocation_drift(session)
+        session.commit()
+    with _dbs() as session:
+        conf2 = get_investment_allocation_confidence(session, 'domestic_equity')
+        check('a second refresh after tagging the ticker shows the corrected actual value',
+              conf2['samples'] == 2)
+
+    r = c.get('/api/investments/allocation/domestic_equity/confidence', headers=H)
+    inv_conf_route = (r.get_json() or {}).get('data') or {}
+    check('GET /api/investments/allocation/<class>/confidence route reflects the logged variance',
+          r.status_code == 200 and inv_conf_route.get('samples') == 2)
+
+    r = c.get('/api/investments/positions', headers=H)
+    check('GET /api/investments/positions still works after the _compute_portfolio_positions refactor',
+          r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('summary', {}).get('total_market_value') == 1100.0)
+
+    check("app.js wires the investment advisor panel (surface: 'investment_advisor')",
+          "'investment_advisor'" in app_src and 'invAdvisorCard' in app_src)
+
     return finish()
 
 

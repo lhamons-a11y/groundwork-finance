@@ -2575,6 +2575,89 @@ def get_net_worth_milestone_confidence(session, milestone_id, months: int = 12) 
     }
 
 
+def _log_investment_allocation_drift(session):
+    """
+    Investments' Historian write-hook — this module's mirror of
+    _log_net_worth_milestone_variance, called from POST
+    /api/investments/prices/refresh (the natural "checkpoint" action, same
+    idea as debt's payment-confirm and net worth's snapshot-save).
+
+    Target allocation isn't a DB table either (AppSetting's inv_target_alloc,
+    a {asset_class: pct} dict app.js manages) — reuses
+    _compute_portfolio_positions so the dollar figures logged here always
+    match what the Investments page itself shows, never a second
+    independent calculation quietly drifting out of sync with it.
+    """
+    try:
+        targets_row = session.query(AppSetting).filter_by(key='inv_target_alloc').first()
+        targets = json.loads(targets_row.value) if targets_row and targets_row.value else {}
+    except (json.JSONDecodeError, TypeError):
+        return
+    if not targets:
+        return  # no targets set — nothing to compare against
+
+    positions, summary = _compute_portfolio_positions(session, skip_refresh=True)
+    total = summary['total_market_value']
+    if not total:
+        return  # nothing priced yet — nothing meaningful to log
+
+    by_class = {}
+    for p in positions:
+        cls = p.get('asset_class')
+        if cls:
+            by_class[cls] = by_class.get(cls, 0) + p['market_value']
+
+    for cls, target_pct in targets.items():
+        if not target_pct:
+            continue
+        expected = total * (target_pct / 100)
+        actual = by_class.get(cls, 0)
+        log_historian_event(
+            session, 'investment_allocation_drift',
+            expected_value=round(expected, 2), actual_value=round(actual, 2),
+            context={'asset_class': cls},
+        )
+
+
+def get_investment_allocation_confidence(session, asset_class: str, months: int = 12) -> dict:
+    """0-100 on-target confidence for one asset class, from real allocation
+    drift history logged by _log_investment_allocation_drift. Mirrors
+    get_net_worth_milestone_confidence's shape and honesty rule: returns
+    confidence=None (not fabricated) when there's no refresh history yet."""
+    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    entries = session.query(HistorianEntry).filter(
+        HistorianEntry.event_category == 'investment_allocation_drift',
+        HistorianEntry.created_at >= cutoff,
+    ).all()
+    matched = []
+    for e in entries:
+        try:
+            ctx = json.loads(e.context_json or '{}')
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if ctx.get('asset_class') == asset_class:
+            matched.append(e)
+    if not matched:
+        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
+                'samples': 0, 'reasoning': 'No price-refresh history yet for this asset class.'}
+    variances = [e.variance_pct for e in matched if e.variance_pct is not None]
+    if not variances:
+        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
+                'samples': len(matched), 'reasoning': 'No variance data yet.'}
+    avg_variance = sum(variances) / len(variances)
+    # variance_pct = (actual-expected)/expected*100. Unlike net worth (where
+    # running ahead of a savings goal is never bad), running either over OR
+    # under an allocation target is equally off-target, so this scores on
+    # |variance| rather than only penalizing the negative side.
+    confidence = max(0, min(100, round(100 - abs(avg_variance) * 2)))
+    trend = 'overweight' if avg_variance > 5 else 'underweight' if avg_variance < -5 else 'on_target'
+    return {
+        'confidence_pct': confidence, 'trend': trend,
+        'avg_variance_pct': round(avg_variance, 1), 'samples': len(matched),
+        'reasoning': f'{len(matched)} refresh(es) tracked, {trend.replace("_", " ")}',
+    }
+
+
 def get_payment_variance_for_account(session, debt_account_id: int, months: int = 12) -> dict:
     """Payment compliance metrics for a debt account from real historian
     events (payment_confirmed / payment_amount_variance), over a trailing
@@ -3565,6 +3648,160 @@ def delete_inv_transaction(txn_id):
         return ok({'deleted': txn_id})
 
 
+def _compute_portfolio_positions(session, account_id=None, skip_refresh=False):
+    """
+    Shared by GET /api/investments/positions and
+    _log_investment_allocation_drift (net worth's Historian drift-tracking
+    hook, further below) — extracted so both read the exact same market
+    values instead of two independent computations quietly drifting apart.
+    Returns (positions: list[dict], summary: dict) — same shape the route
+    used to build inline.
+    """
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    # Auto-refresh stale prices (silent — never blocks the caller)
+    if not skip_refresh:
+        try:
+            from price_engine import refresh_stale_prices
+            refresh_stale_prices(session)
+        except ImportError:
+            # price_engine isn't part of this build (investments price
+            # feed is dormant). Log once, not on every request.
+            global _PRICE_ENGINE_WARNED
+            if not globals().get('_PRICE_ENGINE_WARNED'):
+                _PRICE_ENGINE_WARNED = True
+                logging.info('price_engine not present — price auto-refresh disabled')
+        except Exception as e:
+            logging.warning('Price refresh skipped: %s', e)
+
+    q = session.query(InvestmentLot).filter_by(is_closed=False)
+    if account_id:
+        q = q.filter_by(account_id=int(account_id))
+    lots = q.order_by(InvestmentLot.ticker, InvestmentLot.purchase_date).all()
+
+    # Group lots by (account_id, ticker)
+    positions = {}
+    for lot in lots:
+        key = (lot.account_id, lot.ticker)
+        if key not in positions:
+            positions[key] = {
+                'ticker':        lot.ticker,
+                'account_id':    lot.account_id,
+                'security_type': lot.security_type,
+                'lots':          [],
+                'total_shares':  0.0,
+                'total_cost':    0.0,
+            }
+        p = positions[key]
+
+        # Apply splits to this lot's cost basis and shares
+        adj_cost, adj_shares = _apply_splits(
+            lot.ticker, lot.purchase_date,
+            lot.cost_basis_per_share, lot.shares_remaining, session
+        )
+        p['lots'].append({
+            'lot_id':        lot.id,
+            'shares':        adj_shares,
+            'cost_basis':    adj_cost,
+            'purchase_date': lot.purchase_date.isoformat(),
+        })
+        p['total_shares'] += adj_shares
+        p['total_cost']   += adj_shares * adj_cost
+
+    # Attach prices from cache
+    result = []
+    for pos in positions.values():
+        if pos['total_shares'] < 0.00001:
+            continue
+
+        avg_cost = pos['total_cost'] / pos['total_shares'] if pos['total_shares'] else 0
+
+        price_row = session.get(PriceCache, pos['ticker'])
+        if price_row:
+            current_price    = price_row.price
+            company_name     = price_row.company_name or pos['ticker']
+            day_change       = price_row.day_change or 0
+            day_change_pct   = price_row.day_change_pct or 0
+        else:
+            # No price yet — use avg cost as placeholder
+            current_price    = avg_cost
+            company_name     = pos['ticker']
+            day_change       = 0
+            day_change_pct   = 0
+
+        market_value    = pos['total_shares'] * current_price
+        unrealized_gain = market_value - pos['total_cost']
+        unrealized_pct  = (unrealized_gain / pos['total_cost'] * 100) if pos['total_cost'] else 0
+
+        result.append({
+            'ticker':          pos['ticker'],
+            'account_id':      pos['account_id'],
+            'security_type':   pos['security_type'],
+            'company_name':    company_name,
+            'total_shares':    round(pos['total_shares'], 6),
+            'avg_cost_basis':  round(avg_cost, 4),
+            'total_cost':      round(pos['total_cost'], 2),
+            'current_price':   round(current_price, 4),
+            'market_value':    round(market_value, 2),
+            'unrealized_gain': round(unrealized_gain, 2),
+            'unrealized_pct':  round(unrealized_pct, 2),
+            'day_change':      round(day_change, 4),
+            'day_change_pct':  round(day_change_pct, 2),
+            'price_stale':     price_row is None,
+            'lots':            pos['lots'],
+        })
+
+    # Sort by market_value descending
+    result.sort(key=lambda x: x['market_value'], reverse=True)
+
+    # Inject user-defined asset_class and expense_ratio from app_settings
+    ac_setting = _get_setting(session, 'inv_asset_classes_json')
+    er_setting = _get_setting(session, 'inv_expense_ratios_json')
+    asset_classes   = json.loads(ac_setting.value)  if ac_setting  else {}
+    expense_ratios  = json.loads(er_setting.value)  if er_setting  else {}
+
+    # Smart defaults for common tickers
+    _ASSET_CLASS_DEFAULTS = {
+        'BND':'fixed_income','BNDX':'fixed_income','AGG':'fixed_income',
+        'TLT':'fixed_income','IEF':'fixed_income','SHY':'fixed_income',
+        'VTIP':'fixed_income','VGLT':'fixed_income','VCIT':'fixed_income',
+        'VXUS':'international_equity','VEU':'international_equity',
+        'EFA':'international_equity','EEM':'international_equity',
+        'SCHE':'international_equity','VWO':'international_equity',
+        'VYMI':'international_equity','IEFA':'international_equity',
+        'VNQ':'real_estate','VNQI':'real_estate','REZ':'real_estate',
+        'SCHH':'real_estate','IYR':'real_estate',
+    }
+    _EXPENSE_RATIO_DEFAULTS = {
+        'VOO':0.03,'VTI':0.03,'VUG':0.04,'VTV':0.04,'VXUS':0.07,
+        'BND':0.03,'VNQ':0.13,'VWO':0.08,'EFA':0.07,'EEM':0.68,
+        'SCHB':0.03,'SCHA':0.04,'SCHG':0.04,'SCHD':0.06,
+        'IVV':0.03,'SPY':0.0945,'QQQ':0.2,'GLD':0.4,'SLV':0.5,
+    }
+
+    for p in result:
+        t = p['ticker']
+        p['asset_class']    = asset_classes.get(t) or _ASSET_CLASS_DEFAULTS.get(t) or None
+        p['expense_ratio']  = expense_ratios.get(t) if t in expense_ratios else _EXPENSE_RATIO_DEFAULTS.get(t)
+
+    # Portfolio totals
+    total_cost         = sum(p['total_cost']    for p in result)
+    total_market_value = sum(p['market_value']  for p in result)
+    total_gain         = sum(p['unrealized_gain'] for p in result)
+    total_gain_pct     = (total_gain / total_cost * 100) if total_cost else 0
+
+    summary = {
+        'total_cost':         round(total_cost, 2),
+        'total_market_value': round(total_market_value, 2),
+        'total_gain':         round(total_gain, 2),
+        'total_gain_pct':     round(total_gain_pct, 2),
+        'position_count':     len(result),
+    }
+    return result, summary
+
+
 @investments_bp.route('/positions', methods=['GET'])
 def get_positions():
     """
@@ -3577,155 +3814,12 @@ def get_positions():
     Optional ?account_id= filter.
     Automatically refreshes stale prices before computing positions.
     """
-    import sys
-    from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-
     account_id   = request.args.get('account_id')
     skip_refresh = request.args.get('skip_refresh', 'false').lower() == 'true'
 
     with db_session() as session:
-        # Auto-refresh stale prices (silent — never blocks the response)
-        if not skip_refresh:
-            try:
-                from price_engine import refresh_stale_prices
-                refresh_stale_prices(session)
-            except ImportError:
-                # price_engine isn't part of this build (investments price
-                # feed is dormant). Log once, not on every request.
-                global _PRICE_ENGINE_WARNED
-                if not globals().get('_PRICE_ENGINE_WARNED'):
-                    _PRICE_ENGINE_WARNED = True
-                    logging.info('price_engine not present — price auto-refresh disabled')
-            except Exception as e:
-                logging.warning('Price refresh skipped: %s', e)
-
-        q = session.query(InvestmentLot).filter_by(is_closed=False)
-        if account_id:
-            q = q.filter_by(account_id=int(account_id))
-        lots = q.order_by(InvestmentLot.ticker, InvestmentLot.purchase_date).all()
-
-        # Group lots by (account_id, ticker)
-        positions = {}
-        for lot in lots:
-            key = (lot.account_id, lot.ticker)
-            if key not in positions:
-                positions[key] = {
-                    'ticker':        lot.ticker,
-                    'account_id':    lot.account_id,
-                    'security_type': lot.security_type,
-                    'lots':          [],
-                    'total_shares':  0.0,
-                    'total_cost':    0.0,
-                }
-            p = positions[key]
-
-            # Apply splits to this lot's cost basis and shares
-            adj_cost, adj_shares = _apply_splits(
-                lot.ticker, lot.purchase_date,
-                lot.cost_basis_per_share, lot.shares_remaining, session
-            )
-            p['lots'].append({
-                'lot_id':        lot.id,
-                'shares':        adj_shares,
-                'cost_basis':    adj_cost,
-                'purchase_date': lot.purchase_date.isoformat(),
-            })
-            p['total_shares'] += adj_shares
-            p['total_cost']   += adj_shares * adj_cost
-
-        # Attach prices from cache
-        result = []
-        for pos in positions.values():
-            if pos['total_shares'] < 0.00001:
-                continue
-
-            avg_cost = pos['total_cost'] / pos['total_shares'] if pos['total_shares'] else 0
-
-            price_row = session.get(PriceCache, pos['ticker'])
-            if price_row:
-                current_price    = price_row.price
-                company_name     = price_row.company_name or pos['ticker']
-                day_change       = price_row.day_change or 0
-                day_change_pct   = price_row.day_change_pct or 0
-            else:
-                # No price yet — use avg cost as placeholder
-                current_price    = avg_cost
-                company_name     = pos['ticker']
-                day_change       = 0
-                day_change_pct   = 0
-
-            market_value    = pos['total_shares'] * current_price
-            unrealized_gain = market_value - pos['total_cost']
-            unrealized_pct  = (unrealized_gain / pos['total_cost'] * 100) if pos['total_cost'] else 0
-
-            result.append({
-                'ticker':          pos['ticker'],
-                'account_id':      pos['account_id'],
-                'security_type':   pos['security_type'],
-                'company_name':    company_name,
-                'total_shares':    round(pos['total_shares'], 6),
-                'avg_cost_basis':  round(avg_cost, 4),
-                'total_cost':      round(pos['total_cost'], 2),
-                'current_price':   round(current_price, 4),
-                'market_value':    round(market_value, 2),
-                'unrealized_gain': round(unrealized_gain, 2),
-                'unrealized_pct':  round(unrealized_pct, 2),
-                'day_change':      round(day_change, 4),
-                'day_change_pct':  round(day_change_pct, 2),
-                'price_stale':     price_row is None,
-                'lots':            pos['lots'],
-            })
-
-        # Sort by market_value descending
-        result.sort(key=lambda x: x['market_value'], reverse=True)
-
-        # Inject user-defined asset_class and expense_ratio from app_settings
-        ac_setting = _get_setting(session, 'inv_asset_classes_json')
-        er_setting = _get_setting(session, 'inv_expense_ratios_json')
-        asset_classes   = json.loads(ac_setting.value)  if ac_setting  else {}
-        expense_ratios  = json.loads(er_setting.value)  if er_setting  else {}
-
-        # Smart defaults for common tickers
-        _ASSET_CLASS_DEFAULTS = {
-            'BND':'fixed_income','BNDX':'fixed_income','AGG':'fixed_income',
-            'TLT':'fixed_income','IEF':'fixed_income','SHY':'fixed_income',
-            'VTIP':'fixed_income','VGLT':'fixed_income','VCIT':'fixed_income',
-            'VXUS':'international_equity','VEU':'international_equity',
-            'EFA':'international_equity','EEM':'international_equity',
-            'SCHE':'international_equity','VWO':'international_equity',
-            'VYMI':'international_equity','IEFA':'international_equity',
-            'VNQ':'real_estate','VNQI':'real_estate','REZ':'real_estate',
-            'SCHH':'real_estate','IYR':'real_estate',
-        }
-        _EXPENSE_RATIO_DEFAULTS = {
-            'VOO':0.03,'VTI':0.03,'VUG':0.04,'VTV':0.04,'VXUS':0.07,
-            'BND':0.03,'VNQ':0.13,'VWO':0.08,'EFA':0.07,'EEM':0.68,
-            'SCHB':0.03,'SCHA':0.04,'SCHG':0.04,'SCHD':0.06,
-            'IVV':0.03,'SPY':0.0945,'QQQ':0.2,'GLD':0.4,'SLV':0.5,
-        }
-
-        for p in result:
-            t = p['ticker']
-            p['asset_class']    = asset_classes.get(t) or _ASSET_CLASS_DEFAULTS.get(t) or None
-            p['expense_ratio']  = expense_ratios.get(t) if t in expense_ratios else _EXPENSE_RATIO_DEFAULTS.get(t)
-
-        # Portfolio totals
-        total_cost         = sum(p['total_cost']    for p in result)
-        total_market_value = sum(p['market_value']  for p in result)
-        total_gain         = sum(p['unrealized_gain'] for p in result)
-        total_gain_pct     = (total_gain / total_cost * 100) if total_cost else 0
-
-        return ok({
-            'positions': result,
-            'summary': {
-                'total_cost':         round(total_cost, 2),
-                'total_market_value': round(total_market_value, 2),
-                'total_gain':         round(total_gain, 2),
-                'total_gain_pct':     round(total_gain_pct, 2),
-                'position_count':     len(result),
-            }
-        })
+        result, summary = _compute_portfolio_positions(session, account_id, skip_refresh)
+        return ok({'positions': result, 'summary': summary})
 
 
 @investments_bp.route('/price', methods=['PATCH'])
@@ -3759,6 +3853,15 @@ def set_manual_price():
             ))
         session.commit()
         return ok({'ticker': ticker, 'price': price, 'manual': True})
+
+
+@investments_bp.route('/allocation/<asset_class>/confidence', methods=['GET'])
+def investment_allocation_confidence(asset_class):
+    """Investments' mirror of GET /api/debt/<id>/confidence and GET
+    /api/net-worth/milestone/<id>/confidence — thin read of
+    get_investment_allocation_confidence."""
+    with db_session() as session:
+        return ok(get_investment_allocation_confidence(session, asset_class))
 
 
 @investments_bp.route('/accounts', methods=['GET'])
@@ -3798,6 +3901,8 @@ def refresh_prices():
         with db_session() as session:
             if tickers:
                 results = fetch_prices([t.upper() for t in tickers], session)
+                _log_investment_allocation_drift(session)
+                session.commit()
                 return ok({
                     'refreshed': list(results.keys()),
                     'skipped':   [],
@@ -3806,6 +3911,8 @@ def refresh_prices():
                 })
             else:
                 result = refresh_stale_prices(session, force=force)
+                _log_investment_allocation_drift(session)
+                session.commit()
                 return ok(result)
     except Exception as e:
         logging.exception('Price refresh failed')

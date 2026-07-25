@@ -15375,6 +15375,7 @@ async function _loadInvPositions() {
     _renderInvPositions();
     _renderInvAnalytics();
     _renderTargetAllocation();
+    _invRenderAdvisorEntry();
     _syncPortfolioToNetWorth(_invSummary);
     _checkWealthAchievements();
   } catch(e) {
@@ -15782,7 +15783,7 @@ function _syncPortfolioToNetWorth(summary) {
 let _invTargets = {};   // { asset_class: pct } e.g. { domestic_equity: 60, fixed_income: 20 }
 
 
-function _renderTargetAllocation() {
+async function _renderTargetAllocation() {
   const card    = g('invTargetAllocCard');
   const driftEl = g('invAllocDriftRows');
   const rebalEl = g('invRebalanceSuggestion');
@@ -15800,10 +15801,18 @@ function _renderTargetAllocation() {
   const rebalSuggestions = [];
 
   // Show every class that appears in either targets or actuals
-  const allClasses = new Set([...Object.keys(_invTargets), ...Object.keys(taggedPcts)]);
-  allClasses.delete('untagged');
+  const allClasses = [...new Set([...Object.keys(_invTargets), ...Object.keys(taggedPcts)])]
+    .filter(cls => cls !== 'untagged');
 
-  allClasses.forEach(cls => {
+  // On-target confidence, Historian-backed (mirrors debt payoff confidence
+  // and net worth milestone pace) — real price-refresh-vs-target variance
+  // over time, not just today's static drift number. Only classes with at
+  // least one logged refresh have history; others render without the badge.
+  const confResults = await Promise.all(allClasses.map(cls =>
+    API.get(`/api/investments/allocation/${encodeURIComponent(cls)}/confidence`).catch(() => ({confidence_pct: null}))
+  ));
+
+  allClasses.forEach((cls, idx) => {
     const target = _invTargets[cls] || 0;
     const actual = taggedPcts[cls]  || 0;
     const drift  = actual - target;
@@ -15813,6 +15822,11 @@ function _renderTargetAllocation() {
                      : 'var(--ember)';
     const label = ASSET_CLASSES[cls] || cls;
     const col   = ASSET_CLASS_COLORS[cls] || '#94a3b8';
+    const conf     = confResults[idx];
+    const confPct  = conf && conf.confidence_pct;
+    const confBadge = (confPct != null)
+      ? `<span style="font-size:11px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine)':confPct>=40?'var(--gold)':'var(--ember)'}" title="${esc(conf.reasoning||'')}">${confPct}% on target</span>`
+      : '';
 
     rows.push(`
       <div style="margin-bottom:10px">
@@ -15821,7 +15835,8 @@ function _renderTargetAllocation() {
             <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></span>
             ${esc(label)}
           </span>
-          <span style="display:flex;gap:12px">
+          <span style="display:flex;align-items:center;gap:12px">
+            ${confBadge}
             <span style="color:var(--slate)">${actual.toFixed(1)}% actual</span>
             <span style="color:var(--slate)">${target.toFixed(0)}% target</span>
             <span style="font-weight:500;color:${driftColor};min-width:44px;text-align:right">
@@ -15869,6 +15884,81 @@ function _calcActualAlloc() {
     result[cls] = (val / total) * 100;
   });
   return result;
+}
+
+// Portfolio advisor — mirrors _debtRenderAdvisorTab/_debtLaunchAdvisorAI's
+// entry-point pattern exactly: a one-time "Generate" button that hands off
+// to the shared Report Center AI flow (_rcAnalyzeWithAI), not a separate
+// AI mechanism. dataLines only ever restates numbers already shown
+// elsewhere on this page (positions, gains, allocation drift) — nothing
+// computed fresh just for the prompt.
+let _invAdvisorAICache = false;
+
+function _invRenderAdvisorEntry() {
+  const card = g('invAdvisorCard');
+  if (!card) return;
+  if (!_invPositions.length) { card.style.display = 'none'; return; }
+  if (_invAdvisorAICache || g('invAdvisorAIEntry')) return;  // already generated or entry already shown
+
+  card.style.display = '';
+  card.innerHTML = `
+    <div id="invAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's portfolio analysis</div>
+        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered read of your positions, gains, and allocation drift</div>
+      </div>
+      <button onclick="_invLaunchAdvisorAI()"
+        style="font-size:12px;padding:7px 16px;background:var(--pine);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        ✦ Generate
+      </button>
+    </div>`;
+}
+
+async function _invLaunchAdvisorAI() {
+  g('invAdvisorAIEntry')?.remove();
+  const summary = _invSummary;
+  if (!summary || !_invPositions.length) return;
+
+  const topByValue = [..._invPositions].sort((a,b) => (b.market_value||0)-(a.market_value||0)).slice(0, 5);
+  const posLines = topByValue.map(p =>
+    `${p.ticker}: ${fmt(p.market_value)} (${p.unrealized_gain>=0?'+':''}${fmt(p.unrealized_gain)}, ${p.unrealized_pct>=0?'+':''}${p.unrealized_pct.toFixed(1)}%)`
+  );
+
+  const taggedPcts = _calcActualAlloc();
+  const driftLines = Object.keys(_invTargets).length
+    ? Object.entries(_invTargets).map(([cls, target]) => {
+        const actual = taggedPcts[cls] || 0;
+        const label  = ASSET_CLASSES[cls] || cls;
+        return `${label}: ${actual.toFixed(1)}% actual vs ${target.toFixed(0)}% target`;
+      })
+    : [];
+
+  const dataLines = [
+    `Total portfolio value: ${fmt(summary.total_market_value)}`,
+    `Total invested (cost basis): ${fmt(summary.total_cost)}`,
+    `Unrealized gain: ${fmt(summary.total_gain)} (${summary.total_gain_pct>=0?'+':''}${summary.total_gain_pct.toFixed(1)}%)`,
+    `Position count: ${summary.position_count}`,
+    '---',
+    'TOP POSITIONS BY VALUE:',
+    ...posLines,
+    ...(driftLines.length ? ['---', 'ALLOCATION VS TARGET:', ...driftLines] : []),
+  ];
+
+  const buildPrompt = (profileCtx, stageCtx) => [
+    profileCtx || '',
+    `PORTFOLIO PICTURE — ${new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})}`,
+    '',
+    dataLines.join('\n'),
+    stageCtx?.stageNote || '',
+    '',
+    'Rules: Lead with the number that matters most — total value or total gain, whichever is more notable. Name dollar amounts. If an asset class is meaningfully off its target (state which one and by how much, as a plain fact from the numbers above, never invent a percentage), mention it — never as a command ("Consider rebalancing"), only as an observation ("X sits Y% above target"). 3 short paragraphs. No headers, no bullets.',
+  ].filter(Boolean).join('\n').trim();
+
+  const target = g('invAdvisorCard');
+  if (target) {
+    await _rcAnalyzeWithAI('investment_advisor', dataLines, buildPrompt, target);
+    _invAdvisorAICache = true;
+  }
 }
 
 function showSetTargetsPanel() {
@@ -15926,7 +16016,7 @@ async function saveTargetAllocation() {
   _invTargets = targets;
   await API.patch('/api/settings', { inv_target_alloc: JSON.stringify(targets) }).catch(_gwErr('saveTargetAllocation'));
   hideSetTargetsPanel();
-  _renderTargetAllocation();
+  await _renderTargetAllocation();
   showToast('Targets saved', 'Allocation drift view updated', 'success');
 }
 

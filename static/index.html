@@ -1770,6 +1770,11 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
                color:var(--slate);line-height:1.7"></div>
         </div>
 
+        <!-- Portfolio advisor — AI analysis entry point, mirrors Debt Payoff's
+             Advisor tab (debtPanel-advisor). Hidden until there's at least
+             one position to analyze. -->
+        <div id="invAdvisorCard" class="card mb-5" style="display:none"></div>
+
         <!-- Set targets panel — inline, not a modal -->
         <div id="invSetTargetsPanel" class="card mb-5" style="display:none">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">

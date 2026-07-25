@@ -290,6 +290,7 @@ class HistorianEntry(Base):
       'trip_expense_variance'             — 1.1-scaffold: trip learning
       'llm_gate_flag'                     — LLM gate miss-log
       'net_worth_milestone_variance'      — net worth (snapshot save, vs. a milestone's linear pace)
+      'investment_allocation_drift'       — investments (price refresh, actual $ vs. target % of portfolio)
     No payoff_plan_id column: same reason as DebtLedgerEntry — there is no
     persisted payoff-plan table in this codebase. Net worth milestones are
     similarly not a DB table (they live in AppSetting's nw_goals_json, a
@@ -297,7 +298,10 @@ class HistorianEntry(Base):
     net_worth_milestone_variance entries carry milestone_id/milestone_name
     in context_json instead of a dedicated FK column, the same way
     debt_account_id/category_id are used for the event types that DO have
-    a real table to point at.
+    a real table to point at. Investment target allocation is the same
+    story — a {asset_class: pct} dict in AppSetting's inv_target_alloc, not
+    a table — so investment_allocation_drift carries asset_class in
+    context_json too.
     """
     __tablename__   = 'historian_entries'
     id              = Column(Integer, primary_key=True)
