@@ -10778,6 +10778,7 @@ function tripUpdateBudget() {
 // trip_history, once there's data to adjust from (server.py ::
 // get_improved_trip_estimate). Silent no-op — no hint shown — until then.
 let _tripForecastReqId = 0;
+let _tripLastForecast   = null;   // cached for _tripLaunchAdvisorAI — avoids a duplicate fetch
 async function _showTripForecastHint(dest, baseTotal) {
   const hint = g('tripForecastHint');
   if (!hint) return;
@@ -10785,6 +10786,8 @@ async function _showTripForecastHint(dest, baseTotal) {
   try {
     const res = await API.get(`/api/trip/forecast?region=${encodeURIComponent(dest)}&base_estimate=${baseTotal}`);
     if (reqId !== _tripForecastReqId) return;
+    _tripLastForecast = { ...res, region: dest };
+    _tripRenderAdvisorEntry(res);
     if (res.confidence === 'none') { hint.style.display = 'none'; return; }
     const dir = res.adjustment_pct > 0 ? 'higher' : 'lower';
     hint.style.display = '';
@@ -10795,6 +10798,65 @@ async function _showTripForecastHint(dest, baseTotal) {
   } catch (e) {
     if (reqId === _tripForecastReqId) hint.style.display = 'none';
     _gwErr('_showTripForecastHint')(e);
+  }
+}
+
+// Trip advisor — mirrors the other pages' one-time "Generate" entry point,
+// delegating to the shared _rcAnalyzeWithAI flow. Only shown once real
+// trip_history exists for this region (confidence !== 'none') — an honest
+// gate, same as every other advisor surface requiring real data first.
+let _tripAdvisorAICache = false;
+
+function _tripRenderAdvisorEntry(forecast) {
+  const card = g('tripAdvisorCard');
+  if (!card) return;
+  if (!forecast || forecast.confidence === 'none') { card.style.display = 'none'; return; }
+  if (_tripAdvisorAICache || g('tripAdvisorAIEntry')) return;
+
+  card.style.display = '';
+  card.innerHTML = `
+    <div id="tripAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's trip-planning analysis</div>
+        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered read of this trip against your real regional cost history</div>
+      </div>
+      <button onclick="_tripLaunchAdvisorAI()"
+        style="font-size:12px;padding:7px 16px;background:var(--pine);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        ✦ Generate
+      </button>
+    </div>`;
+}
+
+async function _tripLaunchAdvisorAI() {
+  g('tripAdvisorAIEntry')?.remove();
+  const d = _tripBudgetData;
+  const f = _tripLastForecast;
+  if (!d || !f || f.confidence === 'none') return;
+
+  const dataLines = [
+    `Destination: ${d.dest}`,
+    `Trip length: ${d.nights} night(s), ${d.travelers} traveler(s)`,
+    `Estimated total: ${fmt(d.total)}`,
+    `Breakdown: transport ${fmt(d.transport)}, hotel ${fmt(d.hotel)}, dining ${fmt(d.dining)}, activities ${fmt(d.activities)}`,
+    '---',
+    `Regional history: past trips to this region ran ${Math.abs(f.adjustment_pct)}% ${f.adjustment_pct>0?'higher':'lower'} than estimated (${f.trip_count} trip(s) tracked, ${f.confidence} confidence)`,
+    `Historically-adjusted estimate: ${fmt(f.estimate)}`,
+  ];
+
+  const buildPrompt = (profileCtx, stageCtx) => [
+    profileCtx || '',
+    `TRIP PICTURE — ${new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})}`,
+    '',
+    dataLines.join('\n'),
+    stageCtx?.stageNote || '',
+    '',
+    'Rules: Lead with how this trip\'s estimate compares to the region\'s real historical cost, stated as a plain fact from the numbers above. Name dollar amounts. Never invent a number or a projection not given above. 2-3 short paragraphs. No headers, no bullets.',
+  ].filter(Boolean).join('\n').trim();
+
+  const target = g('tripAdvisorCard');
+  if (target) {
+    await _rcAnalyzeWithAI('trip_advisor', dataLines, buildPrompt, target);
+    _tripAdvisorAICache = true;
   }
 }
 
@@ -17072,6 +17134,8 @@ function _renderGiftPage() {
   _applySeasonalContributions();
   cont.innerHTML = _renderGiftFilterBar() + _renderGiftComingUp() + _renderGiftPeopleSection() + _renderGiftSeasonsSection();
   cont.onclick = _giftClickHandler;
+  _giftLoadSeasonConfidence();
+  _giftRenderAdvisorEntry();
 }
 
 function _renderGiftFilterBar() {
@@ -17161,13 +17225,17 @@ function _giftPersonCard(p) {
     const oct  = GIFT_OCCASION_TYPES[o.type]||GIFT_OCCASION_TYPES.other;
     const next = _nextOccurrenceDate(o);
     const ds   = o.date?(next?next.toLocaleDateString('en-US',{month:'short',day:'numeric'}):o.date):'—';
+    const spentNote = o.actual_spent != null
+      ? `<span style="font-size:10px;color:var(--slate-2)" title="Logged ${o.spent_at||''}">spent ${fmt(o.actual_spent)}</span>` : '';
     return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--steel-2)">
       <span style="font-size:16px;width:22px;text-align:center">${oct.icon}</span>
       <div style="flex:1;font-size:12px;color:var(--ink)">${oct.label}</div>
+      ${spentNote}
       <div style="font-size:11px;color:var(--slate);min-width:60px;text-align:right">${ds}</div>
       <input type="number" value="${o.budget||''}" min="0" step="0.01" placeholder="$0"
         style="width:72px;font-family:var(--font-mono);font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
         onchange="_giftSetOccasionBudget('${p.id}','${o.id}',this.value)">
+      <button class="row-del" data-action="spend-occ" data-pid="${p.id}" data-oid="${o.id}" title="Log actual spend">$</button>
       <button class="row-del" data-action="del-occ" data-pid="${p.id}" data-oid="${o.id}" title="Remove">×</button>
     </div>`;
   }).join('');
@@ -17208,17 +17276,38 @@ function _renderGiftSeasonsSection() {
     </div>
     <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" data-action="save-season">Create fund</button><button class="btn btn-ghost btn-sm" data-action="cancel-season">Cancel</button></div>
   </div>`;
-  const list = _giftSeasons.length ? _giftSeasons.map(s=>_giftSeasonCard(s)).join('')
-    : `<div style="font-size:12px;color:var(--slate);padding:8px 0;line-height:1.7">No seasonal funds yet. Add one for Christmas, vacations, or any recurring occasion.</div>`;
+  const list = _giftBuildSeasonsListHTML();
   return `<div class="card mb-5">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div><div class="card-label" style="margin-bottom:2px">Seasonal funds</div>
       <div style="font-size:12px;color:var(--slate)">Save toward Christmas, vacations, and recurring occasions — with a deadline so the math is automatic.</div></div>
       <button class="btn btn-secondary btn-sm" data-action="add-season">+ Fund</button>
-    </div>${addForm}${list}</div>`;
+    </div><div id="giftSeasonsListWrap">${list}</div></div>`;
 }
 
-function _giftSeasonCard(s) {
+function _giftBuildSeasonsListHTML(confMap) {
+  return _giftSeasons.length ? _giftSeasons.map(s=>_giftSeasonCard(s, confMap?.[s.id])).join('')
+    : `<div style="font-size:12px;color:var(--slate);padding:8px 0;line-height:1.7">No seasonal funds yet. Add one for Christmas, vacations, or any recurring occasion.</div>`;
+}
+
+// Pace confidence, Historian-backed (mirrors sinking/college funds) —
+// fetched after the synchronous page render since _renderGiftPage builds
+// the whole page as one template-string concatenation, not each section
+// independently. Patches just the seasons list once confidences resolve.
+async function _giftLoadSeasonConfidence() {
+  if (!_giftSeasons.length) return;
+  const wrap = g('giftSeasonsListWrap');
+  if (!wrap) return;
+  const results = await Promise.all(_giftSeasons.map(s =>
+    API.get(`/api/gift/seasons/${s.id}/confidence`).catch(() => ({confidence_pct: null}))
+  ));
+  const confMap = {};
+  _giftSeasons.forEach((s, i) => { confMap[s.id] = results[i]; });
+  const freshWrap = g('giftSeasonsListWrap');   // page may have re-rendered while awaiting
+  if (freshWrap) freshWrap.innerHTML = _giftBuildSeasonsListHTML(confMap);
+}
+
+function _giftSeasonCard(s, conf) {
   const today    = new Date();
   const deadline = s.deadline?new Date(s.deadline+'T00:00:00'):null;
   const target   = parseFloat(s.target)||0;
@@ -17235,9 +17324,13 @@ function _giftSeasonCard(s) {
       :`${fmt(monthlyNeeded)}/mo for ${monthsLeft} month${monthsLeft!==1?'s':''} · due ${deadline.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
   } else if (filled) statusNote=`<span style="color:var(--pine)">✓ Fully funded</span>`;
   const barColor = filled?'var(--pine)':pct>=80?'var(--pine)':pct>=40?'var(--gold)':'var(--ember)';
+  const confPct   = conf && conf.confidence_pct;
+  const confBadge = (confPct != null)
+    ? `<span style="font-size:10px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine)':confPct>=40?'var(--gold)':'var(--ember)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>`
+    : '';
   return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:14px;margin-bottom:8px">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px">
-      <div><div style="font-size:14px;font-weight:600;color:var(--ink);margin-bottom:2px">${esc(s.name)}</div></div>
+      <div><div style="font-size:14px;font-weight:600;color:var(--ink);margin-bottom:2px">${esc(s.name)}</div>${confBadge}</div>
       <div style="display:flex;align-items:center;gap:8px">
         <div style="text-align:right"><div style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:${barColor}">${fmt(saved)}</div>
         <div style="font-size:10px;color:var(--slate-2)">of ${fmt(target)}</div></div>
@@ -17302,6 +17395,7 @@ function _giftClickHandler(e) {
     case 'del-person':    _giftDeletePerson(pid); return;
     case 'add-occ':       _giftAddOccasion(pid); return;
     case 'del-occ':       _giftDeleteOccasion(pid,oid); return;
+    case 'spend-occ':     _giftLogOccasionSpend(pid,oid); return;
     case 'budget-it':     _giftBudgetIt(pid,oid); return;
     case 'set-budget':    _giftExpandAndFocusBudget(pid,oid); return;
     case 'add-season':    { const f=g('giftSeasonForm'); if(f) f.style.display=f.style.display==='none'||!f.style.display?'block':'none'; return; }
@@ -17365,6 +17459,109 @@ function _giftBudgetIt(pid,oid) {
     if(document.querySelector('#view-budget.active')) renderBudget();
   }).catch(()=>showToast('Could not add to budget','','warning'));
 }
+
+// Occasions had a budgeted amount but nothing ever recorded what was
+// actually spent — the same gap BYB had before its resolve flow. Logs
+// 'gift_occasion_variance' (Historian) and persists actual_spent/spent_at
+// on the occasion itself, same pattern as college funds/sinking funds.
+function _giftLogOccasionSpend(pid,oid) {
+  const p=_giftPeople.find(x=>x.id===parseInt(pid)); const o=p?.occasions?.find(x=>x.id===parseInt(oid)); if(!o) return;
+  const oct=GIFT_OCCASION_TYPES[o.type]||GIFT_OCCASION_TYPES.other;
+  confirmAction(`Log actual spend — ${p.name}'s ${oct.label}`,
+    `<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">Budgeted: ${fmt(o.budget||0)}</div>
+     <input type="number" id="giftActualSpend" placeholder="What it actually cost ($)" min="0" step="0.01"
+       value="${o.actual_spent ?? o.budget ?? ''}"
+       style="width:100%;padding:8px;border-radius:var(--r-md);border:1px solid var(--steel);font-family:var(--font-mono)">`,
+    async ()=>{
+      const amt = parseFloat(g('giftActualSpend')?.value);
+      if (!(amt >= 0)) return;
+      try {
+        await API.post(`/api/gift/occasions/${pid}/${oid}/spend`, { actual_spent: amt });
+        o.actual_spent = amt;
+        o.spent_at = new Date().toISOString().slice(0,10);
+        _renderGiftPage();
+        showToast('Logged', `${fmt(amt)} spent on ${p.name}'s ${oct.label}`, 'success');
+      } catch(e) {
+        _gwErr('_giftLogOccasionSpend')(e);
+        showToast('Could not log spend', e.message||'', 'error');
+      }
+    }, 'Save', false
+  );
+}
+
+// Gift advisor — mirrors _invRenderAdvisorEntry/_sfRenderAdvisorEntry's
+// one-time "Generate" entry point, delegating to the shared
+// _rcAnalyzeWithAI flow. dataLines only restate numbers already shown on
+// the page (occasion budgets/actuals, season targets/pace).
+let _giftAdvisorAICache = false;
+
+function _giftRenderAdvisorEntry() {
+  const card = g('giftAdvisorCard');
+  if (!card) return;
+  const hasData = _giftPeople.some(p => (p.occasions||[]).some(o => o.budget > 0)) || _giftSeasons.length > 0;
+  if (!hasData) { card.style.display = 'none'; return; }
+  if (_giftAdvisorAICache || g('giftAdvisorAIEntry')) return;
+
+  card.style.display = '';
+  card.innerHTML = `
+    <div id="giftAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's gift-budget analysis</div>
+        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered read of what's coming up and how your seasonal funds are pacing</div>
+      </div>
+      <button onclick="_giftLaunchAdvisorAI()"
+        style="font-size:12px;padding:7px 16px;background:var(--pine);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        ✦ Generate
+      </button>
+    </div>`;
+}
+
+async function _giftLaunchAdvisorAI() {
+  g('giftAdvisorAIEntry')?.remove();
+  const dataLines = [];
+
+  const upcoming = [];
+  _giftPeople.forEach(p => (p.occasions||[]).forEach(o => {
+    if (!(o.budget > 0)) return;
+    const next = _nextOccurrenceDate(o);
+    const oct  = GIFT_OCCASION_TYPES[o.type] || GIFT_OCCASION_TYPES.other;
+    upcoming.push({
+      when: next, text: `${p.name}'s ${oct.label}${next ? ` (${next.toLocaleDateString('en-US',{month:'short',day:'numeric'})})` : ''}: budgeted ${fmt(o.budget)}${o.actual_spent!=null ? `, actually spent ${fmt(o.actual_spent)} last time` : ''}`,
+    });
+  }));
+  upcoming.sort((a,b) => (a.when||0) - (b.when||0));
+  if (upcoming.length) {
+    dataLines.push('UPCOMING OCCASIONS:');
+    upcoming.slice(0, 8).forEach(u => dataLines.push(u.text));
+  }
+
+  if (_giftSeasons.length) {
+    dataLines.push('---', 'SEASONAL FUNDS:');
+    _giftSeasons.forEach(s => {
+      const target = parseFloat(s.target)||0, saved = parseFloat(s.saved)||0;
+      dataLines.push(`${s.name}: ${fmt(saved)} of ${fmt(target)}${s.deadline ? `, due ${s.deadline}` : ''}`);
+    });
+  }
+
+  if (!dataLines.length) return;
+
+  const buildPrompt = (profileCtx, stageCtx) => [
+    profileCtx || '',
+    `GIFT BUDGET PICTURE — ${new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})}`,
+    '',
+    dataLines.join('\n'),
+    stageCtx?.stageNote || '',
+    '',
+    'Rules: Lead with whichever occasion is soonest, or whichever seasonal fund is furthest behind pace — a plain fact from the numbers above. Name dollar amounts. Never invent a number. 2-3 short paragraphs. No headers, no bullets.',
+  ].filter(Boolean).join('\n').trim();
+
+  const target = g('giftAdvisorCard');
+  if (target) {
+    await _rcAnalyzeWithAI('gift_advisor', dataLines, buildPrompt, target);
+    _giftAdvisorAICache = true;
+  }
+}
+
 function _giftSaveSeason() {
   const name=g('gsName')?.value?.trim(); const target=parseFloat(g('gsTarget')?.value)||0; const deadline=g('gsDeadline')?.value||'';
   if (!name) { showToast('Enter a fund name','','warning'); return; }
@@ -17384,8 +17581,13 @@ function _giftDepositSeason(sid) {
   const remaining=Math.max(0,(s.target||0)-(s.saved||0));
   confirmAction(`Add to ${s.name}`,`<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">Target: ${fmt(s.target)} · Saved: ${fmt(s.saved||0)} · Remaining: ${fmt(remaining)}</div>
     <input type="number" id="gsDepositAmt" placeholder="Amount to add" min="1" step="0.01" style="width:100%;padding:8px;border-radius:var(--r-md);border:1px solid var(--steel);font-family:var(--font-mono)">`,
-  ()=>{ const amt=parseFloat(g('gsDepositAmt')?.value)||0; if(amt<=0) return;
-    s.saved=Math.min(s.target||0,(parseFloat(s.saved)||0)+amt); _saveGiftSeasons(); _renderGiftPage(); showToast(`${fmt(amt)} added to ${s.name}`,'','success');
+  async ()=>{ const amt=parseFloat(g('gsDepositAmt')?.value)||0; if(amt<=0) return;
+    // Log against the pre-deposit balance first — the server computes
+    // "expected" from the season's current target/deadline/saved in the
+    // settings blob, so this has to happen before _saveGiftSeasons()
+    // overwrites that blob with the new total.
+    await API.post(`/api/gift/seasons/${s.id}/contribute`, { amount: amt }).catch(_gwErr('_giftDepositSeason:historian'));
+    s.saved=Math.min(s.target||0,(parseFloat(s.saved)||0)+amt); await _saveGiftSeasons(); await _renderGiftPage(); showToast(`${fmt(amt)} added to ${s.name}`,'','success');
   },'Add funds',false);
 }
 function _giftSpendSeason(sid) {

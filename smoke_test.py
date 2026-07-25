@@ -1008,6 +1008,24 @@ def main():
     r = c.get('/api/trip/forecast?region=CO&base_estimate=not-a-number', headers=H)
     check('GET /api/trip/forecast rejects a non-numeric base_estimate (400)', r.status_code == 400)
 
+    # Regression: save_trip_budget and save_trip_learned_actual write
+    # SEPARATE rows by design (a "learned actual" applies to the NEW trip
+    # being planned, not the specific past trip it came from — see that
+    # route's docstring), so a region's actual-only rows never carry an
+    # estimated_total. The original average-over-all-matching-rows math
+    # coerced that missing estimate to 0, dragging avg_estimated toward
+    # zero until variance_pct silently locked at None forever — caught
+    # while browser-testing the new trip advisor panel, which never had
+    # anything to show for exactly this realistic write pattern.
+    with _dbs() as session:
+        session.add(_TH(region='OrphanRegion', trip_label='Estimate only', estimated_total=1000.0, actual_total=None))
+        session.add(_TH(region='OrphanRegion', trip_label='Actual only 1', estimated_total=None, actual_total=1300.0))
+        session.add(_TH(region='OrphanRegion', trip_label='Actual only 2', estimated_total=None, actual_total=1300.0))
+        session.commit()
+        orphan_forecast = get_improved_trip_estimate(session, 'OrphanRegion', 1000.0)
+    check('get_improved_trip_estimate is not fooled by mismatched estimate/actual rows (regression)',
+          orphan_forecast['confidence'] != 'none' and orphan_forecast['adjustment_pct'] == 30.0)
+
     # Write hook 1/2: saving a trip budget writes/updates the estimate side.
     trip_body = {
         'dest': 'Nashville, TN', 'depart': '2026-09-01', 'ret': '2026-09-05',
@@ -1738,6 +1756,86 @@ def main():
           "decision:           item.decision" in app_src and "dti_after:          item.dti_after" in app_src)
     check('app.js wires the "Decide now" resolve action for tracked items',
           '_bybResolveTracked' in app_src and "/resolve" in app_src)
+
+    # ── 39. Gift Budget — seasons + occasions Historian, and the Trip
+    # advisor (the last two areas from "capture data everywhere") ────────────
+    # Gift seasons have no monthly_contribution field like sinking funds do
+    # (only target + deadline), so "expected" is a deadline-derived pace
+    # computed server-side — same formula the client's own _giftSeasonCard
+    # already displays as "$X/mo for N months".
+    from server import (
+        _log_gift_season_contribution_variance, get_gift_season_confidence,
+        _log_gift_occasion_variance,
+    )
+
+    r = c.get('/api/gift/seasons/nonexistent-id/confidence', headers=H)
+    check('GET /api/gift/seasons/<id>/confidence is honest-empty for an unknown season',
+          r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('confidence_pct') is None)
+
+    # Deadline 6 months out (2027-01), target $1200, $0 saved so far ->
+    # expected pace = 1200/6 = $200/mo. A $120 deposit is deliberately
+    # behind that pace.
+    _gift_season = {'id': 'smoke-gs-1', 'name': 'Smoke Holiday Fund', 'target': 1200, 'saved': 0, 'deadline': '2027-01-24'}
+    with _dbs() as session:
+        session.add(_AS(key='gift_seasons_json', value=json.dumps([_gift_season])))
+        session.commit()
+
+    r = c.post('/api/gift/seasons/smoke-gs-1/contribute', headers=H, json={'amount': 120})
+    check('POST /api/gift/seasons/<id>/contribute succeeds (deliberately behind the deadline-derived pace)',
+          r.status_code == 200)
+    r = c.post('/api/gift/seasons/nonexistent-id/contribute', headers=H, json={'amount': 50})
+    check('POST /api/gift/seasons/<id>/contribute 404s for an unknown season', r.status_code == 404)
+
+    with _dbs() as session:
+        hist_gs = session.query(_HE).filter_by(
+            event_category='gift_season_contribution_variance').order_by(_HE.id.desc()).first()
+        check('_log_gift_season_contribution_variance computes expected from target/deadline/saved, not a stored field',
+              hist_gs is not None and abs(hist_gs.expected_value - 200.0) < 0.5 and hist_gs.actual_value == 120.0)
+        conf_gs = get_gift_season_confidence(session, 'smoke-gs-1')
+        check('get_gift_season_confidence classifies a below-pace deposit as "behind"',
+              conf_gs['trend'] == 'behind' and conf_gs['confidence_pct'] is not None)
+
+    r = c.get('/api/gift/seasons/smoke-gs-1/confidence', headers=H)
+    check('GET /api/gift/seasons/<id>/confidence route reflects the logged variance',
+          r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('trend') == 'behind')
+
+    # A season with no deadline must be skipped silently, not crash with a
+    # fabricated expectation.
+    with _dbs() as session:
+        _log_gift_season_contribution_variance(session, 'no-deadline-season', 500, 0, '', 25)
+        session.commit()
+        no_deadline_count = session.query(_HE).filter_by(event_category='gift_season_contribution_variance').count()
+    check('a season with no deadline is skipped (no fabricated expectation)', no_deadline_count == 1)
+
+    # Occasions: had a budgeted amount but nothing ever recorded what was
+    # actually spent — same gap BYB had before its resolve flow.
+    _gift_person = {'id': 'smoke-person-1', 'name': 'Smoke Niece', 'relationship': 'family',
+                     'occasions': [{'id': 'smoke-occ-1', 'type': 'birthday', 'date': '2026-03-01', 'budget': 75}]}
+    with _dbs() as session:
+        session.add(_AS(key='gift_people_json', value=json.dumps([_gift_person])))
+        session.commit()
+
+    r = c.post('/api/gift/occasions/smoke-person-1/smoke-occ-1/spend', headers=H, json={'actual_spent': 92.50})
+    check('POST /api/gift/occasions/<pid>/<oid>/spend succeeds (over budget)', r.status_code == 200)
+    r = c.post('/api/gift/occasions/smoke-person-1/nonexistent-occ/spend', headers=H, json={'actual_spent': 10})
+    check('POST /api/gift/occasions/<pid>/<oid>/spend 404s for an unknown occasion', r.status_code == 404)
+
+    with _dbs() as session:
+        hist_occ = session.query(_HE).filter_by(event_category='gift_occasion_variance').first()
+        check('gift_occasion_variance logs expected=budget, actual=actual_spent',
+              hist_occ is not None and hist_occ.expected_value == 75.0 and hist_occ.actual_value == 92.50)
+        row = session.query(_AS).filter_by(key='gift_people_json').first()
+        people_after = json.loads(row.value)
+        occ_after = people_after[0]['occasions'][0]
+        check('the occasion itself is updated in the settings blob (actual_spent/spent_at persisted)',
+              occ_after.get('actual_spent') == 92.50 and occ_after.get('spent_at'))
+
+    check("app.js wires the gift advisor panel (surface: 'gift_advisor')",
+          "'gift_advisor'" in app_src and 'giftAdvisorCard' in app_src)
+    check("app.js wires the trip advisor panel (surface: 'trip_advisor')",
+          "'trip_advisor'" in app_src and 'tripAdvisorCard' in app_src)
+    check('app.js wires occasion actual-spend logging (data-action="spend-occ")',
+          "'spend-occ'" in app_src and '_giftLogOccasionSpend' in app_src)
 
     return finish()
 

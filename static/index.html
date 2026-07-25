@@ -2397,6 +2397,11 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div id="tripBudgetContent"></div>
         </div>
 
+        <!-- Trip advisor — AI analysis entry point reading real trip
+             history (trip_history), mirroring invAdvisorCard/debtPanel-
+             advisor. Hidden until there's real trip history to analyze. -->
+        <div id="tripAdvisorCard" class="card mb-5" style="display:none"></div>
+
       </div>
 
       <!-- GIFT BUDGET -->
@@ -2407,6 +2412,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div class="section-sub">Everyone you buy for, every occasion — planned and funded.</div>
         </div>
         <div id="giftContent"><!-- Rendered by renderGiftBudget() --></div>
+        <div id="giftAdvisorCard" class="card mt-5" style="display:none"></div>
       </div>
 
       <!-- SETTINGS -->

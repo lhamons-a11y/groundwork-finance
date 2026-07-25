@@ -302,6 +302,13 @@ class HistorianEntry(Base):
                                              with actual_cost) — a same-day commit/walkaway is logged as
                                              a pure categorical event (context only), not a fabricated
                                              0%-variance data point.
+      'gift_season_contribution_variance' — gift seasons (deposit, actual $ vs. a deadline-derived
+                                             monthly pace — gift seasons have no monthly_contribution
+                                             field like sinking funds do, so expected is computed
+                                             server-side the same way the client's own "$X/mo" display
+                                             already is: (target - saved) / months_left)
+      'gift_occasion_variance'            — a gift occasion's actual spend vs. its budgeted amount,
+                                             logged once the occasion date has passed
     No payoff_plan_id column: same reason as DebtLedgerEntry — there is no
     persisted payoff-plan table in this codebase. Net worth milestones are
     similarly not a DB table (they live in AppSetting's nw_goals_json, a
@@ -317,7 +324,10 @@ class HistorianEntry(Base):
     (AppSetting's college_funds_json, same {id, ...} shape as net worth
     milestones since neither predates that pattern) — those carry
     college_fund_id. BYB items are a real table (BYBItem) too — those
-    entries carry byb_item_id.
+    entries carry byb_item_id. Gift seasons and occasions are JSON too
+    (AppSetting's gift_seasons_json / gift_people_json[].occasions[]) —
+    those carry gift_season_id, and gift_person_id + occasion_id since an
+    occasion only exists nested inside a person record, not at top level.
     """
     __tablename__   = 'historian_entries'
     id              = Column(Integer, primary_key=True)

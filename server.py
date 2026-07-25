@@ -174,6 +174,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(auto_import_bp,   url_prefix='/api/auto-import')
     app.register_blueprint(sinking_funds_bp,  url_prefix='/api/sinking-funds')
     app.register_blueprint(college_funds_bp,  url_prefix='/api/college-funds')
+    app.register_blueprint(gift_bp,           url_prefix='/api/gift')
 
     # System routes
     @app.route('/api/ping')
@@ -2790,6 +2791,85 @@ def get_college_fund_confidence(session, fund_id, months: int = 12) -> dict:
     }
 
 
+def _log_gift_season_contribution_variance(session, season_id, target: float, saved_before: float,
+                                            deadline: str, actual_amount: float):
+    """
+    Gift seasons' Historian write-hook, called from POST
+    .../gift/seasons/<id>/contribute. Unlike sinking/college funds, a gift
+    season has no monthly_contribution/monthlyContrib field at all — only
+    target + deadline — so "expected" is computed the same way the
+    client's own _giftSeasonCard already displays it ("$X/mo for N
+    months"): (target - saved) / months_left, using the balance BEFORE
+    this deposit is applied. Skipped when there's no deadline, no target,
+    no months remaining, or the season is already funded — nothing
+    meaningful to compare against in any of those cases.
+    """
+    if not deadline or not target:
+        return
+    try:
+        d = datetime.strptime(deadline, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return
+    today = datetime.utcnow().date()
+    months_left = max(0, (d.year - today.year) * 12 + (d.month - today.month))
+    remaining = target - saved_before
+    if months_left <= 0 or remaining <= 0:
+        return
+    expected = remaining / months_left
+    log_historian_event(
+        session, 'gift_season_contribution_variance',
+        expected_value=round(expected, 2), actual_value=round(actual_amount, 2),
+        context={'gift_season_id': season_id},
+    )
+
+
+def get_gift_season_confidence(session, season_id, months: int = 12) -> dict:
+    """0-100 pace confidence for a gift season — identical shape and
+    scoring to get_sinking_fund_confidence/get_college_fund_confidence."""
+    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    entries = session.query(HistorianEntry).filter(
+        HistorianEntry.event_category == 'gift_season_contribution_variance',
+        HistorianEntry.created_at >= cutoff,
+    ).all()
+    matched = []
+    for e in entries:
+        try:
+            ctx = json.loads(e.context_json or '{}')
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if str(ctx.get('gift_season_id')) == str(season_id):
+            matched.append(e)
+    if not matched:
+        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
+                'samples': 0, 'reasoning': 'No contribution history yet for this fund.'}
+    variances = [e.variance_pct for e in matched if e.variance_pct is not None]
+    if not variances:
+        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
+                'samples': len(matched), 'reasoning': 'No variance data yet.'}
+    avg_variance = sum(variances) / len(variances)
+    confidence = max(0, min(100, round(100 + min(0, avg_variance) * 2)))
+    trend = 'ahead' if avg_variance > 5 else 'behind' if avg_variance < -5 else 'on_pace'
+    return {
+        'confidence_pct': confidence, 'trend': trend,
+        'avg_variance_pct': round(avg_variance, 1), 'samples': len(matched),
+        'reasoning': f'{len(matched)} contribution(s) tracked, {trend.replace("_", " ")}',
+    }
+
+
+def _log_gift_occasion_variance(session, person_id, occasion_id, budget: float, actual_spent: float):
+    """Occasions' Historian write-hook — logged once an occasion's actual
+    spend is recorded (see log_gift_occasion_spend below). expected=budget,
+    actual=actual_spent; skipped when no budget was ever set (nothing to
+    compare an unplanned gift against)."""
+    if not budget or budget <= 0:
+        return
+    log_historian_event(
+        session, 'gift_occasion_variance',
+        expected_value=round(budget, 2), actual_value=round(actual_spent, 2),
+        context={'gift_person_id': person_id, 'occasion_id': occasion_id},
+    )
+
+
 def get_payment_variance_for_account(session, debt_account_id: int, months: int = 12) -> dict:
     """Payment compliance metrics for a debt account from real historian
     events (payment_confirmed / payment_amount_variance), over a trailing
@@ -2895,22 +2975,38 @@ def get_budget_variance_by_category(session, category_id: int, months: int = 12)
 
 
 def get_trip_variance_by_region(session, region: str) -> dict:
-    """Regional trip spending variance from trip_history (Phase H1 addition,
+    """
+    Regional trip spending variance from trip_history (Phase H1 addition,
     not historian_entries — trips are per-trip rows, not point events).
-    Scaffold until Phase H2 Feature 3 wires the write hooks that give this
-    real data to aggregate."""
-    rows = session.query(TripHistory).filter(
+
+    save_trip_budget's estimate rows and save_trip_learned_actual's actual
+    rows are deliberately not the same row (see save_trip_learned_actual's
+    docstring — a "learned actual" is applied to inform a NEW trip being
+    planned, not closing the loop on one specific past estimate), so a
+    region's actual-only rows never carry an estimated_total. Averaging
+    across "all rows with an actual" while treating a missing estimate as
+    0 (the original bug here) drags avg_estimated toward zero as more
+    actual-only rows accumulate, until variance_pct silently locks at
+    None forever regardless of how much real data exists. Averaging
+    estimates and actuals over their own independent row sets — which is
+    what the field names already imply — fixes that without losing either
+    side's signal.
+    """
+    est_rows = session.query(TripHistory.estimated_total).filter(
+        TripHistory.region == region, TripHistory.estimated_total.isnot(None)
+    ).all()
+    act_rows = session.query(TripHistory.actual_total).filter(
         TripHistory.region == region, TripHistory.actual_total.isnot(None)
     ).all()
-    if not rows:
-        return {'avg_estimated': None, 'avg_actual': None, 'variance_pct': None, 'trip_count': 0}
-    avg_est = sum(r.estimated_total or 0 for r in rows) / len(rows)
-    avg_act = sum(r.actual_total for r in rows) / len(rows)
+    if not est_rows or not act_rows:
+        return {'avg_estimated': None, 'avg_actual': None, 'variance_pct': None, 'trip_count': len(act_rows)}
+    avg_est = sum(r[0] for r in est_rows) / len(est_rows)
+    avg_act = sum(r[0] for r in act_rows) / len(act_rows)
     return {
         'avg_estimated': round(avg_est, 2),
         'avg_actual': round(avg_act, 2),
         'variance_pct': round((avg_act - avg_est) / avg_est * 100, 1) if avg_est else None,
-        'trip_count': len(rows),
+        'trip_count': len(act_rows),
     }
 
 
@@ -5950,6 +6046,83 @@ def college_fund_confidence(fund_id):
     confidence routes — thin read of get_college_fund_confidence."""
     with db_session() as session:
         return ok(get_college_fund_confidence(session, fund_id))
+
+
+# ── Gift seasons + occasions (Historian logging — same pattern as
+# college_funds_bp: gift_seasons_json/gift_people_json stay client-managed
+# blobs, these routes exist so "expected" always comes from that
+# server-held blob, never a client-passed number) ──────────────────────────
+gift_bp = Blueprint('gift', __name__)
+
+
+@gift_bp.route('/seasons/<season_id>/contribute', methods=['POST'])
+@require_json
+def log_gift_season_contribution(season_id):
+    """Body: { amount: float }. expected is computed from the season's own
+    target/deadline/saved in gift_seasons_json — gift seasons have no
+    monthly_contribution field, so this reproduces the same deadline-pace
+    math the client already displays, using the balance as of THIS
+    request (before the client applies the deposit)."""
+    amount = float(request.json.get('amount', 0) or 0)
+    if amount <= 0:
+        return err('Amount must be positive')
+    with db_session() as session:
+        row = session.query(AppSetting).filter_by(key='gift_seasons_json').first()
+        try:
+            seasons = json.loads(row.value) if row and row.value else []
+        except (json.JSONDecodeError, TypeError):
+            seasons = []
+        season = next((s for s in seasons if str(s.get('id')) == str(season_id)), None)
+        if not season:
+            return err('Season not found', 404)
+        target = float(season.get('target', 0) or 0)
+        saved_before = float(season.get('saved', 0) or 0)
+        deadline = season.get('deadline', '')
+        _log_gift_season_contribution_variance(session, season_id, target, saved_before, deadline, amount)
+        session.commit()
+        return ok({'logged': True})
+
+
+@gift_bp.route('/seasons/<season_id>/confidence', methods=['GET'])
+def gift_season_confidence(season_id):
+    """Gift seasons' mirror of the sinking/college-fund confidence
+    routes — thin read of get_gift_season_confidence."""
+    with db_session() as session:
+        return ok(get_gift_season_confidence(session, season_id))
+
+
+@gift_bp.route('/occasions/<person_id>/<occasion_id>/spend', methods=['POST'])
+@require_json
+def log_gift_occasion_spend(person_id, occasion_id):
+    """
+    Body: { actual_spent: float }. Records what was actually spent on an
+    occasion (gift_people_json has no such field today — only the
+    budgeted amount) and logs the variance against that budget. Updates
+    the occasion in place in the settings blob, same as it always
+    persisted budget/note, rather than only living in the historian log.
+    """
+    actual_spent = request.json.get('actual_spent')
+    if actual_spent is None:
+        return err('actual_spent is required')
+    actual_spent = float(actual_spent)
+    with db_session() as session:
+        row = session.query(AppSetting).filter_by(key='gift_people_json').first()
+        try:
+            people = json.loads(row.value) if row and row.value else []
+        except (json.JSONDecodeError, TypeError):
+            people = []
+        person = next((p for p in people if str(p.get('id')) == str(person_id)), None)
+        occasion = next((o for o in (person.get('occasions') or [])
+                          if str(o.get('id')) == str(occasion_id)), None) if person else None
+        if not occasion:
+            return err('Occasion not found', 404)
+        budget = float(occasion.get('budget', 0) or 0)
+        occasion['actual_spent'] = actual_spent
+        occasion['spent_at'] = datetime.utcnow().date().isoformat()
+        row.value = json.dumps(people)
+        _log_gift_occasion_variance(session, person_id, occasion_id, budget, actual_spent)
+        session.commit()
+        return ok({'logged': True, 'actual_spent': actual_spent})
 
 
 # ── Quicken import endpoint ───────────────────────────────────────────────────
