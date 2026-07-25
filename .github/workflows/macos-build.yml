@@ -1,0 +1,54 @@
+name: macOS Build
+
+# PyInstaller can't cross-compile — a macOS .app has to be built on macOS.
+# There's no Mac in the loop for local development, so this workflow is the
+# only place a mac build can happen. Manual trigger + tag pushes only (no
+# per-commit builds — this is a slow, artifact-producing job, not a test).
+on:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build .icns from source PNG
+        run: |
+          mkdir -p groundwork.iconset
+          sips -z 16 16     assets/groundwork_256.png --out groundwork.iconset/icon_16x16.png
+          sips -z 32 32     assets/groundwork_256.png --out groundwork.iconset/icon_16x16@2x.png
+          sips -z 32 32     assets/groundwork_256.png --out groundwork.iconset/icon_32x32.png
+          sips -z 64 64     assets/groundwork_256.png --out groundwork.iconset/icon_32x32@2x.png
+          sips -z 128 128   assets/groundwork_256.png --out groundwork.iconset/icon_128x128.png
+          sips -z 256 256   assets/groundwork_256.png --out groundwork.iconset/icon_128x128@2x.png
+          sips -z 256 256   assets/groundwork_256.png --out groundwork.iconset/icon_256x256.png
+          cp assets/groundwork_256.png groundwork.iconset/icon_256x256@2x.png
+          iconutil -c icns groundwork.iconset -o assets/groundwork.icns
+
+      - name: Build with PyInstaller
+        run: pyinstaller groundwork_macos.spec --clean --noconfirm
+
+      - name: Zip the .app bundle
+        run: |
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent Groundwork.app ../Groundwork-macos.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Groundwork-macos
+          path: Groundwork-macos.zip
+          retention-days: 30
