@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 block_cipher = None
-root = Path(__file__).parent.resolve()
+root = Path.cwd()
 
 try:
     import webview
