@@ -953,7 +953,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
           <div class="field">
             <label id="obIncomeLabel">Monthly take-home income</label>
-            <input type="number" id="obIncome" placeholder="e.g. 4200" min="0" step="100"
+            <input type="number" id="obIncome" placeholder="e.g. 4200" min="0" step="0.01"
               style="font-size:22px;font-family:var(--font-mono);padding:14px"
               oninput="obUpdateStep1()">
           </div>
@@ -961,7 +961,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <!-- Partner income — shown when household mode is on -->
           <div id="obIncome2Field" class="field hidden mt-4">
             <label id="obIncome2Label">Partner's monthly take-home income</label>
-            <input type="number" id="obIncome2" placeholder="e.g. 3800" min="0" step="100"
+            <input type="number" id="obIncome2" placeholder="e.g. 3800" min="0" step="0.01"
               style="font-size:22px;font-family:var(--font-mono);padding:14px"
               oninput="obUpdateStep1()">
           </div>
@@ -985,7 +985,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">Housing</div>
             <div class="field">
               <label>Mortgage or rent ($/month)</label>
-              <input type="number" id="obExpHousing" placeholder="e.g. 1,500" min="0" step="50">
+              <input type="number" id="obExpHousing" placeholder="e.g. 1,500" min="0" step="0.01">
             </div>
 
             <!-- Utilities -->
@@ -993,27 +993,27 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <div class="grid-2" style="gap:12px">
               <div class="field" style="margin:0">
                 <label>Electric ($/month)</label>
-                <input type="number" id="obExpElectric" placeholder="e.g. 120" min="0" step="5">
+                <input type="number" id="obExpElectric" placeholder="e.g. 120" min="0" step="0.01">
               </div>
               <div class="field" style="margin:0">
                 <label>Gas ($/month)</label>
-                <input type="number" id="obExpGas" placeholder="e.g. 45" min="0" step="5">
+                <input type="number" id="obExpGas" placeholder="e.g. 45" min="0" step="0.01">
               </div>
               <div class="field" style="margin:0">
                 <label>Water / Sewer ($/month)</label>
-                <input type="number" id="obExpWater" placeholder="e.g. 35" min="0" step="5">
+                <input type="number" id="obExpWater" placeholder="e.g. 35" min="0" step="0.01">
               </div>
               <div class="field" style="margin:0">
                 <label>Internet ($/month)</label>
-                <input type="number" id="obExpInternet" placeholder="e.g. 65" min="0" step="5">
+                <input type="number" id="obExpInternet" placeholder="e.g. 65" min="0" step="0.01">
               </div>
               <div class="field" style="margin:0">
                 <label>Phone / Cell ($/month)</label>
-                <input type="number" id="obExpPhone" placeholder="e.g. 80" min="0" step="5">
+                <input type="number" id="obExpPhone" placeholder="e.g. 80" min="0" step="0.01">
               </div>
               <div class="field" style="margin:0">
                 <label>Trash ($/month)</label>
-                <input type="number" id="obExpTrash" placeholder="e.g. 25" min="0" step="5">
+                <input type="number" id="obExpTrash" placeholder="e.g. 25" min="0" step="0.01">
               </div>
             </div>
 
@@ -1022,11 +1022,11 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <div class="grid-2" style="gap:12px">
               <div class="field" style="margin:0">
                 <label>Groceries ($/month)</label>
-                <input type="number" id="obExpGroceries" placeholder="e.g. 500" min="0" step="25">
+                <input type="number" id="obExpGroceries" placeholder="e.g. 500" min="0" step="0.01">
               </div>
               <div class="field" style="margin:0">
                 <label>Dining out / takeout ($/month)</label>
-                <input type="number" id="obExpDining" placeholder="e.g. 200" min="0" step="10">
+                <input type="number" id="obExpDining" placeholder="e.g. 200" min="0" step="0.01">
               </div>
             </div>
 
@@ -1035,11 +1035,11 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <div class="grid-2" style="gap:12px">
               <div class="field" style="margin:0">
                 <label>Gas / Fuel ($/month)</label>
-                <input type="number" id="obExpFuel" placeholder="e.g. 150" min="0" step="10">
+                <input type="number" id="obExpFuel" placeholder="e.g. 150" min="0" step="0.01">
               </div>
               <div class="field" style="margin:0">
                 <label>Car lease ($/month)</label>
-                <input type="number" id="obExpCarLease" placeholder="e.g. 0" min="0" step="10">
+                <input type="number" id="obExpCarLease" placeholder="e.g. 0" min="0" step="0.01">
               </div>
             </div>
           </div>
@@ -1111,7 +1111,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div class="grid-2" style="gap:16px;margin-bottom:20px">
             <div class="field">
               <label>Net worth target</label>
-              <input type="number" id="obNWGoal" placeholder="e.g. 250000" min="0" step="10000"
+              <input type="number" id="obNWGoal" placeholder="e.g. 250000" min="0" step="0.01"
                 oninput="obUpdateGoal()">
             </div>
             <div class="field">
@@ -1468,18 +1468,18 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               </div>
               <div class="field" style="margin:0">
                 <label>Monthly contribution</label>
-                <input class="field-input" type="number" id="sfMonthly" placeholder="e.g. 60" min="1">
+                <input class="field-input" type="number" step="0.01" id="sfMonthly" placeholder="e.g. 60" min="1">
               </div>
               <button class="btn btn-primary btn-sm" onclick="saveSinkingFund()" style="margin-bottom:2px">Add</button>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
               <div class="field" style="margin:0">
                 <label>Starting balance (optional)</label>
-                <input class="field-input" type="number" id="sfBalance" placeholder="0">
+                <input class="field-input" type="number" step="0.01" id="sfBalance" placeholder="0">
               </div>
               <div class="field" style="margin:0">
                 <label>Target amount (optional)</label>
-                <input class="field-input" type="number" id="sfTarget" placeholder="e.g. 1200">
+                <input class="field-input" type="number" step="0.01" id="sfTarget" placeholder="e.g. 1200">
               </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
@@ -1571,7 +1571,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div class="card-label">Monthly payment budget</div>
               <div class="field">
                 <label>Total available for debt each month ($)</label>
-                <input type="number" id="monthlyBudget" placeholder="e.g. 1500" min="0" step="10" oninput="this.dataset.userSet='1';const _sc=g('debtSuggestedCommitment');if(_sc)_sc.style.display='none';calculate()" value="1500">
+                <input type="number" id="monthlyBudget" placeholder="e.g. 1500" min="0" step="0.01" oninput="this.dataset.userSet='1';const _sc=g('debtSuggestedCommitment');if(_sc)_sc.style.display='none';calculate()" value="1500">
               </div>
               <div id="debtSuggestedCommitment" style="display:none;margin-top:8px;font-size:12px;color:var(--slate)"></div>
               <div class="text-xs text-muted mt-3" style="line-height:1.6">Include minimums plus any extra. The more you put in, the faster you get out.</div>
@@ -1894,16 +1894,16 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div class="grid-2">
             <div>
               <div style="font-weight:600;margin-bottom:12px;font-size:13px">Assets</div>
-              <div class="field mb-4"><label>Checking &amp; savings ($)</label><input type="number" id="nwSavings" placeholder="0" oninput="updateNetWorth()"></div>
-              <div class="field mb-4"><label>Investment accounts ($) <span style="font-weight:400;font-size:10px;color:var(--slate-2)">brokerage, taxable</span></label><input type="number" id="nwInvestments" placeholder="0" oninput="updateNetWorth(); this.dataset.portfolioSync='';"><div id="nwInvSyncBadge" style="font-size:10px;color:var(--pine);margin-top:3px;display:none"></div></div>
+              <div class="field mb-4"><label>Checking &amp; savings ($)</label><input type="number" step="0.01" id="nwSavings" placeholder="0" oninput="updateNetWorth()"></div>
+              <div class="field mb-4"><label>Investment accounts ($) <span style="font-weight:400;font-size:10px;color:var(--slate-2)">brokerage, taxable</span></label><input type="number" step="0.01" id="nwInvestments" placeholder="0" oninput="updateNetWorth(); this.dataset.portfolioSync='';"><div id="nwInvSyncBadge" style="font-size:10px;color:var(--pine);margin-top:3px;display:none"></div></div>
               <!-- Retirement accounts — Phase 11 -->
               <div class="field mb-4">
                 <label>401(k) / 403(b) ($) ${helpIcon('retirement_account')}</label>
-                <input type="number" id="nw401k" placeholder="0" oninput="updateNetWorth()">
+                <input type="number" step="0.01" id="nw401k" placeholder="0" oninput="updateNetWorth()">
               </div>
               <div class="field mb-4">
                 <label>IRA / Roth IRA ($)</label>
-                <input type="number" id="nwIRA" placeholder="0" oninput="updateNetWorth()">
+                <input type="number" step="0.01" id="nwIRA" placeholder="0" oninput="updateNetWorth()">
               </div>
               <!-- Defined benefit pension — estimated present value -->
               <div id="nwPensionSection">
@@ -1913,12 +1913,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
                 </div>
                 <div id="nwPensionList"></div>
               </div>
-              <div class="field mb-4"><label>Cash on hand ($)</label><input type="number" id="nwCash" placeholder="0" oninput="updateNetWorth()"></div>
-              <div class="field mb-4"><label>Home estimated value ($)</label><input type="number" id="nwHomeValue" placeholder="0" oninput="updateNetWorth()"></div>
+              <div class="field mb-4"><label>Cash on hand ($)</label><input type="number" step="0.01" id="nwCash" placeholder="0" oninput="updateNetWorth()"></div>
+              <div class="field mb-4"><label>Home estimated value ($)</label><input type="number" step="0.01" id="nwHomeValue" placeholder="0" oninput="updateNetWorth()"></div>
             </div>
             <div>
               <div style="font-weight:600;margin-bottom:12px;font-size:13px">Liabilities</div>
-              <div class="field mb-4"><label>Mortgage balance ($)</label><input type="number" id="nwMortgage" placeholder="0" oninput="updateNetWorth()"></div>
+              <div class="field mb-4"><label>Mortgage balance ($)</label><input type="number" step="0.01" id="nwMortgage" placeholder="0" oninput="updateNetWorth()"></div>
               <div class="card mb-4" style="background:var(--mist);border-color:var(--steel)">
                 <div class="text-xs text-muted mb-3" style="letter-spacing:.06em;text-transform:uppercase">Credit card &amp; loan debt</div>
                 <div class="text-mono" style="font-size:20px;color:var(--ember)" id="nwDebtFromCards">$0</div>
@@ -1954,7 +1954,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               </div>
               <div class="field" style="flex:1;min-width:130px">
                 <label>Target ($)</label>
-                <input class="field-input" type="number" id="nwGoalAmount" placeholder="e.g. 100000" min="0" step="1000">
+                <input class="field-input" type="number" id="nwGoalAmount" placeholder="e.g. 100000" min="0" step="0.01">
               </div>
               <div class="field" style="flex:1;min-width:130px">
                 <label>Target date</label>
@@ -1998,7 +1998,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               </div>
               <div class="field" style="margin:0">
                 <label>Social Security / pension income ($/mo)</label>
-                <input class="field-input" type="number" id="retireSSIncome" placeholder="0">
+                <input class="field-input" type="number" step="0.01" id="retireSSIncome" placeholder="0">
               </div>
             </div>
             <div style="font-size:11px;color:var(--slate);margin-top:8px;line-height:1.6">
@@ -2039,7 +2039,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             </div>
             <div class="field mt-3" style="margin:0">
               <label>Your full monthly mortgage payment <span style="font-weight:400;color:var(--slate-2)">(optional — whatever actually leaves your account)</span></label>
-              <input class="field-input" type="number" id="mortgageFullPayment" min="0" placeholder="e.g. 1850">
+              <input class="field-input" type="number" step="0.01" id="mortgageFullPayment" min="0" placeholder="e.g. 1850">
               <div style="font-size:11px;color:var(--slate-2);margin-top:4px">
                 If you've already entered "Rent / Mortgage" in your Budget, this fills in automatically — no
                 need to re-enter it. Otherwise, just the number that gets withdrawn each month is enough — no
@@ -2081,7 +2081,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               </div>
               <div class="field" style="margin:0">
                 <label>Tax-deferred balance ($)</label>
-                <input class="field-input" type="number" id="rmdBalance" placeholder="0">
+                <input class="field-input" type="number" step="0.01" id="rmdBalance" placeholder="0">
               </div>
             </div>
             <button class="btn btn-primary btn-sm mt-4" onclick="saveRMDInputs()">Calculate</button>
@@ -2131,7 +2131,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
             <div class="field" style="margin:0">
               <label>Monthly benefit at full retirement age ($)</label>
-              <input class="field-input" type="number" id="ssFRABenefit" placeholder="e.g. 2200"
+              <input class="field-input" type="number" step="0.01" id="ssFRABenefit" placeholder="e.g. 2200"
                 oninput="renderSSTimingAnalysis()">
             </div>
             <div class="field" style="margin:0">
@@ -2159,22 +2159,22 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:8px">Pre-tax (taxable in retirement)</div>
               <div class="field" style="margin:0 0 10px 0">
                 <label>Traditional 401k / 403b</label>
-                <input class="field-input" type="number" id="nwTraditional401k" placeholder="0" oninput="updateRothTraditionalSplit()">
+                <input class="field-input" type="number" step="0.01" id="nwTraditional401k" placeholder="0" oninput="updateRothTraditionalSplit()">
               </div>
               <div class="field" style="margin:0">
                 <label>Traditional IRA</label>
-                <input class="field-input" type="number" id="nwTraditionalIRA" placeholder="0" oninput="updateRothTraditionalSplit()">
+                <input class="field-input" type="number" step="0.01" id="nwTraditionalIRA" placeholder="0" oninput="updateRothTraditionalSplit()">
               </div>
             </div>
             <div>
               <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:8px">Post-tax (tax-free in retirement)</div>
               <div class="field" style="margin:0 0 10px 0">
                 <label>Roth 401k / 403b</label>
-                <input class="field-input" type="number" id="nwRoth401k" placeholder="0" oninput="updateRothTraditionalSplit()">
+                <input class="field-input" type="number" step="0.01" id="nwRoth401k" placeholder="0" oninput="updateRothTraditionalSplit()">
               </div>
               <div class="field" style="margin:0">
                 <label>Roth IRA</label>
-                <input class="field-input" type="number" id="nwRothIRA" placeholder="0" oninput="updateRothTraditionalSplit()">
+                <input class="field-input" type="number" step="0.01" id="nwRothIRA" placeholder="0" oninput="updateRothTraditionalSplit()">
               </div>
             </div>
           </div>
@@ -2522,7 +2522,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div class="card">
             <div class="card-label">Budget settings</div>
             <div class="field mb-4"><label>Default savings target (%)</label><input type="number" id="settingsSavingsPct" placeholder="10" min="0" max="50"></div>
-            <div class="field mb-4"><label>Default debt budget ($/month)</label><input type="number" id="settingsMonthlyBudget" placeholder="1500" min="0"></div>
+            <div class="field mb-4"><label>Default debt budget ($/month)</label><input type="number" step="0.01" id="settingsMonthlyBudget" placeholder="1500" min="0"></div>
             <div class="field mb-4">
               <label>Debt payoff strategy</label>
               <select id="settingsDebtMethod" class="field-input" onchange="setMethod(this.value)">
@@ -2831,7 +2831,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         </div>
         <div class="field mb-3">
           <label>Monthly payment ($)</label>
-          <input type="number" id="bybMonthlyAmount" class="field-input" placeholder="0.00" min="0" step="1" oninput="_bybLiveUpdate()">
+          <input type="number" id="bybMonthlyAmount" class="field-input" placeholder="0.00" min="0" step="0.01" oninput="_bybLiveUpdate()">
         </div>
         <div id="bybVehicleFields" style="margin-bottom:16px">
           <div style="display:flex;gap:8px;margin-bottom:12px">

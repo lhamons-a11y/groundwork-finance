@@ -7578,7 +7578,7 @@ function _budgetBuildIncomeBloom(inc, idx) {
       </div>
       <div class="field" style="margin:0">
         <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Monthly amount</label>
-        <input type="number" class="bloom-amount" placeholder="0" min="0" step="50"
+        <input type="number" class="bloom-amount" placeholder="0" min="0" step="0.01"
           value="${inc.amount||''}"
           style="width:100%;font-family:var(--font-mono);font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
       </div>
@@ -7848,7 +7848,7 @@ function _budgetBuildExpenseBloom(exp, idx) {
       </div>
       <div class="field" style="margin:0">
         <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Monthly budget</label>
-        <input type="number" class="bloom-amount" placeholder="0" min="0" step="10"
+        <input type="number" class="bloom-amount" placeholder="0" min="0" step="0.01"
           value="${exp.amount||''}"
           style="width:100%;font-family:var(--font-mono);font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
       </div>
@@ -7958,7 +7958,7 @@ function _budgetPrefillFromHistory() {
             <div style="flex-shrink:0">${_renderCatIcon(cs.icon, cs.color, 14)}</div>
             <span style="flex:1;font-size:13px;color:var(--ink)">${esc(s.cat)}</span>
             <span style="font-size:10px;color:var(--slate-2)">${s.months}mo avg</span>
-            <input type="number" class="prefill-amt" data-cat="${esc(s.cat)}" value="${s.avg}" min="0" step="10"
+            <input type="number" class="prefill-amt" data-cat="${esc(s.cat)}" value="${s.avg}" min="0" step="0.01"
               style="width:80px;font-family:var(--font-mono);font-size:13px;text-align:right;border:1px solid var(--steel);border-radius:var(--r-sm);padding:4px 6px;background:var(--paper);color:var(--ink)">
           </div>`;
         }).join('')}
@@ -8918,7 +8918,7 @@ function _budgetBuildDebtBloom(card) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
       <div>
         <label style="font-size:11px;color:var(--slate);display:block;margin-bottom:3px">This month's payment</label>
-        <input type="number" class="bloom-debt-payment" min="0" step="5" value="${(min!=null&&min!=='')?min:(calcMin||'')}"
+        <input type="number" class="bloom-debt-payment" min="0" step="0.01" value="${(min!=null&&min!=='')?min:(calcMin||'')}"
           oninput="_budgetDebtBloomCalc(this.closest('.budget-bloom'))"
           style="width:100%;font-family:var(--font-mono);font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
         <div style="font-size:11px;color:var(--slate-2);margin-top:3px">
@@ -8950,7 +8950,7 @@ function _budgetBuildDebtBloom(card) {
           Credit limit
           <span title="Optional. Groundwork uses this only to calculate your utilization ratio — it never leaves your computer." style="cursor:help;color:var(--slate-2)">ⓘ</span>
         </label>
-        <input type="number" class="bloom-debt-limit" min="0" step="100" value="${limit!=null?limit:''}"
+        <input type="number" class="bloom-debt-limit" min="0" step="0.01" value="${limit!=null?limit:''}"
           oninput="_budgetDebtBloomCalc(this.closest('.budget-bloom'))"
           style="width:100%;font-family:var(--font-mono);font-size:13px;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 9px;background:var(--paper);color:var(--ink)">
       </div>
@@ -11915,7 +11915,7 @@ function _obRenderExpenseAnalysis() {
     div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px';
     div.innerHTML = `
       <span style="font-size:13px;color:var(--ink)">${esc(cat)}</span>
-      <input type="number" value="${avg}" min="0" step="10" style="width:100px;text-align:right;font-family:var(--font-mono);padding:6px 10px">`;
+      <input type="number" value="${avg}" min="0" step="0.01" style="width:100px;text-align:right;font-family:var(--font-mono);padding:6px 10px">`;
     cont.appendChild(div);
   });
 }
@@ -12057,9 +12057,9 @@ function obAddDebtRow() {
   div.id = `obdr-${id}`;
   div.innerHTML = `
     <input type="text"   placeholder="Card name"  id="obn-${id}" oninput="obCalcDebt()">
-    <input type="number" placeholder="Balance"    id="obb-${id}" min="0" step="100" oninput="obCalcDebt()">
+    <input type="number" placeholder="Balance"    id="obb-${id}" min="0" step="0.01" oninput="obCalcDebt()">
     <input type="number" placeholder="APR %"      id="obr-${id}" min="0" step="0.1" oninput="obCalcDebt()">
-    <input type="number" placeholder="Min pay"    id="obm-${id}" min="0" step="5"   oninput="obCalcDebt()">
+    <input type="number" placeholder="Min pay"    id="obm-${id}" min="0" step="0.01"   oninput="obCalcDebt()">
     <button class="btn btn-ghost btn-sm" onclick="obRemoveRow(${id})" style="color:var(--slate-2);padding:4px 8px">✕</button>`;
   list.appendChild(div);
 }
@@ -13294,7 +13294,7 @@ function _debtBloomFields(c, debtType, _dds) {
     return `
       <div class="field" style="margin:0">
         <label>Monthly payment</label>
-        <input type="number" value="${c.minimum ?? ''}" min="0" step="5"
+        <input type="number" value="${c.minimum ?? ''}" min="0" step="0.01"
           oninput="setCardField(${c.id},'minimum',this.value)">
       </div>
       <div class="field" style="margin:0">
@@ -13333,7 +13333,7 @@ function _debtBloomFields(c, debtType, _dds) {
       </div>
       <div class="field" style="margin:0">
         <label>Payment</label>
-        <input type="number" value="${c.minimum ?? ''}" min="0" step="5"
+        <input type="number" value="${c.minimum ?? ''}" min="0" step="0.01"
           oninput="setCardField(${c.id},'minimum',this.value)">
       </div>
       <div class="field" style="margin:0">
@@ -13371,7 +13371,7 @@ function _debtBloomFields(c, debtType, _dds) {
       </div>
       <div class="field" style="margin:0">
         <label>Min</label>
-        <input type="number" value="${c.minimum ?? ''}" min="0" step="5"
+        <input type="number" value="${c.minimum ?? ''}" min="0" step="0.01"
           oninput="setCardField(${c.id},'minimum',this.value)">
       </div>
       <div class="field" style="margin:0">
@@ -15180,13 +15180,13 @@ function _aprEstimatorHTML(id, card) {
     const body = method === 'interest' ? `
         <div style="font-size:11px;color:var(--slate);margin-bottom:10px;line-height:1.5">Look for <strong>"Interest Charged"</strong> on your statement — a specific line item, separate from "Minimum Payment Due." This gives an exact APR regardless of how your minimum is calculated.</div>
         <div class="field-row" style="margin-bottom:10px">
-          <div class="field" style="margin:0"><label>Balance ($)</label><input type="number" id="aprBal-${id}" value="${balanceVal}" min="0"></div>
+          <div class="field" style="margin:0"><label>Balance ($)</label><input type="number" step="0.01" id="aprBal-${id}" value="${balanceVal}" min="0"></div>
           <div class="field" style="margin:0"><label>Interest charged this period ($)</label><input type="number" id="aprInterest-${id}" placeholder="e.g. 38.50" min="0" step="0.01"></div>
         </div>` : `
         <div style="font-size:11px;color:var(--slate);margin-bottom:10px;line-height:1.5">Approximate — assumes your minimum payment = a fixed % of balance, plus interest. Common, but not universal. If the result looks way off from what your statement shows, your card likely uses a flat-percentage minimum instead, and this won't apply — use "Interest charged" if you can find it.</div>
         <div class="field-row-3" style="margin-bottom:10px">
-          <div class="field" style="margin:0"><label>Balance ($)</label><input type="number" id="aprBal-${id}" value="${balanceVal}" min="0"></div>
-          <div class="field" style="margin:0"><label>Minimum payment ($)</label><input type="number" id="aprMin-${id}" value="${card.minimum||''}" min="0"></div>
+          <div class="field" style="margin:0"><label>Balance ($)</label><input type="number" step="0.01" id="aprBal-${id}" value="${balanceVal}" min="0"></div>
+          <div class="field" style="margin:0"><label>Minimum payment ($)</label><input type="number" step="0.01" id="aprMin-${id}" value="${card.minimum||''}" min="0"></div>
           <div class="field" style="margin:0"><label>Assumed min %</label><input type="number" id="aprPct-${id}" value="1" min="0" max="10" step="0.1"></div>
         </div>`;
 
@@ -15217,8 +15217,8 @@ function _aprEstimatorHTML(id, card) {
       </div>
       <div style="font-size:11px;color:var(--slate);margin-bottom:10px;line-height:1.5">Enter your loan balance, the fixed monthly payment, and how many months remain on the term.</div>
       <div class="field-row-3" style="margin-bottom:10px">
-        <div class="field" style="margin:0"><label>Balance ($)</label><input type="number" id="aprBal-${id}" value="${balanceVal}" min="0"></div>
-        <div class="field" style="margin:0"><label>Monthly payment ($)</label><input type="number" id="aprMin-${id}" value="${card.minimum||''}" min="0"></div>
+        <div class="field" style="margin:0"><label>Balance ($)</label><input type="number" step="0.01" id="aprBal-${id}" value="${balanceVal}" min="0"></div>
+        <div class="field" style="margin:0"><label>Monthly payment ($)</label><input type="number" step="0.01" id="aprMin-${id}" value="${card.minimum||''}" min="0"></div>
         <div class="field" style="margin:0"><label>Months remaining</label><input type="number" id="aprMonths-${id}" placeholder="36" min="1"></div>
       </div>
       <div style="display:flex;align-items:center;gap:12px">
@@ -16565,7 +16565,7 @@ function showAddPension() {
      </div>
      <div class="field mb-3">
        <label>Estimated monthly benefit at retirement ($)</label>
-       <input type="number" id="pensionBenefit" class="field-input" placeholder="e.g. 2400" min="0">
+       <input type="number" step="0.01" id="pensionBenefit" class="field-input" placeholder="e.g. 2400" min="0">
      </div>
      <div class="field mb-3">
        <label>Expected retirement age</label>
@@ -16757,7 +16757,7 @@ function sfWithdraw(idx) {
        Current balance: <strong>${fmt(fund.current_amount || fund.balance || 0)}</strong>
      </div>
      <input type="number" id="sfWithdrawAmt" placeholder="Amount to withdraw" min="1"
-            max="${fund.current_amount || fund.balance || 0}" step="1"
+            max="${fund.current_amount || fund.balance || 0}" step="0.01"
             style="width:100%;padding:8px;border-radius:var(--r-md);
                    border:1px solid var(--steel);font-family:var(--font-mono)">`,
     () => {
@@ -16944,7 +16944,7 @@ function _giftPersonCard(p) {
       <span style="font-size:16px;width:22px;text-align:center">${oct.icon}</span>
       <div style="flex:1;font-size:12px;color:var(--ink)">${oct.label}</div>
       <div style="font-size:11px;color:var(--slate);min-width:60px;text-align:right">${ds}</div>
-      <input type="number" value="${o.budget||''}" min="0" step="5" placeholder="$0"
+      <input type="number" value="${o.budget||''}" min="0" step="0.01" placeholder="$0"
         style="width:72px;font-family:var(--font-mono);font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
         onchange="_giftSetOccasionBudget('${p.id}','${o.id}',this.value)">
       <button class="row-del" data-action="del-occ" data-pid="${p.id}" data-oid="${o.id}" title="Remove">×</button>
@@ -16982,7 +16982,7 @@ function _renderGiftSeasonsSection() {
   const addForm = `<div id="giftSeasonForm" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:12px">
     <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="field" style="margin:0"><label>Name</label><input class="field-input" type="text" id="gsName" placeholder="e.g. Christmas Fund"></div>
-      <div class="field" style="margin:0"><label>Target ($)</label><input class="field-input" type="number" id="gsTarget" min="0" placeholder="e.g. 800"></div>
+      <div class="field" style="margin:0"><label>Target ($)</label><input class="field-input" type="number" step="0.01" id="gsTarget" min="0" placeholder="e.g. 800"></div>
       <div class="field" style="margin:0"><label>Funded by</label><input class="field-input" type="date" id="gsDeadline"></div>
     </div>
     <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" data-action="save-season">Create fund</button><button class="btn btn-ghost btn-sm" data-action="cancel-season">Cancel</button></div>
@@ -17162,7 +17162,7 @@ function _giftDepositSeason(sid) {
   const s=_giftSeasons.find(x=>x.id===parseInt(sid)); if(!s) return;
   const remaining=Math.max(0,(s.target||0)-(s.saved||0));
   confirmAction(`Add to ${s.name}`,`<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">Target: ${fmt(s.target)} · Saved: ${fmt(s.saved||0)} · Remaining: ${fmt(remaining)}</div>
-    <input type="number" id="gsDepositAmt" placeholder="Amount to add" min="1" step="5" style="width:100%;padding:8px;border-radius:var(--r-md);border:1px solid var(--steel);font-family:var(--font-mono)">`,
+    <input type="number" id="gsDepositAmt" placeholder="Amount to add" min="1" step="0.01" style="width:100%;padding:8px;border-radius:var(--r-md);border:1px solid var(--steel);font-family:var(--font-mono)">`,
   ()=>{ const amt=parseFloat(g('gsDepositAmt')?.value)||0; if(amt<=0) return;
     s.saved=Math.min(s.target||0,(parseFloat(s.saved)||0)+amt); _saveGiftSeasons(); _renderGiftPage(); showToast(`${fmt(amt)} added to ${s.name}`,'','success');
   },'Add funds',false);
@@ -17775,7 +17775,7 @@ function showAddCollegeFund() {
        </div>
        <div class="field" style="margin:0">
          <label>Current balance ($)</label>
-         <input type="number" id="cfBalance" class="field-input" placeholder="0">
+         <input type="number" step="0.01" id="cfBalance" class="field-input" placeholder="0">
        </div>
        <div class="field" style="margin:0">
          <label>College start year</label>
@@ -17783,11 +17783,11 @@ function showAddCollegeFund() {
        </div>
        <div class="field" style="margin:0">
          <label>Savings target ($)</label>
-         <input type="number" id="cfTarget" class="field-input" placeholder="e.g. 80000">
+         <input type="number" step="0.01" id="cfTarget" class="field-input" placeholder="e.g. 80000">
        </div>
        <div class="field" style="margin:0">
          <label>Monthly contribution ($)</label>
-         <input type="number" id="cfMonthly" class="field-input" placeholder="e.g. 200">
+         <input type="number" step="0.01" id="cfMonthly" class="field-input" placeholder="e.g. 200">
        </div>
        <div class="field" style="margin:0">
          <label>Assumed annual return (%) <span style="font-weight:400;color:var(--slate)">default 6%</span></label>
@@ -17814,7 +17814,7 @@ function addCollegeContribution(idx) {
   if (!fund) return;
   confirmAction(
     `Add to ${fund.childName}'s fund`,
-    `<input type="number" id="cfContrib" class="field-input" placeholder="Amount ($)" min="1"
+    `<input type="number" step="0.01" id="cfContrib" class="field-input" placeholder="Amount ($)" min="1"
       style="width:100%;padding:8px;border-radius:var(--r-md);border:1px solid var(--steel);font-family:var(--font-mono)">`,
     async () => {
       const amt = parseFloat(g('cfContrib')?.value) || 0;
@@ -18980,7 +18980,7 @@ function _bybRenderSandboxRows() {
     rows.push(`
       <div class="byb-sandbox-row">
         <div style="flex:1;font-size:13px;color:var(--ink)">${esc(inc.name)}</div>
-        <input type="number" value="${inc._sandboxAmt}" min="0" step="50"
+        <input type="number" value="${inc._sandboxAmt}" min="0" step="0.01"
           oninput="_bybSandboxChange('income',${i},this.value)"
           title="Adjust income">
         <span style="font-size:11px;color:var(--slate-2)">/mo</span>
@@ -19006,7 +19006,7 @@ function _bybRenderSandboxRows() {
           ${esc(exp.name)}${isMIW ? ' <span style="font-size:9px;color:var(--gold)">✦</span>' : ''}
         </div>
         ${wasLabel}
-        <input type="number" value="${exp._sandboxAmt}" min="0" step="10"
+        <input type="number" value="${exp._sandboxAmt}" min="0" step="0.01"
           oninput="_bybSandboxChange('expense',${i},this.value)"
           title="Original: ${fmt(exp.amount)}/mo">
         <span style="font-size:11px;color:var(--slate-2)">/mo</span>
@@ -23839,7 +23839,7 @@ async function _rcRenderDistanceTraveled() {
           ${askStart
             ? `<div style="font-size:11px;color:var(--slate);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                  <span>You paid this off before Groundwork saw its balance · started at</span>
-                 <input type="number" min="1" step="10" placeholder="e.g. 4200"
+                 <input type="number" min="1" step="0.01" placeholder="e.g. 4200"
                    style="width:84px;font-family:var(--font-mono);font-size:11px;padding:3px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
                    onchange="_dtSetStartBal(${x.card.id}, this.value)">
                  <span style="color:var(--slate-2)">so this win counts</span>

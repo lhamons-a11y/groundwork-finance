@@ -1368,7 +1368,34 @@ def main():
     check('the budget-bloom quick-edit balance field uses step="0.01" (not step="1")',
           'class="bloom-debt-bal" min="0" step="0.01"' in app_src)
 
-    return finish()
+    # ── 34. Pre-release UI audit: currency fields reject cents (regression) ──
+    # Full sweep triggered by the TJ Max debt-balance bug: every type="number"
+    # field in app.js/index.html was checked for a whole-number step (or no
+    # step at all — which silently defaults to step="1" and is just as bad).
+    # 64 fields across onboarding, Net Worth, Before You Buy, sinking funds,
+    # gift budgets, college funds, retirement calculators, and the APR
+    # estimator had this bug; whole-number fields (day-of-month, term
+    # months, ages, years, percentages, share counts) were left alone. This
+    # regression check samples one prominent field per feature area rather
+    # than re-asserting all 64 individually.
+    _currency_field_ids = [
+        'obIncome', 'obIncome2', 'obExpHousing', 'obNWGoal',      # onboarding
+        'monthlyBudget',                                          # debt payoff
+        'nwSavings', 'nwHomeValue', 'nwMortgage', 'nwGoalAmount', # net worth
+        'sfBalance', 'sfTarget', 'sfMonthly',                     # sinking funds
+        'cfBalance', 'cfTarget', 'cfMonthly',                     # college funds
+        'pensionBenefit', 'retireSSIncome', 'rmdBalance',         # retirement
+        'ssFRABenefit', 'nwTraditional401k', 'nwRoth401k',        # retirement
+        'mortgageFullPayment', 'settingsMonthlyBudget',           # misc
+        'bybMonthlyAmount', 'gsTarget',                           # BYB / gifts
+    ]
+    _combined_src = app_src + '\n' + html_src
+    _missing_cents_support = [
+        fid for fid in _currency_field_ids
+        if not re.search(rf'id="{re.escape(fid)}"[^>]*step="0\.01"|step="0\.01"[^>]*id="{re.escape(fid)}"', _combined_src)
+    ]
+    check(f'{len(_currency_field_ids)} sampled currency fields all accept cents (step="0.01")',
+          not _missing_cents_support)
 
 
 def finish():
