@@ -1564,6 +1564,113 @@ def main():
     check("app.js wires the investment advisor panel (surface: 'investment_advisor')",
           "'investment_advisor'" in app_src and 'invAdvisorCard' in app_src)
 
+    # ── 37. Fill-the-gaps: Sinking Funds, College Funds, Retirement,
+    # Trophy Room, Budget suggestion/recurring feedback trail ────────────────
+    # Scope agreed after the Investments pass: everything except Trip
+    # Planner/Before You Buy/Gift Budget (called non-essential add-ons), and
+    # LLM-narrative-only (no Historian) for Retirement tools and Trophy Room
+    # since neither has a real target/actual to compare.
+    from server import (
+        _log_sinking_fund_contribution_variance, get_sinking_fund_confidence,
+        _log_college_fund_contribution_variance, get_college_fund_confidence,
+    )
+    from core.database import SinkingFund as _SF
+
+    # Sinking funds: a real DB row with its own monthly_contribution — the
+    # expected value comes straight from the fund, no linear-pace math
+    # needed (closer to debt's payment_amount_variance than net worth's
+    # milestone projection).
+    with _dbs() as session:
+        fund = _SF(name='Smoke Sinking Fund', target_amount=1200, current_amount=0, monthly_contribution=100)
+        session.add(fund); session.commit()
+        _sf_id = fund.id
+
+    r = c.get(f'/api/sinking-funds/{_sf_id}/confidence', headers=H)
+    check('GET /api/sinking-funds/<id>/confidence is honest-empty with no contribution history',
+          r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('confidence_pct') is None)
+
+    r = c.post(f'/api/sinking-funds/{_sf_id}/deposit', headers=H, json={'amount': 150})
+    check('POST /api/sinking-funds/<id>/deposit succeeds (over-contribution, deliberately ahead of pace)',
+          r.status_code == 200)
+
+    with _dbs() as session:
+        hist_sf = session.query(_HE).filter_by(
+            event_category='sinking_fund_contribution_variance').order_by(_HE.id.desc()).first()
+        check('_log_sinking_fund_contribution_variance logs expected = fund.monthly_contribution',
+              hist_sf is not None and hist_sf.expected_value == 100.0 and hist_sf.actual_value == 150.0)
+        conf_sf = get_sinking_fund_confidence(session, _sf_id)
+        check('get_sinking_fund_confidence classifies an over-contribution as "ahead" (never penalized)',
+              conf_sf['trend'] == 'ahead' and conf_sf['confidence_pct'] == 100)
+
+    # A fund with no monthly_contribution set must be skipped silently, not
+    # logged with a fabricated expectation of 0.
+    with _dbs() as session:
+        fund2 = _SF(name='No-Contrib Fund', target_amount=500, current_amount=0, monthly_contribution=0)
+        session.add(fund2); session.commit()
+        _log_sinking_fund_contribution_variance(session, fund2, 50.0)
+        session.commit()
+        no_hist = session.query(_HE).filter_by(event_category='sinking_fund_contribution_variance').count()
+    check('a fund with no monthly_contribution set is skipped (no fabricated expectation)',
+          no_hist == 1)  # still just the one from the fund above, not two
+
+    # College funds: JSON-in-AppSetting like net worth milestones — the
+    # dedicated /contribute route sources "expected" from the settings blob
+    # server-side, never trusting a client-passed expectation.
+    _cf = {'id': 'smoke-cf-1', 'childName': 'Smoke Kid', 'balance': 0, 'target': 10000, 'monthlyContrib': 200}
+    with _dbs() as session:
+        session.add(_AS(key='college_funds_json', value=json.dumps([_cf])))
+        session.commit()
+
+    r = c.get('/api/college-funds/smoke-cf-1/confidence', headers=H)
+    check('GET /api/college-funds/<id>/confidence is honest-empty with no history',
+          r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('confidence_pct') is None)
+
+    r = c.post('/api/college-funds/smoke-cf-1/contribute', headers=H, json={'amount': 50})
+    check('POST /api/college-funds/<id>/contribute succeeds (deliberately behind the $200 pace)',
+          r.status_code == 200)
+    r = c.post('/api/college-funds/nonexistent-id/contribute', headers=H, json={'amount': 50})
+    check('POST /api/college-funds/<id>/contribute 404s for an unknown fund', r.status_code == 404)
+
+    with _dbs() as session:
+        hist_cf = session.query(_HE).filter_by(
+            event_category='college_fund_contribution_variance').order_by(_HE.id.desc()).first()
+        check('college fund contribution logs expected from the settings blob, not a client-passed value',
+              hist_cf is not None and hist_cf.expected_value == 200.0 and hist_cf.actual_value == 50.0)
+        conf_cf = get_college_fund_confidence(session, 'smoke-cf-1')
+        check('get_college_fund_confidence classifies an under-contribution as "behind"',
+              conf_cf['trend'] == 'behind')
+
+    # Budget: category-suggestion and recurring-detection feedback — the
+    # part of Phase H2 Features 1/4 that was always scaffold-only until now.
+    r = c.post('/api/categories/suggest-feedback', headers=H,
+               json={'merchant': 'Smoke Merchant', 'suggested_category': 'Groceries', 'kept': True})
+    check('POST /api/categories/suggest-feedback succeeds', r.status_code == 200)
+    r = c.post('/api/categories/suggest-feedback', headers=H, json={'merchant': '', 'suggested_category': ''})
+    check('POST /api/categories/suggest-feedback rejects a missing merchant (400)', r.status_code == 400)
+
+    r = c.post('/api/budget/detect-recurring/feedback', headers=H,
+               json={'merchant': 'Smoke Recurring Co', 'avg_amount': 15.99, 'confirmed': False})
+    check('POST /api/budget/detect-recurring/feedback succeeds', r.status_code == 200)
+
+    with _dbs() as session:
+        confirm_cat = session.query(_HE).filter_by(event_category='categorization_suggestion_confirm').first()
+        reject_rec  = session.query(_HE).filter_by(event_category='recurring_pattern_reject').first()
+        check('categorization_suggestion_confirm was logged with merchant/category in context_json',
+              confirm_cat is not None
+              and json.loads(confirm_cat.context_json or '{}').get('suggested_category') == 'Groceries')
+        check('recurring_pattern_reject was logged with the merchant and its avg_amount',
+              reject_rec is not None and reject_rec.actual_value == 15.99
+              and json.loads(reject_rec.context_json or '{}').get('merchant') == 'Smoke Recurring Co')
+
+    # LLM-narrative-only surfaces (Retirement tools, Trophy Room) — no
+    # Historian equivalent, since neither has a real target/actual to log.
+    check("app.js wires the sinking-funds savings advisor (surface: 'savings_goals_advisor')",
+          "'savings_goals_advisor'" in app_src and 'budgetSavingsAdvisorCard' in app_src)
+    check("app.js wires the combined retirement advisor (surface: 'retirement_advisor')",
+          "'retirement_advisor'" in app_src and 'retirementAdvisorCard' in app_src)
+    check("app.js wires the Trophy Room narrative (surface: 'trophy_room_narrative')",
+          "'trophy_room_narrative'" in app_src and 'trophyAdvisorCard' in app_src)
+
     return finish()
 
 

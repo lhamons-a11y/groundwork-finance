@@ -284,13 +284,18 @@ class HistorianEntry(Base):
       'charge_observation'                — manual charge entry (Phase B)
       'interest_discrepancy'              — interest calc correction
       'late_fee_trigger'                  — late payment event
-      'categorization_suggestion_confirm' — 1.1-scaffold: category learning
-      'categorization_suggestion_reject'  — 1.1-scaffold: category learning
-      'budget_variance_observed'          — 1.1-scaffold: budget learning
-      'trip_expense_variance'             — 1.1-scaffold: trip learning
-      'llm_gate_flag'                     — LLM gate miss-log
+      'categorization_suggestion_confirm' — category suggestion kept at ledger save
+      'categorization_suggestion_reject'  — category suggestion changed before ledger save
+      'budget_variance_observed'          — 1.1-scaffold: budget learning (suggest_budget_adjustment has
+                                             no UI consumer yet — see get_budget_variance_by_category)
+      'trip_expense_variance'             — 1.1-scaffold: trip learning (trip_history covers this instead — see below)
+      'llm_gate_flag'                     — LLM gate miss-log (voice_miss_log.jsonl covers this instead — see below)
       'net_worth_milestone_variance'      — net worth (snapshot save, vs. a milestone's linear pace)
       'investment_allocation_drift'       — investments (price refresh, actual $ vs. target % of portfolio)
+      'sinking_fund_contribution_variance'— sinking funds (deposit/auto-credit, actual $ vs. fund's own monthly_contribution)
+      'college_fund_contribution_variance'— college funds (contribution, actual $ vs. fund's own monthlyContrib)
+      'recurring_pattern_confirm'         — a detected recurring merchant added to the budget
+      'recurring_pattern_reject'          — a detected recurring merchant dismissed
     No payoff_plan_id column: same reason as DebtLedgerEntry — there is no
     persisted payoff-plan table in this codebase. Net worth milestones are
     similarly not a DB table (they live in AppSetting's nw_goals_json, a
@@ -301,7 +306,11 @@ class HistorianEntry(Base):
     a real table to point at. Investment target allocation is the same
     story — a {asset_class: pct} dict in AppSetting's inv_target_alloc, not
     a table — so investment_allocation_drift carries asset_class in
-    context_json too.
+    context_json too. Sinking funds ARE a real table (SinkingFund) — those
+    entries carry a real sinking_fund_id. College funds are JSON again
+    (AppSetting's college_funds_json, same {id, ...} shape as net worth
+    milestones since neither predates that pattern) — those carry
+    college_fund_id.
     """
     __tablename__   = 'historian_entries'
     id              = Column(Integer, primary_key=True)

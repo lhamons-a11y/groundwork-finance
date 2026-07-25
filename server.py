@@ -173,6 +173,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(bank_import_bp,   url_prefix='/api/import')
     app.register_blueprint(auto_import_bp,   url_prefix='/api/auto-import')
     app.register_blueprint(sinking_funds_bp,  url_prefix='/api/sinking-funds')
+    app.register_blueprint(college_funds_bp,  url_prefix='/api/college-funds')
 
     # System routes
     @app.route('/api/ping')
@@ -1229,6 +1230,31 @@ def budget_detect_recurring():
     months = int(request.args.get('months', 6))
     with db_session() as session:
         return ok(detect_recurring_patterns(session, months=months))
+
+
+@budget_bp.route('/detect-recurring/feedback', methods=['POST'])
+@require_json
+def budget_detect_recurring_feedback():
+    """
+    Phase H2 Feature 4's missing other half — dismissal was already real
+    (session-only, see app.js's _recurringDismissed), but neither accepting
+    nor dismissing a detected pattern was ever logged anywhere durable.
+    Body: { merchant: str, avg_amount: float, confirmed: bool }.
+    """
+    body     = request.json
+    merchant = (body.get('merchant') or '').strip()
+    amount   = body.get('avg_amount')
+    confirmed = bool(body.get('confirmed'))
+    if not merchant:
+        return err('merchant is required')
+    with db_session() as session:
+        log_historian_event(
+            session, 'recurring_pattern_confirm' if confirmed else 'recurring_pattern_reject',
+            actual_value=float(amount) if amount is not None else None,
+            context={'merchant': merchant},
+        )
+        session.commit()
+    return ok({'logged': True})
 
 
 @budget_bp.route('/items', methods=['GET'])
@@ -2658,6 +2684,112 @@ def get_investment_allocation_confidence(session, asset_class: str, months: int 
     }
 
 
+def _log_sinking_fund_contribution_variance(session, fund, actual_amount: float):
+    """
+    Sinking funds' Historian write-hook, called from POST
+    .../deposit and POST .../auto-credit below. Unlike net worth/
+    investments (which had to derive an "expected" figure from a linear
+    projection or a % target), SinkingFund already has monthly_contribution
+    — a real, user-set expectation — so this is closer to debt's
+    payment_amount_variance: actual contribution vs. the fund's own stated
+    pace. Skipped when monthly_contribution isn't set (auto-credit's
+    deadline-derived fallback isn't a real expectation the user set, so
+    comparing against it would trivially always read "on pace").
+    """
+    expected = float(fund.monthly_contribution or 0)
+    if expected <= 0:
+        return
+    log_historian_event(
+        session, 'sinking_fund_contribution_variance',
+        expected_value=expected, actual_value=round(actual_amount, 2),
+        context={'sinking_fund_id': fund.id},
+    )
+
+
+def get_sinking_fund_confidence(session, fund_id: int, months: int = 12) -> dict:
+    """0-100 pace confidence for a sinking fund, from real contribution
+    variance history. Mirrors get_net_worth_milestone_confidence's scoring
+    (running ahead of a savings pace is never bad, only behind is)."""
+    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    entries = session.query(HistorianEntry).filter(
+        HistorianEntry.event_category == 'sinking_fund_contribution_variance',
+        HistorianEntry.created_at >= cutoff,
+    ).all()
+    matched = []
+    for e in entries:
+        try:
+            ctx = json.loads(e.context_json or '{}')
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if str(ctx.get('sinking_fund_id')) == str(fund_id):
+            matched.append(e)
+    if not matched:
+        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
+                'samples': 0, 'reasoning': 'No contribution history yet for this fund.'}
+    variances = [e.variance_pct for e in matched if e.variance_pct is not None]
+    if not variances:
+        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
+                'samples': len(matched), 'reasoning': 'No variance data yet.'}
+    avg_variance = sum(variances) / len(variances)
+    confidence = max(0, min(100, round(100 + min(0, avg_variance) * 2)))
+    trend = 'ahead' if avg_variance > 5 else 'behind' if avg_variance < -5 else 'on_pace'
+    return {
+        'confidence_pct': confidence, 'trend': trend,
+        'avg_variance_pct': round(avg_variance, 1), 'samples': len(matched),
+        'reasoning': f'{len(matched)} contribution(s) tracked, {trend.replace("_", " ")}',
+    }
+
+
+def _log_college_fund_contribution_variance(session, fund_id, expected: float, actual_amount: float):
+    """
+    College funds' Historian write-hook, called from
+    addCollegeContribution's server round-trip (settings PATCH) — see
+    server.py's add_college_contribution route below. Same shape as
+    sinking funds: expected is the fund's own monthlyContrib, only logged
+    when the caller (app.js) actually has a positive one to compare against.
+    """
+    if expected <= 0:
+        return
+    log_historian_event(
+        session, 'college_fund_contribution_variance',
+        expected_value=round(expected, 2), actual_value=round(actual_amount, 2),
+        context={'college_fund_id': fund_id},
+    )
+
+
+def get_college_fund_confidence(session, fund_id, months: int = 12) -> dict:
+    """0-100 pace confidence for a college fund — identical shape and
+    scoring to get_sinking_fund_confidence."""
+    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    entries = session.query(HistorianEntry).filter(
+        HistorianEntry.event_category == 'college_fund_contribution_variance',
+        HistorianEntry.created_at >= cutoff,
+    ).all()
+    matched = []
+    for e in entries:
+        try:
+            ctx = json.loads(e.context_json or '{}')
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if str(ctx.get('college_fund_id')) == str(fund_id):
+            matched.append(e)
+    if not matched:
+        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
+                'samples': 0, 'reasoning': 'No contribution history yet for this fund.'}
+    variances = [e.variance_pct for e in matched if e.variance_pct is not None]
+    if not variances:
+        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
+                'samples': len(matched), 'reasoning': 'No variance data yet.'}
+    avg_variance = sum(variances) / len(variances)
+    confidence = max(0, min(100, round(100 + min(0, avg_variance) * 2)))
+    trend = 'ahead' if avg_variance > 5 else 'behind' if avg_variance < -5 else 'on_pace'
+    return {
+        'confidence_pct': confidence, 'trend': trend,
+        'avg_variance_pct': round(avg_variance, 1), 'samples': len(matched),
+        'reasoning': f'{len(matched)} contribution(s) tracked, {trend.replace("_", " ")}',
+    }
+
+
 def get_payment_variance_for_account(session, debt_account_id: int, months: int = 12) -> dict:
     """Payment compliance metrics for a debt account from real historian
     events (payment_confirmed / payment_amount_variance), over a trailing
@@ -3117,6 +3249,34 @@ def suggest_category():
     merchant = request.args.get('merchant', '')
     with db_session() as session:
         return ok(suggest_category_for_merchant(session, merchant))
+
+
+@categories_bp.route('/suggest-feedback', methods=['POST'])
+@require_json
+def suggest_category_feedback():
+    """
+    Phase H2 Feature 1's missing other half — the docstring on
+    HistorianEntry always described categorization_suggestion_confirm/
+    reject as scaffold-only because nothing called this. Body:
+    { merchant: str, suggested_category: str, kept: bool } — kept is
+    whether the suggestion shown was still the category at save time
+    (app.js compares the two; this route just logs the outcome, no
+    category_id FK since suggestions are keyed by merchant name, not a
+    saved transaction's category row).
+    """
+    body      = request.json
+    merchant  = (body.get('merchant') or '').strip()
+    suggested = (body.get('suggested_category') or '').strip()
+    kept      = bool(body.get('kept'))
+    if not merchant or not suggested:
+        return err('merchant and suggested_category are required')
+    with db_session() as session:
+        log_historian_event(
+            session, 'categorization_suggestion_confirm' if kept else 'categorization_suggestion_reject',
+            context={'merchant': merchant, 'suggested_category': suggested},
+        )
+        session.commit()
+    return ok({'logged': True})
 
 
 @categories_bp.route('', methods=['GET'])
@@ -5600,8 +5760,17 @@ def deposit_sinking_fund(fund_id):
             return err('Fund not found', 404)
         target = float(f.target_amount or 0)
         f.current_amount = min(target, float(f.current_amount or 0) + amount) if target > 0                            else float(f.current_amount or 0) + amount
+        _log_sinking_fund_contribution_variance(session, f, amount)
         session.commit()
         return ok(_serialize_sinking_fund(f))
+
+
+@sinking_funds_bp.route('/<int:fund_id>/confidence', methods=['GET'])
+def sinking_fund_confidence(fund_id):
+    """Sinking funds' mirror of the debt/net-worth/investments confidence
+    routes — thin read of get_sinking_fund_confidence."""
+    with db_session() as session:
+        return ok(get_sinking_fund_confidence(session, fund_id))
 
 
 @sinking_funds_bp.route('/<int:fund_id>/spend', methods=['POST'])
@@ -5649,9 +5818,57 @@ def auto_credit_sinking_funds():
                 target = float(f.target_amount or 0)
                 f.current_amount = min(target, float(f.current_amount or 0) + contrib) if target > 0                                    else float(f.current_amount or 0) + contrib
                 f.last_contributed_month = this_month
+                # Only a real logged variance when monthly_contribution was
+                # actually set — _log_sinking_fund_contribution_variance
+                # itself no-ops otherwise, but the deadline-derived fallback
+                # contrib computed above would make expected==actual here by
+                # construction, which isn't a real signal either way.
+                _log_sinking_fund_contribution_variance(session, f, contrib)
                 credited += 1
         session.commit()
     return ok({'credited': credited, 'month': this_month})
+
+
+# ── College funds (Historian logging only — balance itself is managed
+# client-side via the generic /api/settings college_funds_json blob, same
+# as it always was; this route exists purely so a contribution's "expected"
+# figure comes from that same server-held blob rather than a client-passed
+# number, matching how every other confidence feature in this file sources
+# its expected value) ────────────────────────────────────────────────────
+college_funds_bp = Blueprint('college_funds', __name__)
+
+
+@college_funds_bp.route('/<fund_id>/contribute', methods=['POST'])
+@require_json
+def log_college_fund_contribution(fund_id):
+    """Body: { amount: float }. Looks up the fund's own monthlyContrib from
+    college_funds_json for 'expected' — never trusts a client-passed
+    expectation for the number that gets logged as fact."""
+    amount = float(request.json.get('amount', 0) or 0)
+    if amount <= 0:
+        return err('Amount must be positive')
+    with db_session() as session:
+        row = session.query(AppSetting).filter_by(key='college_funds_json').first()
+        try:
+            funds = json.loads(row.value) if row and row.value else []
+        except (json.JSONDecodeError, TypeError):
+            funds = []
+        fund = next((f for f in funds if str(f.get('id')) == str(fund_id)), None)
+        if not fund:
+            return err('Fund not found', 404)
+        expected = float(fund.get('monthlyContrib', 0) or 0)
+        _log_college_fund_contribution_variance(session, fund_id, expected, amount)
+        session.commit()
+        return ok({'logged': True})
+
+
+@college_funds_bp.route('/<fund_id>/confidence', methods=['GET'])
+def college_fund_confidence(fund_id):
+    """College funds' mirror of the debt/net-worth/investments/sinking-fund
+    confidence routes — thin read of get_college_fund_confidence."""
+    with db_session() as session:
+        return ok(get_college_fund_confidence(session, fund_id))
+
 
 # ── Quicken import endpoint ───────────────────────────────────────────────────
 from flask import Blueprint

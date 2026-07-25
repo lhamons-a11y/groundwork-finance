@@ -2185,6 +2185,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           </div>
           <div id="rothTraditionalSummary"></div>
         </div>
+
+        <!-- Retirement advisor — AI analysis entry point covering whichever
+             of the sub-tools above have real data (pension, RMD, withdrawal
+             sustainability, SS timing, Roth split, mortgage payoff, college
+             funds), mirroring debtPanel-advisor/invAdvisorCard. -->
+        <div id="retirementAdvisorCard" class="card mt-5" style="display:none"></div>
         </div><!-- end retirementToolsSection -->
 
       </div><!-- end view-networth -->
@@ -2193,6 +2199,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
       <div id="view-trophy" class="view">
         <div class="section-header"><div class="section-title">Trophy Room</div><div class="section-sub" id="trophyProgress">Your financial achievements.</div></div>
         <div id="trophyContent"></div>
+        <div id="trophyAdvisorCard" class="card mt-5" style="display:none"></div>
       </div>
 
       <!-- TRIP PLANNER — Phase 10 -->

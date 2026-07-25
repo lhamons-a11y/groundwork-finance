@@ -6898,7 +6898,7 @@ function _buildBudgetExpenseRowEl(exp, idx) {
 // Monthly contribution counts toward "Out" in the budget header.
 // Money sits in the user's checking/savings — Groundwork tracks it mentally.
 
-function _budgetRenderSinkingFundsSection() {
+async function _budgetRenderSinkingFundsSection() {
   // Check if sinking funds section exists in the budget template
   let section = g('budgetSinkingFundsCard');
   if (!section) {
@@ -6928,13 +6928,24 @@ function _budgetRenderSinkingFundsSection() {
     return;
   }
 
-  const rows = funds.map(f => {
+  // Pace confidence, Historian-backed (mirrors net worth/investments) —
+  // real contribution-vs-monthly_contribution variance over time.
+  const confResults = await Promise.all(funds.map(f =>
+    API.get(`/api/sinking-funds/${f.id}/confidence`).catch(() => ({confidence_pct: null}))
+  ));
+
+  const rows = funds.map((f, idx) => {
     const target  = parseFloat(f.target_amount) || 0;
     const saved   = parseFloat(f.current_amount) || 0;
     const contrib = parseFloat(f.monthly_contribution) || _sfMonthlyNeeded(f);
     const pct     = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
     const filled  = saved >= target && target > 0;
     const barColor = filled ? 'var(--pine)' : pct >= 60 ? 'var(--pine)' : pct >= 30 ? 'var(--gold)' : 'var(--ember)';
+    const conf     = confResults[idx];
+    const confPct  = conf && conf.confidence_pct;
+    const confBadge = (confPct != null)
+      ? `<span style="font-size:10px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine)':confPct>=40?'var(--gold)':'var(--ember)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>`
+      : '';
 
     let deadline = '';
     if (f.deadline) {
@@ -6953,6 +6964,7 @@ function _budgetRenderSinkingFundsSection() {
             <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px">
               <span style="font-size:13px;font-weight:500;color:var(--ink)">${esc(f.name)}</span>
               <div style="display:flex;gap:8px;align-items:baseline;flex-shrink:0">
+                ${confBadge}
                 <span style="font-family:var(--font-mono);font-size:11px;color:var(--slate)">${fmt(saved)} saved</span>
                 <span style="font-family:var(--font-mono);font-size:13px;color:var(--pine)">${fmt(contrib)}/mo</span>
               </div>
@@ -6982,6 +6994,78 @@ function _budgetRenderSinkingFundsSection() {
       <button class="btn-add" style="margin:0" onclick="_budgetShowSinkingFundAdd()">+ Add fund</button>
     </div>
     ${rows}`;
+
+  _sfRenderAdvisorEntry(funds);
+}
+
+// Savings-goals advisor — mirrors _invRenderAdvisorEntry/_debtRenderAdvisorTab's
+// one-time "Generate" entry point pattern, delegating to the shared
+// _rcAnalyzeWithAI flow. dataLines only restate numbers already shown in
+// the sinking-fund rows above.
+let _sfAdvisorAICache = false;
+
+function _sfRenderAdvisorEntry(funds) {
+  const debtCard = g('budgetDebtCard');
+  if (!debtCard) return;
+  let card = g('budgetSavingsAdvisorCard');
+  if (!funds.length) { card?.remove(); return; }
+  if (!card) {
+    card = document.createElement('div');
+    card.id = 'budgetSavingsAdvisorCard';
+    card.className = 'card mb-4';
+    g('budgetSinkingFundsCard')?.insertAdjacentElement('afterend', card);
+  }
+  if (_sfAdvisorAICache || g('sfAdvisorAIEntry')) return;  // already generated or entry already shown
+
+  card.innerHTML = `
+    <div id="sfAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's savings-goals analysis</div>
+        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered read of your sinking funds' pace toward their targets</div>
+      </div>
+      <button onclick="_sfLaunchAdvisorAI()"
+        style="font-size:12px;padding:7px 16px;background:var(--pine);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        ✦ Generate
+      </button>
+    </div>`;
+}
+
+async function _sfLaunchAdvisorAI() {
+  g('sfAdvisorAIEntry')?.remove();
+  const funds = (_sinkingFunds || []).filter(f => f.is_active !== false);
+  if (!funds.length) return;
+
+  const fundLines = funds.map(f => {
+    const target  = parseFloat(f.target_amount) || 0;
+    const saved   = parseFloat(f.current_amount) || 0;
+    const contrib = parseFloat(f.monthly_contribution) || _sfMonthlyNeeded(f);
+    const pct     = target > 0 ? Math.min(100, (saved/target)*100) : 0;
+    return `${f.name}: ${fmt(saved)} of ${fmt(target)} (${pct.toFixed(0)}%), ${fmt(contrib)}/mo${f.deadline ? `, due ${f.deadline}` : ''}`;
+  });
+
+  const dataLines = [
+    `Total set aside monthly: ${fmt(funds.reduce((s,f)=>s+(parseFloat(f.monthly_contribution)||_sfMonthlyNeeded(f)),0))}`,
+    `Fund count: ${funds.length}`,
+    '---',
+    'FUNDS:',
+    ...fundLines,
+  ];
+
+  const buildPrompt = (profileCtx, stageCtx) => [
+    profileCtx || '',
+    `SAVINGS GOALS PICTURE — ${new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})}`,
+    '',
+    dataLines.join('\n'),
+    stageCtx?.stageNote || '',
+    '',
+    'Rules: Lead with the fund closest to its deadline or furthest behind, stated as a plain fact from the numbers above. Name dollar amounts. Never invent a number. 2-3 short paragraphs. No headers, no bullets.',
+  ].filter(Boolean).join('\n').trim();
+
+  const target = g('budgetSavingsAdvisorCard');
+  if (target) {
+    await _rcAnalyzeWithAI('savings_goals_advisor', dataLines, buildPrompt, target);
+    _sfAdvisorAICache = true;
+  }
 }
 
 function _sfMonthlyNeeded(fund) {
@@ -13981,7 +14065,11 @@ function toggleDebtLedgerAdd(cardId, type) {
 // Phase H2 Feature 1 (adaptive learning): suggest a category from real
 // merchant history (server.py :: suggest_category_for_merchant). Only fills
 // the category field if it's still empty — never overwrites something the
-// user already typed.
+// user already typed. _debtCatSuggestions tracks what was shown per cardId
+// so submitDebtLedgerEntry can log whether it was kept or changed at save
+// time (categorization_suggestion_confirm/reject — Historian).
+const _debtCatSuggestions = {};
+
 async function suggestCategoryFor(cardId) {
   const merchantEl = g(`ledgerMerchant-${cardId}`);
   const catEl       = g(`ledgerCategory-${cardId}`);
@@ -13991,6 +14079,7 @@ async function suggestCategoryFor(cardId) {
     const res = await API.get(`/api/categories/suggest?merchant=${encodeURIComponent(merchantEl.value.trim())}`);
     if (!res.category || res.sample_size < 2) { if (suggestEl) suggestEl.textContent = ''; return; }
     if (suggestEl) suggestEl.textContent = `· ${res.category}? (${res.confidence_pct}% of ${res.sample_size})`;
+    _debtCatSuggestions[cardId] = { merchant: merchantEl.value.trim(), category: res.category };
     if (!catEl.value.trim()) catEl.value = res.category;
   } catch (e) {
     _gwErr('suggestCategoryFor')(e);
@@ -14018,7 +14107,7 @@ async function loadRecurringDetection() {
           <div style="display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px">
             <div style="flex:1;color:var(--ink)">${esc(p.merchant)} ${fmt(p.avg_amount)} — seen ${p.frequency} times, consistently</div>
             <button class="btn btn-secondary btn-sm" onclick="acceptRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}', ${p.avg_amount})">Add to budget</button>
-            <button class="btn btn-ghost btn-sm" onclick="dismissRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}')">Dismiss</button>
+            <button class="btn btn-ghost btn-sm" onclick="dismissRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}', ${p.avg_amount})">Dismiss</button>
           </div>`).join('')}
       </div>`;
   } catch (e) {
@@ -14031,6 +14120,8 @@ async function acceptRecurringDetection(merchant, avgAmount) {
     await API.post('/api/budget/items', { type: 'expense', name: merchant, amount: avgAmount, category: '' });
     showToast('Added to budget', `${merchant} — ${fmt(avgAmount)}/mo`);
     _recurringDismissed.add(merchant);
+    API.post('/api/budget/detect-recurring/feedback',
+      { merchant, avg_amount: avgAmount, confirmed: true }).catch(_gwErr('acceptRecurringDetection:historian'));
     loadRecurringDetection();
   } catch (e) {
     _gwErr('acceptRecurringDetection')(e);
@@ -14038,8 +14129,10 @@ async function acceptRecurringDetection(merchant, avgAmount) {
   }
 }
 
-function dismissRecurringDetection(merchant) {
+function dismissRecurringDetection(merchant, avgAmount) {
   _recurringDismissed.add(merchant);
+  API.post('/api/budget/detect-recurring/feedback',
+    { merchant, avg_amount: avgAmount, confirmed: false }).catch(_gwErr('dismissRecurringDetection:historian'));
   loadRecurringDetection();
 }
 
@@ -14094,6 +14187,19 @@ async function submitDebtLedgerEntry(cardId, type) {
 
   try {
     await API.post(`/api/debt/${c._dbId}/ledger`, payload);
+
+    // Historian: did the shown category suggestion survive to save, or
+    // did the user change it? Only logged when a suggestion was actually
+    // shown for this entry (suggestCategoryFor populated it).
+    const shownSuggestion = _debtCatSuggestions[cardId];
+    if (type === 'charge' && shownSuggestion) {
+      API.post('/api/categories/suggest-feedback', {
+        merchant: shownSuggestion.merchant,
+        suggested_category: shownSuggestion.category,
+        kept: payload.category === shownSuggestion.category,
+      }).catch(_gwErr('submitDebtLedgerEntry:categoryFeedback'));
+      delete _debtCatSuggestions[cardId];
+    }
 
     if (type === 'payment' && g(`ledgerSaveRecurring-${cardId}`)?.checked) {
       const dayVal = g(`ledgerRecurDay-${cardId}`)?.value;
@@ -17784,7 +17890,7 @@ async function renderCollegeSavings() {
 
   // Show the card — college savings is relevant for ages 30-60
   card.style.display = '';
-  _renderCollegeFundsList();
+  await _renderCollegeFundsList();
 }
 
 function _calc529MonthlyNeeded(target, balance, monthsLeft, annualReturn) {
@@ -17808,7 +17914,7 @@ function _calc529MonthlyNeeded(target, balance, monthsLeft, annualReturn) {
   return Math.max(0, Math.round(gap / annuityFactor));
 }
 
-function _renderCollegeFundsList() {
+async function _renderCollegeFundsList() {
   const el = g('collegeFundsList');
   if (!el) return;
 
@@ -17819,7 +17925,20 @@ function _renderCollegeFundsList() {
     return;
   }
 
+  // Pace confidence, Historian-backed (mirrors sinking funds/net worth) —
+  // only funds with an id (added after this feature shipped) have history.
+  const confResults = await Promise.all(_collegeFunds.map(fund =>
+    fund.id != null
+      ? API.get(`/api/college-funds/${fund.id}/confidence`).catch(() => ({confidence_pct: null}))
+      : Promise.resolve({confidence_pct: null})
+  ));
+
   el.innerHTML = _collegeFunds.map((fund, idx) => {
+    const conf     = confResults[idx];
+    const confPct  = conf && conf.confidence_pct;
+    const confBadge = (confPct != null)
+      ? `<span style="font-size:10px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine)':confPct>=40?'var(--gold)':'var(--ember)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>`
+      : '';
     const annualReturn  = fund.annualReturn ?? 0.06;
     const pct           = fund.target_amount || fund.target > 0 ? Math.min(100, (fund.current_amount || fund.balance || 0) / fund.target_amount || fund.target * 100) : null;
     const yearsLeft     = fund.collegeYear ? Math.max(0, fund.collegeYear - new Date().getFullYear()) : null;
@@ -17838,6 +17957,7 @@ function _renderCollegeFundsList() {
             : ''}
         </div>
         <div style="display:flex;align-items:center;gap:10px">
+          ${confBadge}
           <span class="text-mono" style="font-size:14px;font-weight:500">${fmt(fund.current_amount || fund.balance || 0)}</span>
           ${fund.target_amount || fund.target ? `<span style="font-size:11px;color:var(--slate)">of ${fmt(fund.target_amount || fund.target)}</span>` : ''}
           <button onclick="addCollegeContribution(${idx})"
@@ -17902,9 +18022,12 @@ function showAddCollegeFund() {
       const target      = parseFloat(g('cfTarget')?.value)    || 0;
       const monthly     = parseFloat(g('cfMonthly')?.value)   || 0;
       const annualReturn = (parseFloat(g('cfReturn')?.value) || 6) / 100;
-      _collegeFunds.push({ childName:name, balance, collegeYear:year, target, monthlyContrib:monthly, annualReturn });
+      // id lets a future contribution log real pace variance for this fund
+      // (Historian; see server.py's log_college_fund_contribution) — funds
+      // created before this feature lack it and just skip that logging.
+      _collegeFunds.push({ id: Date.now(), childName:name, balance, collegeYear:year, target, monthlyContrib:monthly, annualReturn });
       await _saveCollegeFunds();
-      _renderCollegeFundsList();
+      await _renderCollegeFundsList();
       showToast(`${name}'s college fund added`, target ? `Goal: ${fmt(target)}` : '', 'success');
     }, 'Add fund', false
   );
@@ -17922,7 +18045,14 @@ function addCollegeContribution(idx) {
       if (!amt) return;
       _collegeFunds[idx].balance = (fund.current_amount || fund.balance || 0) + amt;
       await _saveCollegeFunds();
-      _renderCollegeFundsList();
+      // Historian logging — server looks up this fund's own monthlyContrib
+      // from the settings blob just saved above, so it's never trusting a
+      // client-passed expectation. Funds created before this feature has
+      // no id and the route 404s; that's fine, just nothing to log yet.
+      if (fund.id != null) {
+        await API.post(`/api/college-funds/${fund.id}/contribute`, { amount: amt }).catch(_gwErr('addCollegeContribution:historian'));
+      }
+      await _renderCollegeFundsList();
       showToast(`${fmt(amt)} added to ${fund.childName}'s fund`, `New balance: ${fmt(_collegeFunds[idx].balance)}`, 'success');
     }, 'Add', false
   );
@@ -17932,7 +18062,7 @@ async function removeCollegeFund(idx) {
   const name = _collegeFunds[idx]?.childName || 'fund';
   _collegeFunds.splice(idx, 1);
   await _saveCollegeFunds();
-  _renderCollegeFundsList();
+  await _renderCollegeFundsList();
   showToast(`${name}'s college fund removed`, '', 'info');
 }
 
@@ -18497,6 +18627,108 @@ function toggleRetirementTools() {
     renderSSTimingCard();
     renderRothTraditionalCard();
     renderMortgagePayoffTool();
+    _retirementRenderAdvisorEntry();
+  }
+}
+
+// Retirement advisor — one combined entry point covering whichever
+// sub-tools above have real data (pension, RMD, withdrawal sustainability,
+// SS timing, Roth split, mortgage payoff, college funds), mirroring
+// debtPanel-advisor/invAdvisorCard's "Generate" pattern. dataLines restate
+// raw inputs already saved by each tool's own save function — never a
+// recomputed conclusion (SSA claim-age tables, RMD divisors, sequence-of-
+// returns projections) duplicated here, only the numbers behind them.
+let _retirementAdvisorAICache = false;
+
+async function _retirementRenderAdvisorEntry() {
+  const card = g('retirementAdvisorCard');
+  if (!card) return;
+  if (_retirementAdvisorAICache || g('retirementAdvisorAIEntry')) return;
+
+  let hasData = false;
+  try {
+    const s = (await API.get('/api/settings')) || {};
+    hasData = !!(
+      (S.lifeStage?.pensions || []).length ||
+      (parseFloat(s.rmd_balance) || 0) > 0 ||
+      (parseFloat(s.ss_fra_benefit) || 0) > 0 ||
+      (parseFloat(s.mortgage_full_payment) || 0) > 0 ||
+      (parseFloat(s.traditional_401k) || 0) + (parseFloat(s.traditional_ira) || 0) +
+        (parseFloat(s.roth_401k) || 0) + (parseFloat(s.roth_ira) || 0) > 0 ||
+      _collegeFunds.length
+    );
+  } catch(e) { _gwErr('_retirementRenderAdvisorEntry')(e); }
+
+  if (!hasData) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  card.innerHTML = `
+    <div id="retirementAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's retirement-planning analysis</div>
+        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered read across whichever tools above you've filled in</div>
+      </div>
+      <button onclick="_retirementLaunchAdvisorAI()"
+        style="font-size:12px;padding:7px 16px;background:var(--pine);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        ✦ Generate
+      </button>
+    </div>`;
+}
+
+async function _retirementLaunchAdvisorAI() {
+  g('retirementAdvisorAIEntry')?.remove();
+  let s = {};
+  try { s = (await API.get('/api/settings')) || {}; } catch(e) { _gwErr('_retirementLaunchAdvisorAI')(e); return; }
+
+  const dataLines = [];
+
+  const pensions = S.lifeStage?.pensions || [];
+  if (pensions.length) {
+    dataLines.push('PENSIONS:');
+    pensions.forEach(p => dataLines.push(`${p.name || 'Pension'}: ${fmt(p.monthlyBenefit||0)}/mo, est. value ${fmt(_estimatePensionPV(p))}`));
+  }
+
+  const rmdAge = parseInt(s.rmd_current_age) || 0;
+  const rmdBal = parseFloat(s.rmd_balance) || 0;
+  if (rmdAge && rmdBal) dataLines.push(`RMD: age ${rmdAge}, tax-deferred balance ${fmt(rmdBal)}`);
+
+  const withdrawalRate = parseFloat(s.withdrawal_rate) || 0;
+  const portfolio = (S.netWorth?.investments||0) + (S.netWorth?.retirement401k||0) + (S.netWorth?.retirementIRA||0);
+  if (withdrawalRate && portfolio > 0) dataLines.push(`Withdrawal plan: ${fmt(portfolio)} portfolio at ${withdrawalRate}% annual withdrawal rate`);
+
+  const ssBenefit = parseFloat(s.ss_fra_benefit) || 0;
+  if (ssBenefit) dataLines.push(`Social Security: ${fmt(ssBenefit)}/mo at full retirement age`);
+
+  const trad = (parseFloat(s.traditional_401k)||0) + (parseFloat(s.traditional_ira)||0);
+  const roth = (parseFloat(s.roth_401k)||0) + (parseFloat(s.roth_ira)||0);
+  if (trad + roth > 0) dataLines.push(`Retirement accounts: ${fmt(trad)} pre-tax (traditional), ${fmt(roth)} post-tax (Roth)`);
+
+  const mortMonths = parseInt(s.mortgage_months_remaining) || 0;
+  const mortPayment = parseFloat(s.mortgage_full_payment) || 0;
+  if (mortMonths && mortPayment) dataLines.push(`Mortgage: ${mortMonths} months remaining, ${fmt(mortPayment)}/mo payment`);
+
+  if (_collegeFunds.length) {
+    dataLines.push('COLLEGE FUNDS:');
+    _collegeFunds.forEach(f => dataLines.push(
+      `${f.childName}: ${fmt(f.current_amount||f.balance||0)} of ${fmt(f.target_amount||f.target||0)}, ${fmt(f.monthly_contribution||f.monthlyContrib||0)}/mo`
+    ));
+  }
+
+  if (!dataLines.length) return;
+
+  const buildPrompt = (profileCtx, stageCtx) => [
+    profileCtx || '',
+    `RETIREMENT & PLANNING PICTURE — ${new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})}`,
+    '',
+    dataLines.join('\n'),
+    stageCtx?.stageNote || '',
+    '',
+    'Rules: Lead with whichever figure is most notable — largest balance, nearest deadline, or biggest gap. Name dollar amounts, stated as plain facts from the numbers above. Never invent a number, never calculate a projection yourself (no "at this rate you\'ll have X by retirement"). 2-3 short paragraphs. No headers, no bullets.',
+  ].filter(Boolean).join('\n').trim();
+
+  const target = g('retirementAdvisorCard');
+  if (target) {
+    await _rcAnalyzeWithAI('retirement_advisor', dataLines, buildPrompt, target);
+    _retirementAdvisorAICache = true;
   }
 }
 
@@ -18654,7 +18886,70 @@ function renderTrophyRoom() {
   const total   = ACHIEVEMENTS.length;
   const pct     = Math.round(earnedN/total*100);
   setText('trophyProgress', `${earnedN} of ${total} achievements earned`);
-  _loadAchievementDates().then(() => _renderTrophyContent(cont, earnedN, total, pct));
+  _loadAchievementDates().then(() => {
+    _renderTrophyContent(cont, earnedN, total, pct);
+    _trophyRenderAdvisorEntry(earnedN);
+  });
+}
+
+// Trophy Room narrative — a celebratory summary, not financial advice, so
+// it's the one advisor surface in this app with no target/actual variance
+// to track (rule-based achievements have no Historian equivalent — see
+// HistorianEntry's docstring). Mirrors the other advisor entry points'
+// one-time "Generate" pattern regardless.
+let _trophyAdvisorAICache = false;
+
+function _trophyRenderAdvisorEntry(earnedN) {
+  const card = g('trophyAdvisorCard');
+  if (!card) return;
+  if (!earnedN) { card.style.display = 'none'; return; }
+  if (_trophyAdvisorAICache || g('trophyAdvisorAIEntry')) return;
+
+  card.style.display = '';
+  card.innerHTML = `
+    <div id="trophyAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's money story so far</div>
+        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-written recap of what your earned achievements actually represent</div>
+      </div>
+      <button onclick="_trophyLaunchAdvisorAI()"
+        style="font-size:12px;padding:7px 16px;background:var(--pine);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
+        ✦ Generate
+      </button>
+    </div>`;
+}
+
+async function _trophyLaunchAdvisorAI() {
+  g('trophyAdvisorAIEntry')?.remove();
+  const earned = ACHIEVEMENTS.filter(a => S.achievements.has(a.id));
+  if (!earned.length) return;
+
+  const withDates = earned
+    .map(a => ({ ...a, earnedAt: S.achievementDates?.[a.id] || null }))
+    .sort((a,b) => (b.earnedAt||'').localeCompare(a.earnedAt||''));
+
+  const dataLines = [
+    `Total achievements earned: ${earned.length} of ${ACHIEVEMENTS.length}`,
+    '---',
+    'EARNED (most recent first):',
+    ...withDates.map(a => `${a.name}: ${a.desc}${a.earnedAt ? ` (earned ${a.earnedAt.slice(0,10)})` : ''}`),
+  ];
+
+  const buildPrompt = (profileCtx, stageCtx) => [
+    profileCtx || '',
+    `ACHIEVEMENTS PICTURE — ${new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})}`,
+    '',
+    dataLines.join('\n'),
+    stageCtx?.stageNote || '',
+    '',
+    'Rules: Write a short, warm, genuinely celebratory recap of what these achievements represent about real progress made — not generic praise. Mention the most recent one and the total count as plain facts from the numbers above. Never invent an achievement or a number not listed. 2 short paragraphs. No headers, no bullets.',
+  ].filter(Boolean).join('\n').trim();
+
+  const target = g('trophyAdvisorCard');
+  if (target) {
+    await _rcAnalyzeWithAI('trophy_room_narrative', dataLines, buildPrompt, target);
+    _trophyAdvisorAICache = true;
+  }
 }
 
 async function _loadAchievementDates() {
