@@ -1905,6 +1905,21 @@ def main():
           '(fuzzy match does not over-merge unrelated transactions)',
           r3.get_json()['data']['created'] == 1 and r4.get_json()['data']['created'] == 1)
 
+    # ── Ledger bloom: attach-as-debt-payment button ─────────────────────────────
+    # The link-to-debt action previously only existed as a faint icon on the
+    # collapsed row; added a real button inside the double-click edit bloom
+    # too, since that faint icon was hard enough to notice that it prompted
+    # this whole investigation.
+    bloom_fn = app_src[app_src.index('function _openEditBloom('):]
+    bloom_fn = bloom_fn[:bloom_fn.index('\nfunction _readBloomFields')]
+    check('the edit bloom offers "Attach as debt payment" for an unlinked debit row',
+          "data-act=\"link-debt\"" in bloom_fn and 'Attach as debt payment' in bloom_fn)
+    check('the edit bloom offers "View linked payment" for an already-linked row',
+          "data-act=\"view-debt-link\"" in bloom_fn and 'View linked payment' in bloom_fn)
+    check('the bloom\'s debt-link buttons are wired to the same picker/jump functions as the row icon',
+          "addEventListener('click', e => { e.stopPropagation(); openLinkToDebtPicker(id); });" in app_src
+          and "addEventListener('click', e => { e.stopPropagation(); jumpToLinkedDebtEntry(t.linked_debt_entry_id); });" in app_src)
+
     return finish()
 
 

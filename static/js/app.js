@@ -4259,6 +4259,13 @@ function _openEditBloom(row) {
         <button class="edit-btn cancel" data-act="cancel">Cancel</button>
         <button class="edit-btn" data-act="split" title="Split this transaction across multiple categories"
           style="border-color:var(--slate-2);color:var(--slate)">Split</button>
+        ${t.linked_debt_entry_id
+          ? `<button class="edit-btn" data-act="view-debt-link" title="View the linked debt payment"
+               style="border-color:var(--slate-2);color:var(--slate)">💳 View linked payment</button>`
+          : (t.type === 'debit'
+              ? `<button class="edit-btn" data-act="link-debt" title="Record this as a payment toward a debt account"
+                   style="border-color:var(--slate-2);color:var(--slate)">🔗 Attach as debt payment</button>`
+              : '')}
         <button class="edit-btn save" data-act="save">Save changes</button>
       </div>
     </div>
@@ -4284,6 +4291,8 @@ function _openEditBloom(row) {
 
   bloom.querySelector('[data-act=cancel]').addEventListener('click', e => { e.stopPropagation(); cancelRowEdit(); });
   bloom.querySelector('[data-act=save]'  ).addEventListener('click', e => { e.stopPropagation(); saveRowEdit(id); });
+  bloom.querySelector('[data-act=link-debt]')?.addEventListener('click', e => { e.stopPropagation(); openLinkToDebtPicker(id); });
+  bloom.querySelector('[data-act=view-debt-link]')?.addEventListener('click', e => { e.stopPropagation(); jumpToLinkedDebtEntry(t.linked_debt_entry_id); });
   bloom.querySelector('[data-act=split]' ).addEventListener('click', e => {
     e.stopPropagation();
     const panel = g('bloomSplitPanel');
