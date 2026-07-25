@@ -15297,6 +15297,15 @@ function setCardField(id, field, value) {
   clearTimeout(setCardField._t);
   setCardField._t = setTimeout(() => {
     _syncDebtToDb(card).catch(_gwErr('setCardField'));
+    // Regression (found 2026-07-25): this is the main, everyday place
+    // balance/APR/payment get edited — the Debt Payoff page's own card
+    // fields — but only the Budget page's separate debt-bloom editor
+    // (_budgetSaveDebtBloom) ever called _budgetSaveDebtSnapshot. Every
+    // card edited here instead of there had zero debt_balance_history
+    // rows, so the "minimum payment is dropping" trend indicator
+    // (_budgetMinDecay) could never appear — confirmed against a real
+    // database where 12 of 13 active cards had no history at all.
+    _budgetSaveDebtSnapshot(_budgetMonthKey);
   }, 600);
   calculate();
   // Budget page reads S.debtCards for What's Left and amortization — keep it current

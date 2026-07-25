@@ -1920,6 +1920,20 @@ def main():
           "addEventListener('click', e => { e.stopPropagation(); openLinkToDebtPicker(id); });" in app_src
           and "addEventListener('click', e => { e.stopPropagation(); jumpToLinkedDebtEntry(t.linked_debt_entry_id); });" in app_src)
 
+    # ── Debt Payoff page card edits now write a balance-history snapshot ───────
+    # Regression found against a real database (2026-07-25): editing a debt's
+    # balance/APR/payment on the Debt Payoff page (setCardField) never called
+    # _budgetSaveDebtSnapshot — only the Budget page's separate debt-bloom
+    # editor did. 12 of 13 real active debt cards had zero
+    # debt_balance_history rows because of it, so the "minimum payment is
+    # dropping" trend indicator (_budgetMinDecay) could never appear for a
+    # card managed the normal way.
+    set_card_field_fn = app_src[app_src.index('function setCardField(id, field, value)'):]
+    set_card_field_fn = set_card_field_fn[:set_card_field_fn.index('\nfunction confirmRemoveCard')]
+    check('setCardField() writes a debt balance-history snapshot on every edit '
+          '(regression: Debt Payoff page edits never populated history)',
+          '_budgetSaveDebtSnapshot(_budgetMonthKey)' in set_card_field_fn)
+
     return finish()
 
 
