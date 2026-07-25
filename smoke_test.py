@@ -1849,6 +1849,62 @@ def main():
           'if (row && saved?.id)' in save_txn_fn
           and 'renderLedger(); updateLedgerStats();' in save_txn_fn)
 
+    # ── Import dedup: CSV vs QFX description formatting (regression) ───────────
+    # Real bug found in a live database (2026-07-25): CSV exports prepend a
+    # generic "Withdrawal " word that QFX/OFX omits, and QFX/OFX truncates
+    # long ACH memo/trace-number text to a fixed max length while CSV does
+    # not. The old exact-string dedup match missed these every time — an
+    # entire QFX re-import of already-CSV-imported data went through as
+    # ~880 new "duplicate" rows. These two real descriptions (trace number
+    # truncated by exactly one digit) are taken directly from that database.
+    with _dbs() as session:
+        dedup_acct = _Acct(name='Smoke Dedup Checking', type='checking')
+        session.add(dedup_acct)
+        session.flush()
+        dedup_acct_id = dedup_acct.id
+
+    csv_desc = ('Withdrawal ACH CAPITAL ONE TYPE: CRCARDPMT CO: CAPITAL ONE NAME: '
+                'Pat Sample Entry Class Code: WEB ACH Trace Number: 000000000000001')
+    qfx_desc = ('ACH CAPITAL ONE TYPE: CRCARDPMT CO: CAPITAL ONE NAME: '
+                'Pat Sample Entry Class Code: WEB ACH Trace Number: 00000000000000')
+
+    r1 = c.post('/api/import/commit', headers=HJ, json={
+        'account_id': dedup_acct_id,
+        'records': [{'date': '2026-05-18', 'amount': 60.0, 'type': 'debit',
+                     'description': csv_desc, 'source': 'csv'}],
+    })
+    r2 = c.post('/api/import/commit', headers=HJ, json={
+        'account_id': dedup_acct_id,
+        'records': [{'date': '2026-05-18', 'amount': 60.0, 'type': 'debit',
+                     'description': qfx_desc, 'source': 'qfx', 'fitid': '2605180001999596'}],
+    })
+    check('CSV-then-QFX import of the same real transaction: first commit creates it',
+          r1.status_code == 200 and r1.get_json()['data']['created'] == 1)
+    check('CSV-then-QFX import of the same real transaction: second commit recognizes '
+          'the duplicate (regression: used to silently create a second row)',
+          r2.status_code == 200 and r2.get_json()['data']['created'] == 0
+          and r2.get_json()['data']['duplicates'] == 1)
+
+    with _dbs() as session:
+        count = session.query(_Txn).filter_by(account_id=dedup_acct_id).count()
+        check('exactly one transaction exists after both imports (not two)', count == 1)
+
+    # Guard against over-merging: two genuinely different short-description
+    # transactions, same day/amount, must NOT be treated as duplicates.
+    r3 = c.post('/api/import/commit', headers=HJ, json={
+        'account_id': dedup_acct_id,
+        'records': [{'date': '2026-06-01', 'amount': 25.0, 'type': 'debit',
+                     'description': 'Clark Gas Station', 'source': 'csv'}],
+    })
+    r4 = c.post('/api/import/commit', headers=HJ, json={
+        'account_id': dedup_acct_id,
+        'records': [{'date': '2026-06-01', 'amount': 25.0, 'type': 'debit',
+                     'description': 'Shell Gas Station', 'source': 'csv'}],
+    })
+    check('two different short-description same-day/amount transactions both import '
+          '(fuzzy match does not over-merge unrelated transactions)',
+          r3.get_json()['data']['created'] == 1 and r4.get_json()['data']['created'] == 1)
+
     return finish()
 
 

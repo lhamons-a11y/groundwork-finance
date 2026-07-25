@@ -3318,37 +3318,58 @@ async function _bulkDeleteSelected() {
 // ── Duplicate transaction bot ────────────────────────────────────────────────
 // Scans S.transactions for duplicates and deletes the extras.
 // A duplicate is defined as: same account + same date + same type +
-// same amount (within $0.01) + same normalized description.
+// same amount (within $0.01) + a fuzzy-matching description (see
+// _descriptionsMatchFuzzy — exact match after stripping a generic
+// "Withdrawal "/"Deposit " prefix, or one being a truncated copy of the
+// other). Confirmed in the field (2026-07-25): CSV exports include that
+// prefix and never truncate long ACH memo/trace-number text, QFX/OFX
+// exports omit the prefix and truncate to a fixed max length — an EXACT
+// description match silently missed real duplicates for an entire QFX
+// re-import (~880 rows) that had already been imported via CSV.
 // When duplicates are found, the LATER-ID copy is deleted (the earlier
 // one was imported first and may have user edits like category overrides).
 //
 // Called automatically after each successful import and available manually
 // via the Dedup button in the ledger toolbar.
+const _DESC_NOISE_PREFIX = /^\s*(withdrawal|deposit|purchase|payment)\s+/i;
+function _normalizeDesc(s) {
+  return (s || '').toLowerCase().replace(_DESC_NOISE_PREFIX, '').replace(/\s+/g, ' ').trim();
+}
+function _descriptionsMatchFuzzy(a, b) {
+  const na = _normalizeDesc(a), nb = _normalizeDesc(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  const [shorter, longer] = na.length <= nb.length ? [na, nb] : [nb, na];
+  return shorter.length >= 20 && longer.startsWith(shorter);
+}
+
 async function _runDedupBot(silent = false) {
   if (!S.transactions || !S.transactions.length) return;
 
-  // Build a signature for each transaction
-  const normalize = s => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
-
-  const seen    = new Map();   // signature → transaction with lowest id (earliest)
+  const buckets  = new Map();  // 'account|date|type|cents' → [kept originals]
   const toDelete = [];         // ids to delete
 
   // Sort by id ascending so the first-seen (lowest id) is the original
   const sorted = [...S.transactions].sort((a, b) => a.id - b.id);
 
   for (const t of sorted) {
-    const sig = [
+    const key = [
       t.account       || '',
       t.date          || '',
       t.type          || '',
       Math.round((parseFloat(t.amount) || 0) * 100), // cents, avoids float drift
-      normalize(t.description),
     ].join('|');
 
-    if (seen.has(sig)) {
+    const bucket = buckets.get(key);
+    if (!bucket) {
+      buckets.set(key, [t]);
+      continue;
+    }
+    const dup = bucket.find(orig => _descriptionsMatchFuzzy(orig.description, t.description));
+    if (dup) {
       toDelete.push(t.id);  // this is a later copy — mark for deletion
     } else {
-      seen.set(sig, t.id);
+      bucket.push(t);       // same account/date/type/amount, genuinely different transaction
     }
   }
 

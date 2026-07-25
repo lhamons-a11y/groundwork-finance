@@ -6251,6 +6251,40 @@ def _normalize_record_order(records):
     return out
 
 
+_DESC_NOISE_PREFIX = re.compile(r'^\s*(withdrawal|deposit|purchase|payment)\s+', re.IGNORECASE)
+
+
+def _normalize_desc(s: str) -> str:
+    s = _DESC_NOISE_PREFIX.sub('', (s or '').lower())
+    return re.sub(r'\s+', ' ', s).strip()
+
+
+def _descriptions_match_fuzzy(a: str, b: str) -> bool:
+    """True if two transaction descriptions likely describe the same real
+    transaction. Confirmed in the field (2026-07-25): CSV and QFX/OFX
+    exports of the SAME transaction from the SAME bank differ in two ways
+    that broke the old exact-match dedup — CSV prepends a generic
+    'Withdrawal '/'Deposit ' word that QFX omits, and QFX truncates long
+    ACH memo/name fields to a fixed max length while CSV does not (a real
+    Capital One ACH payment's trace number came through as
+    '...45780' from QFX vs the untruncated '...457802' from CSV). An
+    entire QFX re-import went through as ~880 new "duplicate" rows because
+    of this — every one was an exact-match miss.
+    Exact match after stripping the noise prefix covers the common case;
+    prefix-containment (one is a truncated copy of the other) covers the
+    truncation case. The 20-char floor keeps two short, genuinely
+    different transactions that happen to share a common prefix (e.g.
+    "Interest Charge" vs "Interest Charge Fee") from being merged — only
+    long, specific ACH/wire-style descriptions get the fuzzy match."""
+    na, nb = _normalize_desc(a), _normalize_desc(b)
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    shorter, longer = (na, nb) if len(na) <= len(nb) else (nb, na)
+    return len(shorter) >= 20 and longer.startswith(shorter)
+
+
 @bank_import_bp.route('/commit', methods=['POST'])
 @require_json
 def bank_import_commit():
@@ -6311,32 +6345,45 @@ def bank_import_commit():
                 # ── Dedup ──────────────────────────────────────────────────
                 # QFX/OFX files contain a FITID (Financial Institution
                 # Transaction ID) — a globally unique ID the bank assigns to
-                # each transaction. Use it as the primary dedup key when
-                # available: it's exact, handles same-day same-amount
-                # transactions correctly (two Clark Gas fill-ups on the same
-                # day for the same amount are different transactions and both
-                # should import), and survives date/description changes.
+                # each transaction. Check it first when available: it's exact
+                # and survives date/description changes, so it's the cheapest
+                # and most precise signal. But it is NOT sufficient on its
+                # own — a row's FITID can only ever match another row that
+                # also has a FITID, so a QFX row reimporting a transaction
+                # that was originally imported via CSV (which has no FITID)
+                # would never find its existing match here and always fell
+                # through to being created as a duplicate. So: always fall
+                # back to the date+type+amount+fuzzy-description match below
+                # when the FITID check doesn't find anything, regardless of
+                # whether this row has a FITID or not.
                 #
-                # CSV rows have no FITID; fall back to the date+amount+desc
-                # heuristic, which is imperfect but better than no dedup.
+                # The fuzzy description match (see _descriptions_match_fuzzy)
+                # tolerates CSV/QFX formatting differences confirmed in the
+                # field (2026-07-25): CSV prepends a generic "Withdrawal "/
+                # "Deposit " word that QFX omits, and QFX truncates long ACH
+                # memo/trace-number text to a fixed max length while CSV does
+                # not — an exact string match silently missed these every
+                # time. Same-day same-amount transactions with a genuinely
+                # different (and not merely truncated) description — e.g. two
+                # Clark Gas fill-ups — still both import; see the 20-char
+                # shared-prefix floor in _descriptions_match_fuzzy.
+                existing = None
                 if fitid:
                     existing = session.query(Transaction).filter(
                         Transaction.account_id == account_id,
                         Transaction.import_id  == fitid,
                     ).first()
-                else:
-                    # CSV rows have no FITID — use date + type + amount + description.
-                    # Case-insensitive description comparison catches normalization
-                    # differences ("INTEREST CHARGE" vs "Interest Charge").
-                    # Type is included so a same-day same-amount refund/purchase pair
-                    # doesn't get incorrectly deduplicated against each other.
-                    existing = session.query(Transaction).filter(
+                if not existing:
+                    candidates = session.query(Transaction).filter(
                         Transaction.account_id == account_id,
                         Transaction.date       == txn_date,
                         Transaction.type       == txn_type,
                         Transaction.amount.between(amount - 0.005, amount + 0.005),
-                        func.lower(Transaction.description) == description.lower(),
-                    ).first()
+                    ).all()
+                    existing = next(
+                        (c for c in candidates if _descriptions_match_fuzzy(c.description, description)),
+                        None,
+                    )
 
                 if existing:
                     duplicates += 1
