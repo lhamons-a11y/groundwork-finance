@@ -345,6 +345,31 @@ BASE_TEMPLATE = """<!DOCTYPE html>
   <p style="margin-top:8px">Questions? <a href="mailto:hello@groundworkfinance.app">hello@groundworkfinance.app</a></p>
 </footer>
 
+<script>
+// Swap "Windows" in download CTAs for the visitor's actual OS, detected from
+// the user agent. No-op on pages with no .os-download-label elements, and on
+// mobile/unrecognized user agents the CTA just keeps its default text — the
+// download page itself lists all three platforms, so this is a hint, not the
+// only way to find the right download.
+(function () {
+  var els = document.querySelectorAll('.os-download-label');
+  if (!els.length) return;
+  var ua = navigator.userAgent;
+  // iPhone/iPod/iPad first: a real iPhone's UA contains "like Mac OS X" and
+  // would otherwise misdetect as macOS. Modern iPadOS Safari goes further and
+  // fully spoofs a desktop Mac UA with no "iPad" substring at all — the only
+  // way to catch that case is the touch-capable MacIntel platform check.
+  var isAppleMobile = /iPhone|iPod|iPad/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var label = null;
+  if (isAppleMobile) label = null;
+  else if (/Mac OS X|Macintosh/.test(ua)) label = 'macOS';
+  else if (/Linux/.test(ua) && !/Android/.test(ua)) label = 'Linux';
+  else if (/Windows/.test(ua)) label = 'Windows';
+  if (!label) return;
+  els.forEach(function (el) { el.textContent = label; });
+})();
+</script>
 </body>
 </html>"""
 
@@ -365,7 +390,7 @@ HOME_CONTENT = """
   <p>A free personal finance app that shows exactly where your money goes and builds a step-by-step path out of debt — no subscription, no cloud, no nonsense.</p>
   <div class="hero-btns">
     <a href="/download" class="btn btn-primary" style="font-size:17px;padding:16px 36px">
-      ⬇ Download Free for Windows
+      ⬇ Download Free for <span class="os-download-label">Windows</span>
     </a>
     <a href="/features" class="btn btn-ghost" style="color:#fff;border-color:rgba(255,255,255,.4)">
       See what it does →
@@ -1017,7 +1042,7 @@ def features():
     </div>
     <div style="text-align:center;margin-top:60px">
       <a href="/download" class="btn btn-primary" style="font-size:17px;padding:16px 36px">
-        Download free for Windows →
+        Download free for <span class="os-download-label">Windows</span> →
       </a>
     </div>
   </div>
