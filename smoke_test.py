@@ -1211,6 +1211,98 @@ def main():
         check('database integrity: no debt_ledger_entries row points at a deleted checking transaction',
               dangling_txn_links == 0)
 
+    # ── 31. Flights API (GROUNDWORK_LLM_BUILD_PLAN.md decision #7) ───────────
+    import flight_price
+    from core.database import FlightPriceCache as _FPC
+    from datetime import datetime as _dt2, timedelta as _td2
+
+    check('search_flights is honest with no API key configured',
+          flight_price.search_flights('ORD', 'DEN', '2026-09-10', api_key='') ==
+          {'live': False, 'reason': 'no_api_key'})
+
+    r = flight_price.search_flights('', 'DEN', '', api_key='fake-key-for-this-check')
+    check('search_flights rejects missing required fields before making any request',
+          r == {'live': False, 'reason': 'missing_required_field'})
+
+    # _parse_response: honest failure reasons for malformed/empty SerpApi
+    # response shapes — never guesses a price from a partial one.
+    check('_parse_response reports the API-side error verbatim',
+          flight_price._parse_response({'error': 'Invalid API key.'})[1] == 'Invalid API key.')
+    check('_parse_response reports no_results for an empty response',
+          flight_price._parse_response({'best_flights': [], 'other_flights': []})[1] == 'no_results')
+    check('_parse_response reports no_price_in_response when flights exist but have no price field',
+          flight_price._parse_response({'best_flights': [{'flights': [{'airline': 'Test Air'}]}]})[1]
+          == 'no_price_in_response')
+    parsed, reason = flight_price._parse_response({'best_flights': [
+        {'price': 450, 'flights': [{'airline': 'Test Air'}]},
+        {'price': 320, 'flights': [{'airline': 'Cheap Air'}]},
+    ]})
+    check('_parse_response picks the cheapest priced candidate',
+          reason is None and parsed['price'] == 320.0 and parsed['airline'] == 'Cheap Air')
+
+    # Cache hit: a fresh cache row must short-circuit before any network call
+    # — proven here by supplying an obviously-fake key that would fail if the
+    # module actually tried to reach SerpApi with it.
+    cache_key = flight_price._cache_key('ORD', 'DEN', '2026-09-10', '2026-09-14', 2)
+    with _dbs() as session:
+        session.add(_FPC(cache_key=cache_key, origin='ORD', destination='DEN',
+                          outbound_date='2026-09-10', return_date='2026-09-14', travelers=2,
+                          price_total=317.50, airline='Cached Air'))
+        session.commit()
+    cached_result = flight_price.search_flights('ORD', 'DEN', '2026-09-10', '2026-09-14', 2,
+                                                  api_key='fake-key-would-fail-if-actually-called')
+    check('search_flights returns a fresh cache hit without attempting a network call',
+          cached_result == {'live': True, 'price_total': 317.50, 'airline': 'Cached Air', 'cached': True})
+
+    # Regression: the cache check must run BEFORE the api_key gate — a cache
+    # hit makes no new request, so it needs no key. Caught during this
+    # build: the original ordering checked api_key first, which meant a
+    # valid cached price silently became unreachable ('no_api_key') the
+    # moment a key went missing, even though nothing about serving cache
+    # requires one.
+    cached_no_key = flight_price.search_flights('ORD', 'DEN', '2026-09-10', '2026-09-14', 2, api_key='')
+    check('a cache hit does not require an API key at all (regression)',
+          cached_no_key == {'live': True, 'price_total': 317.50, 'airline': 'Cached Air', 'cached': True})
+
+    # A stale cache row (older than the freshness window) must NOT be
+    # returned as a hit — this one has no api_key either, so if staleness
+    # weren't respected it would wrongly fall through to 'live': True anyway
+    # only by accident; assert the correct no_api_key path is reached instead.
+    with _dbs() as session:
+        stale_key = flight_price._cache_key('LAX', 'JFK', '2026-01-01', None, 1)
+        session.add(_FPC(cache_key=stale_key, origin='LAX', destination='JFK',
+                          outbound_date='2026-01-01', return_date=None, travelers=1,
+                          price_total=199.0, airline='Old Air',
+                          fetched_at=_dt2.utcnow() - _td2(hours=48)))
+        session.commit()
+    stale_result = flight_price.search_flights('LAX', 'JFK', '2026-01-01', None, 1, api_key='')
+    check('a stale cache row is not treated as a hit (falls through to the real no-key path)',
+          stale_result == {'live': False, 'reason': 'no_api_key'})
+
+    # Route-level: no key configured in this smoke environment either.
+    r = c.get('/api/trip/flight-price?origin=ORD&destination=DEN&outbound_date=2026-09-10&travelers=2', headers=H)
+    route_data = (r.get_json() or {}).get('data') or {}
+    check('GET /api/trip/flight-price responds 200 with an honest live:false (no key in this env)',
+          r.status_code == 200 and route_data.get('live') is False)
+
+    # But the SAME route/dates as the cached entry above must still hit cache
+    # even via the HTTP route (proves the route wires through to the cache
+    # path, not just the module function directly).
+    r = c.get('/api/trip/flight-price?origin=ORD&destination=DEN&outbound_date=2026-09-10&return_date=2026-09-14&travelers=2', headers=H)
+    route_cached = (r.get_json() or {}).get('data') or {}
+    check('GET /api/trip/flight-price hits the cache through the route too',
+          route_cached.get('live') is True and route_cached.get('price_total') == 317.50)
+
+    r = c.get('/api/trip/flight-price?origin=ORD', headers=H)
+    check('GET /api/trip/flight-price handles missing params without a 500',
+          r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('live') is False)
+
+    check('groundwork.spec declares flight_price as a hidden import (PyInstaller trace)',
+          "'flight_price'" in Path('groundwork.spec').read_text(encoding='utf-8'))
+
+    check("app.js wires the explicit search button (not the automatic tripUpdateBudget path)",
+          'searchLiveFlightPrice' in app_src and 'tripFlightSearchResult' in app_src)
+
     return finish()
 
 

@@ -2269,13 +2269,25 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
           <!-- Fly details -->
           <div id="tripFlyDetails" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:16px;border:0.5px solid var(--steel-2)">
-            <div class="field">
-              <label>Departure airport (IATA code)</label>
-              <input type="text" id="tripAirport" placeholder="ORD" maxlength="3"
-                style="text-transform:uppercase;width:120px"
-                oninput="this.value=this.value.toUpperCase(); tripUpdateBudget()">
+            <div class="field-row">
+              <div class="field">
+                <label>Departure airport (IATA code)</label>
+                <input type="text" id="tripAirport" placeholder="ORD" maxlength="3"
+                  style="text-transform:uppercase;width:120px"
+                  oninput="this.value=this.value.toUpperCase(); tripUpdateBudget()">
+              </div>
+              <div class="field">
+                <label>Arrival airport (IATA code)</label>
+                <input type="text" id="tripDestAirport" placeholder="DEN" maxlength="3"
+                  style="text-transform:uppercase;width:120px"
+                  oninput="this.value=this.value.toUpperCase()">
+              </div>
             </div>
-            <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Flight price estimates are retrieved by AI when you generate the trip budget.</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+              <button class="btn btn-secondary btn-sm" onclick="searchLiveFlightPrice()">Search live flight prices</button>
+              <span id="tripFlightSearchResult" style="font-size:11px"></span>
+            </div>
+            <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Live prices need both airport codes and your dates above. Without a search, flight cost is AI-estimated when you generate the trip budget.</div>
           </div>
         </div>
 

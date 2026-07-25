@@ -356,6 +356,26 @@ class PdfExtractCache(Base):
     created_at     = Column(DateTime, default=datetime.utcnow)
 
 
+class FlightPriceCache(Base):
+    """
+    SHA-256-keyed cache of live flight price searches (origin+destination+
+    dates+travelers), via SerpApi's Google Flights engine (flight_price.py).
+    SerpApi's free tier is 100 searches/month — this is what keeps a page
+    reload or a duplicate click from spending it on a search already run.
+    """
+    __tablename__  = 'flight_price_cache'
+    cache_key      = Column(String(64), primary_key=True)
+    origin         = Column(String(10), nullable=False)
+    destination    = Column(String(10), nullable=False)
+    outbound_date  = Column(String(10), nullable=False)
+    return_date    = Column(String(10), nullable=True)
+    travelers      = Column(Integer, default=1)
+    price_total    = Column(Float, nullable=True)
+    airline        = Column(String(120), nullable=True)
+    raw_json       = Column(Text, nullable=True)
+    fetched_at     = Column(DateTime, default=datetime.utcnow)
+
+
 class BudgetPlan(Base):
     __tablename__ = 'budget_plans'
     id            = Column(Integer, primary_key=True)
