@@ -28,21 +28,8 @@ jobs:
 
       - name: Build .icns from source PNG
         run: |
-          # Source PNG is only 256x256 — icon_256x256@2x.png would need a
-          # 512x512 upscale, which is what broke this step the first two
-          # times (iconutil rejects a file whose real pixel size doesn't
-          # match what its filename claims, and upscaling produced subtly
-          # wrong output). Capping at 256x256 avoids any upscale entirely;
-          # the tradeoff is no dedicated 512px asset for the largest Finder
-          # icon sizes, which is fine until a higher-res source PNG exists.
-          mkdir -p groundwork.iconset
-          sips -z 16 16     assets/groundwork_256.png --out groundwork.iconset/icon_16x16.png
-          sips -z 32 32     assets/groundwork_256.png --out groundwork.iconset/icon_16x16@2x.png
-          sips -z 32 32     assets/groundwork_256.png --out groundwork.iconset/icon_32x32.png
-          sips -z 64 64     assets/groundwork_256.png --out groundwork.iconset/icon_32x32@2x.png
-          sips -z 128 128   assets/groundwork_256.png --out groundwork.iconset/icon_128x128.png
-          sips -z 256 256   assets/groundwork_256.png --out groundwork.iconset/icon_128x128@2x.png
-          sips -z 256 256   assets/groundwork_256.png --out groundwork.iconset/icon_256x256.png
+          pip install --quiet pillow
+          python3 build_icns.py
           iconutil -c icns groundwork.iconset -o assets/groundwork.icns
 
       - name: Build with PyInstaller
