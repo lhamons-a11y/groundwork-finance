@@ -5135,6 +5135,15 @@ async function saveTransaction() {
       row.id       = saved.id;
       row.category = saved.category || row.category;
       row.account  = saved.account  || row.account;
+      // The optimistic row above was rendered with the temp id already
+      // baked into its data-id/onclick handlers (link-to-debt, dblclick
+      // edit, checkbox select). Without a re-render here, every one of
+      // those stays wired to an id that no longer exists in the DB until
+      // the next page reload — confirmed via the debt-link picker
+      // throwing "Unexpected token '<'" (a 405 from POSTing a negative id
+      // to an <int:> route) on a transaction added and linked in the same
+      // session.
+      if (document.querySelector('#view-ledger.active')) { renderLedger(); updateLedgerStats(); }
     }
     if (!S.categories.some(c => c.name.toLowerCase() === cat.toLowerCase())) {
       loadCategories();
