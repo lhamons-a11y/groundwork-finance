@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260724-flights'
+SCHEMA_VERSION = '20260725-byb'
 
 
 def _stored_schema_version():
@@ -82,6 +82,22 @@ _NEW_DEBT_HISTORY_COLUMNS = [
 # linked_recurring_payment_id = Column(Integer, ForeignKey('recurring_debt_payments.id'), nullable=True)
 _NEW_DEBT_LEDGER_COLUMNS = [
     ('linked_recurring_payment_id', "INTEGER REFERENCES recurring_debt_payments(id)"),
+]
+
+# The wizard (_bybCommit in app.js) has always computed these fields, but
+# _syncBYBItemToDb never sent them and byb_items had no columns for them —
+# every saved decision was silently dropped. See BYBItem's docstring in
+# core/database.py.
+_NEW_BYB_COLUMNS = [
+    ('replacing_id',      "INTEGER"),
+    ('decision',          "VARCHAR(20)"),
+    ('dti_before',        "FLOAT"),
+    ('dti_after',         "FLOAT"),
+    ('payoff_impact',     "FLOAT"),
+    ('whats_left_before', "FLOAT"),
+    ('whats_left_after',  "FLOAT"),
+    ('actual_cost',       "FLOAT"),
+    ('decided_at',        "DATETIME"),
 ]
 
 
@@ -226,6 +242,7 @@ def run_migration_if_needed():
     _add_missing_columns('categories',           _NEW_CATEGORY_COLUMNS)
     _add_missing_columns('debt_balance_history', _NEW_DEBT_HISTORY_COLUMNS)
     _add_missing_columns('debt_ledger_entries',  _NEW_DEBT_LEDGER_COLUMNS)
+    _add_missing_columns('byb_items',            _NEW_BYB_COLUMNS)
     _ensure_indexes()
 
     # Audit note (d20 deferred → d21): debt_balance_history used to be defined

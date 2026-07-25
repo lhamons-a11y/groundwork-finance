@@ -296,6 +296,12 @@ class HistorianEntry(Base):
       'college_fund_contribution_variance'— college funds (contribution, actual $ vs. fund's own monthlyContrib)
       'recurring_pattern_confirm'         — a detected recurring merchant added to the budget
       'recurring_pattern_reject'          — a detected recurring merchant dismissed
+      'byb_purchase_decision'             — Before You Buy: a commit/walkaway decision (immediate or
+                                             a later-resolved 'track' item). expected/actual only set
+                                             when a real cost comparison exists (a resolved 'track' item
+                                             with actual_cost) — a same-day commit/walkaway is logged as
+                                             a pure categorical event (context only), not a fabricated
+                                             0%-variance data point.
     No payoff_plan_id column: same reason as DebtLedgerEntry — there is no
     persisted payoff-plan table in this codebase. Net worth milestones are
     similarly not a DB table (they live in AppSetting's nw_goals_json, a
@@ -310,7 +316,8 @@ class HistorianEntry(Base):
     entries carry a real sinking_fund_id. College funds are JSON again
     (AppSetting's college_funds_json, same {id, ...} shape as net worth
     milestones since neither predates that pattern) — those carry
-    college_fund_id.
+    college_fund_id. BYB items are a real table (BYBItem) too — those
+    entries carry byb_item_id.
     """
     __tablename__   = 'historian_entries'
     id              = Column(Integer, primary_key=True)
@@ -444,6 +451,25 @@ class AppSetting(Base):
 
 
 class BYBItem(Base):
+    """
+    The wizard (_bybCommit in app.js) has always computed decision,
+    dti_before/after, payoff_impact, and whats_left_before/after when the
+    user finishes evaluating a purchase — but _syncBYBItemToDb only ever
+    sent type/name/category/monthly/replacing to the server, and this model
+    had no columns for the rest. Every saved item's decision was silently
+    dropped, which made _renderBYBList's `!b.decision` fallback treat every
+    item as 'walkaway' (dimmed, no comparison stats) regardless of what the
+    user actually chose. Added these columns to match what the frontend
+    already computes and expects back.
+
+    decided_at/actual_cost support a second use the wizard never had: a
+    'track' item (still being considered, not yet committed or walked
+    away) can be resolved later via PATCH /api/byb/<id>/resolve once the
+    user actually decides — actual_cost captures what it really ended up
+    costing, for real estimate-vs-actual signal (Historian: see
+    byb_purchase_decision in HistorianEntry's docstring) instead of just a
+    same-day categorical choice.
+    """
     __tablename__ = 'byb_items'
     id               = Column(Integer, primary_key=True)
     item_type        = Column(String(40), default='subscription')
@@ -452,7 +478,16 @@ class BYBItem(Base):
     monthly_cost     = Column(Float, default=0.0)
     replacing_name   = Column(String(200), nullable=True)
     replacing_amount = Column(Float, nullable=True)
+    replacing_id     = Column(Integer, nullable=True)
     days_impact      = Column(Float, default=0.0)
+    decision         = Column(String(20), nullable=True)   # 'commit' | 'track' | 'walkaway'
+    dti_before       = Column(Float, nullable=True)
+    dti_after        = Column(Float, nullable=True)
+    payoff_impact    = Column(Float, nullable=True)         # months shift; null = "not affordable" (never fabricated)
+    whats_left_before = Column(Float, nullable=True)
+    whats_left_after  = Column(Float, nullable=True)
+    actual_cost      = Column(Float, nullable=True)         # filled when a 'track' item is later resolved
+    decided_at       = Column(DateTime, nullable=True)
     created_at       = Column(DateTime, default=datetime.utcnow)
 
 

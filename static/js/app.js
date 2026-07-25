@@ -6648,15 +6648,29 @@ async function _syncAchievementToDb(id, section) {
 
 async function _syncBYBItemToDb(item) {
   // Add a BYB item to the DB. Returns the DB id.
+  // The wizard (_bybCommit) always computes decision/dti/payoff-impact —
+  // these used to get silently dropped here (server had no columns for
+  // them either), which made every saved item render as "walked away"
+  // regardless of the real choice. See BYBItem's docstring in
+  // core/database.py.
   try {
     const res = await API.post('/api/byb', {
-      type:     item.type,
-      name:     item.name,
-      category: item.category,
-      monthly:  item.monthly,
-      replacing:item.replacing || null,
+      type:               item.type,
+      name:               item.name,
+      category:           item.category,
+      monthly:            item.monthly,
+      replacing:          item.replacing || null,
+      replacing_name:     item.replacing_name || null,
+      replacing_id:       item.replacing_id ?? null,
+      decision:           item.decision ?? null,
+      dti_before:         item.dti_before,
+      dti_after:          item.dti_after,
+      payoff_impact:      item.payoff_impact,
+      whats_left_before:  item.whats_left_before,
+      whats_left_after:   item.whats_left_after,
     });
-    return res?.id || res?.data?.id || null;
+    const d = res?.data || res;
+    return d?.id || null;
   } catch(e) {
     console.warn('BYB DB sync failed:', e.message);
     return null;
@@ -19882,6 +19896,45 @@ async function removeBYBItem(dbId) {
   _renderBYBList();
 }
 
+// Resolve a 'track' item once the user actually decides — server logs
+// real estimate-vs-actual signal when bought (Historian:
+// byb_purchase_decision; see resolve_byb_item in server.py). Never just
+// deleted-and-recreated, since that would lose the original estimate this
+// is meant to compare against.
+function _bybResolveTracked(dbId, name, estimatedMonthly) {
+  confirmAction(
+    `Decide on ${name}`,
+    `<div style="display:grid;gap:10px">
+       <div style="font-size:12px;color:var(--slate)">Estimated at ${fmt(estimatedMonthly)}/mo when you first considered it.</div>
+       <div class="method-toggle">
+         <button type="button" class="method-btn active" data-bybres="bought" onclick="document.querySelectorAll('[data-bybres]').forEach(b=>b.classList.remove('active'));this.classList.add('active');g('bybResActualRow').style.display=''">Bought it</button>
+         <button type="button" class="method-btn" data-bybres="walkaway" onclick="document.querySelectorAll('[data-bybres]').forEach(b=>b.classList.remove('active'));this.classList.add('active');g('bybResActualRow').style.display='none'">Walked away</button>
+       </div>
+       <div class="field" id="bybResActualRow" style="margin:0">
+         <label>What it actually cost ($/mo)</label>
+         <input type="number" step="0.01" id="bybResActualCost" class="field-input" value="${estimatedMonthly||''}" placeholder="0.00">
+       </div>
+     </div>`,
+    async () => {
+      const bought   = document.querySelector('[data-bybres].active')?.dataset.bybres !== 'walkaway';
+      const actualEl = g('bybResActualCost');
+      const payload  = { decision: bought ? 'commit' : 'walkaway' };
+      if (bought && actualEl?.value) payload.actual_cost = parseFloat(actualEl.value) || null;
+      try {
+        const res = await API.patch(`/api/byb/${dbId}/resolve`, payload);
+        const d   = res?.data || res;
+        const idx = S.bybItems.findIndex(b => b._dbId === dbId);
+        if (idx >= 0) S.bybItems[idx] = { ...S.bybItems[idx], ...d };
+        _renderBYBList();
+        showToast(bought ? 'Marked as bought' : 'Marked as walked away', '', 'success');
+      } catch(e) {
+        _gwErr('_bybResolveTracked')(e);
+        showToast('Could not save decision', e.message || '', 'error');
+      }
+    }, 'Save decision', false
+  );
+}
+
 // ─── Settings ──────────────────────────────────────────────────────────────────
 
 // ── Session 9: Household mode ──────────────────────────────────────────────────
@@ -25456,16 +25509,23 @@ function renderBYB() {
 }
 
 async function _loadBYBItems() {
+  // This used to drop decision/dti_before/dti_after/payoff_impact/
+  // whats_left_before/after/replacing/actual_cost/decided_at on the floor
+  // here — the exact fields the wizard computes and the server now
+  // persists (see BYBItem's docstring) — which meant every item rendered
+  // as undecided/"walked away" no matter what was actually saved.
   try {
     const res  = await API.get('/api/byb');
     const data = res.data || res || [];
     S.bybItems = Array.isArray(data) ? data.map(b => ({
+      ...b,
       id:       b.id,
       _dbId:    b.id,
       name:     b.name     || '',
       category: b.category || b.type || '',
       type:     b.type     || 'subscription',
       monthly:  parseFloat(b.monthly || b.monthly_cost || 0),
+      replacing_name: b.replacing?.name || null,
     })) : [];
   } catch(e) {
     if (!Array.isArray(S.bybItems)) S.bybItems = [];
@@ -25504,7 +25564,11 @@ function _renderBYBList() {
   const itemCard = b => {
     const dtiDelta     = (b.dti_after != null && b.dti_before != null) ? (b.dti_after - b.dti_before).toFixed(1) : null;
     const payoffImpact = b.payoff_impact != null ? parseInt(b.payoff_impact) : null;
-    const decidedAt    = b.decided_at ? new Date(b.decided_at+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    // decided_at from the server is already a full ISO datetime
+    // (item.decided_at.isoformat()), not a bare date — appending
+    // 'T00:00:00' the way other plain-date fields in this app need to
+    // produced "Invalid Date" here.
+    const decidedAt    = b.decided_at ? new Date(b.decided_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
     const safeJson     = JSON.stringify(b).replace(/"/g, '&quot;');
     return `
       <div class="card mb-3" style="${b.decision==='commit'?'border-color:var(--pine-border)':b.decision==='walkaway'?'opacity:.75':''}">
@@ -25520,7 +25584,7 @@ function _renderBYBList() {
             <div style="font-family:var(--font-mono);font-size:14px;font-weight:600;color:${b.decision==='commit'?'var(--ember)':'var(--slate)'}">
               ${b.monthly>0?fmt(b.monthly)+'/mo':''}
             </div>
-            ${b.replacing_name ? `<div style="font-size:10px;color:var(--slate-2)">replacing ${esc(b.replacing_name)}</div>` : ''}
+            ${b.replacing?.name ? `<div style="font-size:10px;color:var(--slate-2)">replacing ${esc(b.replacing.name)}</div>` : ''}
           </div>
         </div>
         ${(dtiDelta !== null || payoffImpact !== null) ? `
@@ -25532,6 +25596,9 @@ function _renderBYBList() {
           ${b.whats_left_after != null ? `<span>Left: <span style="font-family:var(--font-mono);color:${b.whats_left_after>=0?'var(--pine)':'var(--ember)'}">${fmt(b.whats_left_after)}</span></span>` : ''}
         </div>` : ''}
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+          ${b.decision === 'track' ? `
+          <button class="btn btn-secondary btn-sm" onclick="_bybResolveTracked(${b._dbId}, '${esc(b.name).replace(/'/g,"\\'")}', ${b.monthly||0})" style="font-size:11px">Decide now</button>
+          ` : ''}
           <button class="btn btn-ghost btn-sm" onclick="_bybReEvaluate(${safeJson})" style="font-size:11px">Re-evaluate</button>
           <button class="btn btn-ghost btn-sm" onclick="removeBYBItem(${b._dbId})" style="color:var(--slate-2);font-size:11px">Remove</button>
         </div>

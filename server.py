@@ -4281,17 +4281,50 @@ byb_bp = Blueprint('byb', __name__)
 
 def _serialize_byb(item) -> dict:
     return {
-        'id':              item.id,
-        'type':            item.item_type,
-        'name':            item.name,
-        'category':        item.category,
-        'monthly':         item.monthly_cost,
+        'id':                item.id,
+        'type':              item.item_type,
+        'name':              item.name,
+        'category':          item.category,
+        'monthly':           item.monthly_cost,
         'replacing': {
             'name':   item.replacing_name,
             'amount': item.replacing_amount,
         } if item.replacing_name else None,
-        'created_at': item.created_at.isoformat() if item.created_at else None,
+        'decision':          item.decision,
+        'dti_before':        item.dti_before,
+        'dti_after':         item.dti_after,
+        'payoff_impact':     item.payoff_impact,
+        'whats_left_before': item.whats_left_before,
+        'whats_left_after':  item.whats_left_after,
+        'actual_cost':       item.actual_cost,
+        'decided_at':        item.decided_at.isoformat() if item.decided_at else None,
+        'created_at':        item.created_at.isoformat() if item.created_at else None,
     }
+
+
+def _log_byb_decision(session, item):
+    """
+    Historian write-hook for Before You Buy, called from create_byb_item()
+    (an immediate wizard-time commit/walkaway) and resolve_byb_item() (a
+    'track' item decided later). Only a 'commit' with a real actual_cost —
+    i.e. a resolved 'track' item — has anything to compare against the
+    original estimate; an immediate decision hasn't produced an "actual"
+    yet, so it's logged as a pure categorical event (context only) rather
+    than a fabricated 0%-variance data point. 'track' itself is never
+    logged here — it isn't a decision yet.
+    """
+    if item.decision not in ('commit', 'walkaway'):
+        return
+    expected = actual = None
+    if item.decision == 'commit' and item.actual_cost is not None:
+        expected = item.monthly_cost
+        actual   = item.actual_cost
+    log_historian_event(
+        session, 'byb_purchase_decision',
+        expected_value=expected, actual_value=actual,
+        context={'byb_item_id': item.id, 'name': item.name, 'decision': item.decision,
+                  'dti_after': item.dti_after, 'payoff_impact': item.payoff_impact},
+    )
 
 
 @byb_bp.route('', methods=['GET'])
@@ -4305,20 +4338,69 @@ def list_byb_items():
 @byb_bp.route('', methods=['POST'])
 @require_json
 def create_byb_item():
-    """Add an item to the BYB sandbox."""
+    """
+    Add an item to the BYB sandbox. The wizard always evaluates a decision
+    (commit/track/walkaway) before saving — see _bybCommit in app.js — so
+    this accepts and stores that plus the simulation output (dti_before/
+    after, payoff_impact, whats_left_before/after) rather than dropping it,
+    which is what made every saved item render as "walked away" regardless
+    of the real choice (see BYBItem's docstring).
+    """
     body = request.json
     with db_session() as session:
+        # The wizard (_bybCommit) sends replacing_name as a flat string, not
+        # the nested {name, amount} shape this route originally expected —
+        # support both rather than silently losing it either way.
         replacing = body.get('replacing') or {}
+        decision  = body.get('decision')
+        if decision not in (None, 'commit', 'track', 'walkaway'):
+            return err("decision must be 'commit', 'track', or 'walkaway'")
         item = BYBItem(
             item_type        = body.get('type', 'other'),
             name             = body['name'],
             category         = body.get('category', 'Other'),
             monthly_cost     = float(body.get('monthly', 0)),
-            replacing_name   = replacing.get('name'),
+            replacing_name   = body.get('replacing_name') or replacing.get('name'),
             replacing_amount = float(replacing['amount']) if replacing.get('amount') else None,
+            replacing_id     = body.get('replacing_id'),
+            decision         = decision,
+            dti_before       = body.get('dti_before'),
+            dti_after        = body.get('dti_after'),
+            payoff_impact    = body.get('payoff_impact'),
+            whats_left_before = body.get('whats_left_before'),
+            whats_left_after  = body.get('whats_left_after'),
+            decided_at       = datetime.utcnow() if decision in ('commit', 'walkaway') else None,
         )
         session.add(item)
         session.flush()
+        _log_byb_decision(session, item)
+        session.commit()
+        return ok(_serialize_byb(item))
+
+
+@byb_bp.route('/<int:item_id>/resolve', methods=['PATCH'])
+@require_json
+def resolve_byb_item(item_id):
+    """
+    Resolve a 'track' item once the user actually decides — the second
+    half of the Historian-facing purpose of this table (see BYBItem's
+    docstring): a real actual_cost captured here, compared against the
+    original monthly_cost estimate, is genuine estimate-vs-actual signal
+    that an immediate wizard-time decision never produces.
+    Body: { decision: 'commit'|'walkaway', actual_cost: float (optional) }
+    """
+    body     = request.json
+    decision = body.get('decision')
+    if decision not in ('commit', 'walkaway'):
+        return err("decision must be 'commit' or 'walkaway'")
+    with db_session() as session:
+        item = session.get(BYBItem, item_id)
+        if not item:
+            return err('Item not found', 404)
+        item.decision    = decision
+        item.actual_cost = float(body['actual_cost']) if body.get('actual_cost') is not None else None
+        item.decided_at  = datetime.utcnow()
+        _log_byb_decision(session, item)
         session.commit()
         return ok(_serialize_byb(item))
 

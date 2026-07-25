@@ -1671,6 +1671,74 @@ def main():
     check("app.js wires the Trophy Room narrative (surface: 'trophy_room_narrative')",
           "'trophy_room_narrative'" in app_src and 'trophyAdvisorCard' in app_src)
 
+    # ── 38. Before You Buy — decision/impact persistence + Historian ─────────
+    # The wizard (_bybCommit) always computed decision/dti_before/dti_after/
+    # payoff_impact/whats_left_before/after, but _syncBYBItemToDb never sent
+    # them and byb_items had no columns for them — every saved item's real
+    # decision was silently dropped, which made every item render as
+    # "walked away" (see BYBItem's docstring). This section proves the full
+    # round-trip now actually persists what the wizard computes.
+    from core.database import BYBItem as _BI
+
+    r = c.post('/api/byb', headers=H, json={
+        'name': 'Smoke Vehicle', 'type': 'vehicle', 'category': 'vehicle', 'monthly': 450,
+        'decision': 'commit', 'dti_before': 22.0, 'dti_after': 28.5,
+        'payoff_impact': 4, 'whats_left_before': 800, 'whats_left_after': 350,
+        'replacing_id': 999, 'replacing_name': 'Old Sedan',
+    })
+    byb_data = (r.get_json() or {}).get('data') or {}
+    check('POST /api/byb persists decision and simulation output (regression: used to be silently dropped)',
+          r.status_code == 200 and byb_data.get('decision') == 'commit'
+          and byb_data.get('dti_after') == 28.5 and byb_data.get('payoff_impact') == 4
+          and (byb_data.get('replacing') or {}).get('name') == 'Old Sedan')
+    _byb_commit_id = byb_data.get('id')
+
+    with _dbs() as session:
+        hist_commit = session.query(_HE).filter_by(event_category='byb_purchase_decision').order_by(_HE.id.desc()).first()
+        check('create_byb_item logs byb_purchase_decision for an immediate commit, expected/actual both null',
+              hist_commit is not None and hist_commit.expected_value is None and hist_commit.actual_value is None
+              and json.loads(hist_commit.context_json or '{}').get('decision') == 'commit')
+
+    r = c.post('/api/byb', headers=H, json={'name': 'Smoke Subscription', 'type': 'subscription', 'monthly': 15, 'decision': 'track'})
+    byb_track = (r.get_json() or {}).get('data') or {}
+    check("a 'track' decision does not log to Historian (not a decision yet)",
+          byb_track.get('decision') == 'track')
+    _byb_track_id = byb_track.get('id')
+    with _dbs() as session:
+        track_hist_count = session.query(_HE).filter_by(event_category='byb_purchase_decision').count()
+    check('exactly one byb_purchase_decision logged so far (the commit, not the track)',
+          track_hist_count == 1)
+
+    # Resolve the tracked item as bought, with a real actual cost different
+    # from the original estimate — this is the genuine estimate-vs-actual
+    # signal an immediate decision never produces.
+    r = c.patch(f'/api/byb/{_byb_track_id}/resolve', headers=H, json={'decision': 'commit', 'actual_cost': 18.50})
+    resolved = (r.get_json() or {}).get('data') or {}
+    check('PATCH /api/byb/<id>/resolve succeeds and updates decision/actual_cost/decided_at',
+          r.status_code == 200 and resolved.get('decision') == 'commit'
+          and resolved.get('actual_cost') == 18.50 and resolved.get('decided_at'))
+
+    with _dbs() as session:
+        hist_resolved = session.query(_HE).filter_by(
+            event_category='byb_purchase_decision').order_by(_HE.id.desc()).first()
+        check('resolving a tracked item to "commit" with actual_cost logs a real variance (expected=estimate, actual=real cost)',
+              hist_resolved is not None and hist_resolved.expected_value == 15.0 and hist_resolved.actual_value == 18.50)
+
+    r = c.patch('/api/byb/999999/resolve', headers=H, json={'decision': 'commit'})
+    check('PATCH /api/byb/<id>/resolve 404s for an unknown item', r.status_code == 404)
+    r = c.patch(f'/api/byb/{_byb_commit_id}/resolve', headers=H, json={'decision': 'sideways'})
+    check('PATCH /api/byb/<id>/resolve rejects an invalid decision (400)', r.status_code == 400)
+
+    with _dbs() as session:
+        db_item = session.get(_BI, _byb_commit_id)
+        check('the ORM model itself has the new columns (not just the route accepting extra JSON)',
+              db_item.decision == 'commit' and db_item.dti_after == 28.5 and db_item.replacing_id == 999)
+
+    check('app.js sends decision/dti/payoff-impact to the server (regression: used to send only 5 fields)',
+          "decision:           item.decision" in app_src and "dti_after:          item.dti_after" in app_src)
+    check('app.js wires the "Decide now" resolve action for tracked items',
+          '_bybResolveTracked' in app_src and "/resolve" in app_src)
+
     return finish()
 
 
