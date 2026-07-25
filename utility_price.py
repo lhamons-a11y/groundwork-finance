@@ -4,8 +4,8 @@ Groundwork — Utility Price Engine
 Real residential utility price benchmarks (natural gas, electricity) for
 the household budget — "your Gas/Electric line vs the state or national
 average" — via the same EIA API already integrated for trip gas prices
-(gas_price.py, Phase 5A). Extended per Rob's request so users see a
-benchmark for where they actually live, not just a national figure.
+(gas_price.py, Phase 5A). Extended so users see a benchmark for where
+they actually live, not just a national figure.
 
 Both series publish monthly with no seasonal gap (unlike propane/heating
 oil, which EIA only collects during heating season — confirmed live: those

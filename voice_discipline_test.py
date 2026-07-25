@@ -270,7 +270,7 @@ def run_model(model_name, system, user):
     except Exception as e:
         return None  # runtime not reachable / model not pulled
 
-# Qwen led Rob's manual testing (vs Llama and Gemini). Edit tags to match what
+# Qwen led manual testing (vs Llama and Gemini). Edit tags to match what
 # you've actually pulled: `ollama list` shows installed names.
 CANDIDATE_MODELS = ["qwen3:4b", "qwen2.5:7b", "qwen2.5:3b", "phi3.5", "llama3.2:3b"]
 

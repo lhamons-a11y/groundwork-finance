@@ -66,9 +66,9 @@ Blueprint §6. Highest-leverage feature. Can begin in parallel with Phase 2 once
 | 4B | Strict-JSON extraction prompt + schema: `transactions[]` + `summary{newBalance, apr, minimumPayment, interestCharged, paymentReceived, statementPeriod}`; **null for any field not on the page, never guessed** | extraction fn | model returns valid JSON, nulls where absent |
 | 4C | Confirm-before-commit UI (verdict confirmation, not chat): show extracted summary + txn count; user approves the **balance** especially | `app.js` | nothing commits without user confirmation |
 | 4D | **Two-destination routing:** transactions → `bank_import_commit`; **summary → reconciliation** (`_calcDebtIntelligence` + `debt_balance_history` upsert on `UNIQUE(debt_id,month)`). *This is the point of the whole feature.* | `server.py` | verified balance/APR/min/interest land in the debt tables |
-| 4E | Validation: R8-style number-provenance on every extracted figure (must appear in source text); **CSV × PDF cross-check** (PDF txns vs CSV txns; implied running balance vs extracted statement balance vs Rob's known balance); SHA-256 cache to skip re-extraction | `server.py` | extracted balance matches Rob's real balance to the cent |
+| 4E | Validation: R8-style number-provenance on every extracted figure (must appear in source text); **CSV × PDF cross-check** (PDF txns vs CSV txns; implied running balance vs extracted statement balance vs the account's known balance); SHA-256 cache to skip re-extraction | `server.py` | extracted balance matches the real balance to the cent |
 
-**Phase gate (the money shot):** import Rob's real Capital One PDF → the debt claim flips **insufficient → confirmed** in `_computeClaimConfidence`, the hero payoff projection **un-suppresses**, and the reconciliation gap closes. Then repeat for **Apple Card**. `SCHEMA_VERSION` bumped if `debt_balance_history` schema changes.
+**Phase gate (the money shot):** import a real Capital One PDF → the debt claim flips **insufficient → confirmed** in `_computeClaimConfidence`, the hero payoff projection **un-suppresses**, and the reconciliation gap closes. Then repeat for **Apple Card**. `SCHEMA_VERSION` bumped if `debt_balance_history` schema changes.
 
 ---
 

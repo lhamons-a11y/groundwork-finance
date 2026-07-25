@@ -33,7 +33,7 @@ installer/installer/
 
 # Real financial data / PII, caught before first commit (2026-07-24):
 # a real statement PDF, a diagnostic dump with real debt balances, and an
-# import-rules file naming Rob's actual bank/credit union and employer.
+# import-rules file naming the developer's actual bank/credit union and employer.
 *.pdf
 diag_output.txt
 home_install_import_rules.json

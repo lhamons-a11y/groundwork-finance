@@ -5358,7 +5358,7 @@ function showImportModal() {
 //   4. Only one account exists → auto-select it
 // Never creates an account. If no match, leaves the selector on "Select account…"
 // so the user explicitly picks. This prevents the accidental-duplicate-account
-// problem that was frustrating Rob.
+// problem that frustrated early testers.
 function _tryAutoSelectImportAccount(bankName) {
   const sel      = g('importAccount');
   if (!sel || sel.disabled) return; // no accounts yet
@@ -23824,7 +23824,7 @@ function _claimStatus(checks) {
 }
 
 // ── Record Status card — the "check-engine light" (Dashboard 2.0) ────────────
-// Visibility ladder (Rob's spec): quiet when healthy, promoted only when data
+// Visibility ladder: quiet when healthy, promoted only when data
 // quality changes what Groundwork can responsibly conclude. Never a warning
 // panel — it's "Your Financial Record," historian voice, never "Data Problems."
 // Answers "how much should I trust what Groundwork shows me?", not "what's wrong
@@ -23994,7 +23994,7 @@ function _monthHasData(monthKey) {
 }
 
 // ── Current Priority — the ranked stability engine (Dashboard 2.0) ───────────
-// Rob's business rule: rank by STABILITY IMPACT, not financial size — "what
+// Business rule: rank by STABILITY IMPACT, not financial size — "what
 // condition, if unresolved, creates the greatest risk to the user's ability to
 // make progress?" Order: P0 data integrity → P1 instability → P2 immediate risk
 // → P3 foundation → P4 optimization → P5 growth. Two overrides on top:
