@@ -1272,6 +1272,106 @@ def _parse_ofx(text: str, warnings: list):
 _QIF_DATE_FORMATS = ['%m/%d/%Y', '%m/%d/%y', '%Y-%m-%d', "%m/%d'%Y", "%m/%d'%y"]
 
 
+# ── QIF/Quicken category normalization ──────────────────────────────────────
+# Quicken's own category vocabulary ("Auto & Transport", "Mortgage & Rent",
+# "Bills & Utilities", ...) almost never exactly matches Groundwork's tree —
+# bank_import_commit() in server.py does an exact case-insensitive match
+# against the existing taxonomy and safely falls back to "Other" for
+# anything that doesn't match (it never creates a stray category), so an
+# unmapped Quicken label was always safe, just under-categorized. This
+# bridges the common Quicken/Money default categories to Groundwork's
+# current tree (core/database.py :: CATEGORY_TREE) so QIF imports land in
+# real categories instead of mostly "Other".
+_QIF_CATEGORY_MAP = {
+    'auto & transport':     'Transportation', 'auto insurance':    'Auto Insurance',
+    'auto payment':         'Transportation', 'gas & fuel':        'Gas / Fuel',
+    'parking':              'Parking / Tolls', 'parking & tolls':  'Parking / Tolls',
+    'public transportation':'Rideshare / Transit', 'ride share':   'Rideshare / Transit',
+    'service & parts':      'Car Maintenance', 'auto maintenance': 'Car Maintenance',
+
+    'bills & utilities': 'Utilities', 'mobile phone': 'Phone / Cell',
+    'cell phone':        'Phone / Cell', 'cable/satellite': 'Cable / TV', 'cable': 'Cable / TV',
+    'internet':          'Internet', 'utilities': 'Utilities', 'electric': 'Electric',
+    'electricity':       'Electric', 'water': 'Water / Sewer', 'trash': 'Trash',
+
+    'food & dining': 'Food', 'groceries': 'Groceries', 'restaurants': 'Restaurants',
+    'fast food':     'Fast Food / Takeout', 'coffee shops': 'Coffee Shops',
+    'alcohol & bars':'Restaurants', 'dining': 'Restaurants',
+
+    'health & fitness': 'Healthcare', 'doctor': 'Doctor / Co-pays',
+    'dentist':          'Dental', 'pharmacy': 'Prescriptions', 'gym': 'Gym / Fitness',
+    'health insurance': 'Health Insurance', 'vision': 'Vision',
+
+    'home': 'Home', 'mortgage & rent': 'Rent / Mortgage', 'rent': 'Rent / Mortgage',
+    'mortgage':        'Rent / Mortgage', 'home improvement': 'Home Improvement',
+    'home insurance':  "Homeowner's Insurance", 'home services': 'Home Maintenance',
+    'furnishings':     'Furniture / Decor', 'lawn & garden': 'Lawn / Landscaping',
+
+    'shopping': 'Personal', 'clothing': 'Clothing', 'hobbies': 'Hobbies',
+    'personal care': 'Personal Care', 'hair': 'Haircut / Salon',
+    'spa & massage': 'Personal Care',
+
+    'entertainment': 'Entertainment', 'movies & dvds': 'Activities / Events',
+    'music':          'Streaming Music', 'amusement': 'Activities / Events',
+    'arts':           'Activities / Events', 'streaming': 'Streaming Video',
+
+    'education': 'Education', 'books & supplies': 'Books / Materials',
+    'tuition':   'Tuition / Courses', 'student loan': 'Debt',
+
+    'gifts & donations': 'Gifts & Donations', 'charity': 'Charitable Donations',
+    'gift': 'Gifts',
+
+    'fees & charges': 'Interest / Fees', 'bank fees': 'Interest / Fees',
+    'finance charge': 'Interest / Fees', 'late fee': 'Interest / Fees',
+    'service fee':    'Interest / Fees', 'interest': 'Interest / Fees',
+
+    'income': 'Income', 'paycheck': 'Paycheck / Salary', 'salary': 'Paycheck / Salary',
+    'bonus':  'Side Income', 'interest income': 'Side Income',
+    'dividend': 'Side Income', 'reimbursement': 'Side Income',
+    'rental income': 'Rental Income',
+
+    'transfer': 'Transfer', 'credit card payment': 'Debt',
+    'transfer for cash spending': 'Transfer', 'balance adjustments': 'Transfer',
+    'investments': 'Transfer', 'withdrawal': 'Transfer', 'deposit': 'Transfer',
+
+    'insurance': 'Insurance', 'life insurance': 'Life Insurance',
+
+    'taxes': 'Property Taxes', 'property tax': 'Property Taxes',
+
+    'loan': 'Debt', 'loan interest': 'Interest / Fees', 'loan payment': 'Debt',
+
+    'pets': 'Pets', 'pet food & supplies': 'Pet Food / Supplies',
+    'veterinary': 'Vet / Medical',
+
+    'travel': 'Vacation / Travel', 'air travel': 'Vacation / Travel',
+    'hotel': 'Vacation / Travel', 'rental car': 'Vacation / Travel',
+    'vacation': 'Vacation / Travel',
+}
+
+
+def normalize_qif_category(raw: str) -> str:
+    """
+    Map a Quicken category label to the closest current Groundwork category
+    name. Handles QIF's "Parent:Child" subcategory syntax by trying the
+    child first, then the parent. Returns the raw string UNCHANGED (never a
+    guess, never blanked) when nothing matches — bank_import_commit()'s
+    exact-match-or-Other fallback in server.py already handles that case
+    safely, so an unmapped label is no worse off than before this function
+    existed.
+    """
+    if not raw:
+        return raw
+    key = raw.strip().lower()
+    if ':' in key:
+        parent, _, child = key.partition(':')
+        if child in _QIF_CATEGORY_MAP:
+            return _QIF_CATEGORY_MAP[child]
+        if parent in _QIF_CATEGORY_MAP:
+            return _QIF_CATEGORY_MAP[parent]
+        key = child
+    return _QIF_CATEGORY_MAP.get(key, raw)
+
+
 def _parse_qif_date(s: str):
     """QIF dates come in many flavors — try each one in order."""
     if not s:
@@ -1344,13 +1444,14 @@ def _parse_qif(text: str, warnings: list):
                     # Strip transfer brackets — "[Savings]" becomes "Savings"
                     if raw_cat.startswith('[') and raw_cat.endswith(']'):
                         raw_cat = raw_cat[1:-1]
+                    mapped_cat = normalize_qif_category(raw_cat) if raw_cat else ''
                     rich = parse_rich_description(description)
                     rec = {
                         'date':         date.isoformat(),
                         'description':  description,
                         'amount':       abs(amt),
                         'type':         ttype,
-                        'category':     raw_cat or auto_category(description, rich.get('mcc', '') or ''),
+                        'category':     mapped_cat or auto_category(description, rich.get('mcc', '') or ''),
                         'raw_category': raw_cat,
                         'cleared':      cleared,
                         'merchant':     rich['merchant'],

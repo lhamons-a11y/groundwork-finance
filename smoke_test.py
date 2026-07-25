@@ -1303,6 +1303,55 @@ def main():
     check("app.js wires the explicit search button (not the automatic tripUpdateBudget path)",
           'searchLiveFlightPrice' in app_src and 'tripFlightSearchResult' in app_src)
 
+    # ── 32. QIF import category mapping (Quicken/Money legacy categories) ────
+    # quicken_import.py's own route returns 410 Deprecated (confirmed dead
+    # code — server.py never calls into it); the LIVE import path is
+    # bank_importer.py's _parse_qif(), which is what this covers.
+    import bank_importer as _bi
+    from core.database import CATEGORY_TREE as _CAT_TREE
+
+    _tree_names = {row[0] for row in _CAT_TREE}
+    _mapped_targets = set(_bi._QIF_CATEGORY_MAP.values())
+    check('every _QIF_CATEGORY_MAP target is a real current category name',
+          _mapped_targets <= _tree_names)
+
+    check('normalize_qif_category maps a known flat Quicken category',
+          _bi.normalize_qif_category('Groceries') == 'Groceries')
+    check('normalize_qif_category is case-insensitive',
+          _bi.normalize_qif_category('GROCERIES') == 'Groceries')
+    check('normalize_qif_category maps "Parent:Child" by trying the child first',
+          _bi.normalize_qif_category('Auto & Transport:Gas & Fuel') == 'Gas / Fuel')
+    check('normalize_qif_category falls back to the parent when the child is unmapped',
+          _bi.normalize_qif_category('Bills & Utilities:Some Unmapped Child') == 'Utilities')
+    check('normalize_qif_category returns unmapped input unchanged (never blanks or guesses)',
+          _bi.normalize_qif_category('Totally Made Up Category') == 'Totally Made Up Category')
+    check('normalize_qif_category passes through empty/None unchanged',
+          _bi.normalize_qif_category('') == '' and _bi.normalize_qif_category(None) is None)
+
+    # End-to-end through _parse_qif(): a real QIF transaction block with a
+    # mapped legacy category, and one with an unmapped category that should
+    # fall through to auto_category()'s keyword guess rather than being lost.
+    _qif_sample = (
+        '!Type:Bank\n'
+        'D1/15\'26\n'
+        'T-42.17\n'
+        'PKroger\n'
+        'LGroceries\n'
+        '^\n'
+        'D1/16\'26\n'
+        'T-9.50\n'
+        'PStarbucks\n'
+        'LFood & Dining:Coffee Shops\n'
+        '^\n'
+    )
+    _qif_records, _qif_org, _qif_warnings = _bi._parse_qif(_qif_sample, [])
+    check('_parse_qif produces both sample transactions',
+          len(_qif_records) == 2)
+    check('_parse_qif maps a flat legacy category via the live import path',
+          _qif_records[0]['category'] == 'Groceries')
+    check('_parse_qif maps a Parent:Child legacy category via the live import path',
+          _qif_records[1]['category'] == 'Coffee Shops')
+
     return finish()
 
 
