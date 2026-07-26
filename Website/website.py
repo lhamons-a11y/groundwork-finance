@@ -654,6 +654,14 @@ def download():
       Microsoft Edge WebView2 (usually already installed)<br>
       ~150MB disk space
     </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--slate)">
+      Local AI sets itself up automatically from Settings — but if you'd
+      rather have it all bundled in from the start (or expect to be
+      offline for that first setup), grab the
+      <a href="/static/download/Groundwork_Setup_Offline.exe">offline installer</a>
+      instead (~3.3GB, includes Ollama and a local model — nothing to
+      download later).
+    </div>
   </div>
 
   <div class="download-card">
