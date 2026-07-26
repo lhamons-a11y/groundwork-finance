@@ -1934,6 +1934,32 @@ def main():
           '(regression: Debt Payoff page edits never populated history)',
           '_budgetSaveDebtSnapshot(_budgetMonthKey)' in set_card_field_fn)
 
+    # ── One-click "Set up Local AI" (install Ollama itself) ─────────────────────
+    # Fills the gap onboarding's own comment admitted: pull-model only works
+    # once Ollama is already installed, and if it isn't, onboarding just gives
+    # up on local AI entirely — on every platform, not only Mac/Linux. Only
+    # /install-status is safe to call for real here (a read of shared, inert
+    # state); /install-ollama actually downloads and runs installers, so it's
+    # deliberately never invoked from this suite — verified live instead
+    # (real Windows install, and real Linux install via WSL Ubuntu, both
+    # confirmed end-to-end against a genuinely running Ollama afterward).
+    r = c.get('/api/ai/install-status', headers=H)
+    check('GET /api/ai/install-status responds with the idle default shape',
+          r.status_code == 200 and r.get_json()['data']['active'] is False
+          and r.get_json()['data']['done'] is False)
+
+    check('server.py wires per-OS install-ollama routes (Windows/macOS auto, Linux manual)',
+          "OLLAMA_WIN_URL = 'https://ollama.com/download/OllamaSetup.exe'" in server_src
+          and "OLLAMA_MAC_URL = 'https://ollama.com/download/Ollama-darwin.zip'" in server_src
+          and "OLLAMA_LINUX_INSTALL_CMD = 'curl -fsSL https://ollama.com/install.sh | sh'" in server_src)
+
+    check('app.js wires the "Set up Local AI" button and Linux manual-command fallback',
+          "id=\"ollamaInstallBtn\"" in app_src and '_startOllamaInstall' in app_src
+          and 'needs_manual' in app_src and '_copyOllamaCommand' in app_src)
+
+    check('the Settings AI panel has a container for the setup prompt',
+          'id="aiOllamaSetup"' in html_src)
+
     return finish()
 
 

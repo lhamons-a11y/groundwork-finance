@@ -5480,6 +5480,150 @@ def ai_pull_status():
         return ok(dict(_pull_state))
 
 
+# ── Install Ollama itself ────────────────────────────────────────────────────
+# The gap Phase 6A didn't cover: pull-model only works once Ollama is already
+# installed and running — if it isn't, onboarding's own comment says so
+# plainly ("Ollama itself isn't reachable — nothing to pull toward") and just
+# gives up on local AI, on every platform, not just Mac/Linux. The Windows
+# offline installer solves this at INSTALL time by silently running a bundled
+# OllamaSetup.exe; this solves it at RUN time instead, from inside Settings,
+# so the online (small) installer and the Mac/Linux builds — none of which
+# bundle Ollama — get the same one-click path Windows' offline installer had
+# exclusively.
+#
+# Automation level is deliberately uneven across platforms, because the risk
+# profile is uneven:
+#   Windows — fully automated (download + silent install). Verified for real.
+#   macOS   — automated download + place in /Applications + `open -a Ollama`
+#             (the OS-sanctioned launch path, same as double-clicking in
+#             Finder). Best-effort: no real Mac to verify Gatekeeper behavior
+#             on a freshly-downloaded, unsigned-by-us zip.
+#   Linux   — NOT auto-run. Ollama's official install script invokes sudo
+#             internally on most distros; a GUI app silently subprocessing
+#             that from a background thread has no TTY to satisfy a password
+#             prompt and would just hang forever with no way for the user to
+#             know why. Show the official one-liner instead — safe, still
+#             far easier than the user having to go find it themselves.
+_install_lock  = threading.Lock()
+_install_state = {'active': False, 'stage': '', 'percent': 0, 'done': False,
+                   'error': '', 'manual_command': '', 'needs_manual': False}
+
+OLLAMA_WIN_URL = 'https://ollama.com/download/OllamaSetup.exe'
+OLLAMA_MAC_URL = 'https://ollama.com/download/Ollama-darwin.zip'
+OLLAMA_LINUX_INSTALL_CMD = 'curl -fsSL https://ollama.com/install.sh | sh'
+
+
+def _download_with_progress(url: str, dest_path, stage_label: str):
+    import urllib.request
+    req = urllib.request.Request(url, headers={'User-Agent': 'Groundwork'})
+    with urllib.request.urlopen(req, timeout=30) as resp, open(dest_path, 'wb') as f:
+        total = int(resp.headers.get('Content-Length') or 0)
+        read = 0
+        chunk = 1024 * 256
+        while True:
+            block = resp.read(chunk)
+            if not block:
+                break
+            f.write(block)
+            read += len(block)
+            with _install_lock:
+                _install_state['stage'] = stage_label
+                if total:
+                    _install_state['percent'] = round(read / total * 100, 1)
+
+
+def _run_install_ollama():
+    import subprocess
+    import tempfile
+    import platform as _platform
+    system = _platform.system()
+    try:
+        if system == 'Windows':
+            with tempfile.TemporaryDirectory() as tmp:
+                exe_path = Path(tmp) / 'OllamaSetup.exe'
+                _download_with_progress(OLLAMA_WIN_URL, exe_path, 'Downloading Ollama…')
+                with _install_lock:
+                    _install_state['stage'] = 'Installing (this runs once)…'
+                    _install_state['percent'] = 100
+                subprocess.run(
+                    [str(exe_path), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'],
+                    timeout=300, check=True,
+                )
+        elif system == 'Darwin':
+            import zipfile
+            import shutil
+            with tempfile.TemporaryDirectory() as tmp:
+                zip_path = Path(tmp) / 'Ollama-darwin.zip'
+                _download_with_progress(OLLAMA_MAC_URL, zip_path, 'Downloading Ollama…')
+                with _install_lock:
+                    _install_state['stage'] = 'Installing…'
+                with zipfile.ZipFile(zip_path) as zf:
+                    zf.extractall(tmp)
+                extracted = Path(tmp) / 'Ollama.app'
+                if not extracted.exists():
+                    raise RuntimeError('Ollama.app not found in downloaded archive')
+                dest = Path('/Applications/Ollama.app')
+                if dest.exists():
+                    shutil.rmtree(dest)
+                shutil.move(str(extracted), str(dest))
+                with _install_lock:
+                    _install_state['stage'] = 'Starting Ollama…'
+                subprocess.run(['open', '-a', 'Ollama'], timeout=30, check=True)
+        else:
+            # Linux: surfaced as needs_manual so the UI shows the copyable
+            # command instead of pretending to have run it.
+            with _install_lock:
+                _install_state['needs_manual']   = True
+                _install_state['manual_command'] = OLLAMA_LINUX_INSTALL_CMD
+                _install_state['done']           = True
+                _install_state['active']         = False
+            return
+
+        # Windows/macOS: give the newly-installed server a moment to come up,
+        # then confirm it's actually reachable before declaring success —
+        # installing the app isn't the same as it being ready to serve.
+        with _install_lock:
+            _install_state['stage'] = 'Waiting for Ollama to start…'
+        import urllib.request as _ur
+        import time as _t
+        reachable = False
+        for _ in range(20):
+            try:
+                _ur.urlopen(_ur.Request(f'{DEFAULT_OLLAMA_ENDPOINT}/api/tags'), timeout=2)
+                reachable = True
+                break
+            except Exception:
+                _t.sleep(1)
+        with _install_lock:
+            _install_state['done']   = True
+            _install_state['active'] = False
+            if not reachable:
+                _install_state['error'] = 'Installed, but Ollama isn\'t responding yet — try Test connection in a moment.'
+    except Exception as e:
+        with _install_lock:
+            _install_state['error']  = str(e)
+            _install_state['done']   = True
+            _install_state['active'] = False
+
+
+@ai_bp.route('/install-ollama', methods=['POST'])
+def ai_install_ollama():
+    with _install_lock:
+        if _install_state['active']:
+            return err('An install is already in progress', 409)
+        _install_state.update({'active': True, 'stage': 'starting', 'percent': 0,
+                               'done': False, 'error': '', 'manual_command': '',
+                               'needs_manual': False})
+    threading.Thread(target=_run_install_ollama, daemon=True).start()
+    return ok({'started': True})
+
+
+@ai_bp.route('/install-status', methods=['GET'])
+def ai_install_status():
+    with _install_lock:
+        return ok(dict(_install_state))
+
+
 @ai_bp.route('/voice-miss', methods=['POST'])
 def ai_voice_miss():
     """

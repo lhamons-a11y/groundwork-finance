@@ -21321,6 +21321,7 @@ async function _loadGateHealth() {
 async function _loadAiLocalStatus() {
   const statusEl = g('aiLocalStatus');
   const picker   = g('aiLocalModelPicker');
+  const setupEl  = g('aiOllamaSetup');
   if (statusEl) statusEl.innerHTML = `<span style="color:var(--slate-2)">Checking…</span>`;
   try {
     const data = await API.get('/api/ai/status');
@@ -21328,6 +21329,14 @@ async function _loadAiLocalStatus() {
       statusEl.innerHTML = data.reachable
         ? `<span style="color:var(--pine)">●</span> Local reachable · <strong>${esc(data.active_model || 'no model resolved')}</strong>`
         : `<span style="color:var(--ember)">●</span> Not reachable — is Ollama running? (<code>ollama serve</code>)`;
+    }
+    if (setupEl) {
+      if (data.reachable) {
+        setupEl.style.display = 'none';
+      } else {
+        setupEl.style.display = '';
+        _renderOllamaSetupPrompt(setupEl);
+      }
     }
     if (picker) {
       const models = data.installed_models || [];
@@ -21340,6 +21349,80 @@ async function _loadAiLocalStatus() {
     if (statusEl) statusEl.innerHTML = `<span style="color:var(--ember)">●</span> Could not reach the server.`;
     _gwErr('_loadAiLocalStatus')(e);
   }
+}
+
+// ── One-click Ollama setup (Settings → AI) ──────────────────────────────────
+// Fills the gap Phase 6A's model-pull left open: pull-model only works once
+// Ollama is already installed and running. This calls /api/ai/install-ollama,
+// which figures out per-OS on the server side whether to actually run the
+// install (Windows/macOS) or hand back a manual command instead (Linux —
+// the official install script needs sudo, and a background thread has no TTY
+// to satisfy that prompt). The client doesn't need to know which platform
+// it's on; it just reacts to whatever the poll response says.
+function _renderOllamaSetupPrompt(el) {
+  if (g('ollamaInstallBtn') || g('ollamaInstallProgress')?.dataset.polling) return; // already showing/running
+  el.innerHTML = `
+    <button class="btn btn-primary btn-sm" id="ollamaInstallBtn" onclick="_startOllamaInstall()">Set up Local AI</button>
+    <div id="ollamaInstallProgress" style="margin-top:8px;font-size:11px;color:var(--slate)"></div>`;
+}
+
+async function _startOllamaInstall() {
+  const btn  = g('ollamaInstallBtn');
+  const prog = g('ollamaInstallProgress');
+  if (btn) { btn.disabled = true; btn.textContent = 'Setting up…'; }
+  if (prog) prog.dataset.polling = '1';
+  try {
+    await API.post('/api/ai/install-ollama', {});
+  } catch (e) {
+    if (prog) { prog.innerHTML = `<span style="color:var(--ember)">Could not start setup — ${esc(e.message||'')}</span>`; prog.dataset.polling = ''; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Set up Local AI'; }
+    return;
+  }
+  _pollOllamaInstall();
+}
+
+async function _pollOllamaInstall() {
+  const prog = g('ollamaInstallProgress');
+  const btn  = g('ollamaInstallBtn');
+  let data;
+  try { data = await API.get('/api/ai/install-status'); } catch (e) { data = null; }
+  if (!data) { setTimeout(_pollOllamaInstall, 1500); return; }
+
+  if (data.needs_manual) {
+    if (prog) {
+      prog.dataset.polling = '';
+      prog.innerHTML = `
+        <div style="margin-bottom:6px;color:var(--ink)">Run this in a terminal, then check again:</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <code style="background:var(--mist);padding:4px 8px;border-radius:4px;flex:1;overflow-x:auto;white-space:nowrap;font-size:11px">${esc(data.manual_command)}</code>
+          <button class="btn btn-secondary btn-sm" onclick='_copyOllamaCommand(${JSON.stringify(data.manual_command)})'>Copy</button>
+        </div>
+        <button class="btn btn-secondary btn-sm mt-2" onclick="_loadAiLocalStatus()">Check again</button>`;
+    }
+    if (btn) btn.style.display = 'none';
+    return;
+  }
+
+  if (data.error) {
+    if (prog) { prog.dataset.polling = ''; prog.innerHTML = `<span style="color:var(--ember)">${esc(data.error)}</span>`; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Try again'; }
+    return;
+  }
+
+  if (data.done) {
+    if (prog) { prog.dataset.polling = ''; prog.innerHTML = `<span style="color:var(--pine)">Done — checking connection…</span>`; }
+    setTimeout(_loadAiLocalStatus, 800);
+    return;
+  }
+
+  if (prog) prog.innerHTML = `${esc(data.stage || 'Working…')}${data.percent ? ` (${data.percent}%)` : ''}`;
+  setTimeout(_pollOllamaInstall, 1000);
+}
+
+function _copyOllamaCommand(cmd) {
+  navigator.clipboard?.writeText(cmd)
+    .then(() => showToast('Copied', '', 'success'))
+    .catch(() => showToast('Could not copy — select and copy manually', '', 'warning'));
 }
 
 async function setAiProvider(provider) {
