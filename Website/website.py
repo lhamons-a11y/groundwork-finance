@@ -8,6 +8,7 @@ Flask app handling:
 """
 
 import os
+import json
 import secrets
 import hashlib
 import sqlite3
@@ -305,6 +306,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
   <meta name="twitter:title" content="{{ title }} — Groundwork">
   <meta name="twitter:description" content="{{ description }}">
   <meta name="twitter:image" content="https://groundworkfinance.app/static/groundwork_256.png">
+  {{ structured_data|default('')|safe }}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>""" + SITE_CSS + """</style>
@@ -375,13 +377,28 @@ BASE_TEMPLATE = """<!DOCTYPE html>
 
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
+_HOME_STRUCTURED_DATA = '<script type="application/ld+json">' + json.dumps({
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    'name': 'Groundwork',
+    'applicationCategory': 'FinanceApplication',
+    'operatingSystem': 'Windows, macOS, Linux',
+    'description': 'Free personal finance app for budgeting, debt payoff, and net worth tracking. '
+                   'No account, no subscription — your data stays on your machine.',
+    'url': SITE_URL,
+    'downloadUrl': SITE_URL + '/download',
+    'offers': {'@type': 'Offer', 'price': '0', 'priceCurrency': 'USD'},
+}) + '</script>'
+
+
 @app.route('/')
 def home():
     return render_template_string(BASE_TEMPLATE.replace(
         '{% block content %}{% endblock %}', HOME_CONTENT
     ), title='Stop living paycheck to paycheck',
        description='Groundwork is a free personal finance app that helps you stop living paycheck to paycheck and build a real plan to get out of debt.',
-       canonical=SITE_URL + '/')
+       canonical=SITE_URL + '/',
+       structured_data=_HOME_STRUCTURED_DATA)
 
 HOME_CONTENT = """
 <section class="hero">
