@@ -314,8 +314,8 @@ BASE_TEMPLATE = """<!DOCTYPE html>
 <body>
 
 <div class="beta-bar">
-  🚧 Groundwork is currently in <strong>Beta</strong> — free to download and use.
-  <a href="/signup">Sign up for updates</a> as we work toward v1.0.
+  🎉 <strong>Groundwork 1.0 is here</strong> — free to download and use.
+  <a href="/download">Get the latest version</a>.
 </div>
 
 <nav class="site-nav">
@@ -402,7 +402,7 @@ def home():
 
 HOME_CONTENT = """
 <section class="hero">
-  <div class="beta-badge">Beta — Free Download</div>
+  <div class="beta-badge">Version 1.0 — Free Download</div>
   <h1>Stop living <em>paycheck to paycheck.</em><br>Groundwork gives you a real plan.</h1>
   <p>A free personal finance app that shows exactly where your money goes and builds a step-by-step path out of debt — no subscription, no cloud, no nonsense.</p>
   <div class="hero-btns">
@@ -434,7 +434,7 @@ HOME_CONTENT = """
       <div class="feature-card">
         <div class="feature-icon">📈</div>
         <h3>Net worth tracker</h3>
-        <p>Watch your number go up every month. Connects to your accounts automatically.</p>
+        <p>Watch your number go up every month. Balances update automatically as your transactions import.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🎁</div>
@@ -444,7 +444,7 @@ HOME_CONTENT = """
       <div class="feature-card">
         <div class="feature-icon">✦</div>
         <h3>AI monthly report</h3>
-        <p>Plain-English summary of how your month went and one concrete thing to do differently.</p>
+        <p>Plain-English summary of how your month went and one concrete thing to do differently — runs privately on your own machine by default.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🔒</div>
@@ -587,7 +587,7 @@ HOME_CONTENT = """
 <section class="signup-section">
   <div class="container">
     <h2>Get notified when we update</h2>
-    <p>We're in beta. New features ship regularly. Drop your email and we'll let you know.</p>
+    <p>New features ship regularly. Drop your email and we'll let you know.</p>
     <div class="signup-form">
       <input type="text" id="signup-name" placeholder="Your name" style="max-width:160px">
       <input type="email" id="signup-email" placeholder="Your email address">
@@ -637,7 +637,7 @@ def download():
   <p style="color:rgba(255,255,255,.7);font-size:16px">
     Free. No account. No subscription. Your data stays on your machine.
   </p>
-  <div class="beta-badge" style="margin-top:20px">Beta v1.0 — June 2026</div>
+  <div class="beta-badge" style="margin-top:20px">Version 1.0 — Now available</div>
 </section>
 
 <div class="download-grid container">
@@ -735,6 +735,7 @@ def knowledge_base():
     <a href="#investments">Investments</a>
     <a href="#reports">Reports</a>
     <a href="#byb">Before You Buy</a>
+    <a href="#trip">Trip planner</a>
     <h3 style="margin-top:20px">Help</h3>
     <a href="#backup">Backups</a>
     <a href="#ai">AI features</a>
@@ -839,6 +840,10 @@ python3 launch.py</pre>
       <p><strong>Avalanche</strong> pays off the highest interest rate first — saves the most money mathematically.</p>
       <p>Both work. Pick the one you'll actually stick to.</p>
       <div class="kb-tip">💡 When a card is paid off, Groundwork adds the freed minimum to your next debt automatically — that's the snowball/avalanche effect.</div>
+      <h3>Logging charges &amp; payments</h3>
+      <p>You can record activity directly on a debt card — charges, payments, and interest — with a running total, so the balance reflects what you've actually done rather than just its starting figure. Link a payment to the matching transaction in your checking account (from either the debt ledger or the main Ledger) and Groundwork keeps both records in sync, with no double-entry. Unlinking later leaves both records intact.</p>
+      <h3>Recurring payments</h3>
+      <p>For a payment you make every month, save the pattern once. Each month Groundwork prepares a draft you can confirm, edit, or skip — no re-entering the same payment over and over. Because these payments move the account balance, your payoff projection reflects what you've really paid.</p>
     </div>
 
     <div class="kb-article" id="ledger">
@@ -872,21 +877,43 @@ python3 launch.py</pre>
       <p>For Christmas, vacations, or any recurring occasion, create a Seasonal Fund with a target amount and a funded-by date. Groundwork tells you how much to save each month to hit it.</p>
     </div>
 
+    <div class="kb-article" id="investments">
+      <h2>Investments</h2>
+      <p>The Investments page tracks your holdings — stocks, ETFs, and other positions — with their cost basis and current value, and prices update automatically. Your total rolls into your Net Worth.</p>
+      <h3>Adding holdings</h3>
+      <p>Add each position with its symbol, number of shares, and what you paid. Groundwork shows your gain or loss and keeps the value current.</p>
+      <div class="kb-tip">💡 While you're carrying high-interest debt, paying down a card is a guaranteed return at that card's APR — often more than the market averages. Groundwork points this out on the Debt Payoff page so you can decide where an extra dollar does the most work.</div>
+    </div>
+
     <div class="kb-article" id="reports">
       <h2>Reports</h2>
-      <p>The Report Center has nine built-in reports and one AI-assisted monthly summary.</p>
+      <p>The Report Center has ten built-in reports, several of which can include an AI-written narrative.</p>
       <ul>
-        <li><strong>Monthly Report</strong> — plain-English summary of the month</li>
-        <li><strong>Budget vs Actual</strong> — what you planned vs what happened</li>
-        <li><strong>Category Deep Dive</strong> — spending breakdown by category</li>
-        <li><strong>Annual Summary</strong> — full year at a glance</li>
-        <li><strong>Debt Progress</strong> — how your balances are trending</li>
-        <li><strong>Debt Payoff Analysis</strong> — snowball vs avalanche comparison</li>
-        <li><strong>Net Worth Timeline</strong> — your number over time</li>
-        <li><strong>Income & Savings</strong> — what's coming in and what's staying</li>
-        <li><strong>Import Audit</strong> — what got categorized vs what landed in Other</li>
+        <li><strong>Distance Traveled</strong> — the ground you've covered: principal paid down, debts retired, cash flow freed, and how much closer your debt-free date has moved</li>
+        <li><strong>Monthly Spending Summary</strong> — income, expenses, budget vs. actual, and how the month stacks up</li>
+        <li><strong>Category Deep-Dive</strong> — the trend for any category over any date range, plus top merchants</li>
+        <li><strong>Spending vs. Budget</strong> — how a month's spending compared to your budgeted amounts</li>
+        <li><strong>Annual Summary</strong> — a full year of income, expenses, and top categories, month by month</li>
+        <li><strong>Debt Payoff Analysis</strong> — balances, APRs, payoff sequence, interest cost, and freed minimums</li>
+        <li><strong>Debt Progress</strong> — balance history per card, interest paid to date, payoff trajectory</li>
+        <li><strong>Income &amp; Savings Rate</strong> — income, expenses, and your savings rate against a 15–20% target</li>
+        <li><strong>Net Worth Timeline</strong> — your net worth over time, assets vs. liabilities, payoff milestones</li>
+        <li><strong>Import Audit</strong> — transaction counts, categorization rate, duplicates, and what landed in Other</li>
       </ul>
-      <p>All reports have a Print button. The Monthly Report can be generated with AI if you've entered an Anthropic API key in Settings.</p>
+      <p>Every report has a Print button. The narrative reports (such as the Monthly Spending Summary and Distance Traveled) are written by AI — locally on your machine by default, or by Anthropic's Claude if you've switched to cloud mode. See <a href="#ai">AI features</a>.</p>
+    </div>
+
+    <div class="kb-article" id="byb">
+      <h2>Before You Buy</h2>
+      <p>Thinking about a big purchase? Enter its name and cost on the Before You Buy page, and Groundwork shows exactly what it does to your monthly budget and your debt-free date.</p>
+      <p>It isn't there to talk you out of anything — it's there to make sure you know the real cost, in dollars and in time, before you decide.</p>
+    </div>
+
+    <div class="kb-article" id="trip">
+      <h2>Trip Planner</h2>
+      <p>The Trip Planner helps you plan a trip that actually fits your finances. Enter your destination, dates, and whether you're flying or driving.</p>
+      <p>Groundwork estimates the cost from real inputs — your monthly surplus, your vehicle's MPG and current gas prices if you're driving, your actual dining history for meals, plus hotel and activity estimates — and shows what the trip costs in debt-free days, so you can decide with your eyes open.</p>
+      <div class="kb-tip">💡 For a trip that's months out, pair this with a Seasonal Fund (see <a href="#gifts">Gift budget</a>) so the money is set aside by the time you go.</div>
     </div>
 
     <div class="kb-article" id="backup">
@@ -903,13 +930,13 @@ python3 launch.py</pre>
 
     <div class="kb-article" id="ai">
       <h2>AI features</h2>
-      <p>Groundwork's AI report feature uses Anthropic's Claude API to write your monthly summary. It's completely optional.</p>
-      <h3>Setting up AI</h3>
-      <p>1. Go to <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> and create an account.</p>
-      <p>2. Create an API key under API Keys.</p>
-      <p>3. In Groundwork, go to <strong>Settings → AI → Enter API key</strong>.</p>
-      <h3>What gets sent to Anthropic</h3>
-      <p>When you generate an AI report, Groundwork sends your income total, spending total, top categories, and debt summary — no account numbers, no transaction descriptions, no names. The AI sees numbers and categories only.</p>
+      <p>Groundwork can write a plain-English monthly report and other narrative insights. AI is completely optional, and it runs one of two ways — <strong>local by default</strong>.</p>
+      <h3>Local AI — the default (free, fully private)</h3>
+      <p>Out of the box, Groundwork runs AI <strong>on your own machine</strong> using <a href="https://ollama.com" target="_blank">Ollama</a>. Nothing ever leaves your computer, there's no API key, and there's no cost. In <strong>Settings → AI</strong>, click <strong>Set up Local AI</strong> and Groundwork installs Ollama and a small language model for you (a few GB of disk space). Every other feature of Groundwork works fully whether or not you set this up.</p>
+      <h3>Cloud AI — optional (Anthropic)</h3>
+      <p>If you'd rather use Anthropic's Claude API — for example on a machine that can't comfortably run a local model — switch to cloud mode in <strong>Settings → AI</strong> and paste your own Anthropic API key from <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.</p>
+      <h3>What gets sent — and when</h3>
+      <p>In <strong>local mode, nothing is sent anywhere</strong>. In cloud mode, only when you explicitly generate an AI report, Groundwork sends aggregated numbers — income total, spending total, top categories, and a debt summary. No account numbers, no transaction descriptions, no names.</p>
     </div>
 
     <div class="kb-article" id="privacy">
@@ -927,7 +954,7 @@ python3 launch.py</pre>
 
     <div class="kb-article" id="report-bug">
       <h2>Reporting a bug</h2>
-      <p>Groundwork is in beta. Things will break. When they do:</p>
+      <p>Groundwork is actively maintained. If something breaks:</p>
       <p>1. In the app, click <strong>⚑ Report</strong> in the top bar.</p>
       <p>2. Describe what you were doing when it broke.</p>
       <p>3. Click <strong>Open in mail app</strong> — the report goes to support@groundworkfinance.app with your error log attached.</p>
@@ -971,11 +998,11 @@ def about():
     Groundwork will always be free to download and use. Your data stays on your machine. 
     No account, no subscription, no ads.
   </p>
-  <h2 style="font-size:28px;font-weight:800;margin:40px 0 20px">Beta & feedback</h2>
+  <h2 style="font-size:28px;font-weight:800;margin:40px 0 20px">Feedback</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
-    Groundwork is in active beta. It works — people are using it — but we're still finding 
-    and fixing issues. If something breaks, the ⚑ Report button in the app sends us the 
-    error log directly. We read every one.
+    Groundwork 1.0 is here and people are using it every day. It's actively maintained, and
+    if something breaks, the ⚑ Report button in the app sends us the error log directly.
+    We read every one.
   </p>
   <a href="/download" class="btn btn-primary">Download Groundwork free →</a>
 </div>
@@ -993,7 +1020,7 @@ def privacy():
     content = """
 <div class="container" style="max-width:700px;padding:60px 24px">
   <h1 style="font-size:36px;font-weight:800;margin-bottom:8px">Privacy Policy</h1>
-  <p style="color:var(--slate);margin-bottom:40px">Last updated: June 2026</p>
+  <p style="color:var(--slate);margin-bottom:40px">Last updated: July 2026</p>
   <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">Your data stays on your machine</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:20px">
     Groundwork is a desktop application. Your financial data — transactions, balances, 
@@ -1008,11 +1035,13 @@ def privacy():
   </p>
   <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">AI features</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:20px">
-    If you use the optional AI monthly report feature, Groundwork sends aggregated financial 
-    data (income totals, spending totals, category summaries) to Anthropic's API to generate 
-    your report. No account numbers, transaction descriptions, or personally identifying 
-    information is included. This feature requires you to provide your own Anthropic API key 
-    and is opt-in only.
+    Groundwork's AI features are optional and run <strong>locally by default</strong>: the app
+    uses a language model on your own machine (via Ollama), so nothing leaves your computer and
+    no API key is needed. If you choose to switch to cloud mode, Groundwork sends aggregated
+    financial data (income totals, spending totals, category summaries) to Anthropic's API only
+    when you explicitly generate a report — no account numbers, transaction descriptions, or
+    personally identifying information is ever included. Cloud mode requires your own Anthropic
+    API key and is entirely opt-in.
   </p>
   <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">Contact</h2>
   <p style="color:var(--slate);line-height:1.9">
@@ -1053,11 +1082,11 @@ def features():
       <div class="feature-card"><div class="feature-icon">🏦</div><h3>Investments</h3>
         <p>Track your portfolio holdings, cost basis, and performance. Import investment account transactions.</p></div>
       <div class="feature-card"><div class="feature-icon">📋</div><h3>Reports</h3>
-        <p>Nine built-in reports plus an AI monthly summary. Print any report with one click.</p></div>
+        <p>Ten built-in reports, several with AI-written narratives. Print any report with one click.</p></div>
       <div class="feature-card"><div class="feature-icon">🛒</div><h3>Before You Buy</h3>
         <p>Evaluate a big purchase before committing. See exactly what it does to your budget and debt-free date.</p></div>
       <div class="feature-card"><div class="feature-icon">✦</div><h3>AI Analysis</h3>
-        <p>Optional AI monthly report powered by Claude. Plain English. One concrete suggestion per month.</p></div>
+        <p>Optional AI monthly report — runs locally on your machine by default (no key, nothing sent out), or via Claude if you prefer cloud. Plain English, one concrete suggestion per month.</p></div>
       <div class="feature-card"><div class="feature-icon">🔒</div><h3>Private by design</h3>
         <p>Runs on your machine. No account. No cloud. No subscription. Your data is yours.</p></div>
       <div class="feature-card"><div class="feature-icon">💾</div><h3>Import from Quicken</h3>
@@ -1080,14 +1109,14 @@ def features():
 
 
 # ── Signup page ───────────────────────────────────────────────────────────────
-# The beta bar links here from every page; the route never existed (404).
+# Email-updates signup, linked from the footer and the signup form.
 @app.route('/signup')
 def signup():
     content = """
 <section class="signup-section" style="min-height:60vh;display:flex;align-items:center">
   <div class="container">
     <h2>Get Groundwork updates</h2>
-    <p>We're in beta. New features ship regularly. Drop your email and we'll let you know when something worth knowing ships.</p>
+    <p>New features ship regularly. Drop your email and we'll let you know when something worth knowing ships.</p>
     <div class="signup-form">
       <input type="text" id="signup-name" placeholder="Your name" style="max-width:160px">
       <input type="email" id="signup-email" placeholder="Your email address">
@@ -1212,7 +1241,7 @@ def changelog():
   <div class="section-label">What's changed</div>
   <h1 style="font-size:32px;font-weight:800;margin-bottom:8px">Changelog</h1>
   <p style="color:var(--slate);margin-bottom:36px">
-    Groundwork is in active beta. Everything shipped, honest and dated.
+    Every release, shipped honest and dated.
     <a href="/download">Download</a> the latest to get all of the below.
   </p>
   {cards}
