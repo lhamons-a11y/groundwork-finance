@@ -13,7 +13,7 @@ import secrets
 import hashlib
 import sqlite3
 from html import escape as h
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from flask import (Flask, render_template_string, request, jsonify,
                    redirect, url_for, session, abort)
@@ -55,9 +55,62 @@ def init_db():
             sent_count  INTEGER,
             sent_at     TEXT DEFAULT CURRENT_TIMESTAMP
         )''')
+        # Aggregate analytics — no IPs, no cookies, no user agents, no PII.
+        # One counter row per (path, day) and per (platform, day).
+        db.execute('''CREATE TABLE IF NOT EXISTS page_views (
+            path   TEXT NOT NULL,
+            day    TEXT NOT NULL,
+            count  INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (path, day)
+        )''')
+        db.execute('''CREATE TABLE IF NOT EXISTS downloads (
+            platform TEXT NOT NULL,
+            day      TEXT NOT NULL,
+            count    INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (platform, day)
+        )''')
         db.commit()
 
 init_db()
+
+# ── Analytics (aggregate counters only) ─────────────────────────────────────────
+# Paths we never count as page views: static assets, the admin area, the
+# download-counter redirect, and any URL carrying a per-user token.
+_SKIP_VIEW_PREFIXES = ('/static', '/admin', '/dl', '/confirm', '/unsubscribe',
+                       '/favicon', '/robots', '/sitemap')
+_BOT_MARKERS = ('bot', 'crawl', 'spider', 'slurp', 'bingpreview', 'facebookexternalhit',
+                'headlesschrome', 'python-requests', 'curl', 'wget')
+
+def _today():
+    return datetime.utcnow().strftime('%Y-%m-%d')
+
+def _bump(table, key_col, key_val):
+    """Increment an aggregate counter. Never raises — analytics must not
+    break a page render or a download."""
+    try:
+        with get_db() as db:
+            db.execute(
+                f'INSERT INTO {table} ({key_col}, day, count) VALUES (?, ?, 1) '
+                f'ON CONFLICT({key_col}, day) DO UPDATE SET count = count + 1',
+                (key_val, _today()))
+            db.commit()
+    except Exception:
+        pass
+
+@app.after_request
+def _count_page_view(resp):
+    try:
+        p = request.path
+        if (request.method == 'GET'
+                and resp.status_code == 200
+                and (resp.content_type or '').startswith('text/html')
+                and not p.startswith(_SKIP_VIEW_PREFIXES)):
+            ua = (request.headers.get('User-Agent') or '').lower()
+            if not any(m in ua for m in _BOT_MARKERS):
+                _bump('page_views', 'path', p)
+    except Exception:
+        pass
+    return resp
 
 # ── SendGrid ──────────────────────────────────────────────────────────────────
 def send_email(to_email, to_name, subject, html_body):
@@ -626,6 +679,24 @@ async function submitSignup() {
 </script>
 """
 
+# ── Download counter ──────────────────────────────────────────────────────────
+# The download buttons point here so each click is counted by platform, then
+# redirected to the real file (still served straight from /static in prod).
+_DL_MAP = {
+    'windows':         '/static/download/Groundwork_Setup.exe',
+    'windows-offline': '/static/download/Groundwork_Setup_Offline.exe',
+    'macos':           '/static/download/Groundwork-macos.zip',
+    'linux':           '/static/download/Groundwork-linux-x86_64.tar.gz',
+}
+
+@app.route('/dl/<platform>')
+def download_file(platform):
+    target = _DL_MAP.get(platform)
+    if not target:
+        abort(404)
+    _bump('downloads', 'platform', platform)
+    return redirect(target)
+
 # ── Download page ─────────────────────────────────────────────────────────────
 @app.route('/download')
 def download():
@@ -645,7 +716,7 @@ def download():
     <div class="os-icon">🪟</div>
     <h3>Windows</h3>
     <p>Windows 10 or 11. Double-click the installer and you're done in 60 seconds.</p>
-    <a href="/static/download/Groundwork_Setup.exe" class="btn btn-primary" style="width:100%;text-align:center">
+    <a href="/dl/windows" class="btn btn-primary" style="width:100%;text-align:center">
       ⬇ Download for Windows
     </a>
     <div class="requirements">
@@ -658,7 +729,7 @@ def download():
       Local AI sets itself up automatically from Settings — but if you'd
       rather have it all bundled in from the start (or expect to be
       offline for that first setup), grab the
-      <a href="/static/download/Groundwork_Setup_Offline.exe">offline installer</a>
+      <a href="/dl/windows-offline">offline installer</a>
       instead (~3.3GB, includes Ollama and a local model — nothing to
       download later).
     </div>
@@ -668,7 +739,7 @@ def download():
     <div class="os-icon">🍎</div>
     <h3>macOS</h3>
     <p>Apple Silicon and Intel Macs. Unzip and drag Groundwork into Applications.</p>
-    <a href="/static/download/Groundwork-macos.zip" class="btn btn-primary" style="width:100%;text-align:center">
+    <a href="/dl/macos" class="btn btn-primary" style="width:100%;text-align:center">
       ⬇ Download for macOS
     </a>
     <div class="requirements">
@@ -682,7 +753,7 @@ def download():
     <div class="os-icon">🐧</div>
     <h3>Linux</h3>
     <p>Prebuilt x86_64 binary — no Python or system packages required. Extract and run.</p>
-    <a href="/static/download/Groundwork-linux-x86_64.tar.gz" class="btn btn-primary" style="width:100%;text-align:center">
+    <a href="/dl/linux" class="btn btn-primary" style="width:100%;text-align:center">
       ⬇ Download for Linux
     </a>
     <div class="requirements">
@@ -1412,6 +1483,27 @@ def admin():
             'SELECT subject, sent_count, sent_at FROM emails_sent ORDER BY id DESC LIMIT 10'
         ).fetchall()
 
+        # ── Analytics ──────────────────────────────────────────────────────────
+        week_ago = (datetime.utcnow() - timedelta(days=7)).strftime('%Y-%m-%d')
+        views_total = db.execute('SELECT COALESCE(SUM(count),0) FROM page_views').fetchone()[0]
+        views_week  = db.execute(
+            'SELECT COALESCE(SUM(count),0) FROM page_views WHERE day >= ?', (week_ago,)
+        ).fetchone()[0]
+        dl_total    = db.execute('SELECT COALESCE(SUM(count),0) FROM downloads').fetchone()[0]
+        dl_by_os    = db.execute(
+            'SELECT platform, COALESCE(SUM(count),0) AS total, '
+            '       COALESCE(SUM(CASE WHEN day >= ? THEN count ELSE 0 END),0) AS wk '
+            'FROM downloads GROUP BY platform ORDER BY total DESC', (week_ago,)
+        ).fetchall()
+        top_pages   = db.execute(
+            'SELECT path, SUM(count) AS total FROM page_views '
+            'GROUP BY path ORDER BY total DESC LIMIT 12'
+        ).fetchall()
+        daily       = db.execute(
+            'SELECT day, SUM(count) AS total FROM page_views '
+            'WHERE day >= ? GROUP BY day ORDER BY day DESC', (week_ago,)
+        ).fetchall()
+
     rows = ''.join(
         f"<tr><td style='padding:8px 12px'>{h(r['email'])}</td>"
         f"<td>{h(r['name'] or '')}</td>"
@@ -1425,6 +1517,26 @@ def admin():
         f"<td style='color:#999;font-size:12px'>{p['sent_at'][:10]}</td></tr>"
         for p in past
     ) or "<tr><td colspan='3' style='padding:12px;color:#999'>No emails sent yet</td></tr>"
+
+    _OS_LABEL = {'windows': '🪟 Windows', 'windows-offline': '🪟 Windows (offline)',
+                 'macos': '🍎 macOS', 'linux': '🐧 Linux'}
+    dl_rows = ''.join(
+        f"<tr><td style='padding:8px 12px'>{_OS_LABEL.get(d['platform'], h(d['platform']))}</td>"
+        f"<td>{d['total']}</td>"
+        f"<td style='color:#666'>{d['wk']}</td></tr>"
+        for d in dl_by_os
+    ) or "<tr><td colspan='3' style='padding:12px;color:#999'>No downloads counted yet</td></tr>"
+
+    page_rows = ''.join(
+        f"<tr><td style='padding:8px 12px'>{h(p['path'])}</td><td>{p['total']}</td></tr>"
+        for p in top_pages
+    ) or "<tr><td colspan='2' style='padding:12px;color:#999'>No page views counted yet</td></tr>"
+
+    daily_rows = ''.join(
+        f"<tr><td style='padding:8px 12px;color:#999;font-size:12px'>{d['day']}</td>"
+        f"<td>{d['total']}</td></tr>"
+        for d in daily
+    ) or "<tr><td colspan='2' style='padding:12px;color:#999'>No views in the last 7 days</td></tr>"
 
     return f"""
 <!DOCTYPE html><html><head>
@@ -1460,6 +1572,44 @@ tr:hover {{background:#f9f9f7}}
   <div class="stat"><div class="n">{total}</div><div class="l">Total signups</div></div>
   <div class="stat"><div class="n">{confirmed}</div><div class="l">Confirmed</div></div>
   <div class="stat"><div class="n">{total - confirmed}</div><div class="l">Unconfirmed</div></div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="n">{views_week}</div><div class="l">Page views (7 days)</div></div>
+  <div class="stat"><div class="n">{views_total}</div><div class="l">Page views (all time)</div></div>
+  <div class="stat"><div class="n">{dl_total}</div><div class="l">Downloads (all time)</div></div>
+</div>
+
+<div class="card">
+  <h2>Downloads by operating system</h2>
+  <table>
+    <tr><th>Platform</th><th>All time</th><th>Last 7 days</th></tr>
+    {dl_rows}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Traffic</h2>
+  <div style="display:flex;gap:24px;flex-wrap:wrap">
+    <div style="flex:2;min-width:280px">
+      <h3 style="font-size:13px;color:#666;text-transform:uppercase;margin-bottom:10px">Top pages (all time)</h3>
+      <table>
+        <tr><th>Page</th><th>Views</th></tr>
+        {page_rows}
+      </table>
+    </div>
+    <div style="flex:1;min-width:200px">
+      <h3 style="font-size:13px;color:#666;text-transform:uppercase;margin-bottom:10px">Views per day (last 7)</h3>
+      <table>
+        <tr><th>Day</th><th>Views</th></tr>
+        {daily_rows}
+      </table>
+    </div>
+  </div>
+  <p style="margin-top:16px;font-size:12px;color:#999">
+    Aggregate counts only — no IP addresses, cookies, user agents, or personal data are stored.
+    Known bots and static assets are excluded.
+  </p>
 </div>
 
 <div class="card">
