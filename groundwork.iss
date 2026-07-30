@@ -5,7 +5,7 @@
 #define AppName "Groundwork"
 #define AppVersion "1.0.0"
 #define AppPublisher "Groundwork"
-#define AppURL "https://groundwork.app"
+#define AppURL "https://groundworkfinance.app"
 #define AppExeName "Groundwork.exe"
 
 [Setup]
