@@ -11806,6 +11806,112 @@ function closeHelpOverlay() {
 // Wire helpIcon() into key spots at render time
 
 
+// ─── Terms of Use / EULA acceptance ──────────────────────────────────────────
+// An affirmative-acceptance gate (shown on first run, and to any existing user
+// who has not accepted the current version) plus a read-only viewer reachable
+// from Settings → About. Mirrors EULA.txt and the website /terms page — keep
+// all three in sync when the terms change.
+const GW_TERMS_VERSION = '1.0';
+
+const _TERMS_HTML = `
+  <p style="margin-bottom:14px"><strong>In short:</strong> Groundwork is a planning aid, not your bank.
+  You are responsible for verifying every figure against your bank or financial institution before
+  relying on it, and Groundwork is provided free, as-is, with no warranty.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">1. License</h4>
+  <p>Groundwork is free software provided at no charge. You may install and use it for your own
+  personal or internal purposes. You may not sell it, charge a fee for it, redistribute a modified
+  version, or remove its proprietary notices. All rights not expressly granted are reserved.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">2. Ownership</h4>
+  <p>The Software is licensed, not sold. The publisher retains all rights in it. The data you enter
+  or import remains yours.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">3. Your responsibility — verify all figures</h4>
+  <p>Groundwork performs calculations and organizes information you enter or import, but it is
+  <strong>not a system of record</strong> and is not a substitute for your bank or lender.
+  <strong>You are solely responsible for verifying the accuracy of all balances, transactions,
+  categorizations, interest figures, payoff projections, and other outputs against the official
+  statements from your bank or financial institution before relying on them or making any financial
+  decision.</strong> Imported data may be incomplete, delayed, duplicated, or mis-categorized, and
+  projections are estimates. Always confirm your true available funds directly with your institution
+  before spending, transferring, or committing money.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">4. Not professional advice</h4>
+  <p>The Software and its outputs — including AI-generated reports and suggestions — are for
+  informational purposes only and are not financial, investment, tax, or legal advice. Consult a
+  qualified professional before making financial decisions.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">5. No warranty</h4>
+  <p>The Software is provided "as is" and "as available," without warranty of any kind. It is not
+  warranted to be error-free or accurate. You use it at your own risk.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">6. Limitation of liability</h4>
+  <p>To the maximum extent permitted by law, the publisher is not liable for any indirect,
+  incidental, or consequential damages, or any loss of money, funds, or data, arising from your use
+  of — or any financial decision made in reliance on — the Software. As it is provided free of
+  charge, total aggregate liability shall not exceed US $0.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">7. AI, privacy &amp; more</h4>
+  <p>AI features are optional and run locally by default, so no financial data leaves your computer;
+  cloud mode sends aggregated figures to a third-party provider only when you request a report. Your
+  data is stored locally. This agreement is governed by the laws of the State of Ohio, USA, and may
+  be updated for future versions. The full terms are at
+  <span style="white-space:nowrap">groundworkfinance.app/terms</span>.</p>`;
+
+async function checkTermsAcceptance() {
+  try {
+    const res = await API.get('/api/settings');
+    const s   = res.data || res;
+    if (s.terms_accepted !== GW_TERMS_VERSION) showTermsModal('gate');
+  } catch (e) {
+    // If settings can't be read, fail safe by showing the gate.
+    showTermsModal('gate');
+  }
+}
+
+function showTermsModal(mode) {
+  const gate = mode === 'gate';
+  _dismissTermsModal();
+  const overlay = document.createElement('div');
+  overlay.id = 'termsModalOverlay';
+  // z-index sits above the onboarding overlay (9000) so a brand-new user
+  // accepts the terms before anything else.
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,12,20,.72);z-index:9600;display:flex;align-items:center;justify-content:center;padding:24px';
+  overlay.innerHTML = `
+    <div style="background:var(--paper);border-radius:var(--r-xl);max-width:560px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 32px 64px rgba(0,0,0,.45)">
+      <div style="padding:26px 32px 12px">
+        <div style="font-family:var(--font-display);font-style:italic;font-size:24px;color:var(--ink)">${gate ? 'Before you begin' : 'Terms of Use & Disclaimer'}</div>
+        <div style="font-size:12px;color:var(--slate);margin-top:4px">End User License Agreement · Version ${GW_TERMS_VERSION}</div>
+      </div>
+      <div style="padding:0 32px 4px;overflow-y:auto;font-size:13px;color:var(--slate);line-height:1.7">${_TERMS_HTML}</div>
+      <div style="padding:16px 32px 24px;border-top:0.5px solid var(--steel-2)">
+        ${gate ? `
+          <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--ink);cursor:pointer;margin-bottom:14px">
+            <input type="checkbox" id="termsAcceptCheck" onchange="_termsGateToggle()" style="margin-top:3px;flex-shrink:0">
+            <span>I have read and agree to the Terms, and I understand I am responsible for verifying all figures against my bank.</span>
+          </label>
+          <button class="btn btn-primary btn-full" id="termsAcceptBtn" disabled onclick="acceptTerms()">Agree &amp; Continue</button>`
+        : `<button class="btn btn-full" onclick="_dismissTermsModal()">Close</button>`}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function _termsGateToggle() {
+  const c = g('termsAcceptCheck'), b = g('termsAcceptBtn');
+  if (c && b) b.disabled = !c.checked;
+}
+
+function _dismissTermsModal() {
+  const o = g('termsModalOverlay');
+  if (o) o.remove();
+}
+
+async function acceptTerms() {
+  try {
+    await API.patch('/api/settings', {
+      terms_accepted:    GW_TERMS_VERSION,
+      terms_accepted_at: new Date().toISOString(),
+    });
+  } catch (e) { _gwErr('acceptTerms')(e); }
+  _dismissTermsModal();
+}
+
+
 // ─── Phase 9A: Onboarding (restored) ─────────────────────────────────────────
 
 const OB_KEY = 'onboarding_complete';
@@ -25387,6 +25493,7 @@ async function boot() {
     setTimeout(_checkForUpdates, 4000);             // update banner, off the boot path
     setInterval(_checkForUpdates, 6 * 3600 * 1000); // re-check twice a day
     if (typeof checkFirstRun === 'function') checkFirstRun().catch(_gwErr('boot'));
+    if (typeof checkTermsAcceptance === 'function') checkTermsAcceptance().catch(_gwErr('boot'));
   } catch(e) {
     console.error('Boot error:', e);
   } finally {

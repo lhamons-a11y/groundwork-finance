@@ -395,6 +395,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
     <a href="/changelog">Changelog</a>
     <a href="/about">About</a>
     <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
   </div>
   <p>© 2026 Groundwork · Free personal finance software · Your data stays on your machine</p>
   <p style="margin-top:8px">Questions? <a href="mailto:hello@groundworkfinance.app">hello@groundworkfinance.app</a></p>
@@ -1127,6 +1128,132 @@ def privacy():
         canonical=SITE_URL + '/privacy'
     )
 
+# ── Terms of Use / EULA ───────────────────────────────────────────────────────
+# Mirrors EULA.txt (the text shown in the installer and in-app). Keep the two
+# in sync when either changes.
+@app.route('/terms')
+def terms():
+    content = """
+<div class="container" style="max-width:760px;padding:60px 24px">
+  <h1 style="font-size:36px;font-weight:800;margin-bottom:4px">Terms of Use &amp; License</h1>
+  <p style="color:var(--slate);margin-bottom:8px">End User License Agreement · Version 1.0 · Effective July 30, 2026</p>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:32px">
+    By installing, accessing, or using Groundwork (the "Software"), you agree to this
+    End User License Agreement and Terms of Use (the "Agreement"). If you do not agree,
+    do not install or use the Software.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">1. License grant</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    Groundwork is free software provided at no charge. Subject to your compliance with this
+    Agreement, you are granted a personal, non-exclusive, non-transferable, revocable license
+    to install and use the Software for your own personal or internal purposes. You may not
+    sell, rent, lease, sublicense, or charge a fee for the Software; redistribute a modified
+    version; remove or alter any proprietary notices; or represent a modified copy as the
+    official Software. All rights not expressly granted are reserved by the publisher.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">2. Ownership</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    The Software is licensed, not sold. The publisher retains all right, title, and interest
+    in the Software, including all intellectual property rights. The data you enter or import
+    remains yours.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">3. Your responsibility — verify all figures</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:16px">
+    Groundwork is a personal budgeting and planning aid. It performs calculations and organizes
+    information you enter or import, but it is <strong>not a system of record</strong> and is not
+    a substitute for your bank, lender, or financial institution.
+  </p>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:16px;font-weight:600">
+    You are solely responsible for verifying the accuracy of all balances, transactions,
+    categorizations, interest figures, payoff projections, and any other outputs of the Software
+    against the official statements and records provided by your bank, lender, or other financial
+    institution before relying on them or making any financial decision.
+  </p>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    Imported data may be incomplete, delayed, duplicated, mis-categorized, or otherwise
+    inaccurate. Calculations and projections are estimates. Always confirm your true available
+    funds directly with your financial institution before spending, transferring, or committing
+    money.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">4. Not professional advice</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    The Software and its outputs — including any AI-generated reports, summaries, or suggestions —
+    are provided for informational purposes only and do not constitute financial, investment, tax,
+    accounting, or legal advice, and are not a recommendation to take or refrain from any action.
+    Consult a qualified professional before making financial decisions.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">5. Disclaimer of warranties</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTY OF ANY KIND, WHETHER
+    EXPRESS, IMPLIED, OR STATUTORY, INCLUDING THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS
+    FOR A PARTICULAR PURPOSE, ACCURACY, AND NON-INFRINGEMENT. The publisher does not warrant that
+    the Software will be error-free, uninterrupted, or accurate. You use the Software at your own
+    risk.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">6. Limitation of liability</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE PUBLISHER WILL NOT BE LIABLE FOR ANY INDIRECT,
+    INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF MONEY, FUNDS,
+    PROFITS, DATA, OR GOODWILL, ARISING OUT OF OR RELATED TO YOUR USE OF, OR INABILITY TO USE, THE
+    SOFTWARE — INCLUDING ANY FINANCIAL DECISION MADE IN RELIANCE ON IT. Because the Software is
+    provided free of charge, the publisher's total aggregate liability shall not exceed US $0.
+    Some jurisdictions do not allow certain limitations, so some of the above may not apply to you.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">7. AI features</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    The Software's AI features are optional and run locally on your own machine by default, so no
+    financial data leaves your computer. If you enable cloud mode, aggregated figures are sent to a
+    third-party AI provider only when you explicitly request an AI report, subject to that
+    provider's terms. AI outputs may be inaccurate and are subject to Sections 3 and 4.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">8. Privacy</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    Your financial data is stored locally on your device. The publisher does not collect or
+    receive it. See the <a href="/privacy">Privacy Policy</a> for details.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">9. Termination</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    This license is effective until terminated and terminates automatically if you breach it. You
+    may terminate it at any time by uninstalling and deleting the Software. Sections 3 through 6
+    and 10 survive termination.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">10. Governing law</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    This Agreement is governed by the laws of the State of Ohio, USA, without regard to its
+    conflict-of-laws rules, except where your local law requires otherwise.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">11. Changes to this Agreement</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    The publisher may update this Agreement for future versions of the Software. Continued use of
+    an updated version after the changes take effect constitutes acceptance of the revised
+    Agreement.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">12. Contact</h2>
+  <p style="color:var(--slate);line-height:1.9">
+    Questions about this Agreement? Email
+    <a href="mailto:support@groundworkfinance.app">support@groundworkfinance.app</a>
+  </p>
+</div>
+"""
+    return render_template_string(
+        BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
+        title='Terms of Use',
+        description='Groundwork Terms of Use and End User License Agreement. Groundwork is a free planning aid; you are responsible for verifying all figures against your bank.',
+        canonical=SITE_URL + '/terms'
+    )
+
 # ── Features page ─────────────────────────────────────────────────────────────
 @app.route('/features')
 def features():
@@ -1340,6 +1467,7 @@ _SITEMAP_PAGES = [
     ('/about',          'monthly', '0.6'),
     ('/changelog',      'weekly',  '0.5'),
     ('/privacy',        'yearly',  '0.3'),
+    ('/terms',          'yearly',  '0.3'),
 ]
 
 @app.route('/sitemap.xml')

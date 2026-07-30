@@ -19,6 +19,7 @@ AppUpdatesURL={#AppURL}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
+LicenseFile=C:\Groundwork\EULA.txt
 OutputDir=C:\Groundwork\installer_output
 OutputBaseFilename=Groundwork_Setup
 SetupIconFile=C:\Groundwork\groundwork.ico

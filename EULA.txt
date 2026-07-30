@@ -1,0 +1,128 @@
+GROUNDWORK — END USER LICENSE AGREEMENT AND TERMS OF USE
+
+Version 1.0
+Effective date: July 30, 2026
+
+PLEASE READ THIS AGREEMENT CAREFULLY. By installing, accessing, or using
+Groundwork (the "Software"), you agree to be bound by this End User License
+Agreement and Terms of Use (the "Agreement"). If you do not agree, do not
+install or use the Software.
+
+
+1. LICENSE GRANT
+
+Groundwork is free software provided at no charge. Subject to your compliance
+with this Agreement, you are granted a personal, non-exclusive, non-transferable,
+revocable license to install and use the Software for your own personal or
+internal purposes.
+
+You may not sell, rent, lease, sublicense, or charge a fee for the Software;
+redistribute a modified version of the Software; remove or alter any copyright,
+trademark, or other proprietary notices; or represent a modified copy as the
+official Software. All rights not expressly granted are reserved by the
+publisher.
+
+
+2. OWNERSHIP
+
+The Software is licensed, not sold. The publisher retains all right, title, and
+interest in and to the Software, including all intellectual property rights.
+The data you enter or import remains yours.
+
+
+3. YOUR RESPONSIBILITY — VERIFY ALL FIGURES
+
+Groundwork is a personal budgeting and planning aid. It performs calculations
+and organizes information you enter or import, but it is NOT a system of record
+and is NOT a substitute for your bank, lender, or financial institution.
+
+YOU ARE SOLELY RESPONSIBLE FOR VERIFYING THE ACCURACY OF ALL BALANCES,
+TRANSACTIONS, CATEGORIZATIONS, INTEREST FIGURES, PAYOFF PROJECTIONS, AND ANY
+OTHER NUMBERS OR OUTPUTS PRODUCED BY THE SOFTWARE AGAINST THE OFFICIAL
+STATEMENTS AND RECORDS PROVIDED BY YOUR BANK, LENDER, OR OTHER FINANCIAL
+INSTITUTION BEFORE RELYING ON THEM OR MAKING ANY FINANCIAL DECISION.
+
+Imported data may be incomplete, delayed, duplicated, mis-categorized, or
+otherwise inaccurate. Calculations and projections are estimates based on the
+information available and on assumptions that may not match your actual
+accounts or agreements. Always confirm your true available funds directly with
+your financial institution before spending, transferring, or committing money.
+
+
+4. NOT PROFESSIONAL ADVICE
+
+The Software and its outputs — including any AI-generated reports, summaries, or
+suggestions — are provided for informational purposes only and do not constitute
+financial, investment, tax, accounting, or legal advice. They are not a
+recommendation to take or refrain from any particular action. Consult a
+qualified professional before making financial decisions.
+
+
+5. DISCLAIMER OF WARRANTIES
+
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTY OF ANY
+KIND, WHETHER EXPRESS, IMPLIED, OR STATUTORY, INCLUDING BUT NOT LIMITED TO THE
+IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+ACCURACY, AND NON-INFRINGEMENT. THE PUBLISHER DOES NOT WARRANT THAT THE SOFTWARE
+WILL BE ERROR-FREE, UNINTERRUPTED, ACCURATE, OR THAT ANY DEFECTS WILL BE
+CORRECTED. YOU USE THE SOFTWARE AT YOUR OWN RISK.
+
+
+6. LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT WILL THE PUBLISHER BE LIABLE
+FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR
+FOR ANY LOSS OF MONEY, FUNDS, PROFITS, DATA, OR GOODWILL, ARISING OUT OF OR
+RELATED TO YOUR USE OF, OR INABILITY TO USE, THE SOFTWARE — INCLUDING ANY
+FINANCIAL DECISION MADE IN RELIANCE ON THE SOFTWARE OR ITS OUTPUTS — EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. BECAUSE THE SOFTWARE IS PROVIDED
+FREE OF CHARGE, THE PUBLISHER'S TOTAL AGGREGATE LIABILITY TO YOU SHALL NOT
+EXCEED ZERO UNITED STATES DOLLARS (US $0). Some jurisdictions do not allow
+certain limitations, so some of the above may not apply to you.
+
+
+7. AI FEATURES
+
+The Software's AI features are optional. By default they run locally on your own
+machine, and no financial data leaves your computer. If you choose to enable
+cloud mode, aggregated figures are sent to a third-party AI provider only when
+you explicitly request an AI report, subject to that provider's terms. AI
+outputs may be inaccurate or incomplete and are subject to Sections 3 and 4.
+
+
+8. PRIVACY
+
+Your financial data is stored locally on your device. The publisher does not
+collect or receive it. See the Privacy Policy at
+https://groundworkfinance.app/privacy for details.
+
+
+9. TERMINATION
+
+This license is effective until terminated. It terminates automatically if you
+breach it. You may terminate it at any time by uninstalling and deleting the
+Software. Sections 3 through 6 and 10 survive termination.
+
+
+10. GOVERNING LAW
+
+This Agreement is governed by the laws of the State of Ohio, USA, without regard
+to its conflict-of-laws rules, except where your local law requires otherwise.
+
+
+11. CHANGES TO THIS AGREEMENT
+
+The publisher may update this Agreement for future versions of the Software.
+Continued use of an updated version after the changes take effect constitutes
+acceptance of the revised Agreement.
+
+
+12. CONTACT
+
+Questions about this Agreement: support@groundworkfinance.app
+
+
+By installing or using Groundwork, you acknowledge that you have read,
+understood, and agree to this Agreement, and specifically that you are
+responsible for verifying all figures against your bank or financial
+institution as described in Section 3.
