@@ -22,7 +22,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 # Session ID — changes on every server start so client can detect restarts
 _GW_SESSION_ID = str(_uuid.uuid4())[:8]
-GW_VERSION     = '20260730-d22'  # must match app.js GW_VERSION constant
+GW_VERSION     = '20260730-d23'  # must match app.js GW_VERSION constant
 
 # ── Security: session token ────────────────────────────────────────────────────
 # Generated fresh on every startup. Lives in RAM only — never written to disk.

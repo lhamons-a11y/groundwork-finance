@@ -1180,6 +1180,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
                id="dashGreeting">Good morning.</div>
           <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
             <div class="section-sub" id="dashGreetingSub">Here's where things stand.</div>
+            <span id="dashCheckInStreak"
+              style="display:none;font-size:11px;padding:3px 10px;border-radius:20px;
+                     border:0.5px solid var(--steel);color:var(--slate);white-space:nowrap;flex-shrink:0"></span>
             <button id="quarterlyToggleBtn" onclick="toggleQuarterlyMode()"
               style="font-size:11px;padding:3px 10px;border-radius:20px;border:0.5px solid var(--steel);
                      background:none;cursor:pointer;color:var(--slate);white-space:nowrap;flex-shrink:0">
@@ -3239,6 +3242,6 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 </div><!-- end .app -->
 
 <div class="toast-stack" id="toastStack"></div>
-<script src="/js/app.js?v=20260730-d22"></script>
+<script src="/js/app.js?v=20260730-d23"></script>
 </body>
 </html>
