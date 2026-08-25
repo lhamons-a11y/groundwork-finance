@@ -769,6 +769,7 @@ def main():
         get_payment_compliance_confidence, get_late_payment_pattern,
         get_category_patterns, get_budget_variance_by_category,
         get_trip_variance_by_region, get_llm_miss_log,
+        get_engagement_streak,
     )
 
     with engine.connect() as conn:
@@ -847,6 +848,65 @@ def main():
         charge_events = session.query(_HE).filter_by(
             debt_account_id=_debt7_id, event_category='charge_observation').count()
         check('a manual charge writes a charge_observation historian event', charge_events == 1)
+
+    # ── Engagement / session events: session_start, session_end,
+    #    budget_reviewed, budget_adjusted ────────────────────────────────────
+    # session_start is logged server-side in bootstrap — the one request
+    # guaranteed to fire on app open.
+    c.get('/api/settings/bootstrap', headers=H)
+    with _dbs() as session:
+        check('hitting bootstrap writes a session_start historian event',
+              session.query(_HE).filter_by(event_category='session_start').count() >= 1)
+
+    # session_end and budget_reviewed come through the whitelisted client route.
+    c.post('/api/historian/engagement', headers=HJ, data=json.dumps({'event': 'session_end'}))
+    c.post('/api/historian/engagement', headers=HJ, data=json.dumps({'event': 'budget_reviewed'}))
+    with _dbs() as session:
+        check('engagement route writes a session_end event',
+              session.query(_HE).filter_by(event_category='session_end').count() == 1)
+        check('engagement route writes a budget_reviewed event',
+              session.query(_HE).filter_by(event_category='budget_reviewed').count() == 1)
+    # The whitelist is the guard against arbitrary category injection.
+    r = c.post('/api/historian/engagement', headers=HJ,
+               data=json.dumps({'event': 'totally_bogus_event'}))
+    with _dbs() as session:
+        check('engagement route rejects a non-whitelisted event category',
+              r.status_code >= 400 and
+              session.query(_HE).filter_by(event_category='totally_bogus_event').count() == 0)
+
+    # budget_adjusted: a real amount change logs old→new; a no-op PATCH (same
+    # amount) writes nothing. Distinct from the unwritten budget_variance_observed.
+    r = c.post('/api/budget/items', headers=HJ,
+               data=json.dumps({'type': 'expense', 'name': 'Historian Budget Smoke', 'amount': 100.0}))
+    _bi_id = (r.get_json() or {}).get('data', {}).get('id')
+    c.patch(f'/api/budget/items/{_bi_id}', headers=HJ, data=json.dumps({'amount': 150.0}))
+    c.patch(f'/api/budget/items/{_bi_id}', headers=HJ, data=json.dumps({'amount': 150.0}))  # no-op
+    with _dbs() as session:
+        adj = [e for e in session.query(_HE).filter_by(event_category='budget_adjusted').all()
+               if json.loads(e.context_json or '{}').get('budget_item_id') == _bi_id]
+        check('changing a budget amount writes exactly one budget_adjusted event (no-op PATCH is silent)',
+              len(adj) == 1)
+        check('budget_adjusted records old->new as expected/actual with variance',
+              len(adj) == 1 and adj[0].expected_value == 100.0
+              and adj[0].actual_value == 150.0 and adj[0].variance_pct == 50.0)
+
+    # get_engagement_streak: the first engagement *reader* — consecutive check-in
+    # days from session_start (distinct days), stopping at a gap, plus this
+    # month's budget_reviewed count. Anchor rows at noon so the calendar-day
+    # math is stable regardless of when the suite runs.
+    from datetime import datetime as _dtse
+    _noon = _dtse.utcnow().replace(hour=12, minute=0, second=0, microsecond=0)
+    with _dbs() as session:
+        for _off in (0, 1, 2, 5):   # the 5-day-ago cluster must NOT extend today's run
+            session.add(_HE(event_category='session_start',
+                            created_at=_noon - _timedelta(days=_off)))
+        session.commit()
+    with _dbs() as session:
+        streak = get_engagement_streak(session)
+        check('get_engagement_streak counts consecutive check-in days, stopping at a gap',
+              streak['streak_days'] == 3 and streak['active_today'] is True)
+        check('get_engagement_streak reports this month\'s budget_reviewed count',
+              streak['budget_reviews_this_month'] >= 1)
 
     with _dbs() as session:
         check('get_late_payment_pattern returns an honest empty result (nothing writes this event yet)',
@@ -1772,10 +1832,21 @@ def main():
     check('GET /api/gift/seasons/<id>/confidence is honest-empty for an unknown season',
           r.status_code == 200 and (r.get_json() or {}).get('data', {}).get('confidence_pct') is None)
 
-    # Deadline 6 months out (2027-01), target $1200, $0 saved so far ->
-    # expected pace = 1200/6 = $200/mo. A $120 deposit is deliberately
-    # behind that pace.
-    _gift_season = {'id': 'smoke-gs-1', 'name': 'Smoke Holiday Fund', 'target': 1200, 'saved': 0, 'deadline': '2027-01-24'}
+    # Deadline 6 months out, target $1200, $0 saved so far -> expected pace
+    # = 1200/6 = $200/mo. A $120 deposit is deliberately behind that pace.
+    # The deadline is derived from today, not hard-coded: the server counts
+    # whole calendar months against datetime.utcnow(), so a fixed date drifts
+    # closer every month and silently changes the expected pace (a 2027-01
+    # deadline read as 6 months out in 2026-07 and 5 in 2026-08, turning the
+    # $200 assertion below into a $240 failure purely from the calendar).
+    from datetime import datetime as _dt3
+    _gs_today = _dt3.utcnow().date()
+    _gs_months = _gs_today.month - 1 + 6
+    # Day clamped to <= 28 so the same day-of-month is always a real date.
+    _gs_deadline = '%04d-%02d-%02d' % (_gs_today.year + _gs_months // 12,
+                                       _gs_months % 12 + 1, min(_gs_today.day, 28))
+    _gift_season = {'id': 'smoke-gs-1', 'name': 'Smoke Holiday Fund', 'target': 1200,
+                    'saved': 0, 'deadline': _gs_deadline}
     with _dbs() as session:
         session.add(_AS(key='gift_seasons_json', value=json.dumps([_gift_season])))
         session.commit()
