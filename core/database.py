@@ -309,6 +309,20 @@ class HistorianEntry(Base):
                                              already is: (target - saved) / months_left)
       'gift_occasion_variance'            — a gift occasion's actual spend vs. its budgeted amount,
                                              logged once the occasion date has passed
+      'session_start'                     — app open. Logged server-side in bootstrap() — the one
+                                             request guaranteed to fire on every launch — not from a
+                                             client signal. Purely categorical (no expected/actual).
+      'session_end'                       — app close. Client keepalive POST to /api/historian/engagement
+                                             on pagehide; best-effort, so it can be missed on a hard
+                                             kill. session_start is the reliable half of the pair.
+      'budget_reviewed'                   — user opened the Budget page. Client signal on navigation
+                                             (showView('budget')), not on the re-renders renderBudget()
+                                             does elsewhere. Purely categorical.
+      'budget_adjusted'                   — user intentionally changed a budget item's amount via
+                                             update_budget_item. expected=old amount, actual=new amount,
+                                             so variance is real. Distinct from budget_variance_observed
+                                             (automatic actual-vs-plan drift, still unwritten) — this is
+                                             the user's deliberate edit, carrying budget_item_id in context.
     No payoff_plan_id column: same reason as DebtLedgerEntry — there is no
     persisted payoff-plan table in this codebase. Net worth milestones are
     similarly not a DB table (they live in AppSetting's nw_goals_json, a

@@ -9,7 +9,7 @@
 #define AppName "Groundwork"
 #define AppVersion "1.0.0"
 #define AppPublisher "Groundwork"
-#define AppURL "https://groundwork.app"
+#define AppURL "https://groundworkfinance.app"
 #define AppExeName "Groundwork.exe"
 
 [Setup]
@@ -23,6 +23,7 @@ AppUpdatesURL={#AppURL}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
+LicenseFile=C:\Groundwork\EULA.txt
 OutputDir=C:\Groundwork\installer_output
 OutputBaseFilename=Groundwork_Setup_Offline
 SetupIconFile=C:\Groundwork\groundwork.ico

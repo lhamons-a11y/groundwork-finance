@@ -22,7 +22,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 # Session ID — changes on every server start so client can detect restarts
 _GW_SESSION_ID = str(_uuid.uuid4())[:8]
-GW_VERSION     = '20260725-d21'  # must match app.js GW_VERSION constant
+GW_VERSION     = '20260730-d23'  # must match app.js GW_VERSION constant
 
 # ── Security: session token ────────────────────────────────────────────────────
 # Generated fresh on every startup. Lives in RAM only — never written to disk.
@@ -175,6 +175,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(sinking_funds_bp,  url_prefix='/api/sinking-funds')
     app.register_blueprint(college_funds_bp,  url_prefix='/api/college-funds')
     app.register_blueprint(gift_bp,           url_prefix='/api/gift')
+    app.register_blueprint(historian_bp,      url_prefix='/api/historian')
 
     # System routes
     @app.route('/api/ping')
@@ -1308,7 +1309,22 @@ def update_budget_item(item_id):
         if not item:
             return err('Not found', 404)
         if 'name'   in body: item.name   = body['name']
-        if 'amount' in body: item.amount = float(body['amount'])
+        if 'amount' in body:
+            _old_amount = item.amount
+            _new_amount = float(body['amount'])
+            item.amount = _new_amount
+            # Historian: an intentional budget-amount change by the user —
+            # distinct from budget_variance_observed (automatic actual-vs-plan
+            # drift). Only a real change against a known prior amount counts;
+            # no category_id FK because budget items key category by name, not
+            # a categories.id row (see create/update above).
+            if _old_amount is not None and _new_amount != _old_amount:
+                log_historian_event(
+                    session, 'budget_adjusted',
+                    expected_value=_old_amount, actual_value=_new_amount,
+                    context={'budget_item_id': item.id, 'name': item.name,
+                             'item_type': item.type},
+                )
         if 'category' in body:
             cat_name = (body['category'] or '').strip()
             if cat_name:
@@ -2516,6 +2532,80 @@ def log_historian_event(session, event_category: str, debt_account_id=None, cate
     return entry
 
 
+historian_bp = Blueprint('historian', __name__)
+
+# Engagement / session events the client signals directly — page navigations
+# and app close — as opposed to the domain events logged inline by the route
+# where the thing actually happens (a confirm, a ledger write, a budget edit).
+# Whitelisted so a compromised or buggy client can't inject arbitrary event
+# categories into the historian. session_start is NOT here: it's logged
+# server-side in bootstrap(), the one request guaranteed to fire on app open.
+_CLIENT_ENGAGEMENT_EVENTS = {'session_end', 'budget_reviewed'}
+
+
+@historian_bp.route('/engagement', methods=['POST'])
+@require_json
+def log_engagement_event():
+    """Client-signaled engagement event. Body: { event: str, context?: dict }.
+    Only whitelisted, purely-categorical events are accepted — these are
+    "it happened" markers, so they carry no expected/actual values and never
+    fabricate a variance. session_end arrives via a keepalive fetch on page
+    hide, so this stays cheap and the client never reads the response."""
+    body  = request.json
+    event = (body.get('event') or '').strip()
+    if event not in _CLIENT_ENGAGEMENT_EVENTS:
+        return err('unknown engagement event')
+    ctx = body.get('context')
+    if not isinstance(ctx, dict):
+        ctx = None
+    with db_session() as session:
+        log_historian_event(session, event, context=ctx)
+        session.commit()
+    return ok({'logged': True})
+
+
+def get_engagement_streak(session) -> dict:
+    """The historian's first *engagement* reader — a habit signal, not a pace
+    score like the confidence readers. Consecutive-day check-in streak from
+    session_start events (distinct days, so many launches/refreshes in one day
+    count once), plus this month's budget_reviewed count. UTC day boundaries,
+    matching how created_at is stored. Honest zero shape when there's no
+    history yet — the UI self-gates on streak_days the same way the confidence
+    cards gate on a null score."""
+    starts = session.query(HistorianEntry.created_at).filter(
+        HistorianEntry.event_category == 'session_start').all()
+    days = sorted({c.date() for (c,) in starts if c is not None}, reverse=True)
+    today = datetime.utcnow().date()
+    streak = 0
+    # A streak stays alive if the most recent check-in was today or yesterday;
+    # not opening the app *yet today* shouldn't read as broken until a full day
+    # has lapsed.
+    if days and days[0] >= today - timedelta(days=1):
+        streak = 1
+        for newer, older in zip(days, days[1:]):
+            if (newer - older).days == 1:
+                streak += 1
+            else:
+                break
+    month_start = datetime(today.year, today.month, 1)
+    reviews = session.query(HistorianEntry).filter(
+        HistorianEntry.event_category == 'budget_reviewed',
+        HistorianEntry.created_at >= month_start).count()
+    return {
+        'streak_days':               streak,
+        'active_today':              bool(days) and days[0] == today,
+        'budget_reviews_this_month': reviews,
+    }
+
+
+@historian_bp.route('/streak', methods=['GET'])
+def engagement_streak():
+    """Thin read of get_engagement_streak — the dashboard check-in streak.
+    Mirrors the confidence routes: a plain ok(...) the client self-gates on."""
+    with db_session() as session:
+        return ok(get_engagement_streak(session))
+
+
 def _months_between(start_str: str, end_str: str) -> int:
     """Whole calendar months between two 'YYYY-MM' or 'YYYY-MM-DD' strings."""
     sy, sm = int(start_str[:4]), int(start_str[5:7])
@@ -2935,11 +3025,13 @@ def get_late_payment_pattern(session, debt_account_id: int) -> dict:
 # ── 1.1-scaffold reads — see module docstring above ─────────────────────────
 
 def get_category_patterns(session, merchant_name: str) -> dict:
-    """How the user has categorized this merchant historically, from
-    categorization_suggestion_confirm/reject events. Nothing writes those
-    yet (Phase H2 Feature 1) — until then this reads directly from the
-    ledger/transaction history that already exists, which is a reasonable
-    real answer today, not a placeholder."""
+    """How the user has categorized this merchant historically. The
+    categorization_suggestion_confirm/reject events now exist (see the
+    confirm route), but this deliberately reads the ledger/transaction
+    history instead: the ledger holds the full categorization record,
+    where the confirm/reject log only captures the sparse cases where a
+    suggestion was shown. Phase H2 Feature 1 can blend the two; today the
+    ledger is the richer, real answer."""
     rows = session.query(DebtLedgerEntry.category, func.count(DebtLedgerEntry.id)).filter(
         DebtLedgerEntry.merchant.ilike(f'%{merchant_name}%'), DebtLedgerEntry.category != ''
     ).group_by(DebtLedgerEntry.category).order_by(desc(func.count(DebtLedgerEntry.id))).all()
@@ -3275,6 +3367,18 @@ def bootstrap():
                 'strategyStreak': int(settings.get('strategy_streak',   0) or 0),
                 'paymentStreak':  int(settings.get('payment_streak',    0) or 0),
             }
+
+            # Historian: app open. bootstrap is the one request guaranteed to
+            # fire on every launch, so session_start is logged here rather than
+            # trusting a client signal. Engagement telemetry must never break
+            # the boot path, so a logging failure is swallowed — the return
+            # below is what actually matters.
+            try:
+                log_historian_event(session, 'session_start')
+                session.commit()
+            except Exception as _hist_err:
+                logging.warning('bootstrap: session_start log failed: %s', _hist_err)
+                session.rollback()
 
             return ok({
                 'incomes':           incomes,

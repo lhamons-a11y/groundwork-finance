@@ -170,9 +170,7 @@ const S = {
   debtIdCounter:0,
   achievements:     new Set(),
   achievementDates: null,   // { id: iso_date_string } — loaded from DB lazily
-  sbState:      null,
   bybItems:     [],
-  bybEdits:     {},
   netWorth:     { savings:0, investments:0, cash:0, homeValue:0, mortgage:0 },
 
   // UI state
@@ -206,7 +204,7 @@ const S = {
     pensions:       [],     // [{ id, name, monthlyBenefit, retirementAge }]
   },
 };
-const GW_VERSION = '20260725-d21'; // must match server.py GW_VERSION
+const GW_VERSION = '20260730-d23'; // must match server.py GW_VERSION
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -250,6 +248,16 @@ function _catChildIds(parentName) {
 // the dashboard sums spending.
 function _isSpend(t) {
   if (!t || t.type !== 'debit') return false;
+  const parent = _catParentName(t.category) || t.category;
+  return parent !== 'Transfer';
+}
+
+// The credit-side mirror of _isSpend: money that actually arrived from outside,
+// not an internal move between the user's own accounts. Any ratio built from
+// gross credits and gross debits needs both sides filtered the same way, or the
+// transfers inflate the numerator and denominator by different amounts.
+function _isEarn(t) {
+  if (!t || t.type !== 'credit') return false;
   const parent = _catParentName(t.category) || t.category;
   return parent !== 'Transfer';
 }
@@ -952,8 +960,8 @@ function _calcBehavioralProfile(sbMonths) {
   return {
     greenMonths12:        greenCount,
     greenMonthRate:       Math.round((greenCount / 12) * 100),
-    currentStreak:        S.sbState?.streakCount || 0,
-    peakStreak:           S.sbState?.peakStreak  || S.sbState?.streakCount || 0,
+    currentStreak:        _streakFromData().current,
+    peakStreak:           _streakFromData().peak,
     mostOverageCategory:  worstCategory,
     bestPerformingMonth,
     engagementLevel,
@@ -1043,9 +1051,7 @@ function buildSnapshot() {
     dfmSettings:       { savingsCut: S.dfmSavingsCut },
     savingsPct:        parseInt(g('settingsSavingsPct')?.value || 10),
     monthlyBudget:     _getMonthlyBudget() || 1500,   // 1500 = app default, same coercion boot applies
-    sbState:           S.sbState,
     bybItems:          S.bybItems,
-    bybEdits:          S.bybEdits,
     netWorth:          S.netWorth,
     savedAt:           new Date().toISOString(),
   };
@@ -1447,7 +1453,6 @@ function restoreFromBootstrap(data) {
     id: b.id, _dbId: b.id, type: b.type, name: b.name,
     category: b.category, monthly: b.monthly, replacing: b.replacing || null,
   }));
-  S.bybEdits = {};
 
   // ── Net worth — includes retirement accounts (Phase 11) ──────────────
   const nwData = data.netWorth || {};
@@ -1476,7 +1481,6 @@ function restoreFromBootstrap(data) {
   S.dfmActive     = !!prefs.dfmActive;
   S.dfmSavingsCut = prefs.dfmSavingsCut || 5;
   S.debtMethod    = prefs.debtMethod    || 'avalanche';
-  S.sbState       = null;
   try {
     S.strategyStreak = typeof prefs.strategyStreak === 'string'
       ? JSON.parse(prefs.strategyStreak)
@@ -1586,9 +1590,7 @@ function _restoreFromSnapshot(d) {
   S.expenses      = d.expenses      || [];
   S.dfmActive     = !!d.dfmActive;
   S.dfmSavingsCut = d.dfmSettings?.savingsCut || 5;
-  S.sbState       = d.sbState       || null;
   S.bybItems      = d.bybItems      || [];
-  S.bybEdits      = d.bybEdits      || {};
   // HARDENING (July 8): default shape now matches the real S.netWorth shape —
   // retirement401k/retirementIRA were the exact two fields bug #13 (July 6)
   // was about; a mismatched default here is where that class of bug hides.
@@ -1688,7 +1690,10 @@ function showView(name) {
   // Lazy init each view
   if (name === 'dashboard') renderDashboard();
   if (name === 'ledger')    { renderLedger(); updateLedgerStats(); renderRecentWin('ledger','ledgerRecentWin'); loadRecurringDetection(); }
-  if (name === 'budget')    { renderBudget(); renderRecentWin('budget','budgetRecentWin'); loadSinkingFunds(); renderSubscriptionAudit(); }
+  if (name === 'budget')    { renderBudget(); renderRecentWin('budget','budgetRecentWin'); loadSinkingFunds(); renderSubscriptionAudit();
+                              // Historian: user opened the budget page (a navigation, not
+                              // a re-render — renderBudget() is called directly elsewhere).
+                              API.post('/api/historian/engagement', { event: 'budget_reviewed' }).catch(_gwErr('budget_reviewed')); }
   if (name === 'debt')      { try { _renderCardList(); calculate(); renderDebtAchievements(); renderRecentWin('debt','debtRecentWin'); renderLoanFlags(); _debtShowTab(_debtActiveTab); loadPendingDrafts(); } catch(e) { _gwLogError('debt',e); } }
   if (name === 'byb')       renderBYB();
   if (name === 'investments') { try { initInvestments();      } catch(e) { console.error('Investments render:', e); _showViewError(name, e); } }
@@ -2112,6 +2117,25 @@ function _effectiveIncome() {
   return avg && avg > 0 ? avg : budget;
 }
 
+// Historian-backed daily check-in streak — the first *engagement* read (the
+// confidence cards elsewhere score variance events; this is a habit signal).
+// Self-gating exactly like those cards: hidden until there's a real streak, so
+// it never shows "1-day streak" noise on a first-ever open, and stays hidden
+// entirely on a fresh install with no history.
+function _renderCheckInStreak() {
+  const el = g('dashCheckInStreak');
+  if (!el) return;
+  el.style.display = 'none';
+  API.get('/api/historian/streak').then(d => {
+    if (!d || (d.streak_days || 0) < 2) return;   // a single day isn't a streak yet
+    el.textContent = `🔥 ${d.streak_days}-day check-in streak`;
+    el.title = d.budget_reviews_this_month
+      ? `Budget reviewed ${d.budget_reviews_this_month}× this month`
+      : "Consecutive days you've opened Groundwork";
+    el.style.display = '';
+  }).catch(_gwErr('checkInStreak'));
+}
+
 function renderDashboard() {
   const now   = new Date();
   // pywebview/CEF can return UTC from getHours() — use UTC offset math instead
@@ -2167,6 +2191,7 @@ function renderDashboard() {
   _renderDashUpcoming();                   // Phase I: right column upcoming bills
   _renderDashSeasonalAlert();              // Phase I: right column seasonal alert (B6d)
   renderDashAchievementStrip();
+  _renderCheckInStreak();                  // Historian-backed daily check-in streak (self-gating)
   _renderNextAchCard();                    // hidden in Phase I HTML but kept for compat
 
   // Sunday number card (Sundays only)
@@ -2188,12 +2213,54 @@ function renderDashboard() {
 }
 
 // ── Streak calculated from actual spending data (no check-in required) ────────
+//
+// This used to read S.sbState?.streakCount and return it, which was always 0:
+// sbState has no write path anywhere in the app. It is declared null, reset to
+// null on every online boot, and restored only on the offline snapshot path —
+// so the blob it is saved from can only ever contain null. The comment above
+// described a computation that was never written, and the 'unbreakable'
+// achievement read "0 of 6 months" forever and could not be earned.
+//
+// The streak never needed storage. It is derived state, computable from
+// transactions and incomes, both of which are authoritative.
+//
+// A MONTH WITH NO TRANSACTIONS BREAKS THE STREAK RATHER THAN EXTENDING IT.
+// Absence of data is not evidence of an under-budget month, and treating it as
+// one would manufacture a streak out of a gap in the record — the same class of
+// error as a `|| 0` default meaning "never computed" reaching the narrator as a
+// measured zero.
+function _streakFromData() {
+  const income = S.incomes.reduce((s,i) => s+i.amount, 0);
+  if (income <= 0) return { current: 0, peak: 0 };
+
+  // Complete months only, newest first. _lastNMonths starts at i=1, so the
+  // current partial month is already excluded — counting it would break the
+  // streak every month until payday.
+  let current = 0, peak = 0, run = 0, seenAny = false, ended = false;
+  _lastNMonths(24).forEach(mo => {
+    const inMonth = S.transactions.filter(t => (t.date||'').startsWith(mo));
+    if (!inMonth.length) { run = 0; ended = true; return; }
+    seenAny = true;
+    // _isSpend: `income` here is the budget profile, so transfers counted as
+    // spending push months over budget with nothing to offset them and quietly
+    // suppress the streak.
+    const spent = inMonth
+      .filter(_isSpend)
+      .reduce((s,t) => s+t.amount, 0);
+    if (spent < income) {
+      run++;
+      if (run > peak) peak = run;
+      if (!ended) current = run;
+    } else {
+      run = 0;
+      ended = true;
+    }
+  });
+  return seenAny ? { current, peak } : { current: 0, peak: 0 };
+}
+
 function _calcStreakFromData() {
-  // Streak = consecutive months where spending < income
-  // Uses sbState.streakCount if set (from manual check-ins),
-  // but we also auto-update it from transaction data
-  const streak = S.sbState?.streakCount || 0;
-  return streak;
+  return _streakFromData().current;
 }
 
 // ── Section 1: Month health card ──────────────────────────────────────────────
@@ -9815,14 +9882,18 @@ async function generateReport() {
   const end    = new Date(yr, mo, 0).toISOString().slice(0,10);
   const txns   = S.transactions.filter(t => t.date >= start && t.date <= end);
   const monthName = new Date(yr, mo-1).toLocaleDateString('en-US', {month:'long', year:'numeric'});
-  const spent  = txns.filter(t=>t.type==='debit').reduce((s,t)=>s+t.amount,0);
+  // _isSpend, not a raw debit filter: a card payment or a move to savings is a
+  // debit, but it is not spending. `income` below comes from the budget profile,
+  // so an inflated `spent` has nothing on the other side to cancel it — counting
+  // transfers here reported "over budget" in months that were comfortably under.
+  const spent  = txns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
   const income = S.incomes.reduce((s,i)=>s+i.amount,0);
   const under  = income - spent;
-  const streak = S.sbState?.streakCount || 0;
+  const streak = _calcStreakFromData();
 
   // Group spending by PARENT category for AI prompt — cleaner signal
   const cats = {};
-  txns.filter(t=>t.type==='debit').forEach(t=>{
+  txns.filter(_isSpend).forEach(t=>{
     const parentName = _catParentName(t.category||'Other') || 'Other';
     cats[parentName] = (cats[parentName]||0) + t.amount;
   });
@@ -11804,6 +11875,112 @@ function closeHelpOverlay() {
 
 // Also add help icon helper to renderDashboard elements
 // Wire helpIcon() into key spots at render time
+
+
+// ─── Terms of Use / EULA acceptance ──────────────────────────────────────────
+// An affirmative-acceptance gate (shown on first run, and to any existing user
+// who has not accepted the current version) plus a read-only viewer reachable
+// from Settings → About. Mirrors EULA.txt and the website /terms page — keep
+// all three in sync when the terms change.
+const GW_TERMS_VERSION = '1.0';
+
+const _TERMS_HTML = `
+  <p style="margin-bottom:14px"><strong>In short:</strong> Groundwork is a planning aid, not your bank.
+  You are responsible for verifying every figure against your bank or financial institution before
+  relying on it, and Groundwork is provided free, as-is, with no warranty.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">1. License</h4>
+  <p>Groundwork is free software provided at no charge. You may install and use it for your own
+  personal or internal purposes. You may not sell it, charge a fee for it, redistribute a modified
+  version, or remove its proprietary notices. All rights not expressly granted are reserved.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">2. Ownership</h4>
+  <p>The Software is licensed, not sold. The publisher retains all rights in it. The data you enter
+  or import remains yours.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">3. Your responsibility — verify all figures</h4>
+  <p>Groundwork performs calculations and organizes information you enter or import, but it is
+  <strong>not a system of record</strong> and is not a substitute for your bank or lender.
+  <strong>You are solely responsible for verifying the accuracy of all balances, transactions,
+  categorizations, interest figures, payoff projections, and other outputs against the official
+  statements from your bank or financial institution before relying on them or making any financial
+  decision.</strong> Imported data may be incomplete, delayed, duplicated, or mis-categorized, and
+  projections are estimates. Always confirm your true available funds directly with your institution
+  before spending, transferring, or committing money.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">4. Not professional advice</h4>
+  <p>The Software and its outputs — including AI-generated reports and suggestions — are for
+  informational purposes only and are not financial, investment, tax, or legal advice. Consult a
+  qualified professional before making financial decisions.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">5. No warranty</h4>
+  <p>The Software is provided "as is" and "as available," without warranty of any kind. It is not
+  warranted to be error-free or accurate. You use it at your own risk.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">6. Limitation of liability</h4>
+  <p>To the maximum extent permitted by law, the publisher is not liable for any indirect,
+  incidental, or consequential damages, or any loss of money, funds, or data, arising from your use
+  of — or any financial decision made in reliance on — the Software. As it is provided free of
+  charge, total aggregate liability shall not exceed US $0.</p>
+  <h4 style="margin:16px 0 4px;color:var(--ink)">7. AI, privacy &amp; more</h4>
+  <p>AI features are optional and run locally by default, so no financial data leaves your computer;
+  cloud mode sends aggregated figures to a third-party provider only when you request a report. Your
+  data is stored locally. This agreement is governed by the laws of the State of Ohio, USA, and may
+  be updated for future versions. The full terms are at
+  <span style="white-space:nowrap">groundworkfinance.app/terms</span>.</p>`;
+
+async function checkTermsAcceptance() {
+  try {
+    const res = await API.get('/api/settings');
+    const s   = res.data || res;
+    if (s.terms_accepted !== GW_TERMS_VERSION) showTermsModal('gate');
+  } catch (e) {
+    // If settings can't be read, fail safe by showing the gate.
+    showTermsModal('gate');
+  }
+}
+
+function showTermsModal(mode) {
+  const gate = mode === 'gate';
+  _dismissTermsModal();
+  const overlay = document.createElement('div');
+  overlay.id = 'termsModalOverlay';
+  // z-index sits above the onboarding overlay (9000) so a brand-new user
+  // accepts the terms before anything else.
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,12,20,.72);z-index:9600;display:flex;align-items:center;justify-content:center;padding:24px';
+  overlay.innerHTML = `
+    <div style="background:var(--paper);border-radius:var(--r-xl);max-width:560px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 32px 64px rgba(0,0,0,.45)">
+      <div style="padding:26px 32px 12px">
+        <div style="font-family:var(--font-display);font-style:italic;font-size:24px;color:var(--ink)">${gate ? 'Before you begin' : 'Terms of Use & Disclaimer'}</div>
+        <div style="font-size:12px;color:var(--slate);margin-top:4px">End User License Agreement · Version ${GW_TERMS_VERSION}</div>
+      </div>
+      <div style="padding:0 32px 4px;overflow-y:auto;font-size:13px;color:var(--slate);line-height:1.7">${_TERMS_HTML}</div>
+      <div style="padding:16px 32px 24px;border-top:0.5px solid var(--steel-2)">
+        ${gate ? `
+          <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--ink);cursor:pointer;margin-bottom:14px">
+            <input type="checkbox" id="termsAcceptCheck" onchange="_termsGateToggle()" style="margin-top:3px;flex-shrink:0">
+            <span>I have read and agree to the Terms, and I understand I am responsible for verifying all figures against my bank.</span>
+          </label>
+          <button class="btn btn-primary btn-full" id="termsAcceptBtn" disabled onclick="acceptTerms()">Agree &amp; Continue</button>`
+        : `<button class="btn btn-full" onclick="_dismissTermsModal()">Close</button>`}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function _termsGateToggle() {
+  const c = g('termsAcceptCheck'), b = g('termsAcceptBtn');
+  if (c && b) b.disabled = !c.checked;
+}
+
+function _dismissTermsModal() {
+  const o = g('termsModalOverlay');
+  if (o) o.remove();
+}
+
+async function acceptTerms() {
+  try {
+    await API.patch('/api/settings', {
+      terms_accepted:    GW_TERMS_VERSION,
+      terms_accepted_at: new Date().toISOString(),
+    });
+  } catch (e) { _gwErr('acceptTerms')(e); }
+  _dismissTermsModal();
+}
 
 
 // ─── Phase 9A: Onboarding (restored) ─────────────────────────────────────────
@@ -19283,7 +19460,7 @@ function renderDashAchievementStrip() {
 function _getAchProgress(a) {
   if (!a.progressTarget) return null;
   switch(a.id) {
-    case 'unbreakable':    return Math.min(100,(S.sbState?.streakCount||0)/6*100);
+    case 'unbreakable':    return Math.min(100,_calcStreakFromData()/6*100);
     case 'chipping_away': { const beginDebt=S.debtCards.filter(c=>!c.paidInFull).reduce((s,c)=>s+(parseFloat(c.beginBal)||0),0);
       const current=S.debtCards.filter(c=>!c.paidInFull).reduce((s,c)=>s+(_cardBal(c)),0);
       return beginDebt>0?Math.min(100,(beginDebt-current)/beginDebt*100*10):null; }
@@ -19299,7 +19476,7 @@ function _getAchProgress(a) {
 
 function _getAchProgressLabel(a) {
   switch(a.id) {
-    case 'unbreakable':    return `${S.sbState?.streakCount||0} of 6 months`;
+    case 'unbreakable':    return `${_calcStreakFromData()} of 6 months`;
     case 'chipping_away':
     case 'halfway': { const b=S.debtCards.filter(c=>!c.paidInFull).reduce((s,c)=>s+(parseFloat(c.beginBal)||0),0);
       const c=S.debtCards.filter(c2=>!c2.paidInFull).reduce((s,c2)=>s+(_cardBal(c2)),0);
@@ -21575,7 +21752,7 @@ function updateReportPreview() {
   const daily     = calcDailyInterest();
   const net       = (income||budgetInc) - spent;
   const monthName = new Date(yr,mo-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
-  const streak    = S.sbState?.streakCount||0;
+  const streak    = _calcStreakFromData();
   const cats      = {};
   txns.filter(t=>t.type==='debit').forEach(t=>{cats[t.category||'Other']=(cats[t.category||'Other']||0)+t.amount;});
   const netDeltaClass = net>=0?'good':'bad';
@@ -22994,10 +23171,12 @@ async function _rcMonthlyGenerate() {
   const end=new Date(yr,mo,0).toISOString().slice(0,10);
   const txns=S.transactions.filter(t=>t.date>=start&&t.date<=end);
   const monthName=new Date(yr,mo-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
-  const spent=txns.filter(t=>t.type==='debit').reduce((s,t)=>s+t.amount,0);
+  // _isSpend, not a raw debit filter — see generateReport(); this is the same
+  // budget-profile comparison and was carrying the same transfer inflation.
+  const spent=txns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
   const income=S.incomes.reduce((s,i)=>s+i.amount,0);
   const under=income-spent;
-  const cats={}; txns.filter(t=>t.type==='debit').forEach(t=>{const pn=_catParentName(t.category||'Other')||'Other';cats[pn]=(cats[pn]||0)+t.amount;});
+  const cats={}; txns.filter(_isSpend).forEach(t=>{const pn=_catParentName(t.category||'Other')||'Other';cats[pn]=(cats[pn]||0)+t.amount;});
   const topCatEntries=Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const topCats=topCatEntries.map(([c,a])=>`${c}: ${fmt(a)}`).join(', ');
   // topCatEntries holds PARENT category names (see _catParentName above) —
@@ -23320,20 +23499,23 @@ function _rcUpdateAnnualSummary() {
   const yearTxns = S.transactions.filter(t => (t.date||'').startsWith(year));
   const prevTxns = S.transactions.filter(t => (t.date||'').startsWith(prevYear));
 
-  const totalIncome   = yearTxns.filter(t=>t.type==='credit').reduce((s,t)=>s+t.amount,0);
-  const totalExpenses = yearTxns.filter(t=>t.type==='debit').reduce((s,t)=>s+t.amount,0);
+  // Transfers excluded on BOTH sides. They largely cancel in `totalSaved`, so
+  // the bug hid there — but savingsRate divides by the inflated income, and the
+  // category ranking below listed "Transfer" as real spending.
+  const totalIncome   = yearTxns.filter(_isEarn).reduce((s,t)=>s+t.amount,0);
+  const totalExpenses = yearTxns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
   const totalSaved    = totalIncome - totalExpenses;
   const savingsRate   = totalIncome > 0 ? Math.round((totalSaved / totalIncome) * 100) : 0;
 
-  const prevIncome    = prevTxns.filter(t=>t.type==='credit').reduce((s,t)=>s+t.amount,0);
-  const prevExpenses  = prevTxns.filter(t=>t.type==='debit').reduce((s,t)=>s+t.amount,0);
+  const prevIncome    = prevTxns.filter(_isEarn).reduce((s,t)=>s+t.amount,0);
+  const prevExpenses  = prevTxns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
   const hasPrev       = prevTxns.length > 0;
 
   // Top 10 categories — rolled up to parent (e.g. "Electric"+"Gas" under
   // "Utilities" combine into one line), matching Monthly Report's convention
   // instead of splitting the same spending into separate child entries.
   const catTotals = {};
-  yearTxns.filter(t=>t.type==='debit'&&t.category).forEach(t => {
+  yearTxns.filter(t=>_isSpend(t)&&t.category).forEach(t => {
     const pn = _catParentName(t.category)||t.category;
     catTotals[pn] = (catTotals[pn]||0) + t.amount;
   });
@@ -23341,8 +23523,8 @@ function _rcUpdateAnnualSummary() {
 
   // Month-by-month
   const moData = months.map(mo => {
-    const inc = yearTxns.filter(t=>t.type==='credit'&&(t.date||'').startsWith(mo)).reduce((s,t)=>s+t.amount,0);
-    const exp = yearTxns.filter(t=>t.type==='debit' &&(t.date||'').startsWith(mo)).reduce((s,t)=>s+t.amount,0);
+    const inc = yearTxns.filter(t=>_isEarn(t) &&(t.date||'').startsWith(mo)).reduce((s,t)=>s+t.amount,0);
+    const exp = yearTxns.filter(t=>_isSpend(t)&&(t.date||'').startsWith(mo)).reduce((s,t)=>s+t.amount,0);
     const net = inc - exp;
     const rate = inc > 0 ? Math.round((net / inc) * 100) : 0;
     const [y,m] = mo.split('-').map(Number);
@@ -23826,8 +24008,35 @@ function _computeClaimConfidence() {
     ? Math.round((debits.filter(t => !isUncat(t.category)).length / debits.length) * 100)
     : 0;
 
-  const hasIncomeTxns = credits.some(t =>
-    /(income|salary|paycheck|direct.deposit|payroll|wages)/i.test(t.category || t.description || ''));
+  // Reads BOTH fields. `t.category || t.description` only ever tested the
+  // description when the category was falsy — so a paycheck filed under
+  // "Transfer" (exactly how the importer used to file them) stayed invisible
+  // here no matter what its description said.
+  const _looksLikeIncome = t =>
+    /(income|salary|paycheck|direct.deposit|payroll|wages)/i.test(
+      `${t.category || ''} ${t.description || ''}`);
+
+  // Scoped to the window the cash-flow claim gates, not to all of history.
+  // As a bare `.some()` over every credit ever imported, one deposit years ago
+  // satisfied this check permanently — which is how cash-flow conclusions came
+  // to run on months that had no income recorded in them at all. Coverage is
+  // the question, not existence.
+  //
+  // Counts only what the cash-flow engine will actually count: _isEarn, the
+  // same predicate. A gate that measures something the arithmetic doesn't see
+  // is not a gate. Recognising a paycheck by its DESCRIPTION while the engine
+  // skips it for its CATEGORY is precisely how a month of payroll filed under
+  // "Transfer" can read as both present and absent at once.
+  const cashWindow   = _lastNMonths(6).filter(mk => monthsSet.has(mk));
+  const incomeMonths = cashWindow.filter(mk =>
+    credits.some(t => (t.date || '').startsWith(mk) && _isEarn(t) && _looksLikeIncome(t)));
+  const missingIncomeMonths = cashWindow.length - incomeMonths.length;
+  const hasIncomeTxns   = incomeMonths.length > 0;
+
+  // Why they're missing, when we can tell: deposits that read as pay but are
+  // filed somewhere the engine won't count. That's a fixable filing problem,
+  // and naming it beats reporting an absence with no cause.
+  const misfiledIncome = credits.filter(t => !_isEarn(t) && _looksLikeIncome(t)).length;
   const hasBudgetIncome = (S.incomes || []).reduce((s, i) => s + i.amount, 0) > 0;
 
   // Debt data-quality verdicts — read from the profile the debt engine already
@@ -23864,9 +24073,19 @@ function _computeClaimConfidence() {
   // ── CLAIM: cash flow ──
   // Gated by: income identified + spending categorized + history.
   const cashChecks = [
+    // Partial coverage is 'warn', never 'fail': 'fail' would make the whole
+    // cash-flow claim 'insufficient', and the P0 branch that catches that says
+    // "Verify your account balances" — the wrong instruction for missing
+    // deposits. 'building' leaves the specific income-records P0 to speak.
     check('income', 'Income identified',
-      hasIncomeTxns ? 'pass' : hasBudgetIncome ? 'warn' : 'fail',
-      hasIncomeTxns ? 'from deposits' : hasBudgetIncome ? 'from budget only' : 'not identified'),
+      !hasIncomeTxns ? (hasBudgetIncome ? 'warn' : 'fail')
+        : missingIncomeMonths > 0 ? 'warn' : 'pass',
+      !hasIncomeTxns ? (hasBudgetIncome ? 'from budget only' : 'not identified')
+        : missingIncomeMonths > 0
+          ? (misfiledIncome
+              ? `no deposits counted in ${missingIncomeMonths} of the last ${cashWindow.length} months — ${misfiledIncome} look like pay but are filed as transfers`
+              : `no deposits in ${missingIncomeMonths} of the last ${cashWindow.length} months`)
+          : 'from deposits'),
     check('categorization', 'Spending categorized',
       catRate >= 80 ? 'pass' : catRate >= 50 ? 'warn' : 'fail',
       debits.length ? `${catRate}% categorized` : 'no spending yet'),
@@ -24056,13 +24275,28 @@ function _prevMonthKey(offset = 1) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// '2026-03' -> 'March'. Month keys are how the dashboard engines address time;
+// this is how they say it out loud.
+function _monthLabel(monthKey) {
+  const [y, m] = (monthKey || '').split('-').map(Number);
+  if (!y || !m) return monthKey || '';
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long' });
+}
+
 function _computeWhatChanged() {
-  const thisKey = _prevMonthKey(0);
-  const lastKey = _prevMonthKey(1);
+  // The two most recent COMPLETE months. This card stamps its rows "Confirmed",
+  // the highest claim tier, so it may only compare finished months against each
+  // other. Measuring a month-to-date against a full prior month reports every
+  // category that simply hasn't come around yet as a decrease — and because the
+  // list ranks by absolute delta, those not-yet-spent categories crowd out the
+  // real movements. A category that hasn't been spent in yet has not changed.
+  const thisKey = _prevMonthKey(1);
+  const lastKey = _prevMonthKey(2);
   const conf = _computeClaimConfidence();
 
   const confirmed = [];   // {label, delta, good}
   const evaluating = [];  // {label, reason}
+  let spendWindow = null; // set when a spending comparison actually ran
 
   // ── Spending by category: this month vs last (verified — transactions are
   // ground truth; spending confidence gates whether we characterize trends) ──
@@ -24079,6 +24313,7 @@ function _computeWhatChanged() {
     }).filter(m => m.prev > 0 && Math.abs(m.delta) >= 25)   // material change only
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
       .slice(0, 4);
+    if (moves.length) spendWindow = { cur: thisKey, prev: lastKey };
     moves.forEach(m => {
       const down = m.delta < 0;   // spending down is good
       confirmed.push({
@@ -24117,7 +24352,8 @@ function _computeWhatChanged() {
     }
   }
 
-  return { confirmed, evaluating, hasComparison: nw.length >= 2 || _monthHasData(lastKey) };
+  return { confirmed, evaluating, spendWindow,
+           hasComparison: nw.length >= 2 || _monthHasData(lastKey) };
 }
 
 function _monthHasData(monthKey) {
@@ -24163,18 +24399,60 @@ function _computeCurrentPriority() {
   const savings = parseFloat(S.netWorth?.savings) || 0;
   const hasDebt = (S.debtCards || []).some(c => !c.paidInFull && _cardBal(c) > 0);
 
-  // Monthly cash flow over the last 6 months: income months vs spend months
+  // Monthly cash flow over the last 6 months: income months vs spend months.
+  //
+  // A month only earns a cash-flow VERDICT if its income record is complete.
+  // "No income transactions recorded" is not the same fact as "income was
+  // zero", but subtracting spend from a blank month silently converts the
+  // first into the second — and manufactures a shortfall the size of the
+  // whole month's spending. That is exactly the failure this module's own
+  // rule forbids: if we can't calculate WHY, we don't recommend.
+  //
+  // The completeness test is the household income profile the user set up
+  // (S.incomes). Recorded income far below it means the ledger is missing
+  // deposits, not that the household stopped being paid. The floor is
+  // deliberately low — a genuinely bad income month is real signal and must
+  // still reach P1 — so it only fires when income is essentially absent.
+  const INCOMPLETE_INCOME_FLOOR = 0.35;
   const cashMonths = [];
+  const incompleteMonths = [];
   for (let i = 1; i <= 6; i++) {
     const mk = _prevMonthKey(i);
     const spent = (S.transactions || [])
       .filter(t => _isSpend(t) && (t.date || '').startsWith(mk))
       .reduce((s, t) => s + t.amount, 0);
     const earned = (S.transactions || [])
-      .filter(t => t.type === 'credit' && _catParentName(t.category) !== 'Transfer' && t.category !== 'Transfer' && (t.date || '').startsWith(mk))
+      .filter(t => _isEarn(t) && (t.date || '').startsWith(mk))
       .reduce((s, t) => s + t.amount, 0);
-    if (spent > 0 || earned > 0) cashMonths.push({ mk, net: earned - spent, earned, spent });
+    if (!(spent > 0 || earned > 0)) continue;
+    // Only usable as a check when the user actually has an income profile;
+    // without one we have nothing to measure completeness against and fall
+    // back to taking the ledger at face value.
+    if (income > 0 && earned < income * INCOMPLETE_INCOME_FLOOR) {
+      incompleteMonths.push({ mk, earned, spent });
+      continue;
+    }
+    cashMonths.push({ mk, net: earned - spent, earned, spent });
   }
+
+  // ── P0 (continued): INCOMPLETE INCOME RECORD — same tier as unverified
+  // balances, and for the same reason: a cash-flow read built on months with
+  // no deposits in them would be advice about an artefact of the import, not
+  // about the household. Name the months so the fix is obvious. ──
+  if (incompleteMonths.length && incompleteMonths.length > cashMonths.length) {
+    const names = incompleteMonths.map(m => _monthLabel(m.mk)).join(', ');
+    return {
+      tier: 0,
+      title: 'Check your income records',
+      why: [
+        `${incompleteMonths.length} of the last 6 months show little or no income — ${names} — against a household income of ${fmt(income)}/mo.`,
+        'Deposits are most likely missing or filed under Transfer. Groundwork won’t read cash flow until they’re in.',
+      ],
+      actionLabel: 'Review transactions →',
+      action: "showView('ledger')",
+    };
+  }
+
   const negativeMonths = cashMonths.filter(m => m.net < 0);
   const avgShortfall = negativeMonths.length
     ? Math.round(negativeMonths.reduce((s, m) => s + Math.abs(m.net), 0) / negativeMonths.length)
@@ -24317,7 +24595,7 @@ function _renderWhatChanged() {
     <div style="margin-bottom:24px">
       <div class="card-label" style="margin-bottom:12px">What changed since last month</div>
       ${wc.confirmed.length ? `
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine);margin-bottom:4px">Confirmed</div>
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine);margin-bottom:4px">Confirmed${wc.spendWindow ? ` · ${esc(_monthLabel(wc.spendWindow.cur))} vs ${esc(_monthLabel(wc.spendWindow.prev))}` : ''}</div>
         ${wc.confirmed.map(row).join('')}` : ''}
       ${wc.evaluating.length ? `
         <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin:${wc.confirmed.length ? '14px' : '0'} 0 4px">Still being evaluated</div>
@@ -25382,11 +25660,29 @@ async function boot() {
       }
     }
     setSaveDot('saved');
+    // Historian: app close. pagehide is the reliable "leaving" signal (fires
+    // where beforeunload can be skipped, and is bfcache-friendly); keepalive
+    // lets the POST outlive teardown, and _gwFetch still attaches the session
+    // token that navigator.sendBeacon can't send. Best-effort, one-shot.
+    let _sessionEndSent = false;
+    window.addEventListener('pagehide', () => {
+      if (_sessionEndSent) return;
+      _sessionEndSent = true;
+      try {
+        _gwFetch('/api/historian/engagement', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'session_end' }),
+          keepalive: true,
+        });
+      } catch (e) { /* never block unload on telemetry */ }
+    });
     _startHeartbeat(); // detect server restarts → auto-reload for fresh token
     _startAutoImportPolling(); // Downloads watcher bridge — offer detected bank files
     setTimeout(_checkForUpdates, 4000);             // update banner, off the boot path
     setInterval(_checkForUpdates, 6 * 3600 * 1000); // re-check twice a day
     if (typeof checkFirstRun === 'function') checkFirstRun().catch(_gwErr('boot'));
+    if (typeof checkTermsAcceptance === 'function') checkTermsAcceptance().catch(_gwErr('boot'));
   } catch(e) {
     console.error('Boot error:', e);
   } finally {

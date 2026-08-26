@@ -6,8 +6,8 @@ Built for people who want to get out of debt and start building wealth.
 **1.0** adds debt reconciliation (manual charge/payment tracking, recurring
 payment drafts, checking-account linking) and adaptive learning (category
 suggestions, budget variance, trip forecasting, recurring-transaction
-detection, payoff confidence, AI gate health) — see `changelog.json` for
-the full list.
+detection, payoff confidence, AI gate health) — see `Website/changelog.json`
+(the single source the site's changelog page publishes from) for the full list.
 
 ## Quick Start
 

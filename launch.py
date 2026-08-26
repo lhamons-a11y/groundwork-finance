@@ -196,6 +196,54 @@ def _start_downloads_watcher():
     return observer
 
 
+def _ensure_ollama_running():
+    """Start the local AI runtime (Ollama) if it's installed but not reachable.
+
+    Groundwork talks to Ollama at localhost:11434. Normally Ollama's own tray
+    app keeps that server up, but the Microsoft Store build ships Ollama as
+    copied files with no autostart configured (the installer can't run Ollama's
+    setup and still certify silently) — so the app is responsible for starting
+    it. Best-effort and non-blocking: if Ollama is already up, or isn't
+    installed, or fails to start, Groundwork just runs without local AI, exactly
+    as it does today.
+    """
+    try:
+        import socket
+        import subprocess
+
+        def _up() -> bool:
+            try:
+                with socket.create_connection(('127.0.0.1', 11434), timeout=0.6):
+                    return True
+            except OSError:
+                return False
+
+        if _up():
+            return  # already running — nothing to do
+
+        if sys.platform != 'win32':
+            return  # macOS/Linux Ollama manage their own service
+
+        # Ollama's fixed per-user install location on Windows (docs.ollama.com).
+        exe = Path(os.environ.get('LOCALAPPDATA', '')) / 'Programs' / 'Ollama' / 'ollama.exe'
+        if not exe.exists():
+            return  # not installed — run without local AI
+
+        CREATE_NO_WINDOW = 0x08000000
+        subprocess.Popen(
+            [str(exe), 'serve'],
+            creationflags=CREATE_NO_WINDOW,
+            close_fds=True,
+        )
+        # Give it a few seconds to bind the port; non-fatal if it doesn't.
+        for _ in range(20):
+            if _up():
+                break
+            time.sleep(0.5)
+    except Exception:
+        logging.exception('Ollama ensure-running failed (local AI may be unavailable)')
+
+
 def _start_server(base_dir: Path):
     try:
         # ── Path setup ────────────────────────────────────────────────────────
@@ -254,6 +302,14 @@ def main():
     import webview
 
     base_dir = _get_base_dir()
+
+    # Start the local AI runtime if it's installed but not yet running (Store
+    # build ships Ollama with no autostart). Daemon thread — never blocks boot.
+    threading.Thread(
+        target=_ensure_ollama_running,
+        daemon=True,
+        name='groundwork-ollama',
+    ).start()
 
     # Start Flask
     server_thread = threading.Thread(

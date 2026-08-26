@@ -13,7 +13,7 @@ import secrets
 import hashlib
 import sqlite3
 from html import escape as h
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from flask import (Flask, render_template_string, request, jsonify,
                    redirect, url_for, session, abort)
@@ -55,9 +55,62 @@ def init_db():
             sent_count  INTEGER,
             sent_at     TEXT DEFAULT CURRENT_TIMESTAMP
         )''')
+        # Aggregate analytics — no IPs, no cookies, no user agents, no PII.
+        # One counter row per (path, day) and per (platform, day).
+        db.execute('''CREATE TABLE IF NOT EXISTS page_views (
+            path   TEXT NOT NULL,
+            day    TEXT NOT NULL,
+            count  INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (path, day)
+        )''')
+        db.execute('''CREATE TABLE IF NOT EXISTS downloads (
+            platform TEXT NOT NULL,
+            day      TEXT NOT NULL,
+            count    INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (platform, day)
+        )''')
         db.commit()
 
 init_db()
+
+# ── Analytics (aggregate counters only) ─────────────────────────────────────────
+# Paths we never count as page views: static assets, the admin area, the
+# download-counter redirect, and any URL carrying a per-user token.
+_SKIP_VIEW_PREFIXES = ('/static', '/admin', '/dl', '/confirm', '/unsubscribe',
+                       '/favicon', '/robots', '/sitemap')
+_BOT_MARKERS = ('bot', 'crawl', 'spider', 'slurp', 'bingpreview', 'facebookexternalhit',
+                'headlesschrome', 'python-requests', 'curl', 'wget')
+
+def _today():
+    return datetime.utcnow().strftime('%Y-%m-%d')
+
+def _bump(table, key_col, key_val):
+    """Increment an aggregate counter. Never raises — analytics must not
+    break a page render or a download."""
+    try:
+        with get_db() as db:
+            db.execute(
+                f'INSERT INTO {table} ({key_col}, day, count) VALUES (?, ?, 1) '
+                f'ON CONFLICT({key_col}, day) DO UPDATE SET count = count + 1',
+                (key_val, _today()))
+            db.commit()
+    except Exception:
+        pass
+
+@app.after_request
+def _count_page_view(resp):
+    try:
+        p = request.path
+        if (request.method == 'GET'
+                and resp.status_code == 200
+                and (resp.content_type or '').startswith('text/html')
+                and not p.startswith(_SKIP_VIEW_PREFIXES)):
+            ua = (request.headers.get('User-Agent') or '').lower()
+            if not any(m in ua for m in _BOT_MARKERS):
+                _bump('page_views', 'path', p)
+    except Exception:
+        pass
+    return resp
 
 # ── SendGrid ──────────────────────────────────────────────────────────────────
 def send_email(to_email, to_name, subject, html_body):
@@ -314,8 +367,8 @@ BASE_TEMPLATE = """<!DOCTYPE html>
 <body>
 
 <div class="beta-bar">
-  🚧 Groundwork is currently in <strong>Beta</strong> — free to download and use.
-  <a href="/signup">Sign up for updates</a> as we work toward v1.0.
+  🎉 <strong>Groundwork 1.0 is here</strong> — free to download and use.
+  <a href="/download">Get the latest version</a>.
 </div>
 
 <nav class="site-nav">
@@ -342,6 +395,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
     <a href="/changelog">Changelog</a>
     <a href="/about">About</a>
     <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
   </div>
   <p>© 2026 Groundwork · Free personal finance software · Your data stays on your machine</p>
   <p style="margin-top:8px">Questions? <a href="mailto:hello@groundworkfinance.app">hello@groundworkfinance.app</a></p>
@@ -402,7 +456,7 @@ def home():
 
 HOME_CONTENT = """
 <section class="hero">
-  <div class="beta-badge">Beta — Free Download</div>
+  <div class="beta-badge">Version 1.0 — Free Download</div>
   <h1>Stop living <em>paycheck to paycheck.</em><br>Groundwork gives you a real plan.</h1>
   <p>A free personal finance app that shows exactly where your money goes and builds a step-by-step path out of debt — no subscription, no cloud, no nonsense.</p>
   <div class="hero-btns">
@@ -412,6 +466,27 @@ HOME_CONTENT = """
     <a href="/features" class="btn btn-ghost" style="color:#fff;border-color:rgba(255,255,255,.4)">
       See what it does →
     </a>
+  </div>
+</section>
+
+<section class="behavior-focus" style="background: var(--mist); padding: 80px 24px; text-align: center;">
+  <div class="container">
+    <div class="section-label">Why Groundwork is Different</div>
+    <h2 class="section-title" style="margin-bottom: 48px;">Groundwork learns from your actual behavior, not your perfect plan.</h2>
+
+    <div style="max-width: 720px; margin: 0 auto; text-align: left; line-height: 1.8; color: var(--slate); font-size: 16px;">
+      <p style="margin-bottom: 20px;">
+        Most finance apps assume you'll follow their budget perfectly. <strong>Groundwork assumes you won't—because people don't.</strong>
+      </p>
+
+      <p style="margin-bottom: 20px;">
+        Instead, it watches what you actually do (when you pay, how you adjust budgets, how quickly you recover from mistakes), learns the patterns, and adapts. It rewards progress, not perfection.
+      </p>
+
+      <p>
+        <strong>The goal isn't to optimize your money.</strong> It's to help you become the kind of person who naturally makes good financial decisions.
+      </p>
+    </div>
   </div>
 </section>
 
@@ -434,7 +509,7 @@ HOME_CONTENT = """
       <div class="feature-card">
         <div class="feature-icon">📈</div>
         <h3>Net worth tracker</h3>
-        <p>Watch your number go up every month. Connects to your accounts automatically.</p>
+        <p>Watch your number go up every month. Balances update automatically as your transactions import.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🎁</div>
@@ -444,7 +519,7 @@ HOME_CONTENT = """
       <div class="feature-card">
         <div class="feature-icon">✦</div>
         <h3>AI monthly report</h3>
-        <p>Plain-English summary of how your month went and one concrete thing to do differently.</p>
+        <p>Plain-English summary of how your month went and one concrete thing to do differently — runs privately on your own machine by default.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🔒</div>
@@ -587,7 +662,7 @@ HOME_CONTENT = """
 <section class="signup-section">
   <div class="container">
     <h2>Get notified when we update</h2>
-    <p>We're in beta. New features ship regularly. Drop your email and we'll let you know.</p>
+    <p>New features ship regularly. Drop your email and we'll let you know.</p>
     <div class="signup-form">
       <input type="text" id="signup-name" placeholder="Your name" style="max-width:160px">
       <input type="email" id="signup-email" placeholder="Your email address">
@@ -626,6 +701,24 @@ async function submitSignup() {
 </script>
 """
 
+# ── Download counter ──────────────────────────────────────────────────────────
+# The download buttons point here so each click is counted by platform, then
+# redirected to the real file (still served straight from /static in prod).
+_DL_MAP = {
+    'windows':         '/static/download/Groundwork_Setup.exe',
+    'windows-offline': '/static/download/Groundwork_Setup_Offline.exe',
+    'macos':           '/static/download/Groundwork-macos.zip',
+    'linux':           '/static/download/Groundwork-linux-x86_64.tar.gz',
+}
+
+@app.route('/dl/<platform>')
+def download_file(platform):
+    target = _DL_MAP.get(platform)
+    if not target:
+        abort(404)
+    _bump('downloads', 'platform', platform)
+    return redirect(target)
+
 # ── Download page ─────────────────────────────────────────────────────────────
 @app.route('/download')
 def download():
@@ -637,7 +730,7 @@ def download():
   <p style="color:rgba(255,255,255,.7);font-size:16px">
     Free. No account. No subscription. Your data stays on your machine.
   </p>
-  <div class="beta-badge" style="margin-top:20px">Beta v1.0 — June 2026</div>
+  <div class="beta-badge" style="margin-top:20px">Version 1.0 — Now available</div>
 </section>
 
 <div class="download-grid container">
@@ -645,20 +738,21 @@ def download():
     <div class="os-icon">🪟</div>
     <h3>Windows</h3>
     <p>Windows 10 or 11. Double-click the installer and you're done in 60 seconds.</p>
-    <a href="/static/download/Groundwork_Setup.exe" class="btn btn-primary" style="width:100%;text-align:center">
+    <a href="/dl/windows" class="btn btn-primary" style="width:100%;text-align:center">
       ⬇ Download for Windows
     </a>
     <div class="requirements">
       <strong>Requirements:</strong><br>
       Windows 10 or 11 (64-bit)<br>
       Microsoft Edge WebView2 (usually already installed)<br>
-      ~150MB disk space
+      ~150MB disk space<br>
+      4GB RAM (8GB+ for the optional local AI)
     </div>
     <div style="margin-top:12px;font-size:12px;color:var(--slate)">
       Local AI sets itself up automatically from Settings — but if you'd
       rather have it all bundled in from the start (or expect to be
       offline for that first setup), grab the
-      <a href="/static/download/Groundwork_Setup_Offline.exe">offline installer</a>
+      <a href="/dl/windows-offline">offline installer</a>
       instead (~3.3GB, includes Ollama and a local model — nothing to
       download later).
     </div>
@@ -668,13 +762,14 @@ def download():
     <div class="os-icon">🍎</div>
     <h3>macOS</h3>
     <p>Apple Silicon and Intel Macs. Unzip and drag Groundwork into Applications.</p>
-    <a href="/static/download/Groundwork-macos.zip" class="btn btn-primary" style="width:100%;text-align:center">
+    <a href="/dl/macos" class="btn btn-primary" style="width:100%;text-align:center">
       ⬇ Download for macOS
     </a>
     <div class="requirements">
       <strong>Requirements:</strong><br>
       macOS 12 Monterey or later<br>
-      ~150MB disk space
+      ~150MB disk space<br>
+      4GB RAM (8GB+ for the optional local AI)
     </div>
   </div>
 
@@ -682,13 +777,14 @@ def download():
     <div class="os-icon">🐧</div>
     <h3>Linux</h3>
     <p>Prebuilt x86_64 binary — no Python or system packages required. Extract and run.</p>
-    <a href="/static/download/Groundwork-linux-x86_64.tar.gz" class="btn btn-primary" style="width:100%;text-align:center">
+    <a href="/dl/linux" class="btn btn-primary" style="width:100%;text-align:center">
       ⬇ Download for Linux
     </a>
     <div class="requirements">
       <strong>Requirements:</strong><br>
       Ubuntu 22.04+, Debian 12+, Fedora 38+, or similar (x86_64)<br>
       ~150MB disk space<br>
+      4GB RAM (8GB+ for the optional local AI)<br>
       <a href="/knowledge-base#linux">Installing from source →</a>
     </div>
   </div>
@@ -735,6 +831,7 @@ def knowledge_base():
     <a href="#investments">Investments</a>
     <a href="#reports">Reports</a>
     <a href="#byb">Before You Buy</a>
+    <a href="#trip">Trip planner</a>
     <h3 style="margin-top:20px">Help</h3>
     <a href="#backup">Backups</a>
     <a href="#ai">AI features</a>
@@ -839,6 +936,10 @@ python3 launch.py</pre>
       <p><strong>Avalanche</strong> pays off the highest interest rate first — saves the most money mathematically.</p>
       <p>Both work. Pick the one you'll actually stick to.</p>
       <div class="kb-tip">💡 When a card is paid off, Groundwork adds the freed minimum to your next debt automatically — that's the snowball/avalanche effect.</div>
+      <h3>Logging charges &amp; payments</h3>
+      <p>You can record activity directly on a debt card — charges, payments, and interest — with a running total, so the balance reflects what you've actually done rather than just its starting figure. Link a payment to the matching transaction in your checking account (from either the debt ledger or the main Ledger) and Groundwork keeps both records in sync, with no double-entry. Unlinking later leaves both records intact.</p>
+      <h3>Recurring payments</h3>
+      <p>For a payment you make every month, save the pattern once. Each month Groundwork prepares a draft you can confirm, edit, or skip — no re-entering the same payment over and over. Because these payments move the account balance, your payoff projection reflects what you've really paid.</p>
     </div>
 
     <div class="kb-article" id="ledger">
@@ -872,21 +973,43 @@ python3 launch.py</pre>
       <p>For Christmas, vacations, or any recurring occasion, create a Seasonal Fund with a target amount and a funded-by date. Groundwork tells you how much to save each month to hit it.</p>
     </div>
 
+    <div class="kb-article" id="investments">
+      <h2>Investments</h2>
+      <p>The Investments page tracks your holdings — stocks, ETFs, and other positions — with their cost basis and current value, and prices update automatically. Your total rolls into your Net Worth.</p>
+      <h3>Adding holdings</h3>
+      <p>Add each position with its symbol, number of shares, and what you paid. Groundwork shows your gain or loss and keeps the value current.</p>
+      <div class="kb-tip">💡 While you're carrying high-interest debt, paying down a card is a guaranteed return at that card's APR — often more than the market averages. Groundwork points this out on the Debt Payoff page so you can decide where an extra dollar does the most work.</div>
+    </div>
+
     <div class="kb-article" id="reports">
       <h2>Reports</h2>
-      <p>The Report Center has nine built-in reports and one AI-assisted monthly summary.</p>
+      <p>The Report Center has ten built-in reports, several of which can include an AI-written narrative.</p>
       <ul>
-        <li><strong>Monthly Report</strong> — plain-English summary of the month</li>
-        <li><strong>Budget vs Actual</strong> — what you planned vs what happened</li>
-        <li><strong>Category Deep Dive</strong> — spending breakdown by category</li>
-        <li><strong>Annual Summary</strong> — full year at a glance</li>
-        <li><strong>Debt Progress</strong> — how your balances are trending</li>
-        <li><strong>Debt Payoff Analysis</strong> — snowball vs avalanche comparison</li>
-        <li><strong>Net Worth Timeline</strong> — your number over time</li>
-        <li><strong>Income & Savings</strong> — what's coming in and what's staying</li>
-        <li><strong>Import Audit</strong> — what got categorized vs what landed in Other</li>
+        <li><strong>Distance Traveled</strong> — the ground you've covered: principal paid down, debts retired, cash flow freed, and how much closer your debt-free date has moved</li>
+        <li><strong>Monthly Spending Summary</strong> — income, expenses, budget vs. actual, and how the month stacks up</li>
+        <li><strong>Category Deep-Dive</strong> — the trend for any category over any date range, plus top merchants</li>
+        <li><strong>Spending vs. Budget</strong> — how a month's spending compared to your budgeted amounts</li>
+        <li><strong>Annual Summary</strong> — a full year of income, expenses, and top categories, month by month</li>
+        <li><strong>Debt Payoff Analysis</strong> — balances, APRs, payoff sequence, interest cost, and freed minimums</li>
+        <li><strong>Debt Progress</strong> — balance history per card, interest paid to date, payoff trajectory</li>
+        <li><strong>Income &amp; Savings Rate</strong> — income, expenses, and your savings rate against a 15–20% target</li>
+        <li><strong>Net Worth Timeline</strong> — your net worth over time, assets vs. liabilities, payoff milestones</li>
+        <li><strong>Import Audit</strong> — transaction counts, categorization rate, duplicates, and what landed in Other</li>
       </ul>
-      <p>All reports have a Print button. The Monthly Report can be generated with AI if you've entered an Anthropic API key in Settings.</p>
+      <p>Every report has a Print button. The narrative reports (such as the Monthly Spending Summary and Distance Traveled) are written by AI — locally on your machine by default, or by Anthropic's Claude if you've switched to cloud mode. See <a href="#ai">AI features</a>.</p>
+    </div>
+
+    <div class="kb-article" id="byb">
+      <h2>Before You Buy</h2>
+      <p>Thinking about a big purchase? Enter its name and cost on the Before You Buy page, and Groundwork shows exactly what it does to your monthly budget and your debt-free date.</p>
+      <p>It isn't there to talk you out of anything — it's there to make sure you know the real cost, in dollars and in time, before you decide.</p>
+    </div>
+
+    <div class="kb-article" id="trip">
+      <h2>Trip Planner</h2>
+      <p>The Trip Planner helps you plan a trip that actually fits your finances. Enter your destination, dates, and whether you're flying or driving.</p>
+      <p>Groundwork estimates the cost from real inputs — your monthly surplus, your vehicle's MPG and current gas prices if you're driving, your actual dining history for meals, plus hotel and activity estimates — and shows what the trip costs in debt-free days, so you can decide with your eyes open.</p>
+      <div class="kb-tip">💡 For a trip that's months out, pair this with a Seasonal Fund (see <a href="#gifts">Gift budget</a>) so the money is set aside by the time you go.</div>
     </div>
 
     <div class="kb-article" id="backup">
@@ -903,13 +1026,13 @@ python3 launch.py</pre>
 
     <div class="kb-article" id="ai">
       <h2>AI features</h2>
-      <p>Groundwork's AI report feature uses Anthropic's Claude API to write your monthly summary. It's completely optional.</p>
-      <h3>Setting up AI</h3>
-      <p>1. Go to <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> and create an account.</p>
-      <p>2. Create an API key under API Keys.</p>
-      <p>3. In Groundwork, go to <strong>Settings → AI → Enter API key</strong>.</p>
-      <h3>What gets sent to Anthropic</h3>
-      <p>When you generate an AI report, Groundwork sends your income total, spending total, top categories, and debt summary — no account numbers, no transaction descriptions, no names. The AI sees numbers and categories only.</p>
+      <p>Groundwork can write a plain-English monthly report and other narrative insights. AI is completely optional, and it runs one of two ways — <strong>local by default</strong>.</p>
+      <h3>Local AI — the default (free, fully private)</h3>
+      <p>Out of the box, Groundwork runs AI <strong>on your own machine</strong> using <a href="https://ollama.com" target="_blank">Ollama</a>. Nothing ever leaves your computer, there's no API key, and there's no cost. In <strong>Settings → AI</strong>, click <strong>Set up Local AI</strong> and Groundwork installs Ollama and a small language model for you (a few GB of disk space). Every other feature of Groundwork works fully whether or not you set this up.</p>
+      <h3>Cloud AI — optional (Anthropic)</h3>
+      <p>If you'd rather use Anthropic's Claude API — for example on a machine that can't comfortably run a local model — switch to cloud mode in <strong>Settings → AI</strong> and paste your own Anthropic API key from <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.</p>
+      <h3>What gets sent — and when</h3>
+      <p>In <strong>local mode, nothing is sent anywhere</strong>. In cloud mode, only when you explicitly generate an AI report, Groundwork sends aggregated numbers — income total, spending total, top categories, and a debt summary. No account numbers, no transaction descriptions, no names.</p>
     </div>
 
     <div class="kb-article" id="privacy">
@@ -927,7 +1050,7 @@ python3 launch.py</pre>
 
     <div class="kb-article" id="report-bug">
       <h2>Reporting a bug</h2>
-      <p>Groundwork is in beta. Things will break. When they do:</p>
+      <p>Groundwork is actively maintained. If something breaks:</p>
       <p>1. In the app, click <strong>⚑ Report</strong> in the top bar.</p>
       <p>2. Describe what you were doing when it broke.</p>
       <p>3. Click <strong>Open in mail app</strong> — the report goes to support@groundworkfinance.app with your error log attached.</p>
@@ -971,11 +1094,11 @@ def about():
     Groundwork will always be free to download and use. Your data stays on your machine. 
     No account, no subscription, no ads.
   </p>
-  <h2 style="font-size:28px;font-weight:800;margin:40px 0 20px">Beta & feedback</h2>
+  <h2 style="font-size:28px;font-weight:800;margin:40px 0 20px">Feedback</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
-    Groundwork is in active beta. It works — people are using it — but we're still finding 
-    and fixing issues. If something breaks, the ⚑ Report button in the app sends us the 
-    error log directly. We read every one.
+    Groundwork 1.0 is here and people are using it every day. It's actively maintained, and
+    if something breaks, the ⚑ Report button in the app sends us the error log directly.
+    We read every one.
   </p>
   <a href="/download" class="btn btn-primary">Download Groundwork free →</a>
 </div>
@@ -993,7 +1116,7 @@ def privacy():
     content = """
 <div class="container" style="max-width:700px;padding:60px 24px">
   <h1 style="font-size:36px;font-weight:800;margin-bottom:8px">Privacy Policy</h1>
-  <p style="color:var(--slate);margin-bottom:40px">Last updated: June 2026</p>
+  <p style="color:var(--slate);margin-bottom:40px">Last updated: July 2026</p>
   <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">Your data stays on your machine</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:20px">
     Groundwork is a desktop application. Your financial data — transactions, balances, 
@@ -1008,11 +1131,13 @@ def privacy():
   </p>
   <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">AI features</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:20px">
-    If you use the optional AI monthly report feature, Groundwork sends aggregated financial 
-    data (income totals, spending totals, category summaries) to Anthropic's API to generate 
-    your report. No account numbers, transaction descriptions, or personally identifying 
-    information is included. This feature requires you to provide your own Anthropic API key 
-    and is opt-in only.
+    Groundwork's AI features are optional and run <strong>locally by default</strong>: the app
+    uses a language model on your own machine (via Ollama), so nothing leaves your computer and
+    no API key is needed. If you choose to switch to cloud mode, Groundwork sends aggregated
+    financial data (income totals, spending totals, category summaries) to Anthropic's API only
+    when you explicitly generate a report — no account numbers, transaction descriptions, or
+    personally identifying information is ever included. Cloud mode requires your own Anthropic
+    API key and is entirely opt-in.
   </p>
   <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">Contact</h2>
   <p style="color:var(--slate);line-height:1.9">
@@ -1025,6 +1150,132 @@ def privacy():
         title='Privacy Policy',
         description='Groundwork stores your financial data locally on your machine. No account, no cloud, no telemetry. Read our full privacy policy.',
         canonical=SITE_URL + '/privacy'
+    )
+
+# ── Terms of Use / EULA ───────────────────────────────────────────────────────
+# Mirrors EULA.txt (the text shown in the installer and in-app). Keep the two
+# in sync when either changes.
+@app.route('/terms')
+def terms():
+    content = """
+<div class="container" style="max-width:760px;padding:60px 24px">
+  <h1 style="font-size:36px;font-weight:800;margin-bottom:4px">Terms of Use &amp; License</h1>
+  <p style="color:var(--slate);margin-bottom:8px">End User License Agreement · Version 1.0 · Effective July 30, 2026</p>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:32px">
+    By installing, accessing, or using Groundwork (the "Software"), you agree to this
+    End User License Agreement and Terms of Use (the "Agreement"). If you do not agree,
+    do not install or use the Software.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">1. License grant</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    Groundwork is free software provided at no charge. Subject to your compliance with this
+    Agreement, you are granted a personal, non-exclusive, non-transferable, revocable license
+    to install and use the Software for your own personal or internal purposes. You may not
+    sell, rent, lease, sublicense, or charge a fee for the Software; redistribute a modified
+    version; remove or alter any proprietary notices; or represent a modified copy as the
+    official Software. All rights not expressly granted are reserved by the publisher.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">2. Ownership</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    The Software is licensed, not sold. The publisher retains all right, title, and interest
+    in the Software, including all intellectual property rights. The data you enter or import
+    remains yours.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">3. Your responsibility — verify all figures</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:16px">
+    Groundwork is a personal budgeting and planning aid. It performs calculations and organizes
+    information you enter or import, but it is <strong>not a system of record</strong> and is not
+    a substitute for your bank, lender, or financial institution.
+  </p>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:16px;font-weight:600">
+    You are solely responsible for verifying the accuracy of all balances, transactions,
+    categorizations, interest figures, payoff projections, and any other outputs of the Software
+    against the official statements and records provided by your bank, lender, or other financial
+    institution before relying on them or making any financial decision.
+  </p>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    Imported data may be incomplete, delayed, duplicated, mis-categorized, or otherwise
+    inaccurate. Calculations and projections are estimates. Always confirm your true available
+    funds directly with your financial institution before spending, transferring, or committing
+    money.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">4. Not professional advice</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    The Software and its outputs — including any AI-generated reports, summaries, or suggestions —
+    are provided for informational purposes only and do not constitute financial, investment, tax,
+    accounting, or legal advice, and are not a recommendation to take or refrain from any action.
+    Consult a qualified professional before making financial decisions.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">5. Disclaimer of warranties</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTY OF ANY KIND, WHETHER
+    EXPRESS, IMPLIED, OR STATUTORY, INCLUDING THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS
+    FOR A PARTICULAR PURPOSE, ACCURACY, AND NON-INFRINGEMENT. The publisher does not warrant that
+    the Software will be error-free, uninterrupted, or accurate. You use the Software at your own
+    risk.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">6. Limitation of liability</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE PUBLISHER WILL NOT BE LIABLE FOR ANY INDIRECT,
+    INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF MONEY, FUNDS,
+    PROFITS, DATA, OR GOODWILL, ARISING OUT OF OR RELATED TO YOUR USE OF, OR INABILITY TO USE, THE
+    SOFTWARE — INCLUDING ANY FINANCIAL DECISION MADE IN RELIANCE ON IT. Because the Software is
+    provided free of charge, the publisher's total aggregate liability shall not exceed US $0.
+    Some jurisdictions do not allow certain limitations, so some of the above may not apply to you.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">7. AI features</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    The Software's AI features are optional and run locally on your own machine by default, so no
+    financial data leaves your computer. If you enable cloud mode, aggregated figures are sent to a
+    third-party AI provider only when you explicitly request an AI report, subject to that
+    provider's terms. AI outputs may be inaccurate and are subject to Sections 3 and 4.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">8. Privacy</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    Your financial data is stored locally on your device. The publisher does not collect or
+    receive it. See the <a href="/privacy">Privacy Policy</a> for details.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">9. Termination</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    This license is effective until terminated and terminates automatically if you breach it. You
+    may terminate it at any time by uninstalling and deleting the Software. Sections 3 through 6
+    and 10 survive termination.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">10. Governing law</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    This Agreement is governed by the laws of the State of Ohio, USA, without regard to its
+    conflict-of-laws rules, except where your local law requires otherwise.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">11. Changes to this Agreement</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    The publisher may update this Agreement for future versions of the Software. Continued use of
+    an updated version after the changes take effect constitutes acceptance of the revised
+    Agreement.
+  </p>
+
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">12. Contact</h2>
+  <p style="color:var(--slate);line-height:1.9">
+    Questions about this Agreement? Email
+    <a href="mailto:support@groundworkfinance.app">support@groundworkfinance.app</a>
+  </p>
+</div>
+"""
+    return render_template_string(
+        BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
+        title='Terms of Use',
+        description='Groundwork Terms of Use and End User License Agreement. Groundwork is a free planning aid; you are responsible for verifying all figures against your bank.',
+        canonical=SITE_URL + '/terms'
     )
 
 # ── Features page ─────────────────────────────────────────────────────────────
@@ -1053,11 +1304,11 @@ def features():
       <div class="feature-card"><div class="feature-icon">🏦</div><h3>Investments</h3>
         <p>Track your portfolio holdings, cost basis, and performance. Import investment account transactions.</p></div>
       <div class="feature-card"><div class="feature-icon">📋</div><h3>Reports</h3>
-        <p>Nine built-in reports plus an AI monthly summary. Print any report with one click.</p></div>
+        <p>Ten built-in reports, several with AI-written narratives. Print any report with one click.</p></div>
       <div class="feature-card"><div class="feature-icon">🛒</div><h3>Before You Buy</h3>
         <p>Evaluate a big purchase before committing. See exactly what it does to your budget and debt-free date.</p></div>
       <div class="feature-card"><div class="feature-icon">✦</div><h3>AI Analysis</h3>
-        <p>Optional AI monthly report powered by Claude. Plain English. One concrete suggestion per month.</p></div>
+        <p>Optional AI monthly report — runs locally on your machine by default (no key, nothing sent out), or via Claude if you prefer cloud. Plain English, one concrete suggestion per month.</p></div>
       <div class="feature-card"><div class="feature-icon">🔒</div><h3>Private by design</h3>
         <p>Runs on your machine. No account. No cloud. No subscription. Your data is yours.</p></div>
       <div class="feature-card"><div class="feature-icon">💾</div><h3>Import from Quicken</h3>
@@ -1080,14 +1331,14 @@ def features():
 
 
 # ── Signup page ───────────────────────────────────────────────────────────────
-# The beta bar links here from every page; the route never existed (404).
+# Email-updates signup, linked from the footer and the signup form.
 @app.route('/signup')
 def signup():
     content = """
 <section class="signup-section" style="min-height:60vh;display:flex;align-items:center">
   <div class="container">
     <h2>Get Groundwork updates</h2>
-    <p>We're in beta. New features ship regularly. Drop your email and we'll let you know when something worth knowing ships.</p>
+    <p>New features ship regularly. Drop your email and we'll let you know when something worth knowing ships.</p>
     <div class="signup-form">
       <input type="text" id="signup-name" placeholder="Your name" style="max-width:160px">
       <input type="email" id="signup-email" placeholder="Your email address">
@@ -1212,7 +1463,7 @@ def changelog():
   <div class="section-label">What's changed</div>
   <h1 style="font-size:32px;font-weight:800;margin-bottom:8px">Changelog</h1>
   <p style="color:var(--slate);margin-bottom:36px">
-    Groundwork is in active beta. Everything shipped, honest and dated.
+    Every release, shipped honest and dated.
     <a href="/download">Download</a> the latest to get all of the below.
   </p>
   {cards}
@@ -1240,6 +1491,7 @@ _SITEMAP_PAGES = [
     ('/about',          'monthly', '0.6'),
     ('/changelog',      'weekly',  '0.5'),
     ('/privacy',        'yearly',  '0.3'),
+    ('/terms',          'yearly',  '0.3'),
 ]
 
 @app.route('/sitemap.xml')
@@ -1383,6 +1635,27 @@ def admin():
             'SELECT subject, sent_count, sent_at FROM emails_sent ORDER BY id DESC LIMIT 10'
         ).fetchall()
 
+        # ── Analytics ──────────────────────────────────────────────────────────
+        week_ago = (datetime.utcnow() - timedelta(days=7)).strftime('%Y-%m-%d')
+        views_total = db.execute('SELECT COALESCE(SUM(count),0) FROM page_views').fetchone()[0]
+        views_week  = db.execute(
+            'SELECT COALESCE(SUM(count),0) FROM page_views WHERE day >= ?', (week_ago,)
+        ).fetchone()[0]
+        dl_total    = db.execute('SELECT COALESCE(SUM(count),0) FROM downloads').fetchone()[0]
+        dl_by_os    = db.execute(
+            'SELECT platform, COALESCE(SUM(count),0) AS total, '
+            '       COALESCE(SUM(CASE WHEN day >= ? THEN count ELSE 0 END),0) AS wk '
+            'FROM downloads GROUP BY platform ORDER BY total DESC', (week_ago,)
+        ).fetchall()
+        top_pages   = db.execute(
+            'SELECT path, SUM(count) AS total FROM page_views '
+            'GROUP BY path ORDER BY total DESC LIMIT 12'
+        ).fetchall()
+        daily       = db.execute(
+            'SELECT day, SUM(count) AS total FROM page_views '
+            'WHERE day >= ? GROUP BY day ORDER BY day DESC', (week_ago,)
+        ).fetchall()
+
     rows = ''.join(
         f"<tr><td style='padding:8px 12px'>{h(r['email'])}</td>"
         f"<td>{h(r['name'] or '')}</td>"
@@ -1396,6 +1669,26 @@ def admin():
         f"<td style='color:#999;font-size:12px'>{p['sent_at'][:10]}</td></tr>"
         for p in past
     ) or "<tr><td colspan='3' style='padding:12px;color:#999'>No emails sent yet</td></tr>"
+
+    _OS_LABEL = {'windows': '🪟 Windows', 'windows-offline': '🪟 Windows (offline)',
+                 'macos': '🍎 macOS', 'linux': '🐧 Linux'}
+    dl_rows = ''.join(
+        f"<tr><td style='padding:8px 12px'>{_OS_LABEL.get(d['platform'], h(d['platform']))}</td>"
+        f"<td>{d['total']}</td>"
+        f"<td style='color:#666'>{d['wk']}</td></tr>"
+        for d in dl_by_os
+    ) or "<tr><td colspan='3' style='padding:12px;color:#999'>No downloads counted yet</td></tr>"
+
+    page_rows = ''.join(
+        f"<tr><td style='padding:8px 12px'>{h(p['path'])}</td><td>{p['total']}</td></tr>"
+        for p in top_pages
+    ) or "<tr><td colspan='2' style='padding:12px;color:#999'>No page views counted yet</td></tr>"
+
+    daily_rows = ''.join(
+        f"<tr><td style='padding:8px 12px;color:#999;font-size:12px'>{d['day']}</td>"
+        f"<td>{d['total']}</td></tr>"
+        for d in daily
+    ) or "<tr><td colspan='2' style='padding:12px;color:#999'>No views in the last 7 days</td></tr>"
 
     return f"""
 <!DOCTYPE html><html><head>
@@ -1431,6 +1724,44 @@ tr:hover {{background:#f9f9f7}}
   <div class="stat"><div class="n">{total}</div><div class="l">Total signups</div></div>
   <div class="stat"><div class="n">{confirmed}</div><div class="l">Confirmed</div></div>
   <div class="stat"><div class="n">{total - confirmed}</div><div class="l">Unconfirmed</div></div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="n">{views_week}</div><div class="l">Page views (7 days)</div></div>
+  <div class="stat"><div class="n">{views_total}</div><div class="l">Page views (all time)</div></div>
+  <div class="stat"><div class="n">{dl_total}</div><div class="l">Downloads (all time)</div></div>
+</div>
+
+<div class="card">
+  <h2>Downloads by operating system</h2>
+  <table>
+    <tr><th>Platform</th><th>All time</th><th>Last 7 days</th></tr>
+    {dl_rows}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Traffic</h2>
+  <div style="display:flex;gap:24px;flex-wrap:wrap">
+    <div style="flex:2;min-width:280px">
+      <h3 style="font-size:13px;color:#666;text-transform:uppercase;margin-bottom:10px">Top pages (all time)</h3>
+      <table>
+        <tr><th>Page</th><th>Views</th></tr>
+        {page_rows}
+      </table>
+    </div>
+    <div style="flex:1;min-width:200px">
+      <h3 style="font-size:13px;color:#666;text-transform:uppercase;margin-bottom:10px">Views per day (last 7)</h3>
+      <table>
+        <tr><th>Day</th><th>Views</th></tr>
+        {daily_rows}
+      </table>
+    </div>
+  </div>
+  <p style="margin-top:16px;font-size:12px;color:#999">
+    Aggregate counts only — no IP addresses, cookies, user agents, or personal data are stored.
+    Known bots and static assets are excluded.
+  </p>
 </div>
 
 <div class="card">
