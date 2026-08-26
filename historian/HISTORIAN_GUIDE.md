@@ -39,21 +39,59 @@ changes, this table would need a migration; don't invent a column pointing at no
 
 ## Event categories
 
-| Category | Written by | Status |
-|---|---|---|
-| `payment_confirmed` | `confirm_debt_draft` (within ±5% of the recurring pattern's amount) | **Live** |
-| `payment_amount_variance` | `confirm_debt_draft` (outside ±5%) | **Live** |
-| `payment_skipped` | `skip_debt_draft` | **Live** |
-| `charge_observation` | `create_debt_ledger_entry` (charge entries only) | **Live** |
-| `payment_timing_slippage` | — | Not written. Needs a due-date-vs-confirmed-date offset computation that doesn't exist yet. |
-| `balance_correction` | — | Not written. Candidate: a direct edit to `DebtAccount.current_balance` via `update_debt`. |
-| `apr_correction` | — | Not written. Candidate: `interest_rate` edits via `update_debt`. |
-| `interest_discrepancy` | — | Not written. |
-| `late_fee_trigger` | — | Not written. |
-| `categorization_suggestion_confirm` / `_reject` | — | 1.1-scaffold. Phase H2 Feature 1 wires this. |
-| `budget_variance_observed` | — | 1.1-scaffold. Phase H2 Feature 2 wires this. |
-| `trip_expense_variance` | — | 1.1-scaffold. Phase H2 Feature 3 wires this (see `trip_history` below). |
-| `llm_gate_flag` | — | **Doesn't need wiring** — `voice_miss_log.jsonl` (the `ai_voice_miss` route) already is this log. `get_llm_miss_log()` reads that file, not this table. Don't build a parallel writer. |
+The canonical list lives in `HistorianEntry`'s docstring in `core/database.py` — keep this table
+in sync with it (this is the artifact that drifts; the docstring has stayed current).
+
+### Live — written today
+
+Anchored by function name (the stable reference — line numbers drift on every edit, which is how
+this table fell out of sync before).
+
+**Domain events** — logged inline by the route where the thing actually happens:
+
+| Category | Written by |
+|---|---|
+| `payment_confirmed` / `payment_amount_variance` | `confirm_debt_draft`, split on ±5% of the recurring pattern's amount |
+| `payment_skipped` | `skip_debt_draft` |
+| `charge_observation` | `create_debt_ledger_entry`, charge entries only |
+| `recurring_pattern_confirm` / `_reject` | `budget_detect_recurring_feedback` — a detected merchant added to / dismissed from the budget |
+| `categorization_suggestion_confirm` / `_reject` | `suggest_category_feedback` — suggestion kept / changed at ledger save |
+| `net_worth_milestone_variance` | `_log_net_worth_milestone_variance` — snapshot save vs. a milestone's linear pace |
+| `investment_allocation_drift` | price refresh, actual $ vs. target % of portfolio |
+| `sinking_fund_contribution_variance` | deposit/auto-credit vs. the fund's `monthly_contribution` |
+| `college_fund_contribution_variance` | `_log_college_fund_contribution_variance` vs. `monthlyContrib` |
+| `gift_season_contribution_variance` | `_log_gift_season_contribution_variance` vs. a deadline-derived pace |
+| `gift_occasion_variance` | `_log_gift_occasion_variance` — actual spend vs. budget, after the date passes |
+| `byb_purchase_decision` | Before You Buy commit/walkaway (expected/actual only on a resolved `track` item) |
+| `budget_adjusted` | `update_budget_item` — user changes a budget item's amount (expected=old, actual=new). Distinct from the unwritten automatic `budget_variance_observed` |
+
+**Engagement / session events** — app lifecycle and page navigation:
+
+| Category | Written by |
+|---|---|
+| `session_start` | `bootstrap` — server-side, the one request guaranteed to fire on every app open |
+| `session_end` | client keepalive POST on `pagehide` (`boot` in `app.js`) → `log_engagement_event`. Best-effort; can be missed on a hard kill |
+| `budget_reviewed` | client signal on `showView('budget')` in `app.js` → `log_engagement_event` |
+
+The two client-signaled events (`session_end`, `budget_reviewed`) share one whitelisted route,
+`POST /api/historian/engagement` (`log_engagement_event`), which rejects any category outside
+`_CLIENT_ENGAGEMENT_EVENTS` — so the client can't inject arbitrary categories. `session_start` and
+`budget_adjusted` are logged server-side instead, at the request that actually marks the event, so
+they don't depend on a client call firing. Engagement events are purely categorical (no
+expected/actual) except `budget_adjusted`, which carries a real old→new variance.
+
+### Not written yet
+
+| Category | Status |
+|---|---|
+| `payment_timing_slippage` | Not written. Needs a due-date-vs-confirmed-date offset computation that doesn't exist yet. |
+| `balance_correction` | Not written. Candidate: a direct edit to `DebtAccount.current_balance` via `update_debt`. |
+| `apr_correction` | Not written. Candidate: `interest_rate` edits via `update_debt`. |
+| `interest_discrepancy` | Not written. |
+| `late_fee_trigger` | Not written. |
+| `budget_variance_observed` | 1.1-scaffold. `suggest_budget_adjustment` has no UI consumer yet — see `get_budget_variance_by_category`. |
+| `trip_expense_variance` | 1.1-scaffold. `trip_history` covers this instead (see below). |
+| `llm_gate_flag` | **Doesn't need wiring** — `voice_miss_log.jsonl` (the `ai_voice_miss` route) already is this log. `get_llm_miss_log()` reads that file, not this table. Don't build a parallel writer. |
 
 ## Query helpers (`server.py`)
 
@@ -71,14 +109,46 @@ changes, this table would need a migration; don't invent a column pointing at no
 - `get_late_payment_pattern(session, debt_account_id)` — returns an honest empty result today;
   nothing writes `payment_timing_slippage` yet.
 
+### Confidence reads for the non-debt variance events
+
+All five mirror `get_payment_compliance_confidence`'s shape and honesty rule — a 0-100
+`confidence_pct` (or `None`, never a fabricated number, when there's no history yet), penalising only
+running *behind* pace, never being ahead. Each is exposed through a thin `ok(...)` route so `app.js`
+can read it the same way the debt confidence UI does:
+
+- `get_net_worth_milestone_confidence(session, milestone_id)` — reads `net_worth_milestone_variance`.
+- `get_investment_allocation_confidence(session, asset_class)` — reads `investment_allocation_drift`.
+- `get_sinking_fund_confidence(session, fund_id)` — reads `sinking_fund_contribution_variance`.
+- `get_college_fund_confidence(session, fund_id)` — reads `college_fund_contribution_variance`.
+- `get_gift_season_confidence(session, season_id)` — reads `gift_season_contribution_variance`.
+
+Two live write categories have **no dedicated read helper yet**: `gift_occasion_variance` and
+`byb_purchase_decision`. They're written and queryable, but nothing aggregates them into a
+confidence score — add one following the pattern above when a feature needs it.
+
+### Engagement read
+
+- `get_engagement_streak(session)` — the first *engagement* reader (the confidence reads above all
+  score variance events; this is a habit signal). Consecutive-day check-in streak from
+  `session_start` (distinct calendar days, so multiple launches/refreshes in one day count once; the
+  streak survives a day not-yet-opened until a full day lapses), plus this month's `budget_reviewed`
+  count. Returns an honest zero shape when there's no history. Exposed at `GET /api/historian/streak`
+  and consumed by `_renderCheckInStreak` in `app.js`, which self-gates the dashboard pill on
+  `streak_days >= 2` — the same "show nothing until there's a real signal" rule the confidence cards
+  use. This is the tracer-bullet consumer for the engagement events: `session_end` and
+  `budget_adjusted` are collected but not yet read by anything.
+
 ### 1.1-scaffold reads
 
 `get_category_patterns`, `get_budget_variance_by_category`, `get_trip_variance_by_region`,
-`get_llm_miss_log` — real, working query functions, but three of them (all but
-`get_category_patterns`, which reads existing ledger data as a reasonable stand-in today) read
-event categories nothing writes yet. They return honest empty/neutral shapes until Phase H2 builds
-the feature that starts writing to them. **Do not fill in fake data to make these "work" —
-returning an honest `None`/empty result is the correct behavior for an unwired query.**
+`get_llm_miss_log` — real, working query functions. Two of them (`get_budget_variance_by_category`,
+`get_trip_variance_by_region`) read event categories nothing writes yet and return honest
+empty/neutral shapes until Phase H2 builds the feature that starts writing to them.
+`get_category_patterns` reads the ledger/transaction history directly — a deliberate choice, not a
+stopgap: `categorization_suggestion_confirm/reject` events *are* written now, but the ledger holds
+the full categorization record while the confirm/reject log only captures the sparse shown-suggestion
+cases. **Do not fill in fake data to make the unwired ones "work" — returning an honest `None`/empty
+result is the correct behavior for an unwired query.**
 
 ## `trip_history` — the other Phase H1 table
 
