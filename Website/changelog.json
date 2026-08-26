@@ -1,5 +1,16 @@
 [
   {
+    "version": "20260730-d23",
+    "date": "2026-07-30",
+    "headline": "Check-in streak, and groundwork for habit-aware insights",
+    "added": [
+      "Dashboard check-in streak — how many days running you've opened Groundwork, shown once you're two days in"
+    ],
+    "improved": [
+      "The Historian now records app opens, budget reviews, and deliberate budget edits — all kept in your own local database, never sent anywhere — so future habit-aware features have real history to learn from instead of guessing"
+    ]
+  },
+  {
     "version": "20260725-d21",
     "date": "2026-07-25",
     "headline": "Groundwork is now on macOS and Linux, plus a serious import fix",
@@ -11,6 +22,26 @@
       "Importing the same account once via CSV and again via QFX/OFX no longer creates duplicate transactions. Banks format the same transaction differently between file formats (a generic \"Withdrawal\" prefix in CSV, and QFX/OFX truncating long transaction descriptions) — the duplicate checker now recognizes these as the same transaction instead of silently doubling your spending totals.",
       "A transaction added manually and then immediately edited or linked to a debt in the same session now behaves correctly — previously it could reference the wrong internal record until the page was reloaded.",
       "Editing a debt's balance, APR, or payment on the Debt Payoff page now properly records that month's numbers, so the \"your minimum payment is dropping\" indicator can actually track your progress over time. It previously only recorded this from a secondary editing screen most people never use."
+    ]
+  },
+  {
+    "version": "20260724-v1",
+    "date": "2026-07-24",
+    "headline": "Groundwork 1.0 — debt reconciliation, adaptive learning",
+    "added": [
+      "Debt reconciliation: manual charge/payment entries directly on a debt card, with semantic Charged/Payment/Interest verbs and a running total",
+      "Recurring debt payments — save a payment pattern once, confirm/edit/skip a draft each month instead of re-entering it",
+      "Link a checking-account payment to a debt entry from either the debt ledger or the main Ledger — no double-entry, and unlinking keeps both records intact",
+      "Debt ledger activity now actually moves the account balance, so the avalanche/snowball payoff projection reflects what you've really paid",
+      "Distance Traveled report shows payment compliance (on-time vs. under/over plan) and a payoff confidence score, from your real payment history",
+      "Category suggestions when entering a debt charge, from your own merchant history",
+      "Budget variance learning — see which categories run volatile vs. stable, with a suggested buffer",
+      "Trip spending forecast — past trips to a region adjust a new trip's estimate",
+      "Recurring-transaction detection in the Ledger — spots subscription-shaped patterns (consistent merchant + amount) and offers to add them to your budget",
+      "AI narrative gate health panel in Settings — see what the validation gate has caught before it ever reached your screen"
+    ],
+    "improved": [
+      "Historian: a structured, queryable record of what happened vs. what was expected, underneath the debt reconciliation and adaptive-learning features above"
     ]
   },
   {

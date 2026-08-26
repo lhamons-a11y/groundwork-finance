@@ -469,6 +469,27 @@ HOME_CONTENT = """
   </div>
 </section>
 
+<section class="behavior-focus" style="background: var(--mist); padding: 80px 24px; text-align: center;">
+  <div class="container">
+    <div class="section-label">Why Groundwork is Different</div>
+    <h2 class="section-title" style="margin-bottom: 48px;">Groundwork learns from your actual behavior, not your perfect plan.</h2>
+
+    <div style="max-width: 720px; margin: 0 auto; text-align: left; line-height: 1.8; color: var(--slate); font-size: 16px;">
+      <p style="margin-bottom: 20px;">
+        Most finance apps assume you'll follow their budget perfectly. <strong>Groundwork assumes you won't—because people don't.</strong>
+      </p>
+
+      <p style="margin-bottom: 20px;">
+        Instead, it watches what you actually do (when you pay, how you adjust budgets, how quickly you recover from mistakes), learns the patterns, and adapts. It rewards progress, not perfection.
+      </p>
+
+      <p>
+        <strong>The goal isn't to optimize your money.</strong> It's to help you become the kind of person who naturally makes good financial decisions.
+      </p>
+    </div>
+  </div>
+</section>
+
 <section class="features">
   <div class="container">
     <div class="section-label">What Groundwork does</div>
@@ -724,7 +745,8 @@ def download():
       <strong>Requirements:</strong><br>
       Windows 10 or 11 (64-bit)<br>
       Microsoft Edge WebView2 (usually already installed)<br>
-      ~150MB disk space
+      ~150MB disk space<br>
+      4GB RAM (8GB+ for the optional local AI)
     </div>
     <div style="margin-top:12px;font-size:12px;color:var(--slate)">
       Local AI sets itself up automatically from Settings — but if you'd
@@ -746,7 +768,8 @@ def download():
     <div class="requirements">
       <strong>Requirements:</strong><br>
       macOS 12 Monterey or later<br>
-      ~150MB disk space
+      ~150MB disk space<br>
+      4GB RAM (8GB+ for the optional local AI)
     </div>
   </div>
 
@@ -761,6 +784,7 @@ def download():
       <strong>Requirements:</strong><br>
       Ubuntu 22.04+, Debian 12+, Fedora 38+, or similar (x86_64)<br>
       ~150MB disk space<br>
+      4GB RAM (8GB+ for the optional local AI)<br>
       <a href="/knowledge-base#linux">Installing from source →</a>
     </div>
   </div>
