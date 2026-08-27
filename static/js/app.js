@@ -204,7 +204,7 @@ const S = {
     pensions:       [],     // [{ id, name, monthlyBenefit, retirementAge }]
   },
 };
-const GW_VERSION = '20260730-d23'; // must match server.py GW_VERSION
+const GW_VERSION = '20260826-d24'; // must match server.py GW_VERSION
 
 
 // ═══════════════════════════════════════════════════════════════════════════════

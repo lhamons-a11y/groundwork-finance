@@ -1,8 +1,8 @@
 [
   {
-    "version": "20260730-d23",
-    "date": "2026-07-30",
-    "headline": "Check-in streak, and groundwork for habit-aware insights",
+    "version": "20260826-d24",
+    "date": "2026-08-26",
+    "headline": "Groundwork 1.1 - check-in streak, and groundwork for habit-aware insights",
     "added": [
       "Dashboard check-in streak — how many days running you've opened Groundwork, shown once you're two days in"
     ],
