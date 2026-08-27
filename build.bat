@@ -148,6 +148,42 @@ if exist "vendor\phi3.5_model\manifests\registry.ollama.ai\library\phi3.5\latest
     echo   installer. Groundwork_Setup.exe ^(online^) was still built.
 )
 
+:: Store installer (Path 2) - only if a full Ollama runtime has been staged
+:: into vendor\ollama_runtime\. This lane runs NOTHING during install: the
+:: runtime and the model both go down as plain file copies, so the install
+:: certifies silently under Store requirement 10.2.9.2, and Groundwork starts
+:: Ollama itself on launch (_ensure_ollama_running in launch.py). The runtime
+:: is staged by hand from a machine that has Ollama installed - there's no
+:: single-file download for it - so skip rather than fail the whole build when
+:: it's absent, same reasoning as the offline lane above.
+::
+:: NOT YET VERIFIED on a clean machine: portable Ollama plus an app-started
+:: `ollama serve` must be tested on a box with no prior Ollama before this
+:: output is submitted to the Store.
+if not exist "vendor\ollama_runtime\ollama.exe" (
+    echo.
+    echo   NOTE: vendor\ollama_runtime\ not found - skipping the Store
+    echo   installer. Stage it by copying the contents of
+    echo   %%LOCALAPPDATA%%\Programs\Ollama\ from a machine that has Ollama
+    echo   installed ^(ollama.exe, "ollama app.exe", lib\, app.ico^).
+)
+if exist "vendor\ollama_runtime\ollama.exe" if not exist "vendor\phi3.5_model\manifests\registry.ollama.ai\library\phi3.5\latest" (
+    echo.
+    echo   NOTE: vendor\phi3.5_model\ not found - skipping the Store
+    echo   installer, which bundles the model as file copies too.
+)
+if exist "vendor\ollama_runtime\ollama.exe" if exist "vendor\phi3.5_model\manifests\registry.ollama.ai\library\phi3.5\latest" (
+    echo.
+    echo Building Store installer ^(file-copy Ollama + phi3.5, nothing executed^)...
+    %INNO% groundwork_store.iss
+    if errorlevel 1 (
+        echo.
+        echo ERROR: Store installer build failed. See output above.
+        pause
+        exit /b 1
+    )
+)
+
 :: -- Done -----------------------------------------------------------------------
 echo.
 echo ============================================
