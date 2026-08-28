@@ -7,6 +7,40 @@ from pathlib import Path
 
 block_cipher = None
 
+# ── Windows version resource ──────────────────────────────────────────────
+# Without this the built Groundwork.exe carries NO version metadata at all --
+# right-click > Properties > Details is blank, which reads as untrustworthy on
+# an unsigned binary and is a question Store certification asks. Generated from
+# version.py rather than hard-coded here so that file remains what it claims to
+# be: the single source of truth. The installers' AppVersion is set separately
+# in the .iss files and must be bumped alongside it.
+sys.path.insert(0, str(Path(SPECPATH)))
+from version import VERSION, VERSION_TUPLE, APP_NAME, RELEASE_YEAR
+
+_version_res = Path(SPECPATH) / 'build' / 'version_info.txt'
+_version_res.parent.mkdir(parents=True, exist_ok=True)
+_version_res.write_text(f'''VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers={VERSION_TUPLE!r},
+    prodvers={VERSION_TUPLE!r},
+    mask=0x3f, flags=0x0, OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo([StringTable('040904B0', [
+      StringStruct('CompanyName', '{APP_NAME}'),
+      StringStruct('FileDescription', '{APP_NAME} - Personal Finance'),
+      StringStruct('FileVersion', '{VERSION}'),
+      StringStruct('InternalName', '{APP_NAME}'),
+      StringStruct('LegalCopyright', '(c) {RELEASE_YEAR} {APP_NAME}'),
+      StringStruct('OriginalFilename', '{APP_NAME}.exe'),
+      StringStruct('ProductName', '{APP_NAME}'),
+      StringStruct('ProductVersion', '{VERSION}'),
+    ])]),
+    VarFileInfo([VarStruct('Translation', [1033, 1200])])
+  ]
+)
+''', encoding='utf-8')
+
 # Find pywebview package location
 try:
     import webview
@@ -98,9 +132,6 @@ a = Analysis(
         'clr_loader',
         'pythonnet',
         'System',
-        'System.Windows.Forms',
-        'System.Threading',
-        'System.Threading.Thread',
         # tkinter
         'tkinter',
         'tkinter.filedialog',
@@ -120,8 +151,6 @@ a = Analysis(
         'importlib',
         'importlib.util',
         'importlib.metadata',
-        'pkg_resources',
-        'pkg_resources.extern',
         'email',
         'email.mime',
         'email.mime.text',
@@ -164,6 +193,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon='groundwork.ico',
+    version=str(_version_res),
 )
 
 coll = COLLECT(
