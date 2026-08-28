@@ -2,12 +2,21 @@
   {
     "version": "20260826-d24",
     "date": "2026-08-26",
-    "headline": "Groundwork 1.1 - check-in streak, and groundwork for habit-aware insights",
+    "headline": "Groundwork 1.1 — one-click local AI, a check-in streak, and more accurate numbers",
     "added": [
-      "Dashboard check-in streak — how many days running you've opened Groundwork, shown once you're two days in"
+      "Set up Local AI in one click from Settings. Groundwork now installs Ollama for you — not just the model — so private, on-device AI no longer needs a separate download and install first",
+      "Dashboard check-in streak — how many days running you've opened Groundwork, shown once you're two days in",
+      "Terms of Use. Groundwork now has a written license and liability disclaimer, shown once for you to accept. The main term is the one that always applied: Groundwork helps you plan, but you are responsible for checking figures against your bank"
     ],
     "improved": [
       "The Historian now records app opens, budget reviews, and deliberate budget edits — all kept in your own local database, never sent anywhere — so future habit-aware features have real history to learn from instead of guessing"
+    ],
+    "fixed": [
+      "Card payments and transfers to savings are no longer counted as spending in your reports. Moving your own money between your own accounts was inflating the spending total, so a month you were comfortably under budget could be reported as over",
+      "The annual summary no longer counts transfers as income or ranks \"Transfer\" among your real spending categories, both of which were distorting the savings rate",
+      "Months with no deposits recorded no longer read as a shortfall. Groundwork now tells you which months are missing income and points you at your transactions, instead of subtracting a full month of spending from a blank month and reporting the difference as if you had overspent by that much",
+      "The \"Unbreakable\" trophy now tracks real progress. It showed \"0 of 6 months\" for everyone, permanently, and could never be earned",
+      "\"What's changed since last month\" now compares two finished months. It had been measuring a partial month against a full one, so categories you simply hadn't spent in yet appeared as decreases and pushed the real changes off the list"
     ]
   },
   {
