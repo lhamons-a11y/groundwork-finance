@@ -367,7 +367,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
 <body>
 
 <div class="beta-bar">
-  🎉 <strong>Groundwork 1.0 is here</strong> — free to download and use.
+  🎉 <strong>Groundwork 1.1 is here</strong> — free to download and use.
   <a href="/download">Get the latest version</a>.
 </div>
 
@@ -456,7 +456,7 @@ def home():
 
 HOME_CONTENT = """
 <section class="hero">
-  <div class="beta-badge">Version 1.0 — Free Download</div>
+  <div class="beta-badge">Version 1.1 — Free Download</div>
   <h1>Stop living <em>paycheck to paycheck.</em><br>Groundwork gives you a real plan.</h1>
   <p>A free personal finance app that shows exactly where your money goes and builds a step-by-step path out of debt — no subscription, no cloud, no nonsense.</p>
   <div class="hero-btns">
@@ -730,7 +730,7 @@ def download():
   <p style="color:rgba(255,255,255,.7);font-size:16px">
     Free. No account. No subscription. Your data stays on your machine.
   </p>
-  <div class="beta-badge" style="margin-top:20px">Version 1.0 — Now available</div>
+  <div class="beta-badge" style="margin-top:20px">Version 1.1 — Now available</div>
 </section>
 
 <div class="download-grid container">
@@ -1096,7 +1096,7 @@ def about():
   </p>
   <h2 style="font-size:28px;font-weight:800;margin:40px 0 20px">Feedback</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
-    Groundwork 1.0 is here and people are using it every day. It's actively maintained, and
+    Groundwork 1.1 is here and people are using it every day. It's actively maintained, and
     if something breaks, the ⚑ Report button in the app sends us the error log directly.
     We read every one.
   </p>
