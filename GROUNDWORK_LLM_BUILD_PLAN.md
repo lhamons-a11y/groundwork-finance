@@ -1,6 +1,25 @@
 # GROUNDWORK_LLM_BUILD_PLAN.md
 **Purpose:** the executable, sequenced build plan for the local-LLM era — derived from GROUNDWORK_LLM_BLUEPRINT.md. The blueprint is the spec and rationale; this is the order of operations, the per-task "definition of done," and the deploy discipline. Build top to bottom: each phase gates the next.
 **Decisions it assumes (all LOCKED this session):** provider = local Ollama (cloud opt-in) · default model **phi3.5** (4B tier), **qwen2.5:7b** auto-upgrade (16GB+), **qwen2.5:3b** backup · voice = **data-historian sense** · first PDF issuer = **Capital One** · gas price = **EIA** · beta = **gate-first, then canary**.
+> ⚠️ **PARTLY SUPERSEDED (2026-08-30) — read `gw 2.0/MODEL_PLACEMENT.md` before building Phase 2 or Phase 6.**
+> The "provider = local Ollama" decision above is superseded by *local inference, provider **in-process***
+> (embedded llama.cpp, no separate Ollama install, no second process) — driven by Microsoft/Apple store
+> distribution, and it unlocks grammar-constrained decoding. Ollama remains the **development** runtime
+> until the latency spike lands. **Phases 1, 3, 4, 5 are unaffected.** Phases 2A/2B and 6A/6B need rewriting.
+> That note also records the decision *against* training a custom finance-specific LLM, and why.
+>
+> **`default model phi3.5` — CONFIRMED, keep it.** A repeated evaluation (5 runs × 6 cases ×
+> 5 models, 143 calls, `llm_model_eval.py`) found phi3.5 is the **only sub-2.5GB model that never
+> fabricated a figure** (R8 0/30, vs 8/30 for llama3.2:1b, 12/30 for llama3.2:3b, 3/30 for
+> qwen2.5:3b). An earlier single-run signal suggesting smaller models were better was noise.
+>
+> **Two additions to Phase 1, both evidence-backed:**
+> - **Streaming** (`stream=True`) cuts perceived latency **8.7x** (6.92s → 0.80s to first token) on
+>   any model, because generation outruns reading 2.5x. Cheapest large win available; do it early.
+> - **The gate is permanent, not scaffolding.** Every model tested smuggles inference (R3) 37–70%
+>   of the time, and it got *worse* with size (qwen2.5:7b: 70%). No model upgrade removes the need
+>   for retry-then-fallback; the fix is templating (blueprint B.2a), not a bigger model.
+
 **Reference code already written:** `voice_discipline_test.py` holds the working rubric — R8 number-provenance, the hardened inference/causal wordlists, and the data-historian `GW_VOICE`. Phase 1 is largely *porting* this into `app.js`, not inventing it.
 
 **Deploy discipline (applies to EVERY phase — non-negotiable):** three-place version bump (app.js / server.py / index.html cache-buster) · `smoke_test.py` green before ship · `SCHEMA_VERSION` gate on any DB change · `core/database.py` deploys to `C:\Groundwork\core\` (never root) · `deploy.bat` with rollback ready · Pamphlet Standard for any UI.
@@ -32,6 +51,11 @@ Not work — the floor you're building from, so the plan starts from reality.
 ---
 
 ## Phase 2 — Provider UI + first-run trust surface
+> ⚠️ **2A needs rewriting** — see `gw 2.0/MODEL_PLACEMENT.md`. With an in-process runtime there is no
+> endpoint to probe and no installed-model list: `_local_endpoint`, `_resolve_local_model`,
+> `/api/ai/status` and the `install-ollama` route collapse or disappear. **2B (RAM tiering) survives
+> unchanged and matters more.** 2C's copy audit stands.
+
 **Why here:** makes local mode coherent and installable before any tester touches it. Blueprint §4 + §11.1.
 
 | # | Task | Where | Done when |
@@ -90,6 +114,11 @@ Blueprint §7 + §8. After the gate (narration) and ideally after Phase 4 (docum
 ---
 
 ## Phase 6 — Open-user packaging
+> ⚠️ **6A/6B need rewriting** — see `gw 2.0/MODEL_PLACEMENT.md`. Both lanes were shaped around
+> installing or bundling *Ollama*; the target is now an embedded runtime shipped inside the app, with
+> the GGUF pulled on first run (weights are data, not executable code — permitted by Apple). This is
+> also where the Microsoft/Apple store lanes actually become possible. 6C (signing) and 6D (smoke) stand.
+
 Blueprint §5.2–5.4. Last, because it's the most work for the least *integrity* gain and iterates independently once the free path works.
 
 | # | Task | Done when |
