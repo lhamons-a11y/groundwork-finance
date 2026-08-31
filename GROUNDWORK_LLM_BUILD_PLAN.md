@@ -54,7 +54,10 @@ Not work — the floor you're building from, so the plan starts from reality.
 > ⚠️ **2A needs rewriting** — see `gw 2.0/MODEL_PLACEMENT.md`. With an in-process runtime there is no
 > endpoint to probe and no installed-model list: `_local_endpoint`, `_resolve_local_model`,
 > `/api/ai/status` and the `install-ollama` route collapse or disappear. **2B (RAM tiering) survives
-> unchanged and matters more.** 2C's copy audit stands.
+> but changes kind:** with the **GW LTS** split (1.x is the supported product for machines that
+> cannot honestly run the narrator), tiering becomes an **install-time** decision — which product to
+> install — not a runtime routing decision inside one app. There is no small-model tier to route to.
+> 2C's copy audit stands.
 
 **Why here:** makes local mode coherent and installable before any tester touches it. Blueprint §4 + §11.1.
 

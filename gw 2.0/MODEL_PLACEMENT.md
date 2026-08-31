@@ -342,8 +342,30 @@ suits the argument — and two agreeing runs are not replication until you know 
   of it depends on a behaviour no model exhibits reliably.
 - **The low-RAM tier cannot be solved with a smaller model.** That was the intuitive fix and R8
   disqualifies it: at ≤2 GB the models fabricate figures 13–40% of the time. So the sub-8 GB path
-  is streaming + structured fallback (or opt-in cloud), **not** a 1B local model. Phase 2B's
-  tiering should say so explicitly rather than implying a small-model tier exists.
+  is **not** a 1B local model.
+
+  **The answer is a product split, not a degraded build: 1.x becomes GW LTS** (decided
+  2026-08-30). Machines that cannot honestly run the narrator get the 1.x line — complete, and
+  promising exactly what it delivers — rather than a 2.0 with its teaching layer quietly hollowed
+  out. A 2.0 that cannot teach is 1.x carrying extra weight and a broken promise. This is the
+  honest-no (blueprint C.5, *a no beats an inhumane yes*) applied one level up: to **which product
+  a machine gets**.
+
+  Two consequences, both load-bearing:
+  - **Tiering moves from runtime to install time.** Phase 2B was designed to route users *within*
+    one app by free RAM. Under the split it decides which product to install — an easier thing to
+    get right and a far easier thing to explain honestly.
+  - **LTS is a support commitment, not a freeze.** The split is *teaching-layer vs
+    no-teaching-layer*, not *old vs new*. Correctness fixes flow to both lines; only the teaching
+    layer is 2.0-exclusive. If LTS hardens into "frozen at today's state," the low-spec segment
+    gets a product that rots — and the four calculation bugs of 2026-08-26 are exactly the class
+    that would go unfixed there.
+
+  **This raises the stakes on the `app.js` test gap.** `CALCULATION_PLACEMENT.md` records that all
+  four of those bugs lived in code the suite "covered" by grepping source text, and every one
+  survived a green run. That is tolerable for a product heading toward replacement. It is a
+  liability for one committed to years of support, so the 43 source-text checks matter **more**
+  under this strategy, not less.
 - **Fabrication is a cliff, not a slope.** Models either never fabricate or fabricate often.
   Model qualification is therefore a pass/fail R8 screen run over ~30 calls — which is what
   `llm_model_eval.py` now does — and any future model swap must clear it before anything else
@@ -352,8 +374,10 @@ suits the argument — and two agreeing runs are not replication until you know 
 ### Still to measure, in priority order
 
 1. **The 8 GB tier**, with `llm_runtime_spike.py`. Record whether the model stays *resident*, not
-   just its tok/s — paging is the cliff there, and it decides whether local narration is honest to
-   offer at all.
+   just its tok/s — paging, not throughput, is the cliff there. **Demoted from blocker to
+   line-placement** by the GW LTS split: it no longer decides *whether* low-spec users get
+   something honest (they get LTS), only *where* the install-time line falls. Worth measuring, no
+   longer worth waiting on.
 2. **Grammar + streaming together**, since both touch the same generation path and the grammar's
    effect on TTFT is unmeasured.
 3. **Interleaved A/B/A/B** on an idle machine, to settle the llama.cpp-vs-Ollama speed question

@@ -489,6 +489,18 @@ collect-and-ignore loop), then Pillar 4 green light (the emotional differentiato
   ranks and shows the tradeoff; the user chooses (and the choice is how it learns). When a category's
   status is unknown, ask — never assume disposable.
 
+- **Two product lines: 2.0 and GW LTS. DECIDED.** (Decided 2026-08-30.) The 1.x line becomes
+  **GW LTS**, the supported product for machines that cannot honestly run the narrator (Appendix H:
+  sub-2GB models fabricate figures, so there is no small-model tier). Those users get a *complete*
+  product that promises what it delivers, rather than a 2.0 with its teaching layer hollowed out —
+  and a 2.0 that cannot teach is 1.x carrying extra weight. **This is C.5's honest-no applied one
+  level up: to which product a machine gets.** Two consequences: RAM tiering moves from a runtime
+  routing decision to an **install-time** one; and **LTS is a support commitment, not a freeze** —
+  the split is teaching-layer vs no-teaching-layer, not old vs new, so correctness fixes flow to
+  both lines and only the teaching layer is 2.0-exclusive. The cost is honest and ongoing:
+  maintenance for a second line, and the `app.js` test gap (`CALCULATION_PLACEMENT.md`) matters
+  *more* under a years-long support promise, not less.
+
 - **The narrator — model, runtime, and delivery: DECIDED on measurement — see Appendix H.**
   (Decided 2026-08-30.) No custom-trained finance LLM (narrowing degrades the instruction-following
   the gate depends on, and the gate already guarantees structurally what training would only make
