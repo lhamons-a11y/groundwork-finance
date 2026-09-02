@@ -48,6 +48,64 @@ def main():
     check('version strings match (server == app.js == cache-buster)',
           v_server and v_server == v_app == v_cache)
 
+    # ── 1b. Release version consistency across the packaging files ───────────
+    # The build stamp above (d-number) tracks the *build*; this tracks the
+    # *release* number a user sees. They drift independently, and the packaging
+    # files are only read at build time, so nothing else notices when one is
+    # left behind. Under the GW LTS support commitment these are the numbers a
+    # "fixed in 1.1.2" claim rests on, so they have to agree.
+    def _semver3(s):
+        """'1.1.0.0' and '1.1.0' both normalise to (1, 1, 0)."""
+        m = re.match(r'(\d+)\.(\d+)\.(\d+)', s or '')
+        return tuple(int(g) for g in m.groups()) if m else None
+
+    rel_sources = {
+        'version.py':             r'^VERSION\s*=\s*"([\d.]+)"',
+        'groundwork.iss':         r'#define AppVersion "([\d.]+)"',
+        'groundwork_offline.iss': r'#define AppVersion "([\d.]+)"',
+        'groundwork_store.iss':   r'#define AppVersion "([\d.]+)"',
+        'groundwork_macos.spec':  r"'CFBundleShortVersionString':\s*'([\d.]+)'",
+    }
+
+    rel_found, rel_missing = {}, []
+    for fname, pattern in rel_sources.items():
+        fpath = BASE / fname
+        if not fpath.exists():
+            rel_missing.append(fname)
+            continue
+        m = re.search(pattern, fpath.read_text(encoding='utf-8', errors='replace'),
+                      re.MULTILINE)
+        if not m:
+            rel_missing.append(fname)
+        else:
+            rel_found[fname] = m.group(1)
+
+    print('  release version: ' + '  '.join(f'{k}={v}' for k, v in rel_found.items()))
+
+    check('every packaging file declares a release version', not rel_missing)
+    if rel_missing:
+        print(f'        unreadable/absent: {", ".join(rel_missing)}')
+
+    _rel_norm = {f: _semver3(v) for f, v in rel_found.items()}
+    _rel_agree = len(set(_rel_norm.values())) == 1 and None not in _rel_norm.values()
+    check('release versions agree (version.py == 3x .iss == macOS bundle)', _rel_agree)
+    if not _rel_agree:
+        for f, v in sorted(rel_found.items()):
+            print(f'        {f}: {v}')
+
+    # The published update feed advertises the build stamp to installed clients.
+    # It lagged three builds behind once already (d21 while shipping d24), which
+    # is invisible from inside the app - every in-app constant agreed.
+    vj_path = BASE / 'Website' / 'version.json'
+    if vj_path.exists():
+        try:
+            v_feed = json.loads(vj_path.read_text(encoding='utf-8')).get('latest', '')
+        except (ValueError, OSError):
+            v_feed = ''
+        print(f'  update feed: Website/version.json latest={v_feed}')
+        check('update feed advertises the build being shipped (version.json == GW_VERSION)',
+              bool(v_feed) and v_feed == v_server)
+
     # ── 2. Boot the server on the temp DB ─────────────────────────────────────
     try:
         from server import create_app, _GW_TOKEN
