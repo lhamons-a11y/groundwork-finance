@@ -2,6 +2,7 @@
 # Groundwork — PyInstaller spec file
 # Run from C:\Groundwork\ with: pyinstaller groundwork.spec --clean --noconfirm
 
+import os
 import sys
 from pathlib import Path
 
@@ -174,6 +175,26 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
+# ── Product line: which build is this? ────────────────────────────────────
+# GW_PRODUCT=lts strips the 2.0 teaching layer out of the bundle. The split is
+# teaching-layer vs no-teaching-layer, so the boundary is a path segment rather
+# than a feature flag: nothing under static/js/teaching/ ships in an LTS build,
+# and server.py emits no loader tag for a file that is not there. An LTS build
+# therefore does not disable the teaching layer, it does not contain it.
+#
+# Filtering the TOC after Analysis, rather than pruning the datas list before
+# it, means the rule holds however those files were collected.
+GW_PRODUCT = os.environ.get('GW_PRODUCT', 'teaching').strip().lower()
+GW_TEACHING_PREFIX = 'static/js/teaching/'
+if GW_PRODUCT == 'lts':
+    _before = len(a.datas)
+    a.datas = [t for t in a.datas
+               if not '/'.join(t[0].split(os.sep)).startswith(GW_TEACHING_PREFIX)]
+    print('[spec] GW_PRODUCT=lts - stripped %d teaching-layer file(s)'
+          % (_before - len(a.datas)))
+else:
+    print('[spec] GW_PRODUCT=%s - teaching layer included' % GW_PRODUCT)
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

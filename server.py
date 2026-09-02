@@ -257,6 +257,18 @@ def create_app(static_folder: str = None) -> Flask:
             token_script = f'<script>window.GW_SESSION_TOKEN="{_GW_TOKEN}";</script>'
             if '<head>' in html:
                 html = html.replace('<head>', f'<head>\n    {token_script}', 1)
+            # The teaching-layer seam (GW 2.0). The loader tag is emitted only
+            # when the file is actually in the build: groundwork*.spec strips
+            # static/js/teaching/ for GW_PRODUCT=lts, so an LTS build has
+            # nothing here to find and index.html needs no product-specific
+            # markup - which is what keeps the two lines' index.html identical
+            # and their forward-merges clean. Loaded after app.js on purpose:
+            # the dependency runs one way, teaching -> app, never back.
+            teaching_entry = Path(static_folder) / 'js' / 'teaching' / 'index.js'
+            if teaching_entry.exists() and '</body>' in html:
+                teaching_script = ('<script src="/js/teaching/index.js'
+                                   f'?v={GW_VERSION}"></script>')
+                html = html.replace('</body>', f'    {teaching_script}\n</body>', 1)
             from flask import Response
             response = Response(html, mimetype='text/html')
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
