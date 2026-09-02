@@ -50,6 +50,12 @@ import voice_discipline_test as H  # real GW_VOICE, real CASES, real check()
 ENDPOINT = "http://localhost:11434"
 DEFAULT_MODELS = ["llama3.2:1b", "qwen2.5:3b", "llama3.2:3b", "phi3.5", "qwen2.5:7b"]
 
+# Minimum sample per group before the terseness verdict means anything. The
+# recorded finding pooled 143 calls; a 6-call run once printed "SUPPORTED,
+# 1.46x" off three data points, which is the same failure as scoring silence
+# as a pass - a number presented as a finding when the sample cannot carry it.
+MIN_TERSENESS_N = 30
+
 
 def model_sizes():
     try:
@@ -175,7 +181,10 @@ def terseness_test(all_results):
             "median_tokens_when_passing": mp,
             "median_tokens_when_failing": mf,
             "ratio": round(mf / mp, 2) if mp else None,
-            "supported": mf > mp * 1.2}
+            "underpowered": len(pas) < MIN_TERSENESS_N or len(fail) < MIN_TERSENESS_N,
+            "min_n": MIN_TERSENESS_N,
+            "supported": None if (len(pas) < MIN_TERSENESS_N or len(fail) < MIN_TERSENESS_N)
+                         else mf > mp * 1.2}
 
 
 def main():
@@ -226,8 +235,13 @@ def main():
         print(f"  median output when PASSING: {th['median_tokens_when_passing']} tokens")
         print(f"  median output when FAILING: {th['median_tokens_when_failing']} tokens "
               f"({th['ratio']}x)")
-        print(f"  => {'SUPPORTED — longer output fails more' if th['supported'] else
-                     'NOT SUPPORTED — length does not predict failure'}")
+        if th["supported"] is None:
+            print("  => NOT JUDGED - need >= %d per group, have %d passing / %d failing"
+                  % (th["min_n"], th["n_pass"], th["n_fail"]))
+        elif th["supported"]:
+            print("  => SUPPORTED — longer output fails more")
+        else:
+            print("  => NOT SUPPORTED — length does not predict failure")
 
     # R8 is disqualifying; among the clean, rank by pass rate then size.
     clean = [r for r in results
