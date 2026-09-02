@@ -99,6 +99,7 @@ def eval_model(model, runs, sizes):
     gb = size_of(model, sizes)
     print(f"\n── {model}  ({gb:.2f} GB) · {runs} runs x {len(H.CASES)} cases")
     per_run_pass, rule_fails = [], Counter()
+    empty_calls = 0
     r8_violations, samples = [], []
     tps_all, tok_all = [], []
 
@@ -113,6 +114,17 @@ def eval_model(model, runs, sizes):
             text = (res.get("message") or {}).get("content", "").strip()
             n_tok = res.get("eval_count") or 0
             dur = res.get("eval_duration") or 0
+            # An empty response violates no rule, so check() returns clean and
+            # the call would score as a PASS. That is how q2_K once came back
+            # 97% pass / 0% failure on every rule with 27 of 30 calls returning
+            # nothing at all - a silent model looked like the best model in the
+            # set. Silence is not voice discipline. Record it, never score it.
+            if not text:
+                empty_calls += 1
+                samples.append({"run": run, "case": case.name, "tokens": n_tok,
+                                "pass": False, "empty": True, "failed": []})
+                continue
+
             if dur:
                 tps_all.append(n_tok / (dur / 1e9))
             tok_all.append(n_tok)
@@ -125,22 +137,25 @@ def eval_model(model, runs, sizes):
                 r8_violations.append({"run": run, "case": case.name,
                                       "note": r8note, "text": text})
             samples.append({"run": run, "case": case.name, "tokens": n_tok,
-                            "pass": ok, "failed": failed})
+                            "pass": ok, "empty": False, "failed": failed})
         per_run_pass.append(passed_this_run)
         print(f"    run {run + 1}: {passed_this_run}/{len(H.CASES)}")
 
     total = len(samples)
+    scored = total - empty_calls
     unload(model)
     return {
         "model": model, "gb": round(gb, 2), "runs": runs, "n": total,
         "per_run_pass": per_run_pass,
-        "pass_rate": round(sum(per_run_pass) / (runs * len(H.CASES)), 3) if total else 0,
+        "empty_calls": empty_calls,
+        "scored": scored,
+        "pass_rate": round(sum(per_run_pass) / scored, 3) if scored else 0,
         "pass_spread": f"{min(per_run_pass)}-{max(per_run_pass)}/{len(H.CASES)}" if per_run_pass else "-",
         "r8_violations": len(r8_violations),
         "r8_examples": r8_violations[:3],
         "median_tok_per_s": round(statistics.median(tps_all), 1) if tps_all else 0,
         "median_output_tokens": round(statistics.median(tok_all)) if tok_all else 0,
-        "rule_fail_rate": {r: round(c / total, 3) for r, c in rule_fails.most_common()} if total else {},
+        "rule_fail_rate": {r: round(c / scored, 3) for r, c in rule_fails.most_common()} if scored else {},
         "samples": samples,
     }
 
@@ -150,6 +165,8 @@ def terseness_test(all_results):
     pas, fail = [], []
     for r in all_results:
         for s in r["samples"]:
+            if s.get("empty"):
+                continue      # unscoreable; pooling these flipped this verdict once
             (pas if s["pass"] else fail).append(s["tokens"])
     if not pas or not fail:
         return None
@@ -180,12 +197,21 @@ def main():
     results = [eval_model(m, args.runs, sizes) for m in models]
 
     print("\n" + "=" * 78)
-    print(f"{'model':<16}{'GB':>6}{'tok/s':>8}{'out tok':>9}{'pass':>8}{'spread':>9}{'R8 viol':>9}")
-    for r in sorted(results, key=lambda x: (-x["pass_rate"], x["gb"])):
-        flag = "  <-- R8" if r["r8_violations"] else ""
-        print(f"{r['model']:<16}{r['gb']:>6.2f}{r['median_tok_per_s']:>8.1f}"
-              f"{r['median_output_tokens']:>9}{r['pass_rate']:>8.0%}"
-              f"{r['pass_spread']:>9}{r['r8_violations']:>9}{flag}")
+    print(f"{'model':<34}{'GB':>6}{'tok/s':>8}{'out tok':>9}{'empty':>7}"
+          f"{'pass':>8}{'spread':>9}{'R8 viol':>9}")
+    for r in sorted(results, key=lambda x: (-x['pass_rate'], x['gb'])):
+        flags = []
+        if r['r8_violations']:
+            flags.append('R8')
+        if r.get('empty_calls'):
+            flags.append('EMPTY')
+        flag = ('  <-- ' + '+'.join(flags)) if flags else ''
+        # pass% is over SCORED calls, so a mostly-silent model can read 100%.
+        # The empty column is what stops that being taken at face value.
+        print(f"{r['model']:<34}{r['gb']:>6.2f}{r['median_tok_per_s']:>8.1f}"
+              f"{r['median_output_tokens']:>9}{r.get('empty_calls', 0):>7}"
+              f"{r['pass_rate']:>8.0%}{r['pass_spread']:>9}"
+              f"{r['r8_violations']:>9}{flag}")
 
     print("\nPER-RULE FAILURE RATE (share of calls failing that rule)")
     rules = sorted({k for r in results for k in r["rule_fail_rate"]})
@@ -204,9 +230,13 @@ def main():
                      'NOT SUPPORTED — length does not predict failure'}")
 
     # R8 is disqualifying; among the clean, rank by pass rate then size.
-    clean = [r for r in results if not r["r8_violations"]]
+    clean = [r for r in results
+             if not r["r8_violations"] and not r.get("empty_calls")]
     dirty = [r for r in results if r["r8_violations"]]
     print("\nRECOMMENDATION")
+    for r in results:
+        if r.get("empty_calls"):
+            print("  returned NOTHING on %d/%d calls: %s - scored on %d only"                  % (r["empty_calls"], r["n"], r["model"], r["scored"]))
     if dirty:
         print("  disqualified on R8 (fabricated a figure): " +
               ", ".join(f"{r['model']} x{r['r8_violations']}" for r in dirty))
@@ -217,7 +247,8 @@ def main():
               f"{best['median_tok_per_s']} tok/s")
         print("  NOTE: read the spread. A wide spread means the mean is not a ranking.")
     else:
-        print("  every model fabricated at least one figure — the gate is doing the work.")
+        print('  no candidate: every model either fabricated a figure '
+              'or returned nothing. The gate is doing the work.')
 
     out = {"generated": time.strftime("%Y-%m-%d %H:%M"), "runs": args.runs,
            "endpoint": ENDPOINT, "terseness": th,
