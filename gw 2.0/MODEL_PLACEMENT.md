@@ -180,6 +180,9 @@ like a friend said it. It may never be the thing that decided it.
   gate depends on.
 - **No removing the voice gate**, whatever the model. Grammars and fine-tunes reduce how often it
   fires; they never replace it.
+- **No quantization below Q4_0.** Measured 2026-09-02: q3_K_M, q3_K_S and q2_K each violated R8
+  where the q4_0 control did not, and q2_K returns no output at all. Storage is the wrong reason
+  to trade the one axis that disqualifies.
 - **No custom tokenizer/vocabulary work.** Marginal gains, real complexity.
 - **No CUDA in the shipped package.** It balloons size; CPU baseline, Metal on Mac, Vulkan only if
   Windows GPU proves necessary.
@@ -284,6 +287,57 @@ Three findings that outrank the ranking:
 - **The terseness hypothesis is dead.** Pooled across all 143 calls, output length barely differs
   between passing (48 tokens) and failing (55.5) — 1.16x, **not supported**. The mechanism
   proposed for the preliminary result was wrong, and the result it explained was not real either.
+
+### Quantization — Q4_0 is the floor, measured 2026-09-02
+
+The size axis the model-choice experiment never touched. That one varied **parameter count** across
+five different models; this varies **numeric precision** within one. Both read as "make it
+smaller." They are not the same lever and the first result does not transfer to the second.
+
+**Why it was asked.** Storage, not RAM. Apple M-series has the compute to run the narrator, but
+small non-upgradeable SSDs are a real constraint for Mac users (Rob, 2026-09-02), and the ~2.2GB is
+the *weights* — the teaching-layer code is kilobytes and the runtime tens of MB, so no code split
+addresses it. Quantization was the only size lever the evidence had not already ruled out.
+
+**Method.** 5 runs x 6 cases per arm (30 calls, the same pass/fail screen R8 requires), with q4_0
+re-run **in the same session as a control** rather than compared against the table above. This
+document's history is a list of conclusions that reversed when a control was not held.
+
+| quant | on disk | resident @4096 ctx | usable calls | **R8 violations** |
+|---|---|---|---|---|
+| **q4_0** (current default) | 2.18 GB | 3.9 GB | 30/30 | **0** |
+| q3_K_M | 1.96 GB | 3.7 GB | 30/30 | **2** |
+| q3_K_S | 1.68 GB | 3.4 GB | 30/30 | **1** |
+| q2_K | 1.42 GB | — | **3/30** | 1 of 3 |
+
+**Keep Q4_0.** The control replicated — 0/30 on R8, matching the recorded figure, with a 1-2/6 pass
+spread inside the recorded 1-3/6 — and all three lower quants violated R8 where it did not.
+
+**Read the effect size honestly.** One or two violations in 30 is 3-7%, *below* the 13-40% band
+that defines the fabricating mode above. Three-for-three in the same direction against a clean
+control is a consistent signal, but the licensed claim is **degradation begins below Q4_0**, not
+*these quants are in the fabricating mode*. Under a pass/fail screen the distinction does not
+change the answer.
+
+**q2_K does not produce output at all.** 27 of 30 calls returned zero tokens; the three that spoke
+each ran to the 300-token cap and one fabricated. It is disqualified for being mute. Its R8 rate is
+unmeasured, not low.
+
+**The storage relief is smaller than the file sizes suggest.** Resident footprint sits ~1.7GB above
+file size (weights plus KV cache at 4096 ctx), so quantization saves roughly the same *absolute* GB
+in RAM as on disk but a much smaller *share* of the footprint: q4_0 -> q3_K_S is -0.50GB on disk
+and -0.5GB resident. Real for a small SSD; nowhere near enough to move a RAM tier. **Disk size and
+resident size are different axes and the tables in this document only record the first.**
+
+**This screen also found a bug in the harness that produced it.** An empty response violates no
+voice rule, so `check()` returned clean and the call scored as a gate PASS — q2_K's 27 silences
+reported as *97% pass, 0% failure on every rule, ranked first in the table*, and they poisoned the
+pooled terseness test badly enough to flip its recorded verdict. Fixed the same session (empties
+are now unscoreable and disqualifying). **Any quantization or model number produced before that fix
+is suspect on the same axis.** That is the third scorer bug in this record, after the R6 placeholder
+counted as failed and the warm-call timing taken without a token count; the shape is identical each
+time — the measurement sat downstream of something absorbing the evidence.
+
 
 ### What the measuring got wrong first (kept, because the traps recur)
 
@@ -443,3 +497,9 @@ the constrained decoding that makes the first question moot. The conclusions are
 1.1 codebase as it stands — `groundwork_store.iss`'s unverified portable-Ollama workaround, the
 live `_voiceGateCheck`, and `voice_miss_log.jsonl` already collecting — not from general
 architecture principle.
+
+**Amended 2026-09-02** with the quantization screen, which the 2026-08-30 session never ran: it had
+varied parameter count across models and treated that as the whole size question. Quantization is a
+second, independent size axis, and it was asked for a reason the original session did not have —
+Apple M-series has the compute but not always the disk. The answer closed it (Q4_0 is the floor),
+and the run turned up a third scorer bug in `llm_model_eval.py` on the way.
