@@ -48,6 +48,64 @@ def main():
     check('version strings match (server == app.js == cache-buster)',
           v_server and v_server == v_app == v_cache)
 
+    # ── 1b. Release version consistency across the packaging files ───────────
+    # The build stamp above (d-number) tracks the *build*; this tracks the
+    # *release* number a user sees. They drift independently, and the packaging
+    # files are only read at build time, so nothing else notices when one is
+    # left behind. Under the GW LTS support commitment these are the numbers a
+    # "fixed in 1.1.2" claim rests on, so they have to agree.
+    def _semver3(s):
+        """'1.1.0.0' and '1.1.0' both normalise to (1, 1, 0)."""
+        m = re.match(r'(\d+)\.(\d+)\.(\d+)', s or '')
+        return tuple(int(g) for g in m.groups()) if m else None
+
+    rel_sources = {
+        'version.py':             r'^VERSION\s*=\s*"([\d.]+)"',
+        'groundwork.iss':         r'#define AppVersion "([\d.]+)"',
+        'groundwork_offline.iss': r'#define AppVersion "([\d.]+)"',
+        'groundwork_store.iss':   r'#define AppVersion "([\d.]+)"',
+        'groundwork_macos.spec':  r"'CFBundleShortVersionString':\s*'([\d.]+)'",
+    }
+
+    rel_found, rel_missing = {}, []
+    for fname, pattern in rel_sources.items():
+        fpath = BASE / fname
+        if not fpath.exists():
+            rel_missing.append(fname)
+            continue
+        m = re.search(pattern, fpath.read_text(encoding='utf-8', errors='replace'),
+                      re.MULTILINE)
+        if not m:
+            rel_missing.append(fname)
+        else:
+            rel_found[fname] = m.group(1)
+
+    print('  release version: ' + '  '.join(f'{k}={v}' for k, v in rel_found.items()))
+
+    check('every packaging file declares a release version', not rel_missing)
+    if rel_missing:
+        print(f'        unreadable/absent: {", ".join(rel_missing)}')
+
+    _rel_norm = {f: _semver3(v) for f, v in rel_found.items()}
+    _rel_agree = len(set(_rel_norm.values())) == 1 and None not in _rel_norm.values()
+    check('release versions agree (version.py == 3x .iss == macOS bundle)', _rel_agree)
+    if not _rel_agree:
+        for f, v in sorted(rel_found.items()):
+            print(f'        {f}: {v}')
+
+    # The published update feed advertises the build stamp to installed clients.
+    # It lagged three builds behind once already (d21 while shipping d24), which
+    # is invisible from inside the app - every in-app constant agreed.
+    vj_path = BASE / 'Website' / 'version.json'
+    if vj_path.exists():
+        try:
+            v_feed = json.loads(vj_path.read_text(encoding='utf-8')).get('latest', '')
+        except (ValueError, OSError):
+            v_feed = ''
+        print(f'  update feed: Website/version.json latest={v_feed}')
+        check('update feed advertises the build being shipped (version.json == GW_VERSION)',
+              bool(v_feed) and v_feed == v_server)
+
     # ── 2. Boot the server on the temp DB ─────────────────────────────────────
     try:
         from server import create_app, _GW_TOKEN
@@ -993,13 +1051,31 @@ def main():
         session.add(acct9); session.flush()
         restaurants = session.query(_Cat).filter_by(name='Restaurants').first()
         coffee = session.query(_Cat).filter_by(name='Coffee Shops').first()
+        # get_budget_variance_for_category() groups by %Y-%m inside a ROLLING
+        # window (date.today() - 30*months), so months_sampled == 3 needs three
+        # rows in three DISTINCT calendar months, all inside the cutoff. Fixed
+        # 2026 months aged out: April 2026 would have left the 180-day window
+        # on 2026-10-13, dropping months_sampled to 2 and - because the volatile
+        # series would lose a 200 and become [800, 200] - changing the
+        # volatility figure the suggest_budget_adjustment checks below rely on.
+        # Anchored 1-3 months back so the buckets are always distinct, always
+        # in the past, and never near the cutoff.
+        _today = _date.today()
+
+        def _month_back(n, day):
+            y, m = _today.year, _today.month - n
+            while m < 1:
+                m += 12
+                y -= 1
+            return _date(y, m, day)
+
         # Volatile: 200, 800, 200 vs budgeted 500 -> 60% avg variance each month.
         for i, amt in enumerate([200.0, 800.0, 200.0]):
-            session.add(_Txn(date=_date(2026, 4 + i, 15), amount=amt, type='debit',
+            session.add(_Txn(date=_month_back(3 - i, 15), amount=amt, type='debit',
                               account_id=acct9.id, category_id=restaurants.id))
         # Stable: 310, 295, 305 vs budgeted 300 -> ~3.3% avg variance.
         for i, amt in enumerate([310.0, 295.0, 305.0]):
-            session.add(_Txn(date=_date(2026, 4 + i, 20), amount=amt, type='debit',
+            session.add(_Txn(date=_month_back(3 - i, 20), amount=amt, type='debit',
                               account_id=acct9.id, category_id=coffee.id))
         session.commit()
 
@@ -1123,19 +1199,28 @@ def main():
     with _dbs() as session:
         acct10 = _Acct(name='Recurring Detect Smoke Checking', type='checking')
         session.add(acct10); session.flush()
+        # detect_recurring_patterns() looks back a ROLLING window
+        # (date.today() - 30*months), so these dates must be relative to today.
+        # They were once pinned to fixed 2026 months, which passed when written
+        # and silently began failing when the calendar walked past them - the
+        # oldest Netflix row fell one day outside the 180-day cutoff and the
+        # merchant came back with frequency 3 instead of 4. Offsets are kept
+        # well inside the window so it cannot rot again.
+        _today = _date.today()
+
         # Consistent: Netflix $15.99 x4, no variance -> should be detected.
         for i in range(4):
-            session.add(_Txn(date=_date(2026, 3 + i, 5), amount=15.99, type='debit',
-                              account_id=acct10.id, merchant='Netflix'))
+            session.add(_Txn(date=_today - _timedelta(days=10 + 30 * i), amount=15.99,
+                              type='debit', account_id=acct10.id, merchant='Netflix'))
         # Inconsistent: "Corner Store" varies wildly -> should NOT be detected
         # even though it appears 4 times too.
         for amt in [12.0, 45.0, 8.0, 60.0]:
-            session.add(_Txn(date=_date(2026, 3, 10), amount=amt, type='debit',
+            session.add(_Txn(date=_today - _timedelta(days=20), amount=amt, type='debit',
                               account_id=acct10.id, merchant='Corner Store'))
         # Only 2 occurrences -> below the minimum, should NOT be detected.
         for i in range(2):
-            session.add(_Txn(date=_date(2026, 5 + i, 1), amount=9.99, type='debit',
-                              account_id=acct10.id, merchant='Spotify'))
+            session.add(_Txn(date=_today - _timedelta(days=30 + 30 * i), amount=9.99,
+                              type='debit', account_id=acct10.id, merchant='Spotify'))
         session.commit()
 
     with _dbs() as session:
@@ -2030,6 +2115,89 @@ def main():
 
     check('the Settings AI panel has a container for the setup prompt',
           'id="aiOllamaSetup"' in html_src)
+
+    # ── 44. Month-keyed writes: net worth snapshot + sinking fund auto-credit ─
+    # Both of these key off date.today().strftime('%Y-%m') and decide whether
+    # to write based on what month it is. Neither behaviour was covered: the
+    # snapshot route was only ever called with force=True (which skips the
+    # guard entirely), and /api/sinking-funds/auto-credit had no test at all.
+    # Month-boundary logic misbehaves on the 1st, which is the day nobody is
+    # watching, so it is worth pinning down here.
+    from core.database import NetWorthSnapshot as _NWS, SinkingFund as _SF2
+
+    _this_month = _date.today().strftime('%Y-%m')
+    _prev_month = (_date.today().replace(day=1) - _timedelta(days=1)).strftime('%Y-%m')
+
+    # create_snapshot(): the month it lands in, and the no-overwrite guard.
+    with _dbs() as session:
+        session.query(_NWS).filter_by(snapshot_date=_this_month).delete()
+        session.commit()
+
+    r = c.post('/api/net-worth/snapshot', headers=HJ,
+               json={'assets': 9000, 'liabilities': 2000})
+    _snap = ((r.get_json() or {}).get('data') or {}).get('snapshot') or {}
+    check('POST /api/net-worth/snapshot keys the snapshot to the current month',
+          r.status_code == 200 and _snap.get('date') == _this_month
+          and _snap.get('net_worth') == 7000.0)
+
+    r = c.post('/api/net-worth/snapshot', headers=HJ,
+               json={'assets': 1.0, 'liabilities': 0})
+    check('a second snapshot in the same month is refused without force=true',
+          r.status_code == 200
+          and ((r.get_json() or {}).get('data') or {}).get('taken') is False)
+
+    with _dbs() as session:
+        rows = session.query(_NWS).filter_by(snapshot_date=_this_month).all()
+        check('the refused snapshot neither overwrote the row nor added a second',
+              len(rows) == 1 and rows[0].net_worth == 7000.0)
+
+    c.post('/api/net-worth/snapshot', headers=HJ,
+           json={'force': True, 'assets': 12000, 'liabilities': 2000})
+    with _dbs() as session:
+        rows = session.query(_NWS).filter_by(snapshot_date=_this_month).all()
+        check('force=true overwrites the month in place rather than adding a row',
+              len(rows) == 1 and rows[0].net_worth == 10000.0)
+
+    # auto_credit_sinking_funds(): the gate is last_contributed_month == this
+    # month, so it is per-month, not once-ever. A fund last credited in a PRIOR
+    # month must credit again - that is the whole purpose of the field, and the
+    # part a month-boundary bug would silently break.
+    with _dbs() as session:
+        session.add(_SF2(name='Smoke AutoCredit Stale', target_amount=1000.0,
+                          current_amount=0.0, monthly_contribution=100.0,
+                          is_active=True, last_contributed_month=_prev_month))
+        session.add(_SF2(name='Smoke AutoCredit Capped', target_amount=500.0,
+                          current_amount=480.0, monthly_contribution=100.0,
+                          is_active=True, last_contributed_month=''))
+        session.add(_SF2(name='Smoke AutoCredit Inactive', target_amount=1000.0,
+                          current_amount=0.0, monthly_contribution=100.0,
+                          is_active=False, last_contributed_month=''))
+        session.commit()
+
+    r = c.post('/api/sinking-funds/auto-credit', headers=H)
+    check('POST /api/sinking-funds/auto-credit succeeds and reports the current month',
+          r.status_code == 200
+          and ((r.get_json() or {}).get('data') or {}).get('month') == _this_month)
+
+    with _dbs() as session:
+        stale = session.query(_SF2).filter_by(name='Smoke AutoCredit Stale').first()
+        check('a fund last credited in a PRIOR month is credited again '
+              '(the gate is per-month, not once-ever)',
+              stale.current_amount == 100.0
+              and stale.last_contributed_month == _this_month)
+        capped = session.query(_SF2).filter_by(name='Smoke AutoCredit Capped').first()
+        check('a contribution is capped at the fund target, never overshooting it',
+              capped.current_amount == 500.0)
+        inactive = session.query(_SF2).filter_by(name='Smoke AutoCredit Inactive').first()
+        check('an inactive fund is not credited',
+              inactive.current_amount == 0.0 and inactive.last_contributed_month == '')
+
+    c.post('/api/sinking-funds/auto-credit', headers=H)
+    with _dbs() as session:
+        stale = session.query(_SF2).filter_by(name='Smoke AutoCredit Stale').first()
+        capped = session.query(_SF2).filter_by(name='Smoke AutoCredit Capped').first()
+        check('a second auto-credit in the same month does not double-credit',
+              stale.current_amount == 100.0 and capped.current_amount == 500.0)
 
     return finish()
 
