@@ -1181,19 +1181,28 @@ def main():
     with _dbs() as session:
         acct10 = _Acct(name='Recurring Detect Smoke Checking', type='checking')
         session.add(acct10); session.flush()
+        # detect_recurring_patterns() looks back a ROLLING window
+        # (date.today() - 30*months), so these dates must be relative to today.
+        # They were once pinned to fixed 2026 months, which passed when written
+        # and silently began failing when the calendar walked past them - the
+        # oldest Netflix row fell one day outside the 180-day cutoff and the
+        # merchant came back with frequency 3 instead of 4. Offsets are kept
+        # well inside the window so it cannot rot again.
+        _today = _date.today()
+
         # Consistent: Netflix $15.99 x4, no variance -> should be detected.
         for i in range(4):
-            session.add(_Txn(date=_date(2026, 3 + i, 5), amount=15.99, type='debit',
-                              account_id=acct10.id, merchant='Netflix'))
+            session.add(_Txn(date=_today - _timedelta(days=10 + 30 * i), amount=15.99,
+                              type='debit', account_id=acct10.id, merchant='Netflix'))
         # Inconsistent: "Corner Store" varies wildly -> should NOT be detected
         # even though it appears 4 times too.
         for amt in [12.0, 45.0, 8.0, 60.0]:
-            session.add(_Txn(date=_date(2026, 3, 10), amount=amt, type='debit',
+            session.add(_Txn(date=_today - _timedelta(days=20), amount=amt, type='debit',
                               account_id=acct10.id, merchant='Corner Store'))
         # Only 2 occurrences -> below the minimum, should NOT be detected.
         for i in range(2):
-            session.add(_Txn(date=_date(2026, 5 + i, 1), amount=9.99, type='debit',
-                              account_id=acct10.id, merchant='Spotify'))
+            session.add(_Txn(date=_today - _timedelta(days=30 + 30 * i), amount=9.99,
+                              type='debit', account_id=acct10.id, merchant='Spotify'))
         session.commit()
 
     with _dbs() as session:
