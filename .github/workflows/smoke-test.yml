@@ -1,0 +1,111 @@
+name: Smoke Test
+
+# The deploy gate, run automatically on both product lines.
+#
+# The schedule is the point, not an extra. smoke_test.py holds fixtures
+# measured against rolling windows (date.today() - 30*months), so a test can
+# start failing on a calendar day rather than on a commit. That already
+# happened: the recurring-detection fixtures expired quietly and surfaced
+# months later during unrelated work. Push triggers cannot catch that class -
+# on a support line a quiet month is normal, and the failure just waits for
+# whoever pushes next. A daily run bounds the discovery gap to a day.
+on:
+  push:
+    branches: [master, 'lts/1.x']
+  pull_request:
+    branches: [master, 'lts/1.x']
+  schedule:
+    # 07:20 UTC daily. Off the hour on purpose - GitHub queues scheduled jobs
+    # hardest on the hour, and a run delayed past midnight reports the wrong
+    # day's date, which matters for the very tests this is here to watch.
+    - cron: '20 7 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: smoke-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  # ── The ref that triggered this run ──────────────────────────────────────
+  smoke:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # full history for the propagation check
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install Python dependencies
+        # requirements.txt in full, for fidelity with a real install.
+        # pywebview is in there and needs GTK at runtime on Linux, but
+        # server.py never imports it, so it installs and is never touched.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run the smoke test
+        # Exits 1 on any failure, failing the job. Same gate deploy.bat runs.
+        run: python smoke_test.py
+
+      - name: Report anything on master that has not reached LTS
+        # Informational only - never fails the build. Teaching-layer work is
+        # legitimately master-only, so this cannot be a gate. But under the LTS
+        # support commitment correctness fixes originate on lts/1.x and merge
+        # forward, and this is where you would spot one that did not.
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        run: |
+          if ! git fetch --no-tags --quiet origin 'refs/heads/lts/1.x:refs/remotes/origin/lts/1.x'; then
+            echo "::warning::lts/1.x not found on origin - skipping propagation check"
+            exit 0
+          fi
+          AHEAD="$(git log --oneline --no-merges origin/lts/1.x..HEAD)"
+          {
+            echo '### Commits on master that are not on lts/1.x'
+            echo
+            if [ -z "$AHEAD" ]; then
+              echo 'None - the two lines are level.'
+            else
+              echo 'Expected for teaching-layer work. Anything here that is a'
+              echo 'correctness fix belongs on lts/1.x too.'
+              echo
+              echo '```'
+              echo "$AHEAD"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Both product lines, on the daily schedule or on demand ───────────────
+  # Scheduled workflows only ever run from the default branch, so without an
+  # explicit matrix lts/1.x would get no calendar coverage at all - and it is
+  # the line that sits quiet for months, which is precisely when a fixture
+  # expires unnoticed. fail-fast is off so one rotted line does not mask the
+  # other's result.
+  lines:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: [master, 'lts/1.x']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run the smoke test on ${{ matrix.ref }}
+        run: python smoke_test.py
