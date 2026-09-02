@@ -1051,13 +1051,31 @@ def main():
         session.add(acct9); session.flush()
         restaurants = session.query(_Cat).filter_by(name='Restaurants').first()
         coffee = session.query(_Cat).filter_by(name='Coffee Shops').first()
+        # get_budget_variance_for_category() groups by %Y-%m inside a ROLLING
+        # window (date.today() - 30*months), so months_sampled == 3 needs three
+        # rows in three DISTINCT calendar months, all inside the cutoff. Fixed
+        # 2026 months aged out: April 2026 would have left the 180-day window
+        # on 2026-10-13, dropping months_sampled to 2 and - because the volatile
+        # series would lose a 200 and become [800, 200] - changing the
+        # volatility figure the suggest_budget_adjustment checks below rely on.
+        # Anchored 1-3 months back so the buckets are always distinct, always
+        # in the past, and never near the cutoff.
+        _today = _date.today()
+
+        def _month_back(n, day):
+            y, m = _today.year, _today.month - n
+            while m < 1:
+                m += 12
+                y -= 1
+            return _date(y, m, day)
+
         # Volatile: 200, 800, 200 vs budgeted 500 -> 60% avg variance each month.
         for i, amt in enumerate([200.0, 800.0, 200.0]):
-            session.add(_Txn(date=_date(2026, 4 + i, 15), amount=amt, type='debit',
+            session.add(_Txn(date=_month_back(3 - i, 15), amount=amt, type='debit',
                               account_id=acct9.id, category_id=restaurants.id))
         # Stable: 310, 295, 305 vs budgeted 300 -> ~3.3% avg variance.
         for i, amt in enumerate([310.0, 295.0, 305.0]):
-            session.add(_Txn(date=_date(2026, 4 + i, 20), amount=amt, type='debit',
+            session.add(_Txn(date=_month_back(3 - i, 20), amount=amt, type='debit',
                               account_id=acct9.id, category_id=coffee.id))
         session.commit()
 
