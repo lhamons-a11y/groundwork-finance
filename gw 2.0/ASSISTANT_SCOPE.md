@@ -154,6 +154,45 @@ computation run on the unknown side: **which missing fact, if known, would most 
 answer.** That would give Layer 4 its selection rule from machinery already specified. It
 should be tested before it is assumed.
 
+### Expressed state — a third input kind
+
+The answer surface takes questions, gives answers, and asks for facts when it lacks them. There is
+a third thing a user can say that is neither: **an expressed state.** *"I'm so frustrated with my
+finances."* *"I'm frustrated with Groundwork."* Not a question, not a fact — and not in the
+Historian, which holds numbers.
+
+**Read what they say; never infer what they feel.** Inferring frustration from behaviour — spending
+patterns, abandoned sessions, anything dwell-shaped — is the psychology collection §9 bans and the
+motive F.6b refuses. A user *telling* the software they are frustrated is a **Declaration** (F.6a),
+and is received as one.
+
+**Received, never retained.** Ephemeral context in `RETENTION.md`'s sense: used inside the pass
+that heard it, then gone. Three reasons, and the third is structural:
+
+- Its value is entirely in the moment. There is no later use that isn't a characterization.
+- A stale stated feeling is as corrosive as an inferred one. *"You said you were frustrated in
+  March"* is not something this software should hold — and `RETENTION.md`'s own worked example of
+  the dangerous level is literally *appears distressed*.
+- **It cannot become a standing condition.** Nothing retained means nothing accumulates into a
+  recurring pattern, so nothing will ever offer to *"let you know when you seem frustrated."* The
+  persistence rule kills that by construction rather than by taste.
+
+**Frustrated with the finances → show the real advancement, or say there isn't any.** The
+honest-null discipline applies without exception here, because this is precisely the moment a
+product starts manufacturing encouragement — the empty cheerleading A.3 warns against and the
+persuasion Appendix B forbids. If the Historian holds a real gain, however small, show it with its
+receipt. If it doesn't, say so: *"you're right that it hasn't moved, and here's what's holding
+it,"* plus the nearest lever (§6.1). That is worth more than an invented small win, and it is the
+version that survives the user checking.
+
+**Frustrated with Groundwork → ask which; don't assume navigation.** Routing this to help-me-find-
+things assumes the problem is discoverability. It might be. It might equally be that the software
+said something unwelcome, that a number looks wrong, or that the thing is genuinely confusing.
+Assuming navigation is a way of not hearing it. The rule already settled for the answer surface
+applies unchanged: when the assistant lacks what it needs, it asks a direct question — *"is
+something hard to find, or is something not adding up?"* — and the two branches go different
+places.
+
 ### System-initiated — alarms and watches
 
 Groundwork may also speak first. Appendix A already governs promotion to proactive, and
@@ -315,26 +354,67 @@ already settled: *"want me to keep this one current?"* The gradient still runs t
 
 ---
 
+---
+
+## Alarm governance — SETTLED 2026-09-03
+
+Appendix A governs promotion at runtime, per instance: should *this* candidate interrupt *now*.
+Nothing asks whether this *kind* of alarm should exist at all, or measures what users actually
+receive. Two additions close that, both borrowed from industrial alarm practice and both shaped by
+rules already settled here.
+
+### Rationalization — an alarm type earns its existence before it exists
+
+**Every alarm type carries a written rationalization before it ships**, with four fields:
+
+- **Cause** — the provable ledger condition that raises it. What can be evidenced, never what
+  merely sounds alarming.
+- **Consequence** — what happens to the user if nothing is done, in their own scale.
+- **Response** — the honest §6 lever available. **A type with no response is not an alarm**; it is
+  information, and it belongs in the passive tier (A.1). This is A.2's Actionability gate moved
+  from runtime to design time, where it kills bad alarm *types* instead of merely suppressing bad
+  instances.
+- **Priority basis** — why it competes where it does under A.3's contention rules.
+
+This is the document's own **Gated** discipline applied to a bucket that lacked it: the standard
+exists, it needs pinning per case before build. Without it the failure is predictable and has been
+documented for decades — alarm types accumulate because each seemed reasonable in isolation, and
+the delivered rate climbs until users ignore all of them.
+
+### Measured delivered rate — a high rate is a design fault, not a busy week
+
+A.3 sets caps, but the cap is the *intent* and the rate is the *outcome*, and they diverge. So the
+rate gets measured: an **annunciation log** recording every promoted prompt, its kind, its gauntlet
+result, and what the user **did** with it.
+
+Two disciplines, both required by rules already settled:
+
+- **It records actions, never absences.** A dismissal is something the user did, and A.4 already
+  uses dismissals legitimately — 60-day cooldown, auto-drop to passive after two. *"Shown, no
+  response"* is silence, and inference from silence is forbidden (§10). The log may not carry it,
+  and nothing may be derived from its absence.
+- **Over target is a design review, not a throttle.** Turning the caps down hides the fault; the
+  caps were never the problem. Find the alarm type that is over-firing and fix it or delete it. The
+  log exists so *we* can find design faults — never so the software can learn what to suppress,
+  which would be the learned ranking the persistence boundary forbids.
+
+Groundwork already has this pattern working: the voice gate's miss-log accumulates rejections for
+hardening. This is the same instinct pointed at annunciation.
+
 ## Open
 
-- **Alarm governance is partly undesigned.** Appendix A covers promotion at runtime, per
-  instance. Industrial practice adds two things it still lacks: **rationalization** (each
-  alarm *type* justifies its existence at design time — cause, consequence, response,
-  priority basis — which is this document's own "Gated" discipline applied to a bucket that
-  does not have it), and **measured delivered rate** treated as a design defect when it
-  drifts, the way the voice gate's miss-log is used. *(Stale conditions, the third gap, is
-  settled above.)*
-- **Alarms proper are still an unbudgeted prompt-kind.** A.3 budgets brakes and green-lights.
-  The offer-to-watch above is now settled into the brake budget, and the factual clarification
-  is exempt because it is solicited — but the contradiction-check remains unpinned (§12) and a
-  bare alarm has no budget at all. Two kinds outstanding, not three. The offer-to-watch is the
-  precedent for how to resolve them: decide which existing budget the kind's *attention cost*
-  most resembles, rather than minting a new cap per kind.
-- **Gate 2 versus genuinely path-less news.** A.2 requires an honest §6 solution before a
-  brake may interrupt. Some alarming facts have no lever — income stopping. The honest-no
-  always carries a nearest lever and nearest reachable goal, so this may resolve itself, but
-  "we never deliver bad news with no path" and "the user needs to know this" can collide and
-  it should be checked deliberately rather than assumed.
+- *(Resolved 2026-09-03 — **prompt-kind budgets.** The contradiction-check is settled into the
+  brake budget (§12), the offer-to-watch likewise, and the factual clarification is exempt because
+  it is solicited. Alarms follow from rationalization above: a type with no response is not an
+  alarm but information, and lives in the passive tier — so every promotable alarm carries a §6
+  lever, which makes it a brake and puts it in the brake budget by the standing rule. No kind
+  remains unbudgeted.)*
+- *(Resolved 2026-09-03 — **Gate 2 versus path-less news.** Rationalization answers it at design
+  time: a type with no available response is not an alarm, it is information, and A.1 already keeps
+  it passive indefinitely at no cost. The worked worry — income stopping — is not actually
+  path-less, because Appendix C's honest-no always carries a nearest lever and nearest reachable
+  goal. If a genuinely response-less condition is ever found, the rationalization field is where it
+  gets caught, before it ships rather than after.)*
 - **Layer 5's stakes gate.** `LEARNING.md` makes stakes decide whether the system may
   recommend at all. Groundwork's honest-no (Appendix C) governs what it may *claim*, not
   whether the stakes permit a recommendation. Whether these are the same rule seen twice
