@@ -409,6 +409,10 @@ collect-and-ignore loop), then Pillar 4 green light (the emotional differentiato
 - **No monetizing the user** — which is exactly why we can afford principles #2 and #3 above.
 - **No silent data-collection expansions** framed as "no user-facing changes." New data, if any,
   ships with disclosure and a control.
+- **No derived observations kept out of sight.** Detection is allowed; silent accumulation is not. A
+  strategy label or confidence score the user cannot see may be computed and used inside the pass that
+  computed it, never stored (§10). This is the retention counterpart to the two bans above: they
+  forbid inferring the user's psychology, this forbids quietly keeping what was inferred.
 
 ---
 
@@ -420,6 +424,20 @@ collect-and-ignore loop), then Pillar 4 green light (the emotional differentiato
 - Everything on-device. No teaching feature adds an outbound call.
 - The Historian's honest-null discipline is the model for the whole platform: no history → no
   claim.
+- **Derived state may be cached, never remembered.** The Assistant's persistence boundary
+  (`RETENTION.md`, decided 2026-08-17) governs here too: *if an observation is not surfaced to the
+  person, it cannot become persistent memory* — detection is allowed, silent accumulation is not. A
+  willingness strategy, its score, a break's magnitude, a confidence level: each is a claim about the
+  user that the user cannot see, and none may be kept as one. **Groundwork can hold this more strictly
+  than the Assistant can.** The Assistant discards its raw material, so what it wants to remember it
+  must derive — and derivation is the forbidden thing. Our raw material *is the product*: the ledger
+  persists, the user sees all of it, and every derivation can be redone. The boundary costs us
+  compute, not capability.
+  - **The test is deletion.** Wipe every derived table and re-run. Identical output means the rule
+    holds; any difference names exactly what was being remembered.
+  - **What persists:** the ledger (they handed it over and can see it) and their declarations (they
+    made them, and they are surfaced by definition, F.3). Nothing else — not the strategy label, not
+    its held-out score, not a break's magnitude or breadth, not a confidence level.
 
 ---
 
@@ -1074,9 +1092,9 @@ and then we check whether reading them worked.
   means, in the vocabulary the engine already speaks.
 - **The prediction test.** A strategy may be attributed only when it predicts behaviour it was **not
   fitted to** — better than the alternatives and better than a naive baseline. Fit on events up to a
-  point, score on what came after; never fit and score on the same events. The score is stored with
-  the label and recomputed as behaviour arrives. Below threshold the label drops to `unclassified`.
-  Nobody decides this; the arithmetic does.
+  point, score on what came after; never fit and score on the same events. The label and its score are
+  **cached** together and recomputed as behaviour arrives — cached, never remembered (§10).
+  Below threshold the label drops to `unclassified`. Nobody decides this; the arithmetic does.
 - **`unclassified` is the resting state and must stay common.** A taxonomy that always finds a
   category is a horoscope. **If in practice nearly everyone gets a label, this layer is decoration and
   should be deleted** — an acceptance test, not a caution. It is also the honest home for F.2's
