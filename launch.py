@@ -21,6 +21,75 @@ def _get_base_dir():
     return Path(__file__).parent.resolve()
 
 
+# AppleScript literals need escaped backslashes and quotes. chr(92) is a
+# backslash - written this way so the escaping is readable rather than a wall
+# of doubled slashes.
+_BS = chr(92)
+
+
+def _applescript_str(s):
+    """Quote a Python string as an AppleScript literal, newlines included.
+
+    AppleScript has no backslash-n escape, so multi-line text has to be joined
+    with `return` between one literal per line.
+    """
+    def lit(x):
+        return '"' + x.replace(_BS, _BS + _BS).replace('"', _BS + '"') + '"'
+    return ' & return & '.join(lit(line) for line in s.splitlines() or [''])
+
+
+def _show_error_dialog(title, msg):
+    """Show a native error box using nothing but the standard library.
+
+    This runs when startup has already failed - sometimes *because* an import
+    failed - so it must not depend on anything that could be the broken thing.
+    tkinter was the previous answer, and it cost roughly 8MB of tcl/tk in every
+    bundle to draw three dialogs. ctypes and osascript cost nothing and are
+    always present on their platforms.
+
+    stderr always gets the message. The dialog is a bonus for a user who
+    double-clicked an icon and has no console to read.
+    """
+    print(msg, file=sys.stderr)
+    try:
+        if sys.platform == 'win32':
+            import ctypes
+            MB_OK, MB_ICONERROR, MB_SETFOREGROUND = 0x0, 0x10, 0x10000
+            ctypes.windll.user32.MessageBoxW(
+                None, str(msg), str(title), MB_OK | MB_ICONERROR | MB_SETFOREGROUND)
+        elif sys.platform == 'darwin':
+            import subprocess
+            subprocess.run(
+                ['osascript', '-e',
+                 'display dialog %s with title %s buttons {"OK"} '
+                 'default button "OK" with icon stop'
+                 % (_applescript_str(msg), _applescript_str(title))],
+                check=False, timeout=300)
+        else:
+            import shutil
+            import subprocess
+            for tool, args in (
+                ('zenity', ['--error', '--title', title, '--text', msg]),
+                ('kdialog', ['--error', msg, '--title', title]),
+            ):
+                if shutil.which(tool):
+                    subprocess.run([tool] + args, check=False, timeout=300)
+                    break
+    except Exception:
+        pass    # stderr already carries it; never fail inside the failure path
+
+
+def _folder_dialog_type():
+    """FOLDER_DIALOG is deprecated in pywebview 6, and FileDialog.FOLDER does
+    not exist in the 4.4 minimum this project declares. Accept either."""
+    import webview
+    fd = getattr(webview, 'FileDialog', None)
+    if fd is not None and hasattr(fd, 'FOLDER'):
+        return fd.FOLDER
+    return webview.FOLDER_DIALOG
+
+
+
 def _check_dependencies():
     errors = []
     try:
@@ -31,13 +100,7 @@ def _check_dependencies():
     if errors:
         msg = "Groundwork cannot start:\n\n" + "\n\n".join(errors)
         print(msg, file=sys.stderr)
-        try:
-            import tkinter as tk
-            from tkinter import messagebox
-            root = tk.Tk(); root.withdraw()
-            messagebox.showerror("Groundwork — Missing dependencies", msg)
-        except Exception:
-            pass
+        _show_error_dialog("Groundwork - Missing dependencies", msg)
         sys.exit(1)
 
 
@@ -83,15 +146,21 @@ class GroundworkAPI:
             logging.warning('open_external failed: %s', e)
 
     def pick_folder(self):
+        """Folder picker via pywebview, the window layer the app already has.
+
+        Previously tkinter, which meant shipping tcl/tk in every bundle to draw
+        one dialog. pywebview is already present - it draws the whole UI.
+        """
         try:
-            import tkinter as tk
-            from tkinter import filedialog
-            root = tk.Tk()
-            root.withdraw()
-            root.wm_attributes('-topmost', True)
-            folder = filedialog.askdirectory(title='Choose backup folder', parent=root)
-            root.destroy()
-            return folder or None
+            import webview
+            windows = getattr(webview, 'windows', None) or []
+            if not windows:
+                logging.warning('pick_folder: no webview window available')
+                return None
+            result = windows[0].create_file_dialog(_folder_dialog_type())
+            if not result:
+                return None
+            return result[0] if isinstance(result, (list, tuple)) else str(result)
         except Exception as e:
             logging.warning('pick_folder failed: %s', e)
             return None
@@ -333,20 +402,13 @@ def main():
         except Exception:
             pass
 
-        try:
-            import tkinter as tk
-            from tkinter import messagebox
-            root = tk.Tk(); root.withdraw()
-            messagebox.showerror(
-                "Groundwork — Startup Error",
-                "Groundwork's server did not start.\n\n"
-                "A log file has been written to:\n"
-                f"%LOCALAPPDATA%\\Groundwork\\startup_error.log\n\n"
-                "Please send that file to support@groundworkfinance.app"
-                + error_detail
-            )
-        except Exception:
-            pass
+        _show_error_dialog(
+            "Groundwork - Startup Error",
+            "Groundwork's server did not start.\n\n"
+            "A log file has been written to:\n"
+            r"%LOCALAPPDATA%\Groundwork\startup_error.log"
+            "\n\nPlease send that file to support@groundworkfinance.app"
+            + error_detail)
         sys.exit(1)
 
     api    = GroundworkAPI()

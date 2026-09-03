@@ -10,6 +10,16 @@ echo.
 :: Change to project directory
 cd /d C:\Groundwork
 
+:: -- Product line -------------------------------------------------------------
+:: Which product is this build? "teaching" (GW 2.0, the default) or "lts" (1.x).
+:: The spec reads GW_PRODUCT and strips static/js/teaching/ from an LTS bundle,
+:: so an LTS build does not contain the teaching layer rather than disabling it.
+::   build.bat        -> GW 2.0
+::   build.bat lts    -> GW LTS
+if /i "%~1"=="lts" (set GW_PRODUCT=lts) else (set GW_PRODUCT=teaching)
+echo       Product line: %GW_PRODUCT%
+echo.
+
 :: -- Step 0: Preflight check - watchdog must be bundled --------------------
 :: GROUNDWORK_STATUS.md flagged this as an open item: without watchdog
 :: explicitly in the PyInstaller spec (as a hiddenimport or otherwise), the

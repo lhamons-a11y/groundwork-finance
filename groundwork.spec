@@ -2,6 +2,7 @@
 # Groundwork — PyInstaller spec file
 # Run from C:\Groundwork\ with: pyinstaller groundwork.spec --clean --noconfirm
 
+import os
 import sys
 from pathlib import Path
 
@@ -133,10 +134,6 @@ a = Analysis(
         'pythonnet',
         'System',
         # tkinter
-        'tkinter',
-        'tkinter.filedialog',
-        'tkinter.messagebox',
-        '_tkinter',
         # stdlib — let PyInstaller include everything it finds automatically
         'secrets',
         'threading',
@@ -164,6 +161,24 @@ a = Analysis(
         'numpy',
         'pandas',
         'PIL',
+        # pdfplumber's render backend. It and PIL are imported in exactly one
+        # place - pdfplumber/display.py - and Groundwork only ever calls
+        # page.extract_text() (pdf_statement.py: 'layout -> text ONLY').
+        # PIL was already excluded here and PDF extraction kept working, which
+        # is the precedent: same import, same file, same verdict. Verified with
+        # both blocked - a real 4-page statement still extracts 14,064 chars.
+        # NOTE: cryptography is NOT excludable. pdfminer.six requires it
+        # outright for encrypted PDFs, and bank statements often are.
+        'pypdfium2',
+        'pypdfium2_raw',
+        # tkinter and its ~10MB of tcl/tk. Nothing imports it any more: the two
+        # startup error dialogs use ctypes/osascript/zenity (stdlib only, and
+        # they must be - they fire when an import has already failed), and the
+        # backup folder picker uses pywebview, which already draws the whole
+        # UI. pywebview itself imports tkinter nowhere, so this is safe on
+        # every platform, not just Windows.
+        'tkinter',
+        '_tkinter',
         'PyQt5',
         'PyQt6',
         'wx',
@@ -174,6 +189,26 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
+# ── Product line: which build is this? ────────────────────────────────────
+# GW_PRODUCT=lts strips the 2.0 teaching layer out of the bundle. The split is
+# teaching-layer vs no-teaching-layer, so the boundary is a path segment rather
+# than a feature flag: nothing under static/js/teaching/ ships in an LTS build,
+# and server.py emits no loader tag for a file that is not there. An LTS build
+# therefore does not disable the teaching layer, it does not contain it.
+#
+# Filtering the TOC after Analysis, rather than pruning the datas list before
+# it, means the rule holds however those files were collected.
+GW_PRODUCT = os.environ.get('GW_PRODUCT', 'teaching').strip().lower()
+GW_TEACHING_PREFIX = 'static/js/teaching/'
+if GW_PRODUCT == 'lts':
+    _before = len(a.datas)
+    a.datas = [t for t in a.datas
+               if not '/'.join(t[0].split(os.sep)).startswith(GW_TEACHING_PREFIX)]
+    print('[spec] GW_PRODUCT=lts - stripped %d teaching-layer file(s)'
+          % (_before - len(a.datas)))
+else:
+    print('[spec] GW_PRODUCT=%s - teaching layer included' % GW_PRODUCT)
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

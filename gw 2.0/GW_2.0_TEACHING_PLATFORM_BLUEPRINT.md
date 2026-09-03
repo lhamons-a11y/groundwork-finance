@@ -60,9 +60,9 @@ shifts.
 
 **Status.** A vision artifact, not a spec — nothing is built. It is deliberately a philosophy scaffold,
 not a full scope. Most design questions are worked through (Appendices A–G); the open surface is sorted
-into two kinds (§12): **Open** (no answer exists yet) — *where the Willingness Layer lives* (F.3, the
-frontier) and the clarification prompt-kind's budget (A.3/E.2b) — and **Gated** (standard exists, pin
-per case before build) — Trophy Room's proof-source and Appendix G's cycle thresholds.
+into two kinds (§12): **Open** (no answer exists yet) — free-generated drama-safety (B.2a) —
+and **Gated** (standard exists, pin per case before build) — Trophy Room's proof-source and
+Appendix G's cycle thresholds. Alarm governance is open too, in `ASSISTANT_SCOPE.md`.
 
 ---
 
@@ -421,6 +421,10 @@ collect-and-ignore loop), then Pillar 4 green light (the emotional differentiato
 - **No monetizing the user** — which is exactly why we can afford principles #2 and #3 above.
 - **No silent data-collection expansions** framed as "no user-facing changes." New data, if any,
   ships with disclosure and a control.
+- **No derived observations kept out of sight.** Detection is allowed; silent accumulation is not. A
+  strategy label or confidence score the user cannot see may be computed and used inside the pass that
+  computed it, never stored (§10). This is the retention counterpart to the two bans above: they
+  forbid inferring the user's psychology, this forbids quietly keeping what was inferred.
 
 ---
 
@@ -432,6 +436,20 @@ collect-and-ignore loop), then Pillar 4 green light (the emotional differentiato
 - Everything on-device. No teaching feature adds an outbound call.
 - The Historian's honest-null discipline is the model for the whole platform: no history → no
   claim.
+- **Derived state may be cached, never remembered.** The Assistant's persistence boundary
+  (`RETENTION.md`, decided 2026-08-17) governs here too: *if an observation is not surfaced to the
+  person, it cannot become persistent memory* — detection is allowed, silent accumulation is not. A
+  willingness strategy, its score, a break's magnitude, a confidence level: each is a claim about the
+  user that the user cannot see, and none may be kept as one. **Groundwork can hold this more strictly
+  than the Assistant can.** The Assistant discards its raw material, so what it wants to remember it
+  must derive — and derivation is the forbidden thing. Our raw material *is the product*: the ledger
+  persists, the user sees all of it, and every derivation can be redone. The boundary costs us
+  compute, not capability.
+  - **The test is deletion.** Wipe every derived table and re-run. Identical output means the rule
+    holds; any difference names exactly what was being remembered.
+  - **What persists:** the ledger (they handed it over and can see it) and their declarations (they
+    made them, and they are surfaced by definition, F.3). Nothing else — not the strategy label, not
+    its held-out score, not a break's magnitude or breadth, not a confidence level.
 
 ---
 
@@ -528,17 +546,30 @@ Two kinds — and the *kind* is the routing instruction. **Open** = no answer ex
 don't build until it does*. **Gated** = the standard already exists; it needs pinning per case → *apply
 it, then ship*. Nothing in the **Gated** bucket enters the build queue (§11) until its per-case standard
 is pinned; until then, any "evidence-backed" / "resolved" language it carries is aspirational.
+- **Where the Willingness Layer lives (Appendix F.3): DECIDED 2026-09-03.** The **working picture**
+  — renamed from "current agreement", which oversold what the evidence supports — **lives with the
+  assistant**, as the assistant's record of its own conduct: what it concluded, what it did, why,
+  and what the user may dispute. Same home as the answer surface but a *distinct view*, since a Q&A
+  transcript is no place for durable state. **Settings gets a pointer, never residence** — location
+  teaches interpretation. Nothing is editable that isn't first a claim with a receipt; the empty
+  state is a cold-start property and is designed first; and the placement carries a stated
+  dependency — it assumes the assistant is a first-class destination, so demoting it later is a
+  decision about the Willingness Layer, not just navigation.
+- **Clarification prompt-kind's budget (A.3, E.2b): DECIDED 2026-09-03.** A promoted
+  contradiction-check **draws from the brake budget** — no cap of its own — because its attention
+  cost is a brake's: an unsolicited interruption asking the user to resolve something is mild
+  pressure, and the green-light budget exists precisely because good news isn't. Generalized as a
+  standing rule: *a new prompt-kind joins the budget its attention cost resembles; it does not mint
+  its own.* Ranking against other candidates was already covered — A.3's perishability tie-break
+  explicitly handles "a position fact that doesn't reduce to a date-impact," which is exactly a
+  contradiction-check's weight-of-contradiction unit, so most of this item turned out to be Gated
+  rather than Open. **One new clause was needed:** *dependency before impact* — a contradiction-check
+  outranks candidates whose ranking depends on the contradicted declaration, because the
+  contradiction is upstream and firing them first spends a slot on possibly-wrong advice. Not a
+  hierarchy by kind (A.3 forbids those); an ordering by dependency, and checkable.
+
 
 **Open — no answer exists yet:**
-- **Where the Willingness Layer lives (Appendix F).** The interaction model — user declares what
-  they'll change (or nothing), software teaches strictly within it — is *named* but its home in the
-  product is unsolved. Candidate direction (Appendix F.3): declared-in-context + summarized in one
-  living "current agreement" view; explicitly **not** a settings screen. This is the current frontier.
-- **The clarification prompt-kind's budget (A.3, E.2b).** A contradiction-check (E.2b — the user's own
-  word disagrees with their own action) is a *third* proactive prompt-kind, a clarification, neither
-  brake nor green-light. A.3's frequency caps only budget brakes and green-lights, so it's unpinned
-  whether a promoted contradiction-check draws its own cap or simply competes by materiality in the
-  contention rule. No existing standard settles it — genuinely open, not gated.
 - **Free-generated drama-safety (B.2a, §3 #10).** *Narrowed 2026-08-30 by Appendix H — still open,
   but the leaning is now evidence-backed rather than a preference.* Measurement shows the model-side
   failure (R3, smuggled inference) runs 37–70% across every local model tested and **rises with model
@@ -601,6 +632,13 @@ we can set a high bar for interrupting without hiding value.
 - **Brake/warning: ≤ 2 per rolling 7 days.**
 - **Green-light/positive: separate looser budget, ~1–2/week.** Deliberate asymmetry — nagging is
   *unwanted pressure*; good news isn't pressure. Capped so it doesn't become empty cheerleading.
+- **Clarifications (contradiction-checks, E.2b) draw from the brake budget — no separate cap.** A
+  promoted contradiction-check is an unsolicited interruption asking the user to resolve something.
+  That is mild pressure, so it costs what a brake costs; the green-light budget exists precisely
+  because good news *isn't* pressure. A cap of its own would also sit idle most weeks, since E.2b
+  makes these Passive by default and promotion needs an explicit declaration, durable contradicting
+  behaviour, *and* enough weight to clear the gauntlet. The rule generalizes: **a new prompt-kind
+  joins the budget its attention cost resembles; it does not mint its own.**
 - **Quiet days → silence.** Saying nothing is correct behavior, not a gap to fill. Proactive is
   event-driven; a week with no material events is a silent week.
 - **Contention (which candidate takes a scarce slot).** When more candidates clear the gauntlet than
@@ -610,8 +648,18 @@ we can set a high bar for interrupting without hiding value.
   - **Never by insight source or appendix.** A fixed "this kind outranks that kind" hierarchy is the
     system imposing a universal importance ranking — the E.1/E.2 error (what most needs saying to
     *this* user isn't ours to pre-decide). The ruler is the user's goal, not our ordering of appendices.
+  - **Dependency before impact.** A promoted contradiction-check outranks any candidate whose
+    ranking **depends on the contradicted declaration**; against candidates that do not depend on
+    it, it competes normally. This is not the hierarchy-by-kind forbidden above — it is an ordering
+    by dependency, and it is checkable: *does this candidate's ranking use the category under
+    dispute?* The justification is that the contradiction sits **upstream**. If dining is marked
+    protected and the user has been trimming it, every solution ranked on that protection may be
+    ranked wrongly, so firing one first spends a scarce slot on possibly-wrong advice. Resolving
+    the contradiction is what makes the other candidates *correct*. **New clause (2026-09-03) —
+    the only part of the clarification-budget question not settled by an existing standard.**
   - **Tie-break 1 — perishability.** When goal-impact is comparable, or a candidate is a position fact
-    that doesn't reduce to a date-impact (e.g. G's "approaching your prior peak"), surface the one that
+    that doesn't reduce to a date-impact (e.g. G's "approaching your prior peak", or a
+    contradiction-check, which carries weight-of-contradiction rather than dollars), surface the one that
     *loses the most by waiting*: a decision the user is about to make outranks a fact that's equally
     true next week. Perishability is judged from what is *already true* — a decision in progress, a
     window closing by a known amount — never from a predicted trajectory (distance-not-direction, F.8).
@@ -974,7 +1022,7 @@ E.2a doesn't cover — the user just disagrees with a classification, no correla
 - **The contradiction-check is not "just another prompt."** It's a reconciliation between the user's own
   word and their own action, not a teaching insight, so it doesn't map onto A's gates cleanly — there's
   no §6 *lever* for a contradiction; the actionable thing is the *answer* itself. So it is **Passive by
-  default** — surfaced in F.3's current-agreement view, where the user already sees overrides against
+  default** — surfaced in F.3's working picture, where the user already sees overrides against
   behavior — and promotes to **Proactive** only through the Gauntlet as a *scale-appropriate instance*
   (like G.3b did for G): materiality ruled by the *weight of the contradiction* (category significance ×
   how durable the drift is), Actionability satisfied by the resolution being available, not a §6 lever.
@@ -989,8 +1037,8 @@ E.2a doesn't cover — the user just disagrees with a classification, no correla
   it, rather than standing against the user's just-stated word.
 
 **Deferred to F.3 (the interaction):** *how* the user issues an override, and *where* the standing set
-of overrides — and the Passive contradiction-checks — are seen and adjusted. F.3's "one living
-current-agreement view" is exactly that surface. This closes the correction channel's *discipline*; its
+of overrides — and the Passive contradiction-checks — are seen and adjusted. F.3's one living working
+picture is exactly that surface. This closes the correction channel's *discipline*; its
 *interaction* rides with F.3.
 
 ### E.3 Ranking order (among honest levers, §6.1)
@@ -1020,8 +1068,8 @@ feature, not a gap.
 
 ## Appendix F — The Willingness Layer (the interaction model)
 
-*Status: **named, not solved.** "Where it lives" is a genuinely open design question (§12). This is the
-current frontier — captured here so the idea isn't lost, not because it's figured out.*
+*Status: the interaction model is **named and now placed** (F.3, settled 2026-09-03). What it is, how each
+source proves itself, what may persist and where it lives are decided; **none of it is built**.*
 
 The deepest expression of "recorder → teacher": a teacher implies a **relationship**, not a broadcast.
 This is not a feature — it's the **interaction model** the rest of the blueprint serves.
@@ -1043,26 +1091,83 @@ The user can set willingness to zero — "I'm not changing anything right now" �
 it without guilt, still shows the truth, and stays quietly useful ("here's where that leaves you; I'm
 here when you're ready"). Respecting "no" is what earns the eventual "yes." This is the trust engine.
 
-### F.3 Where it lives (candidate direction — OPEN)
+### F.3 Where it lives — SETTLED 2026-09-03
 **Not a settings screen** — willingness-as-static-config is the exact preferences-toggle trap this is
 meant to escape. Candidate direction:
 - **Declared in context** — willingness is expressed at real decision moments ("I'll cut dining, never
   the kids' stuff" said in response to a specific proposal), where it's concrete; accumulated into one
   living model.
-- **Summarized in one living place** — a single view that *is* the current agreement: what you're
-  willing to change, what's off the table, the gap to your goals, what's reachable within your current
-  willingness. It doesn't live in a screen; it lives in the **relationship state** — expressed
-  everywhere, summarized in one place.
+- **Summarized in one living place — the working picture.** A single view holding what Groundwork
+  actually has to go on: the observed, the inferred and the declared (F.6a), each with its
+  provenance; the gap to the user's goals; and what is reachable within their current willingness.
+  It doesn't live in a screen; it lives in the **relationship state** — expressed everywhere,
+  summarized in one place.
+  - **Not "the current agreement."** That was the name used here first, and it oversells. An
+    agreement implies both parties committed, while F.1 makes willingness *theirs alone* and F.6b
+    makes `unclassified` the common case. For most users most of the time there is no agreement —
+    there is a ledger, perhaps a declaration, and no strategy. The name has to be honest about that
+    or the screen gets built to justify the name.
+  - **The empty state is the design centre, not an edge case.** Because `unclassified` must stay
+    common (F.6b), this view is nearly empty for most users most of the time. A view that is empty
+    by design gets filled with noise to look useful — unless the emptiness *is* the point. It is
+    the point: an empty working picture is the software saying *I have not earned any conclusions
+    about you yet*, which is the one thing no other finance product will say on day one. Design
+    this state first. The populated one is both the easier problem and the rarer one.
 - **Proof-backed and correctable** — "you said X in March; your behavior since suggests Y — update?"
   A living, honest contract (Appendix E), never a frozen declaration.
+- **Nothing is editable that isn't first a claim with a receipt.** This is what keeps the view out
+  of the settings trap it opens by declaring. E.2b defers the override *interaction* to here, so
+  the user must be able to mark dining protected somewhere — and a place where you set things is a
+  settings screen unless something prevents it. The preventer: every editable item is attached to a
+  claim the software has already made, shown with the evidence it rests on. Editing is **disputing
+  a claim**, not configuring a system. There is no preference to set about something Groundwork has
+  never observed, because there is nothing there to dispute. This governs what the *view* offers
+  to edit, not what the user may volunteer: in-context declaration is the other channel and is
+  untouched — "never the kids' stuff," said in response to a proposal, stands whether or not that
+  category has any history behind it.
+  - The editable surface is therefore **generated from evidence, not from a feature list** — the
+    same rule as the watch catalogue, where only what can be proven for *this* user may be offered,
+    applied a third time. The consistency is not tidiness: a feature list is a fixed set somebody
+    maintains, and maintaining one is exactly how "not a settings screen" degrades into one.
+  - It also bounds the empty state honestly: a working picture with nothing in it has nothing to
+    edit. **A settings screen has all of its controls on day one; this one starts with none and
+    grows them as evidence arrives.** That is the difference stated as behaviour rather than as
+    intent — and behaviour is the half that can be checked.
+- **Where it lives: with the assistant.** The working picture is not a summary of beliefs — it is
+  **the assistant's record of its own conduct**: what it concluded, what it did, why, and what the
+  user may dispute. The assistant draws the conclusions, makes the adjustments
+  (`ASSISTANT_SCOPE.md`) and issues the offers, so the record belongs where the work happened.
+  - **Same home, distinct view.** A Q&A transcript is a poor place for durable state; the record
+    would scroll away. The assistant has a conversation *and* a record, and they are not the same
+    pane.
+  - **Settings gets a pointer, never the thing.** One line — *"what Groundwork has concluded about
+    how you handle money →"*. Discoverable from where people look, without the room full of
+    toggles redefining what it is. Residence there would undo the rule above: a screen where
+    everything else is configuration teaches the user to read this as configuration too.
+  - **The emptiness is a cold-start property, not a steady state.** `unclassified` staying common
+    (F.6b) keeps the *inferred* channel thin, but observed items, overrides and actions-taken
+    accumulate. It starts empty and fills — the footprint-grows-with-evidence rule working as
+    intended, not an argument against a permanent home.
+  - **It is the Historian's first user-visible face.** The Historian is an event log with no
+    surface (`historian/HISTORIAN_GUIDE.md` calls it infrastructure — the substrate H2's features
+    read from). The working picture is how it becomes visible: as conclusions, each expanding to
+    the events supporting them, rather than as a raw log, which is a debugging tool and not a user
+    surface.
+  - **The dependency, stated so a later demotion is visible.** This placement assumes the
+    assistant is a **first-class destination**. If it becomes a secondary pane, the correction
+    channel goes with it and E.2b quietly stops working. Demoting the assistant is therefore a
+    decision about the Willingness Layer too, and should be taken as one.
 
 ### F.4 The hazards (and why existing guardrails defuse them)
 - **Willingness must never become a stick.** "You said you'd cut dining and didn't" violates
   show-don't-scold (§3 #5) and the whole mission. A missed intention is renegotiated neutrally —
   "dining's harder to cut than expected; protect it and find another path?" — never a failure notice.
 - **Don't over-ask.** Constant "what are you willing to change?" is its own nagging. Willingness is
-  mostly **inferred** (Appendix E), occasionally **declared**, always **adjustable** — under the same
-  gentle-proactive caps (Appendix A). Ask only when genuinely needed (E.5).
+  evidenced three ways with three different standards (F.6a), and only one of them is asking — all
+  under the same gentle-proactive caps (Appendix A). Ask only when genuinely needed (E.5).
+- **`unclassified` is not a prompt to ask.** It is the honest resting state, and asking would not
+  resolve it anyway, since a stated answer is an opening bid rather than a verdict (F.6). The cost of
+  not knowing is humility in ranking, not a gap to interrogate the user about.
 
 ### F.5 Why this is the spine
 Appendices A–E are the mechanics; the Willingness Layer is the relationship they serve. The gauntlet
@@ -1079,6 +1184,65 @@ verdict. A stated intention that behavior doesn't follow is not a broken promise
 *answer* ("not this, not now"), and the software believes the behavior over the words and shifts to
 match. **The software shifts as the user shifts.** This is proof, not persuasion (Appendix B), applied
 to willingness itself: we don't take the word, we read the receipts. Even willingness is proven.
+
+### F.6a How willingness is evidenced
+Willingness reaches the software three ways, and they are not interchangeable — each carries a
+different burden of proof. Collapsing them is how a system ends up asserting it knows someone on
+evidence that could never support the claim.
+
+| source | what it is | what it must prove |
+|---|---|---|
+| **Observed** | which categories the user has actually moved — `budget_adjusted` plus the category ledger (E.2) | a **citation**. It is a receipt, not an inference: it names the edits and transactions it rests on. |
+| **Inferred** | the strategy label — which of §6.1's levers they reach for when capacity is needed (F.6b) | a **prediction** on behaviour it was not fitted to. Below threshold, it is not held. |
+| **Declared** | their explicit word, given in context (F.3) | **nothing.** It is sovereign. It beats inference (E.2b), is received locally, and is never mined for broader state. |
+
+Three properties follow, each load-bearing:
+- **The standards do not substitute for one another.** An observation is not promoted to a strategy by
+  repetition, and a declaration is not demoted by contradicting behaviour — that surfaces a
+  contradiction-check (E.2b); it never silently overwrites the word.
+- **All three are adjustable, always.** None is a verdict. The user moves any of them at any time and
+  the software re-derives rather than argues.
+- **`unclassified` is the resting state of the inferred channel** and must stay common (F.6b). The
+  observed and declared channels keep working while it is empty — which is why not knowing someone's
+  strategy costs *humility in ranking*, not the ability to help.
+
+### F.6b Willingness is a strategy, not a motive
+F.6 establishes that willingness is read from action. This establishes *what kind of thing* is being
+read, and how we know we read it right. Both come from `LEARNING.md` (the Assistant's Layer 2),
+narrowed to finance.
+
+Two claims answer *why did they do that*, and only one leaves evidence:
+
+| | |
+|---|---|
+| **motive** — *they protect dining because cooking feels like failure* | refused |
+| **strategy** — *when capacity is needed they trim recurring items and never touch timing* | **this is the layer** |
+
+A motive explains everything and can never be wrong. A strategy commits to a forecast and can
+therefore be **graded**, which is the only honest test of whether the software knows this person at
+all. It is Appendix B applied to willingness itself: we don't take the word, we read the receipts —
+and then we check whether reading them worked.
+
+- **The taxonomy is the engine's own lever set (§6.1).** We invent no behavioural categories. A
+  willingness strategy is *which honest lever this person actually reaches for*: reallocation, timing,
+  payoff-order, trimming, substitution, save-first, do-nothing — plus `unclassified`. Each carries the
+  discriminating prediction that makes it falsifiable: **given a shortfall next month, which lever
+  shows up in the ledger.** E ranks within what the user will consider; this is what "will consider"
+  means, in the vocabulary the engine already speaks.
+- **The prediction test.** A strategy may be attributed only when it predicts behaviour it was **not
+  fitted to** — better than the alternatives and better than a naive baseline. Fit on events up to a
+  point, score on what came after; never fit and score on the same events. The label and its score are
+  **cached** together and recomputed as behaviour arrives — cached, never remembered (§10).
+  Below threshold the label drops to `unclassified`. Nobody decides this; the arithmetic does.
+- **`unclassified` is the resting state and must stay common.** A taxonomy that always finds a
+  category is a horoscope. **If in practice nearly everyone gets a label, this layer is decoration and
+  should be deleted** — an acceptance test, not a caution. It is also the honest home for F.2's
+  "nothing at all": a user who changes nothing has no strategy to attribute, and that is a fact about
+  our evidence, not a verdict about them.
+- **Scoped to where it was earned.** A strategy earned in debt payoff is a claim about debt payoff.
+  Carrying it to how someone meets a grocery shortfall is a leap the ledger cannot back. A
+  cross-context transfer enters as a labelled hypothesis at a weaker class, is tested where it landed,
+  and promoted only if it predicts there too.
 
 ### F.7 The teacher–student covenant (effort-matched teaching)
 The relationship is reciprocal and non-coercive: *the software keeps teaching as long as the student is

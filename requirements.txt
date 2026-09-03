@@ -3,7 +3,7 @@
 #
 # Platform notes:
 #   Windows: all packages below work as-is
-#   macOS:   all packages below work as-is (tkinter included with Python from python.org)
+#   macOS:   all packages below work as-is
 #   Linux:   install system packages FIRST (see README), then pip install below
 
 # Core web framework
@@ -19,8 +19,11 @@ pywebview>=4.4.0
 # HTTP client (for live price lookups + Anthropic AI)
 requests>=2.31.0
 
-# Anthropic AI (optional — only needed for AI report feature)
-anthropic>=0.25.0
+# NOTE: there is deliberately no `anthropic` SDK dependency. The cloud AI path
+# calls https://api.anthropic.com/v1/messages directly over HTTP and sets the
+# anthropic-version header itself (server.py), so the SDK was never imported -
+# it only added nine dependency trees (pydantic, httpx, anyio, ...) to every
+# install and every CI run. Do not add it back without a call site.
 
 # PDF statement extraction (Phase 4 — layout-to-text only, never interprets meaning)
 pdfplumber>=0.11.0
@@ -32,17 +35,18 @@ psutil>=5.9.0
 # Linux only: install these via your package manager, NOT pip
 #
 #   Ubuntu 22.04 / Debian:
-#     sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.0 python3-tk
+#     sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.0
 #
 #   Ubuntu 23.04+ / Debian 12+:
-#     sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-tk
+#     sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1
 #
 #   Fedora:
-#     sudo dnf install python3-gobject webkit2gtk4.0 python3-tkinter
+#     sudo dnf install python3-gobject webkit2gtk4.0
 #
 #   Arch Linux:
-#     sudo pacman -S python-gobject webkit2gtk python-tk
+#     sudo pacman -S python-gobject webkit2gtk
 #
-# macOS: tkinter is included with Python from python.org
-#   If you installed Python via Homebrew:
-#     brew install python-tk
+# tkinter is NOT required on any platform. It used to be, for two startup
+# error dialogs and a folder picker; those now use ctypes/osascript/zenity and
+# pywebview respectively, and the PyInstaller specs exclude tkinter outright
+# (it was ~10MB of tcl/tk per bundle). pywebview imports tkinter nowhere.
