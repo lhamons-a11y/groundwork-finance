@@ -71,6 +71,7 @@ JUDGE_LABELS     = _WL['JUDGE_LABELS']
 INFERENCE_VERBS  = _WL['INFERENCE_VERBS']
 EDITORIALIZING   = _WL['EDITORIALIZING']
 SELF_NARRATION   = _WL['SELF_NARRATION']
+DECISION_VERDICTS = _WL['DECISION_VERDICTS']
 INVENTED_CAUSE   = _WL['INVENTED_CAUSE']
 
 SYSTEM_PROMPT = (
@@ -188,6 +189,11 @@ def check(text, case=None):
     # Rule 5b: no self-narration ("Groundwork confirms...", leaked prompt text)
     r5b = not any(p in t for p in SELF_NARRATION)
     results["R5b_no_self_narration"] = (r5b, "narrates about Groundwork / leaks prompt" if not r5b else "")
+
+    # Rule 9: no verdict on the user's DECISION. E.4 ranks, it does not decide.
+    # R1 covers judging the person; this covers judging their choice.
+    r9 = not any(p in t for p in DECISION_VERDICTS)
+    results["R9_no_decision_verdict"] = (r9, "passes a verdict on the user's decision" if not r9 else "")
 
     # Rule 6: precision-then-translation (still heuristic — needs human eye)
     results["R6_precision_then_translation"] = (None, "HEURISTIC: human check — precise term + plain why")
