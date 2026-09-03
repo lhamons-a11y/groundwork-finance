@@ -192,8 +192,18 @@ The Historian writes ~19 event categories. The gap is **not** collection — it'
 - A real consequence engine, currently triplicated: `_bybSandboxCalc` (BYB), the trip-impact calc
   (`app.js` ~10751), and `_calcDebtIntelligence` (`app.js:654`). All compute "impact on the
   debt-free date" separately.
-- The teaching *sentence* pattern already exists in the trip planner (`app.js` ~10822):
-  *"This trip moves your debt-free date from March to Sept — 6 days later. A worthy trade."*
+- The teaching *sentence* pattern exists in embryo in the trip planner (`app.js` ~10870), but it
+  was **not** the model this document claimed. As shipped it read: *"This trip moves your
+  debt-free date from March to Sept — 6 days later. A worthy trade."* Three faults, found
+  2026-09-03: the arithmetic is incoherent (March→Sept is ~6 **months**, and the code adds
+  `payoffImpact` as *days*); *"A worthy trade"* is a **verdict on the user's choice**, which E.4
+  forbids and which nothing caught until R9 was added; and the other two branches ended in
+  *"Consider saving for it…"*, where `"consider "` is in `COMMAND_PHRASES` — so **two of the three
+  endings failed Groundwork's own voice gate**, shipping only because that string is built in JS
+  and never passed through `_voiceGateCheck`. What survives as the pattern is the *front* of the
+  sentence — cause → effect → magnitude, in the user's own units. The ending is the part Pillar 2
+  actually specifies (a lever), and it has never been built: the number that would produce one
+  needs Pillar 1's `decisionImpact`.
 - Honest-null discipline already enforced (e.g. BYB stores `payoff_impact = null` for "not
   affordable" rather than a fabricated negative).
 
@@ -210,6 +220,14 @@ and every future trigger call it. This is the deterministic core everything else
 A generator that turns a `decisionImpact` result into a plain-English cause→effect line, always
 ending in *a lever the user controls*: "…pushes your date from March → Sept; **trim dining $40/mo
 and it's only 2 months.**" Reuses the trip planner's proven pattern app-wide.
+
+  **The reference implementation is not one (2026-09-03).** "Reuses the trip planner's proven
+  pattern" was written before anyone re-read the trip planner. Its front half — cause → effect →
+  magnitude — is sound and is what to copy. Its *ending* is a verdict or a command, and Pillar 2
+  requires a **lever**. So the generator has no working model for the half that makes it teaching,
+  and this is the thinnest specification in the document relative to how much rests on it: the
+  Willingness Layer, the alarm governance and the answer surface all govern output this pillar
+  produces, and it is four lines pointing at a pattern that does not do what they assume.
 
 **Pillar 3 — Solution Engine (the heart — see §6).**
 Given a gap ("you want Z, the math currently says no"), search only the honest lever-set for the
