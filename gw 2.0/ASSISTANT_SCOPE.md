@@ -114,13 +114,91 @@ Not "later." These are the narrowing that makes the depth affordable.
 
 ---
 
+---
+
+## What "conversation" means — SETTLED 2026-09-02
+
+Two directions, and they are not the same mechanism. Conflating them is how a product
+that answers questions turns into a product that interrupts.
+
+### User-initiated — the answer surface
+
+The user asks. The assistant answers from their data, the math, and the facts. Where the
+evidence is insufficient to answer honestly, it asks a **direct question for a missing
+fact** — never for a commitment.
+
+> "I don't see income for March — is that missing, or was there none?"
+> and never
+> "would you consider cutting dining?"
+
+That distinction is the whole design. Normal finance software asks questions to extract
+commitment. This asks questions to **earn the right to compute**. Answering *"that $2,400
+was a medical bill, not a vacation"* commits the user to nothing; it makes the next number
+true. No shaming, no willingness interrogation, no pressure to cut anything.
+
+Three properties fall out, and each removes work rather than adding it:
+
+- **No frequency cap needed.** A.3's budget governs *unsolicited* speech. A clarifying
+  question inside an answer the user asked for is part of the answer, not an interruption.
+  F.4's "don't over-ask" governs *willingness* asking specifically, and does not reach here.
+- **Answers persist legally, with no new machinery.** A reply to a factual question is a
+  declaration made in context — surfaced by definition, therefore eligible under §10's
+  persistence boundary. It is the Declared channel of F.6a, arriving through a new door.
+- **It is the structural cure for treating absence as zero.** An engine that cannot
+  distinguish "no data" from "zero" answers confidently and wrongly. Asking is how that gap
+  closes, and it is the honest alternative to guessing.
+
+**Question selection — a candidate, not a decision.** F.8's swing asks where one small
+change most moves the outcome. Choosing *which* question to ask is plausibly the same
+computation run on the unknown side: **which missing fact, if known, would most change the
+answer.** That would give Layer 4 its selection rule from machinery already specified. It
+should be tested before it is assumed.
+
+### System-initiated — alarms and watches
+
+Groundwork may also speak first. Appendix A already governs promotion to proactive, and
+A.2's Actionability gate — *never proactively deliver bad news with no path* — is
+independently the same rule industrial alarm practice arrived at: if there is no response
+to make, it is information, not an alarm.
+
+Two constraints are settled here even though the governance is not:
+
+- **Alarm candidates come from what Groundwork can prove**, not from generic
+  financial-wellness categories — the same reason the strategy taxonomy came from §6.1
+  rather than being invented. Two detectors already exist and are the obvious first
+  sources: F.8's break-detector and Appendix G's cycle recurrence.
+- **The watch catalogue is gated by provability for *this* user.** Groundwork does not
+  offer retirement watches to someone holding no retirement, or a spread of debt-free
+  watches to someone carrying no debt who is using it as a ledger. Not as noise reduction —
+  because there is nothing to prove, and offering a watch it cannot service is a promise it
+  cannot keep (honest-null, §10; C.7). A user-set watch is sovereign and bypasses the
+  frequency budget entirely, since the user asked for it; what is *offered* is still bound
+  by what can be evidenced.
+
+That makes the catalogue itself a teaching surface. Showing someone what can be watched,
+what it would tell them, and where it would say nothing useful, is one of the more honest
+things this product can do — and it is the same lesson as the honest-no, delivered before
+the fact instead of after.
+
 ## Open
 
-- **What "conversation" means here.** Rob's framing was "better financial conversation
-  and understanding." Groundwork's speaking surfaces today are narration and prompts,
-  both templated and gated. Whether Layer 4 improves *those*, or whether it implies a
-  genuinely conversational surface, is undecided — and it changes the size of this
-  substantially. Do not assume the smaller reading.
+- **Alarm and watch governance is not designed.** Appendix A covers promotion at runtime,
+  per instance. Industrial practice adds three things it lacks: **rationalization** (each
+  alarm *type* justifies its existence at design time — cause, consequence, response,
+  priority basis — which is this document's own "Gated" discipline applied to a bucket that
+  does not have it); **measured delivered rate** treated as a design defect when it drifts,
+  the way the voice gate's miss-log is used; and **stale conditions** — something true and
+  unresolved for months, where re-telling is nagging but dropping it silently is dishonest.
+  The blueprint has no answer to the third.
+- **Alarms are a fourth prompt-kind, and the budget does not fit them.** A.3 budgets brakes
+  and green-lights. The contradiction-check is already flagged unpinned (§12). Alarms make
+  three unbudgeted kinds against two budgeted ones, so §12's open item is larger than it
+  currently reads.
+- **Gate 2 versus genuinely path-less news.** A.2 requires an honest §6 solution before a
+  brake may interrupt. Some alarming facts have no lever — income stopping. The honest-no
+  always carries a nearest lever and nearest reachable goal, so this may resolve itself, but
+  "we never deliver bad news with no path" and "the user needs to know this" can collide and
+  it should be checked deliberately rather than assumed.
 - **Layer 5's stakes gate.** `LEARNING.md` makes stakes decide whether the system may
   recommend at all. Groundwork's honest-no (Appendix C) governs what it may *claim*, not
   whether the stakes permit a recommendation. Whether these are the same rule seen twice
