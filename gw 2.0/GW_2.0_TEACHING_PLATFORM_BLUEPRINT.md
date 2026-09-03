@@ -513,7 +513,7 @@ is pinned; until then, any "evidence-backed" / "resolved" language it carries is
 - **Where the Willingness Layer lives (Appendix F).** The interaction model — user declares what
   they'll change (or nothing), software teaches strictly within it — is *named* but its home in the
   product is unsolved. Candidate direction (Appendix F.3): declared-in-context + summarized in one
-  living "current agreement" view; explicitly **not** a settings screen. This is the current frontier.
+  living **working picture**; explicitly **not** a settings screen. This is the current frontier.
 - **The clarification prompt-kind's budget (A.3, E.2b).** A contradiction-check (E.2b — the user's own
   word disagrees with their own action) is a *third* proactive prompt-kind, a clarification, neither
   brake nor green-light. A.3's frequency caps only budget brakes and green-lights, so it's unpinned
@@ -937,7 +937,7 @@ E.2a doesn't cover — the user just disagrees with a classification, no correla
 - **The contradiction-check is not "just another prompt."** It's a reconciliation between the user's own
   word and their own action, not a teaching insight, so it doesn't map onto A's gates cleanly — there's
   no §6 *lever* for a contradiction; the actionable thing is the *answer* itself. So it is **Passive by
-  default** — surfaced in F.3's current-agreement view, where the user already sees overrides against
+  default** — surfaced in F.3's working picture, where the user already sees overrides against
   behavior — and promotes to **Proactive** only through the Gauntlet as a *scale-appropriate instance*
   (like G.3b did for G): materiality ruled by the *weight of the contradiction* (category significance ×
   how durable the drift is), Actionability satisfied by the resolution being available, not a §6 lever.
@@ -952,8 +952,8 @@ E.2a doesn't cover — the user just disagrees with a classification, no correla
   it, rather than standing against the user's just-stated word.
 
 **Deferred to F.3 (the interaction):** *how* the user issues an override, and *where* the standing set
-of overrides — and the Passive contradiction-checks — are seen and adjusted. F.3's "one living
-current-agreement view" is exactly that surface. This closes the correction channel's *discipline*; its
+of overrides — and the Passive contradiction-checks — are seen and adjusted. F.3's one living working
+picture is exactly that surface. This closes the correction channel's *discipline*; its
 *interaction* rides with F.3.
 
 ### E.3 Ranking order (among honest levers, §6.1)
@@ -1012,10 +1012,22 @@ meant to escape. Candidate direction:
 - **Declared in context** — willingness is expressed at real decision moments ("I'll cut dining, never
   the kids' stuff" said in response to a specific proposal), where it's concrete; accumulated into one
   living model.
-- **Summarized in one living place** — a single view that *is* the current agreement: what you're
-  willing to change, what's off the table, the gap to your goals, what's reachable within your current
-  willingness. It doesn't live in a screen; it lives in the **relationship state** — expressed
-  everywhere, summarized in one place.
+- **Summarized in one living place — the working picture.** A single view holding what Groundwork
+  actually has to go on: the observed, the inferred and the declared (F.6a), each with its
+  provenance; the gap to the user's goals; and what is reachable within their current willingness.
+  It doesn't live in a screen; it lives in the **relationship state** — expressed everywhere,
+  summarized in one place.
+  - **Not "the current agreement."** That was the name used here first, and it oversells. An
+    agreement implies both parties committed, while F.1 makes willingness *theirs alone* and F.6b
+    makes `unclassified` the common case. For most users most of the time there is no agreement —
+    there is a ledger, perhaps a declaration, and no strategy. The name has to be honest about that
+    or the screen gets built to justify the name.
+  - **The empty state is the design centre, not an edge case.** Because `unclassified` must stay
+    common (F.6b), this view is nearly empty for most users most of the time. A view that is empty
+    by design gets filled with noise to look useful — unless the emptiness *is* the point. It is
+    the point: an empty working picture is the software saying *I have not earned any conclusions
+    about you yet*, which is the one thing no other finance product will say on day one. Design
+    this state first. The populated one is both the easier problem and the rarer one.
 - **Proof-backed and correctable** — "you said X in March; your behavior since suggests Y — update?"
   A living, honest contract (Appendix E), never a frozen declaration.
 
