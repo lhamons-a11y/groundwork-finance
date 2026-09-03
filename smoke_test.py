@@ -14,6 +14,8 @@ import sys
 import json
 import tempfile
 from pathlib import Path
+import importlib.util
+from types import SimpleNamespace
 
 # ── Test isolation: MUST happen before any core.database import ──────────────
 _TMP = tempfile.mkdtemp(prefix='gw_smoke_')
@@ -30,6 +32,31 @@ def check(name, condition):
     (PASS if condition else FAIL).append(name)
     print(f'  {"OK  " if condition else "FAIL"}  {name}')
 
+
+def _run_sections(ctx):
+    """Run every smoke_sections/*.py in sorted filename order.
+
+    Each module defines run(ctx). A section that raises becomes a FAILED check
+    rather than a crashed suite - one bad section must not hide the results of
+    every section after it, which is the failure mode that makes people stop
+    trusting a gate.
+    """
+    d = BASE / 'smoke_sections'
+    if not d.is_dir():
+        print('  (no smoke_sections/ directory - nothing discovered)')
+        return
+    files = [f for f in sorted(d.glob('*.py')) if not f.name.startswith('_')]
+    print()
+    print('  discovered sections: ' + (', '.join(f.stem for f in files) or 'none'))
+    for f in files:
+        try:
+            spec = importlib.util.spec_from_file_location(f'smoke_sections.{f.stem}', f)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            mod.run(ctx)
+        except Exception as e:
+            ctx.check(f'section {f.name} ran without raising '
+                      f'({type(e).__name__}: {e})', False)
 
 def main():
     print(f'Groundwork smoke test — temp DB at {_TMP}\n')
@@ -2116,182 +2143,20 @@ def main():
     check('the Settings AI panel has a container for the setup prompt',
           'id="aiOllamaSetup"' in html_src)
 
-    # ── 44. Month-keyed writes: net worth snapshot + sinking fund auto-credit ─
-    # Both of these key off date.today().strftime('%Y-%m') and decide whether
-    # to write based on what month it is. Neither behaviour was covered: the
-    # snapshot route was only ever called with force=True (which skips the
-    # guard entirely), and /api/sinking-funds/auto-credit had no test at all.
-    # Month-boundary logic misbehaves on the 1st, which is the day nobody is
-    # watching, so it is worth pinning down here.
-    from core.database import NetWorthSnapshot as _NWS, SinkingFund as _SF2
-
-    _this_month = _date.today().strftime('%Y-%m')
-    _prev_month = (_date.today().replace(day=1) - _timedelta(days=1)).strftime('%Y-%m')
-
-    # create_snapshot(): the month it lands in, and the no-overwrite guard.
-    with _dbs() as session:
-        session.query(_NWS).filter_by(snapshot_date=_this_month).delete()
-        session.commit()
-
-    r = c.post('/api/net-worth/snapshot', headers=HJ,
-               json={'assets': 9000, 'liabilities': 2000})
-    _snap = ((r.get_json() or {}).get('data') or {}).get('snapshot') or {}
-    check('POST /api/net-worth/snapshot keys the snapshot to the current month',
-          r.status_code == 200 and _snap.get('date') == _this_month
-          and _snap.get('net_worth') == 7000.0)
-
-    r = c.post('/api/net-worth/snapshot', headers=HJ,
-               json={'assets': 1.0, 'liabilities': 0})
-    check('a second snapshot in the same month is refused without force=true',
-          r.status_code == 200
-          and ((r.get_json() or {}).get('data') or {}).get('taken') is False)
-
-    with _dbs() as session:
-        rows = session.query(_NWS).filter_by(snapshot_date=_this_month).all()
-        check('the refused snapshot neither overwrote the row nor added a second',
-              len(rows) == 1 and rows[0].net_worth == 7000.0)
-
-    c.post('/api/net-worth/snapshot', headers=HJ,
-           json={'force': True, 'assets': 12000, 'liabilities': 2000})
-    with _dbs() as session:
-        rows = session.query(_NWS).filter_by(snapshot_date=_this_month).all()
-        check('force=true overwrites the month in place rather than adding a row',
-              len(rows) == 1 and rows[0].net_worth == 10000.0)
-
-    # auto_credit_sinking_funds(): the gate is last_contributed_month == this
-    # month, so it is per-month, not once-ever. A fund last credited in a PRIOR
-    # month must credit again - that is the whole purpose of the field, and the
-    # part a month-boundary bug would silently break.
-    with _dbs() as session:
-        session.add(_SF2(name='Smoke AutoCredit Stale', target_amount=1000.0,
-                          current_amount=0.0, monthly_contribution=100.0,
-                          is_active=True, last_contributed_month=_prev_month))
-        session.add(_SF2(name='Smoke AutoCredit Capped', target_amount=500.0,
-                          current_amount=480.0, monthly_contribution=100.0,
-                          is_active=True, last_contributed_month=''))
-        session.add(_SF2(name='Smoke AutoCredit Inactive', target_amount=1000.0,
-                          current_amount=0.0, monthly_contribution=100.0,
-                          is_active=False, last_contributed_month=''))
-        session.commit()
-
-    r = c.post('/api/sinking-funds/auto-credit', headers=H)
-    check('POST /api/sinking-funds/auto-credit succeeds and reports the current month',
-          r.status_code == 200
-          and ((r.get_json() or {}).get('data') or {}).get('month') == _this_month)
-
-    with _dbs() as session:
-        stale = session.query(_SF2).filter_by(name='Smoke AutoCredit Stale').first()
-        check('a fund last credited in a PRIOR month is credited again '
-              '(the gate is per-month, not once-ever)',
-              stale.current_amount == 100.0
-              and stale.last_contributed_month == _this_month)
-        capped = session.query(_SF2).filter_by(name='Smoke AutoCredit Capped').first()
-        check('a contribution is capped at the fund target, never overshooting it',
-              capped.current_amount == 500.0)
-        inactive = session.query(_SF2).filter_by(name='Smoke AutoCredit Inactive').first()
-        check('an inactive fund is not credited',
-              inactive.current_amount == 0.0 and inactive.last_contributed_month == '')
-
-    c.post('/api/sinking-funds/auto-credit', headers=H)
-    with _dbs() as session:
-        stale = session.query(_SF2).filter_by(name='Smoke AutoCredit Stale').first()
-        capped = session.query(_SF2).filter_by(name='Smoke AutoCredit Capped').first()
-        check('a second auto-credit in the same month does not double-credit',
-              stale.current_amount == 100.0 and capped.current_amount == 500.0)
-
-    # ── 45. The teaching-layer seam (GW 2.0) ─────────────────────────────────
-    # The 2.0 teaching layer lives entirely under static/js/teaching/. It is
-    # excluded from a GW LTS build by path, not by runtime flag, so an LTS
-    # build does not contain it. Three things have to hold for that to be true
-    # rather than aspirational, and all three are checked here.
-    import shutil as _shutil
-    from server import GW_VERSION as _srv_version
-
-    # (1) The dependency runs ONE WAY: teaching code may read app.js, app.js may
-    # never reference teaching code. This is the whole seam. The moment app.js
-    # carries an `if (window.GWTeaching)` branch, the LTS build ships a dead
-    # path for a feature it cannot run - on the machines with the least room -
-    # and the directory is just a runtime flag in a costume.
-    _app_teaching_refs = [ln.strip() for ln in app_src.splitlines()
-                          if 'GWTeaching' in ln or 'js/teaching' in ln]
-    check('app.js contains no reference to the teaching layer (one-way dependency)',
-          not _app_teaching_refs)
-    if _app_teaching_refs:
-        for ln in _app_teaching_refs[:5]:
-            print(f'        {ln[:100]}')
-
-    _teach_entry = BASE / 'static' / 'js' / 'teaching' / 'index.js'
-    _teach_src = _teach_entry.read_text(encoding='utf-8') if _teach_entry.exists() else ''
-    check('the teaching entry point exists and defines the GWTeaching namespace',
-          bool(_teach_src) and 'window.GWTeaching' in _teach_src
-          and 'register:' in _teach_src)
-
-    # (2) Present in the build -> server emits the loader tag, after app.js.
-    r = c.get('/', headers=H)
-    _html = r.get_data(as_text=True)
-    check('index.html is served with the teaching loader tag when the file is present',
-          r.status_code == 200
-          and f'/js/teaching/index.js?v={_srv_version}' in _html)
-    check('the teaching loader is emitted after app.js (teaching reads app, not the reverse)',
-          _html.find('/js/app.js') < _html.find('/js/teaching/index.js'))
-
-    # (3) Absent from the build -> no tag at all. This is the LTS path, and it
-    # is the half that would otherwise never be exercised until someone shipped
-    # an LTS installer and found a 404 in the console. A second app on a static
-    # folder with no teaching/ directory reproduces an LTS bundle exactly.
-    _lts_static = Path(_TMP) / 'lts_static'
-    (_lts_static / 'js').mkdir(parents=True, exist_ok=True)
-    _shutil.copy(BASE / 'static' / 'index.html', _lts_static / 'index.html')
-    _shutil.copy(BASE / 'static' / 'js' / 'app.js', _lts_static / 'js' / 'app.js')
-    from server import create_app as _create_app
-    _lts_app = _create_app(static_folder=str(_lts_static))
-    _lts_html = _lts_app.test_client().get('/').get_data(as_text=True)
-    check('a build without static/js/teaching/ serves NO teaching loader tag (the LTS path)',
-          'js/teaching' not in _lts_html)
-    check('that same LTS-shaped build still serves app.js normally',
-          '/js/app.js' in _lts_html)
-
-    # (4) All three specs strip the same path, and it is the same path server.py
-    # looks for. Three platforms drifting apart here would ship a mac LTS build
-    # that still carried the teaching layer, silently.
-    _prefixes = {}
-    for _spec in ('groundwork.spec', 'groundwork_linux.spec', 'groundwork_macos.spec'):
-        _m = re.search(r"GW_TEACHING_PREFIX\s*=\s*'([^']+)'",
-                       (BASE / _spec).read_text(encoding='utf-8'))
-        _prefixes[_spec] = _m.group(1) if _m else None
-    check('all three PyInstaller specs strip the same teaching-layer path',
-          len(set(_prefixes.values())) == 1
-          and next(iter(_prefixes.values())) == 'static/js/teaching/')
-    if len(set(_prefixes.values())) != 1:
-        for k, v in _prefixes.items():
-            print(f'        {k}: {v}')
-
-    # ── 46. launch.py ships no tkinter ───────────────────────────────────────
-    # tkinter cost ~10MB of tcl/tk in every bundle to draw two error dialogs and
-    # one folder picker. Those now use ctypes/osascript/zenity (stdlib only -
-    # they fire when an import has already failed, so they must not depend on
-    # anything that could be the broken thing) and pywebview's own dialog. The
-    # specs exclude tkinter outright, so a re-added import would not fail here,
-    # it would fail in a built installer on a user's machine.
-    _launch_src = (BASE / 'launch.py').read_text(encoding='utf-8')
-    _tk_imports = [ln.strip() for ln in _launch_src.splitlines()
-                   if re.match(r'\s*(import|from)\s+tkinter', ln)]
-    check('launch.py imports no tkinter (the specs exclude it from every bundle)',
-          not _tk_imports)
-    if _tk_imports:
-        for ln in _tk_imports:
-            print(f'        {ln}')
-
-    check('the stdlib error dialog and the pywebview folder picker are both wired',
-          '_show_error_dialog' in _launch_src
-          and 'create_file_dialog' in _launch_src
-          and 'MessageBoxW' in _launch_src)
-
-    _specs_excluding_tk = [f for f in ('groundwork.spec', 'groundwork_linux.spec',
-                                       'groundwork_macos.spec')
-                           if "'tkinter'," in (BASE / f).read_text(encoding='utf-8')]
-    check('all three specs exclude tkinter (one platform keeping it re-adds 10MB there)',
-          len(_specs_excluding_tk) == 3)
+    # ── Discovered sections ──────────────────────────────────────────────────
+    # Sections live in smoke_sections/*.py, one file each, so adding a section
+    # is adding a FILE rather than appending to a shared anchor in this
+    # function. That anchor was a standing merge conflict: lts/1.x and master
+    # both grew test sections at the same line, and every forward-merge
+    # collided there - twice in one evening, once needing a renumber.
+    #
+    # It also means a section can be line-specific. The teaching-layer checks
+    # exist only on master because that file exists only on master; nothing
+    # needs excluding on lts/1.x, because there is nothing there to exclude.
+    _run_sections(SimpleNamespace(
+        check=check, BASE=BASE, TMP=Path(_TMP), c=c, H=H, HJ=HJ, dbs=_dbs,
+        server_src=server_src, app_src=app_src, html_src=html_src,
+    ))
 
     return finish()
 
