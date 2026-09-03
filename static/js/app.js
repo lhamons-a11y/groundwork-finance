@@ -10867,7 +10867,20 @@ function tripUpdateBudget() {
       const newDateStr = newDate.toLocaleDateString('en-US',{month:'short',year:'numeric'});
       const color = payoffImpact <= 14 ? 'var(--pine)' : payoffImpact <= 30 ? 'var(--gold)' : 'var(--ember)';
       impact.style.borderColor = color;
-      impact.innerHTML = `This trip moves your debt-free date from <strong>${payoffBase.freeDate}</strong> to <strong>${newDateStr}</strong> — ${payoffImpact} day${payoffImpact!==1?'s':''} later. ${payoffImpact<=14 ? 'A worthy trade.' : payoffImpact<=30 ? 'Consider saving for it first.' : 'Consider saving for it over 2–3 months.'}`;
+      // Fact only. This line used to end in one of three judgments: 'A worthy
+      // trade.' (a verdict on the user's choice, which E.4 forbids and R9 now
+      // catches) or 'Consider saving for it first.' (a command — 'consider ' is
+      // in COMMAND_PHRASES, so the app's own voice gate rejects it). Two of the
+      // three endings failed the gate; they only shipped because this string is
+      // built in JS and never passed through _voiceGateCheck.
+      //
+      // Pillar 2 wants this to end in a lever ('$40/mo from dining brings it
+      // back to March'). That number does not exist yet: it needs the unified
+      // consequence engine (Pillar 1, decisionImpact) to compute what offsets
+      // the trip. Inventing it here would be the fabrication R8 exists to stop,
+      // so the line states the fact and the surplus, and the lever lands with
+      // Pillar 1.
+      impact.innerHTML = `This trip moves your debt-free date from <strong>${payoffBase.freeDate}</strong> to <strong>${newDateStr}</strong> — ${payoffImpact} day${payoffImpact!==1?'s':''} later. Your monthly surplus is <strong>${fmt(surplus)}</strong>.`;
     } else {
       impact.innerHTML = `Estimated trip cost: <strong>${fmt(total)}</strong>. Your monthly surplus is <strong>${fmt(surplus)}</strong>.`;
     }
@@ -22033,17 +22046,22 @@ const _VOICE_RULES_FALLBACK = {
     "you are the sort"],
   INFERENCE_VERBS: ["suggests", "suggesting", "indicates", "indicating", "indicative",
     "implies", "implying", "this means", "means that", "reflects", "reflecting",
-    "demonstrates", "demonstrating", "shows that you", "signals", "signaling",
-    "signalling", "points to", "pointing to", "ongoing", "reveals", "revealing"],
+    "demonstrates", "demonstrating", "shows that you", "signals", "signaling", "signalling",
+    "points to", "pointing to", "ongoing", "reveals", "revealing"],
   EDITORIALIZING: ["record high", "significantly", "concerning", "alarming", "worryingly",
-    "unfortunately", "impressive", "notably high", "worrying", "dramatic",
-    "sharp increase", "sharp rise", "steep"],
+    "unfortunately", "impressive", "notably high", "worrying", "dramatic", "sharp increase",
+    "sharp rise", "steep", "drowning", "bleeding", "hemorrhaging", "crushing", "crushed",
+    "buried", "suffocating", "strangled", "choking", "spiraling", "crisis", "catastrophic",
+    "devastating", "disaster", "desperate"],
   SELF_NARRATION: ["groundwork confirms", "groundwork observes", "groundwork identifies",
     "groundwork notes", "groundwork voice", "groundwork sees", "the system", "this analysis"],
   INVENTED_CAUSE: ["occurred because", "happened because", "because payments",
     "as a result of your", "caused by", "stemming from", "likely due to", "due to payments",
     "due to the payment", "contributed to", "resulted in", "led to a", "attributable to",
     "attributed to", "owing to"],
+  DECISION_VERDICTS: ["worthy trade", "a worthy", "worth it", "well worth", "good call",
+    "bad call", "smart move", "smart choice", "unwise", "a wise ", "bad idea", "good idea",
+    "makes sense", "a mistake", "sensible", "justified"],
 };
 
 // Lazily fetches static/voice_rules.json once and caches the result. Safe to
@@ -22125,6 +22143,15 @@ function _voiceGateCheck(text, findings) {
   record('R5b_no_self_narration',
     find(rules.SELF_NARRATION),
     'narrated about Groundwork / leaked the prompt using');
+
+  // R9: no verdict on the user's decision. E.4 is "rank, don't decide" — the
+  // engine shows the tradeoff and the choice is the user's. R1 covers judging
+  // the PERSON ("you're a saver"); this covers judging their CHOICE ("a worthy
+  // trade"), which passed clean until 2026-09-03 and is what the trip planner
+  // shipped. Bare "worth" is not on the list: it lives inside "net worth".
+  record('R9_no_decision_verdict',
+    find(rules.DECISION_VERDICTS || []),
+    "passed a verdict on the user's decision using");
 
   const weMatches = find(rules.WE_PHRASES);
   record('R7_no_we_no_followup',

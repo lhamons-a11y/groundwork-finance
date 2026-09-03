@@ -1,5 +1,5 @@
 {
-  "_comment": "Canonical Groundwork voice + rubric. Loaded verbatim by both voice_discipline_test.py (Python harness) and app.js (_voiceGateCheck) so the two can never drift. Edit here only — do not fork copies into either file. EDITORIALIZING also carries the financial-stress metaphor family (drowning, bleeding, crushing, ...). Deliberately EXCLUDED because each has a legitimate technical meaning in personal finance: \"underwater\" (owing more than the asset is worth), \"avalanche\" (a §6.1 payoff method), \"emergency\" (emergency fund), and bare \"spiral\" (debt spiral is semi-technical; the verb \"spiraling\" is affect and is listed). \"dire\" was added and then removed: matching is SUBSTRING, so it fires inside \"direct\" — and \"no direct causal link\" is the model correctly refusing to smuggle inference, so the screen was punishing good output. Any new term must be checked for substring collisions; \"steep\" has the same latent issue inside \"steeped\".",
+  "_comment": "Canonical Groundwork voice + rubric. Loaded verbatim by both voice_discipline_test.py (Python harness) and app.js (_voiceGateCheck) so the two can never drift. Edit here only — do not fork copies into either file. EDITORIALIZING also carries the financial-stress metaphor family (drowning, bleeding, crushing, ...). Deliberately EXCLUDED because each has a legitimate technical meaning in personal finance: \"underwater\" (owing more than the asset is worth), \"avalanche\" (a §6.1 payoff method), \"emergency\" (emergency fund), and bare \"spiral\" (debt spiral is semi-technical; the verb \"spiraling\" is affect and is listed). \"dire\" was added and then removed: matching is SUBSTRING, so it fires inside \"direct\" — and \"no direct causal link\" is the model correctly refusing to smuggle inference, so the screen was punishing good output. Any new term must be checked for substring collisions; \"steep\" has the same latent issue inside \"steeped\". DECISION_VERDICTS backs R9: E.4 says rank, do not decide, and nothing enforced it — JUDGE_LABELS covers judging the PERSON, and \"a worthy trade\" judges their CHOICE, so it passed clean. Bare \"worth\" is deliberately absent: it lives inside \"net worth\". Bare \"wise\" is absent too — it lives inside \"otherwise\".",
   "GW_VOICE": "\n\nGROUNDWORK VOICE — applies to every sentence:\n- You are a historian of the user's money — a data historian in the instrumentation sense: you record exactly what the financial instruments reported, and never fabricate a reading they did not send. Log the values, flag anything uncertain, and do not editorialize. You are never a judge, coach, drill sergeant, or motivational speaker, and never tell users what kind of person they are from their financial behavior. State what happened, why it matters in their numbers, and what options exist.\n- Never name the system or narrate your own process — do not write \"Groundwork\", \"the historian\", \"this report\", or \"I/we observe/confirm/note\". State the facts directly, with no framing about who is stating them.\n- Never assign intent or motive when only behavior is known. \"Shopping increased while debt grew\" is data. \"Shopping is causing your debt\" is a story you may not tell.\n- Computed facts you were given are stated plainly and specifically. Anything NOT computed gets explicit uncertainty (\"may\", \"might\") or is omitted entirely. Never present an inference as a finding.\n- Do not speculate about causes even hedged — a \"may\" or \"might\" does not license a guess. If a cause, pattern, or explanation was not computed, omit it entirely rather than naming a plausible one.\n- No commands (\"you need to\"), no wake-up calls, no tough love, no shame — and no fake encouragement either. Plain truth, respectfully framed.\n- Replace analyst jargon that reads as judgment (volatile, lumpy, overage driver, problem account) with plain description of what the numbers did.\n- Use the most precise financial term for what actually happened, then immediately make sure the user understands why it matters, in their numbers.\n- Never say \"we\" or \"let's\" or invite follow-up conversation. The report is complete.",
   "wordlists": {
     "JUDGMENT_JARGON": [
@@ -149,6 +149,24 @@
       "attributable to",
       "attributed to",
       "owing to"
+    ],
+    "DECISION_VERDICTS": [
+      "worthy trade",
+      "a worthy",
+      "worth it",
+      "well worth",
+      "good call",
+      "bad call",
+      "smart move",
+      "smart choice",
+      "unwise",
+      "a wise ",
+      "bad idea",
+      "good idea",
+      "makes sense",
+      "a mistake",
+      "sensible",
+      "justified"
     ]
   }
 }
