@@ -19,8 +19,11 @@ pywebview>=4.4.0
 # HTTP client (for live price lookups + Anthropic AI)
 requests>=2.31.0
 
-# Anthropic AI (optional — only needed for AI report feature)
-anthropic>=0.25.0
+# NOTE: there is deliberately no `anthropic` SDK dependency. The cloud AI path
+# calls https://api.anthropic.com/v1/messages directly over HTTP and sets the
+# anthropic-version header itself (server.py), so the SDK was never imported -
+# it only added nine dependency trees (pydantic, httpx, anyio, ...) to every
+# install and every CI run. Do not add it back without a call site.
 
 # PDF statement extraction (Phase 4 — layout-to-text only, never interprets meaning)
 pdfplumber>=0.11.0
