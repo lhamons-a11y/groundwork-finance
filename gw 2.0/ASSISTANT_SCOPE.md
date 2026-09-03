@@ -339,5 +339,5 @@ already settled: *"want me to keep this one current?"* The gradient still runs t
   recommend at all. Groundwork's honest-no (Appendix C) governs what it may *claim*, not
   whether the stakes permit a recommendation. Whether these are the same rule seen twice
   or two rules that need reconciling is unchecked.
-- **Where Layer 4's output is surfaced** is entangled with F.3, which is still the open
-  frontier. This document does not resolve F.3 and should not be read as narrowing it.
+- *(Resolved 2026-09-03 — F.3 is settled and Layer 4's output surfaces in the working picture,
+  which lives with the assistant. This document's own placement question is answered by it.)*

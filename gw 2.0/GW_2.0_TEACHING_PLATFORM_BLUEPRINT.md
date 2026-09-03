@@ -52,9 +52,9 @@ shifts.
 
 **Status.** A vision artifact, not a spec — nothing is built. It is deliberately a philosophy scaffold,
 not a full scope. Most design questions are worked through (Appendices A–G); the open surface is sorted
-into two kinds (§12): **Open** (no answer exists yet) — *where the Willingness Layer lives* (F.3, the
-frontier) and the clarification prompt-kind's budget (A.3/E.2b) — and **Gated** (standard exists, pin
-per case before build) — Trophy Room's proof-source and Appendix G's cycle thresholds.
+into two kinds (§12): **Open** (no answer exists yet) — the clarification prompt-kind's budget
+(A.3/E.2b) and alarm governance — and **Gated** (standard exists, pin per case before build) —
+Trophy Room's proof-source and Appendix G's cycle thresholds.
 
 ---
 
@@ -510,10 +510,9 @@ it, then ship*. Nothing in the **Gated** bucket enters the build queue (§11) un
 is pinned; until then, any "evidence-backed" / "resolved" language it carries is aspirational.
 
 **Open — no answer exists yet:**
-- **Where the Willingness Layer lives (Appendix F).** The interaction model — user declares what
-  they'll change (or nothing), software teaches strictly within it — is *named* but its home in the
-  product is unsolved. Candidate direction (Appendix F.3): declared-in-context + summarized in one
-  living **working picture**; explicitly **not** a settings screen. This is the current frontier.
+- *(Resolved 2026-09-03 — moved to Decided. Where the Willingness Layer lives is settled: the
+  working picture is the assistant's record of its own conduct, with a pointer from Settings and
+  never residence there. See F.3.)*
 - **The clarification prompt-kind's budget (A.3, E.2b).** A contradiction-check (E.2b — the user's own
   word disagrees with their own action) is a *third* proactive prompt-kind, a clarification, neither
   brake nor green-light. A.3's frequency caps only budget brakes and green-lights, so it's unpinned
@@ -983,8 +982,8 @@ feature, not a gap.
 
 ## Appendix F — The Willingness Layer (the interaction model)
 
-*Status: **named, not solved.** "Where it lives" is a genuinely open design question (§12). This is the
-current frontier — captured here so the idea isn't lost, not because it's figured out.*
+*Status: the interaction model is **named and now placed** (F.3, settled 2026-09-03). What it is, how each
+source proves itself, what may persist and where it lives are decided; **none of it is built**.*
 
 The deepest expression of "recorder → teacher": a teacher implies a **relationship**, not a broadcast.
 This is not a feature — it's the **interaction model** the rest of the blueprint serves.
@@ -1006,7 +1005,7 @@ The user can set willingness to zero — "I'm not changing anything right now" �
 it without guilt, still shows the truth, and stays quietly useful ("here's where that leaves you; I'm
 here when you're ready"). Respecting "no" is what earns the eventual "yes." This is the trust engine.
 
-### F.3 Where it lives (candidate direction — OPEN)
+### F.3 Where it lives — SETTLED 2026-09-03
 **Not a settings screen** — willingness-as-static-config is the exact preferences-toggle trap this is
 meant to escape. Candidate direction:
 - **Declared in context** — willingness is expressed at real decision moments ("I'll cut dining, never
@@ -1048,6 +1047,30 @@ meant to escape. Candidate direction:
     edit. **A settings screen has all of its controls on day one; this one starts with none and
     grows them as evidence arrives.** That is the difference stated as behaviour rather than as
     intent — and behaviour is the half that can be checked.
+- **Where it lives: with the assistant.** The working picture is not a summary of beliefs — it is
+  **the assistant's record of its own conduct**: what it concluded, what it did, why, and what the
+  user may dispute. The assistant draws the conclusions, makes the adjustments
+  (`ASSISTANT_SCOPE.md`) and issues the offers, so the record belongs where the work happened.
+  - **Same home, distinct view.** A Q&A transcript is a poor place for durable state; the record
+    would scroll away. The assistant has a conversation *and* a record, and they are not the same
+    pane.
+  - **Settings gets a pointer, never the thing.** One line — *"what Groundwork has concluded about
+    how you handle money →"*. Discoverable from where people look, without the room full of
+    toggles redefining what it is. Residence there would undo the rule above: a screen where
+    everything else is configuration teaches the user to read this as configuration too.
+  - **The emptiness is a cold-start property, not a steady state.** `unclassified` staying common
+    (F.6b) keeps the *inferred* channel thin, but observed items, overrides and actions-taken
+    accumulate. It starts empty and fills — the footprint-grows-with-evidence rule working as
+    intended, not an argument against a permanent home.
+  - **It is the Historian's first user-visible face.** The Historian is an event log with no
+    surface (`historian/HISTORIAN_GUIDE.md` calls it infrastructure — the substrate H2's features
+    read from). The working picture is how it becomes visible: as conclusions, each expanding to
+    the events supporting them, rather than as a raw log, which is a debugging tool and not a user
+    surface.
+  - **The dependency, stated so a later demotion is visible.** This placement assumes the
+    assistant is a **first-class destination**. If it becomes a secondary pane, the correction
+    channel goes with it and E.2b quietly stops working. Demoting the assistant is therefore a
+    decision about the Willingness Layer too, and should be taken as one.
 
 ### F.4 The hazards (and why existing guardrails defuse them)
 - **Willingness must never become a stick.** "You said you'd cut dining and didn't" violates
