@@ -242,11 +242,16 @@ it is saying *here is a pattern in your record, and here is the one thing I can 
 
 ---
 
-## Changing settings on the user's behalf — SETTLED 2026-09-03
+## Changing things on the user's behalf — SETTLED 2026-09-03
+
+**"Settings" is the wrong noun** and the section is named accordingly. `app_settings` is mostly
+the user's own data; the domain this governs is broader and more ordinary — ledger annotations
+like transaction categories, budget amounts, detected recurring patterns, debt terms. Anything
+the software might change on someone's behalf.
 
 The instinct this starts from is sound: **offers are expensive.** They draw from the brake
-budget, so if many settings could use adjusting, most offers never fire and most adjustments
-never happen. Silent change scales; asking does not.
+budget, so if many things could use adjusting, most offers never fire and most adjustments never
+happen. Silent change scales; asking does not.
 
 Right about the cost, wrong about the remedy — and the reason is already in the blueprint. E.2b:
 a durable contradicting behaviour *doesn't silently flip the word*, it surfaces a
@@ -276,18 +281,39 @@ integrity.
 
 ### The rule
 
-> **The software may adjust what the user never set. It may never adjust what they did.**
+> **Unsolicited, the software may adjust only what the user has not set. With a standing
+> per-item grant, it may adjust that item. Where provenance is unknown, treat it as set.**
 
-- **Set explicitly by the user** → never changed. A durable contradicting behaviour surfaces a
+- **The user set it** → never adjusted unsolicited. A durable contradicting behaviour surfaces a
   contradiction-check (E.2b). It is their declaration, and the Declared channel is sovereign
-  (F.6a). Note this routes into the contradiction-check budget, which is already the open item
-  below rather than a new one.
-- **An untouched default** → adjustable, because a default is not a Declared item. Refining an
-  unset value is not overwriting a word. Passive-surface it and move on.
+  (F.6a). This routes into the contradiction-check budget, already an open item below rather than
+  a new one.
+- **A standing per-item grant exists** → adjustable, because the grant is *itself* a Declaration.
+  Acting within it honours their word rather than overriding it — the same logic that lets a
+  user-set watch bypass the frequency budget. Still passive-surfaced like any other change, and
+  revocable. `RecurringDebtPayment.is_auto_confirm` (1.x, reserved, `default=False`) is the
+  existing shape and the right granularity: **per item, opt-in** — never a blanket "the assistant
+  may manage things."
+- **Provenance is unknown** → treat it as set. Absence is not evidence of absence, and the costs
+  are asymmetric: wrongly changing something the user chose costs trust; wrongly leaving an
+  auto-filled value alone costs almost nothing.
 
-Most settings are probably untouched defaults, so most of the friction the instinct was aimed at
-does get removed. And the gradient runs the right way: **the more a user engages, the less the
-software touches on its own.**
+**"Set" is derived, not stored.** No provenance column exists — `Transaction` carries
+`category_id` and nothing about who chose it. But the Historian already logs
+`categorization_suggestion_confirm` / `_reject`, so the answer lives in **events rather than in a
+flag**, which is what §10 requires anyway: derive it, do not remember it. The unknown class is
+real — rows predating the Historian, paths that never logged — and is exactly what the third
+branch is for.
+
+**The grant is the main path, not a footnote.** `app_settings` holds gift lists, goals, target
+allocations, a backup folder: the user's own data, not preferences with defaults. **Genuine
+untouched defaults are rare here**, so the friction this rule was meant to relieve is relieved
+almost entirely by the grant branch. Which lands back where the instinct began — the assistant
+*can* make adjustments, per item, once asked to, and the ask is offerable through the mechanism
+already settled: *"want me to keep this one current?"* The gradient still runs the right way:
+**the more a user engages, the less the software touches unbidden.**
+
+---
 
 ## Open
 
