@@ -240,6 +240,55 @@ driven by the user's data rather than by a feature list, and honest because the 
 the offer is the same evidence the watch would use. The software is not promoting a feature;
 it is saying *here is a pattern in your record, and here is the one thing I can do about it.*
 
+---
+
+## Changing settings on the user's behalf — SETTLED 2026-09-03
+
+The instinct this starts from is sound: **offers are expensive.** They draw from the brake
+budget, so if many settings could use adjusting, most offers never fire and most adjustments
+never happen. Silent change scales; asking does not.
+
+Right about the cost, wrong about the remedy — and the reason is already in the blueprint. E.2b:
+a durable contradicting behaviour *doesn't silently flip the word*, it surfaces a
+contradiction-check. A silent settings change is exactly **behaviour contradicts the setting, so
+overwrite the setting**, which is that move under another name.
+
+Two harms, and the second is the one that scales:
+
+- **A hidden belief that steers.** To silently raise a grocery budget, the software must first
+  conclude *this person's real grocery spend is $452*. That is a derived observation, and acting
+  on it unsurfaced is worse than storing it unsurfaced (§10): it is invisible *and* it moves
+  things.
+- **Broken trust is uncontainable.** A user who discovers the software has been changing things
+  without saying so does not conclude *helpful*. They conclude **what else has it changed?** —
+  and that question retroactively taints every number in the product, including all the honest
+  ones. A convenience-level feature buying an existential-level failure is a bad trade at any
+  frequency.
+
+### Silent versus interrupting is a false binary
+
+A.1 already provides the third tier. **Passive** — the insight lives on the relevant screen,
+available if the user looks. So a change the software makes on its own can be **made without
+asking and still not be silent**: it happens, it is visible where the user will meet it —
+*"raised your grocery budget to $452 on Sept 3; here's why"* — and it is revertible. No prompt,
+no interruption, **no draw on the brake budget**. The frictionlessness survives and so does the
+integrity.
+
+### The rule
+
+> **The software may adjust what the user never set. It may never adjust what they did.**
+
+- **Set explicitly by the user** → never changed. A durable contradicting behaviour surfaces a
+  contradiction-check (E.2b). It is their declaration, and the Declared channel is sovereign
+  (F.6a). Note this routes into the contradiction-check budget, which is already the open item
+  below rather than a new one.
+- **An untouched default** → adjustable, because a default is not a Declared item. Refining an
+  unset value is not overwriting a word. Passive-surface it and move on.
+
+Most settings are probably untouched defaults, so most of the friction the instinct was aimed at
+does get removed. And the gradient runs the right way: **the more a user engages, the less the
+software touches on its own.**
+
 ## Open
 
 - **Alarm governance is partly undesigned.** Appendix A covers promotion at runtime, per
