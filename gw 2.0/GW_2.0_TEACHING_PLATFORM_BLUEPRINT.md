@@ -1006,8 +1006,11 @@ meant to escape. Candidate direction:
   show-don't-scold (§3 #5) and the whole mission. A missed intention is renegotiated neutrally —
   "dining's harder to cut than expected; protect it and find another path?" — never a failure notice.
 - **Don't over-ask.** Constant "what are you willing to change?" is its own nagging. Willingness is
-  mostly **inferred** (Appendix E), occasionally **declared**, always **adjustable** — under the same
-  gentle-proactive caps (Appendix A). Ask only when genuinely needed (E.5).
+  evidenced three ways with three different standards (F.6a), and only one of them is asking — all
+  under the same gentle-proactive caps (Appendix A). Ask only when genuinely needed (E.5).
+- **`unclassified` is not a prompt to ask.** It is the honest resting state, and asking would not
+  resolve it anyway, since a stated answer is an opening bid rather than a verdict (F.6). The cost of
+  not knowing is humility in ranking, not a gap to interrogate the user about.
 
 ### F.5 Why this is the spine
 Appendices A–E are the mechanics; the Willingness Layer is the relationship they serve. The gauntlet
@@ -1024,6 +1027,65 @@ verdict. A stated intention that behavior doesn't follow is not a broken promise
 *answer* ("not this, not now"), and the software believes the behavior over the words and shifts to
 match. **The software shifts as the user shifts.** This is proof, not persuasion (Appendix B), applied
 to willingness itself: we don't take the word, we read the receipts. Even willingness is proven.
+
+### F.6a How willingness is evidenced
+Willingness reaches the software three ways, and they are not interchangeable — each carries a
+different burden of proof. Collapsing them is how a system ends up asserting it knows someone on
+evidence that could never support the claim.
+
+| source | what it is | what it must prove |
+|---|---|---|
+| **Observed** | which categories the user has actually moved — `budget_adjusted` plus the category ledger (E.2) | a **citation**. It is a receipt, not an inference: it names the edits and transactions it rests on. |
+| **Inferred** | the strategy label — which of §6.1's levers they reach for when capacity is needed (F.6b) | a **prediction** on behaviour it was not fitted to. Below threshold, it is not held. |
+| **Declared** | their explicit word, given in context (F.3) | **nothing.** It is sovereign. It beats inference (E.2b), is received locally, and is never mined for broader state. |
+
+Three properties follow, each load-bearing:
+- **The standards do not substitute for one another.** An observation is not promoted to a strategy by
+  repetition, and a declaration is not demoted by contradicting behaviour — that surfaces a
+  contradiction-check (E.2b); it never silently overwrites the word.
+- **All three are adjustable, always.** None is a verdict. The user moves any of them at any time and
+  the software re-derives rather than argues.
+- **`unclassified` is the resting state of the inferred channel** and must stay common (F.6b). The
+  observed and declared channels keep working while it is empty — which is why not knowing someone's
+  strategy costs *humility in ranking*, not the ability to help.
+
+### F.6b Willingness is a strategy, not a motive
+F.6 establishes that willingness is read from action. This establishes *what kind of thing* is being
+read, and how we know we read it right. Both come from `LEARNING.md` (the Assistant's Layer 2),
+narrowed to finance.
+
+Two claims answer *why did they do that*, and only one leaves evidence:
+
+| | |
+|---|---|
+| **motive** — *they protect dining because cooking feels like failure* | refused |
+| **strategy** — *when capacity is needed they trim recurring items and never touch timing* | **this is the layer** |
+
+A motive explains everything and can never be wrong. A strategy commits to a forecast and can
+therefore be **graded**, which is the only honest test of whether the software knows this person at
+all. It is Appendix B applied to willingness itself: we don't take the word, we read the receipts —
+and then we check whether reading them worked.
+
+- **The taxonomy is the engine's own lever set (§6.1).** We invent no behavioural categories. A
+  willingness strategy is *which honest lever this person actually reaches for*: reallocation, timing,
+  payoff-order, trimming, substitution, save-first, do-nothing — plus `unclassified`. Each carries the
+  discriminating prediction that makes it falsifiable: **given a shortfall next month, which lever
+  shows up in the ledger.** E ranks within what the user will consider; this is what "will consider"
+  means, in the vocabulary the engine already speaks.
+- **The prediction test.** A strategy may be attributed only when it predicts behaviour it was **not
+  fitted to** — better than the alternatives and better than a naive baseline. Fit on events up to a
+  point, score on what came after; never fit and score on the same events. The score is stored with
+  the label and recomputed as behaviour arrives. Below threshold the label drops to `unclassified`.
+  Nobody decides this; the arithmetic does.
+- **`unclassified` is the resting state and must stay common.** A taxonomy that always finds a
+  category is a horoscope. **If in practice nearly everyone gets a label, this layer is decoration and
+  should be deleted** — an acceptance test, not a caution. It is also the honest home for F.2's
+  "nothing at all": a user who changes nothing has no strategy to attribute, and that is a fact about
+  our evidence, not a verdict about them.
+- **Scoped to where it was earned.** A strategy earned in debt payoff is a claim about debt payoff.
+  Carrying it to how someone meets a grocery shortfall is a leap the ledger cannot back. A
+  cross-context transfer enters as a labelled hypothesis at a weaker class, is tested where it landed,
+  and promoted only if it predicts there too.
 
 ### F.7 The teacher–student covenant (effort-matched teaching)
 The relationship is reciprocal and non-coercive: *the software keeps teaching as long as the student is
