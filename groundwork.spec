@@ -164,6 +164,16 @@ a = Analysis(
         'numpy',
         'pandas',
         'PIL',
+        # pdfplumber's render backend. It and PIL are imported in exactly one
+        # place - pdfplumber/display.py - and Groundwork only ever calls
+        # page.extract_text() (pdf_statement.py: 'layout -> text ONLY').
+        # PIL was already excluded here and PDF extraction kept working, which
+        # is the precedent: same import, same file, same verdict. Verified with
+        # both blocked - a real 4-page statement still extracts 14,064 chars.
+        # NOTE: cryptography is NOT excludable. pdfminer.six requires it
+        # outright for encrypted PDFs, and bank statements often are.
+        'pypdfium2',
+        'pypdfium2_raw',
         'PyQt5',
         'PyQt6',
         'wx',
