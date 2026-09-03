@@ -133,10 +133,6 @@ a = Analysis(
         'pythonnet',
         'System',
         # tkinter
-        'tkinter',
-        'tkinter.filedialog',
-        'tkinter.messagebox',
-        '_tkinter',
         # stdlib — let PyInstaller include everything it finds automatically
         'secrets',
         'threading',
@@ -174,6 +170,14 @@ a = Analysis(
         # outright for encrypted PDFs, and bank statements often are.
         'pypdfium2',
         'pypdfium2_raw',
+        # tkinter and its ~8MB of tcl/tk. Nothing imports it any more: the two
+        # startup error dialogs use ctypes/osascript/zenity (stdlib only, and
+        # they must be - they fire when an import has already failed), and the
+        # backup folder picker uses pywebview, which already draws the whole
+        # UI. pywebview itself imports tkinter nowhere, so this is safe on
+        # every platform, not just Windows.
+        'tkinter',
+        '_tkinter',
         'PyQt5',
         'PyQt6',
         'wx',
