@@ -2200,7 +2200,7 @@ def main():
               stale.current_amount == 100.0 and capped.current_amount == 500.0)
 
     # ── 44. launch.py ships no tkinter ───────────────────────────────────────
-    # tkinter cost ~8MB of tcl/tk in every bundle to draw two error dialogs and
+    # tkinter cost ~10MB of tcl/tk in every bundle to draw two error dialogs and
     # one folder picker. Those now use ctypes/osascript/zenity (stdlib only -
     # they fire when an import has already failed, so they must not depend on
     # anything that could be the broken thing) and pywebview's own dialog. The
@@ -2223,7 +2223,7 @@ def main():
     _specs_excluding_tk = [f for f in ('groundwork.spec', 'groundwork_linux.spec',
                                        'groundwork_macos.spec')
                            if "'tkinter'," in (BASE / f).read_text(encoding='utf-8')]
-    check('all three specs exclude tkinter (one platform keeping it re-adds 8MB there)',
+    check('all three specs exclude tkinter (one platform keeping it re-adds 10MB there)',
           len(_specs_excluding_tk) == 3)
 
     return finish()
