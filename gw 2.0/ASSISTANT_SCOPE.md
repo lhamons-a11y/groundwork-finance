@@ -180,20 +180,81 @@ what it would tell them, and where it would say nothing useful, is one of the mo
 things this product can do — and it is the same lesson as the honest-no, delivered before
 the fact instead of after.
 
+---
+
+## Standing conditions — SETTLED 2026-09-02
+
+A condition that stays true and unresolved for months is the hardest case in alarm design.
+Re-telling is nagging; going silent is dishonest. Industrial practice resolves it by
+treating a standing alarm as evidence the alarm was designed wrong, and removing it — which
+is right for a control room, where the operator cannot opt in or out.
+
+Here the problem is different, and so is the answer. The alarm is not wrong. **The wrong
+party owns it.**
+
+> Repetition is nagging when the software chose it, and service when the user chose it.
+
+So when the Historian shows a pattern that keeps recurring, Groundwork neither escalates nor
+goes quiet. It **offers to hand the condition over**:
+
+> "I've noticed you get near or past your budget most months. Would you like me to tell you
+> when you're getting close?"
+
+That is not a nag and not a scold. It is the software naming something already in the user's
+own record, and offering the one capability it has that fits.
+
+### What each branch resolves to
+
+| the condition | what happens |
+|---|---|
+| **offer accepted** | it becomes **their** watch. It fires as configured and bypasses the frequency budget, because they asked for it. That is the instrument working, not a nag. |
+| **offer declined** | that is an answer, and a first-class one (F.2). It is a declaration, so it persists under §10, and it is never re-run (A.2 gate 3). |
+| **no watch form fits it** | it **stays passive, indefinitely**. A.1 already settles this: strictness is free — a sub-threshold insight is never lost, it just stays passive instead of interrupting. |
+
+### Four rules, decided
+
+1. **The offer is a proactive prompt and draws from the brake budget.** It is triggered by an
+   adverse pattern and costs the same attention as a brake, so it competes for the same
+   scarce slots under A.3 and clears the same gauntlet — materiality, novelty, timing.
+   Without this, one nag is simply replaced by a stream of "would you like me to watch this?"
+2. **A declined offer returns only on a material change in magnitude × breadth.** Never on a
+   clock, and never on repetition of the same condition at the same size. This is F.8's
+   existing measure applied to the offer rather than to the projection — no new machinery,
+   no new threshold to invent.
+3. **The offer is templated, never free-generated.** "I've noticed you get near or past your
+   budget" is a statement about the user's behaviour, and a few degrees of drift turns it
+   into a scold. This is exactly B.2a's tone-sensitive case: the architecture owns the
+   register here, not the model.
+4. **It is a third kind of ask, and inherits neither of the other two rules.** The answer
+   surface asks for **facts**; F.4 forbids asking for **willingness**. This asks for neither
+   — it asks whether the user wants a **capability**. Naming it prevents it being filed under
+   either and picking up the wrong constraint: it is not budget-exempt the way a factual
+   clarification is, and it is not forbidden the way a willingness interrogation is.
+
+### What this does to the catalogue
+
+It makes it active. Provability already decides what may be offered at all — no retirement
+watches for someone holding no retirement. This decides *when* a particular watch is put in
+front of someone: when their own record shows the pattern it addresses. Feature discovery
+driven by the user's data rather than by a feature list, and honest because the evidence for
+the offer is the same evidence the watch would use. The software is not promoting a feature;
+it is saying *here is a pattern in your record, and here is the one thing I can do about it.*
+
 ## Open
 
-- **Alarm and watch governance is not designed.** Appendix A covers promotion at runtime,
-  per instance. Industrial practice adds three things it lacks: **rationalization** (each
+- **Alarm governance is partly undesigned.** Appendix A covers promotion at runtime, per
+  instance. Industrial practice adds two things it still lacks: **rationalization** (each
   alarm *type* justifies its existence at design time — cause, consequence, response,
   priority basis — which is this document's own "Gated" discipline applied to a bucket that
-  does not have it); **measured delivered rate** treated as a design defect when it drifts,
-  the way the voice gate's miss-log is used; and **stale conditions** — something true and
-  unresolved for months, where re-telling is nagging but dropping it silently is dishonest.
-  The blueprint has no answer to the third.
-- **Alarms are a fourth prompt-kind, and the budget does not fit them.** A.3 budgets brakes
-  and green-lights. The contradiction-check is already flagged unpinned (§12). Alarms make
-  three unbudgeted kinds against two budgeted ones, so §12's open item is larger than it
-  currently reads.
+  does not have it), and **measured delivered rate** treated as a design defect when it
+  drifts, the way the voice gate's miss-log is used. *(Stale conditions, the third gap, is
+  settled above.)*
+- **Alarms proper are still an unbudgeted prompt-kind.** A.3 budgets brakes and green-lights.
+  The offer-to-watch above is now settled into the brake budget, and the factual clarification
+  is exempt because it is solicited — but the contradiction-check remains unpinned (§12) and a
+  bare alarm has no budget at all. Two kinds outstanding, not three. The offer-to-watch is the
+  precedent for how to resolve them: decide which existing budget the kind's *attention cost*
+  most resembles, rather than minting a new cap per kind.
 - **Gate 2 versus genuinely path-less news.** A.2 requires an honest §6 solution before a
   brake may interrupt. Some alarming facts have no lever — income stopping. The honest-no
   always carries a nearest lever and nearest reachable goal, so this may resolve itself, but
