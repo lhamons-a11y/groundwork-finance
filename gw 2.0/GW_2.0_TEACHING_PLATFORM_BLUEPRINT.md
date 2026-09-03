@@ -52,9 +52,9 @@ shifts.
 
 **Status.** A vision artifact, not a spec — nothing is built. It is deliberately a philosophy scaffold,
 not a full scope. Most design questions are worked through (Appendices A–G); the open surface is sorted
-into two kinds (§12): **Open** (no answer exists yet) — the clarification prompt-kind's budget
-(A.3/E.2b) and alarm governance — and **Gated** (standard exists, pin per case before build) —
-Trophy Room's proof-source and Appendix G's cycle thresholds.
+into two kinds (§12): **Open** (no answer exists yet) — free-generated drama-safety (B.2a) —
+and **Gated** (standard exists, pin per case before build) — Trophy Room's proof-source and
+Appendix G's cycle thresholds. Alarm governance is open too, in `ASSISTANT_SCOPE.md`.
 
 ---
 
@@ -508,16 +508,30 @@ Two kinds — and the *kind* is the routing instruction. **Open** = no answer ex
 don't build until it does*. **Gated** = the standard already exists; it needs pinning per case → *apply
 it, then ship*. Nothing in the **Gated** bucket enters the build queue (§11) until its per-case standard
 is pinned; until then, any "evidence-backed" / "resolved" language it carries is aspirational.
+- **Where the Willingness Layer lives (Appendix F.3): DECIDED 2026-09-03.** The **working picture**
+  — renamed from "current agreement", which oversold what the evidence supports — **lives with the
+  assistant**, as the assistant's record of its own conduct: what it concluded, what it did, why,
+  and what the user may dispute. Same home as the answer surface but a *distinct view*, since a Q&A
+  transcript is no place for durable state. **Settings gets a pointer, never residence** — location
+  teaches interpretation. Nothing is editable that isn't first a claim with a receipt; the empty
+  state is a cold-start property and is designed first; and the placement carries a stated
+  dependency — it assumes the assistant is a first-class destination, so demoting it later is a
+  decision about the Willingness Layer, not just navigation.
+- **Clarification prompt-kind's budget (A.3, E.2b): DECIDED 2026-09-03.** A promoted
+  contradiction-check **draws from the brake budget** — no cap of its own — because its attention
+  cost is a brake's: an unsolicited interruption asking the user to resolve something is mild
+  pressure, and the green-light budget exists precisely because good news isn't. Generalized as a
+  standing rule: *a new prompt-kind joins the budget its attention cost resembles; it does not mint
+  its own.* Ranking against other candidates was already covered — A.3's perishability tie-break
+  explicitly handles "a position fact that doesn't reduce to a date-impact," which is exactly a
+  contradiction-check's weight-of-contradiction unit, so most of this item turned out to be Gated
+  rather than Open. **One new clause was needed:** *dependency before impact* — a contradiction-check
+  outranks candidates whose ranking depends on the contradicted declaration, because the
+  contradiction is upstream and firing them first spends a slot on possibly-wrong advice. Not a
+  hierarchy by kind (A.3 forbids those); an ordering by dependency, and checkable.
+
 
 **Open — no answer exists yet:**
-- *(Resolved 2026-09-03 — moved to Decided. Where the Willingness Layer lives is settled: the
-  working picture is the assistant's record of its own conduct, with a pointer from Settings and
-  never residence there. See F.3.)*
-- **The clarification prompt-kind's budget (A.3, E.2b).** A contradiction-check (E.2b — the user's own
-  word disagrees with their own action) is a *third* proactive prompt-kind, a clarification, neither
-  brake nor green-light. A.3's frequency caps only budget brakes and green-lights, so it's unpinned
-  whether a promoted contradiction-check draws its own cap or simply competes by materiality in the
-  contention rule. No existing standard settles it — genuinely open, not gated.
 - **Free-generated drama-safety (B.2a, §3 #10).** Confidence and urgency inflation are gate-checkable
   (against computed confidence / a real closing window); drama isn't a factual check. B.2a enforces it
   by *templating* tone-sensitive output — the architecture owns the register. The residual: if a surface
@@ -572,6 +586,13 @@ we can set a high bar for interrupting without hiding value.
 - **Brake/warning: ≤ 2 per rolling 7 days.**
 - **Green-light/positive: separate looser budget, ~1–2/week.** Deliberate asymmetry — nagging is
   *unwanted pressure*; good news isn't pressure. Capped so it doesn't become empty cheerleading.
+- **Clarifications (contradiction-checks, E.2b) draw from the brake budget — no separate cap.** A
+  promoted contradiction-check is an unsolicited interruption asking the user to resolve something.
+  That is mild pressure, so it costs what a brake costs; the green-light budget exists precisely
+  because good news *isn't* pressure. A cap of its own would also sit idle most weeks, since E.2b
+  makes these Passive by default and promotion needs an explicit declaration, durable contradicting
+  behaviour, *and* enough weight to clear the gauntlet. The rule generalizes: **a new prompt-kind
+  joins the budget its attention cost resembles; it does not mint its own.**
 - **Quiet days → silence.** Saying nothing is correct behavior, not a gap to fill. Proactive is
   event-driven; a week with no material events is a silent week.
 - **Contention (which candidate takes a scarce slot).** When more candidates clear the gauntlet than
@@ -581,8 +602,18 @@ we can set a high bar for interrupting without hiding value.
   - **Never by insight source or appendix.** A fixed "this kind outranks that kind" hierarchy is the
     system imposing a universal importance ranking — the E.1/E.2 error (what most needs saying to
     *this* user isn't ours to pre-decide). The ruler is the user's goal, not our ordering of appendices.
+  - **Dependency before impact.** A promoted contradiction-check outranks any candidate whose
+    ranking **depends on the contradicted declaration**; against candidates that do not depend on
+    it, it competes normally. This is not the hierarchy-by-kind forbidden above — it is an ordering
+    by dependency, and it is checkable: *does this candidate's ranking use the category under
+    dispute?* The justification is that the contradiction sits **upstream**. If dining is marked
+    protected and the user has been trimming it, every solution ranked on that protection may be
+    ranked wrongly, so firing one first spends a scarce slot on possibly-wrong advice. Resolving
+    the contradiction is what makes the other candidates *correct*. **New clause (2026-09-03) —
+    the only part of the clarification-budget question not settled by an existing standard.**
   - **Tie-break 1 — perishability.** When goal-impact is comparable, or a candidate is a position fact
-    that doesn't reduce to a date-impact (e.g. G's "approaching your prior peak"), surface the one that
+    that doesn't reduce to a date-impact (e.g. G's "approaching your prior peak", or a
+    contradiction-check, which carries weight-of-contradiction rather than dollars), surface the one that
     *loses the most by waiting*: a decision the user is about to make outranks a fact that's equally
     true next week. Perishability is judged from what is *already true* — a decision in progress, a
     window closing by a known amount — never from a predicted trajectory (distance-not-direction, F.8).
