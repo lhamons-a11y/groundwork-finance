@@ -171,7 +171,7 @@ a = Analysis(
         # outright for encrypted PDFs, and bank statements often are.
         'pypdfium2',
         'pypdfium2_raw',
-        # tkinter and its ~8MB of tcl/tk. Nothing imports it any more: the two
+        # tkinter and its ~10MB of tcl/tk. Nothing imports it any more: the two
         # startup error dialogs use ctypes/osascript/zenity (stdlib only, and
         # they must be - they fire when an import has already failed), and the
         # backup folder picker uses pywebview, which already draws the whole

@@ -49,4 +49,4 @@ psutil>=5.9.0
 # tkinter is NOT required on any platform. It used to be, for two startup
 # error dialogs and a folder picker; those now use ctypes/osascript/zenity and
 # pywebview respectively, and the PyInstaller specs exclude tkinter outright
-# (it was ~8MB of tcl/tk per bundle). pywebview imports tkinter nowhere.
+# (it was ~10MB of tcl/tk per bundle). pywebview imports tkinter nowhere.
