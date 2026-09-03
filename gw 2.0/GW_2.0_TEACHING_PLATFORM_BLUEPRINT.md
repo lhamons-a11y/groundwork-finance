@@ -52,9 +52,10 @@ shifts.
 
 **Status.** A vision artifact, not a spec — nothing is built. It is deliberately a philosophy scaffold,
 not a full scope. Most design questions are worked through (Appendices A–G); the open surface is sorted
-into two kinds (§12): **Open** (no answer exists yet) — free-generated drama-safety (B.2a) —
-and **Gated** (standard exists, pin per case before build) — Trophy Room's proof-source and
-Appendix G's cycle thresholds. Alarm governance is open too, in `ASSISTANT_SCOPE.md`.
+into two kinds (§12): **Open** — now empty; F.3, the clarification budget and drama-safety all
+closed 2026-09-03 — and **Gated** (standard exists, pin per case before build): Trophy Room's
+proof-source and Appendix G's cycle thresholds. Remaining open design work is Layer 5's stakes
+gate, in `ASSISTANT_SCOPE.md`.
 
 ---
 
@@ -530,15 +531,23 @@ is pinned; until then, any "evidence-backed" / "resolved" language it carries is
   contradiction is upstream and firing them first spends a slot on possibly-wrong advice. Not a
   hierarchy by kind (A.3 forbids those); an ordering by dependency, and checkable.
 
+- **Free-generated drama-safety (B.2a, §3 #10): DECIDED 2026-09-03.** Settled **by degradation, not
+  detection**. The premise that drama had no verifier was wrong: `R5_no_jargon_no_drama` is a live
+  wordlist screen, measured at a 7% trip rate on phi3.5. It cannot be proven complete — nor can R3
+  or R4 — and the architecture's answer to an incomplete gate is retry-once-then-fall-back (Phase
+  1D), which gives R8's guarantee shape: inflated prose does not *render*, and the floor it falls to
+  is templated. Recorded honestly: misses do reach the user, bounded by a non-adversarial model and
+  a hardening miss-log. Also recorded: **templating is no longer a universal escape**, because the
+  answer surface takes arbitrary questions and cannot be templated — its expressed-state response is
+  the highest-risk instance and should be templated even there.
+
 
 **Open — no answer exists yet:**
-- **Free-generated drama-safety (B.2a, §3 #10).** Confidence and urgency inflation are gate-checkable
-  (against computed confidence / a real closing window); drama isn't a factual check. B.2a enforces it
-  by *templating* tone-sensitive output — the architecture owns the register. The residual: if a surface
-  genuinely needs *free-generated* narrative and still must be drama-safe, the detector is unsolved (a
-  banned-pattern list is too crude; a judge model is another small model with the same reliability
-  problem). The architecture leans toward *avoiding* free-generated tone where it matters (template
-  instead); whether that's fully sufficient is the open question. No existing standard settles it.
+
+*None. As of 2026-09-03 this bucket is empty: F.3, the clarification prompt-kind's budget and
+free-generated drama-safety all moved to Decided above. Remaining open design work lives in
+`gw 2.0/ASSISTANT_SCOPE.md` (Layer 5's stakes gate). An empty bucket is a claim that should be
+checked, not trusted — anything newly noticed belongs here, not in a commit message.*
 
 **Gated — the standard exists; pin it per case before build:**
 - **Trophy Room proof-source / timing (B.3, §8).** For each trophy type, define the proof event and
@@ -700,9 +709,30 @@ judge model is another small model with the same reliability problem (the turtle
 trap). So drama is enforced by **templating** the tone-sensitive surfaces: the model fills facts into a
 register-controlled template (the trip-planner "worthy trade" pattern), so the *architecture* owns the
 register, not the model's discretion. The less verifiable the tone, the more you template — you never
-trust a small model with a degree of freedom you can't check. *(Open residual — §12: drama-safety for
-genuinely free-generated narrative, which the architecture leans toward *avoiding* — template it —
-rather than solving.)*
+trust a small model with a degree of freedom you can't check.
+
+**Drama on free-generated narrative — SETTLED 2026-09-03, by degradation rather than detection.**
+The "no clean verifier" claim above understates what exists. `R5_no_jargon_no_drama`
+(`voice_discipline_test.py`) is a **live wordlist screen** over judgment-jargon and editorializing,
+and it is *measured*: phi3.5 tripped it on 7% of calls in the repeated evaluation. It is crude and
+cannot be proven complete — which is equally true of R3 and R4 — and the architecture already knows
+what to do with an incomplete gate: **retry once, then fall back** (Phase 1D). The guarantee is the
+same shape as R8's: not *the model will not inflate*, but **inflated prose does not render**. What
+reaches the user instead is the templated floor, which is drama-safe by construction.
+
+So the answer was never a better detector. It is that the only prose which ships is prose the screen
+did not catch, and everything else degrades to a register the architecture owns.
+
+**Two things this does not claim.** First, drama the wordlist misses *does* reach the user. That is a
+bounded imperfection rather than a solved problem, bounded by two facts: the model is not
+adversarial (a small local model reaches for "crushing debt"; it does not evade a filter), and the
+miss-log accumulates real misses for hardening — exactly how R3's wordlists were hardened. Second,
+**templating is no longer available as a universal escape.** The **answer surface**
+(`ASSISTANT_SCOPE.md`) takes arbitrary user questions, so its output cannot be templated; it is the
+genuinely free-generated case this appendix hoped to avoid, and it exists by design as of
+2026-09-03. Its highest-risk instance is the response to an **expressed state** — *"I'm so frustrated
+with my finances"* invites an empathetic register, and empathetic register is where affect inflation
+lives. That response should be templated even inside the free surface.
 
 ### B.3 Evidence-backed Trophy Room
 Because we hold valid proof the user actually did these things, the Trophy Room stops being generic
