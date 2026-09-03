@@ -3,7 +3,7 @@
 #
 # Platform notes:
 #   Windows: all packages below work as-is
-#   macOS:   all packages below work as-is (tkinter included with Python from python.org)
+#   macOS:   all packages below work as-is
 #   Linux:   install system packages FIRST (see README), then pip install below
 
 # Core web framework
@@ -35,17 +35,18 @@ psutil>=5.9.0
 # Linux only: install these via your package manager, NOT pip
 #
 #   Ubuntu 22.04 / Debian:
-#     sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.0 python3-tk
+#     sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.0
 #
 #   Ubuntu 23.04+ / Debian 12+:
-#     sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-tk
+#     sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1
 #
 #   Fedora:
-#     sudo dnf install python3-gobject webkit2gtk4.0 python3-tkinter
+#     sudo dnf install python3-gobject webkit2gtk4.0
 #
 #   Arch Linux:
-#     sudo pacman -S python-gobject webkit2gtk python-tk
+#     sudo pacman -S python-gobject webkit2gtk
 #
-# macOS: tkinter is included with Python from python.org
-#   If you installed Python via Homebrew:
-#     brew install python-tk
+# tkinter is NOT required on any platform. It used to be, for two startup
+# error dialogs and a folder picker; those now use ctypes/osascript/zenity and
+# pywebview respectively, and the PyInstaller specs exclude tkinter outright
+# (it was ~8MB of tcl/tk per bundle). pywebview imports tkinter nowhere.
