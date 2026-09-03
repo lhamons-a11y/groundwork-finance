@@ -10795,10 +10795,23 @@ function tripUpdateBudget() {
   const surplus  = Math.max(0, income - expenses - debtPay);
 
   // Payoff impact
-  const payoffBase = _simulatePayoff(0);
-  const payoffImpact = (payoffBase && income > 0)
-    ? Math.round((total / income) * 30)  // rough days impact
-    : 0;
+  // (_simulatePayoff(0) for the base date was dropped with payoffImpact — it was
+  //  running a full simulation whose only consumer was the removed sentence.
+  //  Pillar 1 computes base and impact together.)
+  // payoffImpact is NOT COMPUTED. It used to be Math.round((total/income)*30),
+  // labelled 'rough days impact' — and measured on 2026-09-03 it understated the
+  // real figure by 4.4x to 17.4x across six scenarios, worst for the tightest
+  // budgets, because it divides the trip by INCOME when what drives payoff is the
+  // surplus over minimums. Five of six landed under the <=14d threshold that
+  // printed 'A worthy trade.'
+  //
+  // It cannot be computed correctly yet: _simulatePayoff takes only a monthly
+  // delta, and a trip is a ONE-TIME cost. That missing dimension is why the
+  // heuristic existed. The blueprint's signature is
+  // decisionImpact({ monthlyDelta, oneTimeCost }) — Pillar 1 — and per
+  // gw 2.0/CALCULATION_PLACEMENT.md a claim-backing derivation belongs in Python.
+  // Until then: honest-null. No history, no claim.
+  const payoffImpact = null;
 
   // Store for funding/AI use
   _tripBudgetData = {
@@ -10836,8 +10849,8 @@ function tripUpdateBudget() {
       </div>
       <div class="trip-cell">
         <div class="trip-cell-label">Debt-free impact</div>
-        <div class="trip-cell-value">${payoffImpact > 0 ? '+'+payoffImpact+' days' : '—'}</div>
-        <div class="trip-cell-sub">later than planned</div>
+        <div class="trip-cell-value">—</div>
+        <div class="trip-cell-sub">not yet calculated</div>
       </div>`;
   }
 
@@ -10861,29 +10874,9 @@ function tripUpdateBudget() {
   // Payoff impact message
   const impact = g('tripPayoffImpact');
   if (impact) {
-    if (payoffBase && payoffImpact > 0) {
-      const newDate = new Date(payoffBase.freeDateFull);
-      newDate.setDate(newDate.getDate() + payoffImpact);
-      const newDateStr = newDate.toLocaleDateString('en-US',{month:'short',year:'numeric'});
-      const color = payoffImpact <= 14 ? 'var(--pine)' : payoffImpact <= 30 ? 'var(--gold)' : 'var(--ember)';
-      impact.style.borderColor = color;
-      // Fact only. This line used to end in one of three judgments: 'A worthy
-      // trade.' (a verdict on the user's choice, which E.4 forbids and R9 now
-      // catches) or 'Consider saving for it first.' (a command — 'consider ' is
-      // in COMMAND_PHRASES, so the app's own voice gate rejects it). Two of the
-      // three endings failed the gate; they only shipped because this string is
-      // built in JS and never passed through _voiceGateCheck.
-      //
-      // Pillar 2 wants this to end in a lever ('$40/mo from dining brings it
-      // back to March'). That number does not exist yet: it needs the unified
-      // consequence engine (Pillar 1, decisionImpact) to compute what offsets
-      // the trip. Inventing it here would be the fabrication R8 exists to stop,
-      // so the line states the fact and the surplus, and the lever lands with
-      // Pillar 1.
-      impact.innerHTML = `This trip moves your debt-free date from <strong>${payoffBase.freeDate}</strong> to <strong>${newDateStr}</strong> — ${payoffImpact} day${payoffImpact!==1?'s':''} later. Your monthly surplus is <strong>${fmt(surplus)}</strong>.`;
-    } else {
-      impact.innerHTML = `Estimated trip cost: <strong>${fmt(total)}</strong>. Your monthly surplus is <strong>${fmt(surplus)}</strong>.`;
-    }
+    // The date-shift sentence went with the number behind it (see above). What
+    // remains is what can be stated truthfully from figures that exist.
+    impact.innerHTML = `Estimated trip cost: <strong>${fmt(total)}</strong>. Your monthly surplus is <strong>${fmt(surplus)}</strong>.`;
   }
 
   // Show save options
@@ -11027,7 +11020,6 @@ Transport specifics:
 User's financial context:
   Total trip budget available: ${fmt(d.total)}
   Monthly surplus after debt: ${fmt(d.surplus)}
-  Debt-free date impact: +${d.payoffImpact} days
 
 Tasks:
 1. Search for current gas prices if driving, or flight prices if flying
