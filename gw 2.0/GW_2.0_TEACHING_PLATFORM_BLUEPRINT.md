@@ -1030,6 +1030,24 @@ meant to escape. Candidate direction:
     this state first. The populated one is both the easier problem and the rarer one.
 - **Proof-backed and correctable** — "you said X in March; your behavior since suggests Y — update?"
   A living, honest contract (Appendix E), never a frozen declaration.
+- **Nothing is editable that isn't first a claim with a receipt.** This is what keeps the view out
+  of the settings trap it opens by declaring. E.2b defers the override *interaction* to here, so
+  the user must be able to mark dining protected somewhere — and a place where you set things is a
+  settings screen unless something prevents it. The preventer: every editable item is attached to a
+  claim the software has already made, shown with the evidence it rests on. Editing is **disputing
+  a claim**, not configuring a system. There is no preference to set about something Groundwork has
+  never observed, because there is nothing there to dispute. This governs what the *view* offers
+  to edit, not what the user may volunteer: in-context declaration is the other channel and is
+  untouched — "never the kids' stuff," said in response to a proposal, stands whether or not that
+  category has any history behind it.
+  - The editable surface is therefore **generated from evidence, not from a feature list** — the
+    same rule as the watch catalogue, where only what can be proven for *this* user may be offered,
+    applied a third time. The consistency is not tidiness: a feature list is a fixed set somebody
+    maintains, and maintaining one is exactly how "not a settings screen" degrades into one.
+  - It also bounds the empty state honestly: a working picture with nothing in it has nothing to
+    edit. **A settings screen has all of its controls on day one; this one starts with none and
+    grows them as evidence arrives.** That is the difference stated as behaviour rather than as
+    intent — and behaviour is the half that can be checked.
 
 ### F.4 The hazards (and why existing guardrails defuse them)
 - **Willingness must never become a stick.** "You said you'd cut dining and didn't" violates
