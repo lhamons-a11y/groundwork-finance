@@ -10089,6 +10089,87 @@ function _maybeLoadTripDistance(origin, destination) {
   }, 600);
 }
 
+let _tripImpactData  = null;  // Pillar 1 decision_impact for the CURRENT trip total
+let _tripImpactKey   = '';    // the rounded total the above is valid for
+let _tripImpactTimer = null;
+
+// Pillar 1: what the trip actually costs the payoff date, from the server's
+// consequence engine (core/consequence.py). Debounced exactly like the distance
+// fetch, because the total changes on every keystroke.
+//
+// This replaced Math.round((total / income) * 30), which was never a simulation
+// at all — it ignored balances, APRs, minimums and payoff order, and understated
+// the truth by 4.4x to 17.4x, worst for the tightest budgets. Never blocks the
+// render: the cells read "—" until this resolves, which is the honest state
+// rather than a guess.
+function _maybeLoadTripImpact(total) {
+  const rounded = Math.round(total || 0);
+  const key = String(rounded);
+  if (key === _tripImpactKey) return;
+  if (!(rounded > 0)) { _tripImpactData = null; _tripImpactKey = key; return; }
+  clearTimeout(_tripImpactTimer);
+  _tripImpactTimer = setTimeout(async () => {
+    try {
+      _tripImpactData = await API.post('/api/debt/decision-impact', { one_time_cost: rounded });
+      _tripImpactKey  = key;
+    } catch (e) {
+      _gwErr('_maybeLoadTripImpact')(e);
+      _tripImpactData = null;
+    }
+    tripUpdateBudget();
+  }, 600);
+}
+
+// The two impact cells. Date and money are separate facts because they move
+// independently: a payoff date set by loan forgiveness does not shift when you
+// spend, but the interest on everything else still does. Showing only "days
+// later" would render that trip free.
+// months-from-now as "Mar 2027". The consequence engine returns a month count,
+// not a date string — formatting is the view's job, and this matches how
+// _simulatePayoff has always rendered its own free date.
+function _monthsFromNowLabel(months) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + (parseInt(months, 10) || 0));
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function _tripImpactCells(d) {
+  if (!d || !d.base) return '';                 // no debt, or not loaded yet
+  const undated = (d.undated_forgiveness || []).length > 0;
+  const months  = d.months_delta;
+  const interest = d.interest_delta;
+
+  let dateVal, dateSub, dateStyle = '';
+  if (undated || months === null || months === undefined) {
+    dateVal = '—';
+    dateSub = undated
+      ? `needs the payment count for ${esc(d.undated_forgiveness[0])}`
+      : 'not calculated';
+  } else if (months === 0) {
+    // Deliberately NOT green. This is the absence of one cost, not good news.
+    dateVal = 'no change';
+    dateSub = d.base.conditional_on_certification
+      ? 'forgiveness sets the date' : 'same payoff month';
+  } else {
+    dateVal = `+${months} month${months !== 1 ? 's' : ''}`;
+    dateSub = 'later than planned';
+    dateStyle = ' style="color:var(--gold)"';
+  }
+
+  const hasInterest = typeof interest === 'number' && interest > 0;
+  return `
+      <div class="trip-cell">
+        <div class="trip-cell-label">Debt-free impact</div>
+        <div class="trip-cell-value"${dateStyle}>${dateVal}</div>
+        <div class="trip-cell-sub">${dateSub}</div>
+      </div>
+      <div class="trip-cell">
+        <div class="trip-cell-label">Added interest</div>
+        <div class="trip-cell-value"${hasInterest ? ' style="color:var(--gold)"' : ''}>${hasInterest ? '+' + fmt(interest) : '—'}</div>
+        <div class="trip-cell-sub">${hasInterest ? 'over the payoff' : 'not calculated'}</div>
+      </div>`;
+}
+
 // Phase 5A: fetch the real national-average gas price once per view visit,
 // then re-run the budget calc so the estimate uses it instead of the old
 // hardcoded $3.40. Never blocks the initial render — tripUpdateBudget()
@@ -10827,6 +10908,9 @@ function tripUpdateBudget() {
     gasRate, gasPriceLive, gasPricePeriod,
   };
 
+  // Pillar 1 impact for this total — debounced, never blocking.
+  _maybeLoadTripImpact(total);
+
   // Render budget cells
   if (calcCard) calcCard.style.display = '';
   const cells = g('tripBudgetCells');
@@ -10847,11 +10931,7 @@ function tripUpdateBudget() {
         <div class="trip-cell-value" style="color:${surplus>=total?'var(--pine)':'var(--ember)'}">${fmt(surplus)}</div>
         <div class="trip-cell-sub">after debt payment</div>
       </div>
-      <div class="trip-cell">
-        <div class="trip-cell-label">Debt-free impact</div>
-        <div class="trip-cell-value">—</div>
-        <div class="trip-cell-sub">not yet calculated</div>
-      </div>`;
+      ${_tripImpactCells(_tripImpactData)}`;
   }
 
   // Phase 5B: the EIA national average as its own labeled finding, distinct
@@ -10874,9 +10954,23 @@ function tripUpdateBudget() {
   // Payoff impact message
   const impact = g('tripPayoffImpact');
   if (impact) {
-    // The date-shift sentence went with the number behind it (see above). What
-    // remains is what can be stated truthfully from figures that exist.
-    impact.innerHTML = `Estimated trip cost: <strong>${fmt(total)}</strong>. Your monthly surplus is <strong>${fmt(surplus)}</strong>.`;
+    // Cause -> effect, from figures that exist. The lever Pillar 2 wants at the
+    // end of this sentence still needs the Solution Engine to choose one, so the
+    // sentence stops at the consequence rather than inventing a suggestion.
+    const d = _tripImpactData;
+    if (d && d.base && (d.undated_forgiveness || []).length === 0
+        && typeof d.months_delta === 'number' && d.months_delta > 0) {
+      impact.innerHTML = `This trip moves your debt-free date from <strong>${_monthsFromNowLabel(d.base.months)}</strong> `
+        + `to <strong>${_monthsFromNowLabel(d.after.months)}</strong> — ${d.months_delta} month`
+        + `${d.months_delta !== 1 ? 's' : ''} later, and about <strong>${fmt(d.interest_delta)}</strong> more interest.`;
+    } else if (d && d.base && d.months_delta === 0 && d.interest_delta > 0) {
+      impact.innerHTML = d.base.conditional_on_certification
+        ? `Your payoff date is set by loan forgiveness, so this trip does not move it — it adds `
+          + `<strong>${fmt(d.interest_delta)}</strong> in interest on your other balances.`
+        : `This trip does not move your payoff date. It adds <strong>${fmt(d.interest_delta)}</strong> in interest.`;
+    } else {
+      impact.innerHTML = `Estimated trip cost: <strong>${fmt(total)}</strong>. Your monthly surplus is <strong>${fmt(surplus)}</strong>.`;
+    }
   }
 
   // Show save options
