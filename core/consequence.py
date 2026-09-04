@@ -33,6 +33,12 @@ class Card:
     is_lease: bool = False
     end_month: str = None   # 'YYYY-MM'; a lease past this is written off
     is_pslf: bool = False   # headed for forgiveness: minimums only, never extra
+    # Months from now until the balance is forgiven, for a loan on an
+    # income-driven forgiveness plan. None means WE DO NOT KNOW — not "never".
+    # PSLF forgives after 120 qualifying payments, IBR/PAYE/SAVE after 240, so
+    # this is (program total - paymentsMade). The caller computes it because the
+    # caller holds the record; the engine refuses to guess.
+    forgive_after_months: int = None
 
 
 def _prepare(cards):
@@ -47,6 +53,7 @@ def _prepare(cards):
             is_lease=bool(c.is_lease),
             end_month=c.end_month,
             is_pslf=bool(getattr(c, 'is_pslf', False)),
+            forgive_after_months=getattr(c, 'forgive_after_months', None),
         ))
     return [c for c in out if c.balance > 0]
 
@@ -81,6 +88,11 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
         key=(lambda c: c.balance) if strategy == 'snowball' else (lambda c: -c.rate))
 
     bals = [c.balance for c in data]
+    # forgive_after_months <= 0 means the qualifying payments are already made:
+    # the balance is gone now, not after one more payment.
+    for i, c in enumerate(data):
+        if c.forgive_after_months is not None and c.forgive_after_months <= 0:
+            bals[i] = 0.0
     remaining_cost = float(one_time_cost or 0)
     month, total_interest = 0, 0.0
     first_cleared_month, first_cleared_name = None, None
@@ -102,6 +114,15 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
             pay = min(c.minimum, bals[i])
             bals[i] = max(0.0, bals[i] - pay)
             extra -= pay
+
+        # Forgiveness ends the loan outright — it does not amortise to zero.
+        # Under an income-driven plan the balance often GROWS the whole time and
+        # is then written off. Applied AFTER this month's minimum, because the
+        # final qualifying payment is made in that month and forgiveness follows
+        # it; zeroing first would skip a payment and land the date a month early.
+        for i, c in enumerate(data):
+            if c.forgive_after_months is not None and month >= c.forgive_after_months:
+                bals[i] = 0.0
 
         # The one-time cost takes from the extra, never from the minimums:
         # skipping a minimum is a missed payment, which is a different event.
@@ -126,11 +147,24 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
                     first_cleared_month, first_cleared_name = month, c.name
                     break
 
+    undated = [c.name for c in data if c.is_pslf and c.forgive_after_months is None]
     return {
         'months': month,
         'total_interest': round(total_interest),
         'first_cleared_month': first_cleared_month,
         'first_cleared_name': first_cleared_name,
+        # A loan on a forgiveness plan whose payment count we do not have cannot
+        # be dated. Modelling it as amortising to zero is what produced an
+        # 18-year figure for someone ten months from forgiveness, so callers are
+        # told rather than left to assume 'months' covers everything.
+        'undated_forgiveness': undated,
+        'covers_all_debt': not undated,
+        # Any modelled forgiveness assumes qualifying employment stays certified
+        # (`certifiedUntil` in the PSLF record). That is the user's own
+        # assumption in being on the plan, but it is not a certainty and the
+        # figure should not be presented as one.
+        'conditional_on_certification': any(
+            c.forgive_after_months is not None for c in data),
     }
 
 

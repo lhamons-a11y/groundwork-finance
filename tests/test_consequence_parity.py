@@ -152,6 +152,52 @@ def main():
     check(f'the old heuristic ({heuristic}d) understated this case ({real_days}d) by >4x',
           real_days > heuristic * 4)
 
+    # ── Forgiveness ────────────────────────────────────────────────────────
+    # A loan on an income-driven plan is written off after a payment count; it
+    # does not amortise to zero, and modelling it that way told someone ten
+    # months from forgiveness that they had eighteen years to go.
+    def pslf_cards(made):
+        fa = None if made is None else 120 - made
+        return [Card(balance=8000, rate=22, minimum=200, name='Visa'),
+                Card(balance=20000, rate=6, minimum=150, name='Grad loan',
+                     is_pslf=True, forgive_after_months=fa)]
+
+    visa_only = simulate_payoff([Card(balance=8000, rate=22, minimum=200)], 800)['months']
+    seq = [(m, simulate_payoff(pslf_cards(m), 800)['months']) for m in (0, 30, 60, 90, 110, 119, 120)]
+
+    check('the debt-free month falls as qualifying payments accumulate',
+          all(seq[i][1] >= seq[i + 1][1] for i in range(len(seq) - 1)))
+    check('forgiveness lands on the payment count, not one month either side',
+          dict(seq)[0] == 120 and dict(seq)[30] == 90 and dict(seq)[60] == 60)
+    # A loan awaiting forgiveness still takes its minimum every month until it
+    # goes, which is money not reaching the other balances. So the rest of the
+    # debt clears LATER than it would alone — the forgiven loan is free at the
+    # end, not free along the way.
+    check('a loan awaiting forgiveness slows the rest by taking its minimum',
+          dict(seq)[110] > visa_only)
+    check('once forgiveness is imminent, the other debt sets the date',
+          dict(seq)[119] == visa_only and dict(seq)[110] > 120 - 110)
+    check('a loan already past its payment count is gone immediately',
+          dict(seq)[120] == visa_only)
+    check('a forgiven loan is not paid off early — it takes minimums to the end',
+          simulate_payoff(pslf_cards(0), 800)['months']
+          > simulate_payoff([Card(balance=8000, rate=22, minimum=200),
+                             Card(balance=20000, rate=6, minimum=150)], 800)['months'])
+
+    unknown = simulate_payoff(pslf_cards(None), 800)
+    check('an undated forgiveness loan is reported, not silently amortised',
+          unknown['undated_forgiveness'] == ['Grad loan'] and not unknown['covers_all_debt'])
+    check('a fully dated portfolio reports that it covers all debt',
+          simulate_payoff(pslf_cards(60), 800)['covers_all_debt'])
+    check('modelled forgiveness is flagged as conditional on certification',
+          simulate_payoff(pslf_cards(60), 800)['conditional_on_certification']
+          and not simulate_payoff([Card(balance=8000, rate=22, minimum=200)], 800)['conditional_on_certification'])
+    check('a longer programme (IBR, 240 payments) forgives later than PSLF',
+          simulate_payoff([Card(balance=20000, rate=6, minimum=150, is_pslf=True,
+                                forgive_after_months=240 - 60)], 200)['months']
+          > simulate_payoff([Card(balance=20000, rate=6, minimum=150, is_pslf=True,
+                                  forgive_after_months=120 - 60)], 200)['months'])
+
     # Honest-null rather than a fabricated number.
     check('an unaffordable budget returns None, not a large number',
           simulate_payoff(cards, 100) is None)
