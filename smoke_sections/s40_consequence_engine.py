@@ -121,6 +121,33 @@ def run(ctx):
     check('a forgiveness-bound date can be unmoved while interest still rises',
           dt['months_delta'] == 0 and dt['interest_delta'] > 0)
 
+    # ── The trip planner's wiring ───────────────────────────────────────────
+    app_src = ctx.app_src
+    # The old heuristic must be gone from the CODE. It is still quoted in a
+    # comment explaining what replaced it, which is worth keeping — so this
+    # ignores comment lines rather than matching the file as one string.
+    code_lines = [ln for ln in app_src.splitlines() if not ln.lstrip().startswith('//')]
+    heuristic_live = any('(total / income) * 30' in ln for ln in code_lines)
+    check('the trip planner calls the engine instead of computing its own figure',
+          '_maybeLoadTripImpact' in app_src
+          and "API.post('/api/debt/decision-impact'" in app_src
+          and not heuristic_live)
+    check('the impact fetch is debounced, like the distance fetch on the same page',
+          '_tripImpactTimer' in app_src and '_tripImpactKey' in app_src)
+    check('both costs are rendered — date and interest as separate cells',
+          "'Debt-free impact'" in app_src.replace('"', "'")
+          or 'Debt-free impact' in app_src)
+    check('the interest cell exists, so a date that does not move cannot read as free',
+          'Added interest' in app_src)
+    check('an undated forgiveness loan blocks the date cell rather than filling it',
+          'undated_forgiveness' in app_src)
+    # "no change" must not be green: it is the absence of one cost, not good news,
+    # and colouring it green is the same flattery-toward-spending the old
+    # heuristic had.
+    i = app_src.find("dateVal = 'no change'")
+    check('"no change" is not styled as a positive outcome',
+          i != -1 and 'var(--pine)' not in app_src[i:i + 400])
+
     # If node is here, run the real differential against app.js itself.
     try:
         proc = subprocess.run([sys.executable, str(BASE / 'tests' / 'test_consequence_parity.py')],
