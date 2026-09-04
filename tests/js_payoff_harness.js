@@ -1,28 +1,39 @@
-// Runs the REAL _simulatePayoffStrategy from app.js against stdin scenarios, so
-// the Python port is compared to the shipped code rather than to a description
-// of it. The function is extracted verbatim at runtime; if app.js changes, this
-// picks the change up and the parity test fails loudly.
+// Runs the REAL payoff simulators from app.js against stdin scenarios, so the
+// Python port is compared to the shipped code rather than to a description of
+// it. Functions are extracted verbatim at runtime by brace-balancing; if app.js
+// changes, this picks the change up and parity fails loudly.
+//
+// Two targets, because app.js has two LIVE simulators:
+//   _simulatePayoffStrategy(cards, budget, strategy) — parameterised, no PSLF
+//   _simulatePayoff(extraPerMonth)                   — app state, PSLF-aware
+// (A third, _simulatePayoffFromRows, was dead code and was removed.)
 const fs = require('fs');
 const src = fs.readFileSync('static/js/app.js', 'utf8');
 
-const start = src.indexOf('function _simulatePayoffStrategy(');
-if (start === -1) { console.error('EXTRACT_FAIL: _simulatePayoffStrategy not found'); process.exit(2); }
-// Balance braces from the function's opening brace to find its end.
-let i = src.indexOf('{', start), depth = 0, end = -1;
-for (let p = i; p < src.length; p++) {
-  if (src[p] === '{') depth++;
-  else if (src[p] === '}') { depth--; if (depth === 0) { end = p + 1; break; } }
+function extract(name) {
+  const s = src.indexOf('function ' + name + '(');
+  if (s === -1) { console.error('EXTRACT_FAIL: ' + name + ' not found'); process.exit(2); }
+  let i = src.indexOf('{', s), d = 0, e = -1;
+  for (let p = i; p < src.length; p++) {
+    if (src[p] === '{') d++;
+    else if (src[p] === '}') { d--; if (d === 0) { e = p + 1; break; } }
+  }
+  if (e === -1) { console.error('EXTRACT_FAIL: unbalanced braces in ' + name); process.exit(2); }
+  return src.slice(s, e);
 }
-if (end === -1) { console.error('EXTRACT_FAIL: unbalanced braces'); process.exit(2); }
-const body = src.slice(start, end);
-
-// _cardBal is app state plumbing; the scenarios supply balances directly.
-const _cardBal = (c) => c.balance;
-const fn = new Function('_cardBal', body + '; return _simulatePayoffStrategy;')(_cardBal);
 
 const scenarios = JSON.parse(fs.readFileSync(0, 'utf8'));
 const out = scenarios.map(s => {
-  const r = fn(s.cards, s.budget, s.strategy);
+  const S = { debtCards: s.cards, debtMethod: s.strategy };
+  const flagged = new Set((s.cards || []).filter(c => c.pslf).map(c => c.id));
+  const build = (name) => new Function(
+    '_cardBal', '_pslfIsFlagged', '_getMonthlyBudget', 'S', 'MAX_MONTHS',
+    extract(name) + '; return ' + name + ';'
+  )(c => c.balance, k => flagged.has(k), () => s.budget, S, 360);
+
+  const r = (s.target === 'stateful')
+    ? build('_simulatePayoff')(0)
+    : build('_simulatePayoffStrategy')(s.cards, s.budget, s.strategy);
   return r === null ? null : { months: r.months, totalInterest: r.totalInterest };
 });
 process.stdout.write(JSON.stringify(out));

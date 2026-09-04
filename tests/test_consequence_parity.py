@@ -31,6 +31,28 @@ def check(name, ok):
     print(f'  {"OK  " if ok else "FAIL"}  {name}')
 
 
+def pslf_scenarios(n, seed=20260904):
+    """Portfolios that include PSLF-flagged loans, compared against the
+    PSLF-aware simulator. A loan headed for forgiveness receives its minimum but
+    never extra — paying down principal there is money burned — and only
+    _simulatePayoff knows that, so this set targets it specifically."""
+    rnd = random.Random(seed)
+    out = []
+    for _ in range(n):
+        cards = [{'id': f'c{i}',
+                  'balance': round(rnd.uniform(500, 30000), 2),
+                  'rate': round(rnd.uniform(0, 29.99), 2),
+                  'minimum': round(rnd.uniform(25, 700), 2),
+                  'name': f'C{i}',
+                  'pslf': rnd.random() < 0.35}
+                 for i in range(rnd.randint(1, 4))]
+        total_min = sum(c['minimum'] for c in cards)
+        out.append({'cards': cards, 'budget': round(total_min * rnd.uniform(1.0, 3.0), 2),
+                    'strategy': rnd.choice(['avalanche', 'snowball']),
+                    'target': 'stateful'})
+    return out
+
+
 def random_scenarios(n, seed=20260903):
     rnd = random.Random(seed)
     out = []
@@ -84,6 +106,30 @@ def main():
     check('total interest agrees within $1', not interest_off)
     for pi, ji in interest_off[:3]:
         print(f'        python={pi} js={ji}')
+
+    # PSLF, which only the stateful simulator models.
+    pslf = pslf_scenarios(150)
+    proc2 = subprocess.run([r'node', str(BASE / 'tests' / 'js_payoff_harness.js')],
+                           input=json.dumps(pslf), capture_output=True,
+                           text=True, cwd=str(BASE))
+    if proc2.returncode != 0:
+        check('js harness ran the PSLF set', False)
+    else:
+        js2 = json.loads(proc2.stdout)
+        bad = 0
+        with_pslf = sum(1 for s in pslf if any(c['pslf'] for c in s['cards']))
+        for s, j in zip(pslf, js2):
+            cards = [Card(balance=c['balance'], rate=c['rate'], minimum=c['minimum'],
+                          name=c['name'], is_pslf=c['pslf']) for c in s['cards']]
+            p = simulate_payoff(cards, s['budget'], s['strategy'])
+            pm = p['months'] if p else None
+            jm = j['months'] if j else None
+            if pm != jm:
+                bad += 1
+                if bad <= 3:
+                    print(f'        python={pm} js={jm} pslf={[c["pslf"] for c in s["cards"]]}')
+        check(f'all {len(pslf)} PSLF portfolios ({with_pslf} with flagged loans) '
+              f'agree with _simulatePayoff', bad == 0)
 
     # The new dimension, which has no JS counterpart to compare against.
     cards = [Card(balance=8000, rate=22, minimum=200),
