@@ -108,6 +108,7 @@ def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
                 closes=(after['months_delta'] <= 0),
                 cost_months=after['months_delta'],
                 requires_cut=False,
+                frees_monthly=info['frees_monthly'],
                 available_in_months=info['month']))
 
     # ── Lever 3: payoff-order. Switching the method costs nothing and cuts
