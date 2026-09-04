@@ -201,3 +201,45 @@ def decision_impact(cards, budget, monthly_delta=0.0, one_time_cost=0.0,
         'months_delta': after['months'] - base['months'],
         'interest_delta': after['total_interest'] - base['total_interest'],
     }
+
+
+def offsetting_monthly_delta(cards, budget, one_time_cost, strategy='avalanche',
+                             today_key=None, start_month=None, cap=None):
+    """The smallest sustained monthly increase that cancels a one-time cost's
+    effect on the payoff date — Pillar 2's lever, as a number.
+
+    This is the "swing" from F.8 pointed at a decision the user is considering:
+    not a judgement about whether to spend, but the one change that undoes it.
+    Returns None when no amount within `cap` cancels it, rather than a figure so
+    large it is really a refusal wearing a number.
+
+    `cap` defaults to the one-time cost itself. Beyond that the "lever" would
+    have the user redirect more per month than the thing cost, which is not a
+    lever anyone would pull and is better said as nothing.
+    """
+    def delta_at(x):
+        d = decision_impact(cards, budget, monthly_delta=x, one_time_cost=one_time_cost,
+                            strategy=strategy, today_key=today_key, start_month=start_month)
+        return d['months_delta']
+
+    baseline = delta_at(0)
+    if baseline is None or baseline <= 0:
+        return 0.0 if baseline == 0 else None   # nothing to offset, or unsimulatable
+
+    ceiling = float(cap if cap is not None else max(1.0, float(one_time_cost)))
+    if delta_at(ceiling) is None or delta_at(ceiling) > 0:
+        return None                              # not reachable within the cap
+
+    # Monotonic in x — more money each month never delays the payoff — so bisect.
+    lo, hi = 0.0, ceiling
+    for _ in range(40):
+        mid = (lo + hi) / 2.0
+        if mid <= 0:
+            break
+        if delta_at(mid) <= 0:
+            hi = mid
+        else:
+            lo = mid
+        if hi - lo < 0.5:
+            break
+    return round(hi, 2)

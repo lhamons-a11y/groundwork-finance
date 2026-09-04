@@ -10954,15 +10954,26 @@ function tripUpdateBudget() {
   // Payoff impact message
   const impact = g('tripPayoffImpact');
   if (impact) {
-    // Cause -> effect, from figures that exist. The lever Pillar 2 wants at the
-    // end of this sentence still needs the Solution Engine to choose one, so the
-    // sentence stops at the consequence rather than inventing a suggestion.
+    // Pillar 2's teaching sentence: cause -> effect -> a lever the user controls.
+    // The lever is a number the consequence engine solved for (the smallest
+    // sustained monthly increase that cancels the delay). It deliberately does
+    // NOT name a category — "trim dining $40/mo" needs the Solution Engine to
+    // know dining is flexible for this person, and inventing that is the
+    // fabrication R8 exists to stop. "More toward debt" is still a lever they
+    // control; which envelope it comes from is theirs to choose.
+    //
+    // Rounded UP to the nearest $5: rounding down would state a figure that
+    // does not actually hold the date.
     const d = _tripImpactData;
+    const lever = (d && typeof d.offsetting_monthly === 'number' && d.offsetting_monthly > 0)
+      ? Math.ceil(d.offsetting_monthly / 5) * 5 : null;
     if (d && d.base && (d.undated_forgiveness || []).length === 0
         && typeof d.months_delta === 'number' && d.months_delta > 0) {
-      impact.innerHTML = `This trip moves your debt-free date from <strong>${_monthsFromNowLabel(d.base.months)}</strong> `
+      const base = _monthsFromNowLabel(d.base.months);
+      impact.innerHTML = `This trip moves your debt-free date from <strong>${base}</strong> `
         + `to <strong>${_monthsFromNowLabel(d.after.months)}</strong> — ${d.months_delta} month`
-        + `${d.months_delta !== 1 ? 's' : ''} later, and about <strong>${fmt(d.interest_delta)}</strong> more interest.`;
+        + `${d.months_delta !== 1 ? 's' : ''} later.`
+        + (lever ? ` Putting <strong>${fmt(lever)}/mo</strong> more toward debt keeps it at ${base}.` : '');
     } else if (d && d.base && d.months_delta === 0 && d.interest_delta > 0) {
       impact.innerHTML = d.base.conditional_on_certification
         ? `Your payoff date is set by loan forgiveness, so this trip does not move it — it adds `

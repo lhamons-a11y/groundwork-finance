@@ -21,7 +21,8 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE))
 sys.path.insert(0, str(BASE / 'core'))
-from core.consequence import Card, simulate_payoff, decision_impact  # noqa: E402
+from core.consequence import (Card, simulate_payoff, decision_impact,  # noqa: E402
+                              offsetting_monthly_delta)
 
 PASS, FAIL = [], []
 
@@ -197,6 +198,37 @@ def main():
                                 forgive_after_months=240 - 60)], 200)['months']
           > simulate_payoff([Card(balance=20000, rate=6, minimum=150, is_pslf=True,
                                   forgive_after_months=120 - 60)], 200)['months'])
+
+    # ── Pillar 2's lever ───────────────────────────────────────────────────
+    lev_cards = [Card(balance=8000, rate=22, minimum=200),
+                 Card(balance=3000, rate=6, minimum=75)]
+    for cost in (900, 2400, 5000):
+        lev = offsetting_monthly_delta(lev_cards, 775, cost)
+        applied = decision_impact(lev_cards, 775, monthly_delta=lev, one_time_cost=cost)
+        check(f'the solved lever actually cancels a ${cost} cost',
+              lev is not None and applied['months_delta'] <= 0)
+        just_under = decision_impact(lev_cards, 775, monthly_delta=max(0.0, lev - 2.0),
+                                     one_time_cost=cost)
+        check(f'the ${cost} lever is near-minimal, not merely sufficient',
+              just_under['months_delta'] >= applied['months_delta'])
+
+    check('a bigger cost needs a bigger lever',
+          offsetting_monthly_delta(lev_cards, 775, 5000)
+          > offsetting_monthly_delta(lev_cards, 775, 900))
+    check('nothing to offset means no lever is needed, not an unknown one',
+          offsetting_monthly_delta(lev_cards, 775, 0) == 0.0)
+
+    # A forgiveness-bound date does not move, so there is nothing to cancel —
+    # the lever is zero rather than a figure implying the spend can be undone.
+    fb = [Card(balance=8000, rate=22, minimum=200),
+          Card(balance=20000, rate=6, minimum=150, is_pslf=True, forgive_after_months=60)]
+    check('a forgiveness-bound date needs no lever',
+          offsetting_monthly_delta(fb, 800, 2400) == 0.0)
+
+    # Beyond the cap the honest answer is nothing, not a figure larger than the
+    # cost itself dressed up as advice.
+    check('an uncancellable cost returns None rather than an absurd figure',
+          offsetting_monthly_delta(lev_cards, 775, 2400, cap=5) is None)
 
     # Honest-null rather than a fabricated number.
     check('an unaffordable budget returns None, not a large number',

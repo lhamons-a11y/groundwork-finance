@@ -1552,7 +1552,7 @@ def debt_decision_impact():
     rather than as a number — the heuristic this replaces returned a confident
     (total/income)*30 that understated the truth by up to 17x.
     """
-    from core.consequence import decision_impact
+    from core.consequence import decision_impact, offsetting_monthly_delta
 
     body = request.get_json(silent=True) or {}
     try:
@@ -1575,6 +1575,17 @@ def debt_decision_impact():
                                  strategy=strategy,
                                  today_key=date.today().strftime('%Y-%m'),
                                  start_month=date.today().strftime('%Y-%m'))
+
+        # Pillar 2's lever: the smallest sustained monthly increase that cancels
+        # this decision's effect on the date. A number, not a suggestion — which
+        # category it comes from is the Solution Engine's job, and inventing one
+        # here would be the fabrication R8 exists to stop.
+        result['offsetting_monthly'] = (
+            offsetting_monthly_delta(cards, budget, one_time_cost,
+                                     strategy=strategy,
+                                     today_key=date.today().strftime('%Y-%m'),
+                                     start_month=date.today().strftime('%Y-%m'))
+            if one_time_cost else 0.0)
 
     # A loan on a forgiveness plan with no recorded payment count cannot be
     # dated, and pretending otherwise is what told a user ten months from PSLF

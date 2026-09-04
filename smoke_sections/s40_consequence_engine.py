@@ -148,6 +148,24 @@ def run(ctx):
     check('"no change" is not styled as a positive outcome',
           i != -1 and 'var(--pine)' not in app_src[i:i + 400])
 
+    # ── Pillar 2: the sentence ends in a lever ──────────────────────────────
+    st, dl = impact(one_time_cost=2400)
+    check('the endpoint returns a solved lever alongside the costs',
+          isinstance(dl.get('offsetting_monthly'), (int, float)))
+    check('the teaching sentence ends in a lever the user controls',
+          'offsetting_monthly' in app_src and 'more toward debt keeps it at' in app_src)
+    # What matters is the RENDERED sentence, not the prose around it — the
+    # comment there deliberately quotes "trim dining $40/mo" to explain what is
+    # not being done. So this inspects the template literal, not the region.
+    lever_tpl = [ln for ln in app_src.splitlines() if 'more toward debt keeps it at' in ln]
+    check('the lever template interpolates only the amount and the date',
+          len(lever_tpl) == 1
+          and lever_tpl[0].count('${') == 2
+          and 'category' not in lever_tpl[0].lower())
+    # Rounding DOWN would state a figure that does not hold the date.
+    check('the displayed lever rounds up, never down',
+          'Math.ceil(d.offsetting_monthly / 5)' in app_src)
+
     # If node is here, run the real differential against app.js itself.
     try:
         proc = subprocess.run([sys.executable, str(BASE / 'tests' / 'test_consequence_parity.py')],
