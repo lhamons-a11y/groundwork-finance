@@ -96,6 +96,10 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
     remaining_cost = float(one_time_cost or 0)
     month, total_interest = 0, 0.0
     first_cleared_month, first_cleared_name = None, None
+    # When each balance reaches zero. The timing lever (§6.1 #2) is built on
+    # this: a card clearing frees its minimum, which is capacity arriving with
+    # no cut required — the least-disruptive path there is (E.3 rule 1).
+    cleared_at = {}
 
     while month < MAX_MONTHS and any(b > SETTLED for b in bals):
         month += 1
@@ -141,11 +145,13 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
             bals[i] = max(0.0, bals[i] - applied)
             extra -= applied
 
-        if first_cleared_month is None:
-            for i, c in enumerate(data):
-                if bals[i] <= SETTLED:
+        for i, c in enumerate(data):
+            if bals[i] <= SETTLED and c.name not in cleared_at:
+                cleared_at[c.name] = {'month': month, 'frees_monthly': c.minimum,
+                                      'forgiven': c.forgive_after_months is not None
+                                      and month >= c.forgive_after_months}
+                if first_cleared_month is None:
                     first_cleared_month, first_cleared_name = month, c.name
-                    break
 
     undated = [c.name for c in data if c.is_pslf and c.forgive_after_months is None]
     return {
@@ -153,6 +159,7 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
         'total_interest': round(total_interest),
         'first_cleared_month': first_cleared_month,
         'first_cleared_name': first_cleared_name,
+        'cleared_at': cleared_at,
         # A loan on a forgiveness plan whose payment count we do not have cannot
         # be dated. Modelling it as amortising to zero is what produced an
         # 18-year figure for someone ten months from forgiveness, so callers are
@@ -213,9 +220,10 @@ def offsetting_monthly_delta(cards, budget, one_time_cost, strategy='avalanche',
     Returns None when no amount within `cap` cancels it, rather than a figure so
     large it is really a refusal wearing a number.
 
-    `cap` defaults to the one-time cost itself. Beyond that the "lever" would
-    have the user redirect more per month than the thing cost, which is not a
-    lever anyone would pull and is better said as nothing.
+    `cap` defaults to the whole current debt budget. Beyond that the "lever"
+    would have someone redirect more each month than they currently put toward
+    debt at all — not a lever anyone pulls, and a refusal wearing a number. The
+    honest answer past the cap is None, which is what routes §6.4's honest no.
     """
     def delta_at(x):
         d = decision_impact(cards, budget, monthly_delta=x, one_time_cost=one_time_cost,
@@ -226,7 +234,7 @@ def offsetting_monthly_delta(cards, budget, one_time_cost, strategy='avalanche',
     if baseline is None or baseline <= 0:
         return 0.0 if baseline == 0 else None   # nothing to offset, or unsimulatable
 
-    ceiling = float(cap if cap is not None else max(1.0, float(one_time_cost)))
+    ceiling = float(cap if cap is not None else max(1.0, float(budget)))
     if delta_at(ceiling) is None or delta_at(ceiling) > 0:
         return None                              # not reachable within the cap
 
