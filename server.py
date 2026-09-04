@@ -1541,6 +1541,7 @@ def debt_decision_impact():
     (total/income)*30 that understated the truth by up to 17x.
     """
     from core.consequence import decision_impact, offsetting_monthly_delta
+    from core.solution import solve_one_time_cost
 
     body = request.get_json(silent=True) or {}
     try:
@@ -1568,6 +1569,17 @@ def debt_decision_impact():
         # this decision's effect on the date. A number, not a suggestion — which
         # category it comes from is the Solution Engine's job, and inventing one
         # here would be the fabrication R8 exists to stop.
+        # Pillar 3: the paths that close the gap, with their costs, so the user
+        # chooses (E.4) — or the honest no with the nearest true path (§6.4).
+        if one_time_cost:
+            sol = solve_one_time_cost(cards, budget, one_time_cost, strategy=strategy,
+                                      today_key=date.today().strftime('%Y-%m'),
+                                      start_month=date.today().strftime('%Y-%m'))
+            result['paths'] = sol['paths']
+            result['honest_no'] = sol['honest_no']
+        else:
+            result['paths'], result['honest_no'] = [], None
+
         result['offsetting_monthly'] = (
             offsetting_monthly_delta(cards, budget, one_time_cost,
                                      strategy=strategy,

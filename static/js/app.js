@@ -10124,6 +10124,48 @@ function _maybeLoadTripImpact(total) {
 // independently: a payoff date set by loan forgiveness does not shift when you
 // spend, but the interest on everything else still does. Showing only "days
 // later" would render that trip free.
+// Pillar 3: the paths that close the gap, phrased for a person. Composed from
+// the engine's STRUCTURED fields rather than its `detail` string, so month
+// counts render as dates here and the register stays in one place (B.2a).
+//
+// Two at most. E.4 says show the top paths with their costs and let the user
+// choose; it does not say show all of them, and this page is already busy.
+function _tripPathPhrases(paths, gap) {
+  // Take the top two by rank — but never drop the only path that actually
+  // closes the gap. Ranking puts no-cut paths first (E.3 rule 1), and a closing
+  // path usually requires a cut, so a naive slice can show two partial options
+  // and silently hide the one that works.
+  const all = paths || [];
+  let picked = all.slice(0, 2);
+  if (picked.length && !picked.some(p => p.closes)) {
+    const closer = all.find(p => p.closes);
+    if (closer) picked = picked.slice(0, 1).concat([closer]);
+  }
+  return picked.map(p => {
+    const absorbed = (p.cost_months != null && gap != null) ? gap - p.cost_months : null;
+    const part = (absorbed && absorbed > 0)
+      ? `absorbs ${absorbed} of the ${gap}`
+      : 'absorbs part of it';
+
+    if (p.kind === 'timing') {
+      const who   = p.label.replace(/^wait for /, '');
+      const when  = p.available_in_months != null ? _monthsFromNowLabel(p.available_in_months) : null;
+      const freed = p.frees_monthly ? `, freeing ${fmt(p.frees_monthly)}/mo` : '';
+      const lead  = when ? `${esc(who)} clears in ${when}${freed}` : `${esc(who)} clears${freed}`;
+      return p.closes ? `${lead}, which holds the date` : `${lead} — that ${part}`;
+    }
+    if (p.kind === 'payoff_order') {
+      return p.closes
+        ? `paying in ${esc(p.label.replace(/^pay in /, ''))} holds the date`
+        : `paying in ${esc(p.label.replace(/^pay in /, ''))} ${part}`;
+    }
+    if (p.kind === 'monthly') {
+      return esc(p.detail);
+    }
+    return esc(p.detail);
+  });
+}
+
 // months-from-now as "Mar 2027". The consequence engine returns a month count,
 // not a date string — formatting is the view's job, and this matches how
 // _simulatePayoff has always rendered its own free date.
@@ -10972,8 +11014,21 @@ function tripUpdateBudget() {
       const base = _monthsFromNowLabel(d.base.months);
       impact.innerHTML = `This trip moves your debt-free date from <strong>${base}</strong> `
         + `to <strong>${_monthsFromNowLabel(d.after.months)}</strong> — ${d.months_delta} month`
-        + `${d.months_delta !== 1 ? 's' : ''} later.`
-        + (lever ? ` Putting <strong>${fmt(lever)}/mo</strong> more toward debt keeps it at ${base}.` : '');
+        + `${d.months_delta !== 1 ? 's' : ''} later.`;
+      // Pillar 3: the paths, with their costs, so the choice is the user's (E.4).
+      // The generic monthly lever is already one of them, so it is not repeated.
+      const phrases = _tripPathPhrases(d.paths, d.months_delta);
+      if (phrases.length) {
+        const joined = phrases.join('; ');
+        impact.innerHTML += ` ${joined.charAt(0).toUpperCase()}${joined.slice(1)}.`;
+      } else if (lever) {
+        impact.innerHTML += ` Putting <strong>${fmt(lever)}/mo</strong> more toward debt keeps it at ${base}.`;
+      }
+      // §6.4: never a bare "you can't" — when nothing holds the date, say so
+      // bounded to today's numbers rather than as a permanent verdict (App. C).
+      if (d.honest_no && !d.honest_no.reachable) {
+        impact.innerHTML += ` On today's numbers nothing holds the date entirely.`;
+      }
     } else if (d && d.base && d.months_delta === 0 && d.interest_delta > 0) {
       impact.innerHTML = d.base.conditional_on_certification
         ? `Your payoff date is set by loan forgiveness, so this trip does not move it — it adds `

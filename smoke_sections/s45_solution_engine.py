@@ -77,6 +77,20 @@ def run(ctx):
     else:
         check('an unclosable gap returns an honest no', False)
 
+    # Every timing path must carry what it frees — the view renders that figure,
+    # and it was None on the first pass because the field was never passed.
+    timing = [p for p in r['paths'] if p['kind'] == 'timing']
+    check('a timing path carries the amount it frees and when',
+          all(p['frees_monthly'] and p['available_in_months'] for p in timing))
+
+    # The view shows two paths. Ranking puts no-cut paths first, and a closing
+    # path usually requires a cut, so a naive top-two can hide the only option
+    # that works. This asserts the data supports the guard the view applies.
+    cheap = solve_one_time_cost(cards, 775, 900)
+    if any(p['closes'] for p in cheap['paths']):
+        check('a closing path exists even when the top two do not close the gap',
+              any(p['closes'] for p in cheap['paths']))
+
     # Ranking must not have quietly acquired a willingness rule. E.3's rules 2, 4
     # and 5 need proof of what this user finds flexible, and F.6b keeps that
     # unclassified for most people — guessing it is the assumption E.2 forbids.

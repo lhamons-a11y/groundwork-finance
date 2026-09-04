@@ -166,6 +166,25 @@ def run(ctx):
     check('the displayed lever rounds up, never down',
           'Math.ceil(d.offsetting_monthly / 5)' in app_src)
 
+    # Pillar 3 reaches the surface. Clear the PSLF state first: the checks above
+    # leave the loan forgiveness-bound, where the date does not move at all — so
+    # there is correctly nothing to solve, and asserting paths there would be
+    # asserting the wrong thing. (Third time this section's shared DB state has
+    # caught an assumption of mine; the state is the point of it being a smoke
+    # test rather than a unit test.)
+    with _dbs2() as s:
+        s.query(_AS2).filter_by(key='pslf_accounts_json').delete()
+        s.commit()
+    st, dp = impact(one_time_cost=2400)
+    check('the endpoint returns solution paths alongside the costs',
+          isinstance(dp.get('paths'), list) and dp['paths'])
+    check('the trip planner renders the paths, not just the single lever',
+          '_tripPathPhrases' in app_src and 'd.paths' in app_src)
+    check('the view keeps a closing path rather than showing two partial ones',
+          'picked.some(p => p.closes)' in app_src)
+    check("an unreachable gap says so, bounded to today's numbers",
+          "On today's numbers nothing holds the date" in app_src)
+
     # If node is here, run the real differential against app.js itself.
     try:
         proc = subprocess.run([sys.executable, str(BASE / 'tests' / 'test_consequence_parity.py')],
