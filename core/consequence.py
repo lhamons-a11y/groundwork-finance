@@ -31,7 +31,8 @@ class Card:
     minimum: float
     name: str = 'Card'
     is_lease: bool = False
-    end_month: str = None  # 'YYYY-MM'; a lease past this is written off
+    end_month: str = None   # 'YYYY-MM'; a lease past this is written off
+    is_pslf: bool = False   # headed for forgiveness: minimums only, never extra
 
 
 def _prepare(cards):
@@ -45,6 +46,7 @@ def _prepare(cards):
             name=c.name or 'Card',
             is_lease=bool(c.is_lease),
             end_month=c.end_month,
+            is_pslf=bool(getattr(c, 'is_pslf', False)),
         ))
     return [c for c in out if c.balance > 0]
 
@@ -71,8 +73,11 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
     if budget < total_min:
         return None
 
+    # Extra payment skips leases (fixed end date, cannot be paid early) and PSLF
+    # loans (headed for forgiveness — extra principal there is money burned).
+    # Both still receive their minimums above. This mirrors _simulatePayoff.
     order = sorted(
-        [c for c in data if not c.is_lease],
+        [c for c in data if not c.is_lease and not c.is_pslf],
         key=(lambda c: c.balance) if strategy == 'snowball' else (lambda c: -c.rate))
 
     bals = [c.balance for c in data]

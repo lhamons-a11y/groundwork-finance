@@ -12361,7 +12361,7 @@ function _obPrepareScenariosStep() {
 }
 
 
-// Strategy-aware payoff simulation: like _simulatePayoffFromRows but takes the
+// Strategy-aware payoff simulation: takes the cards, budget and strategy as
 // strategy explicitly ('avalanche' = highest rate first, 'snowball' = smallest
 // balance first) and also reports when the FIRST card is cleared — the
 // "feel it sooner" number snowball is framed around. Pure: no DOM, no S reads.
@@ -12742,54 +12742,11 @@ function _obPrepareBufferStep() {
 
 // Pure simulation — takes card data directly, no DOM reads.
 // Used by the step-4 scenario cards before S is fully re-loaded from DB.
-function _simulatePayoffFromRows(cards, budget) {
-  const data = cards
-    .filter(c => !c.paidInFull)
-    .map(c => ({
-      balance: Math.max(0, _cardBal(c)),
-      rate:    Math.max(0, parseFloat(c.rate)||0),
-      minimum: Math.max(1, parseFloat(c.minimum)||25),
-    })).filter(c => c.balance > 0);
-
-  if (!data.length) return null;
-  const totalMin = data.reduce((s,c) => s+c.minimum, 0);
-  if (budget < totalMin) return null;
-
-  const sorted  = [...data].sort((a,b) => b.rate-a.rate); // avalanche
-  let bals      = data.map(c => c.balance);
-  let month     = 0;
-  let totalInt  = 0;
-
-  while (month < 360 && bals.some(b => b > 0.01)) {
-    month++;
-    let extra = budget;
-    for (let i = 0; i < data.length; i++) {
-      if (bals[i] <= 0) continue;
-      const ic = bals[i]*(data[i].rate/100/12);
-      bals[i] += ic; totalInt += ic;
-      const pay = Math.min(data[i].minimum, bals[i]);
-      bals[i] = Math.max(0, bals[i]-pay);
-      extra  -= pay;
-    }
-    for (const c of sorted) {
-      if (extra <= 0.01) break;
-      const i = data.indexOf(c);
-      if (bals[i] <= 0) continue;
-      const apply = Math.min(extra, bals[i]);
-      bals[i] = Math.max(0, bals[i]-apply);
-      extra  -= apply;
-    }
-  }
-
-  const free = new Date();
-  free.setMonth(free.getMonth()+month);
-  return {
-    months:        month,
-    totalInterest: Math.round(totalInt),
-    freeDate:      free.toLocaleDateString('en-US', {month:'short', year:'numeric'}),
-  };
-}
-
+// _simulatePayoffFromRows was removed 2026-09-04: dead code with no callers,
+// superseded by _simulatePayoffStrategy. It was also hardcoded to avalanche
+// and ignored the user's chosen method, so it disagreed with the live
+// simulators on every snowball portfolio (17 of 200 in a randomised sweep).
+// Harmless only because nothing called it.
 async function obLaunch() {
   if (_obTestMode) { await exitOnboardingTest(); return; }
   await API.patch('/api/settings', { onboarding_complete: 'true' }).catch(_gwErr('obLaunch'));
