@@ -6,6 +6,14 @@
 > This document is the north star for 2.0, written against the real 1.0 codebase so the ideas
 > stay honest about what exists and what's new.
 > Created 2026-08-03.
+>
+> **Updated 2026-08-30 — first measured constraints (Appendix H).** The narrator is no longer
+> vision-only: model, runtime and delivery were settled by experiment, and the results bind three
+> things the rest of this document assumed. §5's "LLM is the voice, not the brain" is now evidenced
+> rather than argued; B.2a's templating preference is now the only path with data behind it; and
+> two intuitive strategies are closed off — *a bigger model later* (inference-smuggling rises with
+> size) and *a smaller model on weak hardware* (sub-2GB models fabricate figures). Companion notes:
+> `MODEL_PLACEMENT.md` (where the model lives), `CALCULATION_PLACEMENT.md` (where the math lives).
 
 ---
 
@@ -282,7 +290,11 @@ Three things this picture makes precise:
    are offered and how they're ranked, bounds the *honest-no*, and gates the *proactive* prompts.
 3. **The LLM is the voice, not the brain.** The deterministic engines decide; the LLM only narrates
    what's already computed and proven (Appendix B.2). Deterministic brain, proof-grounded voice — a
-   deliberate inversion of LLM-first apps, and the reason the teaching cannot novelize.
+   deliberate inversion of LLM-first apps, and the reason the teaching cannot novelize. **This is now
+   measured, not assumed** (Appendix H): across five local models and 143 narration calls, every model
+   smuggled uncomputed inference between 37% and 70% of the time, and the *largest* model was the
+   worst. Engines-decide/model-narrates is not a stylistic preference — it is the only arrangement the
+   measurements support.
 
 **Why this dissolves the nagging problem.** The Willingness Layer was meant to answer two hard
 questions: *how do we avoid nagging?* and *what do we suggest?* The answer isn't a clever heuristic —
@@ -469,7 +481,11 @@ collect-and-ignore loop), then Pillar 4 green light (the emotional differentiato
 4. **The teaching voice:** causal-sentence layer (Pillar 2) rolled across surfaces per §8. **Nothing in
    §12's Gated bucket (Trophy Room, debt-cycle recurrence, …) enters this rollout until its per-case
    standard is pinned** — otherwise "evidence-backed" / "resolved" degrades to "declared-backed" under
-   deadline pressure (the D.4 failure).
+   deadline pressure (the D.4 failure). **Stream the narration from the first surface that has one**
+   (Appendix H): it cuts perceived latency ~8.7x for the cost of a flag, and retrofitting it later
+   means rebuilding every render path that assumed a complete string. **Template first, generate only
+   where a template genuinely cannot carry it** (B.2a, Appendix H) — the templated share of a surface
+   is the share that cannot fail.
 5. **Meet the moment:** gentle-proactive (per §12), dismissable, frequency-capped triggers from
    existing server-side events, plus the user control to dial them down.
 6. Documentation + honest-solution copy review at each step.
@@ -509,6 +525,28 @@ collect-and-ignore loop), then Pillar 4 green light (the emotional differentiato
   (`budget_adjusted` + category ledger) and always overridden by their explicit word. The engine
   ranks and shows the tradeoff; the user chooses (and the choice is how it learns). When a category's
   status is unknown, ask — never assume disposable.
+
+- **Two product lines: 2.0 and GW LTS. DECIDED.** (Decided 2026-08-30.) The 1.x line becomes
+  **GW LTS**, the supported product for machines that cannot honestly run the narrator (Appendix H:
+  sub-2GB models fabricate figures, so there is no small-model tier). Those users get a *complete*
+  product that promises what it delivers, rather than a 2.0 with its teaching layer hollowed out —
+  and a 2.0 that cannot teach is 1.x carrying extra weight. **This is C.5's honest-no applied one
+  level up: to which product a machine gets.** Two consequences: RAM tiering moves from a runtime
+  routing decision to an **install-time** one; and **LTS is a support commitment, not a freeze** —
+  the split is teaching-layer vs no-teaching-layer, not old vs new, so correctness fixes flow to
+  both lines and only the teaching layer is 2.0-exclusive. The cost is honest and ongoing:
+  maintenance for a second line, and the `app.js` test gap (`CALCULATION_PLACEMENT.md`) matters
+  *more* under a years-long support promise, not less.
+
+- **The narrator — model, runtime, and delivery: DECIDED on measurement — see Appendix H.**
+  (Decided 2026-08-30.) No custom-trained finance LLM (narrowing degrades the instruction-following
+  the gate depends on, and the gate already guarantees structurally what training would only make
+  likely). The inference runtime is **embedded in-process**, not a separate install — which is what
+  makes Microsoft/Apple store distribution possible at all. **phi3.5 stays the default**, confirmed
+  over 143 calls as the only sub-2.5GB model that never fabricated a figure. Narration is
+  **streamed**. The voice gate is **permanent architecture**, not scaffolding awaiting better
+  models. Full evidence and the reasoning live in `MODEL_PLACEMENT.md`; Appendix H states what it
+  binds for 2.0.
 
 - **Sibling detectors' shared propagation (F.8 × G): DECIDED.** A confirmed G cycle-recurrence feeds
   F.8's existing propagation on F.8's own terms — no exception, nothing G-specific. Widens
@@ -751,6 +789,15 @@ genuinely free-generated case this appendix hoped to avoid, and it exists by des
 2026-09-03. Its highest-risk instance is the response to an **expressed state** — *"I'm so frustrated
 with my finances"* invites an empathetic register, and empathetic register is where affect inflation
 lives. That response should be templated even inside the free surface.
+
+**Measured backing (Appendix H).** "Template what you can't verify" was written as a reasoned
+preference. It is now the only path with evidence behind it. Across 143 calls on five models, R3
+(smuggled inference) failed 37–70% of the time and **rose with model size** — 57% on the 3.8B
+default, 70% on a 7B. A better model does not buy tone discipline; it buys a more fluent violation.
+So the trade B.2a describes — *the less verifiable the tone, the more you template* — is not a
+conservative hedge against today's weak models. It is the permanent shape, because the failure does
+not shrink as models improve. **Every surface that can be templated should be, and free generation
+should be treated as the exception that must justify itself.**
 
 ### B.3 Evidence-backed Trophy Room
 Because we hold valid proof the user actually did these things, the Trophy Room stops being generic
@@ -1444,3 +1491,74 @@ the comparison (C.7) — never a fabricated boundary, never an invented prior pe
 "no prior cycle" screen; it routes through the same path as every other insufficient-evidence case. It
 is a statement about the trajectory, not a verdict on the person — the same distinction the honest-no
 already draws (C.3): a fact about where things stand, not a prophecy about who someone is.
+
+---
+
+## Appendix H — The Narrator (what measurement settled)
+
+*Added 2026-08-30. Companion note: `MODEL_PLACEMENT.md` holds the full evidence, the runtime
+decision, and the record of what the measuring got wrong before it got it right. This appendix
+states only what the results **bind** for 2.0.*
+
+### H.1 What was measured
+
+Five local models (1.2B → 7.6B), the real `GW_VOICE` rules and the real rubric from
+`voice_discipline_test.py`, 5 runs × 6 cases each — 143 completed narration calls — plus an
+in-process runtime (llama.cpp) A/B'd against Ollama on identical weights.
+
+| | result |
+|---|---|
+| R8 (number provenance) | **phi3.5 and qwen2.5:7b: 0 violations.** llama3.2:1b 8/30, llama3.2:3b 12/30, qwen2.5:3b 3/30 |
+| R3 (smuggled inference) | **37–70% of calls, every model**, worst on the largest |
+| Gate pass rate | 27–47%, spreads fully overlapping — **not separable between models** |
+| Streaming | perceived wait **6.92s → 0.80s** (generation outruns reading 2.5x) |
+| In-process vs Ollama | behaviour-neutral: equal R8, gate rate inside noise |
+
+### H.2 The four things this binds
+
+1. **The model is a phraser and cannot be promoted.** §5's "voice, not the brain" was a design
+   preference; it is now the only arrangement the data supports. A model that smuggles inference in
+   more than a third of calls cannot be trusted to *decide* anything.
+2. **The voice gate is permanent architecture.** Not scaffolding, not a stopgap until models
+   improve. It is load-bearing structure, and every narrative surface routes through it forever.
+3. **Narration is streamed.** ~8.7x perceived-latency improvement for the cost of a flag. This is a
+   *2.0-shaping* fact, not a 1.x optimisation: any surface designed around a complete string has to
+   be rebuilt to adopt it, so surfaces get designed for streaming from the start.
+4. **Templating is the strategy, generation is the exception.** B.2a reasoned toward this; H.3
+   shows there is no alternative path.
+
+### H.3 What it closes off
+
+- **"Use a better model later" is dead as a plan for voice discipline.** R3 got *worse* with scale
+  (57% at 3.8B, 70% at 7.6B). Capable models are more inclined to explain, and explaining is what
+  R3 forbids. Model improvement buys fluency, not obedience — a more fluent violation is a worse
+  one, because it is harder to spot. **Any 2.0 design that defers a voice problem to "when models
+  get better" is deferring to something that will not arrive.**
+- **"Use a smaller model on weak hardware" is dead too.** It was the intuitive fix for the low-RAM
+  tier and R8 disqualifies it: at ≤2GB, models fabricated figures in 13–40% of calls. The sub-8GB
+  path is streaming + structured fallback (or opt-in cloud) — **not** a small local model. 2.0 must
+  not assume every tier can have generated narration.
+- **Fabrication is a cliff, not a slope.** Models either never fabricate or fabricate often; there
+  is no middle. So qualifying a model is a **pass/fail R8 screen over ~30 calls**
+  (`llm_model_eval.py`), never a score to be traded against speed or size.
+
+### H.4 What it does not say
+
+The gate pass rates do **not** rank the models — every spread overlapped every other, and a single
+run of the same test produced the opposite ranking before repetition corrected it. Only the R8
+column separates them. Latency figures are an upper bound from a 14-core / 34GB machine; the 8GB
+tier is still unmeasured, and it is the tier where these decisions bite hardest.
+
+### H.5 The method note (why this appendix exists at all)
+
+Four numbers in this investigation were confidently wrong before they were right, and every one
+was a control not held: a scorer that counted an intentionally-unscored rule as a failure; a
+latency compared without its token count; a thread sweep contaminated by memory pressure; and a
+model ranking from a single run that **fully reversed** under repetition. Two runs agreeing is not
+replication until the spread is known.
+
+This is the same failure the codebase already knows in another costume — *a gate that measures
+something the arithmetic doesn't see is not a gate* (`CALCULATION_PLACEMENT.md`), and *absence is
+not zero*. The discipline generalises: **when two measurements of the same thing disagree, the
+disagreement is the finding.** Do not average them, and do not keep the one that suits the
+argument. Every claim in H.1 survived being wrong once.

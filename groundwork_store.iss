@@ -20,6 +20,12 @@
 ;   that has Ollama installed: ollama.exe, "ollama app.exe", lib\, app.ico).
 ;   The phi3.5 model is already staged at C:\Groundwork\vendor\phi3.5_model\.
 ;
+; SUPERSEDED-IN-PRINCIPLE (2026-08-30): see gw 2.0/MODEL_PLACEMENT.md. The
+; decided direction is an EMBEDDED in-process runtime (no Ollama at all), which
+; removes the portable-runtime gamble below and is what makes an Apple App Store
+; lane possible. This file stays as the interim Windows path until the latency
+; spike lands; do not invest further in it without reading that note first.
+;
 ; NOTE: NOT YET VERIFIED on a clean machine. Portable Ollama (runtime copied
 ; rather than installed) + app-started `ollama serve` must be tested on a box
 ; with no prior Ollama before submitting.
