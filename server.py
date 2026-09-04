@@ -1466,6 +1466,124 @@ def monthly_checkin(plan_id):
 debt_bp = Blueprint('debt', __name__)
 
 
+def _consequence_inputs(session):
+    """Build consequence-engine inputs from persisted state, matching app.js.
+
+    Every rule here mirrors a rule in the client so the two cannot drift into
+    different answers, which is the defect Pillar 1 exists to retire:
+      * balance    — current_balance is authoritative; 0 is a real balance and
+                     only a genuinely absent value falls back to begin_balance
+                     (_cardBal, app.js)
+      * strategy   — the user's own debt_method, not a hardcoded avalanche
+      * budget     — the persisted monthly_budget, same 1500 default as boot
+      * PSLF       — flagged loans take minimums only, and are dated by their
+                     remaining qualifying payments
+    """
+    from core.consequence import Card
+
+    def setting(key, default=None):
+        row = session.query(AppSetting).filter_by(key=key).first()
+        return row.value if row and row.value is not None else default
+
+    try:
+        pslf_all = json.loads(setting('pslf_accounts_json', '{}') or '{}')
+    except (ValueError, TypeError):
+        pslf_all = {}
+
+    program_totals = {'pslf': 120, 'ibr': 240, 'paye': 240, 'save': 240, 'other': 120}
+    today = date.today()
+    cards, undated = [], []
+
+    for d in session.query(DebtAccount).filter_by(is_active=True).all():
+        bal = d.current_balance if d.current_balance is not None else (d.begin_balance or 0)
+
+        raw = pslf_all.get(str(d.id))
+        is_pslf, forgive_after = False, None
+        if raw:
+            if raw is True:
+                # Legacy shape: flagged, but nothing recorded about progress.
+                # Enabled and undatable — the honest-null case, and the one that
+                # produced the eighteen-year figure by being amortised instead.
+                is_pslf = True
+                undated.append(d.name)
+            elif isinstance(raw, dict) and raw.get('enabled'):
+                is_pslf = True
+                total = program_totals.get(raw.get('program') or 'pslf', 120)
+                made = raw.get('paymentsMade')
+                if made is None and raw.get('startDate'):
+                    # Derive from when income-driven repayment began, as the
+                    # client's _monthsBetween does.
+                    try:
+                        st = date.fromisoformat(str(raw['startDate'])[:10])
+                        made = max(0, (today.year - st.year) * 12 + (today.month - st.month)
+                                   - (1 if today.day < st.day else 0))
+                    except (ValueError, TypeError):
+                        made = None
+                if made is None:
+                    undated.append(d.name)          # do not guess: see below
+                else:
+                    forgive_after = max(0, int(total) - int(made))
+
+        cards.append(Card(
+            balance=float(bal or 0),
+            rate=float(d.interest_rate or 0),
+            minimum=float(d.minimum_payment or 0),
+            name=d.name or 'Card',
+            is_lease=(d.debt_type or 'credit') == 'lease',
+            end_month=d.end_date.strftime('%Y-%m') if d.end_date else None,
+            is_pslf=is_pslf,
+            forgive_after_months=forgive_after,
+        ))
+
+    budget = float(setting('monthly_budget', 1500) or 1500)
+    strategy = setting('debt_method', 'avalanche') or 'avalanche'
+    return cards, budget, strategy, undated
+
+
+@debt_bp.route('/decision-impact', methods=['POST'])
+def debt_decision_impact():
+    """What a decision does to the payoff date — Pillar 1's one deterministic core.
+
+    Body: { monthly_delta, one_time_cost }. A trip is a one-time cost; a new
+    recurring payment is a monthly delta; both together are allowed.
+
+    Returns base and after side by side, never a bare delta, so the caller can
+    always show its work. A figure that cannot be simulated comes back null
+    rather than as a number — the heuristic this replaces returned a confident
+    (total/income)*30 that understated the truth by up to 17x.
+    """
+    from core.consequence import decision_impact
+
+    body = request.get_json(silent=True) or {}
+    try:
+        monthly_delta = float(body.get('monthly_delta', 0) or 0)
+        one_time_cost = float(body.get('one_time_cost', 0) or 0)
+    except (TypeError, ValueError):
+        return err('monthly_delta and one_time_cost must be numbers')
+    if one_time_cost < 0:
+        return err('one_time_cost cannot be negative')
+
+    with db_session() as session:
+        cards, budget, strategy, undated = _consequence_inputs(session)
+        if not cards:
+            return ok({'base': None, 'after': None, 'months_delta': None,
+                       'interest_delta': None, 'undated_forgiveness': [],
+                       'reason': 'no active debt'})
+        result = decision_impact(cards, budget,
+                                 monthly_delta=monthly_delta,
+                                 one_time_cost=one_time_cost,
+                                 strategy=strategy,
+                                 today_key=date.today().strftime('%Y-%m'),
+                                 start_month=date.today().strftime('%Y-%m'))
+
+    # A loan on a forgiveness plan with no recorded payment count cannot be
+    # dated, and pretending otherwise is what told a user ten months from PSLF
+    # forgiveness that they had eighteen years left. Say so instead.
+    result['undated_forgiveness'] = undated
+    result['covers_all_debt'] = not undated
+    return ok(result)
+
+
 @debt_bp.route('', methods=['GET'])
 def list_debt():
     with db_session() as session:
