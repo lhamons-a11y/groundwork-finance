@@ -10159,11 +10159,37 @@ function _tripPathPhrases(paths, gap) {
         ? `paying in ${esc(p.label.replace(/^pay in /, ''))} holds the date`
         : `paying in ${esc(p.label.replace(/^pay in /, ''))} ${part}`;
     }
+    if (p.kind === 'reallocation') {
+      // The receipt travels with the offer. "Shift $205/mo from Shopping" on
+      // its own is a suggestion about someone's life; with the months behind
+      // it, it is a statement about their record that they can check.
+      const items = p.items || [];
+      const seen  = items.map(i => i.months_observed).filter(m => m > 0);
+      const proof = seen.length ? ` — budgeted, not spent, in ${Math.min(...seen)} recorded months —` : '';
+      const lead  = `shifting ${fmt(p.frees_monthly)}/mo from ${esc(_joinNames(items))}${proof}`;
+      return p.closes ? `${lead} holds the date` : `${lead} ${part}`;
+    }
+    if (p.kind === 'trim') {
+      const items = p.items || [];
+      const cost  = items.length > 1
+        ? `${fmt(p.frees_monthly)}/mo between them`
+        : `${fmt(p.frees_monthly)}/mo`;
+      const lead  = `cutting ${esc(_joinNames(items))} (${cost})`;
+      return p.closes ? `${lead} holds the date` : `${lead} ${part}`;
+    }
     if (p.kind === 'monthly') {
       return esc(p.detail);
     }
     return esc(p.detail);
   });
+}
+
+// "A", "A and B", "A, B and C" — the engine names one to three things per
+// path, and a person reads the result.
+function _joinNames(items) {
+  const names = (items || []).map(i => i.name).filter(Boolean);
+  if (names.length <= 1) return names[0] || '';
+  return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
 }
 
 // months-from-now as "Mar 2027". The consequence engine returns a month count,
@@ -11027,7 +11053,16 @@ function tripUpdateBudget() {
       // §6.4: never a bare "you can't" — when nothing holds the date, say so
       // bounded to today's numbers rather than as a permanent verdict (App. C).
       if (d.honest_no && !d.honest_no.reachable) {
+        // And the ceiling, when there is one to give. §6.4 asks for where the
+        // money could come from even when it is not enough; the total of every
+        // source the record can name is that answer, and withholding it would
+        // leave the user guessing at how far short they are.
+        const named = d.honest_no.named_total;
         impact.innerHTML += ` On today's numbers nothing holds the date entirely.`;
+        if (named > 0) {
+          impact.innerHTML += ` Shifting and cutting everything your record can name comes to `
+            + `<strong>${fmt(named)}/mo</strong>, which is short of it.`;
+        }
       }
     } else if (d && d.base && d.months_delta === 0 && d.interest_delta > 0) {
       impact.innerHTML = d.base.conditional_on_certification
