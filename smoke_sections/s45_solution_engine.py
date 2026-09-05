@@ -837,3 +837,41 @@ def run(ctx):
           and 'at the planned' in view)
     check('and an uncoverable shortfall is said plainly rather than left blank',
           'nothing in your record has that room' in view)
+
+    # ── §8, Reports: the causal teaching layer, made explicit ────────────────
+    # The report composes what the other surfaces compute rather than deriving
+    # its own numbers, so it cannot drift from the pages it summarises. And it
+    # is composed HERE rather than by the narrator: inference-smuggling ran
+    # 37-70% on every model measured and rose with size, so a causal claim
+    # written by a model is the one thing the evidence says not to build.
+    resp10 = ctx.c.get('/api/debt/teaching', headers=ctx.H).get_json() or {}
+    served10 = (resp10.get('data') or resp10)
+    finds = served10.get('findings') or []
+    check('the report serves findings, or says why it has none',
+          'findings' in served10)
+    check('every finding carries the proof behind it (B.1)',
+          all(f.get('proof') for f in finds))
+    check('and every proof figure states its own unit, never leaving it to prose',
+          all(pf.get('unit') for f in finds for pf in f['proof']))
+    check('a month count says what it is a month OF',
+          all(f.get('months_label') for f in finds if f.get('months') is not None))
+    check('and no two findings claim the same subject twice',
+          len({f['subject'] for f in finds}) == len(finds))
+
+    # The report must not become a sixth engine. Each finding is a figure some
+    # other surface already renders, so a drift between them is impossible by
+    # construction rather than by discipline.
+    kinds = {f['kind'] for f in finds}
+    check('the findings are drawn only from levers that exist elsewhere',
+          kinds <= {'charge', 'overspend', 'lever', 'fund'})
+
+    check('the teaching renders without the narrator, above it and apart from it',
+          '_rcRenderMonthlyTeaching' in view
+          and 'rcMonthlyTeaching' in view
+          and 'Computed from your ledger, not written by the AI' in view)
+    check('the narrator is handed facts, and told they are the only causal ones',
+          'CAUSAL FINDINGS' in view
+          and 'these are the ONLY' in view
+          and 'do not explain WHY' in view)
+    check('and the view formats each figure by its stated unit',
+          "p.unit === 'money'" in view and "p.unit === 'months'" in view)
