@@ -20251,10 +20251,53 @@ function _bybApplyImpact() {
 // this could cost and still leave the date alone (§6.1's "$220/mo instead of
 // $350"), and the best path that is not about the price — one lever of each
 // kind, the same rule the trip planner follows.
+// Pillar 4 (§7, Appendix D): "you freed $180/mo, this fits." It fires only
+// when the freed capacity actually covers what is being weighed, and only when
+// the freeing was something the user DID — a balance that ran out on its
+// minimums is the expected floor, and D.4 is explicit that praising a floor
+// erodes trust.
+let _bybGreenLight = null;
+
+async function _bybLoadGreenLight() {
+  try {
+    const r = await API.get('/api/debt/green-light');
+    _bybGreenLight = r.green_light || null;
+  } catch (e) {
+    _gwErr('_bybLoadGreenLight')(e);
+    _bybGreenLight = null;
+  }
+}
+
+function _bybGreenLightHTML() {
+  const gl = _bybGreenLight;
+  const monthly = parseFloat(_byb.monthly) || 0;
+  if (!gl || !monthly || monthly > gl.freed_monthly) return '';
+
+  // D.5: name one or two drivers by size, or say plainly that it was diffuse.
+  // Naming the largest and implying it was the whole story is a cherry-pick.
+  const from = gl.diffuse
+    ? 'a lot of small changes'
+    : _joinNames(gl.drivers);
+  // D.5 again: recency governs the tense, not the fact.
+  const lead = gl.fresh
+    ? `You freed <strong style="font-family:var(--font-mono)">${fmt(gl.freed_monthly)}/mo</strong> by clearing ${esc(from)}`
+    : `Your plan now carries <strong style="font-family:var(--font-mono)">${fmt(gl.freed_monthly)}/mo</strong> it did not, from ${esc(from)}`;
+
+  // The half that keeps this from being cheerleading: it fits, AND it spends
+  // what was earned. A green light that only says yes is applause.
+  const worth = gl.months_sooner
+    ? `, capacity worth <strong>${gl.months_sooner} month${gl.months_sooner !== 1 ? 's' : ''}</strong> on your date`
+    : '';
+  return `<div style="font-size:12px;color:var(--pine);line-height:1.8;margin-bottom:10px">
+    ${lead}${worth}. This <strong style="font-family:var(--font-mono)">${fmt(monthly)}/mo</strong>
+    fits inside it, and uses <strong style="font-family:var(--font-mono)">${fmt(monthly)}</strong> of it.
+  </div>`;
+}
+
 function _bybEngineNote() {
   const eng = _bybEngineData();
   const m = eng && eng.monthly;
-  if (!m) return '';
+  if (!m) return _bybGreenLightHTML();
 
   if (m.honest_no && m.honest_no.unaffordable) {
     // Not a longer delay — a wall. The number is what makes it payable at all.
@@ -20286,9 +20329,10 @@ function _bybEngineNote() {
   const phrases = picks
     .map(p => _tripPathPhrases([p], m.gap_months, '/mo')[0])
     .filter(Boolean);
-  if (!phrases.length) return '';
+  if (!phrases.length) return _bybGreenLightHTML();
   const joined = phrases.join('; ');
-  return `<div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:12px">`
+  return _bybGreenLightHTML()
+    + `<div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:12px">`
     + `${joined.charAt(0).toUpperCase()}${joined.slice(1)}.</div>`;
 }
 
@@ -20377,6 +20421,7 @@ function openBYBWizard() {
   _bybImpactKey  = '';
   _maybeLoadBYBImpact();
   _bybLoadMemory().then(() => _bybLiveUpdate());
+  _bybLoadGreenLight();
 
   // Show step 1
   _bybGoStep(1, true);
