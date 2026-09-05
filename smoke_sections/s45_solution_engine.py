@@ -179,7 +179,23 @@ def run(ctx):
     check('the honest no names where the money could come from (§6.4)',
           bool(hn.get('named_sources')) and hn.get('named_total') > 0)
     check('and does not dress that total up as enough',
-          hn.get('reachable') is False and not any(p['closes'] for p in stuck['paths']))
+          not any(p['closes'] for p in stuck['paths'])
+          and hn['named_total'] < hn['nearest_monthly'])
+
+    # C.4: an honest no carries the nearest lever, and the bound on what may be
+    # OFFERED must not silence what may be STATED. Capped at the debt budget,
+    # this figure was structurally always None — anything smaller would have
+    # closed the gap as a path and this branch would never have run — so every
+    # honest no said only what could not be done.
+    check('the honest no carries the nearest lever, searched past the offer bound',
+          hn['reachable'] and hn['nearest_monthly'] > 775)
+    near = solve_one_time_cost(cards, 775, 12000, categories=cats, recurring=rec)
+    near_no = near['honest_no'] or {}
+    check('a gap just past that bound gets an answer instead of silence',
+          near_no.get('nearest_monthly') is not None)
+    check('and the figure stated is never one a path would have offered',
+          near_no['nearest_monthly'] > 775
+          and not any(p['closes'] for p in near['paths']))
 
     # ── The measurements the engine cannot make for itself ──────────────────
     # Everything above is arithmetic on numbers handed in. These are the numbers
@@ -274,5 +290,7 @@ def run(ctx):
     check('the view phrases the naming levers from their fields, not their detail string',
           "p.kind === 'reallocation'" in view and "p.kind === 'trim'" in view
           and '_joinNames(items)' in view)
-    check("the honest no's ceiling reaches the page instead of sitting in the payload",
-          'honest_no.named_total' in view)
+    check("the honest no's figures reach the page instead of sitting in the payload",
+          'hn.named_total' in view and 'hn.nearest_monthly' in view)
+    check('the stated figure rounds up, since rounded down it would not hold the date',
+          'Math.ceil(hn.nearest_monthly / 5) * 5' in view)
