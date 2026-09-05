@@ -994,3 +994,87 @@ def run(ctx):
           'monthly > gl.freed_monthly' in view)
     check('and says what it spends, so a yes is not applause',
           'and uses' in view and 'fits inside it' in view)
+
+    # ── Appendix A: when the app may speak first ─────────────────────────────
+    # The gauntlet is the feature. Every gate below withholds something true,
+    # which is the point: strictness is free, because a candidate that fails
+    # stays passive on its own surface rather than being lost (A.1).
+    from core.proactive import (BRAKE_PER_WEEK, DISMISSALS_TO_PASSIVE,
+                                PER_SESSION, budget_class, contend, verdict)
+
+    quiet = {'monthly_budget': 2000, 'session_prompts': 0, 'brake_last_7d': 0,
+             'green_last_7d': 0, 'shown': {}, 'dismissed': {},
+             'category_dismissals': {}, 'cadence_tier': 0}
+    brake = {'key': 'overspend:Groceries', 'kind': 'brake', 'months': 2,
+             'dollars': 120, 'has_path': True, 'category': 'Groceries'}
+
+    check('a material brake with a path may interrupt',
+          verdict(brake, quiet)['promote'] is True)
+    check('a trivial one never does, and materiality is relative to their scale',
+          verdict({**brake, 'months': 0.1, 'dollars': 10}, quiet)['gate'] == 'materiality')
+    check('bad news with no path is never delivered unprompted (A.2 #2)',
+          verdict({**brake, 'has_path': False}, quiet)['gate'] == 'actionability')
+    check('but good news needs no path, because it asks nothing',
+          verdict({'key': 'g', 'kind': 'green', 'months': 1, 'has_path': False},
+                  quiet)['promote'] is True)
+
+    check('one interruption per session, whatever else is true',
+          verdict(brake, {**quiet, 'session_prompts': PER_SESSION})['gate'] == 'budget'
+          and PER_SESSION == 1)
+    check('and a weekly cap on top of it',
+          verdict(brake, {**quiet, 'brake_last_7d': BRAKE_PER_WEEK})['gate'] == 'budget')
+    check('good news spends a different budget, since it is not pressure (A.3)',
+          budget_class('green') == 'green' and budget_class('brake') == 'brake'
+          and verdict({'key': 'g2', 'kind': 'green', 'months': 1},
+                      {**quiet, 'brake_last_7d': BRAKE_PER_WEEK})['promote'] is True)
+    check('a clarification mints no budget of its own, it joins the brake',
+          budget_class('clarification') == 'brake')
+
+    # A.4 — a dismissal is an instruction, not a signal to model.
+    check('a dismissed lesson goes quiet for sixty days',
+          verdict(brake, {**quiet, 'dismissed': {'overspend:Groceries': {'days_ago': 10}}}
+                  )['gate'] == 'novelty')
+    check('and the same lesson is never shown twice',
+          verdict(brake, {**quiet, 'shown': {'overspend:Groceries': 3}})['gate'] == 'novelty')
+    check('twice dismissed in a category drops that category to passive for good',
+          verdict(brake, {**quiet, 'category_dismissals': {'Groceries': DISMISSALS_TO_PASSIVE}}
+                  )['gate'] == 'novelty')
+    check('sustained dismissals lower the whole cadence a tier',
+          verdict(brake, {**quiet, 'brake_last_7d': BRAKE_PER_WEEK - 1,
+                          'cadence_tier': 1})['gate'] == 'budget')
+
+    # A.2 #5 is not checkable here and says so rather than passing quietly.
+    check('the timing gate is delegated to the caller, and named as delegated',
+          verdict(brake, quiet)['timing_delegated'] is True)
+
+    # A.3's contention: the ruler is the user's goal, never our ordering.
+    check('the scarce slot goes to what moves the goal most',
+          contend([{'key': 'a', 'goal_impact': 1}, {'key': 'b', 'goal_impact': 3},
+                   {'key': 'c', 'goal_impact': 2}])['key'] == 'b')
+    check('a decision about to be made outranks a fact equally true next week',
+          contend([{'key': 'x', 'goal_impact': 2},
+                   {'key': 'y', 'goal_impact': 2, 'perishable': True}])['key'] == 'y')
+    check('and a contradiction outranks anything ranked on what it contradicts',
+          contend([{'key': 'big', 'goal_impact': 9, 'depends_on': 'Dining'},
+                   {'key': 'check', 'goal_impact': 0, 'disputes': 'Dining'}])['key'] == 'check')
+    check('nothing to say means nothing is said',
+          contend([]) is None)
+
+    # Through the route, which is where selecting and showing must stay apart.
+    resp13 = ctx.c.get('/api/proactive/next', headers=ctx.H).get_json() or {}
+    served13 = (resp13.get('data') or resp13)
+    check('the route answers with a prompt or an honest silence',
+          'prompt' in served13 and 'considered' in served13)
+    check('and says which gate stopped each candidate it withheld',
+          all(c.get('gate') for c in served13.get('considered', []) if not c['promote']))
+
+    before = ctx.c.get('/api/proactive/next', headers=ctx.H).get_json() or {}
+    after = ctx.c.get('/api/proactive/next', headers=ctx.H).get_json() or {}
+    b, a = (before.get('data') or before), (after.get('data') or after)
+    check('asking twice does not spend the budget, because asking is not showing',
+          (b.get('prompt') or {}).get('key') == (a.get('prompt') or {}).get('key'))
+    check('the ledger records what was shown, reported by the surface that showed it',
+          '_dashRenderProactive' in view and "'/api/proactive/shown'" in view
+          and '_dashProactiveAsked' in view)
+    check('and the card is dismissable, in the page, never a modal',
+          '_dashDismissProactive' in view and 'dashProactive' in view)

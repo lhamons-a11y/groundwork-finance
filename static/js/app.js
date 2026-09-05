@@ -2136,6 +2136,96 @@ function _renderCheckInStreak() {
   }).catch(_gwErr('checkInStreak'));
 }
 
+// Appendix A — the one place this app speaks first.
+//
+// Asked for here and nowhere else, because A.2's fifth gate is timing and no
+// server can see what someone is doing. A dashboard load is a natural boundary:
+// the user has just arrived and is not mid-task. The card never blocks, never
+// covers anything, and closing it is an instruction the app keeps (A.4).
+let _dashProactive = null;
+
+let _dashProactiveAsked = false;
+
+async function _dashRenderProactive() {
+  const host = g('dashProactive');
+  if (!host) return;
+  // Asked once per load, and the answer is kept. The dashboard re-renders for
+  // all sorts of reasons; re-asking would return nothing the second time — the
+  // prompt is no longer novel and the session budget is spent — so a card the
+  // user was mid-way through reading would vanish under them.
+  if (_dashProactiveAsked) {
+    host.innerHTML = _dashProactive ? _dashProactiveHTML(_dashProactive) : '';
+    return;
+  }
+  _dashProactiveAsked = true;
+  try {
+    const r = await API.get('/api/proactive/next');
+    _dashProactive = r.prompt || null;
+  } catch (e) {
+    _gwErr('_dashRenderProactive')(e);
+    return;
+  }
+  // Silence is the correct answer most weeks (A.3) — an empty slot, not an
+  // empty state with a heading explaining that there is nothing to say.
+  host.innerHTML = _dashProactive ? _dashProactiveHTML(_dashProactive) : '';
+  // The budget is spent when someone is actually shown something, not when the
+  // server works out what it would say.
+  if (_dashProactive) {
+    API.post('/api/proactive/shown', {
+      key: _dashProactive.key, budget: _dashProactive.budget,
+      category: _dashProactive.category || null,
+    }).catch(_gwErr('_dashRenderProactive:shown'));
+  }
+}
+
+function _dashProactiveHTML(p) {
+  const mo = (n) => `${Math.abs(n)} month${Math.abs(n) !== 1 ? 's' : ''}`;
+  const green = p.kind === 'green';
+
+  let body = '';
+  if (p.detail_kind === 'charge') {
+    body = `The <strong>${fmt(p.dollars)}</strong> at <strong>${esc(p.subject)}</strong> cost`
+         + ` <strong>${mo(p.months)}</strong> on your debt-free date. There is a way to put`
+         + ` them back — it is on the ledger page.`;
+  } else if (p.detail_kind === 'overspend') {
+    body = `<strong>${esc(p.subject)}</strong> has run <strong>${fmt(p.dollars)}/mo</strong> over`
+         + ` its budget every month on record, which costs <strong>${mo(p.months)}</strong>`
+         + ` on your debt-free date. The budget page shows where that could come from.`;
+  } else if (p.detail_kind === 'green') {
+    body = `You freed <strong>${fmt(p.freed_monthly)}/mo</strong> by clearing`
+         + ` <strong>${esc(p.subject)}</strong> — worth <strong>${mo(p.months)}</strong>`
+         + ` on your debt-free date.`;
+  } else {
+    return '';
+  }
+
+  const accent = green ? 'var(--pine)' : 'var(--gold)';
+  const tint   = green ? 'var(--pine-bg)' : 'var(--gold-bg)';
+  return `<div class="card mb-4" id="dashProactiveCard"
+       style="border-left:3px solid ${accent};background:${tint}">
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="flex:1;font-size:12px;color:var(--slate);line-height:1.8">${body}</div>
+      <button onclick="_dashDismissProactive()" title="Dismiss"
+        style="background:none;border:none;color:var(--slate-2);font-size:16px;line-height:1;cursor:pointer;padding:0 2px">×</button>
+    </div>
+  </div>`;
+}
+
+async function _dashDismissProactive() {
+  const p = _dashProactive;
+  g('dashProactiveCard')?.remove();
+  if (!p) return;
+  // Logged, because a dismissal is the user telling us something and A.4 says
+  // we listen: sixty days of quiet on this one, and twice in a category drops
+  // that category to passive for good.
+  try {
+    await API.post('/api/proactive/dismiss', {key: p.key, category: p.category || null});
+  } catch (e) {
+    _gwErr('_dashDismissProactive')(e);
+  }
+  _dashProactive = null;
+}
+
 function renderDashboard() {
   const now   = new Date();
   // pywebview/CEF can return UTC from getHours() — use UTC offset math instead
@@ -2210,6 +2300,9 @@ function renderDashboard() {
 
   // AI insight — no label, no badge, inline in left column (non-blocking)
   _loadDashProjection(totalIncome, spent, projected, txns, totalDebt).catch(_gwErr('renderDashboard'));
+
+  // Appendix A: at most one unprompted insight, at a natural boundary.
+  _dashRenderProactive();
 }
 
 // ── Streak calculated from actual spending data (no check-in required) ────────

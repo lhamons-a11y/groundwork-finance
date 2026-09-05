@@ -296,6 +296,12 @@ class HistorianEntry(Base):
       'college_fund_contribution_variance'— college funds (contribution, actual $ vs. fund's own monthlyContrib)
       'recurring_pattern_confirm'         — a detected recurring merchant added to the budget
       'recurring_pattern_reject'          — a detected recurring merchant dismissed
+      'proactive_shown'                   — an insight promoted past the A.2 gauntlet and shown
+                                             unprompted. Context carries its key and budget class;
+                                             this IS the frequency cap's ledger (A.3).
+      'proactive_dismissed'               — the user dismissed one. An instruction, not a signal to
+                                             model: it sets a 60-day cooldown, and two in a category
+                                             drops that category to passive for good (A.4).
       'byb_purchase_decision'             — Before You Buy: a commit/walkaway decision (immediate or
                                              a later-resolved 'track' item). expected/actual only set
                                              when a real cost comparison exists (a resolved 'track' item
