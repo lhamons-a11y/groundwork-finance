@@ -2163,7 +2163,8 @@ def _proactive_candidates(session, cards, budget, strategy):
     does not compute anything new, it only asks whether something already true
     is worth saying unprompted.
     """
-    from core.solution import budget_pressure, green_light, solve_one_time_cost
+    from core.solution import (accelerations, budget_pressure, green_light,
+                               solve_one_time_cost)
 
     today = date.today().strftime('%Y-%m')
     kw = dict(strategy=strategy, today_key=today, start_month=today)
@@ -2211,6 +2212,43 @@ def _proactive_candidates(session, cards, budget, strategy):
                         'deliberate': deliberate,
                         'months_ago': ((datetime.utcnow().year - acct.paid_off_at.year) * 12
                                        + (datetime.utcnow().month - acct.paid_off_at.month))})
+    # Appendix G's checkpoints. G.3b is emphatic that these are not a
+    # separate alert channel: same voice, same gate, same budget as every
+    # other brake. Materiality is instantiated at G's own timescale rather
+    # than exempted — reaching a checkpoint IS the materiality event, which
+    # A.2.1 already admits as "crosses a goal/milestone boundary", so it
+    # clears the gate on its own ruler and never on a lower bar.
+    from core.cycles import recurrence as _recurrence
+    cyc = _recurrence(revolving_series(session))
+    if cyc['state'] in ('approaching', 'past') and cyc.get('prior'):
+        levers = accelerations(cards, budget, categories=cats,
+                               recurring=trim_candidates(session), **kw)
+        out.append({
+            # The key differs by checkpoint on purpose: crossing from
+            # approaching to past is a new and materially different fact,
+            # and clears novelty on its own merits rather than as a repeat
+            # (G.3b.3).
+            'key': f"cycle:{cyc['state']}:{cyc['prior']['closed_month']}",
+            'kind': 'brake', 'category': None,
+            'months': None, 'dollars': cyc['prior']['peak'],
+            'crosses_boundary': True,
+            # G.3b.2: bad news needs an honest lever or it stays passive.
+            # G never pushes a fact with nothing to do about it.
+            'has_path': bool(levers),
+            # A position fact, not a date-impact. Scoring it with the best
+            # lever's months would answer a different question — what could be
+            # done about it, rather than what it threatens — so it enters as
+            # None and competes on perishability (A.3).
+            'goal_impact': None,
+            # Approaching is perishable by G.3a's own reasoning: waiting until
+            # it is past is the most honest option and the least useful one,
+            # because by then the worse outcome is already true. Past is not
+            # perishable — it is true now and stays true.
+            'perishable': cyc['state'] == 'approaching',
+            'subject': cyc['prior']['peak'], 'detail_kind': 'cycle',
+            'cycle': cyc,
+        })
+
     lit = green_light(cards, budget, drivers, **kw)
     if lit:
         out.append({
@@ -2308,6 +2346,58 @@ def proactive_dismiss():
                             context={'key': key, 'category': body.get('category')})
         session.commit()
     return ok({'dismissed': key})
+
+
+def revolving_series(session):
+    """Overall revolving debt, month by month, from recorded history.
+
+    G.3 pins the unit: the whole revolving position, not one balance and not one
+    debt type. Installment loans and leases are excluded because they amortise
+    to zero by design — a car loan ending is not a cycle closing, and counting
+    it as one would manufacture the very shape this is meant to detect.
+
+    Read from `debt_balance_history` rather than from current balances, because
+    a cycle is a claim about the past and only the recorded past can support it.
+    """
+    revolving = {d.id for d in session.query(DebtAccount).all()
+                 if (d.debt_type or 'credit') == 'credit'}
+    if not revolving:
+        return []
+
+    by_month = {}
+    for h in session.query(DebtBalanceHistory).order_by(DebtBalanceHistory.month).all():
+        if h.debt_id not in revolving:
+            continue
+        slot = by_month.setdefault(h.month, {'month': h.month, 'balance': 0.0,
+                                             'interest': 0.0, 'interest_known': True})
+        slot['balance'] += float(h.balance or 0)
+        if h.interest_charged is None:
+            slot['interest_known'] = False
+        else:
+            slot['interest'] += float(h.interest_charged)
+
+    out = []
+    for month in sorted(by_month):
+        row = by_month[month]
+        out.append({'month': month, 'balance': round(row['balance'], 2),
+                    'interest': (round(row['interest'], 2)
+                                 if row['interest_known'] else None)})
+    return out
+
+
+@debt_bp.route('/cycle', methods=['GET'])
+def debt_cycle():
+    """Whether this shape has happened before, and how far along it is (App. G).
+
+    Silence is the common answer and the correct one: most ledgers have no
+    completed cycle in them, and C.7 routes that through the honest-no rather
+    than through a fabricated peak. `state: none` carries the reason.
+    """
+    from core.cycles import recurrence
+
+    with db_session() as session:
+        series = revolving_series(session)
+        return ok({'cycle': recurrence(series), 'months_recorded': len(series)})
 
 
 @debt_bp.route('/green-light', methods=['GET'])

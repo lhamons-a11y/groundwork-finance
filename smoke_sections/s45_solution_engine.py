@@ -1201,3 +1201,90 @@ def run(ctx):
     check('the control says plainly that turning it off hides nothing (A.1)',
           'Turning it down or off hides nothing' in html_src
           and 'still lives on the page it belongs to' in html_src)
+
+    # ── Appendix G: the long arc, and the three things §12 gated ────────────
+    # Bias to false-negatives throughout: missing a real cycle is the acceptable
+    # cost, claiming one that is not real is a fabricated story about a life.
+    from core.cycles import (APPROACHING_SHARE, MIN_CYCLE_MONTHS, detect_cycles,
+                             recurrence)
+    from core.proactive import is_material
+
+    def _series(*balances):
+        return [{'month': f'2025-{i+1:02d}', 'balance': b, 'interest': 10.0}
+                for i, b in enumerate(balances)]
+
+    closed = _series(3000, 6500, 9000, 4000, 0, 1200, 4000, 8200)
+    cycles = detect_cycles(closed)
+    check('a cycle closes when the whole revolving position reaches zero',
+          len(cycles) == 1 and cycles[0]['peak'] == 9000
+          and cycles[0]['closed_month'] == '2025-05')
+    check('the run still in progress is not a cycle and lends no peak',
+          detect_cycles(_series(3000, 6500, 9000)) == [])
+    check('and a run too short to be a cycle is not one (false-negative bias)',
+          detect_cycles(_series(9000, 0)) == [] and MIN_CYCLE_MONTHS == 3)
+
+    # G.3a's four states, and only these four.
+    r = recurrence(closed)
+    check('proximity to the prior peak is a state, measured not predicted',
+          r['state'] == 'approaching' and r['distance'] == 800
+          and r['share'] >= APPROACHING_SHARE)
+    check('well below the prior peak says nothing G-level',
+          recurrence(_series(3000, 6500, 9000, 4000, 0, 500, 900, 1200)
+                     )['state'] == 'below')
+    check('past the prior peak is its own state',
+          recurrence(_series(3000, 6500, 9000, 0, 1200, 5000, 9600)
+                     )['state'] == 'past')
+
+    # C.7: insufficient history routes through silence, never a fabricated peak.
+    check('no completed cycle means silence, with the reason attached',
+          recurrence(_series(3000, 6500, 9000))['state'] == 'none'
+          and recurrence(_series(3000, 6500, 9000))['prior'] is None)
+    check('and too little history since the close says so rather than compares',
+          recurrence(_series(3000, 6500, 9000, 0, 400))['state'] == 'none')
+
+    # The receipt travels, but only when it was actually recorded.
+    partial = [{'month': '2025-01', 'balance': 3000, 'interest': 40},
+               {'month': '2025-02', 'balance': 6000, 'interest': None},
+               {'month': '2025-03', 'balance': 9000, 'interest': 90},
+               {'month': '2025-04', 'balance': 0, 'interest': 0}]
+    check('the cost of the last cycle is reported only if the whole of it was',
+          detect_cycles(partial)[0]['interest'] is None
+          and detect_cycles(_series(3000, 6000, 9000, 0))[0]['interest'] == 30.0)
+
+    # G.3: the unit is revolving debt. An installment loan amortising to zero is
+    # not a cycle closing, and the series it reads is filtered before it arrives.
+    check('only revolving debt is read into the series',
+          "(d.debt_type or 'credit') == 'credit'" in ctx.server_src)
+
+    # G.3b: same voice, same gate, same budget — no separate alert channel.
+    check("G's checkpoint clears materiality on its own ruler, not a lower bar",
+          "'crosses_boundary': True" in ctx.server_src
+          and is_material({'crosses_boundary': True}, 2000) is True
+          and is_material({'months': 0.1, 'dollars': 1}, 2000) is False)
+    check('and it is a brake, so it needs a lever or it stays passive (G.3b.2)',
+          "'has_path': bool(levers)" in ctx.server_src)
+    check('crossing from approaching to past is a new fact, not a repeat',
+          "f\"cycle:{cyc['state']}" in ctx.server_src)
+
+    # A.3's position-fact clause, which G is the doc's own example of.
+    check('a position fact competes on perishability, not on a zero impact',
+          contend([{'key': 'green', 'goal_impact': 6},
+                   {'key': 'cycle', 'goal_impact': None, 'perishable': True}
+                   ])['key'] == 'cycle'
+          and contend([{'key': 'green', 'goal_impact': 6},
+                       {'key': 'cycle', 'goal_impact': None}])['key'] == 'green')
+    check('and a contradiction still outranks even that',
+          contend([{'key': 'cycle', 'goal_impact': None, 'perishable': True},
+                   {'key': 'check', 'disputes': 'Dining'}])['key'] == 'check')
+
+    resp16 = ctx.c.get('/api/debt/cycle', headers=ctx.H).get_json() or {}
+    served16 = (resp16.get('data') or resp16)
+    check('the route answers with a state, or says why it cannot',
+          isinstance(served16.get('cycle'), dict)
+          and (served16['cycle'].get('state') != 'none'
+               or served16['cycle'].get('reason')))
+    check('the debt page carries the passive statement for the two checkpoints',
+          "c.state !== 'approaching' && c.state !== 'past'" in view
+          and 'You have been here before' in view)
+    check('and the dashboard can carry it too, through the gauntlet only',
+          "p.detail_kind === 'cycle'" in view)

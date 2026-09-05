@@ -160,12 +160,28 @@ def contend(candidates):
 
     disputed = {c.get('disputes') for c in promoted if c.get('disputes')}
 
+    def impact(c):
+        raw = c.get('goal_impact')
+        if raw is None:
+            raw = c.get('months')
+        return None if raw is None else abs(float(raw))
+
+    # A.3 names the case explicitly: some candidates are POSITION FACTS that do
+    # not reduce to a date-impact — G's "approaching your prior peak" is its own
+    # example, alongside a contradiction-check. Ranking those by impact would
+    # score them zero and bury them permanently, which is not "the user's goal
+    # decides" but "whatever we can express in months decides". When one is in
+    # the running, perishability becomes the ruler for the whole set: surface
+    # what loses the most by waiting. Judged from what is already true — a
+    # checkpoint that will be behind them next month — never from a predicted
+    # trajectory (F.8).
+    position_fact = any(impact(c) is None for c in promoted)
+
     def rank(c):
         depends = c.get('depends_on') in disputed if disputed else False
-        return (
-            0 if c.get('disputes') else (2 if depends else 1),
-            -abs(float(c.get('goal_impact') or c.get('months') or 0)),
-            0 if c.get('perishable') else 1,
-        )
+        tier = 0 if c.get('disputes') else (2 if depends else 1)
+        perish = 0 if c.get('perishable') else 1
+        size = -(impact(c) or 0)
+        return (tier, perish, size) if position_fact else (tier, size, perish)
 
     return sorted(promoted, key=rank)[0]
