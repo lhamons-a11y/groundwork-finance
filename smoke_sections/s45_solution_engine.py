@@ -1144,3 +1144,24 @@ def run(ctx):
     check('the room shows the receipt, or says why there is none',
           '_trophyReceipt' in view and '_loadTrophyVerdicts' in view
           and 'Setup step' in view)
+
+    # ── above_minimum: awarded by payments, not by a typed number ────────────
+    # It fired when the budget FIGURE exceeded the minimums, so the trophy could
+    # be earned by editing a field and never paying anything. Its name always
+    # claimed the other thing.
+    check('the declaration no longer awards it',
+          'if (budget > totalMin + 0.5)' not in view)
+    check('and the payment record does, through the proof the room already has',
+          '_awardProvenTrophies' in view
+          and TROPHY_SPEC['above_minimum']['proof'] == 'payments_above_minimum')
+    check('the trophy now describes what it actually takes',
+          "desc:'Paid more than your minimums, three months running.'" in view)
+    check('a proven trophy is awarded, and nothing anywhere revokes one',
+          'v.earned === true' in view and 'awardAchievement(v.id)' in view
+          and 'S.achievements.delete(' not in view)
+
+    # And the verdict's reason says what was actually checked, not more.
+    check('a reason claims attribution only where attribution was required',
+          verdict('above_minimum', {'held': True})['reason'] == 'held for the whole window'
+          and verdict('zero_crossing', {'held': True, 'attributable': True}
+                      )['reason'] == 'held, and visibly theirs')

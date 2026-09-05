@@ -164,5 +164,9 @@ def verdict(trophy_id, evidence=None):
         if not credit:
             return {'class': DURABLE, 'earned': False, 'rule': 'durable',
                     'reason': "the improvement is not visibly the user's (D.6)"}
+    # The reason says what was actually checked. Only trophies that require
+    # attribution had it checked, and claiming otherwise would be a small lie
+    # in the field whose entire job is to explain a verdict.
     return {'class': DURABLE, 'earned': True, 'rule': 'durable',
-            'reason': 'held, and visibly theirs'}
+            'reason': ('held, and visibly theirs' if spec.get('attribution')
+                       else 'held for the whole window')}

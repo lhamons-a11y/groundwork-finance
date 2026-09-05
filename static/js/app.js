@@ -1814,9 +1814,9 @@ const ACHIEVEMENTS = [
   },
   {
     id:'above_minimum', name:'Above minimum',
-    desc:'Set a monthly payment above the sum of your minimums.',
+    desc:'Paid more than your minimums, three months running.',
     section:'debt', type:'discipline', icon:'⚡',
-    unlockHint:'Set your monthly budget higher than the minimum payment total.',
+    unlockHint:'Pay more than your minimum payments total, three months in a row.',
     behavior:'The single most impactful financial habit change available.',
   },
   {
@@ -15818,7 +15818,11 @@ function calculate() {
   const pctPaid = data.reduce((s,c)=>s+(c.beginBal-c.balance),0) / Math.max(1,data.reduce((s,c)=>s+c.beginBal,0));
   if (pctPaid >= 0.10) awardAchievement('chipping_away');
   if (pctPaid >= 0.50) awardAchievement('halfway');
-  if (budget > totalMin + 0.5) awardAchievement('above_minimum');
+  // `above_minimum` is NOT awarded here any more. This fired on the budget
+  // NUMBER exceeding the minimums — a figure someone typed, not money that
+  // moved — so the trophy could be earned by editing a field and never paying
+  // anything. It is awarded from the payment record now (_awardProvenTrophies),
+  // which is what its name always claimed.
   if (data.filter(c=>c.balance>0.01).length===1&&data.length>1) awardAchievement('first_card_down');
   if (data.every(c=>c.balance<=0.01)&&data.length>0) { awardAchievement('first_card_down'); awardAchievement('zero'); }
   if (intSaved >= 1000) awardAchievement('interest_slayer');
@@ -20219,10 +20223,26 @@ async function _loadTrophyVerdicts() {
   try {
     const r = await API.get('/api/trophies');
     _trophyVerdicts = Object.fromEntries((r.trophies || []).map(t => [t.id, t]));
+    _awardProvenTrophies();
   } catch (e) {
     _gwErr('_loadTrophyVerdicts')(e);
     _trophyVerdicts = {};
   }
+}
+
+// Award what the ledger proves, and never take anything back.
+//
+// Only ever additive. An unproven trophy is unproven, not false — 1.x awarded
+// these before any receipt existed — and an earned trophy is a receipt of a
+// real past, so nothing here revokes one. The server is the authority on
+// whether the proof exists, because the proof is in the ledger and the ledger
+// is the server's.
+function _awardProvenTrophies() {
+  Object.values(_trophyVerdicts).forEach(v => {
+    if (v.earned === true && v.class !== 'setup' && !S.achievements.has(v.id)) {
+      awardAchievement(v.id);
+    }
+  });
 }
 
 // The receipt, or an honest note about why there isn't one. A trophy awarded
@@ -23228,7 +23248,7 @@ function _findProjectionAchievement(surplus, intSaved, totalDebt) {
     let r=0;
     if(a.id==='chipping_away'||a.id==='halfway')r=80;
     if(a.id==='interest_slayer'&&intSaved>0)r=90;
-    if(a.id==='above_minimum'&&surplus>0)r=70;
+    if(a.id==='above_minimum'&&totalDebt>0)r=70;
     if(a.id==='dti_threshold')r=60;
     if(a.id==='zero'&&totalDebt>0)r=50;
     return{a,score:r+(_getAchProgress(a)||0)};
