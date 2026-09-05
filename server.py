@@ -1822,6 +1822,130 @@ def debt_decision_impact():
     return ok(result)
 
 
+# Money that moved between the user's own pockets is not spending, and
+# pricing it as spending would tell someone their credit-card payment cost
+# them three months. Matched on category name because that is what the ledger
+# records; payments linked to a debt ledger entry are excluded outright, which
+# is the precise version of the same rule.
+_LESSON_EXCLUDED_CATEGORIES = {'transfer', 'transfers', 'income', 'debt',
+                               'debt payment', 'savings', 'investment',
+                               'investments'}
+
+
+def large_charge_lesson(session, cards, budget, strategy, days: int = 60,
+                        consider: int = 8):
+    """The recent charge that cost the most, priced by what it would have done.
+
+    §8's line for the Ledger. "Large" is not a dollar threshold here: the
+    biggest recent charges are priced, and one earns a sentence by having moved
+    the payoff date a month or more. That is a fact about this portfolio rather
+    than a number chosen for every portfolio — $900 is large against one plan
+    and rounding against another.
+
+    Returns None when nothing qualifies, which is the common case and is not a
+    failure. A ledger with no month-moving charge in it has nothing to teach,
+    and manufacturing a lesson from the largest available row would be teaching
+    for its own sake.
+    """
+    from core.solution import past_charge_lesson
+
+    cutoff = date.today() - timedelta(days=days)
+    linked = {r[0] for r in session.query(
+        CheckingTransactionLink.checking_transaction_id).all()}
+
+    # The biggest first, so the scan can stop early: a smaller charge cannot
+    # cost more months than a larger one against the same portfolio.
+    rows = session.query(Transaction).filter(
+        Transaction.type == 'debit', Transaction.date >= cutoff
+    ).order_by(Transaction.amount.desc()).limit(consider * 4).all()
+
+    today = date.today().strftime('%Y-%m')
+    priced = 0
+    for t in rows:
+        if priced >= consider:
+            break
+        if t.id in linked:
+            continue
+        cat = session.query(Category).filter_by(id=t.category_id).first() if t.category_id else None
+        if cat and (cat.name or '').strip().lower() in _LESSON_EXCLUDED_CATEGORIES:
+            continue
+        priced += 1
+        lesson = past_charge_lesson(cards, budget, t.amount, strategy=strategy,
+                                    today_key=today, start_month=today)
+        if not lesson or lesson['months_cost'] < 1:
+            continue
+        # The first eligible one is the answer. Money toward the debt never
+        # delays the payoff, so months saved rises with the amount, and these
+        # are in descending order — no smaller charge below can beat it.
+        return {
+            'lesson': lesson,
+            'charge': {
+                'amount': round(float(t.amount or 0), 2),
+                'date': t.date.isoformat() if t.date else None,
+                'name': (t.merchant or t.description or 'that charge'),
+                'category': cat.name if cat else None,
+            },
+        }
+    return None
+
+
+@transactions_bp.route('/lesson', methods=['GET'])
+def ledger_lesson():
+    """What the biggest month-moving charge in the recent ledger cost (§8).
+
+    Past tense, and passive: it renders where the user is already looking at
+    their own transactions. A.1's passive tier is the whole permission for it —
+    nothing is prompted, nothing is pushed, and no speech budget is drawn.
+    """
+    with db_session() as session:
+        cards, budget, strategy, undated = _consequence_inputs(session)
+        if not cards:
+            return ok({'lesson': None, 'reason': 'no active debt to price it against'})
+        found = large_charge_lesson(session, cards, budget, strategy)
+        if not found:
+            return ok({'lesson': None, 'reason': 'no recent charge moved the date'})
+
+        from core.solution import solve_one_time_cost
+        today = date.today().strftime('%Y-%m')
+        sol = solve_one_time_cost(
+            cards, budget, found['lesson']['amount'], strategy=strategy,
+            today_key=today, start_month=today,
+            categories=reallocation_candidates(session),
+            recurring=trim_candidates(session))
+        # §6's levers, in the past tense. Substitution is dropped: a cheaper
+        # version of a purchase already made is not an option anyone has.
+        paths = [p for p in sol['paths'] if p['kind'] != 'substitution']
+
+        # And what each one PUTS BACK, simulated rather than assumed. These
+        # paths were solved to cancel a cost arriving in the future; the
+        # sentence they feed claims they recover months already lost. The two
+        # agree often enough to be mistaken for the same number and are not the
+        # same computation, so the recovery is measured here and the copy says
+        # what was measured.
+        base = simulate_payoff(cards, budget, strategy,
+                               today_key=today, start_month=today)
+        for p in paths:
+            freed = p.get('frees_monthly')
+            # Only money available now. A timing path's capacity arrives when a
+            # balance clears, and it is already in the base simulation — running
+            # it from month one would credit the user with months they get
+            # anyway, which is the flattering direction and the wrong number.
+            if not freed or base is None or p.get('available_in_months'):
+                p['months_recovered'] = None
+                continue
+            after = simulate_payoff(cards, budget + freed, strategy,
+                                    today_key=today, start_month=today)
+            p['months_recovered'] = (base['months'] - after['months']
+                                     if after is not None else None)
+
+        return ok({
+            'lesson': found['lesson'],
+            'charge': found['charge'],
+            'paths': paths,
+            'undated_forgiveness': undated,
+        })
+
+
 @debt_bp.route('/accelerations', methods=['GET'])
 def debt_accelerations():
     """What moves the payoff date most, on the plan already in place (§8).

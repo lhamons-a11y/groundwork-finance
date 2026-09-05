@@ -670,3 +670,61 @@ def run(ctx):
     check('the budget page renders it, and says each line stands alone',
           '_budgetRenderPressure' in view
           and 'Each line is measured on its own' in view)
+
+    # ── §8, the Ledger surface: a charge already made ────────────────────────
+    # Every other question here is prospective. This one is in the past tense,
+    # and the engine had no way to ask it: one_time_cost prices money that will
+    # NOT reach the debt, and a charge already made needs the mirror.
+    from core.solution import past_charge_lesson
+    from core.consequence import simulate_payoff as _sim
+
+    lesson = past_charge_lesson(cards, 775, 1850)
+    base_l = _sim(cards, 775)
+    check('a past charge is priced by what that money would have done here',
+          lesson and lesson['months_cost'] > 0 and lesson['interest_cost'] > 0)
+    check('and the counterfactual is the engine run, not a rule of thumb',
+          _sim(cards, 775, one_time_extra=1850)['months']
+          == base_l['months'] - lesson['months_cost'])
+    check('one_time_extra lands once and changes nothing at zero',
+          _sim(cards, 775, one_time_extra=0)['months'] == base_l['months'])
+    check('a charge with no months in it is priced honestly as none',
+          past_charge_lesson(cards, 775, 25)['months_cost'] == 0)
+    check('and an unsimulatable plan prices nothing at all',
+          past_charge_lesson(cards, 100, 1850) is None
+          and past_charge_lesson(cards, 775, 0) is None)
+
+    # The recovery a lesson offers is measured, not inherited from the path.
+    # These paths were solved to cancel a FUTURE cost; the sentence claims they
+    # put back months already lost, and those are two computations.
+    resp7 = ctx.c.get('/api/transactions/lesson', headers=ctx.H).get_json() or {}
+    served7 = (resp7.get('data') or resp7)
+    check('the route answers, in one of its two honest shapes',
+          'lesson' in served7)
+    if served7.get('lesson'):
+        # Against the route's OWN inputs, not the fixture portfolio above. The
+        # first version of this check used a hardcoded budget and failed on a
+        # database every other section has been writing to, which is the check
+        # being wrong rather than the code.
+        from server import _consequence_inputs
+        with ctx.dbs() as _s:
+            _cards, _budget, _strategy, _ = _consequence_inputs(_s)
+        for p in (served7.get('paths') or []):
+            if p.get('months_recovered'):
+                kw = dict(today_key=None, start_month=None)
+                got = (_sim(_cards, _budget, _strategy)['months']
+                       - _sim(_cards, _budget + p['frees_monthly'], _strategy)['months'])
+                check(f"the recovery on a {p['kind']} path is what the engine says",
+                      p['months_recovered'] == got)
+                break
+    check('capacity that only arrives later never claims to put months back now',
+          all(not p.get('months_recovered')
+              for p in (served7.get('paths') or [])
+              if p.get('available_in_months')))
+    check('substitution is not offered on a purchase already made',
+          not any(p['kind'] == 'substitution' for p in (served7.get('paths') or [])))
+
+    check('the ledger renders it in the past tense, and offers what puts it back',
+          '_ledgerRenderLesson' in view and 'had that money gone to the debt' in view
+          and 'would put them back' in view)
+    check('and the phrasing is written for a charge, not borrowed from a plan',
+          'months_recovered' in view and '_tripPathPhrases([pick]' not in view)

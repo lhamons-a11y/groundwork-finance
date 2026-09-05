@@ -59,7 +59,7 @@ def _prepare(cards):
 
 
 def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
-                    today_key=None, start_month=None):
+                    today_key=None, start_month=None, one_time_extra=0.0):
     """Months until every balance clears, or None if the budget cannot cover
     the minimums — the JS returns null there and so do we, rather than a
     fabricated large number.
@@ -69,6 +69,13 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
     surplus the extra came from, which is the optimistic reading — financing it
     costs more. The assumption is stated because being optimistic here is the
     direction that flatters a spending decision.
+
+    one_time_extra is the mirror, and it exists for a question in the past
+    tense: money that DID go somewhere else, priced by what it would have done
+    here. It lands once, in the first month, on top of that month's budget. For
+    a charge already on a card this slightly understates the cost, because the
+    interest that has accrued since the charge is not unwound — understating is
+    the right direction for a number attached to something already done.
     """
     data = _prepare(cards)
     if today_key is not None:
@@ -104,7 +111,7 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
     while month < MAX_MONTHS and any(b > SETTLED for b in bals):
         month += 1
         sim_key = _month_key(start_month, month)
-        extra = float(budget)
+        extra = float(budget) + (float(one_time_extra or 0) if month == 1 else 0.0)
 
         for i, c in enumerate(data):
             if bals[i] <= 0:
