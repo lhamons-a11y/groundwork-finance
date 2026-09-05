@@ -10135,8 +10135,17 @@ function _tripPathPhrases(paths, gap) {
   // closes the gap. Ranking puts no-cut paths first (E.3 rule 1), and a closing
   // path usually requires a cut, so a naive slice can show two partial options
   // and silently hide the one that works.
-  const all = paths || [];
-  let picked = all.slice(0, 2);
+  //
+  // One of each kind, when both exist. The levers split in two: substitution
+  // changes the decision on this page, everything else changes the finances
+  // around it. Ranked strictly, substitution loses every time — it requires
+  // giving something up, and E.3 rule 1 puts that below waiting — so the price
+  // of the very thing the user is looking at would never once be shown. Two
+  // answers to different questions beat two answers to the same one.
+  const all  = paths || [];
+  const sub  = all.find(p => p.kind === 'substitution');
+  const rest = all.filter(p => p.kind !== 'substitution');
+  let picked = sub ? [rest[0], sub].filter(Boolean) : rest.slice(0, 2);
   if (picked.length && !picked.some(p => p.closes)) {
     const closer = all.find(p => p.closes);
     if (closer) picked = picked.slice(0, 1).concat([closer]);
@@ -10176,6 +10185,26 @@ function _tripPathPhrases(paths, gap) {
         : `${fmt(p.frees_monthly)}/mo`;
       const lead  = `cutting ${esc(_joinNames(items))} (${cost})`;
       return p.closes ? `${lead} holds the date` : `${lead} ${part}`;
+    }
+    if (p.kind === 'substitution') {
+      // The price of the same decision, against what it costs in time. The
+      // engine has no idea what a cheaper version of anything IS; it says only
+      // what a smaller number would do to the date, which is the user's own
+      // arithmetic and claims nothing about what is out there to buy.
+      //
+      // The engine prices two rungs — half the delay, and none of it — and this
+      // renders the first. "Costs 2 months instead of 4" already carries the
+      // relationship between price and time, which is the teaching; the second
+      // rung is about one month of surplus whatever the decision costs, so
+      // beside a $40,000 ask it reads as mockery rather than as an option. It
+      // stays in the payload for a surface that prices a purchase directly.
+      const rungs = p.items || [];
+      const head  = rungs[0];
+      if (!head) return esc(p.detail);
+      return head.months_delta
+        ? `a ${fmt(head.price)} version costs ${head.months_delta} month`
+          + `${head.months_delta !== 1 ? 's' : ''} instead of ${gap}`
+        : `a ${fmt(head.price)} version does not move the date`;
     }
     if (p.kind === 'monthly') {
       return esc(p.detail);

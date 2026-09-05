@@ -10,18 +10,23 @@ with the nearest true path (§6.4), never a bare "you can't".
 because no lever produces it: new income, a side hustle, a raise; any new credit
 product, loan, balance transfer or BNPL; motivational filler with no math.
 
-**What is built, and what waits.** §6.1 lists seven levers. Five are computable
+**What is built, and what waits.** §6.1 lists seven levers. Six are computable
 from data that exists today and are implemented: timing, payoff-order, the
-generic monthly increase Pillar 2 solves for, and — when the caller hands over
-per-category spend and the recurring ledger — reallocation and specific-cost
-trimming. Those two are the first levers here that name something: a category,
-a merchant. What naming does and does not license is set out at `_headroom` and
-`_trims`. The rest are left as named gaps rather than half-built:
+generic monthly increase Pillar 2 solves for, substitution as a price rather
+than as a product, and — when the caller hands over per-category spend and the
+recurring ledger — reallocation and specific-cost trimming. Those last two are
+the first levers here that name something: a category, a merchant. What naming
+does and does not license is set out at `_headroom` and `_trims`.
 
-  * substitution needs to know what a cheaper equivalent *is*, which is domain
-    knowledge the ledger does not hold;
-  * save-first is deliberately absent from *this* gap — see the note where it
-    would have gone. It is the anti-loan, and this gap is already a cash cost.
+Two things are still deliberately absent:
+
+  * save-first, from *this* gap — see the note where it would have gone. It is
+    the anti-loan, and this gap is already a cash cost.
+  * substitution's OTHER half, where a new recurring cost replaces an existing
+    one and only the difference is felt. That is BYB's `replacing` mechanic
+    (`replacing_id` on `BYBItem`), where the user names what is replaced; it
+    needs a monthly-gap solver and a surface that asks the question, and this
+    one is neither.
 
 **Ranking.** E.3 orders six preferences, and only two of them are universal:
 waiting/timing over cutting (rule 1), and smaller/reversible over large and
@@ -31,7 +36,8 @@ the time. So this ranks on the universal two and stops. Not knowing someone's
 strategy costs humility in ranking, not the ability to help (F.6a).
 """
 
-from core.consequence import decision_impact, offsetting_monthly_delta, simulate_payoff
+from core.consequence import (affordable_one_time, decision_impact,
+                              offsetting_monthly_delta, simulate_payoff)
 
 # E.1 — the one objective layer. Protected because cutting these breaks
 # stability, NOT because they are morally superior, and the blueprint flags this
@@ -181,7 +187,7 @@ def _join(names):
 
 def _path(kind, label, detail, closes, cost_months=None, requires_cut=False,
           reversible=True, frees_monthly=None, available_in_months=None,
-          items=None, alternatives=None):
+          items=None, alternatives=None, amount=None):
     return {
         'kind': kind, 'label': label, 'detail': detail, 'closes': closes,
         'cost_months': cost_months, 'requires_cut': requires_cut,
@@ -191,6 +197,9 @@ def _path(kind, label, detail, closes, cost_months=None, requires_cut=False,
         # ranks rather than decides, and a user who would sooner keep one of
         # these can only swap it for another if the others are on the page.
         'items': items or [], 'alternatives': alternatives or [],
+        # The one-off figure a path turns on, where that figure is not a monthly
+        # one — substitution's price ceiling is the only one so far.
+        'amount': amount,
     }
 
 
@@ -351,6 +360,48 @@ def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
             items=chosen,
             alternatives=[c for c in cuts if c not in chosen][:4]))
 
+    # ── Lever 5: substitution, as far as it goes without inventing anything.
+    # The engine cannot know what a cheaper version of a thing IS, and it does
+    # not pretend to: the claim here is about the money, not about the product.
+    # "$1,500 of the $2,400 fits" is arithmetic over their own numbers, where
+    # "a cheaper trip holds your date" would assert that a cheaper trip exists —
+    # exactly the knowledge the ledger does not hold. The other half of the
+    # lever, where a new cost replaces an old one, is BYB's and is noted above.
+    # Two rungs, because either alone misleads. The price that moves the date
+    # by nothing is about one month of surplus whatever the decision costs —
+    # true, and useless as the only answer to a $40,000 question. The price that
+    # gives back one month of a fifty-seven month delay is just as useless at
+    # the other end. Halving the delay the user is actually facing is derived
+    # from their own gap rather than from a threshold picked here, and the pair
+    # shows the relationship (C.6's "what would have to be true") instead of
+    # prescribing a purchase.
+    rungs = []
+    for target in sorted({gap // 2, 0}, reverse=True):
+        price = affordable_one_time(cards, budget, one_time_cost,
+                                    max_delay_months=target, **kw)
+        if price and price < one_time_cost:
+            rungs.append({'months_delta': target, 'price': price})
+    if rungs:
+        head = rungs[0]
+        paths.append(_path(
+            'substitution',
+            f"a version at ${head['price']:,.0f}",
+            '; '.join(
+                f"${r['price']:,.0f} costs {r['months_delta']} month"
+                f"{'s' if r['months_delta'] != 1 else ''} instead of {gap}"
+                if r['months_delta'] else
+                f"${r['price']:,.0f} does not move the date at all"
+                for r in rungs),
+            closes=(head['months_delta'] == 0),
+            cost_months=head['months_delta'],
+            # Something is given up, just not out of an existing envelope — so
+            # it ranks with the cuts, below waiting and below money the record
+            # shows was never spent.
+            requires_cut=True,
+            reversible=True,
+            amount=head['price'],
+            items=rungs))
+
     # ── Lever 6: save-first is NOT offered here, and the omission is deliberate.
     # It is the anti-loan — its value is against FINANCING a purchase. This gap
     # is already a cash cost, and the money saved would come from the same
@@ -372,7 +423,12 @@ def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
     paths.sort(key=_rank_key)
 
     honest_no = None
-    if not any(p['closes'] for p in paths):
+    # Substitution is excluded from this test on purpose. Every other lever
+    # holds the date for the decision the user actually asked about; that one
+    # holds it by changing the decision. Letting it count would replace "nothing
+    # holds your date" with "$260 of your $40,000 does" — an answer to a
+    # question nobody asked, in place of the one §6.4 requires.
+    if not any(p['closes'] and p['kind'] != 'substitution' for p in paths):
         # §6.4: never a bare "you can't". The nearest true path is the smallest
         # change that would close it, even when nothing offered does — C.4 makes
         # it a requirement, not a nicety.

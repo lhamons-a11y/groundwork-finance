@@ -210,6 +210,62 @@ def decision_impact(cards, budget, monthly_delta=0.0, one_time_cost=0.0,
     }
 
 
+def affordable_one_time(cards, budget, one_time_cost, strategy='avalanche',
+                        today_key=None, start_month=None, max_delay_months=0):
+    """The largest one-time cost whose delay stays within `max_delay_months`.
+
+    §6.1's substitution lever, taken as far as it can honestly go. The engine
+    does not know what a cheaper version of a thing IS — that is domain
+    knowledge the ledger does not hold, and the blueprint's own example (a
+    $220/mo car instead of $350/mo) comes from BYB, where the USER names what is
+    being replaced. What can be computed without inventing anything is the
+    price, and the price is a curve rather than a number: at `max_delay_months`
+    of 0 this is what fits before the date moves at all, and at larger targets
+    it is what a smaller version of the same decision would have to cost to give
+    a month back.
+
+    Both ends of that curve are needed, because either alone misleads. Against a
+    $775/mo budget, the amount that moves nothing is about $116 — roughly one
+    month of surplus, which is the granularity of the model rather than a
+    meaningful alternative — so "keep it under $116" would be the answer to a
+    $900 decision and to a $40,000 one alike. Priced against a delay the user is
+    actually facing, the same arithmetic says something they can use.
+
+    Rounded DOWN, the mirror of why the monthly lever rounds up — rounded up,
+    the figure would name a price that does not actually hold to the target.
+    Returns None when the payoff cannot be simulated, and 0.0 when nothing fits.
+    """
+    target = max(0, int(max_delay_months or 0))
+
+    def delta_at(x):
+        d = decision_impact(cards, budget, one_time_cost=x, strategy=strategy,
+                            today_key=today_key, start_month=start_month)
+        return d['months_delta']
+
+    if delta_at(0) is None:
+        return None                              # unsimulatable, not affordable
+    ceiling = float(one_time_cost or 0)
+    if ceiling <= 0:
+        return 0.0
+    top = delta_at(ceiling)
+    if top is not None and top <= target:
+        return round(ceiling, 2)                 # all of it already fits
+
+    # Monotonic in x — spending more never brings the payoff date forward — so
+    # bisect, holding the invariant that lo fits and hi does not.
+    lo, hi = 0.0, ceiling
+    for _ in range(40):
+        mid = (lo + hi) / 2.0
+        d = delta_at(mid)
+        if d is not None and d <= target:
+            lo = mid
+        else:
+            hi = mid
+        if hi - lo < 1.0:
+            break
+    return float(int(lo))
+
+
 def offsetting_monthly_delta(cards, budget, one_time_cost, strategy='avalanche',
                              today_key=None, start_month=None, cap=None):
     """The smallest sustained monthly increase that cancels a one-time cost's
