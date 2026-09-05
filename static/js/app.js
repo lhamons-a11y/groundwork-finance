@@ -15595,6 +15595,74 @@ function loadDebtAdvisor(baseResult, totalDebt) {
 
   // Strategy comparison — render into advisor tab
   _debtRenderStrategyComparison(baseResult, totalDebt);
+
+  // §8's line for this surface: name the lever that moves the date most.
+  _debtRenderAccelerations();
+}
+
+// The levers pointed at the plan itself rather than at a decision, from the
+// engine and from the user's own record. The slider above this asks "what would
+// $200 more do"; this answers "where would $200 come from, and which one moves
+// the date furthest" — which is the question the slider leaves the user to
+// answer alone.
+let _debtAccelData = null;
+
+async function _debtRenderAccelerations() {
+  const container = g('debtAdvisorSection');
+  if (!container) return;
+  try {
+    _debtAccelData = await API.get('/api/debt/accelerations');
+  } catch (e) {
+    _gwErr('_debtRenderAccelerations')(e);
+    return;                                  // silence beats a guess
+  }
+  g('debtAccelerations')?.remove();
+  const html = _debtAccelerationsHTML(_debtAccelData);
+  if (html) container.insertAdjacentHTML('beforeend', html);
+}
+
+function _debtAccelerationsHTML(d) {
+  if (!d || !d.base) return '';
+  const rows = d.accelerations || [];
+  const dn   = d.do_nothing;
+
+  if (!rows.length) {
+    // Lever 7. An empty list is an answer, and it is only worth printing with
+    // the proof attached — without a number "you're on track" is flattery.
+    if (!dn || !dn.optimal_order || !(dn.optimal_order.months_better > 0)) return '';
+    const o = dn.optimal_order;
+    return `<div class="card mb-5" id="debtAccelerations">
+      <div class="card-label">What moves your date most</div>
+      <div style="font-size:12px;color:var(--slate);line-height:1.7">
+        Nothing in your record moves it further than the plan you already have.
+        Your ${esc(o.strategy)} order clears you
+        <strong style="color:var(--pine)">${o.months_better} month${o.months_better !== 1 ? 's' : ''}</strong>
+        sooner than ${esc(o.alternative)} would.
+      </div>
+    </div>`;
+  }
+
+  const line = (a) => `
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--steel)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--ink)">${esc(a.label.charAt(0).toUpperCase() + a.label.slice(1))}</div>
+        <div style="font-size:11px;color:var(--slate-2);line-height:1.6">${esc(a.detail)}</div>
+      </div>
+      <div style="text-align:right;white-space:nowrap">
+        <div style="font-family:var(--font-mono);font-size:13px;color:var(--pine)">${a.months_saved} mo sooner</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--slate-2)">${fmt(a.interest_saved)} less interest</div>
+      </div>
+    </div>`;
+
+  return `<div class="card mb-5" id="debtAccelerations">
+    <div class="card-label">What moves your date most</div>
+    <div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:10px">
+      From <strong>${_payoffDateLabel(d.base.months)}</strong>, on what your ledger already records.
+      Each of these is one change on its own — not a plan to do all of them — and each
+      assumes the money freed goes toward the debt.
+    </div>
+    ${rows.map(line).join('')}
+  </div>`;
 }
 
 function _debtRenderStrategyComparison(baseResult, totalDebt) {
