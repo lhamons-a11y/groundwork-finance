@@ -2192,6 +2192,16 @@ function _dashProactiveHTML(p) {
     body = `<strong>${esc(p.subject)}</strong> has run <strong>${fmt(p.dollars)}/mo</strong> over`
          + ` its budget every month on record, which costs <strong>${mo(p.months)}</strong>`
          + ` on your debt-free date. The budget page shows where that could come from.`;
+  } else if (p.detail_kind === 'cycle') {
+    const c = p.cycle || {};
+    const cost = (c.prior && c.prior.interest != null)
+      ? ` That one cost <strong>${fmt(c.prior.interest)}</strong> in interest to get out of.` : '';
+    body = (c.state === 'past')
+      ? `You are carrying more than the <strong>${fmt((c.prior||{}).peak)}</strong> you carried`
+        + ` before you cleared this last time.${cost}`
+      : `You are within <strong>${fmt(c.distance)}</strong> of the`
+        + ` <strong>${fmt((c.prior||{}).peak)}</strong> you carried before you cleared this`
+        + ` last time.${cost}`;
   } else if (p.detail_kind === 'green') {
     body = `You freed <strong>${fmt(p.freed_monthly)}/mo</strong> by clearing`
          + ` <strong>${esc(p.subject)}</strong> — worth <strong>${mo(p.months)}</strong>`
@@ -15903,6 +15913,59 @@ function loadDebtAdvisor(baseResult, totalDebt) {
 
   // §8's line for this surface: name the lever that moves the date most.
   _debtRenderAccelerations();
+  // Appendix G: whether this shape has happened before.
+  _debtRenderCycle();
+}
+
+// Appendix G, passively. G.3a is precise about where each state may appear:
+// "below the prior peak" is already visible in the ordinary debt surfaces and G
+// does not repeat it, so only the approaching and past checkpoints get a
+// sentence here — and even those reach the dashboard only through the Gauntlet,
+// never as a channel of their own.
+let _debtCycleData = null;
+
+async function _debtRenderCycle() {
+  const container = g('debtAdvisorSection');
+  if (!container) return;
+  try {
+    const r = await API.get('/api/debt/cycle');
+    _debtCycleData = r.cycle || null;
+  } catch (e) {
+    _gwErr('_debtRenderCycle')(e);
+    return;
+  }
+  g('debtCycle')?.remove();
+  const html = _debtCycleHTML(_debtCycleData);
+  if (html) container.insertAdjacentHTML('beforeend', html);
+}
+
+function _debtCycleHTML(c) {
+  if (!c || !c.prior) return '';
+  if (c.state !== 'approaching' && c.state !== 'past') return '';
+
+  const peakWhen = c.prior.peak_month
+    ? new Date(c.prior.peak_month + '-01T00:00:00')
+        .toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : null;
+  // The cost of the last cycle travels with the comparison, and only when it
+  // was actually recorded — "$0 to get out last time" from a missing figure
+  // would be a receipt for something that never happened.
+  const cost = (c.prior.interest !== null && c.prior.interest !== undefined)
+    ? ` That cycle cost <strong style="font-family:var(--font-mono)">${fmt(c.prior.interest)}</strong> in interest to get out of.`
+    : '';
+
+  const line = (c.state === 'past')
+    ? `You are carrying <strong style="font-family:var(--font-mono)">${fmt(c.current)}</strong>,
+       more than the <strong style="font-family:var(--font-mono)">${fmt(c.prior.peak)}</strong>
+       you were carrying${peakWhen ? ` in ${peakWhen}` : ''}, before you cleared it.`
+    : `You are within <strong style="font-family:var(--font-mono)">${fmt(c.distance)}</strong>
+       of the <strong style="font-family:var(--font-mono)">${fmt(c.prior.peak)}</strong>
+       you were carrying${peakWhen ? ` in ${peakWhen}` : ''}, before you cleared it.`;
+
+  return `<div class="card mb-5" id="debtCycle" style="border-left:3px solid var(--gold)">
+    <div class="card-label">You have been here before</div>
+    <div style="font-size:12px;color:var(--slate);line-height:1.8">${line}${cost}</div>
+  </div>`;
 }
 
 // The levers pointed at the plan itself rather than at a decision, from the
