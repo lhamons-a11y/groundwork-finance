@@ -10,13 +10,14 @@ with the nearest true path (§6.4), never a bare "you can't".
 because no lever produces it: new income, a side hustle, a raise; any new credit
 product, loan, balance transfer or BNPL; motivational filler with no math.
 
-**What is built, and what waits.** §6.1 lists seven levers. Three are computable
-from data that exists today and are implemented: timing, payoff-order, and the
-generic monthly increase Pillar 2 solves for. The rest are left as named gaps
-rather than half-built:
+**What is built, and what waits.** §6.1 lists seven levers. Five are computable
+from data that exists today and are implemented: timing, payoff-order, the
+generic monthly increase Pillar 2 solves for, and — when the caller hands over
+per-category spend and the recurring ledger — reallocation and specific-cost
+trimming. Those two are the first levers here that name something: a category,
+a merchant. What naming does and does not license is set out at `_headroom` and
+`_trims`. The rest are left as named gaps rather than half-built:
 
-  * reallocation and specific-cost trimming need per-category spend and the
-    recurring-item ledger, and both must respect the necessity floor below;
   * substitution needs to know what a cheaper equivalent *is*, which is domain
     knowledge the ledger does not hold;
   * save-first is deliberately absent from *this* gap — see the note where it
@@ -57,23 +58,156 @@ def is_protected(category_name):
     return any(p in n or n in p for p in NECESSITY_FLOOR)
 
 
+# Both history-reading levers need a window long enough to be a record rather
+# than an anecdote, and an amount large enough to be worth naming. Three months
+# is the floor `detect_recurring_patterns` already uses to call something
+# recurring at all, and a lever worth less than five dollars a month is noise
+# wearing a name.
+MIN_MONTHS_OBSERVED = 3
+MIN_MATERIAL_MONTHLY = 5.0
+
+
+# ── Naming, and what it does not license ────────────────────────────────
+# Pillar 2's lever deliberately does not name a category, because "trim dining
+# $40/mo" asserts that dining is flexible for this person, and F.6b keeps that
+# unclassified. Levers 1 and 4 do name things, so the line has to be drawn
+# somewhere finer than "never name".
+#
+# It is drawn between a receipt and a recommendation. What is offered here is
+# arithmetic over the user's own record — this envelope was budgeted at $400 and
+# never once needed more than $310 in the months on file; these two items cost
+# $43/mo between them. Which of the named things the user is willing to give up
+# is not asserted, not ranked and not inferred: candidates are ordered by size
+# and count only, the alternatives ride along on the path so one can be swapped
+# for another, and no path says a word about what would be missed least.
+
+
+def _headroom(categories):
+    """Lever 1's candidates: budgeted money the record shows was never needed.
+
+    Each entry the caller supplies is {name, budgeted, max_observed,
+    months_observed}. Headroom is budgeted minus the WORST observed month, not
+    the average — what is left over in an average month is money that some real
+    month spent, and offering it back would be offering the user their own
+    grocery run. The worst month is the part of the envelope their own record
+    never reached.
+
+    `months_observed` must count the months this category was actually seen in
+    a recorded month — not the months in the window. A category absent from a
+    month spent nothing only if the ledger holds that month at all, and a
+    category absent from the whole window is not thrift, it is an envelope paid
+    somewhere the ledger cannot see. Both tests need the whole ledger, so they
+    belong to the caller; this refuses to work with too few months and takes the
+    count on trust.
+    """
+    out = []
+    for c in categories or []:
+        name = (c or {}).get('name')
+        if not name or is_protected(name):
+            continue
+        budgeted, worst = c.get('budgeted'), c.get('max_observed')
+        if budgeted is None or worst is None:
+            continue
+        if int(c.get('months_observed') or 0) < MIN_MONTHS_OBSERVED:
+            continue
+        room = float(budgeted) - float(worst)
+        if room < MIN_MATERIAL_MONTHLY:
+            continue
+        out.append({'kind': 'reallocation', 'name': name, 'monthly': round(room, 2),
+                    'budgeted': float(budgeted), 'worst': float(worst),
+                    'months_observed': int(c['months_observed'])})
+    out.sort(key=lambda c: -c['monthly'])
+    return out
+
+
+def _trims(recurring):
+    """Lever 4's candidates: recurring items whose removal changes the verdict.
+
+    Each entry is {name, monthly, category}. `monthly` is what the item costs
+    per month, which is not what it charges: a weekly $16 item is a $69/mo line,
+    and naming the charge would understate it fourfold. Turning one into the
+    other needs the cadence, so the caller does it.
+
+    An item whose category is unknown is treated as protected and dropped. The
+    costs are asymmetric — over-protecting loses a candidate, under-protecting
+    proposes cancelling someone's power bill.
+    """
+    out = []
+    for r in recurring or []:
+        name = (r or {}).get('name')
+        category = r.get('category')
+        if not name or not category or is_protected(category):
+            continue
+        monthly = r.get('monthly')
+        if monthly is None or float(monthly) < MIN_MATERIAL_MONTHLY:
+            continue
+        out.append({'kind': 'trim', 'name': name, 'monthly': round(float(monthly), 2),
+                    'category': category})
+    out.sort(key=lambda c: -c['monthly'])
+    return out
+
+
+def _smallest_cover(candidates, needed, max_items=3, pool=8):
+    """The fewest named items that cover `needed`, and among those the cheapest.
+
+    Fewest first, because every named item is a separate thing to act on; then
+    smallest total, because overshooting asks for more than the gap needs.
+    Neither criterion says anything about which items this user would rather
+    keep. Bounded at three items drawn from the eight largest: "cancel these six
+    things" is not an offer anyone takes, and the combinatorics past that buy
+    nothing.
+    """
+    from itertools import combinations
+    if not candidates or not needed or needed <= 0:
+        return None, None
+    for k in range(1, min(max_items, len(candidates)) + 1):
+        best = None
+        for combo in combinations(candidates[:pool], k):
+            total = sum(c['monthly'] for c in combo)
+            if total >= needed and (best is None or total < best[0]):
+                best = (total, combo)
+        if best:
+            return list(best[1]), round(best[0], 2)
+    return None, None
+
+
+def _join(names):
+    """"A", "A and B", "A, B and C" — a person reads this sentence."""
+    names = list(names)
+    if len(names) <= 1:
+        return names[0] if names else ''
+    return '%s and %s' % (', '.join(names[:-1]), names[-1])
+
+
 def _path(kind, label, detail, closes, cost_months=None, requires_cut=False,
-          reversible=True, frees_monthly=None, available_in_months=None):
+          reversible=True, frees_monthly=None, available_in_months=None,
+          items=None, alternatives=None):
     return {
         'kind': kind, 'label': label, 'detail': detail, 'closes': closes,
         'cost_months': cost_months, 'requires_cut': requires_cut,
         'reversible': reversible, 'frees_monthly': frees_monthly,
         'available_in_months': available_in_months,
+        # The named sources behind a path, and the ones it passed over. E.4
+        # ranks rather than decides, and a user who would sooner keep one of
+        # these can only swap it for another if the others are on the page.
+        'items': items or [], 'alternatives': alternatives or [],
     }
 
 
 def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
-                        today_key=None, start_month=None):
+                        today_key=None, start_month=None,
+                        categories=None, recurring=None):
     """Paths that absorb a one-time cost's effect on the payoff date.
 
     Returns {'gap_months', 'paths', 'honest_no'}. `paths` is ordered by E.3's
     universal rules and never empty when a path exists; `honest_no` is populated
     only when none does, and carries the nearest true path rather than a refusal.
+
+    `categories` and `recurring` are the raw material for levers 1 and 4, in the
+    shapes `_headroom` and `_trims` describe. Both are optional: given neither,
+    the engine offers the three levers that need nothing but the debt itself,
+    which is what it did before these existed. A caller that cannot measure
+    spend honestly should pass nothing rather than pass a guess.
     """
     kw = dict(strategy=strategy, today_key=today_key, start_month=start_month)
     impact = decision_impact(cards, budget, one_time_cost=one_time_cost, **kw)
@@ -88,6 +222,77 @@ def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
                 'reason': 'nothing to close'}
 
     paths = []
+
+    # Pillar 2's lever, solved once: the smallest sustained monthly increase
+    # that cancels the delay. It is a path in its own right further down, and it
+    # is also the figure the named levers have to cover.
+    lever = offsetting_monthly_delta(cards, budget, one_time_cost, **kw)
+    room, cuts = _headroom(categories), _trims(recurring)
+
+    def _named_target(pool):
+        """What a named lever has to free to hold the date.
+
+        Pillar 2's lever is capped at the current debt budget, on the grounds
+        that asking for more each month than someone puts toward debt at all is
+        a refusal wearing a number. Named money is not an abstraction: its
+        ceiling is the sum of things that exist in the record. So when the
+        capped lever comes back None, the bisection may run to that ceiling
+        instead and still be talking about real dollars.
+        """
+        if lever is not None:
+            return lever
+        total = sum(c['monthly'] for c in pool)
+        if total <= 0:
+            return None
+        return offsetting_monthly_delta(cards, budget, one_time_cost, cap=total, **kw)
+
+    def _named_effect(pool):
+        """The set to offer from a pool of named sources, and what it does.
+
+        The smallest set that holds the date, or — when no set does — the single
+        largest candidate, whose partial effect is still true and still the
+        user's to weigh (E.4). One path per lever, never a page of them. Returns
+        None when the pool cannot move the date at all, because a path that
+        frees money and changes nothing is noise wearing arithmetic.
+        """
+        if not pool:
+            return None
+        chosen, freed = _smallest_cover(pool, _named_target(pool))
+        if not chosen:
+            chosen, freed = [pool[0]], pool[0]['monthly']
+        # `monthly_delta`, not a raised budget — and the difference is not
+        # cosmetic. A raised budget moves the baseline too, which is right for
+        # timing (the card clears whether or not the trip happens) and wrong
+        # here (this money only moves if the user moves it). Measured against a
+        # shifted baseline, a shift the lever says holds the date comes back
+        # saying it does not.
+        after = decision_impact(cards, budget, monthly_delta=freed,
+                                one_time_cost=one_time_cost, **kw)
+        if after['months_delta'] is None or after['months_delta'] >= gap:
+            return None
+        return chosen, freed, after
+
+    # ── Lever 1: reallocation. Money inside an envelope this user's own record
+    # never reached. Nothing about their spending changes, so it ranks with the
+    # paths that need no cut — but the sentence carries the receipt rather than
+    # an assurance that it costs nothing, because a smaller envelope is still a
+    # smaller envelope, and that judgement is theirs.
+    effect = _named_effect(room)
+    if effect:
+        chosen, freed, after = effect
+        paths.append(_path(
+            'reallocation',
+            f"shift ${freed:.0f}/mo from {_join([c['name'] for c in chosen])}",
+            '; '.join(
+                f"{c['name']} is budgeted at ${c['budgeted']:.0f}/mo and never went over "
+                f"${c['worst']:.0f} in {c['months_observed']} months"
+                for c in chosen),
+            closes=(after['months_delta'] <= 0),
+            cost_months=after['months_delta'],
+            requires_cut=False,
+            frees_monthly=freed,
+            items=chosen,
+            alternatives=[c for c in room if c not in chosen][:4]))
 
     # ── Lever 2: timing. A card clearing frees its minimum, and capacity that
     # arrives on its own disrupts nothing at all — E.3's first rule.
@@ -126,6 +331,26 @@ def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
             cost_months=alt['months_delta'],
             requires_cut=False))
 
+    # ── Lever 4: specific-cost trimming. Named items, at what they actually
+    # cost per month, with the candidates this passed over riding along so a
+    # user who would sooner keep one of them can trade it for another.
+    effect = _named_effect(cuts)
+    if effect:
+        chosen, freed, after = effect
+        detail = (f"{chosen[0]['name']} costs ${chosen[0]['monthly']:.0f}/mo"
+                  if len(chosen) == 1 else
+                  f"{_join([c['name'] for c in chosen])} cost ${freed:.0f}/mo between them")
+        paths.append(_path(
+            'trim',
+            f"cut {_join([c['name'] for c in chosen])}",
+            detail,
+            closes=(after['months_delta'] <= 0),
+            cost_months=after['months_delta'],
+            requires_cut=True,
+            frees_monthly=freed,
+            items=chosen,
+            alternatives=[c for c in cuts if c not in chosen][:4]))
+
     # ── Lever 6: save-first is NOT offered here, and the omission is deliberate.
     # It is the anti-loan — its value is against FINANCING a purchase. This gap
     # is already a cash cost, and the money saved would come from the same
@@ -152,10 +377,18 @@ def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
         # change that would close it, even when nothing offered does.
         nearest = offsetting_monthly_delta(cards, budget, one_time_cost,
                                            cap=max(1.0, budget), **kw)
+        # And what the named sources come to between them. When nothing here
+        # closes the gap, this is the honest shape of §6.4's "here's where that
+        # could come from": the money that exists, named, with its total — and
+        # no suggestion that the total is enough, since on this branch it
+        # demonstrably is not.
+        named = room + cuts                  # sources needing no cut first
         honest_no = {
             'gap_months': gap,
             'nearest_monthly': nearest,
             'reachable': nearest is not None,
+            'named_sources': named[:6],
+            'named_total': round(sum(c['monthly'] for c in named), 2) if named else None,
         }
 
     return {'gap_months': gap, 'paths': paths, 'honest_no': honest_no}

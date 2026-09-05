@@ -46,6 +46,7 @@ from core.database import ( db_session, DATA_DIR,
     DebtLedgerEntry, RecurringDebtPayment, CheckingTransactionLink,
     HistorianEntry, TripHistory,
 )
+from core.solution import MIN_MONTHS_OBSERVED
 from migrate import run_migration_if_needed
 
 
@@ -1239,6 +1240,123 @@ def detect_recurring_patterns(session, months: int = 6, min_occurrences: int = 3
     return patterns
 
 
+def reallocation_candidates(session, months: int = 6) -> list:
+    """Lever 1's raw material (§6.1): what each budgeted category actually spent,
+    month by month, and how many months the ledger can speak about.
+
+    Two rules keep this honest, and the solution engine cannot enforce either of
+    them because neither is visible from a single category.
+
+    A month with no spending in a category is a real zero only if the ledger
+    holds transactions from that month at all; otherwise it is a month with no
+    data, and reading it as zero spend invents headroom out of a hole in the
+    record — the same mistake that once read blank income months as a $7,053
+    shortfall that was really a surplus.
+
+    And a category the ledger has never seen is not a category spending nothing.
+    An envelope paid in cash, or on a card nobody imports, looks identical to
+    perfect thrift from in here, and the difference matters: one has headroom
+    and the other has a recording gap. So a category earns its months from the
+    months it actually appears in, and a category that appears in too few is not
+    a candidate at all — the zero months only ever refine a maximum it already
+    has.
+
+    The current month is excluded outright: it is half-recorded by definition,
+    and half a month of spending looks exactly like an underspend.
+    """
+    today = date.today()
+    month_start = today.replace(day=1)
+    cutoff = month_start - timedelta(days=30 * months)
+
+    ledger_months = {
+        r[0] for r in session.query(func.strftime('%Y-%m', Transaction.date)).filter(
+            Transaction.type == 'debit',
+            Transaction.date >= cutoff, Transaction.date < month_start
+        ).distinct().all() if r[0]
+    }
+    if len(ledger_months) < MIN_MONTHS_OBSERVED:
+        return []
+
+    rows = session.query(
+        Category.name,
+        func.strftime('%Y-%m', Transaction.date).label('m'),
+        func.sum(Transaction.amount)
+    ).join(Transaction, Transaction.category_id == Category.id).filter(
+        Transaction.type == 'debit',
+        Transaction.date >= cutoff, Transaction.date < month_start
+    ).group_by(Category.name, 'm').all()
+    spend = {(r[0], r[1]): float(r[2] or 0) for r in rows}
+
+    out = []
+    for item in session.query(BudgetItem).filter_by(is_active=True, type='expense').all():
+        if not item.category or not item.amount:
+            continue
+        seen = [m for m in ledger_months if (item.category, m) in spend]
+        if len(seen) < MIN_MONTHS_OBSERVED:
+            continue
+        # The maximum runs over every month the ledger can speak about, the
+        # quiet ones included: a month this category really did spend nothing
+        # in is part of its record. The COUNT runs only over the months it was
+        # actually seen, because that is what says the ledger can speak about
+        # this category at all.
+        monthly = [spend.get((item.category, m), 0.0) for m in ledger_months]
+        out.append({
+            'name': item.category,
+            'budgeted': float(item.amount),
+            'max_observed': max(monthly),
+            'months_observed': len(seen),
+        })
+    return out
+
+
+def trim_candidates(session, months: int = 6, limit: int = 12) -> list:
+    """Lever 4's raw material (§6.1): recurring merchants, what each one costs
+    per MONTH, and the category it sits in.
+
+    Three rules keep this honest. The figure is the monthly cost, not the
+    charge: `detect_recurring_patterns` calls a merchant recurring at three
+    consistent charges inside the window, which a weekly $16 coffee satisfies
+    too, and naming $16 for what is really a $69/mo line understates it
+    fourfold. The span it divides by runs from the first charge to the last
+    rather than across the whole window, so something that only started three
+    months ago is not averaged down to look small. And an item nobody has paid
+    in 45 days is not a saving — it is already gone, and offering it would be
+    offering the user money they do not have.
+
+    A merchant whose transactions carry no category comes back with `None`, and
+    the solution engine treats an unknown category as protected.
+    """
+    today = date.today()
+    cutoff = today - timedelta(days=30 * months)
+    out = []
+    for pattern in detect_recurring_patterns(session, months=months)[:limit]:
+        merchant = pattern['merchant']
+        rows = session.query(
+            Transaction.date, Transaction.amount, Category.name
+        ).outerjoin(Category, Transaction.category_id == Category.id).filter(
+            Transaction.merchant == merchant, Transaction.type == 'debit',
+            Transaction.date >= cutoff
+        ).all()
+        if not rows:
+            continue
+        dates = [r[0] for r in rows if r[0]]
+        if not dates:
+            continue
+        first, last = min(dates), max(dates)
+        if (today - last).days > 45:
+            continue
+        span = (last.year - first.year) * 12 + (last.month - first.month) + 1
+        if span < MIN_MONTHS_OBSERVED:
+            continue
+        names = [r[2] for r in rows if r[2]]
+        out.append({
+            'name': merchant,
+            'monthly': round(sum(float(r[1] or 0) for r in rows) / span, 2),
+            'category': max(set(names), key=names.count) if names else None,
+        })
+    return out
+
+
 @budget_bp.route('/detect-recurring', methods=['GET'])
 def budget_detect_recurring():
     months = int(request.args.get('months', 6))
@@ -1584,9 +1702,16 @@ def debt_decision_impact():
         # Pillar 3: the paths that close the gap, with their costs, so the user
         # chooses (E.4) — or the honest no with the nearest true path (§6.4).
         if one_time_cost:
+            # Levers 1 and 4 name things — a category, a merchant — so they need
+            # spend history the engine has no way to read for itself. Measuring
+            # it is this layer's job precisely because the honesty rules live in
+            # the whole ledger: which months are recorded at all, and what a
+            # recurring item costs per month rather than per charge.
             sol = solve_one_time_cost(cards, budget, one_time_cost, strategy=strategy,
                                       today_key=date.today().strftime('%Y-%m'),
-                                      start_month=date.today().strftime('%Y-%m'))
+                                      start_month=date.today().strftime('%Y-%m'),
+                                      categories=reallocation_candidates(session),
+                                      recurring=trim_candidates(session))
             result['paths'] = sol['paths']
             result['honest_no'] = sol['honest_no']
         else:
