@@ -1089,3 +1089,40 @@ def budget_pressure(cards, budget, categories=None, strategy='avalanche',
                      'available': freed} if chosen else None),
         })
     return out
+
+
+def past_charge_lesson(cards, budget, amount, strategy='avalanche',
+                       today_key=None, start_month=None):
+    """What one charge cost, priced by what that money would have done here.
+
+    §8's line for the Ledger: "a large charge → retrospective, past-tense lesson
+    + §6 options". The lesson is a counterfactual and is written as one — had
+    this money gone to the debt, the date would be N months earlier — never as
+    a verdict on the charge. Why someone spent it is not knowable from a ledger
+    row, and the platform's non-judgment rests on not pretending otherwise.
+
+    "Large" is deliberately not a dollar threshold. The caller keeps the biggest
+    recent charges and this prices them; what makes one worth a sentence is that
+    it moved the date by a month or more, which is a fact about this portfolio
+    rather than a number picked for all portfolios. A $900 charge is large
+    against one plan and rounding against another.
+
+    Returns None when the payoff cannot be simulated — with no date, a charge
+    has no cost this engine can name.
+    """
+    kw = dict(strategy=strategy, today_key=today_key, start_month=start_month)
+    amount = float(amount or 0)
+    if amount <= 0:
+        return None
+    base = simulate_payoff(cards, budget, **kw)
+    if base is None:
+        return None
+    had_it = simulate_payoff(cards, budget, one_time_extra=amount, **kw)
+    if had_it is None:
+        return None
+    return {
+        'amount': round(amount, 2),
+        'months_cost': base['months'] - had_it['months'],
+        'interest_cost': base['total_interest'] - had_it['total_interest'],
+        'base_months': base['months'],
+    }
