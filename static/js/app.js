@@ -10130,7 +10130,7 @@ function _maybeLoadTripImpact(total) {
 //
 // Two at most. E.4 says show the top paths with their costs and let the user
 // choose; it does not say show all of them, and this page is already busy.
-function _tripPathPhrases(paths, gap) {
+function _tripPathPhrases(paths, gap, unit = '') {
   // Take the top two by rank — but never drop the only path that actually
   // closes the gap. Ranking puts no-cut paths first (E.3 rule 1), and a closing
   // path usually requires a cut, so a naive slice can show two partial options
@@ -10201,10 +10201,14 @@ function _tripPathPhrases(paths, gap) {
       const rungs = p.items || [];
       const head  = rungs[0];
       if (!head) return esc(p.detail);
+      // `unit` is '/mo' when the decision is a commitment rather than a
+      // purchase. Same lever, same arithmetic, and the difference between
+      // "$302.00" and "$302.00/mo" is the difference between a true sentence
+      // and one off by the length of a car loan.
       return head.months_delta
-        ? `a ${fmt(head.price)} version costs ${head.months_delta} month`
+        ? `a ${fmt(head.price)}${unit} version costs ${head.months_delta} month`
           + `${head.months_delta !== 1 ? 's' : ''} instead of ${gap}`
-        : `a ${fmt(head.price)} version does not move the date`;
+        : `a ${fmt(head.price)}${unit} version does not move the date`;
     }
     if (p.kind === 'monthly') {
       return esc(p.detail);
@@ -19832,6 +19836,78 @@ function _renderAchCard(a) {
 // State lives in _byb — no S mutations until user commits.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// §6.1's substitution lever for a commitment, from the engine. BYB has always
+// done the netting itself (`_byb.monthly - replacingMin`) and its own waiting
+// search, both in JS; this asks the one engine the same question and renders
+// what it answers, alongside rather than instead of what the wizard already
+// shows. Additive on purpose: if the request fails the wizard looks exactly as
+// it did, which is the right failure for a screen someone is mid-decision on.
+let _bybImpactData = null;
+let _bybImpactKey  = '';
+
+async function _maybeLoadBYBImpact() {
+  const replCard = _byb.replaceCardId
+    ? _activeDebtCards().find(c => c.id === _byb.replaceCardId) : null;
+  const replaces = replCard ? (parseFloat(replCard.minimum) || 0) : 0;
+  const monthly  = parseFloat(_byb.monthly) || 0;
+  const key = `${monthly}|${replaces}`;
+  if (!monthly) { _bybImpactData = null; _bybImpactKey = ''; return; }
+  if (key === _bybImpactKey) return;             // same question, same answer
+  try {
+    _bybImpactData = await API.post('/api/debt/decision-impact',
+      { monthly_cost: monthly, replaces_monthly: replaces });
+    _bybImpactKey  = key;
+  } catch (e) {
+    _gwErr('_maybeLoadBYBImpact')(e);
+    _bybImpactData = null;
+  }
+  _bybBuildComparison();
+}
+
+// What the engine says about a commitment, in at most two sentences: the price
+// this could cost and still leave the date alone (§6.1's "$220/mo instead of
+// $350"), and the best path that is not about the price — one lever of each
+// kind, the same rule the trip planner follows.
+function _bybEngineNote() {
+  const m = _bybImpactData && _bybImpactData.monthly;
+  if (!m) return '';
+
+  if (m.honest_no && m.honest_no.unaffordable) {
+    // Not a longer delay — a wall. The number is what makes it payable at all.
+    const cap = m.honest_no.max_payable_monthly;
+    return `<div style="font-size:12px;color:var(--ember);line-height:1.7;margin-bottom:12px">`
+      + (cap
+          ? `At <strong>${fmt(cap)}/mo</strong> or less this stays payable. Above that your `
+            + `minimum payments stop being covered, which is not a later date — it is no date at all.`
+          : `No version of this leaves your minimum payments covered.`)
+      + `</div>`;
+  }
+  if (!m.gap_months || m.gap_months <= 0) return '';
+
+  // The trip line shows two phrases and lets a closing path displace the price
+  // one, because it has a sentence to fit in. This screen has room, and the
+  // price IS the decision here — so the closing path is ADDED rather than
+  // swapped in, and the guard that says never hide a path that actually holds
+  // the date still holds.
+  const paths = m.paths || [];
+  const sub   = paths.find(p => p.kind === 'substitution');
+  const rest  = paths.filter(p => p.kind !== 'substitution');
+  const picks = [];
+  if (rest[0]) picks.push(rest[0]);
+  if (sub) picks.push(sub);
+  if (!picks.some(p => p.closes)) {
+    const closer = paths.find(p => p.closes);
+    if (closer && picks.indexOf(closer) === -1) picks.push(closer);
+  }
+  const phrases = picks
+    .map(p => _tripPathPhrases([p], m.gap_months, '/mo')[0])
+    .filter(Boolean);
+  if (!phrases.length) return '';
+  const joined = phrases.join('; ');
+  return `<div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:12px">`
+    + `${joined.charAt(0).toUpperCase()}${joined.slice(1)}.</div>`;
+}
+
 const _byb = {
   type:        'vehicle',    // vehicle | subscription | purchase | other
   subtype:     'lease',      // lease | loan (vehicle only)
@@ -19944,7 +20020,7 @@ function _bybGoStep(n, force = false) {
   });
 
   if (n === 2) _bybBuildSandbox();
-  if (n === 3) _bybBuildComparison();
+  if (n === 3) { _bybBuildComparison(); _maybeLoadBYBImpact(); }
 }
 
 // ── Type / subtype selectors ──────────────────────────────────────────────────
@@ -20396,6 +20472,8 @@ function _bybBuildComparison() {
       ${!budgetInsufficient && !_byb.origInsufficient && moDiff === 0 && orig ? `<div>Debt-free date: <span style="color:var(--pine)">unchanged</span></div>` : ''}
       ${loanPayoffNote}
     </div>
+
+    ${_bybEngineNote()}
 
     <!-- Fix 2: What if I waited? -->
     ${waitSection}

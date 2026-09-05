@@ -36,11 +36,19 @@ honest no vacuous. Waiting until every balance clears holds any date at all, so
 $40,000 question would be "wait fifty-seven months" — a refusal wearing a
 number, which is the exact thing the honest no exists to replace.
 
-Still absent: substitution's OTHER half, where a new recurring cost replaces an
-existing one and only the difference is felt. That is BYB's `replacing` mechanic
-(`replacing_id` on `BYBItem`), where the user names what is replaced; it needs a
-monthly-gap solver and a surface that asks the question, and this one is
-neither.
+Both shapes of decision are solved. `solve_one_time_cost` prices a purchase;
+`solve_monthly_cost` prices a commitment, where a new recurring cost displaces
+an existing one and only the difference is felt — BYB's `replacing` mechanic
+(`replacing_id` on `BYBItem`), where the user names what is replaced, because a
+ledger cannot infer which of someone's commitments a new one takes the place of.
+
+The two differ in more than units. A one-time cost is absorbed once, so what
+holds the date has to be solved for; a recurring one drains for as long as the
+debt lasts, so what holds the date is exactly the net cost. And a commitment can
+put the budget under the minimums outright, which is not a longer delay but a
+different answer — §6.4's honest no there reports the largest payment that is
+payable, because "how much later" is the wrong question once the answer is "you
+could not make the minimums".
 
 **Ranking.** E.3 orders six preferences, and only two of them are universal:
 waiting/timing over cutting (rule 1), and smaller/reversible over large and
@@ -50,9 +58,9 @@ the time. So this ranks on the universal two and stops. Not knowing someone's
 strategy costs humility in ranking, not the ability to help (F.6a).
 """
 
-from core.consequence import (Card, affordable_one_time, decision_impact,
-                              extra_above_minimums, offsetting_monthly_delta,
-                              simulate_payoff)
+from core.consequence import (MAX_MONTHS, Card, affordable_monthly, affordable_one_time,
+                              decision_impact, extra_above_minimums,
+                              offsetting_monthly_delta, simulate_payoff)
 
 # E.1 — the one objective layer. Protected because cutting these breaks
 # stability, NOT because they are morally superior, and the blueprint flags this
@@ -192,6 +200,30 @@ def _smallest_cover(candidates, needed, max_items=3, pool=8):
     return None, None
 
 
+def _best_named(pool, target, evaluate, gap):
+    """The set to offer from a pool of named sources, and what it does.
+
+    Shared by both solvers. The smallest set that covers `target`, or — when no
+    set does — the single largest candidate, whose partial effect is still true
+    and still the user's to weigh (E.4). One path per lever, never a page of
+    them. None when the pool cannot move the date at all, because a path that
+    frees money and changes nothing is noise wearing arithmetic.
+
+    `evaluate` belongs to the caller because "after" means different things: a
+    one-time cost is absorbed once, a recurring one drains every month for as
+    long as the debt lasts.
+    """
+    if not pool:
+        return None
+    chosen, freed = _smallest_cover(pool, target)
+    if not chosen:
+        chosen, freed = [pool[0]], pool[0]['monthly']
+    after = evaluate(freed)
+    if after['months_delta'] is None or after['months_delta'] >= gap:
+        return None
+    return chosen, freed, after
+
+
 def _join(names):
     """"A", "A and B", "A, B and C" — a person reads this sentence."""
     names = list(names)
@@ -271,30 +303,17 @@ def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
         return offsetting_monthly_delta(cards, budget, one_time_cost, cap=total, **kw)
 
     def _named_effect(pool):
-        """The set to offer from a pool of named sources, and what it does.
-
-        The smallest set that holds the date, or — when no set does — the single
-        largest candidate, whose partial effect is still true and still the
-        user's to weigh (E.4). One path per lever, never a page of them. Returns
-        None when the pool cannot move the date at all, because a path that
-        frees money and changes nothing is noise wearing arithmetic.
-        """
-        if not pool:
-            return None
-        chosen, freed = _smallest_cover(pool, _named_target(pool))
-        if not chosen:
-            chosen, freed = [pool[0]], pool[0]['monthly']
         # `monthly_delta`, not a raised budget — and the difference is not
         # cosmetic. A raised budget moves the baseline too, which is right for
         # timing (the card clears whether or not the trip happens) and wrong
         # here (this money only moves if the user moves it). Measured against a
         # shifted baseline, a shift the lever says holds the date comes back
         # saying it does not.
-        after = decision_impact(cards, budget, monthly_delta=freed,
-                                one_time_cost=one_time_cost, **kw)
-        if after['months_delta'] is None or after['months_delta'] >= gap:
-            return None
-        return chosen, freed, after
+        return _best_named(
+            pool, _named_target(pool),
+            lambda freed: decision_impact(cards, budget, monthly_delta=freed,
+                                          one_time_cost=one_time_cost, **kw),
+            gap)
 
     # ── Lever 1: reallocation. Money inside an envelope this user's own record
     # never reached. Nothing about their spending changes, so it ranks with the
@@ -629,7 +648,7 @@ def save_first_plan(cards, budget, price, strategy='avalanche',
 
 
 def do_nothing_note(cards, budget, one_time_cost=0.0, strategy='avalanche',
-                    today_key=None, start_month=None):
+                    today_key=None, start_month=None, monthly_delta=0.0):
     """Lever 7, do-nothing quantified: what is true if nothing changes.
 
     §6.1 puts it as "you're on track; Z arrives on its own in 6 months if
@@ -663,7 +682,7 @@ def do_nothing_note(cards, budget, one_time_cost=0.0, strategy='avalanche',
         return None
 
     impact = decision_impact(cards, budget, one_time_cost=one_time_cost,
-                             strategy=strategy, **kw)
+                             monthly_delta=monthly_delta, strategy=strategy, **kw)
     gap = impact['months_delta']
 
     note = {
@@ -694,3 +713,176 @@ def do_nothing_note(cards, budget, one_time_cost=0.0, strategy='avalanche',
         'interest_better': alt['total_interest'] - base['total_interest'],
     }
     return note
+
+
+def solve_monthly_cost(cards, budget, monthly_cost, replaces_monthly=0.0,
+                       strategy='avalanche', today_key=None, start_month=None,
+                       categories=None, recurring=None):
+    """Paths that absorb a NEW RECURRING cost's effect on the payoff date.
+
+    Substitution's other half. The one-time solver prices a purchase; this one
+    prices a commitment, where a new monthly obligation displaces an existing
+    one and only the difference is felt — BYB's `replacing_id` mechanic, in
+    which the USER names what is being replaced, because which of someone's
+    commitments a new one displaces is not something a ledger can infer.
+
+    A recurring cost is not a one-time cost spread out, and two things follow.
+
+    The money that holds the date is exactly the net cost — no bisection needed
+    and nothing to "absorb", because the drain does not stop. Every named lever
+    is therefore aimed at `net` rather than at a solved figure.
+
+    And it can put the budget under the minimums outright, which is not a longer
+    delay but a different answer. §6.4's honest no there is not about months at
+    all: it reports the largest payment that is payable, because "how much
+    later" is the wrong question once the answer is "you could not make the
+    minimums". That case is real — BYB shipped a bug for a while where it read
+    as the BEST possible outcome, months arriving as zero and rendering green.
+    """
+    kw = dict(strategy=strategy, today_key=today_key, start_month=start_month)
+    gross = float(monthly_cost or 0)
+    replaces = float(replaces_monthly or 0)
+    net = gross - replaces
+
+    if net <= 0:
+        # The new commitment costs no more than the one it replaces. There is
+        # nothing to solve, and manufacturing a lever here would invent a
+        # problem the user does not have.
+        return {'net_monthly': round(net, 2), 'gap_months': 0, 'paths': [],
+                'honest_no': None,
+                'reason': 'the replacement costs no more than what it replaces'}
+
+    impact = decision_impact(cards, budget, monthly_delta=-net, **kw)
+    gap = impact['months_delta']
+
+    if gap is None:
+        payable = affordable_monthly(cards, budget, gross,
+                                     max_delay_months=MAX_MONTHS, **kw)
+        return {
+            'net_monthly': round(net, 2), 'gap_months': None, 'paths': [],
+            'honest_no': {
+                'unaffordable': True,
+                # The wall, in the units the decision is made in: what this
+                # thing may cost per month, replacement included, before the
+                # minimums stop being coverable.
+                'max_payable_monthly': (None if payable is None
+                                        else round(payable + replaces, 2)),
+                'replaces_monthly': round(replaces, 2),
+            },
+            'reason': 'this payment would leave the minimum payments uncovered',
+        }
+    if gap <= 0:
+        return {'net_monthly': round(net, 2), 'gap_months': gap, 'paths': [],
+                'honest_no': None, 'reason': 'nothing to close'}
+
+    paths = []
+    room, cuts = _headroom(categories), _trims(recurring)
+
+    def _after(freed):
+        # The named money offsets the drain from now on, so it nets against the
+        # cost rather than being absorbed by it.
+        return decision_impact(cards, budget, monthly_delta=freed - net, **kw)
+
+    # ── Lever 1: reallocation, and ── Lever 4: trimming. Both aimed at `net`,
+    # which is the whole of what holds the date when the cost repeats.
+    for kind, pool in (('reallocation', room), ('trim', cuts)):
+        effect = _best_named(pool, net, _after, gap)
+        if not effect:
+            continue
+        chosen, freed, after = effect
+        names = _join([c['name'] for c in chosen])
+        if kind == 'reallocation':
+            label = f"shift ${freed:.0f}/mo from {names}"
+            detail = '; '.join(
+                f"{c['name']} is budgeted at ${c['budgeted']:.0f}/mo and never went over "
+                f"${c['worst']:.0f} in {c['months_observed']} months" for c in chosen)
+        else:
+            label = f"cut {names}"
+            detail = (f"{chosen[0]['name']} costs ${chosen[0]['monthly']:.0f}/mo"
+                      if len(chosen) == 1 else
+                      f"{names} cost ${freed:.0f}/mo between them")
+        paths.append(_path(
+            kind, label, detail,
+            closes=(after['months_delta'] <= 0),
+            cost_months=after['months_delta'],
+            requires_cut=(kind == 'trim'),
+            frees_monthly=freed, items=chosen,
+            alternatives=[c for c in pool if c not in chosen][:4]))
+
+    # ── Lever 2: timing. A card clearing frees its minimum for good, which is
+    # what a repeating cost needs — capacity that arrives and stays.
+    base = impact['base']
+    for name, info in sorted((base.get('cleared_at') or {}).items(),
+                             key=lambda kv: kv[1]['month']):
+        if info['month'] >= base['months']:
+            continue
+        after = decision_impact(cards, budget + info['frees_monthly'],
+                                monthly_delta=-net, **kw)
+        if after['months_delta'] is not None and after['months_delta'] < gap:
+            verb = 'is forgiven' if info.get('forgiven') else 'clears'
+            paths.append(_path(
+                'timing', f"wait for {name}",
+                f"{name} {verb} in month {info['month']}, freeing "
+                f"${info['frees_monthly']:.0f}/mo",
+                closes=(after['months_delta'] <= 0),
+                cost_months=after['months_delta'],
+                requires_cut=False,
+                frees_monthly=info['frees_monthly'],
+                available_in_months=info['month']))
+
+    # ── Lever 3: payoff-order.
+    other = 'snowball' if strategy == 'avalanche' else 'avalanche'
+    alt = decision_impact(cards, budget, monthly_delta=-net,
+                          **{**kw, 'strategy': other})
+    if alt['months_delta'] is not None and alt['months_delta'] < gap:
+        paths.append(_path(
+            'payoff_order', f"pay in {other} order",
+            f"{other} order absorbs {gap - alt['months_delta']} of the "
+            f"{gap} month{'s' if gap != 1 else ''}",
+            closes=(alt['months_delta'] <= 0),
+            cost_months=alt['months_delta'], requires_cut=False))
+
+    # ── Lever 5: substitution, priced GROSS — the number a person shops with.
+    # The engine solves the net ceiling and hands back what the thing itself may
+    # cost, replacement included: "$279/mo instead of $350" is §6.1's own
+    # sentence, and it still claims nothing about what exists at that price.
+    rungs = []
+    for target in sorted({gap // 2, 0}, reverse=True):
+        ceiling = affordable_monthly(cards, budget, net,
+                                     max_delay_months=target, **kw)
+        if ceiling is not None and ceiling < net:
+            rungs.append({'months_delta': target,
+                          'price': round(ceiling + replaces, 2),
+                          'net_price': ceiling})
+    if rungs:
+        head = rungs[0]
+        paths.append(_path(
+            'substitution', f"a version at ${head['price']:,.0f}/mo",
+            '; '.join(
+                f"${r['price']:,.0f}/mo costs {r['months_delta']} month"
+                f"{'s' if r['months_delta'] != 1 else ''} instead of {gap}"
+                if r['months_delta'] else
+                f"${r['price']:,.0f}/mo does not move the date at all"
+                for r in rungs),
+            closes=(head['months_delta'] == 0),
+            cost_months=head['months_delta'],
+            requires_cut=True, reversible=True,
+            amount=head['price'], items=rungs))
+
+    # ── The generic monthly lever. For a repeating cost it is not solved for,
+    # it IS the net cost — and it is worth saying anyway when something is being
+    # replaced, because the figure that matters is the difference rather than
+    # the price on the sticker.
+    paths.append(_path(
+        'monthly', 'put more toward debt',
+        f"${net:.0f}/mo more holds the date where it is",
+        closes=True, cost_months=0, requires_cut=True, reversible=True))
+
+    paths.sort(key=_rank_key)
+    # No honest no here, and the omission is structural rather than an
+    # oversight: a cost that leaves the minimums coverable is by definition
+    # within the extra above them, so the money that holds the date always
+    # exists in principle. When it does not, the branch above has already
+    # returned the wall instead of a month count.
+    return {'net_monthly': round(net, 2), 'gap_months': gap,
+            'paths': paths, 'honest_no': None}
