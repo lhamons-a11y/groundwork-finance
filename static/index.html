@@ -2451,6 +2451,27 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div id="settingsPanel-general">
         <div class="grid-2">
 
+          <!-- Speaking up — §12's dial. Three settings, and the copy says what
+               "off" actually costs, which is nothing: every insight stays on
+               the page it belongs to (A.1). -->
+          <div class="card">
+            <div class="card-label">Speaking up</div>
+            <div style="font-size:11px;color:var(--slate);margin-bottom:12px;line-height:1.7">
+              Groundwork can bring something to your attention on the dashboard — at most one thing,
+              never mid-task, always dismissable. Turning it down or off hides nothing: every insight
+              still lives on the page it belongs to.
+            </div>
+            <div style="display:flex;gap:0;border:1px solid var(--steel);border-radius:var(--r-sm);overflow:hidden;width:fit-content">
+              <button id="dialBtn-normal" onclick="setProactiveDial('normal')"
+                style="font-size:12px;padding:6px 14px;background:none;border:none;cursor:pointer;color:var(--ink)">Normal</button>
+              <button id="dialBtn-fewer" onclick="setProactiveDial('fewer')"
+                style="font-size:12px;padding:6px 14px;background:none;border:none;border-left:1px solid var(--steel);cursor:pointer;color:var(--ink)">Fewer</button>
+              <button id="dialBtn-off" onclick="setProactiveDial('off')"
+                style="font-size:12px;padding:6px 14px;background:none;border:none;border-left:1px solid var(--steel);cursor:pointer;color:var(--ink)">Off</button>
+            </div>
+            <div id="dialNote" style="font-size:11px;color:var(--slate-2);margin-top:8px"></div>
+          </div>
+
           <!-- Household mode -->
           <div class="card">
             <div class="card-label">Household</div>

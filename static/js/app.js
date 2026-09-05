@@ -1481,6 +1481,7 @@ function restoreFromBootstrap(data) {
   S.dfmActive     = !!prefs.dfmActive;
   S.dfmSavingsCut = prefs.dfmSavingsCut || 5;
   S.debtMethod    = prefs.debtMethod    || 'avalanche';
+  S.proactiveDial = prefs.proactiveDial || 'normal';
   try {
     S.strategyStreak = typeof prefs.strategyStreak === 'string'
       ? JSON.parse(prefs.strategyStreak)
@@ -22273,6 +22274,41 @@ function _renderHomeStateOptions() {
 let _settingsActiveTab = 'general';
 
 // Mirrors _debtShowTab() — same tab-strip pattern used on the Debt page.
+// §12's dial: the explicit half of the pair whose implicit half is A.4's
+// backoff. Stored as a setting, read by the gauntlet as state, and worded so
+// nobody has to wonder what "off" costs them — A.1's promise is that it costs
+// nothing, because the insight was already on its own page before it was ever
+// a candidate to interrupt.
+const PROACTIVE_DIAL_NOTES = {
+  normal: 'At most one thing per session, and at most two brakes a week.',
+  fewer:  'Half as often. Same rules otherwise.',
+  off:    'Nothing will interrupt. Every insight is still on its own page.',
+};
+
+async function setProactiveDial(value) {
+  if (!PROACTIVE_DIAL_NOTES[value]) return;
+  S.proactiveDial = value;
+  _renderProactiveDial();
+  try {
+    await API.patch('/api/settings', { proactive_dial: value });
+  } catch (e) {
+    _gwErr('setProactiveDial')(e);
+  }
+}
+
+function _renderProactiveDial() {
+  const value = S.proactiveDial || 'normal';
+  ['normal', 'fewer', 'off'].forEach(v => {
+    const btn = g(`dialBtn-${v}`);
+    if (!btn) return;
+    const on = v === value;
+    btn.style.background = on ? 'var(--ink)' : 'none';
+    btn.style.color      = on ? '#fff' : 'var(--ink)';
+    btn.style.fontWeight = on ? '500' : '400';
+  });
+  setText('dialNote', PROACTIVE_DIAL_NOTES[value]);
+}
+
 function _settingsShowTab(tab) {
   _settingsActiveTab = tab;
   ['general', 'automation', 'categories', 'accounts', 'data'].forEach(t => {
@@ -22286,6 +22322,9 @@ function _settingsShowTab(tab) {
     }
     if (panel) panel.style.display = active ? '' : 'none';
   });
+
+  // §12's dial reflects the stored setting whenever settings are opened.
+  _renderProactiveDial();
 }
 
 function renderSettings() {

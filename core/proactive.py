@@ -30,6 +30,15 @@ GREEN_PER_WEEK = 2
 DISMISS_COOLDOWN_DAYS = 60
 DISMISSALS_TO_PASSIVE = 2
 
+# §12: gentle-proactive is paired with a user control to dial it down or off.
+# A.4 sets out the division of labour — the dial is explicit control, the
+# backoff is implicit learning — and they compose rather than override: someone
+# who asked for fewer AND keeps dismissing gets fewer still. Neither cancels the
+# other, because both are the same request made two ways.
+DIAL_NORMAL = 'normal'
+DIAL_FEWER = 'fewer'
+DIAL_OFF = 'off'
+
 # A.2 #1, relative to the user's own scale rather than to an absolute figure.
 # Two weeks of a payoff date, or a twentieth of what they budget in a month.
 MATERIAL_MONTHS = 0.5
@@ -74,6 +83,15 @@ def verdict(candidate, state):
            # A.2 #5, delegated upward with its name on it.
            'timing_delegated': True}
 
+    # The dial is checked before anything else, because it is the user saying
+    # so. Nothing is lost by it: A.1 makes every one of these available on the
+    # screen it belongs to, so turning this off silences the interruption and
+    # not the insight.
+    dial = state.get('dial') or DIAL_NORMAL
+    if dial == DIAL_OFF:
+        out['gate'] = 'dial'
+        return out
+
     if not is_material(candidate, state.get('monthly_budget')):
         out['gate'] = 'materiality'
         return out
@@ -105,7 +123,7 @@ def verdict(candidate, state):
     # A.4's backoff lowers the whole cadence a tier when dismissals are
     # sustained. It is the only sanctioned use of engagement data: respecting a
     # demonstrated preference, never predicting from it.
-    tier = int(state.get('cadence_tier') or 0)
+    tier = int(state.get('cadence_tier') or 0) + (1 if dial == DIAL_FEWER else 0)
     weekly = (GREEN_PER_WEEK if cls == 'green' else BRAKE_PER_WEEK) - tier
     used = int(state.get('green_last_7d' if cls == 'green' else 'brake_last_7d') or 0)
     if weekly <= 0 or used >= weekly:

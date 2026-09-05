@@ -1165,3 +1165,39 @@ def run(ctx):
           verdict('above_minimum', {'held': True})['reason'] == 'held for the whole window'
           and verdict('zero_crossing', {'held': True, 'attributable': True}
                       )['reason'] == 'held, and visibly theirs')
+
+    # ── §12's dial: the explicit half of A.4's pair ──────────────────────────
+    # Aliased, and this is not fussiness: the trophy block above imported a
+    # `verdict` of its own, and these calls silently went to it — a gauntlet
+    # candidate arriving where a trophy id was expected. Two functions with the
+    # same name and different contracts in one scope is a trap, and the suite
+    # sprang it.
+    from core.proactive import DIAL_FEWER, DIAL_OFF, verdict as promotion_verdict
+    html_src = ctx.html_src
+
+    loud = {'key': 'k', 'kind': 'brake', 'months': 9, 'dollars': 900,
+            'has_path': True}
+    check('off means off, and is asked before anything else',
+          promotion_verdict(loud, {**quiet, 'dial': DIAL_OFF})['gate'] == 'dial'
+          # even something that would fail a later gate reports the dial, which
+          # is what proves the order: the user said so, and that is the answer.
+          and promotion_verdict({**loud, 'months': 0, 'dollars': 0},
+                      {**quiet, 'dial': DIAL_OFF})['gate'] == 'dial')
+    check('fewer halves the weekly allowance rather than silencing it',
+          promotion_verdict(loud, {**quiet, 'dial': DIAL_FEWER})['promote'] is True
+          and promotion_verdict(loud, {**quiet, 'dial': DIAL_FEWER,
+                             'brake_last_7d': 1})['gate'] == 'budget')
+    check('and the explicit dial composes with the implicit backoff (A.4)',
+          promotion_verdict(loud, {**quiet, 'dial': DIAL_FEWER,
+                         'cadence_tier': 1})['gate'] == 'budget')
+
+    resp15 = ctx.c.get('/api/proactive/next', headers=ctx.H).get_json() or {}
+    served15 = (resp15.get('data') or resp15)
+    check('the route reports which way the dial is set',
+          served15.get('dial') in ('normal', 'fewer', 'off'))
+    check('the setting travels with the other preferences',
+          "'proactiveDial'" in ctx.server_src
+          and 'prefs.proactiveDial' in view)
+    check('the control says plainly that turning it off hides nothing (A.1)',
+          'Turning it down or off hides nothing' in html_src
+          and 'still lives on the page it belongs to' in html_src)
