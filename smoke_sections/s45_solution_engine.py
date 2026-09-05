@@ -875,3 +875,55 @@ def run(ctx):
           and 'do not explain WHY' in view)
     check('and the view formats each figure by its stated unit',
           "p.unit === 'money'" in view and "p.unit === 'months'" in view)
+
+    # ── Pillar 5 (§7): the memory, finally read back ─────────────────────────
+    # These decisions have been logged since Phase H1 and nothing has ever read
+    # them. Two rules do the work: silence is not a decision, and a record is
+    # not a forecast.
+    from core.solution import decision_memory, MIN_DECISIONS
+
+    hist = [{'decision': 'walkaway', 'variance_pct': None},
+            {'decision': 'commit', 'variance_pct': 18.0},
+            {'decision': 'commit', 'variance_pct': 22.0},
+            {'decision': 'walkaway', 'variance_pct': None},
+            {'decision': None, 'variance_pct': None},
+            {'decision': 'track', 'variance_pct': None},
+            {'decision': 'commit', 'variance_pct': 11.0}]
+    mem = decision_memory(hist)
+    check('an item with no decision is not counted as a decision',
+          mem['decisions'] == 5 and mem['walkaways'] == 2)
+    check('and neither is one still being tracked',
+          decision_memory([{'decision': 'track'}])['decisions'] == 0)
+    check('the walkaway rate is withheld until there is a practice to describe',
+          decision_memory(hist[:2])['walkaway_rate_pct'] is None
+          and mem['walkaway_rate_pct'] == 40 and MIN_DECISIONS >= 3)
+    check('estimate bias counts only decisions that produced a real comparison',
+          mem['estimate']['samples'] == 3)
+    check('and names its direction rather than leaving a sign to be read',
+          mem['estimate']['direction'] == 'under' and mem['estimate']['bias_pct'] == 17.0)
+    check('an estimate that lands is called even, not spun as either way',
+          decision_memory([{'decision': 'commit', 'variance_pct': v}
+                           for v in (1.0, -1.0, 0.5)])['estimate']['direction'] == 'even')
+    check('no history produces no claims at all',
+          decision_memory([])['walkaway_rate_pct'] is None
+          and decision_memory([])['estimate'] is None)
+
+    resp11 = ctx.c.get('/api/byb/memory', headers=ctx.H).get_json() or {}
+    served11 = (resp11.get('data') or resp11)
+    check('the route reads the historian, which is the proof ledger (B.1)',
+          'decisions' in served11 and 'walkaways' in served11)
+
+    # A record, never a forecast. Comments are stripped first: the ones above
+    # this quote the banned phrasing in order to forbid it, which is exactly
+    # the trap that has caught four source checks in this file already.
+    byb_view = view[view.index('let _bybMemoryData'):view.index('function _renderBYBList')]
+    byb_code = chr(10).join(l for l in byb_view.split(chr(10))
+                            if not l.strip().startswith(chr(47) * 2))
+    check('the copy states what happened and predicts nothing',
+          not any(w in byb_code.lower() for w in
+                  ('usually', 'you tend', 'likely to', 'probably', 'expect you')))
+    check('the list no longer reads an undecided item as a walkaway',
+          "b.decision === 'walkaway')" in view
+          and "b.decision === 'walkaway' || !b.decision" not in view)
+    check('estimate bias sits where the estimate is typed, the record where history is',
+          '_bybEstimateBiasNote' in view and '_bybMemoryHTML' in view)

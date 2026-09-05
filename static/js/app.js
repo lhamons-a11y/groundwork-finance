@@ -20376,6 +20376,7 @@ function openBYBWizard() {
   _bybImpactData = null;
   _bybImpactKey  = '';
   _maybeLoadBYBImpact();
+  _bybLoadMemory().then(() => _bybLiveUpdate());
 
   // Show step 1
   _bybGoStep(1, true);
@@ -20512,6 +20513,16 @@ function _bybLiveUpdate() {
       : (pending || _byb.origInsufficient) ? 'var(--gold)'
       : (monthsDiff > 0 ? 'var(--ember)' : 'var(--pine)');
   }
+
+  // Pillar 5's other half, where it corrects the number being typed rather
+  // than commenting on the person typing it.
+  let bias = g('bybEstimateBias');
+  if (!bias && prev) {
+    bias = document.createElement('div');
+    bias.id = 'bybEstimateBias';
+    prev.appendChild(bias);
+  }
+  if (bias) bias.innerHTML = _bybEstimateBiasNote();
 }
 
 // ── What's Left (current real) ────────────────────────────────────────────────
@@ -26990,6 +27001,60 @@ async function _loadBYBItems() {
   }
   _renderBYBList();
 }
+// Pillar 5 (§7): the memory. These decisions have been logged since Phase H1
+// and nothing has ever read them back.
+//
+// Two sentences, deliberately in different places. Estimate bias belongs where
+// a number is being typed, because it corrects that number. The walkaway record
+// belongs in the history, not in the middle of a decision — the same fact reads
+// as a receipt in one place and as a nudge in the other, and this app does not
+// nudge.
+let _bybMemoryData = null;
+
+async function _bybLoadMemory() {
+  try {
+    _bybMemoryData = await API.get('/api/byb/memory');
+  } catch (e) {
+    _gwErr('_bybLoadMemory')(e);
+    _bybMemoryData = null;
+  }
+}
+
+function _bybMemoryHTML() {
+  const m = _bybMemoryData;
+  if (!m || !m.decisions) return '';
+  const parts = [];
+
+  // A count is a receipt at any size; a RATE needs enough decisions to be one,
+  // and the reader withholds it below three rather than dressing two up as a
+  // pattern. Either way this is a record and never a prediction: what someone
+  // did is theirs, what they will do is nobody's to state.
+  parts.push(`You have decided <strong>${m.decisions}</strong> of these`
+    + ` — <strong>${m.commits}</strong> committed, <strong>${m.walkaways}</strong> walked away`
+    + (m.walkaway_rate_pct != null ? ` (${m.walkaway_rate_pct}%)` : '') + `.`);
+
+  if (m.estimate && m.estimate.direction !== 'even') {
+    const e = m.estimate;
+    parts.push(` Across the ${e.samples} you priced afterwards, the real cost came in`
+      + ` <strong>${Math.abs(e.bias_pct)}%</strong> ${e.direction === 'under' ? 'above' : 'below'}`
+      + ` your estimate.`);
+  }
+  return `<div class="card mb-3" style="font-size:12px;color:var(--slate);line-height:1.8">
+    ${parts.join('')}
+  </div>`;
+}
+
+// The estimate-bias half, for the step where the estimate is typed.
+function _bybEstimateBiasNote() {
+  const e = _bybMemoryData && _bybMemoryData.estimate;
+  if (!e || e.direction === 'even') return '';
+  const over = e.direction === 'under';
+  return `<div style="font-size:11px;color:var(--slate-2);line-height:1.6;margin-top:6px">
+    Your last ${e.samples} priced purchases came in
+    <strong>${Math.abs(e.bias_pct)}%</strong> ${over ? 'above' : 'below'} what you estimated.
+  </div>`;
+}
+
 function _renderBYBList() {
   const cont = g('bybContent');
   if (!cont) return;
@@ -27007,7 +27072,11 @@ function _renderBYBList() {
 
   const committed   = S.bybItems.filter(b => b.decision === 'commit');
   const tracked     = S.bybItems.filter(b => b.decision === 'track');
-  const walkedAway  = S.bybItems.filter(b => b.decision === 'walkaway' || !b.decision);
+  // An item with NO decision is not a walkaway. It is a purchase still being
+  // thought about, or one nobody came back to, and counting it as a decision
+  // reads a choice out of an absence — the one inference this app refuses.
+  const walkedAway  = S.bybItems.filter(b => b.decision === 'walkaway');
+  const undecided   = S.bybItems.filter(b => !b.decision);
   const totalMonthly     = committed.reduce((s,b) => s+(b.monthly||0), 0);
   const totalPayoffShift = committed.reduce((s,b) => s+(b.payoff_impact||0), 0);
   const dtiNow           = calcDTI() || 0;
@@ -27086,6 +27155,14 @@ function _renderBYBList() {
     ${section('Committed', committed)}
     ${section('Tracking', tracked)}
     ${section('Walked away', walkedAway)}`;
+
+  // Pillar 5: the record, above the items it is drawn from. Fetched once and
+  // re-rendered when it lands; the guard is on the data, so this cannot loop.
+  if (_bybMemoryData === null) {
+    _bybLoadMemory().then(() => { if (_bybMemoryData) _renderBYBList(); });
+  } else {
+    cont.insertAdjacentHTML('afterbegin', _bybMemoryHTML());
+  }
 }
 
 // Tracker — adapt to existing HTML IDs (monthSelect, trackerProgress etc)

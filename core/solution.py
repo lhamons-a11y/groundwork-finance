@@ -1296,3 +1296,63 @@ def fund_pace(target, current, planned_monthly, deadline_months=None,
             'finish_months': finish_at(pace + short),
         }
     return out
+
+
+# A rate over two decisions is an anecdote wearing a percentage. Three is the
+# same floor every other reader here uses, and for the same reason: below it
+# there is a record of events but not of a practice.
+MIN_DECISIONS = 3
+
+
+def decision_memory(records):
+    """What the user's own decision history says, and nothing beyond it.
+
+    Pillar 5 (§7): read `byb_purchase_decision` and show walkaway discipline and
+    estimate bias. It is a READER — the events are already written and nothing
+    has ever read them back, which is the collect-and-ignore loop the blueprint
+    names.
+
+    Each record is {decision, variance_pct}. Two rules do the work.
+
+    **Silence is not a decision.** An item with no decision recorded is not a
+    walkaway; it is a purchase still being thought about, or one the user never
+    came back to. Counting it as a walkaway would infer a choice from an absence,
+    which is the one inference this platform refuses — and it is exactly what the
+    list on that page has been doing.
+
+    **A record, never a forecast.** "Walked away from 4 of 7" is a receipt. "You
+    usually walk away" is a prediction about a person, which F.6b keeps
+    unclassified and E.2 forbids outright. Rates are returned with the sample
+    count attached so nothing has to be taken on faith, and no direction is
+    extrapolated from them.
+
+    Estimate bias is positive when things cost MORE than estimated, because
+    that is the direction of the variance the historian already logs, and it is
+    computed only over decisions that produced a real comparison — a same-day
+    commit has no actual to compare against, and the writer is careful not to
+    log a fabricated zero.
+    """
+    records = [r for r in (records or []) if r]
+    decided = [r for r in records if r.get('decision') in ('commit', 'walkaway')]
+    walkaways = [r for r in decided if r['decision'] == 'walkaway']
+    priced = [r for r in decided if r.get('variance_pct') is not None]
+
+    out = {
+        'decisions': len(decided),
+        'walkaways': len(walkaways),
+        'commits': len(decided) - len(walkaways),
+        'walkaway_rate_pct': None,
+        'estimate': None,
+    }
+    if len(decided) >= MIN_DECISIONS:
+        out['walkaway_rate_pct'] = round(len(walkaways) / len(decided) * 100)
+
+    if len(priced) >= MIN_DECISIONS:
+        bias = sum(float(r['variance_pct']) for r in priced) / len(priced)
+        out['estimate'] = {
+            'samples': len(priced),
+            'bias_pct': round(bias, 1),
+            # Named rather than left to a sign the reader has to interpret.
+            'direction': 'under' if bias > 2 else 'over' if bias < -2 else 'even',
+        }
+    return out

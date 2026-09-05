@@ -5231,6 +5231,36 @@ def _log_byb_decision(session, item):
     )
 
 
+@byb_bp.route('/memory', methods=['GET'])
+def byb_memory():
+    """What this user's own decision history says (Pillar 5, §7).
+
+    Read from the historian rather than from `byb_items`, because the historian
+    is the proof ledger (B.1) and because it already carries the one figure the
+    table does not: the variance between what a purchase was estimated to cost
+    and what it actually cost, computed at the moment the comparison existed.
+
+    A reader, and only a reader. These events have been written since Phase H1
+    and nothing has ever read them back — the collect-and-ignore loop §7 names.
+    """
+    from core.solution import decision_memory
+
+    with db_session() as session:
+        rows = session.query(HistorianEntry).filter(
+            HistorianEntry.event_category == 'byb_purchase_decision'
+        ).order_by(HistorianEntry.created_at).all()
+
+        records = []
+        for e in rows:
+            try:
+                cxt = json.loads(e.context_json or '{}')
+            except (json.JSONDecodeError, TypeError):
+                cxt = {}
+            records.append({'decision': cxt.get('decision'),
+                            'variance_pct': e.variance_pct})
+        return ok(decision_memory(records))
+
+
 @byb_bp.route('', methods=['GET'])
 def list_byb_items():
     """Return all active BYB sandbox items."""
