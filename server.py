@@ -1946,6 +1946,53 @@ def ledger_lesson():
         })
 
 
+@debt_bp.route('/green-light', methods=['GET'])
+def debt_green_light():
+    """What deliberate action freed, and what it now covers (Pillar 4, App. D).
+
+    The drivers are obligations that ENDED. An extra payment is deliberate and
+    it moves the date, but it frees no monthly money — putting it in a figure
+    called "freed per month" would be false in the one sentence most likely to
+    be read as praise. What extra payments do here is decide whether a clearing
+    was deliberate at all (D.4): a balance that ran out on its minimums is the
+    expected floor, and praising a floor erodes trust.
+
+    Nothing about income or investments reaches this route (D.3, D.6). Not by
+    filtering — by never being read.
+    """
+    from core.solution import green_light
+
+    window_start = datetime.utcnow() - timedelta(days=365)
+    today = date.today().strftime('%Y-%m')
+    with db_session() as session:
+        cards, budget, strategy, undated = _consequence_inputs(session)
+        if not cards:
+            return ok({'green_light': None, 'reason': 'no active debt'})
+
+        drivers = []
+        cleared = session.query(DebtAccount).filter(
+            DebtAccount.paid_off_at.isnot(None),
+            DebtAccount.paid_off_at >= window_start).all()
+        for acct in cleared:
+            minimum = float(acct.minimum_payment or 0)
+            if minimum <= 0:
+                continue
+            # Above the baseline, by more than a rounding cent. A payment equal
+            # to the minimum is the floor; anything above it is a choice.
+            deliberate = session.query(DebtLedgerEntry).filter(
+                DebtLedgerEntry.debt_account_id == acct.id,
+                DebtLedgerEntry.entry_type == 'payment',
+                DebtLedgerEntry.amount > minimum + 1.0).first() is not None
+            months_ago = ((datetime.utcnow().year - acct.paid_off_at.year) * 12
+                          + (datetime.utcnow().month - acct.paid_off_at.month))
+            drivers.append({'name': acct.name, 'monthly': round(minimum, 2),
+                            'deliberate': deliberate, 'months_ago': months_ago})
+
+        return ok({'green_light': green_light(cards, budget, drivers,
+                                              strategy=strategy, today_key=today,
+                                              start_month=today)})
+
+
 @debt_bp.route('/teaching', methods=['GET'])
 def report_teaching():
     """The month's causal findings, each with the proof behind it (§8, App. B).

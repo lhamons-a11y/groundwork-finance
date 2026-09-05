@@ -1356,3 +1356,86 @@ def decision_memory(records):
             'direction': 'under' if bias > 2 else 'over' if bias < -2 else 'even',
         }
     return out
+
+
+# D.5: recency governs FRAMING, not truth. Inside this many months an action is
+# spoken of as just done ("because you cleared the Visa"); outside it the same
+# cause is stated as a position ("your plan now carries $180/mo it did not").
+# The fact does not change at the boundary, only the tense.
+FRESH_CREDIT_MONTHS = 3
+
+
+def green_light(cards, budget, drivers, strategy='avalanche',
+                today_key=None, start_month=None):
+    """What deliberate action freed, and what that now covers (Pillar 4, App. D).
+
+    §7 states it as "you freed $180/mo, this fits". Appendix D spends four
+    sections on what may go in front of that number, and the filtering is the
+    substance of this function rather than the arithmetic.
+
+    **Only deliberate action, above the baseline (D.4).** A driver arrives with
+    `deliberate` already decided by the caller, which is the only layer that can
+    see whether a balance cleared because someone attacked it or because the
+    minimums ran their course. Paying the minimum is the expected floor, not an
+    achievement; capacity that arrived that way is reported as capacity and
+    credited to nobody. "Real credit only, or none."
+
+    **Never the market, never a raise (D.3, D.6).** No investment or income
+    figure reaches this function, and that is by construction rather than by
+    filtering: the caller passes cleared balances, extra payments and
+    walkaways. A raise is a bigger opportunity to do the real thing, not the
+    real thing; a paper gain is not an action at all.
+
+    **Top one or two by magnitude, or say it was diffuse (D.5).** Naming the
+    largest driver and implying it was the whole story is a cherry-pick. When no
+    driver carries a third of the total, the honest answer is that it was a lot
+    of small things.
+
+    **What it enables** is the counterfactual: the same plan without that
+    monthly capacity. It understates, because a cleared balance would also still
+    carry its balance, and understating is the right direction for a number
+    attached to praise.
+    """
+    kw = dict(strategy=strategy, today_key=today_key, start_month=start_month)
+    drivers = [d for d in (drivers or []) if float(d.get('monthly') or 0) > 0]
+    if not drivers:
+        return None
+
+    credited = [d for d in drivers if d.get('deliberate')]
+    freed = round(sum(float(d['monthly']) for d in credited), 2)
+    if freed <= 0:
+        # Capacity arrived, but not from anything anyone chose to do. D.4 is
+        # explicit that praising a floor erodes trust, so there is no light here
+        # — the capacity itself still shows up wherever capacity is shown.
+        return None
+
+    ranked = sorted(credited, key=lambda d: -float(d['monthly']))
+    top = ranked[:2]
+    diffuse = float(top[0]['monthly']) < freed / 3.0
+
+    now = simulate_payoff(cards, budget, **kw)
+    without = simulate_payoff(cards, max(0.0, budget - freed), **kw)
+    months_sooner = (without['months'] - now['months']
+                     if now is not None and without is not None else None)
+    months_ago = [int(d['months_ago']) for d in credited
+                  if d.get('months_ago') is not None]
+    return {
+        'freed_monthly': freed,
+        'drivers': ([] if diffuse else top),
+        'diffuse': diffuse,
+        'driver_count': len(credited),
+        # D.5's framing switch, and only a framing switch.
+        'fresh': bool(months_ago) and min(months_ago) <= FRESH_CREDIT_MONTHS,
+        'months_sooner': months_sooner,
+        # What it now covers, and this is the whole of it: the freed figure IS
+        # the ceiling. A commitment up to that much puts the date back where it
+        # stood before, by construction — the counterfactual above is exactly
+        # that plan. An earlier draft reported how much more one-time cost now
+        # "fits", which came back as $2.00: the price that moves no month is
+        # about one month of surplus at any budget, so the difference between
+        # two budgets is noise wearing a dollar sign.
+        # Capacity that arrived without anyone deciding anything. Reported so a
+        # caller can show the number honestly, never as credit.
+        'uncredited_monthly': round(
+            sum(float(d['monthly']) for d in drivers if not d.get('deliberate')), 2),
+    }

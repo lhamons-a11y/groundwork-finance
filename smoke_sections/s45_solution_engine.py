@@ -927,3 +927,70 @@ def run(ctx):
           and "b.decision === 'walkaway' || !b.decision" not in view)
     check('estimate bias sits where the estimate is typed, the record where history is',
           '_bybEstimateBiasNote' in view and '_bybMemoryHTML' in view)
+
+    # ── Pillar 4 (§7, Appendix D): the green light ───────────────────────────
+    # Appendix D spends four sections on what may go in front of "you freed
+    # $180/mo", and the filtering is the substance. These check the filters.
+    from core.solution import green_light, FRESH_CREDIT_MONTHS
+
+    lit = green_light(cards, 775, [
+        {'name': 'Old Card', 'monthly': 180, 'deliberate': True, 'months_ago': 2},
+        {'name': 'Store Line', 'monthly': 40, 'deliberate': True, 'months_ago': 1}])
+    check('freed capacity is what deliberate action ended',
+          lit and lit['freed_monthly'] == 220 and lit['months_sooner'] > 0)
+    check('and it is worth something the engine computed, not asserted',
+          lit['months_sooner'] == simulate_payoff(cards, 775 - 220)['months']
+          - simulate_payoff(cards, 775)['months'])
+
+    # D.4: paying the minimum is the expected floor, and praising a floor erodes
+    # trust. Capacity that arrived that way is reported, never credited.
+    floor_only = green_light(cards, 775, [
+        {'name': 'Ran Its Course', 'monthly': 180, 'deliberate': False, 'months_ago': 2}])
+    check('a balance that ran out on its minimums lights nothing',
+          floor_only is None)
+    mixed = green_light(cards, 775, [
+        {'name': 'Attacked', 'monthly': 100, 'deliberate': True, 'months_ago': 1},
+        {'name': 'Ran Its Course', 'monthly': 60, 'deliberate': False, 'months_ago': 4}])
+    check('and is kept separate from what was earned, not folded into it',
+          mixed['freed_monthly'] == 100 and mixed['uncredited_monthly'] == 60)
+
+    # D.5: name one or two by magnitude, or say plainly that it was diffuse.
+    check('the top drivers are named, largest first',
+          [d['name'] for d in lit['drivers']] == ['Old Card', 'Store Line'])
+    diffuse = green_light(cards, 775, [
+        {'name': n, 'monthly': m, 'deliberate': True, 'months_ago': 6}
+        for n, m in (('a', 30), ('b', 28), ('c', 26), ('d', 25))])
+    check('and a genuinely diffuse cause is not cherry-picked into one',
+          diffuse['diffuse'] is True and diffuse['drivers'] == []
+          and diffuse['driver_count'] == 4)
+
+    check('recency sets the tense and nothing else',
+          lit['fresh'] is True and diffuse['fresh'] is False
+          and FRESH_CREDIT_MONTHS >= 1)
+    check('nothing deliberate means no light at all',
+          green_light(cards, 775, []) is None)
+
+    resp12 = ctx.c.get('/api/debt/green-light', headers=ctx.H).get_json() or {}
+    served12 = (resp12.get('data') or resp12)
+    check('the route answers, with a light or an honest absence',
+          'green_light' in served12)
+
+    # D.3 / D.6, by construction rather than by filtering: no income or
+    # investment figure is read by this path at all.
+    route_src = ctx.server_src[ctx.server_src.index('def debt_green_light'):]
+    route_src = route_src[:route_src.index('@debt_bp.route', 10)]
+    # Strip the docstring as well as the comments. The docstring states the
+    # rule this check enforces, in the words it forbids — the same trap that
+    # has now caught five source checks in this file. A check that reads prose
+    # is testing the prose.
+    parts = route_src.split('\"\"\"')
+    route_body = parts[2] if len(parts) > 2 else route_src
+    route_code = chr(10).join(l for l in route_body.split(chr(10))
+                              if not l.strip().startswith('#'))
+    check('the green light never reads income or investments (D.3, D.6)',
+          not any(t in route_code for t in
+                  ('savings_balance', 'investments_balance', 'S.incomes', 'income')))
+    check('the view fires it only when the freed money covers what is weighed',
+          'monthly > gl.freed_monthly' in view)
+    check('and says what it spends, so a yes is not applause',
+          'and uses' in view and 'fits inside it' in view)
