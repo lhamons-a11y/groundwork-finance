@@ -758,6 +758,29 @@ def solve_monthly_cost(cards, budget, monthly_cost, replaces_monthly=0.0,
     if gap is None:
         payable = affordable_monthly(cards, budget, gross,
                                      max_delay_months=MAX_MONTHS, **kw)
+        # C.4: even a wall carries a way forward when one exists, and here only
+        # one lever can move it — capacity that arrives on its own. Waiting for
+        # a balance to clear frees its minimum permanently, which is exactly
+        # what a repeating cost needs; nothing else raises the ceiling without
+        # asking something of the user.
+        waiting = None
+        base = simulate_payoff(cards, budget, **kw)
+        for name, info in sorted(((base or {}).get('cleared_at') or {}).items(),
+                                 key=lambda kv: kv[1]['month']):
+            if info['month'] >= (base or {}).get('months', 0):
+                continue
+            after_cap = affordable_monthly(cards, budget + info['frees_monthly'],
+                                           gross, max_delay_months=MAX_MONTHS, **kw)
+            if after_cap is None or (payable is not None and after_cap <= payable):
+                continue                     # that wait buys nothing here
+            waiting = {
+                'name': name,
+                'available_in_months': info['month'],
+                'frees_monthly': info['frees_monthly'],
+                'max_payable_monthly': round(after_cap + replaces, 2),
+                'enough': after_cap >= net,
+            }
+            break
         return {
             'net_monthly': round(net, 2), 'gap_months': None, 'paths': [],
             'honest_no': {
@@ -768,6 +791,10 @@ def solve_monthly_cost(cards, budget, monthly_cost, replaces_monthly=0.0,
                 'max_payable_monthly': (None if payable is None
                                         else round(payable + replaces, 2)),
                 'replaces_monthly': round(replaces, 2),
+                # And whether waiting moves it — including when it does not,
+                # which is the answer BYB has always given here and the one a
+                # dead end would swallow.
+                'after_waiting': waiting,
             },
             'reason': 'this payment would leave the minimum payments uncovered',
         }
