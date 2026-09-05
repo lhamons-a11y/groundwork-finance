@@ -7089,6 +7089,47 @@ function _buildBudgetExpenseRowEl(exp, idx) {
 // Monthly contribution counts toward "Out" in the budget header.
 // Money sits in the user's checking/savings — Groundwork tracks it mentally.
 
+// §8's causal pace narration for a fund: where it lands at the pace being
+// kept, and the lever that moves that date.
+//
+// The pace it reports is the OBSERVED one where the record can carry it and
+// the planned one otherwise, and the sentence says which. A finish date
+// computed from a plan is a statement about the plan; calling it a projection
+// of behaviour would borrow certainty from data that does not exist.
+function _sfPaceSentence(p) {
+  if (!p || p.funded || !p.finish_months) return '';
+
+  const at = (p.pace_source === 'observed')
+    ? `at the ${fmt(p.pace_monthly)}/mo you have actually been putting in`
+    : `at the planned ${fmt(p.pace_monthly)}/mo`;
+  const lands = `lands <strong>${_monthsFromNowLabel(p.finish_months)}</strong>`;
+
+  let verdict;
+  if (p.on_track === true) {
+    verdict = `— ahead of the deadline`;
+  } else if (p.on_track === false) {
+    verdict = `— <span style="color:var(--gold)">past the deadline</span>`;
+  } else {
+    verdict = '';                                // no deadline: a date, nothing missed
+  }
+
+  let lever = '';
+  if (p.lever) {
+    lever = ` <strong style="font-family:var(--font-mono)">${fmt(p.lever.monthly)}/mo</strong> more`
+          + ` — from ${esc(_joinNames(p.lever.sources))} — would bring it to`
+          + ` <strong>${_monthsFromNowLabel(p.lever.finish_months)}</strong>.`;
+  } else if (p.on_track === false && p.short_monthly > 0) {
+    // The gap is real and nothing in the record covers it. Saying so is the
+    // honest no: what is missing, and that no envelope here can supply it.
+    lever = ` It would take <strong style="font-family:var(--font-mono)">${fmt(p.short_monthly)}/mo</strong>`
+          + ` more to make the deadline, and nothing in your record has that room.`;
+  }
+
+  return `<div style="font-size:11px;color:var(--slate);line-height:1.7;margin-top:4px">
+    ${at.charAt(0).toUpperCase()}${at.slice(1)}, this ${lands} ${verdict}.${lever}
+  </div>`;
+}
+
 async function _budgetRenderSinkingFundsSection() {
   // Check if sinking funds section exists in the budget template
   let section = g('budgetSinkingFundsCard');
@@ -7124,6 +7165,17 @@ async function _budgetRenderSinkingFundsSection() {
   const confResults = await Promise.all(funds.map(f =>
     API.get(`/api/sinking-funds/${f.id}/confidence`).catch(() => ({confidence_pct: null}))
   ));
+
+  // §8: the causal half. The badge above says how reliably the plan is met;
+  // this says when the thing arrives at the pace actually being kept, and what
+  // would move that date.
+  let paceByFund = {};
+  try {
+    const paced = await API.get('/api/sinking-funds/pace');
+    (paced.funds || []).forEach(f => { paceByFund[f.id] = f.pace; });
+  } catch (e) {
+    _gwErr('_budgetRenderSinkingFundsSection:pace')(e);
+  }
 
   const rows = funds.map((f, idx) => {
     const target  = parseFloat(f.target_amount) || 0;
@@ -7167,6 +7219,7 @@ async function _budgetRenderSinkingFundsSection() {
               <span>${Math.round(pct)}% of ${fmt(target)} ${filled ? '✓ Funded' : ''}</span>
               <span>${deadline}</span>
             </div>
+            ${_sfPaceSentence(paceByFund[f.id])}
           </div>
         </div>
       </div>`;

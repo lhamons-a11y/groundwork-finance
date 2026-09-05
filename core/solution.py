@@ -1206,3 +1206,93 @@ def capacity_unlocked(cards, budget, liquid, monthly_expenses,
 
     out.sort(key=lambda c: (-c['months_saved'], -c['interest_saved']))
     return out
+
+
+def fund_pace(target, current, planned_monthly, deadline_months=None,
+              observed_monthly=None, samples=0, categories=None, recurring=None):
+    """Where a savings target lands at the pace it is actually being fed, and
+    the lever that moves that date.
+
+    §8's line for the sinking / college / gift funds: "causal pace narration —
+    on-track/behind + the lever that changes the finish date". The pace badge
+    those surfaces already carry says how reliably the plan is being met; it
+    does not say when the thing arrives, or what would make it arrive sooner.
+
+    **Which pace.** The observed one when the record can support it, the planned
+    one otherwise, and `pace_source` says which — a finish date computed from a
+    plan is a statement about the plan, and calling it a projection of behaviour
+    would be borrowing certainty from data that does not exist. Below
+    MIN_MONTHS_OBSERVED contributions there is no pace, only a plan.
+
+    **No compounding.** A sinking fund is money set aside, not invested; adding
+    a return would be inventing one. Months here are `remaining / monthly`,
+    rounded up, because a part month does not finish the fund.
+
+    **The lever** is the same named money every other surface draws on, and it
+    is aimed at the shortfall rather than at the whole contribution: what closes
+    the gap between the pace and the deadline is the difference, not the plan.
+    """
+    target = float(target or 0)
+    current = float(current or 0)
+    remaining = target - current
+    planned = float(planned_monthly or 0)
+
+    if target <= 0:
+        return None
+    if remaining <= 0:
+        return {'funded': True, 'remaining': 0.0}
+
+    enough = int(samples or 0) >= MIN_MONTHS_OBSERVED
+    pace = float(observed_monthly or 0) if enough and observed_monthly else planned
+    pace_source = 'observed' if (enough and observed_monthly) else 'plan'
+
+    def finish_at(rate):
+        if not rate or rate <= 0:
+            return None
+        return int(-(-remaining // rate))          # ceil, in whole months
+
+    out = {
+        'funded': False,
+        'remaining': round(remaining, 2),
+        'planned_monthly': round(planned, 2),
+        'pace_monthly': round(pace, 2) if pace else 0.0,
+        'pace_source': pace_source,
+        'samples': int(samples or 0),
+        'finish_months': finish_at(pace),
+        'deadline_months': deadline_months,
+        'on_track': None,
+        'short_monthly': None,
+        'lever': None,
+    }
+    if out['finish_months'] is None:
+        # Nothing is being contributed and nothing is planned. There is no
+        # finish date to name, and naming one anyway is the fabrication R8
+        # exists to stop.
+        return out
+
+    if deadline_months is None:
+        return out                                 # a date, but nothing to miss
+
+    if deadline_months <= 0:
+        out['on_track'] = False
+        return out
+
+    out['on_track'] = out['finish_months'] <= deadline_months
+    if out['on_track']:
+        return out
+
+    required = remaining / float(deadline_months)
+    short = required - pace
+    out['short_monthly'] = round(short, 2)
+    if short <= 0:
+        return out
+
+    chosen, freed = _smallest_cover(_headroom(categories) + _trims(recurring), short)
+    if chosen:
+        out['lever'] = {
+            'sources': chosen,
+            'monthly': round(short, 2),           # what the gap costs, not the room
+            'available': freed,
+            'finish_months': finish_at(pace + short),
+        }
+    return out

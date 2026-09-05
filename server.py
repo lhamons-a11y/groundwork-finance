@@ -6669,6 +6669,81 @@ def _serialize_sinking_fund(f) -> dict:
     }
 
 
+def fund_observed_monthly(session, fund_id: int, months: int = 12):
+    """What a fund has actually been fed, per MONTH — not per contribution.
+
+    The distinction is the same one that bit the recurring-cost lever: months
+    with no contribution are not logged at all, so averaging the logged ones
+    describes a saver who contributes every month regardless of whether they
+    do. Three deposits across a year is $X/3 per contribution and $X/12 per
+    month, and only the second answers "when does this finish".
+
+    The span runs from the first contribution on record to now, so a fund
+    started three months ago is not averaged across a year it has not lived.
+    """
+    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    entries = session.query(HistorianEntry).filter(
+        HistorianEntry.event_category == 'sinking_fund_contribution_variance',
+        HistorianEntry.created_at >= cutoff,
+    ).all()
+    matched = []
+    for e in entries:
+        try:
+            ctx = json.loads(e.context_json or '{}')
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if str(ctx.get('sinking_fund_id')) == str(fund_id) and e.actual_value is not None:
+            matched.append(e)
+    if not matched:
+        return None, 0
+
+    first = min(e.created_at for e in matched)
+    now = datetime.utcnow()
+    span = max(1, (now.year - first.year) * 12 + (now.month - first.month) + 1)
+    total = sum(float(e.actual_value or 0) for e in matched)
+    return round(total / span, 2), len(matched)
+
+
+@sinking_funds_bp.route('/pace', methods=['GET'])
+def sinking_funds_pace():
+    """Where each fund lands at the pace it is actually being fed (§8).
+
+    The pace badge these rows already carry says how reliably the plan is met.
+    This says when the thing arrives, whether that clears the deadline, and
+    what would move it — the causal half, which no reader here had.
+    """
+    from core.database import SinkingFund
+    from core.solution import fund_pace
+
+    today = date.today()
+    with db_session() as session:
+        cats = reallocation_candidates(session)
+        rec = trim_candidates(session)
+        out = []
+        for f in session.query(SinkingFund).filter_by(is_active=True).order_by(SinkingFund.id).all():
+            deadline_months = None
+            if f.deadline:
+                try:
+                    d = date.fromisoformat(f.deadline)
+                    deadline_months = ((d.year - today.year) * 12 + (d.month - today.month))
+                except ValueError:
+                    deadline_months = None
+
+            planned = float(f.monthly_contribution or 0)
+            if not planned and deadline_months and deadline_months > 0:
+                planned = max(0.0, (float(f.target_amount or 0)
+                                    - float(f.current_amount or 0)) / deadline_months)
+
+            observed, samples = fund_observed_monthly(session, f.id)
+            pace = fund_pace(f.target_amount, f.current_amount, planned,
+                             deadline_months=deadline_months,
+                             observed_monthly=observed, samples=samples,
+                             categories=cats, recurring=rec)
+            if pace:
+                out.append({'id': f.id, 'name': f.name, 'pace': pace})
+        return ok({'funds': out})
+
+
 @sinking_funds_bp.route('', methods=['GET'])
 def list_sinking_funds():
     with db_session() as session:
