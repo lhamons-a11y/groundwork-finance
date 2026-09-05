@@ -1078,3 +1078,69 @@ def run(ctx):
           and '_dashProactiveAsked' in view)
     check('and the card is dismissable, in the page, never a modal',
           '_dashDismissProactive' in view and 'dashProactive' in view)
+
+    # ── The Trophy Room's pinned standard (B.3, §12's gate) ──────────────────
+    # §11 forbids building this until the per-case standard is pinned, because
+    # "evidence-backed" degrades to "declared-backed" under deadline pressure.
+    # The pinning lives in core/trophies.py; these check it holds.
+    from core.trophies import (ACTION, DURABLE, DURABILITY_MONTHS, SETUP,
+                               TROPHY_SPEC, attributable, held, verdict)
+
+    check('every trophy in the app has a pinned class and proof source',
+          len(TROPHY_SPEC) == 25
+          and all(v['class'] in (ACTION, DURABLE, SETUP) for v in TROPHY_SPEC.values())
+          and all(v.get('proof') for v in TROPHY_SPEC.values()
+                  if v['class'] != SETUP))
+
+    # D.4: using the app is not an achievement. The trophy is a receipt, and
+    # entering data is not a change in anyone's money.
+    setup_ids = {k for k, v in TROPHY_SPEC.items() if v['class'] == SETUP}
+    check('setup steps are not sold as earned trophies (D.4)',
+          {'eyes_open', 'honest_count', 'first_snapshot'} <= setup_ids
+          and verdict('eyes_open')['earned'] is False)
+
+    # E.2a: a number that can revert is not a fact until it has held.
+    check('a revertible number waits until it has held',
+          verdict('zero_crossing', {'held': None})['earned'] is None
+          and verdict('zero_crossing', {'held': True, 'attributable': True})['earned'] is True
+          and DURABILITY_MONTHS == 3)
+    check('and the window counts recorded months, not elapsed ones',
+          held([1, 1], bool) is None and held([1, 1, 1], bool) is True)
+
+    # D.3/D.6: never the market, never a raise. What the record CAN prove is
+    # the other side of the sheet — liabilities falling is debt being paid.
+    check('a rise nobody can attribute to the user earns nothing (D.6)',
+          verdict('zero_crossing', {'held': True, 'attributable': False})['earned'] is False)
+    check('and attribution is answered from liabilities, or not at all',
+          attributable([{'liabilities': 9000}, {'liabilities': 8000}]) is True
+          and attributable([{'liabilities': 8000}, {'liabilities': 9000}]) is False
+          and attributable([{'liabilities': 8000}]) is None)
+
+    # B.3: the trophy IS the proof. An award with no receipt is unproven, which
+    # is not the same as false — 1.x awarded these before any of this existed.
+    check('an unproven trophy is unproven, never quietly true or quietly false',
+          verdict('first_card_down', {'proven': None})['earned'] is None)
+
+    resp14 = ctx.c.get('/api/trophies', headers=ctx.H).get_json() or {}
+    served14 = (resp14.get('data') or resp14)
+    rows = {t['id']: t for t in (served14.get('trophies') or [])}
+    check('the route reports every trophy with a verdict and a reason',
+          len(rows) == len(TROPHY_SPEC)
+          and all(t.get('reason') for t in rows.values()))
+
+    # The false trophy this caught: one cleared card proved "you are debt free"
+    # while two balances were still open, because the check keyed on the proof
+    # SOURCE rather than on what each trophy claims.
+    from core.database import DebtAccount as _DA2
+    with ctx.dbs() as _s2:
+        still_open = [d for d in _s2.query(_DA2).filter_by(is_active=True).all()
+                      if float(d.current_balance or 0) > 0]
+    check('being debt free means every balance, not the first one',
+          not still_open or rows['zero']['earned'] is not True)
+    check('and a trophy that names a figure is not proved by any figure',
+          TROPHY_SPEC['interest_slayer']['proof'] == 'engine_interest'
+          and 'interest_saved >= 1000' in ctx.server_src)
+
+    check('the room shows the receipt, or says why there is none',
+          '_trophyReceipt' in view and '_loadTrophyVerdicts' in view
+          and 'Setup step' in view)

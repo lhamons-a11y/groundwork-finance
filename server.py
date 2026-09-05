@@ -176,6 +176,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(auto_import_bp,   url_prefix='/api/auto-import')
     app.register_blueprint(sinking_funds_bp,  url_prefix='/api/sinking-funds')
     app.register_blueprint(proactive_bp,     url_prefix='/api/proactive')
+    app.register_blueprint(trophies_bp,      url_prefix='/api/trophies')
     app.register_blueprint(college_funds_bp,  url_prefix='/api/college-funds')
     app.register_blueprint(gift_bp,           url_prefix='/api/gift')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
@@ -1951,6 +1952,151 @@ def ledger_lesson():
 # other blueprints at the bottom of this file, because a decorator cannot run
 # before the blueprint it names exists.
 proactive_bp = Blueprint('proactive', __name__)
+trophies_bp = Blueprint('trophies', __name__)
+
+
+@trophies_bp.route('', methods=['GET'])
+def list_trophies():
+    """Every trophy, with the receipt behind it or the reason there is none.
+
+    B.3: the trophy IS the proof. So this does not report what was awarded —
+    the achievements table already does that — it reports what the ledger can
+    still show. A trophy earned in 1.x before any of this existed comes back
+    unproven rather than false: it was not fraudulently awarded, it simply has
+    no receipt on file, and saying so is more honest than either dropping it or
+    dressing it up.
+
+    The per-case standard is pinned in `core/trophies.py`, which §12 gated until
+    it was. Nothing here decides a class; it only gathers the evidence each
+    class asks for.
+    """
+    from core.consequence import Card, simulate_payoff as _sim
+    from core.trophies import (DURABILITY_MONTHS, TROPHY_SPEC, attributable,
+                               held, verdict)
+
+    with db_session() as session:
+        earned_rows = {a.achievement_id: a for a in session.query(Achievement).all()}
+        cards, budget, strategy, undated = _consequence_inputs(session)
+
+        # ── the evidence, gathered once ─────────────────────────────────────
+        cleared = session.query(DebtAccount).filter(
+            DebtAccount.paid_off_at.isnot(None)).order_by(DebtAccount.paid_off_at).all()
+        actives = session.query(DebtAccount).filter_by(is_active=True).all()
+
+        history = session.query(DebtBalanceHistory).order_by(
+            DebtBalanceHistory.month).all()
+        by_month = {}
+        for h in history:
+            by_month.setdefault(h.month, 0.0)
+            by_month[h.month] += float(h.balance or 0)
+        months_sorted = sorted(by_month)
+        paid_share = None
+        if len(months_sorted) >= 2:
+            first_total = by_month[months_sorted[0]]
+            last_total = by_month[months_sorted[-1]]
+            if first_total > 0:
+                paid_share = max(0.0, (first_total - last_total) / first_total)
+
+        snaps = [{'date': s.snapshot_date, 'net_worth': float(s.net_worth or 0),
+                  'liabilities': float(s.liabilities or 0)}
+                 for s in session.query(NetWorthSnapshot).order_by(
+                     NetWorthSnapshot.snapshot_date).all()]
+
+        # Payments landing above the minimums, by month — the receipt
+        # `above_minimum` needs and the setting it currently fires on does not
+        # have. A number someone typed is not money that moved.
+        minimum_total = sum(float(d.minimum_payment or 0) for d in actives)
+        paid_by_month = {}
+        for e in session.query(DebtLedgerEntry).filter_by(entry_type='payment').all():
+            if not e.entry_date:
+                continue
+            key = e.entry_date.strftime('%Y-%m')
+            paid_by_month[key] = paid_by_month.get(key, 0.0) + float(e.amount or 0)
+        above_series = [paid_by_month[m] for m in sorted(paid_by_month)]
+
+        interest_saved = None
+        if cards:
+            plan = _sim(cards, budget, strategy)
+            floor = _sim(cards, minimum_total, strategy) if minimum_total > 0 else None
+            if plan and floor:
+                interest_saved = floor['total_interest'] - plan['total_interest']
+
+        # What each trophy actually claims, not merely what kind of proof it
+        # uses. Two trophies read the same record and mean different things:
+        # `first_card_down` needs one balance gone, `zero` needs all of them.
+        # Keyed on the proof kind alone, a single cleared card proved "you are
+        # debt free" while two balances were still open — a false trophy, which
+        # is the one failure this module exists to prevent.
+        open_balances = [d for d in actives
+                         if float(d.current_balance or d.begin_balance or 0) > 0]
+
+        def evidence_for(spec, trophy_id=None):
+            proof_kind = spec.get('proof')
+            if proof_kind == 'debt_cleared':
+                if trophy_id == 'zero':
+                    return ({'proven': bool(cleared) and not open_balances},
+                            [{'label': 'balances still open',
+                              'value': len(open_balances), 'unit': 'count'},
+                             {'label': 'cleared', 'value': len(cleared), 'unit': 'count'}])
+                return ({'proven': bool(cleared)},
+                        [{'label': 'cleared', 'value': c.name, 'unit': 'text'}
+                         for c in cleared[:3]]
+                        + [{'label': 'first cleared', 'unit': 'text',
+                            'value': cleared[0].paid_off_at.date().isoformat()}]
+                        if cleared else [])
+            if proof_kind == 'balance_history':
+                if paid_share is None:
+                    return {'proven': None}, []
+                return ({'proven': paid_share > 0},
+                        [{'label': 'paid down', 'value': round(paid_share * 100, 1),
+                          'unit': 'percent'},
+                         {'label': 'months of history', 'value': len(months_sorted),
+                          'unit': 'count'}])
+            if proof_kind == 'engine_interest':
+                if interest_saved is None:
+                    return {'proven': None}, []
+                # The trophy names a thousand dollars. A receipt that proves
+                # "some interest was saved" does not prove that trophy, and
+                # counting it would be the declared-backed failure in miniature.
+                return ({'proven': interest_saved >= 1000},
+                        [{'label': 'interest saved vs minimums only',
+                          'value': round(interest_saved), 'unit': 'money'}])
+            if proof_kind == 'net_worth_series':
+                return ({'held': held(snaps, lambda s: s['net_worth'] > 0),
+                         'attributable': attributable(snaps)},
+                        [{'label': 'snapshots on record', 'value': len(snaps),
+                          'unit': 'count'}]
+                        + ([{'label': 'liabilities then', 'value': snaps[0]['liabilities'],
+                             'unit': 'money'},
+                            {'label': 'liabilities now', 'value': snaps[-1]['liabilities'],
+                             'unit': 'money'}] if len(snaps) >= 2 else []))
+            if proof_kind == 'payments_above_minimum':
+                if minimum_total <= 0:
+                    return {'held': None}, []
+                return ({'held': held(above_series, lambda p: p > minimum_total)},
+                        [{'label': 'months of payments', 'value': len(above_series),
+                          'unit': 'count'},
+                         {'label': 'minimums total', 'value': round(minimum_total, 2),
+                          'unit': 'money'}])
+            if proof_kind == 'composite':
+                return ({'held': held(snaps, lambda s: s['net_worth'] > 0),
+                         'attributable': attributable(snaps)}, [])
+            # Everything else: the record does not carry it yet, and the honest
+            # answer is to say which record is missing rather than to guess.
+            return {'proven': None, 'held': None}, []
+
+        out = []
+        for tid, spec in TROPHY_SPEC.items():
+            ev, proof = evidence_for(spec, tid)
+            v = verdict(tid, ev)
+            row = session.query(Achievement).filter_by(achievement_id=tid).first()
+            out.append({
+                'id': tid, 'class': v['class'], 'earned': v['earned'],
+                'rule': v['rule'], 'reason': v['reason'], 'proof': proof,
+                'awarded_at': (earned_rows[tid].earned_at.isoformat()
+                               if tid in earned_rows and earned_rows[tid].earned_at else None),
+            })
+        return ok({'trophies': out, 'durability_months': DURABILITY_MONTHS})
 
 
 def _proactive_state(session):
