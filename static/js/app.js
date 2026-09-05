@@ -10039,6 +10039,26 @@ function _buildProfileContext() {
     lines.push(`- Net worth trend: ${nw.trend} — moving ${nw.monthlyDelta >= 0 ? '+' : ''}${fmt(nw.monthlyDelta)}/month on average.`);
   }
 
+  // §8 / Appendix B: the causal findings, computed. They are handed over as
+  // FACTS the narrator may voice — never as an invitation to derive more. The
+  // measured reason is sharper than the principle: inference-smuggling ran
+  // 37-70% on every model tested and ROSE with size, so the failure this block
+  // guards against is the likeliest one there is (MODEL_PLACEMENT.md).
+  const findings = (typeof _rcTeachingData !== 'undefined' && _rcTeachingData
+                    && _rcTeachingData.findings) || [];
+  if (findings.length) {
+    lines.push('CAUSAL FINDINGS (computed by the engine from this ledger — these are the ONLY');
+    lines.push('cause-and-effect claims you may make. Do not derive others, do not explain WHY');
+    lines.push('the user did anything, and do not state them with more confidence than written):');
+    findings.forEach(f => {
+      const bits = [`- ${f.kind}: ${f.subject}`];
+      if (f.months != null)   bits.push(`${f.months} month(s) ${f.months_label || ''}`.trim());
+      if (f.interest != null) bits.push(`${fmt(f.interest)} in interest`);
+      if (f.monthly != null)  bits.push(`${fmt(f.monthly)}/mo`);
+      lines.push(bits.join(' · '));
+    });
+  }
+
   return lines.length > 1 ? '\n' + lines.join('\n') + '\n' : '';
 }
 
@@ -23726,6 +23746,91 @@ function _rcBackToCatalog() {
 // ── §7.2 Category Deep-Dive ──────────────────────────────────────────────────
 
 // ── Monthly Report (Report Center version) ────────────────────────────────────
+// §8's line for Reports: the causal teaching layer, made explicit,
+// lever-oriented and proof-cited. Rendered deterministically, above the
+// narrative and independent of it — the blueprint's stack puts the model BELOW
+// the teaching layer, so losing narration must not mean losing the lesson.
+// Every figure here is one another surface already shows; the report gathers
+// them rather than deriving its own.
+let _rcTeachingData = null;
+
+async function _rcRenderMonthlyTeaching() {
+  const host = g('rcMonthlyTeaching');
+  if (!host) return;
+  try {
+    _rcTeachingData = await API.get('/api/debt/teaching');
+  } catch (e) {
+    _gwErr('_rcRenderMonthlyTeaching')(e);
+    return;
+  }
+  host.innerHTML = _rcTeachingHTML(_rcTeachingData);
+}
+
+// One sentence per finding, written here rather than by the model. The measured
+// reason is sharper than the principle: inference-smuggling ran 37–70% on every
+// model tested and rose with size, so a causal claim composed by a narrator is
+// the one thing the evidence says not to build (MODEL_PLACEMENT.md).
+function _rcTeachingSentence(f) {
+  const mo = (n) => `${n} month${n !== 1 ? 's' : ''}`;
+  if (f.kind === 'charge') {
+    return `The ${esc(f.subject)} charge cost <strong>${mo(f.months)}</strong> on your debt-free date`
+         + ` and <strong>${fmt(f.interest)}</strong> in interest — had that money gone to the debt instead.`;
+  }
+  if (f.kind === 'overspend') {
+    return f.protected
+      ? `<strong>${esc(f.subject)}</strong> is budgeted <strong>${fmt(f.monthly)}/mo</strong> below what it`
+        + ` has cost every month on record; that difference is <strong>${mo(f.months)}</strong> and`
+        + ` <strong>${fmt(f.interest)}</strong> in interest.`
+      : `<strong>${esc(f.subject)}</strong> ran at least <strong>${fmt(f.monthly)}/mo</strong> over budget`
+        + ` every month on record, which costs <strong>${mo(f.months)}</strong> and`
+        + ` <strong>${fmt(f.interest)}</strong> in interest.`;
+  }
+  if (f.kind === 'lever') {
+    return `The single change that moves your date most: <strong>${esc(f.subject)}</strong> —`
+         + ` <strong>${mo(f.months)}</strong> sooner and <strong>${fmt(f.interest)}</strong> less interest,`
+         + ` if that money went to the debt.`;
+  }
+  if (f.kind === 'fund') {
+    const at = f.pace_source === 'observed' ? 'at the pace actually being kept' : 'at the planned pace';
+    return `<strong>${esc(f.subject)}</strong> lands <strong>${mo(f.months)}</strong> past its own deadline`
+         + ` ${at}; <strong>${fmt(f.monthly)}/mo</strong> more would make it.`;
+  }
+  return '';
+}
+
+function _rcTeachingHTML(d) {
+  const rows = (d && d.findings) || [];
+  if (!rows.length) return '';
+
+  // B.1: show your work. The proof is the figures the claim rests on, printed
+  // beside it rather than promised — a claim whose numbers are not on the page
+  // is asking to be taken on trust, which is the thing this app does not do.
+  const proof = (f) => (f.proof || [])
+    .filter(p => p.value !== null && p.value !== undefined && p.value !== '')
+    .map(p => {
+      // Formatted by the unit the server states, never guessed from the label.
+      // Sniffing for the word "month" printed a month count as $13.00 and a
+      // dollars-per-month figure as a bare 105.
+      const v = (p.unit === 'money') ? fmt(p.value)
+              : (p.unit === 'months') ? `${p.value} mo`
+              : esc(String(p.value));
+      return `${esc(p.label)}: ${v}`;
+    })
+    .join(' · ');
+
+  return `<div class="card">
+    <div class="card-label">What this month cost, and what changes it</div>
+    <div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:10px">
+      Computed from your ledger, not written by the AI. Each line shows the figures behind it.
+    </div>
+    ${rows.map(f => `
+      <div style="padding:10px 0;border-bottom:1px solid var(--steel)">
+        <div style="font-size:12px;color:var(--slate);line-height:1.8">${_rcTeachingSentence(f)}</div>
+        <div style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);margin-top:4px">${proof(f)}</div>
+      </div>`).join('')}
+  </div>`;
+}
+
 function _rcRenderMonthlyReport() {
   const body = g('rcReportBody');
   if (!body) return;
@@ -23762,10 +23867,12 @@ function _rcRenderMonthlyReport() {
         style="padding:8px 18px;background:var(--pine);color:#fff;border:none;border-radius:var(--r-sm);font-size:13px;cursor:pointer;white-space:nowrap;${S.aiProvider === 'cloud' ? '' : 'display:none'}">✦ Generate analysis</button>
     </div>
     <div id="rcMonthlyStats" style="margin-bottom:24px"></div>
+    <div id="rcMonthlyTeaching" style="margin-bottom:24px"></div>
     <div id="rcMonthlyPast" style="margin-bottom:24px"></div>
     <div id="rcMonthlyNarrative"></div>`;
 
   _rcMonthlyLoadPastReports();
+  _rcRenderMonthlyTeaching();
   _rcMonthlyRefreshPreview();
 }
 

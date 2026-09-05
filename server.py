@@ -1934,6 +1934,149 @@ def ledger_lesson():
         })
 
 
+@debt_bp.route('/teaching', methods=['GET'])
+def report_teaching():
+    """The month's causal findings, each with the proof behind it (§8, App. B).
+
+    §8's line for Reports is "the causal teaching layer, made explicit,
+    lever-oriented, and proof-cited". Explicit is the operative word: this
+    composes what the other surfaces already compute rather than growing a
+    sixth engine, so the report cannot drift from the pages it summarises.
+    Every finding is a number this app renders somewhere else.
+
+    **No prose here.** Each finding is structured — what moved, by how much,
+    what would change it, and the figures behind it — and the sentence is the
+    view's to write, as it is on every other surface (B.2a keeps register in
+    one place). It also means the narrator can be handed facts rather than
+    sentences: B.2's whole posture is that the model interprets truth and never
+    originates it, and the measured reason is sharper than the principle —
+    inference-smuggling ran 37-70% on every model tested and ROSE with size, so
+    a causal claim composed by the model is the one thing the evidence says not
+    to build (MODEL_PLACEMENT.md).
+
+    `proof` is the drill-down: the figures a claim rests on, so "show your work"
+    is a field rather than a promise (B.1).
+    """
+    from core.solution import (accelerations, budget_pressure, capacity_unlocked,
+                               fund_pace)
+    from core.database import SinkingFund
+
+    with db_session() as session:
+        cards, budget, strategy, undated = _consequence_inputs(session)
+        if not cards:
+            return ok({'findings': [], 'reason': 'no active debt to price against'})
+
+        today = date.today().strftime('%Y-%m')
+        kw = dict(strategy=strategy, today_key=today, start_month=today)
+        base = simulate_payoff(cards, budget, strategy,
+                               today_key=today, start_month=today)
+        cats = reallocation_candidates(session)
+        rec = trim_candidates(session)
+        findings = []
+
+        # What the month's biggest charge cost — the retrospective one, first
+        # because it is the only finding about something that already happened.
+        charge = large_charge_lesson(session, cards, budget, strategy)
+        if charge:
+            findings.append({
+                'kind': 'charge',
+                'subject': charge['charge']['name'],
+                'months': charge['lesson']['months_cost'],
+                # What the months MEAN. A renderer that assumes every month
+                # count is a payoff-date month told the narrator that a fund
+                # running late was ten months on the debt-free date — a false
+                # fact, handed over by the one block built to prevent them.
+                'months_label': 'on the debt-free date',
+                'interest': charge['lesson']['interest_cost'],
+                'monthly': None,
+                # Each figure says what it IS. The view formatted by sniffing
+                # the label for the word "month", which read a month count as
+                # dollars ("payoff without it: $13.00") and dollars-per-month
+                # as a bare number. A unit is a fact; guessing it from prose is
+                # the same mistake as guessing anything else from prose.
+                'proof': [
+                    {'label': 'charge', 'value': charge['charge']['amount'], 'unit': 'money'},
+                    {'label': 'dated', 'value': charge['charge']['date'], 'unit': 'text'},
+                    {'label': 'payoff without it', 'unit': 'months',
+                     'value': base['months'] - charge['lesson']['months_cost']},
+                    {'label': 'payoff as recorded', 'value': base['months'], 'unit': 'months'},
+                ],
+            })
+
+        # What runs over its own budget, and what that costs.
+        for over in budget_pressure(cards, budget, categories=cats, **kw)[:1]:
+            findings.append({
+                'kind': 'overspend',
+                'subject': over['name'],
+                'months': over['months_cost'],
+                'months_label': 'on the debt-free date',
+                'interest': over['interest_cost'],
+                'monthly': over['monthly'],
+                'protected': over['protected'],
+                'proof': [
+                    {'label': 'budgeted', 'value': over['budgeted'], 'unit': 'money'},
+                    {'label': 'lowest month on record', 'value': over['floor'], 'unit': 'money'},
+                    {'label': 'months on record', 'value': over['months_observed'], 'unit': 'count'},
+                ],
+            })
+
+        # And what would move the date most from here.
+        for lever in accelerations(cards, budget, categories=cats, recurring=rec, **kw)[:1]:
+            findings.append({
+                'kind': 'lever',
+                'subject': lever['label'],
+                'months': lever['months_saved'],
+                'months_label': 'sooner on the debt-free date',
+                'interest': lever['interest_saved'],
+                'monthly': lever['monthly'],
+                'requires_cut': lever['requires_cut'],
+                'proof': [
+                    {'label': 'from', 'value': lever['detail'], 'unit': 'text'},
+                    {'label': 'payoff now', 'value': base['months'], 'unit': 'months'},
+                    {'label': 'payoff with it', 'unit': 'months',
+                     'value': base['months'] - lever['months_saved']}],
+            })
+
+        # A fund that will not make its own deadline at the pace being kept.
+        for f in session.query(SinkingFund).filter_by(is_active=True).all():
+            deadline_months = None
+            if f.deadline:
+                try:
+                    d = date.fromisoformat(f.deadline)
+                    deadline_months = ((d.year - date.today().year) * 12
+                                       + (d.month - date.today().month))
+                except ValueError:
+                    deadline_months = None
+            planned = float(f.monthly_contribution or 0)
+            observed, samples = fund_observed_monthly(session, f.id)
+            pace = fund_pace(f.target_amount, f.current_amount, planned,
+                             deadline_months=deadline_months,
+                             observed_monthly=observed, samples=samples,
+                             categories=cats, recurring=rec)
+            if pace and not pace.get('funded') and pace.get('on_track') is False:
+                findings.append({
+                    'kind': 'fund',
+                    'subject': f.name,
+                    'months_label': 'past its own deadline',
+                    'months': (pace['finish_months'] - pace['deadline_months']
+                               if pace.get('finish_months') else None),
+                    'interest': None,
+                    'monthly': pace.get('short_monthly'),
+                    'pace_source': pace['pace_source'],
+                    'proof': [
+                        {'label': 'still needed', 'value': pace['remaining'], 'unit': 'money'},
+                        {'label': 'going in per month', 'value': pace['pace_monthly'],
+                         'unit': 'money'},
+                        {'label': 'months until the deadline', 'unit': 'count',
+                         'value': pace['deadline_months']},
+                    ],
+                })
+                break
+
+        return ok({'findings': findings, 'base_months': base['months'],
+                   'undated_forgiveness': undated})
+
+
 @debt_bp.route('/capacity', methods=['GET'])
 def debt_capacity():
     """What a balance the user could now cover outright would enable (§8).
