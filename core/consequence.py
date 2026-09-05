@@ -288,6 +288,55 @@ def affordable_one_time(cards, budget, one_time_cost, strategy='avalanche',
     return float(int(lo))
 
 
+def affordable_monthly(cards, budget, monthly_cost, strategy='avalanche',
+                       today_key=None, start_month=None, max_delay_months=0):
+    """The largest recurring cost whose delay stays within `max_delay_months`.
+
+    §6.1's substitution lever for a cost that repeats, and the blueprint's own
+    example of it: "a $220/mo car instead of $350/mo keeps your date where it
+    is." The $220 is not a car anyone found — it is the price at which the date
+    stops moving, computed from this portfolio. What is on the lot at that price
+    is the user's to discover, and this says nothing about it.
+
+    A recurring cost is not a one-time one spread out: it drains every month for
+    as long as the debt lasts, so it can push the budget below the minimums
+    outright. That case comes back from the simulator as None, and None is
+    treated here as "does not fit" rather than as an error — it is the honest
+    top of the range, and the reason `max_delay_months` may be set high to find
+    the largest payment that is payable at all.
+
+    Rounded DOWN, as `affordable_one_time` is, and for the same reason.
+    """
+    target = max(0, int(max_delay_months or 0))
+
+    def delta_at(x):
+        d = decision_impact(cards, budget, monthly_delta=-float(x),
+                            strategy=strategy, today_key=today_key,
+                            start_month=start_month)
+        return d['months_delta']
+
+    if delta_at(0) is None:
+        return None                              # unsimulatable before it starts
+    ceiling = float(monthly_cost or 0)
+    if ceiling <= 0:
+        return 0.0
+    top = delta_at(ceiling)
+    if top is not None and top <= target:
+        return round(ceiling, 2)                 # the whole payment already fits
+
+    lo, hi = 0.0, ceiling                        # lo fits, hi does not
+    for _ in range(40):
+        mid = (lo + hi) / 2.0
+        d = delta_at(mid)
+        if d is not None and d <= target:
+            lo = mid
+        else:
+            hi = mid
+        if hi - lo < 1.0:
+            break
+    return float(int(lo))
+
+
 def offsetting_monthly_delta(cards, budget, one_time_cost, strategy='avalanche',
                              today_key=None, start_month=None, cap=None):
     """The smallest sustained monthly increase that cancels a one-time cost's

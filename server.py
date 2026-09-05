@@ -1659,14 +1659,27 @@ def debt_decision_impact():
     (total/income)*30 that understated the truth by up to 17x.
     """
     from core.consequence import decision_impact, offsetting_monthly_delta
-    from core.solution import do_nothing_note, save_first_plan, solve_one_time_cost
+    from core.solution import (do_nothing_note, save_first_plan,
+                               solve_monthly_cost, solve_one_time_cost)
 
     body = request.get_json(silent=True) or {}
     try:
         monthly_delta = float(body.get('monthly_delta', 0) or 0)
         one_time_cost = float(body.get('one_time_cost', 0) or 0)
+        # A commitment, priced the way the decision is actually made: what the
+        # thing costs, and what it displaces. The caller sends both because
+        # which of someone's commitments a new one replaces is theirs to name
+        # (BYB's `replacing_id`), not something the ledger can infer.
+        monthly_cost = float(body.get('monthly_cost', 0) or 0)
+        replaces_monthly = float(body.get('replaces_monthly', 0) or 0)
     except (TypeError, ValueError):
         return err('monthly_delta and one_time_cost must be numbers')
+    if monthly_cost < 0 or replaces_monthly < 0:
+        return err('monthly_cost and replaces_monthly cannot be negative')
+    if monthly_cost and not monthly_delta:
+        # Only the difference is felt. Derived here rather than asked for, so
+        # the base/after pair below describes the same decision the paths do.
+        monthly_delta = -(monthly_cost - replaces_monthly)
     if one_time_cost < 0:
         return err('one_time_cost cannot be negative')
 
@@ -1721,11 +1734,25 @@ def debt_decision_impact():
             result['paths'], result['honest_no'] = [], None
             result['save_first'] = None
 
+        # Substitution's recurring half: the paths for a commitment, and the
+        # price at which one holds the date (§6.1's "$220/mo instead of $350").
+        if monthly_cost:
+            result['monthly'] = solve_monthly_cost(
+                cards, budget, monthly_cost, replaces_monthly=replaces_monthly,
+                strategy=strategy,
+                today_key=date.today().strftime('%Y-%m'),
+                start_month=date.today().strftime('%Y-%m'),
+                categories=reallocation_candidates(session),
+                recurring=trim_candidates(session))
+        else:
+            result['monthly'] = None
+
         # Lever 7: what is true if nothing changes. Computed whether or not
         # there is a gap — "this needs no lever" is an answer, and so is the
         # proof that the payoff order they already use is the faster one.
         result['do_nothing'] = do_nothing_note(
             cards, budget, one_time_cost, strategy=strategy,
+            monthly_delta=monthly_delta,
             today_key=date.today().strftime('%Y-%m'),
             start_month=date.today().strftime('%Y-%m'))
 

@@ -450,3 +450,75 @@ def run(ctx):
           'Waiting is the other answer' in view)
     check('and proves the current order when nothing needs changing at all',
           'Nothing needs to change: your ${esc(o.strategy)} order' in view)
+
+    # ── Substitution's recurring half ────────────────────────────────────────
+    # A commitment, not a purchase: the drain does not stop, so the money that
+    # holds the date is exactly the net cost, and the failure mode is an
+    # affordability wall rather than a longer delay.
+    from core.solution import solve_monthly_cost
+    from core.consequence import affordable_monthly
+
+    car = solve_monthly_cost(cards, 775, 350, replaces_monthly=219,
+                             categories=cats, recurring=rec)
+    check('a commitment is priced net of what it replaces',
+          car['net_monthly'] == 131 and car['gap_months'] > 0)
+    sub_m = next((p for p in car['paths'] if p['kind'] == 'substitution'), None)
+    check("substitution prices it GROSS, the way §6.1's own sentence reads",
+          sub_m and all(r['price'] == r['net_price'] + 219 for r in sub_m['items']))
+    check('and every rung costs the months it claims, net of the replacement',
+          all(decision_impact(cards, 775,
+                              monthly_delta=-(r['net_price']))['months_delta']
+              == r['months_delta'] for r in sub_m['items']))
+    check('the money that holds the date is the net cost itself, not a bisection',
+          any(p['kind'] == 'monthly' and p['closes']
+              and f"${car['net_monthly']:.0f}/mo" in p['detail'] for p in car['paths']))
+
+    cheaper = solve_monthly_cost(cards, 775, 120, replaces_monthly=150)
+    check('a replacement that costs less invents no problem',
+          cheaper['gap_months'] == 0 and not cheaper['paths']
+          and cheaper['net_monthly'] < 0)
+
+    # The wall. BYB shipped a bug where this case read as the BEST outcome —
+    # months came back null, became zero, and rendered as "sooner" in green.
+    wall = solve_monthly_cost(cards, 775, 700)
+    check('a payment that breaks the minimums is a wall, not a delay',
+          wall['gap_months'] is None and wall['honest_no']
+          and wall['honest_no']['unaffordable'] is True)
+    cap = wall['honest_no']['max_payable_monthly']
+    check('and the honest no answers in the units the decision is made in',
+          cap and decision_impact(cards, 775, monthly_delta=-cap)['months_delta'] is not None
+          and decision_impact(cards, 775, monthly_delta=-(cap + 50))['months_delta'] is None)
+    check('the cap is what the extra above the minimums can actually carry',
+          abs(cap - extra_above_minimums(cards, 775)) <= 1)
+
+    check('affordable_monthly rounds down, so a price never misses its claim',
+          affordable_monthly(cards, 775, 350) <= 350
+          and decision_impact(cards, 775,
+                              monthly_delta=-affordable_monthly(cards, 775, 350)
+                              )['months_delta'] <= 0)
+
+    # Through the route BYB will call, in the shape BYB will call it.
+    resp4 = ctx.c.post('/api/debt/decision-impact', headers=ctx.HJ,
+                       json={'monthly_cost': 350, 'replaces_monthly': 219}).get_json() or {}
+    served4 = (resp4.get('data') or resp4)
+    # Either shape is a real answer: paths when the commitment delays the date,
+    # the wall when it breaks the minimums. Which one this fixture produces
+    # depends on what every other section has left in the shared database, so
+    # the check is on the wiring, not on which branch the numbers land in — the
+    # branches themselves are pinned above, against a fixed portfolio.
+    m4 = served4.get('monthly') or {}
+    check('the route solves a commitment when asked in its own terms',
+          isinstance(m4, dict)
+          and (m4.get('paths') or (m4.get('honest_no') or {}).get('max_payable_monthly')))
+    check('and derives the delta from cost and replacement, so both halves agree',
+          served4.get('months_delta') == served4['monthly']['gap_months'])
+    check('a negative price is refused rather than simulated',
+          ctx.c.post('/api/debt/decision-impact', headers=ctx.HJ,
+                     json={'monthly_cost': -50}).status_code >= 400)
+
+    check('BYB asks the engine rather than netting it out in JS again',
+          '_maybeLoadBYBImpact' in view and 'monthly_cost: monthly' in view
+          and '_bybEngineNote()' in view)
+    check('and the phrase says /mo, since a commitment is not a purchase',
+          "_tripPathPhrases(paths, gap, unit = '')" in view
+          and "${fmt(head.price)}${unit} version" in view)
