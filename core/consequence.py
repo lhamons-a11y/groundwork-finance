@@ -224,6 +224,12 @@ def offsetting_monthly_delta(cards, budget, one_time_cost, strategy='avalanche',
     would have someone redirect more each month than they currently put toward
     debt at all — not a lever anyone pulls, and a refusal wearing a number. The
     honest answer past the cap is None, which is what routes §6.4's honest no.
+
+    That bound governs what may be OFFERED, not what may be stated. C.4 requires
+    every honest-no to carry the nearest lever — "the smallest change that makes
+    it possible is [X]" — and a figure the user did not ask to act on is a fact,
+    not a recommendation. `solve_one_time_cost` therefore passes a deliberately
+    wide `cap` when it is answering that question rather than proposing a path.
     """
     def delta_at(x):
         d = decision_impact(cards, budget, monthly_delta=x, one_time_cost=one_time_cost,

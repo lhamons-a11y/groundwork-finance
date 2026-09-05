@@ -374,9 +374,27 @@ def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
     honest_no = None
     if not any(p['closes'] for p in paths):
         # §6.4: never a bare "you can't". The nearest true path is the smallest
-        # change that would close it, even when nothing offered does.
+        # change that would close it, even when nothing offered does — C.4 makes
+        # it a requirement, not a nicety.
+        #
+        # It is searched PAST the bound on the offered lever, and the distinction
+        # is the whole point: that bound exists so the engine does not propose a
+        # monthly increase larger than what someone already directs at debt. Here
+        # nothing is being proposed. The user is being told the smallest change
+        # that would hold the date, which is a fact about their arithmetic — and
+        # a fact is not pushy the way a recommendation is. Suppressing it left
+        # every honest no saying only what could not be done.
+        #
+        # The ceiling is arithmetic rather than a policy guess: past the point
+        # where a single month clears every balance and the cost with it, more
+        # money changes nothing, so a minimum that exists at all exists below it.
+        # A None here therefore means no monthly amount holds the date, not that
+        # the search gave up — which happens when the date is set by forgiveness
+        # rather than by payments.
+        ceiling = sum(float(getattr(c, 'balance', 0) or 0) for c in cards) \
+            + float(one_time_cost) + 1.0
         nearest = offsetting_monthly_delta(cards, budget, one_time_cost,
-                                           cap=max(1.0, budget), **kw)
+                                           cap=ceiling, **kw)
         # And what the named sources come to between them. When nothing here
         # closes the gap, this is the honest shape of §6.4's "here's where that
         # could come from": the money that exists, named, with its total — and

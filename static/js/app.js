@@ -11052,16 +11052,27 @@ function tripUpdateBudget() {
       }
       // §6.4: never a bare "you can't" — when nothing holds the date, say so
       // bounded to today's numbers rather than as a permanent verdict (App. C).
-      if (d.honest_no && !d.honest_no.reachable) {
-        // And the ceiling, when there is one to give. §6.4 asks for where the
-        // money could come from even when it is not enough; the total of every
-        // source the record can name is that answer, and withholding it would
-        // leave the user guessing at how far short they are.
-        const named = d.honest_no.named_total;
+      if (d.honest_no) {
+        // C.4: an honest no is never just a no. It carries the nearest lever —
+        // the smallest change that would hold the date — and, when the record
+        // can name money, what that money comes to, so the user can see the
+        // size of the difference rather than guess at it.
+        //
+        // The figure is stated, not urged. It is necessarily larger than what
+        // this user directs at debt today (anything smaller would have closed
+        // the gap as a path, and this branch would not have run), so offering
+        // it would be pushing; saying what the arithmetic requires is not.
+        // Rounded UP for the same reason the lever is: rounded down, it does
+        // not actually hold the date.
+        const hn = d.honest_no;
         impact.innerHTML += ` On today's numbers nothing holds the date entirely.`;
-        if (named > 0) {
-          impact.innerHTML += ` Shifting and cutting everything your record can name comes to `
-            + `<strong>${fmt(named)}/mo</strong>, which is short of it.`;
+        if (hn.nearest_monthly > 0) {
+          const need = Math.ceil(hn.nearest_monthly / 5) * 5;
+          impact.innerHTML += ` The smallest change that would is `
+            + `<strong>${fmt(need)}/mo</strong> more toward debt`
+            + (hn.named_total > 0
+                ? `, against the <strong>${fmt(hn.named_total)}/mo</strong> your record can name.`
+                : `.`);
         }
       }
     } else if (d && d.base && d.months_delta === 0 && d.interest_delta > 0) {
