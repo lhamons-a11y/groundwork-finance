@@ -1671,7 +1671,7 @@ def debt_decision_impact():
     (total/income)*30 that understated the truth by up to 17x.
     """
     from core.consequence import decision_impact, offsetting_monthly_delta
-    from core.solution import solve_one_time_cost
+    from core.solution import save_first_plan, solve_one_time_cost
 
     body = request.get_json(silent=True) or {}
     try:
@@ -1714,8 +1714,24 @@ def debt_decision_impact():
                                       recurring=trim_candidates(session))
             result['paths'] = sol['paths']
             result['honest_no'] = sol['honest_no']
+
+            # Lever 6, for the funding panel — minus its financing comparison.
+            # §6.2 requires a solution to need no new debt, so "your lowest-rate
+            # card would cost less than paying cash" is not something this page
+            # may say, however true the arithmetic is (and it often is: see the
+            # finding in save_first_plan). That block is for a surface where the
+            # purchase is already financed and the user has raised it. Stripped
+            # here rather than left for the view to ignore, because a field that
+            # reaches the client is a field something will eventually render.
+            plan = save_first_plan(cards, budget, one_time_cost, strategy=strategy,
+                                   today_key=date.today().strftime('%Y-%m'),
+                                   start_month=date.today().strftime('%Y-%m'))
+            if plan:
+                plan.pop('financed', None)
+            result['save_first'] = plan
         else:
             result['paths'], result['honest_no'] = [], None
+            result['save_first'] = None
 
         result['offsetting_monthly'] = (
             offsetting_monthly_delta(cards, budget, one_time_cost,

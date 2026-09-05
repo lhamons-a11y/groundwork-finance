@@ -343,3 +343,60 @@ def run(ctx):
     check('the view prices it from the rungs, and shows one lever of each kind',
           "p.kind === 'substitution'" in view and 'rungs[0]' in view
           and "all.find(p => p.kind === 'substitution')" in view)
+
+    # ── Lever 6: save-first, the anti-loan ───────────────────────────────────
+    # Its value is against financing, not against paying cash, and the plan says
+    # so rather than dressing a delay up as thrift. The engine absorbs a cash
+    # cost out of the extra above minimums on the same schedule a saver would
+    # save it, so the payoff moves identically either way — these check that the
+    # plan states that instead of implying otherwise.
+    from core.consequence import extra_above_minimums
+    from core.solution import save_first_plan
+
+    pool = extra_above_minimums(cards, 775)
+    check('the plan saves out of the pool the cost actually comes from',
+          pool == 775 - (200 + 75))
+    check('a budget that cannot cover the minimums has no pool, and says so',
+          extra_above_minimums(cards, 100) is None)
+
+    plan = save_first_plan(cards, 775, 2400)
+    check('save-first prices the plan from that pool, in whole months',
+          plan and plan['monthly'] == pool and plan['months_to_save'] == 5)
+    check('and reports the delay it does NOT remove',
+          plan['months_delta'] == decision_impact(cards, 775, one_time_cost=2400)['months_delta']
+          and plan['months_delta'] > 0)
+    check('saving first is never offered as a path that closes the gap',
+          not any(p['kind'] in ('save_first', 'save-first')
+                  for p in solve_one_time_cost(cards, 775, 2400)['paths']))
+
+    # The financing comparison is priced on the LOWEST-rate card the user holds
+    # — the most flattering financing they could find — so the comparison
+    # understates our own case rather than overstating theirs.
+    fin = plan['financed']
+    check('financing is priced on a card the user holds, at its own rate',
+          fin and fin['card'] == min(cards, key=lambda c: c.rate).name
+          and fin['apr'] == 6.0)
+    check('and on the cheapest one, so the comparison cannot flatter the lever',
+          fin['apr'] == min(c.rate for c in cards))
+
+    # §6.1 assumed financing always costs more. Against a mixed-rate portfolio
+    # it often does not, and the plan reports what is true rather than what the
+    # lever would prefer. This pins the finding: if it ever flips, someone has
+    # changed the engine's assumption about where a cash purchase comes from.
+    check('the plan reports the arbitrage honestly rather than assuming it away',
+          fin['extra_interest'] < 0 and plan['interest_paying_cash'] > fin['interest'])
+
+    # And it must not reach the page. §6.2: a solution needs no new debt.
+    resp2 = ctx.c.post('/api/debt/decision-impact', headers=ctx.HJ,
+                       json={'one_time_cost': 2400}).get_json() or {}
+    served2 = (resp2.get('data') or resp2)
+    check('the funding panel gets the plan',
+          isinstance(served2.get('save_first'), dict)
+          and served2['save_first'].get('months_to_save'))
+    check('and never the financing comparison (§6.2 — no new debt)',
+          'financed' not in served2['save_first'])
+    check('the view renders the plan from the engine, not from a division',
+          '_tripImpactData && _tripImpactData.save_first' in view
+          and 'out of the money now going to debt' in view)
+    check('and says plainly that saving does not shorten the delay',
+          'does not shorten the ${plan.months_delta}-month delay' in view)
