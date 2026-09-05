@@ -522,3 +522,48 @@ def run(ctx):
     check('and the phrase says /mo, since a commitment is not a purchase',
           "_tripPathPhrases(paths, gap, unit = '')" in view
           and "${fmt(head.price)}${unit} version" in view)
+
+    # ── BYB's calc, unified into Pillar 1 (§7) ───────────────────────────────
+    # The wizard computed a payoff in three places, each with its own JS
+    # simulator call, and searched the cards itself for the "what if you waited"
+    # section. Every one of those now asks the engine. This checks the region
+    # rather than the file: the other surfaces still use the JS simulators, and
+    # retiring those is not this change.
+    #
+    # Comment lines are stripped first. Four times now a source check has
+    # matched the prose explaining why something is absent — including the
+    # comments directly above, which name both simulators.
+    byb = view[view.index('let _bybImpactData'):view.index('function _bybCommit')]
+    byb_code = chr(10).join(l for l in byb.split(chr(10)) if not l.strip().startswith(chr(47)*2))
+    check("BYB no longer runs its own payoff simulation anywhere",
+          '_simulatePayoff' not in byb_code and '_projectPayoff' not in byb_code)
+    check('every BYB payoff figure comes from one adapter over the engine',
+          byb_code.count('_bybEnginePayoff(') >= 3 and 'd.base' in byb_code)
+    check('the baseline comes from the engine too, not from a second simulator',
+          '_bybApplyImpact' in byb_code and "_bybEnginePayoff('base')" in byb_code)
+
+    # Three states, kept apart. An unanswered fetch is not "not affordable", and
+    # neither is a zero — a null read as 0 months is the July 6 field bug, where
+    # the worst outcome rendered as the best one in green.
+    check('a pending answer is distinguished from an honest null',
+          'return undefined;' in byb_code and 'pending' in byb_code
+          and byb_code.count('=== undefined') >= 1)
+    check('and neither is allowed to become zero months',
+          byb_code.count('(pending || budgetInsufficient) ? null') >= 2)
+
+    # The waiting section reads the engine's clearing schedule, which accounts
+    # for the extra cascading onto the card being targeted. The search it
+    # replaces ran each balance in isolation at its minimum and dated every
+    # clearing later than it happens.
+    check("the waiting section reads the engine's own clearing schedule",
+          "p.kind === 'timing'" in byb_code and 'available_in_months' in byb_code)
+    check('and the affordability wall still says whether waiting moves it',
+          'after_waiting' in byb_code)
+
+    wall_w = solve_monthly_cost(cards, 775, 700)['honest_no']['after_waiting']
+    check('the wall names the balance whose clearing raises the ceiling (C.4)',
+          wall_w and wall_w['name'] and wall_w['available_in_months'] > 0
+          and wall_w['max_payable_monthly'] > 0)
+    check('and says plainly when waiting is enough, and when it is not',
+          wall_w['enough'] is True
+          and solve_monthly_cost(cards, 775, 1200)['honest_no']['after_waiting']['enough'] is False)

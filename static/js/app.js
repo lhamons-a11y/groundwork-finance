@@ -19844,24 +19844,82 @@ function _renderAchCard(a) {
 // it did, which is the right failure for a screen someone is mid-decision on.
 let _bybImpactData = null;
 let _bybImpactKey  = '';
+let _bybImpactTimer = null;
 
-async function _maybeLoadBYBImpact() {
+// Every payoff figure in this wizard comes from here, and the fetch is keyed on
+// the only two inputs that can move one: what the thing costs, and what it
+// replaces. Sandbox edits to income and expenses change What's Left and DTI,
+// which are computed locally and instantly — they do not change the debt
+// budget, so they do not re-ask this question. (Whether they SHOULD is a real
+// question and not one to answer by accident: see _bybSandboxCalc.)
+function _maybeLoadBYBImpact() {
+  clearTimeout(_bybImpactTimer);
+  _bybImpactTimer = setTimeout(_loadBYBImpact, 350);
+}
+
+// The question currently on screen: what it costs, and what it replaces. The
+// answer in hand is only an answer to THIS string — see _bybEngineData.
+function _bybImpactQuestion() {
   const replCard = _byb.replaceCardId
     ? _activeDebtCards().find(c => c.id === _byb.replaceCardId) : null;
   const replaces = replCard ? (parseFloat(replCard.minimum) || 0) : 0;
-  const monthly  = parseFloat(_byb.monthly) || 0;
-  const key = `${monthly}|${replaces}`;
-  if (!monthly) { _bybImpactData = null; _bybImpactKey = ''; return; }
+  return `${parseFloat(_byb.monthly) || 0}|${replaces}`;
+}
+
+async function _loadBYBImpact() {
+  const key = _bybImpactQuestion();
   if (key === _bybImpactKey) return;             // same question, same answer
+  const [monthly, replaces] = key.split('|').map(Number);
   try {
+    // Asked even at zero, because the BASELINE comes from here too. A wizard
+    // that computed its "before" one way and its "after" another is the defect
+    // Pillar 1 exists to retire, and it is easiest to reintroduce here.
     _bybImpactData = await API.post('/api/debt/decision-impact',
       { monthly_cost: monthly, replaces_monthly: replaces });
     _bybImpactKey  = key;
   } catch (e) {
-    _gwErr('_maybeLoadBYBImpact')(e);
+    _gwErr('_loadBYBImpact')(e);
     _bybImpactData = null;
+    _bybImpactKey  = '';
   }
+  _bybApplyImpact();
+  // Every surface that shows one of these numbers, including step 1's live
+  // preview. Leaving that one out is how the preview kept rendering the last
+  // question's answer: typing 350 showed "No change", because the reply to
+  // "and at zero?" had arrived and nothing asked it to look again.
+  _bybLiveUpdate();
+  _bybUpdateScoreboard();
   _bybBuildComparison();
+}
+
+// The engine's answer, but only while it is still an answer to the question on
+// screen. An answer to a question the user has moved on from is worse than no
+// answer: it is a wrong number wearing the confidence of a computed one.
+function _bybEngineData() {
+  return (_bybImpactData && _bybImpactKey === _bybImpactQuestion())
+    ? _bybImpactData : null;
+}
+
+// The engine's answer, in the shape the wizard already renders. Three states,
+// and they must stay three: an answer, an honest null ("this budget cannot
+// cover the minimums"), and NOT YET ASKED. Collapsing the last two is how a
+// pending fetch renders as "not affordable"; collapsing either into a zero is
+// the July 6 bug, where a null became 0 months and the worst possible outcome
+// rendered as the best one, in green.
+function _bybEnginePayoff(which) {
+  const d = _bybEngineData();
+  if (!d) return undefined;                      // not asked, asking, or stale
+  const p = (which === 'base') ? d.base : d.after;
+  if (!p || typeof p.months !== 'number') return null;
+  return { months: p.months, freeDate: _payoffDateLabel(p.months) };
+}
+
+function _bybApplyImpact() {
+  _byb.origPayoff = _bybEnginePayoff('base') || null;
+  // null with real balances = the budget cannot cover the minimums. null with
+  // no debt = nothing to pay off, and a zero baseline is then true.
+  _byb.origInsufficient = (_byb.origPayoff === null)
+    && _activeDebtCards().some(c => _cardBal(c) > 0);
 }
 
 // What the engine says about a commitment, in at most two sentences: the price
@@ -19869,7 +19927,8 @@ async function _maybeLoadBYBImpact() {
 // $350"), and the best path that is not about the price — one lever of each
 // kind, the same rule the trip planner follows.
 function _bybEngineNote() {
-  const m = _bybImpactData && _bybImpactData.monthly;
+  const eng = _bybEngineData();
+  const m = eng && eng.monthly;
   if (!m) return '';
 
   if (m.honest_no && m.honest_no.unaffordable) {
@@ -19983,11 +20042,15 @@ function openBYBWizard() {
   // Capture current baseline for comparison later
   _byb.origWhatsLeft = _bybCurrentWhatsLeft();
   _byb.origDTI       = calcDTI() || 0;
-  _byb.origPayoff    = _simulatePayoff(0) || null;
-  // null + real debts with balances = budget can't cover minimums.
-  // null + no debts = nothing to pay off; comparisons stay meaningful (0 baseline is true).
-  _byb.origInsufficient = (_byb.origPayoff === null)
-    && _activeDebtCards().some(c => _cardBal(c) > 0);
+  // The baseline comes from the engine like everything else here, so it is
+  // asked for now and applied when it lands. Until then origPayoff stays null
+  // and every comparison that depends on it renders as unknown rather than as
+  // zero — unknown is what it is.
+  _byb.origPayoff = null;
+  _byb.origInsufficient = false;
+  _bybImpactData = null;
+  _bybImpactKey  = '';
+  _maybeLoadBYBImpact();
 
   // Show step 1
   _bybGoStep(1, true);
@@ -20080,19 +20143,24 @@ function _bybLiveUpdate() {
   const replacingMin  = replacingCard ? (parseFloat(replacingCard.minimum) || 0) : 0;
   const netCost = mo - replacingMin;
 
+  // Both inputs the engine's answer depends on live here. Debounced, and keyed
+  // on the pair, so typing a price asks once rather than once per keystroke.
+  _maybeLoadBYBImpact();
+
   const income     = S.incomes.reduce((s,i)=>s+i.amount, 0);
   const newDTI     = income > 0 ? _byb.origDTI + (netCost / income * 100) : _byb.origDTI;
   const newWL      = _byb.origWhatsLeft - netCost;
-  const payoffRes  = _simulatePayoff(-netCost);
-  // Same bug as the Step 3 comparison and the scoreboard: _simulatePayoff()
-  // returns null when this purchase would push the budget below what's
-  // needed to cover minimum debt payments — meaning "not calculable," not
-  // "0 months / today." Confirmed in the field on this exact screen: a
-  // $2,300/mo "House" entry with DTI jumping to 37% displayed as "20 months
-  // sooner" in green. Fixed by tracking the insufficient case explicitly.
+  // The third and last place this wizard used to run its own payoff. Same
+  // engine as the scoreboard and the comparison now, and the same three states
+  // kept apart: an answer, a null meaning the budget cannot cover the minimums,
+  // and not-yet-answered. The middle one is not "0 months / today" — confirmed
+  // in the field on this exact screen, where a $2,300/mo "House" entry with DTI
+  // jumping to 37% displayed as "20 months sooner" in green.
+  const payoffRes  = _bybEnginePayoff('after');
+  const pending    = (payoffRes === undefined);
   const budgetInsufficient = payoffRes === null;
   const origMo     = _byb.origPayoff?.months || 0;
-  const newMo      = budgetInsufficient ? null : (payoffRes?.months || 0);
+  const newMo      = (pending || budgetInsufficient) ? null : (payoffRes?.months || 0);
   const monthsDiff = (newMo === null) ? null : (newMo - origMo);
 
   const wlEl = g('bybPrevWL'), dtiEl = g('bybPrevDTI'), poEl = g('bybPrevPayoff');
@@ -20107,6 +20175,8 @@ function _bybLiveUpdate() {
   if (poEl) {
     poEl.textContent = budgetInsufficient
       ? 'Not affordable'
+      : pending
+        ? '—'
       : _byb.origInsufficient
         // No valid "before" date exists — show the absolute result, no diff.
         ? `${newMo} mo (no baseline — budget doesn't cover minimums today)`
@@ -20114,7 +20184,7 @@ function _bybLiveUpdate() {
             ? `${monthsDiff} month${monthsDiff!==1?'s':''} later`
             : monthsDiff < 0 ? `${Math.abs(monthsDiff)} months sooner` : 'No change');
     poEl.style.color = budgetInsufficient ? 'var(--ember)'
-      : _byb.origInsufficient ? 'var(--gold)'
+      : (pending || _byb.origInsufficient) ? 'var(--gold)'
       : (monthsDiff > 0 ? 'var(--ember)' : 'var(--pine)');
   }
 }
@@ -20143,6 +20213,7 @@ function _bybBuildSandbox() {
   const mo   = parseFloat(g('bybMonthlyAmount')?.value) || 0;
   _byb.name    = name;
   _byb.monthly = mo;
+  _maybeLoadBYBImpact();
 
   const newNameEl = g('bybSandboxNewName');
   const newAmtEl  = g('bybSandboxNewAmt');
@@ -20252,9 +20323,21 @@ function _bybSandboxCalc() {
   const whatsLeft   = income - expenses - debtMins - sinking - newPmt;
   const totalDebtPmt= debtMins + newPmt;
   const dti         = income > 0 ? (totalDebtPmt / income) * 100 : 0;
-  // Payoff simulation: budget = sandbox What's Left (available for extra debt)
-  const extraForDebt= Math.max(0, whatsLeft);
-  const payoff      = _simulatePayoff(-Math.max(0, _byb.monthly - replacingMin));
+
+  // The payoff date comes from Pillar 1 (§7), asked with this purchase's cost
+  // and what it replaces. It is NOT computed from What's Left above, and the
+  // comment that used to sit here said it was — beside a variable holding that
+  // figure which nothing ever read. The date depends on the declared debt
+  // budget and this commitment, so editing a sandbox expense moves What's Left
+  // and DTI and leaves the date alone.
+  //
+  // Whether it SHOULD move is a real question, deliberately not answered here:
+  // rebuilding the debt budget out of sandbox income minus expenses would make
+  // the date depend on how completely someone's expenses are recorded, and an
+  // incomplete expense list would read as money available for debt. That is
+  // the direction that flatters a purchase, which is the one direction this
+  // engine refuses to lean.
+  const payoff = _bybEnginePayoff('after');
   return { whatsLeft, dti, payoff, income, expenses };
 }
 
@@ -20384,8 +20467,9 @@ function _bybBuildComparison() {
   // longer cover their minimum payments was being reported as the single
   // best possible outcome. Confirmed in the field. Fixed by tracking this
   // case explicitly instead of letting it silently fall through as zero.
+  const pending = (payoff === undefined);       // asked, not yet answered
   const budgetInsufficient = payoff === null;
-  const newMo   = budgetInsufficient ? null : (payoff?.months || 0);
+  const newMo   = (pending || budgetInsufficient) ? null : (payoff?.months || 0);
   const moDiff  = (newMo === null) ? null : (newMo - origMo);
   const replCard = _byb.replaceCardId
     ? _activeDebtCards().find(c => c.id === _byb.replaceCardId)
@@ -20402,48 +20486,48 @@ function _bybBuildComparison() {
     loanPayoffNote = `<div>Loan itself: <span style="font-family:var(--font-mono)">paid off in ~${term} months</span> then freed</div>`;
   }
 
-  // Fix 2: "What if I waited?" — find nearest card payoff from current simulation
+  // Fix 2, and §6.1's timing lever: "What if you waited?" — now from the
+  // engine's own clearing schedule rather than from a search this screen ran
+  // itself. That search called _projectPayoff per card, which runs a balance
+  // in isolation at its minimum payment: it cannot see the extra cascading
+  // onto the card being targeted, so it dated every clearing later than it
+  // actually happens and offered a longer wait than the one that exists.
   let waitSection = '';
-  const activeDebts = _activeDebtCards();
-  if (activeDebts.length && origMo > 0) {
-    // Find the card that pays off soonest
-    let soonestCard = null, soonestMo = Infinity;
-    activeDebts.forEach(c => {
-      const bal = _cardBal(c);
-      const apr = parseFloat(c.rate)||0;
-      const min = parseFloat(c.minimum)||0;
-      if (bal > 0 && min > 0) {
-        const snaps = _projectPayoff(bal, apr, min);
-        if (snaps.length < soonestMo) { soonestMo = snaps.length; soonestCard = c; }
-      }
-    });
-    if (soonestCard && soonestMo < origMo && soonestMo > 0) {
-      // If user waits until soonest card is paid off, freed minimum cascades
-      const freedMin = parseFloat(soonestCard.minimum)||0;
-      const netCostAfterWait = Math.max(0, _byb.monthly - replMin - freedMin);
-      const payoffAfterWait  = _simulatePayoff(-netCostAfterWait);
-      // Same class of bug, same fix: don't silently treat a null (still
-      // insufficient even after waiting) as 0 months.
-      const afterWaitInsufficient = payoffAfterWait === null;
-      const moDiffAfterWait  = afterWaitInsufficient ? null : ((payoffAfterWait?.months||0) - origMo);
-      const waitDate         = _payoffDateLabel(soonestMo);
-      const nowComparisonText = budgetInsufficient
-        ? `not being affordable at all right now`
-        : `${moDiff} month${moDiff!==1?'s':''} now`;
-      waitSection = `
+  const engData = _bybEngineData();
+  const eng     = engData && engData.monthly;
+  const engWall = (eng && eng.honest_no && eng.honest_no.unaffordable) ? eng.honest_no : null;
+  const soonest = ((eng && eng.paths) || [])
+    .filter(p => p.kind === 'timing' && p.available_in_months)
+    .sort((a, b) => a.available_in_months - b.available_in_months)[0];
+
+  const waitBox = (headline, verdict) => `
         <div style="background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:12px">
           <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine);margin-bottom:6px">What if you waited?</div>
-          <div style="font-size:12px;color:var(--slate);line-height:1.7">
-            <strong style="color:var(--ink)">${esc(soonestCard.name)}</strong> pays off in ~${soonestMo} months (${waitDate}),
-            freeing <span style="font-family:var(--font-mono);color:var(--pine)">${fmt(freedMin)}/mo</span>.
-            ${afterWaitInsufficient
-              ? `Even after that, this purchase would still leave you unable to cover minimum payments — waiting for this card alone isn't enough.`
-              : (moDiffAfterWait <= 0
-                  ? `After that, this purchase <span style="color:var(--pine)">wouldn't push your debt-free date at all.</span>`
-                  : `After that, this purchase would only push your date <span style="font-family:var(--font-mono);color:var(--gold)">${moDiffAfterWait} month${moDiffAfterWait!==1?'s':''} later</span> vs ${nowComparisonText}.`)}
-          </div>
+          <div style="font-size:12px;color:var(--slate);line-height:1.7">${headline} ${verdict}</div>
         </div>`;
-    }
+
+  if (soonest) {
+    const who   = soonest.label.replace(/^wait for /, '');
+    const when  = soonest.available_in_months;
+    const nowText = (moDiff === null)
+      ? 'what it costs now'
+      : `${moDiff} month${moDiff !== 1 ? 's' : ''} now`;
+    waitSection = waitBox(
+      `<strong style="color:var(--ink)">${esc(who)}</strong> clears in ~${when} months (${_payoffDateLabel(when)}),
+       freeing <span style="font-family:var(--font-mono);color:var(--pine)">${fmt(soonest.frees_monthly)}/mo</span>.`,
+      soonest.closes
+        ? `After that, this purchase <span style="color:var(--pine)">wouldn't push your debt-free date at all.</span>`
+        : `After that, this purchase would push your date <span style="font-family:var(--font-mono);color:var(--gold)">${soonest.cost_months} month${soonest.cost_months !== 1 ? 's' : ''} later</span> vs ${nowText}.`);
+  } else if (engWall && engWall.after_waiting) {
+    // The wall, and whether waiting moves it. Saying nothing here would make a
+    // dead end of the one case where the honest answer is "not yet".
+    const w = engWall.after_waiting;
+    waitSection = waitBox(
+      `<strong style="color:var(--ink)">${esc(w.name)}</strong> clears in ~${w.available_in_months} months
+       (${_payoffDateLabel(w.available_in_months)}), freeing <span style="font-family:var(--font-mono);color:var(--pine)">${fmt(w.frees_monthly)}/mo</span>.`,
+      w.enough
+        ? `After that this payment fits — you could carry up to <span style="font-family:var(--font-mono)">${fmt(w.max_payable_monthly)}/mo</span>.`
+        : `Even then the most you could carry is <span style="font-family:var(--font-mono);color:var(--ember)">${fmt(w.max_payable_monthly)}/mo</span> — waiting for this card alone isn't enough.`);
   }
 
   const expChanges = _byb.sandboxExpenses
@@ -20459,7 +20543,7 @@ function _bybBuildComparison() {
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--steel);border-radius:var(--r-md);overflow:hidden;margin-bottom:14px">
       ${_bybCompCell("What's Left", (whatsLeft<0?'−':'')+fmt(Math.abs(whatsLeft)), whatsLeft < 0 ? 'var(--ember)' : 'var(--pine)')}
       ${_bybCompCell("DTI", dti.toFixed(1) + '%', dti > 20 ? 'var(--ember)' : dti > 15 ? 'var(--gold)' : 'var(--pine)')}
-      ${_bybCompCell("Debt-free", budgetInsufficient ? 'Not affordable' : (payoff?.freeDate || '—'), budgetInsufficient ? 'var(--ember)' : (_byb.origInsufficient ? 'var(--slate)' : (moDiff > 0 ? 'var(--ember)' : 'var(--pine)')))}
+      ${_bybCompCell("Debt-free", budgetInsufficient ? 'Not affordable' : (pending ? '—' : (payoff?.freeDate || '—')), budgetInsufficient ? 'var(--ember)' : (pending || _byb.origInsufficient ? 'var(--slate)' : (moDiff > 0 ? 'var(--ember)' : 'var(--pine)')))}
     </div>
 
     <!-- Change from original -->
