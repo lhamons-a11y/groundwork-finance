@@ -175,6 +175,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(bank_import_bp,   url_prefix='/api/import')
     app.register_blueprint(auto_import_bp,   url_prefix='/api/auto-import')
     app.register_blueprint(sinking_funds_bp,  url_prefix='/api/sinking-funds')
+    app.register_blueprint(proactive_bp,     url_prefix='/api/proactive')
     app.register_blueprint(college_funds_bp,  url_prefix='/api/college-funds')
     app.register_blueprint(gift_bp,           url_prefix='/api/gift')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
@@ -1932,6 +1933,227 @@ def ledger_lesson():
             'paths': paths,
             'undated_forgiveness': undated,
         })
+
+
+# Appendix A's routes live beside the engines they govern rather than with the
+# other blueprints at the bottom of this file, because a decorator cannot run
+# before the blueprint it names exists.
+proactive_bp = Blueprint('proactive', __name__)
+
+
+def _proactive_state(session):
+    """The frequency budget, read from the historian rather than kept in memory.
+
+    A.3's caps are counts over real windows, so the ledger that answers them has
+    to survive a restart. `proactive_shown` and `proactive_dismissed` are that
+    ledger; nothing else here is state.
+    """
+    from core.proactive import BRAKE_PER_WEEK
+
+    now = datetime.utcnow()
+    week = now - timedelta(days=7)
+    last_session = session.query(HistorianEntry).filter(
+        HistorianEntry.event_category == 'session_start'
+    ).order_by(HistorianEntry.created_at.desc()).first()
+    session_since = last_session.created_at if last_session else now - timedelta(hours=12)
+
+    shown, dismissed = {}, {}
+    session_prompts = brake_7d = green_7d = dismissed_7d = 0
+    rows = session.query(HistorianEntry).filter(
+        HistorianEntry.event_category.in_(('proactive_shown', 'proactive_dismissed'))
+    ).all()
+    category_dismissals = {}
+    for e in rows:
+        try:
+            cxt = json.loads(e.context_json or '{}')
+        except (json.JSONDecodeError, TypeError):
+            cxt = {}
+        key = cxt.get('key')
+        age_days = max(0, (now - e.created_at).days)
+        if e.event_category == 'proactive_shown':
+            if key:
+                shown[key] = age_days
+            if e.created_at >= session_since:
+                session_prompts += 1
+            if e.created_at >= week:
+                if cxt.get('budget') == 'green':
+                    green_7d += 1
+                else:
+                    brake_7d += 1
+        else:
+            if key and (key not in dismissed or age_days < dismissed[key]['days_ago']):
+                dismissed[key] = {'days_ago': age_days}
+            cat = cxt.get('category')
+            if cat:
+                category_dismissals[cat] = category_dismissals.get(cat, 0) + 1
+            if e.created_at >= week:
+                dismissed_7d += 1
+
+    return {
+        'session_prompts': session_prompts,
+        'brake_last_7d': brake_7d,
+        'green_last_7d': green_7d,
+        'shown': shown,
+        'dismissed': dismissed,
+        'category_dismissals': category_dismissals,
+        # A.4's backoff, in the doc's own units rather than a number invented
+        # here: dismissing as many as we are allowed to send in a week is a
+        # demonstrated preference, and it costs a tier.
+        'cadence_tier': 1 if dismissed_7d >= BRAKE_PER_WEEK else 0,
+    }
+
+
+def _proactive_candidates(session, cards, budget, strategy):
+    """The insights eligible to interrupt, drawn from §7's named events.
+
+    Each one already exists as a passive surface. That is the point of A.1: this
+    does not compute anything new, it only asks whether something already true
+    is worth saying unprompted.
+    """
+    from core.solution import budget_pressure, green_light, solve_one_time_cost
+
+    today = date.today().strftime('%Y-%m')
+    kw = dict(strategy=strategy, today_key=today, start_month=today)
+    cats = reallocation_candidates(session)
+    out = []
+
+    charge = large_charge_lesson(session, cards, budget, strategy)
+    if charge:
+        sol = solve_one_time_cost(cards, budget, charge['lesson']['amount'],
+                                  categories=cats, recurring=trim_candidates(session), **kw)
+        out.append({
+            'key': f"charge:{charge['charge']['name']}:{charge['charge']['date']}",
+            'kind': 'brake', 'category': charge['charge'].get('category'),
+            'months': charge['lesson']['months_cost'],
+            'dollars': charge['charge']['amount'],
+            'has_path': any(p['closes'] for p in sol['paths']),
+            'goal_impact': charge['lesson']['months_cost'],
+            'subject': charge['charge']['name'],
+            'detail_kind': 'charge',
+        })
+
+    for over in budget_pressure(cards, budget, categories=cats, **kw)[:1]:
+        out.append({
+            'key': f"overspend:{over['name']}",
+            'kind': 'brake', 'category': over['name'],
+            'months': over['months_cost'], 'dollars': over['monthly'],
+            'has_path': over['fix'] is not None,
+            'goal_impact': over['months_cost'],
+            'subject': over['name'], 'detail_kind': 'overspend',
+        })
+
+    drivers = []
+    window_start = datetime.utcnow() - timedelta(days=365)
+    for acct in session.query(DebtAccount).filter(
+            DebtAccount.paid_off_at.isnot(None),
+            DebtAccount.paid_off_at >= window_start).all():
+        minimum = float(acct.minimum_payment or 0)
+        if minimum <= 0:
+            continue
+        deliberate = session.query(DebtLedgerEntry).filter(
+            DebtLedgerEntry.debt_account_id == acct.id,
+            DebtLedgerEntry.entry_type == 'payment',
+            DebtLedgerEntry.amount > minimum + 1.0).first() is not None
+        drivers.append({'name': acct.name, 'monthly': round(minimum, 2),
+                        'deliberate': deliberate,
+                        'months_ago': ((datetime.utcnow().year - acct.paid_off_at.year) * 12
+                                       + (datetime.utcnow().month - acct.paid_off_at.month))})
+    lit = green_light(cards, budget, drivers, **kw)
+    if lit:
+        out.append({
+            'key': f"green:{lit['freed_monthly']}:{lit['driver_count']}",
+            'kind': 'green', 'category': None,
+            'months': lit['months_sooner'], 'dollars': lit['freed_monthly'],
+            'has_path': True, 'goal_impact': lit['months_sooner'],
+            'subject': (lit['drivers'][0]['name'] if lit['drivers'] else 'what you changed'),
+            'detail_kind': 'green', 'freed_monthly': lit['freed_monthly'],
+        })
+    return out
+
+
+@proactive_bp.route('/next', methods=['GET'])
+def proactive_next():
+    """The one insight, if any, that has earned the right to interrupt (App. A).
+
+    **The caller owns the timing gate.** A.2 #5 forbids mid-task and blocking,
+    and no server can see what the user is doing — so this route is called on a
+    dashboard load and nowhere else, and the verdict says the gate was
+    delegated rather than pretending to have checked it.
+
+    Nothing promoted is not an error and not an empty state: A.3 says a week
+    with no material event is a silent week. The gate that stopped each
+    candidate comes back too, because "why didn't it say anything" deserves an
+    answer that is not a shrug.
+    """
+    from core.proactive import contend, verdict
+
+    with db_session() as session:
+        cards, budget, strategy, undated = _consequence_inputs(session)
+        if not cards:
+            return ok({'prompt': None, 'considered': [], 'reason': 'no active debt'})
+
+        state = _proactive_state(session)
+        state['monthly_budget'] = budget
+
+        promoted, considered = [], []
+        for cand in _proactive_candidates(session, cards, budget, strategy):
+            v = verdict(cand, state)
+            considered.append({'key': cand['key'], 'promote': v['promote'],
+                               'gate': v['gate'], 'budget': v['budget']})
+            if v['promote']:
+                promoted.append({**cand, 'budget': v['budget']})
+
+        # Read-only, deliberately. Selecting is not showing, and this route does
+        # both only if you let it: called on every dashboard render, a GET that
+        # logs would spend the session budget on a card nobody has seen yet and
+        # then hide that card on the next render, because the budget it just
+        # spent now blocks it. Worse, the frequency ledger would be a record of
+        # what was COMPUTED rather than what was shown. The client reports the
+        # showing, which is the only place that knows it happened.
+        return ok({'prompt': contend(promoted), 'considered': considered})
+
+
+@proactive_bp.route('/shown', methods=['POST'])
+@require_json
+def proactive_shown():
+    """Record that a prompt actually reached the user (A.3's ledger).
+
+    Posted by the surface that rendered it, because only the surface knows. A
+    prompt selected and never displayed has cost the user no attention and must
+    not cost the budget any either.
+    """
+    body = request.json or {}
+    key = (body.get('key') or '').strip()
+    if not key:
+        return err('key is required')
+    with db_session() as session:
+        log_historian_event(
+            session, 'proactive_shown',
+            context={'key': key, 'budget': body.get('budget') or 'brake',
+                     'category': body.get('category')})
+        session.commit()
+    return ok({'shown': key})
+
+
+@proactive_bp.route('/dismiss', methods=['POST'])
+@require_json
+def proactive_dismiss():
+    """The user closed one. That is an instruction, and it is logged as one.
+
+    A.4: a dismissal buys a 60-day cooldown, two in a category drop it to
+    passive for good, and sustained dismissals lower the whole cadence. It is
+    the only sanctioned use of engagement data — respecting a demonstrated
+    preference, never predicting from it (§9).
+    """
+    body = request.json or {}
+    key = (body.get('key') or '').strip()
+    if not key:
+        return err('key is required')
+    with db_session() as session:
+        log_historian_event(session, 'proactive_dismissed',
+                            context={'key': key, 'category': body.get('category')})
+        session.commit()
+    return ok({'dismissed': key})
 
 
 @debt_bp.route('/green-light', methods=['GET'])
