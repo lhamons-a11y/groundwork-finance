@@ -145,7 +145,8 @@ def run(ctx):
           'reallocation' in kinds and 'trim' in kinds)
     check('a named path frees exactly what the items it names add up to',
           all(abs(p['frees_monthly'] - sum(i['monthly'] for i in p['items'])) < 0.01
-              for p in named['paths'] if p['items']))
+              for p in named['paths']
+              if p['items'] and p['kind'] in ('reallocation', 'trim')))
 
     # The check that catches the baseline mistake. A named path is simulated as
     # `monthly_delta` against today's plan, not as a raised budget: raising the
@@ -280,7 +281,9 @@ def run(ctx):
     check('the route serves the naming levers, not just the engine',
           any(p['kind'] in ('reallocation', 'trim') for p in served))
     check('nothing on the necessity floor reaches the route\'s answer',
-          not any(i['name'] in ('Lever Power', 'Utilities')
+          # A .get, not a subscript: substitution's items are price rungs
+          # rather than named sources, and every path's items go through here.
+          not any(i.get('name') in ('Lever Power', 'Utilities')
                   for p in served for i in (p.get('items') or [])))
 
     # The sentence, not just the payload. Rendering the copy has found three
@@ -294,3 +297,49 @@ def run(ctx):
           'hn.named_total' in view and 'hn.nearest_monthly' in view)
     check('the stated figure rounds up, since rounded down it would not hold the date',
           'Math.ceil(hn.nearest_monthly / 5) * 5' in view)
+
+    # ── Lever 5: substitution, priced rather than invented ───────────────────
+    # The engine cannot know what a cheaper version of a thing IS — §6.1's own
+    # example is BYB's mechanic, where the user names what is being replaced.
+    # What it may do is price the same decision against the time it costs. Every
+    # rung is verified here against the engine itself: a price that claims to
+    # cost two months must cost two months, and a dollar more must cost more.
+    from core.consequence import affordable_one_time
+
+    sub_sol = solve_one_time_cost(cards, 775, 2400, categories=cats, recurring=rec)
+    sub = next((p for p in sub_sol['paths'] if p['kind'] == 'substitution'), None)
+    check('substitution offers the same decision at a price, with its cost',
+          sub is not None and sub['items'] and sub['amount'] < 2400)
+
+    def _at(price):
+        return decision_impact(cards, 775, one_time_cost=price)['months_delta']
+    check('every rung costs exactly the months it claims',
+          all(_at(r['price']) == r['months_delta'] for r in (sub['items'] if sub else [])))
+    check('and rounds down, so a rung is never a price that misses its claim',
+          all(_at(r['price'] + 25) > r['months_delta'] for r in (sub['items'] if sub else [])))
+    check('no rung costs more than the decision the user asked about',
+          all(r['price'] < 2400 for r in (sub['items'] if sub else [])))
+
+    # The rung that moves nothing is about one month of surplus whatever the
+    # decision costs — the granularity of the model, not an alternative. Priced
+    # alone it would answer a $900 question and a $40,000 one with the same
+    # number, which is why the lever prices the delay the user actually faces.
+    hold_900 = affordable_one_time(cards, 775, 900)
+    hold_40k = affordable_one_time(cards, 775, 40000)
+    check('the price that moves nothing is the same at any size, so it is not the lever',
+          hold_900 is not None and hold_40k is not None and abs(hold_900 - hold_40k) < 25)
+    check('while the priced-against-delay rung tracks the decision',
+          affordable_one_time(cards, 775, 40000, max_delay_months=28) > 10000)
+
+    # Substitution holds the date by changing the decision, not by finding the
+    # money — so it must not be what silences §6.4's honest no.
+    far = solve_one_time_cost(cards, 775, 400000, categories=cats, recurring=rec)
+    check('substitution never silences the honest no',
+          far['honest_no'] is not None)
+
+    sub_blob = f"{sub['label']} {sub['detail']}".lower() if sub else ''
+    check('and proposes no income and no new credit either (§6.3)',
+          not [b for b in banned if b in sub_blob])
+    check('the view prices it from the rungs, and shows one lever of each kind',
+          "p.kind === 'substitution'" in view and 'rungs[0]' in view
+          and "all.find(p => p.kind === 'substitution')" in view)
