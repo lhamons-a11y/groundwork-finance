@@ -46,6 +46,7 @@ from core.database import ( db_session, DATA_DIR,
     DebtLedgerEntry, RecurringDebtPayment, CheckingTransactionLink,
     HistorianEntry, TripHistory,
 )
+from core.consequence import simulate_payoff
 from core.solution import MIN_MONTHS_OBSERVED
 from migrate import run_migration_if_needed
 
@@ -1768,6 +1769,42 @@ def debt_decision_impact():
     # forgiveness that they had eighteen years left. Say so instead.
     result['undated_forgiveness'] = undated
     result['covers_all_debt'] = not undated
+    return ok(result)
+
+
+@debt_bp.route('/accelerations', methods=['GET'])
+def debt_accelerations():
+    """What moves the payoff date most, on the plan already in place (§8).
+
+    Every other consequence route answers a question about a decision. This one
+    answers a question about the plan, which is what the Debt Payoff surface is
+    for, and it takes no body because there is nothing to decide — the levers
+    are read from what the ledger already records.
+
+    An empty list is an answer, not a failure: it means nothing in the record
+    moves the date further, and `do_nothing` carries the proof that goes with
+    it (lever 7).
+    """
+    from core.solution import accelerations, do_nothing_note
+
+    with db_session() as session:
+        cards, budget, strategy, undated = _consequence_inputs(session)
+        if not cards:
+            return ok({'base': None, 'accelerations': [], 'do_nothing': None,
+                       'undated_forgiveness': [], 'reason': 'no active debt'})
+        today = date.today().strftime('%Y-%m')
+        result = {
+            'base': simulate_payoff(cards, budget, strategy,
+                                    today_key=today, start_month=today),
+            'accelerations': accelerations(
+                cards, budget,
+                categories=reallocation_candidates(session),
+                recurring=trim_candidates(session),
+                strategy=strategy, today_key=today, start_month=today),
+            'do_nothing': do_nothing_note(cards, budget, strategy=strategy,
+                                          today_key=today, start_month=today),
+            'undated_forgiveness': undated,
+        }
     return ok(result)
 
 

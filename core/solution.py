@@ -913,3 +913,78 @@ def solve_monthly_cost(cards, budget, monthly_cost, replaces_monthly=0.0,
     # returned the wall instead of a month count.
     return {'net_monthly': round(net, 2), 'gap_months': gap,
             'paths': paths, 'honest_no': None}
+
+
+def accelerations(cards, budget, categories=None, recurring=None,
+                  strategy='avalanche', today_key=None, start_month=None,
+                  limit=5):
+    """What moves the payoff date most, on the plan the user already has.
+
+    §8's line for the Debt Payoff surface: "name the single lever that moves the
+    date most; payoff-order optimization". Every solver above answers a question
+    about a DECISION — a purchase, a commitment — and this one answers a
+    question about the plan itself, which is the question that surface is for.
+
+    Each entry is a single lever with the months and the interest it saves,
+    never a combination. "Shift these three and cut those two" is a different
+    kind of claim: it needs to know which of them this person would actually
+    accept, and F.6b keeps that unclassified.
+
+    **Ranked by impact, and only here.** Everywhere else the ordering is E.3's —
+    least disruption first, no-cut before cut. This list is the answer to "what
+    moves it most", and sorting that by anything other than how much it moves it
+    would be answering a question nobody asked. `requires_cut` rides on every
+    entry so the caller can still tell the two kinds apart, and reallocation
+    from money the record shows was never spent is not a cut.
+
+    **The assumption each entry rests on, stated in its own sentence:** the
+    freed money goes to the debt. Nothing here can verify that it would, so the
+    detail says "toward debt" rather than implying the saving happens by itself.
+    """
+    kw = dict(strategy=strategy, today_key=today_key, start_month=start_month)
+    base = simulate_payoff(cards, budget, **kw)
+    if base is None:
+        return []                        # honest-null: no plan to accelerate
+
+    out = []
+
+    for source in _headroom(categories) + _trims(recurring):
+        after = simulate_payoff(cards, budget + source['monthly'], **kw)
+        if after is None or after['months'] >= base['months']:
+            continue                     # frees money, moves nothing
+        cut = (source['kind'] == 'trim')
+        out.append({
+            'kind': source['kind'],
+            'label': (f"cut {source['name']}" if cut
+                      else f"shift ${source['monthly']:.0f}/mo from {source['name']}"),
+            'detail': (
+                f"{source['name']} costs ${source['monthly']:.0f}/mo" if cut else
+                f"{source['name']} is budgeted at ${source['budgeted']:.0f}/mo and never "
+                f"went over ${source['worst']:.0f} in {source['months_observed']} months"),
+            'monthly': source['monthly'],
+            'months_saved': base['months'] - after['months'],
+            'interest_saved': base['total_interest'] - after['total_interest'],
+            'requires_cut': cut,
+            'items': [source],
+        })
+
+    # Payoff order, which costs nothing at all — no money moves, only its
+    # sequence. Offered only when it wins; when it does not, lever 7's
+    # do_nothing_note proves the current order is already the faster one.
+    other = 'snowball' if strategy == 'avalanche' else 'avalanche'
+    alt = simulate_payoff(cards, budget, **{**kw, 'strategy': other})
+    if alt is not None and (alt['months'] < base['months']
+                            or alt['total_interest'] < base['total_interest']):
+        out.append({
+            'kind': 'payoff_order',
+            'label': f"pay in {other} order",
+            'detail': f"same money, different sequence — {other} clears the balances sooner",
+            'monthly': 0.0,
+            'months_saved': base['months'] - alt['months'],
+            'interest_saved': base['total_interest'] - alt['total_interest'],
+            'requires_cut': False,
+            'items': [],
+        })
+
+    out.sort(key=lambda a: (-a['months_saved'], -a['interest_saved']))
+    return out[:limit]

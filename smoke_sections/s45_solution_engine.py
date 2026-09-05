@@ -567,3 +567,46 @@ def run(ctx):
     check('and says plainly when waiting is enough, and when it is not',
           wall_w['enough'] is True
           and solve_monthly_cost(cards, 775, 1200)['honest_no']['after_waiting']['enough'] is False)
+
+    # ── §8, the Debt Payoff surface: the levers pointed at the plan ──────────
+    # Every solver above answers a question about a decision. This one answers
+    # "what moves my date most", which is the question that surface is for.
+    from core.solution import accelerations
+
+    accel = accelerations(cards, 775, categories=cats, recurring=rec)
+    check('the plan itself has levers, from the same record the solvers use',
+          accel and all(a['months_saved'] > 0 for a in accel))
+    check('ranked by what they actually move, which is the question asked',
+          [a['months_saved'] for a in accel] == sorted(
+              (a['months_saved'] for a in accel), reverse=True))
+    check('and each carries whether it is a cut, so the two kinds stay apart',
+          all('requires_cut' in a for a in accel)
+          and any(not a['requires_cut'] for a in accel))
+
+    base_m = simulate_payoff(cards, 775)['months']
+    check('every saving is verified against the engine, not asserted',
+          all(simulate_payoff(cards, 775 + a['monthly'])['months']
+              == base_m - a['months_saved']
+              for a in accel if a['monthly'] > 0))
+    check('a lever that frees money but moves no month is not offered',
+          all(a['months_saved'] >= 1 for a in accel))
+    check('the necessity floor holds here too (E.1)',
+          not any(i.get('name') in ('Rent', 'Groceries', 'City Power')
+                  for a in accel for i in a['items']))
+    check('and no combinations, which would need a willingness nobody has',
+          all(len(a['items']) <= 1 for a in accel))
+    check('nothing to accelerate returns nothing rather than a hopeful list',
+          accelerations(cards, 775) == []
+          and accelerations(cards, 100, categories=cats) == [])
+
+    resp5 = ctx.c.get('/api/debt/accelerations', headers=ctx.H).get_json() or {}
+    served5 = (resp5.get('data') or resp5)
+    check('the route serves them with the plan they are measured against',
+          'accelerations' in served5 and 'base' in served5
+          and 'do_nothing' in served5)
+    check('the advisor renders them, and says what each one assumes',
+          '_debtRenderAccelerations' in view
+          and 'assumes the money freed goes toward the debt' in view)
+    check('an empty list still teaches, but only with the proof attached',
+          'Nothing in your record moves it further' in view
+          and 'months_better > 0' in view)
