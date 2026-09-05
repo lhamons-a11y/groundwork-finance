@@ -2135,7 +2135,14 @@ def _proactive_state(session):
             if e.created_at >= week:
                 dismissed_7d += 1
 
+    # §12's dial: explicit control, stored as a setting like every other
+    # preference. Read here so the gauntlet sees it as state rather than as a
+    # special case somewhere upstream.
+    dial_row = session.query(AppSetting).filter_by(key='proactive_dial').first()
+    dial = (dial_row.value if dial_row and dial_row.value else 'normal')
+
     return {
+        'dial': dial if dial in ('normal', 'fewer', 'off') else 'normal',
         'session_prompts': session_prompts,
         'brake_last_7d': brake_7d,
         'green_last_7d': green_7d,
@@ -2256,7 +2263,8 @@ def proactive_next():
         # spent now blocks it. Worse, the frequency ledger would be a record of
         # what was COMPUTED rather than what was shown. The client reports the
         # showing, which is the only place that knows it happened.
-        return ok({'prompt': contend(promoted), 'considered': considered})
+        return ok({'prompt': contend(promoted), 'considered': considered,
+                   'dial': state['dial']})
 
 
 @proactive_bp.route('/shown', methods=['POST'])
@@ -4481,6 +4489,7 @@ def bootstrap():
                 'monthlyBudget':  float(settings.get('monthly_budget',  1500) or 1500),
                 'savingsPct':     float(settings.get('savings_pct',      10)  or 10),
                 'debtMethod':     settings.get('debt_method',     'avalanche'),
+                'proactiveDial':  settings.get('proactive_dial',  'normal'),
                 'dfmActive':      settings.get('dfm_active',      'false') == 'true',
                 'dfmSavingsCut':  float(settings.get('dfm_savings_cut', 5) or 5),
                 'strategyStreak': int(settings.get('strategy_streak',   0) or 0),
