@@ -19990,7 +19990,10 @@ function renderTrophyRoom() {
   const total   = ACHIEVEMENTS.length;
   const pct     = Math.round(earnedN/total*100);
   setText('trophyProgress', `${earnedN} of ${total} achievements earned`);
-  _loadAchievementDates().then(() => {
+  // §12's gate, now pinned: a trophy is its proof (B.3), so the receipts are
+  // fetched before the room renders. Without them every card would be exactly
+  // the generic gamification the Trophy Room exists to stop being.
+  Promise.all([_loadAchievementDates(), _loadTrophyVerdicts()]).then(() => {
     _renderTrophyContent(cont, earnedN, total, pct);
     _trophyRenderAdvisorEntry(earnedN);
   });
@@ -20208,6 +20211,49 @@ function _renderTrophyContent(cont, earnedN, total, pct) {
     }).join('')}`;
 }
 
+// The pinned standard, as the room sees it: which trophies are proven, which
+// are waiting on evidence, and which were never trophies (core/trophies.py).
+let _trophyVerdicts = {};
+
+async function _loadTrophyVerdicts() {
+  try {
+    const r = await API.get('/api/trophies');
+    _trophyVerdicts = Object.fromEntries((r.trophies || []).map(t => [t.id, t]));
+  } catch (e) {
+    _gwErr('_loadTrophyVerdicts')(e);
+    _trophyVerdicts = {};
+  }
+}
+
+// The receipt, or an honest note about why there isn't one. A trophy awarded
+// before any of this existed is not retroactively false — it is unproven, and
+// saying that is better than either dropping it or dressing it up.
+function _trophyReceipt(id) {
+  const v = _trophyVerdicts[id];
+  if (!v) return '';
+  if (v.class === 'setup') {
+    return `<div style="font-size:10px;color:var(--slate-2);margin-top:5px">Setup step — not an earned trophy.</div>`;
+  }
+  const proof = (v.proof || [])
+    .filter(p => p.value !== null && p.value !== undefined && p.value !== '')
+    .map(p => {
+      const val = p.unit === 'money' ? fmt(p.value)
+                : p.unit === 'percent' ? `${p.value}%`
+                : esc(String(p.value));
+      return `${esc(p.label)}: ${val}`;
+    }).join(' · ');
+
+  if (v.earned === true) {
+    return `<div style="font-size:10px;font-family:var(--font-mono);color:var(--pine);margin-top:5px">
+      ${proof || 'proved by your ledger'}
+    </div>`;
+  }
+  if (v.earned === null) {
+    return `<div style="font-size:10px;color:var(--slate-2);margin-top:5px">${esc(v.reason)}</div>`;
+  }
+  return '';
+}
+
 function _renderAchCard(a) {
   const earned  = S.achievements.has(a.id);
   const dateStr = earned && S.achievementDates?.[a.id]
@@ -20232,6 +20278,7 @@ function _renderAchCard(a) {
           <div style="font-size:10px;color:var(--pine);margin-top:4px">✓ Earned ${dateStr}</div>
           ${a.behavior ? `<div style="font-size:11px;color:var(--slate);margin-top:5px;font-style:italic;line-height:1.5">${esc(a.behavior)}</div>` : ''}
         ` : ''}
+        ${_trophyReceipt(a.id)}
         ${!earned && prog !== null ? `
           <div style="margin-top:8px">
             <div style="height:3px;background:var(--steel);border-radius:99px;overflow:hidden">
