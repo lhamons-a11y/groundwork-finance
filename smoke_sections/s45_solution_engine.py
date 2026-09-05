@@ -610,3 +610,63 @@ def run(ctx):
     check('an empty list still teaches, but only with the proof attached',
           'Nothing in your record moves it further' in view
           and 'months_better > 0' in view)
+
+    # ── §8, the Budget surface: what an amount costs ─────────────────────────
+    # "This category's overspend costs ~6 weeks; here's the reallocation that
+    # fixes it." Overspend is the mirror of headroom and is measured the same
+    # way — the part of the record that held in EVERY month it can speak about.
+    from core.solution import budget_pressure, _overspend
+
+    over_cats = [
+        {'name': 'Dining Out', 'budgeted': 300, 'min_observed': 385,
+         'max_observed': 480, 'months_observed': 6},
+        {'name': 'Shopping', 'budgeted': 300, 'min_observed': 60,
+         'max_observed': 185, 'months_observed': 6},
+        {'name': 'Groceries', 'budgeted': 700, 'min_observed': 790,
+         'max_observed': 910, 'months_observed': 6},
+        {'name': 'Hobbies', 'budgeted': 100, 'min_observed': 140,
+         'max_observed': 160, 'months_observed': 2},
+        {'name': 'Travel', 'budgeted': 200, 'min_observed': 120,
+         'max_observed': 900, 'months_observed': 6},
+    ]
+    over = _overspend(over_cats)
+    names = {o['name'] for o in over}
+    check('overspend is measured from the best month, so one spike cannot claim it',
+          'Travel' not in names)
+    check('a category under its budget is not overspending',
+          'Shopping' not in names)
+    check('and too little history claims nothing either way',
+          'Hobbies' not in names)
+    check('the amount is what held every month, not an average',
+          any(o['name'] == 'Dining Out' and o['monthly'] == 85 for o in over))
+
+    press = budget_pressure(cards, 775, categories=over_cats)
+    check('each overspend is priced in months, the same currency as every decision',
+          press and all(p['months_cost'] >= 0 and p['interest_cost'] > 0 for p in press))
+    base_p = simulate_payoff(cards, 775)['months']
+    check('and the months are verified against the engine, not asserted',
+          all(simulate_payoff(cards, 775 + p['monthly'])['months']
+              == base_p - p['months_cost'] for p in press))
+
+    groc = next((p for p in press if p['name'] == 'Groceries'), None)
+    check('a category on the necessity floor is flagged as a budget set too low',
+          groc and groc['protected'] is True)
+    check('and the fix asks for what the gap costs, not what the envelope holds',
+          all(p['fix'] is None or p['fix']['monthly'] == p['monthly'] for p in press))
+    check('a category never funds its own overspend',
+          all(p['fix'] is None or all(sc['name'] != p['name'] for sc in p['fix']['sources'])
+              for p in press))
+    check('and the necessity floor still holds on the source side (E.1)',
+          all(p['fix'] is None or not any(is_protected(sc['name'])
+                                          for sc in p['fix']['sources'])
+              for p in press))
+    check('no debt means no way to price the time, and nothing is invented',
+          budget_pressure(cards, 100, categories=over_cats) == [])
+
+    resp6 = ctx.c.get('/api/budget/pressure', headers=ctx.H).get_json() or {}
+    served6 = (resp6.get('data') or resp6)
+    check('the route serves the pressure with the plan it is measured against',
+          'pressure' in served6 and 'base' in served6)
+    check('the budget page renders it, and says each line stands alone',
+          '_budgetRenderPressure' in view
+          and 'Each line is measured on its own' in view)

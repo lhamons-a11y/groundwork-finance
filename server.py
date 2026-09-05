@@ -1190,6 +1190,38 @@ def budget_variance():
         return ok(result)
 
 
+@budget_bp.route('/pressure', methods=['GET'])
+def budget_pressure_route():
+    """What each overspent category costs, and where the money could come from.
+
+    §8's teaching form for this surface. The cost is in months on the payoff
+    date, which is the same currency the trip planner has priced a purchase in
+    since Pillar 1 — the alternative is the same dollar meaning two different
+    things on two screens.
+
+    An empty list is an answer: nothing in the record runs over its own budget
+    in every month it can speak about. So is `reason`, when there is no debt to
+    price the time against.
+    """
+    from core.solution import budget_pressure
+
+    with db_session() as session:
+        cards, budget, strategy, undated = _consequence_inputs(session)
+        if not cards:
+            return ok({'pressure': [], 'base': None, 'undated_forgiveness': [],
+                       'reason': 'no active debt to price the time against'})
+        today = date.today().strftime('%Y-%m')
+        result = {
+            'base': simulate_payoff(cards, budget, strategy,
+                                    today_key=today, start_month=today),
+            'pressure': budget_pressure(
+                cards, budget, categories=reallocation_candidates(session),
+                strategy=strategy, today_key=today, start_month=today),
+            'undated_forgiveness': undated,
+        }
+    return ok(result)
+
+
 def detect_recurring_patterns(session, months: int = 6, min_occurrences: int = 3, tolerance_pct: float = 5.0) -> list:
     """
     Phase H2 Feature 4 (adaptive learning — recurring transaction
@@ -1293,6 +1325,12 @@ def reallocation_candidates(session, months: int = 6) -> list:
             'name': item.category,
             'budgeted': float(item.amount),
             'max_observed': max(monthly),
+            # The floor of the same window, for the opposite question. Headroom
+            # asks what the envelope never needed; overspend asks what it never
+            # came in under. Both are the part of the record that held in EVERY
+            # month the ledger can speak about, which is the only claim either
+            # can make without extrapolating from a spike.
+            'min_observed': min(monthly),
             'months_observed': len(seen),
         })
     return out

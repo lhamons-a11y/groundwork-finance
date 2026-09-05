@@ -988,3 +988,104 @@ def accelerations(cards, budget, categories=None, recurring=None,
 
     out.sort(key=lambda a: (-a['months_saved'], -a['interest_saved']))
     return out[:limit]
+
+
+def _overspend(categories):
+    """Categories the record shows running over their own budget, every month.
+
+    The mirror of `_headroom`, and measured the same way: headroom is budgeted
+    minus the WORST month, this is the BEST month minus budgeted. Both are the
+    part of the record that held in every month the ledger can speak about.
+
+    The average would be a larger number and a weaker claim. One holiday month
+    in six is enough to make an average look chronic, and "you overspend this
+    category" is a statement about someone's habits — the sort of thing that
+    should be provable from their own record rather than inferred from a spike.
+    A single month back inside the budget is enough to withdraw the claim, and
+    that is the right sensitivity for a sentence of this kind.
+    """
+    out = []
+    for c in categories or []:
+        name = (c or {}).get('name')
+        budgeted, best = c.get('budgeted'), c.get('min_observed')
+        if not name or budgeted is None or best is None:
+            continue
+        if int(c.get('months_observed') or 0) < MIN_MONTHS_OBSERVED:
+            continue
+        over = float(best) - float(budgeted)
+        if over < MIN_MATERIAL_MONTHLY:
+            continue
+        out.append({
+            'kind': 'overspend',
+            'name': name,
+            'monthly': round(over, 2),
+            'budgeted': float(budgeted),
+            'floor': float(best),
+            'months_observed': int(c['months_observed']),
+            # E.1 again, and it changes what the honest lesson IS rather than
+            # just what may be proposed. A category on the necessity floor that
+            # runs over every month is not a spending problem to be corrected;
+            # it is a budget set below what the thing actually costs, and the
+            # honest correction is to the number, not to the groceries.
+            'protected': is_protected(name),
+        })
+    out.sort(key=lambda c: -c['monthly'])
+    return out
+
+
+def budget_pressure(cards, budget, categories=None, strategy='avalanche',
+                    today_key=None, start_month=None, limit=3):
+    """What each overspent category costs, and where the money could come from.
+
+    §8's line for the Budget surface: "this category's overspend costs ~6 weeks;
+    here's the reallocation that fixes it." Both halves are here — the cost, in
+    the same currency the rest of this app prices decisions in (time on the
+    payoff date), and the reallocation, drawn from envelopes the record shows
+    were never emptied.
+
+    **The assumption, which is the app's existing one.** Money that does not
+    reach the debt costs time; that is how the trip planner has priced a
+    purchase since Pillar 1, and pricing an overspend any other way would give
+    the same dollar two different meanings on two screens. It does mean the
+    figure is a counterfactual: it is what bringing the category back to its own
+    budget would save, not a bill anyone is being handed.
+
+    A category cannot fund itself: the reallocation for an overspend never draws
+    on the category that is over. Returns [] when there is no debt to price
+    against — without a date, an overspend has no cost this engine can name, and
+    inventing one would be the fabrication R8 exists to stop.
+    """
+    kw = dict(strategy=strategy, today_key=today_key, start_month=start_month)
+    base = simulate_payoff(cards, budget, **kw)
+    if base is None:
+        return []
+
+    room = _headroom(categories)
+    out = []
+    for over in _overspend(categories)[:limit]:
+        after = simulate_payoff(cards, budget + over['monthly'], **kw)
+        if after is None:
+            continue
+        sources = [r for r in room if r['name'] != over['name']]
+        chosen, freed = _smallest_cover(sources, over['monthly'])
+        out.append({
+            'name': over['name'],
+            'monthly': over['monthly'],
+            'budgeted': over['budgeted'],
+            'floor': over['floor'],
+            'months_observed': over['months_observed'],
+            'protected': over['protected'],
+            'months_cost': base['months'] - after['months'],
+            'interest_cost': base['total_interest'] - after['total_interest'],
+            # The fix, when the record can name one. `monthly` is what covering
+            # this actually takes — the overspend — not the room the named
+            # envelopes happen to have: reporting the capacity said "covering it
+            # would take $190/mo" of a $120/mo gap, which asks for more than the
+            # problem costs. `available` keeps the capacity, because a source
+            # with barely enough and one with room to spare are not the same
+            # offer.
+            'fix': ({'sources': chosen,
+                     'monthly': over['monthly'],
+                     'available': freed} if chosen else None),
+        })
+    return out
