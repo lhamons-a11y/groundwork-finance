@@ -175,6 +175,28 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
     }
 
 
+def extra_above_minimums(cards, budget):
+    """What is left of the debt budget once every minimum is paid.
+
+    This is the money that actually reduces principal, and it is the pool
+    `one_time_cost` is drawn from — so it is also the pool a save-first plan
+    saves out of. Saying which pool a plan draws on matters: the trip planner's
+    own "surplus" is what remains AFTER the debt payment, a different pool
+    entirely, and a page that prices a decision against one while timing it
+    against the other is telling the user two things about the same money.
+
+    None when the budget cannot cover the minimums — the same honest-null
+    `simulate_payoff` returns there, for the same reason.
+    """
+    data = _prepare(cards)
+    if not data:
+        return None
+    total_min = sum(c.minimum for c in data)
+    if float(budget) < total_min:
+        return None
+    return round(float(budget) - total_min, 2)
+
+
 def _month_key(start_month, offset):
     if not start_month:
         return None

@@ -10437,12 +10437,33 @@ function _renderFundingDetail() {
       ? `<span style="color:var(--pine)">✓ You have ${fmt(surplus)} surplus this month. ${fmt(remaining)} left after the trip.</span>`
       : `<span style="color:var(--ember)">⚠ Trip costs ${fmt(Math.abs(remaining))} more than your monthly surplus.</span>`;
   } else {
-    const monthsNeeded = surplus > 0 ? Math.ceil(total / surplus) : '?';
-    const readyDate    = surplus > 0
-      ? new Date(new Date().getFullYear(), new Date().getMonth() + Math.ceil(total/surplus), 1)
-          .toLocaleDateString('en-US',{month:'long',year:'numeric'})
-      : 'unknown';
-    detail.innerHTML = `Save ${fmt(Math.ceil(total/Math.max(1,monthsNeeded)))}/month · ready by <strong>${readyDate}</strong> (${monthsNeeded} month${monthsNeeded!==1?'s':''})`;
+    // Lever 6 (§6.1), from the engine rather than from a division. The line
+    // this replaces divided the trip by the page's "surplus" — the money left
+    // AFTER the debt payment — while the sentence directly above it prices the
+    // same trip against the money going INTO that payment. Two pools, two
+    // answers, one page, and the cheerful one was the one with no cost in it.
+    const plan = _tripImpactData && _tripImpactData.save_first;
+    if (plan && plan.months_to_save) {
+      const m = plan.months_to_save;
+      let out = `Save <strong>${fmt(plan.monthly)}/month</strong> for ${m} month${m!==1?'s':''} `
+        + `out of the money now going to debt — ready by <strong>${_monthsFromNowLabel(m)}</strong>.`;
+      if (plan.months_delta > 0) {
+        // The part the old line left out, and the reason this lever is not
+        // offered as a way to close the gap: saving does not dodge the cost.
+        out += ` Saving first does not shorten the ${plan.months_delta}-month delay — `
+          + `the same money leaves your debt either way — but it is paid for before you go, `
+          + `not out of the months after.`;
+      }
+      detail.innerHTML = out;
+    } else {
+      // No debt to price it against, or the impact has not loaded. The page's
+      // own surplus is the honest pool then: with nothing to pay down, money
+      // set aside costs no months at all.
+      const monthsNeeded = surplus > 0 ? Math.ceil(total / surplus) : '?';
+      const readyDate    = surplus > 0 ? _monthsFromNowLabel(Math.ceil(total / surplus)) : 'unknown';
+      detail.innerHTML = `Save ${fmt(Math.ceil(total/Math.max(1,monthsNeeded)))}/month · ready by `
+        + `<strong>${readyDate}</strong> (${monthsNeeded} month${monthsNeeded!==1?'s':''})`;
+    }
   }
 }
 

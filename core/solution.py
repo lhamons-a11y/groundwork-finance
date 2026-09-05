@@ -11,22 +11,31 @@ because no lever produces it: new income, a side hustle, a raise; any new credit
 product, loan, balance transfer or BNPL; motivational filler with no math.
 
 **What is built, and what waits.** §6.1 lists seven levers. Six are computable
-from data that exists today and are implemented: timing, payoff-order, the
-generic monthly increase Pillar 2 solves for, substitution as a price rather
-than as a product, and — when the caller hands over per-category spend and the
-recurring ledger — reallocation and specific-cost trimming. Those last two are
-the first levers here that name something: a category, a merchant. What naming
-does and does not license is set out at `_headroom` and `_trims`.
+from data that exists today: timing, payoff-order, the generic monthly increase
+Pillar 2 solves for, substitution as a price rather than as a product, save-
+first as a plan rather than as a path (`save_first_plan`, below), and — when the
+caller hands over per-category spend and the recurring ledger — reallocation and
+specific-cost trimming. Those last two are the first levers here that name
+something: a category, a merchant. What naming does and does not license is set
+out at `_headroom` and `_trims`.
 
-Two things are still deliberately absent:
+Not every lever is a path, and that distinction is load-bearing. `paths` are
+things that hold the date for the decision as asked. Save-first does not — the
+same money leaves the debt on the same schedule either way — so it is returned
+by its own function to a surface that asks for it, never appended here where it
+would read as a way out of the gap.
 
-  * save-first, from *this* gap — see the note where it would have gone. It is
-    the anti-loan, and this gap is already a cash cost.
+Still absent:
+
   * substitution's OTHER half, where a new recurring cost replaces an existing
     one and only the difference is felt. That is BYB's `replacing` mechanic
     (`replacing_id` on `BYBItem`), where the user names what is replaced; it
     needs a monthly-gap solver and a surface that asks the question, and this
     one is neither.
+  * lever 7, do-nothing-quantified. The engine already knows the case — a gap
+    of zero or less returns `nothing to close` — but nobody teaches from it, and
+    "you are on track, and it arrives on its own in six months" is a sentence,
+    not a computation.
 
 **Ranking.** E.3 orders six preferences, and only two of them are universal:
 waiting/timing over cutting (rule 1), and smaller/reversible over large and
@@ -36,8 +45,9 @@ the time. So this ranks on the universal two and stops. Not knowing someone's
 strategy costs humility in ranking, not the ability to help (F.6a).
 """
 
-from core.consequence import (affordable_one_time, decision_impact,
-                              offsetting_monthly_delta, simulate_payoff)
+from core.consequence import (Card, affordable_one_time, decision_impact,
+                              extra_above_minimums, offsetting_monthly_delta,
+                              simulate_payoff)
 
 # E.1 — the one objective layer. Protected because cutting these breaks
 # stability, NOT because they are morally superior, and the blueprint flags this
@@ -402,12 +412,18 @@ def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
             amount=head['price'],
             items=rungs))
 
-    # ── Lever 6: save-first is NOT offered here, and the omission is deliberate.
-    # It is the anti-loan — its value is against FINANCING a purchase. This gap
-    # is already a cash cost, and the money saved would come from the same
-    # surplus that would otherwise reach the debt, so saving first delays the
-    # payoff by the same amount. Offering it as a path that "closes the gap"
-    # would be flattery: the same money, spent later, presented as free.
+    # ── Lever 6: save-first is still NOT a path here, and the omission is
+    # deliberate. It is the anti-loan — its value is against FINANCING — and
+    # this gap is already a cash cost. The money saved comes out of the same
+    # extra-above-minimums the cost would have consumed, on the same schedule,
+    # so the payoff moves by the same amount either way; the engine's absorption
+    # model makes the two cash flows identical rather than merely similar.
+    # Offering it as a path that "closes the gap" would be flattery: the same
+    # money, spent later, presented as free.
+    #
+    # What it honestly answers is a different question — what financing this
+    # would cost instead — and that lives in `save_first_plan` below, which the
+    # funding panel asks for by name rather than receiving here unasked.
 
     # ── The generic monthly lever (Pillar 2). A cut is implied but no category
     # is named — which envelope it comes from is the user's to choose, and
@@ -488,3 +504,120 @@ def _rank_key(p):
         p['available_in_months'] if p['available_in_months'] is not None else 0,
         p['cost_months'] if p['cost_months'] is not None else 0,
     )
+
+
+def save_first_plan(cards, budget, price, strategy='avalanche',
+                    today_key=None, start_month=None):
+    """Lever 6, the anti-loan: what saving for it first is, and what financing
+    it instead would cost — both in the user's own numbers.
+
+    §6.1 states this lever as "save $X/mo for 4 months and buy it in cash — $0
+    interest, vs. ~$Y in interest if financed", and the second half is the part
+    that needs care. `$Y` is not a rate we picked: it is what the purchase does
+    to this portfolio when it is CHARGED rather than saved for, simulated by the
+    same engine, on a card the user actually holds.
+
+    **Which card, and why the cheapest one.** Charging the purchase to the
+    highest-rate card would produce the largest number and the most persuasive
+    sentence, which is exactly the reason not to do it. The figure is priced on
+    the lowest-rate card available — the most flattering financing the user
+    could realistically find — and named, so the comparison understates our own
+    case rather than overstating theirs. Leases and loans headed for forgiveness
+    are excluded: a trip cannot be charged to either.
+
+    **What saving does NOT do.** It does not shorten the delay. The money comes
+    out of the extra above minimums either way, on the same schedule, so the
+    payoff date moves by the same amount whether it is spent now or saved for
+    first. That is returned as `months_delta` on the plan itself rather than
+    left for a caller to imply otherwise. What saving changes is the interest,
+    and that it stays off a card.
+
+    **A finding §6.1 did not anticipate, measured 2026-09-05.** The lever is
+    written there as "$0 interest, vs. ~$Y in interest if financed", which
+    assumes financing always costs more. Against a real mixed-rate portfolio it
+    frequently does not. Charging $2,400 to a 6% card while the extra keeps
+    attacking a 22% balance costs $225 in interest; paying cash for it out of
+    that same extra costs $663, because the money stops reducing a 22% balance.
+    Financing is $438 cheaper and neither option moves the date more than the
+    other. The arithmetic is not in doubt — it is ordinary rate arbitrage — and
+    it turns on the engine's own stated assumption that a cash purchase is paid
+    out of debt-reduction money, an assumption chosen because it does not
+    flatter a spending decision and which happens to flatter financing.
+
+    It changes nothing about what the platform may offer. §6.2 requires a
+    solution to need no new debt, so financing is not a path here whatever the
+    number says, and a surface that showed the comparison unasked would be
+    offering one. The block is computed for a surface where the purchase is
+    already financed and the user has raised it — BYB, whose `replacing_id`
+    mechanic is the blueprint's own example — and the trip planner is handed
+    the plan without it.
+
+    Returns None when the payoff cannot be simulated at all, and a plan with
+    `financed: None` when there is no card the purchase could honestly be
+    priced against.
+    """
+    kw = dict(strategy=strategy, today_key=today_key, start_month=start_month)
+    price = float(price or 0)
+    if price <= 0:
+        return None
+
+    base = simulate_payoff(cards, budget, **kw)
+    cash = decision_impact(cards, budget, one_time_cost=price, **kw)
+    if base is None or cash['months_delta'] is None:
+        return None                       # honest-null, not a guessed plan
+
+    monthly = extra_above_minimums(cards, budget)
+    if not monthly or monthly <= 0:
+        # Nothing above the minimums to save out of. Saying "save $0/mo" would
+        # be a plan in form and nonsense in substance.
+        months_to_save = None
+    else:
+        months_to_save = int(-(-price // monthly))      # ceil, in whole months
+
+    plan = {
+        'price': round(price, 2),
+        'monthly': monthly,
+        'months_to_save': months_to_save,
+        'months_delta': cash['months_delta'],
+        'interest_paying_cash': cash['interest_delta'],
+        'financed': None,
+    }
+
+    chargeable = [c for c in cards
+                  if not getattr(c, 'is_lease', False)
+                  and not getattr(c, 'is_pslf', False)
+                  and float(getattr(c, 'balance', 0) or 0) > 0]
+    if not chargeable:
+        return plan
+
+    target = min(chargeable, key=lambda c: float(getattr(c, 'rate', 0) or 0))
+    charged = []
+    for c in cards:
+        charged.append(Card(
+            balance=float(getattr(c, 'balance', 0) or 0) + (price if c is target else 0.0),
+            rate=float(getattr(c, 'rate', 0) or 0),
+            minimum=float(getattr(c, 'minimum', 0) or 0),
+            name=getattr(c, 'name', 'Card') or 'Card',
+            is_lease=bool(getattr(c, 'is_lease', False)),
+            end_month=getattr(c, 'end_month', None),
+            is_pslf=bool(getattr(c, 'is_pslf', False)),
+            forgive_after_months=getattr(c, 'forgive_after_months', None),
+        ))
+    financed = simulate_payoff(charged, budget, **kw)
+    if financed is None:
+        return plan
+
+    plan['financed'] = {
+        'card': target.name,
+        'apr': round(float(getattr(target, 'rate', 0) or 0), 2),
+        'months_delta': financed['months'] - base['months'],
+        'interest': financed['total_interest'] - base['total_interest'],
+        # What financing ADDS over saving for it. The two are not alternatives
+        # in name only: paying cash out of the extra costs interest too, because
+        # that money stops reducing principal, and reporting the financed figure
+        # alone against a notional zero would overstate the difference.
+        'extra_interest': (financed['total_interest'] - base['total_interest']
+                           - cash['interest_delta']),
+        'extra_months': (financed['months'] - base['months']) - cash['months_delta'],
+    }
+    return plan
