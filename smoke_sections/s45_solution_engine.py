@@ -400,3 +400,53 @@ def run(ctx):
           and 'out of the money now going to debt' in view)
     check('and says plainly that saving does not shorten the delay',
           'does not shorten the ${plan.months_delta}-month delay' in view)
+
+    # ── Lever 7: do-nothing, quantified ──────────────────────────────────────
+    # "You're on track" is only worth saying with a number behind it, and only
+    # when it is not contradicting another lever in the same breath.
+    from core.consequence import simulate_payoff
+    from core.solution import do_nothing_note
+
+    note = do_nothing_note(cards, 775, 2400)
+    base_months = simulate_payoff(cards, 775)['months']
+    check('patience is quantified as the month the decision stops costing months',
+          note and note['free_from_months'] == base_months)
+    check('an unsimulatable budget produces no note rather than a hopeful one',
+          do_nothing_note(cards, 100, 2400) is None)
+
+    free = do_nothing_note(cards, 775, 100)
+    check('a decision that needs no lever says so',
+          free['moves_nothing'] is True)
+    check('and still reports what it costs, since no months is not no cost',
+          free['interest_cost'] > 0)
+
+    # The proof only appears when it is proof. If the other order were better,
+    # lever 3 offers it as a path, and claiming optimality alongside would be
+    # the software arguing with itself.
+    check('the order proof carries its own number',
+          note['optimal_order'] and note['optimal_order']['months_better'] >= 0
+          and note['optimal_order']['interest_better'] > 0)
+    check('and is silent when the other order is actually the better one',
+          do_nothing_note(cards, 775, 2400, strategy='snowball')['optimal_order'] is None)
+    check('and silent with one balance, where the two orders are the same thing',
+          do_nothing_note([cards[0]], 775, 2400)['optimal_order'] is None)
+
+    # Patience must not be a path. Counted as one it would hold every date ever
+    # asked about — wait until the debt clears and nothing can be delayed — and
+    # §6.4's honest no would have nothing left to say.
+    waited = solve_one_time_cost(cards, 775, 400000, categories=cats, recurring=rec)
+    check('patience is never a path, so it cannot hollow out the honest no',
+          waited['honest_no'] is not None
+          and not any(p['kind'] in ('patience', 'do_nothing', 'wait')
+                      for p in waited['paths']))
+
+    resp3 = ctx.c.post('/api/debt/decision-impact', headers=ctx.HJ,
+                       json={'one_time_cost': 2400}).get_json() or {}
+    served3 = (resp3.get('data') or resp3)
+    check('the route serves the do-nothing note',
+          isinstance(served3.get('do_nothing'), dict)
+          and served3['do_nothing'].get('free_from_months'))
+    check('the view offers patience beside the honest no, where it is the answer left',
+          'Waiting is the other answer' in view)
+    check('and proves the current order when nothing needs changing at all',
+          'Nothing needs to change: your ${esc(o.strategy)} order' in view)

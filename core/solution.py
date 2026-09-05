@@ -19,23 +19,28 @@ specific-cost trimming. Those last two are the first levers here that name
 something: a category, a merchant. What naming does and does not license is set
 out at `_headroom` and `_trims`.
 
-Not every lever is a path, and that distinction is load-bearing. `paths` are
-things that hold the date for the decision as asked. Save-first does not — the
-same money leaves the debt on the same schedule either way — so it is returned
-by its own function to a surface that asks for it, never appended here where it
-would read as a way out of the gap.
+Not every lever is a path, and the distinction is load-bearing. **A path holds
+the date for the decision as asked.** Three levers do not, and each is returned
+on its own rather than appended to `paths`:
 
-Still absent:
+  * **save-first** changes when the money leaves, not whether it does
+    (`save_first_plan`);
+  * **substitution** changes the decision — it is in `paths` because a cheaper
+    version is still this decision, but it is excluded from the honest-no test
+    for the same reason;
+  * **patience** changes when the decision happens (`do_nothing_note`).
 
-  * substitution's OTHER half, where a new recurring cost replaces an existing
-    one and only the difference is felt. That is BYB's `replacing` mechanic
-    (`replacing_id` on `BYBItem`), where the user names what is replaced; it
-    needs a monthly-gap solver and a surface that asks the question, and this
-    one is neither.
-  * lever 7, do-nothing-quantified. The engine already knows the case — a gap
-    of zero or less returns `nothing to close` — but nobody teaches from it, and
-    "you are on track, and it arrives on its own in six months" is a sentence,
-    not a computation.
+The test each one fails is the same: counted as a path, it would make §6.4's
+honest no vacuous. Waiting until every balance clears holds any date at all, so
+"nothing holds your date" would become false for every gap, and the answer to a
+$40,000 question would be "wait fifty-seven months" — a refusal wearing a
+number, which is the exact thing the honest no exists to replace.
+
+Still absent: substitution's OTHER half, where a new recurring cost replaces an
+existing one and only the difference is felt. That is BYB's `replacing` mechanic
+(`replacing_id` on `BYBItem`), where the user names what is replaced; it needs a
+monthly-gap solver and a surface that asks the question, and this one is
+neither.
 
 **Ranking.** E.3 orders six preferences, and only two of them are universal:
 waiting/timing over cutting (rule 1), and smaller/reversible over large and
@@ -621,3 +626,71 @@ def save_first_plan(cards, budget, price, strategy='avalanche',
         'extra_months': (financed['months'] - base['months']) - cash['months_delta'],
     }
     return plan
+
+
+def do_nothing_note(cards, budget, one_time_cost=0.0, strategy='avalanche',
+                    today_key=None, start_month=None):
+    """Lever 7, do-nothing quantified: what is true if nothing changes.
+
+    §6.1 puts it as "you're on track; Z arrives on its own in 6 months if
+    nothing changes", and it has two halves, both of which are computations
+    rather than reassurance.
+
+    **The decision already costs nothing.** A gap of zero or less means no lever
+    is needed — but "no months" is not "no cost", so the interest it still adds
+    is returned alongside, because a page that says only "this does not move
+    your date" has told half the truth.
+
+    **The current path is already the faster one.** The engine can check the one
+    thing a user is most likely to wonder about — whether the other payoff order
+    would do better — and prove the answer with a number. It is deliberately
+    silent when the alternative IS better: lever 3 offers that as a path, and
+    saying both would be the software arguing with itself. It is also silent
+    with fewer than two payable balances, where the two orders are the same
+    thing and "your order is optimal" would be noise dressed as insight.
+
+    **And when the decision stops costing months at all.** Once the last balance
+    clears there is no date left to delay, so `free_from_months` is exactly the
+    base payoff length. It is a fact about months, not about affordability —
+    money still has to exist — and it is NOT returned as a path: see the module
+    docstring on why patience cannot be one without hollowing out the honest no.
+
+    Returns None when the payoff cannot be simulated, honest-null as ever.
+    """
+    kw = dict(today_key=today_key, start_month=start_month)
+    base = simulate_payoff(cards, budget, strategy, **kw)
+    if base is None:
+        return None
+
+    impact = decision_impact(cards, budget, one_time_cost=one_time_cost,
+                             strategy=strategy, **kw)
+    gap = impact['months_delta']
+
+    note = {
+        'moves_nothing': gap is not None and gap <= 0,
+        'interest_cost': impact['interest_delta'],
+        'free_from_months': base['months'],
+        'optimal_order': None,
+    }
+
+    payable = [c for c in cards
+               if not getattr(c, 'is_lease', False)
+               and not getattr(c, 'is_pslf', False)
+               and float(getattr(c, 'balance', 0) or 0) > 0]
+    if len(payable) < 2:
+        return note
+
+    other = 'snowball' if strategy == 'avalanche' else 'avalanche'
+    alt = simulate_payoff(cards, budget, other, **kw)
+    if alt is None:
+        return note
+    months_better = alt['months'] - base['months']
+    if months_better < 0:
+        return note                     # the other order wins; lever 3 says so
+    note['optimal_order'] = {
+        'strategy': strategy,
+        'alternative': other,
+        'months_better': months_better,
+        'interest_better': alt['total_interest'] - base['total_interest'],
+    }
+    return note

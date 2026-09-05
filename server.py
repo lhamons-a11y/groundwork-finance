@@ -1659,7 +1659,7 @@ def debt_decision_impact():
     (total/income)*30 that understated the truth by up to 17x.
     """
     from core.consequence import decision_impact, offsetting_monthly_delta
-    from core.solution import save_first_plan, solve_one_time_cost
+    from core.solution import do_nothing_note, save_first_plan, solve_one_time_cost
 
     body = request.get_json(silent=True) or {}
     try:
@@ -1720,6 +1720,14 @@ def debt_decision_impact():
         else:
             result['paths'], result['honest_no'] = [], None
             result['save_first'] = None
+
+        # Lever 7: what is true if nothing changes. Computed whether or not
+        # there is a gap — "this needs no lever" is an answer, and so is the
+        # proof that the payoff order they already use is the faster one.
+        result['do_nothing'] = do_nothing_note(
+            cards, budget, one_time_cost, strategy=strategy,
+            today_key=date.today().strftime('%Y-%m'),
+            start_month=date.today().strftime('%Y-%m'))
 
         result['offsetting_monthly'] = (
             offsetting_monthly_delta(cards, budget, one_time_cost,

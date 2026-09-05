@@ -11124,12 +11124,35 @@ function tripUpdateBudget() {
                 ? `, against the <strong>${fmt(hn.named_total)}/mo</strong> your record can name.`
                 : `.`);
         }
+        // Lever 7 (§6.1), and only here. Patience is the answer of last resort:
+        // beside a path that already holds the date it is noise, but beside an
+        // honest no it is the one thing still true. It is not a path — counted
+        // as one it would hold every date ever asked about and leave the honest
+        // no with nothing to say.
+        const dnFar = d.do_nothing;
+        if (dnFar && dnFar.free_from_months > 0) {
+          impact.innerHTML += ` Waiting is the other answer: you are debt-free in `
+            + `<strong>${_monthsFromNowLabel(dnFar.free_from_months)}</strong>, and after `
+            + `that this costs no months at all.`;
+        }
       }
     } else if (d && d.base && d.months_delta === 0 && d.interest_delta > 0) {
       impact.innerHTML = d.base.conditional_on_certification
         ? `Your payoff date is set by loan forgiveness, so this trip does not move it — it adds `
           + `<strong>${fmt(d.interest_delta)}</strong> in interest on your other balances.`
         : `This trip does not move your payoff date. It adds <strong>${fmt(d.interest_delta)}</strong> in interest.`;
+      // Lever 7 (§6.1): do-nothing, quantified. Nothing here needs fixing, and
+      // the proof is the one check a user is most likely to wonder about. The
+      // engine stays quiet when the other order would actually be better —
+      // that case is a path, and saying both would be the software arguing
+      // with itself.
+      const dn = d.do_nothing;
+      if (dn && dn.optimal_order && dn.optimal_order.months_better > 0) {
+        const o = dn.optimal_order;
+        impact.innerHTML += ` Nothing needs to change: your ${esc(o.strategy)} order clears you `
+          + `<strong>${o.months_better} month${o.months_better !== 1 ? 's' : ''}</strong> sooner `
+          + `than ${esc(o.alternative)} would.`;
+      }
     } else {
       impact.innerHTML = `Estimated trip cost: <strong>${fmt(total)}</strong>. Your monthly surplus is <strong>${fmt(surplus)}</strong>.`;
     }
