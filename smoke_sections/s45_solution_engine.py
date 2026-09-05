@@ -728,3 +728,47 @@ def run(ctx):
           and 'would put them back' in view)
     check('and the phrasing is written for a charge, not borrowed from a plan',
           'months_recovered' in view and '_tripPathPhrases([pick]' not in view)
+
+    # ── §8, the Net Worth surface: what the number now covers ────────────────
+    # "You crossed $X" is a milestone invented by whoever picked X. The crossing
+    # that means something is liquid savings reaching a balance the user
+    # actually holds, which their own portfolio defines.
+    from core.solution import capacity_unlocked
+
+    cap = capacity_unlocked(cards, 775, liquid=6000, monthly_expenses=2600)
+    check('a balance the record can now cover is what counts as a crossing',
+          cap and cap[0]['name'] == 'Store' and cap[0]['balance'] == 3000)
+    check('and clearing it is priced by the engine, not by the balance',
+          cap[0]['months_saved'] == simulate_payoff(cards, 775)['months']
+          - simulate_payoff([c for c in cards if c.name != 'Store'], 775)['months'])
+
+    # C.5: a path that breaks stability is not offered, however well it works.
+    check('nothing is offered that would leave less than a month of expenses',
+          capacity_unlocked(cards, 775, liquid=3200, monthly_expenses=2600) == [])
+    check('and with no recorded expenses there is no buffer to express, so nothing',
+          capacity_unlocked(cards, 775, liquid=20000, monthly_expenses=0) == [])
+    check('what would be left is reported in months of their own expenses, not judged',
+          all(c['months_of_expenses_after'] >= 1 for c in
+              capacity_unlocked(cards, 775, liquid=12000, monthly_expenses=2600)))
+
+    # The sentence this feeds has to survive being read on a net-worth page.
+    check('it says outright that this does not raise net worth',
+          all(c['changes_net_worth'] is False for c in cap))
+    check('and the view says so where a reader would otherwise assume it does',
+          'would not move your net worth today' in view)
+
+    # A lease cannot be settled early and a forgiveness-bound loan is money
+    # burned — the engine already refuses to send extra to either.
+    from core.consequence import Card as _C
+    odd = [_C(balance=2000, rate=0, minimum=300, name='Lease', is_lease=True),
+           _C(balance=2500, rate=6, minimum=90, name='Loan', is_pslf=True,
+              forgive_after_months=20)]
+    check('savings are never pointed at a lease or a loan headed for forgiveness',
+          capacity_unlocked(odd, 500, liquid=20000, monthly_expenses=1000) == [])
+
+    resp8 = ctx.c.get('/api/debt/capacity', headers=ctx.H).get_json() or {}
+    served8 = (resp8.get('data') or resp8)
+    check('the route reads liquid as savings and cash, and says what it used',
+          'liquid' in served8 and 'monthly_expenses' in served8)
+    check('the net worth page renders what the number covers',
+          '_nwRenderCapacity' in view and 'What this number now covers' in view)

@@ -1934,6 +1934,51 @@ def ledger_lesson():
         })
 
 
+@debt_bp.route('/capacity', methods=['GET'])
+def debt_capacity():
+    """What a balance the user could now cover outright would enable (§8).
+
+    Rendered on Net Worth, computed here because the arithmetic is the payoff
+    engine's. Liquid means savings and cash — not investments, whose sale has
+    consequences this engine does not model and would not advise on, and not
+    home equity, which is not spendable without a transaction nobody here is
+    going to propose.
+
+    The buffer is one month of the user's own recorded expenses. With none
+    recorded there is no way to express a buffer, and the answer is nothing.
+    """
+    from core.solution import capacity_unlocked
+
+    with db_session() as session:
+        cards, budget, strategy, undated = _consequence_inputs(session)
+        if not cards:
+            return ok({'capacity': [], 'reason': 'no active debt'})
+
+        def setting(key):
+            row = session.query(AppSetting).filter_by(key=key).first()
+            try:
+                return float(row.value) if row and row.value else 0.0
+            except (TypeError, ValueError):
+                return 0.0
+
+        liquid = setting('savings_balance') + setting('cash_balance')
+        monthly_expenses = sum(
+            float(b.amount or 0) for b in session.query(BudgetItem)
+            .filter_by(is_active=True, type='expense').all())
+
+        today = date.today().strftime('%Y-%m')
+        return ok({
+            'liquid': round(liquid, 2),
+            'monthly_expenses': round(monthly_expenses, 2),
+            'base': simulate_payoff(cards, budget, strategy,
+                                    today_key=today, start_month=today),
+            'capacity': capacity_unlocked(cards, budget, liquid, monthly_expenses,
+                                          strategy=strategy, today_key=today,
+                                          start_month=today),
+            'undated_forgiveness': undated,
+        })
+
+
 @debt_bp.route('/accelerations', methods=['GET'])
 def debt_accelerations():
     """What moves the payoff date most, on the plan already in place (§8).

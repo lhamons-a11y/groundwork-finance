@@ -1126,3 +1126,83 @@ def past_charge_lesson(cards, budget, amount, strategy='avalanche',
         'interest_cost': base['total_interest'] - had_it['total_interest'],
         'base_months': base['months'],
     }
+
+
+def capacity_unlocked(cards, budget, liquid, monthly_expenses,
+                      strategy='avalanche', today_key=None, start_month=None):
+    """What a balance the user could now cover outright would actually enable.
+
+    §8's line for Net Worth is "you crossed $X — here's what that enables", and
+    the first half is the trap. A round number crossed is a milestone invented
+    by whoever picked the number, and celebrating one is engagement dressed as
+    teaching. The crossing that means something is not $10,000; it is liquid
+    savings reaching a balance the user actually holds, which is a threshold
+    their own portfolio defines.
+
+    (Nor is a crossing DATE claimed. Net-worth snapshots record totals, not the
+    liquid share, so when this first became true is not recoverable from what is
+    recorded — and a date that cannot be recovered will not be guessed at.)
+
+    **The reserve.** Clearing a balance with savings is only an option if
+    something is left, and C.5 is explicit that a path breaking the user's
+    stability is not offered however well the math works. The floor here is one
+    month of their own recorded expenses: the smallest buffer expressible in
+    their numbers rather than a rule about what is adequate, which is not this
+    engine's to state. With no recorded expenses there is no way to express a
+    buffer at all, and the answer is nothing rather than a guess.
+
+    **What it does not do.** Paying a balance from savings does not raise net
+    worth by a cent — the same money moves from one side of the sheet to the
+    other. On a page whose whole subject is that number going up, saying so is
+    the difference between teaching and cheerleading, so `changes_net_worth` is
+    returned false and the surface is expected to say it out loud.
+    """
+    kw = dict(strategy=strategy, today_key=today_key, start_month=start_month)
+    liquid = float(liquid or 0)
+    monthly_expenses = float(monthly_expenses or 0)
+    if liquid <= 0 or monthly_expenses <= 0:
+        return []
+
+    base = simulate_payoff(cards, budget, **kw)
+    if base is None:
+        return []
+
+    spendable = liquid - monthly_expenses
+    if spendable <= 0:
+        return []
+
+    out = []
+    for card in cards:
+        balance = float(getattr(card, 'balance', 0) or 0)
+        if balance <= 0 or balance > spendable:
+            continue
+        # A lease cannot be settled early and a loan headed for forgiveness is
+        # money burned — the engine already refuses to send extra to either, and
+        # spending savings on them would be worse than sending extra.
+        if getattr(card, 'is_lease', False) or getattr(card, 'is_pslf', False):
+            continue
+
+        rest = [c for c in cards if c is not card]
+        after = simulate_payoff(rest, budget, **kw) if rest else None
+        if rest and after is None:
+            continue                      # cannot price it: say nothing
+        months_after = after['months'] if after else 0
+        interest_after = after['total_interest'] if after else 0
+        left = liquid - balance
+        out.append({
+            'name': getattr(card, 'name', 'that balance'),
+            'balance': round(balance, 2),
+            'frees_monthly': round(float(getattr(card, 'minimum', 0) or 0), 2),
+            'months_saved': base['months'] - months_after,
+            'interest_saved': base['total_interest'] - interest_after,
+            'clears_all_debt': not rest,
+            'liquid_after': round(left, 2),
+            # Shown, not tested against a standard. How many months of their own
+            # recorded expenses would still be sitting there is a fact; whether
+            # that is enough is the user's judgement and nobody else's.
+            'months_of_expenses_after': round(left / monthly_expenses, 1),
+            'changes_net_worth': False,
+        })
+
+    out.sort(key=lambda c: (-c['months_saved'], -c['interest_saved']))
+    return out
