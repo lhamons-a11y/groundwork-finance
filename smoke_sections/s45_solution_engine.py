@@ -772,3 +772,68 @@ def run(ctx):
           'liquid' in served8 and 'monthly_expenses' in served8)
     check('the net worth page renders what the number covers',
           '_nwRenderCapacity' in view and 'What this number now covers' in view)
+
+    # ── §8, the fund surfaces: causal pace, not just a pace badge ────────────
+    # The badge these rows carry says how reliably the plan is met. It does not
+    # say when the thing arrives, or what would move that date.
+    from core.solution import fund_pace
+
+    behind = fund_pace(2400, 600, planned_monthly=150, deadline_months=6,
+                       observed_monthly=95, samples=5,
+                       categories=cats, recurring=rec)
+    check('a fund lands where its actual pace puts it, not where the plan says',
+          behind['pace_source'] == 'observed' and behind['pace_monthly'] == 95
+          and behind['finish_months'] == 19)
+    check('and missing the deadline is stated, not implied',
+          behind['on_track'] is False and behind['short_monthly'] == 205)
+    check('the lever is aimed at the shortfall, not at the whole contribution',
+          behind['lever'] and behind['lever']['monthly'] == behind['short_monthly'])
+    check('and it names what it would move the date to',
+          behind['lever']['finish_months'] <= behind['deadline_months'])
+
+    thin = fund_pace(2400, 600, planned_monthly=150, deadline_months=6,
+                     observed_monthly=95, samples=1)
+    check('too few contributions is a plan, not a pace, and says so',
+          thin['pace_source'] == 'plan' and thin['pace_monthly'] == 150)
+    check('nothing being contributed produces no finish date at all',
+          fund_pace(2400, 600, planned_monthly=0,
+                    deadline_months=6)['finish_months'] is None)
+    check('a funded fund is done, not behind',
+          fund_pace(2400, 2400, planned_monthly=150)['funded'] is True)
+    check('and no deadline means a date with nothing to miss',
+          fund_pace(2400, 600, planned_monthly=150)['on_track'] is None)
+    check('no compounding is invented on money merely set aside',
+          fund_pace(1200, 0, planned_monthly=100,
+                    deadline_months=24)['finish_months'] == 12)
+
+    # Per MONTH, not per contribution — the same distinction that bit the
+    # recurring-cost lever. Months with no deposit are not logged at all, so
+    # averaging the logged ones describes a saver who contributes every month.
+    from core.database import HistorianEntry as _HE
+    from datetime import datetime as _dt, timedelta as _td
+    import json as _json
+    from server import fund_observed_monthly
+    with ctx.dbs() as session:
+        for i, amt in enumerate((300.0, 300.0, 300.0)):
+            e = _HE(event_category='sinking_fund_contribution_variance',
+                    expected_value=300.0, actual_value=amt,
+                    context_json=_json.dumps({'sinking_fund_id': 90901}))
+            e.created_at = _dt.utcnow() - _td(days=30 * (5 - i * 2))
+            session.add(e)
+        session.commit()
+    with ctx.dbs() as session:
+        per_month, samples = fund_observed_monthly(session, 90901)
+    check('a fund fed three times in six months is not a $300/mo fund',
+          samples == 3 and per_month is not None and per_month < 300)
+    check('and the span runs from the first deposit, not the whole window',
+          per_month >= 900 / 7)
+
+    resp9 = ctx.c.get('/api/sinking-funds/pace', headers=ctx.H).get_json() or {}
+    served9 = (resp9.get('data') or resp9)
+    check('the route serves a pace per fund', 'funds' in served9)
+    check('the budget page narrates it and labels which pace it used',
+          '_sfPaceSentence' in view
+          and 'you have actually been putting in' in view
+          and 'at the planned' in view)
+    check('and an uncoverable shortfall is said plainly rather than left blank',
+          'nothing in your record has that room' in view)
