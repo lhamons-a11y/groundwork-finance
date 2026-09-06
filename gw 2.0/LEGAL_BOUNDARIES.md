@@ -52,6 +52,23 @@ consumers to see a lawyer; a personal finance app has no standing the regulator 
 arithmetic on the user's own money. No state-law tables — they rot, and stale legal data is
 worse than none.
 
+**Two refinements that came out of the same reasoning.**
+
+*What the number is a claim about.* "Your record supports $150 a month" is a fact about the
+user, derived from their own history. "Offer them $150" is a position in a negotiation the app
+is not part of. They can be the same number and they are different claims, and only the first
+is one this software has standing to make. So the app computes what a person can sustain and
+never computes what to offer — which keeps the provider case and the collections case
+consistent, and removes the version of the feature that most resembles acting on someone's
+behalf.
+
+*The premise, stated.* Every figure in the collections flow assumes the debt is owed, by this
+person, in this amount — and the app cannot check any of the three. Collections is where that
+premise is least safe: accounts are sold and resold, billing errors are common, and fees arrive
+attached. So the number carries its condition in the sentence rather than in a footnote, and
+points at both the free step (asking a collector to verify, a right the CFPB explains) and the
+expensive one (counsel). Naming only the lawyer would be honest and slightly useless.
+
 **The honesty test, and where it argues back.** Saying nothing would also be lawful, and it
 would be worse. Having built a payment calculator and knowing a payment can revive a dead
 debt, silence is a failure of the second test even while passing the first. The published

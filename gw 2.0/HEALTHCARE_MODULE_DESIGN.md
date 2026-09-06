@@ -549,6 +549,10 @@ Written as a list because this codebase tests its doctrine rather than describin
     only a user who said "stop asking" has said it.
 20. Never offer a payment figure on a collections account at all. Proposing a number to a
     collector is a legal act with consequences the app cannot see (§8.2).
+20b. Never compute what to offer anyone. What the record sustains is a fact about the user;
+    what to offer is a position in someone else's conversation (§7.3).
+20c. Never show a collections figure without its premise. The arithmetic assumes the debt is
+    owed in that amount, the app cannot check that, and it says so (§8.2a).
 20a. Never draw a legal conclusion, and never apply law to this user's facts. General
     information unattached, a referral to who answers it, and arithmetic on their own money
     (§0.3). No state-law tables — they rot, and stale legal data is worse than none.
@@ -613,8 +617,10 @@ That derives from the user's own plan and their own balances. No invented thresh
 ### 7.2 The strain: this is the first time the app tells someone to do something
 
 Everything else in this platform shows a consequence and stops. Here the useful sentence is
-"call the billing department, and here is what to offer." That is an instruction, and the
-no-prescription rule exists for good reason.
+"non-profit hospitals must offer financial assistance, and your record supports $150 a month."
+That is closer to an instruction than this platform has ever come, and the no-prescription
+rule exists for good reason. (What it is *not* is "offer them $150" — §7.3 draws that line,
+and it holds here too.)
 
 **The adjustment is a distinction, not an exception.** The rule forbids claims about the
 user's life that the app cannot verify — "cut your dining" assumes dining is flexible for this
@@ -649,7 +655,7 @@ government provider, where §501(r) does not apply the same way — so provider 
 and the fact is conditional on it. And it must never state or imply that the provider will
 accept an offer. What the law guarantees is a policy and a process, not a number.
 
-### 7.3 The strain: the offered amount is a number the app invented
+### 7.3 The strain: the figure is a number the app produced
 
 The original sketch was "take what the historian shows is left over each month and divide."
 The divisor is the danger. This project has already been burned twice by a heuristic that
@@ -657,10 +663,25 @@ looked obvious and turned out to be a coin flip against trend-free data, and a f
 payment figure would be worse than either — it is a number a person repeats out loud to a
 hospital.
 
-**The adjustment: derive it, and refuse when the record cannot.**
+**The first adjustment is what the number is a claim about.** These are not the same sentence:
 
-- **Use the leanest month, not the average.** A payment plan has to survive the worst month on
-  record, not the typical one — an average-month payment fails in the month the car breaks,
+> *"Your record supports $150 a month."* — a fact about the user, derived from their own
+> history, and a thing the app is in a position to know.
+>
+> *"Offer them $150."* — a negotiating position, in a conversation the app is not part of and
+> cannot see.
+
+They can be the same number and they are different claims, and only the first is one this
+software has standing to make. **The app computes what the user can sustain. It never computes
+what to offer.** What the user does with a figure about their own capacity is theirs.
+
+That distinction is what keeps §7 and §8 consistent, and it is worth stating as a rule because
+the wrong version is the more natural thing to build.
+
+**The second adjustment: derive it, and refuse when the record cannot.**
+
+- **Use the leanest month, not the average.** A payment plan has to survive the worst month
+  on record, not the typical one — an average-month payment fails in the month the car breaks,
   and failing a medical payment plan is how the bill reaches collections after all.
 - **Apply the existing floors.** C.5's stability floor and §1.4's reserve floor both already
   constrain what may be proposed; the payment may not push either below its line.
@@ -879,9 +900,10 @@ compute the particular case and tells consumers to see a lawyer.
 2. **It names who answers the question.** The CFPB's own page, legal aid, a non-profit credit
    counsellor. A referral is not advice; declining to answer while saying who can is the most
    honest thing available.
-3. **It offers no figure to propose.** §7's payment suggestion does not extend to collections.
-   For a hospital, proposing a number is arithmetic against a published assistance policy. For
-   a collector, the proposal *is* a legal act, and one whose consequences the app cannot see.
+3. **It generates no figure.** Per §7.3 the app never computes what to offer anybody, and here
+   it does not compute a sustainable figure either — a number the app produces in this context
+   would read as a position in a negotiation whose legal consequences it cannot see. The user
+   enters an amount; the app prices it (§8.2a).
 
 **What the user keeps** is everything that was actually theirs: the balance, the agency, the
 payments they have made, and — once they have agreed something — exactly what it costs per
@@ -890,6 +912,48 @@ themselves, which is cost and not counsel.
 
 Note what this buys. The dangerous button is not gated, hedged or disclaimed. **It is not
 built**, which is the only version of that problem with no failure mode.
+
+### 8.2a The premise the arithmetic sits on
+
+Every figure in §8 rests on something the app cannot check: that this debt is owed, by this
+person, in this amount. Collections is where that premise is least safe. Accounts are sold and
+resold, medical billing errors are common, amounts arrive with fees attached, and a collector
+pursuing the wrong person is ordinary rather than exceptional.
+
+So the number is shown with its premise attached, not as a footnote but as part of the
+sentence:
+
+> **This is what you would pay if you agree that you owe this, in this amount. Groundwork has
+> no way to know whether you do.** If it looks wrong — the amount, the account, or the fact of
+> it — that is a question for a lawyer or a non-profit credit counsellor, and not for this app.
+> A collector can also be asked in writing to verify a debt; the CFPB explains how.
+
+Three things that phrasing is doing.
+
+- **It states the conditional rather than hiding it.** The arithmetic was always downstream of
+  an assumption; saying so costs nothing and makes the number honest instead of merely correct.
+- **It does not ask how the user feels about it.** Whether a debt is owed is not a feeling, and
+  framing it as one would quietly suggest that a doubt is a mood rather than a question with an
+  answer. "If it looks wrong" invites checking; "if you feel you do not owe it" invites
+  second-guessing yourself.
+- **It offers the cheap step as well as the expensive one.** Legal counsel costs money. Asking
+  a collector to verify the debt is free, is a right the user already has, and is the thing
+  most people should do first. Naming only the lawyer would be honest and slightly useless.
+
+**Where this leaves the calculator.** With the premise stated, the arithmetic is fine and the
+user should have it: *if I paid $150 a month, when does this end?* That is division on their
+own money, and §7.7's calculator answers it.
+
+**What the disclaimer does not fix.** It addresses whether the debt is owed. It does not touch
+the separate hazard in §8.2 — that agreeing to a plan can restart a limitation period — because
+that risk exists whether or not the debt is genuinely owed. A user who definitely owes the
+money can still be made suable by agreeing to pay it. Two different problems, and only one of
+them is solved by saying the premise out loud.
+
+**Which is why the numbers here are the user's, not the app's.** They enter an amount they are
+considering and the app prices it. It does not generate the amount, for the reason in §7.3: a
+figure the app produces for a negotiation is a position, and a figure the user types is a
+question. The calculator answers questions.
 
 ### 8.3 What may be stated as fact — and the thing that is not law
 
