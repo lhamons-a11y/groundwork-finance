@@ -593,6 +593,12 @@ Written as a list because this codebase tests its doctrine rather than describin
     among the credit cards has been called a debt without the word.
 15. Never treat mental health as discretionary. Therapy, counselling and psychiatric care are
     on the necessity floor by name, not by substring luck.
+15a. Never state that we noticed something. The fact is the recognition; "we spotted this"
+    is engagement-shaped praise and adds nothing to the user (§7.8).
+15b. Never treat ahead and behind as mirror images. Early is free; late can void a plan, so
+    behind is a brake and needs a lever, while ahead is a receipt (§7.8).
+15c. Never threaten a specific consequence from the agreement's terms unless those terms are
+    held. That plans can be voided is general and sayable; that THIS one will be is not.
 16. Never show a serene payoff date for a deferred-interest balance. The promotional end date
     and the retroactive principal are the number that matters; the payoff date without them
     is the most dangerous figure this app could display (§7.7).
@@ -944,6 +950,78 @@ Few things in personal finance fit that sentence better.
 The engine therefore needs three obligation types, not two: a card, a provider plan at 0% with
 a term, and a promotional balance with a **cliff date and a retroactive principal**. The third
 is new work and the reason it is worth doing is that it is the one people are quietly hurt by.
+
+### 7.8 Progress, and being ahead or behind
+
+Progress is **dollars paid over dollars owed**, never a count of payments. A schedule of 24 ×
+$175 that receives one extra $175 has not become 4-of-24; it is $350 closer to done, and the
+provider cares about the total rather than the cadence. The payment count may sit beside the
+bar as a label. It may never *be* the bar, or the bar will eventually contradict the balance
+next to it, and people trust the number that moves.
+
+**But the schedule survives, as a different question.** Progress says how much is left.
+Adherence says whether the agreement is being kept — and those diverge the moment anyone pays
+early or late.
+
+> Expected by now = the agreed payment × the scheduled payment dates elapsed.
+> Ahead or behind = actually paid − expected by now.
+
+$525 paid against $350 expected by payment two is **$175 ahead**.
+
+#### Ahead is the cleanest attribution in the product
+
+Appendix D's difficulty everywhere else is separating deliberate action from the expected
+floor — which is why `green_light` refuses to credit a balance that merely ran out on its
+minimums. **A payment plan supplies that floor contractually.** The schedule is written down and
+agreed, so money above it is provably deliberate rather than inferred to be. There is no other
+surface in Groundwork where the baseline arrives this cleanly.
+
+So it is stated, and it is stated in green, and it carries its consequence rather than a
+compliment:
+
+> *You are **$175 ahead** of the schedule you agreed. At this rate this ends in **March 2028**
+> rather than May.*
+
+**Not "well done", and not "we noticed".** The fact is the recognition; saying that we spotted
+it adds nothing to the user and moves the sentence toward the engagement-shaped praise this
+platform has refused everywhere else. An earlier end date is the reward, and it is one the user
+produced. Appendix D's anti-applause clause applies unchanged: it says what was done *and* what
+it bought.
+
+#### Behind is not the mirror image
+
+Early is free. Late is not — a plan that falls behind can be voided or referred, which is a
+consequence the user did not agree to and may not know about. So the two are asymmetric, and
+"behind" is a **brake**, subject to Appendix A: it needs a lever or it stays passive.
+
+The lever here is arithmetic on the user's own agreement, which is permitted where §7.3's
+negotiation figure is not — this is not a proposal to another party, it is the amount that
+restores an obligation the user already accepted:
+
+> *You are **$175 behind** the schedule you agreed. **$88/month** for the next two months brings
+> it back to plan.*
+
+What it must never do is state a consequence it cannot see. Whether *this* provider voids *this*
+plan on a missed payment is in the agreement's terms, which Groundwork may not hold. The general
+fact — that plans can be voided or referred — is sayable; the specific threat is not.
+
+**And it may qualify for §7.4's urgent tier**, on the definition already written: an external
+deadline whose consequence compounds if it passes. A payment plan sliding toward default fits
+that sentence better than most things will. It still passes materiality, actionability and
+novelty, and it still gets one bypass, ever.
+
+#### The edge that breaks it
+
+**A corrected obligation moves the denominator, and may invalidate the schedule.** If the bill is
+rebilled from $4,200 to $4,002, "ahead by $175" was computed against a total that no longer
+exists — and worse, the agreed schedule may no longer amortise the balance at all.
+
+Two consequences. The progress bar can travel **backwards**, which is correct because it is
+derived and the truth changed, but it must say why or it reads as a loss. And adherence must be
+recomputed against the *current* agreement rather than the original one — with the honest
+possibility that there is no current agreement, because a schedule that no longer clears the
+balance is a schedule that needs renegotiating, and Groundwork can say the arithmetic no longer
+works without saying what to do about it.
 
 ---
 
