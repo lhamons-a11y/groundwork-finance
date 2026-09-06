@@ -166,6 +166,31 @@ all of which exist today:
 **A confirmed payment is a cleared transaction, attached to the obligation, confirmed by the
 user.** Nothing else counts, and nothing weaker is inferred.
 
+**This defines a payment, not an obligation, and the difference is load-bearing.** An observed
+obligation is meaningful the moment the bill is recorded — nothing has been paid yet, and that
+is precisely the state §7.1's alarm fires on (*"when it cannot be paid in full at all"*). If an
+obligation only became meaningful once a payment confirmed it, the bill-shock alarm would have
+no subject, the payment-plan calculator no balance, and every collections account would be
+meaningless by definition.
+
+| | |
+|---|---|
+| **Obligation** | exists when a bill is observed. Meaningful immediately. |
+| **Payment** | confirmed when cleared **and** attached **and** user-confirmed. |
+| **Reconciliation** | the relationship between them — and the piece still open. |
+
+### Reconciliation is the bridge, and it is what to solve next
+
+The four decisions now connect: obligation semantics says *what the obligation is*, progress and
+adherence say *how movement against it is evaluated*, the substrate says *where these facts live*,
+and reconciliation says *whether the obligation has been accounted for sufficiently to support a
+downstream claim.*
+
+That last one is the missing span, and it is the right next target rather than the tax formula.
+**Once reconciliation has a rigorous semantic model, tax becomes a consumer of established facts
+instead of another place where Groundwork has to guess** — which is the whole direction of this
+work.
+
 Which resolves the $650 without assuming anything about it. It is not *assumed unpaid* — it is
 **not evidenced as paid**, which is a fact about the record rather than a guess about the world.
 And that is also the correct tax posture: §213 deducts what was paid, substantiation is the
@@ -203,8 +228,16 @@ already linked cannot be re-linked, which is what stops one payment satisfying t
 It asserted `qualifying == 300.00` as a bare figure, which stated one of four guesses as fact
 and was wrong in the same way `$950` was wrong.
 
-**The number survives; the claim does not.** The basis changes from subtraction to summation:
-not `gross − reimbursed − unresolved`, but **the sum of cleared, attached, user-confirmed
-payments made by the user** — with `$650` reported as unresolved because nothing is attached to
-it. Same $300, an entirely different assertion, and one that can explain itself down to the
-rows that produced it.
+**The number survives; the claim does not** — and then the claim got stronger again.
+
+`$300` is what can be **proven**, not what is true. The truth is $300 or $950 and nothing in the
+model knows which, so the fixture now asserts **three** things: confirmed user-paid is $300, the
+unresolved balance is $650, and **there is no definitive qualifying total at all** while any
+part of the obligation is unresolved. A model that nominates one of the two candidates has
+guessed, even when it guesses the number this fixture used to assert.
+
+And the positive half, which is what makes it a specification rather than a calculator. Two
+branches resolve the same $650 differently — a provider write-off drops gross to $550 and makes
+the total available at $300; a cash payment with a receipt makes it available at $950 — and the
+fixture asserts **the two must diverge.** If a model returns the same total for both, the
+ambiguity was never being represented and the earlier agreement was a coincidence.

@@ -27,6 +27,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+UNRESOLVED = object()   # not a number, and deliberately not None
+
 PASS, FAIL, PENDING = [], [], []
 
 
@@ -153,32 +155,63 @@ def run(model):
     # user-confirmed payments the user made. The $650 is unresolved because
     # nothing is attached to it, which is a fact about the record rather than a
     # claim about the world. See gw 2.0/OBLIGATION_SEMANTICS_QUESTION.md.
-    qualifying, unresolved = model.qualifying(exp, rules='v2026.1')
+    figure = model.qualifying(exp, rules='v2026.1')
     check('the confirmed total is the sum of evidenced user payments, not a subtraction',
-          qualifying == 300.00
-          and model.basis(qualifying) == 'sum_of_confirmed_user_payments')
+          figure.confirmed_user_paid == 300.00
+          and figure.basis == 'sum_of_confirmed_user_payments')
     check('and the unresolved balance is reported beside it, never folded into it',
-          unresolved == 650.00)
+          figure.unresolved == 650.00)
+
+    # The assertion that makes this a specification rather than a calculator.
+    # $300 is what can be PROVEN, not what is true — the truth is $300 or $950
+    # and nothing here knows which. So there is no definitive total while any
+    # part of the obligation is unresolved, and the model must say so rather
+    # than nominate one of the two candidates.
+    check('there is NO definitive qualifying total while anything is unresolved',
+          figure.total is UNRESOLVED)
+
     check('a payment is confirmed only when cleared, attached, and user-confirmed',
           model.confirms_on() == {'cleared', 'attached', 'user_confirmed'})
     check('cleared alone is not enough, because cleared defaults to true',
           not model.is_confirmed(model.payment(exp, cleared=True, attached=False)))
+
+    # ── The positive half: resolving the $650 must change the answer ────────
+    # Two branches from the same state. If the ambiguity was real, these must
+    # diverge — and if a model returns the same total for both, it was guessing
+    # all along and the guess simply happened to match one branch.
+    write_off = model.branch(exp)
+    model.apply(write_off, {'kind': 'resolve_unresolved',
+                            'status': 'provider_adjustment', 'amount': 650.00})
+    f1 = model.qualifying(write_off, rules='v2026.1')
+    check('resolved as a provider write-off: gross falls, the total becomes available',
+          f1.gross == 550.00 and f1.unresolved == 0.00 and f1.total == 300.00)
+
+    paid_cash = model.branch(exp)
+    model.apply(paid_cash, {'kind': 'resolve_unresolved',
+                            'status': 'user_paid_cash', 'amount': 650.00,
+                            'evidence': 'receipt'})
+    f2 = model.qualifying(paid_cash, rules='v2026.1')
+    check('resolved as a cash payment by the user: the total becomes available, and differs',
+          f2.unresolved == 0.00 and f2.total == 950.00)
+
+    check('the two resolutions diverge, which is what made the ambiguity real',
+          f1.total != f2.total)
 
     # ── Temporal: history is not rewritten by the present ───────────────────
     for name, op, expected in MUTATIONS[4:7]:
         model.apply(exp, op)
         got = {k: model.state(exp).get(k) for k in expected if k != 'reproduce_under'}
         if 'reproduce_under' in expected:
-            check(name, model.qualifying(exp, rules='v2026.1')[0] == 300.00)
+            check(name, model.qualifying(exp, rules='v2026.1').confirmed_user_paid == 300.00)
         else:
             check(name, got == {k: v for k, v in expected.items()})
 
     check('a new rule version may give a different answer without changing the old one',
           model.qualifying(exp, rules='v2027.1') is not None
-          and model.qualifying(exp, rules='v2026.1')[0] == 300.00)
+          and model.qualifying(exp, rules='v2026.1').confirmed_user_paid == 300.00)
 
     check('every reported figure can name the records that produced it',
-          bool(model.explain(model.qualifying(exp, rules='v2026.1')[0])))
+          bool(model.explain(model.qualifying(exp, rules='v2026.1'))))
 
     # ── Arrival order: the assertion that falsifies most designs ────────────
     # An EOB imported in March describes January, and a correction was recorded
@@ -222,8 +255,11 @@ def main():
         print('  * unallocated money is never counted as money the user paid')
         print('  * a payment counts only when cleared AND attached AND user-confirmed;')
         print('    cleared alone is insufficient, because cleared defaults to true')
-        print('  * the qualifying figure is a PAIR - confirmed and unresolved - and the')
-        print('    confirmed half is a SUM of evidenced payments, never a subtraction')
+        print('  * the qualifying figure has THREE parts - confirmed, unresolved, and a')
+        print('    total that is UNAVAILABLE while anything is unresolved. The confirmed')
+        print('    half is a SUM of evidenced payments, never a subtraction')
+        print('  * resolving the unresolved amount must CHANGE the total, and resolving it')
+        print('    two different ways must produce two different totals')
         print('  * progress is dollars paid over dollars owed, never a payment count')
         print('\n0 passed, 0 failed — every assertion above is pending a model')
         return 1
