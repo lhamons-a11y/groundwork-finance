@@ -69,7 +69,7 @@ two levers that do not go through the floor at all:
   "Nothing holds the date" is the honest answer when nothing holds it. "Unless you skip the
   procedure" is not an answer this product gives.
 
-**Open question 5 in §7 asks whether the floor fix ships now, ahead of the module.** It
+**Open question 5 in §8 asks whether the floor fix ships now, ahead of the module.** It
 should.
 
 ### §0.1 Necessary care is never priced in months
@@ -97,7 +97,7 @@ computes it.
 
 ## §1 What the module is
 
-Six parts. Four are surfaces the user works in; two are documents they take away.
+Seven parts. Four are surfaces the user works in; two are documents they take away.
 
 | Part | Shape | Reuses |
 |---|---|---|
@@ -107,6 +107,7 @@ Six parts. Four are surfaces the user works in; two are documents they take away
 | 1.4 Card-free reserve | a fund with a derived target | sinking-fund machinery, `capacity_unlocked` |
 | 1.5 Visit report | document | templated composition, PDF export |
 | 1.6 Year in review | document | historian + the exclusion logic |
+| 1.7 Named people | a label everything hangs off | new; see Open Question 4 |
 
 ### 1.1 The Care Planner
 
@@ -265,6 +266,31 @@ The tax document, and the one with the most ways to be quietly wrong.
 and says the preparer decides. The value is the documentation, which is the part people
 actually lack in April.
 
+### 1.7 Named people
+
+Health belongs to a person, and a household is not one person. Every medication, bill, device
+link and plan-year state hangs off a **named person** the user creates — not an account, not
+a login: a label inside the one household record.
+
+That choice has consequences worth stating rather than discovering.
+
+- **The visit report is per person.** You see one doctor about one patient, and a report
+  carrying a spouse's prescriptions into that room is wrong in a way that is hard to undo.
+- **The tax report is the household total.** §213 lets a taxpayer deduct what they paid for a
+  spouse and dependents, so the total is the correct default and the per-person split is
+  supporting detail rather than the headline.
+- **Names are labels, not access control.** Anyone who opens Groundwork sees every person's
+  data. For most households that is right, and a barrier between spouses would be friction
+  pretending to be privacy. For some households it is not right at all, and this design does
+  not solve that. It should be said plainly in the interface rather than left to be
+  discovered.
+- **A person is also where a device would attach**, if §2.3 ever resolves. That is the only
+  reason the profile needs to exist before the device question is answered.
+
+This partly answers Open Question 4 and sharpens the rest of it. The question was never
+"whose data is this" — a label answers that. It is "who may see it," and a shared ledger
+answers that for everyone at once.
+
 ---
 
 ## §2 Data sources: what exists, what doesn't
@@ -418,6 +444,12 @@ Written as a list because this codebase tests its doctrine rather than describin
    capacity, not in months lost (§0.1).
 10. Never present a credit card as a neutral way to pay for care. It is the outcome §1.4
     exists to prevent.
+11. Never state that a provider will accept an offer, or assert §501(r) protections for a
+    provider they do not cover. State the policy, condition it on provider type, stop.
+12. Never name a payment figure the record cannot support. Below the observed-months floor,
+    say the record is too thin — this number leaves the building.
+13. Never let the urgent tier (§7.4) carry anything without an external deadline. One bypass
+    per bill, ever, and materiality, actionability and novelty still apply.
 
 ---
 
@@ -431,8 +463,11 @@ or earlier.
 *This phase delivers most of the user value with none of the exposure.* That is deliberate,
 and it is the argument for building it first rather than last.
 
-**Phase 2 — the plan year.** PDF EOB import on the existing extraction machinery, the
-plan-year state machine, and the Care Planner with its three levers.
+**Phase 2 — the plan year and the bill that lands.** PDF EOB import on the existing
+extraction machinery, the plan-year state machine, and the Care Planner with its three levers.
+§7's sequence belongs here too and needs nothing from the network: the alarm is derived from
+balances the app already holds, the sustainable payment comes from the historian, and the
+agreed plan writes to structures that already exist once a budget item can carry a term.
 
 **Phase 3 — gated, optional.** Blue Button 2.0 for Medicare users, behind its own consent.
 GoodRx if the partnership is pursued.
@@ -441,7 +476,146 @@ GoodRx if the partnership is pursued.
 
 ---
 
-## §7 Open questions — yours to answer
+## §7 The bill that lands
+
+A hospital bill arrives for $4,000. The user cannot cover it, or covering it empties the
+reserve §1.4 exists to protect. This is the sequence that follows, and it is the part of the
+module that strains the platform's rules hardest. Each strain is named below with what it
+costs to allow it.
+
+### 7.1 The alarm, and why the threshold is not a number
+
+"$4,000" is not the trigger. A $4,000 bill against $40,000 of liquid savings is an expense; a
+$900 bill against $600 is an emergency. **The trigger is the relationship to the reserve, not
+the size of the bill**, and every term in it already exists:
+
+> A bill trips the alarm when paying it in full would take liquid savings below the §1.4
+> reserve floor — or when it cannot be paid in full at all.
+
+That derives from the user's own plan and their own balances. No invented threshold, no
+"large bill" constant to argue about, and it scales with a household instead of against it.
+
+### 7.2 The strain: this is the first time the app tells someone to do something
+
+Everything else in this platform shows a consequence and stops. Here the useful sentence is
+"call the billing department, and here is what to offer." That is an instruction, and the
+no-prescription rule exists for good reason.
+
+**The adjustment is a distinction, not an exception.** The rule forbids claims about the
+user's life that the app cannot verify — "cut your dining" assumes dining is flexible for this
+person, and inventing that is the fabrication R8 exists to stop. A hospital's billing
+obligations are not a claim about the user at all. They are a checkable fact about the world:
+
+- **IRC §501(r)(4) requires** every non-profit hospital to maintain a written, published
+  Financial Assistance Policy covering all emergency and medically necessary care, free to
+  download, with the application form and a plain-language summary.
+- A patient has **at least 240 days** to apply.
+- The hospital is **barred from lawsuits, wage garnishment and credit reporting for at least
+  120 days**, and must make a reasonable effort to determine eligibility before pursuing
+  collections.
+- Once a patient qualifies, they **cannot be charged more than the "amounts generally billed"**
+  to insured patients.
+
+So the sentence splits into three parts with three different warrants, and the split is what
+keeps it honest:
+
+| Part | Warrant | Example |
+|---|---|---|
+| What is available | federal law, cited | "Non-profit hospitals must have a financial assistance policy. You have at least 240 days to apply." |
+| What the record shows | the user's own history | "Your leanest month in the last 14 left $210 after everything." |
+| The arithmetic between them | derived, shown | "$150/month clears this in 27 months and stays inside that." |
+
+**The app never says "you should call."** It says what exists, what the record can sustain,
+and what the two make possible. The user decides, which is where every other lever in this
+platform leaves them.
+
+**Two things it must never do.** It must not assert those protections for a for-profit or
+government provider, where §501(r) does not apply the same way — so provider type is a field,
+and the fact is conditional on it. And it must never state or imply that the provider will
+accept an offer. What the law guarantees is a policy and a process, not a number.
+
+### 7.3 The strain: the offered amount is a number the app invented
+
+The original sketch was "take what the historian shows is left over each month and divide."
+The divisor is the danger. This project has already been burned twice by a heuristic that
+looked obvious and turned out to be a coin flip against trend-free data, and a fabricated
+payment figure would be worse than either — it is a number a person repeats out loud to a
+hospital.
+
+**The adjustment: derive it, and refuse when the record cannot.**
+
+- **Use the leanest month, not the average.** A payment plan has to survive the worst month on
+  record, not the typical one — an average-month payment fails in the month the car breaks,
+  and failing a medical payment plan is how the bill reaches collections after all.
+- **Apply the existing floors.** C.5's stability floor and §1.4's reserve floor both already
+  constrain what may be proposed; the payment may not push either below its line.
+- **Require enough record to speak.** Below `MIN_MONTHS_OBSERVED` there is no leanest month
+  worth the name. Appendix C.7 already covers this: say the record is too thin to name a
+  figure rather than naming one anyway. **An honest null is worth more than a number here**,
+  because this number leaves the building.
+- **Offer the curve, not a point.** Payment and term are two unknowns in one equation. Show
+  three durations with their payments, mark which the record sustains, and let the person
+  choose. That is E.4's "show the paths with their costs" applied to a negotiation.
+
+### 7.4 The strain: the alarm must not be silenced by the frequency budget
+
+Appendix A caps interruptions — one per session, two brakes a week. A bill that will reach
+collections is not a spending observation, and suppressing it because a card was already shown
+this session would be the gauntlet defeating its own purpose.
+
+**The adjustment is a narrow tier with a checkable definition**, because "urgent" is a door
+every product eventually props open:
+
+> An event may bypass the **frequency budget** — and only the frequency budget — when it has a
+> deadline that is not ours, and a consequence that compounds if the deadline passes.
+
+A bill with a due date qualifies. A spending pattern never does. A trophy never does. Note
+what the tier does *not* get: it still passes materiality, actionability and novelty, and it
+is capped at one bypass per distinct bill, ever, so a single bill cannot become a nag.
+
+**The dial still silences it, and that needs no exception.** A.1 already says turning
+interruptions down hides nothing, because every insight remains on the page it belongs to. An
+alarm the user has switched off still sits on the bill, which is where they will look.
+
+### 7.5 Recording what was agreed
+
+The user offers $150. The hospital says $175, or $125, or yes. That outcome is recorded — the
+offer, the agreement, the term — and three rules apply immediately.
+
+- It is **the historian's**, not a model's. A recorded outcome is a fact about what happened.
+- **No rate below the threshold.** The same rule BYB's memory follows: a count is a receipt at
+  any size, a *rate* needs enough decisions to be one. "Two of your three offers were accepted"
+  is a pattern invented from noise.
+- **Never a prediction.** "Hospitals accept about 80% of offers" is exactly the inference from
+  engagement data that the blueprint's §9 forbids, and it would be worse here — it would set an expectation
+  before a phone call that the app has no standing to set.
+
+### 7.6 The strain: the app writes to the budget
+
+An agreed plan is $175/month for 24 months, and it belongs in the budget for exactly 24
+months. Two problems, one shallow and one deep.
+
+**Shallow: budget items have no term.** They are ongoing. This needs an end month, which is a
+schema addition rather than a design question.
+
+**Deep: is a medical payment plan a budget line or a debt?** It is a fixed obligation, with a
+term, at 0%. Modelled as an expense it is invisible to the payoff engine and the debt-free
+date is wrong. Modelled as a debt the date is right, and avalanche correctly ranks a 0%
+obligation last without being told to.
+
+**It should be a debt, flagged protected.** That buys a true date and correct ordering for
+free, while §0 keeps it off the lever list — never trimmed, never headroom, never a
+reallocation source.
+
+One consequence needs handling carefully. Adding it moves the debt-free date later, and the
+app will want to say so. **§0.1 governs how.** The date changes because an obligation was
+accepted, and that is reportable as a fact: *"your plan now carries $175/mo it did not."* What
+may never be said is the causal form — that the illness, the bill, or the care cost the user
+six months of freedom. The number moves; the blame is not assigned.
+
+---
+
+## §8 Open questions — yours to answer
 
 Named rather than assumed, and none of them defaulted.
 
@@ -465,7 +639,23 @@ Named rather than assumed, and none of them defaulted.
 5. **Does the necessity-floor fix ship now?** It is a live defect in shipped code, it is a
    handful of lines, and it does not depend on any of the above.
 
-6. **Reserve before, alongside, or after the last balance?** Avalanche says every spare dollar
+6. **Does the app say "call them"?** §7.2 argues the sentence is admissible because a
+   hospital's obligations are a fact about the world rather than a claim about the user's
+   life, and that the three parts must stay visibly separate. It is still the first time this
+   product tells someone to pick up a phone. If that line should not be crossed at all, the
+   feature degrades to stating the law and the leanest month and letting the user draw the
+   conclusion — which is weaker, and might be right.
+
+7. **Does an agreed plan become a debt?** §7.6 says yes, flagged protected, because that is
+   the only way the debt-free date stays true. The cost is that a medical obligation then
+   appears in the debt list, which some people will read as the app calling their illness a
+   debt. The alternative is a term-limited budget line and a date that is quietly wrong.
+
+8. **Are names enough?** §1.7 makes a person a label, not an account, so everyone with the app
+   open sees everyone's medications. That is right for most households and wrong for some, and
+   the design does not currently distinguish them.
+
+9. **Reserve before, alongside, or after the last balance?** Avalanche says every spare dollar
    goes to the highest APR, and with an empty reserve that is how one emergency-room bill
    lands back on the card and erases a year. "Pay it off" and "never need it again" are two
    objectives and the engine models only the first. This is the one open question that changes
