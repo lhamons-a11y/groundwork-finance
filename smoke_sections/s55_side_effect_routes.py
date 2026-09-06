@@ -15,11 +15,7 @@ about; the rest of the section depends on them working.
 Ordering is deliberate. This is s55 so it runs after every other section, and
 the check that empties the transactions table is last inside it.
 
-Two things are deliberately NOT exercised in full, and neither is an oversight:
-
-  /api/settings/export-to-file writes into the real Downloads folder rather
-  than the temp data directory, so running it here would drop a file on the
-  machine of whoever ran the suite. Only its validation path is checked.
+One thing is deliberately not exercised in full, and it is not an oversight:
 
   /api/ai/install-ollama and /api/ai/pull-model are checked with the network
   blocked, which is the interesting half anyway: the installer runs on a
@@ -28,8 +24,10 @@ Two things are deliberately NOT exercised in full, and neither is an oversight:
   forever.
 """
 import io
+import json
 import socket
 import time
+from pathlib import Path
 
 
 def _blocked(*_args, **_kwargs):
@@ -116,6 +114,66 @@ def run(ctx):
         check('an export in a format the app does not write is refused',
               c.post('/api/settings/export-to-file', headers=HJ,
                      json={'format': 'xml'}).status_code == 400)
+
+        # ── The export itself ───────────────────────────────────────────────
+        # This used to be unrunnable here: the destination was hardcoded to the
+        # real Downloads folder, so exercising it meant dropping a file on the
+        # machine of whoever ran the suite, and the write path went untested.
+        # It reads export_dir now, which is an ordinary setting and goes
+        # through the ordinary settings route.
+        _export_to = ctx.TMP / 's55_exports'
+        check('the export folder is an ordinary setting, not a hardcoded path',
+              c.patch('/api/settings', headers=HJ,
+                      json={'export_dir': str(_export_to)}).status_code == 200)
+        _json_out = c.post('/api/settings/export-to-file', headers=HJ,
+                           json={'format': 'json'})
+        _json_path = Path(data_of(_json_out).get('path') or '')
+        check('an export writes a real file, where the setting said to put it',
+              _json_out.status_code == 200 and _json_path.exists()
+              and _json_path.parent == _export_to
+              and _json_path.stat().st_size > 0)
+        check('and the file is the data, not an empty shell of it',
+              set(json.loads(_json_path.read_text(encoding='utf-8')))
+              >= {'transactions', 'debt_accounts', 'net_worth', 'settings'})
+        _csv_out = c.post('/api/settings/export-to-file', headers=HJ,
+                          json={'format': 'csv'})
+        _csv_path = Path(data_of(_csv_out).get('path') or '')
+        check('the csv format writes too, with its sections named',
+              _csv_out.status_code == 200 and _csv_path.exists()
+              and '--- TRANSACTIONS ---' in _csv_path.read_text(encoding='utf-8'))
+
+        # A folder that has gone away - an unplugged drive, a deleted path -
+        # must not fail the export. It falls back rather than refusing, the
+        # same rule the backup folder follows.
+        c.patch('/api/settings', headers=HJ,
+                json={'export_dir': str(ctx.TMP / 'gone' / 'missing' / 'deeper')})
+        _recreated = c.post('/api/settings/export-to-file', headers=HJ,
+                            json={'format': 'json'})
+        check('a configured export folder that does not exist is created rather '
+              'than failing the export', _recreated.status_code == 200
+              and Path(data_of(_recreated).get('path') or '').exists())
+
+        # And the default branch, which is the bug that started this: a home
+        # folder with no Downloads directory made the write raise, and the user
+        # was shown "Export failed: [Errno 2]" for a folder they never chose.
+        # Setting export_dir cannot reach that branch - the setting is what
+        # skips it - so home itself moves for the length of the check. Without
+        # this, removing the mkdir from the default path leaves every other
+        # export check green, which is how it was found.
+        import pathlib
+        from server import _exports_dir
+        _fake_home = ctx.TMP / 's55_fake_home'
+        _fake_home.mkdir(parents=True, exist_ok=True)
+        c.patch('/api/settings', headers=HJ, json={'export_dir': ''})
+        _orig_home = pathlib.Path.__dict__['home']
+        try:
+            pathlib.Path.home = classmethod(lambda _cls: _fake_home)
+            _default_dir = _exports_dir()
+        finally:
+            pathlib.Path.home = _orig_home
+        check('a home folder with no Downloads gets one, rather than the export '
+              'failing on a folder the user never chose',
+              _default_dir == _fake_home / 'Downloads' and _default_dir.is_dir())
 
         # ── Offline, which for these three is the normal case ───────────────
         _real_connect, _real_create = socket.socket.connect, socket.create_connection

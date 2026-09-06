@@ -22745,7 +22745,9 @@ let _pendingAutoImportContent = null;
 
 async function exportData(format) {
   const status = g('exportStatus');
-  if (status) { status.textContent = 'Saving to Downloads folder…'; status.style.display = ''; }
+  // Not "Saving to Downloads folder…" — the destination is a setting now, and
+  // the success line below reports the path the server actually wrote to.
+  if (status) { status.textContent = 'Saving export…'; status.style.display = ''; }
   try {
     const res  = await API.post('/api/settings/export-to-file', { format });
     const data = res.data || res;

@@ -6417,13 +6417,61 @@ def delete_goal():
     return ok({'cleared': True})
 
 
+def _exports_dir() -> Path:
+    """
+    Where exports are written. Downloads by default, because that is where a
+    file someone asked for should turn up, and settable for the same reasons
+    the backup folder is - external storage, a redirected profile, a machine
+    where Downloads is not where Python thinks it is.
+
+    Two things this fixes over the hardcoded path it replaces. A home folder
+    with no Downloads directory - renamed, redirected to OneDrive, or a
+    service account - made the write raise, and the user was shown "Export
+    failed: [Errno 2] No such file or directory" for a folder they never chose.
+    It is created now. And the destination was untestable: the only way to
+    exercise the write was to drop a file in the real Downloads folder of
+    whoever ran the suite, so nothing ever did.
+
+    Same fallback discipline as _backups_dir: a configured folder that has
+    gone away falls back to the default rather than failing the export.
+    """
+    default = Path.home() / 'Downloads'
+    try:
+        with db_session() as session:
+            setting = session.query(AppSetting).filter_by(key='export_dir').first()
+            custom = (setting.value or '').strip() if setting else ''
+    except Exception:
+        custom = ''
+
+    if custom:
+        p = Path(custom)
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            if os.access(p, os.W_OK):
+                return p
+        except OSError:
+            logging.getLogger('groundwork').warning(
+                'custom export dir %s not writable - falling back to Downloads', p)
+
+    try:
+        default.mkdir(parents=True, exist_ok=True)
+        return default
+    except OSError:
+        # No home, no Downloads, nowhere to put it. The data directory always
+        # exists - the database is in it - so the export lands somewhere the
+        # app can name rather than failing.
+        fallback = DATA_DIR / 'exports'
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
+
+
 @settings_bp.route('/export-to-file', methods=['POST'])
 def export_to_file():
     """
-    Save export directly to the user's Downloads folder.
+    Save export directly to the user's Downloads folder, or wherever
+    _exports_dir() resolves to if that has been pointed elsewhere.
     Returns the full path so the app can tell the user exactly where it is.
     """
-    from pathlib import Path as P
     import io
 
     body       = request.get_json(silent=True) or {}
@@ -6482,7 +6530,7 @@ def export_to_file():
 
         ts       = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f'groundwork_export_{ts}.{fmt_param}'
-        dest     = P.home() / 'Downloads' / filename
+        dest     = _exports_dir() / filename
 
         try:
             if fmt_param == 'csv':
