@@ -487,6 +487,15 @@ Written as a list because this codebase tests its doctrine rather than describin
     among the credit cards has been called a debt without the word.
 15. Never treat mental health as discretionary. Therapy, counselling and psychiatric care are
     on the necessity floor by name, not by substring luck.
+16. Never show a serene payoff date for a deferred-interest balance. The promotional end date
+    and the retroactive principal are the number that matters; the payoff date without them
+    is the most dangerous figure this app could display (§7.7).
+17. Never classify a lender's balance as a healthcare cost, however medical the purchase.
+    Provider carries it at 0% — healthcare cost. A lender carries it — credit card.
+18. Never ask again after a standing no. "The plan is fine" is a preference, not a cooldown:
+    it does not expire, reset on a balance change, or return next year.
+19. Never infer that preference from silence. A user who dismisses twice has dismissed twice;
+    only a user who said "stop asking" has said it.
 
 ---
 
@@ -661,6 +670,97 @@ the framing that credit cards are the adversary: perhaps the headline figure sho
 healthcare cost never moves the number that measures the fight against the cards, because it
 was never part of that fight.
 
+### 7.7 The end date, and where extra money goes
+
+Two things follow from treating a healthcare cost the way a car loan is treated, and one
+important thing does not.
+
+**It shows its own end date, and the date is exact.** A true provider plan carries no
+interest, so the arithmetic is balance ÷ payment and nothing else: *"$175/month — paid off
+March 2028."* That is not a projection and does not need a confidence qualifier, which makes
+it rarer than almost any other date in this app.
+
+It is also the right number psychologically, and for a reason §0.1 already argued. "This cost
+you six months of freedom" is a verdict; **"this ends in March 2028" is a horizon.** Same
+obligation, same arithmetic, opposite thing done to the person reading it.
+
+**Extra money can go to either, and the two answers buy different things.** As the cards come
+down, a user with room to send more should be offered the choice — and the honest presentation
+is not a recommendation but the pair of consequences, because they are not the same *kind* of
+consequence:
+
+| Extra $200 goes to | What it buys |
+|---|---|
+| The Visa (22%) | **$310 saved in interest.** Money that would otherwise be gone. |
+| The healthcare cost (0%) | **Four months earlier, and $175/mo freed four months sooner.** No money saved — none was being lost. |
+
+That distinction is the teaching, and it must not be blurred. At 0% an extra payment saves
+nothing, because nothing was being taken; it buys an earlier end and earlier capacity. Both
+are legitimate reasons to choose it, and neither is the interest saving that the card offers.
+
+The app shows both and picks neither — E.4's rule, that the paths are shown with their costs
+and the choice is the user's. The doctrine that credit cards are the adversary does not need
+to be argued in a sentence here; at 22% against 0% the interest column argues it. And the
+existing floors still apply: money sent to either may not take the reserve below §1.4's line.
+
+**The offer has three answers, and the third one is permanent.**
+
+Offering to send more is the app asking a question, and a question asked twice after a clear
+answer is a nag. So:
+
+1. **Yes** — send this much, to this obligation.
+2. **Not now.** An ordinary dismissal, which A.4 already handles: sixty days of quiet, and
+   twice in a category drops the category to passive for good.
+3. **No. The plan is fine. Not a penny more.** A *standing* answer, stored against that
+   obligation, honoured until the user themselves changes it. Not a cooldown — an end to the
+   question. It does not expire, it does not reset when the balance changes, and it does not
+   return next January.
+
+The third answer is a preference, not a dismissal, and the distinction matters more than it
+looks. **Inferring from repeated dismissals that someone wants to be left alone would be
+learning from silence, which the platform forbids. Recording an explicit "don't ask again" is
+honouring something the user actually said**, which the platform requires. Same silence,
+opposite provenance — one is inferred, the other is stated.
+
+And A.1 still holds: switching the question off hides nothing. The option to pay extra remains
+on the healthcare page for anyone who goes looking for it. What ends is the asking.
+
+There is a reason to want this beyond quiet. A payment plan someone can meet every month
+without thinking about it is doing its job, and a person who has decided that $175/month is
+what they can live with should not be re-litigated every time their balance falls.
+"Fine as it is" is a legitimate financial position and the app should be able to hear it.
+
+**What must not follow: the same treatment for a medical credit card.**
+
+A provider payment plan and a medical credit card look alike on a statement and are not the
+same instrument. Deferred-interest promotional financing — CareCredit and its relatives — is
+the common form, and its mechanics are the reason this subsection exists:
+
+- Interest **accrues from the purchase date**, not from the end of the promotion.
+- If the balance is not paid **in full** by the promotional end date, that interest is charged
+  **retroactively on the entire original purchase**, at a standard APR around 30%.
+- Retroactively on the *original* amount — not the remaining balance. **Paying off 90% and
+  missing the date by a month is very nearly as expensive as having paid nothing.**
+
+So a serene *"paid off March 2028"* on one of these would be the most dangerous number this
+application has ever displayed. It would be arithmetically defensible and would hide a cliff.
+
+**The classification rule, therefore:**
+
+> An obligation is a **healthcare cost** when the provider carries it at no interest. It is a
+> **credit card** when a lender carries it, whatever the marketing calls it, and however
+> medical the purchase was.
+
+A deferred-interest plan is the adversary, is grouped with the cards, and is subject to
+everything §0.2 does *not* protect — because §0.2 protects care from being called a failure,
+not lenders from being called lenders. It also qualifies for §7.4's urgent tier on the
+definition already written: an external deadline whose consequence compounds if it passes.
+Few things in personal finance fit that sentence better.
+
+The engine therefore needs three obligation types, not two: a card, a provider plan at 0% with
+a term, and a promotional balance with a **cliff date and a retroactive principal**. The third
+is new work and the reason it is worth doing is that it is the one people are quietly hurt by.
+
 ---
 
 ## §8 Open questions — yours to answer
@@ -694,9 +794,9 @@ Named rather than assumed, and none of them defaulted.
    feature degrades to stating the law and the leanest month and letting the user draw the
    conclusion — which is weaker, and might be right.
 
-7. **Card-free date, or all-obligations date?** *Settled: it is never called debt (§0.2), the
-   engine still prices it, and it gets its own section rather than a line among the cards.*
-   What is left is the headline figure. If credit cards are the adversary, the number that
+7. **Card-free date, or all-obligations date?** *Mostly settled: it is never called debt
+   (§0.2), the engine prices it, it gets its own section rather than a line among the cards,
+   and it carries its own exact end date (§7.7).* What is left is the headline figure. If credit cards are the adversary, the number that
    measures that fight is the card-free date — and a healthcare cost should not move it. A
    second figure covers when everything clears. Two numbers is one more than this app shows
    today, and that is the cost of the split.
