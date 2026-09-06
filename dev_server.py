@@ -21,7 +21,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.INFO)
-    from server import create_app
+    from server import create_app, serve
     app = create_app()
     print(f'Groundwork dev server — temp DB at {_tmp}', flush=True)
-    app.run(host='127.0.0.1', port=8766, debug=False, threaded=True)
+    # The same server the packaged app uses. A dev server on different
+    # machinery measures the wrong thing, and latency was measured here.
+    serve(app, host='127.0.0.1', port=8766)

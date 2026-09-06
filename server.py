@@ -8371,7 +8371,50 @@ def bank_import_commit():
     return ok(result)
 
 
+def serve(app, host='127.0.0.1', port=8765):
+    """Serve the app, on a server meant for it.
+
+    Flask's built-in server is a development convenience and says so in its own
+    startup banner. Groundwork shipped on it anyway — every launch path called
+    `app.run()` — and the cost is measurable rather than theoretical: request
+    latency alternated between roughly 45ms and 250ms on loopback, `/api/health`
+    and a real route alike, which is the signature of connection handling rather
+    than of anything the routes do. That was invisible while the client answered
+    payoff questions itself. Once it started asking the server, it became a
+    visible flash on every keystroke in the debt page.
+
+    Waitress is the choice for a desktop app: pure Python, so it freezes into a
+    PyInstaller bundle without a compiler; cross-platform, unlike gunicorn;
+    threaded, which is what a local single-user server wants.
+
+    **The fallback is deliberate and loud.** If waitress is missing — a source
+    checkout that skipped requirements.txt — the app still runs, on the old
+    server, with a warning in the log. Refusing to start would trade a slow app
+    for no app, and this is a personal finance tool someone may be opening to
+    check whether a payment cleared.
+    """
+    try:
+        from waitress import serve as _waitress_serve
+    except ImportError:
+        # getLogger inline: this module has no module-level `logger`, and a
+        # NameError here would break the one path that exists to keep the app
+        # running when something is missing.
+        logging.getLogger('groundwork').warning(
+            'waitress is not installed - falling back to the Flask development '
+            'server. The app works; requests are slower and less consistent. '
+            'Install it with: pip install -r requirements.txt')
+        app.run(host=host, port=port, debug=False, threaded=True,
+                use_reloader=False)
+        return
+
+    # Threads: a desktop app has one user, and the ceiling exists to stop a
+    # runaway from spawning without limit rather than to serve a crowd.
+    # channel_timeout keeps a dropped webview connection from holding a thread.
+    _waitress_serve(app, host=host, port=port, threads=8,
+                    channel_timeout=120, ident='Groundwork')
+
+
 if __name__ == '__main__':
     app = create_app()
     logging.basicConfig(level=logging.INFO)
-    app.run(host='127.0.0.1', port=8765, debug=False, threaded=True)
+    serve(app, host='127.0.0.1', port=8765)

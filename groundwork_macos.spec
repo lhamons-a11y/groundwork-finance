@@ -33,6 +33,13 @@ a = Analysis(
         *( [(str(webview_path / 'js'), 'webview/js')] if webview_path and (webview_path / 'js').exists() else [] ),
     ],
     hiddenimports=[
+        # waitress — the WSGI server every launch path now uses. Imported
+        # inside server.serve() rather than at module scope, which is exactly
+        # the import style PyInstaller's static analysis is least likely to
+        # trace; without this the bundle falls back to the development server
+        # and nobody finds out except by measuring.
+        'waitress',
+        'waitress.server',
         'watchdog',
         'watchdog.events',
         'watchdog.observers',
