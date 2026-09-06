@@ -198,7 +198,7 @@ on the app's own derived state.
 
 *These were pushed back on during review and the pushback stands unless overturned.*
 
-### C1. "Never store derived conclusions" is incomplete
+### C1. "Never store derived conclusions" is incomplete — RESOLVED
 
 The remedy of recomputing rather than storing fixes staleness and introduces
 **non-reproducibility when the rules change rather than the data.** Run the 2026 tax report in
@@ -206,10 +206,36 @@ The remedy of recomputing rather than storing fixes staleness and introduces
 or an HSA limit did, or bureau policy changed. Pure recompute silently rewrites history on
 every rule update, which is the same defect arriving from the other direction.
 
-**A conclusion is therefore itself an event, carrying the rule-version and input-set that
-produced it.** Not `qualifying_amount = 4238` as a cached field, but *"on this date, under
-rule-set v2026.1, over these 47 records, the qualifying amount was $3,687."* That is the only
-form that survives dated rule tables meeting late reimbursements.
+*Resolution, after pushback in both directions.* "A conclusion is itself an event" was wrong
+and conflated two things — the record of having computed something, and the computing being
+noteworthy. A tax figure recomputed on page load is not a thing that happened; a tax report
+generated on 31 December is. Making every conclusion an event turns the historian into a
+general-purpose database wearing an event log's name.
+
+**The resolved shape is a versioned calculation record**, associated with an event only when
+one actually occurred:
+
+```text
+CalculationRun          CalculationResult
+  calculation_type        calculation_run_id
+  calculation_version     metric
+  rule_set_version        value
+  input_set               unit
+  calculated_at
+  result
+```
+
+And the requirement underneath it, which is stronger than either draft:
+
+> **A historical conclusion must never depend on an unversioned interpretation of the present.**
+
+**One open fork.** `input_set_hash` *detects* that inputs changed; it does not let you
+reproduce the old answer, because a hash cannot be reconstructed into state. Either the run
+**stores its inputs** (fat, self-contained, works on day one, blocks on nothing) or it
+**reconstructs from history** (thin, and only possible once facts are append-only and
+versioned — which means the run cannot be built before the fact model). Recommended: the fat
+version first. A tax run carrying its own inputs is reproducible immediately and does not wait
+on the substrate question.
 
 ### C2. `classification_confidence` should not exist
 
@@ -223,12 +249,41 @@ clothes.
 `merchant_match`, `mcc`, `inferred`. Same information, honestly held, and it makes policy
 checkable: *never protect on `inferred` alone* is testable; *never protect below 0.8* is not.
 
-### C3. `green_light()` is in the wrong severity band
+*Sharpened during review, twice.* **Source alone does not solve uncertainty.** `merchant_match`
+on CVS says nothing about whether this transaction was a prescription, a birthday card or
+crisps. So the evidence has to resolve to a per-transaction state rather than a per-merchant
+label — but that state must be named in **evidence terms, not policy terms**. A state called
+`SUPPORTED_HEALTH_CLASSIFICATION` has already smuggled in a policy judgement (supported enough
+for *what?*), which is the separation this section is trying to enforce. `user_asserted`,
+`corroborated`, `single_weak_signal` describe what is known; policy maps them to outcomes.
+
+**And one classification cannot serve both protection and tax, because their error asymmetries
+are opposite.** Protection wants to over-include: a false positive costs one unavailable lever,
+a trade `is_protected`'s docstring already accepts. Tax must under-include: a false positive
+costs a wrong return, the one place in this module where being wrong has a legal consequence
+for the user. The CVS transaction should be *ambiguous → not a lever* **and** *not in the
+Schedule A total* — the same decision only by coincidence. Two policies over one classification,
+never one threshold serving both.
+
+### C3. `green_light()` is in the wrong severity band — ACCEPTED
 
 It is marked P1. Every other item on that table is a defect in code that does not exist yet.
 This one is a behavioural change to **shipped software with real users on an LTS line** — it
 can alter what existing users are told about money they already have, and they never opted into
 healthcare. **P0 on blast radius**, ahead of several unbuilt-code items.
+
+*Accepted, with a sharper reason than blast radius.* The other items are **new functionality
+that is currently wrong**, which is a development problem. This is **existing functionality
+whose meaning changes underneath existing users**, which is a product-integrity problem. It
+therefore needs a **contract test**, not a unit test:
+
+```text
+existing user + no healthcare information + same historical financial state
+        → the same green_light result
+```
+
+unless an intentional change is documented and versioned. That is a product invariant rather
+than a function's return value.
 
 ---
 
@@ -279,8 +334,25 @@ stated as ending at the ledger, honestly and in the product.
 
 ---
 
-## Next step
+## Next step — now written
 
-Not another broad critique. Take the proposed schema and functions one at a time and **try to
-make each produce a contradictory state.** That is where the bugs live that a happy-path
-architecture review will never surface.
+Not another broad critique, and not the lifecycle table first. **`tests/test_lifecycle_fixture.py`
+exists and fails**, written before any model, so the model has to come to the test rather than
+the test being shaped to flatter a model. Ten mutations against one expense with three funders.
+
+Three assertions in it were not in either review pass and came out of writing it:
+
+- **Arrival order.** An EOB imported in March describes January, and a correction was recorded
+  in February. If events apply in arrival order rather than effective order, the answer depends
+  on import sequence — and imports are retroactive by nature, so this is routine rather than an
+  edge case. The assertion is *same facts, any arrival order, same answer*, and it falsifies
+  more designs than the other nine mutations together.
+- **Unallocated is not user-paid.** After M3 there is $650 nobody has paid. It is not the
+  taxpayer's money and must not be rolled into the qualifying total merely because it was not
+  reimbursed. A model that confuses the two overstates a deduction on a filed return — and the
+  confusion is easy, because both are "not reimbursed".
+- **Deletion is at least three operations.** Correction ("this never happened"), void ("this
+  stops applying"), destruction ("erase the record") cannot be one button.
+
+The lifecycle table falls out of this as a by-product: every cell that would have been filled
+in by imagination becomes an assertion that either passes or does not.

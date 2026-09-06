@@ -463,10 +463,27 @@ changes what the other must do.
 
 ---
 
+## Superseded in part
+
+Three items here were carried further by `ARCHITECTURE_REVIEW_LIFECYCLE.md` and its review, and
+this section is not the current statement of them:
+
+- **§26's P0 list** — `green_light()` moves from P1 to P0. Every other item is new functionality
+  that is currently wrong, which is a development problem; that one is existing functionality
+  whose meaning changes underneath existing users, which is a product-integrity problem. It
+  needs a contract test.
+- **Classification** — `classification_source` alone does not resolve uncertainty, because a
+  merchant match on CVS says nothing about whether this transaction was a prescription or a
+  birthday card. And **one classification cannot serve both protection and tax**: protection
+  should over-include, tax must under-include.
+- **The event model** — is not to be designed. `HistorianEntry` already exists and is already
+  authoritative for one feature; see `EVENT_SUBSTRATE_QUESTION.md`.
+
 ## Next step
 
-**Do not modify the blueprint yet.** Continue the lifecycle attack against the proposed data
-model and functions:
+**Do not modify the blueprint yet.** The lifecycle attack has been run and is recorded in
+`ARCHITECTURE_REVIEW_LIFECYCLE.md`; its conclusion is a failing fixture rather than a further
+document (`tests/test_lifecycle_fixture.py`). The transitions it covers:
 
 ```text
 create · import · classify · edit · reclassify · merge · split · refund ·

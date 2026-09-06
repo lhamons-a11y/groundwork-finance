@@ -52,6 +52,29 @@ And what a fact/event model needs and this has none of: a **source** (who assert
 **rule version** (what the conclusion was computed under, per `ARCHITECTURE_REVIEW_LIFECYCLE`
 C1), and **relationships between events** — reverses, supersedes, corrects, funds, satisfies.
 
+## What a `HistorianEntry` is — the question to settle first
+
+Extending it is straightforward. Extending it **without deciding what its authority is** is how
+the substrate problem gets buried rather than solved. It could be:
+
+| | |
+|---|---|
+| **A — audit log** | something happened |
+| **B — event store** | the authoritative record from which current state is reconstructed |
+| **C — learning history** | a record of what Groundwork observed |
+| **D — all three** | which is the architecture problem, not a description |
+
+**The code says A + C by design, B by accident.** Its docstring calls it a structured,
+queryable event log for adaptive features and compliance reporting — audit plus learning. Then
+`_proactive_state` reconstructs live state from it: it queries `proactive_shown` and
+`proactive_dismissed` rows and derives session counts, weekly budgets and cooldowns, with no
+other store behind them. That is option B, in one feature, added later, without the shape being
+revisited.
+
+Which makes the answer cheaper than it looks: **B is currently true of exactly one feature.**
+Small enough to move if the decision goes the other way — and worth confirming before anything
+is designed around it.
+
 ## The three options
 
 **Extend in place.** Add columns and foreign keys to `historian_entries`, keep the variance
@@ -95,3 +118,31 @@ migration.
 **And it should be built somewhere other than healthcare.** If healthcare is the part of this
 product that matters most, it is the worst possible place to learn what the event model should
 have been.
+
+## The pre-registered failure criterion
+
+Declared before the experiment, because a substrate that half-works exerts a strong pull to be
+kept, and the argument then gets relitigated on attachment rather than evidence. This project
+already applies the discipline one level down — state what would falsify a check before you can
+be fond of it.
+
+> **The historian fails the experiment if carrying the fixture requires more than two structural
+> relationships to live inside `context_json`, or if any read path must parse JSON to enforce an
+> invariant.**
+
+The rule behind it, worth keeping regardless of how the experiment lands:
+
+> **JSON may carry explanatory context. Relationships required to preserve financial integrity
+> may not exist only inside JSON.**
+
+Because once they do, the database cannot enforce them — and a `context_json` holding
+`{"transaction_id": 1827, "person_id": 4, "plan_id": 9}` survives transaction 1827 being
+deleted, person 4 being merged and plan 9 being corrected, leaving historical-looking JSON
+pointing into a world that no longer exists.
+
+## The fixture that decides it
+
+`tests/test_lifecycle_fixture.py`, written before any model and currently failing. If the
+historian can carry fact → event → relationship → calculation → rule version → correction →
+reversal → historical reconstruction without becoming an untyped JSON dump, it is extended. If
+it cannot, that is demonstrated in code rather than argued in a document.

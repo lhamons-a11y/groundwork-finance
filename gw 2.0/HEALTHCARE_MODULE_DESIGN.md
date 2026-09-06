@@ -10,8 +10,11 @@
 > from what was first sketched.
 >
 > **UNDER REVIEW — do not implement from this document alone.**
-> `ARCHITECTURE_REVIEW_P0.md` challenges it as a production architecture review and lists
-> sixteen P0 items to resolve first. Its central finding: the philosophy here is more mature
+> Three artifacts challenge it and one supersedes parts of it: `ARCHITECTURE_REVIEW_P0.md`
+> (sixteen P0 items), `ARCHITECTURE_REVIEW_LIFECYCLE.md` (what survives create, edit,
+> correction, import, duplicate, reversal, plan change, rollover and delete),
+> `EVENT_SUBSTRATE_QUESTION.md` (whether `HistorianEntry` is extended or replaced) and
+> `tests/test_lifecycle_fixture.py`, which is the failing test the model must satisfy. Its central finding: the philosophy here is more mature
 > than the implementation specification, and several rules below are stated as prose where they
 > need to be enforceable invariants over typed, provenance-aware facts. Read the two together.
 
