@@ -268,11 +268,22 @@ def create_app(static_folder: str = None) -> Flask:
             # markup - which is what keeps the two lines' index.html identical
             # and their forward-merges clean. Loaded after app.js on purpose:
             # the dependency runs one way, teaching -> app, never back.
-            teaching_entry = Path(static_folder) / 'js' / 'teaching' / 'index.js'
+            teaching_dir = Path(static_folder) / 'js' / 'teaching'
+            teaching_entry = teaching_dir / 'index.js'
             if teaching_entry.exists() and '</body>' in html:
-                teaching_script = ('<script src="/js/teaching/index.js'
-                                   f'?v={GW_VERSION}"></script>')
-                html = html.replace('</body>', f'    {teaching_script}\n</body>', 1)
+                # Every module in the directory, entry point first. The seam
+                # says adding a module is adding a file rather than editing the
+                # entry point — and that was true of the registry inside
+                # index.js while being false of the page, which only ever loaded
+                # index.js. A module dropped in this directory was never
+                # fetched, so the only way to ship teaching front-end code was
+                # to write it into app.js. Which is what happened.
+                modules = sorted(f.name for f in teaching_dir.glob('*.js')
+                                 if f.name != 'index.js')
+                tags = ''.join(
+                    '    <script src="/js/teaching/%s?v=%s"></script>\n' % (name, GW_VERSION)
+                    for name in ['index.js'] + modules)
+                html = html.replace('</body>', tags + '</body>', 1)
             from flask import Response
             response = Response(html, mimetype='text/html')
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'

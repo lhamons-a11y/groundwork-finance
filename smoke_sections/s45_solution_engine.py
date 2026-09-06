@@ -289,7 +289,14 @@ def run(ctx):
     # The sentence, not just the payload. Rendering the copy has found three
     # bugs that code review did not, and a field the view never reads is the
     # collect-and-ignore loop this platform exists to close.
-    view = ctx.app_src
+    # app.js plus the teaching modules. These checks ask what the interface
+    # SAYS; where that code lives is the seam's question, and s30 enforces it.
+    # Six surfaces' teaching moved into static/js/teaching/ and every check that
+    # greps for their copy would otherwise fail for the wrong reason — the copy
+    # being in the right place.
+    _teaching_dir = ctx.BASE / 'static' / 'js' / 'teaching'
+    view = ctx.app_src + chr(10) + chr(10).join(
+        f.read_text(encoding='utf-8') for f in sorted(_teaching_dir.glob('*.js')))
     check('the view phrases the naming levers from their fields, not their detail string',
           "p.kind === 'reallocation'" in view and "p.kind === 'trim'" in view
           and '_joinNames(items)' in view)
@@ -1073,11 +1080,14 @@ def run(ctx):
     b, a = (before.get('data') or before), (after.get('data') or after)
     check('asking twice does not spend the budget, because asking is not showing',
           (b.get('prompt') or {}).get('key') == (a.get('prompt') or {}).get('key'))
+    # Behaviour, not identifiers: this moved into static/js/teaching/proactive.js
+    # and its private names went with it. What has to stay true is that the
+    # surface reports the showing and that the card can be dismissed in place.
     check('the ledger records what was shown, reported by the surface that showed it',
-          '_dashRenderProactive' in view and "'/api/proactive/shown'" in view
-          and '_dashProactiveAsked' in view)
+          "'/api/proactive/shown'" in view and 'asked = true' in view)
     check('and the card is dismissable, in the page, never a modal',
-          '_dashDismissProactive' in view and 'dashProactive' in view)
+          "'/api/proactive/dismiss'" in view and 'dashProactiveCard' in view
+          and 'modal' not in view.lower().split('dashProactiveCard')[0][-400:])
 
     # ── The Trophy Room's pinned standard (B.3, §12's gate) ──────────────────
     # §11 forbids building this until the per-case standard is pinned, because

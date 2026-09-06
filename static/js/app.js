@@ -2137,106 +2137,6 @@ function _renderCheckInStreak() {
   }).catch(_gwErr('checkInStreak'));
 }
 
-// Appendix A — the one place this app speaks first.
-//
-// Asked for here and nowhere else, because A.2's fifth gate is timing and no
-// server can see what someone is doing. A dashboard load is a natural boundary:
-// the user has just arrived and is not mid-task. The card never blocks, never
-// covers anything, and closing it is an instruction the app keeps (A.4).
-let _dashProactive = null;
-
-let _dashProactiveAsked = false;
-
-async function _dashRenderProactive() {
-  const host = g('dashProactive');
-  if (!host) return;
-  // Asked once per load, and the answer is kept. The dashboard re-renders for
-  // all sorts of reasons; re-asking would return nothing the second time — the
-  // prompt is no longer novel and the session budget is spent — so a card the
-  // user was mid-way through reading would vanish under them.
-  if (_dashProactiveAsked) {
-    host.innerHTML = _dashProactive ? _dashProactiveHTML(_dashProactive) : '';
-    return;
-  }
-  _dashProactiveAsked = true;
-  try {
-    const r = await API.get('/api/proactive/next');
-    _dashProactive = r.prompt || null;
-  } catch (e) {
-    _gwErr('_dashRenderProactive')(e);
-    return;
-  }
-  // Silence is the correct answer most weeks (A.3) — an empty slot, not an
-  // empty state with a heading explaining that there is nothing to say.
-  host.innerHTML = _dashProactive ? _dashProactiveHTML(_dashProactive) : '';
-  // The budget is spent when someone is actually shown something, not when the
-  // server works out what it would say.
-  if (_dashProactive) {
-    API.post('/api/proactive/shown', {
-      key: _dashProactive.key, budget: _dashProactive.budget,
-      category: _dashProactive.category || null,
-    }).catch(_gwErr('_dashRenderProactive:shown'));
-  }
-}
-
-function _dashProactiveHTML(p) {
-  const mo = (n) => `${Math.abs(n)} month${Math.abs(n) !== 1 ? 's' : ''}`;
-  const green = p.kind === 'green';
-
-  let body = '';
-  if (p.detail_kind === 'charge') {
-    body = `The <strong>${fmt(p.dollars)}</strong> at <strong>${esc(p.subject)}</strong> cost`
-         + ` <strong>${mo(p.months)}</strong> on your debt-free date. There is a way to put`
-         + ` them back — it is on the ledger page.`;
-  } else if (p.detail_kind === 'overspend') {
-    body = `<strong>${esc(p.subject)}</strong> has run <strong>${fmt(p.dollars)}/mo</strong> over`
-         + ` its budget every month on record, which costs <strong>${mo(p.months)}</strong>`
-         + ` on your debt-free date. The budget page shows where that could come from.`;
-  } else if (p.detail_kind === 'cycle') {
-    const c = p.cycle || {};
-    const cost = (c.prior && c.prior.interest != null)
-      ? ` That one cost <strong>${fmt(c.prior.interest)}</strong> in interest to get out of.` : '';
-    body = (c.state === 'past')
-      ? `You are carrying more than the <strong>${fmt((c.prior||{}).peak)}</strong> you carried`
-        + ` before you cleared this last time.${cost}`
-      : `You are within <strong>${fmt(c.distance)}</strong> of the`
-        + ` <strong>${fmt((c.prior||{}).peak)}</strong> you carried before you cleared this`
-        + ` last time.${cost}`;
-  } else if (p.detail_kind === 'green') {
-    body = `You freed <strong>${fmt(p.freed_monthly)}/mo</strong> by clearing`
-         + ` <strong>${esc(p.subject)}</strong> — worth <strong>${mo(p.months)}</strong>`
-         + ` on your debt-free date.`;
-  } else {
-    return '';
-  }
-
-  const accent = green ? 'var(--pine)' : 'var(--gold)';
-  const tint   = green ? 'var(--pine-bg)' : 'var(--gold-bg)';
-  return `<div class="card mb-4" id="dashProactiveCard"
-       style="border-left:3px solid ${accent};background:${tint}">
-    <div style="display:flex;align-items:flex-start;gap:12px">
-      <div style="flex:1;font-size:12px;color:var(--slate);line-height:1.8">${body}</div>
-      <button onclick="_dashDismissProactive()" title="Dismiss"
-        style="background:none;border:none;color:var(--slate-2);font-size:16px;line-height:1;cursor:pointer;padding:0 2px">×</button>
-    </div>
-  </div>`;
-}
-
-async function _dashDismissProactive() {
-  const p = _dashProactive;
-  g('dashProactiveCard')?.remove();
-  if (!p) return;
-  // Logged, because a dismissal is the user telling us something and A.4 says
-  // we listen: sixty days of quiet on this one, and twice in a category drops
-  // that category to passive for good.
-  try {
-    await API.post('/api/proactive/dismiss', {key: p.key, category: p.category || null});
-  } catch (e) {
-    _gwErr('_dashDismissProactive')(e);
-  }
-  _dashProactive = null;
-}
-
 function renderDashboard() {
   const now   = new Date();
   // pywebview/CEF can return UTC from getHours() — use UTC offset math instead
@@ -2311,9 +2211,6 @@ function renderDashboard() {
 
   // AI insight — no label, no badge, inline in left column (non-blocking)
   _loadDashProjection(totalIncome, spent, projected, txns, totalDebt).catch(_gwErr('renderDashboard'));
-
-  // Appendix A: at most one unprompted insight, at a natural boundary.
-  _dashRenderProactive();
 }
 
 // ── Streak calculated from actual spending data (no check-in required) ────────
@@ -3694,74 +3591,6 @@ function ledgerSearchInput() {
   _ledgerSearchTimer = setTimeout(renderLedger, 180);
 }
 
-// §8's teaching form for the Ledger: a charge that already happened, in the
-// past tense, with the levers that would put the months back.
-//
-// Past tense is the whole discipline here. Why someone spent it is not
-// knowable from a ledger row, and the sentence has to be about the money
-// rather than about the person — "that money would have bought three months"
-// is a fact; anything with "should" in it is a verdict on a stranger.
-let _ledgerLessonData = null;
-
-async function _ledgerRenderLesson() {
-  const host = g('ledgerLessonSlot') || g('view-ledger');
-  if (!host) return;
-  try {
-    _ledgerLessonData = await API.get('/api/transactions/lesson');
-  } catch (e) {
-    _gwErr('_ledgerRenderLesson')(e);
-    return;                                    // silence beats a guess
-  }
-  g('ledgerLesson')?.remove();
-  const html = _ledgerLessonHTML(_ledgerLessonData);
-  if (html) host.insertAdjacentHTML('afterbegin', html);
-}
-
-function _ledgerLessonHTML(d) {
-  if (!d || !d.lesson || !d.charge) return '';
-  const l = d.lesson, c = d.charge;
-  if (!(l.months_cost >= 1)) return '';
-
-  const when = c.date ? new Date(c.date + 'T00:00:00')
-    .toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : null;
-
-  // One lever, preferring one that needs no cut — the point of the sentence is
-  // the arithmetic, not a list of things to do about something already done.
-  //
-  // Phrased here rather than through _tripPathPhrases, which says "holds the
-  // date". Nothing is being held: the date already moved, and the only honest
-  // offer is what would put it back.
-  const paths = d.paths || [];
-  const usable = paths.filter(p => p.items.length && p.months_recovered > 0);
-  const pick   = usable.find(p => !p.requires_cut) || usable[0];
-  let back = '';
-  if (pick) {
-    // What it puts back is the measured figure, not the months the charge
-    // cost. Those two are close and are not the same computation, and a
-    // sentence that rounds one into the other is asserting arithmetic it did
-    // not do.
-    const r = pick.months_recovered;
-    const puts = (r >= l.months_cost)
-      ? 'would put them back'
-      : `would put ${r} of them back`;
-    back = (pick.kind === 'trim')
-      ? ` Cutting ${esc(_joinNames(pick.items))}`
-        + ` (<strong style="font-family:var(--font-mono)">${fmt(pick.frees_monthly)}/mo</strong>) ${puts}.`
-      : ` Shifting <strong style="font-family:var(--font-mono)">${fmt(pick.frees_monthly)}/mo</strong>`
-        + ` from ${esc(_joinNames(pick.items))} — budgeted there, and not spent — ${puts}.`;
-  }
-
-  return `<div class="card mb-4" id="ledgerLesson">
-    <div class="card-label">What that one cost</div>
-    <div style="font-size:12px;color:var(--slate);line-height:1.8">
-      The <strong style="font-family:var(--font-mono)">${fmt(c.amount)}</strong> at
-      <strong>${esc(c.name)}</strong>${when ? ` on ${when}` : ''}: had that money gone to the debt,
-      you would be debt-free <strong style="color:var(--pine)">${l.months_cost} month${l.months_cost !== 1 ? 's' : ''}</strong>
-      sooner, with <strong style="font-family:var(--font-mono)">${fmt(l.interest_cost)}</strong> less interest.${back}
-    </div>
-  </div>`;
-}
-
 function renderLedger() {
   const body     = g('ledgerBody');
   const countEl  = g('ledgerCount');
@@ -3925,9 +3754,6 @@ function renderLedger() {
     const row = body.querySelector(`.row[data-id="${_ledgerEditingId}"]`);
     if (row) _openEditBloom(row);
   }
-
-  // §8's past-tense lesson, fetched and rendered above the rows.
-  _ledgerRenderLesson();
 }
 
 // "Wed, June 18" — day-head label format. Uses the local timezone parsing
@@ -7731,69 +7557,8 @@ function renderBudget() {
   _budgetUpdateLedgerIncomeNote();
   // Achievements (read-only display, kept from prior system)
   _budgetRenderAchievements();
-  // §8's teaching form for this surface: what an overspend costs, and where
-  // the money to fix it could come from.
-  _budgetRenderPressure();
 }
 
-// A budget page edits amounts. This says what one of those amounts is costing,
-// in the currency the rest of the app prices decisions in — months on the
-// payoff date — and names the envelope the difference could come from.
-let _budgetPressureData = null;
-
-async function _budgetRenderPressure() {
-  const cont = g('budgetContent');
-  if (!cont) return;
-  try {
-    _budgetPressureData = await API.get('/api/budget/pressure');
-  } catch (e) {
-    _gwErr('_budgetRenderPressure')(e);
-    return;                                    // silence beats a guess
-  }
-  g('budgetPressure')?.remove();
-  const html = _budgetPressureHTML(_budgetPressureData);
-  if (html) cont.insertAdjacentHTML('beforeend', html);
-}
-
-function _budgetPressureHTML(d) {
-  const rows = (d && d.pressure) || [];
-  if (!rows.length || !d.base) return '';
-
-  const one = (o) => {
-    // A category on the necessity floor that runs over every month is not a
-    // spending problem. The budget is set below what the thing costs, and the
-    // honest correction is to the number — E.1 decides which sentence this is,
-    // not just which levers may be offered.
-    const lead = o.protected
-      ? `<strong>${esc(o.name)}</strong> has not come in under
-         <strong>${fmt(o.budgeted)}</strong> in ${o.months_observed} months — the budget is set
-         <strong style="font-family:var(--font-mono)">${fmt(o.monthly)}/mo</strong> below what it costs.`
-      : `<strong>${esc(o.name)}</strong> has run at least
-         <strong style="font-family:var(--font-mono)">${fmt(o.monthly)}/mo</strong> over its
-         <strong>${fmt(o.budgeted)}</strong> budget in every one of the last ${o.months_observed} months.`;
-    const cost = o.months_cost > 0
-      ? `That difference costs <strong style="color:var(--ember)">${o.months_cost} month${o.months_cost !== 1 ? 's' : ''}</strong>
-         on your debt-free date and <strong style="font-family:var(--font-mono)">${fmt(o.interest_cost)}</strong> in interest.`
-      : `It costs <strong>${fmt(o.interest_cost)}</strong> in interest, and does not move your debt-free date.`;
-    const fix = o.fix
-      ? `Covering it would take <strong style="font-family:var(--font-mono)">${fmt(o.fix.monthly)}/mo</strong>
-         from ${esc(_joinNames(o.fix.sources))} — budgeted there, and not spent.`
-      : `No other envelope has room to cover it, on what the ledger records.`;
-    return `<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.8">
-      ${lead} ${cost} ${fix}
-    </div>`;
-  };
-
-  return `<div class="card mt-5" id="budgetPressure">
-    <div class="card-label">What these amounts cost</div>
-    <div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:6px">
-      Measured against <strong>${_payoffDateLabel(d.base.months)}</strong>, and counted only where
-      the ledger says it held every month. Each line is measured on its own — two of them can
-      name the same envelope, because neither is a plan to do both.
-    </div>
-    ${rows.map(one).join('')}
-  </div>`;
-}
 
 
 // ── Budget helper: empty state ────────────────────────────────────────────────
@@ -15910,127 +15675,8 @@ function loadDebtAdvisor(baseResult, totalDebt) {
   // Strategy comparison — render into advisor tab
   _debtRenderStrategyComparison(baseResult, totalDebt);
 
-  // §8's line for this surface: name the lever that moves the date most.
-  _debtRenderAccelerations();
-  // Appendix G: whether this shape has happened before.
-  _debtRenderCycle();
 }
 
-// Appendix G, passively. G.3a is precise about where each state may appear:
-// "below the prior peak" is already visible in the ordinary debt surfaces and G
-// does not repeat it, so only the approaching and past checkpoints get a
-// sentence here — and even those reach the dashboard only through the Gauntlet,
-// never as a channel of their own.
-let _debtCycleData = null;
-
-async function _debtRenderCycle() {
-  const container = g('debtAdvisorSection');
-  if (!container) return;
-  try {
-    const r = await API.get('/api/debt/cycle');
-    _debtCycleData = r.cycle || null;
-  } catch (e) {
-    _gwErr('_debtRenderCycle')(e);
-    return;
-  }
-  g('debtCycle')?.remove();
-  const html = _debtCycleHTML(_debtCycleData);
-  if (html) container.insertAdjacentHTML('beforeend', html);
-}
-
-function _debtCycleHTML(c) {
-  if (!c || !c.prior) return '';
-  if (c.state !== 'approaching' && c.state !== 'past') return '';
-
-  const peakWhen = c.prior.peak_month
-    ? new Date(c.prior.peak_month + '-01T00:00:00')
-        .toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-    : null;
-  // The cost of the last cycle travels with the comparison, and only when it
-  // was actually recorded — "$0 to get out last time" from a missing figure
-  // would be a receipt for something that never happened.
-  const cost = (c.prior.interest !== null && c.prior.interest !== undefined)
-    ? ` That cycle cost <strong style="font-family:var(--font-mono)">${fmt(c.prior.interest)}</strong> in interest to get out of.`
-    : '';
-
-  const line = (c.state === 'past')
-    ? `You are carrying <strong style="font-family:var(--font-mono)">${fmt(c.current)}</strong>,
-       more than the <strong style="font-family:var(--font-mono)">${fmt(c.prior.peak)}</strong>
-       you were carrying${peakWhen ? ` in ${peakWhen}` : ''}, before you cleared it.`
-    : `You are within <strong style="font-family:var(--font-mono)">${fmt(c.distance)}</strong>
-       of the <strong style="font-family:var(--font-mono)">${fmt(c.prior.peak)}</strong>
-       you were carrying${peakWhen ? ` in ${peakWhen}` : ''}, before you cleared it.`;
-
-  return `<div class="card mb-5" id="debtCycle" style="border-left:3px solid var(--gold)">
-    <div class="card-label">You have been here before</div>
-    <div style="font-size:12px;color:var(--slate);line-height:1.8">${line}${cost}</div>
-  </div>`;
-}
-
-// The levers pointed at the plan itself rather than at a decision, from the
-// engine and from the user's own record. The slider above this asks "what would
-// $200 more do"; this answers "where would $200 come from, and which one moves
-// the date furthest" — which is the question the slider leaves the user to
-// answer alone.
-let _debtAccelData = null;
-
-async function _debtRenderAccelerations() {
-  const container = g('debtAdvisorSection');
-  if (!container) return;
-  try {
-    _debtAccelData = await API.get('/api/debt/accelerations');
-  } catch (e) {
-    _gwErr('_debtRenderAccelerations')(e);
-    return;                                  // silence beats a guess
-  }
-  g('debtAccelerations')?.remove();
-  const html = _debtAccelerationsHTML(_debtAccelData);
-  if (html) container.insertAdjacentHTML('beforeend', html);
-}
-
-function _debtAccelerationsHTML(d) {
-  if (!d || !d.base) return '';
-  const rows = d.accelerations || [];
-  const dn   = d.do_nothing;
-
-  if (!rows.length) {
-    // Lever 7. An empty list is an answer, and it is only worth printing with
-    // the proof attached — without a number "you're on track" is flattery.
-    if (!dn || !dn.optimal_order || !(dn.optimal_order.months_better > 0)) return '';
-    const o = dn.optimal_order;
-    return `<div class="card mb-5" id="debtAccelerations">
-      <div class="card-label">What moves your date most</div>
-      <div style="font-size:12px;color:var(--slate);line-height:1.7">
-        Nothing in your record moves it further than the plan you already have.
-        Your ${esc(o.strategy)} order clears you
-        <strong style="color:var(--pine)">${o.months_better} month${o.months_better !== 1 ? 's' : ''}</strong>
-        sooner than ${esc(o.alternative)} would.
-      </div>
-    </div>`;
-  }
-
-  const line = (a) => `
-    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--steel)">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;color:var(--ink)">${esc(a.label.charAt(0).toUpperCase() + a.label.slice(1))}</div>
-        <div style="font-size:11px;color:var(--slate-2);line-height:1.6">${esc(a.detail)}</div>
-      </div>
-      <div style="text-align:right;white-space:nowrap">
-        <div style="font-family:var(--font-mono);font-size:13px;color:var(--pine)">${a.months_saved} mo sooner</div>
-        <div style="font-family:var(--font-mono);font-size:11px;color:var(--slate-2)">${fmt(a.interest_saved)} less interest</div>
-      </div>
-    </div>`;
-
-  return `<div class="card mb-5" id="debtAccelerations">
-    <div class="card-label">What moves your date most</div>
-    <div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:10px">
-      From <strong>${_payoffDateLabel(d.base.months)}</strong>, on what your ledger already records.
-      Each of these is one change on its own — not a plan to do all of them — and each
-      assumes the money freed goes toward the debt.
-    </div>
-    ${rows.map(line).join('')}
-  </div>`;
-}
 
 function _debtRenderStrategyComparison(baseResult, totalDebt) {
   const container = g('debtAdvisorSection');
@@ -17179,53 +16825,6 @@ let _nwHistory = null;
 
 // ─── Net Worth ─────────────────────────────────────────────────────────────────
 
-// §8's teaching form for Net Worth: what the number now enables, which is a
-// balance the user could cover outright rather than a round number crossed.
-// A milestone at $10,000 is a milestone invented by whoever picked $10,000.
-let _nwCapacityData = null;
-
-async function _nwRenderCapacity() {
-  const host = g('nwCapacitySlot') || g('view-networth');
-  if (!host) return;
-  try {
-    _nwCapacityData = await API.get('/api/debt/capacity');
-  } catch (e) {
-    _gwErr('_nwRenderCapacity')(e);
-    return;                                    // silence beats a guess
-  }
-  g('nwCapacity')?.remove();
-  const html = _nwCapacityHTML(_nwCapacityData);
-  if (html) host.insertAdjacentHTML('beforeend', html);
-}
-
-function _nwCapacityHTML(d) {
-  const rows = (d && d.capacity) || [];
-  if (!rows.length || !d.base) return '';
-  const c = rows[0];                           // the one that moves the date most
-
-  const outcome = c.clears_all_debt
-    ? `would clear the last balance you carry — debt-free now instead of
-       <strong>${_payoffDateLabel(d.base.months)}</strong>`
-    : `would free <strong style="font-family:var(--font-mono)">${fmt(c.frees_monthly)}/mo</strong>
-       and bring your debt-free date <strong style="color:var(--pine)">${c.months_saved} month${c.months_saved !== 1 ? 's' : ''}</strong>
-       sooner, with <strong style="font-family:var(--font-mono)">${fmt(c.interest_saved)}</strong> less interest`;
-
-  return `<div class="card mb-5" id="nwCapacity">
-    <div class="card-label">What this number now covers</div>
-    <div style="font-size:12px;color:var(--slate);line-height:1.8">
-      Your savings and cash (<strong style="font-family:var(--font-mono)">${fmt(d.liquid)}</strong>)
-      now cover what you owe on <strong>${esc(c.name)}</strong>
-      (<strong style="font-family:var(--font-mono)">${fmt(c.balance)}</strong>). Clearing it ${outcome}.
-      <span style="color:var(--slate-2)">
-        It would not move your net worth today — the same money crosses from one side to the other —
-        and <strong style="font-family:var(--font-mono)">${fmt(c.liquid_after)}</strong> would be left,
-        about ${c.months_of_expenses_after} month${c.months_of_expenses_after !== 1 ? 's' : ''}
-        of your recorded expenses.
-      </span>
-    </div>
-  </div>`;
-}
-
 function renderNetWorth() {
   const nw = S.netWorth;
   if (g('nwSavings'))     g('nwSavings').value      = nw.savings||'';
@@ -17248,9 +16847,6 @@ function renderNetWorth() {
     const data = res?.data || res;
     if (data?.summary) _syncPortfolioToNetWorth(data.summary);
   }).catch(() => { /* no investment accounts yet, or request failed — leave the manual/saved value as-is */ });
-
-  // §8: what this number now covers.
-  _nwRenderCapacity();
 }
 
 function updateNetWorth() {
@@ -24063,90 +23659,6 @@ function _rcBackToCatalog() {
 // ── §7.2 Category Deep-Dive ──────────────────────────────────────────────────
 
 // ── Monthly Report (Report Center version) ────────────────────────────────────
-// §8's line for Reports: the causal teaching layer, made explicit,
-// lever-oriented and proof-cited. Rendered deterministically, above the
-// narrative and independent of it — the blueprint's stack puts the model BELOW
-// the teaching layer, so losing narration must not mean losing the lesson.
-// Every figure here is one another surface already shows; the report gathers
-// them rather than deriving its own.
-let _rcTeachingData = null;
-
-async function _rcRenderMonthlyTeaching() {
-  const host = g('rcMonthlyTeaching');
-  if (!host) return;
-  try {
-    _rcTeachingData = await API.get('/api/debt/teaching');
-  } catch (e) {
-    _gwErr('_rcRenderMonthlyTeaching')(e);
-    return;
-  }
-  host.innerHTML = _rcTeachingHTML(_rcTeachingData);
-}
-
-// One sentence per finding, written here rather than by the model. The measured
-// reason is sharper than the principle: inference-smuggling ran 37–70% on every
-// model tested and rose with size, so a causal claim composed by a narrator is
-// the one thing the evidence says not to build (MODEL_PLACEMENT.md).
-function _rcTeachingSentence(f) {
-  const mo = (n) => `${n} month${n !== 1 ? 's' : ''}`;
-  if (f.kind === 'charge') {
-    return `The ${esc(f.subject)} charge cost <strong>${mo(f.months)}</strong> on your debt-free date`
-         + ` and <strong>${fmt(f.interest)}</strong> in interest — had that money gone to the debt instead.`;
-  }
-  if (f.kind === 'overspend') {
-    return f.protected
-      ? `<strong>${esc(f.subject)}</strong> is budgeted <strong>${fmt(f.monthly)}/mo</strong> below what it`
-        + ` has cost every month on record; that difference is <strong>${mo(f.months)}</strong> and`
-        + ` <strong>${fmt(f.interest)}</strong> in interest.`
-      : `<strong>${esc(f.subject)}</strong> ran at least <strong>${fmt(f.monthly)}/mo</strong> over budget`
-        + ` every month on record, which costs <strong>${mo(f.months)}</strong> and`
-        + ` <strong>${fmt(f.interest)}</strong> in interest.`;
-  }
-  if (f.kind === 'lever') {
-    return `The single change that moves your date most: <strong>${esc(f.subject)}</strong> —`
-         + ` <strong>${mo(f.months)}</strong> sooner and <strong>${fmt(f.interest)}</strong> less interest,`
-         + ` if that money went to the debt.`;
-  }
-  if (f.kind === 'fund') {
-    const at = f.pace_source === 'observed' ? 'at the pace actually being kept' : 'at the planned pace';
-    return `<strong>${esc(f.subject)}</strong> lands <strong>${mo(f.months)}</strong> past its own deadline`
-         + ` ${at}; <strong>${fmt(f.monthly)}/mo</strong> more would make it.`;
-  }
-  return '';
-}
-
-function _rcTeachingHTML(d) {
-  const rows = (d && d.findings) || [];
-  if (!rows.length) return '';
-
-  // B.1: show your work. The proof is the figures the claim rests on, printed
-  // beside it rather than promised — a claim whose numbers are not on the page
-  // is asking to be taken on trust, which is the thing this app does not do.
-  const proof = (f) => (f.proof || [])
-    .filter(p => p.value !== null && p.value !== undefined && p.value !== '')
-    .map(p => {
-      // Formatted by the unit the server states, never guessed from the label.
-      // Sniffing for the word "month" printed a month count as $13.00 and a
-      // dollars-per-month figure as a bare 105.
-      const v = (p.unit === 'money') ? fmt(p.value)
-              : (p.unit === 'months') ? `${p.value} mo`
-              : esc(String(p.value));
-      return `${esc(p.label)}: ${v}`;
-    })
-    .join(' · ');
-
-  return `<div class="card">
-    <div class="card-label">What this month cost, and what changes it</div>
-    <div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:10px">
-      Computed from your ledger, not written by the AI. Each line shows the figures behind it.
-    </div>
-    ${rows.map(f => `
-      <div style="padding:10px 0;border-bottom:1px solid var(--steel)">
-        <div style="font-size:12px;color:var(--slate);line-height:1.8">${_rcTeachingSentence(f)}</div>
-        <div style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);margin-top:4px">${proof(f)}</div>
-      </div>`).join('')}
-  </div>`;
-}
 
 function _rcRenderMonthlyReport() {
   const body = g('rcReportBody');
@@ -24189,7 +23701,6 @@ function _rcRenderMonthlyReport() {
     <div id="rcMonthlyNarrative"></div>`;
 
   _rcMonthlyLoadPastReports();
-  _rcRenderMonthlyTeaching();
   _rcMonthlyRefreshPreview();
 }
 

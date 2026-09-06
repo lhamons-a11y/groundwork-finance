@@ -33,6 +33,56 @@ def run(ctx):
         for ln in _app_teaching_refs[:5]:
             print(f'        {ln[:100]}')
 
+    # (1b) The same rule, in the form that actually bit. The grep above asks
+    # whether app.js NAMES the teaching layer, which it never did — the 2.0
+    # features were written straight into app.js instead, so the seam was
+    # bypassed rather than violated and every check stayed green while an LTS
+    # build carried the whole teaching layer.
+    #
+    # A feature is in the teaching layer if it consumes a teaching ROUTE. That
+    # is checkable, and it is the honest generalisation of the one-way rule:
+    # app.js may not reference teaching code, and it may not call it either.
+    TEACHING_ROUTES = (
+        '/api/debt/accelerations', '/api/debt/capacity', '/api/debt/teaching',
+        '/api/debt/green-light', '/api/debt/cycle', '/api/budget/pressure',
+        '/api/transactions/lesson', '/api/sinking-funds/pace',
+        '/api/proactive/', '/api/trophies', '/api/byb/memory',
+        '/api/debt/decision-impact',
+    )
+    #
+    # Six surfaces are out (see static/js/teaching/). The rest are pinned rather
+    # than waved through: their teaching content is interleaved INSIDE app.js
+    # template strings — a receipt inside a trophy card, a clause inside the
+    # trip's sentence — so moving them needs DOM post-processing and, for the
+    # trip, a decision about composing that sentence in two pieces. Pinned
+    # exactly, so removing one is a passing change and adding a new one is a
+    # failing one. The list only shrinks.
+    STILL_IN_APP_JS = {
+        '/api/debt/decision-impact',   # trip planner sentence + BYB comparison
+        '/api/sinking-funds/pace',     # inside each fund row
+        '/api/trophies',               # inside each achievement card
+        '/api/byb/memory',             # inside the BYB list and wizard
+        '/api/debt/green-light',       # inside the BYB comparison
+    }
+    _app_teaching_calls = sorted({r for r in TEACHING_ROUTES if r in app_src})
+    check('app.js consumes no teaching route beyond the pinned, interleaved ones',
+          set(_app_teaching_calls) == STILL_IN_APP_JS)
+    if set(_app_teaching_calls) != STILL_IN_APP_JS:
+        added = set(_app_teaching_calls) - STILL_IN_APP_JS
+        gone = STILL_IN_APP_JS - set(_app_teaching_calls)
+        if added:
+            print('        NEW drift into app.js: ' + ', '.join(sorted(added)))
+        if gone:
+            print('        moved out (shrink the pin): ' + ', '.join(sorted(gone)))
+
+    _teaching_dir = BASE / 'static' / 'js' / 'teaching'
+    _modules = sorted(f.name for f in _teaching_dir.glob('*.js'))
+    check('the teaching layer has modules of its own, not just an entry point',
+          len(_modules) > 1)
+    check('and the loader emits every one of them, so adding a module is adding a file',
+          all(f'/js/teaching/{name}' in _html_probe for name in _modules)
+          if (_html_probe := c.get('/', headers=H).get_data(as_text=True)) else False)
+
     _teach_entry = BASE / 'static' / 'js' / 'teaching' / 'index.js'
     _teach_src = _teach_entry.read_text(encoding='utf-8') if _teach_entry.exists() else ''
     check('the teaching entry point exists and defines the GWTeaching namespace',
