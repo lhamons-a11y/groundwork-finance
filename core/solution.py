@@ -73,6 +73,20 @@ NECESSITY_FLOOR = (
     'insurance',
     'transport', 'transportation', 'fuel', 'gas / fuel',
     'childcare', 'kids',
+    # Health, named in full rather than left to a lucky substring. Before this,
+    # 'Health Insurance' was protected only because it contains "insurance",
+    # while Medications, Prescriptions, Pharmacy, Doctor, Therapy and Dental
+    # were all fair game — so the engine could propose cutting someone's
+    # medication by $85/month to hold a debt-free date. Arithmetically sound,
+    # and the software suggesting a person ration medicine to pay a card faster.
+    'health care', 'healthcare', 'medical', 'medication', 'prescription',
+    'pharmacy', 'doctor', 'clinic', 'hospital', 'dental', 'dentist',
+    'vision care', 'copay', 'co-pay',
+    # Mental health explicitly, because it is the part most likely to be read as
+    # optional: recurring, discretionary-looking, and easy to stop. It is the
+    # reason this floor exists rather than an afterthought to it.
+    'mental health', 'therapy', 'counseling', 'counselling', 'psychiatry',
+    'psychologist',
 )
 
 

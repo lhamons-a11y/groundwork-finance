@@ -59,6 +59,40 @@ def run(ctx):
     check('the floor is a named constant, not a scatter of string literals',
           isinstance(NECESSITY_FLOOR, tuple) and len(NECESSITY_FLOOR) > 5)
 
+    # Health on the floor, by name. This was a live defect: 'Health Insurance'
+    # was protected only because the string contains "insurance", while every
+    # other health category was a legal trim candidate — so the engine could
+    # propose cutting someone's medication to hold a debt-free date.
+    _health = ('Medications', 'Prescriptions', 'Pharmacy', 'Doctor', 'Medical',
+               'Medical Bills', 'Hospital', 'Clinic', 'Dental', 'Dentist',
+               'Vision', 'Copay', 'Health', 'Healthcare', 'Health Care')
+    _unprotected = [c for c in _health if not is_protected(c)]
+    check('health sits on the necessity floor, so care is never a lever',
+          not _unprotected)
+    if _unprotected:
+        print('        still trimmable: ' + ', '.join(_unprotected))
+
+    # Named separately because it is the part most likely to be treated as
+    # optional — recurring, discretionary-looking, and easy to stop.
+    _mental = ('Mental Health', 'Therapy', 'Physical Therapy', 'Counseling',
+               'Counselling', 'Psychiatry', 'Psychologist')
+    _mind = [c for c in _mental if not is_protected(c)]
+    check('and mental health with it, by name rather than by substring luck',
+          not _mind)
+    if _mind:
+        print('        still trimmable: ' + ', '.join(_mind))
+
+    # The other direction, because a floor that protects everything protects
+    # nothing. These are the near-misses the health terms could plausibly catch:
+    # 'Television' against "vision", 'Health Club' against "health".
+    _discretionary = ('Dining Out', 'Streaming', 'Television', 'Health Club',
+                      'Gym', 'Shopping', 'Entertainment', 'Hobbies', 'Coffee')
+    _over = [c for c in _discretionary if is_protected(c)]
+    check('while discretionary spending stays available as a lever',
+          not _over)
+    if _over:
+        print('        over-protected: ' + ', '.join(_over))
+
     # Honest-null and the honest no.
     none_needed = solve_one_time_cost(cards, 775, 0)
     check('nothing to close returns no paths and no honest-no',
