@@ -2,14 +2,15 @@
 
 **An open decision, upstream of everything else**
 
-> Status: **Question, frozen pending a decision.** Written 2026-09-06, forced by a disagreement
-> over a single number that turned out not to be about the number.
+> Status: **Answered 2026-09-06.** Written the same day, forced by a disagreement over a single
+> number that turned out not to be about the number. The answer is in "What confirms a payment"
+> below; the fixture is unfrozen.
 >
 > **This is upstream of `EVENT_SUBSTRATE_QUESTION.md`.** What events should be recorded depends
 > on what is being recorded. Answer this first.
 >
-> `tests/test_lifecycle_fixture.py` is **frozen** until this is settled. Its disputed assertion
-> is deliberately left as it stands — see the last section.
+> `tests/test_lifecycle_fixture.py` was frozen until this was settled. It is now unfrozen, and
+> its disputed assertion has been rewritten on the basis below — same number, different claim.
 
 ---
 
@@ -149,16 +150,61 @@ holds itself to.
 $7,053 shortfall that was in fact a surplus. Absence treated as a value. The established rule —
 completeness is tested before anything is judged — applies here unchanged.
 
-## Why the fixture is frozen
+---
 
-`tests/test_lifecycle_fixture.py` asserts `qualifying == 300.00`. That assertion is **known to
-be wrong in the same way `$950` is wrong** — it states one of four guesses as fact.
+## What confirms a payment — the answer
 
-It has deliberately not been changed to `$950`, and deliberately not been changed to "unknown".
-Correcting it now would be choosing a number before the semantics are settled, and the fixture
-would then encode the choice invisibly, which is how the next forty tax rules would inherit it.
+**The same way debt already does it: the ledger attaches to the obligation.** Three signals,
+all of which exist today:
 
-**What unfreezes it:** answering the question in this document's title. Once *observed* and
-*inferred* obligations are distinguished and the evidence that converts an obligation into a
-confirmed classification is specified, the assertion becomes a pair — confirmed and unresolved
-— and the fixture becomes a good test instead of a broken one.
+| Signal | Where it lives | What it establishes |
+|---|---|---|
+| `Transaction.cleared` | `transactions` | money actually moved |
+| `CheckingTransactionLink` | its own table | this money went to *this* obligation |
+| `link.user_confirmed_at` | the same row | the attachment is asserted, not guessed |
+
+**A confirmed payment is a cleared transaction, attached to the obligation, confirmed by the
+user.** Nothing else counts, and nothing weaker is inferred.
+
+Which resolves the $650 without assuming anything about it. It is not *assumed unpaid* — it is
+**not evidenced as paid**, which is a fact about the record rather than a guess about the world.
+And that is also the correct tax posture: §213 deducts what was paid, substantiation is the
+taxpayer's burden, and an unevidenced payment is not deductible because nothing evidences it.
+
+**The reuse is the point.** A healthcare obligation takes the same shape as a debt ledger entry,
+so the link rules transfer wholesale — including the existing invariant that a transaction
+already linked cannot be re-linked, which is what stops one payment satisfying two bills.
+
+### Three precisions
+
+- **`cleared` defaults to `True`,** so the flag alone cannot distinguish *the bank settled this*
+  from *the user typed it and the default applied*. Harmless for debt; not harmless for a figure
+  substantiating a deduction. The evidence chain needs **source** (imported vs manual) alongside
+  `cleared`. Both can be legitimate — a cash payment with a receipt is deductible — but they are
+  different provenance.
+- **"Settled obligations disappear from the attach picker" must be derived, never stored.** As a
+  flag, a later correction reopens a balance on an obligation that has vanished from the list,
+  and the payment that settles it has nothing to attach to. Derived from the reconciliation
+  state, it comes back on its own. The safeguard itself is good: it also stops a payment being
+  attached to a bill that is already settled.
+- **Progress is measured in dollars, not payments.** A schedule of 24 × $175 that receives one
+  extra $175 does not become 4-of-24; it becomes $350 closer to done, and the provider cares
+  about the total rather than the cadence. So the bar is **paid ÷ owed**, with any payment count
+  as a label beside it and never as the bar itself.
+
+  Two consequences worth stating. **Early is free, late is not** — a provider does not mind being
+  paid ahead, but a plan that falls behind can be voided or referred, so the schedule survives as
+  a separate downward-only check: *is the balance where the agreement says it should be?* And
+  **a corrected obligation moves the denominator**, so the bar can go backwards. That is correct
+  — it is derived, and the truth changed — but it must say why, or it reads as a bug.
+
+## The fixture, unfrozen
+
+It asserted `qualifying == 300.00` as a bare figure, which stated one of four guesses as fact
+and was wrong in the same way `$950` was wrong.
+
+**The number survives; the claim does not.** The basis changes from subtraction to summation:
+not `gross − reimbursed − unresolved`, but **the sum of cleared, attached, user-confirmed
+payments made by the user** — with `$650` reported as unresolved because nothing is attached to
+it. Same $300, an entirely different assertion, and one that can explain itself down to the
+rows that produced it.

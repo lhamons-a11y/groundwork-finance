@@ -146,39 +146,39 @@ def run(model):
     check('unallocated money is not treated as paid by the user',
           model.state(exp)['unallocated'] != model.state(exp)['user'])
 
-    # ┌─ FROZEN — DO NOT "FIX" ────────────────────────────────────────────┐
-    # │ The assertion below is KNOWN TO BE WRONG, and is left standing on   │
-    # │ purpose. $300 assumes the unreconciled $650 was never paid; $950    │
-    # │ (gross − reimbursement) assumes the user paid it. Both assign a     │
-    # │ meaning to an unknown, which is the thing the check above forbids.  │
-    # │                                                                     │
-    # │ It has not been corrected because correcting it means choosing a    │
-    # │ number before the semantics are settled, and the fixture would then │
-    # │ encode that choice invisibly for every tax rule written after it.   │
-    # │                                                                     │
-    # │ See gw 2.0/OBLIGATION_SEMANTICS_QUESTION.md. When observed and      │
-    # │ inferred obligations are distinguished, this becomes a PAIR —       │
-    # │ confirmed qualifying AND unresolved — and the fixture becomes a     │
-    # │ good test instead of a broken one.                                  │
-    # └─────────────────────────────────────────────────────────────────────┘
-    check('and the qualifying total counts what was actually paid, not the gap',
-          model.qualifying(exp, rules='v2026.1') == 300.00)
+    # The figure is a PAIR, and neither half may be inferred from the other.
+    # $300 is not "gross minus reimbursed minus unresolved" — that would be
+    # assuming the $650 went unpaid, which is the same forbidden move as
+    # assuming the user paid it ($950). It is the SUM of cleared, attached,
+    # user-confirmed payments the user made. The $650 is unresolved because
+    # nothing is attached to it, which is a fact about the record rather than a
+    # claim about the world. See gw 2.0/OBLIGATION_SEMANTICS_QUESTION.md.
+    qualifying, unresolved = model.qualifying(exp, rules='v2026.1')
+    check('the confirmed total is the sum of evidenced user payments, not a subtraction',
+          qualifying == 300.00
+          and model.basis(qualifying) == 'sum_of_confirmed_user_payments')
+    check('and the unresolved balance is reported beside it, never folded into it',
+          unresolved == 650.00)
+    check('a payment is confirmed only when cleared, attached, and user-confirmed',
+          model.confirms_on() == {'cleared', 'attached', 'user_confirmed'})
+    check('cleared alone is not enough, because cleared defaults to true',
+          not model.is_confirmed(model.payment(exp, cleared=True, attached=False)))
 
     # ── Temporal: history is not rewritten by the present ───────────────────
     for name, op, expected in MUTATIONS[4:7]:
         model.apply(exp, op)
         got = {k: model.state(exp).get(k) for k in expected if k != 'reproduce_under'}
         if 'reproduce_under' in expected:
-            check(name, model.qualifying(exp, rules='v2026.1') == 300.00)
+            check(name, model.qualifying(exp, rules='v2026.1')[0] == 300.00)
         else:
             check(name, got == {k: v for k, v in expected.items()})
 
     check('a new rule version may give a different answer without changing the old one',
           model.qualifying(exp, rules='v2027.1') is not None
-          and model.qualifying(exp, rules='v2026.1') == 300.00)
+          and model.qualifying(exp, rules='v2026.1')[0] == 300.00)
 
     check('every reported figure can name the records that produced it',
-          bool(model.explain(model.qualifying(exp, rules='v2026.1'))))
+          bool(model.explain(model.qualifying(exp, rules='v2026.1')[0])))
 
     # ── Arrival order: the assertion that falsifies most designs ────────────
     # An EOB imported in March describes January, and a correction was recorded
@@ -220,7 +220,12 @@ def main():
         print('    when it was first computed, after the rules have changed')
         print('  * arrival order does not affect the answer')
         print('  * unallocated money is never counted as money the user paid')
-        print('\n0 passed, 0 failed, %d pending a model' % (len(MUTATIONS) + 8))
+        print('  * a payment counts only when cleared AND attached AND user-confirmed;')
+        print('    cleared alone is insufficient, because cleared defaults to true')
+        print('  * the qualifying figure is a PAIR - confirmed and unresolved - and the')
+        print('    confirmed half is a SUM of evidenced payments, never a subtraction')
+        print('  * progress is dollars paid over dollars owed, never a payment count')
+        print('\n0 passed, 0 failed — every assertion above is pending a model')
         return 1
 
     run(model)
