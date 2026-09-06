@@ -125,6 +125,57 @@ Three consequences worth writing down:
   `psychiatry`, `mental health`, `clinic`, `hospital`. Over-protecting a near-miss costs
   nothing; under-protecting one costs the thing this whole section exists to prevent.
 
+### §0.3 The boundary: cost, not counsel
+
+The third doctrine rule, and the one that decides how much of §8 gets built.
+
+> **This software tells the user what something costs. It does not tell them what their legal
+> position is.**
+
+The line is not arbitrary and it is not ours. Courts drawing it around consumer legal software
+have landed consistently in the same place: **general legal information, even structured and
+practical, is not the practice of law — applying the law to the facts of a particular
+situation to reach a conclusion is.** *Quicken Family Lawyer* was held to be practising law
+because it questioned the user and then recommended an outcome for them specifically; the
+industry's settled formulation, visible in LegalZoom's own disclaimer, is that it does not
+"draw legal conclusions, provide legal advice, or apply the law to the facts of a particular
+situation."
+
+Measured against that line, an earlier draft of §8 was on the wrong side. It proposed taking
+the user's first-delinquency date and their state, applying a statute-of-limitations period,
+and concluding that their debt "may be time-barred." That is the definition of applying law to
+particular facts, and it is not rescued by hedging the verb.
+
+**The CFPB will not do it either**, which is the clearest signal available. Its own consumer
+page explains that most states set limits of three to six years and that a partial payment or
+acknowledgement "may restart the time period" — and then says the consumer "may want to
+consult with a lawyer." The federal consumer-protection regulator publishes the general rule
+and declines to compute the particular case. A personal finance application has no standing
+the regulator lacks.
+
+**What remains permitted, and it is most of the value:**
+
+- **Arithmetic on the user's own money.** What is owed, what has been paid, what $150 a month
+  costs and the month it ends. This is not law; it is division.
+- **General information, not applied.** "Debts have a statute of limitations, and in many
+  states a payment or a new agreement can restart it" is a sentence the CFPB itself publishes.
+  It becomes advice only when the app attaches it to *this* debt and *this* date.
+- **Naming that a question exists, and who answers it.** Pointing at the CFPB, at legal aid, at
+  a non-profit credit counsellor. A referral is the opposite of a conclusion.
+
+**What is refused, even where it would be useful:**
+
+- Computing whether a specific debt is enforceable.
+- Any state-by-state legal table, which would also rot — and stale legal data is worse than
+  none.
+- Suggesting what to offer a collector, because the offer itself is a legal act whose
+  consequences the app cannot see.
+- Estimating exposure, likelihood of suit, or the effect of an action on legal rights.
+
+This costs the module a feature and buys back the thing that matters: **every number the app
+shows is one it can stand behind.** A cost is checkable arithmetic. A legal position is a
+professional judgement, and this software does not have one.
+
 ---
 
 ## §1 What the module is
@@ -496,8 +547,11 @@ Written as a list because this codebase tests its doctrine rather than describin
     it does not expire, reset on a balance change, or return next year.
 19. Never infer that preference from silence. A user who dismisses twice has dismissed twice;
     only a user who said "stop asking" has said it.
-20. Never offer a payment figure on a collections account without clearing the time-barred
-    gate first. A plan can revive a dead debt and make a safe user suable (§8.2).
+20. Never offer a payment figure on a collections account at all. Proposing a number to a
+    collector is a legal act with consequences the app cannot see (§8.2).
+20a. Never draw a legal conclusion, and never apply law to this user's facts. General
+    information unattached, a referral to who answers it, and arithmetic on their own money
+    (§0.3). No state-law tables — they rot, and stale legal data is worse than none.
 21. Never say a medical collection will not affect credit. The CFPB rule was vacated; what
     remains is voluntary bureau policy that can be withdrawn (§8.3). State it as policy, dated.
 22. Never bake legal exposure into a rate. Surface it beside the ranking; a risk-adjusted APR
@@ -524,10 +578,11 @@ extraction machinery, the plan-year state machine, and the Care Planner with its
 balances the app already holds, the sustainable payment comes from the historian, and the
 agreed plan writes to structures that already exist once a budget item can carry a term.
 
-**Phase 3 — collections.** §8, and it is deliberately not Phase 1 despite needing no network.
-The time-barred gate is the reason: shipping the flag and the payment offer without it would
-put a harmful button in front of exactly the users least able to absorb the harm. The gate
-comes first or the feature waits.
+**Phase 3 — collections.** §8. An earlier draft held this back behind a computed
+time-barred gate that would have taken a state-law table to build. §0.3 removed both the gate
+and the feature that needed it, and what is left — a flag, an agency name, the payments made,
+and the cost arithmetic — carries no hazard and could ship in Phase 1 on merit. It stays here
+only because it is worth less than the rest until there is something to record.
 
 **Phase 4 — gated, optional.** Blue Button 2.0 for Medicare users, behind its own consent.
 GoodRx if the partnership is pursued.
@@ -792,43 +847,49 @@ Flagging an account as in collections adds fields, and one of them matters more 
 - **In collections** (yes/no), and the **agency name**.
 - **Original creditor** and **original amount**, which diverge from the agency's figure once
   fees are added. Both are worth keeping; the gap between them is sometimes the whole story.
-- **The date of first delinquency.** This is the field nobody records and everything depends
-  on. It sets when the account falls off a credit report, and it starts the clock in §8.2.
-- **The user's state**, because §8.2 is state law.
+- **The date of first delinquency.** The field nobody records and the one the user most needs
+  when they talk to anyone about this account. Recorded because it is theirs — not so the app
+  can compute anything from it (§0.3).
 - Whether **debt validation** was requested and received. Under the FDCPA the user may demand
   it, and an unvalidated debt is one the agency has not yet proven it owns.
 
-### 8.2 The trap: a payment plan can revive a dead debt
+### 8.2 The legal question the app does not answer
 
-This is the finding that reshapes the feature, and it is the opposite of intuitive.
+There is a real hazard here, and the app's job is to make sure the user knows it exists without
+pretending to resolve it.
 
-Debts have a **statute of limitations**. Once it expires the debt still exists, but the
-collector can no longer win a lawsuit over it. In most states, **making a payment — or simply
-agreeing to a payment plan — restarts that clock**, restoring the collector's ability to sue
-for the full amount. Agreeing to a schedule, by phone or in writing, is one of the most
-reliable ways to do it. State law varies: Minnesota has not allowed revival on consumer debt
-since 2013, and other states differ.
+Debts carry a statute of limitations. When it expires the debt survives but can no longer be
+enforced in court — and in many states **making a payment, or simply agreeing to a payment
+plan, can restart that clock**, restoring the collector's ability to sue for the full amount.
+Agreeing to a schedule by phone is enough in some states. It is exactly what a payment-plan
+feature would encourage.
 
-**So §7's central offer — "here is what to propose as a monthly payment" — is, on an old
-collections account, potentially the single most harmful action available.** A user who was
-legally safe can be made suable by the exact button this app would have given them.
+An earlier draft answered this with a computed gate: take the first-delinquency date, take the
+state, apply the limitation period, and tell the user whether their debt might be time-barred.
+**§0.3 rules that out.** It is applying law to particular facts to reach a conclusion, it would
+need a state table that rots, and the CFPB — which publishes the general rule — declines to
+compute the particular case and tells consumers to see a lawyer.
 
-The adjustment is not a warning banner. It is a gate:
+**So the app does three things, and none of them is a legal conclusion.**
 
-> Before any payment figure is shown for a collections account, the app computes from the date
-> of first delinquency and the user's state whether the debt **may be time-barred**. If it may
-> be, no payment figure is offered at all.
+1. **It says the general fact, unattached.** Once, plainly, wherever a collections account is
+   recorded: *debts have a statute of limitations, and in many states a payment or a new
+   agreement can restart it.* Not "your debt" — debts. That sentence is published by the CFPB
+   and carries no arithmetic.
+2. **It names who answers the question.** The CFPB's own page, legal aid, a non-profit credit
+   counsellor. A referral is not advice; declining to answer while saying who can is the most
+   honest thing available.
+3. **It offers no figure to propose.** §7's payment suggestion does not extend to collections.
+   For a hospital, proposing a number is arithmetic against a published assistance policy. For
+   a collector, the proposal *is* a legal act, and one whose consequences the app cannot see.
 
-And what replaces it is a statement of fact and a referral, not advice:
+**What the user keeps** is everything that was actually theirs: the balance, the agency, the
+payments they have made, and — once they have agreed something — exactly what it costs per
+month and the month it ends. That is §7.7's calculator pointed at an obligation they entered
+themselves, which is cost and not counsel.
 
-> *This account's last activity was in 2019. In your state, debts of this type may no longer be
-> enforceable in court after N years — and in most states making a payment or agreeing to a
-> plan can restart that clock. This is a legal question and not one this app can answer. The
-> FTC suggests a consumer attorney or a non-profit credit counsellor.*
-
-That is a new kind of honest no. Appendix C's version says *nothing holds the date*. This one
-says *the path you are standing on may be the harmful one*, which is a category the platform
-has not needed until now.
+Note what this buys. The dangerous button is not gated, hedged or disclaimed. **It is not
+built**, which is the only version of that problem with no failure mode.
 
 ### 8.3 What may be stated as fact — and the thing that is not law
 
@@ -848,20 +909,22 @@ currently do, say when that was true, and say plainly that it is policy rather t
 FDCPA validation right in §8.1 *is* law and may be stated as such. The distinction between a
 right and a courtesy is exactly the kind of thing this platform exists to keep straight.
 
-### 8.4 Bundling, which is a good idea with one precondition
+### 8.4 Bundling
 
-Several accounts with one agency, folded into a single payment, is sound. One payment is
-easier to sustain than four, and a performing account is worth more to an agency than a
-defaulted one, so there is something real to propose.
+Several accounts with one agency, folded into a single payment, is a sound idea — one payment
+is easier to sustain than four, and a performing account is worth more to an agency than a
+defaulted one.
 
-The arithmetic is §7.3 unchanged: the leanest month on record, inside the stability and reserve
-floors, an honest null when the record is too thin, and the curve rather than a point.
+Under §0.3 the app's part in it is smaller than the first draft assumed. It does not propose
+the bundle, does not suggest what to offer, and does not evaluate whether bundling is wise for
+any particular account — folding accounts of different ages into one new agreement is precisely
+the kind of act with legal consequences the app cannot see.
 
-**The precondition comes from §8.2 and is not obvious.** Bundling accounts of different ages
-into one new agreement can revive the oldest of them. An account that was time-barred and
-worthless to the agency becomes enforceable again by being folded into a plan covering three
-others. So: **every account in a proposed bundle must clear the §8.2 gate independently.** One
-that does not is excluded from the bundle, and the reason is stated.
+**What it does is the arithmetic, before and after.** Four obligations at $40, $35, $60 and
+$25 cost $160 a month and end on four different dates. One agreed bundle at $150 costs $150 a
+month and ends on one. That comparison is division, it is entirely about the user's own money,
+and it is genuinely useful to someone deciding whether to make a call — without the app having
+had an opinion about the call.
 
 ### 8.5 What this feature is, and what it must never become
 
@@ -951,13 +1014,7 @@ Named rather than assumed, and none of them defaulted.
    open sees everyone's medications. That is right for most households and wrong for some, and
    the design does not currently distinguish them.
 
-9. **Does the collections gate need a state-law table, and who maintains it?** §8.2 needs a
-   statute-of-limitations period per state and per debt type to compute the gate at all. That
-   is reference data which changes, and stale legal data is worse than none. It could ship as
-   a dated table with the date shown, or the gate could be qualitative — "this account is old
-   enough that the question applies to it" — which needs no table and is nearly as useful.
-
-10. **Reserve before, alongside, or after the last balance?** Avalanche says every spare dollar
+9. **Reserve before, alongside, or after the last balance?** Avalanche says every spare dollar
    goes to the highest APR, and with an empty reserve that is how one emergency-room bill
    lands back on the card and erases a year. "Pay it off" and "never need it again" are two
    objectives and the engine models only the first. This is the one open question that changes
