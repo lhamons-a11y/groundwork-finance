@@ -7,8 +7,14 @@
 //   _simulatePayoffStrategy(cards, budget, strategy) — parameterised, no PSLF
 //   _simulatePayoff(extraPerMonth)                   — app state, PSLF-aware
 // (A third, _simulatePayoffFromRows, was dead code and was removed.)
+//
+// UPDATE: app.js no longer computes payoffs — it asks the engine. The simulators
+// it used to carry are frozen in tests/js_reference_payoff.js, and this reads
+// them from there. The differential now proves the port still reproduces the
+// implementation it was ported from, rather than that two live implementations
+// agree; there is only one live implementation now, which was the point.
 const fs = require('fs');
-const src = fs.readFileSync('static/js/app.js', 'utf8');
+const src = fs.readFileSync('tests/js_reference_payoff.js', 'utf8');
 
 function extract(name) {
   const s = src.indexOf('function ' + name + '(');

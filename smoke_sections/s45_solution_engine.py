@@ -1288,3 +1288,83 @@ def run(ctx):
           and 'You have been here before' in view)
     check('and the dashboard can carry it too, through the gauntlet only',
           "p.detail_kind === 'cycle'" in view)
+
+    # ── Pillar 1: the JS no longer computes a payoff ─────────────────────────
+    # app.js carried a second implementation of the payoff maths, proven
+    # equivalent by a 300-scenario differential and equivalent right up until
+    # the day someone edited one of them. It is gone; what is left asks the
+    # engine. Comments are stripped first — the replacement explains what it
+    # replaced, in the words this check searches for.
+    sim_code = chr(10).join(l for l in view.split(chr(10))
+                            if not l.strip().startswith(chr(47) * 2))
+    # Portfolio loops specifically: iterating an array of balances month by
+    # month IS the engine's job. Single-balance amortisation (_projectPayoff,
+    # _mortgageSimulate) is a different question the engine does not answer —
+    # it returns aggregates, not per-month schedules — so those stay.
+    # Portfolio loops specifically: iterating an array of balances month by
+    # month IS the engine's job. Single-balance amortisation (_projectPayoff,
+    # _mortgageSimulate) is a different question the engine does not answer —
+    # it returns aggregates, not per-month schedules — so those stay.
+    #
+    # One portfolio loop survives, deliberately and with its reason written
+    # beside it: the min-only baseline recalculates each month's minimum the way
+    # issuers do, which the engine cannot yet do. This pins the count at one, so
+    # a second one cannot appear quietly.
+    portfolio_loops = sim_code.count('bals.some(b=>b>0.01)')
+    check('the client simulates a portfolio in exactly one remaining place',
+          portfolio_loops == 1
+          and 'THE LAST PORTFOLIO LOOP IN THIS FILE' in view)
+    check('and the retired ones left no loop behind',
+          'bals[i] += int; totalInterest += int;' not in sim_code
+          and 'bals[i] = Math.max(0, bals[i] - apply)' not in sim_code)
+    check('and the two entry points are readers over the engine',
+          "API.post('/api/debt/simulate'" in sim_code
+          and '_engineSims[key]' in sim_code)
+
+    # Three states, and the middle one is not the other two.
+    check('a pending answer is undefined, never the null that means something',
+          'return undefined;' in sim_code
+          and "if (key in _engineSims) return _engineSims[key];" in sim_code)
+
+    # The route exists because live editing needs it: the debt page recalculates
+    # from unsaved state, 600ms before the save lands.
+    r = ctx.c.post('/api/debt/simulate', headers=ctx.HJ, json={
+        'cards': [{'id': 1, 'name': 'A', 'balance': 8000, 'rate': 22, 'minimum': 200},
+                  {'id': 2, 'name': 'B', 'balance': 3000, 'rate': 6, 'minimum': 75}],
+        'budget': 775, 'strategy': 'avalanche'}).get_json() or {}
+    served = (r.get('data') or r)
+    check('the engine answers for a portfolio the caller is holding',
+          served.get('result') and served['result']['months'] > 0)
+    check('and it is the same engine, not a second one',
+          served['result']['months'] == simulate_payoff(
+              [Card(balance=8000, rate=22, minimum=200, name='A'),
+               Card(balance=3000, rate=6, minimum=75, name='B')], 775)['months'])
+    unaffordable = ctx.c.post('/api/debt/simulate', headers=ctx.HJ, json={
+        'cards': [{'id': 1, 'name': 'A', 'balance': 8000, 'rate': 22, 'minimum': 200}],
+        'budget': 50}).get_json() or {}
+    ua = (unaffordable.get('data') or unaffordable)
+    check('a budget that cannot cover the minimums is null, with the reason',
+          ua.get('result') is None and ua.get('reason'))
+
+    # One reading of the PSLF record, now shared. The client never modelled
+    # forgiveness by payment count while the server did — two answers for
+    # anyone on an income-driven plan.
+    from server import _pslf_terms
+    check('a flagged loan with a payment count is dated once, in one place',
+          _pslf_terms({'enabled': True, 'program': 'pslf', 'paymentsMade': 110})
+          == (True, 10, True))
+    check('and a flagged loan with nothing recorded stays undated',
+          _pslf_terms(True) == (True, None, False)
+          and _pslf_terms({'enabled': True, 'program': 'pslf'})[2] is False)
+    check('an unflagged loan is left alone',
+          _pslf_terms(None) == (False, None, True))
+
+    # The differential still runs — against the frozen reference, because there
+    # is no second live implementation left to compare with.
+    ref = (ctx.BASE / 'tests' / 'js_reference_payoff.js')
+    check('the retired simulators are kept as the parity reference',
+          ref.exists() and 'frozen' in ref.read_text(encoding='utf-8')[:400])
+    harness = (ctx.BASE / 'tests' / 'js_payoff_harness.js').read_text(encoding='utf-8')
+    check('and the harness reads them from there, not from the shipped app',
+          "js_reference_payoff.js" in harness
+          and "readFileSync('static/js/app.js'" not in harness)

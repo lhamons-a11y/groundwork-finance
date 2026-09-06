@@ -12959,77 +12959,142 @@ function _obPrepareScenariosStep() {
 // strategy explicitly ('avalanche' = highest rate first, 'snowball' = smallest
 // balance first) and also reports when the FIRST card is cleared — the
 // "feel it sooner" number snowball is framed around. Pure: no DOM, no S reads.
-function _simulatePayoffStrategy(cards, budget, strategy) {
-  const todayKey = new Date().toISOString().slice(0,7);
-  const simStart = new Date(); simStart.setDate(1);
+// ── The payoff question, asked of the one engine ─────────────────────────────
+//
+// These two functions used to BE the simulator: a second implementation of the
+// payoff maths, proven equivalent to core/consequence.py by a 300-scenario
+// differential and equivalent right up until the day someone edited one of
+// them. Pillar 1 (§7) exists to retire exactly that, and the JS is now a reader
+// over the engine's answer rather than an answer of its own.
+//
+// **Three states, and they are not two.** An object is an answer. `null` means
+// what it has always meant here — the budget does not cover the minimums, which
+// is a fact and not an absence. `undefined` means the engine has not answered
+// yet. Callers that test `=== null` keep working, and a pending answer renders
+// as no date rather than as a false one; conflating the two is the bug that has
+// now been fixed twice in this file.
+//
+// **Why the portfolio goes with the question.** The debt page recalculates while
+// someone types — setCardField mutates state and re-renders 600ms before the
+// save lands — so asking about saved state would answer for a portfolio the
+// user is no longer looking at. Pillar 1's claim is one implementation of the
+// maths, not one copy of the data.
+let _engineSims = {};
+let _engineSimsInFlight = {};
 
-  const data = cards
+function _simCards() {
+  const todayKey = new Date().toISOString().slice(0, 7);
+  return S.debtCards
     .filter(c => !c.paidInFull)
     .map(c => ({
+      id:       c._dbId || c.id,
       name:     c.name || 'Card',
       balance:  Math.max(0, _cardBal(c)),
-      rate:     Math.max(0, parseFloat(c.rate)||0),
-      minimum:  Math.max(1, parseFloat(c.minimum)||25),
-      isLease:  (c.debtType || 'credit') === 'lease',
-      endMonth: c.endDate ? c.endDate.slice(0,7) : null,
+      rate:     Math.max(0, parseFloat(c.rate) || 0),
+      minimum:  Math.max(1, parseFloat(c.minimum) || 25),
+      is_lease: (c.debtType || 'credit') === 'lease',
+      end_month: c.endDate ? c.endDate.slice(0, 7) : null,
     }))
     .filter(c => {
-      if (c.isLease && c.endMonth && c.endMonth < todayKey) return false;
+      if (c.is_lease && c.end_month && c.end_month < todayKey) return false;
       return c.balance > 0;
     });
+}
 
-  if (!data.length) return null;
-  const totalMin = data.reduce((s,c) => s+c.minimum, 0);
-  if (budget < totalMin) return null;
+function _simKey(cards, budget, extra, strategy) {
+  return JSON.stringify([cards.map(c => [c.id, c.balance, c.rate, c.minimum,
+                                         c.is_lease, c.end_month]),
+                         budget, extra, strategy]);
+}
 
-  const order = [...data].filter(c => !c.isLease).sort((a,b) =>
-    strategy === 'snowball' ? a.balance - b.balance : b.rate - a.rate);
+function _simAsk(cards, budget, extra, strategy, key) {
+  if (_engineSimsInFlight[key]) return;
+  _engineSimsInFlight[key] = true;
+  API.post('/api/debt/simulate', { cards, budget, extra, strategy })
+    .then(r => {
+      const res = r.result;
+      _engineSims[key] = res ? {
+        months:        res.months,
+        totalInterest: res.totalInterest,
+        // Rebuilt here in the retired code's own format — short month, as in
+        // "Jan 2028". _payoffDateLabel spells the month out, and reaching for it
+        // would have quietly restyled every payoff date in the app on the way
+        // past.
+        freeDate:      (() => { const d = new Date();
+                                d.setMonth(d.getMonth() + res.months);
+                                return d.toLocaleDateString('en-US',
+                                  { month: 'short', year: 'numeric' }); })(),
+        freeDateFull:  (() => { const d = new Date();
+                                d.setMonth(d.getMonth() + res.months); return d; })(),
+        clearedAt:     res.clearedAt || {},
+        undatedForgiveness: res.undatedForgiveness || [],
+      } : null;
+    })
+    .catch(e => { _gwErr('_simAsk')(e); })
+    .finally(() => {
+      delete _engineSimsInFlight[key];
+      _rerenderAfterEngine();
+    });
+}
 
-  let bals = data.map(c => c.balance);
-  let month = 0, totalInt = 0;
-  let firstClearedMonth = null, firstClearedName = null;
+// One coalesced re-render when answers land. Without it a cached miss would
+// leave the page showing the pending state until something else happened to
+// redraw it.
+let _engineRerenderTimer = null;
+function _rerenderAfterEngine() {
+  clearTimeout(_engineRerenderTimer);
+  _engineRerenderTimer = setTimeout(() => {
+    const active = document.querySelector('.view.active');
+    if (!active || !active.id) return;
+    const name = active.id.replace(/^view-/, '');
+    try {
+      if (name === 'dashboard')      renderDashboard();
+      else if (name === 'debt')      calculate();
+      else if (name === 'budget')    renderBudget();
+      else if (name === 'networth')  renderNetWorth();
+      else if (name === 'byb')       renderBYB();
+      // Onboarding is an overlay rather than a view, and it asks the engine
+      // too — without this its figures would sit at "working it out" forever.
+      if (typeof obCalcDebt === 'function' && g('obDebtSummary')
+          && g('obDebtSummary').offsetParent !== null) obCalcDebt();
+    } catch (e) { _gwErr('_rerenderAfterEngine')(e); }
+  }, 60);
+}
 
-  while (month < 360 && bals.some(b => b > 0.01)) {
-    month++;
-    const simDate = new Date(simStart.getFullYear(), simStart.getMonth() + month - 1, 1);
-    const simKey  = `${simDate.getFullYear()}-${String(simDate.getMonth()+1).padStart(2,'0')}`;
-    let extra = budget;
-    for (let i = 0; i < data.length; i++) {
-      if (bals[i] <= 0) continue;
-      if (data[i].isLease && data[i].endMonth && simKey > data[i].endMonth) {
-        bals[i] = 0;
-        continue;
-      }
-      const ic = bals[i]*(data[i].rate/100/12);
-      bals[i] += ic; totalInt += ic;
-      const pay = Math.min(data[i].minimum, bals[i]);
-      bals[i] = Math.max(0, bals[i]-pay);
-      extra  -= pay;
-    }
-    for (const c of order) {
-      if (extra <= 0.01) break;
-      const i = data.indexOf(c);
-      if (bals[i] <= 0) continue;
-      const apply = Math.min(extra, bals[i]);
-      bals[i] = Math.max(0, bals[i]-apply);
-      extra  -= apply;
-    }
-    if (firstClearedMonth === null) {
-      for (let i = 0; i < data.length; i++) {
-        if (bals[i] <= 0.01) { firstClearedMonth = month; firstClearedName = data[i].name; break; }
-      }
-    }
-  }
+function _simulatePayoff(extraPerMonth = 0) {
+  const cards = _simCards();
+  if (!cards.length) return null;
+  const budget = _getMonthlyBudget();
+  const strategy = S.debtMethod === 'snowball' ? 'snowball' : 'avalanche';
+  const key = _simKey(cards, budget, extraPerMonth, strategy);
+  if (key in _engineSims) return _engineSims[key];
+  _simAsk(cards, budget, extraPerMonth, strategy, key);
+  return undefined;                       // asked, not yet answered
+}
 
-  const free = new Date();
-  free.setMonth(free.getMonth()+month);
-  return {
-    months:            month,
-    totalInterest:     Math.round(totalInt),
-    freeDate:          free.toLocaleDateString('en-US', {month:'short', year:'numeric'}),
-    firstClearedMonth,
-    firstClearedName,
-  };
+function _simulatePayoffStrategy(cardList, budget, strategy) {
+  const todayKey = new Date().toISOString().slice(0, 7);
+  const cards = (cardList || [])
+    .filter(c => !c.paidInFull)
+    .map(c => ({
+      id:       c._dbId || c.id,
+      name:     c.name || 'Card',
+      balance:  Math.max(0, _cardBal(c)),
+      rate:     Math.max(0, parseFloat(c.rate) || 0),
+      minimum:  Math.max(1, parseFloat(c.minimum) || 25),
+      is_lease: (c.debtType || 'credit') === 'lease',
+      end_month: c.endDate ? c.endDate.slice(0, 7) : null,
+    }))
+    .filter(c => {
+      if (c.is_lease && c.end_month && c.end_month < todayKey) return false;
+      return c.balance > 0;
+    });
+  if (!cards.length) return null;
+  const strat = strategy === 'snowball' ? 'snowball' : 'avalanche';
+  const key = _simKey(cards, budget, 0, strat);
+  if (key in _engineSims) return _engineSims[key];
+  _simAsk(cards, budget, 0, strat, key);
+  return undefined;
 }
 
 function obAddDebtRow() {
@@ -13068,26 +13133,34 @@ function obCalcDebt() {
   const totalDebt = rows.reduce((s,r) => s+r.balance, 0);
   const totalMin  = rows.reduce((s,r) => s+r.minimum, 0);
 
-  // Min-only simulation
-  let bals = rows.map(r=>r.balance);
-  let month=0, totalInterest=0;
-  while (month<360 && bals.some(b=>b>0.01)) {
-    month++;
-    for (let i=0;i<rows.length;i++) {
-      if (bals[i]<=0) continue;
-      const int = bals[i]*(rows[i].rate/100/12);
-      bals[i] += int; totalInterest += int;
-      bals[i] = Math.max(0, bals[i] - (rows[i].minimum||25));
-    }
-  }
+  // The fourth implementation of this maths, and the last. It ran minimums-only
+  // over the rows being typed into the onboarding form — its own loop, its own
+  // rounding, its own answer. The engine does minimums-only by being asked for
+  // a budget equal to the minimums, and it does it once.
+  const engineRows = rows.map((r, i) => ({
+    id: `ob-${i}`, name: r.name, balance: r.balance,
+    rate: r.rate, minimum: r.minimum || 25,
+  }));
+  const minKey = _simKey(engineRows, totalMin, 0, 'avalanche');
+  const minSim = (minKey in _engineSims) ? _engineSims[minKey] : undefined;
+  if (minSim === undefined) _simAsk(engineRows, totalMin, 0, 'avalanche', minKey);
 
   if (summary) {
     summary.style.display = '';
     setText('obTotalDebt',   fmt(totalDebt));
-    setText('obMinInterest', fmt(Math.round(totalInterest)));
-    const yr=Math.floor(month/12), mo=month%12;
-    setText('obMinDebtFree',
-      `At minimums: debt-free in ${yr>0?yr+'y ':''}${mo}mo · ${new Date(new Date().getFullYear(),new Date().getMonth()+month,1).toLocaleDateString('en-US',{month:'short',year:'numeric'})}`);
+    // Pending is not zero and not "never". Until the engine answers, these say
+    // nothing rather than something convenient.
+    setText('obMinInterest', minSim ? fmt(minSim.totalInterest) : '—');
+    if (!minSim) {
+      setText('obMinDebtFree', minSim === null
+        ? 'At minimums: these payments do not cover the interest.'
+        : 'At minimums: working it out…');
+    } else {
+      const month = minSim.months;
+      const yr = Math.floor(month / 12), mo = month % 12;
+      setText('obMinDebtFree',
+        `At minimums: debt-free in ${yr>0?yr+'y ':''}${mo}mo · ${minSim.freeDate}`);
+    }
   }
 }
 
@@ -13892,93 +13965,7 @@ function _cardBal(c) {
   return parseFloat(c.beginBal) || 0;
 }
 
-function _simulatePayoff(extraPerMonth = 0) {
-  const today    = new Date();
-  const todayKey = today.toISOString().slice(0,7);
 
-  const data = S.debtCards
-    .filter(c => !c.paidInFull)
-    .map(c => ({
-      id:       c.id,
-      name:     c.name || 'Card',
-      balance:  Math.max(0, _cardBal(c)),
-      rate:     Math.max(0, parseFloat(c.rate) || 0),
-      minimum:  Math.max(1, parseFloat(c.minimum) || 25),
-      pslf:     _pslfIsFlagged(c._dbId || c.id),
-      isLease:  (c.debtType || 'credit') === 'lease',
-      // endDate as YYYY-MM — simulation stops lease payments after this month
-      endMonth: c.endDate ? c.endDate.slice(0,7) : null,
-    })).filter(c => {
-      // Skip leases whose end date is already past — obligation is done
-      if (c.isLease && c.endMonth && c.endMonth < todayKey) return false;
-      return c.balance > 0;
-    });
-
-  if (!data.length) return null;
-  // BUG FIX (July 6): previously read g('monthlyBudget')?.value with no
-  // fallback — that field only exists in the DOM on the Debt Payoff page
-  // itself, so every call to this function from anywhere else (Dashboard,
-  // Before You Buy, Reports) silently used a budget of 0 instead of the
-  // user's real committed amount. When the field IS mounted (actively on
-  // the Debt Payoff page), sync S.monthlyBudget from it too, so an edit
-  // the user just made is immediately available to every other function,
-  // not just this page, without waiting for a save round-trip.
-  // (July 8: DOM-vs-state logic now lives in the shared _getMonthlyBudget()
-  // helper so every caller gets the same fallback, not just this function.)
-  const baseBudget = _getMonthlyBudget();
-  const budget     = baseBudget + extraPerMonth;
-  const totalMin   = data.reduce((s,c) => s+c.minimum, 0);
-  if (budget < totalMin) return null;
-
-  // Extra payment priority excludes PSLF loans and leases.
-  // Leases have a fixed end date and can't be paid early.
-  const sorted = data.filter(c => !c.pslf && !c.isLease).sort((a,b) =>
-    S.debtMethod === 'avalanche' ? b.rate - a.rate : a.balance - b.balance
-  );
-
-  let bals = data.map(c => c.balance);
-  let month = 0, totalInterest = 0;
-  // Track sim month as YYYY-MM for lease end-date comparison
-  const simStart = new Date(today.getFullYear(), today.getMonth(), 1);
-
-  while (month < MAX_MONTHS && bals.some(b => b > 0.01)) {
-    month++;
-    const simDate = new Date(simStart.getFullYear(), simStart.getMonth() + month - 1, 1);
-    const simKey  = `${simDate.getFullYear()}-${String(simDate.getMonth()+1).padStart(2,'0')}`;
-    let extra = budget;
-    for (let i = 0; i < data.length; i++) {
-      if (bals[i] <= 0) continue;
-      // Lease past its end month: obligation ends, zero the balance
-      if (data[i].isLease && data[i].endMonth && simKey > data[i].endMonth) {
-        bals[i] = 0;
-        continue;
-      }
-      const ic = bals[i] * (data[i].rate / 100 / 12);
-      bals[i] += ic;
-      totalInterest += ic;
-      const pay = Math.min(data[i].minimum, bals[i]);
-      bals[i] = Math.max(0, bals[i] - pay);
-      extra  -= pay;
-    }
-    for (const c of sorted) {
-      if (extra <= 0.01) break;
-      const i = data.indexOf(c);
-      if (bals[i] <= 0) continue;
-      const apply = Math.min(extra, bals[i]);
-      bals[i] = Math.max(0, bals[i] - apply);
-      extra -= apply;
-    }
-  }
-
-  const free = new Date();
-  free.setMonth(free.getMonth() + month);
-  return {
-    months:        month,
-    totalInterest: Math.round(totalInterest),
-    freeDate:      free.toLocaleDateString('en-US', { month:'short', year:'numeric' }),
-    freeDateFull:  free,
-  };
-}
 
 // Computes "pay this much on each card this month" — minimum (capped at
 // remaining balance) plus any extra from the monthly budget, allocated per
@@ -15802,6 +15789,14 @@ function calculate() {
   // in the field ($3.7M on an $8.6k/mo household — d21 fix). Fixed-payment
   // debts (loan/lease) keep their real payment; if that payment can't
   // amortize, no honest baseline exists and we claim nothing.
+  //
+  // THE LAST PORTFOLIO LOOP IN THIS FILE, and it stays for now on purpose. It
+  // is not a duplicate of core/consequence.py: the engine pays a FIXED minimum
+  // per card, while this recalculates the minimum every month the way issuers
+  // actually do. Retiring it means teaching the engine a declining-minimum
+  // mode — a real capability, with a known-dangerous failure mode if it is got
+  // wrong (see the $3.7M claim above) — not a swap. Until then this is the one
+  // place the client still simulates a portfolio, and it is deliberate.
   const minResult = (function(){
     let bals=data.map(c=>c.balance), m=0, ti=0;
     while(m<360&&bals.some(b=>b>0.01)){
