@@ -69,7 +69,7 @@ two levers that do not go through the floor at all:
   "Nothing holds the date" is the honest answer when nothing holds it. "Unless you skip the
   procedure" is not an answer this product gives.
 
-**Open question 5 in §8 asks whether the floor fix ships now, ahead of the module.** It
+**Open question 5 in §9 asks whether the floor fix ships now, ahead of the module.** It
 should.
 
 ### §0.1 Necessary care is never priced in months
@@ -496,6 +496,15 @@ Written as a list because this codebase tests its doctrine rather than describin
     it does not expire, reset on a balance change, or return next year.
 19. Never infer that preference from silence. A user who dismisses twice has dismissed twice;
     only a user who said "stop asking" has said it.
+20. Never offer a payment figure on a collections account without clearing the time-barred
+    gate first. A plan can revive a dead debt and make a safe user suable (§8.2).
+21. Never say a medical collection will not affect credit. The CFPB rule was vacated; what
+    remains is voluntary bureau policy that can be withdrawn (§8.3). State it as policy, dated.
+22. Never bake legal exposure into a rate. Surface it beside the ranking; a risk-adjusted APR
+    is a fabricated number hidden inside a sort order (§8.6).
+23. Never act as an intermediary. No contacting agencies, no negotiating, no claiming what one
+    will accept, and no marketing that implies the app settles debt (§8.5).
+24. Never practise law. Name the category, name who to ask, stop (§8.7).
 
 ---
 
@@ -515,10 +524,15 @@ extraction machinery, the plan-year state machine, and the Care Planner with its
 balances the app already holds, the sustainable payment comes from the historian, and the
 agreed plan writes to structures that already exist once a budget item can carry a term.
 
-**Phase 3 — gated, optional.** Blue Button 2.0 for Medicare users, behind its own consent.
+**Phase 3 — collections.** §8, and it is deliberately not Phase 1 despite needing no network.
+The time-barred gate is the reason: shipping the flag and the payment offer without it would
+put a harmful button in front of exactly the users least able to absorb the harm. The gate
+comes first or the feature waits.
+
+**Phase 4 — gated, optional.** Blue Button 2.0 for Medicare users, behind its own consent.
 GoodRx if the partnership is pursued.
 
-**Phase 4 — deferred pending a reason.** Devices.
+**Phase 5 — deferred pending a reason.** Devices.
 
 ---
 
@@ -763,7 +777,139 @@ is new work and the reason it is worth doing is that it is the one people are qu
 
 ---
 
-## §8 Open questions — yours to answer
+## §8 Collections
+
+A hospital bill and a collections account are not the same object, and §7 assumed a hospital
+throughout. The hospital wants to be paid and has legal obligations to help — §501(r) is a
+duty it owes. A collection agency has usually *bought* the account, frequently for a fraction
+of face value, and owes the user nothing but the FDCPA. Everything in §7 has to be re-derived
+here, and one thing in it becomes actively dangerous.
+
+### 8.1 What gets recorded
+
+Flagging an account as in collections adds fields, and one of them matters more than the rest.
+
+- **In collections** (yes/no), and the **agency name**.
+- **Original creditor** and **original amount**, which diverge from the agency's figure once
+  fees are added. Both are worth keeping; the gap between them is sometimes the whole story.
+- **The date of first delinquency.** This is the field nobody records and everything depends
+  on. It sets when the account falls off a credit report, and it starts the clock in §8.2.
+- **The user's state**, because §8.2 is state law.
+- Whether **debt validation** was requested and received. Under the FDCPA the user may demand
+  it, and an unvalidated debt is one the agency has not yet proven it owns.
+
+### 8.2 The trap: a payment plan can revive a dead debt
+
+This is the finding that reshapes the feature, and it is the opposite of intuitive.
+
+Debts have a **statute of limitations**. Once it expires the debt still exists, but the
+collector can no longer win a lawsuit over it. In most states, **making a payment — or simply
+agreeing to a payment plan — restarts that clock**, restoring the collector's ability to sue
+for the full amount. Agreeing to a schedule, by phone or in writing, is one of the most
+reliable ways to do it. State law varies: Minnesota has not allowed revival on consumer debt
+since 2013, and other states differ.
+
+**So §7's central offer — "here is what to propose as a monthly payment" — is, on an old
+collections account, potentially the single most harmful action available.** A user who was
+legally safe can be made suable by the exact button this app would have given them.
+
+The adjustment is not a warning banner. It is a gate:
+
+> Before any payment figure is shown for a collections account, the app computes from the date
+> of first delinquency and the user's state whether the debt **may be time-barred**. If it may
+> be, no payment figure is offered at all.
+
+And what replaces it is a statement of fact and a referral, not advice:
+
+> *This account's last activity was in 2019. In your state, debts of this type may no longer be
+> enforceable in court after N years — and in most states making a payment or agreeing to a
+> plan can restart that clock. This is a legal question and not one this app can answer. The
+> FTC suggests a consumer attorney or a non-profit credit counsellor.*
+
+That is a new kind of honest no. Appendix C's version says *nothing holds the date*. This one
+says *the path you are standing on may be the harmful one*, which is a category the platform
+has not needed until now.
+
+### 8.3 What may be stated as fact — and the thing that is not law
+
+Medical debt and credit reporting is the area where the app is most likely to say something
+confidently wrong, because the rules changed and then un-changed.
+
+- **The CFPB's rule removing medical debt from credit reports was vacated** by a federal court
+  in July 2025 as exceeding the Bureau's authority. It is not in force.
+- What remains are **voluntary policies of the three bureaus**, adopted 2022–2023: paid medical
+  collections removed regardless of amount, medical collections under $500 removed paid or
+  unpaid, and a grace period of at least twelve months before a medical debt may appear.
+- **These are industry decisions, not law.** They can be withdrawn without legislation. Fifteen
+  states passed their own statutes, and the federal ruling casts doubt on those too.
+
+So: **the app may never say "this will not affect your credit."** It may say what the bureaus
+currently do, say when that was true, and say plainly that it is policy rather than law. The
+FDCPA validation right in §8.1 *is* law and may be stated as such. The distinction between a
+right and a courtesy is exactly the kind of thing this platform exists to keep straight.
+
+### 8.4 Bundling, which is a good idea with one precondition
+
+Several accounts with one agency, folded into a single payment, is sound. One payment is
+easier to sustain than four, and a performing account is worth more to an agency than a
+defaulted one, so there is something real to propose.
+
+The arithmetic is §7.3 unchanged: the leanest month on record, inside the stability and reserve
+floors, an honest null when the record is too thin, and the curve rather than a point.
+
+**The precondition comes from §8.2 and is not obvious.** Bundling accounts of different ages
+into one new agreement can revive the oldest of them. An account that was time-barred and
+worthless to the agency becomes enforceable again by being folded into a plan covering three
+others. So: **every account in a proposed bundle must clear the §8.2 gate independently.** One
+that does not is excluded from the bundle, and the reason is stated.
+
+### 8.5 What this feature is, and what it must never become
+
+The FTC's Telemarketing Sales Rule defines a **debt relief service** as a program claiming,
+directly or by implication, that it can renegotiate, settle, or otherwise change the terms of
+someone's debt. It targets for-profit operations that take fees for doing so.
+
+Groundwork is not that, and the design has to keep it not that:
+
+> **A calculator and a record. Never an intermediary, never a negotiator, never a claimant of
+> outcomes.**
+
+The app never contacts an agency, never acts on the user's behalf, never charges for a result,
+and never states what an agency will accept. It computes what the user's own record can
+sustain and stores what the user reports back. The marketing has to hold the same line: "settle
+your medical debt for less" is a sentence this product does not get to say.
+
+### 8.6 How budget and payoff treat it — and why not by interest
+
+The instinct is right: a collections account is worth clearing faster than its rate suggests.
+The reason it is worth more is that its cost is not a rate at all. Post-charge-off balances
+frequently accrue no interest, so **an APR-ranked engine will put a collections account last,
+correctly by its own arithmetic and wrongly by any human measure.** The real costs are legal
+exposure, garnishment risk and credit reporting, and none of those is a percentage.
+
+There is an obvious fix and it is forbidden. Inventing a "risk-adjusted APR" so the ranking
+comes out right would be a fabricated number driving a real decision — the precise thing this
+project has been burned by twice, and worse here because the fabrication would be invisible
+inside a sort order.
+
+**The honest mechanism is to surface the difference and let the user order it.** The account
+carries a fact the others do not — *this one can be sued on; the Visa is being paid on time*
+— and that fact is shown next to the ranking rather than baked into it. An explicit user-set
+priority is a lever the platform already believes in; a secret weighting is not.
+
+### 8.7 Where the app stops
+
+Judgments, lawsuits, wage garnishment and bankruptcy are legal matters. The app names the
+category and stops. It does not estimate the likelihood of being sued, does not interpret a
+summons, does not draft a response, and does not tell anyone whether to answer one.
+
+When there is a lawsuit, the answer is a lawyer, and the app should say so plainly and point
+at legal aid and non-profit credit counselling. **Being useful here means knowing exactly where
+usefulness ends**, and the boundary is closer than it is anywhere else in this product.
+
+---
+
+## §9 Open questions — yours to answer
 
 Named rather than assumed, and none of them defaulted.
 
@@ -805,7 +951,13 @@ Named rather than assumed, and none of them defaulted.
    open sees everyone's medications. That is right for most households and wrong for some, and
    the design does not currently distinguish them.
 
-9. **Reserve before, alongside, or after the last balance?** Avalanche says every spare dollar
+9. **Does the collections gate need a state-law table, and who maintains it?** §8.2 needs a
+   statute-of-limitations period per state and per debt type to compute the gate at all. That
+   is reference data which changes, and stale legal data is worse than none. It could ship as
+   a dated table with the date shown, or the gate could be qualitative — "this account is old
+   enough that the question applies to it" — which needs no table and is nearly as useful.
+
+10. **Reserve before, alongside, or after the last balance?** Avalanche says every spare dollar
    goes to the highest APR, and with an empty reserve that is how one emergency-room bill
    lands back on the card and erases a year. "Pay it off" and "never need it again" are two
    objectives and the engine models only the first. This is the one open question that changes
