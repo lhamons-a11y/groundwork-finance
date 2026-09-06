@@ -5,8 +5,15 @@
 > Status: **Draft for decision. Nothing built.** Written 2026-09-05 against the real 2.0
 > codebase. Companion to `GW_2.0_TEACHING_PLATFORM_BLUEPRINT.md`; constrained by
 > `CALCULATION_PLACEMENT.md` (where the math lives), `MODEL_PLACEMENT.md` (what the narrator
-> may say) and `LEGAL_BOUNDARIES.md` (what the software may do at all — §0.3 came out of it). Research current as of this date; the three findings in §2 changed
-> the shape of this proposal from what was first sketched.
+> may say) and `LEGAL_BOUNDARIES.md` (what the software may do at all — §0.3 came out of it).
+> Research current as of that date; the three findings in §2 changed the shape of this proposal
+> from what was first sketched.
+>
+> **UNDER REVIEW — do not implement from this document alone.**
+> `ARCHITECTURE_REVIEW_P0.md` challenges it as a production architecture review and lists
+> sixteen P0 items to resolve first. Its central finding: the philosophy here is more mature
+> than the implementation specification, and several rules below are stated as prose where they
+> need to be enforceable invariants over typed, provenance-aware facts. Read the two together.
 
 ---
 
