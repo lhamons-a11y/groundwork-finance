@@ -168,6 +168,9 @@ protected from any rollover logic. Resolution never destroys ownership or valida
 
 ## 7b. Two rules this produced
 
+*Both now live in `ARCHITECTURE_PRINCIPLES.md` with the other four, since neither is
+healthcare-specific.*
+
 **States must represent reality, not the needs of their current consumer.**
 
 > Do not collapse distinct states merely because the current consumer produces the same result

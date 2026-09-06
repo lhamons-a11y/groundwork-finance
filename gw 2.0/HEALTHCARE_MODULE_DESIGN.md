@@ -10,6 +10,9 @@
 > from what was first sketched.
 >
 > **UNDER REVIEW — do not implement from this document alone.**
+> Constrained also by `ARCHITECTURE_PRINCIPLES.md`, which was derived from reviewing this
+> document and is not healthcare-specific.
+>
 > Three artifacts challenge it and one supersedes parts of it: `ARCHITECTURE_REVIEW_P0.md`
 > (sixteen P0 items), `ARCHITECTURE_REVIEW_LIFECYCLE.md` (what survives create, edit,
 > correction, import, duplicate, reversal, plan change, rollover and delete),
