@@ -1079,6 +1079,100 @@ def run(ctx):
     check('and the card is dismissable, in the page, never a modal',
           '_dashDismissProactive' in view and 'dashProactive' in view)
 
+    # ── A.3/A.4's ledger, end to end ────────────────────────────────────────
+    # Everything above either asks the engine directly or asks the client source
+    # whether it names the right URL. Neither runs the route. That is the exact
+    # shape of defect this project has shipped before - a client string and an
+    # engine function that agree with each other and with nothing in between -
+    # and it was live here: /shown and /dismiss were the only two routes of the
+    # 2.0 work that no check had ever called. The gap matters because these two
+    # are where a demonstrated preference becomes durable: if the write is lost,
+    # a dismissal is forgotten and the same card returns tomorrow.
+    from core.database import HistorianEntry as _HEntry
+    from core.proactive import (DISMISSALS_TO_PASSIVE as _TO_PASSIVE,
+                                verdict as _promote)
+    from server import _proactive_state as _read_state, db_session as _db
+
+    _KEY, _CAT = 'smoke_ledger_probe', 'smoke_probe_category'
+    _planted = []
+    try:
+        check('a showing with no key is refused rather than logged as an empty one',
+              (ctx.c.post('/api/proactive/shown', headers=ctx.HJ,
+                          json={'key': '  '}).get_json() or {}).get('ok') is False)
+        check('and so is a dismissal with no key',
+              (ctx.c.post('/api/proactive/dismiss', headers=ctx.HJ,
+                          json={}).get_json() or {}).get('ok') is False)
+
+        _shown = ctx.c.post('/api/proactive/shown', headers=ctx.HJ,
+                            json={'key': _KEY, 'budget': 'brake', 'category': _CAT})
+        check('the surface can report a showing, and the route accepts it',
+              _shown.status_code == 200
+              and (_shown.get_json() or {}).get('ok') is True)
+
+        with _db() as _s:
+            _state = _read_state(_s)
+        check('and the reader sees that write, so the budget survives a restart',
+              _KEY in _state['shown'] and _state['session_prompts'] >= 1)
+
+        # The user-visible consequence of that write: one per session (A.3), so
+        # having shown one, nothing else may be promoted for the rest of it.
+        _post_show = ctx.c.get('/api/proactive/next', headers=ctx.H).get_json() or {}
+        _ps = (_post_show.get('data') or _post_show)
+        check('having shown one this session, the next ask promotes nothing',
+              _ps.get('prompt') is None
+              and all(not cand['promote'] for cand in _ps.get('considered', [])))
+
+        # A key that was never SHOWN, so the novelty gate below can only have
+        # come from the dismissal. Reusing the shown key would let this pass
+        # with the dismissal write broken - the shown record trips the same
+        # gate - which is a check that cannot fail for the reason it names.
+        _KEY_D = _KEY + '_dismissed'
+        _dis = ctx.c.post('/api/proactive/dismiss', headers=ctx.HJ,
+                          json={'key': _KEY_D, 'category': _CAT})
+        check('a dismissal is accepted and recorded against the key',
+              _dis.status_code == 200
+              and (_dis.get_json() or {}).get('ok') is True)
+        with _db() as _s:
+            _state = _read_state(_s)
+        check('the cooldown starts from the dismissal the user actually made',
+              _state['dismissed'].get(_KEY_D, {}).get('days_ago') == 0)
+
+        def _cand(key):
+            return {'key': key, 'category': _CAT, 'months': 9, 'dollars': 900.0,
+                    'has_path': True, 'lever': 'trim Dining'}
+
+        _free = {**_state, 'session_prompts': 0, 'category_dismissals': {}}
+        check('and it is the gate that answers when that key comes back (A.4)',
+              _promote(_cand(_KEY_D), _free)['gate'] == 'novelty')
+        check('while an insight the user never dismissed still gets through',
+              _promote(_cand('smoke_never_dismissed'), _free)['promote'] is True)
+
+        # Twice in a category is the doc's threshold for dropping the whole
+        # category to passive, and it is counted from these rows.
+        for _ in range(_TO_PASSIVE - 1):
+            ctx.c.post('/api/proactive/dismiss', headers=ctx.HJ,
+                       json={'key': _KEY + '_b', 'category': _CAT})
+        with _db() as _s:
+            _state = _read_state(_s)
+        check('two dismissals in a category are counted as two, from the ledger',
+              _state['category_dismissals'].get(_CAT) >= _TO_PASSIVE)
+    finally:
+        # These rows are a probe, not history. Left behind they would spend the
+        # session budget for every check that runs after this one.
+        with _db() as _s:
+            for _row in _s.query(_HEntry).filter(
+                    _HEntry.event_category.in_(('proactive_shown',
+                                                'proactive_dismissed'))).all():
+                if _KEY in (_row.context_json or ''):
+                    _planted.append(_row.id)
+                    _s.delete(_row)
+            _s.commit()
+    with _db() as _s:
+        _left = [r.id for r in _s.query(_HEntry).all()
+                 if _KEY in (r.context_json or '')]
+    check('and the probe cleaned up after itself, leaving the ledger as it found it',
+          len(_planted) >= 3 and not _left)
+
     # ── The Trophy Room's pinned standard (B.3, §12's gate) ──────────────────
     # §11 forbids building this until the per-case standard is pinned, because
     # "evidence-backed" degrades to "declared-backed" under deadline pressure.
@@ -1398,6 +1492,43 @@ def run(ctx):
     check('and says so, through a logger that exists',
           "logging.getLogger('groundwork').warning" in serve_src
           and 'logger.warning' not in serve_src)
+
+    # Every check above reads the source. Reading the source is how this was
+    # nearly signed off wrong once already: a stale process still holding 8765
+    # answered the first packaged-app probe and reported Werkzeug, and the
+    # source said waitress the whole time. So run it, on a port nothing else
+    # holds, and ask the running server what it is.
+    import socket as _sock
+    import threading as _thr
+    import time as _time
+    from urllib.error import URLError as _URLError
+    from urllib.request import urlopen as _urlopen
+    from server import create_app as _mk_app, serve as _serve
+
+    _served_app = _mk_app()
+    _probe = _sock.socket()
+    _probe.bind(('127.0.0.1', 0))
+    _port = _probe.getsockname()[1]
+    _probe.close()
+
+    _thr.Thread(target=_serve, args=(_served_app,),
+                kwargs={'host': '127.0.0.1', 'port': _port},
+                daemon=True).start()
+    _banner, _body = None, None
+    for _ in range(60):                     # ~3s, in 50ms steps
+        try:
+            with _urlopen(f'http://127.0.0.1:{_port}/api/ping', timeout=2) as _r:
+                _banner = _r.headers.get('Server')
+                _body = _r.status
+            break
+        except (_URLError, OSError):
+            _time.sleep(0.05)
+    check('serve() actually serves, over a real socket rather than a test client',
+          _body == 200)
+    check('and what answers is waitress under its own name, not the dev server',
+          _banner == 'Groundwork')
+    if _banner != 'Groundwork':
+        print(f'        Server header was: {_banner!r}')
 
     check('the dependency is declared',
           'waitress' in (ctx.BASE / 'requirements.txt').read_text(encoding='utf-8'))
