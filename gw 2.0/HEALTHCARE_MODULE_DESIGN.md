@@ -349,6 +349,49 @@ The tax document, and the one with the most ways to be quietly wrong.
 and says the preparer decides. The value is the documentation, which is the part people
 actually lack in April.
 
+#### A report, not a filled-in form — and not only for caution
+
+The instinct that an itemised report may be the better choice *period* is correct, and the
+reason is not that filling forms is legally fraught. It is that **Groundwork does not hold the
+inputs for almost any of them.**
+
+The health tax forms, and where their numbers actually come from:
+
+| Form | What it needs | Does Groundwork have it? |
+|---|---|---|
+| **8962** — Premium Tax Credit | Monthly premiums, the second-lowest-cost silver plan figure, and advance payments — all from **Form 1095-A**, issued by the Marketplace | **No.** None of it is in a bank record, and 1095-A arrives by post in February. |
+| **7206** — Self-employed health insurance deduction | Net self-employment income, plan details, employer-plan eligibility including a spouse's | **No.** Business figures the app does not hold. |
+| **8889** — HSA | Contributions (W-2 box 12, 5498-SA) and distributions (1099-SA) | **Partly**, and the authoritative versions arrive on forms from the custodian. |
+| **Schedule A**, medical line | Total unreimbursed qualifying expenses, with HSA/FSA/reimbursed amounts excluded | **Yes — this one, and essentially only this one.** |
+
+Which is a clarifying result. **Of the entire health tax landscape, Groundwork is positioned to
+produce exactly one number** — and it happens to be the number that is hardest for anyone else
+to produce, because it requires a year of categorised, reimbursement-tagged transactions that
+only the household has.
+
+A preparer can compute 8962 from a 1095-A in minutes. Nobody can reconstruct twelve months of
+medical spending, minus what the HSA paid, minus what insurance reimbursed, from a shoebox.
+
+**So the report is not a fallback. It is the thing.** An itemised statement — every qualifying
+expense, dated, categorised, with the excluded items listed separately and the reason shown —
+is more useful to a tax professional than a pre-filled form would be, and it is honest about
+where the app's knowledge ends.
+
+Two further reasons, worth recording so the question does not get reopened casually:
+
+- **Filling forms means becoming tax software.** Annual form revisions, changing thresholds, an
+  implicit accuracy promise, and a number the app produced sitting on a filed return. That is a
+  product, and a permanent commitment, not a feature.
+- **The landscape moves.** Form 8885's Health Coverage Tax Credit ran through 2019 and is gone.
+  The enhanced ACA premium tax credits expired on 1 January 2026. A form-filling feature is a
+  standing obligation to track changes like these; a report over the user's own records is not.
+
+**What the report should therefore carry:** the itemised qualifying total; the excluded items
+shown separately with their reason (HSA-paid, FSA-paid, reimbursed); the mileage for medical
+travel, which is deductible and commonly missed and which the trip machinery already computes;
+the 7.5% AGI threshold stated, with whether the total clears it; and a plain note that the
+preparer decides. Nothing else.
+
 ### 1.7 Named people
 
 Health belongs to a person, and a household is not one person. Every medication, bill, device
@@ -425,8 +468,8 @@ the same CARIN-shaped API to Medicare Advantage, Medicaid, CHIP and exchange pla
 commercial employer coverage is largely outside it — so a working-age user with employer
 insurance may have no endpoint at all, and those that exist require per-payer registration.
 
-**Therefore: stage it late, and design Phase 1 so it does not depend on it.** The Phase 1
-substitute is PDF EOB import, which reuses the extraction machinery already built for debt
+**Therefore: stage it late, and design the early work so it does not depend on it** (§6.3).
+The substitute is PDF EOB import, which reuses the extraction machinery already built for debt
 statements (`/api/debt/pdf-extract`).
 
 ### 2.3 Devices — this cannot be built as described
@@ -566,32 +609,71 @@ Written as a list because this codebase tests its doctrine rather than describin
 
 ---
 
-## §6 Staging
+## §6 Which product this is, and in what order
 
-**Phase 1 — no network, no partner, no new privacy surface.** Categories and reimbursement
-state; HSA/FSA as funds with a ceiling; the FSA expiry brake; medication prices from the
-user's own record; both documents built from local data. The necessity-floor fix ships here
-or earlier.
+### 6.1 Most of it is LTS
 
-*This phase delivers most of the user value with none of the exposure.* That is deliberate,
-and it is the argument for building it first rather than last.
+The instinct that this belongs in the base product rather than in 2.0 is right, and
+decomposing it against the seam shows why: the split falls where it falls for every other
+surface. LTS holds the records and the arithmetic; the teaching layer adds the causal sentence
+and the interruption.
 
-**Phase 2 — the plan year and the bill that lands.** PDF EOB import on the existing
-extraction machinery, the plan-year state machine, and the Care Planner with its three levers.
-§7's sequence belongs here too and needs nothing from the network: the alarm is derived from
-balances the app already holds, the sustainable payment comes from the historian, and the
-agreed plan writes to structures that already exist once a budget item can carry a term.
+| LTS — the base product | GW 2.0 — the teaching layer |
+|---|---|
+| Healthcare categories and the reimbursement-state field | The capacity sentence: *clearing the Visa freed $200/mo — this covers it* |
+| HSA and FSA as funds with a statutory ceiling | The FSA-expiry brake, through Appendix A's gauntlet |
+| Named people (§1.7) | The bill-shock alarm and its urgent tier (§7.4) |
+| Bills, providers, payments, the collections flag | Pace and lever phrasing on a plan |
+| The cost calculator — the user types, the app prices | Green-light attribution on freed capacity |
+| The year-in-review report (§1.6) | |
+| A healthcare cost as a 0% term obligation in the payoff engine | |
+| **The necessity-floor fix (§0)** — a defect in shipped code | |
 
-**Phase 3 — collections.** §8. An earlier draft held this back behind a computed
-time-barred gate that would have taken a state-law table to build. §0.3 removed both the gate
-and the feature that needed it, and what is left — a flag, an agency name, the payments made,
-and the cost arithmetic — carries no hazard and could ship in Phase 1 on merit. It stays here
-only because it is worth less than the rest until there is something to record.
+So this is not 2.0 scope with a long tail. **It is a gap in the base domain model with a thin
+teaching layer on top**, which is the same shape as the budget page, the ledger and net worth.
 
-**Phase 4 — gated, optional.** Blue Button 2.0 for Medicare users, behind its own consent.
-GoodRx if the partnership is pursued.
+### 6.2 Why the schema goes first, and early
 
-**Phase 5 — deferred pending a reason.** Devices.
+The project's own principle applies here more sharply than anywhere it was coined: recording
+decisions are urgent, code decisions are not. Data accumulates and schema is expensive to
+reverse once it has years in it.
+
+Healthcare's schema pieces are exactly that kind — the category taxonomy, the
+reimbursement-state field, the person label, a term on an obligation. They want to exist
+**before** someone records three years of medical spending into a general bucket that can never
+be separated afterwards for §1.6's report. A tax report cannot reconstruct which of 2027's
+pharmacy charges were HSA-paid if nothing recorded it at the time.
+
+The Care Planner's sentences can arrive whenever. The fields cannot. That is the argument for
+landing the LTS half early and letting the teaching half follow in the 2.0 cycle.
+
+### 6.3 Order
+
+**First — the floor.** §0's necessity-floor fix. A live defect, a handful of lines, dependent
+on nothing else here.
+
+**Then the schema and the records.** Categories, reimbursement state, people, HSA and FSA as
+funds, bills and providers. No network, no partner, no new privacy surface. This is the phase
+that must not be late, per §6.2.
+
+**Then the arithmetic.** The cost calculator, obligations with terms, the card-free reserve
+with its derived target, the collections flag and its two sentences. Still no network. §8 sits
+here rather than later: after §0.3 removed the computed gate and the generated figure, what
+remains carries no hazard.
+
+**Then the plan year.** PDF EOB import on the existing extraction machinery, deductible and
+OOP-max state, and the Care Planner. This is where the 2.0 teaching layer becomes worth having,
+because the capacity sentence needs the plan year to say anything interesting.
+
+**Then the report — last, deliberately.** §1.6 is the piece with real correctness risk. Wrong
+exclusions produce a wrong return, and it inherits the base product's higher bar precisely
+because it is LTS rather than teaching. It should be built when the records feeding it have
+been right for a while, not alongside them.
+
+**Gated and optional, whenever.** Blue Button 2.0 for Medicare users, behind its own consent.
+GoodRx if that partnership is ever pursued (§2.1 argues it need not be).
+
+**Deferred pending a reason.** Devices (§2.3).
 
 ---
 
