@@ -1613,6 +1613,44 @@ def monthly_checkin(plan_id):
 debt_bp = Blueprint('debt', __name__)
 
 
+def _pslf_terms(raw, today=None):
+    """One reading of a PSLF record, for every caller that needs one.
+
+    Factored out because the debt page's own simulator has never modelled
+    forgiveness by payment count — it only excludes flagged loans from extra
+    payments — while `_consequence_inputs` does. That is two answers to the same
+    question for anyone on an income-driven plan: the payoff date on the debt
+    page and the one behind every consequence sentence could disagree, and
+    nothing reconciled them. One rule, one place.
+
+    Returns (is_pslf, forgive_after_months, datable). `datable` is False when
+    the loan is flagged but nothing on record says how far along it is — the
+    honest-null that stopped someone ten months from forgiveness being told
+    eighteen years.
+    """
+    today = today or date.today()
+    program_totals = {'pslf': 120, 'ibr': 240, 'paye': 240, 'save': 240, 'other': 120}
+    if not raw:
+        return False, None, True
+    if raw is True:
+        return True, None, False              # legacy shape: flagged, undatable
+    if not (isinstance(raw, dict) and raw.get('enabled')):
+        return False, None, True
+
+    total = program_totals.get(raw.get('program') or 'pslf', 120)
+    made = raw.get('paymentsMade')
+    if made is None and raw.get('startDate'):
+        try:
+            st = date.fromisoformat(str(raw['startDate'])[:10])
+            made = max(0, (today.year - st.year) * 12 + (today.month - st.month)
+                       - (1 if today.day < st.day else 0))
+        except (ValueError, TypeError):
+            made = None
+    if made is None:
+        return True, None, False
+    return True, max(0, int(total) - int(made)), True
+
+
 def _consequence_inputs(session):
     """Build consequence-engine inputs from persisted state, matching app.js.
 
@@ -1637,39 +1675,18 @@ def _consequence_inputs(session):
     except (ValueError, TypeError):
         pslf_all = {}
 
-    program_totals = {'pslf': 120, 'ibr': 240, 'paye': 240, 'save': 240, 'other': 120}
     today = date.today()
     cards, undated = [], []
 
     for d in session.query(DebtAccount).filter_by(is_active=True).all():
         bal = d.current_balance if d.current_balance is not None else (d.begin_balance or 0)
 
-        raw = pslf_all.get(str(d.id))
-        is_pslf, forgive_after = False, None
-        if raw:
-            if raw is True:
-                # Legacy shape: flagged, but nothing recorded about progress.
-                # Enabled and undatable — the honest-null case, and the one that
-                # produced the eighteen-year figure by being amortised instead.
-                is_pslf = True
-                undated.append(d.name)
-            elif isinstance(raw, dict) and raw.get('enabled'):
-                is_pslf = True
-                total = program_totals.get(raw.get('program') or 'pslf', 120)
-                made = raw.get('paymentsMade')
-                if made is None and raw.get('startDate'):
-                    # Derive from when income-driven repayment began, as the
-                    # client's _monthsBetween does.
-                    try:
-                        st = date.fromisoformat(str(raw['startDate'])[:10])
-                        made = max(0, (today.year - st.year) * 12 + (today.month - st.month)
-                                   - (1 if today.day < st.day else 0))
-                    except (ValueError, TypeError):
-                        made = None
-                if made is None:
-                    undated.append(d.name)          # do not guess: see below
-                else:
-                    forgive_after = max(0, int(total) - int(made))
+        # One reading of the PSLF record, shared with /simulate. A loan flagged
+        # but undated stays undated: pretending otherwise is what told someone
+        # ten months from forgiveness that they had eighteen years.
+        is_pslf, forgive_after, datable = _pslf_terms(pslf_all.get(str(d.id)), today)
+        if is_pslf and not datable:
+            undated.append(d.name)
 
         cards.append(Card(
             balance=float(bal or 0),
@@ -2383,6 +2400,82 @@ def revolving_series(session):
                     'interest': (round(row['interest'], 2)
                                  if row['interest_known'] else None)})
     return out
+
+
+@debt_bp.route('/simulate', methods=['POST'])
+@require_json
+def debt_simulate():
+    """Run the one engine against a portfolio the caller holds (Pillar 1, §7).
+
+    Every other consequence route reads persisted state, and deliberately: a
+    route that takes numbers on trust is a route that can be told anything. This
+    one takes the portfolio because it has to. The debt page recalculates while
+    someone types a balance — `setCardField` mutates client state and re-renders
+    before the 600ms save lands — so a payoff figure computed only from saved
+    state would be a figure for a portfolio the user is no longer looking at.
+
+    Pillar 1's claim is one implementation of the MATH, not one copy of the
+    data: "the defect is two answers to the same question". Handing the working
+    portfolio to the same engine keeps one answer. What it must never do is
+    persist any of this — nothing here is written, and the caller's numbers
+    leave no trace beyond the response.
+    """
+    from core.consequence import Card, simulate_payoff
+
+    body = request.json or {}
+    try:
+        budget = float(body.get('budget', 0) or 0)
+        extra = float(body.get('extra', 0) or 0)
+    except (TypeError, ValueError):
+        return err('budget and extra must be numbers')
+    strategy = 'snowball' if body.get('strategy') == 'snowball' else 'avalanche'
+
+    # The caller sends what it is holding; forgiveness terms come from the
+    # server's own PSLF record, by card id. The client has never modelled
+    # forgiveness by payment count, so taking its word for it would import the
+    # very divergence this route exists to end.
+    with db_session() as session:
+        row = session.query(AppSetting).filter_by(key='pslf_accounts_json').first()
+    try:
+        pslf_all = json.loads(row.value) if row and row.value else {}
+    except (ValueError, TypeError):
+        pslf_all = {}
+
+    cards, undated = [], []
+    for raw in (body.get('cards') or []):
+        try:
+            is_pslf, forgive_after, datable = _pslf_terms(
+                pslf_all.get(str(raw.get('id'))))
+            if is_pslf and not datable:
+                undated.append(str(raw.get('name') or 'Card'))
+            cards.append(Card(
+                balance=float(raw.get('balance', 0) or 0),
+                rate=float(raw.get('rate', 0) or 0),
+                minimum=float(raw.get('minimum', 0) or 0),
+                name=str(raw.get('name') or 'Card'),
+                is_lease=bool(raw.get('is_lease')),
+                end_month=raw.get('end_month') or None,
+                is_pslf=is_pslf,
+                forgive_after_months=forgive_after,
+            ))
+        except (TypeError, ValueError):
+            return err('every card needs numeric balance, rate and minimum')
+
+    today = date.today().strftime('%Y-%m')
+    result = simulate_payoff(cards, budget + extra, strategy,
+                             today_key=today, start_month=today)
+    if result is None:
+        # The honest null the JS has always returned here, and it means one
+        # specific thing: the budget cannot cover the minimums. It is not
+        # "unknown" and it is not zero.
+        return ok({'result': None, 'reason': 'the budget does not cover the minimums'})
+    return ok({'result': {
+        'months': result['months'],
+        'totalInterest': result['total_interest'],
+        'clearedAt': result['cleared_at'],
+        'undatedForgiveness': (result['undated_forgiveness'] or undated),
+        'conditionalOnCertification': result['conditional_on_certification'],
+    }})
 
 
 @debt_bp.route('/cycle', methods=['GET'])
