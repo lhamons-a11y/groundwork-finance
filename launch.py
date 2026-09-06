@@ -329,17 +329,14 @@ def _start_server(base_dir: Path):
         static_folder = str(base_dir / 'static')
 
         # ── Import and start Flask ────────────────────────────────────────────
-        from server import create_app
+        from server import create_app, serve
         flask_app = create_app(static_folder=static_folder)
         logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
-        flask_app.run(
-            host='127.0.0.1',
-            port=8765,
-            debug=False,
-            threaded=True,
-            use_reloader=False,
-        )
+        # One serving path for every entry point (server.serve). The packaged
+        # app used to run Flask's development server, which is what made a
+        # loopback request cost 250ms as often as 45ms.
+        serve(flask_app, host='127.0.0.1', port=8765)
 
     except Exception as e:
         # Log the real error so we can diagnose it

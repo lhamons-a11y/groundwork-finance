@@ -13058,7 +13058,11 @@ function _rerenderAfterEngine() {
       if (typeof obCalcDebt === 'function' && g('obDebtSummary')
           && g('obDebtSummary').offsetParent !== null) obCalcDebt();
     } catch (e) { _gwErr('_rerenderAfterEngine')(e); }
-  }, 60);
+    // One frame, not sixty milliseconds. The coalesce exists so several answers
+    // landing together cause one redraw, not so the redraw waits — and on a
+    // 4ms round trip the timer was most of the delay a user could see. The old
+    // synchronous code re-rendered on every keystroke anyway.
+  }, 16);
 }
 
 function _simulatePayoff(extraPerMonth = 0) {

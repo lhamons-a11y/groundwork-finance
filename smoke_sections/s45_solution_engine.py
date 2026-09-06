@@ -1368,3 +1368,42 @@ def run(ctx):
     check('and the harness reads them from there, not from the shipped app',
           "js_reference_payoff.js" in harness
           and "readFileSync('static/js/app.js'" not in harness)
+
+    # ── The server the app is actually served on ────────────────────────────
+    # Flask's built-in server is a development convenience that says so in its
+    # own banner, and every launch path used it. The cost was measurable rather
+    # than theoretical — loopback requests alternated between ~45ms and ~250ms,
+    # health check and real route alike — and it only became visible once the
+    # client started asking the server for payoff figures instead of computing
+    # them itself.
+    import ast as _ast
+    server_src = ctx.server_src
+    launch_src = (ctx.BASE / 'launch.py').read_text(encoding='utf-8')
+    dev_src = (ctx.BASE / 'dev_server.py').read_text(encoding='utf-8')
+
+    check('there is one place that knows how to serve the app',
+          'def serve(app' in server_src)
+    check('and every launch path goes through it',
+          'serve(flask_app' in launch_src and 'serve(app' in dev_src
+          and 'flask_app.run(' not in launch_src
+          and 'app.run(host=' not in dev_src)
+    check('the dev server runs the same machinery the packaged app does',
+          'from server import create_app, serve' in dev_src)
+
+    # The fallback keeps a source checkout working, and says what it did.
+    serve_src = server_src[server_src.index('def serve(app'):]
+    serve_src = serve_src[:serve_src.index('if __name__')]
+    check('a missing waitress degrades to the old server rather than to nothing',
+          'except ImportError' in serve_src and 'app.run(' in serve_src)
+    check('and says so, through a logger that exists',
+          "logging.getLogger('groundwork').warning" in serve_src
+          and 'logger.warning' not in serve_src)
+
+    check('the dependency is declared',
+          'waitress' in (ctx.BASE / 'requirements.txt').read_text(encoding='utf-8'))
+    for spec in ('groundwork.spec', 'groundwork_linux.spec', 'groundwork_macos.spec'):
+        text = (ctx.BASE / spec).read_text(encoding='utf-8')
+        # Imported inside a function, which is the style PyInstaller traces
+        # least reliably — without this the bundle silently falls back.
+        check(f'{spec} bundles it explicitly',
+              "'waitress'" in text)
