@@ -17,14 +17,20 @@
 facts / determinations  →  interpretation  →  policy
 ```
 
-No layer may reach past its neighbour. **Two distinct failures:**
+> **Facts establish reality; interpretation and policy consume that reality without becoming
+> its owner.**
 
-- **Full fusion.** `is_protected(category_name)` takes evidence (a name), classifies it (never
-  named, never returned), and emits a policy verdict — three layers in one expression, with the
-  middle one existing only inside an `any()`.
-- **Partial fusion**, which is the harder one to see. `core/health.py` was proposed correctly
-  separating facts, then deciding *both* what the evidence supports *and* what may be done with
-  it. Satisfying the rule at one boundary and not the other looks like compliance.
+**Two distinct ways to violate it**, and naming both is what stops a design satisfying the rule
+halfway:
+
+- **Interpretation/policy fusion** — policy starts deciding what the facts *mean*.
+  `is_protected(category_name)` takes evidence (a name), classifies it (never named, never
+  returned), and emits a policy verdict: three layers in one expression, the middle one existing
+  only inside an `any()`.
+- **Fact/interpretation fusion** — an interpretive result is treated as though it were itself a
+  fact. This is the harder one to see, because the result looks like data. A stored
+  `is_healthcare = true`, or a persisted `protected` boolean, is a *conclusion* wearing a
+  fact's clothes — and once stored it stops carrying the reasoning that produced it.
 
 **Third independent appearance:** `MODEL_PLACEMENT.md`'s *the application owns truth, the model
 interprets it*; the lifecycle review's *`health.py` is a policy evaluator over facts*; and
@@ -45,17 +51,30 @@ reality — one says nobody paid, the other says nobody yet knows who bears it, 
 transitions differ. `reimbursed = true` is the same error one level down, unable to represent
 one expense with three funders.
 
-## 3. Never turn an unknown into a convenient number
+## 3. Never manufacture a value or classification from an unresolved state
 
-Distinct from principle 2: that one forbids merging two *known* states, this one forbids
-inventing a value for an *unknown* one. Absence is not zero, and it is not the average, and it
-is not whatever makes the arithmetic close.
+> Never manufacture a value or classification from an unresolved state merely because a consumer
+> requires one. **Preserve the uncertainty until evidence establishes otherwise** — and record
+> that as a determination, superseded rather than overwritten when better evidence arrives.
+
+Distinct from principle 2, and the distinction is worth keeping sharp:
+
+```text
+Known A  ≠  Known B          →  state preservation   (principle 2)
+Unknown  ≠  A,  ≠ B          →  epistemic honesty    (this one)
+```
+
+Absence is not zero, not the average, and not whatever makes the arithmetic close.
 
 **Instances, both real:** an unreconciled $650 is `$300` if you assume it was never paid and
 `$950` if you assume the user paid it — **both are guesses**, and the honest output names the
 confirmed amount, the unresolved amount, and *no definitive total at all*. And the dashboard
 once reported a **$7,053 shortfall that was actually a surplus**, because blank income months
 were read as zeroes.
+
+Those two scars are worth holding together, because they are **superficially opposite outcomes
+from one conceptual failure** — one invents a number where none existed, the other invents a
+zero. Both manufacture a value the evidence did not supply.
 
 The rule that follows: **completeness is tested before anything is judged.**
 
