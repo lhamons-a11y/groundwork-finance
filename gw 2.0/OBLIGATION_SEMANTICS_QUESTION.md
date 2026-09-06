@@ -179,6 +179,36 @@ meaningless by definition.
 | **Payment** | confirmed when cleared **and** attached **and** user-confirmed. |
 | **Reconciliation** | the relationship between them — and the piece still open. |
 
+### Determinations, not resolutions
+
+Four meanings can be recorded against an unresolved amount, and they are **not** four flavours
+of the same thing:
+
+| Determination | What it establishes | Tax consequence |
+|---|---|---|
+| `provider_adjustment` | the obligation was reduced | recalculate against a smaller gross |
+| `user_paid_cash` | the amount was paid by the user | becomes user-paid |
+| `unpaid` | nobody paid it | no additional user-paid amount |
+| `pending_claim` | the funder is not yet decided | remains unresolved |
+
+**`unpaid` and `pending_claim` must not be collapsed** merely because they produce the same tax
+figure today. One says *nobody paid this*; the other says *nobody yet knows who bears it*. Their
+futures differ, and merging them loses the difference at exactly the moment a later transition
+needs it. That is the same error as a `reimbursed = true` flag, one level up: **states merged
+because one consumer cannot currently distinguish them, then a second consumer arrives that
+must.**
+
+**And none of them is terminal**, which is why "resolution" was the wrong word — including in
+the first version of the fixture. `unpaid` becomes `user_paid_cash` when a receipt surfaces six
+months later; a write-off reverses if the provider re-bills. These are **current determinations,
+superseded rather than overwritten**, each carrying provenance and a date — the same bitemporal
+property the rest of the model already has.
+
+`unpaid` carries one further subtlety: it settles the **evidentiary** question (*was this paid?*
+— no) while leaving the **obligation** entirely open. `provider_adjustment` and `user_paid_cash`
+close a portion of the obligation; `unpaid` closes none of it. Two different questions, and the
+state has to answer both.
+
 ### Reconciliation is the bridge, and it is what to solve next
 
 The four decisions now connect: obligation semantics says *what the obligation is*, progress and
@@ -190,6 +220,31 @@ That last one is the missing span, and it is the right next target rather than t
 **Once reconciliation has a rigorous semantic model, tax becomes a consumer of established facts
 instead of another place where Groundwork has to guess** — which is the whole direction of this
 work.
+
+```text
+obligation → funding evidence → reconciliation state → determination
+           → established facts → tax interpretation
+```
+
+With a hard boundary between the last two:
+
+> **Reconciliation establishes reality. Tax rules interpret established reality.**
+
+No tax-specific logic belongs inside a determination. Its job is to record what happened; the
+tax layer consumes that and decides what follows. **And neither layer may turn an unknown into a
+convenient number.**
+
+#### The same separation, for the third time
+
+This is structurally identical to `MODEL_PLACEMENT.md`'s *the application owns truth, the model
+interprets it*, and to `ARCHITECTURE_REVIEW_LIFECYCLE.md` §1's *`health.py` is a policy evaluator
+over facts, not the owner of them*. Three layers, the same split, arrived at independently each
+time.
+
+That is unlikely to be coincidence. It looks like the project's central architectural instinct —
+**keep the thing that establishes truth separate from the thing that interprets it** — and
+naming it means the next layer can apply it deliberately rather than rediscovering it a fourth
+time.
 
 Which resolves the $650 without assuming anything about it. It is not *assumed unpaid* — it is
 **not evidenced as paid**, which is a fact about the record rather than a guess about the world.

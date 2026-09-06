@@ -179,23 +179,51 @@ def run(model):
     # Two branches from the same state. If the ambiguity was real, these must
     # diverge — and if a model returns the same total for both, it was guessing
     # all along and the guess simply happened to match one branch.
+    # NOT "resolve" — nothing here is terminal. `unpaid` becomes `user_paid_cash`
+    # when a receipt surfaces months later; a write-off reverses if the provider
+    # re-bills. These are current DETERMINATIONS, superseded rather than
+    # overwritten, each carrying provenance and a date.
     write_off = model.branch(exp)
-    model.apply(write_off, {'kind': 'resolve_unresolved',
+    model.apply(write_off, {'kind': 'record_determination',
                             'status': 'provider_adjustment', 'amount': 650.00})
     f1 = model.qualifying(write_off, rules='v2026.1')
     check('resolved as a provider write-off: gross falls, the total becomes available',
           f1.gross == 550.00 and f1.unresolved == 0.00 and f1.total == 300.00)
 
     paid_cash = model.branch(exp)
-    model.apply(paid_cash, {'kind': 'resolve_unresolved',
+    model.apply(paid_cash, {'kind': 'record_determination',
                             'status': 'user_paid_cash', 'amount': 650.00,
                             'evidence': 'receipt'})
     f2 = model.qualifying(paid_cash, rules='v2026.1')
     check('resolved as a cash payment by the user: the total becomes available, and differs',
           f2.unresolved == 0.00 and f2.total == 950.00)
 
-    check('the two resolutions diverge, which is what made the ambiguity real',
+    check('the two determinations diverge, which is what made the ambiguity real',
           f1.total != f2.total)
+
+    # unpaid and pending_claim produce the same tax figure today and are NOT the
+    # same state: one says nobody paid, the other says nobody yet knows who
+    # bears it. Their futures differ, so collapsing them loses the difference
+    # exactly when a later transition needs it.
+    unpaid = model.branch(exp)
+    model.apply(unpaid, {'kind': 'record_determination', 'status': 'unpaid',
+                         'amount': 650.00})
+    pending = model.branch(exp)
+    model.apply(pending, {'kind': 'record_determination', 'status': 'pending_claim',
+                          'amount': 650.00})
+    check('unpaid and pending_claim are distinct states, not one state',
+          model.state(unpaid)['status'] != model.state(pending)['status'])
+    check('unpaid settles the evidence question and leaves the obligation open',
+          model.qualifying(unpaid, rules='v2026.1').total == 300.00
+          and model.state(unpaid)['outstanding'] == 650.00)
+    check('pending_claim settles nothing, so there is still no total',
+          model.qualifying(pending, rules='v2026.1').total is UNRESOLVED)
+    check('and a determination can be superseded when evidence arrives later',
+          model.apply(unpaid, {'kind': 'record_determination',
+                               'status': 'user_paid_cash', 'amount': 650.00,
+                               'evidence': 'receipt'})
+          and model.qualifying(unpaid, rules='v2026.1').total == 950.00
+          and len(model.determinations(unpaid)) == 2)
 
     # ── Temporal: history is not rewritten by the present ───────────────────
     for name, op, expected in MUTATIONS[4:7]:
