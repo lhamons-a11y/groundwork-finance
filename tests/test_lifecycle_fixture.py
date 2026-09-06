@@ -145,6 +145,22 @@ def run(model):
     # tax figure that confuses them overstates a deduction on a filed return.
     check('unallocated money is not treated as paid by the user',
           model.state(exp)['unallocated'] != model.state(exp)['user'])
+
+    # ┌─ FROZEN — DO NOT "FIX" ────────────────────────────────────────────┐
+    # │ The assertion below is KNOWN TO BE WRONG, and is left standing on   │
+    # │ purpose. $300 assumes the unreconciled $650 was never paid; $950    │
+    # │ (gross − reimbursement) assumes the user paid it. Both assign a     │
+    # │ meaning to an unknown, which is the thing the check above forbids.  │
+    # │                                                                     │
+    # │ It has not been corrected because correcting it means choosing a    │
+    # │ number before the semantics are settled, and the fixture would then │
+    # │ encode that choice invisibly for every tax rule written after it.   │
+    # │                                                                     │
+    # │ See gw 2.0/OBLIGATION_SEMANTICS_QUESTION.md. When observed and      │
+    # │ inferred obligations are distinguished, this becomes a PAIR —       │
+    # │ confirmed qualifying AND unresolved — and the fixture becomes a     │
+    # │ good test instead of a broken one.                                  │
+    # └─────────────────────────────────────────────────────────────────────┘
     check('and the qualifying total counts what was actually paid, not the gap',
           model.qualifying(exp, rules='v2026.1') == 300.00)
 

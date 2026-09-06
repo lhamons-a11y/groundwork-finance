@@ -13,7 +13,9 @@
 > Three artifacts challenge it and one supersedes parts of it: `ARCHITECTURE_REVIEW_P0.md`
 > (sixteen P0 items), `ARCHITECTURE_REVIEW_LIFECYCLE.md` (what survives create, edit,
 > correction, import, duplicate, reversal, plan change, rollover and delete),
-> `EVENT_SUBSTRATE_QUESTION.md` (whether `HistorianEntry` is extended or replaced) and
+> `EVENT_SUBSTRATE_QUESTION.md` (whether `HistorianEntry` is extended or replaced),
+> `OBLIGATION_SEMANTICS_QUESTION.md` (whether an unpaid bill is an accounting object — which
+> §7.1, §7.6, §7.7 and §8 below have already assumed without saying so) and
 > `tests/test_lifecycle_fixture.py`, which is the failing test the model must satisfy. Its central finding: the philosophy here is more mature
 > than the implementation specification, and several rules below are stated as prose where they
 > need to be enforceable invariants over typed, provenance-aware facts. Read the two together.

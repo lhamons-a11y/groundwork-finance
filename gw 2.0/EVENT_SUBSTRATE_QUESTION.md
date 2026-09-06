@@ -7,6 +7,10 @@
 > the LTS line, and it should not be settled inside a document about medical bills.
 >
 > Raised by `ARCHITECTURE_REVIEW_LIFECYCLE.md` §A1.
+>
+> **`OBLIGATION_SEMANTICS_QUESTION.md` is upstream of this one.** What events should be
+> recorded depends on what is being recorded — whether an unpaid bill is an accounting object
+> at all. Answer that first; this question changes shape depending on the answer.
 
 ---
 
