@@ -2,8 +2,10 @@
 
 **An open decision with a migration attached**
 
-> Status: **Largely answered 2026-09-06** — see "Structure versus event" below. What remains
-> is one schema question. Originally written as an open architecture decision. Written 2026-09-06, pulled out of the healthcare
+> Status: **Closed 2026-09-06.** `HistorianEntry` is kept and extended, structure stays in link
+> tables with foreign keys, and new references follow the existing per-entity convention.
+> Originally written as an open architecture decision; the codebase turned out to have answered
+> most of it already. Written 2026-09-06, pulled out of the healthcare
 > reviews because it is not a healthcare decision. It touches shipped code, real user data, and
 > the LTS line, and it should not be settled inside a document about medical bills.
 >
@@ -134,9 +136,24 @@ keys only for `debt_account_id` and `category_id`. So:
 > **Does `historian_entries` gain one foreign key per referable entity, or a single polymorphic
 > pair (`entity_type`, `entity_id`)?**
 
-Both keep relationships out of the blob. Neither requires replacing the table. That is a schema
-question with a small migration, not an architecture project — which is a considerably cheaper
-place to have arrived than where this note started.
+**Decided 2026-09-06: one foreign key per entity, following the existing convention.** The table
+already does this for `debt_account_id` and `category_id`, the pattern works, and it is kept.
+
+The trade is worth recording so it reads as a decision rather than a default. Per-entity keys
+mean **column sprawl** — a nullable column per referable type, most of them null on most rows —
+and a small migration each time a new entity becomes referable. A polymorphic pair avoids both
+and gives up **referential integrity**, which is precisely the failure already visible in
+`entry_id`: a reference the database cannot enforce, pointing at rows that can be deleted.
+
+Sprawl is the price of enforceability, and this project has consistently paid it. **The substrate
+question is closed. `HistorianEntry` is kept and extended; nothing is replaced.**
+
+### On the latent `entry_id` references
+
+Left alone. They are harmless while nothing dereferences them, and rewriting working code to fix
+a defect that has never fired is not warranted. **The trigger is clear, though:** the first
+consumer that dereferences one of those references needs a real foreign key at that point, not a
+blob lookup. Healthcare's tax path would be exactly that consumer.
 
 ## The three options
 
