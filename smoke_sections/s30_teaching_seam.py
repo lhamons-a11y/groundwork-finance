@@ -14,6 +14,24 @@ import shutil as _shutil
 from pathlib import Path
 
 _DEF_FN = re.compile(r'function\s+([A-Za-z_$][\w$]*)\s*\(')
+# Parameters are locals too. Without this, a callback parameter that is CALLED
+# rather than passed on reads as a missing app.js global - which is exactly
+# what this reported the first time a module named one `then`.
+_PARAMS_FN = re.compile(r'function\s*[A-Za-z_$][\w$]*\s*\(([^)]*)\)')
+_PARAMS_ANON = re.compile(r'function\s*\(([^)]*)\)')
+_PARAMS_ARROW = re.compile(r'\(([^)]*)\)\s*=>')
+
+
+def _params(src):
+    """Every parameter name bound anywhere in the source."""
+    names = set()
+    for pattern in (_PARAMS_FN, _PARAMS_ANON, _PARAMS_ARROW):
+        for group in pattern.findall(src):
+            for part in group.split(','):
+                bare = part.strip().split('=')[0].strip()
+                if re.fullmatch(r'[A-Za-z_$][\w$]*', bare or ''):
+                    names.add(bare)
+    return names
 _DEF_VAR = re.compile(r'(?:let|const|var)\s+([A-Za-z_$][\w$]*)\s*=')
 _DEF_WIN = re.compile(r'window\.([A-Za-z_$][\w$]*)\s*=')
 _CALL = re.compile(r'(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(')
@@ -21,7 +39,7 @@ _CALL = re.compile(r'(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(')
 _JS_KEYWORDS = {
     'if', 'for', 'while', 'switch', 'catch', 'function', 'return', 'typeof',
     'new', 'else', 'do', 'try', 'throw', 'delete', 'void', 'in', 'of', 'var',
-    'let', 'const', 'await', 'yield', 'instanceof',
+    'let', 'const', 'await', 'yield', 'instanceof', 'async',
 }
 _JS_GLOBALS = {
     'JSON', 'Math', 'Object', 'Array', 'Number', 'String', 'Date', 'Promise',
@@ -125,7 +143,6 @@ def run(ctx):
         '/api/debt/green-light', '/api/debt/cycle', '/api/budget/pressure',
         '/api/transactions/lesson', '/api/sinking-funds/pace',
         '/api/proactive/', '/api/trophies', '/api/byb/memory',
-        '/api/debt/decision-impact',
     )
     #
     # Six surfaces are out (see static/js/teaching/). The rest are pinned rather
@@ -135,13 +152,14 @@ def run(ctx):
     # trip, a decision about composing that sentence in two pieces. Pinned
     # exactly, so removing one is a passing change and adding a new one is a
     # failing one. The list only shrinks.
-    STILL_IN_APP_JS = {
-        '/api/debt/decision-impact',   # trip planner sentence + BYB comparison
-        '/api/sinking-funds/pace',     # inside each fund row
-        '/api/trophies',               # inside each achievement card
-        '/api/byb/memory',             # inside the BYB list and wizard
-        '/api/debt/green-light',       # inside the BYB comparison
-    }
+    #
+    # /api/debt/decision-impact is NOT on this list and is not a teaching
+    # route. It is Pillar 1's engine, and Before You Buy - a 1.x feature - gets
+    # its own before-and-after payoff from it since that calculation was
+    # unified onto the engine. Calling it teaching would strip an LTS build of
+    # a comparison it has always shipped. What is teaching is the prose built
+    # on top of the answer, and that has moved.
+    STILL_IN_APP_JS = set()
     _app_teaching_calls = sorted({r for r in TEACHING_ROUTES if r in app_src})
     check('app.js consumes no teaching route beyond the pinned, interleaved ones',
           set(_app_teaching_calls) == STILL_IN_APP_JS)
@@ -217,16 +235,29 @@ def run(ctx):
     _app_code = _code_only(app_src)
     _app_defs = (set(_DEF_FN.findall(_app_code)) | set(_DEF_VAR.findall(_app_code))
                  | set(_DEF_WIN.findall(_app_code)))
-    _borrowed, _dangling = set(), {}
+    # What the teaching layer defines for itself. Pillar 3's phrasing is said by
+    # two surfaces - the trip planner and Before You Buy - so it lives in its
+    # own module and both call it. That is teaching depending on teaching, which
+    # is inside the seam; the rule this section enforces is about app.js.
+    _teaching_src = ''
+    for _mod in sorted(_teaching_dir.glob('*.js')):
+        _teaching_src += _code_only(_mod.read_text(encoding='utf-8')) + chr(10)
+    _teaching_defs = (set(_DEF_FN.findall(_teaching_src))
+                      | set(_DEF_WIN.findall(_teaching_src)))
+    _available = _app_defs | _teaching_defs
+
+    _per_module, _dangling = {}, {}
     for _mod in sorted(_teaching_dir.glob('*.js')):
         if _mod.name == 'index.js':
             continue          # the namespace itself, and it borrows nothing
         _src = _code_only(_mod.read_text(encoding='utf-8'))
-        _local = set(_DEF_FN.findall(_src)) | set(_DEF_VAR.findall(_src))
+        _local = (set(_DEF_FN.findall(_src)) | set(_DEF_VAR.findall(_src))
+                  | _params(_src))
         _ext = set(_CALL.findall(_src)) - _local - _JS_KEYWORDS - _JS_GLOBALS
-        _borrowed |= _ext & _app_defs
-        if _ext - _app_defs:
-            _dangling[_mod.name] = sorted(_ext - _app_defs)
+        _per_module[_mod.name] = sorted(_ext & _app_defs)
+        if _ext - _available:
+            _dangling[_mod.name] = sorted(_ext - _available)
+    _borrowed = {name for names in _per_module.values() for name in names}
     check('every app.js global the teaching modules call is still defined in app.js',
           not _dangling)
     for _name, _missing in _dangling.items():
@@ -235,6 +266,11 @@ def run(ctx):
     # Worth printing on the way past: this set is the seam's real surface area,
     # and it is small on purpose. A module reaching for a dozen app.js internals
     # is coupling, not borrowing.
-    check('and that borrowed surface stays small (formatting and fetch helpers)',
-          len(_borrowed) <= 8)
+    # Per module, not in total. The total only grows as surfaces move out, and
+    # capping it would eventually be a reason not to move the next one. What
+    # would actually be wrong is one module reaching deep into app.js, so that
+    # is what this measures.
+    _deepest = max((len(v) for v in _per_module.values()), default=0)
+    check('and no single module reaches deep into app.js (borrowing, not coupling)',
+          _deepest <= 8)
     print('        teaching borrows from app.js: ' + (', '.join(sorted(_borrowed)) or 'nothing'))

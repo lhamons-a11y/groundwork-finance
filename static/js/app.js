@@ -7019,47 +7019,6 @@ function _buildBudgetExpenseRowEl(exp, idx) {
 // Monthly contribution counts toward "Out" in the budget header.
 // Money sits in the user's checking/savings — Groundwork tracks it mentally.
 
-// §8's causal pace narration for a fund: where it lands at the pace being
-// kept, and the lever that moves that date.
-//
-// The pace it reports is the OBSERVED one where the record can carry it and
-// the planned one otherwise, and the sentence says which. A finish date
-// computed from a plan is a statement about the plan; calling it a projection
-// of behaviour would borrow certainty from data that does not exist.
-function _sfPaceSentence(p) {
-  if (!p || p.funded || !p.finish_months) return '';
-
-  const at = (p.pace_source === 'observed')
-    ? `at the ${fmt(p.pace_monthly)}/mo you have actually been putting in`
-    : `at the planned ${fmt(p.pace_monthly)}/mo`;
-  const lands = `lands <strong>${_monthsFromNowLabel(p.finish_months)}</strong>`;
-
-  let verdict;
-  if (p.on_track === true) {
-    verdict = `— ahead of the deadline`;
-  } else if (p.on_track === false) {
-    verdict = `— <span style="color:var(--gold)">past the deadline</span>`;
-  } else {
-    verdict = '';                                // no deadline: a date, nothing missed
-  }
-
-  let lever = '';
-  if (p.lever) {
-    lever = ` <strong style="font-family:var(--font-mono)">${fmt(p.lever.monthly)}/mo</strong> more`
-          + ` — from ${esc(_joinNames(p.lever.sources))} — would bring it to`
-          + ` <strong>${_monthsFromNowLabel(p.lever.finish_months)}</strong>.`;
-  } else if (p.on_track === false && p.short_monthly > 0) {
-    // The gap is real and nothing in the record covers it. Saying so is the
-    // honest no: what is missing, and that no envelope here can supply it.
-    lever = ` It would take <strong style="font-family:var(--font-mono)">${fmt(p.short_monthly)}/mo</strong>`
-          + ` more to make the deadline, and nothing in your record has that room.`;
-  }
-
-  return `<div style="font-size:11px;color:var(--slate);line-height:1.7;margin-top:4px">
-    ${at.charAt(0).toUpperCase()}${at.slice(1)}, this ${lands} ${verdict}.${lever}
-  </div>`;
-}
-
 async function _budgetRenderSinkingFundsSection() {
   // Check if sinking funds section exists in the budget template
   let section = g('budgetSinkingFundsCard');
@@ -7096,17 +7055,6 @@ async function _budgetRenderSinkingFundsSection() {
     API.get(`/api/sinking-funds/${f.id}/confidence`).catch(() => ({confidence_pct: null}))
   ));
 
-  // §8: the causal half. The badge above says how reliably the plan is met;
-  // this says when the thing arrives at the pace actually being kept, and what
-  // would move that date.
-  let paceByFund = {};
-  try {
-    const paced = await API.get('/api/sinking-funds/pace');
-    (paced.funds || []).forEach(f => { paceByFund[f.id] = f.pace; });
-  } catch (e) {
-    _gwErr('_budgetRenderSinkingFundsSection:pace')(e);
-  }
-
   const rows = funds.map((f, idx) => {
     const target  = parseFloat(f.target_amount) || 0;
     const saved   = parseFloat(f.current_amount) || 0;
@@ -7130,7 +7078,7 @@ async function _budgetRenderSinkingFundsSection() {
     }
 
     return `
-      <div style="padding:10px 0;border-bottom:0.5px solid var(--steel-2)">
+      <div data-fund-id="${f.id}" style="padding:10px 0;border-bottom:0.5px solid var(--steel-2)">
         <div style="display:flex;align-items:center;gap:10px">
           <div style="font-size:18px;width:28px;text-align:center">🎯</div>
           <div style="flex:1;min-width:0">
@@ -7149,7 +7097,6 @@ async function _budgetRenderSinkingFundsSection() {
               <span>${Math.round(pct)}% of ${fmt(target)} ${filled ? '✓ Funded' : ''}</span>
               <span>${deadline}</span>
             </div>
-            ${_sfPaceSentence(paceByFund[f.id])}
           </div>
         </div>
       </div>`;
@@ -10165,136 +10112,6 @@ function _maybeLoadTripDistance(origin, destination) {
   }, 600);
 }
 
-let _tripImpactData  = null;  // Pillar 1 decision_impact for the CURRENT trip total
-let _tripImpactKey   = '';    // the rounded total the above is valid for
-let _tripImpactTimer = null;
-
-// Pillar 1: what the trip actually costs the payoff date, from the server's
-// consequence engine (core/consequence.py). Debounced exactly like the distance
-// fetch, because the total changes on every keystroke.
-//
-// This replaced Math.round((total / income) * 30), which was never a simulation
-// at all — it ignored balances, APRs, minimums and payoff order, and understated
-// the truth by 4.4x to 17.4x, worst for the tightest budgets. Never blocks the
-// render: the cells read "—" until this resolves, which is the honest state
-// rather than a guess.
-function _maybeLoadTripImpact(total) {
-  const rounded = Math.round(total || 0);
-  const key = String(rounded);
-  if (key === _tripImpactKey) return;
-  if (!(rounded > 0)) { _tripImpactData = null; _tripImpactKey = key; return; }
-  clearTimeout(_tripImpactTimer);
-  _tripImpactTimer = setTimeout(async () => {
-    try {
-      _tripImpactData = await API.post('/api/debt/decision-impact', { one_time_cost: rounded });
-      _tripImpactKey  = key;
-    } catch (e) {
-      _gwErr('_maybeLoadTripImpact')(e);
-      _tripImpactData = null;
-    }
-    tripUpdateBudget();
-  }, 600);
-}
-
-// The two impact cells. Date and money are separate facts because they move
-// independently: a payoff date set by loan forgiveness does not shift when you
-// spend, but the interest on everything else still does. Showing only "days
-// later" would render that trip free.
-// Pillar 3: the paths that close the gap, phrased for a person. Composed from
-// the engine's STRUCTURED fields rather than its `detail` string, so month
-// counts render as dates here and the register stays in one place (B.2a).
-//
-// Two at most. E.4 says show the top paths with their costs and let the user
-// choose; it does not say show all of them, and this page is already busy.
-function _tripPathPhrases(paths, gap, unit = '') {
-  // Take the top two by rank — but never drop the only path that actually
-  // closes the gap. Ranking puts no-cut paths first (E.3 rule 1), and a closing
-  // path usually requires a cut, so a naive slice can show two partial options
-  // and silently hide the one that works.
-  //
-  // One of each kind, when both exist. The levers split in two: substitution
-  // changes the decision on this page, everything else changes the finances
-  // around it. Ranked strictly, substitution loses every time — it requires
-  // giving something up, and E.3 rule 1 puts that below waiting — so the price
-  // of the very thing the user is looking at would never once be shown. Two
-  // answers to different questions beat two answers to the same one.
-  const all  = paths || [];
-  const sub  = all.find(p => p.kind === 'substitution');
-  const rest = all.filter(p => p.kind !== 'substitution');
-  let picked = sub ? [rest[0], sub].filter(Boolean) : rest.slice(0, 2);
-  if (picked.length && !picked.some(p => p.closes)) {
-    const closer = all.find(p => p.closes);
-    if (closer) picked = picked.slice(0, 1).concat([closer]);
-  }
-  return picked.map(p => {
-    const absorbed = (p.cost_months != null && gap != null) ? gap - p.cost_months : null;
-    const part = (absorbed && absorbed > 0)
-      ? `absorbs ${absorbed} of the ${gap}`
-      : 'absorbs part of it';
-
-    if (p.kind === 'timing') {
-      const who   = p.label.replace(/^wait for /, '');
-      const when  = p.available_in_months != null ? _monthsFromNowLabel(p.available_in_months) : null;
-      const freed = p.frees_monthly ? `, freeing ${fmt(p.frees_monthly)}/mo` : '';
-      const lead  = when ? `${esc(who)} clears in ${when}${freed}` : `${esc(who)} clears${freed}`;
-      return p.closes ? `${lead}, which holds the date` : `${lead} — that ${part}`;
-    }
-    if (p.kind === 'payoff_order') {
-      return p.closes
-        ? `paying in ${esc(p.label.replace(/^pay in /, ''))} holds the date`
-        : `paying in ${esc(p.label.replace(/^pay in /, ''))} ${part}`;
-    }
-    if (p.kind === 'reallocation') {
-      // The receipt travels with the offer. "Shift $205/mo from Shopping" on
-      // its own is a suggestion about someone's life; with the months behind
-      // it, it is a statement about their record that they can check.
-      const items = p.items || [];
-      const seen  = items.map(i => i.months_observed).filter(m => m > 0);
-      const proof = seen.length ? ` — budgeted, not spent, in ${Math.min(...seen)} recorded months —` : '';
-      const lead  = `shifting ${fmt(p.frees_monthly)}/mo from ${esc(_joinNames(items))}${proof}`;
-      return p.closes ? `${lead} holds the date` : `${lead} ${part}`;
-    }
-    if (p.kind === 'trim') {
-      const items = p.items || [];
-      const cost  = items.length > 1
-        ? `${fmt(p.frees_monthly)}/mo between them`
-        : `${fmt(p.frees_monthly)}/mo`;
-      const lead  = `cutting ${esc(_joinNames(items))} (${cost})`;
-      return p.closes ? `${lead} holds the date` : `${lead} ${part}`;
-    }
-    if (p.kind === 'substitution') {
-      // The price of the same decision, against what it costs in time. The
-      // engine has no idea what a cheaper version of anything IS; it says only
-      // what a smaller number would do to the date, which is the user's own
-      // arithmetic and claims nothing about what is out there to buy.
-      //
-      // The engine prices two rungs — half the delay, and none of it — and this
-      // renders the first. "Costs 2 months instead of 4" already carries the
-      // relationship between price and time, which is the teaching; the second
-      // rung is about one month of surplus whatever the decision costs, so
-      // beside a $40,000 ask it reads as mockery rather than as an option. It
-      // stays in the payload for a surface that prices a purchase directly.
-      const rungs = p.items || [];
-      const head  = rungs[0];
-      if (!head) return esc(p.detail);
-      // `unit` is '/mo' when the decision is a commitment rather than a
-      // purchase. Same lever, same arithmetic, and the difference between
-      // "$302.00" and "$302.00/mo" is the difference between a true sentence
-      // and one off by the length of a car loan.
-      return head.months_delta
-        ? `a ${fmt(head.price)}${unit} version costs ${head.months_delta} month`
-          + `${head.months_delta !== 1 ? 's' : ''} instead of ${gap}`
-        : `a ${fmt(head.price)}${unit} version does not move the date`;
-    }
-    if (p.kind === 'monthly') {
-      return esc(p.detail);
-    }
-    return esc(p.detail);
-  });
-}
-
-// "A", "A and B", "A, B and C" — the engine names one to three things per
-// path, and a person reads the result.
 function _joinNames(items) {
   const names = (items || []).map(i => i.name).filter(Boolean);
   if (names.length <= 1) return names[0] || '';
@@ -10310,48 +10127,6 @@ function _monthsFromNowLabel(months) {
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
-function _tripImpactCells(d) {
-  if (!d || !d.base) return '';                 // no debt, or not loaded yet
-  const undated = (d.undated_forgiveness || []).length > 0;
-  const months  = d.months_delta;
-  const interest = d.interest_delta;
-
-  let dateVal, dateSub, dateStyle = '';
-  if (undated || months === null || months === undefined) {
-    dateVal = '—';
-    dateSub = undated
-      ? `needs the payment count for ${esc(d.undated_forgiveness[0])}`
-      : 'not calculated';
-  } else if (months === 0) {
-    // Deliberately NOT green. This is the absence of one cost, not good news.
-    dateVal = 'no change';
-    dateSub = d.base.conditional_on_certification
-      ? 'forgiveness sets the date' : 'same payoff month';
-  } else {
-    dateVal = `+${months} month${months !== 1 ? 's' : ''}`;
-    dateSub = 'later than planned';
-    dateStyle = ' style="color:var(--gold)"';
-  }
-
-  const hasInterest = typeof interest === 'number' && interest > 0;
-  return `
-      <div class="trip-cell">
-        <div class="trip-cell-label">Debt-free impact</div>
-        <div class="trip-cell-value"${dateStyle}>${dateVal}</div>
-        <div class="trip-cell-sub">${dateSub}</div>
-      </div>
-      <div class="trip-cell">
-        <div class="trip-cell-label">Added interest</div>
-        <div class="trip-cell-value"${hasInterest ? ' style="color:var(--gold)"' : ''}>${hasInterest ? '+' + fmt(interest) : '—'}</div>
-        <div class="trip-cell-sub">${hasInterest ? 'over the payoff' : 'not calculated'}</div>
-      </div>`;
-}
-
-// Phase 5A: fetch the real national-average gas price once per view visit,
-// then re-run the budget calc so the estimate uses it instead of the old
-// hardcoded $3.40. Never blocks the initial render — tripUpdateBudget()
-// falls back to the same $3.40 until this resolves (or forever, if no EIA
-// key is configured — see gas_price.py's honest degrade path).
 async function _loadGasPrice() {
   try {
     _gasPriceData = await API.get('/api/trip/gas-price');
@@ -10517,33 +10292,14 @@ function _renderFundingDetail() {
       ? `<span style="color:var(--pine)">✓ You have ${fmt(surplus)} surplus this month. ${fmt(remaining)} left after the trip.</span>`
       : `<span style="color:var(--ember)">⚠ Trip costs ${fmt(Math.abs(remaining))} more than your monthly surplus.</span>`;
   } else {
-    // Lever 6 (§6.1), from the engine rather than from a division. The line
-    // this replaces divided the trip by the page's "surplus" — the money left
-    // AFTER the debt payment — while the sentence directly above it prices the
-    // same trip against the money going INTO that payment. Two pools, two
-    // answers, one page, and the cheerful one was the one with no cost in it.
-    const plan = _tripImpactData && _tripImpactData.save_first;
-    if (plan && plan.months_to_save) {
-      const m = plan.months_to_save;
-      let out = `Save <strong>${fmt(plan.monthly)}/month</strong> for ${m} month${m!==1?'s':''} `
-        + `out of the money now going to debt — ready by <strong>${_monthsFromNowLabel(m)}</strong>.`;
-      if (plan.months_delta > 0) {
-        // The part the old line left out, and the reason this lever is not
-        // offered as a way to close the gap: saving does not dodge the cost.
-        out += ` Saving first does not shorten the ${plan.months_delta}-month delay — `
-          + `the same money leaves your debt either way — but it is paid for before you go, `
-          + `not out of the months after.`;
-      }
-      detail.innerHTML = out;
-    } else {
-      // No debt to price it against, or the impact has not loaded. The page's
-      // own surplus is the honest pool then: with nothing to pay down, money
-      // set aside costs no months at all.
-      const monthsNeeded = surplus > 0 ? Math.ceil(total / surplus) : '?';
-      const readyDate    = surplus > 0 ? _monthsFromNowLabel(Math.ceil(total / surplus)) : 'unknown';
-      detail.innerHTML = `Save ${fmt(Math.ceil(total/Math.max(1,monthsNeeded)))}/month · ready by `
-        + `<strong>${readyDate}</strong> (${monthsNeeded} month${monthsNeeded!==1?'s':''})`;
-    }
+    // The page's own surplus, which is the honest pool when nothing prices the
+    // trip against debt. Lever 6 - saving out of the money now going to debt -
+    // is Pillar 3's answer and lives in the teaching layer, which replaces
+    // this line when the engine can price it.
+    const monthsNeeded = surplus > 0 ? Math.ceil(total / surplus) : '?';
+    const readyDate    = surplus > 0 ? _monthsFromNowLabel(Math.ceil(total / surplus)) : 'unknown';
+    detail.innerHTML = `Save ${fmt(Math.ceil(total/Math.max(1,monthsNeeded)))}/month · ready by `
+      + `<strong>${readyDate}</strong> (${monthsNeeded} month${monthsNeeded!==1?'s':''})`;
   }
 }
 
@@ -11107,7 +10863,6 @@ function tripUpdateBudget() {
   };
 
   // Pillar 1 impact for this total — debounced, never blocking.
-  _maybeLoadTripImpact(total);
 
   // Render budget cells
   if (calcCard) calcCard.style.display = '';
@@ -11128,8 +10883,7 @@ function tripUpdateBudget() {
         <div class="trip-cell-label">Monthly surplus</div>
         <div class="trip-cell-value" style="color:${surplus>=total?'var(--pine)':'var(--ember)'}">${fmt(surplus)}</div>
         <div class="trip-cell-sub">after debt payment</div>
-      </div>
-      ${_tripImpactCells(_tripImpactData)}`;
+      </div>`;
   }
 
   // Phase 5B: the EIA national average as its own labeled finding, distinct
@@ -11149,93 +10903,12 @@ function tripUpdateBudget() {
     }
   }
 
-  // Payoff impact message
+  // The plain summary. What this costs the payoff date is Pillar 2's
+  // sentence and lives in the teaching layer, which overwrites this line when
+  // the engine has an answer for the trip on screen.
   const impact = g('tripPayoffImpact');
   if (impact) {
-    // Pillar 2's teaching sentence: cause -> effect -> a lever the user controls.
-    // The lever is a number the consequence engine solved for (the smallest
-    // sustained monthly increase that cancels the delay). It deliberately does
-    // NOT name a category — "trim dining $40/mo" needs the Solution Engine to
-    // know dining is flexible for this person, and inventing that is the
-    // fabrication R8 exists to stop. "More toward debt" is still a lever they
-    // control; which envelope it comes from is theirs to choose.
-    //
-    // Rounded UP to the nearest $5: rounding down would state a figure that
-    // does not actually hold the date.
-    const d = _tripImpactData;
-    const lever = (d && typeof d.offsetting_monthly === 'number' && d.offsetting_monthly > 0)
-      ? Math.ceil(d.offsetting_monthly / 5) * 5 : null;
-    if (d && d.base && (d.undated_forgiveness || []).length === 0
-        && typeof d.months_delta === 'number' && d.months_delta > 0) {
-      const base = _monthsFromNowLabel(d.base.months);
-      impact.innerHTML = `This trip moves your debt-free date from <strong>${base}</strong> `
-        + `to <strong>${_monthsFromNowLabel(d.after.months)}</strong> — ${d.months_delta} month`
-        + `${d.months_delta !== 1 ? 's' : ''} later.`;
-      // Pillar 3: the paths, with their costs, so the choice is the user's (E.4).
-      // The generic monthly lever is already one of them, so it is not repeated.
-      const phrases = _tripPathPhrases(d.paths, d.months_delta);
-      if (phrases.length) {
-        const joined = phrases.join('; ');
-        impact.innerHTML += ` ${joined.charAt(0).toUpperCase()}${joined.slice(1)}.`;
-      } else if (lever) {
-        impact.innerHTML += ` Putting <strong>${fmt(lever)}/mo</strong> more toward debt keeps it at ${base}.`;
-      }
-      // §6.4: never a bare "you can't" — when nothing holds the date, say so
-      // bounded to today's numbers rather than as a permanent verdict (App. C).
-      if (d.honest_no) {
-        // C.4: an honest no is never just a no. It carries the nearest lever —
-        // the smallest change that would hold the date — and, when the record
-        // can name money, what that money comes to, so the user can see the
-        // size of the difference rather than guess at it.
-        //
-        // The figure is stated, not urged. It is necessarily larger than what
-        // this user directs at debt today (anything smaller would have closed
-        // the gap as a path, and this branch would not have run), so offering
-        // it would be pushing; saying what the arithmetic requires is not.
-        // Rounded UP for the same reason the lever is: rounded down, it does
-        // not actually hold the date.
-        const hn = d.honest_no;
-        impact.innerHTML += ` On today's numbers nothing holds the date entirely.`;
-        if (hn.nearest_monthly > 0) {
-          const need = Math.ceil(hn.nearest_monthly / 5) * 5;
-          impact.innerHTML += ` The smallest change that would is `
-            + `<strong>${fmt(need)}/mo</strong> more toward debt`
-            + (hn.named_total > 0
-                ? `, against the <strong>${fmt(hn.named_total)}/mo</strong> your record can name.`
-                : `.`);
-        }
-        // Lever 7 (§6.1), and only here. Patience is the answer of last resort:
-        // beside a path that already holds the date it is noise, but beside an
-        // honest no it is the one thing still true. It is not a path — counted
-        // as one it would hold every date ever asked about and leave the honest
-        // no with nothing to say.
-        const dnFar = d.do_nothing;
-        if (dnFar && dnFar.free_from_months > 0) {
-          impact.innerHTML += ` Waiting is the other answer: you are debt-free in `
-            + `<strong>${_monthsFromNowLabel(dnFar.free_from_months)}</strong>, and after `
-            + `that this costs no months at all.`;
-        }
-      }
-    } else if (d && d.base && d.months_delta === 0 && d.interest_delta > 0) {
-      impact.innerHTML = d.base.conditional_on_certification
-        ? `Your payoff date is set by loan forgiveness, so this trip does not move it — it adds `
-          + `<strong>${fmt(d.interest_delta)}</strong> in interest on your other balances.`
-        : `This trip does not move your payoff date. It adds <strong>${fmt(d.interest_delta)}</strong> in interest.`;
-      // Lever 7 (§6.1): do-nothing, quantified. Nothing here needs fixing, and
-      // the proof is the one check a user is most likely to wonder about. The
-      // engine stays quiet when the other order would actually be better —
-      // that case is a path, and saying both would be the software arguing
-      // with itself.
-      const dn = d.do_nothing;
-      if (dn && dn.optimal_order && dn.optimal_order.months_better > 0) {
-        const o = dn.optimal_order;
-        impact.innerHTML += ` Nothing needs to change: your ${esc(o.strategy)} order clears you `
-          + `<strong>${o.months_better} month${o.months_better !== 1 ? 's' : ''}</strong> sooner `
-          + `than ${esc(o.alternative)} would.`;
-      }
-    } else {
-      impact.innerHTML = `Estimated trip cost: <strong>${fmt(total)}</strong>. Your monthly surplus is <strong>${fmt(surplus)}</strong>.`;
-    }
+    impact.innerHTML = `Estimated trip cost: <strong>${fmt(total)}</strong>. Your monthly surplus is <strong>${fmt(surplus)}</strong>.`;
   }
 
   // Show save options
@@ -19653,10 +19326,7 @@ function renderTrophyRoom() {
   const total   = ACHIEVEMENTS.length;
   const pct     = Math.round(earnedN/total*100);
   setText('trophyProgress', `${earnedN} of ${total} achievements earned`);
-  // §12's gate, now pinned: a trophy is its proof (B.3), so the receipts are
-  // fetched before the room renders. Without them every card would be exactly
-  // the generic gamification the Trophy Room exists to stop being.
-  Promise.all([_loadAchievementDates(), _loadTrophyVerdicts()]).then(() => {
+  Promise.all([_loadAchievementDates()]).then(() => {
     _renderTrophyContent(cont, earnedN, total, pct);
     _trophyRenderAdvisorEntry(earnedN);
   });
@@ -19874,65 +19544,6 @@ function _renderTrophyContent(cont, earnedN, total, pct) {
     }).join('')}`;
 }
 
-// The pinned standard, as the room sees it: which trophies are proven, which
-// are waiting on evidence, and which were never trophies (core/trophies.py).
-let _trophyVerdicts = {};
-
-async function _loadTrophyVerdicts() {
-  try {
-    const r = await API.get('/api/trophies');
-    _trophyVerdicts = Object.fromEntries((r.trophies || []).map(t => [t.id, t]));
-    _awardProvenTrophies();
-  } catch (e) {
-    _gwErr('_loadTrophyVerdicts')(e);
-    _trophyVerdicts = {};
-  }
-}
-
-// Award what the ledger proves, and never take anything back.
-//
-// Only ever additive. An unproven trophy is unproven, not false — 1.x awarded
-// these before any receipt existed — and an earned trophy is a receipt of a
-// real past, so nothing here revokes one. The server is the authority on
-// whether the proof exists, because the proof is in the ledger and the ledger
-// is the server's.
-function _awardProvenTrophies() {
-  Object.values(_trophyVerdicts).forEach(v => {
-    if (v.earned === true && v.class !== 'setup' && !S.achievements.has(v.id)) {
-      awardAchievement(v.id);
-    }
-  });
-}
-
-// The receipt, or an honest note about why there isn't one. A trophy awarded
-// before any of this existed is not retroactively false — it is unproven, and
-// saying that is better than either dropping it or dressing it up.
-function _trophyReceipt(id) {
-  const v = _trophyVerdicts[id];
-  if (!v) return '';
-  if (v.class === 'setup') {
-    return `<div style="font-size:10px;color:var(--slate-2);margin-top:5px">Setup step — not an earned trophy.</div>`;
-  }
-  const proof = (v.proof || [])
-    .filter(p => p.value !== null && p.value !== undefined && p.value !== '')
-    .map(p => {
-      const val = p.unit === 'money' ? fmt(p.value)
-                : p.unit === 'percent' ? `${p.value}%`
-                : esc(String(p.value));
-      return `${esc(p.label)}: ${val}`;
-    }).join(' · ');
-
-  if (v.earned === true) {
-    return `<div style="font-size:10px;font-family:var(--font-mono);color:var(--pine);margin-top:5px">
-      ${proof || 'proved by your ledger'}
-    </div>`;
-  }
-  if (v.earned === null) {
-    return `<div style="font-size:10px;color:var(--slate-2);margin-top:5px">${esc(v.reason)}</div>`;
-  }
-  return '';
-}
-
 function _renderAchCard(a) {
   const earned  = S.achievements.has(a.id);
   const dateStr = earned && S.achievementDates?.[a.id]
@@ -19947,7 +19558,7 @@ function _renderAchCard(a) {
     ? `<div style="font-size:11px;color:var(--slate);margin-top:2px">${esc(a.desc)}</div>`
     : `<div style="font-size:11px;color:var(--slate);margin-top:2px">${esc(a.unlockHint || a.desc)}</div>`;
 
-  return `<div class="ach-card ${earned?'ach-card-earned':''} ach-type-${a.type||'discipline'}">
+  return `<div data-ach-id="${a.id}" class="ach-card ${earned?'ach-card-earned':''} ach-type-${a.type||'discipline'}">
     <div style="display:flex;gap:12px;align-items:flex-start">
       <span style="font-size:22px;flex-shrink:0;${earned?'':'opacity:.45'}">${a.icon}</span>
       <div style="flex:1">
@@ -19957,7 +19568,6 @@ function _renderAchCard(a) {
           <div style="font-size:10px;color:var(--pine);margin-top:4px">✓ Earned ${dateStr}</div>
           ${a.behavior ? `<div style="font-size:11px;color:var(--slate);margin-top:5px;font-style:italic;line-height:1.5">${esc(a.behavior)}</div>` : ''}
         ` : ''}
-        ${_trophyReceipt(a.id)}
         ${!earned && prog !== null ? `
           <div style="margin-top:8px">
             <div style="height:3px;background:var(--steel);border-radius:99px;overflow:hidden">
@@ -20066,95 +19676,6 @@ function _bybApplyImpact() {
     && _activeDebtCards().some(c => _cardBal(c) > 0);
 }
 
-// What the engine says about a commitment, in at most two sentences: the price
-// this could cost and still leave the date alone (§6.1's "$220/mo instead of
-// $350"), and the best path that is not about the price — one lever of each
-// kind, the same rule the trip planner follows.
-// Pillar 4 (§7, Appendix D): "you freed $180/mo, this fits." It fires only
-// when the freed capacity actually covers what is being weighed, and only when
-// the freeing was something the user DID — a balance that ran out on its
-// minimums is the expected floor, and D.4 is explicit that praising a floor
-// erodes trust.
-let _bybGreenLight = null;
-
-async function _bybLoadGreenLight() {
-  try {
-    const r = await API.get('/api/debt/green-light');
-    _bybGreenLight = r.green_light || null;
-  } catch (e) {
-    _gwErr('_bybLoadGreenLight')(e);
-    _bybGreenLight = null;
-  }
-}
-
-function _bybGreenLightHTML() {
-  const gl = _bybGreenLight;
-  const monthly = parseFloat(_byb.monthly) || 0;
-  if (!gl || !monthly || monthly > gl.freed_monthly) return '';
-
-  // D.5: name one or two drivers by size, or say plainly that it was diffuse.
-  // Naming the largest and implying it was the whole story is a cherry-pick.
-  const from = gl.diffuse
-    ? 'a lot of small changes'
-    : _joinNames(gl.drivers);
-  // D.5 again: recency governs the tense, not the fact.
-  const lead = gl.fresh
-    ? `You freed <strong style="font-family:var(--font-mono)">${fmt(gl.freed_monthly)}/mo</strong> by clearing ${esc(from)}`
-    : `Your plan now carries <strong style="font-family:var(--font-mono)">${fmt(gl.freed_monthly)}/mo</strong> it did not, from ${esc(from)}`;
-
-  // The half that keeps this from being cheerleading: it fits, AND it spends
-  // what was earned. A green light that only says yes is applause.
-  const worth = gl.months_sooner
-    ? `, capacity worth <strong>${gl.months_sooner} month${gl.months_sooner !== 1 ? 's' : ''}</strong> on your date`
-    : '';
-  return `<div style="font-size:12px;color:var(--pine);line-height:1.8;margin-bottom:10px">
-    ${lead}${worth}. This <strong style="font-family:var(--font-mono)">${fmt(monthly)}/mo</strong>
-    fits inside it, and uses <strong style="font-family:var(--font-mono)">${fmt(monthly)}</strong> of it.
-  </div>`;
-}
-
-function _bybEngineNote() {
-  const eng = _bybEngineData();
-  const m = eng && eng.monthly;
-  if (!m) return _bybGreenLightHTML();
-
-  if (m.honest_no && m.honest_no.unaffordable) {
-    // Not a longer delay — a wall. The number is what makes it payable at all.
-    const cap = m.honest_no.max_payable_monthly;
-    return `<div style="font-size:12px;color:var(--ember);line-height:1.7;margin-bottom:12px">`
-      + (cap
-          ? `At <strong>${fmt(cap)}/mo</strong> or less this stays payable. Above that your `
-            + `minimum payments stop being covered, which is not a later date — it is no date at all.`
-          : `No version of this leaves your minimum payments covered.`)
-      + `</div>`;
-  }
-  if (!m.gap_months || m.gap_months <= 0) return '';
-
-  // The trip line shows two phrases and lets a closing path displace the price
-  // one, because it has a sentence to fit in. This screen has room, and the
-  // price IS the decision here — so the closing path is ADDED rather than
-  // swapped in, and the guard that says never hide a path that actually holds
-  // the date still holds.
-  const paths = m.paths || [];
-  const sub   = paths.find(p => p.kind === 'substitution');
-  const rest  = paths.filter(p => p.kind !== 'substitution');
-  const picks = [];
-  if (rest[0]) picks.push(rest[0]);
-  if (sub) picks.push(sub);
-  if (!picks.some(p => p.closes)) {
-    const closer = paths.find(p => p.closes);
-    if (closer && picks.indexOf(closer) === -1) picks.push(closer);
-  }
-  const phrases = picks
-    .map(p => _tripPathPhrases([p], m.gap_months, '/mo')[0])
-    .filter(Boolean);
-  if (!phrases.length) return _bybGreenLightHTML();
-  const joined = phrases.join('; ');
-  return _bybGreenLightHTML()
-    + `<div style="font-size:12px;color:var(--slate);line-height:1.7;margin-bottom:12px">`
-    + `${joined.charAt(0).toUpperCase()}${joined.slice(1)}.</div>`;
-}
-
 const _byb = {
   type:        'vehicle',    // vehicle | subscription | purchase | other
   subtype:     'lease',      // lease | loan (vehicle only)
@@ -20239,8 +19760,6 @@ function openBYBWizard() {
   _bybImpactData = null;
   _bybImpactKey  = '';
   _maybeLoadBYBImpact();
-  _bybLoadMemory().then(() => _bybLiveUpdate());
-  _bybLoadGreenLight();
 
   // Show step 1
   _bybGoStep(1, true);
@@ -20377,16 +19896,6 @@ function _bybLiveUpdate() {
       : (pending || _byb.origInsufficient) ? 'var(--gold)'
       : (monthsDiff > 0 ? 'var(--ember)' : 'var(--pine)');
   }
-
-  // Pillar 5's other half, where it corrects the number being typed rather
-  // than commenting on the person typing it.
-  let bias = g('bybEstimateBias');
-  if (!bias && prev) {
-    bias = document.createElement('div');
-    bias.id = 'bybEstimateBias';
-    prev.appendChild(bias);
-  }
-  if (bias) bias.innerHTML = _bybEstimateBiasNote();
 }
 
 // ── What's Left (current real) ────────────────────────────────────────────────
@@ -20747,7 +20256,7 @@ function _bybBuildComparison() {
     </div>
 
     <!-- Change from original -->
-    <div style="font-size:12px;color:var(--slate);margin-bottom:12px;line-height:1.8">
+    <div id="bybChangeFromOriginal" style="font-size:12px;color:var(--slate);margin-bottom:12px;line-height:1.8">
       ${_byb.monthly > 0 ? `<div>Monthly cost: <span style="font-family:var(--font-mono);color:var(--ember)">+${fmt(_byb.monthly)}/mo</span>${replCard ? ` (replacing ${fmt(replMin)}/mo → net <span style="font-family:var(--font-mono)">${fmt(_byb.monthly - replMin)}/mo more</span>)` : ''}</div>` : ''}
       ${budgetInsufficient ? `<div style="color:var(--ember);font-weight:500">This payment would leave you unable to cover your current minimum debt payments. The numbers above reflect that — this isn't a "sooner" outcome, it's not affordable at these amounts.</div>` : ''}
       ${!budgetInsufficient && _byb.origInsufficient ? `<div style="color:var(--gold);font-weight:500">Your current budget doesn't cover your minimum debt payments, so there's no valid before-and-after comparison to show. The date above is what this plan produces on its own.</div>` : ''}
@@ -20757,7 +20266,6 @@ function _bybBuildComparison() {
       ${loanPayoffNote}
     </div>
 
-    ${_bybEngineNote()}
 
     <!-- Fix 2: What if I waited? -->
     ${waitSection}
@@ -26820,60 +26328,6 @@ async function _loadBYBItems() {
   }
   _renderBYBList();
 }
-// Pillar 5 (§7): the memory. These decisions have been logged since Phase H1
-// and nothing has ever read them back.
-//
-// Two sentences, deliberately in different places. Estimate bias belongs where
-// a number is being typed, because it corrects that number. The walkaway record
-// belongs in the history, not in the middle of a decision — the same fact reads
-// as a receipt in one place and as a nudge in the other, and this app does not
-// nudge.
-let _bybMemoryData = null;
-
-async function _bybLoadMemory() {
-  try {
-    _bybMemoryData = await API.get('/api/byb/memory');
-  } catch (e) {
-    _gwErr('_bybLoadMemory')(e);
-    _bybMemoryData = null;
-  }
-}
-
-function _bybMemoryHTML() {
-  const m = _bybMemoryData;
-  if (!m || !m.decisions) return '';
-  const parts = [];
-
-  // A count is a receipt at any size; a RATE needs enough decisions to be one,
-  // and the reader withholds it below three rather than dressing two up as a
-  // pattern. Either way this is a record and never a prediction: what someone
-  // did is theirs, what they will do is nobody's to state.
-  parts.push(`You have decided <strong>${m.decisions}</strong> of these`
-    + ` — <strong>${m.commits}</strong> committed, <strong>${m.walkaways}</strong> walked away`
-    + (m.walkaway_rate_pct != null ? ` (${m.walkaway_rate_pct}%)` : '') + `.`);
-
-  if (m.estimate && m.estimate.direction !== 'even') {
-    const e = m.estimate;
-    parts.push(` Across the ${e.samples} you priced afterwards, the real cost came in`
-      + ` <strong>${Math.abs(e.bias_pct)}%</strong> ${e.direction === 'under' ? 'above' : 'below'}`
-      + ` your estimate.`);
-  }
-  return `<div class="card mb-3" style="font-size:12px;color:var(--slate);line-height:1.8">
-    ${parts.join('')}
-  </div>`;
-}
-
-// The estimate-bias half, for the step where the estimate is typed.
-function _bybEstimateBiasNote() {
-  const e = _bybMemoryData && _bybMemoryData.estimate;
-  if (!e || e.direction === 'even') return '';
-  const over = e.direction === 'under';
-  return `<div style="font-size:11px;color:var(--slate-2);line-height:1.6;margin-top:6px">
-    Your last ${e.samples} priced purchases came in
-    <strong>${Math.abs(e.bias_pct)}%</strong> ${over ? 'above' : 'below'} what you estimated.
-  </div>`;
-}
-
 function _renderBYBList() {
   const cont = g('bybContent');
   if (!cont) return;
@@ -26974,14 +26428,6 @@ function _renderBYBList() {
     ${section('Committed', committed)}
     ${section('Tracking', tracked)}
     ${section('Walked away', walkedAway)}`;
-
-  // Pillar 5: the record, above the items it is drawn from. Fetched once and
-  // re-rendered when it lands; the guard is on the data, so this cannot loop.
-  if (_bybMemoryData === null) {
-    _bybLoadMemory().then(() => { if (_bybMemoryData) _renderBYBList(); });
-  } else {
-    cont.insertAdjacentHTML('afterbegin', _bybMemoryHTML());
-  }
 }
 
 // Tracker — adapt to existing HTML IDs (monthSelect, trackerProgress etc)

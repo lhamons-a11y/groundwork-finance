@@ -122,49 +122,54 @@ def run(ctx):
           dt['months_delta'] == 0 and dt['interest_delta'] > 0)
 
     # ── The trip planner's wiring ───────────────────────────────────────────
-    app_src = ctx.app_src
+    # app.js plus the teaching modules. These ask what the trip planner DOES,
+    # and the causal half of it now lives behind the seam - where the code sits
+    # is s30's question, not this one.
+    _teaching_dir = ctx.BASE / 'static' / 'js' / 'teaching'
+    view = ctx.app_src + chr(10) + chr(10).join(
+        f.read_text(encoding='utf-8') for f in sorted(_teaching_dir.glob('*.js')))
     # The old heuristic must be gone from the CODE. It is still quoted in a
     # comment explaining what replaced it, which is worth keeping — so this
     # ignores comment lines rather than matching the file as one string.
-    code_lines = [ln for ln in app_src.splitlines() if not ln.lstrip().startswith('//')]
+    code_lines = [ln for ln in view.splitlines() if not ln.lstrip().startswith('//')]
     heuristic_live = any('(total / income) * 30' in ln for ln in code_lines)
     check('the trip planner calls the engine instead of computing its own figure',
-          '_maybeLoadTripImpact' in app_src
-          and "API.post('/api/debt/decision-impact'" in app_src
+          '_maybeLoadTripImpact' in view
+          and "API.post('/api/debt/decision-impact'" in view
           and not heuristic_live)
     check('the impact fetch is debounced, like the distance fetch on the same page',
-          '_tripImpactTimer' in app_src and '_tripImpactKey' in app_src)
+          '_tripImpactTimer' in view and '_tripImpactKey' in view)
     check('both costs are rendered — date and interest as separate cells',
-          "'Debt-free impact'" in app_src.replace('"', "'")
-          or 'Debt-free impact' in app_src)
+          "'Debt-free impact'" in view.replace('"', "'")
+          or 'Debt-free impact' in view)
     check('the interest cell exists, so a date that does not move cannot read as free',
-          'Added interest' in app_src)
+          'Added interest' in view)
     check('an undated forgiveness loan blocks the date cell rather than filling it',
-          'undated_forgiveness' in app_src)
+          'undated_forgiveness' in view)
     # "no change" must not be green: it is the absence of one cost, not good news,
     # and colouring it green is the same flattery-toward-spending the old
     # heuristic had.
-    i = app_src.find("dateVal = 'no change'")
+    i = view.find("dateVal = 'no change'")
     check('"no change" is not styled as a positive outcome',
-          i != -1 and 'var(--pine)' not in app_src[i:i + 400])
+          i != -1 and 'var(--pine)' not in view[i:i + 400])
 
     # ── Pillar 2: the sentence ends in a lever ──────────────────────────────
     st, dl = impact(one_time_cost=2400)
     check('the endpoint returns a solved lever alongside the costs',
           isinstance(dl.get('offsetting_monthly'), (int, float)))
     check('the teaching sentence ends in a lever the user controls',
-          'offsetting_monthly' in app_src and 'more toward debt keeps it at' in app_src)
+          'offsetting_monthly' in view and 'more toward debt keeps it at' in view)
     # What matters is the RENDERED sentence, not the prose around it — the
     # comment there deliberately quotes "trim dining $40/mo" to explain what is
     # not being done. So this inspects the template literal, not the region.
-    lever_tpl = [ln for ln in app_src.splitlines() if 'more toward debt keeps it at' in ln]
+    lever_tpl = [ln for ln in view.splitlines() if 'more toward debt keeps it at' in ln]
     check('the lever template interpolates only the amount and the date',
           len(lever_tpl) == 1
           and lever_tpl[0].count('${') == 2
           and 'category' not in lever_tpl[0].lower())
     # Rounding DOWN would state a figure that does not hold the date.
     check('the displayed lever rounds up, never down',
-          'Math.ceil(d.offsetting_monthly / 5)' in app_src)
+          'Math.ceil(d.offsetting_monthly / 5)' in view)
 
     # Pillar 3 reaches the surface. Clear the PSLF state first: the checks above
     # leave the loan forgiveness-bound, where the date does not move at all — so
@@ -179,11 +184,11 @@ def run(ctx):
     check('the endpoint returns solution paths alongside the costs',
           isinstance(dp.get('paths'), list) and dp['paths'])
     check('the trip planner renders the paths, not just the single lever',
-          '_tripPathPhrases' in app_src and 'd.paths' in app_src)
+          '_tripPathPhrases' in view and 'd.paths' in view)
     check('the view keeps a closing path rather than showing two partial ones',
-          'picked.some(p => p.closes)' in app_src)
+          'picked.some(p => p.closes)' in view)
     check("an unreachable gap says so, bounded to today's numbers",
-          "On today's numbers nothing holds the date" in app_src)
+          "On today's numbers nothing holds the date" in view)
 
     # If node is here, run the real differential against app.js itself.
     try:
