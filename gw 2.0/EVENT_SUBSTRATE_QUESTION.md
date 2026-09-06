@@ -2,7 +2,8 @@
 
 **An open decision with a migration attached**
 
-> Status: **Question, not a proposal.** Written 2026-09-06, pulled out of the healthcare
+> Status: **Largely answered 2026-09-06** — see "Structure versus event" below. What remains
+> is one schema question. Originally written as an open architecture decision. Written 2026-09-06, pulled out of the healthcare
 > reviews because it is not a healthcare decision. It touches shipped code, real user data, and
 > the LTS line, and it should not be settled inside a document about medical bills.
 >
@@ -79,6 +80,64 @@ Which makes the answer cheaper than it looks: **B is currently true of exactly o
 Small enough to move if the decision goes the other way — and worth confirming before anything
 is designed around it.
 
+## Largely answered by the code — structure versus event
+
+The preference is to put things in the historian wherever that is safe and logical. The
+codebase already shows where that line falls, in one function, seven lines apart
+(`create_debt_ledger_entry`):
+
+```python
+session.add(CheckingTransactionLink(        # the STRUCTURE - real foreign keys
+    checking_transaction_id=linked_txn_id,
+    debt_ledger_entry_id=entry.id,
+    user_confirmed_at=datetime.utcnow()))
+...
+log_historian_event(                        # the EVENT - what happened
+    session, 'charge_observation', ...,
+    context={'merchant': ..., 'entry_id': entry.id})
+```
+
+> **Structure goes in a table with foreign keys. Events go in the historian.**
+
+So a healthcare payment is recorded in the historian *as an event*, and its *attachment to an
+obligation* lives in a link table — which is not a new pattern, only the existing one pointed at
+a new object. **That answers the pre-registered failure criterion at zero**: if relationships
+live in link tables, none of them need to be inside `context_json`, and the historian is never
+asked to carry what it cannot enforce.
+
+### A JSON file is not the alternative
+
+For financial relationships a file on disk is **worse** than `context_json`, not better — it
+sits outside the transaction, outside backup and restore consistency, cannot be joined, and
+carries no integrity at all. The precedent in this codebase is `voice_miss_log.jsonl`, and the
+code's own docstring places it there *"not `historian_entries`"* precisely because it is
+append-only telemetry that nothing references. **That is the right use for a JSON file: things
+nothing depends on.** A payment attachment is the opposite of that.
+
+### The latent defect this uncovered, in shipped code
+
+`entry_id` is already written into `context_json` in three places with **no foreign key**, and
+debt ledger entries are deletable. Delete one and the historian keeps a `charge_observation`
+pointing at a row that no longer exists.
+
+Nothing dereferences those references today — they are written for forensics and never read —
+so this is latent rather than broken. **Healthcare would be the first consumer to dereference
+them**, for a figure that reaches a tax report, which is exactly what converts a harmless smell
+into a wrong number.
+
+### What is left of the question
+
+Only one piece, and it is much smaller than the original framing. A historian event about a
+healthcare obligation still needs to *say which obligation*, and `historian_entries` has foreign
+keys only for `debt_account_id` and `category_id`. So:
+
+> **Does `historian_entries` gain one foreign key per referable entity, or a single polymorphic
+> pair (`entity_type`, `entity_id`)?**
+
+Both keep relationships out of the blob. Neither requires replacing the table. That is a schema
+question with a small migration, not an architecture project — which is a considerably cheaper
+place to have arrived than where this note started.
+
 ## The three options
 
 **Extend in place.** Add columns and foreign keys to `historian_entries`, keep the variance
@@ -133,6 +192,11 @@ be fond of it.
 > **The historian fails the experiment if carrying the fixture requires more than two structural
 > relationships to live inside `context_json`, or if any read path must parse JSON to enforce an
 > invariant.**
+
+**Provisionally met at zero**, on the structure-versus-event split above: relationships live in
+link tables with foreign keys, so none needs to be in the blob. The criterion stays written down
+because the slice has not been built yet, and a criterion that is retired the moment it looks
+satisfied was never a criterion.
 
 The rule behind it, worth keeping regardless of how the experiment lands:
 
