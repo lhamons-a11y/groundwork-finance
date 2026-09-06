@@ -5,9 +5,13 @@ from a GW LTS build by path, not by runtime flag, so an LTS build does not
 contain it. Three things have to hold for that to be true rather than
 aspirational, and all three are checked here.
 
-This section is master-only on purpose. On lts/1.x the directory it guards does
-not exist, so there is nothing to exclude and nothing to check - which is the
-kind of thing the old shared append anchor in smoke_test.py could not express.
+This ran on master only while lts/1.x was a separate code line, because the
+directory it guards did not exist there. It does now: master merged into
+lts/1.x and the two are the same tree, so which product a build is comes from
+GW_PRODUCT and nothing else. That makes this section MORE load-bearing rather
+than less. The teaching layer now sits in the release line's own checkout, and
+the only thing keeping it out of an LTS build is the path strip these checks
+verify.
 """
 import re
 import shutil as _shutil

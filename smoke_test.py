@@ -2158,9 +2158,10 @@ def main():
     # both grew test sections at the same line, and every forward-merge
     # collided there - twice in one evening, once needing a renumber.
     #
-    # It also means a section can be line-specific. The teaching-layer checks
-    # exist only on master because that file exists only on master; nothing
-    # needs excluding on lts/1.x, because there is nothing there to exclude.
+    # It also meant a section could be line-specific, which mattered while
+    # lts/1.x and master carried different files. They no longer do - master
+    # merged into lts/1.x, the trees are identical, and the product line is
+    # GW_PRODUCT at build time rather than a branch. Every section runs on both.
     _run_sections(SimpleNamespace(
         check=check, BASE=BASE, TMP=Path(_TMP), c=c, H=H, HJ=HJ, dbs=_dbs,
         server_src=server_src, app_src=app_src, html_src=html_src,
