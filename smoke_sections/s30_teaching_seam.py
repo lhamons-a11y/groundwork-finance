@@ -13,6 +13,84 @@ import re
 import shutil as _shutil
 from pathlib import Path
 
+_DEF_FN = re.compile(r'function\s+([A-Za-z_$][\w$]*)\s*\(')
+_DEF_VAR = re.compile(r'(?:let|const|var)\s+([A-Za-z_$][\w$]*)\s*=')
+_DEF_WIN = re.compile(r'window\.([A-Za-z_$][\w$]*)\s*=')
+_CALL = re.compile(r'(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(')
+
+_JS_KEYWORDS = {
+    'if', 'for', 'while', 'switch', 'catch', 'function', 'return', 'typeof',
+    'new', 'else', 'do', 'try', 'throw', 'delete', 'void', 'in', 'of', 'var',
+    'let', 'const', 'await', 'yield', 'instanceof',
+}
+_JS_GLOBALS = {
+    'JSON', 'Math', 'Object', 'Array', 'Number', 'String', 'Date', 'Promise',
+    'Set', 'Map', 'parseFloat', 'parseInt', 'isNaN', 'isFinite', 'setTimeout',
+    'clearTimeout', 'setInterval', 'clearInterval', 'document', 'window',
+    'console', 'decodeURIComponent', 'encodeURIComponent', 'Error', 'fetch',
+    'alert', 'confirm', 'requestAnimationFrame',
+    'GWTeaching',   # the seam's own namespace, defined by teaching/index.js
+    'API',          # app.js's fetch wrapper, reached as a bare global
+}
+
+
+def _code_only(src):
+    """The executable characters of a JS source; comments and string TEXT gone.
+
+    Regexes fail this in both directions and both mattered. Prose inside a
+    comment - "an LTS build (2.0)" - reads as a call to build(), which is how
+    the first version of this check reported four dependencies that did not
+    exist. And a template literal carries real calls inside its ${...}, so
+    dropping templates whole hides the very dependencies being looked for -
+    which is how the second version reported four modules borrowing less than
+    they do. Interpolations are kept, recursively; everything quoted is not.
+    """
+    ESC = '\\'
+    out = []
+    i, n = 0, len(src)
+    while i < n:
+        two = src[i:i + 2]
+        if two == '//':
+            j = src.find('\n', i)
+            i = n if j < 0 else j
+            continue
+        if two == '/*':
+            j = src.find('*/', i + 2)
+            i = n if j < 0 else j + 2
+            continue
+        ch = src[i]
+        if ch in ('"', "'"):
+            i += 1
+            while i < n and src[i] != ch:
+                i += 2 if src[i] == ESC else 1
+            i += 1
+            continue
+        if ch == '`':
+            i += 1
+            while i < n:
+                if src[i] == ESC:
+                    i += 2
+                    continue
+                if src[i] == '`':
+                    i += 1
+                    break
+                if src[i:i + 2] == '${':
+                    depth, i = 1, i + 2
+                    start = i
+                    while i < n and depth:
+                        if src[i] == '{':
+                            depth += 1
+                        elif src[i] == '}':
+                            depth -= 1
+                        i += 1
+                    out.append(' ' + _code_only(src[start:i - 1]) + ' ')
+                    continue
+                i += 1
+            continue
+        out.append(ch)
+        i += 1
+    return ''.join(out)
+
 
 def run(ctx):
     check, BASE, c, H = ctx.check, ctx.BASE, ctx.c, ctx.H
@@ -128,3 +206,35 @@ def run(ctx):
     if len(set(_prefixes.values())) != 1:
         for k, v in _prefixes.items():
             print(f'        {k}: {v}')
+
+    # (5) The other end of the one-way dependency. Checks (1) and (1b) enforce
+    # that app.js does not reach into teaching; nothing yet checks that what
+    # teaching reaches for is still there. A helper renamed in app.js breaks
+    # every module that borrowed it, at page load, with a ReferenceError - and
+    # only in a 2.0 build, since the LTS line does not carry these files and
+    # would never fail. Silent in the suite, silent in LTS, loud only in front
+    # of a 2.0 user.
+    _app_code = _code_only(app_src)
+    _app_defs = (set(_DEF_FN.findall(_app_code)) | set(_DEF_VAR.findall(_app_code))
+                 | set(_DEF_WIN.findall(_app_code)))
+    _borrowed, _dangling = set(), {}
+    for _mod in sorted(_teaching_dir.glob('*.js')):
+        if _mod.name == 'index.js':
+            continue          # the namespace itself, and it borrows nothing
+        _src = _code_only(_mod.read_text(encoding='utf-8'))
+        _local = set(_DEF_FN.findall(_src)) | set(_DEF_VAR.findall(_src))
+        _ext = set(_CALL.findall(_src)) - _local - _JS_KEYWORDS - _JS_GLOBALS
+        _borrowed |= _ext & _app_defs
+        if _ext - _app_defs:
+            _dangling[_mod.name] = sorted(_ext - _app_defs)
+    check('every app.js global the teaching modules call is still defined in app.js',
+          not _dangling)
+    for _name, _missing in _dangling.items():
+        print(f'        {_name} calls, and app.js no longer defines: '
+              + ', '.join(_missing))
+    # Worth printing on the way past: this set is the seam's real surface area,
+    # and it is small on purpose. A module reaching for a dozen app.js internals
+    # is coupling, not borrowing.
+    check('and that borrowed surface stays small (formatting and fetch helpers)',
+          len(_borrowed) <= 8)
+    print('        teaching borrows from app.js: ' + (', '.join(sorted(_borrowed)) or 'nothing'))
