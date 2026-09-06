@@ -894,9 +894,11 @@ compute the particular case and tells consumers to see a lawyer.
 **So the app does three things, and none of them is a legal conclusion.**
 
 1. **It says the general fact, unattached.** Once, plainly, wherever a collections account is
-   recorded: *debts have a statute of limitations, and in many states a payment or a new
-   agreement can restart it.* Not "your debt" — debts. That sentence is published by the CFPB
-   and carries no arithmetic.
+   recorded: *debts have a limitation period, and in many states a payment or a new agreement
+   can restart it — and how long anything can be pursued depends on the state, the kind of
+   debt, and who is owed. Debts owed to public institutions can follow very different rules,
+   sometimes for decades.* Not "your debt" — debts. No numbers, because §8.2b shows what a
+   number would do.
 2. **It names who answers the question.** The CFPB's own page, legal aid, a non-profit credit
    counsellor. A referral is not advice; declining to answer while saying who can is the most
    honest thing available.
@@ -927,6 +929,11 @@ sentence:
 > no way to know whether you do.** If it looks wrong — the amount, the account, or the fact of
 > it — that is a question for a lawyer or a non-profit credit counsellor, and not for this app.
 > A collector can also be asked in writing to verify a debt; the CFPB explains how.
+>
+> How long something can be pursued depends on the state, the kind of debt, and who is owed.
+> Debts owed to public institutions — a state university hospital, for instance — can follow
+> very different rules from ordinary consumer debts, sometimes for decades. An old debt is not
+> automatically a closed one.
 
 Three things that phrasing is doing.
 
@@ -954,6 +961,50 @@ them is solved by saying the premise out loud.
 considering and the app prices it. It does not generate the amount, for the reason in §7.3: a
 figure the app produces for a negotiation is a position, and a figure the user types is a
 question. The calculator answers questions.
+
+### 8.2b Why the app will never generalise about this — the Ohio case
+
+The strongest argument for §0.3 is not a principle. It is an example.
+
+A patient treated at an Ohio public university medical centre owes money to a **state
+institution**, and that debt does not behave like ordinary consumer medical debt.
+
+- Under **ORC 131.02**, an amount payable to the state that goes unpaid for forty-five days
+  **must** be certified to the Ohio Attorney General, whose Collections Enforcement Section
+  names *state university medical debt* among the categories it handles.
+- And the statute's cancellation provision reads: *"The attorney general shall cancel or cause
+  to be canceled an unsatisfied claim on the date that is **forty years** after the date the
+  claim is certified."*
+
+**Forty years.** Not three, not six, and not the seven that almost everyone assumes.
+
+That last number is worth naming because the mistake is so common: **seven years is the
+credit-reporting window under the FCRA — how long an item may appear on a credit report — and
+it has never been a limit on collection.** Two different clocks, routinely confused, and the
+confusion runs in the dangerous direction: people believe a debt is gone when it is not.
+
+Now consider what a well-meaning general statement would have done. *"Debts usually become
+unenforceable after three to six years"* is broadly accurate, is what most sources say, and for
+this user is **wrong by an order of magnitude** — and wrong in the direction that leads someone
+to ignore something they cannot afford to ignore.
+
+**This is the whole case for §0.3 in one example.** The app cannot compute a limitation period,
+and the reason is not squeamishness about lawyers. It is that the correct answer depends on the
+state, the kind of debt, the kind of creditor, and whether that creditor is an arm of a
+government — and any generalisation the app offers will be confidently wrong for somebody.
+
+**What this changes in the wording.** The general sentence must not imply a timetable it cannot
+honour. So it says that the rules vary and names the axis that matters most, without numbers
+and without a table:
+
+> How long something can be pursued depends on the state, the kind of debt, and who is owed.
+> Debts owed to public institutions — a state university hospital, for instance — can follow
+> very different rules from ordinary consumer debts, sometimes for decades.
+
+That is true everywhere, warns in the right direction, names the category most likely to
+surprise someone, and does not rot. **Ohio is not named in the product.** Naming one state's
+rule would imply the absence of others, and the next exception — a different state, a different
+kind of public institution — would be the one nobody had written down.
 
 ### 8.3 What may be stated as fact — and the thing that is not law
 

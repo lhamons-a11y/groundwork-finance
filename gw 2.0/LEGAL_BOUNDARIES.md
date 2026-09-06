@@ -48,6 +48,25 @@ state, applying a limitation period and concluding "your debt may be time-barred
 textbook wrong side of that line. The CFPB itself publishes the general rule and then tells
 consumers to see a lawyer; a personal finance app has no standing the regulator lacks.
 
+**The example that settles it.** A patient treated at an Ohio public university medical centre
+owes a *state institution*. Under ORC 131.02 an amount payable to the state that is unpaid for
+forty-five days must be certified to the Ohio Attorney General — whose Collections Enforcement
+Section names state university medical debt explicitly — and the statute's own cancellation
+provision is that the AG cancels an unsatisfied claim **forty years** after certification.
+
+Forty. Against that, the well-meaning general sentence — *"debts usually become unenforceable
+after three to six years"* — is wrong by an order of magnitude, and wrong in the direction that
+tells someone to ignore what they cannot afford to ignore. Worth noting the near-universal
+confusion it sits next to: **seven years is the FCRA credit-reporting window, not a limit on
+collection.** Two clocks, routinely mistaken for one.
+
+This is the argument for §0.3 in a single case. The correct answer depends on the state, the
+debt, the creditor, and whether that creditor is an arm of a government — and any
+generalisation the software offers will be confidently wrong for somebody. So it does not
+generalise: it says the rules vary, names public institutions as the category most likely to
+surprise, gives no numbers, and points onward. Ohio is not named in the product, because naming
+one state's exception implies there are no others.
+
 **Settled in the design** as §0.3: general fact unattached, a referral to who answers it, and
 arithmetic on the user's own money. No state-law tables — they rot, and stale legal data is
 worse than none.
