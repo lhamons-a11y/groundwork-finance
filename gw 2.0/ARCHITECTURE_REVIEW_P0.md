@@ -160,6 +160,74 @@ on whether the user typed the designation.
 
 ---
 
+## 2b. Where the next pass starts — the classifier creates sensitivity
+
+Refines P0-1 and P0-3 together, and it is the point neither of them quite reached.
+
+**A classifier does not merely interpret an existing fact. It can create a derived fact whose
+semantic category is more sensitive than any source fact had.** That is what makes it different
+in kind from a formatting or categorisation helper, and it is why the classifier is a
+privacy-sensitive subsystem rather than a convenience.
+
+The dangerous sequence is one arrow long:
+
+```text
+bank transaction → classifier → "health-related" → stored as fact
+                                                        ↓
+                          downstream systems treat it as established reality
+```
+
+The last arrow is the whole problem, because two claims are being collapsed there:
+
+> *"The available evidence supports this classification."*
+> *"This transaction proves this health fact about the user."*
+
+The classifier may establish the first. It has not established the second, and a stored boolean
+cannot tell them apart — which is principle 1's fact/interpretation fusion, arriving where the
+consequences are highest.
+
+**So the classifier's output is not binary.** Something closer to:
+
+```text
+SUPPORTED_SIGNAL · POSSIBLE_SIGNAL · NOT_SUPPORTED · UNKNOWN
+```
+
+which is principle 3 applied to interpretation rather than to amounts: until evidence
+establishes otherwise, an unresolved interpretation stays unresolved rather than being forced
+into a factual state a consumer finds convenient.
+
+### Three layers, and the classifier is not the policy engine
+
+| Layer | Answers |
+|---|---|
+| **Classifier** | What does the evidence support? |
+| **Sensitivity** | What *kind of information* would this create? |
+| **Policy** | What may the application do with it? |
+
+The same separation again, at the point where getting it wrong costs the most.
+
+### Fail-closed at the boundary, not globally
+
+Global fail-closed would be disastrous for a general-purpose finance application — most
+categories are unknown, and protecting all of them disables §6.1 outright. The burden changes
+only once the system recognises that a derived value **could cross into a protected domain**.
+Then the correct posture is not *"unsure, so treat it as ordinary finance data"* but:
+
+> *This interpretation may create health-domain information, so it is not exposed or propagated
+> beyond the boundary unless the evidence and the rule permit it.*
+
+### The hard requirement before any of it is built
+
+> **Every derived sensitive classification carries provenance back to its source evidence and
+> the rule that produced it** — source evidence, determination date, classifier/rule version,
+> status, supersession history.
+
+Not `health = true`. Without it this is exactly the C1 defect the necessity floor just
+demonstrated, except the thing made unreproducible is **sensitive derived information about a
+person** rather than a budget verdict.
+
+**The classifier stays unbuilt until this boundary is settled.**
+
 ## 3. Priority contradiction
 
 ### Finding
