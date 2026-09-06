@@ -1456,6 +1456,16 @@ def get_budget_items():
 @require_json
 def create_budget_item():
     body = request.json
+    # Named before use. body['type'] on a request missing it is a KeyError, and
+    # a KeyError here is a 500 - the app telling a caller it broke when what
+    # happened is that the caller left a field out.
+    for field in ('type', 'name', 'amount'):
+        if body.get(field) in (None, ''):
+            return err(f'{field} is required')
+    try:
+        amount = float(body['amount'])
+    except (TypeError, ValueError):
+        return err('amount must be a number')
     with db_session() as session:
         cat_name = (body.get('category') or '').strip()
         if cat_name:
@@ -1473,7 +1483,7 @@ def create_budget_item():
         item = BudgetItem(
             type=body['type'],
             name=body['name'],
-            amount=float(body['amount']),
+            amount=amount,
             category=cat_name,
         )
         session.add(item)
@@ -1568,14 +1578,27 @@ def get_active_plan():
 @require_json
 def create_plan():
     body = request.json
+    # Before the deactivation below, not after. This route retires the current
+    # plan first and builds the new one second, so a missing field raised after
+    # the retirement - and the only reason it did not cost anyone their active
+    # plan is that the session is closed without a commit on the way out.
+    # Validating first means not relying on that.
+    for field in ('goal_amount', 'goal_months', 'start_month'):
+        if body.get(field) in (None, ''):
+            return err(f'{field} is required')
+    try:
+        goal_amount = float(body['goal_amount'])
+        goal_months = int(body['goal_months'])
+    except (TypeError, ValueError):
+        return err('goal_amount and goal_months must be numbers')
     with db_session() as session:
         # Deactivate any existing plan
         for old in session.query(BudgetPlan).filter_by(is_active=True).all():
             old.is_active = False
 
         plan = BudgetPlan(
-            goal_amount=float(body['goal_amount']),
-            goal_months=int(body['goal_months']),
+            goal_amount=goal_amount,
+            goal_months=goal_months,
             start_month=body['start_month'],
         )
         session.add(plan)
@@ -2798,6 +2821,8 @@ def list_debt():
 @require_json
 def create_debt():
     body = request.json
+    if not (body.get('name') or '').strip():
+        return err('name is required')
     with db_session() as session:
         start_date = None
         if body.get('start_date'):
@@ -5919,6 +5944,8 @@ def create_byb_item():
         decision  = body.get('decision')
         if decision not in (None, 'commit', 'track', 'walkaway'):
             return err("decision must be 'commit', 'track', or 'walkaway'")
+        if not (body.get('name') or '').strip():
+            return err('name is required')
         item = BYBItem(
             item_type        = body.get('type', 'other'),
             name             = body['name'],
@@ -7988,6 +8015,14 @@ def bank_import_commit():
     records    = body.get('records', [])
     account_id = body.get('account_id')
     acct_name  = body.get('account_name', 'Imported').strip()
+
+    # Nothing to import is not an import. Without this, a commit carrying no
+    # records still falls through to the account resolution below, finds no
+    # account_id and no account_name, and creates one called "Imported" - so a
+    # failed or empty import leaves a stray empty account behind on the
+    # accounts page, with nothing in it to explain where it came from.
+    if not records:
+        return err('no records to import')
 
     # d21: insert in true chronological order so same-day Ledger order and
     # id-based tiebreaks reflect what actually happened at the bank.
