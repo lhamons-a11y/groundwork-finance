@@ -4,8 +4,8 @@
 
 > Status: **Draft for decision. Nothing built.** Written 2026-09-05 against the real 2.0
 > codebase. Companion to `GW_2.0_TEACHING_PLATFORM_BLUEPRINT.md`; constrained by
-> `CALCULATION_PLACEMENT.md` (where the math lives) and `MODEL_PLACEMENT.md` (what the
-> narrator may say). Research current as of this date; the three findings in §2 changed
+> `CALCULATION_PLACEMENT.md` (where the math lives), `MODEL_PLACEMENT.md` (what the narrator
+> may say) and `LEGAL_BOUNDARIES.md` (what the software may do at all — §0.3 came out of it). Research current as of this date; the three findings in §2 changed
 > the shape of this proposal from what was first sketched.
 
 ---
