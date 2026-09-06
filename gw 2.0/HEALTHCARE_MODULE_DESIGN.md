@@ -93,6 +93,38 @@ implication.
 So the debt-free date is not the ruler for healthcare. **Capacity is**, and Pillar 4 already
 computes it.
 
+### §0.2 The words: healthcare cost, never medical debt
+
+The vocabulary is doctrine here, not interface copy, because the wrong word does the same
+work as the wrong sentence.
+
+> **It is a healthcare cost. It is never medical debt.**
+
+"Medical debt" frames getting well as a financial failure — a hole the person fell into and
+should climb out of. That framing is wrong on the facts. Being healthy, physically and
+mentally, is something people at every age should be doing, and in the United States doing it
+costs money. **The cost is a fact about the system, not a verdict on the person**, and the
+word "debt" quietly assigns the verdict.
+
+This is the same rule as §0.1 arriving one layer lower. §0.1 stops the app *saying* care
+delayed your freedom; §0.2 stops it *implying* the same thing through a noun.
+
+Three consequences worth writing down:
+
+- **Mental health is healthcare, and the floor must say so explicitly.** Therapy, counselling
+  and psychiatric care are the categories a naive budgeting app is most likely to flag as
+  optional spending, because they are recurring, discretionary-looking and easy to stop. They
+  are the ones this floor exists to protect. The measured table above shows `Therapy` is
+  unprotected today; the fix names mental health outright rather than hoping a substring
+  match catches it.
+- **Preventive care is a cost, not a luxury.** A physical, a cleaning, a screening. The app
+  should never let these land in a discretionary bucket by default, and "at any age" is the
+  operative phrase — this module is not for old people.
+- **The floor list needs the vocabulary too.** `health`, `healthcare`, `medical`, `medication`,
+  `prescription`, `pharmacy`, `doctor`, `dental`, `vision`, `therapy`, `counseling`,
+  `psychiatry`, `mental health`, `clinic`, `hospital`. Over-protecting a near-miss costs
+  nothing; under-protecting one costs the thing this whole section exists to prevent.
+
 ---
 
 ## §1 What the module is
@@ -450,6 +482,11 @@ Written as a list because this codebase tests its doctrine rather than describin
     say the record is too thin — this number leaves the building.
 13. Never let the urgent tier (§7.4) carry anything without an external deadline. One bypass
     per bill, ever, and materiality, actionability and novelty still apply.
+14. Never call it medical debt — anywhere, in any surface, in any export. It is a healthcare
+    cost, and the noun is doctrine (§0.2). Nor may layout say it: a healthcare cost listed
+    among the credit cards has been called a debt without the word.
+15. Never treat mental health as discretionary. Therapy, counselling and psychiatric care are
+    on the necessity floor by name, not by substring luck.
 
 ---
 
@@ -598,20 +635,31 @@ months. Two problems, one shallow and one deep.
 **Shallow: budget items have no term.** They are ongoing. This needs an end month, which is a
 schema addition rather than a design question.
 
-**Deep: is a medical payment plan a budget line or a debt?** It is a fixed obligation, with a
-term, at 0%. Modelled as an expense it is invisible to the payoff engine and the debt-free
-date is wrong. Modelled as a debt the date is right, and avalanche correctly ranks a 0%
-obligation last without being told to.
+**Deep: what is an agreed plan, and what is it called?** It is a fixed obligation, with a term,
+at 0%. Recorded as an ordinary expense it is invisible to the payoff engine and the date the
+app shows is wrong. Given to the engine it is priced correctly, and the engine's own ranking
+puts a 0% obligation last without being told to.
 
-**It should be a debt, flagged protected.** That buys a true date and correct ordering for
-free, while §0 keeps it off the lever list — never trimmed, never headroom, never a
-reallocation source.
+**So: the engine sees it; the interface never calls it debt.** These are separable and keeping
+them separate is the whole of §0.2. Internally it is a term obligation at 0%, flagged
+protected, which buys a true date and correct ordering for free while §0 keeps it off the
+lever list — never trimmed, never headroom, never a reallocation source. On screen it is a
+**Healthcare Cost**, it lives on the healthcare page, and it appears in the payoff view under
+its own heading rather than mixed in among the cards.
 
-One consequence needs handling carefully. Adding it moves the debt-free date later, and the
-app will want to say so. **§0.1 governs how.** The date changes because an obligation was
-accepted, and that is reportable as a fact: *"your plan now carries $175/mo it did not."* What
-may never be said is the causal form — that the illness, the bill, or the care cost the user
-six months of freedom. The number moves; the blame is not assigned.
+That last part matters more than it looks. A label can say "Healthcare Cost" while the page
+around it says *debt* by placement — a plan listed between a Visa and a store card has been
+called a debt without a word being used. Its own section, with the cards' section left alone,
+is what makes the vocabulary rule real rather than cosmetic.
+
+**And the date needs a decision, which is Open Question 7.** Adding the obligation moves the
+payoff date later. §0.1 governs how that may be said — *"your plan now carries $175/mo it did
+not"* is a fact; *"your hospital stay cost you six months of freedom"* is the accusation this
+document exists to rule out. But there is a further question underneath, and it follows from
+the framing that credit cards are the adversary: perhaps the headline figure should be the
+**card-free date**, with a second, quieter figure for when every obligation clears. Then a
+healthcare cost never moves the number that measures the fight against the cards, because it
+was never part of that fight.
 
 ---
 
@@ -646,10 +694,12 @@ Named rather than assumed, and none of them defaulted.
    feature degrades to stating the law and the leanest month and letting the user draw the
    conclusion — which is weaker, and might be right.
 
-7. **Does an agreed plan become a debt?** §7.6 says yes, flagged protected, because that is
-   the only way the debt-free date stays true. The cost is that a medical obligation then
-   appears in the debt list, which some people will read as the app calling their illness a
-   debt. The alternative is a term-limited budget line and a date that is quietly wrong.
+7. **Card-free date, or all-obligations date?** *Settled: it is never called debt (§0.2), the
+   engine still prices it, and it gets its own section rather than a line among the cards.*
+   What is left is the headline figure. If credit cards are the adversary, the number that
+   measures that fight is the card-free date — and a healthcare cost should not move it. A
+   second figure covers when everything clears. Two numbers is one more than this app shows
+   today, and that is the cost of the split.
 
 8. **Are names enough?** §1.7 makes a person a label, not an account, so everyone with the app
    open sees everyone's medications. That is right for most households and wrong for some, and
