@@ -90,6 +90,19 @@ NECESSITY_FLOOR = (
 )
 
 
+# The floor's rule version. Not cosmetic: `is_protected` is an interpretation
+# fused directly to a policy verdict, and until 2026-09-06 it carried no version
+# at all — so when health terms were added that day, every past judgement about a
+# "Prescriptions" category silently changed meaning and became unreproducible.
+# Nothing was corrupted, because nothing was ever stored; what was lost was the
+# ability to say which rule produced an answer. This is the thin end of that fix:
+# it identifies the rule without pretending the reasoning was ever recorded.
+#
+# Bump on any change to NECESSITY_FLOOR. Version '1' was the pre-2026-09-06 list,
+# which had no health terms and is the reason this constant exists.
+NECESSITY_FLOOR_VERSION = '2'
+
+
 def is_protected(category_name):
     """True when a category sits on the necessity floor and may never be proposed
     for cuts. Matching is loose on purpose: a near-miss that over-protects costs
@@ -519,7 +532,10 @@ def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
             'named_total': round(sum(c['monthly'] for c in named), 2) if named else None,
         }
 
-    return {'gap_months': gap, 'paths': paths, 'honest_no': honest_no}
+    # The floor filtered which levers could be offered at all, so the set of
+    # paths - including a path that is missing - is a conclusion it produced.
+    return {'gap_months': gap, 'paths': paths, 'honest_no': honest_no,
+            'floor_version': NECESSITY_FLOOR_VERSION}
 
 
 def _rank_key(p):
@@ -926,7 +942,8 @@ def solve_monthly_cost(cards, budget, monthly_cost, replaces_monthly=0.0,
     # exists in principle. When it does not, the branch above has already
     # returned the wall instead of a month count.
     return {'net_monthly': round(net, 2), 'gap_months': gap,
-            'paths': paths, 'honest_no': None}
+            'paths': paths, 'honest_no': None,
+            'floor_version': NECESSITY_FLOOR_VERSION}
 
 
 def accelerations(cards, budget, categories=None, recurring=None,
@@ -1042,6 +1059,9 @@ def _overspend(categories):
             # it is a budget set below what the thing actually costs, and the
             # honest correction is to the number, not to the groceries.
             'protected': is_protected(name),
+            # Which rule said so. A verdict without its rule version cannot be
+            # reproduced once the rule moves, and the rule has moved before.
+            'protected_rule_version': NECESSITY_FLOOR_VERSION,
         })
     out.sort(key=lambda c: -c['monthly'])
     return out

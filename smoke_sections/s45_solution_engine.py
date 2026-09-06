@@ -93,6 +93,40 @@ def run(ctx):
     if _over:
         print('        over-protected: ' + ', '.join(_over))
 
+    # ── Rule PROVENANCE, which is a different invariant from rule CONTENT ────
+    # The three checks above ask what the vocabulary contains. They passed on
+    # 2026-09-06 while the floor silently changed meaning, because a verdict
+    # carried no way to say which rule produced it — so every judgement made
+    # before that change became unreproducible and nothing failed. Content and
+    # provenance are separate invariants and need separate checks.
+    from core.solution import NECESSITY_FLOOR_VERSION, _overspend as _ovs
+    check('the necessity floor is version-identified, not an anonymous list',
+          bool(NECESSITY_FLOOR_VERSION))
+
+    # _overspend reads the BEST month (min_observed), not the worst — overspend
+    # that held in every observed month, the mirror of headroom.
+    _verdicts = _ovs([
+        {'name': 'Prescriptions', 'budgeted': 300, 'min_observed': 360,
+         'months_observed': 6},
+        {'name': 'Dining Out', 'budgeted': 400, 'min_observed': 470,
+         'months_observed': 6},
+    ])
+    check('every reported protection verdict names the rule version behind it',
+          len(_verdicts) == 2
+          and all(e.get('protected_rule_version') == NECESSITY_FLOOR_VERSION
+                  for e in _verdicts))
+    check('and the verdict itself still holds, health protected beside discretionary',
+          {e['name']: e['protected'] for e in _verdicts}
+          == {'Prescriptions': True, 'Dining Out': False})
+
+    # The floor decides which levers may be offered, so a MISSING lever is a
+    # verdict too — and an answer shaped by a rule has to say which rule.
+    _solved = solve_one_time_cost(
+        [Card(balance=8000, rate=22, minimum=200, name='Visa')], 775, 2400)
+    check('and a solution set filtered by the floor carries it too, because an '
+          'absent lever is also a verdict',
+          _solved.get('floor_version') == NECESSITY_FLOOR_VERSION)
+
     # Honest-null and the honest no.
     none_needed = solve_one_time_cost(cards, 775, 0)
     check('nothing to close returns no paths and no honest-no',

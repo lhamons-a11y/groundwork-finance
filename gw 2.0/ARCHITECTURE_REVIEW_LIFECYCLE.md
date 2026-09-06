@@ -166,6 +166,27 @@ different debts from one provider, or old and new reporting records. **Account n
 sufficient for duplicate detection.** Collections do not reset annually and must be explicitly
 protected from any rollover logic. Resolution never destroys ownership or validation history.
 
+## 7b. Two rules this produced
+
+**States must represent reality, not the needs of their current consumer.**
+
+> Do not collapse distinct states merely because the current consumer produces the same result
+> from them. Preserve the distinction at the factual layer; let consumers collapse it only when
+> their own rules permit.
+
+Which protects against the failure this review kept meeting: **the first consumer becomes an
+accidental schema designer for every future consumer.** `unpaid` and `pending_claim` are the
+worked case; `reimbursed = true` was the same error one level down.
+
+**Any interpretation that can change the meaning of a user-visible conclusion must be
+version-identifiable.**
+
+Not only the necessity floor. Tax classifications, adherence calculations, consequence
+interpretations, solution eligibility — and arguably narrator transformations, where they
+materially alter interpretation. **The consumer does not get to decide that versioning is
+unnecessary because today it cannot distinguish two versions.** That is the non-collapse rule
+again, applied to rules rather than states.
+
 ## 8. The cross-cutting requirement
 
 The blueprint needs an explicit distinction between four things it currently blurs:
@@ -299,6 +320,43 @@ reads `session_start`.
 So the question is not *design a fact/event model*. It is **is the one already carrying weight
 the right substrate, or must it be replaced?** That is a decision with a migration attached and
 it is documented separately in `EVENT_SUBSTRATE_QUESTION.md`.
+
+### A1b. C1 confirmed in shipped behaviour — and mitigated
+
+> **`is_protected()` is an unversioned interpretation fused directly to policy, making
+> historical policy conclusions unreproducible. Immediate mitigation: version-identify the
+> existing rule without restructuring it.**
+
+Running the layer inventory against real code found the pattern's fourth instance, six lines
+long. `is_protected(category_name)` takes **evidence** (a category name — and nothing else: no
+merchant, no MCC, no amount, no user statement), performs a **classification** that is never
+named, returned or stored, and emits a **policy verdict** as its return value. Three layers, one
+expression, with the middle one existing only inside an `any()`.
+
+Nothing is persisted, so nothing was corrupted. What was lost is reproducibility: when health
+terms were added on 2026-09-06, `is_protected('Prescriptions')` went from `False` to `True`, and
+every prior judgement about such a category — trim proposals, headroom figures, budget-pressure
+lessons — became impossible to reconstruct. **The three checks written that same morning all
+passed, because they assert the vocabulary rather than the provenance.**
+
+**Mitigated, deliberately small.** `NECESSITY_FLOOR_VERSION` now exists (at `'2'`; version `'1'`
+was the pre-health list), and every verdict that reaches user-visible reasoning carries it — the
+overspend entry that reports `protected`, and both solvers, since the floor decides which levers
+may be offered and **an absent lever is a verdict too.**
+
+`is_protected` is structurally unchanged. The patch says *this answer came from floor rule
+version 2*; it does not claim Groundwork has recorded the reasoning that produced it. That
+distinction is the whole point, and inflating six working lines into a classification
+architecture would recreate the fusion elsewhere.
+
+**And the test that would have caught it now exists**, as a separate invariant:
+
+| Invariant | Asks |
+|---|---|
+| Rule **content** | does the vocabulary contain the expected terms? |
+| Rule **provenance** | does every user-visible verdict identify the rule that produced it? |
+
+Content passed throughout the failure. Both are now checked, and both are mutation-proven.
 
 ### A2. Healthcare would sit on provenance-free primitives
 
