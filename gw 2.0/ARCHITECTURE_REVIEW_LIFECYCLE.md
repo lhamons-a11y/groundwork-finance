@@ -309,6 +309,17 @@ existing user + no healthcare information + same historical financial state
 unless an intentional change is documented and versioned. That is a product invariant rather
 than a function's return value.
 
+**Built 2026-09-07** — `tests/green_light_contract.py` plus `smoke_sections/s70_green_light_contract.py`.
+The distinction above is what shaped it: a hand-picked expected value written today is chosen
+to match today's implementation, so it can notice that the arithmetic moved but not that the
+*meaning* did. A recorded corpus fails on any difference, for any reason, which is the only
+shape that catches a change nobody anticipated — and a healthcare reserve reaching
+`green_light()` is precisely an unanticipated change until it is designed.
+
+The section also proves it can fail, because a frozen baseline that quietly stops comparing
+reports a safety it is not providing: it shifts the freed figure by one cent, turns an honest
+silence into a light, and requires the comparison to catch both.
+
 ---
 
 ## Added during review — two things both passes missed

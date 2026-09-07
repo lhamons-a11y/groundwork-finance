@@ -1,0 +1,2573 @@
+{
+  "cases": [
+    {
+      "id": "no drivers at all",
+      "inputs": {
+        "budget": 775,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          }
+        ],
+        "drivers": []
+      },
+      "result": null
+    },
+    {
+      "id": "capacity arrived, but nobody chose anything (D.4)",
+      "inputs": {
+        "budget": 775,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": false,
+            "label": "minimums ran out",
+            "monthly": 120.0
+          }
+        ]
+      },
+      "result": null
+    },
+    {
+      "id": "one deliberate driver",
+      "inputs": {
+        "budget": 775,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          },
+          {
+            "balance": 3000,
+            "minimum": 75,
+            "name": "Store",
+            "rate": 6
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "cancelled storage",
+            "monthly": 180.0,
+            "months_ago": 1
+          }
+        ]
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "cancelled storage",
+            "monthly": 180.0,
+            "months_ago": 1
+          }
+        ],
+        "freed_monthly": 180.0,
+        "fresh": true,
+        "months_sooner": 6,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "two drivers, one dominant - not diffuse (D.5)",
+      "inputs": {
+        "budget": 900,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "cleared car",
+            "monthly": 200.0,
+            "months_ago": 2
+          },
+          {
+            "deliberate": true,
+            "label": "trimmed streaming",
+            "monthly": 40.0,
+            "months_ago": 5
+          }
+        ]
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 2,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "cleared car",
+            "monthly": 200.0,
+            "months_ago": 2
+          },
+          {
+            "deliberate": true,
+            "label": "trimmed streaming",
+            "monthly": 40.0,
+            "months_ago": 5
+          }
+        ],
+        "freed_monthly": 240.0,
+        "fresh": true,
+        "months_sooner": 4,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "many small drivers - diffuse, so none are named (D.5)",
+      "inputs": {
+        "budget": 900,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "a",
+            "monthly": 45.0,
+            "months_ago": 1
+          },
+          {
+            "deliberate": true,
+            "label": "b",
+            "monthly": 42.0,
+            "months_ago": 2
+          },
+          {
+            "deliberate": true,
+            "label": "c",
+            "monthly": 40.0,
+            "months_ago": 3
+          },
+          {
+            "deliberate": true,
+            "label": "d",
+            "monthly": 38.0,
+            "months_ago": 4
+          }
+        ]
+      },
+      "result": {
+        "diffuse": true,
+        "driver_count": 4,
+        "drivers": [],
+        "freed_monthly": 165.0,
+        "fresh": true,
+        "months_sooner": 3,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "deliberate and uncredited together",
+      "inputs": {
+        "budget": 1000,
+        "cards": [
+          {
+            "balance": 12000,
+            "minimum": 280,
+            "name": "Visa",
+            "rate": 19
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "cancelled gym",
+            "monthly": 150.0,
+            "months_ago": 1
+          },
+          {
+            "deliberate": false,
+            "label": "loan matured",
+            "monthly": 95.0
+          }
+        ]
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "cancelled gym",
+            "monthly": 150.0,
+            "months_ago": 1
+          }
+        ],
+        "freed_monthly": 150.0,
+        "fresh": true,
+        "months_sooner": 3,
+        "uncredited_monthly": 95.0
+      }
+    },
+    {
+      "id": "stale credit - past the freshness window",
+      "inputs": {
+        "budget": 775,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "old win",
+            "monthly": 180.0,
+            "months_ago": 24
+          }
+        ]
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "old win",
+            "monthly": 180.0,
+            "months_ago": 24
+          }
+        ],
+        "freed_monthly": 180.0,
+        "fresh": false,
+        "months_sooner": 4,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "no months_ago recorded at all",
+      "inputs": {
+        "budget": 775,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "undated win",
+            "monthly": 180.0
+          }
+        ]
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "undated win",
+            "monthly": 180.0
+          }
+        ],
+        "freed_monthly": 180.0,
+        "fresh": false,
+        "months_sooner": 4,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "snowball rather than avalanche",
+      "inputs": {
+        "budget": 775,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          },
+          {
+            "balance": 900,
+            "minimum": 25,
+            "name": "Small",
+            "rate": 4
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "cancelled storage",
+            "monthly": 180.0,
+            "months_ago": 1
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "cancelled storage",
+            "monthly": 180.0,
+            "months_ago": 1
+          }
+        ],
+        "freed_monthly": 180.0,
+        "fresh": true,
+        "months_sooner": 5,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "budget barely covers the minimums",
+      "inputs": {
+        "budget": 280,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          },
+          {
+            "balance": 3000,
+            "minimum": 75,
+            "name": "Store",
+            "rate": 6
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "trimmed something",
+            "monthly": 30.0,
+            "months_ago": 1
+          }
+        ]
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "trimmed something",
+            "monthly": 30.0,
+            "months_ago": 1
+          }
+        ],
+        "freed_monthly": 30.0,
+        "fresh": true,
+        "months_sooner": null,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "freed exceeds the budget, so the counterfactual floors at zero",
+      "inputs": {
+        "budget": 400,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "huge",
+            "monthly": 600.0,
+            "months_ago": 1
+          }
+        ]
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "huge",
+            "monthly": 600.0,
+            "months_ago": 1
+          }
+        ],
+        "freed_monthly": 600.0,
+        "fresh": true,
+        "months_sooner": null,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "a lease past its end month, with today_key set",
+      "inputs": {
+        "budget": 900,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          },
+          {
+            "balance": 4000,
+            "end_month": "2026-01",
+            "is_lease": true,
+            "minimum": 310,
+            "name": "Lease",
+            "rate": 0
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "lease ended",
+            "monthly": 310.0,
+            "months_ago": 1
+          }
+        ],
+        "start_month": "2026-06",
+        "today_key": "2026-06"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "lease ended",
+            "monthly": 310.0,
+            "months_ago": 1
+          }
+        ],
+        "freed_monthly": 310.0,
+        "fresh": true,
+        "months_sooner": 6,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "a PSLF loan takes minimums only",
+      "inputs": {
+        "budget": 900,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          },
+          {
+            "balance": 41000,
+            "forgive_after_months": 48,
+            "is_pslf": true,
+            "minimum": 310,
+            "name": "Student",
+            "rate": 5
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "trimmed dining",
+            "monthly": 120.0,
+            "months_ago": 2
+          }
+        ]
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "trimmed dining",
+            "monthly": 120.0,
+            "months_ago": 2
+          }
+        ],
+        "freed_monthly": 120.0,
+        "fresh": true,
+        "months_sooner": 0,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "a zero balance among real ones",
+      "inputs": {
+        "budget": 775,
+        "cards": [
+          {
+            "balance": 0,
+            "minimum": 0,
+            "name": "Paid off",
+            "rate": 24
+          },
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "cleared it",
+            "monthly": 180.0,
+            "months_ago": 1
+          }
+        ]
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "cleared it",
+            "monthly": 180.0,
+            "months_ago": 1
+          }
+        ],
+        "freed_monthly": 180.0,
+        "fresh": true,
+        "months_sooner": 4,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "a driver of exactly zero is not a driver",
+      "inputs": {
+        "budget": 775,
+        "cards": [
+          {
+            "balance": 8000,
+            "minimum": 200,
+            "name": "Visa",
+            "rate": 22
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "nothing",
+            "monthly": 0.0
+          }
+        ]
+      },
+      "result": null
+    },
+    {
+      "id": "random 00",
+      "inputs": {
+        "budget": 2051.77,
+        "cards": [
+          {
+            "balance": 20054.4,
+            "minimum": 681.75,
+            "name": "C0",
+            "rate": 12.32
+          },
+          {
+            "balance": 13522.49,
+            "minimum": 239.62,
+            "name": "C1",
+            "rate": 7.42
+          }
+        ],
+        "drivers": [],
+        "strategy": "avalanche"
+      },
+      "result": null
+    },
+    {
+      "id": "random 01",
+      "inputs": {
+        "budget": 872.71,
+        "cards": [
+          {
+            "balance": 7851.67,
+            "minimum": 289.41,
+            "name": "C0",
+            "rate": 15.61
+          },
+          {
+            "balance": 6452.33,
+            "minimum": 110.74,
+            "name": "C1",
+            "rate": 11.19
+          }
+        ],
+        "drivers": [],
+        "strategy": "avalanche"
+      },
+      "result": null
+    },
+    {
+      "id": "random 02",
+      "inputs": {
+        "budget": 37.53,
+        "cards": [
+          {
+            "balance": 1502.32,
+            "minimum": 25.0,
+            "name": "C0",
+            "rate": 0.19
+          }
+        ],
+        "drivers": [],
+        "strategy": "snowball"
+      },
+      "result": null
+    },
+    {
+      "id": "random 03",
+      "inputs": {
+        "budget": 613.3,
+        "cards": [
+          {
+            "balance": 12355.74,
+            "minimum": 248.35,
+            "name": "C0",
+            "rate": 6.43
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 103.15,
+            "months_ago": 1
+          }
+        ],
+        "strategy": "avalanche"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 103.15,
+            "months_ago": 1
+          }
+        ],
+        "freed_monthly": 103.15,
+        "fresh": true,
+        "months_sooner": 5,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "random 04",
+      "inputs": {
+        "budget": 1046.38,
+        "cards": [
+          {
+            "balance": 9778.82,
+            "minimum": 381.67,
+            "name": "C0",
+            "rate": 22.96
+          },
+          {
+            "balance": 16236.98,
+            "minimum": 164.49,
+            "name": "C1",
+            "rate": 6.53
+          },
+          {
+            "balance": 6096.65,
+            "minimum": 155.28,
+            "name": "C2",
+            "rate": 10.43
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 29.51,
+            "months_ago": null
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 142.34,
+            "months_ago": 30
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 2,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 142.34,
+            "months_ago": 30
+          },
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 29.51,
+            "months_ago": null
+          }
+        ],
+        "freed_monthly": 171.85,
+        "fresh": false,
+        "months_sooner": 8,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "random 05",
+      "inputs": {
+        "budget": 770.91,
+        "cards": [
+          {
+            "balance": 14349.93,
+            "minimum": 211.2,
+            "name": "C0",
+            "rate": 5.48
+          },
+          {
+            "balance": 3632.49,
+            "minimum": 73.41,
+            "name": "C1",
+            "rate": 25.68
+          },
+          {
+            "balance": 925.42,
+            "minimum": 25.0,
+            "name": "C2",
+            "rate": 0.72
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": false,
+            "label": "d0",
+            "monthly": 260.92,
+            "months_ago": 30
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": null
+    },
+    {
+      "id": "random 06",
+      "inputs": {
+        "budget": 1462.16,
+        "cards": [
+          {
+            "balance": 20322.56,
+            "minimum": 377.73,
+            "name": "C0",
+            "rate": 2.37
+          },
+          {
+            "balance": 13117.43,
+            "minimum": 270.45,
+            "name": "C1",
+            "rate": 8.14
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": false,
+            "label": "d0",
+            "monthly": 308.31,
+            "months_ago": 3
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 117.3,
+            "months_ago": 0
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 117.3,
+            "months_ago": 0
+          }
+        ],
+        "freed_monthly": 117.3,
+        "fresh": true,
+        "months_sooner": 2,
+        "uncredited_monthly": 308.31
+      }
+    },
+    {
+      "id": "random 07",
+      "inputs": {
+        "budget": 2146.36,
+        "cards": [
+          {
+            "balance": 5968.67,
+            "minimum": 175.15,
+            "name": "C0",
+            "rate": 2.81
+          },
+          {
+            "balance": 13655.01,
+            "minimum": 376.99,
+            "name": "C1",
+            "rate": 21.06
+          },
+          {
+            "balance": 21521.59,
+            "minimum": 384.54,
+            "name": "C2",
+            "rate": 26.26
+          }
+        ],
+        "drivers": [],
+        "strategy": "avalanche"
+      },
+      "result": null
+    },
+    {
+      "id": "random 08",
+      "inputs": {
+        "budget": 2726.02,
+        "cards": [
+          {
+            "balance": 783.59,
+            "minimum": 25.0,
+            "name": "C0",
+            "rate": 10.13
+          },
+          {
+            "balance": 20909.34,
+            "minimum": 610.22,
+            "name": "C1",
+            "rate": 25.52
+          },
+          {
+            "balance": 11592.67,
+            "minimum": 414.78,
+            "name": "C2",
+            "rate": 25.61
+          },
+          {
+            "balance": 15403.17,
+            "minimum": 473.79,
+            "name": "C3",
+            "rate": 25.48
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": false,
+            "label": "d0",
+            "monthly": 261.65,
+            "months_ago": null
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 5.86,
+            "months_ago": 18
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 74.46,
+            "months_ago": 1
+          },
+          {
+            "deliberate": true,
+            "label": "d3",
+            "monthly": 186.46,
+            "months_ago": 18
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 3,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d3",
+            "monthly": 186.46,
+            "months_ago": 18
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 74.46,
+            "months_ago": 1
+          }
+        ],
+        "freed_monthly": 266.78,
+        "fresh": true,
+        "months_sooner": 3,
+        "uncredited_monthly": 261.65
+      }
+    },
+    {
+      "id": "random 09",
+      "inputs": {
+        "budget": 1154.53,
+        "cards": [
+          {
+            "balance": 13558.42,
+            "minimum": 540.13,
+            "name": "C0",
+            "rate": 18.46
+          },
+          {
+            "balance": 9519.78,
+            "minimum": 137.83,
+            "name": "C1",
+            "rate": 22.11
+          },
+          {
+            "balance": 4078.58,
+            "minimum": 101.63,
+            "name": "C2",
+            "rate": 23.63
+          },
+          {
+            "balance": 16131.86,
+            "minimum": 244.84,
+            "name": "C3",
+            "rate": 20.73
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 250.03,
+            "months_ago": 9
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 231.46,
+            "months_ago": null
+          },
+          {
+            "deliberate": false,
+            "label": "d2",
+            "monthly": 21.87,
+            "months_ago": 9
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 2,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 250.03,
+            "months_ago": 9
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 231.46,
+            "months_ago": null
+          }
+        ],
+        "freed_monthly": 481.49,
+        "fresh": false,
+        "months_sooner": null,
+        "uncredited_monthly": 21.87
+      }
+    },
+    {
+      "id": "random 10",
+      "inputs": {
+        "budget": 1312.52,
+        "cards": [
+          {
+            "balance": 7681.2,
+            "minimum": 174.73,
+            "name": "C0",
+            "rate": 25.03
+          },
+          {
+            "balance": 20491.06,
+            "minimum": 238.65,
+            "name": "C1",
+            "rate": 17.04
+          },
+          {
+            "balance": 16577.99,
+            "minimum": 386.43,
+            "name": "C2",
+            "rate": 14.31
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": false,
+            "label": "d0",
+            "monthly": 208.86,
+            "months_ago": 0
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 315.88,
+            "months_ago": 1
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 220.52,
+            "months_ago": 1
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 2,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 315.88,
+            "months_ago": 1
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 220.52,
+            "months_ago": 1
+          }
+        ],
+        "freed_monthly": 536.4,
+        "fresh": true,
+        "months_sooner": null,
+        "uncredited_monthly": 208.86
+      }
+    },
+    {
+      "id": "random 11",
+      "inputs": {
+        "budget": 558.92,
+        "cards": [
+          {
+            "balance": 14715.42,
+            "minimum": 445.36,
+            "name": "C0",
+            "rate": 15.13
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 297.98,
+            "months_ago": 18
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 268.84,
+            "months_ago": 0
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 2,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 297.98,
+            "months_ago": 18
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 268.84,
+            "months_ago": 0
+          }
+        ],
+        "freed_monthly": 566.82,
+        "fresh": true,
+        "months_sooner": null,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "random 12",
+      "inputs": {
+        "budget": 1164.85,
+        "cards": [
+          {
+            "balance": 17004.31,
+            "minimum": 594.32,
+            "name": "C0",
+            "rate": 5.23
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 187.81,
+            "months_ago": 3
+          },
+          {
+            "deliberate": false,
+            "label": "d1",
+            "monthly": 23.29,
+            "months_ago": 1
+          },
+          {
+            "deliberate": false,
+            "label": "d2",
+            "monthly": 130.07,
+            "months_ago": 1
+          },
+          {
+            "deliberate": true,
+            "label": "d3",
+            "monthly": 216.01,
+            "months_ago": 3
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 2,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d3",
+            "monthly": 216.01,
+            "months_ago": 3
+          },
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 187.81,
+            "months_ago": 3
+          }
+        ],
+        "freed_monthly": 403.82,
+        "fresh": true,
+        "months_sooner": 8,
+        "uncredited_monthly": 153.36
+      }
+    },
+    {
+      "id": "random 13",
+      "inputs": {
+        "budget": 1188.93,
+        "cards": [
+          {
+            "balance": 12640.3,
+            "minimum": 263.21,
+            "name": "C0",
+            "rate": 16.24
+          },
+          {
+            "balance": 7944.35,
+            "minimum": 259.57,
+            "name": "C1",
+            "rate": 21.45
+          },
+          {
+            "balance": 14550.57,
+            "minimum": 277.94,
+            "name": "C2",
+            "rate": 11.39
+          },
+          {
+            "balance": 2291.91,
+            "minimum": 53.28,
+            "name": "C3",
+            "rate": 18.51
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": false,
+            "label": "d0",
+            "monthly": 19.22,
+            "months_ago": 30
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": null
+    },
+    {
+      "id": "random 14",
+      "inputs": {
+        "budget": 783.79,
+        "cards": [
+          {
+            "balance": 6765.51,
+            "minimum": 238.45,
+            "name": "C0",
+            "rate": 16.61
+          },
+          {
+            "balance": 11698.6,
+            "minimum": 426.93,
+            "name": "C1",
+            "rate": 22.9
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 11.19,
+            "months_ago": null
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 268.21,
+            "months_ago": 18
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 104.99,
+            "months_ago": 18
+          },
+          {
+            "deliberate": true,
+            "label": "d3",
+            "monthly": 215.85,
+            "months_ago": 30
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 4,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 268.21,
+            "months_ago": 18
+          },
+          {
+            "deliberate": true,
+            "label": "d3",
+            "monthly": 215.85,
+            "months_ago": 30
+          }
+        ],
+        "freed_monthly": 600.24,
+        "fresh": false,
+        "months_sooner": null,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "random 15",
+      "inputs": {
+        "budget": 1484.96,
+        "cards": [
+          {
+            "balance": 21618.0,
+            "minimum": 751.96,
+            "name": "C0",
+            "rate": 13.89
+          }
+        ],
+        "drivers": [],
+        "strategy": "snowball"
+      },
+      "result": null
+    },
+    {
+      "id": "random 16",
+      "inputs": {
+        "budget": 256.16,
+        "cards": [
+          {
+            "balance": 4147.6,
+            "minimum": 102.6,
+            "name": "C0",
+            "rate": 22.62
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 180.42,
+            "months_ago": 30
+          },
+          {
+            "deliberate": false,
+            "label": "d1",
+            "monthly": 280.03,
+            "months_ago": 0
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 249.26,
+            "months_ago": 0
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 2,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 249.26,
+            "months_ago": 0
+          },
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 180.42,
+            "months_ago": 30
+          }
+        ],
+        "freed_monthly": 429.68,
+        "fresh": true,
+        "months_sooner": null,
+        "uncredited_monthly": 280.03
+      }
+    },
+    {
+      "id": "random 17",
+      "inputs": {
+        "budget": 937.78,
+        "cards": [
+          {
+            "balance": 16005.77,
+            "minimum": 184.12,
+            "name": "C0",
+            "rate": 28.31
+          },
+          {
+            "balance": 16631.12,
+            "minimum": 525.54,
+            "name": "C1",
+            "rate": 12.9
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 9.66,
+            "months_ago": 3
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 9.66,
+            "months_ago": 3
+          }
+        ],
+        "freed_monthly": 9.66,
+        "fresh": true,
+        "months_sooner": 1,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "random 18",
+      "inputs": {
+        "budget": 694.53,
+        "cards": [
+          {
+            "balance": 15023.73,
+            "minimum": 475.42,
+            "name": "C0",
+            "rate": 27.61
+          },
+          {
+            "balance": 4525.05,
+            "minimum": 171.05,
+            "name": "C1",
+            "rate": 12.79
+          },
+          {
+            "balance": 2062.61,
+            "minimum": 35.56,
+            "name": "C2",
+            "rate": 27.02
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": false,
+            "label": "d0",
+            "monthly": 204.27,
+            "months_ago": 18
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 241.41,
+            "months_ago": 9
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 180.42,
+            "months_ago": 18
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 2,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 241.41,
+            "months_ago": 9
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 180.42,
+            "months_ago": 18
+          }
+        ],
+        "freed_monthly": 421.83,
+        "fresh": false,
+        "months_sooner": null,
+        "uncredited_monthly": 204.27
+      }
+    },
+    {
+      "id": "random 19",
+      "inputs": {
+        "budget": 2098.61,
+        "cards": [
+          {
+            "balance": 18294.6,
+            "minimum": 407.83,
+            "name": "C0",
+            "rate": 6.29
+          },
+          {
+            "balance": 19156.63,
+            "minimum": 692.44,
+            "name": "C1",
+            "rate": 23.81
+          },
+          {
+            "balance": 3800.93,
+            "minimum": 139.03,
+            "name": "C2",
+            "rate": 2.18
+          },
+          {
+            "balance": 7481.84,
+            "minimum": 171.63,
+            "name": "C3",
+            "rate": 14.28
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 258.92,
+            "months_ago": 1
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 282.1,
+            "months_ago": 30
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 2,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 282.1,
+            "months_ago": 30
+          },
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 258.92,
+            "months_ago": 1
+          }
+        ],
+        "freed_monthly": 541.02,
+        "fresh": true,
+        "months_sooner": 12,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "random 20",
+      "inputs": {
+        "budget": 321.54,
+        "cards": [
+          {
+            "balance": 13347.08,
+            "minimum": 356.19,
+            "name": "C0",
+            "rate": 15.5
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 87.56,
+            "months_ago": 30
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 87.56,
+            "months_ago": 30
+          }
+        ],
+        "freed_monthly": 87.56,
+        "fresh": false,
+        "months_sooner": null,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "random 21",
+      "inputs": {
+        "budget": 156.98,
+        "cards": [
+          {
+            "balance": 9260.01,
+            "minimum": 100.66,
+            "name": "C0",
+            "rate": 8.71
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": false,
+            "label": "d0",
+            "monthly": 290.74,
+            "months_ago": 1
+          },
+          {
+            "deliberate": false,
+            "label": "d1",
+            "monthly": 225.27,
+            "months_ago": 1
+          }
+        ],
+        "strategy": "avalanche"
+      },
+      "result": null
+    },
+    {
+      "id": "random 22",
+      "inputs": {
+        "budget": 1320.54,
+        "cards": [
+          {
+            "balance": 3702.42,
+            "minimum": 111.96,
+            "name": "C0",
+            "rate": 4.32
+          },
+          {
+            "balance": 13707.8,
+            "minimum": 492.67,
+            "name": "C1",
+            "rate": 26.09
+          },
+          {
+            "balance": 3032.34,
+            "minimum": 37.49,
+            "name": "C2",
+            "rate": 4.92
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 260.47,
+            "months_ago": 0
+          },
+          {
+            "deliberate": false,
+            "label": "d1",
+            "monthly": 62.84,
+            "months_ago": null
+          },
+          {
+            "deliberate": false,
+            "label": "d2",
+            "monthly": 311.04,
+            "months_ago": 9
+          },
+          {
+            "deliberate": false,
+            "label": "d3",
+            "monthly": 216.77,
+            "months_ago": 18
+          }
+        ],
+        "strategy": "avalanche"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 260.47,
+            "months_ago": 0
+          }
+        ],
+        "freed_monthly": 260.47,
+        "fresh": true,
+        "months_sooner": 5,
+        "uncredited_monthly": 590.65
+      }
+    },
+    {
+      "id": "random 23",
+      "inputs": {
+        "budget": 1831.85,
+        "cards": [
+          {
+            "balance": 21077.16,
+            "minimum": 565.63,
+            "name": "C0",
+            "rate": 22.21
+          },
+          {
+            "balance": 7505.33,
+            "minimum": 159.61,
+            "name": "C1",
+            "rate": 12.33
+          },
+          {
+            "balance": 962.64,
+            "minimum": 25.0,
+            "name": "C2",
+            "rate": 0.28
+          },
+          {
+            "balance": 10415.69,
+            "minimum": 241.05,
+            "name": "C3",
+            "rate": 26.28
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 51.26,
+            "months_ago": null
+          },
+          {
+            "deliberate": false,
+            "label": "d1",
+            "monthly": 30.8,
+            "months_ago": null
+          },
+          {
+            "deliberate": false,
+            "label": "d2",
+            "monthly": 78.25,
+            "months_ago": null
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 51.26,
+            "months_ago": null
+          }
+        ],
+        "freed_monthly": 51.26,
+        "fresh": false,
+        "months_sooner": 1,
+        "uncredited_monthly": 109.05
+      }
+    },
+    {
+      "id": "random 24",
+      "inputs": {
+        "budget": 2374.15,
+        "cards": [
+          {
+            "balance": 14931.28,
+            "minimum": 400.21,
+            "name": "C0",
+            "rate": 23.76
+          },
+          {
+            "balance": 15790.59,
+            "minimum": 429.4,
+            "name": "C1",
+            "rate": 1.14
+          },
+          {
+            "balance": 954.16,
+            "minimum": 36.44,
+            "name": "C2",
+            "rate": 1.94
+          },
+          {
+            "balance": 4596.7,
+            "minimum": 181.74,
+            "name": "C3",
+            "rate": 23.01
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 156.67,
+            "months_ago": 30
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 156.67,
+            "months_ago": 30
+          }
+        ],
+        "freed_monthly": 156.67,
+        "fresh": false,
+        "months_sooner": 1,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "random 25",
+      "inputs": {
+        "budget": 100.85,
+        "cards": [
+          {
+            "balance": 4724.33,
+            "minimum": 85.06,
+            "name": "C0",
+            "rate": 4.02
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 40.79,
+            "months_ago": null
+          },
+          {
+            "deliberate": false,
+            "label": "d1",
+            "monthly": 54.95,
+            "months_ago": 3
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 40.79,
+            "months_ago": null
+          }
+        ],
+        "freed_monthly": 40.79,
+        "fresh": false,
+        "months_sooner": null,
+        "uncredited_monthly": 54.95
+      }
+    },
+    {
+      "id": "random 26",
+      "inputs": {
+        "budget": 138.97,
+        "cards": [
+          {
+            "balance": 8613.03,
+            "minimum": 88.09,
+            "name": "C0",
+            "rate": 17.43
+          }
+        ],
+        "drivers": [],
+        "strategy": "avalanche"
+      },
+      "result": null
+    },
+    {
+      "id": "random 27",
+      "inputs": {
+        "budget": 1991.16,
+        "cards": [
+          {
+            "balance": 19812.21,
+            "minimum": 674.74,
+            "name": "C0",
+            "rate": 25.4
+          },
+          {
+            "balance": 8594.9,
+            "minimum": 210.33,
+            "name": "C1",
+            "rate": 10.36
+          },
+          {
+            "balance": 3677.95,
+            "minimum": 146.38,
+            "name": "C2",
+            "rate": 22.96
+          },
+          {
+            "balance": 4696.91,
+            "minimum": 182.96,
+            "name": "C3",
+            "rate": 11.31
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 144.3,
+            "months_ago": 0
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 241.92,
+            "months_ago": 9
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 2,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 241.92,
+            "months_ago": 9
+          },
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 144.3,
+            "months_ago": 0
+          }
+        ],
+        "freed_monthly": 386.22,
+        "fresh": true,
+        "months_sooner": 7,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "random 28",
+      "inputs": {
+        "budget": 1897.36,
+        "cards": [
+          {
+            "balance": 236.52,
+            "minimum": 25.0,
+            "name": "C0",
+            "rate": 24.16
+          },
+          {
+            "balance": 19327.34,
+            "minimum": 563.1,
+            "name": "C1",
+            "rate": 5.41
+          },
+          {
+            "balance": 10110.85,
+            "minimum": 197.01,
+            "name": "C2",
+            "rate": 18.46
+          },
+          {
+            "balance": 14431.87,
+            "minimum": 302.97,
+            "name": "C3",
+            "rate": 7.23
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 15.54,
+            "months_ago": null
+          },
+          {
+            "deliberate": false,
+            "label": "d1",
+            "monthly": 307.65,
+            "months_ago": 9
+          },
+          {
+            "deliberate": false,
+            "label": "d2",
+            "monthly": 143.99,
+            "months_ago": 0
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 15.54,
+            "months_ago": null
+          }
+        ],
+        "freed_monthly": 15.54,
+        "fresh": false,
+        "months_sooner": 0,
+        "uncredited_monthly": 451.64
+      }
+    },
+    {
+      "id": "random 29",
+      "inputs": {
+        "budget": 1594.21,
+        "cards": [
+          {
+            "balance": 9712.13,
+            "minimum": 249.63,
+            "name": "C0",
+            "rate": 8.06
+          },
+          {
+            "balance": 8113.16,
+            "minimum": 324.26,
+            "name": "C1",
+            "rate": 23.0
+          },
+          {
+            "balance": 11004.62,
+            "minimum": 182.73,
+            "name": "C2",
+            "rate": 24.29
+          }
+        ],
+        "drivers": [],
+        "strategy": "avalanche"
+      },
+      "result": null
+    },
+    {
+      "id": "random 30",
+      "inputs": {
+        "budget": 1052.99,
+        "cards": [
+          {
+            "balance": 13404.15,
+            "minimum": 366.44,
+            "name": "C0",
+            "rate": 10.11
+          },
+          {
+            "balance": 580.97,
+            "minimum": 25.0,
+            "name": "C1",
+            "rate": 27.73
+          },
+          {
+            "balance": 5909.46,
+            "minimum": 176.8,
+            "name": "C2",
+            "rate": 3.12
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": false,
+            "label": "d0",
+            "monthly": 78.08,
+            "months_ago": 3
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 244.35,
+            "months_ago": 9
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 115.38,
+            "months_ago": 3
+          },
+          {
+            "deliberate": false,
+            "label": "d3",
+            "monthly": 45.15,
+            "months_ago": 1
+          }
+        ],
+        "strategy": "avalanche"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 2,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 244.35,
+            "months_ago": 9
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 115.38,
+            "months_ago": 3
+          }
+        ],
+        "freed_monthly": 359.73,
+        "fresh": true,
+        "months_sooner": 11,
+        "uncredited_monthly": 123.23
+      }
+    },
+    {
+      "id": "random 31",
+      "inputs": {
+        "budget": 2122.12,
+        "cards": [
+          {
+            "balance": 10509.81,
+            "minimum": 405.88,
+            "name": "C0",
+            "rate": 19.97
+          },
+          {
+            "balance": 11499.3,
+            "minimum": 252.65,
+            "name": "C1",
+            "rate": 25.15
+          },
+          {
+            "balance": 6627.79,
+            "minimum": 214.04,
+            "name": "C2",
+            "rate": 18.14
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 296.52,
+            "months_ago": 0
+          },
+          {
+            "deliberate": false,
+            "label": "d1",
+            "monthly": 226.67,
+            "months_ago": 30
+          },
+          {
+            "deliberate": false,
+            "label": "d2",
+            "monthly": 246.18,
+            "months_ago": 1
+          }
+        ],
+        "strategy": "avalanche"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 296.52,
+            "months_ago": 0
+          }
+        ],
+        "freed_monthly": 296.52,
+        "fresh": true,
+        "months_sooner": 3,
+        "uncredited_monthly": 472.85
+      }
+    },
+    {
+      "id": "random 32",
+      "inputs": {
+        "budget": 1740.96,
+        "cards": [
+          {
+            "balance": 16804.38,
+            "minimum": 345.44,
+            "name": "C0",
+            "rate": 28.1
+          },
+          {
+            "balance": 6064.45,
+            "minimum": 113.96,
+            "name": "C1",
+            "rate": 0.27
+          },
+          {
+            "balance": 17102.59,
+            "minimum": 328.25,
+            "name": "C2",
+            "rate": 14.78
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 111.16,
+            "months_ago": 0
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 111.16,
+            "months_ago": 0
+          }
+        ],
+        "freed_monthly": 111.16,
+        "fresh": true,
+        "months_sooner": 3,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "random 33",
+      "inputs": {
+        "budget": 553.37,
+        "cards": [
+          {
+            "balance": 21940.57,
+            "minimum": 241.15,
+            "name": "C0",
+            "rate": 26.85
+          }
+        ],
+        "drivers": [],
+        "strategy": "avalanche"
+      },
+      "result": null
+    },
+    {
+      "id": "random 34",
+      "inputs": {
+        "budget": 382.23,
+        "cards": [
+          {
+            "balance": 3638.75,
+            "minimum": 94.14,
+            "name": "C0",
+            "rate": 28.21
+          },
+          {
+            "balance": 10731.22,
+            "minimum": 205.92,
+            "name": "C1",
+            "rate": 28.4
+          }
+        ],
+        "drivers": [],
+        "strategy": "avalanche"
+      },
+      "result": null
+    },
+    {
+      "id": "random 35",
+      "inputs": {
+        "budget": 1785.2,
+        "cards": [
+          {
+            "balance": 12386.28,
+            "minimum": 281.51,
+            "name": "C0",
+            "rate": 7.56
+          },
+          {
+            "balance": 310.89,
+            "minimum": 25.0,
+            "name": "C1",
+            "rate": 7.32
+          },
+          {
+            "balance": 17022.13,
+            "minimum": 339.03,
+            "name": "C2",
+            "rate": 6.61
+          },
+          {
+            "balance": 19786.99,
+            "minimum": 583.96,
+            "name": "C3",
+            "rate": 1.19
+          }
+        ],
+        "drivers": [],
+        "strategy": "snowball"
+      },
+      "result": null
+    },
+    {
+      "id": "random 36",
+      "inputs": {
+        "budget": 820.16,
+        "cards": [
+          {
+            "balance": 8255.45,
+            "minimum": 163.15,
+            "name": "C0",
+            "rate": 4.71
+          },
+          {
+            "balance": 6399.31,
+            "minimum": 137.44,
+            "name": "C1",
+            "rate": 2.96
+          },
+          {
+            "balance": 17993.72,
+            "minimum": 360.35,
+            "name": "C2",
+            "rate": 8.9
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 32.91,
+            "months_ago": null
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 49.99,
+            "months_ago": 30
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 185.75,
+            "months_ago": null
+          },
+          {
+            "deliberate": true,
+            "label": "d3",
+            "monthly": 313.01,
+            "months_ago": 18
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 4,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d3",
+            "monthly": 313.01,
+            "months_ago": 18
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 185.75,
+            "months_ago": null
+          }
+        ],
+        "freed_monthly": 581.66,
+        "fresh": false,
+        "months_sooner": null,
+        "uncredited_monthly": 0
+      }
+    },
+    {
+      "id": "random 37",
+      "inputs": {
+        "budget": 777.2,
+        "cards": [
+          {
+            "balance": 6035.67,
+            "minimum": 232.11,
+            "name": "C0",
+            "rate": 20.21
+          },
+          {
+            "balance": 5931.41,
+            "minimum": 112.28,
+            "name": "C1",
+            "rate": 8.65
+          },
+          {
+            "balance": 6692.97,
+            "minimum": 218.8,
+            "name": "C2",
+            "rate": 10.78
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d0",
+            "monthly": 40.78,
+            "months_ago": 1
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 319.31,
+            "months_ago": 0
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 185.2,
+            "months_ago": 1
+          },
+          {
+            "deliberate": false,
+            "label": "d3",
+            "monthly": 33.76,
+            "months_ago": 0
+          }
+        ],
+        "strategy": "snowball"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 3,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 319.31,
+            "months_ago": 0
+          },
+          {
+            "deliberate": true,
+            "label": "d2",
+            "monthly": 185.2,
+            "months_ago": 1
+          }
+        ],
+        "freed_monthly": 545.29,
+        "fresh": true,
+        "months_sooner": null,
+        "uncredited_monthly": 33.76
+      }
+    },
+    {
+      "id": "random 38",
+      "inputs": {
+        "budget": 1188.93,
+        "cards": [
+          {
+            "balance": 6624.53,
+            "minimum": 170.17,
+            "name": "C0",
+            "rate": 7.41
+          },
+          {
+            "balance": 5152.67,
+            "minimum": 81.78,
+            "name": "C1",
+            "rate": 21.43
+          },
+          {
+            "balance": 18298.39,
+            "minimum": 373.44,
+            "name": "C2",
+            "rate": 11.58
+          }
+        ],
+        "drivers": [],
+        "strategy": "snowball"
+      },
+      "result": null
+    },
+    {
+      "id": "random 39",
+      "inputs": {
+        "budget": 946.58,
+        "cards": [
+          {
+            "balance": 9392.12,
+            "minimum": 361.75,
+            "name": "C0",
+            "rate": 21.29
+          },
+          {
+            "balance": 4096.49,
+            "minimum": 55.15,
+            "name": "C1",
+            "rate": 2.49
+          },
+          {
+            "balance": 18404.39,
+            "minimum": 445.41,
+            "name": "C2",
+            "rate": 20.08
+          }
+        ],
+        "drivers": [
+          {
+            "deliberate": false,
+            "label": "d0",
+            "monthly": 256.44,
+            "months_ago": 0
+          },
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 204.02,
+            "months_ago": 30
+          }
+        ],
+        "strategy": "avalanche"
+      },
+      "result": {
+        "diffuse": false,
+        "driver_count": 1,
+        "drivers": [
+          {
+            "deliberate": true,
+            "label": "d1",
+            "monthly": 204.02,
+            "months_ago": 30
+          }
+        ],
+        "freed_monthly": 204.02,
+        "fresh": false,
+        "months_sooner": null,
+        "uncredited_monthly": 256.44
+      }
+    }
+  ],
+  "reason": "initial recording of the behaviour shipped in 1.x, before any healthcare reserve exists to change it",
+  "seed": 20260907,
+  "version": "1"
+}

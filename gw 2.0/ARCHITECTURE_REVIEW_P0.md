@@ -452,6 +452,19 @@ target; plan-year rollover; expense added; expense removed; expense reclassified
 **Existing behaviour for unaffected users must remain stable unless an intentional versioned
 change is documented.**
 
+> **The contract test exists as of 2026-09-07.** `tests/green_light_contract.py` records what
+> the shipped function returns across 55 user-like states — 38 with a light, 17 with an honest
+> silence — and `smoke_sections/s70_green_light_contract.py` fails on any difference, including
+> one nobody thought to write a check for. That is the point: the change it is waiting for has
+> not been designed yet.
+>
+> Re-recording is refused while `CONTRACT_VERSION` is unchanged, so redefining "unchanged"
+> costs a version bump and a written reason. A baseline that can be silently regenerated is a
+> rubber stamp.
+>
+> **The no-healthcare-data row of the matrix above is now pinned.** The other eight rows need
+> healthcare to exist before they can be recorded.
+
 ---
 
 ## 25. The master principle
