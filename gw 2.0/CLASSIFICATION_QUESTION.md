@@ -449,6 +449,13 @@ counting `contradicted` as unevaluated, manufacturing a definitive total, guessi
 handing the narrator the underlying records. Each is caught by the check that names it, so the
 invariants are enforced rather than merely asserted.
 
+Both halves run in the suite as `smoke_sections/s65_classification.py`, and it makes the two
+claims separately on purpose — *the fixture passes* says the model meets the specification, *every
+mutation is caught* says the specification is enforced. The section refuses to report mutation
+detection at all when the baseline is red, because a broken model makes every mutation look
+"detected" for the wrong reason — twelve spuriously green checks being precisely the failure this
+project keeps finding.
+
 **Two things the implementation changed, and both were fixture defects rather than model
 concessions.** The `UNAVAILABLE` sentinel was local to the test, where a bare `object()` can
 never compare identical to anything a model returns — an assertion that could only ever *fail*,
