@@ -124,6 +124,58 @@ would ever have surfaced it.
 
 ---
 
+## 6. A written rule is not an implemented rule
+
+> Freezing a rule and implementing it are two acts. The implementation has to be **audited
+> against the frozen semantics**, or the rule becomes documentation sitting above code that
+> still means the old thing.
+
+The deliverable is never *we decided what the system means*. It is *the system now actually
+means that*.
+
+**The instance.** The reserve rule was frozen on 2026-09-07: *a reserve is an allocation of an
+existing financial state; it does not modify the historical account balance and is not itself a
+transaction.* `core/reserve.py` had been built the day before as a **fund you pay into** —
+`contribute`, `withdraw`, a balance that accumulated. Recording the rule would have left a
+docstring describing an allocation above an implementation performing transactions. The
+refactor was the deliverable; the doc note was the smaller half.
+
+**The generalisation that follows:** when a rule is frozen, the next question is not *where do
+we write this down* but *what already contradicts it*. And the answer is usually code, not
+prose.
+
+## 7. An instrument must be able to distinguish the claims it is being used to evaluate
+
+> A measurement can be **correct and still inadequate** for the decision being made. Before
+> trusting a verdict, check that the instrument had the resolution to have returned a different
+> one.
+
+This is principle 5's sibling and its inverse. There, the recurring defect was *a check that
+could not fail for the reason it named*. Here it is *a measurement that could not distinguish
+the thing it was asked about*.
+
+**The instance.** The payoff audit compared each calculation's output before and after, and
+reported the reserve-as-lever position as *1 of 15 changed*. That was **not false**. It was
+answering a coarser question than the decision required — because *one path appended to a list*
+and *twelve existing figures moved* both register as "changed", and they are not the same event
+at all. Only once the diff separated **ALTERED** from **EXTENDED**, and named the keys, did the
+evidence become decision-grade: 0 altered and 1 extended, which is orthogonality rather than a
+small version of disruption.
+
+**The tell worth remembering:** the coarse result *flattered a position without supporting it*.
+When an instrument returns a verdict that happens to suit an argument you already found
+appealing, that is the moment to check its resolution rather than the moment to quote it.
+
+### And the corollary about how such an instrument is used
+
+**It enumerates consequences. It does not rank options.** The position with the smallest diff is
+not thereby the right one — a cheap answer that is semantically wrong is still wrong. Choose the
+position whose *semantics* are correct, then use the audit to establish exactly what
+implementation consequences follow. Selecting by diff size inverts that, and lets the tooling
+make a judgement the tooling cannot see.
+
+---
+
 ## The workflow this implies
 
 Not a process to administer. A sequence worth preserving because it produced the above:

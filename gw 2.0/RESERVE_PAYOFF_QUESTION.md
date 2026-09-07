@@ -209,3 +209,19 @@ The remaining honest summary: **`after` and `lever` cost nothing in existing beh
 `before` and `alongside` cost twelve calculations, two implementations and a re-recorded
 contract.** If one of the latter is right anyway, that price is worth paying and the audit
 above is the list of what to pay it on.
+
+### How this instrument must not be used
+
+**It enumerates consequences. It does not rank positions.** (Rob, 2026-09-07.)
+
+The position with the smallest diff is not thereby the right one. Choose the position whose
+**semantics** are correct — what a reserve *is* relative to the final debt balance — and then
+use the audit to establish exactly what implementation consequences follow. Selecting by diff
+size inverts that order and lets the tooling make a judgement it cannot see: `after` and
+`lever` are cheap because the engine models months and the question is about exposure, which
+is precisely the thing not on the table.
+
+A related caution, and the reason the diff was sharpened at all: **a measurement can be correct
+and still inadequate for the decision being made.** The first run reported the lever as *1 of 15
+changed*, which was true and answered a coarser question than Q6 required. See
+`ARCHITECTURE_PRINCIPLES.md` §7.
