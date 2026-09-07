@@ -126,14 +126,23 @@ above an implementation that still embodied the old model.
 ### The audit, prepared in advance
 
 `tests/payoff_option_measurement.py` performs it. Run it once a position is chosen and the list
-of calculations to re-examine is its output rather than a fresh reading of the engine. Measured
-2026-09-07, against a representative portfolio:
+of calculations to re-examine is its output rather than a fresh reading of the engine. It
+reports **which keys** moved, and distinguishes two events that a plain changed/unchanged diff
+would have flattened:
 
-| Position | Engine-consuming calculations that change |
-|---|---|
-| **after** | **0 of 15** |
-| **alongside** | 12 of 15 |
-| **before** | 12 of 15 |
+```text
+ALTERED    an existing value is different
+EXTENDED   a list grew, and everything that was there is still there, unchanged
+```
+
+Measured 2026-09-07 against a representative portfolio, all four positions:
+
+| Position | Altered | Extended | of 15 |
+|---|---|---|---|
+| **after** | 0 | 0 | 15 |
+| **lever** | **0** | **1** | 15 |
+| **alongside** | 12 | 0 | 15 |
+| **before** | 12 | 0 | 15 |
 
 ```text
 consequence.simulate_payoff · decision_impact · affordable_one_time
@@ -141,6 +150,32 @@ consequence.simulate_payoff · decision_impact · affordable_one_time
 solution.solve_one_time_cost · save_first_plan · do_nothing_note
               · solve_monthly_cost · accelerations · past_charge_lesson · green_light
 ```
+
+### What the key-level diff established that the counts did not
+
+**`before` is the only position that changes ordering.** Its diff on `simulate_payoff` includes
+`first_cleared_name`; *alongside*'s does not. So under *alongside* the same card still clears
+first and simply clears later — a **baseline** change. Under *before* a **different card clears
+first** — an **ordering** change. The question was posed as "ordering or baseline", and the
+instrument now separates them by evidence rather than by argument.
+
+`before` also uniquely moves `solve_one_time_cost.honest_no` and `solve_monthly_cost.reason`:
+the solver stops offering and starts declining, which is §6.4 firing more often for want of
+anything to say.
+
+### The fourth position, measured rather than argued
+
+**The lever produces 0 altered and 1 extended** — `solution.solve_one_time_cost.paths`, where
+every existing path is unchanged and one is appended.
+
+That is meaningful in the way it was proposed to be: not *nothing changed*, but **the model
+demonstrates the lever is orthogonal to the existing payoff calculation.** No figure the engine
+already produces moves; the reserve becomes one more path, ranked and costed like the others.
+
+**Its footprint is a floor, not a ceiling.** It is measured with the path offered by
+`solve_one_time_cost` alone. Every further surface that offers it adds one more **extended**
+calculation — and, importantly, none of them become **altered**. That is the shape of the claim:
+the lever's cost grows in breadth, never in disruption.
 
 **Two caveats, so 12 of 15 is not read as authoritative.** `extra_above_minimums` shows as
 unchanged only because the perturbation models the draw *inside* `simulate_payoff`; a real
@@ -164,8 +199,13 @@ Deliberately. The measurements above are inputs to the decision, and a document 
 *here is what each costs* to *therefore choose this* would be making a risk judgement that is
 not its to make — and dressing it as arithmetic, which is worse.
 
-**And the lever option is a fourth position, not a reframing to admire.** If the reserve is a
-path the user chooses in the solution engine rather than a global property of payoff, the
-audit above returns nothing: the default computation does not move, so parity holds and the
-LTS blast radius disappears. That is a claim this instrument can check the moment the position
-is taken seriously, and it should be checked rather than reasoned about.
+**The lever position has now been measured rather than argued**, and it survived: 0 altered,
+1 extended. What that buys is stated above. What it does not buy is a decision — orthogonality
+is a fact about the code, and whether a household with an empty reserve and one card left is
+better served by a path they must choose or by a default that chooses for them is a judgement
+about people, which no diff reaches.
+
+The remaining honest summary: **`after` and `lever` cost nothing in existing behaviour, and
+`before` and `alongside` cost twelve calculations, two implementations and a re-recorded
+contract.** If one of the latter is right anyway, that price is worth paying and the audit
+above is the list of what to pay it on.

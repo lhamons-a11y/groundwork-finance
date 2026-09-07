@@ -41,10 +41,14 @@ def _with_reserve_draw(mode, target=TARGET):
     `alongside` - the extra is split evenly between reserve and principal
     `after`     - unchanged; the reserve is funded from capacity that exists once the
                   balances are gone, which is not a change to this loop at all
+    `lever`     - the payoff computation is untouched and the reserve becomes one more path
+                  the user may choose, priced in months like every other path
     """
     orig = cons.simulate_payoff
     if mode == 'after':
         return orig, (lambda: None)
+    if mode == 'lever':
+        return _as_lever(orig)
 
     def patched(cards, budget, strategy='avalanche', one_time_cost=0.0,
                 today_key=None, start_month=None, one_time_extra=0.0):
@@ -68,6 +72,67 @@ def _with_reserve_draw(mode, target=TARGET):
         cons.simulate_payoff = orig
         sol.simulate_payoff = orig
     return orig, undo
+
+
+def _as_lever(orig_sim):
+    """The reserve as a path in the solution engine rather than a property of the engine.
+
+    Nothing about `simulate_payoff` moves. What changes is that `solve_one_time_cost` returns
+    one more path - holding money back toward the reserve, priced in months exactly the way
+    every other path is priced. Whether that counts as "a calculation changed" is precisely
+    what the diff below has to be able to answer, which is why it reports WHICH keys moved.
+    """
+    orig_solver = sol.solve_one_time_cost
+
+    def patched(cards, budget, one_time_cost, **kw):
+        out = orig_solver(cards, budget, one_time_cost, **kw)
+        if not out.get('paths'):
+            return out
+        sim_kw = {k: v for k, v in kw.items()
+                  if k in ('strategy', 'today_key', 'start_month')}
+        base = orig_sim(cards, budget, **sim_kw)
+        monthly = cons.extra_above_minimums(cards, budget) or 0.0
+        hold = round(monthly / 2.0, 2)
+        held = orig_sim(cards, max(0.0, budget - hold), **sim_kw)
+        cost = (held['months'] - base['months']
+                if base and held else None)
+        out = dict(out)
+        out['paths'] = list(out['paths']) + [sol._path(
+            'reserve', 'hold %.0f a month toward the reserve' % hold,
+            'the card stays clear if a bad month lands', closes=False,
+            cost_months=cost, requires_cut=False)]
+        return out
+
+    sol.solve_one_time_cost = patched
+
+    def undo():
+        sol.solve_one_time_cost = orig_solver
+    return orig_sim, undo
+
+
+def _diff(before, after):
+    """What moved, in enough detail to become a requirement.
+
+    `altered` - an existing value is different
+    `extended` - a list grew and everything that was there is still there, unchanged
+
+    The distinction is the whole point of the fourth position: a path added beside the others
+    is not the same event as every existing figure moving, and a diff that reported both as
+    "changed" could not tell Rob which one happened.
+    """
+    if isinstance(before, dict) and isinstance(after, dict):
+        altered, extended = [], []
+        for key in sorted(set(before) | set(after)):
+            b, a = before.get(key), after.get(key)
+            if b == a:
+                continue
+            if (isinstance(b, list) and isinstance(a, list)
+                    and len(a) > len(b) and a[:len(b)] == b):
+                extended.append(key)
+            else:
+                altered.append(key)
+        return altered, extended
+    return ([] if before == after else ['value']), []
 
 
 def measure(mode):
@@ -148,23 +213,30 @@ def audit(mode):
     baseline = {}
     for module, name, fn in _calculations():
         try:
-            baseline[(module, name)] = repr(fn())
+            baseline[(module, name)] = fn()
         except Exception as e:                                # noqa: BLE001
             baseline[(module, name)] = 'RAISED %s' % type(e).__name__
 
     orig, undo = _with_reserve_draw(mode)
     try:
-        moved, same = [], []
+        altered, extended, same = [], [], []
         for module, name, fn in _calculations():
+            label = '%s.%s' % (module, name)
             try:
-                now = repr(fn())
+                now = fn()
             except Exception as e:                            # noqa: BLE001
                 now = 'RAISED %s' % type(e).__name__
-            (moved if now != baseline[(module, name)] else same).append(
-                '%s.%s' % (module, name))
+            was = baseline[(module, name)]
+            a_keys, e_keys = _diff(was, now)
+            if a_keys:
+                altered.append((label, a_keys))
+            elif e_keys:
+                extended.append((label, e_keys))
+            else:
+                same.append(label)
     finally:
         undo()
-    return moved, same
+    return altered, extended, same
 
 
 def main():
@@ -207,13 +279,15 @@ def main():
     print()
     print('Calculations whose ordering or baseline changes, by position:')
     total = len(_calculations())
-    for mode in ('after', 'alongside', 'before'):
-        moved, same = audit(mode)
+    for mode in ('after', 'lever', 'alongside', 'before'):
+        altered, extended, _same = audit(mode)
         print()
-        print('  %-10s %d of %d engine-consuming calculations change'
-              % (mode, len(moved), total))
-        for name in moved:
-            print('             %s' % name)
+        print('  %-10s %d altered, %d extended, of %d engine-consuming calculations'
+              % (mode, len(altered), len(extended), total))
+        for name, keys in altered:
+            print('             ALTERED  %-34s %s' % (name, ','.join(keys)))
+        for name, keys in extended:
+            print('             EXTENDED %-34s %s' % (name, ','.join(keys)))
     print()
     print('  Two caveats, so 12 of 15 is not read as authoritative:')
     print('   1. `extra_above_minimums` shows as unchanged only because this perturbation')
@@ -221,6 +295,9 @@ def main():
     print('      pool itself, so it moves too - and being the pool definition, it moves first.')
     print('   2. `budget_pressure` and `capacity_unlocked` are unchanged FOR THIS PORTFOLIO,')
     print('      which is not the same as unable to change. Both consume the engine.')
+    print('   3. the lever footprint is a FLOOR, not a ceiling: it is measured with the path')
+    print('      offered by solve_one_time_cost alone. Every further surface that offers it')
+    print('      adds one more EXTENDED calculation - and none of them become ALTERED.')
     print()
     print('  Not in the inventory, because none of them reaches the engine and so none can')
     print('  move: _prepare, _month_key, is_protected, _headroom, _trims, _overspend,')
