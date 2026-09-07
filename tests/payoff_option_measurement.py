@@ -15,7 +15,8 @@ is left as it was found.
 
 Run:  python tests/payoff_option_measurement.py
 """
-import io
+import contextlib
+import io as _io
 import sys
 import importlib.util
 from pathlib import Path
@@ -78,6 +79,94 @@ def measure(mode):
     return checked, mismatches
 
 
+# Every calculation that reaches the payoff engine, with a representative portfolio for each.
+# Named individually rather than exercised through a smoke section, because the requirement is
+# to identify the CALCULATIONS whose ordering or baseline change, and a section reports checks.
+#
+# `_prepare`, `_month_key`, `is_protected`, `_headroom`, `_trims`, `_overspend`, `fund_pace`
+# and `decision_memory` are deliberately absent: none of them reaches the engine, so none can
+# move. That absence is part of the inventory rather than an omission from it.
+_CARDS = [dict(balance=8000, rate=22, minimum=200, name='Visa'),
+          dict(balance=3000, rate=6, minimum=75, name='Store')]
+_CATEGORIES = [{'name': 'Dining Out', 'budgeted': 400.0, 'max_observed': 310.0,
+                'months_observed': 6, 'spent': 460.0}]
+_RECURRING = [{'name': 'Streaming', 'monthly': 43.0, 'category': 'Entertainment'}]
+
+
+def _cards():
+    from core.consequence import Card
+    return [Card(**c) for c in _CARDS]
+
+
+def _calculations():
+    """(module, name, callable) for everything that consumes the engine."""
+    from core import consequence as c
+    from core import solution as so
+    return [
+        ('consequence', 'simulate_payoff', lambda: c.simulate_payoff(_cards(), 775)),
+        ('consequence', 'extra_above_minimums',
+         lambda: c.extra_above_minimums(_cards(), 775)),
+        ('consequence', 'decision_impact',
+         lambda: c.decision_impact(_cards(), 775, monthly_delta=-50.0)),
+        ('consequence', 'affordable_one_time',
+         lambda: c.affordable_one_time(_cards(), 775, 2400)),
+        ('consequence', 'affordable_monthly',
+         lambda: c.affordable_monthly(_cards(), 775, 120)),
+        ('consequence', 'offsetting_monthly_delta',
+         lambda: c.offsetting_monthly_delta(_cards(), 775, 2400)),
+        ('solution', 'solve_one_time_cost',
+         lambda: so.solve_one_time_cost(_cards(), 775, 2400, categories=_CATEGORIES,
+                                        recurring=_RECURRING)),
+        ('solution', 'save_first_plan', lambda: so.save_first_plan(_cards(), 775, 2400)),
+        ('solution', 'do_nothing_note',
+         lambda: so.do_nothing_note(_cards(), 775, one_time_cost=2400)),
+        ('solution', 'solve_monthly_cost',
+         lambda: so.solve_monthly_cost(_cards(), 775, 120, categories=_CATEGORIES,
+                                       recurring=_RECURRING)),
+        ('solution', 'accelerations',
+         lambda: so.accelerations(_cards(), 775, categories=_CATEGORIES,
+                                  recurring=_RECURRING)),
+        ('solution', 'budget_pressure',
+         lambda: so.budget_pressure(_cards(), 775, categories=_CATEGORIES)),
+        ('solution', 'past_charge_lesson',
+         lambda: so.past_charge_lesson(_cards(), 775, 900)),
+        ('solution', 'capacity_unlocked',
+         lambda: so.capacity_unlocked(_cards(), 775, 3500, 2600)),
+        ('solution', 'green_light',
+         lambda: so.green_light(_cards(), 775, [{'monthly': 180.0, 'deliberate': True,
+                                                 'label': 'cancelled storage',
+                                                 'months_ago': 1}])),
+    ]
+
+
+def audit(mode):
+    """Identify every calculation whose ordering or baseline changes under `mode`.
+
+    This is the instrument the requirement asks for: once a position is chosen, run it and the
+    list of what has to be re-examined is the output rather than a fresh reading of the engine.
+    """
+    baseline = {}
+    for module, name, fn in _calculations():
+        try:
+            baseline[(module, name)] = repr(fn())
+        except Exception as e:                                # noqa: BLE001
+            baseline[(module, name)] = 'RAISED %s' % type(e).__name__
+
+    orig, undo = _with_reserve_draw(mode)
+    try:
+        moved, same = [], []
+        for module, name, fn in _calculations():
+            try:
+                now = repr(fn())
+            except Exception as e:                            # noqa: BLE001
+                now = 'RAISED %s' % type(e).__name__
+            (moved if now != baseline[(module, name)] else same).append(
+                '%s.%s' % (module, name))
+    finally:
+        undo()
+    return moved, same
+
+
 def main():
     print('What each answer would invalidate, measured against the shipped behaviour')
     print('=' * 74)
@@ -114,6 +203,33 @@ def main():
                   % (mode, r['gap_months'], len(r['paths'])))
         finally:
             undo()
+    # ── The audit the requirement asks for ──────────────────────────────────
+    print()
+    print('Calculations whose ordering or baseline changes, by position:')
+    total = len(_calculations())
+    for mode in ('after', 'alongside', 'before'):
+        moved, same = audit(mode)
+        print()
+        print('  %-10s %d of %d engine-consuming calculations change'
+              % (mode, len(moved), total))
+        for name in moved:
+            print('             %s' % name)
+    print()
+    print('  Two caveats, so 12 of 15 is not read as authoritative:')
+    print('   1. `extra_above_minimums` shows as unchanged only because this perturbation')
+    print('      models the draw INSIDE simulate_payoff. A real implementation redefines the')
+    print('      pool itself, so it moves too - and being the pool definition, it moves first.')
+    print('   2. `budget_pressure` and `capacity_unlocked` are unchanged FOR THIS PORTFOLIO,')
+    print('      which is not the same as unable to change. Both consume the engine.')
+    print()
+    print('  Not in the inventory, because none of them reaches the engine and so none can')
+    print('  move: _prepare, _month_key, is_protected, _headroom, _trims, _overspend,')
+    print('  fund_pace, decision_memory.')
+    print()
+    print('  Outside this process entirely, and changed by any position but `after`:')
+    print('    _simulatePayoffStrategy in static/js/app.js  (the second implementation)')
+    print('    tests/test_consequence_parity.py             (holds the two to the month)')
+    print('    tests/green_light_contract.json              (re-record, versioned)')
     return 0
 
 

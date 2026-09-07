@@ -109,8 +109,63 @@ currently embodies "every spare dollar goes to principal":
 - `core/solution.py`'s levers, which price against `extra_above_minimums`
 - `extra_above_minimums`'s own docstring, which describes the pool
 
-## 7. Not decided here
+## 7. The requirement this produces
+
+The decision is not finished when the position is chosen. Stated in the form it has to be
+carried out (Rob, 2026-09-07):
+
+> **The reserve/payoff treatment must be resolved relative to the final debt balance before
+> `core/consequence.py` is modified. Once the position is chosen, audit the existing
+> consequence calculations against that rule and identify every calculation whose ordering or
+> baseline changes.**
+
+The deliverable is not *we decided what the system means*. It is *the system now actually means
+that* — which is the lesson `core/reserve.py` supplied a day earlier, where the correct rule sat
+above an implementation that still embodied the old model.
+
+### The audit, prepared in advance
+
+`tests/payoff_option_measurement.py` performs it. Run it once a position is chosen and the list
+of calculations to re-examine is its output rather than a fresh reading of the engine. Measured
+2026-09-07, against a representative portfolio:
+
+| Position | Engine-consuming calculations that change |
+|---|---|
+| **after** | **0 of 15** |
+| **alongside** | 12 of 15 |
+| **before** | 12 of 15 |
+
+```text
+consequence.simulate_payoff · decision_impact · affordable_one_time
+              · affordable_monthly · offsetting_monthly_delta
+solution.solve_one_time_cost · save_first_plan · do_nothing_note
+              · solve_monthly_cost · accelerations · past_charge_lesson · green_light
+```
+
+**Two caveats, so 12 of 15 is not read as authoritative.** `extra_above_minimums` shows as
+unchanged only because the perturbation models the draw *inside* `simulate_payoff`; a real
+implementation redefines the pool itself, so it moves too — and being the pool definition, it
+moves **first**. And `budget_pressure` and `capacity_unlocked` are unchanged *for this
+portfolio*, which is not the same as unable to change; both consume the engine.
+
+**Deliberately absent from the inventory**, because none of them reaches the engine and so none
+can move: `_prepare`, `_month_key`, `is_protected`, `_headroom`, `_trims`, `_overspend`,
+`fund_pace`, `decision_memory`. The absence is part of the inventory rather than an omission
+from it.
+
+**Outside this process entirely**, and changed by any position but *after*:
+`_simulatePayoffStrategy` in `static/js/app.js`, `tests/test_consequence_parity.py`, and
+`tests/green_light_contract.json` — the last re-recorded under a version bump and a written
+reason, which is that mechanism working rather than an obstacle.
+
+## 8. Not decided here
 
 Deliberately. The measurements above are inputs to the decision, and a document that slid from
 *here is what each costs* to *therefore choose this* would be making a risk judgement that is
 not its to make — and dressing it as arithmetic, which is worse.
+
+**And the lever option is a fourth position, not a reframing to admire.** If the reserve is a
+path the user chooses in the solution engine rather than a global property of payoff, the
+audit above returns nothing: the default computation does not move, so parity holds and the
+LTS blast radius disappears. That is a claim this instrument can check the moment the position
+is taken seriously, and it should be checked rather than reasoned about.
