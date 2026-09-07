@@ -189,6 +189,34 @@ from the user changing it. Deleting a target must not delete the money.
 *"$4,000 of your general cash is counted toward a $6,000 target."* Those are different claims —
 the same class of error the net-worth surface already refuses to make.
 
+**Built 2026-09-07** — `core/reserve.py`, `tests/test_reserve_fixture.py`,
+`smoke_sections/s90_reserve.py`. 25 assertions, 12 of 12 mutations detected. **This closes the
+P0 list.**
+
+`held` and `counted` are separate figures and no single number stands in for the pair, so the
+sentence above cannot be produced from the model's own output. `segregated` is true only when
+money was actually set aside — a household with $4,000 of ordinary savings and no dedicated
+fund is not holding a healthcare reserve, however close the arithmetic looks.
+
+**The target is derived, and keeps no copy.** Design §1.4 makes the plan's out-of-pocket
+maximum the honest target precisely because it is *computable from the user's own plan
+document* rather than invented. So a target with that basis stores no figure and resolves it on
+every read — which means correcting the plan moves the target with nothing to reconcile, and no
+correction is recorded against the reserve because none happened. That is this session's
+`allocation`/`plan_year` lesson applied before it could bite: one owner per fact.
+
+**Three kinds of change, and a fourth state for not knowing.** `preference`, `fact` and
+`plan_change` are distinguishable, and a derived target replaced without the caller saying why
+records `unspecified` rather than guessing between the last two — principle 3, applied to a
+classification instead of an amount.
+
+**Not decided here:** whether the reserve is built before, alongside or after the last balance.
+That is design Open Question 6, it is open, and the module has no opinion on it.
+
+**Not yet persisted.** The reserve has no tables, unlike `person`, `plan_year` and the
+obligation model. It belongs with the other §6.3 step-2 leftovers — providers, HSA and FSA as
+funds — and wants a round-trip through the shipped schema before it is called done.
+
 ## 6. Provider plans need versioned terms and event history
 
 A schedule change is a new effective-dated term, not an overwrite. A balance change **because a
