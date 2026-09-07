@@ -191,6 +191,33 @@ Rather than: *write code → write tests → declare green.*
 testing proves the invariant cannot quietly regress. Neither does the other's job, and a suite
 that has only ever done the second will report green while the first has never been attempted.
 
+## The semantic audit — six questions per term
+
+*(Rob, 2026-09-07, for the Q6 open questions; general to any term whose meaning is load-bearing.)*
+
+The workflow above starts at **inventory**. This is what inventory means when the thing being
+inventoried is a *meaning* rather than a function:
+
+1. What does the term mean **operationally**?
+2. **Where** is that meaning encoded in the repository?
+3. Which **calculations depend** on it?
+4. Does the **corpus actually exercise** the distinction?
+5. Could **two reasonable engineers interpret the term differently and both produce passing
+   tests**?
+6. If the semantic decision changes, **exactly which outputs change**?
+
+**Question 6 is the bridge** — from *we have decided what this means* to *we know what this will
+break*. Without it a semantic decision is an opinion with no attached consequence.
+
+**Question 5 is the one with teeth**, and it is detectable rather than merely worth pondering:
+if two readings of a term both pass the suite, the suite does not pin the semantics, and the
+next person to touch that code will pick whichever reading they arrived with. It is principle 7
+aimed at vocabulary — an instrument that cannot distinguish two meanings is not evidence about
+which one the system holds.
+
+**Only question 1 is a design decision.** Two through six are facts about the repository, and
+establishing them does not pre-empt the decision — it is what makes the decision tractable.
+
 ## What "green" cannot tell you
 
 That the invariants are complete. 692 passing checks demonstrated something narrower and still
