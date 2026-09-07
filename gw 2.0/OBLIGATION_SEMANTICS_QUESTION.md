@@ -296,3 +296,35 @@ branches resolve the same $650 differently — a provider write-off drops gross 
 the total available at $300; a cash payment with a receipt makes it available at $950 — and the
 fixture asserts **the two must diverge.** If a model returns the same total for both, the
 ambiguity was never being represented and the earlier agreement was a coincidence.
+
+---
+
+## Built — `core/allocation.py`, 2026-09-07
+
+32 assertions pass and 13 of 13 mutations are detected. The design the fixture forced: **state
+is derived by folding events in effective order and is never stored**, which is what makes
+arrival order irrelevant rather than merely hoped-for.
+
+**The fixture was incomplete, and mutation testing is what found it.** Three of thirteen
+mutations went undetected on the first run, and two of them were holes in the specification
+rather than the model:
+
+- **The arrival-order check could not fail.** M1–M7 all touch different things, so they
+  commute — a model folding events in arrival order passed the assertion this fixture
+  described as *the one that falsifies most designs*. Closed with two corrections to the
+  **same** allocation, where the later effective one must win whichever order they arrive in.
+- **The rule version could be ignored entirely.** Nothing asserted that a figure *carries* the
+  rules it was computed under, and since the rules do not change this arithmetic today, every
+  check passed with the argument discarded. That is C1 in waiting: the next rule set will
+  change the arithmetic, and by then the figures are historical.
+- The third was a bad mutation, not a gap.
+
+A fourth thing worth recording, because it is the fixture working exactly as intended: **the
+subtraction mutation produces the right number.** `gross − reimbursed − unresolved` is $300,
+identical to the sum of evidenced payments. Only the two branches where the $650 resolves
+differently separate them — which is precisely why the positive half above was written, and it
+earned its place on the first run.
+
+**What this does not establish:** anything about persistence. See the note added to
+`EVENT_SUBSTRATE_QUESTION.md` — the model is pure and in-memory, and that criterion is
+still unrun.

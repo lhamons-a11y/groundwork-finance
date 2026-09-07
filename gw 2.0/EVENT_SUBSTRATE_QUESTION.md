@@ -227,7 +227,25 @@ pointing into a world that no longer exists.
 
 ## The fixture that decides it
 
-`tests/test_lifecycle_fixture.py`, written before any model and currently failing. If the
+`tests/test_lifecycle_fixture.py`, written before any model. If the
 historian can carry fact → event → relationship → calculation → rule version → correction →
 reversal → historical reconstruction without becoming an untyped JSON dump, it is extended. If
 it cannot, that is demonstrated in code rather than argued in a document.
+
+### The model exists; the substrate experiment does not — 2026-09-07
+
+`core/allocation.py` satisfies the fixture, 32 assertions, with 13 of 13 mutations detected.
+**That says nothing about this question**, and the distinction matters enough to state rather
+than let a green suite imply otherwise:
+
+> The model is **pure and in-memory**. Nothing about it touches storage, so the pre-registered
+> criterion — more than two structural relationships inside `context_json`, or a read path
+> parsing JSON to enforce an invariant — **has still not been tested against anything.**
+
+What it does establish is the shape the substrate would have to carry, and it is a helpful
+answer: state is **derived by folding events in effective order**, never stored. So what needs
+persisting is the event stream and the link tables, not the computed state — which is the
+structure-versus-event split the codebase already makes, arriving from the other direction.
+
+The criterion stays open, and it stays written down. A criterion retired the moment something
+adjacent looks satisfied was never a criterion.

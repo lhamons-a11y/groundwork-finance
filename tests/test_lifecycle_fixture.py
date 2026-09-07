@@ -27,7 +27,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-UNRESOLVED = object()   # not a number, and deliberately not None
+# The "no definitive total" sentinel belongs to the MODEL, not to this file: a local
+# object() could never compare identical to anything a model returns, so the assertion
+# below could only ever FAIL - a check unable to pass for the reason it names, which is
+# the mirror image of the failure this project keeps finding. Fixed 2026-09-07 while
+# building core/allocation.py; the assertion is unchanged, only expressible.
 
 PASS, FAIL, PENDING = [], [], []
 
@@ -168,7 +172,7 @@ def run(model):
     # part of the obligation is unresolved, and the model must say so rather
     # than nominate one of the two candidates.
     check('there is NO definitive qualifying total while anything is unresolved',
-          figure.total is UNRESOLVED)
+          figure.total is model.UNRESOLVED)
 
     check('a payment is confirmed only when cleared, attached, and user-confirmed',
           model.confirms_on() == {'cleared', 'attached', 'user_confirmed'})
@@ -198,6 +202,17 @@ def run(model):
     check('resolved as a cash payment by the user: the total becomes available, and differs',
           f2.unresolved == 0.00 and f2.total == 950.00)
 
+    # And the receipt is REQUIRED, not decorative. Section 213 deducts what was paid and
+    # substantiation is the taxpayer's burden, so an unevidenced cash payment settles the
+    # reconciliation without becoming deductible. Mutation-testing found that dropping the
+    # evidence requirement broke nothing, because nothing asked.
+    unevidenced = model.branch(exp)
+    model.apply(unevidenced, {'kind': 'record_determination',
+                              'status': 'user_paid_cash', 'amount': 650.00})
+    f3 = model.qualifying(unevidenced, rules='v2026.1')
+    check('an unevidenced cash payment is not deductible, though it settles the balance',
+          f3.unresolved == 0.00 and f3.confirmed_user_paid == 300.00)
+
     check('the two determinations diverge, which is what made the ambiguity real',
           f1.total != f2.total)
 
@@ -217,7 +232,7 @@ def run(model):
           model.qualifying(unpaid, rules='v2026.1').total == 300.00
           and model.state(unpaid)['outstanding'] == 650.00)
     check('pending_claim settles nothing, so there is still no total',
-          model.qualifying(pending, rules='v2026.1').total is UNRESOLVED)
+          model.qualifying(pending, rules='v2026.1').total is model.UNRESOLVED)
     check('and a determination can be superseded when evidence arrives later',
           model.apply(unpaid, {'kind': 'record_determination',
                                'status': 'user_paid_cash', 'amount': 650.00,
@@ -238,6 +253,14 @@ def run(model):
           model.qualifying(exp, rules='v2027.1') is not None
           and model.qualifying(exp, rules='v2026.1').confirmed_user_paid == 300.00)
 
+    # A figure must CARRY the rules it was computed under. Mutation-testing found that
+    # without this the `rules` argument can be ignored in favour of whatever version is
+    # current, and every check above still passes - because the rules do not change this
+    # arithmetic today. The next rule set will, and by then the figures are historical.
+    check('and the figure names the rule version it was computed under',
+          model.qualifying(exp, rules='v2026.1').rules == 'v2026.1'
+          and model.qualifying(exp, rules='v2027.1').rules == 'v2027.1')
+
     check('every reported figure can name the records that produced it',
           bool(model.explain(model.qualifying(exp, rules='v2026.1'))))
 
@@ -252,6 +275,22 @@ def run(model):
           all(r['state'] == replays[0]['state'] for r in replays))
     check('and reproduce the same historical figure',
           all(r['qualifying_v2026_1'] == replays[0]['qualifying_v2026_1'] for r in replays))
+
+    # And the two checks above CANNOT FAIL for the reason they name, which was found by
+    # mutation-testing this file on 2026-09-07: M1-M7 all touch different things, so they
+    # commute, and a model folding events in arrival order passes them both. The headline
+    # assertion of this fixture was decorative. This is the pair that makes it real - two
+    # corrections to the SAME allocation, where the later EFFECTIVE one must win whichever
+    # order they arrive in.
+    ordered = [
+        ('insurance corrected to 250', {'kind': 'correct_allocation',
+                                        'funder': 'insurance', 'to': 250.00}, {}),
+        ('insurance corrected again to 275', {'kind': 'correct_allocation',
+                                              'funder': 'insurance', 'to': 275.00}, {}),
+    ]
+    both = [model.replay(EXPENSE, INITIAL_ALLOCATIONS, ordered, order=i) for i in range(2)]
+    check('the later correction wins whichever order the two arrive in',
+          all(r['state']['insurance'] == 275.00 for r in both))
 
     # ── Identity and deletion ───────────────────────────────────────────────
     merged = model.merge(exp, model.new_expense(**EXPENSE))
