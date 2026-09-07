@@ -56,7 +56,6 @@ EXPENSE = {
     'amount': 1000.00,
     'incurred_on': '2026-01-15',
     'person': 'rob',
-    'plan': 'plan-a',
 }
 
 INITIAL_ALLOCATIONS = [
@@ -87,27 +86,23 @@ MUTATIONS = [
      {'insurance': 250.00, 'hsa': 0.00, 'user': 300.00, 'unallocated': 650.00,
       'expense': 1200.00}),
 
-    ('M5 plan changes 1 July -> January expense stays on plan A',
-     {'kind': 'change_plan', 'to': 'plan-b', 'effective': '2026-07-01'},
-     {'expense_plan': 'plan-a'}),
-
-    ('M6 2027 begins -> the January 2026 expense stays in 2026 on plan A',
+    ('M5 2027 begins -> the January 2026 expense stays in 2026',
      {'kind': 'roll_year', 'to': 2027},
-     {'expense_plan': 'plan-a', 'expense_year': 2026}),
+     {'expense_year': 2026}),
 
-    ('M7 tax rules change -> the 2026 figure stays reproducible under v2026.1',
+    ('M6 tax rules change -> the 2026 figure stays reproducible under v2026.1',
      {'kind': 'change_rules', 'to': 'v2027.1'},
      {'reproduce_under': 'v2026.1'}),
 
-    ('M8 the same facts in any arrival order produce the same answer',
+    ('M7 the same facts in any arrival order produce the same answer',
      {'kind': 'replay', 'orders': 3},
      {'identical': True}),
 
-    ('M9 two expenses found to be one -> merge preserves both provenances',
+    ('M8 two expenses found to be one -> merge preserves both provenances',
      {'kind': 'merge', 'with': 'duplicate-expense'},
      {'reversible': True, 'provenance_preserved': True}),
 
-    ('M10 "delete the reimbursement" is ambiguous and must not be one operation',
+    ('M9 "delete the reimbursement" is ambiguous and must not be one operation',
      {'kind': 'delete_allocation', 'funder': 'insurance'},
      {'distinguishes': ['correction', 'void', 'destruction']}),
 ]
@@ -116,8 +111,8 @@ MUTATIONS = [
 def describe():
     """Print the fixture as a specification, for when no model exists yet."""
     print('\nThe fixture, as a specification:\n')
-    print('  expense  $%.2f on %s, person=%s, plan=%s'
-          % (EXPENSE['amount'], EXPENSE['incurred_on'], EXPENSE['person'], EXPENSE['plan']))
+    print('  expense  $%.2f on %s, person=%s'
+          % (EXPENSE['amount'], EXPENSE['incurred_on'], EXPENSE['person']))
     for a in INITIAL_ALLOCATIONS:
         print('    funded  %-10s $%.2f' % (a['funder'], a['amount']))
     print()
@@ -240,8 +235,21 @@ def run(model):
           and model.qualifying(unpaid, rules='v2026.1').total == 950.00
           and len(model.determinations(unpaid)) == 2)
 
+    # ── The plan boundary: this module does not know, and does not guess ────
+    # Which plan covered a charge is a household fact, owned by core/plan_year.py and
+    # derived from the period covering the date. Two modules deriving it from two places is
+    # the fusion this architecture is written against, and it was caught when the schema had
+    # to pick one. So allocation reports what it is told - and the two ways of not having a
+    # plan are different answers.
+    check('with nobody supplying a plan, the plan is UNRESOLVED rather than guessed',
+          model.state(exp)['expense_plan'] is model.UNRESOLVED)
+    check('a supplied plan is reported as given',
+          model.state(exp, plan='plan-a')['expense_plan'] == 'plan-a')
+    check('and "no plan covered this date" is a real answer, distinct from not knowing',
+          model.state(exp, plan=None)['expense_plan'] is None)
+
     # ── Temporal: history is not rewritten by the present ───────────────────
-    for name, op, expected in MUTATIONS[4:7]:
+    for name, op, expected in MUTATIONS[4:6]:
         model.apply(exp, op)
         got = {k: model.state(exp).get(k) for k in expected if k != 'reproduce_under'}
         if 'reproduce_under' in expected:
@@ -269,7 +277,7 @@ def run(model):
     # in February. If events apply in ARRIVAL order rather than EFFECTIVE order,
     # the answer depends on import sequence. Imports are retroactive by nature,
     # so this is not an edge case.
-    replays = [model.replay(EXPENSE, INITIAL_ALLOCATIONS, MUTATIONS[:7], order=i)
+    replays = [model.replay(EXPENSE, INITIAL_ALLOCATIONS, MUTATIONS[:6], order=i)
                for i in range(3)]
     check('the same facts in any arrival order produce the same final state',
           all(r['state'] == replays[0]['state'] for r in replays))

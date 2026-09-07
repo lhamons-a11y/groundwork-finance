@@ -698,8 +698,21 @@ that must not be late, per §6.2.
 > derived an expense's plan from its own event stream while `core/plan_year.py` derived it from
 > household coverage periods — two sources of truth for one fact. The schema takes the second:
 > `healthcare_expenses` has no `plan_id`, and the plan covering a charge is the period covering
-> `incurred_on`. The consequence for the model is real and not yet done: allocation's
-> `plan_changed` events should stop being expense-scoped.
+> `incurred_on`.
+>
+> **The model followed, same day.** Allocation no longer has a `change_plan` operation, a
+> `plan_timeline` or a `_plan_at`; `new_expense` takes no plan, and `state(e, plan=…)` reports
+> the plan the caller resolved. Its default is `UNRESOLVED` rather than `None`, because *nobody
+> has told us which plan covered this date* and *no plan covered it* are different answers and
+> only a caller holding the household record can tell them apart. Both are asserted, and both
+> mutations — guessing a plan, and collapsing the two absences — are caught.
+>
+> The claim the old fixture made through allocation (a January expense stays on Plan A when
+> July switches) now lives where the fact lives, in `tests/test_plan_year_fixture.py`.
+>
+> **What this exposed:** `health_plans` and its term versions are now persisted by nothing.
+> The lifecycle fixture no longer issues plan changes, and `core/plan_year.py` has no
+> persistence layer at all. Named in `tests/substrate_experiment.py` rather than papered over.
 
 **Then the arithmetic.** The cost calculator, obligations with terms, the card-free reserve
 with its derived target, the collections flag and its two sentences. Still no network. §8 sits

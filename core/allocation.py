@@ -27,6 +27,13 @@ a subtraction, and while any part is unresolved there is **no definitive total a
 provider re-bills. Determinations are superseded rather than overwritten, each carrying
 provenance and a date.
 
+**This module does not know what plan covered an expense, and must not guess.** Coverage
+periods are household facts owned by `core/plan_year.py`; an expense knows the date it was
+incurred and nothing more. So `state()` reports the plan it was *told*, and `UNRESOLVED` when
+nobody told it — which is a different answer from `None`, meaning no plan covered that date.
+Two modules deriving one fact from two places is the fusion the architecture is written
+against, and it was caught when the schema had to pick one.
+
 **Events fold in effective order, not arrival order.** An EOB imported in March describes
 January, and a correction may have been recorded in February. Imports are retroactive by
 nature, so arrival order is not an edge case — it is the normal case, and a model whose answer
@@ -104,7 +111,6 @@ class Expense:
     amount: float = 0.0
     incurred_on: str = None
     person: str = None
-    plan: str = None
     events: list = field(default_factory=list)
     provenance: list = field(default_factory=list)
     merged_from: list = field(default_factory=list)
@@ -114,13 +120,14 @@ class Expense:
 
 # ── Recording ───────────────────────────────────────────────────────────────
 
-def new_expense(amount=0.0, incurred_on=None, person=None, plan=None):
-    e = Expense(amount=float(amount or 0.0), incurred_on=incurred_on, person=person,
-                plan=plan)
+def new_expense(amount=0.0, incurred_on=None, person=None):
+    """No `plan` argument, deliberately. Which plan covered this charge is a household fact
+    derived from the period covering `incurred_on`, and storing a copy here would be a second
+    source of truth that can drift from the first."""
+    e = Expense(amount=float(amount or 0.0), incurred_on=incurred_on, person=person)
     e.provenance.append({'kind': 'created', 'at': _now(), 'amount': e.amount,
-                         'incurred_on': incurred_on, 'person': person, 'plan': plan})
-    _record(e, 'expense_created', {'amount': e.amount, 'plan': plan,
-                                   'incurred_on': incurred_on})
+                         'incurred_on': incurred_on, 'person': person})
+    _record(e, 'expense_created', {'amount': e.amount, 'incurred_on': incurred_on})
     return e
 
 
@@ -149,7 +156,6 @@ _OPS = {
     'reverse_allocation': 'allocation_reversed',
     'correct_expense': 'expense_corrected',
     'import_eob': 'eob_imported',
-    'change_plan': 'plan_changed',
     'roll_year': 'year_rolled',
     'change_rules': 'rules_changed',
     'record_determination': 'determination_recorded',
@@ -179,7 +185,6 @@ def _fold(e):
     """Replay the events in EFFECTIVE order. Nothing about the answer may depend on the
     order the facts arrived in."""
     obligation = 0.0
-    plan_timeline = []          # (effective_date, plan)
     funders = {}                # funder -> Payment
     determinations = []
     current_rules = None
@@ -189,8 +194,6 @@ def _fold(e):
         p = ev.payload
         if ev.kind == 'expense_created':
             obligation = float(p.get('amount') or 0.0)
-            if p.get('plan'):
-                plan_timeline.append((p.get('incurred_on') or '', p['plan']))
         elif ev.kind == 'allocated':
             funders[p['funder']] = Payment(
                 funder=p['funder'], amount=float(p['amount']),
@@ -230,8 +233,6 @@ def _fold(e):
                     funders[p['funder']] = Payment(funder=p['funder'],
                                                    amount=float(p.get('amount') or 0.0),
                                                    source='imported')
-        elif ev.kind == 'plan_changed':
-            plan_timeline.append((p.get('effective') or '', p['to']))
         elif ev.kind == 'rules_changed':
             current_rules = p.get('to')
         elif ev.kind == 'determination_recorded':
@@ -241,23 +242,16 @@ def _fold(e):
                 rule_version=current_rules))
         elif ev.kind == 'year_rolled':
             # A new plan year does not reach backwards. The expense stays in the year it
-            # was incurred, on the plan in force then.
+            # was incurred, and the plan is looked up for that date rather than the present.
             pass
 
-    return {'obligation': obligation, 'funders': funders, 'plan_timeline': plan_timeline,
+    return {'obligation': obligation, 'funders': funders,
             'determinations': determinations, 'rules': current_rules, 'changes': changes}
 
 
 def _current_determination(folded):
     """The latest determination. Superseded, never overwritten — the earlier ones stay."""
     return folded['determinations'][-1] if folded['determinations'] else None
-
-
-def _plan_at(folded, when):
-    """The plan in force when the expense was incurred, not the plan in force now. A plan
-    change on 1 July does not move a January expense."""
-    eligible = [p for (eff, p) in folded['plan_timeline'] if not eff or eff <= (when or '')]
-    return eligible[-1] if eligible else None
 
 
 def _effective_obligation(folded):
@@ -274,7 +268,15 @@ def _funded(folded):
     return round(total, 2)
 
 
-def state(e):
+def state(e, plan=UNRESOLVED):
+    """Current state, plus the plan the caller resolved for this expense.
+
+    `plan` defaults to `UNRESOLVED` rather than `None` because the two are different answers:
+    nobody has told us which plan covered this date, versus no plan covered it. Only a caller
+    holding the household record can tell them apart, which is why this asks rather than
+    derives — the same division of labour `core/solution.py` uses when it takes
+    `months_observed` on trust.
+    """
     f = _fold(e)
     gross = _effective_obligation(f)
     out = {name: round(p.amount, 2) for name, p in f['funders'].items()}
@@ -285,7 +287,7 @@ def state(e):
     # and leaves the gap exactly where it was.
     out['unallocated'] = round(gross - _funded(f), 2)
     out['expense'] = gross
-    out['expense_plan'] = _plan_at(f, e.incurred_on)
+    out['expense_plan'] = plan
     out['expense_year'] = int((e.incurred_on or '0000')[:4])
     out['status'] = det.status if det else 'unknown'
     out['outstanding'] = round(gross - _funded(f), 2)

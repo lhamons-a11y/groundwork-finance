@@ -328,3 +328,23 @@ earned its place on the first run.
 **What this does not establish:** anything about persistence. See the note added to
 `EVENT_SUBSTRATE_QUESTION.md` — the model is pure and in-memory, and that criterion is
 still unrun.
+
+> *Superseded 2026-09-07:* the criterion has since been run and met, against the shipped
+> schema.
+
+### What the schema took back — 2026-09-07
+
+Allocation originally owned a plan timeline: `change_plan` events, a `plan_timeline`, and a
+`_plan_at` that answered *which plan covered this charge*. `core/plan_year.py` answered the
+same question from household coverage periods. **Two modules deriving one fact from two
+places**, each passing its own fixture, and neither able to see the other — principle 1's
+fusion arriving through the back door of independent development.
+
+Nothing caught it until the schema had to choose a single home, which is an argument for
+landing a record shape against a worked example rather than deriving it from a document.
+
+The plan business left this module. `state(e, plan=…)` now reports what the caller resolved,
+defaulting to **`UNRESOLVED` rather than `None`** — *nobody has told us* and *no plan covered
+that date* are different answers, and only a caller holding the household record can tell them
+apart. That is the same distinction this document draws about the $650, one level up: an
+absence with a reason is not an absence without one.

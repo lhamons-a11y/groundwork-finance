@@ -108,11 +108,33 @@ def _mutations(m):
         m._fold = broken
         return lambda: setattr(m, '_fold', orig)
 
-    def plan_is_current():
-        orig = m._plan_at
-        m._plan_at = lambda folded, when: (folded['plan_timeline'][-1][1]
-                                           if folded['plan_timeline'] else None)
-        return lambda: setattr(m, '_plan_at', orig)
+    def guesses_a_plan():
+        # The plausible shortcut: nobody supplied a plan, so use the household's latest.
+        # That is the module deriving a fact it does not own, which is how two sources of
+        # truth for one fact get created in the first place.
+        orig = m.state
+
+        def broken(e, plan=m.UNRESOLVED):
+            out = orig(e, plan)
+            if out['expense_plan'] is m.UNRESOLVED:
+                out['expense_plan'] = 'plan-a'
+            return out
+        m.state = broken
+        return lambda: setattr(m, 'state', orig)
+
+    def not_knowing_looks_like_no_plan():
+        # The other direction, and the subtler one: collapsing "no plan covered this date"
+        # into "nobody told us". Same display today, different futures - one is answered and
+        # one is waiting on a household record.
+        orig = m.state
+
+        def broken(e, plan=m.UNRESOLVED):
+            out = orig(e, plan)
+            if out['expense_plan'] is None:
+                out['expense_plan'] = m.UNRESOLVED
+            return out
+        m.state = broken
+        return lambda: setattr(m, 'state', orig)
 
     def duplicate_funds_twice():
         orig = m._fold
@@ -205,8 +227,9 @@ def _mutations(m):
          subtraction),
         ('unpaid and pending_claim collapse into one state', collapse_states),
         ('determinations are overwritten rather than superseded', overwrite_determinations),
-        ('the plan is the current plan, not the plan in force when it was incurred',
-         plan_is_current),
+        ('a plan is guessed when nobody supplied one', guesses_a_plan),
+        ('no plan covering the date is collapsed into not knowing',
+         not_knowing_looks_like_no_plan),
         ('a duplicate EOB creates a second funding event', duplicate_funds_twice),
         ('a definitive total is offered while something is unresolved',
          total_always_available),

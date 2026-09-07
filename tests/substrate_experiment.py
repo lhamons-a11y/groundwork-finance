@@ -84,6 +84,11 @@ RELATIONSHIPS = [
     ('determination -> expense',      'fk',         'expense_determinations.expense_id'),
     ('determination -> prior',        'fk',         'expense_determinations.supersedes_id'),
     ('expense -> the plan covering it', 'derived',  'health_plans period covering incurred_on'),
+    # Derived, and therefore nothing to persist per expense - which is the point. Note that
+    # this leaves `health_plans` and its term versions exercised by NOTHING here: the fixture
+    # no longer issues plan changes, because allocation no longer owns them, and
+    # `core/plan_year.py` has no persistence layer yet. That is a real gap, named rather than
+    # papered over.
     ('expense -> its person',         'link_table', 'person_assignments'),
     ('merged expense -> its sources', 'link_table', 'expense_merge_links'),
 ]
@@ -132,20 +137,6 @@ def _s():
     return db.db_session
 
 
-def _plan(name, effective_from, seq):
-    """Find or create the household plan period. A plan is not a property of a charge, so
-    two expenses under Plan A share one row rather than each carrying a copy."""
-    s = _s()
-    hit = s.query(HealthPlan).filter_by(name=name).first()
-    if hit is not None:
-        return hit
-    row = HealthPlan(name=name, effective_from=effective_from or '',
-                     effective_to='9999-12-31', seq=seq)
-    s.add(row)
-    s.flush()
-    return row
-
-
 def _person_id(name):
     """Find or create the named person. Identity is the row; the name is only how we found
     it, which is why an import has to map explicitly rather than match."""
@@ -190,8 +181,6 @@ def _save(e, ref=None):
                       recorded_seq=ev.recorded_seq)
         if ev.kind == 'expense_created':
             s.add(ExpenseObligationVersion(amount=float(p.get('amount') or 0.0), **common))
-            if p.get('plan'):
-                _plan(p['plan'], p.get('incurred_on'), ev.recorded_seq)
         elif ev.kind == 'expense_corrected':
             s.add(ExpenseObligationVersion(amount=float(p['to']), **common))
         elif ev.kind == 'allocated':
@@ -215,8 +204,6 @@ def _save(e, ref=None):
                 funder=p.get('funder') or '', amount=float(p.get('amount') or 0.0),
                 mode='eob_import', source='imported',
                 duplicate_of=p.get('duplicate_of'), **common))
-        elif ev.kind == 'plan_changed':
-            _plan(p['to'], p.get('effective'), ev.recorded_seq)
         elif ev.kind == 'rules_changed':
             s.add(TaxRuleVersion(version=p['to'], effective_seq=ev.effective_seq,
                                  recorded_seq=ev.recorded_seq))
@@ -288,15 +275,6 @@ def _load(ref):
                                                              'mode': r.mode},
                                       r.effective_seq, r.recorded_seq))
 
-    # Plan periods are household-level, so they are read for every expense rather than by
-    # expense id. That is the whole point of landing them that way: ONE source of truth for
-    # which plan covered a date, instead of a copy hanging off every charge that can drift
-    # from it. The expense's plan is then derived - the period covering `incurred_on`.
-    for r in s.query(HealthPlan).order_by(HealthPlan.seq).all():
-        events.append(alloc.Event('plan_changed',
-                                  {'to': r.name, 'effective': r.effective_from},
-                                  float(r.seq), r.seq))
-
     for r in s.query(TaxRuleVersion).all():
         events.append(alloc.Event('rules_changed', {'to': r.version},
                                   r.effective_seq, r.recorded_seq))
@@ -363,8 +341,10 @@ class Store:
         e = _load(ref)
         return _save(alloc.branch(e), None)
 
-    def state(self, ref):
-        return alloc.state(_load(ref))
+    def state(self, ref, plan=alloc.UNRESOLVED):
+        # The plan is resolved by whoever holds the household record, not reconstructed from
+        # the expense - so it passes straight through.
+        return alloc.state(_load(ref), plan)
 
     def unallocated(self, ref):
         return alloc.unallocated(_load(ref))
