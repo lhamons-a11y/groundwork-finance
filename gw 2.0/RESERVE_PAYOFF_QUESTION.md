@@ -117,6 +117,17 @@ unintended change, not to discriminate between reserve positions. So *0 of 55* m
 these 55 states changed** — not *never changes anything*, and the distance between those two
 readings is the point.
 
+**These coverage claims are asserted, not merely printed.** The tool counts reserve states,
+one-time-cost states and tied-rate states and **fails, exiting non-zero, if any becomes
+non-zero** — because that would make this section false while the figures still looked quotable.
+Verified able to fire: adding a single reserve case to the corpus produces
+`reserve_states is now 1, not 0 — section 3 says it is zero, and that claim is now false`.
+
+Extending the corpus would be a good thing to do. The assertion exists so that doing it updates
+this document rather than silently invalidating it — principle 7 turned on the instrument
+itself. Every figure of the form *N of 55* is therefore labelled in the tool's own output as
+**N of 55 non-reserve states**, so the denominator cannot be read as 55 reserve scenarios.
+
 ### The measurements
 
 | Position | Recorded states changed | Gap | Paths |

@@ -150,15 +150,50 @@ def coverage():
         ('strategies', ', '.join(sorted(strategies))),
         ('special cards', ', '.join(sorted(flags)) or 'none'),
     ]
+    # Counted, not asserted in prose. These are what the document's claims rest on, and
+    # `_coverage_violations` turns each into something that can fail.
+    counts = {
+        'cases': len(cases),
+        'reserve_states': sum(1 for _n, i in cases if 'reserve' in str(i).lower()),
+        'one_time_cost_states': sum(1 for _n, i in cases if 'one_time_cost' in i),
+        'tied_rate_states': tied,
+    }
     absent = [
-        ('a reserve, in any state', 'the corpus predates it entirely - 0 of 55 cases'),
+        ('a reserve, in any state',
+         'the corpus predates it entirely - %d of %d cases'
+         % (counts['reserve_states'], counts['cases'])),
         ('zero / partial / full reserve', 'no reserve dimension exists to vary'),
         ('reserve reached or depleted mid-run', 'same'),
-        ('one-time costs', '0 of 55 - green_light does not take one'),
-        ('tied interest rates', '%d of 55 - so ordering TIES are untested' % tied),
+        ('one-time costs', '%d of %d - green_light does not take one'
+         % (counts['one_time_cost_states'], counts['cases'])),
+        ('tied interest rates', '%d of %d - so ordering TIES are untested'
+         % (counts['tied_rate_states'], counts['cases'])),
         ('a balance clearing mid-month', 'not varied deliberately'),
     ]
-    return present, absent
+    return present, absent, counts
+
+
+def _coverage_violations(counts):
+    """The coverage claims, as assertions rather than prose.
+
+    `gw 2.0/RESERVE_PAYOFF_QUESTION.md` §3 states that the corpus contains no reserve, no
+    one-time cost and no tied interest rates, and the whole reading of "0 of 55" depends on
+    that being true. If someone extends the corpus - which would be a good thing to do - these
+    fail, and the document has to be updated rather than silently becoming wrong.
+
+    This is principle 7 applied to the instrument itself: before trusting a flattering
+    measurement, establish that the instrument did not exercise the phenomenon.
+    """
+    expected_zero = ('reserve_states', 'one_time_cost_states', 'tied_rate_states')
+    out = []
+    for key in expected_zero:
+        if counts[key]:
+            out.append('%s is now %d, not 0 - RESERVE_PAYOFF_QUESTION.md section 3 says it is '
+                       'zero, and that claim is now false' % (key, counts[key]))
+    if counts['cases'] < 20:
+        out.append('corpus shrank to %d cases - the measurements were recorded against 55'
+                   % counts['cases'])
+    return out
 
 
 def _diff(before, after):
@@ -303,7 +338,7 @@ def main():
     for mode in ('after', 'alongside', 'before'):
         checked, mismatches = measure(mode)
         pct = (100.0 * len(mismatches) / checked) if checked else 0.0
-        print('  %-10s %3d of %d recorded states change  (%.0f%%)'
+        print('  %-10s %3d of %d non-reserve states change  (%.0f%%)'
               % (mode, len(mismatches), checked, pct))
         for msg in mismatches[:2]:
             print('             e.g. %s' % msg[:96])
@@ -328,16 +363,28 @@ def main():
             undo()
     # ── The audit the requirement asks for ──────────────────────────────────
     print()
-    print('Corpus coverage - what "0 of 55" is and is not evidence of:')
-    present, absent = coverage()
+    present, absent, counts = coverage()
+    print('Corpus coverage. THE DENOMINATOR IS %d NON-RESERVE STATES:'
+          % counts['cases'])
+    print('  every figure below of the form "N of %d" counts states that contain NO reserve,'
+          % counts['cases'])
+    print('  no one-time cost and no tied interest rates. It is not %d reserve scenarios.'
+          % counts['cases'])
+    print()
     for label, value in present:
         print('    varies    %-30s %s' % (label, value))
     for label, why in absent:
         print('    ABSENT    %-30s %s' % (label, why))
     print()
-    print('  So a position measured at 0 of 55 changed NONE OF THESE STATES. The corpus was')
+    print('  So a position measured at 0 of %d changed NONE OF THESE STATES. The corpus was'
+          % counts['cases'])
     print('  recorded to protect green_light against unintended change; it was not designed')
     print('  to discriminate between reserve positions, and it contains no reserve at all.')
+
+    violations = _coverage_violations(counts)
+    for v in violations:
+        print()
+        print('  COVERAGE CLAIM VIOLATED: %s' % v)
 
     print()
     print('Calculations whose ordering or baseline changes, by position:')
@@ -370,6 +417,13 @@ def main():
     print('    _simulatePayoffStrategy in static/js/app.js  (the second implementation)')
     print('    tests/test_consequence_parity.py             (holds the two to the month)')
     print('    tests/green_light_contract.json              (re-record, versioned)')
+
+    if violations:
+        print()
+        print('FAILED: the corpus no longer matches what the document claims about it.')
+        print('Update gw 2.0/RESERVE_PAYOFF_QUESTION.md section 3 before quoting these')
+        print('figures again - the numbers may still be right, but the reading of them is not.')
+        return 1
     return 0
 
 
