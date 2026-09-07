@@ -52,6 +52,21 @@ beside the funding rather than folded into it.
 the full amount paid, and the deduction is overstated by exactly the refund — money back in
 their pocket and still on their return.
 
+**Correction is not retraction, and the same present balance can be reached by either.**
+
+    created $400 -> corrected to $275        one obligation, restated
+    created $400 -> voided -> new $275       two obligations, one retracted
+
+Both end owing $275, and that is the *only* thing they share. A correction says *we had the
+amount wrong*; a retraction says *that bill was not real, this one is*. The distinction has to
+survive, because a payment attached to the retracted bill is not a payment against its
+replacement — and collapsing them makes $275 look satisfied by money attached to an obligation
+nobody owes.
+
+**A retraction is a state, not a removal.** Hard deletion is prohibited once financial
+relationships exist, so `void_obligation` sets the obligation to nothing and keeps the record,
+its reason, its date, and whatever was attached to it.
+
 **Events fold in effective order, not arrival order.** An EOB imported in March describes
 January, and a correction may have been recorded in February. Imports are retroactive by
 nature, so arrival order is not an edge case — it is the normal case, and a model whose answer
@@ -132,6 +147,10 @@ class Expense:
     events: list = field(default_factory=list)
     provenance: list = field(default_factory=list)
     merged_from: list = field(default_factory=list)
+    # A retraction points forward to what replaced it, and the replacement points back. Two
+    # links rather than one, because either end may be the one in hand.
+    replaced_by_ref: object = None
+    replaces_ref: object = None
     _seq: int = 0
     _effective: float = 0.0
 
@@ -180,7 +199,12 @@ _OPS = {
     'change_rules': 'rules_changed',
     'record_determination': 'determination_recorded',
     'delete_allocation': 'allocation_deleted',
+    'void_obligation': 'obligation_voided',
 }
+
+# Present so a caller can ask whether this build understands retraction, rather than
+# discovering it from an exception.
+void_obligation_supported = True
 
 
 def apply(e, op, effective_seq=None):
@@ -205,6 +229,7 @@ def _fold(e):
     """Replay the events in EFFECTIVE order. Nothing about the answer may depend on the
     order the facts arrived in."""
     obligation = 0.0
+    voided = None
     funders = {}                # funder -> Payment
     unwound = {}                # funder -> amount that moved and then came back
     refunds = []
@@ -286,6 +311,16 @@ def _fold(e):
                 status=p['status'], amount=float(p.get('amount') or 0.0),
                 evidence=p.get('evidence'), determined_at=ev.recorded_at,
                 rule_version=current_rules))
+        elif ev.kind == 'obligation_voided':
+            # The obligation goes to nothing and the record stays. Anything attached to it
+            # stays attached, which is what makes the resulting negative unallocated a state
+            # a user can be shown and asked about rather than an error to hide.
+            voided = {'at': ev.recorded_at, 'reason': p.get('reason'),
+                      'occurred_on': p.get('occurred_on')}
+            obligation = 0.0
+            changes.append({'what': 'obligation', 'from': None, 'to': 0.0,
+                            'mode': 'void', 'reason': p.get('reason'),
+                            'occurred_on': p.get('occurred_on')})
         elif ev.kind == 'year_rolled':
             # A new plan year does not reach backwards. The expense stays in the year it
             # was incurred, and the plan is looked up for that date rather than the present.
@@ -293,7 +328,7 @@ def _fold(e):
 
     return {'obligation': obligation, 'funders': funders, 'unwound': unwound,
             'refunds': refunds, 'determinations': determinations, 'rules': current_rules,
-            'changes': changes}
+            'changes': changes, 'voided': voided}
 
 
 def _current_determination(folded):
@@ -352,6 +387,93 @@ def state(e, plan=UNRESOLVED):
 
 def unallocated(e):
     return state(e)['unallocated']
+
+
+# ── Retraction and replacement ──────────────────────────────────────────────
+
+def is_void(e):
+    return _fold(e)['voided'] is not None
+
+
+def void_record(e):
+    """Why the obligation was retracted and when. None when it was not."""
+    return _fold(e)['voided']
+
+
+def obligation_versions(e):
+    """Every amount this obligation has been stated at. One entry means it was never
+    restated — which is how a replacement differs from a correction."""
+    f = _fold(e)
+    return [c for c in f['changes'] if c['what'] == 'obligation'
+            and c.get('mode') == 'correction'] + [{'what': 'obligation',
+                                                   'mode': 'original'}]
+
+
+def link_replacement(old, new):
+    """Record that `new` stands in place of `old`. Both directions, because either end may
+    be the one a caller is holding."""
+    old.replaced_by_ref = new
+    new.replaces_ref = old
+    old.provenance.append({'kind': 'replaced_by', 'at': _now()})
+    new.provenance.append({'kind': 'replaces', 'at': _now()})
+    return new
+
+
+def replaced_by(e):
+    return e.replaced_by_ref
+
+
+def replaces(e):
+    return e.replaces_ref
+
+
+def history_kind(e):
+    """What shape this obligation's history has, in terms a user would recognise.
+
+    `corrected`   the amount was restated on the same obligation
+    `replacement` this obligation stands in place of one that was retracted
+    `retracted`   this obligation was itself retracted
+    `original`    neither happened
+    """
+    if is_void(e):
+        return 'retracted'
+    if e.replaces_ref is not None:
+        return 'replacement'
+    if any(c['what'] == 'obligation' and c.get('mode') == 'correction'
+           for c in _fold(e)['changes']):
+        return 'corrected'
+    return 'original'
+
+
+def household_obligations(expenses):
+    """Which obligations a figure may cite. A retracted one is not among them — it is kept
+    so the record stays explicable, not so it can be added up."""
+    return [e for e in expenses if not is_void(e)]
+
+
+def histories_equivalent(a, b):
+    """Two obligations agreeing on the current balance are NOT thereby the same history.
+
+    Deliberately strict: equivalence requires the same shape of history, not the same number
+    at the end. A caller that wants "do these owe the same" should ask that instead.
+    """
+    return (history_kind(a) == history_kind(b)
+            and len(obligation_versions(a)) == len(obligation_versions(b))
+            and state(a)['expense'] == state(b)['expense'])
+
+
+def history_difference(a, b):
+    """What actually differs, named rather than merely detected."""
+    if histories_equivalent(a, b):
+        return None
+    out = {}
+    if history_kind(a) != history_kind(b):
+        out['shape'] = (history_kind(a), history_kind(b))
+    if len(obligation_versions(a)) != len(obligation_versions(b)):
+        out['restatements'] = (len(obligation_versions(a)), len(obligation_versions(b)))
+    if state(a)['expense'] != state(b)['expense']:
+        out['balance'] = (state(a)['expense'], state(b)['expense'])
+    return out
 
 
 def determinations(e):

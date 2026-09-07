@@ -29,6 +29,40 @@ obligation version chain, the other is a deletion plus a new obligation.
 semantically identical? If yes, normalization rules are needed. If no, the distinction has to
 survive every read path. Today it survives by accident rather than by rule.
 
+> **CLOSED — retraction and replacement in `core/allocation.py`.** 14 assertions
+> (`tests/test_convergent_history_fixture.py`), 9 of 9 mutations
+> (`smoke_sections/s97_convergent_history.py`). **No history-equivalence abstraction was
+> built** — the fixture was written first, as the review asked, and it exposed the answer
+> rather than requiring one to be invented.
+>
+> **What it exposed immediately: history B was not representable.** There was no way to void an
+> obligation — `deletion_modes()` covers allocations, not the expense — so the model could
+> express a correction and could not express a retraction. That was a decision being made
+> silently, which is exactly what the fixture existed to surface.
+>
+> **The answer: they are not equivalent, and the balance is the only thing they share.**
+>
+> | | | |
+> |---|---|---|
+> | current balance | **identical** | both owe $275 |
+> | obligation identity | **differs** | one restated, two with one retracted |
+> | provenance | **differs** | `corrected` versus `replacement` versus `retracted` |
+> | what a payment attaches to | **differs** | and this is where the money goes wrong |
+> | derived facts | **cite different sources** | a retracted obligation is never totalled |
+>
+> **Where it actually matters** is not taxonomy. A payment attached to the retracted bill does
+> **not** fund its replacement — collapsing them would make $275 look satisfied by money
+> attached to an obligation nobody owes. That leaves money against a zero obligation, showing
+> as **negative unallocated**, and the model reports it rather than netting it away: it is the
+> user's money sitting against a bill that no longer exists, which is precisely the state they
+> most need to be asked about.
+>
+> A retraction is **a state, not a removal** — the review had already settled that hard deletion
+> is prohibited once financial relationships exist — so the record, its reason, its date and
+> everything attached to it survive. And `histories_equivalent` is deliberately strict: agreeing
+> on the number is not being the same history, and a caller wanting *do these owe the same*
+> must ask that instead.
+
 ### 4. Inference amplification — **the material exists, the invariant does not**
 
 > *A derived fact may not acquire greater certainty merely because it participates in additional
