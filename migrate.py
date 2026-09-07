@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260725-byb'
+SCHEMA_VERSION = '20260907-healthcare-schema'
 
 
 def _stored_schema_version():
@@ -98,6 +98,15 @@ _NEW_BYB_COLUMNS = [
     ('whats_left_after',  "FLOAT"),
     ('actual_cost',       "FLOAT"),
     ('decided_at',        "DATETIME"),
+]
+
+
+# The healthcare record shape lands as new TABLES, which `init_db()`/`create_all` creates on
+# fresh and existing databases alike — no DDL needed here. The one exception is the foreign
+# key added to an existing table, which create_all will not add to a table that already
+# exists. Nullable and additive: no row is rewritten and nothing reads it yet.
+_NEW_HISTORIAN_COLUMNS = [
+    ('healthcare_expense_id', "INTEGER REFERENCES healthcare_expenses(id)"),
 ]
 
 
@@ -243,6 +252,7 @@ def run_migration_if_needed():
     _add_missing_columns('debt_balance_history', _NEW_DEBT_HISTORY_COLUMNS)
     _add_missing_columns('debt_ledger_entries',  _NEW_DEBT_LEDGER_COLUMNS)
     _add_missing_columns('byb_items',            _NEW_BYB_COLUMNS)
+    _add_missing_columns('historian_entries',    _NEW_HISTORIAN_COLUMNS)
     _ensure_indexes()
 
     # Audit note (d20 deferred → d21): debt_balance_history used to be defined

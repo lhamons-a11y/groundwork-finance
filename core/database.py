@@ -360,6 +360,14 @@ class HistorianEntry(Base):
     variance_amount = Column(Float, nullable=True)
     context_json    = Column(Text, nullable=True)
     created_at      = Column(DateTime, default=datetime.utcnow)
+    # One foreign key per referable entity, following the convention `debt_account_id` and
+    # `category_id` already set. Sprawl is the price of enforceability, and this project has
+    # consistently paid it: a polymorphic (entity_type, entity_id) pair avoids the nullable
+    # columns and gives up referential integrity, which is precisely the defect already
+    # visible in the `entry_id` values written into `context_json` with nothing to enforce
+    # them. See `gw 2.0/EVENT_SUBSTRATE_QUESTION.md`.
+    healthcare_expense_id = Column(Integer, ForeignKey('healthcare_expenses.id'),
+                                   nullable=True)
 
     debt_account = relationship('DebtAccount')
     category     = relationship('Category')
@@ -602,6 +610,225 @@ class PriceCache(Base):
     last_updated   = Column(DateTime, nullable=True)
     is_manual      = Column(Boolean, default=False)
     source         = Column(String(20), nullable=True)
+
+
+# ── Healthcare: the record shape ──────────────────────────────────────────────
+# Step 2 of `gw 2.0/HEALTHCARE_MODULE_DESIGN.md` §6.3, and §6.2 is the argument for landing
+# it before the arithmetic that reads it: recording decisions are urgent, code decisions are
+# not. A tax report cannot reconstruct which of 2027's pharmacy charges were HSA-paid if
+# nothing recorded it at the time.
+#
+# The shape was not designed here. It was validated by `tests/substrate_experiment.py`
+# against the criterion pre-registered in `gw 2.0/EVENT_SUBSTRATE_QUESTION.md`: every
+# structural relationship in a foreign key or a link table, none in `context_json`, and the
+# whole lifecycle fixture passing with that column never written.
+#
+# NOTHING READS THESE TABLES YET. The matching modules in `core/` — allocation, person,
+# plan_year, classification — are pure and have no callers. Wiring them is the next step.
+
+class Person(Base):
+    """A named person in the household. `id` is identity; `display_name` is presentation, so
+    renaming touches no figure. Names are labels, not access control — anyone who opens
+    Groundwork sees every person's data (design §1.7)."""
+    __tablename__ = 'people'
+    id           = Column(Integer, primary_key=True)
+    display_name = Column(String(80), nullable=False)
+    active       = Column(Boolean, default=True)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+
+class PersonAlias(Base):
+    """The explicit mapping an import must make. `patient = "ROB L."` is a string a billing
+    system chose; it becomes identity only when a person says so. John and John Jr. are why a
+    near-match may never be a match."""
+    __tablename__ = 'person_aliases'
+    id         = Column(Integer, primary_key=True)
+    person_id  = Column(Integer, ForeignKey('people.id'), nullable=False)
+    alias      = Column(String(120), nullable=False)
+    source     = Column(String(40), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('ix_person_alias', 'alias'),)
+
+
+class PersonAssignment(Base):
+    """Which person an expense belongs to, as a version rather than a field.
+
+    Deliberately NOT a `person_id` column on `healthcare_expenses`: that would be a mutable
+    current-state field, and reassignment is a financially meaningful correction — it moves
+    deductible and out-of-pocket accumulation, HSA eligibility and tax reporting. So it
+    supersedes rather than overwrites, and carries reason, source and date.
+    """
+    __tablename__ = 'person_assignments'
+    id          = Column(Integer, primary_key=True)
+    expense_id  = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
+    person_id   = Column(Integer, ForeignKey('people.id'), nullable=False)
+    mode        = Column(String(16), nullable=False)      # 'initial' | 'correction'
+    seq         = Column(Integer, nullable=False)
+    reason      = Column(String(200), nullable=True)
+    source      = Column(String(40), nullable=True)
+    recorded_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('ix_person_assign_expense', 'expense_id'),)
+
+
+class HealthPlan(Base):
+    """A coverage period. Identity and dates only — terms are versioned separately, so this
+    row never changes and a plan switch cannot rewrite the half-year before it."""
+    __tablename__ = 'health_plans'
+    id             = Column(Integer, primary_key=True)
+    name           = Column(String(80), nullable=False)
+    effective_from = Column(String(10), nullable=False)
+    effective_to   = Column(String(10), nullable=True)
+    seq            = Column(Integer, nullable=False)
+    created_at     = Column(DateTime, default=datetime.utcnow)
+
+
+class HealthPlanTermVersion(Base):
+    """Deductible and out-of-pocket maximum as of a point in the record.
+
+    `previous_*` is what separates a correction from a first statement: discovering the
+    deductible was $2,000 rather than $3,000 says the figure was always wrong, and the user is
+    owed the old value when a number they were shown moves underneath them.
+    """
+    __tablename__ = 'health_plan_term_versions'
+    id                  = Column(Integer, primary_key=True)
+    plan_id             = Column(Integer, ForeignKey('health_plans.id'), nullable=False)
+    deductible          = Column(Float, nullable=True)
+    oop_max             = Column(Float, nullable=True)
+    previous_deductible = Column(Float, nullable=True)
+    previous_oop_max    = Column(Float, nullable=True)
+    reason              = Column(String(200), nullable=True)
+    source              = Column(String(40), nullable=True)
+    seq                 = Column(Integer, nullable=False)
+    recorded_at         = Column(DateTime, default=datetime.utcnow)
+
+
+class HealthPlanOperation(Base):
+    """`change` = what is true going forward. `correction` = what was always true. Collapsing
+    these is how a plan switch silently rewrites February."""
+    __tablename__ = 'health_plan_operations'
+    id          = Column(Integer, primary_key=True)
+    plan_id     = Column(Integer, ForeignKey('health_plans.id'), nullable=False)
+    kind        = Column(String(16), nullable=False)      # 'change' | 'correction'
+    seq         = Column(Integer, nullable=False)
+    recorded_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PersonEnrolment(Base):
+    """A person survives a plan change; enrolment does not. Mutating a plan id on the person
+    would destroy the first half of a year in which they switched, so enrolment is its own
+    dated timeline."""
+    __tablename__ = 'person_enrolments'
+    id           = Column(Integer, primary_key=True)
+    person_id    = Column(Integer, ForeignKey('people.id'), nullable=False)
+    plan_id      = Column(Integer, ForeignKey('health_plans.id'), nullable=False)
+    effective_on = Column(String(10), nullable=True)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+
+class HealthcareExpense(Base):
+    """Identity only. The amount is versioned, the person is assigned, and the plan is derived
+    from the coverage period covering `incurred_on` — so nothing here is a mutable
+    current-state field, and no figure can be rewritten by editing this row.
+
+    There is deliberately no `plan_id`. `HealthPlan` periods are the single source of truth
+    for which plan covered a date, and two sources for one fact is the fusion this whole
+    architecture is written against.
+    """
+    __tablename__ = 'healthcare_expenses'
+    id          = Column(Integer, primary_key=True)
+    incurred_on = Column(String(10), nullable=False)
+    created_at  = Column(DateTime, default=datetime.utcnow)
+
+
+class ExpenseObligationVersion(Base):
+    """What the provider claims, and what it claimed before. Append-only, because a mutable
+    amount cannot answer what the figure was in March."""
+    __tablename__ = 'expense_obligation_versions'
+    id            = Column(Integer, primary_key=True)
+    expense_id    = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
+    amount        = Column(Float, nullable=False)
+    effective_seq = Column(Float, nullable=False)
+    recorded_seq  = Column(Integer, nullable=False)
+    supersedes_id = Column(Integer, ForeignKey('expense_obligation_versions.id'))
+    recorded_at   = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('ix_eov_expense', 'expense_id'),)
+
+
+class ExpenseFundingAllocation(Base):
+    """Money that moved, by funder, as a version chain rather than a mutable row.
+
+    One expense can have three funders — insurer, HSA and the user — which a `reimbursed`
+    boolean cannot represent. A correction writes a new row pointing at the one it supersedes,
+    so "superseded, never overwritten" is true in the database and not only in the model.
+    `cleared` + `attached` + `user_confirmed` is what confirms a payment; cleared alone is not
+    enough, because it defaults to true.
+    """
+    __tablename__ = 'expense_funding_allocations'
+    id             = Column(Integer, primary_key=True)
+    expense_id     = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
+    funder         = Column(String(40), nullable=False)
+    amount         = Column(Float, nullable=False)
+    mode           = Column(String(24), nullable=False)   # allocated|corrected|reversed|eob_import
+    source         = Column(String(24), default='manual')
+    cleared        = Column(Boolean, default=True)
+    attached       = Column(Boolean, default=True)
+    user_confirmed = Column(Boolean, default=True)
+    duplicate_of   = Column(String(40), nullable=True)
+    effective_seq  = Column(Float, nullable=False)
+    recorded_seq   = Column(Integer, nullable=False)
+    supersedes_id  = Column(Integer, ForeignKey('expense_funding_allocations.id'))
+    recorded_at    = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('ix_efa_expense', 'expense_id'),)
+
+
+class ExpenseDetermination(Base):
+    """What was concluded about an unresolved amount: a provider adjustment, paid in cash,
+    unpaid, or a claim still pending. Not four flavours of one thing — `unpaid` and
+    `pending_claim` give the same tax figure today and have different futures — and none of
+    them terminal, so they are superseded rather than overwritten."""
+    __tablename__ = 'expense_determinations'
+    id            = Column(Integer, primary_key=True)
+    expense_id    = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
+    status        = Column(String(32), nullable=False)
+    amount        = Column(Float, nullable=False)
+    evidence      = Column(String(80), nullable=True)
+    rule_version  = Column(String(24), nullable=True)
+    effective_seq = Column(Float, nullable=False)
+    recorded_seq  = Column(Integer, nullable=False)
+    supersedes_id = Column(Integer, ForeignKey('expense_determinations.id'))
+    recorded_at   = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('ix_edet_expense', 'expense_id'),)
+
+
+class TaxRuleVersion(Base):
+    """Which tax rule set was in force, as a household-level timeline.
+
+    Not a column on an expense: the rules are not a property of a charge. This exists because
+    a historical conclusion must never depend on an unversioned interpretation of the present
+    — the C1 defect the necessity floor demonstrated, where a rule changed and every prior
+    judgement quietly became unreproducible.
+    """
+    __tablename__ = 'tax_rule_versions'
+    id            = Column(Integer, primary_key=True)
+    version       = Column(String(24), nullable=False)
+    effective_seq = Column(Float, nullable=False)
+    recorded_seq  = Column(Integer, nullable=False)
+    recorded_at   = Column(DateTime, default=datetime.utcnow)
+
+
+class ExpenseMergeLink(Base):
+    """Two records found to be one. A single foreign key cannot hold two sources, which is
+    what a link table is for — and both provenances have to survive the merge."""
+    __tablename__ = 'expense_merge_links'
+    id             = Column(Integer, primary_key=True)
+    merged_into_id = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
+    merged_from_id = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
+    created_at     = Column(DateTime, default=datetime.utcnow)
 
 
 # ── Category hierarchy — full list ────────────────────────────────────────────

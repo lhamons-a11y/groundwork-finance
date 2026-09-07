@@ -26,11 +26,10 @@ never touched storage. This is the part that touches storage.
    of its column into JSON — must both be caught. A criterion that cannot fail is not a
    criterion.
 
-**What is deliberately NOT done here.** Nothing is added to `core/database.py`. The candidate
-tables live in this file, and the historian mirror carries one extra column
-(`healthcare_expense_id`) over the shipped table — asserted against the real schema below, so
-this experiment cannot quietly drift from the table it claims to be testing. Shipping it is
-one migration adding one nullable foreign key, plus the new tables.
+**It now tests the SHIPPED schema.** The candidate tables were landed in `core/database.py`
+on 2026-09-07 and this file imports them rather than redefining them, so it can no longer drift
+from the thing it claims to test — and a change to the shipped shape that breaks the criterion
+fails here rather than being noticed later.
 
 Run:  python tests/substrate_experiment.py
 """
@@ -84,143 +83,38 @@ RELATIONSHIPS = [
     ('allocation version -> prior',   'fk',         'expense_funding_allocations.supersedes_id'),
     ('determination -> expense',      'fk',         'expense_determinations.expense_id'),
     ('determination -> prior',        'fk',         'expense_determinations.supersedes_id'),
-    ('plan change -> expense',        'fk',         'expense_plan_changes.expense_id'),
-    ('rules change -> expense',       'fk',         'expense_rule_changes.expense_id'),
+    ('expense -> the plan covering it', 'derived',  'health_plans period covering incurred_on'),
+    ('expense -> its person',         'link_table', 'person_assignments'),
     ('merged expense -> its sources', 'link_table', 'expense_merge_links'),
 ]
 
+# `tax_rule_versions` is household-scoped rather than per-expense: the rules in force are not
+# a property of a charge. And a year roll is deliberately absent - it carries no fact and no
+# relationship, so it is an event in the historian and nothing else. That is the correct use
+# of `context_json`, which may carry explanatory context and may not carry integrity.
 
-# ── The candidate schema ────────────────────────────────────────────────────
+
+# ── The shipped schema ──────────────────────────────────────────────────────
 # Structure in tables with real foreign keys; events in the historian. The split the codebase
 # already makes in `create_debt_ledger_entry`, seven lines apart, pointed at a new object.
+#
+# These are the models in `core/database.py`. Importing rather than mirroring them is the
+# point: the experiment tests what ships.
 
-class HealthcareExpense(db.Base):
-    """Identity only. Everything that can change is versioned in its own table, because a
-    mutable amount column cannot answer what the figure was in March."""
-    __tablename__ = 'healthcare_expenses'
-    id          = Column(Integer, primary_key=True)
-    incurred_on = Column(String(10), nullable=False)
-    person      = Column(String(80), nullable=True)
-    created_at  = Column(DateTime, default=datetime.utcnow)
-    # Bookkeeping for this experiment's append-only save path.
-    persisted_events = Column(Integer, default=0)
-
-
-class ExpenseObligationVersion(db.Base):
-    """What the provider claims, and what it claimed before. Append-only."""
-    __tablename__ = 'expense_obligation_versions'
-    id            = Column(Integer, primary_key=True)
-    expense_id    = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
-    amount        = Column(Float, nullable=False)
-    effective_seq = Column(Float, nullable=False)
-    recorded_seq  = Column(Integer, nullable=False)
-    supersedes_id = Column(Integer, ForeignKey('expense_obligation_versions.id'))
-    recorded_at   = Column(DateTime, default=datetime.utcnow)
-
-
-class ExpenseFundingAllocation(db.Base):
-    """Money that moved, by funder, as a version chain rather than a mutable row.
-
-    A correction does not overwrite: it writes a new row pointing at the one it supersedes,
-    which is what keeps 'superseded, never overwritten' true in the database and not only in
-    the model.
-    """
-    __tablename__ = 'expense_funding_allocations'
-    id             = Column(Integer, primary_key=True)
-    expense_id     = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
-    funder         = Column(String(40), nullable=False)
-    amount         = Column(Float, nullable=False)
-    mode           = Column(String(24), nullable=False)   # allocated|corrected|reversed|deleted|eob_import
-    source         = Column(String(24), default='manual')
-    cleared        = Column(Integer, default=1)
-    attached       = Column(Integer, default=1)
-    user_confirmed = Column(Integer, default=1)
-    duplicate_of   = Column(String(40), nullable=True)
-    effective_seq  = Column(Float, nullable=False)
-    recorded_seq   = Column(Integer, nullable=False)
-    supersedes_id  = Column(Integer, ForeignKey('expense_funding_allocations.id'))
-    recorded_at    = Column(DateTime, default=datetime.utcnow)
-
-    __table_args__ = (Index('ix_efa_expense', 'expense_id'),)
-
-
-class ExpenseDetermination(db.Base):
-    """What was concluded about an unresolved amount. Superseded, never overwritten."""
-    __tablename__ = 'expense_determinations'
-    id            = Column(Integer, primary_key=True)
-    expense_id    = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
-    status        = Column(String(32), nullable=False)
-    amount        = Column(Float, nullable=False)
-    evidence      = Column(String(80), nullable=True)
-    rule_version  = Column(String(24), nullable=True)
-    effective_seq = Column(Float, nullable=False)
-    recorded_seq  = Column(Integer, nullable=False)
-    supersedes_id = Column(Integer, ForeignKey('expense_determinations.id'))
-    recorded_at   = Column(DateTime, default=datetime.utcnow)
-
-
-class ExpensePlanChange(db.Base):
-    __tablename__ = 'expense_plan_changes'
-    id            = Column(Integer, primary_key=True)
-    expense_id    = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
-    plan          = Column(String(40), nullable=False)
-    effective_on  = Column(String(10), nullable=True)
-    effective_seq = Column(Float, nullable=False)
-    recorded_seq  = Column(Integer, nullable=False)
-
-
-class ExpenseRuleChange(db.Base):
-    """A typed home for the rule version in force. Without it this would be the one thing
-    living only in JSON, and a rule version is not explanatory context — it decides whether a
-    historical figure can be reproduced."""
-    __tablename__ = 'expense_rule_changes'
-    id            = Column(Integer, primary_key=True)
-    expense_id    = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
-    rules_version = Column(String(24), nullable=False)
-    effective_seq = Column(Float, nullable=False)
-    recorded_seq  = Column(Integer, nullable=False)
-
-
-class ExpenseYearRoll(db.Base):
-    __tablename__ = 'expense_year_rolls'
-    id            = Column(Integer, primary_key=True)
-    expense_id    = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
-    rolled_to     = Column(Integer, nullable=False)
-    effective_seq = Column(Float, nullable=False)
-    recorded_seq  = Column(Integer, nullable=False)
-
-
-class ExpenseMergeLink(db.Base):
-    """Two records found to be one. A single FK column cannot hold two sources, which is
-    exactly what a link table is for."""
-    __tablename__ = 'expense_merge_links'
-    id             = Column(Integer, primary_key=True)
-    merged_into_id = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
-    merged_from_id = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
-    created_at     = Column(DateTime, default=datetime.utcnow)
-
-
-class HistorianEntryX(db.Base):
-    """The shipped historian plus ONE nullable foreign key.
-
-    Per-entity keys, following the convention `debt_account_id` and `category_id` already
-    set. The column set is asserted against the real table below, so this cannot drift from
-    what it claims to be testing.
-    """
-    __tablename__ = 'historian_entries_experimental'
-    id              = Column(Integer, primary_key=True)
-    event_category  = Column(String(40), nullable=False)
-    debt_account_id = Column(Integer, nullable=True)
-    category_id     = Column(Integer, nullable=True)
-    expected_value  = Column(Float, nullable=True)
-    actual_value    = Column(Float, nullable=True)
-    variance_pct    = Column(Float, nullable=True)
-    variance_amount = Column(Float, nullable=True)
-    context_json    = Column(Text, nullable=True)
-    created_at      = Column(DateTime, default=datetime.utcnow)
-    # The one addition.
-    healthcare_expense_id = Column(Integer, ForeignKey('healthcare_expenses.id'),
-                                   nullable=True)
+HealthcareExpense = db.HealthcareExpense
+ExpenseObligationVersion = db.ExpenseObligationVersion
+ExpenseFundingAllocation = db.ExpenseFundingAllocation
+ExpenseDetermination = db.ExpenseDetermination
+ExpenseMergeLink = db.ExpenseMergeLink
+TaxRuleVersion = db.TaxRuleVersion
+HealthPlan = db.HealthPlan
+HealthPlanTermVersion = db.HealthPlanTermVersion
+HealthPlanOperation = db.HealthPlanOperation
+Person = db.Person
+PersonAlias = db.PersonAlias
+PersonAssignment = db.PersonAssignment
+PersonEnrolment = db.PersonEnrolment
+Historian = db.HistorianEntry
 
 
 # ── Persisting and rehydrating ──────────────────────────────────────────────
@@ -238,27 +132,66 @@ def _s():
     return db.db_session
 
 
+def _plan(name, effective_from, seq):
+    """Find or create the household plan period. A plan is not a property of a charge, so
+    two expenses under Plan A share one row rather than each carrying a copy."""
+    s = _s()
+    hit = s.query(HealthPlan).filter_by(name=name).first()
+    if hit is not None:
+        return hit
+    row = HealthPlan(name=name, effective_from=effective_from or '',
+                     effective_to='9999-12-31', seq=seq)
+    s.add(row)
+    s.flush()
+    return row
+
+
+def _person_id(name):
+    """Find or create the named person. Identity is the row; the name is only how we found
+    it, which is why an import has to map explicitly rather than match."""
+    if not name:
+        return None
+    s = _s()
+    hit = s.query(Person).filter_by(display_name=name).all()
+    if len(hit) == 1:
+        return hit[0].id
+    p = Person(display_name=name)
+    s.add(p)
+    s.flush()
+    return p.id
+
+
 def _save(e, ref=None):
     """Append every event not yet persisted. Append-only, as a real event store would be."""
     s = _s()
+    fresh = ref is None
     if ref is None:
-        row = HealthcareExpense(incurred_on=e.incurred_on or '', person=e.person,
-                                persisted_events=0)
+        row = HealthcareExpense(incurred_on=e.incurred_on or '')
         s.add(row)
         s.flush()
         ref = Ref(row.id)
-    row = s.get(HealthcareExpense, ref.id)
-    start = row.persisted_events or 0
+        pid = _person_id(e.person)
+        if pid is not None:
+            s.add(PersonAssignment(expense_id=row.id, person_id=pid, mode='initial', seq=1))
+    # The append point is an identity set, not a count.
+    #
+    # Counting rows assumed every persisted event reads back as exactly one event, and that
+    # stopped being true the moment plan periods became household-level: a plan change writes
+    # one shared row and reads back for every expense, so the counts drift and the cursor
+    # re-persists from the wrong place. Identifying what is already there survives that,
+    # which a count cannot.
+    already = {(v.kind, v.recorded_seq) for v in _load(ref).events} if not fresh else set()
 
-    for ev in e.events[start:]:
+    for ev in e.events:
+        if (ev.kind, ev.recorded_seq) in already:
+            continue
         p = ev.payload
         common = dict(expense_id=ref.id, effective_seq=ev.effective_seq,
                       recorded_seq=ev.recorded_seq)
         if ev.kind == 'expense_created':
             s.add(ExpenseObligationVersion(amount=float(p.get('amount') or 0.0), **common))
             if p.get('plan'):
-                s.add(ExpensePlanChange(plan=p['plan'], effective_on=p.get('incurred_on'),
-                                        **common))
+                _plan(p['plan'], p.get('incurred_on'), ev.recorded_seq)
         elif ev.kind == 'expense_corrected':
             s.add(ExpenseObligationVersion(amount=float(p['to']), **common))
         elif ev.kind == 'allocated':
@@ -283,11 +216,16 @@ def _save(e, ref=None):
                 mode='eob_import', source='imported',
                 duplicate_of=p.get('duplicate_of'), **common))
         elif ev.kind == 'plan_changed':
-            s.add(ExpensePlanChange(plan=p['to'], effective_on=p.get('effective'), **common))
+            _plan(p['to'], p.get('effective'), ev.recorded_seq)
         elif ev.kind == 'rules_changed':
-            s.add(ExpenseRuleChange(rules_version=p['to'], **common))
+            s.add(TaxRuleVersion(version=p['to'], effective_seq=ev.effective_seq,
+                                 recorded_seq=ev.recorded_seq))
         elif ev.kind == 'year_rolled':
-            s.add(ExpenseYearRoll(rolled_to=int(p['to']), **common))
+            # Deliberately not recorded anywhere. A year roll carries no fact and no
+            # relationship - the expense stays in the year it was incurred, on the plan in
+            # force then - so there is nothing about it that integrity depends on. Skipping
+            # the historian row too keeps the read path's event set exactly the write path's.
+            continue
         elif ev.kind == 'determination_recorded':
             s.add(ExpenseDetermination(
                 status=p['status'], amount=float(p.get('amount') or 0.0),
@@ -297,14 +235,13 @@ def _save(e, ref=None):
 
         # The event, in the historian, pointing at the expense through a real foreign key.
         # context_json carries explanation only; nothing below reads it back.
-        s.add(HistorianEntryX(
+        s.add(Historian(
             event_category='healthcare_%s' % ev.kind,
             healthcare_expense_id=(None if JSON_RELATIONSHIP else ref.id),
             context_json=(json.dumps({'kind': ev.kind, 'payload': p,
                                       'expense_id': ref.id, 'seq': ev.recorded_seq})
                           if WRITE_JSON else None)))
 
-    row.persisted_events = len(e.events)
     s.commit()
     return ref
 
@@ -314,7 +251,10 @@ def _load(ref):
     what the wipe test proves rather than asserts."""
     s = _s()
     row = s.get(HealthcareExpense, ref.id)
-    e = alloc.Expense(incurred_on=row.incurred_on, person=row.person)
+    assign = (s.query(PersonAssignment).filter_by(expense_id=ref.id)
+              .order_by(PersonAssignment.seq).all())
+    who = (s.get(Person, assign[-1].person_id).display_name if assign else None)
+    e = alloc.Expense(incurred_on=row.incurred_on, person=who)
     events = []
 
     for r in s.query(ExpenseObligationVersion).filter_by(expense_id=ref.id).all():
@@ -348,40 +288,23 @@ def _load(ref):
                                                              'mode': r.mode},
                                       r.effective_seq, r.recorded_seq))
 
-    for r in s.query(ExpensePlanChange).filter_by(expense_id=ref.id).all():
-        if r.recorded_seq == 1:
-            events.append(alloc.Event('expense_created', {'amount': None, 'plan': r.plan,
-                                                          'incurred_on': r.effective_on},
-                                      r.effective_seq, r.recorded_seq + 0.5))
-        else:
-            events.append(alloc.Event('plan_changed', {'to': r.plan,
-                                                       'effective': r.effective_on},
-                                      r.effective_seq, r.recorded_seq))
+    # Plan periods are household-level, so they are read for every expense rather than by
+    # expense id. That is the whole point of landing them that way: ONE source of truth for
+    # which plan covered a date, instead of a copy hanging off every charge that can drift
+    # from it. The expense's plan is then derived - the period covering `incurred_on`.
+    for r in s.query(HealthPlan).order_by(HealthPlan.seq).all():
+        events.append(alloc.Event('plan_changed',
+                                  {'to': r.name, 'effective': r.effective_from},
+                                  float(r.seq), r.seq))
 
-    for r in s.query(ExpenseRuleChange).filter_by(expense_id=ref.id).all():
-        events.append(alloc.Event('rules_changed', {'to': r.rules_version},
-                                  r.effective_seq, r.recorded_seq))
-    for r in s.query(ExpenseYearRoll).filter_by(expense_id=ref.id).all():
-        events.append(alloc.Event('year_rolled', {'to': r.rolled_to},
+    for r in s.query(TaxRuleVersion).all():
+        events.append(alloc.Event('rules_changed', {'to': r.version},
                                   r.effective_seq, r.recorded_seq))
     for r in s.query(ExpenseDetermination).filter_by(expense_id=ref.id).all():
         events.append(alloc.Event('determination_recorded',
                                   {'status': r.status, 'amount': r.amount,
                                    'evidence': r.evidence},
                                   r.effective_seq, r.recorded_seq))
-
-    # The created event carries both the amount and the plan; they were written to two
-    # tables and are stitched back into one event here.
-    created = [v for v in events if v.kind == 'expense_created']
-    if len(created) == 2:
-        amount = next((c.payload.get('amount') for c in created
-                       if c.payload.get('amount') is not None), 0.0)
-        plan = next((c.payload.get('plan') for c in created if c.payload.get('plan')), None)
-        for c in created[1:]:
-            events.remove(c)
-        created[0].payload = {'amount': amount, 'plan': plan,
-                              'incurred_on': row.incurred_on}
-        e.plan = plan
 
     e.events = events
     e._seq = max([v.recorded_seq for v in events] or [0])
@@ -391,7 +314,7 @@ def _load(ref):
     e.merged_from = [_load(Ref(l.merged_from_id)) for l in links]
 
     own = (_rows_by_json(ref.id) if JSON_RELATIONSHIP
-           else s.query(HistorianEntryX).filter_by(healthcare_expense_id=ref.id).all())
+           else s.query(Historian).filter_by(healthcare_expense_id=ref.id).all())
     e.provenance = [{'kind': h.event_category, 'at': h.created_at} for h in own]
     for m in e.merged_from:
         e.provenance.extend(m.provenance)
@@ -401,7 +324,7 @@ def _load(ref):
 def _amount_from_json(expense_id, recorded_seq):
     """A read path that must parse JSON to recover a value an invariant depends on. Exactly
     what the criterion forbids, present only so phase 3 can demonstrate it being caught."""
-    for h in _s().query(HistorianEntryX).all():
+    for h in _s().query(Historian).all():
         if not h.context_json:
             continue
         d = json.loads(h.context_json)
@@ -413,7 +336,7 @@ def _amount_from_json(expense_id, recorded_seq):
 def _rows_by_json(expense_id):
     """The same forbidden shape, for a relationship rather than a value."""
     out = []
-    for h in _s().query(HistorianEntryX).all():
+    for h in _s().query(Historian).all():
         if h.context_json and json.loads(h.context_json).get('expense_id') == expense_id:
             out.append(h)
     return out
@@ -504,10 +427,29 @@ def _load_fixture():
     return mod
 
 
+def _clear():
+    """Empty the healthcare tables between phases.
+
+    Not only for speed. Household-level rows - plan periods, people, rule versions - are
+    shared by construction, so a phase inheriting them from the phase before is not testing
+    what it says it is: it would be reading plans nobody in that run created.
+    """
+    s = _s()
+    for model in (ExpenseMergeLink, PersonAssignment, ExpenseDetermination,
+                  ExpenseFundingAllocation, ExpenseObligationVersion, HealthcareExpense,
+                  HealthPlanOperation, HealthPlanTermVersion, HealthPlan,
+                  PersonEnrolment, PersonAlias, Person, TaxRuleVersion):
+        s.query(model).delete()
+    s.query(Historian).filter(Historian.event_category.like('healthcare_%')).delete(
+        synchronize_session=False)
+    s.commit()
+
+
 def _run(fx, model):
     """Run the fixture silently. Its own output is suppressed so the phases below read as
     phases - phase 3 deliberately breaks things, and its failures are the point rather than a
     problem."""
+    _clear()
     fx.PASS[:] = []
     fx.FAIL[:] = []
     fx.PENDING[:] = []
@@ -527,12 +469,12 @@ def main():
     print('=' * 74)
     db.Base.metadata.create_all(db.engine)
 
-    # The mirror must be the shipped table plus exactly one column, or this experiment is
-    # testing something other than what it claims.
-    real = {c.name for c in db.HistorianEntry.__table__.columns}
-    mine = {c.name for c in HistorianEntryX.__table__.columns}
-    check('the historian mirror is the shipped table plus one foreign key',
-          mine - real == {'healthcare_expense_id'} and real - mine == set())
+    # The shipped historian carries the one foreign key this needs, and it is a real key
+    # rather than a value in a blob.
+    cols = db.HistorianEntry.__table__.columns
+    fk = cols['healthcare_expense_id']
+    check('the shipped historian carries a real foreign key to a healthcare expense',
+          bool(fk.foreign_keys) and fk.nullable)
 
     fx = _load_fixture()
 
@@ -555,17 +497,23 @@ def main():
           % len(in_json), len(in_json) <= 2)
 
     # ── The criterion, part 2: run with the column permanently NULL ─────────
-    before = _s().query(HistorianEntryX).filter(
-        HistorianEntryX.context_json.isnot(None)).count()
     WRITE_JSON = False
     try:
         passed2, failures2, err2 = _run(fx, Store())
     finally:
         WRITE_JSON = True
-    after = _s().query(HistorianEntryX).filter(
-        HistorianEntryX.context_json.isnot(None)).count()
+    # Counted after the phase, against a table the phase started empty. Nothing it wrote
+    # carries JSON, which is the claim - and it is a stronger one than "we deleted the JSON
+    # afterwards", because a wiped column leaves the next run free to write fresh JSON and
+    # depend on it.
+    wrote_json = _s().query(Historian).filter(
+        Historian.event_category.like('healthcare_%'),
+        Historian.context_json.isnot(None)).count()
+    total_rows = _s().query(Historian).filter(
+        Historian.event_category.like('healthcare_%')).count()
 
-    check('the second phase wrote no context_json at all', after == before)
+    check('the second phase wrote rows but none of them carry context_json (%d of %d)'
+          % (wrote_json, total_rows), total_rows > 0 and wrote_json == 0)
     check('no read path needed context_json to enforce an invariant',
           not failures2 and not err2 and passed2 == passed)
     if err2:
@@ -608,10 +556,9 @@ def main():
     print('%d passed, %d failed' % (len(PASS), len(FAIL)))
     print()
     if verdict:
-        print('CRITERION MET. The fixture round-trips through the schema with 0 structural')
-        print('relationships in context_json, and passes in full with the column never')
-        print('written. Shipping this is one migration: one nullable foreign key on')
-        print('historian_entries, plus the structure tables.')
+        print('CRITERION MET, against the SHIPPED schema. The fixture round-trips with 0')
+        print('structural relationships in context_json, and passes in full with the column')
+        print('never written.')
     else:
         print('CRITERION NOT MET. A typed event store is warranted; see the failures above.')
     return 0 if verdict else 1

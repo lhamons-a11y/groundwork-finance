@@ -677,6 +677,30 @@ on nothing else here.
 funds, bills and providers. No network, no partner, no new privacy surface. This is the phase
 that must not be late, per §6.2.
 
+> **Partly landed 2026-09-07** — thirteen tables in `core/database.py` plus one nullable
+> foreign key on `historian_entries`, migration verified against a pre-change database.
+> `tests/substrate_experiment.py` now runs against the shipped schema rather than a candidate,
+> so a change that breaks the substrate criterion fails there instead of being noticed later.
+>
+> **Landed:** people (identity, aliases, assignments, enrolments), plan periods with versioned
+> terms and change-versus-correction operations, bills as versioned obligations, reimbursement
+> state as a funding-allocation version chain, determinations, merge links, tax rule versions.
+>
+> **Not landed, and still owed by this step:** providers, HSA and FSA as funds, and the
+> healthcare category taxonomy (§1.2). Each needs its own fixture first — landing a table that
+> no worked example has pushed on is how a schema acquires a shape nobody can defend, and
+> schema is the expensive thing to reverse.
+>
+> **Nothing reads any of it.** The matching modules are pure and have no callers, so this
+> changes no behaviour; `s70_green_light_contract` confirms it.
+>
+> **One decision the schema had to make that the modules had not.** `core/allocation.py`
+> derived an expense's plan from its own event stream while `core/plan_year.py` derived it from
+> household coverage periods — two sources of truth for one fact. The schema takes the second:
+> `healthcare_expenses` has no `plan_id`, and the plan covering a charge is the period covering
+> `incurred_on`. The consequence for the model is real and not yet done: allocation's
+> `plan_changed` events should stop being expense-scoped.
+
 **Then the arithmetic.** The cost calculator, obligations with terms, the card-free reserve
 with its derived target, the collections flag and its two sentences. Still no network. §8 sits
 here rather than later: after §0.3 removed the computed gate and the generated figure, what
