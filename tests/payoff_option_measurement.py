@@ -110,6 +110,57 @@ def _as_lever(orig_sim):
     return orig_sim, undo
 
 
+def coverage():
+    """What the 55-state corpus actually varies, and what it does not.
+
+    Reported so "0 of 55" cannot be read as "never changes anything". It means *none of 55
+    states that were recorded for a different purpose* - the corpus exists to protect
+    `green_light`, and it predates the reserve entirely.
+    """
+    cases = glc.cases()
+    ncards, rates, surplus, drivers = [], [], [], []
+    tied = 0
+    flags = set()
+    strategies = set()
+    for _name, inp in cases:
+        cards = inp['cards']
+        ncards.append(len(cards))
+        rs = [c['rate'] for c in cards]
+        rates += rs
+        if len(rs) != len(set(rs)):
+            tied += 1
+        total_min = sum(c['minimum'] for c in cards)
+        surplus.append(inp['budget'] - total_min)
+        drivers.append(len(inp['drivers']))
+        strategies.add(inp.get('strategy', 'avalanche'))
+        for c in cards:
+            for k in ('is_lease', 'is_pslf', 'forgive_after_months'):
+                if c.get(k):
+                    flags.add(k)
+            if c['balance'] == 0:
+                flags.add('zero_balance')
+
+    present = [
+        ('cases', '%d' % len(cases)),
+        ('cards per case', '%d-%d' % (min(ncards), max(ncards))),
+        ('interest rates', '%.2f%%-%.2f%%' % (min(rates), max(rates))),
+        ('surplus over minimums', '$%.2f to $%.2f' % (min(surplus), max(surplus))),
+        ('cases with no surplus', '%d' % sum(1 for x in surplus if x <= 0)),
+        ('drivers per case', '%d-%d' % (min(drivers), max(drivers))),
+        ('strategies', ', '.join(sorted(strategies))),
+        ('special cards', ', '.join(sorted(flags)) or 'none'),
+    ]
+    absent = [
+        ('a reserve, in any state', 'the corpus predates it entirely - 0 of 55 cases'),
+        ('zero / partial / full reserve', 'no reserve dimension exists to vary'),
+        ('reserve reached or depleted mid-run', 'same'),
+        ('one-time costs', '0 of 55 - green_light does not take one'),
+        ('tied interest rates', '%d of 55 - so ordering TIES are untested' % tied),
+        ('a balance clearing mid-month', 'not varied deliberately'),
+    ]
+    return present, absent
+
+
 def _diff(before, after):
     """What moved, in enough detail to become a requirement.
 
@@ -276,6 +327,18 @@ def main():
         finally:
             undo()
     # ── The audit the requirement asks for ──────────────────────────────────
+    print()
+    print('Corpus coverage - what "0 of 55" is and is not evidence of:')
+    present, absent = coverage()
+    for label, value in present:
+        print('    varies    %-30s %s' % (label, value))
+    for label, why in absent:
+        print('    ABSENT    %-30s %s' % (label, why))
+    print()
+    print('  So a position measured at 0 of 55 changed NONE OF THESE STATES. The corpus was')
+    print('  recorded to protect green_light against unintended change; it was not designed')
+    print('  to discriminate between reserve positions, and it contains no reserve at all.')
+
     print()
     print('Calculations whose ordering or baseline changes, by position:')
     total = len(_calculations())
