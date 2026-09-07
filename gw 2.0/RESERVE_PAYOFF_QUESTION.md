@@ -248,6 +248,56 @@ A more internally truthful model — and worth noting that it makes *lever* and 
 express as well as *before* and *alongside*, so it is not a cost attributable to any one
 position.
 
+### Measured: the repository cannot tell the two readings apart
+
+The semantic audit's question 5, run against this term. `tests/vocabulary_mutation.py`, 2026-09-07.
+Two operational readings, neither selected:
+
+```text
+A — DESTINATION    "the money that actually reduces principal"      (its docstring)
+B — AVAILABILITY   "what is uncommitted once every minimum is paid"
+```
+
+Where each is already visible, before any test is run:
+
+| | |
+|---|---|
+| docstring | asserts **A** |
+| signature | enforces **B** — `(cards, budget)` cannot net out a one-time cost, and a one-time cost already draws on this pool |
+| consumer | requires **B** — `save_first_plan` divides the price by the *whole* pool |
+| assertion | pins **B**'s arithmetic — `pool == 775 − (200 + 75)` |
+
+**The docstring and the signature already disagree**, and nothing notices.
+
+| Mutation | Result |
+|---|---|
+| baseline | 789 passed, 0 failed |
+| reading A, **numerically identical today** | **789 passed, 0 failed** |
+| reading A, with something actually committed elsewhere | 785 passed, **4 failed** |
+
+**The finding: the suite does not distinguish the readings.** An implementation meaning *the
+money that reaches principal* passes every check, because the two agree numerically while
+nothing else draws on the pool. The repository asserts an **arithmetic identity that both
+readings satisfy**, not a meaning.
+
+And the four failures in the active case are worth reading rather than counting:
+
+```text
+the plan saves out of the pool the cost actually comes from
+save-first prices the plan from that pool, in whole months
+the funding panel gets the plan
+the cap is what the extra above the minimums can actually carry
+```
+
+Two of those are *named* in semantic terms — and they still failed only because a **number
+moved**, since the same meaning with the same number passed. **They are meaning-named and
+value-asserting**, which is a subtler failure than no coverage at all: the names suggest the
+distinction is protected when what is protected is the arithmetic.
+
+**Nothing was repaired.** Choosing a reading to make a test pass is the contamination this audit
+exists to avoid; the result is evidence for question 1, which is not settled here.
+`core/consequence.py` was restored byte-for-byte and the hash verified.
+
 ## 8. Blast radius — wider than parity, and the LTS question
 
 The payoff math exists twice: `core/consequence.py` and `_simulatePayoffStrategy` in
