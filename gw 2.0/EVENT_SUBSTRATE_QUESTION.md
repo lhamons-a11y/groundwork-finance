@@ -2,8 +2,11 @@
 
 **An open decision with a migration attached**
 
-> Status: **Closed 2026-09-06.** `HistorianEntry` is kept and extended, structure stays in link
-> tables with foreign keys, and new references follow the existing per-entity convention.
+> Status: **Closed 2026-09-06; experiment run and criterion MET 2026-09-07.** `HistorianEntry`
+> is kept and extended, structure stays in link tables with foreign keys, and new references
+> follow the existing per-entity convention. The pre-registered criterion has now been
+> tested rather than predicted: `tests/substrate_experiment.py`, 0 relationships in
+> `context_json`, no read path needing it, one new nullable foreign key.
 > Originally written as an open architecture decision; the codebase turned out to have answered
 > most of it already. Written 2026-09-06, pulled out of the healthcare
 > reviews because it is not a healthcare decision. It touches shipped code, real user data, and
@@ -215,6 +218,11 @@ link tables with foreign keys, so none needs to be in the blob. The criterion st
 because the slice has not been built yet, and a criterion that is retired the moment it looks
 satisfied was never a criterion.
 
+> **Met in fact, 2026-09-07, and the caution was worth keeping.** The prediction was right —
+> zero — but the first version of the experiment measured it wrongly and would have reported a
+> pass it had not earned. Being right about the answer is not the same as having tested it.
+> See *The experiment was run* below.
+
 The rule behind it, worth keeping regardless of how the experiment lands:
 
 > **JSON may carry explanatory context. Relationships required to preserve financial integrity
@@ -232,20 +240,47 @@ historian can carry fact → event → relationship → calculation → rule ver
 reversal → historical reconstruction without becoming an untyped JSON dump, it is extended. If
 it cannot, that is demonstrated in code rather than argued in a document.
 
-### The model exists; the substrate experiment does not — 2026-09-07
+### The experiment was run — criterion MET, 2026-09-07
 
-`core/allocation.py` satisfies the fixture, 32 assertions, with 13 of 13 mutations detected.
-**That says nothing about this question**, and the distinction matters enough to state rather
-than let a green suite imply otherwise:
+`tests/substrate_experiment.py`. Every operation in the lifecycle fixture round-trips through
+a candidate schema, and the criterion is **measured, not inspected**:
 
-> The model is **pure and in-memory**. Nothing about it touches storage, so the pre-registered
-> criterion — more than two structural relationships inside `context_json`, or a read path
-> parsing JSON to enforce an invariant — **has still not been tested against anything.**
+| | |
+|---|---|
+| Structural relationships in `context_json` | **0** of 9 — eight foreign keys and one link table |
+| Read paths parsing JSON to enforce an invariant | **none** |
+| New columns on `historian_entries` | **one**, `healthcare_expense_id`, nullable |
 
-What it does establish is the shape the substrate would have to carry, and it is a helpful
-answer: state is **derived by folding events in effective order**, never stored. So what needs
-persisting is the event stream and the link tables, not the computed state — which is the
-structure-versus-event split the codebase already makes, arriving from the other direction.
+**The measurement that counts is the second phase**, which runs the whole fixture with
+`context_json` **never written at all**. An earlier version of this experiment wiped JSON
+after the first run and re-ran — and reported a pass it had not earned, because the second run
+created new rows and wrote fresh JSON it was then free to depend on. Wiping proves nothing;
+never writing does.
 
-The criterion stays open, and it stays written down. A criterion retired the moment something
-adjacent looks satisfied was never a criterion.
+**And the experiment proves it can fail.** Two deliberate breakages — the event→expense
+relationship moved out of its foreign key into JSON, and an allocation amount moved out of its
+column into JSON — are both caught. A criterion that cannot go red measures nothing, and this
+one had to be rebuilt once before it could.
+
+### What the experiment settled that the document had not
+
+**The historian is not the authority for the money.** Structure lives in versioned,
+append-only tables — obligation versions, funding allocations, determinations, each row
+pointing at the one it supersedes — and the historian records that the event happened, keeping
+the audit and learning role it already has. State is folded from the typed tables, so
+`superseded, never overwritten` is true *in the database* rather than only in the model.
+
+That is the structure-versus-event split from `create_debt_ledger_entry`, unchanged, pointed
+at a new object. The reason it matters here: had the amounts gone into historian rows, they
+would have landed either in `context_json` (failing the criterion outright) or in
+`actual_value` — the variance-shaped column whose name would then lie about half the rows,
+forever.
+
+**A mutable current-state row would not have worked.** `expense_funding_allocations` is a
+version chain rather than a row that gets updated, because a correction that overwrites cannot
+answer what the figure was in March, and a tax figure has to be reproducible after the rules
+change under it.
+
+**Not shipped.** Nothing was added to `core/database.py`; the candidate tables live in the
+experiment, and the historian mirror is asserted equal to the shipped table plus the one
+column, so this cannot drift from what it claims to test.
