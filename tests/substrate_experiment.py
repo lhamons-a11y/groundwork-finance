@@ -116,7 +116,7 @@ ExpenseDetermination = db.ExpenseDetermination
 ExpenseMergeLink = db.ExpenseMergeLink
 ExpenseRefund = db.ExpenseRefund
 ReserveTarget = db.ReserveTarget
-ReserveContribution = db.ReserveContribution
+ReserveAllocation = db.ReserveAllocation
 TaxRuleVersion = db.TaxRuleVersion
 HealthPlan = db.HealthPlan
 HealthPlanTermVersion = db.HealthPlanTermVersion
@@ -642,11 +642,11 @@ def _sync_reserve():
             s.add(ReserveTarget(basis=t.basis, amount=t.amount, kind=t.kind,
                                 source=t.source, reason=t.reason, seq=t.seq,
                                 cleared=False))
-    have_c = {r.seq for r in s.query(ReserveContribution).all()}
-    for c in reg.contributions:
-        if c.seq not in have_c:
-            s.add(ReserveContribution(amount=c.amount, on_date=c.on, note=c.note,
-                                      seq=c.seq))
+    have_a = {r.seq for r in s.query(ReserveAllocation).all()}
+    for a in reg.allocations:
+        if a.seq not in have_a:
+            s.add(ReserveAllocation(amount=a.amount, as_of=a.as_of, reason=a.reason,
+                                    source=a.source, seq=a.seq))
     s.flush()
     # `cleared` marks the target that was withdrawn. Recorded on the latest row rather than
     # as a deletion, so the history of what was wanted survives being no longer wanted.
@@ -667,18 +667,18 @@ def _hydrate_reserve():
                                      recorded_at=r.recorded_at)
                    for r in rows]
     reg.cleared = bool(rows and rows[-1].cleared)
-    reg.contributions = [
-        reservemod.Contribution(amount=r.amount, on=r.on_date, note=r.note, seq=r.seq,
-                                recorded_at=r.recorded_at)
-        for r in s.query(ReserveContribution).order_by(ReserveContribution.seq).all()]
+    reg.allocations = [
+        reservemod.Allocation(amount=r.amount, as_of=r.as_of, reason=r.reason,
+                              source=r.source, seq=r.seq, recorded_at=r.recorded_at)
+        for r in s.query(ReserveAllocation).order_by(ReserveAllocation.seq).all()]
 
 
 class ReserveStore:
     """core/reserve.py, backed entirely by the shipped tables."""
     UNKNOWN = reservemod.UNKNOWN
-    _READS = ('current_target', 'target_history', 'target_amount', 'contributions',
-              'held', 'status')
-    _WRITES = ('set_target', 'clear_target', 'contribute', 'withdraw')
+    _READS = ('current_target', 'target_history', 'target_amount', 'allocations',
+              'reserved', 'available', 'snapshot')
+    _WRITES = ('set_target', 'clear_target', 'allocate')
 
     def reset(self):
         reservemod.reset()
@@ -759,7 +759,7 @@ def _clear():
                   HealthcareExpense,
                   HealthPlanOperation, HealthPlanTermVersion, HealthPlan,
                   PersonEnrolment, PersonAlias, Person, TaxRuleVersion,
-                  ReserveContribution, ReserveTarget):
+                  ReserveAllocation, ReserveTarget):
         s.query(model).delete()
     s.query(Historian).filter(Historian.event_category.like('healthcare_%')).delete(
         synchronize_session=False)

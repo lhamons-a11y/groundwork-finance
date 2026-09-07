@@ -322,6 +322,38 @@ and never-needing-the-card are not the same objective, and the engine today only
 first. Whether the reserve is built *before*, *alongside*, or *after* the last balance is a
 real allocation question with no obvious answer, and it is Open Question 6.
 
+> **Open Question 6 had two halves. The first is FROZEN — Rob, 2026-09-07.**
+>
+> > **A reserve is an allocation of an existing financial state, recorded alongside the
+> > applicable balance. It does not modify the historical account balance and is not itself a
+> > transaction.**
+>
+> ```text
+> $2,000 ending balance          and never    $2,000 balance
+> ├── $500 reserved                            → reserve $500
+> └── $1,500 available                         → $1,500 balance
+> ```
+>
+> The second shape makes the reserve look like a balance movement, and it is not one. **If the
+> account held $2,000 the historian goes on reporting $2,000**, however much of it was
+> allocated — which is what keeps reconciliation and historical reporting honest. `available`
+> is derived on demand and stored nowhere.
+>
+> The consequence that corrected the first implementation: **an allocation is a level, not an
+> accumulation.** $500 then $700 means $700 is reserved, not $1,200. A contribution ledger
+> sums; an allocation supersedes. `core/reserve.py` therefore has no `contribute`, no
+> `withdraw` and no balance-moving operation at all, and that absence is the rule made
+> mechanical rather than remembered.
+>
+> **Scope:** this is a data and semantic decision belonging to the **LTS foundation**. LTS
+> records the financial state and the reserve allocation; 2.0 may use that verified
+> information for teaching and consequence analysis, but the responsibility for recording the
+> underlying financial truth stays in LTS.
+>
+> **Still open — the payoff half.** Whether freed money fills the reserve *before*, *alongside*
+> or *after* the last debt balance is cleared is a change to how payoff is allocated. It lands
+> in `core/consequence.py`, it affects every user, and nothing above decides it.
+
 ### 1.5 The visit report
 
 A cost receipt to take to an appointment. **It is not a health record.** It carries no
@@ -564,6 +596,10 @@ Per `CALCULATION_PLACEMENT.md`: anything backing a claim is Python, named, and t
   is not asked a new question here. But "build the reserve before the last balance is clear"
   *is* a change to how payoff is allocated, and that lands in the engine and affects every
   user. Which is why it is a question and not a decision in this document.
+  **Still true after 2026-09-07:** the half of Open Question 6 that was frozen is the *data*
+  semantics — a reserve is an allocation of a balance, not a transaction — and it changes
+  nothing in the engine. `core/consequence.py` is untouched, and the payoff-allocation half
+  remains the open one.
 
 ---
 

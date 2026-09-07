@@ -1,35 +1,47 @@
 # -*- coding: utf-8 -*-
-"""The healthcare reserve — three things, and the claim that must not be made.
+"""The healthcare reserve — an allocation of a balance, not a movement of one.
 
-Implements `gw 2.0/ARCHITECTURE_REVIEW_LIFECYCLE.md` §5, and is specified by
-`tests/test_reserve_fixture.py`, written before this file existed.
+Implements `gw 2.0/ARCHITECTURE_REVIEW_LIFECYCLE.md` §5 and design Open Question 6, and is
+specified by `tests/test_reserve_fixture.py`.
 
-    reserve target · reserve balance · contribution history
+**The frozen rule (Rob, 2026-09-07):**
 
-**The failure this exists to prevent**, in the review's own words: *"You have $4,000 healthcare
-reserve"* when the truth is *"$4,000 of your general cash is counted toward a $6,000 target."*
-Those are different claims, and the second is the true one for most households. So `held` and
-`counted` are separate figures here and no single number stands in for the pair — the same
-refusal the net-worth surface already makes.
+> A reserve is an allocation of an existing financial state, recorded alongside the applicable
+> balance. It does not modify the historical account balance and is not itself a transaction.
+
+So the shape is:
+
+    $2,000 ending balance
+    ├── $500 reserved
+    └── $1,500 available
+
+and never:
+
+    $2,000 balance → reserve $500 → $1,500 balance
+
+The second makes the reserve look like a balance movement, and it is not one. **If the account
+held $2,000, the historian goes on reporting $2,000** however much of it was allocated —
+which is what keeps reconciliation and historical reporting honest. `available` is derived on
+demand and stored nowhere.
+
+**A consequence worth stating, because it is what the first version of this module got wrong.**
+An allocation is a **level, not an accumulation**. Reserving $500 and later $700 means $700 is
+reserved, not $1,200. A contribution ledger sums; an allocation supersedes. This module has no
+`contribute`, no `withdraw` and no balance-moving operation of any kind, and that absence is
+the rule made mechanical.
+
+**The three things §5 asks for** survive the change intact: the *target* (how much should be
+reserved), the *allocation* (how much is), and the *history* of how the allocation moved.
 
 **The target is derived, not stored.** Design §1.4: the plan's out-of-pocket maximum is *by
 definition* the most a covered year can cost, which is what makes it an honest target where
 "three to six months of expenses" is a number somebody invented. A target whose basis is that
-maximum therefore keeps **no copy of the figure** — it resolves from the plan every time.
-Storing a copy would be two sources of truth for one fact, which this project paid for once
-already when `allocation` and `plan_year` each derived an expense's plan.
+maximum keeps **no copy of the figure** and resolves it on every read — one owner per fact.
 
-**Three ways a target changes, and they must not look alike:**
-
-    preference    the user wants more headroom - $6,000 to $8,000
-    fact          the out-of-pocket maximum was always $5,500; we had it wrong
-    plan_change   a different plan, so a different maximum
-
-Same new number, three different meanings, and a consumer that cannot tell them apart will
-eventually tell someone their plan changed when they simply changed their mind.
-
-**What this module has no opinion about.** Whether the reserve is built before, alongside or
-after the last balance is design Open Question 6, and it is open. Nothing here decides it.
+**What this module still has no opinion about.** Whether freed money fills the reserve before,
+alongside or after the last debt balance is cleared is the *payoff-allocation* half of Open
+Question 6 — the half that would change `core/consequence.py` and affect every user. It remains
+open, and nothing here decides it.
 """
 
 from dataclasses import dataclass, field
@@ -69,13 +81,17 @@ class Target:
 
 
 @dataclass
-class Contribution:
-    """Money in or out of the dedicated fund. Negative for a withdrawal, which stays in the
-    history rather than being netted away — the balance is derived, so nothing is lost by
-    keeping both sides."""
+class Allocation:
+    """How much of the balance is designated reserved, as of a date.
+
+    A level rather than a movement: each allocation supersedes the one before it. `as_of` is
+    the date the allocation applies from, which is how a historical balance can be read back
+    with the allocation that was in force at the time rather than today's.
+    """
     amount: float
-    on: str = None
-    note: str = None
+    as_of: str = None
+    reason: str = None
+    source: str = None
     seq: int = 0
     recorded_at: str = None
 
@@ -83,7 +99,7 @@ class Contribution:
 @dataclass
 class Registry:
     targets: list = field(default_factory=list)
-    contributions: list = field(default_factory=list)
+    allocations: list = field(default_factory=list)
     cleared: bool = False
     _seq: int = 0
 
@@ -139,8 +155,8 @@ def current_target():
 
 
 def clear_target():
-    """Removes the target. Deliberately does not touch the money or the history — a target is
-    a statement about how much is wanted, and deleting it says nothing about what is there."""
+    """Removes the target. Deliberately does not touch the allocation or its history — a
+    target says how much is wanted, and withdrawing it says nothing about what is reserved."""
     _r().cleared = True
     return None
 
@@ -164,54 +180,72 @@ def target_amount(oop_max=None, historical=None):
     return UNKNOWN
 
 
-# ── The balance, derived from the history ───────────────────────────────────
+# ── The allocation, which moves no money ────────────────────────────────────
 
-def contribute(amount, on=None, note=None):
+def allocate(amount, as_of=None, reason=None, source=None):
+    """Designate part of the balance as reserved, from `as_of` onward.
+
+    Records what is reserved. It does not move money, does not touch an account, and is not a
+    transaction — there is deliberately no operation here that could be mistaken for one.
+    """
     r = _r()
     r._seq += 1
-    c = Contribution(amount=round(float(amount), 2), on=on, note=note, seq=r._seq,
-                     recorded_at=_now())
-    r.contributions.append(c)
-    return c
+    a = Allocation(amount=round(float(amount), 2), as_of=as_of, reason=reason, source=source,
+                   seq=r._seq, recorded_at=_now())
+    r.allocations.append(a)
+    return a
 
 
-def withdraw(amount, on=None, note=None):
-    return contribute(-round(float(amount), 2), on=on, note=note)
+def allocations():
+    """Every allocation, oldest first. Superseded, never overwritten — so a balance from
+    March can be read back against the allocation that was in force in March."""
+    return list(_r().allocations)
 
 
-def contributions():
-    return list(_r().contributions)
+def reserved(as_of=None):
+    """The allocation in force, now or as of a date. Zero when none was ever made, which is a
+    real answer rather than an absent one: nothing reserved is a state, not a gap."""
+    rows = _r().allocations
+    if as_of is not None:
+        rows = [a for a in rows if not a.as_of or a.as_of <= as_of]
+    return rows[-1].amount if rows else 0.00
 
 
-def held():
-    """What is actually set aside. Derived on every read, so nothing has to remember to
-    recompute it when a contribution is corrected."""
-    return round(sum(c.amount for c in _r().contributions), 2)
+def available(balance, as_of=None):
+    """What is left after the allocation. Derived here and stored nowhere.
 
-
-# ── The claim ───────────────────────────────────────────────────────────────
-
-def status(oop_max=None, general_cash=0.0, historical=None):
-    """The honest statement, which needs more than one number to make.
-
-    `held` is money set aside for this. `counted` is ordinary cash that happens to be large
-    enough to count toward the target. Reporting only the second as though it were the first
-    is the failure §5 names, and there is deliberately no field here that means "the reserve
-    balance" without saying which kind it is.
+    Returns UNKNOWN when the balance is not supplied, because a balance nobody gave us is not
+    a balance of zero — and an `available` of zero would read as "spend nothing", which is a
+    claim about someone's money made from no information.
     """
+    if balance is None:
+        return UNKNOWN
+    return round(float(balance) - reserved(as_of=as_of), 2)
+
+
+def snapshot(balance=None, as_of=None, oop_max=None, historical=None):
+    """The balance, the allocation against it, and what that leaves — reported together.
+
+    `balance` comes back exactly as it was given. That is the rule made checkable: the reserve
+    is metadata alongside a balance, so nothing here can return a modified one.
+    """
+    have = reserved(as_of=as_of)
     target = target_amount(oop_max=oop_max, historical=historical)
-    have = held()
-    counted = round(float(general_cash or 0.0), 2)
-    t = current_target()
+    left = available(balance, as_of=as_of)
     return {
-        'basis': t.basis if t else None,
+        'date': as_of,
+        'balance': balance,
+        'reserved': have,
+        'available': left,
+        # An allocation larger than the balance is reported, never clamped. Clamping would
+        # hide the one state a user most needs to see — that they have earmarked money they
+        # do not have.
+        'over_allocated': (left is not UNKNOWN and left < 0),
+        'basis': (current_target().basis if current_target() else None),
         'target': target,
-        'held': have,
-        'counted': counted,
-        # True only when money was actually set aside. A household with $4,000 of general
-        # savings and no dedicated fund is not holding a healthcare reserve, however close
-        # the arithmetic looks.
-        'segregated': have > 0,
+        # Measured against what is RESERVED, not against the balance. A household with $2,000
+        # in the account and nothing reserved is not a third of the way to a $6,000 target;
+        # that is §5's failure sentence in arithmetic form.
         'shortfall': (UNKNOWN if target is UNKNOWN
-                      else round(max(0.0, target - have - counted), 2)),
+                      else round(max(0.0, target - have), 2)),
     }

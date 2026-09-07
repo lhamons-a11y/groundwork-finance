@@ -862,15 +862,25 @@ class ReserveTarget(Base):
     recorded_at = Column(DateTime, default=datetime.utcnow)
 
 
-class ReserveContribution(Base):
-    """Money into or out of the dedicated fund. Negative for a withdrawal, which stays here
-    rather than being netted away — the balance is derived from this table, so keeping both
-    sides costs nothing and losing one loses the history."""
-    __tablename__ = 'reserve_contributions'
+class ReserveAllocation(Base):
+    """How much of a balance is designated reserved, as of a date.
+
+    **The frozen rule:** a reserve is an allocation of an existing financial state, recorded
+    alongside the applicable balance. It does not modify the historical account balance and is
+    not itself a transaction. So there is no account reference and no direction of movement
+    here — nothing in this table can be read as money going anywhere.
+
+    An allocation is a **level, not an accumulation**: each row supersedes the one before it,
+    and $500 followed by $700 means $700 is reserved. `as_of` is what lets a balance from
+    September be read against the allocation that was in force in September rather than
+    today's, which is the same bitemporal property the rest of the model has.
+    """
+    __tablename__ = 'reserve_allocations'
     id          = Column(Integer, primary_key=True)
     amount      = Column(Float, nullable=False)
-    on_date     = Column(String(10), nullable=True)
-    note        = Column(String(200), nullable=True)
+    as_of       = Column(String(10), nullable=True)
+    reason      = Column(String(200), nullable=True)
+    source      = Column(String(40), nullable=True)
     seq         = Column(Integer, nullable=False)
     recorded_at = Column(DateTime, default=datetime.utcnow)
 

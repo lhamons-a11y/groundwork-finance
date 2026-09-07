@@ -76,70 +76,79 @@ def _mutations(m):
         m.target_amount = broken
         return lambda: setattr(m, 'target_amount', orig)
 
-    def held_and_counted_collapse():
-        # The one sentence the review exists to prevent: general cash reported as a reserve.
-        orig = m.status
+    def balance_is_modified():
+        # The rule broken head on: report the balance net of the allocation, so the
+        # historian would go on to disagree with the account.
+        orig = m.snapshot
 
-        def broken(oop_max=None, general_cash=0.0, historical=None):
-            out = orig(oop_max, general_cash, historical)
-            out['held'] = round(out['held'] + out['counted'], 2)
+        def broken(balance=None, as_of=None, oop_max=None, historical=None):
+            out = orig(balance, as_of, oop_max, historical)
+            if out['balance'] is not None:
+                out['balance'] = out['available']
             return out
-        m.status = broken
-        return lambda: setattr(m, 'status', orig)
+        m.snapshot = broken
+        return lambda: setattr(m, 'snapshot', orig)
 
-    def counted_reads_as_segregated():
-        orig = m.status
+    def allocations_accumulate():
+        # A contribution ledger instead of an allocation: $500 then $700 becomes $1,200.
+        orig = m.reserved
 
-        def broken(oop_max=None, general_cash=0.0, historical=None):
-            out = orig(oop_max, general_cash, historical)
-            out['segregated'] = (out['held'] + out['counted']) > 0
+        def broken(as_of=None):
+            rows = m._r().allocations
+            if as_of is not None:
+                rows = [a for a in rows if not a.as_of or a.as_of <= as_of]
+            return round(sum(a.amount for a in rows), 2)
+        m.reserved = broken
+        return lambda: setattr(m, 'reserved', orig)
+
+    def available_is_clamped():
+        orig = m.available
+
+        def broken(balance, as_of=None):
+            out = orig(balance, as_of)
+            return out if out is m.UNKNOWN else max(0.0, out)
+        m.available = broken
+        return lambda: setattr(m, 'available', orig)
+
+    def as_of_ignored():
+        orig = m.reserved
+        m.reserved = lambda as_of=None: orig()
+        return lambda: setattr(m, 'reserved', orig)
+
+    def shortfall_against_the_balance():
+        # Section 5's failure sentence: a household with money in the account reads as
+        # part-way to a target it has set nothing aside for.
+        orig = m.snapshot
+
+        def broken(balance=None, as_of=None, oop_max=None, historical=None):
+            out = orig(balance, as_of, oop_max, historical)
+            if out['shortfall'] is not m.UNKNOWN and out['balance'] is not None:
+                out['shortfall'] = round(max(0.0, out['target'] - out['balance']), 2)
             return out
-        m.status = broken
-        return lambda: setattr(m, 'status', orig)
+        m.snapshot = broken
+        return lambda: setattr(m, 'snapshot', orig)
 
-    def shortfall_ignores_general_cash():
-        orig = m.status
+    def missing_balance_is_zero():
+        orig = m.available
+        m.available = lambda balance, as_of=None: (0.0 if balance is None
+                                                   else orig(balance, as_of))
+        return lambda: setattr(m, 'available', orig)
 
-        def broken(oop_max=None, general_cash=0.0, historical=None):
-            out = orig(oop_max, general_cash, historical)
-            if out['shortfall'] is not m.UNKNOWN and out['target'] is not m.UNKNOWN:
-                out['shortfall'] = round(max(0.0, out['target'] - out['held']), 2)
-            return out
-        m.status = broken
-        return lambda: setattr(m, 'status', orig)
+    def allocations_overwritten():
+        orig = m.allocations
+        m.allocations = lambda: orig()[-1:]
+        return lambda: setattr(m, 'allocations', orig)
 
     def missing_target_means_funded():
-        orig = m.status
+        orig = m.snapshot
 
-        def broken(oop_max=None, general_cash=0.0, historical=None):
-            out = orig(oop_max, general_cash, historical)
+        def broken(balance=None, as_of=None, oop_max=None, historical=None):
+            out = orig(balance, as_of, oop_max, historical)
             if out['shortfall'] is m.UNKNOWN:
                 out['shortfall'] = 0.00
             return out
-        m.status = broken
-        return lambda: setattr(m, 'status', orig)
-
-    def withdrawal_netted_away():
-        orig = m.withdraw
-
-        def broken(amount, on=None, note=None):
-            reg = m._r()
-            remaining = float(amount)
-            for c in list(reg.contributions):
-                if remaining <= 0:
-                    break
-                take = min(c.amount, remaining)
-                c.amount = round(c.amount - take, 2)
-                remaining = round(remaining - take, 2)
-            return None
-        m.withdraw = broken
-        return lambda: setattr(m, 'withdraw', orig)
-
-    def balance_ignores_withdrawals():
-        orig = m.held
-        m.held = lambda: round(sum(c.amount for c in m._r().contributions
-                                   if c.amount > 0), 2)
-        return lambda: setattr(m, 'held', orig)
+        m.snapshot = broken
+        return lambda: setattr(m, 'snapshot', orig)
 
     def every_change_is_a_preference():
         orig = m.set_target
@@ -163,11 +172,11 @@ def _mutations(m):
             orig(basis, amount, None, reason, kind)
         return lambda: setattr(m, 'set_target', orig)
 
-    def clearing_deletes_the_money():
+    def clearing_deletes_the_allocation():
         orig = m.clear_target
 
         def broken():
-            m._r().contributions = []
+            m._r().allocations = []
             return orig()
         m.clear_target = broken
         return lambda: setattr(m, 'clear_target', orig)
@@ -175,17 +184,18 @@ def _mutations(m):
     return [
         ('a derived target keeps a copy of the figure', target_keeps_a_copy),
         ('a target nobody can resolve becomes zero', unknown_target_is_zero),
-        ('general cash is reported as money held', held_and_counted_collapse),
-        ('general cash counts as segregated', counted_reads_as_segregated),
-        ('the shortfall ignores the cash that counts toward it',
-         shortfall_ignores_general_cash),
+        ('the reported balance is net of the allocation', balance_is_modified),
+        ('allocations accumulate instead of superseding', allocations_accumulate),
+        ('an over-allocation is clamped to zero', available_is_clamped),
+        ('the allocation in force is always the latest, whatever the date', as_of_ignored),
+        ('the shortfall is measured against the balance', shortfall_against_the_balance),
+        ('a balance nobody supplied is treated as zero', missing_balance_is_zero),
+        ('only the latest allocation survives', allocations_overwritten),
         ('no target at all reads as fully funded', missing_target_means_funded),
-        ('a withdrawal is netted away instead of recorded', withdrawal_netted_away),
-        ('the balance ignores withdrawals', balance_ignores_withdrawals),
         ('every target change is recorded as a preference', every_change_is_a_preference),
         ('only the latest target survives', targets_overwritten),
         ('a target change records no source', source_not_recorded),
-        ('clearing the target deletes the money', clearing_deletes_the_money),
+        ('clearing the target deletes the allocation', clearing_deletes_the_allocation),
     ]
 
 

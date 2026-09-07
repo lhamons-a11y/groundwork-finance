@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260907-healthcare-reserve'
+SCHEMA_VERSION = '20260907-reserve-allocation'
 
 
 def _stored_schema_version():
@@ -114,6 +114,33 @@ _NEW_HISTORIAN_COLUMNS = [
 _NEW_FUNDING_ALLOCATION_COLUMNS = [
     ('occurred_on', "VARCHAR(10)"),
 ]
+
+
+def _drop_reserve_contributions():
+    """Remove the table the reserve briefly had before the allocation rule was frozen.
+
+    `reserve_contributions` modelled the reserve as a fund you pay into, which the frozen rule
+    replaced: a reserve is an allocation of a balance, not a movement of one. It shipped for a
+    single commit, nothing in the application ever wrote to it, and `reserve_allocations`
+    supersedes it.
+
+    Dropped ONLY when empty. A table with rows in it is somebody's data, and this migration
+    has no business deciding what those rows meant.
+    """
+    with engine.connect() as conn:
+        exists = conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name='reserve_contributions'")).fetchone()
+        if not exists:
+            return
+        rows = conn.execute(text('SELECT COUNT(*) FROM reserve_contributions')).scalar()
+        if rows:
+            print(f'Migration: reserve_contributions has {rows} rows - left in place')
+            return
+        conn.execute(text('DROP TABLE reserve_contributions'))
+        conn.commit()
+        print('Migration: dropped empty reserve_contributions '
+              '(superseded by reserve_allocations)')
 
 
 def _add_missing_columns(table: str, columns: list):
@@ -260,6 +287,7 @@ def run_migration_if_needed():
     _add_missing_columns('byb_items',            _NEW_BYB_COLUMNS)
     _add_missing_columns('historian_entries',    _NEW_HISTORIAN_COLUMNS)
     _add_missing_columns('expense_funding_allocations', _NEW_FUNDING_ALLOCATION_COLUMNS)
+    _drop_reserve_contributions()
     _ensure_indexes()
 
     # Audit note (d20 deferred → d21): debt_balance_history used to be defined

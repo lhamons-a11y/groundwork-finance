@@ -10,10 +10,24 @@
     must not look alike. A new plan changing the target must be distinguishable from the
     user changing it. Deleting a target must not delete the money.
 
-**The failure it prevents, stated in the review:** *"You have $4,000 healthcare reserve"* when
-the truth is *"$4,000 of your general cash is counted toward a $6,000 target."* Those are
-different claims, and the second is the true one for most households — the same class of error
-the net-worth surface already refuses to make.
+**The frozen rule (Rob, 2026-09-07), which the balance half of this fixture tests:**
+
+    A reserve is an allocation of an existing financial state, recorded alongside the
+    applicable balance. It does not modify the historical account balance and is not
+    itself a transaction.
+
+    $2,000 ending balance          and never    $2,000 balance
+    |-- $500 reserved                            -> reserve $500
+    `-- $1,500 available                         -> $1,500 balance
+
+If the account held $2,000 the historian goes on reporting $2,000, however much was allocated.
+An allocation is therefore a **level, not an accumulation** - $500 then $700 means $700 is
+reserved, not $1,200 - and there is no operation here that moves money at all.
+
+**The failure §5 names:** *"You have $4,000 healthcare reserve"* when the truth is *"$4,000 of
+your general cash is counted toward a $6,000 target."* In this vocabulary that is a shortfall
+measured against the **balance** instead of against what is **reserved**, and it is asserted
+below.
 
 **The target is derived, not stored.** Design §1.4: the plan's out-of-pocket maximum is *by
 definition* the most a covered year can cost, which is why it is the honest target and "three
@@ -21,9 +35,10 @@ to six months of expenses" is not. So a target whose basis is the OOP maximum ke
 of the figure** — it resolves it from the plan every time. A stored copy is two sources of
 truth for one fact, which this project has already paid for once today.
 
-**What this module has no opinion about.** Whether the reserve is built before, alongside or
-after the last balance is design Open Question 6, explicitly unanswered. Nothing here decides
-it, and nothing here should be read as deciding it.
+**What this module still has no opinion about.** Open Question 6 had two halves. The data
+half is answered above and frozen. The other - whether freed money fills the reserve before,
+alongside or after the last DEBT balance is cleared - would change `core/consequence.py` and
+affect every user, and it remains open. Nothing here decides it.
 
 Run:  python tests/test_reserve_fixture.py
 """
@@ -57,10 +72,10 @@ def describe():
     print('\nThe fixture, as a specification:\n')
     print('  plan out-of-pocket maximum   $%.2f  (later corrected to $%.2f)'
           % (PLAN_OOP_MAX, CORRECTED_OOP_MAX))
-    print('  general cash                 $%.2f  - counted toward a target, NOT held' % GENERAL_CASH)
-    print('  a dedicated fund starts at   $0.00')
-    print('\n  the claim that must never be makeable: "you have a $%.2f healthcare reserve"'
+    print('  account balance              $%.2f  - reported unchanged, whatever is allocated'
           % GENERAL_CASH)
+    print('\n  $2,000 ending balance  ->  $500 reserved  +  $1,500 available')
+    print('  and never: $2,000 -> reserve $500 -> $1,500 balance')
 
 
 # ── The assertions the model has to satisfy ─────────────────────────────────
@@ -88,34 +103,51 @@ def run(model):
     check('a target nobody can resolve is UNKNOWN, not zero',
           model.target_amount() is model.UNKNOWN)
 
-    # ── The claim the review exists to prevent ──────────────────────────────
-    # No dedicated fund yet. The household has $4,000 in ordinary savings.
-    st = model.status(oop_max=PLAN_OOP_MAX, general_cash=GENERAL_CASH)
-    check('nothing is held, because no money was ever set aside',
-          st['held'] == 0.00)
-    check('but general cash is counted toward the target',
-          st['counted'] == 4000.00 and st['target'] == 6000.00)
-    check('held and counted are different numbers, and the claim needs both',
-          st['held'] != st['counted'])
-    check('the shortfall is against the target, not against what is held',
-          st['shortfall'] == 2000.00)
-    check('and the status says plainly that nothing is segregated',
-          st['segregated'] is False)
+    # ── Nothing reserved is a state, not a gap ──────────────────────────────
+    # The household has $4,000 in the account and has designated none of it.
+    st = model.snapshot(balance=GENERAL_CASH, oop_max=PLAN_OOP_MAX)
+    check('with no allocation, nothing is reserved',
+          st['reserved'] == 0.00)
+    check('and all of the balance is available',
+          st['available'] == 4000.00 and st['balance'] == 4000.00)
+    check('the shortfall is the whole target, because nothing has been set aside',
+          st['shortfall'] == 6000.00 and st['target'] == 6000.00)
 
-    # ── Contribution history, and a balance derived from it ─────────────────
-    model.contribute(1500.00, on='2026-03-01', note='first deposit')
-    model.contribute(500.00, on='2026-04-01')
-    check('the balance is the sum of what was contributed',
-          model.held() == 2000.00)
-    model.withdraw(300.00, on='2026-05-01', note='dental')
-    check('a withdrawal reduces it',
-          model.held() == 1700.00)
-    check('and stays in the history rather than being netted away',
-          len(model.contributions()) == 3
-          and model.contributions()[-1].amount == -300.00)
-    check('now something IS segregated, and the claim changes',
-          model.status(oop_max=PLAN_OOP_MAX,
-                       general_cash=GENERAL_CASH)['segregated'] is True)
+    # ── The allocation, which moves no money ────────────────────────────────
+    model.allocate(500.00, as_of='2026-09-07', reason='first designation', source='user')
+    snap = model.snapshot(balance=2000.00, as_of='2026-09-07', oop_max=PLAN_OOP_MAX)
+    check('the balance is reported exactly as it was given',
+          snap['balance'] == 2000.00)
+    check('with part of it identified as reserved',
+          snap['reserved'] == 500.00)
+    check('and the rest available, derived rather than stored',
+          snap['available'] == 1500.00)
+    check('the reserve is not a transaction, so nothing here can move money',
+          not hasattr(model, 'contribute') and not hasattr(model, 'withdraw'))
+
+    # A level, not an accumulation. This is what the first version of the model got wrong:
+    # a contribution ledger sums, an allocation supersedes.
+    model.allocate(700.00, as_of='2026-10-01', source='user')
+    check('a later allocation supersedes rather than adding to the last',
+          model.reserved() == 700.00)
+    check('and both survive, so a September balance reads against September allocation',
+          len(model.allocations()) == 2
+          and model.reserved(as_of='2026-09-07') == 500.00)
+    check('the historical balance is untouched by any of it',
+          model.snapshot(balance=2000.00)['balance'] == 2000.00
+          and model.snapshot(balance=2000.00)['available'] == 1300.00)
+
+    # Section 5 failure sentence, in arithmetic. Measured against the balance this reads
+    # 4000; measured against what is actually reserved it reads 5300, which is the true one.
+    check('the shortfall is measured against what is reserved, not against the balance',
+          model.snapshot(balance=2000.00, oop_max=PLAN_OOP_MAX)['shortfall'] == 5300.00)
+
+    # Earmarking money you do not have is the one state a user most needs to see.
+    tight = model.snapshot(balance=400.00)
+    check('an allocation larger than the balance is reported, never clamped',
+          tight['available'] == -300.00 and tight['over_allocated'] is True)
+    check('and a balance nobody supplied is UNKNOWN, not zero',
+          model.snapshot()['available'] is model.UNKNOWN)
 
     # ── The three ways a target changes, which must not look alike ──────────
     model.set_target(basis='custom', amount=8000.00, reason='wants more headroom',
@@ -139,17 +171,19 @@ def run(model):
           all(t.source for t in model.target_history()))
 
     # ── Deleting a target must not delete the money ─────────────────────────
-    held_before = model.held()
+    reserved_before = model.reserved()
     model.clear_target()
     check('the target is gone',
           model.current_target() is None)
-    check('the money is not',
-          model.held() == held_before == 1700.00)
-    check('and neither is the history of how it got there',
-          len(model.contributions()) == 3)
+    check('the allocation is not',
+          model.reserved() == reserved_before == 700.00)
+    check('and neither is the history of how it moved',
+          len(model.allocations()) == 2)
     check('with no target, the shortfall is UNKNOWN rather than zero',
-          model.status(oop_max=PLAN_OOP_MAX,
-                       general_cash=GENERAL_CASH)['shortfall'] is model.UNKNOWN)
+          model.snapshot(balance=2000.00,
+                         oop_max=PLAN_OOP_MAX)['shortfall'] is model.UNKNOWN)
+    check('and the balance still reports as itself',
+          model.snapshot(balance=2000.00)['balance'] == 2000.00)
 
 
 def main():
@@ -166,10 +200,13 @@ def main():
         print('    is DERIVED from the history, never stored')
         print('  * a target derived from the plan keeps NO copy of the figure, so')
         print('    correcting the plan moves it with nothing to reconcile')
-        print('  * held and counted are different numbers - money set aside versus general')
-        print('    cash counted toward a target - and the honest claim names both')
+        print('  * a reserve is an ALLOCATION of a balance, never a movement of one: the')
+        print('    balance comes back exactly as given, available is derived, and no')
+        print('    operation here could be mistaken for a transaction')
+        print('  * an allocation is a LEVEL, not an accumulation - $500 then $700 is $700')
+        print('  * the shortfall is measured against what is reserved, never the balance')
         print('  * a preference change, a fact change and a plan change must not look alike')
-        print('  * deleting a target does not delete the money or the history')
+        print('  * deleting a target does not delete the allocation or its history')
         print('  * an unresolvable target and a missing target are UNKNOWN, never zero')
         print('\n  and one thing this module must NOT do: decide whether the reserve is')
         print('  built before, alongside or after the last balance. That is design Open')
