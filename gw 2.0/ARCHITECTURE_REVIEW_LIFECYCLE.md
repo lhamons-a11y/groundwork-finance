@@ -152,6 +152,28 @@ the first half of the year. Historical expenses retain Plan A.
 historical plan record is effectively immutable; deleting Plan A strips context from every
 expense under it.
 
+**Built 2026-09-07** — `core/plan_year.py`, `tests/test_plan_year_fixture.py`,
+`smoke_sections/s85_plan_year.py`. 27 assertions, 13 of 13 mutations detected.
+
+**One decision made most of this list true for free: accumulators are derived on every read.**
+A stored `deductible_met` has to be reset at a year boundary, recomputed when a correction
+lands, and migrated when a plan is added — three chances to forget. A query over the expenses
+in a period cannot forget. So there is no `rollover()` at all, and adding a plan structurally
+cannot disturb an earlier one; both are asserted rather than assumed.
+
+The assertion that matters most when it is wrong: **a year with no plan on file reports the
+spend and `UNKNOWN`** — never `False`, never zero. How much was spent is a fact; whether it met
+a deductible is an interpretation against terms that have not arrived. Telling someone their
+deductible is unmet because nobody has entered their plan invents a fact about their coverage.
+`unattributed` is reported beside the periods for the same reason: absence is not zero, and it
+is never quietly added to whichever plan is nearest.
+
+*A note on the mutation testing, because it produced a false alarm worth remembering.* Breaking
+`plans(as_of)` alone did not change any answer — `terms_at` respects `as_of` independently, and
+a plan and its first terms are written in the same breath, so hiding one hides the other. That
+is a mutation the model **survives**, which is a different thing from one it fails to catch.
+The honest mutation breaks the whole as-of path, and that one is caught.
+
 ## 5. The reserve is three things, not one
 
 ```text
