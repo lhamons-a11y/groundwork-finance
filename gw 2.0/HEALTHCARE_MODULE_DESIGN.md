@@ -710,9 +710,21 @@ that must not be late, per §6.2.
 > The claim the old fixture made through allocation (a January expense stays on Plan A when
 > July switches) now lives where the fact lives, in `tests/test_plan_year_fixture.py`.
 >
-> **What this exposed:** `health_plans` and its term versions are now persisted by nothing.
-> The lifecycle fixture no longer issues plan changes, and `core/plan_year.py` has no
-> persistence layer at all. Named in `tests/substrate_experiment.py` rather than papered over.
+> **What this exposed, and closed the same day:** `health_plans` and its term versions were
+> left persisted by nothing once allocation stopped issuing plan changes. The person tables
+> were barely better — only an initial assignment was ever written.
+>
+> Both now round-trip through the shipped schema in `tests/substrate_experiment.py`, driven by
+> their own fixtures: write-through on every mutation, and the registry rebuilt **from the
+> tables** on every read, so a field the schema cannot carry surfaces as a wrong answer rather
+> than a silent absence. Both pass with `context_json` never written, and both are proven able
+> to fail — dropping a reassignment's `source`, and dropping what a terms correction corrected,
+> are each caught.
+>
+> **All three modules with shipped tables are now round-tripped.** `core/classification.py` is
+> the one with no tables at all, and it is the right one to have left: its output is a derived
+> sensitive classification, and where that persists is a privacy decision rather than a
+> record-shape one.
 
 **Then the arithmetic.** The cost calculator, obligations with terms, the card-free reserve
 with its derived target, the collections flag and its two sentences. Still no network. §8 sits

@@ -56,6 +56,8 @@ from datetime import datetime                                            # noqa:
 
 from core import database as db                                          # noqa: E402
 from core import allocation as alloc                                     # noqa: E402
+from core import person as personmod                                     # noqa: E402
+from core import plan_year as planmod                                    # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -399,9 +401,250 @@ class Store:
                 'qualifying_v2026_1': alloc.explain(self.qualifying(ref, rules='v2026.1'))}
 
 
-def _load_fixture():
+# ── Person, round-tripped ───────────────────────────────────────────────────
+# Write-through, hydrate-on-read: every mutating call goes to the module and is then synced
+# to the tables; every read rebuilds the registry FROM the tables first. So a field the
+# schema cannot carry shows up as a wrong answer rather than as a silent absence.
+#
+# Hydration reuses the objects already in the registry by id and overwrites their fields
+# from the row. Identity is preserved - the fixtures hold `rob` and compare with `is` - while
+# every value still has to survive the round trip to be read back correctly.
+
+def _keyed(rows, key):
+    return {key(r): r for r in rows}
+
+
+def _expense_row(expense_key):
+    """Person assignments point at a real expense, so the fixture's string keys need rows."""
+    s = _s()
+    hit = s.query(HealthcareExpense).filter_by(incurred_on='key:%s' % expense_key).first()
+    if hit is None:
+        hit = HealthcareExpense(incurred_on='key:%s' % expense_key)
+        s.add(hit)
+        s.flush()
+    return hit
+
+
+def _sync_person():
+    s = _s()
+    reg = personmod._r()
+    have = _keyed(s.query(Person).all(), lambda r: r.id)
+    for p in reg.people:
+        row = have.get(p.id)
+        if row is None:
+            s.add(Person(id=p.id, display_name=p.display_name, active=p.active))
+        else:
+            row.display_name, row.active = p.display_name, p.active
+
+    have_alias = {(r.person_id, r.alias) for r in s.query(PersonAlias).all()}
+    for a in reg.aliases:
+        if (a.person_id, a.alias) not in have_alias:
+            s.add(PersonAlias(person_id=a.person_id, alias=a.alias, source=a.source))
+
+    have_assign = {(r.expense_id, r.seq) for r in s.query(PersonAssignment).all()}
+    for a in reg.assignments:
+        eid = _expense_row(a.expense_key).id
+        if (eid, a.seq) not in have_assign:
+            s.add(PersonAssignment(expense_id=eid, person_id=a.person_id, mode=a.mode,
+                                   seq=a.seq, reason=a.reason, source=a.source))
+
+    have_enrol = {(r.person_id, r.plan_id, r.effective_on)
+                  for r in s.query(PersonEnrolment).all()}
+    for e in reg.enrolments:
+        plan = _plan_row(e.plan, e.effective_on)
+        if (e.person_id, plan.id, e.effective_on) not in have_enrol:
+            s.add(PersonEnrolment(person_id=e.person_id, plan_id=plan.id,
+                                  effective_on=e.effective_on))
+    s.commit()
+
+
+def _plan_row(name, effective_on=None):
+    """Enrolment points at a plan period, not a plan name. Find or create - a coverage
+    period is a household fact, so two people on Plan A share one row."""
+    s = _s()
+    hit = s.query(HealthPlan).filter_by(name=name).first()
+    if hit is None:
+        hit = HealthPlan(name=name, effective_from=effective_on or '',
+                         effective_to='9999-12-31', seq=0)
+        s.add(hit)
+        s.flush()
+    return hit
+
+
+def _hydrate_person():
+    s = _s()
+    reg = personmod._r()
+    known = {p.id: p for p in reg.people}
+    people = []
+    for row in s.query(Person).order_by(Person.id).all():
+        p = known.get(row.id)
+        if p is None:
+            p = personmod.Person(id=row.id, display_name=row.display_name,
+                                 active=bool(row.active))
+        else:
+            p.display_name, p.active = row.display_name, bool(row.active)
+        people.append(p)
+    reg.people = people
+
+    reg.aliases = [personmod.Alias(person_id=r.person_id, alias=r.alias, source=r.source)
+                   for r in s.query(PersonAlias).all()]
+
+    keys = {r.id: r.incurred_on for r in s.query(HealthcareExpense).all()}
+    reg.assignments = [
+        personmod.PersonAssignment(
+            expense_key=(keys.get(r.expense_id) or '').replace('key:', ''),
+            person_id=r.person_id, mode=r.mode, seq=r.seq, reason=r.reason,
+            source=r.source, recorded_at=r.recorded_at)
+        for r in s.query(PersonAssignment).order_by(PersonAssignment.seq).all()]
+
+    plans = {r.id: r.name for r in s.query(HealthPlan).all()}
+    reg.enrolments = [personmod.Enrolment(person_id=r.person_id,
+                                          plan=plans.get(r.plan_id),
+                                          effective_on=r.effective_on)
+                      for r in s.query(PersonEnrolment).all()]
+
+
+class PersonStore:
+    """core/person.py, backed entirely by the shipped tables."""
+    _READS = ('id_of', 'display_name', 'people', 'is_active', 'has_history', 'resolve_name',
+              'alias_source', 'assignments', 'person_of', 'per_person_total',
+              'household_total', 'unassigned_total', 'enrolments', 'enrolment_at',
+              'deletion_modes', 'now')
+    _WRITES = ('add_person', 'rename', 'deactivate', 'delete', 'map_alias', 'assign',
+               'reassign', 'enrol')
+
+    def reset(self):
+        personmod.reset()
+        _clear()
+
+    def __getattr__(self, name):
+        fn = getattr(personmod, name)
+        if name in self._READS:
+            def read(*a, **kw):
+                _hydrate_person()
+                return fn(*a, **kw)
+            return read
+        if name in self._WRITES:
+            def write(*a, **kw):
+                out = fn(*a, **kw)
+                if name == 'delete' and out:
+                    _sync_delete_person(a[0])
+                else:
+                    _sync_person()
+                return out
+            return write
+        return fn
+
+
+def _sync_delete_person(person):
+    s = _s()
+    s.query(PersonAlias).filter_by(person_id=person.id).delete()
+    s.query(Person).filter_by(id=person.id).delete()
+    s.commit()
+
+
+# ── Plan years, round-tripped ───────────────────────────────────────────────
+
+def _sync_plans():
+    s = _s()
+    reg = planmod._r()
+    have = _keyed(s.query(HealthPlan).all(), lambda r: r.id)
+    for p in reg.plans:
+        if p.id not in have:
+            s.add(HealthPlan(id=p.id, name=p.name, effective_from=p.effective_from,
+                             effective_to=p.effective_to, seq=p.seq))
+
+    have_terms = {(r.plan_id, r.seq) for r in s.query(HealthPlanTermVersion).all()}
+    for t in reg.terms:
+        if (t.plan_id, t.seq) not in have_terms:
+            prev = t.previous or {}
+            s.add(HealthPlanTermVersion(
+                plan_id=t.plan_id, deductible=t.terms.get('deductible'),
+                oop_max=t.terms.get('oop_max'),
+                previous_deductible=prev.get('deductible'),
+                previous_oop_max=prev.get('oop_max'),
+                reason=t.reason, source=t.source, seq=t.seq))
+
+    have_ops = {(r.plan_id, r.seq) for r in s.query(HealthPlanOperation).all()}
+    for o in reg.ops:
+        if (o.plan_id, o.seq) not in have_ops:
+            s.add(HealthPlanOperation(plan_id=o.plan_id, kind=o.kind, seq=o.seq))
+    s.commit()
+
+
+def _hydrate_plans():
+    s = _s()
+    reg = planmod._r()
+    known = {p.id: p for p in reg.plans}
+    plans = []
+    for row in s.query(HealthPlan).order_by(HealthPlan.id).all():
+        p = known.get(row.id)
+        if p is None:
+            p = planmod.Plan(id=row.id, name=row.name, effective_from=row.effective_from,
+                             effective_to=row.effective_to, seq=row.seq)
+        else:
+            p.name, p.effective_from = row.name, row.effective_from
+            p.effective_to, p.seq = row.effective_to, row.seq
+        plans.append(p)
+    reg.plans = plans
+
+    reg.terms = []
+    for r in s.query(HealthPlanTermVersion).order_by(HealthPlanTermVersion.seq).all():
+        prev = None
+        if r.previous_deductible is not None or r.previous_oop_max is not None:
+            prev = {'deductible': r.previous_deductible, 'oop_max': r.previous_oop_max}
+        reg.terms.append(planmod.TermVersion(
+            plan_id=r.plan_id,
+            terms={'deductible': r.deductible, 'oop_max': r.oop_max},
+            previous=prev, reason=r.reason, source=r.source, seq=r.seq,
+            recorded_at=r.recorded_at))
+
+    reg.ops = [planmod.Operation(kind=r.kind, plan_id=r.plan_id, seq=r.seq,
+                                 recorded_at=r.recorded_at)
+               for r in s.query(HealthPlanOperation).order_by(HealthPlanOperation.seq).all()]
+
+
+class PlanYearStore:
+    """core/plan_year.py, backed entirely by the shipped tables."""
+    UNKNOWN = planmod.UNKNOWN
+    _READS = ('plan_at', 'plan_of', 'plans', 'terms_at', 'term_history', 'operations',
+              'accumulators', 'year_summary', 'deletion_modes', 'now')
+    _WRITES = ('add_plan', 'correct_terms')
+
+    def reset(self):
+        planmod.reset()
+        _clear()
+
+    def delete_plan(self, plan, expenses=None):
+        _hydrate_plans()
+        out = planmod.delete_plan(plan, expenses)
+        if out:
+            s = _s()
+            for model in (HealthPlanOperation, HealthPlanTermVersion):
+                s.query(model).filter_by(plan_id=plan.id).delete()
+            s.query(HealthPlan).filter_by(id=plan.id).delete()
+            s.commit()
+        return out
+
+    def __getattr__(self, name):
+        fn = getattr(planmod, name)
+        if name in self._READS:
+            def read(*a, **kw):
+                _hydrate_plans()
+                return fn(*a, **kw)
+            return read
+        if name in self._WRITES:
+            def write(*a, **kw):
+                out = fn(*a, **kw)
+                _sync_plans()
+                return out
+            return write
+        return fn
+
+
+def _load_fixture(name='test_lifecycle_fixture'):
     spec = importlib.util.spec_from_file_location(
-        'fixture', ROOT / 'tests' / 'test_lifecycle_fixture.py')
+        'fixture_' + name, ROOT / 'tests' / ('%s.py' % name))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -530,6 +773,76 @@ def main():
     restored, restored_failures, _ = _run(fx, Store())
     check('the experiment is left exactly as it was found',
           restored == passed and not restored_failures)
+
+    # ── The gap this leaves, now closed: person and plan-year round-trips ───
+    # `health_plans`, its term versions and the person tables were persisted by nothing once
+    # allocation stopped owning plans. Their own fixtures now drive them through the shipped
+    # schema, which is the same question asked of the same tables: can the shape carry it,
+    # and does any read need JSON?
+    for label, fixture_name, store in (
+            ('person identity', 'test_person_identity_fixture', PersonStore()),
+            ('plan years', 'test_plan_year_fixture', PlanYearStore())):
+        fx2 = _load_fixture(fixture_name)
+        p2, f2, e2 = _run(fx2, store)
+        check('%s round-trips through the shipped schema' % label,
+              not f2 and not e2 and p2 > 0)
+        if e2:
+            print('        raised: %s' % e2)
+        for f in f2[:6]:
+            print('        failing: %s' % f)
+
+        WRITE_JSON = False
+        try:
+            p3, f3, e3 = _run(fx2, store)
+        finally:
+            WRITE_JSON = True
+        check('%s needs no context_json either' % label,
+              not f3 and not e3 and p3 == p2)
+        if e3:
+            print('        raised: %s' % e3)
+
+    # And these round-trips have to be able to fail too. A store that quietly answered from
+    # the in-memory registry would pass every check above while persisting nothing, so each
+    # one is broken at a single column and required to notice.
+    print()
+    print('  Proving the new round-trips can fail:')
+
+    orig_sync = globals()['_sync_person']
+
+    def person_loses_source():
+        reg = personmod._r()
+        for a in reg.assignments:
+            a.source = None
+        return orig_sync()
+
+    globals()['_sync_person'] = person_loses_source
+    try:
+        fx_p = _load_fixture('test_person_identity_fixture')
+        _, broke_p, err_p = _run(fx_p, PersonStore())
+    finally:
+        globals()['_sync_person'] = orig_sync
+    check('caught: a reassignment persists without its source',
+          bool(broke_p) or bool(err_p))
+
+    orig_plan_sync = globals()['_sync_plans']
+
+    def plans_lose_previous():
+        s2 = _s()
+        out = orig_plan_sync()
+        for r in s2.query(HealthPlanTermVersion).all():
+            r.previous_deductible = None
+            r.previous_oop_max = None
+        s2.commit()
+        return out
+
+    globals()['_sync_plans'] = plans_lose_previous
+    try:
+        fx_y = _load_fixture('test_plan_year_fixture')
+        _, broke_y, err_y = _run(fx_y, PlanYearStore())
+    finally:
+        globals()['_sync_plans'] = orig_plan_sync
+    check('caught: a terms correction persists without what it corrected',
+          bool(broke_y) or bool(err_y))
 
     print()
     verdict = not FAIL

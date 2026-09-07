@@ -281,6 +281,29 @@ version chain rather than a row that gets updated, because a correction that ove
 answer what the figure was in March, and a tax figure has to be reproducible after the rules
 change under it.
 
-**Not shipped.** Nothing was added to `core/database.py`; the candidate tables live in the
-experiment, and the historian mirror is asserted equal to the shipped table plus the one
-column, so this cannot drift from what it claims to test.
+**Shipped 2026-09-07.** The tables landed in `core/database.py` (design §6.3 step 2), the
+experiment now imports them rather than mirroring them, and the migration is verified against
+a pre-change database. So this file can no longer drift from what it claims to test: a change
+to the shipped shape that breaks the criterion fails here.
+
+### Extended to the whole schema, same day
+
+The criterion was originally answered for one slice — the reimbursement allocation, which
+`EVENT_SUBSTRATE_QUESTION` recommended precisely because it is small and runs end to end. It
+now covers every module that has tables:
+
+| Module | Round-trips | Passes with `context_json` never written | Proven able to fail |
+|---|---|---|---|
+| `allocation` | yes | yes | relationship into JSON · amount into JSON |
+| `person` | yes | yes | a reassignment persisting without its `source` |
+| `plan_year` | yes | yes | a correction persisting without what it corrected |
+
+The last column is the one that matters. A store that quietly answered from its in-memory
+registry would pass every other check while persisting nothing, so each round-trip is broken
+at a single column and required to notice. Reads rebuild the registry **from the tables**,
+which is what makes a field the schema cannot carry show up as a wrong answer rather than a
+silent absence.
+
+`core/classification.py` has no tables and is deliberately the one left out: its output is a
+derived sensitive classification, and where that persists is a privacy decision — see
+`CLASSIFICATION_QUESTION.md`, where an unsurfaced suspicion may not persist at all.
