@@ -26,7 +26,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 NOT_EVALUATED = 'not_evaluated'
-UNAVAILABLE = object()   # not zero, and deliberately not None
+
+# The "no definitive total" sentinel belongs to the MODEL, not to this file.
+# A local `object()` here could never compare identical to anything a model
+# returns, so the assertion could only ever fail - the mirror image of the
+# failure mode this project keeps finding, a check that cannot pass for the
+# reason it names. `tests/test_lifecycle_fixture.py` has the same defect in its
+# `UNRESOLVED`, and it is not fixed here because that fixture is a committed
+# specification for a different model.
 
 PASS, FAIL, PENDING = [], [], []
 
@@ -308,7 +315,8 @@ def run(model):
     # from health-classified transactions. A check of the form
     # `if health_context: refuse` is insufficient, because the context is gone
     # by the time the sentence exists.
-    delta = model.category_delta('Other', month='2026-03', from_month='2026-02')
+    delta = model.category_delta(list(c.values()), 'Other',
+                                 month='2026-03', from_month='2026-02')
     check('a derived figure inherits the sensitivity of what produced it',
           model.sensitivity(delta).domain == 'health')
     check('the narrator receives a gated fact set, not the underlying records',
@@ -350,7 +358,7 @@ def run(model):
     check('and reports the unevaluated population beside it',
           total.unevaluated_count == 4)
     check('and offers no definitive total while anything is unevaluated',
-          total.definitive is UNAVAILABLE)
+          total.definitive is model.UNAVAILABLE)
 
     # "43 unevaluated" and "43 reviewed, none qualifying" are different claims
     # about completeness. Both qualify $0.00; only one of them was looked at.

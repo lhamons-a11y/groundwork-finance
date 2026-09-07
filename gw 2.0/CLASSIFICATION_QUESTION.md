@@ -2,9 +2,10 @@
 
 **The open decision the classifier is waiting on**
 
-> Status: **Answered 2026-09-07.** Three positions and four resolutions; what remains is a
-> measurement and a line of product copy, neither of which blocks the classifier. Raised by
-> `ARCHITECTURE_REVIEW_P0.md` §2b and
+> Status: **Answered and built 2026-09-07.** Three positions and four resolutions; what remains
+> is a measurement and a line of product copy, neither of which blocked the classifier.
+> `core/classification.py` now exists and satisfies the fixture — 56 assertions, and 12 of 12
+> mutations detected. Raised by `ARCHITECTURE_REVIEW_P0.md` §2b and
 > `ARCHITECTURE_REVIEW_LIFECYCLE.md` §C2, which the P0 review itself flags as the largest
 > unresolved item.
 >
@@ -437,3 +438,34 @@ the sensitivity carries a gradient.
 If a classifier can carry evidence → axis → sensitivity → policy without a stored boolean, a
 confidence float, or a suspicion the user has never seen, it gets built. If it cannot, that is
 demonstrated in code rather than argued here.
+
+### It got built — `core/classification.py`, 2026-09-07
+
+56 assertions pass, and **12 of 12 mutations are detected**: breaking the wall between the axes,
+entering the boundary by strength instead of existence, letting a merchant rule overturn a
+`contradicted` state, ignoring category provenance, keying sensitivity on the verdict,
+persisting before surfacing, promoting the per-transaction ask, overwriting a determination,
+counting `contradicted` as unevaluated, manufacturing a definitive total, guessing a person, and
+handing the narrator the underlying records. Each is caught by the check that names it, so the
+invariants are enforced rather than merely asserted.
+
+**Two things the implementation changed, and both were fixture defects rather than model
+concessions.** The `UNAVAILABLE` sentinel was local to the test, where a bare `object()` can
+never compare identical to anything a model returns — an assertion that could only ever *fail*,
+which is the mirror image of the failure mode this project keeps finding. It moved into the
+module. And `category_delta` took no records, so a module that does not read the ledger could
+not have computed it; the caller now supplies them, which is the division of labour
+`core/solution.py` already uses. Neither weakened an assertion, and both are named here rather
+than quietly fixed, because a specification edited during implementation is exactly the pull the
+write-the-fixture-first discipline exists to resist.
+
+> `tests/test_lifecycle_fixture.py` has the identical sentinel defect in its `UNRESOLVED`, and
+> it is left alone — it is a committed specification for a different model, and changing it is
+> a decision about that model, not this one.
+
+One thing the module tightened that the document did not anticipate. **Axis-1 over-inclusion is
+no longer free.** The necessity floor can afford a loose match because a near-miss costs one
+lever; this classifier cannot, because a near-miss also *manufactures a health suspicion about
+an ordinary transaction*, and by position 3 that is the most sensitive thing the system holds.
+So the merchant vocabulary is deliberately narrower than the floor's — `healthcare`, never bare
+`health`, which would take OhioHealth and a health club with the same shrug.

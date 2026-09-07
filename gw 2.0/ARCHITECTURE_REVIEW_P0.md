@@ -228,6 +228,13 @@ person** rather than a budget verdict.
 
 **The classifier stays unbuilt until this boundary is settled.**
 
+> **Settled 2026-09-07 — see `CLASSIFICATION_QUESTION.md`.** The vocabulary is evidence-shaped
+> (§2b's `SUPPORTED_SIGNAL` / `POSSIBLE_SIGNAL` were the drift C2 had banned six minutes
+> earlier); protection and tax read **two axes** rather than two thresholds on one; sensitivity
+> attaches to the **question**, not the verdict; and the boundary is entered by a signal
+> **existing**, not by its strength. `core/classification.py` is built against
+> `tests/test_classification_fixture.py`, which was written first.
+
 ## 3. Priority contradiction
 
 ### Finding
@@ -524,10 +531,23 @@ persistent schema, API, logging or LLM terminology · Rule 8 — explicitly user
 healthcare counterfactuals are permitted, app-generated healthcare-reduction counterfactuals
 are not
 
-**Unresolved.** The largest open issue is the interaction between healthcare classification,
-privacy sensitivity, derived inference, and solution-engine protection. **This should be
-settled before implementing either the classifier or the privacy gate**, because each one
-changes what the other must do.
+**Unresolved — RESOLVED 2026-09-07.** The largest open issue was the interaction between
+healthcare classification, privacy sensitivity, derived inference, and solution-engine
+protection, and it was correctly identified as needing settlement before either the classifier
+or the privacy gate, because each one changes what the other must do.
+
+`CLASSIFICATION_QUESTION.md` settles it and `core/classification.py` implements it, with the
+classifier and the gate built as one module in three layers rather than two subsystems
+negotiating. Three of §26's P0 items close with it — **health-domain classification model**,
+**health-adjacent fail-closed behaviour**, and **sensitivity/provenance propagation** — the last
+end-to-end through narrator, export and backup. The rest of the P0 list stands.
+
+Two things it produced that this review did not anticipate. **A category name is not one
+signal**: set by the user it is content evidence, assigned by the importer it is counterparty
+evidence at best, so two transactions with identical category strings take different tax
+treatment. And **the per-transaction ask fails A.2's materiality gate**, which means the
+classification question is Passive and never interrupts — the governance was already written,
+in an appendix nobody had run against this case.
 
 ---
 

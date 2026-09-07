@@ -1,0 +1,616 @@
+# -*- coding: utf-8 -*-
+"""Health-domain classification — what the evidence supports, and what may be done with it.
+
+Implements `gw 2.0/CLASSIFICATION_QUESTION.md`, and it is specified by
+`tests/test_classification_fixture.py`, which was written before this file existed.
+
+Three layers, kept apart on purpose, because fusing them is the defect
+`gw 2.0/ARCHITECTURE_PRINCIPLES.md` §1 keeps finding:
+
+    classifier    what does the evidence support?      -> Axis, Determination
+    sensitivity   what kind of information is this?    -> Sensitivity
+    policy        what may the application do with it? -> the policy section
+
+`is_protected` in `core/solution.py` is the fourth instance of that fusion — evidence,
+classification and verdict in one expression — and it is deliberately left alone. When this
+module has real callers it supplies the counterparty state and `is_protected` becomes one
+consumer of it rather than the whole path.
+
+**Two axes, and a wall between them.** A merchant match is certain about the counterparty and
+silent about the content. No accumulation of counterparty evidence ever establishes what was
+bought, so protection reads axis 1 and tax reads axis 2 and only axis 2. Their agreeing on a
+given row is a coincidence, not a shared decision.
+
+**Over-inclusion is no longer free, and the vocabulary here is tighter because of it.** The
+necessity floor can afford a loose match: a near-miss costs one unavailable lever. This module
+cannot, because a near-miss also manufactures a health suspicion about an ordinary transaction,
+and by position 3 that manufactured suspicion is the *most* sensitive thing the system holds.
+So the merchant terms below are narrow — `healthcare`, never bare `health`, which would take
+OhioHealth and a health club with the same shrug.
+
+Nothing here writes to a database. It is a pure interpretation layer over records the caller
+holds, the same division of labour `core/solution.py` uses when it takes `months_observed` on
+trust: the caller owns the ledger.
+"""
+
+from dataclasses import dataclass, field, replace
+from datetime import datetime
+
+# ── Rule identity ───────────────────────────────────────────────────────────
+# Any interpretation that can change the meaning of a user-visible conclusion must be
+# version-identifiable (principle 4). This is that version, and it is NOT
+# `NECESSITY_FLOOR_VERSION` — the floor's vocabulary and this classifier's vocabulary
+# change for different reasons and must be able to move independently.
+#
+# Bump on any change to the vocabularies below.
+CLASSIFIER_RULE_VERSION = '1'
+
+# The sentinel for "no definitive figure is available". Not zero, and deliberately not
+# None — absence is not zero, and a consumer that wants a number must be made to say so.
+# It lives here rather than in the test because a test-local sentinel could never compare
+# identical to anything a model returns.
+UNAVAILABLE = object()
+
+
+# ── Axis names ──────────────────────────────────────────────────────────────
+COUNTERPARTY = 'counterparty'
+CONTENT = 'content'
+AXES = (COUNTERPARTY, CONTENT)
+
+
+# ── Evidence states ─────────────────────────────────────────────────────────
+# Named in evidence terms, never policy terms. A state called
+# SUPPORTED_HEALTH_CLASSIFICATION has already smuggled in a judgement — supported enough
+# for *what?* — which is the separation this module exists to keep.
+USER_ASSERTED = 'user_asserted'
+IMPORTED_ATTESTED = 'imported_attested'
+CORROBORATED = 'corroborated'
+SINGLE_WEAK_SIGNAL = 'single_weak_signal'
+CONTRADICTED = 'contradicted'
+NOT_EVALUATED = 'not_evaluated'
+
+# States in which supporting evidence exists. This set, and not a threshold, is what
+# puts a transaction inside the boundary.
+SUPPORTING_STATES = frozenset((USER_ASSERTED, IMPORTED_ATTESTED,
+                               CORROBORATED, SINGLE_WEAK_SIGNAL))
+
+# ── Evidence sources ────────────────────────────────────────────────────────
+# A typed enum rather than a confidence number. `never establish content on
+# merchant_match alone` is checkable; `never below 0.8` is not.
+USER_STATED = 'user_stated'
+IMPORTED_EOB = 'imported_eob'
+MERCHANT_MATCH = 'merchant_match'
+MCC = 'mcc'
+INFERRED = 'inferred'
+
+# Sources that come from a party with knowledge of the transaction. Only these may take a
+# transaction OUT of the boundary, and only these establish content.
+KNOWING_SOURCES = frozenset((USER_STATED, IMPORTED_EOB))
+
+
+# ── The vocabularies ────────────────────────────────────────────────────────
+# Counterparty evidence only. None of this says what was bought.
+
+HEALTH_MCC = frozenset((
+    '4119',   # ambulance
+    '5047',   # medical & dental equipment
+    '5122',   # drugs, proprietaries
+    '5912',   # drug stores and pharmacies
+    '5975',   # hearing aids
+    '5976',   # orthopedic goods
+    '8011',   # doctors
+    '8021',   # dentists
+    '8031',   # osteopaths
+    '8041',   # chiropractors
+    '8042',   # optometrists
+    '8043',   # opticians
+    '8049',   # podiatrists
+    '8050',   # nursing and personal care
+    '8062',   # hospitals
+    '8071',   # medical and dental labs
+    '8099',   # medical services
+))
+
+# Narrow on purpose — see the module docstring. Bare 'health' is excluded: it would take
+# a health club, and manufacturing a health suspicion about a gym membership is exactly
+# the harm position 3 identifies.
+HEALTH_MERCHANT_TERMS = (
+    'pharmacy', 'drugstore', 'drug store', 'cvs', 'walgreens', 'rite aid',
+    'hospital', 'clinic', 'urgent care', 'medical', 'dental', 'dentist',
+    'orthodont', 'optometr', 'optical', 'radiolog', 'cardiolog', 'oncolog',
+    'pediatric', 'obstetric', 'dermatolog', 'psychiatr', 'psycholog',
+    'therapy', 'therapist', 'counseling', 'counselling', 'behavioral health',
+    'mental health', 'healthcare', 'health center', 'health centre',
+    'labcorp', 'quest diagnostics', 'anesthesi', 'surgery', 'surgical',
+)
+
+# Retailers that host a pharmacy counter. Exactly one weak signal: the money went
+# somewhere that MIGHT have been the pharmacy, which is not nothing and is a long way
+# from evidence.
+MIXED_RETAIL_TERMS = (
+    'target', 'walmart', 'costco', 'kroger', 'safeway', 'meijer', 'sams club',
+    "sam's club", 'publix', 'wegmans',
+)
+
+# Category names that assert health CONTENT when a person chose them. The same string
+# set by an importer is not this — see `_category_evidence`.
+HEALTH_CATEGORY_TERMS = (
+    'prescription', 'medication', 'pharmacy', 'medical', 'healthcare',
+    'doctor', 'dental', 'vision care', 'therapy', 'mental health',
+    'copay', 'co-pay', 'hospital', 'clinic',
+)
+
+
+# ── The classifier layer ────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class Evidence:
+    """One signal bearing on one axis. `amount` is set only when the evidence speaks to
+    part of a charge — an EOB line inside a $150 supermarket trip."""
+    axis: str
+    source: str
+    supports: bool
+    amount: float = None
+    recorded_at: str = None
+
+
+@dataclass(frozen=True)
+class Determination:
+    """A current reading of one axis, superseded rather than overwritten.
+
+    Carries its own evidence, the rule version that produced it and the date — because
+    without those a rule change silently makes every prior judgement unreproducible,
+    which is the C1 defect the necessity floor demonstrated, arriving here with sensitive
+    information about a person instead of a budget verdict.
+    """
+    axis: str
+    state: str
+    evidence: tuple = ()
+    rule_version: str = CLASSIFIER_RULE_VERSION
+    determined_at: str = None
+
+
+@dataclass(frozen=True)
+class Axis:
+    """What the evidence supports on one axis. Deliberately has no `confidence` and no
+    `kind`: the first is an invented number waiting to be thresholded, the second would
+    require ranking how disclosive a kind of care is."""
+    name: str
+    state: str
+
+
+@dataclass(frozen=True)
+class Sensitivity:
+    """What kind of information this classification creates.
+
+    Keyed on the QUESTION, not the verdict. Asking whether a named person's transaction is
+    health-related creates health-domain information whatever the answer comes back as, so
+    `contradicted` still carries a domain — the sensitive act was asking.
+
+    `manufactured` is the inversion: a classification Groundwork inferred is information
+    the user cannot correct, because they do not know it exists. No `degree`, ever.
+    """
+    domain: str = None
+    manufactured: bool = False
+
+
+@dataclass(frozen=True)
+class Classification:
+    amount: float = 0.0
+    merchant: str = ''
+    mcc: str = ''
+    category: str = ''
+    category_set_by: str = 'importer'
+    date: str = None
+    determinations: tuple = ()
+    surfaced: bool = False
+
+
+def _now():
+    return datetime.utcnow().isoformat(timespec='seconds')
+
+
+def _matches(text, terms):
+    t = (text or '').strip().lower()
+    return bool(t) and any(term in t for term in terms)
+
+
+def _counterparty_evidence(merchant, mcc, category, category_set_by):
+    """Signals about who received the money. Never about what was bought."""
+    out = []
+    if _matches(merchant, HEALTH_MERCHANT_TERMS):
+        out.append(Evidence(COUNTERPARTY, MERCHANT_MATCH, True, recorded_at=_now()))
+    elif _matches(merchant, MIXED_RETAIL_TERMS):
+        # A pharmacy counter inside a supermarket. One weak signal, and it stays one:
+        # this is the state the whole fail-closed zone was written for.
+        out.append(Evidence(COUNTERPARTY, MERCHANT_MATCH, True, recorded_at=_now()))
+    if str(mcc or '') in HEALTH_MCC:
+        out.append(Evidence(COUNTERPARTY, MCC, True, recorded_at=_now()))
+    if category_set_by != 'user' and _matches(category, HEALTH_CATEGORY_TERMS):
+        # An importer-assigned health-looking category is a derived label, not a person's
+        # statement, so it is counterparty-grade at best.
+        out.append(Evidence(COUNTERPARTY, INFERRED, True, recorded_at=_now()))
+    return out
+
+
+def _category_evidence(category, category_set_by):
+    """The pair the whole document turns on.
+
+    A category is not evidence — it is an interpretation already applied, and WHOSE
+    interpretation decides which axis it lands on. Set by the user it is a statement about
+    what was bought; assigned by the importer it says only where the money went. Two
+    transactions with identical category strings, different tax treatment, and no
+    inspection of the string can tell them apart.
+    """
+    if category_set_by == 'user' and _matches(category, HEALTH_CATEGORY_TERMS):
+        return [Evidence(CONTENT, USER_STATED, True, recorded_at=_now())]
+    return []
+
+
+def _state_from(evidence):
+    """Summarise all evidence on one axis into a state.
+
+    Knowing-party evidence supersedes: a merchant rule may never overturn what a person or
+    an EOB said, in either direction. That asymmetry is what makes `contradicted` sticky,
+    and without it the user answers "no, it was a birthday card" and is asked again next
+    month.
+    """
+    ev = list(evidence)
+    if not ev:
+        return NOT_EVALUATED
+
+    knowing = [e for e in ev if e.source in KNOWING_SOURCES]
+    if knowing:
+        latest = knowing[-1]
+        if not latest.supports:
+            return CONTRADICTED
+        return USER_ASSERTED if latest.source == USER_STATED else IMPORTED_ATTESTED
+
+    supporting = [e for e in ev if e.supports]
+    distinct = {e.source for e in supporting}
+    if len(distinct) >= 2:
+        return CORROBORATED
+    if supporting:
+        return SINGLE_WEAK_SIGNAL
+    return NOT_EVALUATED
+
+
+def _determine(axis, evidence, rule_version=CLASSIFIER_RULE_VERSION):
+    return Determination(axis=axis, state=_state_from(evidence),
+                         evidence=tuple(evidence), rule_version=rule_version,
+                         determined_at=_now())
+
+
+def classify(amount=0.0, merchant='', mcc='', category='', category_set_by='importer',
+             date=None, rule_version=CLASSIFIER_RULE_VERSION):
+    """Read one raw transaction into two axis determinations.
+
+    An initial determination is recorded for BOTH axes even when the state is
+    `not_evaluated`, because an absence has provenance too: *nothing here bore on this
+    question, under rule version N, on this date* is a finding, and a later reader needs
+    to tell it from *we never looked*.
+    """
+    cp = _counterparty_evidence(merchant, mcc, category, category_set_by)
+    ct = _category_evidence(category, category_set_by)
+    return Classification(
+        amount=float(amount or 0.0), merchant=merchant or '', mcc=str(mcc or ''),
+        category=category or '', category_set_by=category_set_by, date=date,
+        determinations=(_determine(COUNTERPARTY, cp, rule_version),
+                        _determine(CONTENT, ct, rule_version)))
+
+
+def determinations(c, axis):
+    """Every determination for one axis, oldest first. Superseded, never overwritten."""
+    src = getattr(c, 'classification', c)
+    return [d for d in src.determinations if d.axis == axis]
+
+
+def determination(c, axis):
+    """The current determination for one axis."""
+    return determinations(c, axis)[-1]
+
+
+def axis(c, name):
+    return Axis(name=name, state=determination(c, name).state)
+
+
+def evidence(c, axis_name):
+    return determination(c, axis_name).evidence
+
+
+def record_evidence(c, axis_name, source=None, supports=True, amount=None,
+                    rule_version=CLASSIFIER_RULE_VERSION):
+    """Add one signal and re-determine that axis, returning a NEW classification.
+
+    The prior determination survives in place; a later reader can still see what was
+    concluded before, on what evidence, under which rule.
+    """
+    src = getattr(c, 'classification', c)
+    prior = determination(src, axis_name)
+    ev = prior.evidence + (Evidence(axis_name, source, bool(supports), amount,
+                                    recorded_at=_now()),)
+    return replace(src, determinations=src.determinations
+                   + (_determine(axis_name, ev, rule_version),))
+
+
+def with_rules(version):
+    """A view of this classifier pinned to a rule version.
+
+    A new version may classify differently. It may not change what the old one concluded —
+    that is principle 4, and the reason `reproduce` exists.
+    """
+    return _PinnedRules(version)
+
+
+@dataclass(frozen=True)
+class _PinnedRules:
+    version: str
+
+    def classify(self, **kw):
+        kw.setdefault('rule_version', self.version)
+        return classify(**kw)
+
+
+def reproduce(det):
+    """Rebuild the classification a determination recorded, under its own rule version."""
+    return _Reproduced(rule_version=det.rule_version,
+                       determinations=(det,))
+
+
+@dataclass(frozen=True)
+class _Reproduced:
+    rule_version: str
+    determinations: tuple
+
+
+# ── The sensitivity layer ───────────────────────────────────────────────────
+
+def sensitivity(c):
+    """What kind of information this classification creates.
+
+    Domain attaches the moment any evidence bearing on a health-domain claim exists —
+    including evidence AGAINST, because a stored row saying *evaluated for health
+    relevance, not supported* still discloses that this transaction was health-suspicious
+    enough to evaluate.
+    """
+    # A derived fact already carries the sensitivity of what produced it, and that is the
+    # whole point of P0-3: the health context is gone by the time the figure exists, so it
+    # has to have been attached upstream rather than re-derived here.
+    carried = getattr(c, 'sensitivity', None)
+    if isinstance(carried, Sensitivity):
+        return carried
+
+    src = getattr(c, 'classification', c)
+    all_ev = [e for axis_name in AXES for e in evidence(src, axis_name)]
+    if not all_ev:
+        return Sensitivity(domain=None, manufactured=False)
+    told = any(e.source in KNOWING_SOURCES for e in all_ev)
+    return Sensitivity(domain='health', manufactured=not told)
+
+
+@dataclass(frozen=True)
+class DerivedFact:
+    """A figure computed from classified records. Carries the sensitivity of what produced
+    it, because 'spending increased 20%' contains no medical word and is still health
+    information — and a `if health_context: refuse` check is useless by the time the
+    sentence exists."""
+    metric: str
+    value: float
+    sensitivity: Sensitivity
+    sources: tuple = ()
+
+
+@dataclass(frozen=True)
+class NarratorFacts:
+    """What the narrator is allowed to see. Never the underlying records."""
+    metric: str
+    value: float
+    includes_records: bool = False
+
+
+def category_delta(classifications, category, month=None, from_month=None):
+    """Month-over-month movement in one category, as a sensitivity-carrying derived fact.
+
+    The caller supplies the records; this module does not read the ledger.
+    """
+    rows = [c for c in classifications if (c.category or '').lower() == category.lower()]
+    this_month = sum(c.amount for c in rows if (c.date or '').startswith(month or ''))
+    prior = sum(c.amount for c in rows if (c.date or '').startswith(from_month or ''))
+    contributing = [sensitivity(c) for c in rows]
+    domain = 'health' if any(s.domain == 'health' for s in contributing) else None
+    return DerivedFact(
+        metric='category_delta:%s' % category,
+        value=round(this_month - prior, 2),
+        sensitivity=Sensitivity(domain=domain,
+                                manufactured=any(s.manufactured for s in contributing)),
+        sources=tuple(rows))
+
+
+def narrator_facts(derived):
+    return NarratorFacts(metric=derived.metric, value=derived.value,
+                         includes_records=False)
+
+
+def export_row(derived):
+    return {'metric': derived.metric, 'value': derived.value,
+            'sensitivity': derived.sensitivity.domain}
+
+
+def backup_row(derived):
+    return export_row(derived)
+
+
+# ── The policy layer ────────────────────────────────────────────────────────
+# Which consumer may read which axis. Getting this table wrong is the defect the whole
+# document exists to prevent, so it is data rather than scattered conditionals.
+CONSUMER_AXES = {
+    'lever_eligibility': (COUNTERPARTY,),
+    'tax_qualifying': (CONTENT,),
+}
+
+
+def reads(consumer):
+    return CONSUMER_AXES[consumer]
+
+
+def inside_boundary(c):
+    """Entered by a signal EXISTING, not by its strength.
+
+    Global fail-closed would make every unknown transaction unavailable as a lever and
+    disable the solution engine for users with no healthcare data at all. A user with no
+    health signals is never inside, and §6.1 behaves exactly as it does today.
+    """
+    return any(axis(c, name).state in SUPPORTING_STATES for name in AXES)
+
+
+def is_lever_candidate(c):
+    """Protection reads the counterparty axis, and over-includes: inside the boundary is
+    not offered, whatever the content axis says."""
+    return not inside_boundary(c)
+
+
+def qualifying_amount(c):
+    """Tax reads the content axis and ONLY the content axis.
+
+    No axis-1-only classification may establish a qualifying amount. That is the wall, and
+    it is the pre-registered falsification criterion: if this function ever consults the
+    counterparty axis, the two-axis model has collapsed back into one classification with
+    two thresholds.
+    """
+    state = axis(c, CONTENT).state
+    if state not in (USER_ASSERTED, IMPORTED_ATTESTED):
+        return 0.00
+    attested = [e.amount for e in evidence(c, CONTENT)
+                if e.supports and e.amount is not None]
+    src = getattr(c, 'classification', c)
+    return round(attested[-1] if attested else src.amount, 2)
+
+
+@dataclass(frozen=True)
+class QualifyingTotal:
+    attested: float
+    unevaluated_count: int
+    evaluated_count: int
+    definitive: object
+    rules: str = None
+
+
+def qualifying_total(classifications, rules=None):
+    """Attested, unevaluated, and no definitive figure while anything is unevaluated.
+
+    '43 unevaluated' and '43 reviewed, none qualifying' are different claims about
+    completeness. Both qualify $0.00; only one of them was looked at — which is the second
+    consumer that must tell `contradicted` from `not_evaluated`.
+    """
+    rows = list(classifications)
+    attested = round(sum(qualifying_amount(c) for c in rows), 2)
+    unevaluated = [c for c in rows if axis(c, CONTENT).state == NOT_EVALUATED]
+    return QualifyingTotal(
+        attested=attested,
+        unevaluated_count=len(unevaluated),
+        evaluated_count=len(rows) - len(unevaluated),
+        definitive=UNAVAILABLE if unevaluated else attested,
+        rules=rules)
+
+
+# ── Surfacing, and the no-silent-learning boundary ──────────────────────────
+# A stored suspicion the user has never seen is an unsurfaced observation that persists,
+# which the boundary forbids outright. Appendix A.1's Passive tier is what resolves it:
+# visible where the user meets it, no prompt, no budget draw. Persistence follows the
+# RENDER, not the answer — and the standard is availability, not confirmation of
+# attention, the same standard already accepted for passively-surfaced settings changes.
+
+# A.2.1's thresholds. A classification question has no goal impact by construction: it
+# changes what Groundwork knows, not what the user's money does.
+MATERIALITY_BUDGET_FRACTION = 0.05
+MATERIALITY_GOAL_DAYS = 14
+
+
+@dataclass(frozen=True)
+class Marker:
+    """The Passive form. Lives on the transaction row; never interrupts."""
+    classification: Classification
+    tier: str = 'passive'
+    draws_budget: bool = False
+    asks_for: str = 'fact'
+    goal_impact_days: float = 0.0
+    budget_fraction: float = 0.0
+    surfaced: bool = True
+    # The marker is about the TRANSACTION. Inferring which household member is ill is the
+    # most disclosive thing this module could do, and it would be inferred rather than
+    # told — so no person is named, suggested or defaulted, even where history would
+    # support a guess.
+    person: str = None
+    suggested_person: str = None
+
+
+@dataclass(frozen=True)
+class ReviewOffer:
+    """The one proactive form that clears the gauntlet honestly: aggregated and seasonal.
+
+    Material because it moves a deduction, actionable because reviewing is the path, and
+    perishable in A.3's strict sense — a filing deadline is a window closing by a known
+    amount, not a predicted trajectory.
+    """
+    population: tuple
+    amount: float
+    season: str
+    tier: str = 'proactive'
+    # A new prompt-kind joins the budget its attention cost resembles; it does not mint
+    # its own. An unsolicited interruption asking the user to resolve something is a
+    # brake's attention cost.
+    budget: str = 'brake'
+    crosses_goal_boundary: bool = True
+
+
+def surface(c):
+    """Render the unresolved marker on the transaction row, which is what makes persisting
+    it legitimate."""
+    src = getattr(c, 'classification', c)
+    return Marker(classification=replace(src, surfaced=True))
+
+
+def is_persisted(x):
+    return bool(getattr(x, 'surfaced', False))
+
+
+def answer(marker, content_is_health=True, source=USER_STATED):
+    """The direct question for a missing FACT — never for a commitment."""
+    return record_evidence(marker.classification, CONTENT, source=source,
+                           supports=bool(content_is_health))
+
+
+def review_offer(classifications, season=None):
+    population = [c for c in classifications
+                  if inside_boundary(c) and axis(c, CONTENT).state == NOT_EVALUATED]
+    return ReviewOffer(population=tuple(population),
+                       amount=round(sum(c.amount for c in population), 2),
+                       season=season)
+
+
+def gauntlet(candidate, monthly_budget=None):
+    """A.2's five gates, evaluated honestly for whichever candidate is offered.
+
+    A single classification question fails at the first gate and will essentially always
+    fail it — which is the correct outcome rather than a problem to engineer around.
+    Strictness is free: a sub-threshold insight is not lost, it stays Passive.
+    """
+    if isinstance(candidate, ReviewOffer):
+        material = bool(candidate.population) and candidate.crosses_goal_boundary
+        # Bad news with a path: the population is reviewable, one row at a time.
+        actionable = bool(candidate.population)
+        return {'materiality': material, 'actionability': actionable,
+                'novelty': True, 'budget': True, 'timing': True}
+
+    days = getattr(candidate, 'goal_impact_days', 0.0)
+    fraction = getattr(candidate, 'budget_fraction', 0.0)
+    material = days >= MATERIALITY_GOAL_DAYS or fraction >= MATERIALITY_BUDGET_FRACTION
+    return {'materiality': material,
+            # Not bad news, so there is no §6 solution to require — and the gate exists
+            # to stop bad news arriving without a path.
+            'actionability': False,
+            'novelty': True, 'budget': True, 'timing': True}
+
+
+def can_promote(candidate, monthly_budget=None):
+    return all(gauntlet(candidate, monthly_budget).values())
