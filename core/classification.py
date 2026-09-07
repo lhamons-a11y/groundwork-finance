@@ -614,3 +614,142 @@ def gauntlet(candidate, monthly_budget=None):
 
 def can_promote(candidate, monthly_budget=None):
     return all(gauntlet(candidate, monthly_budget).values())
+
+
+# ── Evidence strength: the weakest material link ────────────────────────────
+# A lattice rather than a number, for the reason `classification_confidence` was refused: a
+# float invites a threshold, and a threshold is an invented policy. These are the states that
+# already exist, ordered by how much they establish.
+#
+# `not_evaluated` and `contradicted` share a floor and stay distinct - principle 2. Nothing
+# supports the claim either way, and *we never looked* is not *we looked and found against it*.
+STRENGTH = (NOT_EVALUATED, CONTRADICTED, SINGLE_WEAK_SIGNAL, CORROBORATED,
+            IMPORTED_ATTESTED, USER_ASSERTED)
+
+_RANK = {
+    NOT_EVALUATED: 0,
+    CONTRADICTED: 0,
+    SINGLE_WEAK_SIGNAL: 1,
+    CORROBORATED: 2,
+    IMPORTED_ATTESTED: 3,
+    USER_ASSERTED: 3,
+}
+
+# What each consumer requires before it may take a value. A surface absent from this table
+# cannot consume anything at all, which is the enforcement: adding a consumer means stating
+# what it needs, and forgetting to state it fails closed rather than open.
+CONSUMER_STRENGTH = {
+    # Protection over-includes, so a single weak signal is enough to withhold a lever - the
+    # error is cheap in that direction and expensive in the other.
+    'lever_eligibility': SINGLE_WEAK_SIGNAL,
+    # A tax line is the one place being wrong has a legal consequence for the user, so it
+    # takes nothing an interested party did not attest.
+    'tax_qualifying': CORROBORATED,
+    'narrator': CORROBORATED,
+    'export': SINGLE_WEAK_SIGNAL,
+}
+
+
+def strength_rank(state):
+    """Where a state sits in the lattice. Equal ranks are deliberate, not sloppy."""
+    return _RANK[state]
+
+
+def consumers():
+    return tuple(CONSUMER_STRENGTH)
+
+
+def required_strength(consumer):
+    return CONSUMER_STRENGTH.get(consumer)
+
+
+def strength_of(fact):
+    """The evidentiary strength of a classification or a derived fact.
+
+    For a classification: the **best-supported axis**, because either axis supporting the claim
+    is what makes it health-domain at all.
+
+    For a derived fact: the **weakest material source**, computed on every read rather than
+    stored — so invalidating a source invalidates everything derived from it without anything
+    having to remember to recompute.
+    """
+    src = getattr(fact, 'sources', None)
+    if src is None:
+        states = [axis(fact, name).state for name in AXES]
+        # Best axis. `contradicted` and `not_evaluated` tie on rank, and at that tie the
+        # answer must be `contradicted` — *we looked and found against it* is the finding,
+        # and reporting *we never looked* instead throws away the only thing that was
+        # established. Principle 2: the states share a floor and must not merge on the way
+        # out either.
+        return sorted(states, key=lambda st: (_RANK[st], _prefer_contradicted(st)))[-1]
+
+    material = [x for x in src if _is_material(x)]
+    if not material:
+        return NOT_EVALUATED
+    # Weakest source, with the same tie broken the same way — so a contradicted source in
+    # the chain is named as contradicted rather than disappearing into "unevaluated".
+    weakest = sorted(material,
+                     key=lambda x: (_RANK[strength_of(x)],
+                                    1 - _prefer_contradicted(strength_of(x))))[0]
+    return strength_of(weakest)
+
+
+def _prefer_contradicted(state):
+    """1 for `contradicted`, 0 otherwise — the tie-break at the floor.
+
+    Used ascending when picking the best axis (so contradicted sorts last, and is taken) and
+    inverted when picking the weakest source (so it sorts first, and is taken). Same
+    preference, opposite ends.
+    """
+    return 1 if state == CONTRADICTED else 0
+
+
+def _is_material(source):
+    """A source that contributes nothing cannot weaken what it did not build."""
+    amount = getattr(source, 'amount', None)
+    if amount is None:
+        return True
+    return abs(float(amount)) > 0
+
+
+def derive(metric, value, sources=()):
+    """Build a derived fact from named sources.
+
+    There is no way to construct one without them: a fact with no provenance is exactly the
+    thing this module exists to refuse.
+    """
+    rows = tuple(sources)
+    contributing = [sensitivity(x) for x in rows]
+    domain = 'health' if any(s.domain == 'health' for s in contributing) else None
+    return DerivedFact(
+        metric=metric,
+        value=round(float(value), 2),
+        sensitivity=Sensitivity(domain=domain,
+                                manufactured=any(s.manufactured for s in contributing)),
+        sources=rows)
+
+
+def refusal(fact, by=None):
+    """Why a consumer was refused, in the terms the decision was made in."""
+    need = required_strength(by)
+    if need is None:
+        return {'consumer': by, 'reason': 'consumer has not declared a required strength',
+                'offered': strength_of(fact)}
+    have = strength_of(fact)
+    if strength_rank(have) < strength_rank(need):
+        return {'consumer': by, 'reason': 'evidence weaker than this consumer requires',
+                'required': need, 'offered': have}
+    return None
+
+
+def consume(fact, by=None):
+    """The only way to take a value out of a derived fact.
+
+    Returns `UNAVAILABLE` rather than a number when the evidence is weaker than the consumer
+    requires, or when the consumer never said what it requires. Two facts with identical values
+    and different strengths are therefore **not interchangeable**, which is the whole point:
+    the number is not the fact.
+    """
+    if refusal(fact, by) is not None:
+        return UNAVAILABLE
+    return fact.value

@@ -49,6 +49,32 @@ What a `DerivedFact` carries today (`core/classification.py`): `domain`, `manufa
 written and asserted; the data to enforce it is already there, which makes this cheap to close
 and dangerous to leave.
 
+> **CLOSED — `core/classification.py`'s evidence-strength layer.** 22 assertions
+> (`tests/test_evidence_strength_fixture.py`), 7 of 7 mutations
+> (`smoke_sections/s95_evidence_strength.py`). The rule: *a derived fact may not possess
+> greater evidentiary strength than its weakest material source*, over a lattice rather than a
+> float, because a float invites a threshold and a threshold is an invented policy.
+>
+> **The half that makes it an invariant rather than infrastructure is the consumer boundary.**
+> `consume()` is the only way to take a value; every consumer declares the strength it
+> requires; **a consumer absent from the table is refused outright**. So adding a surface means
+> stating what it needs, and forgetting to state it fails closed. Walkable provenance became
+> enforced provenance, which was Rob's distinction and is the whole point.
+>
+> Two things the fixture forced that the design had not anticipated. At the floor,
+> `contradicted` and `not_evaluated` tie on rank, and the tie must resolve to **contradicted** —
+> *we looked and found against it* is the finding, and reporting *we never looked* discards the
+> only thing established. And a **source contributing nothing cannot weaken what it did not
+> build**, so the minimum is over *material* sources.
+>
+> **And a correction of my own, worth keeping:** the first version of case 7 was named
+> *"invalidating the source invalidates what was derived from it"* and tested no such thing — it
+> built a new fact from the weakened source. **Meaning-named and value-asserting, committed one
+> commit after identifying that exact defect.** What is actually true is better: classifications
+> are immutable, so a derived fact is a statement about its sources *as they stood*, and the
+> caller re-derives for a current view. That is gap 2's historical-truth invariant showing up
+> concretely rather than a propagation failure.
+
 ### 6. Compound partial payments — no single invariant
 
 The $4,000 obligation with `175 · 175 · 500 · −50 · 300` is not tested. Reversal is
