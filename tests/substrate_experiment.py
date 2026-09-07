@@ -58,6 +58,7 @@ from core import database as db                                          # noqa:
 from core import allocation as alloc                                     # noqa: E402
 from core import person as personmod                                     # noqa: E402
 from core import plan_year as planmod                                    # noqa: E402
+from core import reserve as reservemod                                   # noqa: E402
 
 PASS, FAIL = [], []
 
@@ -114,6 +115,8 @@ ExpenseFundingAllocation = db.ExpenseFundingAllocation
 ExpenseDetermination = db.ExpenseDetermination
 ExpenseMergeLink = db.ExpenseMergeLink
 ExpenseRefund = db.ExpenseRefund
+ReserveTarget = db.ReserveTarget
+ReserveContribution = db.ReserveContribution
 TaxRuleVersion = db.TaxRuleVersion
 HealthPlan = db.HealthPlan
 HealthPlanTermVersion = db.HealthPlanTermVersion
@@ -629,6 +632,74 @@ def _hydrate_plans():
                for r in s.query(HealthPlanOperation).order_by(HealthPlanOperation.seq).all()]
 
 
+def _sync_reserve():
+    s = _s()
+    reg = reservemod._r()
+    have = {r.seq: r for r in s.query(ReserveTarget).all()}
+    for t in reg.targets:
+        row = have.get(t.seq)
+        if row is None:
+            s.add(ReserveTarget(basis=t.basis, amount=t.amount, kind=t.kind,
+                                source=t.source, reason=t.reason, seq=t.seq,
+                                cleared=False))
+    have_c = {r.seq for r in s.query(ReserveContribution).all()}
+    for c in reg.contributions:
+        if c.seq not in have_c:
+            s.add(ReserveContribution(amount=c.amount, on_date=c.on, note=c.note,
+                                      seq=c.seq))
+    s.flush()
+    # `cleared` marks the target that was withdrawn. Recorded on the latest row rather than
+    # as a deletion, so the history of what was wanted survives being no longer wanted.
+    rows = s.query(ReserveTarget).order_by(ReserveTarget.seq).all()
+    for r in rows:
+        r.cleared = False
+    if reg.cleared and rows:
+        rows[-1].cleared = True
+    s.commit()
+
+
+def _hydrate_reserve():
+    s = _s()
+    reg = reservemod._r()
+    rows = s.query(ReserveTarget).order_by(ReserveTarget.seq).all()
+    reg.targets = [reservemod.Target(basis=r.basis, amount=r.amount, kind=r.kind,
+                                     source=r.source, reason=r.reason, seq=r.seq,
+                                     recorded_at=r.recorded_at)
+                   for r in rows]
+    reg.cleared = bool(rows and rows[-1].cleared)
+    reg.contributions = [
+        reservemod.Contribution(amount=r.amount, on=r.on_date, note=r.note, seq=r.seq,
+                                recorded_at=r.recorded_at)
+        for r in s.query(ReserveContribution).order_by(ReserveContribution.seq).all()]
+
+
+class ReserveStore:
+    """core/reserve.py, backed entirely by the shipped tables."""
+    UNKNOWN = reservemod.UNKNOWN
+    _READS = ('current_target', 'target_history', 'target_amount', 'contributions',
+              'held', 'status')
+    _WRITES = ('set_target', 'clear_target', 'contribute', 'withdraw')
+
+    def reset(self):
+        reservemod.reset()
+        _clear()
+
+    def __getattr__(self, name):
+        fn = getattr(reservemod, name)
+        if name in self._READS:
+            def read(*a, **kw):
+                _hydrate_reserve()
+                return fn(*a, **kw)
+            return read
+        if name in self._WRITES:
+            def write(*a, **kw):
+                out = fn(*a, **kw)
+                _sync_reserve()
+                return out
+            return write
+        return fn
+
+
 class PlanYearStore:
     """core/plan_year.py, backed entirely by the shipped tables."""
     UNKNOWN = planmod.UNKNOWN
@@ -687,7 +758,8 @@ def _clear():
                   ExpenseRefund, ExpenseFundingAllocation, ExpenseObligationVersion,
                   HealthcareExpense,
                   HealthPlanOperation, HealthPlanTermVersion, HealthPlan,
-                  PersonEnrolment, PersonAlias, Person, TaxRuleVersion):
+                  PersonEnrolment, PersonAlias, Person, TaxRuleVersion,
+                  ReserveContribution, ReserveTarget):
         s.query(model).delete()
     s.query(Historian).filter(Historian.event_category.like('healthcare_%')).delete(
         synchronize_session=False)
@@ -807,7 +879,8 @@ def main():
     # and does any read need JSON?
     for label, fixture_name, store in (
             ('person identity', 'test_person_identity_fixture', PersonStore()),
-            ('plan years', 'test_plan_year_fixture', PlanYearStore())):
+            ('plan years', 'test_plan_year_fixture', PlanYearStore()),
+            ('the reserve', 'test_reserve_fixture', ReserveStore())):
         fx2 = _load_fixture(fixture_name)
         p2, f2, e2 = _run(fx2, store)
         check('%s round-trips through the shipped schema' % label,
@@ -869,6 +942,27 @@ def main():
         globals()['_sync_plans'] = orig_plan_sync
     check('caught: a terms correction persists without what it corrected',
           bool(broke_y) or bool(err_y))
+
+    orig_res_sync = globals()['_sync_reserve']
+
+    def reserve_stores_the_derived_figure():
+        # The copy that drifts: persist the resolved out-of-pocket maximum onto a target that
+        # is supposed to derive it, and correcting the plan stops moving the target.
+        out = orig_res_sync()
+        s2 = _s()
+        for r in s2.query(ReserveTarget).filter_by(basis='oop_max').all():
+            r.amount = 6000.00
+        s2.commit()
+        return out
+
+    globals()['_sync_reserve'] = reserve_stores_the_derived_figure
+    try:
+        fx_r = _load_fixture('test_reserve_fixture')
+        _, broke_r, err_r = _run(fx_r, ReserveStore())
+    finally:
+        globals()['_sync_reserve'] = orig_res_sync
+    check('caught: a derived target persists a copy of the figure',
+          bool(broke_r) or bool(err_r))
 
     print()
     verdict = not FAIL

@@ -835,6 +835,46 @@ class ExpenseRefund(Base):
     __table_args__ = (Index('ix_eref_expense', 'expense_id'),)
 
 
+class ReserveTarget(Base):
+    """How much reserve is wanted, and what kind of number that is.
+
+    `basis` is what makes a change interpretable: without it, $6,000 becoming $8,000 is just a
+    bigger number. `amount` is NULL for any derived basis — a target resolved from the plan's
+    out-of-pocket maximum keeps no copy of the figure, so correcting the plan moves the target
+    with nothing to reconcile. A stored copy would be two sources of truth for one fact.
+
+    `kind` separates a preference change from a corrected fact from a new plan. They produce
+    the same new number and mean different things, and `unspecified` exists because guessing
+    between them would be manufacturing a classification from an unresolved state.
+
+    `cleared` marks a target that was withdrawn. Deleting a target says nothing about the
+    money, which lives in `reserve_contributions` and is untouched by it.
+    """
+    __tablename__ = 'reserve_targets'
+    id          = Column(Integer, primary_key=True)
+    basis       = Column(String(20), nullable=True)     # oop_max | custom | historical
+    amount      = Column(Float, nullable=True)          # only where nothing derives it
+    kind        = Column(String(20), nullable=False)    # initial|preference|fact|plan_change|unspecified
+    source      = Column(String(40), nullable=True)
+    reason      = Column(String(200), nullable=True)
+    cleared     = Column(Boolean, default=False)
+    seq         = Column(Integer, nullable=False)
+    recorded_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ReserveContribution(Base):
+    """Money into or out of the dedicated fund. Negative for a withdrawal, which stays here
+    rather than being netted away — the balance is derived from this table, so keeping both
+    sides costs nothing and losing one loses the history."""
+    __tablename__ = 'reserve_contributions'
+    id          = Column(Integer, primary_key=True)
+    amount      = Column(Float, nullable=False)
+    on_date     = Column(String(10), nullable=True)
+    note        = Column(String(200), nullable=True)
+    seq         = Column(Integer, nullable=False)
+    recorded_at = Column(DateTime, default=datetime.utcnow)
+
+
 class TaxRuleVersion(Base):
     """Which tax rule set was in force, as a household-level timeline.
 

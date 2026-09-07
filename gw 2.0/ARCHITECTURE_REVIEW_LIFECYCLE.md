@@ -213,9 +213,17 @@ classification instead of an amount.
 **Not decided here:** whether the reserve is built before, alongside or after the last balance.
 That is design Open Question 6, it is open, and the module has no opinion on it.
 
-**Not yet persisted.** The reserve has no tables, unlike `person`, `plan_year` and the
-obligation model. It belongs with the other §6.3 step-2 leftovers — providers, HSA and FSA as
-funds — and wants a round-trip through the shipped schema before it is called done.
+**Persisted the same day.** `reserve_targets` and `reserve_contributions`, round-tripped in
+`tests/substrate_experiment.py` like the other three — and proven able to fail by persisting a
+copy of the derived figure onto an `oop_max` target, at which point correcting the plan stops
+moving the target and the fixture notices.
+
+The `cleared` flag lives on the target row rather than being a deletion, so the history of what
+was wanted survives being no longer wanted. And `amount` is NULL on every derived target: the
+schema enforces the no-copy rule rather than relying on the model to remember it.
+
+**All four modules that own tables now round-trip through them.** What remains of §6.3 step 2
+is providers, HSA and FSA as funds, and the category taxonomy.
 
 ## 6. Provider plans need versioned terms and event history
 

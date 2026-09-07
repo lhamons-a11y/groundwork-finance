@@ -76,6 +76,7 @@ class Contribution:
     amount: float
     on: str = None
     note: str = None
+    seq: int = 0
     recorded_at: str = None
 
 
@@ -166,8 +167,11 @@ def target_amount(oop_max=None, historical=None):
 # ── The balance, derived from the history ───────────────────────────────────
 
 def contribute(amount, on=None, note=None):
-    c = Contribution(amount=round(float(amount), 2), on=on, note=note, recorded_at=_now())
-    _r().contributions.append(c)
+    r = _r()
+    r._seq += 1
+    c = Contribution(amount=round(float(amount), 2), on=on, note=note, seq=r._seq,
+                     recorded_at=_now())
+    r.contributions.append(c)
     return c
 
 
