@@ -114,6 +114,25 @@ Imported data saying `patient = "ROB L."` must map explicitly. Name matching is 
 enrolment does not**, so they are separate concepts. Deleting a person with 500 historical
 transactions means `inactive`, never destroying the identity.
 
+**Built 2026-09-07** — `core/person.py`, `tests/test_person_identity_fixture.py`,
+`smoke_sections/s80_person_identity.py`. 29 assertions, 14 of 14 mutations detected.
+
+The invariant that turned out to hold the rest together is not in the list above; it comes from
+`HEALTHCARE_MODULE_DESIGN.md` §1.7. **The tax report is the household total**, so a
+reassignment moves the attribution and must leave the household figure untouched — which is
+what stops a reassignment being a way to move money. Everything else here is per-person
+supporting detail hanging off that.
+
+Two rules the implementation had to sharpen:
+
+- **Exact-and-unique is a lookup; anything else needs an alias.** `John` resolves because
+  exactly one person has that name; `Sam` resolves to **nobody** when two people are called
+  Sam, because guessing between them is the same error wearing a coin flip. Both cases were
+  missing from the first draft of the fixture and were found by mutation testing.
+- **`per-person totals + unassigned == household total`, exactly.** An expense whose patient
+  nobody recorded belongs to nobody — never to the only other candidate — and is reported
+  rather than dropped. Absence is not zero, in attribution as in amounts.
+
 ## 4. Plan-year state is temporal history, not a current-state field
 
 `current_plan_year = 2026` cannot explain history.

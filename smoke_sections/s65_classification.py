@@ -45,7 +45,11 @@ def _run_fixture(fx, model):
             fx.run(model)
     except Exception as e:                                    # noqa: BLE001
         err = '%s: %s' % (type(e).__name__, e)
-    return len(fx.PASS), list(fx.FAIL), err
+    # PENDING counts as not-passing. `check` routes a None condition there rather than to
+    # FAIL, so an assertion written as an `and` chain can quietly report "pending a model"
+    # while the model is right there failing it. Folding pending into the failure signal is
+    # the fix that does not depend on every future assertion remembering bool().
+    return len(fx.PASS), list(fx.FAIL) + list(fx.PENDING), err
 
 
 # ── The mutations ───────────────────────────────────────────────────────────

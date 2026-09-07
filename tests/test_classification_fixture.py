@@ -334,7 +334,7 @@ def run(model):
     # unreproducible here is sensitive information about a person.
     det = model.determination(c['t1_cvs'], 'counterparty')
     check('every classification names its evidence, rule version and date',
-          det.evidence and det.rule_version and det.determined_at)
+          bool(det.evidence) and bool(det.rule_version) and bool(det.determined_at))
     check('a classification is superseded, never overwritten',
           len(model.determinations(answered, 'content')) == 2)
     check('and the prior determination is still readable',
