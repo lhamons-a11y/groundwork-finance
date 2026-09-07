@@ -1,0 +1,197 @@
+# Fifteen gaps, triaged against what exists
+
+**Rob's second review, 2026-09-07 — checked rather than accepted or argued**
+
+> Same discipline as `HEALTHCARE_CRITIQUE_SURVIVAL.md`: each gap is checked against shipped
+> code, and marked **ADDRESSED**, **PARTIAL** or **NEW** with the mechanism cited or its absence
+> admitted. The review's own framing is right — these are **gaps, not flaws**. Nothing below
+> contradicts the design; several things below are missing from it.
+>
+> **The standing caveat:** all five `core/` modules are pure and have no callers. Every
+> "addressed" is addressed *in isolation*.
+
+---
+
+## NEW — nothing in the repository does this
+
+### 1. Two valid histories, one present state — **the sharpest new gap**
+
+```text
+EOB $400 → corrected to $275          versus          EOB $400 → deleted → EOB B $275
+```
+
+The lifecycle fixture asserts **arrival-order independence** — the same facts in any order
+produce the same state — which is a different claim. It does **not** assert anything about two
+*different* histories converging, and the model would represent them differently: one is an
+obligation version chain, the other is a deletion plus a new obligation.
+
+**Unanswered, and the review is right that it must be answered explicitly:** are those
+semantically identical? If yes, normalization rules are needed. If no, the distinction has to
+survive every read path. Today it survives by accident rather than by rule.
+
+### 4. Inference amplification — **the material exists, the invariant does not**
+
+> *A derived fact may not acquire greater certainty merely because it participates in additional
+> derivations.*
+
+What a `DerivedFact` carries today (`core/classification.py`): `domain`, `manufactured`, and
+`sources` — the contributing classifications. So:
+
+- **Better than the review assumes:** `manufactured` survives the hop. A figure derived from
+  inferred classifications is still marked as manufactured, and `sources` keeps the chain
+  walkable, so the information needed to enforce the invariant is present.
+- **Exactly as bad as the review fears in one respect:** the derived fact does **not** carry the
+  strength of its weakest link. A figure resting on one `single_weak_signal` is indistinguishable
+  from one resting on `corroborated` evidence, except by walking `sources` — and nothing requires
+  anyone to walk it. `DerivedFact.value` is a plain float.
+
+**There is no rule anywhere that certainty cannot rise along a chain.** The invariant should be
+written and asserted; the data to enforce it is already there, which makes this cheap to close
+and dangerous to leave.
+
+### 6. Compound partial payments — no single invariant
+
+The $4,000 obligation with `175 · 175 · 500 · −50 · 300` is not tested. Reversal is
+(`57b6154`), and progress-as-dollars is settled, but **the invariant that paid / remaining /
+scheduled / ahead / overdue cannot contradict one another does not exist.** That is a fixture
+waiting to be written, and it is the kind that finds things.
+
+### 8. Payment agreements need versioning
+
+`24 × $175` becoming `18 × $233.33` is not representable. There is **no payment-plan entity at
+all** — versioned or otherwise. The review's reasoning holds: recalculating against the current
+agreement rewrites history, freezing it makes current adherence wrong, so the agreement itself
+needs versions exactly as the obligation does.
+
+### 15. Failure-mode behaviour — **no section exists**
+
+Classification fails, plan resolution fails, EOB parsing fails, a duplicate is detected wrongly,
+a correction cannot be reconciled, reserve inputs go stale, the user deletes the source document,
+imported data conflicts with manual entry. **None of these has a stated answer.** The design
+specifies behaviour when data is good.
+
+The one partial exception is the honest-null discipline already in the engine — `simulate_payoff`
+returns `None` rather than a fabricated figure when the budget cannot cover minimums — which is
+the right shape, applied in one place and not generalised.
+
+### 14. A general rule for naming external actions
+
+§0.3 settles *cost, not counsel* for healthcare specifically. The review's generalisation — **a
+user-verifiable external action may be named when it follows from an established fact; an
+outcome or negotiation position may not** — does not exist as a reusable rule, and it should,
+because the next module will face it.
+
+---
+
+## PARTIAL — mechanism exists, statement or coverage does not
+
+### 2. Historical truth versus current truth
+
+Every module built this session takes `as_of` and reproduces the earlier answer: plan-year terms,
+person assignments, allocation rule versions. So the mechanism is thorough. **What is missing is
+the invariant stated as such** — *a historical conclusion is an immutable representation of the
+knowledge available then; a current conclusion may be superseded by later evidence.* Both true
+at once, and nothing says so in one place.
+
+### 3. Unknown is not one state
+
+Four of the review's six already exist, and the split was deliberate:
+
+| Review's | Exists as |
+|---|---|
+| PENDING | `pending_claim` — settles nothing, distinct from `unpaid` |
+| NOT_PROVIDED | `not_evaluated` — never examined |
+| UNRESOLVED | `UNRESOLVED` — the arithmetic gap, no definitive total |
+| UNKNOWN | `UNKNOWN` — plan terms nobody supplied |
+| NOT_COVERED | **absent** — would be a determination |
+| NOT_APPLICABLE | **absent** |
+
+`contradicted` also exists and is on none of the review's lists — *we looked and found against
+it*, deliberately split from *we never looked*. **So the challenge is answered for four, and two
+are genuinely unrepresented.**
+
+### 5. Payment-to-obligation attribution
+
+Representable but unnamed. A confirmed payment is `cleared + attached + user_confirmed`; an
+attachment the system guessed would be attached-but-not-user-confirmed, which is exactly the
+review's *inferred*. **The states exist; the vocabulary does not**, and a nameless distinction is
+one nobody enforces.
+
+### 7. Financial progress versus contractual adherence
+
+Conceptually separated and argued (*early is free, late is not*; progress is dollars, payment
+count is a label beside it). **Schema absent** — see gap 8. The review's point that the schema
+must make the collapse impossible is right and unmet.
+
+### 9. Reserve language in the UI
+
+Already conceded in the first review round: the architecture refuses the promise, **no
+user-facing language exists at all**. The review extends it correctly — solving the semantics in
+the database and recreating the problem in the UI is a live risk precisely because the UI is
+unwritten.
+
+### 11. Joint-account relational leakage
+
+The mechanism exists: sensitivity propagates through narrator, export and backup, and derived
+facts inherit it. **What is untested is reconstruction** — whether a health situation can be
+rebuilt from surfaces that carry no health marking. That is a different and harder property than
+"health rows are hidden", and the review is right that it is architectural rather than cosmetic.
+
+### 12. Export, logs, backups, diagnostics
+
+Export and backup carry sensitivity and are asserted. **Logs, diagnostics, crash reports and
+screenshots are not covered**, and the single invariant the review proposes — *no health-sensitive
+fact crosses the local trust boundary unless the operation explicitly permits health data* — does
+not exist. Its framing is better than what is there, because it puts the burden on every exporter
+rather than on each new surface remembering.
+
+---
+
+## ADDRESSED
+
+### 10. The reserve as a hidden priority engine
+
+This is the one the architecture is most explicitly built against. `core/reserve.py` **has no
+opinion** on whether the reserve is filled before, alongside or after the last debt balance, and
+says so. The Q6 instrument carries a written guard: **it enumerates consequences, it does not
+rank options.** The review's distinction — *"filling this reserve would delay payoff by 4 months"*
+is Groundwork; *"you should fill your reserve first"* is Groundwork deciding — is the line
+already drawn, and `tests/payoff_option_measurement.py` exists to keep the decision with the
+user rather than the tooling.
+
+### 13. Commercial medication pricing
+
+Agreed, and already the design's position: §2.1 argues the partnership *need not be pursued*, and
+§6.3 files it as gated and optional. The user's own recorded price is inside Groundwork; a
+pharmacy price index is a different product.
+
+---
+
+## The closing criticism, which I think is correct
+
+> *The biggest danger is not getting healthcare wrong. It is becoming the first place Groundwork
+> violates its own philosophy.*
+
+Worth recording because it identifies the mechanism, not just the risk: healthcare knows history,
+insurance, deductible, cash flow, debt and reserve simultaneously, and that concentration is what
+makes *"you should…"* feel earned. The architecture has to make it hard **even when the
+recommendation would be financially sensible** — which is a strictly stronger requirement than
+making it hard when the recommendation is wrong.
+
+The existing defences are real: the honest-no, the levers-not-decisions rule, F.6b's refusal to
+model motive, and the Q6 guard. **What the review adds is that none of them was designed against
+a subsystem that knows this much at once**, and that is a fair thing to say.
+
+---
+
+## What I would do first
+
+Ordered by *cheap to close and dangerous to leave*, which is not the review's ordering:
+
+1. **Gap 4** — the data is already there; only the invariant is missing. Write it, assert it,
+   mutation-test it.
+2. **Gap 1** — a fixture question, answerable with the existing lifecycle harness.
+3. **Gap 6** — a compound-payment fixture, the kind that has found things every time this session.
+4. **Gap 2** — one invariant, stated once, covering machinery that already exists.
+
+Gaps 8, 15, and the schema half of 7 are larger and depend on entities that do not exist yet.
