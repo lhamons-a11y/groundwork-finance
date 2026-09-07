@@ -221,6 +221,86 @@ def _mutations(m):
         m.qualifying = broken
         return lambda: setattr(m, 'qualifying', orig)
 
+    def reversal_is_just_a_correction():
+        # The shortcut the P0 review names: post -$1,000 and move on. The allocation reads
+        # the same and the fact that a distribution ever happened is gone.
+        orig = m._fold
+
+        def broken(e):
+            f = orig(e)
+            f['unwound'] = {}
+            return f
+        m._fold = broken
+        return lambda: setattr(m, '_fold', orig)
+
+    def correction_looks_like_a_reversal():
+        # The other direction: everything that reaches zero is treated as money that came
+        # back, so a figure that was never right becomes a distribution that was unwound.
+        orig = m._fold
+
+        def broken(e):
+            f = orig(e)
+            for c in f['changes']:
+                if c.get('mode') == 'correction' and c.get('to') == 0.0:
+                    f['unwound'][c['funder']] = c['from']
+            return f
+        m._fold = broken
+        return lambda: setattr(m, '_fold', orig)
+
+    def reversal_reduces_the_obligation():
+        # Treating a reversal as a refund. The payment came back, so the bill must have
+        # shrunk - which is exactly the collapse that mangles tax.
+        orig = m._effective_obligation
+
+        def broken(folded):
+            base = orig(folded)
+            return round(base - sum(folded['unwound'].values()), 2)
+        m._effective_obligation = broken
+        return lambda: setattr(m, '_effective_obligation', orig)
+
+    def refund_leaves_the_payer_whole():
+        # The obligation falls and the payer still shows the full amount paid, so the
+        # deduction is overstated by exactly the refund.
+        orig = m._fold
+
+        def broken(e):
+            f = orig(e)
+            for c in f['changes']:
+                if c.get('mode') == 'refund' and c.get('funder') in f['funders']:
+                    f['funders'][c['funder']].amount = round(
+                        f['funders'][c['funder']].amount + c['amount'], 2)
+            return f
+        m._fold = broken
+        return lambda: setattr(m, '_fold', orig)
+
+    def refund_looks_like_a_correction():
+        orig = m._fold
+
+        def broken(e):
+            f = orig(e)
+            for c in f['changes']:
+                if c.get('mode') == 'refund':
+                    c['mode'] = 'correction'
+            return f
+        m._fold = broken
+        return lambda: setattr(m, '_fold', orig)
+
+    def reversal_forgets_when():
+        orig = m._fold
+
+        def broken(e):
+            f = orig(e)
+            for c in f['changes']:
+                c.pop('occurred_on', None)
+            return f
+        m._fold = broken
+        return lambda: setattr(m, '_fold', orig)
+
+    def changes_are_overwritten():
+        orig = m.changes
+        m.changes = lambda e: orig(e)[-1:]
+        return lambda: setattr(m, 'changes', orig)
+
     return [
         ('events fold in arrival order rather than effective order', arrival_order),
         ('the confirmed figure is a subtraction, which gives the same $300 today',
@@ -241,6 +321,16 @@ def _mutations(m):
         ('the rules argument is ignored in favour of whatever is current',
          rules_argument_ignored),
         ('an unevidenced cash payment becomes deductible', evidence_not_required),
+        ('a reversal records nothing about what it unwound', reversal_is_just_a_correction),
+        ('a correction to zero is recorded as money that came back',
+         correction_looks_like_a_reversal),
+        ('a reversal shrinks the obligation as a refund would',
+         reversal_reduces_the_obligation),
+        ('a refund leaves the payer showing the full amount paid',
+         refund_leaves_the_payer_whole),
+        ('a refund is recorded as a correction', refund_looks_like_a_correction),
+        ('a reversal does not record when the money came back', reversal_forgets_when),
+        ('only the latest change survives', changes_are_overwritten),
     ]
 
 

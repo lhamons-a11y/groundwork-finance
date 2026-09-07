@@ -300,6 +300,94 @@ def run(model):
     check('the later correction wins whichever order the two arrive in',
           all(r['state']['insurance'] == 275.00 for r in both))
 
+
+    # ── Reversal and chargeback: unwinding what was already accounted for ───
+    # P0 section 10. "A reversal is not a refund. A refund returns money after an expense; a
+    # reversal unwinds the original payment" - and the case that makes it P0 is a $1,000
+    # expense funded by a $1,000 HSA distribution, where the payment then reverses. Posting
+    # -$1,000 does not resolve it: an HSA distribution that was unwound is not a qualified
+    # distribution, and a model that only zeroes the allocation has destroyed the fact that
+    # the distribution ever happened.
+    rev = model.new_expense(amount=1000.00, incurred_on='2026-02-01', person='rob')
+    model.allocate(rev, funder='hsa', amount=1000.00)
+    check('fully funded by one distribution, nothing unallocated',
+          model.state(rev)['unallocated'] == 0.00)
+
+    model.apply(rev, {'kind': 'reverse_allocation', 'funder': 'hsa',
+                      'occurred_on': '2026-09-05'})
+    check('a reversal returns the money to unallocated',
+          model.state(rev)['hsa'] == 0.00 and model.state(rev)['unallocated'] == 1000.00)
+    check('and the distribution that was unwound is still on the record',
+          model.state(rev)['unwound'] == 1000.00)
+
+    # The distinction the whole section turns on. A correction says the figure was always
+    # wrong - there was never a distribution. A reversal says there WAS one and it came back.
+    # Same $0 today, and a tax consumer has to tell them apart.
+    corr = model.new_expense(amount=1000.00, incurred_on='2026-02-01', person='rob')
+    model.allocate(corr, funder='hsa', amount=1000.00)
+    model.apply(corr, {'kind': 'correct_allocation', 'funder': 'hsa', 'to': 0.00})
+    check('a correction to zero leaves the same amount funded as a reversal',
+          model.state(corr)['hsa'] == model.state(rev)['hsa'] == 0.00)
+    check('but nothing was unwound, because nothing ever happened',
+          model.state(corr)['unwound'] == 0.00)
+    check('so the two are distinct states, not one state reached two ways',
+          model.state(corr)['unwound'] != model.state(rev)['unwound'])
+
+    check('the reversal names what it unwound, and when',
+          model.explain_change(rev)['mode'] == 'reversal'
+          and model.explain_change(rev)['funder'] == 'hsa'
+          and model.explain_change(rev)['from'] == 1000.00
+          and model.explain_change(rev)['occurred_on'] == '2026-09-05')
+    check('and the two dates are not collapsed - the expense is still a February one',
+          model.state(rev)['expense_year'] == 2026
+          and model.explain_change(rev)['occurred_on'] > '2026-02-01')
+
+    # Not terminal, which is what makes it a chargeback rather than a deletion. A disputed
+    # charge can come back, and the record has to survive the round trip.
+    model.apply(rev, {'kind': 'reinstate_allocation', 'funder': 'hsa',
+                      'occurred_on': '2026-10-01'})
+    check('a reversal can itself be reversed, and the funding returns',
+          model.state(rev)['hsa'] == 1000.00 and model.state(rev)['unwound'] == 0.00)
+    check('and all three events survive, superseded rather than overwritten',
+          len([c for c in model.changes(rev) if c['what'] == 'allocation']) == 2)
+
+    # ── Refund is a third thing, and collapsing it mangles tax ──────────────
+    # Reimbursement is a third party funding an expense. A refund reduces the expense itself.
+    # A reversal unwinds a payment. All three move a number; none of them means the same.
+    ref = model.new_expense(amount=1000.00, incurred_on='2026-03-01', person='rob')
+    model.allocate(ref, funder='user', amount=1000.00)
+    before_refund = model.qualifying(ref, rules='v2026.1')
+    check('the expense is fully funded by the user before anything comes back',
+          before_refund.confirmed_user_paid == 1000.00 and before_refund.gross == 1000.00)
+
+    # A refund names who received it. Without that the obligation falls to $800 while the
+    # user still shows $1,000 paid, and the deduction is overstated by exactly the refund -
+    # money back in their pocket, still on their return.
+    model.apply(ref, {'kind': 'refund', 'amount': 200.00, 'to': 'user',
+                      'occurred_on': '2026-11-01'})
+    after_refund = model.qualifying(ref, rules='v2026.1')
+    check('a refund reduces the obligation, because the care cost less in the end',
+          after_refund.gross == 800.00)
+    check('and reduces what the person is out of pocket, which is what is deductible',
+          after_refund.confirmed_user_paid == 800.00)
+    check('and it is recorded as a refund, never as a correction',
+          model.explain_change(ref)['mode'] == 'refund')
+
+    # The same $200 as a reversal of the user's payment would mean something else entirely:
+    # the obligation stands and $200 of it is no longer funded.
+    rev2 = model.new_expense(amount=1000.00, incurred_on='2026-03-01', person='rob')
+    model.allocate(rev2, funder='user', amount=1000.00)
+    model.apply(rev2, {'kind': 'correct_allocation', 'funder': 'user', 'to': 800.00})
+    model.apply(rev2, {'kind': 'reverse_allocation', 'funder': 'user',
+                       'occurred_on': '2026-11-01'})
+    check('reversing the user payment leaves the obligation standing and unfunded',
+          model.qualifying(rev2, rules='v2026.1').gross == 1000.00
+          and model.state(rev2)['unallocated'] == 1000.00)
+    check('so a refund and a reversal of the same amount do not agree',
+          after_refund.gross != model.qualifying(rev2, rules='v2026.1').gross)
+    check('and money the user no longer has out of pocket is no longer deductible',
+          model.qualifying(rev2, rules='v2026.1').confirmed_user_paid == 0.00)
+
     # ── Identity and deletion ───────────────────────────────────────────────
     merged = model.merge(exp, model.new_expense(**EXPENSE))
     check('a merge is reversible', model.can_unmerge(merged))

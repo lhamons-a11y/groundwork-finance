@@ -771,12 +771,16 @@ class ExpenseFundingAllocation(Base):
     expense_id     = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
     funder         = Column(String(40), nullable=False)
     amount         = Column(Float, nullable=False)
-    mode           = Column(String(24), nullable=False)   # allocated|corrected|reversed|eob_import
+    mode           = Column(String(24), nullable=False)   # allocated|corrected|reversed|reinstated|eob_import
     source         = Column(String(24), default='manual')
     cleared        = Column(Boolean, default=True)
     attached       = Column(Boolean, default=True)
     user_confirmed = Column(Boolean, default=True)
     duplicate_of   = Column(String(40), nullable=True)
+    # When the money actually moved, which is not when the expense was incurred and not when
+    # we heard about it. A 2027 reversal of a 2026 payment is a 2027 event affecting a 2026
+    # expense, and collapsing those dates loses the year each belongs to.
+    occurred_on    = Column(String(10), nullable=True)
     effective_seq  = Column(Float, nullable=False)
     recorded_seq   = Column(Integer, nullable=False)
     supersedes_id  = Column(Integer, ForeignKey('expense_funding_allocations.id'))
@@ -803,6 +807,32 @@ class ExpenseDetermination(Base):
     recorded_at   = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (Index('ix_edet_expense', 'expense_id'),)
+
+
+class ExpenseRefund(Base):
+    """Money returned on an obligation that was correct.
+
+    Its own table rather than another obligation version, because a refund is an event on the
+    obligation and not a restatement of it — and because it names a recipient, which an
+    obligation version has no business carrying. Three things reduce a number here and they
+    must not be collapsed: a correction says the figure was always wrong, a refund says the
+    care cost less in the end, and a reversal says a payment came back while the obligation
+    stands.
+
+    `to_funder` is what keeps a deduction honest. Without it the obligation falls and the
+    payer still shows the full amount paid, overstating the deduction by exactly the refund.
+    """
+    __tablename__ = 'expense_refunds'
+    id            = Column(Integer, primary_key=True)
+    expense_id    = Column(Integer, ForeignKey('healthcare_expenses.id'), nullable=False)
+    amount        = Column(Float, nullable=False)
+    to_funder     = Column(String(40), nullable=True)
+    occurred_on   = Column(String(10), nullable=True)
+    effective_seq = Column(Float, nullable=False)
+    recorded_seq  = Column(Integer, nullable=False)
+    recorded_at   = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('ix_eref_expense', 'expense_id'),)
 
 
 class TaxRuleVersion(Base):

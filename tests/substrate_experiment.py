@@ -113,6 +113,7 @@ ExpenseObligationVersion = db.ExpenseObligationVersion
 ExpenseFundingAllocation = db.ExpenseFundingAllocation
 ExpenseDetermination = db.ExpenseDetermination
 ExpenseMergeLink = db.ExpenseMergeLink
+ExpenseRefund = db.ExpenseRefund
 TaxRuleVersion = db.TaxRuleVersion
 HealthPlan = db.HealthPlan
 HealthPlanTermVersion = db.HealthPlanTermVersion
@@ -196,8 +197,18 @@ def _save(e, ref=None):
             s.add(ExpenseFundingAllocation(funder=p['funder'], amount=float(p['to']),
                                            mode='corrected', **common))
         elif ev.kind == 'allocation_reversed':
+            s.add(ExpenseFundingAllocation(funder=p['funder'], amount=0.0, mode='reversed',
+                                           occurred_on=p.get('occurred_on'), **common))
+        elif ev.kind == 'allocation_reinstated':
             s.add(ExpenseFundingAllocation(funder=p['funder'], amount=0.0,
-                                           mode='reversed', **common))
+                                           mode='reinstated',
+                                           occurred_on=p.get('occurred_on'), **common))
+        elif ev.kind == 'obligation_refunded':
+            # A refund gets its own table rather than another obligation version: it is an
+            # event ON the obligation, not a restatement of it, and it names a recipient.
+            s.add(ExpenseRefund(amount=float(p.get('amount') or 0.0),
+                                to_funder=p.get('to'),
+                                occurred_on=p.get('occurred_on'), **common))
         elif ev.kind == 'allocation_deleted':
             s.add(ExpenseFundingAllocation(funder=p['funder'], amount=0.0,
                                            mode=p.get('mode', 'correction'), **common))
@@ -265,7 +276,12 @@ def _load(ref):
                                                                'to': r.amount},
                                       r.effective_seq, r.recorded_seq))
         elif r.mode == 'reversed':
-            events.append(alloc.Event('allocation_reversed', {'funder': r.funder},
+            events.append(alloc.Event('allocation_reversed',
+                                      {'funder': r.funder, 'occurred_on': r.occurred_on},
+                                      r.effective_seq, r.recorded_seq))
+        elif r.mode == 'reinstated':
+            events.append(alloc.Event('allocation_reinstated',
+                                      {'funder': r.funder, 'occurred_on': r.occurred_on},
                                       r.effective_seq, r.recorded_seq))
         elif r.mode == 'eob_import':
             events.append(alloc.Event('eob_imported', {'funder': r.funder or None,
@@ -276,6 +292,12 @@ def _load(ref):
             events.append(alloc.Event('allocation_deleted', {'funder': r.funder,
                                                              'mode': r.mode},
                                       r.effective_seq, r.recorded_seq))
+
+    for r in s.query(ExpenseRefund).filter_by(expense_id=ref.id).all():
+        events.append(alloc.Event('obligation_refunded',
+                                  {'amount': r.amount, 'to': r.to_funder,
+                                   'occurred_on': r.occurred_on},
+                                  r.effective_seq, r.recorded_seq))
 
     for r in s.query(TaxRuleVersion).all():
         events.append(alloc.Event('rules_changed', {'to': r.version},
@@ -359,6 +381,9 @@ class Store:
 
     def explain(self, figure):
         return alloc.explain(figure)
+
+    def changes(self, ref):
+        return alloc.changes(_load(ref))
 
     def explain_change(self, ref):
         return alloc.explain_change(_load(ref))
@@ -659,7 +684,8 @@ def _clear():
     """
     s = _s()
     for model in (ExpenseMergeLink, PersonAssignment, ExpenseDetermination,
-                  ExpenseFundingAllocation, ExpenseObligationVersion, HealthcareExpense,
+                  ExpenseRefund, ExpenseFundingAllocation, ExpenseObligationVersion,
+                  HealthcareExpense,
                   HealthPlanOperation, HealthPlanTermVersion, HealthPlan,
                   PersonEnrolment, PersonAlias, Person, TaxRuleVersion):
         s.query(model).delete()

@@ -34,6 +34,24 @@ nobody told it — which is a different answer from `None`, meaning no plan cove
 Two modules deriving one fact from two places is the fusion the architecture is written
 against, and it was caught when the schema had to pick one.
 
+**Reversal, refund and correction are three different things**, and a single `-$1,000`
+collapses all of them:
+
+    correction   the figure was always wrong - there was never a distribution
+    reversal     there WAS a payment and it came back; the obligation still stands
+    refund       the obligation itself shrank, and someone got money back
+
+They can land on the same `$0` today and their futures differ, which is exactly the condition
+under which states get merged and a later consumer arrives that must tell them apart. The
+consumer here is a tax figure: an HSA distribution that was unwound is not a qualified
+distribution, and a model that only zeroes the allocation has destroyed the fact that the
+distribution ever happened. So a reversal records what it unwound, and `unwound` is reported
+beside the funding rather than folded into it.
+
+**A refund names who received it.** Otherwise the obligation falls and the payer still shows
+the full amount paid, and the deduction is overstated by exactly the refund — money back in
+their pocket and still on their return.
+
 **Events fold in effective order, not arrival order.** An EOB imported in March describes
 January, and a correction may have been recorded in February. Imports are retroactive by
 nature, so arrival order is not an edge case — it is the normal case, and a model whose answer
@@ -154,6 +172,8 @@ def allocate(e, funder=None, amount=0.0, cleared=True, attached=True, user_confi
 _OPS = {
     'correct_allocation': 'allocation_corrected',
     'reverse_allocation': 'allocation_reversed',
+    'reinstate_allocation': 'allocation_reinstated',
+    'refund': 'obligation_refunded',
     'correct_expense': 'expense_corrected',
     'import_eob': 'eob_imported',
     'roll_year': 'year_rolled',
@@ -186,6 +206,8 @@ def _fold(e):
     order the facts arrived in."""
     obligation = 0.0
     funders = {}                # funder -> Payment
+    unwound = {}                # funder -> amount that moved and then came back
+    refunds = []
     determinations = []
     current_rules = None
     changes = []
@@ -207,11 +229,35 @@ def _fold(e):
                 changes.append({'what': 'allocation', 'funder': p['funder'],
                                 'from': was, 'to': float(p['to']), 'mode': 'correction'})
         elif ev.kind == 'allocation_reversed':
+            # The money moved and came back. The amount stops counting as funding and starts
+            # counting as unwound - it does not disappear, because "no HSA distribution" and
+            # "an HSA distribution that was reversed" are different facts to a tax consumer.
             if p['funder'] in funders:
                 was = funders[p['funder']].amount
                 funders[p['funder']].amount = 0.0
+                unwound[p['funder']] = unwound.get(p['funder'], 0.0) + was
                 changes.append({'what': 'allocation', 'funder': p['funder'],
-                                'from': was, 'to': 0.0, 'mode': 'void'})
+                                'from': was, 'to': 0.0, 'mode': 'reversal',
+                                'occurred_on': p.get('occurred_on')})
+        elif ev.kind == 'allocation_reinstated':
+            # A disputed charge can come back. Nothing here is terminal.
+            back = unwound.pop(p['funder'], 0.0)
+            if p['funder'] in funders:
+                funders[p['funder']].amount += back
+            changes.append({'what': 'allocation', 'funder': p['funder'],
+                            'from': 0.0, 'to': back, 'mode': 'reinstatement',
+                            'occurred_on': p.get('occurred_on')})
+        elif ev.kind == 'obligation_refunded':
+            # The obligation itself shrank. Distinct from a correction, which says it was
+            # always smaller, and from a reversal, which leaves it standing.
+            amount = float(p.get('amount') or 0.0)
+            refunds.append(amount)
+            to = p.get('to')
+            if to in funders:
+                funders[to].amount = round(funders[to].amount - amount, 2)
+            changes.append({'what': 'obligation', 'from': None, 'to': None,
+                            'mode': 'refund', 'amount': amount, 'funder': to,
+                            'occurred_on': p.get('occurred_on')})
         elif ev.kind == 'allocation_deleted':
             # "Delete the reimbursement" is ambiguous and must not be one operation: a
             # correction says it never happened and is recoverable, a void says it happened
@@ -245,8 +291,9 @@ def _fold(e):
             # was incurred, and the plan is looked up for that date rather than the present.
             pass
 
-    return {'obligation': obligation, 'funders': funders,
-            'determinations': determinations, 'rules': current_rules, 'changes': changes}
+    return {'obligation': obligation, 'funders': funders, 'unwound': unwound,
+            'refunds': refunds, 'determinations': determinations, 'rules': current_rules,
+            'changes': changes}
 
 
 def _current_determination(folded):
@@ -255,11 +302,16 @@ def _current_determination(folded):
 
 
 def _effective_obligation(folded):
-    """What is owed after any determination that reduced the obligation. A provider
-    write-off closes part of it; `unpaid` closes none of it."""
+    """What is owed after anything that reduced the obligation itself.
+
+    Two different reducers, deliberately summed here and recorded separately above: a provider
+    write-off (a determination about an unresolved amount) and a refund (money returned on an
+    obligation that was correct). A reversal is not one of them - it unwinds funding and
+    leaves what is owed exactly where it was.
+    """
     reduced = sum(d.amount for d in folded['determinations']
                   if d.status in REDUCES_OBLIGATION)
-    return round(folded['obligation'] - reduced, 2)
+    return round(folded['obligation'] - reduced - sum(folded['refunds']), 2)
 
 
 def _funded(folded):
@@ -291,6 +343,10 @@ def state(e, plan=UNRESOLVED):
     out['expense_year'] = int((e.incurred_on or '0000')[:4])
     out['status'] = det.status if det else 'unknown'
     out['outstanding'] = round(gross - _funded(f), 2)
+    # Reported beside the funding, never folded into it. `hsa: 0` and `hsa: 0, unwound: 1000`
+    # are different records, and only the second says a distribution happened.
+    out['unwound'] = round(sum(f['unwound'].values()), 2)
+    out['refunded'] = round(sum(f['refunds']), 2)
     return out
 
 
@@ -374,10 +430,21 @@ def explain(figure):
                         for p in figure.sources]}
 
 
+def changes(e):
+    """Every recorded change, oldest first. A reversal and the reinstatement that undid it
+    both survive; neither overwrites the other."""
+    return list(_fold(e)['changes'])
+
+
 def explain_change(e):
-    """What changed, from what, to what, and under which mode."""
-    changes = _fold(e)['changes']
-    return changes[-1] if changes else None
+    """What changed, from what, to what, under which mode, and when it happened.
+
+    `occurred_on` is when the money moved, which is not when the expense was incurred and not
+    when we heard about it. A 2027 reversal of a 2026 payment is a 2027 event affecting a 2026
+    expense, and collapsing those dates loses the year that each belongs to.
+    """
+    rows = _fold(e)['changes']
+    return rows[-1] if rows else None
 
 
 # ── Arrival order, identity, deletion ───────────────────────────────────────

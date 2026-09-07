@@ -351,6 +351,39 @@ Payment reversed
 Posting `-$1,000` does not resolve this. **Requirement:** model reversal as a distinct
 lifecycle event that unwinds prior allocations without destroying provenance.
 
+> **Built 2026-09-07** — `core/allocation.py`, the reversal block in
+> `tests/test_lifecycle_fixture.py`, and seven new mutations in
+> `smoke_sections/s75_allocation.py`. 51 assertions, 21 of 21 mutations detected.
+>
+> **Three things reduce a number here and none of them means the same:**
+>
+> | | says |
+> |---|---|
+> | correction | the figure was **always wrong** — there was never a distribution |
+> | reversal | there **was** a payment and it came back; the obligation still stands |
+> | refund | the **obligation itself** shrank, and someone got money back |
+>
+> They land on the same `$0` today, which is precisely the condition under which states get
+> merged. So `unwound` is reported **beside** the funding rather than folded into it: `hsa: 0`
+> and `hsa: 0, unwound: 1000` are different records, and only the second says a distribution
+> happened — which is what a tax consumer needs, since an unwound HSA distribution is not a
+> qualified one.
+>
+> **A refund names who received it.** That was not in the requirement and the fixture was
+> wrong without it: the obligation falls to $800 while the payer still shows $1,000 paid, and
+> the deduction is overstated by exactly the refund — money back in their pocket, still on
+> their return.
+>
+> **Not terminal**, which is what makes it a chargeback rather than a deletion: a disputed
+> charge can come back, `reinstate_allocation` restores the funding, and both events survive.
+> And the dates are not collapsed — `occurred_on` (when the money moved) is distinct from
+> `incurred_on` and from when we heard about it, so a 2027 reversal of a 2026 payment stays a
+> 2027 event affecting a 2026 expense.
+>
+> **Schema:** a new `expense_refunds` table (a refund is an event *on* an obligation, not a
+> restatement of it, and it names a recipient) plus `expense_funding_allocations.occurred_on`.
+> Migration verified from the previous healthcare schema; the substrate criterion still holds.
+
 ## 11. Tax reconciliation
 
 A January expense cannot remain permanently classified by its January state when an $800

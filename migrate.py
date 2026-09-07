@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260907-healthcare-schema'
+SCHEMA_VERSION = '20260907-healthcare-reversal'
 
 
 def _stored_schema_version():
@@ -107,6 +107,12 @@ _NEW_BYB_COLUMNS = [
 # exists. Nullable and additive: no row is rewritten and nothing reads it yet.
 _NEW_HISTORIAN_COLUMNS = [
     ('healthcare_expense_id', "INTEGER REFERENCES healthcare_expenses(id)"),
+]
+
+# Added with reversal/chargeback: when the money actually moved, distinct from when the
+# expense was incurred and from when we heard about it.
+_NEW_FUNDING_ALLOCATION_COLUMNS = [
+    ('occurred_on', "VARCHAR(10)"),
 ]
 
 
@@ -253,6 +259,7 @@ def run_migration_if_needed():
     _add_missing_columns('debt_ledger_entries',  _NEW_DEBT_LEDGER_COLUMNS)
     _add_missing_columns('byb_items',            _NEW_BYB_COLUMNS)
     _add_missing_columns('historian_entries',    _NEW_HISTORIAN_COLUMNS)
+    _add_missing_columns('expense_funding_allocations', _NEW_FUNDING_ALLOCATION_COLUMNS)
     _ensure_indexes()
 
     # Audit note (d20 deferred → d21): debt_balance_history used to be defined
