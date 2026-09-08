@@ -116,6 +116,40 @@ The $4,000 obligation with `175 · 175 · 500 · −50 · 300` is not tested. Re
 scheduled / ahead / overdue cannot contradict one another does not exist.** That is a fixture
 waiting to be written, and it is the kind that finds things.
 
+> **CLOSED — `core/payment_plan.py`.** 24 assertions
+> (`tests/test_payment_state_fixture.py`), 9 of 9 mutations
+> (`smoke_sections/s99_payment_state.py`). The whole state vector is asserted **at every step**,
+> not only at the end, so an implementation cannot be wrong in the middle and right by the time
+> anyone looks.
+>
+> **The boundary question, answered:** the invariant is enforced at the ledger, not
+> reconstructed by consumers. `payment_state()` computes all five dimensions **together in one
+> pass**, and there is deliberately **no `paid()` or `ahead()` accessor** — asserted, so a
+> future convenience method cannot reintroduce the drift. This is *not* another
+> material-exists-invariant-doesn't situation.
+>
+> **Three operations a signed number would collapse:** a *payment*; a *reversal*, which **names
+> the payment it reverses and may not exceed it**; and an *adjustment*, which changes what is
+> **owed** rather than what was **paid**. The adversarial −$700 against $850 paid across three
+> payments is **refused as a reversal** — no payment is that size, so the ledger would lose
+> which payment stopped being true — and accepted as an adjustment only when the caller says
+> that is what it is. The same $700 gives `remaining` of $2,450 as an adjustment and $3,850 as
+> a reversal: the four readings are not interchangeable, and arithmetic does not choose.
+>
+> **Ahead and overdue are one distance under two names**, never a signed number — *"you are
+> −$525 ahead"* hands the user arithmetic instead of a sentence.
+>
+> **The mutation that found something:** *the coherence check always reports clean* went
+> undetected, because the fixture only ever pointed it at a coherent plan — the projection is
+> coherent by construction, so nothing could tell a working checker from a stub. `incoherences()`
+> now accepts a `state` to verify, which is both what makes it testable and what makes it
+> useful: a figure arriving from a cache, an API response or a migration can be asked whether
+> it still agrees with the ledger.
+>
+> **Gap 8 is untouched and honestly so.** The schedule is a caller-supplied input; versioning an
+> agreement needs a domain object that does not exist, and inventing one here would have hidden
+> the gap rather than closed it.
+
 ### 8. Payment agreements need versioning
 
 `24 × $175` becoming `18 × $233.33` is not representable. There is **no payment-plan entity at
