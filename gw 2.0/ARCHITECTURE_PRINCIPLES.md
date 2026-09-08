@@ -166,6 +166,27 @@ small version of disruption.
 When an instrument returns a verdict that happens to suit an argument you already found
 appealing, that is the moment to check its resolution rather than the moment to quote it.
 
+### The sharpest form: a verifier that can only examine its own output
+
+*(Found closing gap 6, 2026-09-07.)*
+
+> **A coherence assertion that can only examine states produced by the same projection it is
+> supposed to validate is not independently validating coherence.**
+
+`incoherences()` checked that `payment_state()` agreed with its ledger — and `payment_state()`
+derives from that ledger, so the two agreed by construction. **The checker could have been a
+stub returning "clean" and every assertion would still have passed.** Mutation testing found it;
+nothing else could have, because there was no input for which a correct checker and an empty one
+would differ.
+
+The fix was to let it verify a state it was **handed** rather than one it produced. That is also
+what makes it useful: a figure arriving from a cache, an API response or a migration can now be
+asked whether it still agrees with the ledger. **The testability and the usefulness turned out
+to be the same property**, which is usually a sign the boundary was in the wrong place.
+
+**The general shape to watch for:** any validator whose only possible input is the output of the
+thing it validates.
+
 ### And the corollary about how such an instrument is used
 
 **It enumerates consequences. It does not rank options.** The position with the smallest diff is

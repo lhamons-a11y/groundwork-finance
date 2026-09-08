@@ -168,6 +168,35 @@ The one partial exception is the honest-null discipline already in the engine �
 returns `None` rather than a fabricated figure when the budget cannot cover minimums — which is
 the right shape, applied in one place and not generalised.
 
+> **DESIGNED, not built — `gw 2.0/HEALTHCARE_FAILURE_SEMANTICS.md`.** Written as a design
+> exercise at Rob's direction, because inventing an error-handling framework first is how the
+> framework decides the semantics.
+>
+> **The distinction that decides it:** *detected failure* (the model knows it could not
+> establish something) versus **plausible and wrong** (it establishes something confidently and
+> falsely). Only the first is an error-handling problem. A parser returning nothing has failed
+> safely; a parser reading `$412` as `$4.12` has *succeeded*, and every honest-null guarantee is
+> irrelevant to it. The document says plainly what protects against the second — provenance,
+> weakest-link strength, and cheap non-destructive correction — and that **nothing catches a
+> confident mistake**, because nothing can.
+>
+> **Four boundaries, four permissions**, conflating which is how a cautious return value becomes
+> a confident sentence three layers on: *return* must be able to express *I could not establish
+> this*; *record* may keep the attempt but never the guess; *surface* is Passive, always; *say*
+> is templated and may name the gap without explaining it. The narrator may always say **less**
+> than the return value supports and never more.
+>
+> **Five of the eight cases follow from existing doctrine** — classification, plan resolution
+> and EOB parsing are one shape (*preserve the input, withhold the conclusion*); an
+> unreconcilable correction goes `UNRESOLVED` with both figures surviving; a stale target
+> reports with its age rather than freezing or vanishing.
+>
+> **Three are genuinely open and are Rob's**: a wrongly-detected duplicate later found distinct;
+> whether derived data survives the deletion of its source (**the historical-truth invariant and
+> the privacy boundary conflict here**); and import-versus-manual conflict, where the model
+> currently has **no tie-break** because `user_stated` and `imported_eob` are deliberately equal
+> knowing sources. **No implementation until those have answers.**
+
 ### 14. A general rule for naming external actions
 
 §0.3 settles *cost, not counsel* for healthcare specifically. The review's generalisation — **a
