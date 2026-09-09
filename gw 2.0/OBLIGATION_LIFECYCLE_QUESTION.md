@@ -431,13 +431,44 @@ a definition, scenario E becomes answerable rather than a judgement call:
 **M1 vs M2 stops here**, because a decision made now would be made against a definition of
 *carrier* that the evidence has shown does not exist.
 
-### And the principle that survives, qualified
+### The principle, restated so it is enforceable
 
-> **A sale is never silent** — with the qualification §9 forced:
->
-> **Groundwork cannot promise to detect a transition it has not been given evidence of. It can
-> promise that a known transition is dated, sourced and reconstructable.**
+Not *a sale is never silent* — that promised detection. Rob's stronger form, 2026-09-09:
 
-The original phrasing implied a detection guarantee the system cannot honour. This is the
-honest boundary, and it is #15's shape again: constrain what may be claimed, rather than promise
+> **A known transition is never silent.**
+
+**Groundwork cannot promise to detect a transition it has not been given evidence of. It can
+promise that a known transition is dated, sourced and reconstructable.**
+
+The original phrasing implied a detection guarantee the system cannot honour, and worse, it
+would have been *satisfiable only by inference* — the very thing the payment-state rule above
+forbids. This is #15's shape a second time: constrain what may be claimed, rather than promise
 an omniscience that was never available.
+
+### The dependency chain
+
+*(Rob's, and the reason jumping from the top of it to schema is the mistake this whole review
+was built to catch.)*
+
+```text
+funding  ·  servicing  ·  economic risk
+                 ↓
+             doctrine
+                 ↓
+      "carrier" definition
+                 ↓
+        lifecycle semantics
+                 ↓
+             M1 / M2
+                 ↓
+              schema
+```
+
+**Everything below the second line is currently blocked on the second line.** And the two rules
+that fall out of §10 — the dating requirement and *payment state evidences but never
+establishes* — sit **outside** the chain: independently justified, surviving whatever definition
+of *carrier* eventually lands.
+
+> **Stop here.** Resolve the carrier doctrine before anything else touches the payment-plan
+> schema. Once the definition is explicit, much of what remains of gap 8 should collapse into
+> consequences rather than decisions.
