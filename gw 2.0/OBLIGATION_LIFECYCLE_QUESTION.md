@@ -414,10 +414,32 @@ what happened.
 **Applies regardless of M1 or M2.** Like the economic-transfer invariant, it is not produced by
 the anchoring and does not wait on it.
 
-### The new governing question, above M1/M2
+### The new governing question, above M1/M2 — and do not ask it about "carrier"
 
-> **When §7.7 says "who carries the obligation" — does *carries* mean servicing, funding,
-> economic risk, legal creditor status, or an explicitly defined combination?**
+*(Rob, 2026-09-09, closing the session. The framing below replaces the first version of this
+question, which still assumed the word.)*
+
+**Four dimensions, not three** — legal entitlement to collect is its own, and was folded into
+economic risk in §10:
+
+```text
+Who funded it?
+Who services it?
+Who bears economic risk?
+Who is legally entitled to collect?
+```
+
+Recourse arrangements show these can diverge. So the question **must not** open as *which one is
+the carrier* — that phrasing presumes the abstraction is sound and quietly asks only which
+dimension gets to keep the name. Ask instead:
+
+> **What fact is §7.7 actually trying to distinguish, and what downstream behaviour is that
+> distinction supposed to control?**
+
+**And treat the word `carrier` as a candidate for deletion, not a term to define.** If the answer
+is *legal creditor*, good. If it is *economic risk bearer*, fine. **If several independently
+matter, then `carrier` was an abstraction error and there should not be one** — which is exactly
+the kind of finding that must arrive before M1/M2 or a table exists to bias it.
 
 **Not answerable from software structure. It is domain doctrine, and it is Rob's.** Once it has
 a definition, scenario E becomes answerable rather than a judgement call:
@@ -469,6 +491,11 @@ that fall out of §10 — the dating requirement and *payment state evidences bu
 establishes* — sit **outside** the chain: independently justified, surviving whatever definition
 of *carrier* eventually lands.
 
-> **Stop here.** Resolve the carrier doctrine before anything else touches the payment-plan
-> schema. Once the definition is explicit, much of what remains of gap 8 should collapse into
-> consequences rather than decisions.
+> **Stop here.** Resolve the doctrine before anything else touches the payment-plan schema.
+> Once it is explicit, much of what remains of gap 8 should collapse into consequences rather
+> than decisions.
+>
+> **Scope fence for the next session, Rob's:** no schema. No consumer added to
+> `core/payment_plan.py`. **No M1/M2 advocacy until §7.7 has an answer that survives the recourse
+> case.** `c21f0e9` is an architectural checkpoint, not unfinished implementation — gap 8 has a
+> clearly identified semantic blocker, and it is not to be coded around.

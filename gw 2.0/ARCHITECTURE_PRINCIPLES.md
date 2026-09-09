@@ -92,6 +92,13 @@ zero. Both manufacture a value the evidence did not supply.
 
 The rule that follows: **completeness is tested before anything is judged.**
 
+**And the same rule stated for events rather than values** (Rob, 2026-09-09, on the recourse
+case): **absence of evidence produces uncertainty, not permission to manufacture an
+explanation.** A rule phrased as *X is never silent* quietly demands a detection mechanism, and
+in the absence of evidence the only way left to satisfy it is inference — *payment behaviour
+changed, therefore the creditor must have.* The enforceable form names what the system holds:
+**a *known* X is never silent.**
+
 ## 4. Any interpretation that can change the meaning of a user-visible conclusion must be version-identifiable
 
 Not only the necessity floor. Tax classifications, adherence calculations, consequence
