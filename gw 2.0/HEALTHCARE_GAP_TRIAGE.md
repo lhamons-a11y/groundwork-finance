@@ -259,6 +259,17 @@ needs versions exactly as the obligation does.
 > promise to detect a transition it has no evidence of, only that a known one is dated, sourced
 > and reconstructable.
 
+> **Review triaged, not accepted — `gw 2.0/LIFECYCLE_REVIEW_TRIAGE.md`** (2026-09-09). Fifteen
+> findings against the lifecycle and carrier work, dispositioned against what exists. Five were
+> already recorded, four are refinements of existing partials, three are genuinely new and are
+> recorded with their blocked and unblocked portions separated, and two are **fenced**. Only two
+> items are actionable now — the disposition vocabulary and the five-question reconstruction
+> test — both because finding 4 already established that the economic-transfer invariant is
+> produced by neither anchoring. The review's proposed carrier corpus is fenced because its
+> columns presume the four-dimension decomposition that §10 refuses to presume: **a review that
+> warned against the schema becoming the doctrine drafted the table that would have done it**,
+> which is why the dependency chain is recorded there as a rule rather than an intention.
+
 ### 15. Failure-mode behaviour — **CLOSED AS DESIGN** (2026-09-09)
 
 > **Closed as design, not solved.** Rob's wording, and the distinction is the point: wrong
