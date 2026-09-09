@@ -228,6 +228,18 @@ needs versions exactly as the obligation does.
 > genuine counter that a bill held by a collection agency is not the same thing in a user's life.
 > And **the economic-transfer invariant holds under every candidate model**, so it is already a
 > requirement rather than a consequence, and does not wait on the governing decision.
+>
+> **Carrier claim verified 2026-09-09 - and the verification found something bigger.** The narrow
+> claim holds on better evidence than one product: the CFPB's taxonomy puts the creditor at a
+> financial firm rather than a provider for every deferred-interest medical product in its scope,
+> and it excludes in-house plans entirely. But **recourse patient financing breaks §7.7's single-
+> carrier assumption** - the provider transfers the receivable for cash up front, retains
+> contingent liability, and **takes the account back on default**, which is frequently what makes
+> 0% APR possible in the first place. So transitions can be round trips, the return leg is
+> triggered by the user's own non-payment (a feedback path from payment state into obligation
+> identity), and the user may not be told - which relocates *a sale is never silent* rather than
+> weakening it. Whether the carrier rule classifies on **servicing** or on **risk** is doctrine
+> and Rob's, and M1/M2 cannot be settled while it is open.
 
 ### 15. Failure-mode behaviour — **CLOSED AS DESIGN** (2026-09-09)
 
