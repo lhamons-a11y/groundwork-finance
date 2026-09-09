@@ -11,6 +11,18 @@
 >
 > 8.1 and 8.2 come first because they are the two most likely to force a later migration if
 > guessed. 8.3 (cardinality) and 8.4 (domain scope) are deliberately not in this document.
+>
+> **SUPERSEDED IN STRUCTURE, 2026-09-09 — see `gw 2.0/OBLIGATION_LIFECYCLE_QUESTION.md`.**
+> §2a below showed that 8.1 and 8.2 are not independent, and Rob's response was to change
+> the review's structure rather than refine it: there is now **one governing question** —
+> *what is the lifecycle of an obligation when the party carrying it, its instrument, or its
+> economic terms change?* — and 8.1 and 8.2 are **consequences** of its answer.
+>
+> Everything below stands as analysis. What changes is its status: the three positions on
+> 8.1 and the placement test in 8.2 are no longer separate decisions to be made, but
+> derivations waiting on the governing one. **The two invariants in §1 do not wait** — the
+> lifecycle document's finding 4 shows the economic-transfer invariant holds under every
+> candidate model, so it is already a requirement rather than a consequence.
 
 ---
 

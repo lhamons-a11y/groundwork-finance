@@ -211,6 +211,23 @@ needs versions exactly as the obligation does.
 > a transition, or kind is immutable and a sale **ends the agreement**, which is 8.1's restructure
 > question arrived at from the other side with the same arrears problem attached. The instrument-
 > kind transition question is therefore settled **first**.
+>
+> **RESTRUCTURED, not refined — `gw 2.0/OBLIGATION_LIFECYCLE_QUESTION.md`** (2026-09-09). 8.1 and
+> 8.2 are no longer separate decisions. One governing question replaces them: *what is the
+> lifecycle of an obligation when the party carrying it, its instrument, or its economic terms
+> change?* - judged by whether a candidate model can reconstruct **both** the user's obligation
+> history **and** the economic disposition of every dollar across the transition. Two anchorings
+> are viable (instrument-anchored, agreement-anchored); mixing them is the failure.
+>
+> Three findings from testing the five scenarios. **The cliff is probably not a lifecycle event at
+> all** - §7.7's carrier rule makes a deferred-interest promo lender-carried from origination, so
+> nothing changes hands at the cliff and a conditional consequence simply fires; it therefore
+> cannot decide the lifecycle, which is what Rob warned against. **The real discriminator is a
+> transfer with arrears outstanding**, where the agreement-anchored model manufactures an
+> economic-transfer problem the instrument-anchored one does not have - against which stands the
+> genuine counter that a bill held by a collection agency is not the same thing in a user's life.
+> And **the economic-transfer invariant holds under every candidate model**, so it is already a
+> requirement rather than a consequence, and does not wait on the governing decision.
 
 ### 15. Failure-mode behaviour — **CLOSED AS DESIGN** (2026-09-09)
 
