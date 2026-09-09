@@ -212,6 +212,29 @@ Rather than: *write code → write tests → declare green.*
 testing proves the invariant cannot quietly regress. Neither does the other's job, and a suite
 that has only ever done the second will report green while the first has never been attempted.
 
+### When the implementation is a schema, the ordering is load-bearing
+
+*(Rob, 2026-09-09, on gap 8.)*
+
+> **Decide the semantics the schema must preserve, then derive the schema.** Not the reverse,
+> and not both at once.
+
+A table drafted alongside its meaning will quietly settle the meaning, because the table is the
+more concrete of the two and **concreteness wins arguments it has not earned.** This is
+principle 2's *first consumer becomes an accidental schema designer* pointed at the sequence of
+work rather than at a set of states.
+
+**The tell is the shape of the question being asked.** *"Does a restructure create a new
+version?"* is a table question and answering it first lets the table decide. *"After a
+restructure, is the pre-restructure expected schedule still historically authoritative for dates
+before it?"* is the semantic question underneath, and once it has an answer the table follows in
+minutes. The first phrasing feels like progress and is the trap.
+
+**Two conditions worth preserving deliberately while such a decision is open:** that the entity
+still has **no consumers** — a wasting asset, and the only window in which the model can be made
+right before compatibility dictates it — and that nothing is written down as a *default*, since
+a default in a draft schema is an answer nobody remembers giving.
+
 ## The semantic audit — six questions per term
 
 *(Rob, 2026-09-07, for the Q6 open questions; general to any term whose meaning is load-bearing.)*

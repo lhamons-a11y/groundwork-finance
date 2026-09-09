@@ -185,6 +185,8 @@ needs versions exactly as the obligation does.
 > must be **required and not inferable**. Four decisions are Rob's — restructure semantics,
 > where promo balances live, expense↔agreement cardinality, and whether the entity is
 > healthcare-scoped or general. **No schema until the first two have answers.**
+>
+> **8.1 and 8.2 posed, not answered — `gw 2.0/PAYMENT_AGREEMENT_DECISIONS.md`** (2026-09-09). Both are stated as the semantic question underneath the table question, because *"does a restructure create a new version?"* lets the table decide the meaning and *"is the pre-restructure schedule still historically authoritative for dates before it?"* does not. Three positions on 8.1, and the arrears question underneath it recorded as a **separate fact that must not be collapsed into it**. 8.2 turns on whether an agreement can change instrument kind; if it cannot, the promotional facts need their own version chain rather than nullable columns on a schedule row. Two things settled: **instrument kind is explicit source data, never inferred from schedule shape** — #15's *agreement ≠ evidence* at the schema level — and the **zero-consumer state is preserved on purpose** while the decisions are open.
 
 ### 15. Failure-mode behaviour — **CLOSED AS DESIGN** (2026-09-09)
 
