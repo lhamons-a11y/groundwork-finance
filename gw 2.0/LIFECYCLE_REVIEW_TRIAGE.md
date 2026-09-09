@@ -117,6 +117,10 @@ be principle 7's tell — a measurement that suits an argument one already found
 
 ## PARTIAL / RECORDED — the refinement is real; no new implementation follows
 
+> **Closure criterion:** a PARTIAL item moves to ADDRESSED only when its stated residual
+> question has an explicit answer grounded in evidence or a recorded domain decision.
+> **Re-establishing a general principle already settled elsewhere is not closure work.**
+
 ### Evidence strength applied to transitions
 
 The general invariant is closed (gap 4: weakest-link strength over a lattice, enforced at the
