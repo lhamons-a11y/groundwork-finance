@@ -261,9 +261,23 @@ stated as a rule:
    *answer*.** *"This checks out"* is a sentence about arithmetic that a reader will hear as a
    sentence about truth. That is the upgrade table in §2 wearing different clothes.
 
+**The four, compressed to the form an implementation review can attack:**
+
+```text
+agreement              ≠  evidence
+coherence              ≠  conclusion authority
+consistency            ≠  reduced correctability
+successful processing  ≠  evidence of correctness
+```
+
 **This is a more defensible safety model than one that promises detection.** It does not claim
 omniscience. It constrains what the system is permitted to infer from an apparently coherent
 world — which is a promise that can actually be kept.
+
+**Status: closed as design, not solved.** The distinction is load-bearing. Without it, someone
+reading *wrong-but-coherent input* in six months concludes *we need an AI confidence layer* —
+and the answer this document gives that person is that **confidence must not be invented merely
+because the pipeline agrees with itself.**
 
 ## 6. Not decided here
 

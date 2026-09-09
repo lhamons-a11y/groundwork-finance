@@ -157,7 +157,57 @@ all** — versioned or otherwise. The review's reasoning holds: recalculating ag
 agreement rewrites history, freezing it makes current adherence wrong, so the agreement itself
 needs versions exactly as the obligation does.
 
-### 15. Failure-mode behaviour — **no section exists**
+> **INSPECTED, not designed — `gw 2.0/PAYMENT_AGREEMENT_INSPECTION.md`** (2026-09-09).
+>
+> **Why no fixture can close it:** gaps 4, 1 and 6 all had the data and lacked the invariant.
+> Gap 8 has no data — no agreement row exists anywhere, and gap 6 deliberately took the schedule
+> as caller-supplied scalars so the entity would not get invented by accident. Favourable
+> timing, though: `core/payment_plan.py` has **zero consumers** outside its own fixture and s99,
+> so the blast radius is zero today and will not be after wiring.
+>
+> **The mechanics are already solved three times** (`HealthPlanTermVersion`,
+> `ExpenseObligationVersion`, `ExpenseFundingAllocation`) and should be copied, not re-derived.
+> `RecurringDebtPayment` is the trap — a *mutable* pattern whose `is_active` toggle destroys
+> prior terms.
+>
+> **What is actually new:** a plan term version answers a *point* question; a schedule answers a
+> *span* one. `expected_by_now` becomes a piecewise fold with per-version caps rather than
+> `min(count, months)` — so `expected_by_now`, `ahead` and `overdue` all change and `paid` and
+> `remaining` do not.
+>
+> **And the change-kind decides whether the past is re-judged.** Renegotiation, correction and
+> restructure produce three different `expected_by_now` values for the same past date, and
+> arithmetic cannot recover which occurred — **gap 6's lesson at the entity level.**
+> `HealthPlanOperation.kind` is the precedent and is one value short.
+>
+> **The hardest constraint** is §7.7's: a 0% provider plan and a deferred-interest promo are
+> byte-identical as a schedule and catastrophically different in consequence, so instrument kind
+> must be **required and not inferable**. Four decisions are Rob's — restructure semantics,
+> where promo balances live, expense↔agreement cardinality, and whether the entity is
+> healthcare-scoped or general. **No schema until the first two have answers.**
+
+### 15. Failure-mode behaviour — **CLOSED AS DESIGN** (2026-09-09)
+
+> **Closed as design, not solved.** Rob's wording, and the distinction is the point: wrong
+> inputs are not fixed, but *the question now has an explicit boundary* and the implementation
+> work is **deferred on purpose** rather than forgotten.
+>
+> **Why the status has to say that.** Otherwise someone six months from now reads
+> *wrong-but-coherent input* and concludes **"we need an AI confidence layer."** The design's
+> answer to that person: **confidence must not be invented merely because the pipeline agrees
+> with itself.**
+>
+> **The four shall-nots, in the form to attack in implementation review:**
+>
+> ```text
+> agreement              ≠  evidence
+> coherence              ≠  conclusion authority
+> consistency            ≠  reduced correctability
+> successful processing  ≠  evidence of correctness
+> ```
+>
+> The three ownership questions stay open. **Implementation pressure must not answer them
+> accidentally.**
 
 Classification fails, plan resolution fails, EOB parsing fails, a duplicate is detected wrongly,
 a correction cannot be reconciled, reserve inputs go stale, the user deletes the source document,
