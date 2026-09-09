@@ -66,7 +66,7 @@ denies ever existing.
 | **B** | Debt sold / assigned to a lender | carrier version; obligation survives | agreement ends; successor + edge |
 | **C** | Promo reaches its cliff | **not a transition** (see below) | **not a transition** |
 | **D** | Correction / replacement of mis-recorded terms | correction version | correction version |
-| **E** | Obligation transferred **while arrears exist** | carrier version; arrears untouched | successor **must re-express** the arrears |
+| **E** | Obligation transferred **while arrears exist** | carrier version; arrears carried, **fee delta disposed of** (§7) | successor **must re-express** the arrears |
 
 ### Finding 1 — A and D do not discriminate, and C may not either
 
@@ -96,6 +96,11 @@ not a lifecycle event.
 reading §7.7 forces, and it is worth confirming rather than assuming.)*
 
 ### Finding 3 — the discriminator is E, not C
+
+> **Partly corrected in §7.** The claim below that a sale requires no disposition under M1 is
+> wrong — §8.1 of the module design already records that the agency's figure diverges from the
+> original. M1's advantage here is a delta rather than a restatement, which is smaller than
+> what this finding originally claimed.
 
 **Scenario E is the only one where the two models produce materially different obligations.**
 
@@ -157,9 +162,101 @@ Once §2a is answered, these stop being open questions and become derivations:
    origination, which is what removes C from the deciding set.
 3. Then 8.1 and 8.2 as consequences.
 
-**Not open, and not waiting on any of the above:** the economic-transfer invariant (finding 4),
-the explicitness of instrument kind (`NOT NULL`, no default, never computed), and the
-zero-consumer condition on `core/payment_plan.py`.
+**Not open, and not waiting on any of the above:** the economic-transfer invariant — stated
+generally in §5, and applying to sales as well as restructures per §7's correction — the
+explicitness of instrument kind (`NOT NULL`, no default, never computed), and the zero-consumer
+condition on `core/payment_plan.py`.
 
 > **No schema fields are proposed in this document, deliberately.** Per `e74d673`'s method note:
 > decide the semantics the schema must preserve, then derive the schema.
+
+---
+
+## 5. The economic-transfer invariant, stated generally
+
+*(Rob, 2026-09-09. The earlier phrasing made this look like a property of one model.)*
+
+> **Whenever economic terms change, every amount whose economic treatment changes must have an
+> explicit, reconstructable disposition.**
+
+M1 and M2 then determine only **where that disposition is represented** — on a version, or on a
+succession edge. That is materially cleaner than saying *"M2 needs transfer accounting"*, which
+framed an invariant as a cost of one branch and would have let the other branch appear to
+avoid it.
+
+## 6. The trade, and the principle that decides it
+
+**M1 — surviving obligation**
+
+- *For:* less structural churn; no succession edges; simple historical identity.
+- *Risk:* **a material change in counterparty and legal posture looks like a small attribute
+  mutation.**
+
+**M2 — succession**
+
+- *For:* an explicit boundary; the narrator can say *"this obligation was transferred from X to
+  Y on date Z"*; old and new contexts stay independently reconstructable.
+- *Cost:* everything crossing needs explicit economic disposition, and **arrears and balances
+  become much easier to double-count if succession is implemented lazily.**
+
+**Not decided by which schema is simpler.** Rob's principle:
+
+> **Does the distinction between old and new obligation materially change what Groundwork is
+> entitled to explain to the user?**
+
+## 7. What the existing doctrine already says about that
+
+§8 of `HEALTHCARE_MODULE_DESIGN.md` turns out to answer the *entitlement* half directly, and it
+was written long before this question was asked:
+
+> *"A hospital bill and a collections account are not the same object, and §7 assumed a hospital
+> throughout… Everything in §7 has to be re-derived here, and one thing in it becomes actively
+> dangerous."*
+
+Four commitments already made, each bearing on the principle:
+
+1. **They are not the same object** — stated, not implied.
+2. **§7's derivations do not carry over.** They must be re-derived, and one becomes dangerous.
+3. **Both figures are kept.** §8.1 records the *original creditor* and *original amount*
+   alongside the agency's, because *"the gap between them is sometimes the whole story."*
+4. **What may be said changes.** §8.2a attaches a premise to every collections figure — *"this
+   is what you would pay if you agree that you owe this… Groundwork has no way to know whether
+   you do"* — which a hospital-bill figure does not carry. That is, literally, a change in what
+   the app is entitled to explain.
+
+Plus a fact set that exists only after transfer: agency name, date of first delinquency, whether
+debt validation was requested and received.
+
+**What this establishes, and what it does not.** It establishes that the distinction **is**
+material by Rob's criterion — the entitlement changes, in writing, already. It does **not** by
+itself select M2, because M1 can carry a versioned carrier fact plus a dated collections fact
+set and obtain the same entitlement change from the version rather than from a succession. The
+doctrine forces the **distinction**; it does not force the **succession**.
+
+Worth stating that carefully rather than letting it flatter M2 — principle 7's tell is a
+measurement that suits an argument one already found appealing.
+
+### And a correction to finding 3
+
+Finding 3 said that under M1 a transfer means *"no economic transfer occurs and no disposition
+is required."* **§8.1 contradicts that.** The agency's figure diverges from the original once
+fees are added — the design says so explicitly and treats the gap as significant. So a sale
+*does* change economic terms, and the invariant in §5 applies to it under **both** models.
+
+M1's advantage in scenario E is therefore narrower than stated: not *no disposition*, but *a
+delta rather than a restatement*. Still a real difference, and a smaller one than claimed.
+
+## 8. The carrier claim stays separate
+
+Finding 2 rests on an **external-domain assertion** — that a deferred-interest promotional
+balance is lender-carried from origination. The repository cannot establish it, and it is not
+established here.
+
+**And the sharper form of the caution:** one concrete product example must not quietly become
+the universal healthcare instrument rule. CareCredit behind Synchrony is *one* arrangement.
+Whether every promotional medical balance is lender-carried — or whether some providers carry
+deferred-interest terms themselves — is exactly the kind of generalisation-from-one-instance
+that principle 5's inventory questions exist to catch.
+
+**Until verified, finding 2 is a hypothesis**, and scenario C stays out of the deciding set on
+that basis rather than on a settled fact.
