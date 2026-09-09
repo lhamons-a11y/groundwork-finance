@@ -158,9 +158,15 @@ Once §2a is answered, these stop being open questions and become derivations:
 
 1. **§2a — the governing question.** M1 or M2, decided on the trade in finding 3, and
    deliberately **not** on scenario C.
-2. **Confirm finding 2** — that a deferred-interest promotional balance is lender-carried from
-   origination, which is what removes C from the deciding set.
-3. Then 8.1 and 8.2 as consequences.
+2. ~~Confirm finding 2~~ — **done, §9.** Well-supported: the CFPB's taxonomy puts the creditor
+   at a lender for every deferred-interest medical product in its scope. C stays out of the
+   deciding set.
+3. **New, and ahead of 1:** §9 found that **recourse financing breaks §7.7's single-carrier
+   assumption** — the provider transfers the receivable, retains contingent liability, and takes
+   the account back on default. Whether the carrier rule classifies on servicing or on risk is a
+   **doctrine question and Rob's**, and M1/M2 cannot be settled while it is open, because it
+   changes what counts as a transition at all.
+4. Then 8.1 and 8.2 as consequences.
 
 **Not open, and not waiting on any of the above:** the economic-transfer invariant — stated
 generally in §5, and applying to sales as well as restructures per §7's correction — the
@@ -260,3 +266,81 @@ that principle 5's inventory questions exist to catch.
 
 **Until verified, finding 2 is a hypothesis**, and scenario C stays out of the deciding set on
 that basis rather than on a settled fact.
+
+---
+
+## 9. The carrier claim, verified — and what the verification turned up instead
+
+*(2026-09-09, external sources listed at the end. Run as its own step, per Rob: verify the
+external-domain fact rather than letting a plausible assumption become a domain invariant.)*
+
+### The narrow claim: CONFIRMED, and on better evidence than one product
+
+CareCredit's creditor is **Synchrony Bank**; the promotional structure is deferred interest at
+~32.99% charged retroactively from the purchase date. That was the one instance, and on its own
+it would not have been enough.
+
+**The CFPB's own taxonomy is what makes it more than an instance.** Its May 2023 report divides
+medical payment products into **medical credit cards** and **medical installment loans**, and
+states that *financial institutions and fintech companies are the creditors, not healthcare
+providers* — the firms market through providers and service the credit and loans themselves.
+Deferred interest appears in **both** categories, across ~$20bn of purchases and ~$1bn of
+deferred interest charged over 2018–2020.
+
+And the report **explicitly does not cover** provider-administered or in-house plans; it treats
+them as a different thing. Which is the answer to the generalisation worry: within the scope of
+products that carry deferred interest, the creditor is a lender, from origination.
+
+**What remains unestablished:** that no provider anywhere runs an in-house deferred-interest
+plan. No counterexample was found — in-house plans are described as low- or no-interest, and one
+charging interest triggers Reg Z disclosure — but *absence of a counterexample in four searches
+is not proof of absence.* Finding 2 is now **well-supported rather than proven**, which is
+enough to keep scenario C out of the deciding set.
+
+### The finding that matters more: recourse financing breaks the binary
+
+§7.7's rule assumes **one carrier**: the provider carries it, or a lender does. A third
+arrangement is common and fits neither.
+
+In **recourse patient financing**, the provider transfers the receivable to a financing vendor
+for cash up front, and **retains contingent liability**. On default, *the debt is returned to
+the healthcare provider* — the provider may be required to repurchase the account, refund part
+of the advance, or absorb a reserve charge. Non-recourse is the opposite: a delinquent account
+stays with the vendor permanently.
+
+And the sting: **recourse is frequently what makes 0% APR possible.** The benign
+provider-plan-at-0% that §7.7 treats as the safe case is, in a substantial share of real
+arrangements, a recourse arrangement with a vendor in the middle.
+
+### Four consequences, all bearing on the governing question
+
+1. **"Who carries it" is not one fact.** Recourse splits *servicing and funding* from *risk*.
+   §7.7's rule classifies on a single carrier, and here there are two parties with different
+   claims to being it. **This is a doctrine question, not a modelling one**, and it is Rob's.
+2. **Transitions can be round trips.** provider → vendor → **back to provider**. Under M2 that
+   is three agreements for what the user experiences as one bill; under M1, three carrier
+   versions on one obligation. This is scenario E occurring twice, in opposite directions.
+3. **The return is triggered by the user's own non-payment.** So a lifecycle transition can be
+   *caused by* the adherence state the payment model computes. Neither M1 nor M2 anticipated a
+   feedback path from payment state back into obligation identity.
+4. **The user may not be told, and Groundwork may not be able to observe it.** Neither source
+   would establish whether patients are formally notified of a recourse return. That does not
+   weaken *a sale is never silent* — it **relocates** it. Groundwork cannot promise to detect a
+   transition; it can only promise that once known, it is dated, sourced and reconstructable.
+
+**And a concrete requirement follows from 4**, derived rather than chosen: a carrier change will
+routinely be discovered **late**, from a statement or a collection letter, with an effective date
+in the past. So the record needs `effective_on` in the past with `recorded_at` now — the
+effective/recorded separation the repository already uses in `ExpenseFundingAllocation` becomes
+**mandatory here rather than merely good practice**, under either model.
+
+### Sources
+
+- [CFPB — report on medical credit cards and financing plans (May 2023)](https://www.consumerfinance.gov/about-us/newsroom/cfpb-report-highlights-costly-credit-cards-and-loans-pushed-on-patients/)
+- [CarePayment — recourse vs. nonrecourse financing](https://www.carepayment.com/recourse-vs-nonrecourse-financing/)
+- [Help Financial — recourse vs. non-recourse patient financing](https://www.helpfinancial.com/blog/recourse-vs-non-recourse-patient-financing-understanding-the-trade-offs)
+- [HFD — what is a 0% APR patient financing program](https://gohfd.com/what-is-a-0-apr-patient-financing-program-a-clear-guide-for-providers/)
+- [CareCredit — FAQs](https://www.carecredit.com/faqs/)
+
+*(The CFPB's source PDF would not convert — the newsroom summary of the same report was used.
+Noted so the citation can be re-checked against the primary document.)*
