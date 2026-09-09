@@ -191,11 +191,34 @@ the right shape, applied in one place and not generalised.
 > unreconcilable correction goes `UNRESOLVED` with both figures surviving; a stale target
 > reports with its age rather than freezing or vanishing.
 >
-> **Three are genuinely open and are Rob's**: a wrongly-detected duplicate later found distinct;
-> whether derived data survives the deletion of its source (**the historical-truth invariant and
-> the privacy boundary conflict here**); and import-versus-manual conflict, where the model
-> currently has **no tie-break** because `user_stated` and `imported_eob` are deliberately equal
-> knowing sources. **No implementation until those have answers.**
+> **Three are genuinely open and are Rob's**, and his 2026-09-09 reading sharpened each into the
+> prior question it actually is: a wrongly-detected duplicate later found distinct is a
+> **correction-authority** problem — *who is authorized to establish that the two records were
+> distinct?* — not a reversibility problem. Deletion of a source separates **the fact remains**
+> from **the evidence remains**, which need not share a lifecycle; whether a derived financial
+> fact may outlive its source is a policy decision the provenance machinery must not settle by
+> construction. And import-versus-manual keeps an **explicit tie state**, because the model has
+> no tie-break today (`user_stated` and `imported_eob` are deliberately equal knowing sources)
+> and asserting *manual wins* would be inventing a hierarchy rather than reading one.
+> **No implementation until those have answers.**
+>
+> **Added 2026-09-09, two things.** The **permission ladder** — Record → Calculate → Conclude →
+> Recommend, each harder to earn than the one below — which is principle 1 restated as
+> permissions rather than layers, because a call graph can honour a layered diagram while one
+> function climbs all four rungs. It buys a concrete future test: hand the narrator a rich
+> internal result and verify its language cannot upgrade *possible → certain*, *inferred →
+> observed*, *estimated → actual*, *unresolved → resolved* without an explicit evidence
+> transition.
+>
+> And the **design adversary** (§5), Rob's test of the document itself: *can every safety rule
+> survive a wrong input that is internally consistent?* Every rule holds against a `$412` that
+> should be `$4.12` and is wrong at every layer, consistently — **and that is not a defect**,
+> because no rule here was ever a claim about correctness. The requirement it produces is an
+> inversion: *what must Groundwork not do merely because all the layers agree?* Four answers —
+> agreement is not evidence; coherence licenses no ladder climb; a consistent conclusion may not
+> become harder to correct; the narrator may not describe the process as evidence about the
+> answer. **Do not build another safety mechanism merely because the design admits that
+> plausible errors exist.**
 
 ### 14. A general rule for naming external actions
 
