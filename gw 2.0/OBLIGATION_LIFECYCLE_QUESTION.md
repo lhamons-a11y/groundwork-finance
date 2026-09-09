@@ -161,17 +161,20 @@ Once §2a is answered, these stop being open questions and become derivations:
 2. ~~Confirm finding 2~~ — **done, §9.** Well-supported: the CFPB's taxonomy puts the creditor
    at a lender for every deferred-interest medical product in its scope. C stays out of the
    deciding set.
-3. **New, and ahead of 1:** §9 found that **recourse financing breaks §7.7's single-carrier
-   assumption** — the provider transfers the receivable, retains contingent liability, and takes
-   the account back on default. Whether the carrier rule classifies on servicing or on risk is a
-   **doctrine question and Rob's**, and M1/M2 cannot be settled while it is open, because it
-   changes what counts as a transition at all.
+3. **Superseding 1 — see §10.** §9 did not add an edge case; it **invalidated the premise**
+   that *who carries an obligation* is one fact. Funding, servicing and economic risk separate
+   in recourse arrangements — the provider transfers the receivable, retains contingent liability, and takes
+   and coincide elsewhere. The governing question is now **what §7.7's "carries" means** —
+   servicing, funding, economic risk, legal creditor status, or a defined combination — which is
+   **doctrine and Rob's**. M1/M2 stops here: a decision made now would rest on a definition of
+   *carrier* the evidence has shown does not exist.
 4. Then 8.1 and 8.2 as consequences.
 
 **Not open, and not waiting on any of the above:** the economic-transfer invariant — stated
 generally in §5, and applying to sales as well as restructures per §7's correction — the
-explicitness of instrument kind (`NOT NULL`, no default, never computed), and the zero-consumer
-condition on `core/payment_plan.py`.
+**effective/recorded dating requirement** (§10), the rule that **payment state may evidence but
+never establish a change of carrier** (§10), the explicitness of instrument kind (`NOT NULL`, no
+default, never computed), and the zero-consumer condition on `core/payment_plan.py`.
 
 > **No schema fields are proposed in this document, deliberately.** Per `e74d673`'s method note:
 > decide the semantics the schema must preserve, then derive the schema.
@@ -344,3 +347,97 @@ effective/recorded separation the repository already uses in `ExpenseFundingAllo
 
 *(The CFPB's source PDF would not convert — the newsroom summary of the same report was used.
 Noted so the citation can be re-checked against the primary document.)*
+
+---
+
+## 10. What §9 actually did: it invalidated a premise
+
+*(Rob, 2026-09-09. Recorded at the top of the open list because it reorders everything below
+it.)*
+
+Recourse financing is **not an edge case sitting beside the carrier rule.** It shows the rule
+rests on a premise that does not hold: that *who carries an obligation* is one fact.
+
+### Three layers, not one field
+
+| Layer | Question |
+|---|---|
+| **Funding** | who advances the money |
+| **Servicing** | who administers the account and speaks to the patient |
+| **Economic risk / recourse** | who ultimately bears the loss if the patient does not pay |
+
+> **A single `carrier` field cannot reliably represent all three.**
+
+In a recourse arrangement they genuinely separate: the vendor funds and services, the provider
+bears the risk. In non-recourse they align. In a collections sale they align again, on a new
+party. **The rule was written where they happen to coincide**, which is why it reads as one
+fact — and the searches found the common arrangement where they do not.
+
+### The transition loop, and what it forbids
+
+```text
+provider  →  financing party  →  provider
+```
+
+...where **the return leg depends on the user's payment behaviour.** That produces a rule worth
+stating on its own, because it is the kind of shortcut a later implementation would take
+naturally:
+
+> **Payment state may become evidence about a change in who bears the obligation. It may never
+> independently establish that change.**
+
+Non-payment *precipitates* a recourse return; it does not *constitute* one. The account returns
+because a contract between the provider and the vendor says so, on terms Groundwork cannot see,
+on a date it does not know. Inferring the transition from the arrears would be manufacturing a
+fact about a third-party contract out of the user's own ledger.
+
+**This is principle 1 in its sharpest form yet** — observation (the user missed payments),
+interpretation (the account may have been returned), and consequence (who they now owe) are
+three layers, and here the middle one is *unknowable from inside*. Collapsing them would let a
+missed payment silently rewrite the counterparty.
+
+### The dating requirement, now mandatory
+
+> **A discovered transition must preserve both when the underlying change became effective and
+> when Groundwork learned of it.**
+
+```text
+effective_on  =  March 14        ← when it became true
+recorded_at   =  September 9     ← when a statement told us
+```
+
+**If the model collapses those, Groundwork rewrites the user's historical reality because the
+evidence arrived late.** That is not a versioning nicety; it is the difference between *this was
+always true and we have just learned it* and *this became true today*, and only one of them is
+what happened.
+
+**Applies regardless of M1 or M2.** Like the economic-transfer invariant, it is not produced by
+the anchoring and does not wait on it.
+
+### The new governing question, above M1/M2
+
+> **When §7.7 says "who carries the obligation" — does *carries* mean servicing, funding,
+> economic risk, legal creditor status, or an explicitly defined combination?**
+
+**Not answerable from software structure. It is domain doctrine, and it is Rob's.** Once it has
+a definition, scenario E becomes answerable rather than a judgement call:
+
+- what constitutes a transition at all,
+- whether a recourse placement creates one,
+- whether the return leg creates another,
+- whether M1 can preserve the necessary distinction,
+- and whether M2 is actually warranted.
+
+**M1 vs M2 stops here**, because a decision made now would be made against a definition of
+*carrier* that the evidence has shown does not exist.
+
+### And the principle that survives, qualified
+
+> **A sale is never silent** — with the qualification §9 forced:
+>
+> **Groundwork cannot promise to detect a transition it has not been given evidence of. It can
+> promise that a known transition is dated, sourced and reconstructable.**
+
+The original phrasing implied a detection guarantee the system cannot honour. This is the
+honest boundary, and it is #15's shape again: constrain what may be claimed, rather than promise
+an omniscience that was never available.

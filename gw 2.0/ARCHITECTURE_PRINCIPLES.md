@@ -32,6 +32,20 @@ halfway:
   `is_healthcare = true`, or a persisted `protected` boolean, is a *conclusion* wearing a
   fact's clothes — and once stored it stops carrying the reasoning that produced it.
 
+**The sharpest instance found so far, and the one worth carrying forward** (gap 8, 2026-09-09):
+in a recourse patient-financing arrangement the account returns to the provider when the patient
+stops paying. So the observation (*payments stopped*), the interpretation (*the account may have
+been returned*) and the consequence (*who they now owe*) are three layers — and **the middle one
+is unknowable from inside.** It turns on a contract between the provider and the vendor, on terms
+Groundwork cannot see and a date it does not know.
+
+> **Payment state may become evidence about a change in who bears an obligation. It may never
+> independently establish that change.**
+
+Non-payment *precipitates* a recourse return; it does not *constitute* one. Collapsing the
+layers would let a missed payment silently rewrite the user's counterparty — a fact about a
+third-party contract, manufactured out of the user's own ledger.
+
 **Third independent appearance:** `MODEL_PLACEMENT.md`'s *the application owns truth, the model
 interprets it*; the lifecycle review's *`health.py` is a policy evaluator over facts*; and
 *reconciliation establishes reality, tax rules interpret established reality*. Arrived at

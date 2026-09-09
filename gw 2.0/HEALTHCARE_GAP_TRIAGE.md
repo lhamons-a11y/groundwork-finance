@@ -240,6 +240,24 @@ needs versions exactly as the obligation does.
 > identity), and the user may not be told - which relocates *a sale is never silent* rather than
 > weakening it. Whether the carrier rule classifies on **servicing** or on **risk** is doctrine
 > and Rob's, and M1/M2 cannot be settled while it is open.
+>
+> **And that is a premise invalidated, not an edge case added** (§10). *Who carries an obligation*
+> is **three layers** - funding, servicing, and economic risk - which coincide in the arrangements
+> §7.7 was written against and separate under recourse. One `carrier` field cannot represent all
+> three. So the governing question moves up again: **what does §7.7's "carries" mean** -
+> servicing, funding, economic risk, legal creditor status, or a defined combination? Doctrine,
+> and Rob's. M1/M2 stops until it has an answer, because a choice made now would rest on a
+> definition of *carrier* the evidence has shown does not exist.
+>
+> Two rules fall out and apply under **either** model. **Payment state may become evidence about a
+> change in who bears an obligation; it may never independently establish that change** - non-
+> payment precipitates a recourse return, it does not constitute one, and inferring it would
+> manufacture a fact about a third-party contract from the user's own ledger (now principle 1's
+> sharpest instance). And **a discovered transition preserves both when the change became
+> effective and when Groundwork learned of it** - collapse those and late-arriving evidence
+> rewrites the user's history. *A sale is never silent* survives, qualified: Groundwork cannot
+> promise to detect a transition it has no evidence of, only that a known one is dated, sourced
+> and reconstructable.
 
 ### 15. Failure-mode behaviour — **CLOSED AS DESIGN** (2026-09-09)
 
