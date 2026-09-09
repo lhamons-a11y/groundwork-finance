@@ -186,7 +186,31 @@ needs versions exactly as the obligation does.
 > where promo balances live, expense↔agreement cardinality, and whether the entity is
 > healthcare-scoped or general. **No schema until the first two have answers.**
 >
-> **8.1 and 8.2 posed, not answered — `gw 2.0/PAYMENT_AGREEMENT_DECISIONS.md`** (2026-09-09). Both are stated as the semantic question underneath the table question, because *"does a restructure create a new version?"* lets the table decide the meaning and *"is the pre-restructure schedule still historically authoritative for dates before it?"* does not. Three positions on 8.1, and the arrears question underneath it recorded as a **separate fact that must not be collapsed into it**. 8.2 turns on whether an agreement can change instrument kind; if it cannot, the promotional facts need their own version chain rather than nullable columns on a schedule row. Two things settled: **instrument kind is explicit source data, never inferred from schedule shape** — #15's *agreement ≠ evidence* at the schema level — and the **zero-consumer state is preserved on purpose** while the decisions are open.
+> **8.1 and 8.2 posed, not answered — `gw 2.0/PAYMENT_AGREEMENT_DECISIONS.md`** (2026-09-09). Both
+> are stated as the semantic question underneath the table question, because *"does a restructure
+> create a new version?"* lets the table decide the meaning and *"is the pre-restructure schedule
+> still historically authoritative for dates before it?"* does not. Three positions on 8.1, and
+> the arrears question underneath it recorded as a **separate fact that must not be collapsed into
+> it**. 8.2 turns on whether an agreement can change instrument kind; if it cannot, the
+> promotional facts need their own version chain rather than nullable columns on a schedule row.
+> Two things settled: **instrument kind is explicit source data, never inferred from schedule
+> shape** — #15's *agreement ≠ evidence* at the schema level — and the **zero-consumer state is
+> preserved on purpose** while the decisions are open.
+>
+> **Status: design investigation active, no implementation.** Two invariants now stated for 8.1
+> rather than one - **historical schedule authority** (pre-restructure expectations stay
+> reconstructable) and **economic transfer** (any amount folded into the new principal has a
+> traceable disposition from the old agreement). The second is the one that would have been
+> missed: an immutable version chain satisfies the first completely and says nothing about whether
+> the arrears are now also inside the new balance, so **history can be preserved perfectly while
+> the economics double-count**.
+>
+> **And 8.1 and 8.2 turned out not to be independent**, which the inspection had wrong. §7.7 keys
+> instrument kind on *who carries the obligation*, and medical debt is sold routinely - so an
+> unchanged agreement can change kind by a third party's act. Either kind is mutable and a sale is
+> a transition, or kind is immutable and a sale **ends the agreement**, which is 8.1's restructure
+> question arrived at from the other side with the same arrears problem attached. The instrument-
+> kind transition question is therefore settled **first**.
 
 ### 15. Failure-mode behaviour — **CLOSED AS DESIGN** (2026-09-09)
 

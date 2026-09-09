@@ -103,6 +103,33 @@ separately.** Collapsing them is exactly how the double-count enters, and it is 
 as every collapse this review has found — a single field standing in for two independent
 questions.
 
+### The two invariants this splits into
+
+*(Rob, 2026-09-09 — to be stated before schema work, not after.)*
+
+> **8.1-a · Historical schedule authority.** What expectations applied before the restructure
+> remains reconstructable.
+>
+> **8.1-b · Economic transfer.** Any amount incorporated into the new principal has a
+> **traceable disposition** from the old agreement.
+
+**The second is the one that would otherwise be missed**, and the reason is worth stating
+plainly: *the system can preserve history perfectly and still double-count the economics.*
+8.1-a is satisfied by an immutable version chain — which every precedent in this repository
+already provides, and which would make the gap look closed. It says nothing about whether the
+$525 that was short in March is now *also* sitting inside the new principal.
+
+The failure that 8.1-b prevents has two directions, and only one of them is the obvious one:
+
+- **Double-count** — the arrears are inside the new balance *and* still owed under the old
+  schedule, so the same dollars are counted twice.
+- **Silent erasure** — the new balance quietly stands in for the old obligation, and the
+  historical payment obligation disappears into a number nobody can decompose.
+
+Both are prevented by the same requirement: **every dollar that crossed the boundary can be
+traced to what it was before it crossed.** Not merely *that* arrears were carried — which
+amount, from which schedule, resolved how.
+
 ---
 
 ## 2. Decision 8.2 — promotional-balance ownership
@@ -143,6 +170,19 @@ few things in personal finance fit that sentence better. A field consulted by th
 on its own clock, sitting in a nullable column of a schedule row is a misfiling with
 consequences.
 
+**Rob's formulation, which is the cleanest statement of why they cannot share a row:**
+
+```text
+schedule   →  What was expected by date X?
+cliff      →  What financial consequence occurs if condition Y is still true when X arrives?
+```
+
+**Two different temporal mechanisms.** One integrates over elapsed time and produces an
+expectation; the other is a conditional evaluated at an instant and produces a consequence. They
+share a date column and nothing else. Treating the cliff as another schedule term would make the
+model **deceptively uniform** — the most expensive kind of tidiness, because uniformity that
+hides a semantic difference is indistinguishable from uniformity that reflects one.
+
 ### The test that decides the placement
 
 > **Can an agreement change from promotional to non-promotional, or the reverse?**
@@ -160,13 +200,85 @@ mine. The reasoning above is what the two answers would force.
 
 ---
 
+## 2a. The instrument-kind transition question — the one open item
+
+*(Rob, 2026-09-09: settle this before any further schema decision. **And do not choose A merely
+because it produces a cleaner schema.**)*
+
+### The two worlds
+
+**A — kind is immutable.** The agreement's identity *is* its instrument. A promo does not become
+a provider plan; it **expires**, which is the instrument doing what it always was.
+
+```text
+agreement (kind = deferred_interest_promo)
+    ├── term versions
+    └── expiration            ← a terminal state, not a change of kind
+```
+
+**B — kind can change.** Then the transition needs explicit semantics, and **the transition
+itself becomes historical evidence** — a dated, sourced, versioned fact about the agreement, not
+a column edit.
+
+```text
+agreement
+    ├── kind = promo                    [until …]
+    └── kind = ordinary_provider_plan   [from …]
+```
+
+### The scenarios that would decide it
+
+Each of these is a real-world claim Rob can rule in or out. They are listed because *the
+question is not answerable in the abstract* — it is answerable by whether any of these happens.
+
+| # | Scenario | Reading |
+|---|---|---|
+| 1 | **Promo reaches its cliff**; retroactive interest lands; the balance revolves at ~30% | Terminal state of the same instrument, **or** the agreement ending and a card balance beginning. The single most likely decisive case. |
+| 2 | **The provider sells or assigns the debt** to a lender or agency | See below — this one is not neutral. |
+| 3 | Provider plan **refinanced onto CareCredit** at the office | Almost certainly a *new* agreement paying off the old, not a transition |
+| 4 | Several plans **consolidated** into one | 8.3's cardinality question, not this one |
+| 5 | A provider plan that **charges interest** from the start | A third instrument, not a transition |
+
+### Scenario 2 is the one that makes this hard, and it links 8.2 back to 8.1
+
+§7.7's classification rule keys on **who carries the obligation**:
+
+> An obligation is a **healthcare cost** when the provider carries it at no interest. It is a
+> **credit card** when a lender carries it, whatever the marketing calls it.
+
+**Who carries it can change without the user doing anything.** Medical debt is sold and assigned
+routinely. So under §7.7's own rule, the instrument kind of an unchanged agreement can change by
+an act of a third party the user never signed anything for.
+
+That leaves exactly two consistent readings, and **both of them reach into 8.1**:
+
+- **Kind is mutable** (world B), and a sale is a kind transition on a surviving agreement.
+- **Kind is immutable** (world A), and a sale therefore *ends* the agreement and begins another
+  — which is **8.1's restructure question**, arrived at from the opposite direction, with the
+  same arrears-disposition problem attached.
+
+**Finding: 8.1 and 8.2 are not independent.** They were listed as separate decisions in the
+inspection and that was wrong. Whatever answers *does a restructure end the agreement or version
+it* also constrains *can an agreement change instrument kind*, because a sale is simultaneously
+a candidate for both. Deciding them in separate sittings risks two answers that cannot both
+hold.
+
+**What is not in doubt either way:** a sale is not a silent event. Whichever structure carries
+it, it is dated, sourced, and reconstructable — the user must be able to see that the thing they
+owe changed hands, and when.
+
+---
+
 ## 3. What must be true before any table is written
 
-1. **8.1 answered** as A, B or C — *and* the arrears question answered separately from it.
-2. **8.2 answered** via the immutability test, with the promotional facts' reconstructability
-   requirement settled either way.
-3. **Instrument kind stays explicit** — `NOT NULL`, no default, never computed. Settled above.
-4. **Zero consumers preserved** until 1 and 2 are done.
+1. **The instrument-kind transition question answered first** (§2a) — because scenario 2 shows
+   it constrains 8.1 rather than sitting beside it.
+2. **8.1 answered** as A, B or C — *and* invariants 8.1-a and 8.1-b both stated, since the first
+   can be satisfied while the second is silently violated.
+3. **8.2 answered**, with the promotional facts' reconstructability requirement settled either
+   way.
+4. **Instrument kind stays explicit** — `NOT NULL`, no default, never computed. Settled above.
+5. **Zero consumers preserved** until the above are done.
 
 8.3 (can one expense belong to two agreements) and 8.4 (healthcare-scoped or general) remain
 open and are deliberately downstream: both are easier to answer once the temporal semantics
