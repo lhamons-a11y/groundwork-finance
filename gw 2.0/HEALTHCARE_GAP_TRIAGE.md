@@ -499,6 +499,39 @@ pharmacy price index is a different product.
 
 ---
 
+## The other end of the method — what the user can supply
+
+**`gw 2.0/USER_KNOWLEDGE_CASES.md`** (2026-09-10). Every case set above asks what the *model* must
+distinguish. This one asks what a *person* can actually supply, written against Rob's doubt that
+the semantics were becoming too specific for a user who is unsure.
+
+**The floor is not zero.** One bill and nothing else already supports bill shock and cash-flow
+effect — the two things most likely to matter on the day someone opens a medical bill. Value
+degrades along a ladder rather than falling off a cliff, and the fields that demand real knowledge
+are the ones whose absence is safest to admit.
+
+**The precision reduces the demand on the user rather than raising it.** Carrier being explicit is
+what makes *I don't know who holds this* recordable instead of defaulting to *the provider*.
+Not-knowing not being a disposition is what stops the model demanding one. Unconfirmed payments
+have a home. **A model that collapses these is the model that makes the user decide before anything
+can be recorded.**
+
+**The risk is concentrated in one field** — instrument kind, which is both hard to supply and gates
+a class of statements. In two of three sub-cases the ask is *look at the paperwork*, not *know*,
+which is gap 14's ungeneralised rule doing the work.
+
+> **One new finding, and it is a live one: adherence language must be gated on instrument kind
+> being established, not merely on a schedule existing.** With a schedule and no kind, the system
+> can compute adherence perfectly and say *"you're on track"* about a deferred-interest balance
+> whose cliff the schedule does not contain — arithmetically true, materially false, and the worst
+> combination a teaching system can produce. Nothing currently prevents the sentence.
+
+And the sentence the surface decision turns on, recorded so it is made deliberately rather than
+discovered in a form: **the distinctions the model must hold are not the questions the interface
+may ask.**
+
+---
+
 ## The closing criticism, which I think is correct
 
 > *The biggest danger is not getting healthcare wrong. It is becoming the first place Groundwork
