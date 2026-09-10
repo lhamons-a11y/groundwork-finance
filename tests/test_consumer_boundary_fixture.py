@@ -139,18 +139,48 @@ def run(m):
             print(f'          core/classification.py:{line}  {fn}()')
     check('consume() is the only function that reads a fact\'s value', not offenders)
 
-    # The behavioural half. The AST scan says the bypass exists; these say it is reachable
-    # by the very consumers whose requirement is being bypassed.
+    # The behavioural half. The AST scan says whether the bypass exists in the source; these
+    # say what the consumers whose requirement is at stake actually receive.
+    #
+    # `!= the number` is too weak an assertion to leave alone: anything at all would satisfy
+    # it, including a None that a later reader would render as blank. Q1 says the value slot
+    # holds THE REFUSAL, carrying all four fields, so that is what is asserted.
+    FIELDS = {'consumer', 'reason', 'required', 'offered'}
+
     narrated = m.narrator_facts(weak_fact)
     check('narrator_facts does not emit a value narrator may not consume',
           narrated.value != weak_fact.value)
+    check('what narrator receives instead is the refusal, carrying all four fields',
+          isinstance(narrated.value, dict) and FIELDS <= set(narrated.value))
+    check('the refusal names which strength was offered, not merely that one was refused',
+          isinstance(narrated.value, dict)
+          and narrated.value.get('offered') == m.SINGLE_WEAK_SIGNAL
+          and narrated.value.get('required') == m.CORROBORATED)
 
     exported = m.export_row(contradicted_fact)
     check('export_row does not emit a value export may not consume',
           exported.get('value') != contradicted_fact.value)
+    check('export receives the refusal in the value slot, and the row still exists',
+          isinstance(exported.get('value'), dict)
+          and FIELDS <= set(exported['value'])
+          and 'metric' in exported)
+    check('a refused export cell is not blank, None or zero',
+          exported.get('value') not in (None, 0, 0.0, ''))
+    check('contradicted is distinguishable from not_evaluated at the boundary',
+          exported['value'].get('offered') == m.CONTRADICTED)
 
     check('backup_row inherits whatever export_row decides',
           m.backup_row(contradicted_fact) == exported)
+
+    # The other half of the invariant, and the one a refusal-shaped bug would sail past:
+    # a fact the consumer MAY have must still arrive as the number.
+    strong = m.record_evidence(weak, m.COUNTERPARTY, source=m.MCC, supports=True)
+    strong_fact = m.derive('balance', 1250.00, sources=(strong,))
+    check('two distinct supporting sources corroborate',
+          m.strength_of(strong_fact) == m.CORROBORATED)
+    check('a permitted consumer still receives the number',
+          m.narrator_facts(strong_fact).value == 1250.00
+          and m.export_row(strong_fact)['value'] == 1250.00)
 
     print('\n3. No application file reads a value off a derived fact\n')
 

@@ -510,19 +510,57 @@ one possible reading of A and is not derived from anything.
 defined; right now the fixtures are working correctly as discovery instruments, and a red gate
 that nobody can act on is a gate people learn to ignore.
 
-### The mutation this fixture must permanently carry
+### Q1 IMPLEMENTED — `core/classification.py`, and the guard is permanent
 
-*(Rob, 2026-09-10 — and it is the difference between a fixture that passed once and a guard.)*
+**The change is two functions and one helper.** `narrator_facts` and `export_row` call
+`_permitted_value(derived, consumer)`, which returns `refusal(...)` when it is not None and
+`consume(...)` otherwise. `refusal()`, the lattice, Q2 and presentation semantics are untouched,
+and no entry was added to `CONSUMER_STRENGTH`.
 
-Once Q1 is implemented, **mutate `narrator_facts()` and `export_row()` back to direct `.value`
-access and confirm the fixture fails.** The assertion being protected is not *refusal works*; it
-is:
+**Verified in the three ways the review asked for:**
 
-> **the consumer cannot obtain a refused value through any other path.**
+| | |
+|---|---|
+| **behavioural** | a `single_weak_signal` fact returns the refusal to `narrator` — `{consumer, reason, required: corroborated, offered: single_weak_signal}` — and a `corroborated` fact still returns `1250.00`. A `contradicted` fact returns the refusal to `export`, in the value slot, with the row intact |
+| **structural** | the AST scan finds no `<param>.value` read outside `consume()`. Fixture **17 passed, 0 failed** |
+| **mutation** | the bypass reintroduced in both functions, together and separately — **3 of 3 caught**, file restored |
 
-Gap 6's lesson at the mutation level: a coherence assertion that can only examine states produced
-by the thing it validates is not validating anything. A boundary test that only ever sees the
-compliant implementation cannot tell a working boundary from a stub.
+**The fixture was strengthened in the process, and it needed it.** Its original assertion was
+`narrated.value != weak_fact.value`, which **anything** satisfies — including the `None` that Q1
+rejects specifically because a blank cell is a zero. It now asserts that the value slot holds the
+refusal, that all four fields are present, and that `offered` names *which* strength, so
+`contradicted` stays distinguishable from `not_evaluated` at the boundary.
+
+**And the mutation is now permanent rather than a thing that was run once** —
+`smoke_sections/s96_consumer_boundary.py`, following s95's shape. Six mutations, all caught:
+
+```text
+narrator_facts reads the value directly, as it did before Q1
+export_row reads the value directly, as it did before Q1
+a refusal is reduced to a bare sentinel and loses why
+a refusal becomes None, and a blank cell is a zero
+a refusal no longer names which strength was offered
+the boundary refuses a consumer that is entitled to the value
+```
+
+**The first two are the shipped pre-Q1 state, seeded as defects.** Three of the others are the
+alternatives Q1 rejected — *a rejected design that is never tested against is a decision nobody
+can tell was made.* **The last runs the other way** on purpose: a boundary that refuses everything
+satisfies every refusal assertion ever written, so the fixture has to notice an entitled consumer
+being denied.
+
+The assertion the guard protects is not *refusal works*; it is **the consumer cannot obtain a
+refused value through any other path** — gap 6's lesson at the mutation level, since a boundary
+test that only ever sees the compliant implementation cannot tell a working boundary from a stub.
+
+**Gate: 824 → 833 passed, 0 failed.** The consumer-boundary work is now inside it. The tie fixture
+stays outside, because Q2 is open and its failures are still findings.
+
+**One thing found and deliberately not fixed:** `backup` is **not** in `CONSUMER_STRENGTH`. It
+borrows export's declared strength by delegating to `export_row`, so a consumer that never declared
+what it requires is served anyway — a third, quieter instance of the same pattern. Giving backup its
+own entry is a decision about what a backup may contain, and Q1 was not that decision. Recorded in
+the code beside the delegation.
 
 ### The end-to-end test to add after the design lands
 

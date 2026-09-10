@@ -404,7 +404,9 @@ class DerivedFact:
 class NarratorFacts:
     """What the narrator is allowed to see. Never the underlying records."""
     metric: str
-    value: float
+    # A float, or the refusal that stands in its place. Annotating this `float` would be
+    # the lie that made the bypass below easy to write in the first place.
+    value: object
     includes_records: bool = False
 
 
@@ -426,17 +428,46 @@ def category_delta(classifications, category, month=None, from_month=None):
         sources=tuple(rows))
 
 
+# ── The consumer helpers, and the boundary they must not step around ────────
+# `narrator` and `export` are declared in `CONSUMER_STRENGTH`. These two functions build
+# what those consumers receive, so they are the paths on which the declared requirement has
+# to be applied — and until `EVIDENCE_MATRIX.md` Q1 they read `derived.value` directly and
+# applied nothing. A declared permission is not a boundary unless EVERY path by which that
+# consumer obtains a fact passes through the same check.
+#
+# What a refused consumer receives is the refusal itself, in the value's place, carrying
+# `offered`, `reason`, `required` and `consumer` (Q1). Not omission — absence changes a
+# total silently and a blank cell is a zero to a spreadsheet. Not a bare sentinel — that
+# would collapse `not_evaluated`, `contradicted` and `single_weak_signal` into one word at
+# the last inch, undoing what `_prefer_contradicted` exists to protect. Not an exception —
+# an export that dies on one contradicted row is worse than one that marks it.
+#
+# Whether any of those fields is SHOWN to a person is a separate, downstream decision, and
+# deliberately not made here.
+
+def _permitted_value(derived, consumer):
+    """The number if this consumer may have it, otherwise the refusal that explains why."""
+    denied = refusal(derived, consumer)
+    return denied if denied is not None else consume(derived, consumer)
+
+
 def narrator_facts(derived):
-    return NarratorFacts(metric=derived.metric, value=derived.value,
+    return NarratorFacts(metric=derived.metric,
+                         value=_permitted_value(derived, 'narrator'),
                          includes_records=False)
 
 
 def export_row(derived):
-    return {'metric': derived.metric, 'value': derived.value,
+    return {'metric': derived.metric,
+            'value': _permitted_value(derived, 'export'),
             'sensitivity': derived.sensitivity.domain}
 
 
 def backup_row(derived):
+    # Backup is NOT in `CONSUMER_STRENGTH`, so it has never declared what it requires —
+    # it borrows export's by delegating here. That is the shipped behaviour and it is left
+    # exactly as found: giving backup its own entry is a decision about what a backup is
+    # allowed to contain, and Q1 was not that decision.
     return export_row(derived)
 
 
