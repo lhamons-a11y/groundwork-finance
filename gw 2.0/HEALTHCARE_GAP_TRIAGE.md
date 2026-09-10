@@ -530,6 +530,45 @@ And the sentence the surface decision turns on, recorded so it is made deliberat
 discovered in a form: **the distinctions the model must hold are not the questions the interface
 may ask.**
 
+> **REVISED against Rob's review, same day.** He went back to the document rather than to the
+> summary of it, and found seven defects, two missing axes, and one finding the cases do not
+> support. All applied.
+>
+> **The defects, and each names a rule now stated.** U0 claimed bill shock from a bill alone —
+> the reserve floor and liquid savings are **Groundwork-held**, not user-supplied, and every rung
+> now separates the two columns. U1 skipped attachment: a payment existing is not a payment
+> belonging to *this* obligation, and only an attached one may move `paid`/`remaining`. **U2 was
+> the largest** — `$175 × 24` establishes no start date, cadence or first due date, so it permits
+> a *projection* and not `expected_by_now`; and *the user intends $175* is not *the agreement
+> requires $175*, so **a schedule supports projection at a lower evidentiary level than it
+> supports adherence**. U3's kind is a **gate, not an answer** — it determines which further
+> evidence is required and supplies none of it. U4 had two legitimate `remaining` values and
+> naming one silently decides whether an unconfirmed payment is economically effective. U5
+> assumed a second letter concerned the same obligation — **creating a second record creates no
+> relationship**, and *unresolved* is the default — and let user testimony about a document
+> become the document: *the user reports the letter says X* is not *the letter says X*.
+>
+> **Two axes the ladder had no room for.** **Contradiction** — four conflicting figures are *more*
+> information and *fewer* permissible conclusions, and the machinery already exists: `CONTRADICTED`
+> sits at the floor of the strength lattice, weakest-link drags derived facts to it, and
+> `consume()` refuses. The case set failed to exercise mechanism that is built and mutation-tested.
+> And **staleness** — a March statement read in September stays true about March and stops
+> supporting claims about today, which is **gap 2's unstated invariant meeting a user**.
+>
+> **One finding retracted.** *The usability risk is concentrated in exactly one field* — the cases
+> do not support it. The pattern is **user-facing risk arises wherever the model requires a
+> distinction the user cannot directly establish**, and the document already contains seven
+> instances. A test for the next one, rather than a list to remember.
+>
+> **The surface question is answered (Rob's):** *the interface may ask for evidence; it may not ask
+> for conclusions the user cannot reasonably know* — ask directly, ask them to inspect, or never
+> ask, and **`Unknown` must be an acceptable terminal state.**
+>
+> **And the ladder is the wrong shape.** More information, more certainty and more permissible
+> conclusions move independently. The successor is a **matrix** over *what evidence exists · who
+> can establish it · how certain it is · what claims it permits* — **the next review**, recorded
+> rather than begun.
+
 ---
 
 ## The closing criticism, which I think is correct
