@@ -1,0 +1,290 @@
+# The evidence matrix
+
+**Ten adversarial questions, run against `core/classification.py` rather than against a summary of it**
+
+> Status: **Adversarial review, 2026-09-10. No implementation, and no doctrine decided.** The
+> question is narrower than *what does Groundwork know*:
+>
+> > **For each fact: what evidence can legitimately establish it, how strong is that evidence, and
+> > which downstream claims may use it?**
+>
+> **The three doctrine decisions stay out.** This review must not decide what `carrier` means, must
+> not decide the disposition scope, and must not decide whether the miss-log exists. It establishes
+> what evidence information is *available* and what a consumer may legitimately do with it — which
+> is what those decisions will need afterwards, not a substitute for them.
+>
+> **The chain under attack**, with contradiction, staleness, weak evidence, correction and absence
+> introduced deliberately at each link:
+>
+> ```text
+> evidence → established fact → derived fact → claim permission → narration
+> ```
+>
+> The failure being hunted is not *did the parser handle this*. It is:
+>
+> > **did the weakest evidence stay visible all the way to the point where Groundwork decides what
+> > it is allowed to say?**
+
+---
+
+## The matrix
+
+| # | Area | Verdict |
+|---|---|---|
+| 1 | source authority — equal ranks disagreeing | **GAP — an invented winner, decided by list position** |
+| 2 | user-stated — what it establishes | **GAP — no separation of *said* from *so*** |
+| 3 | imported/EOB — parsed vs true | **GAP — parsing establishes the fact** |
+| 4 | contradiction — lowers permission, or picks a winner? | **HOLDS for classification · ABSENT for values** |
+| 5 | age | **GAP — recorded everywhere, consulted nowhere** |
+| 6 | correction — old claim reconstructable? | **HOLDS** |
+| 7 | composite facts — weakest component inherited? | **HOLDS, and better than stored** |
+| 8 | corroboration — five references to one source | **HOLDS at classification · latent downstream** |
+| 9 | missing evidence — `UNKNOWN` vs `NOT_APPLICABLE` | **GAP — gap 3, now with a boundary consequence** |
+| 10 | claim permission — stronger claim than evidence permits | **GAP — strength gates access, not assertion** |
+
+---
+
+### 1. Can two sources of equal rank disagree without forcing an invented winner?
+
+**No. The winner is whichever appears last in the list.**
+
+`_state_from` (`core/classification.py:250`) takes knowing-party evidence and resolves it as:
+
+```python
+knowing = [e for e in ev if e.source in KNOWING_SOURCES]
+if knowing:
+    latest = knowing[-1]
+```
+
+`KNOWING_SOURCES` is `{USER_STATED, IMPORTED_EOB}` (`:88`), and both carry rank 3 in `_RANK`
+(`:629`) — deliberately equal, because gap 15 recorded that asserting *manual wins* would invent a
+hierarchy the model does not have.
+
+**So the deliberate tie at rank 3 is broken further down by list position.** A user saying *health*
+and an EOB saying *not health* resolve to whichever was appended second. That is an invented winner
+arrived at by accident rather than by decision — the outcome gap 15 explicitly refused, reached
+through a different door.
+
+Gap 15's own answer already exists and is unimplemented: **keep an explicit tie state.**
+
+### 2. What exactly does a user statement establish, and what may it not become?
+
+`USER_STATED` on the content axis produces `USER_ASSERTED` (`:250`), rank 3 — the top of the
+lattice, tied with an attested import.
+
+**What is missing is the distinction `USER_KNOWLEDGE_CASES.md` U5 named.** The model can record
+*the user says this is a medical expense*. It has no way to record *the user says the letter says
+the account was purchased* — a statement **about a document** rather than about the world. The
+first is testimony the user is competent to give; the second is a report of evidence they hold and
+Groundwork has not seen.
+
+Both currently land as `USER_ASSERTED`, at the top of the lattice.
+
+### 3. Does successful parsing establish the fact, or only that the document contained the value?
+
+**It establishes the fact.** `IMPORTED_EOB` is a knowing source, so a parsed EOB yields
+`IMPORTED_ATTESTED`, rank 3.
+
+There is no state for *this document contained this value*, distinct from *this value is true*.
+Which is the same shape as finding 2, from the machine side — and it is `HEALTHCARE_FAILURE_SEMANTICS.md`'s
+first shall-not at the evidence layer: **successful processing is not evidence of correctness.** A
+parser that reads `$412` as `$4.12` produces `IMPORTED_ATTESTED`, indistinguishable from one that
+read it right.
+
+### 4. Does conflicting evidence lower permission, or does the system select a best source?
+
+**For classification it lowers permission, and does so correctly.**
+
+`CONTRADICTED` sits at rank 0 (`:629`), tied with `NOT_EVALUATED` and kept distinct from it.
+`strength_of` (`:666`) takes the **weakest material source** for a derived fact, and
+`_prefer_contradicted` (`:697`) breaks the floor tie toward `contradicted` in both directions — so
+a contradicted source in a chain is named rather than disappearing into *unevaluated*.
+
+Every declared consumer requires rank ≥ 1 (`CONSUMER_STRENGTH`, `:641`). **A contradicted fact is
+therefore refused by all four consumers that exist.** More evidence, less permission — working, and
+enforced rather than described.
+
+> **And here I have to correct myself.** `USER_KNOWLEDGE_CASES.md` U6 claims that four conflicting
+> balance figures produce a `contradicted` strength and that the case set had simply failed to
+> exercise built machinery. **That is wrong, and it was my claim rather than the review's.**
+>
+> `Evidence.supports` is a boolean about whether a piece of evidence supports **a health-domain
+> claim on an axis**. `CONTRADICTED` means *a knowing party said this is not health*. It does not
+> mean *two sources gave different amounts*.
+>
+> **There is no representation anywhere in this module for value-level disagreement.** $4,000 vs
+> $3,500 vs $3,700 vs $3,176 is not expressible as contradiction; it is four facts with no stated
+> relationship. U6 is a genuine gap, not an unexercised mechanism, and the correction makes it
+> worse rather than better.
+
+### 5. Can historical evidence establish a historical fact without establishing the current value?
+
+**No, and the data to do it is already recorded.**
+
+`Evidence` carries `recorded_at`, and `Determination` carries `determined_at` (`:250` and around
+`:280`). Neither is consulted by `_state_from` or by `strength_of`. **Age is captured everywhere and
+used nowhere**, so a corroborated EOB from 2019 and one from this morning are indistinguishable at
+the consumer boundary.
+
+**And a second-order finding falls out of #1.** `knowing[-1]` is described as *the latest*, but it
+is the **last element of a list**, not the latest by `recorded_at`. Supersession is positional
+where the record is temporal. Whenever evidence is accumulated in any order but arrival —
+re-imported, merged, backfilled with a past `effective_on` — the two readings diverge, and §10's
+whole discovered-transition requirement is built on evidence arriving late.
+
+This is `USER_KNOWLEDGE_CASES.md` U7 and gap 2's unstated invariant, landing on one attribute
+access.
+
+### 6. When new evidence replaces old, does the old claim remain reconstructable?
+
+**Yes.** Classifications are immutable, `Determination` carries `rule_version` and `determined_at`,
+and `classify` (`:284`) records a determination for **both** axes even at `not_evaluated`, because
+*an absence has provenance too*.
+
+`strength_of` recomputing on every read reinforces rather than threatens this: a derived fact is a
+statement about its sources *as they stood*, and a caller wanting a current view re-derives. That
+was already recorded as gap 2's historical-truth invariant showing up concretely.
+
+### 7. Does a derived fact inherit the weakest evidentiary component?
+
+**Yes, and by a better mechanism than storing it.** `strength_of` (`:666`) computes the weakest
+material source **on every read**, with `_is_material` (`:707`) excluding sources that contributed
+nothing — *a source contributing nothing cannot weaken what it did not build*.
+
+The docstring states the reason, and it is the right one: *invalidating a source invalidates
+everything derived from it without anything having to remember to recompute.*
+
+### 8. Can five downstream references to one weak source look like five pieces of evidence?
+
+**Not at the classification layer.** `_state_from` (`:250`) computes corroboration as
+`distinct = {e.source for e in supporting}` and requires `len(distinct) >= 2`. Two signals from the
+same source do not corroborate. Deduplication by source identity is exactly the right guard and it
+is already there.
+
+**Not through the lattice either.** Five derived facts all citing source A, folded into a sixth,
+still resolve to A's strength under weakest-link. Amplification cannot occur through `strength_of`.
+
+**Latent, and worth naming rather than fixing:** `DerivedFact.sources` is a plain tuple with no
+deduplication (`derive`, `:715`). Nothing today counts it — but a future surface that renders *"5
+sources"*, or a consumer that reads `len(fact.sources)` as corroboration, would manufacture exactly
+the appearance the lattice refuses. The invariant lives in `strength_of`; the tuple is one
+`len()` away from contradicting it.
+
+### 9. Does absence become `UNKNOWN`, or can a consumer read it as `NOT_APPLICABLE`?
+
+`NOT_EVALUATED` is the only representation of absence, and gap 3 already records `NOT_APPLICABLE`
+and `NOT_COVERED` as the two genuinely unrepresented states.
+
+**What this review adds is the consumer-boundary consequence.** §8 of `HEALTH_TRUST_BOUNDARY.md`
+requires failing closed where classification cannot be established. If *not applicable* cannot be
+distinguished from *not evaluated*, then everything genuinely inapplicable **fails closed
+permanently** — and a rule that refuses a large class of things forever is one people route around.
+
+Fail-closed and an unrepresentable *not applicable* are individually correct and jointly corrosive.
+
+### 10. Can a consumer use a fact for a stronger claim than its evidence permits?
+
+**Yes. Strength gates access to the number; it does not gate what is claimed with it.**
+
+`consume` (`:745`) returns `UNAVAILABLE` or the value. Once a consumer clears its declared bar it
+holds a float, and nothing constrains the sentence built from it. `narrator` requires `CORROBORATED`
+— so a corroborated fact may be narrated, and the narration may say anything.
+
+This is precisely the rung the **permission ladder** (Record → Calculate → Conclude → Recommend) was
+designed for in `HEALTHCARE_FAILURE_SEMANTICS.md`, and it is designed and not built. The matrix's
+last link is the unimplemented one.
+
+---
+
+## The particularly important gap, answered precisely
+
+> *Does evidence strength belong to the fact, or only to the evidence graph behind the fact?*
+
+**Neither, and the third answer is better than both.** Strength is a **function over the graph,
+recomputed on every read** — `strength_of` (`:666`) — and `consume` calls it. So the concern that
+*the permission boundary depends on every consumer remembering to walk `sources`* **does not hold**:
+no consumer walks anything, and none can forget to.
+
+**But the enforcement is one convention, not a structure.** `consume`'s docstring says it is *"the
+only way to take a value out of a derived fact"* — and `DerivedFact` (`:392`) is a frozen dataclass
+whose `value` is a public attribute. `fact.value` works. Nothing prevents it, and
+`tests/test_evidence_strength_fixture.py:166` reads it directly (legitimately, to prove two facts
+with equal values differ in strength — but it demonstrates the attribute is freely readable).
+
+So the gap is real and it is **one step narrower than described**:
+
+```text
+NOT   every consumer must remember to walk the sources
+BUT   every consumer must remember to call consume() instead of reading .value
+```
+
+**The precedent for closing it already exists and was not applied here.** Gap 6 asserted the
+*absence* of a `paid()` accessor, so a future convenience method could not reintroduce the drift.
+The analogous assertion — that no consumer reads `.value` — **does not exist in the fixture or in
+s95**. That is the hard look this deserves, and it is a test rather than a mechanism.
+
+---
+
+## Findings
+
+1. **The deliberate tie at rank 3 is broken by list position.** `knowing[-1]` invents the winner
+   gap 15 refused to invent. The recorded answer — an explicit tie state — is unimplemented.
+2. **Supersession is positional where the record is temporal.** `recorded_at` exists and is never
+   used to order. §10's discovered-transition work depends on evidence arriving late, which is
+   exactly when position and time diverge.
+3. **Age is recorded everywhere and consulted nowhere.** A 2019 corroborated EOB and this morning's
+   are indistinguishable at the boundary.
+4. **Testimony about a document is indistinguishable from testimony about the world**, and both sit
+   at the top of the lattice.
+5. **Successful parsing establishes the fact**, with no state for *the document contained this
+   value*. The failure-semantics shall-not — *successful processing is not evidence of correctness*
+   — has no representation at the evidence layer.
+6. **Value-level disagreement is unrepresentable.** `CONTRADICTED` is about a boolean claim on an
+   axis, not about conflicting amounts. **This corrects a claim I made in `USER_KNOWLEDGE_CASES.md`
+   U6**; the gap is larger than that document says.
+7. **Fail-closed plus an unrepresentable `NOT_APPLICABLE` is corrosive**, because it refuses a whole
+   class permanently — and permanent refusals get routed around.
+8. **Strength gates access, not assertion.** The last link of the chain is the permission ladder,
+   which is designed and not built.
+9. **`consume()` is the only way in by convention, not by construction**, and unlike gap 6 the
+   absence is not asserted.
+10. **`DerivedFact.sources` is one `len()` away from manufacturing corroboration** the lattice
+    exists to refuse. Latent, no instance today.
+
+**Holding well and worth saying so:** weakest-link inheritance (7), materiality exclusion,
+source-identity deduplication (8), contradiction as a permission-lowering state at the classification
+layer (4), and correction reconstructability (6). The chain does keep the weakest evidence visible
+from evidence to derived fact — it stops being visible at **claim permission**, which is finding 8.
+
+---
+
+## The case where more evidence makes the claim weaker
+
+Requested explicitly, because it is the case most likely to expose *more inputs = more confidence*.
+The module already produces it — and only in one of the two available shapes.
+
+```text
+WORKS      user says medical → USER_ASSERTED (rank 3)
+           EOB then says not medical → CONTRADICTED (rank 0)
+           the derived fact drops below every declared consumer
+           more evidence, strictly less permission
+
+FAILS      bill $4,000 · user $3,500 · statement $3,700 · payments imply $3,176
+           four facts, no stated relationship, no strength consequence
+           more evidence, unchanged permission
+```
+
+**The first shape is enforced. The second has no representation at all**, and it is the shape a real
+household actually produces.
+
+---
+
+## What has not been done
+
+No implementation, no schema, no new state added to the lattice, no consumer added to
+`CONSUMER_STRENGTH`. **No doctrine touched** — `carrier` is untouched, disposition scope is
+untouched, and nothing here decides whether the miss-log exists in 2.0.
+
+Two of the ten findings are **tests rather than mechanisms** (9, and the tie state in 1), and those
+should be attempted before anything is designed, per the standing rule against reaching for a
+mechanism the moment a review admits that failures are possible.

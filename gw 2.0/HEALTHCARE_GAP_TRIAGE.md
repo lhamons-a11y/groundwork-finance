@@ -571,6 +571,53 @@ may ask.**
 
 ---
 
+## The evidence matrix — ten adversarial questions against the shipped classifier
+
+**`gw 2.0/EVIDENCE_MATRIX.md`** (2026-09-10). The review named as next by
+`USER_KNOWLEDGE_CASES.md`, run against `core/classification.py` rather than a summary of it. **No
+doctrine touched** — carrier, disposition scope and the F3 fork are all untouched by design.
+
+**Five areas hold, and hold well:** weakest-link inheritance recomputed on every read rather than
+stored, materiality exclusion, corroboration deduplicated by source identity, contradiction as a
+permission-lowering state, and correction reconstructability. **The weakest evidence does stay
+visible from evidence through to derived fact.** It stops being visible at **claim permission** —
+`consume()` gates the number and nothing gates the sentence built from it, which is the permission
+ladder, designed and not built.
+
+**The findings that matter:**
+
+> **The deliberate tie at rank 3 is broken by list position.** `USER_STATED` and `IMPORTED_EOB` are
+> equal in `_RANK` because gap 15 refused to invent a hierarchy — and `_state_from` then resolves a
+> disagreement with `knowing[-1]`, so the winner is **whichever was appended second**. The invented
+> winner arrives through a different door. Gap 15's own answer, an explicit tie state, is
+> unimplemented.
+
+**Supersession is positional where the record is temporal** — `recorded_at` exists and is never
+used to order, and §10's discovered-transition work depends on evidence arriving late, which is
+exactly when the two readings diverge. **Age is recorded everywhere and consulted nowhere.**
+**Testimony about a document is indistinguishable from testimony about the world**, and successful
+parsing establishes the fact outright, with no state for *the document contained this value* —
+`successful processing ≠ evidence of correctness` has no representation at the evidence layer.
+
+> **And it corrects an overclaim of mine in `USER_KNOWLEDGE_CASES.md` U6.** I said contradiction
+> was already handled and the case set had failed to exercise built machinery. `Evidence.supports`
+> is a boolean about a health-domain claim on an axis; `CONTRADICTED` means *a knowing party said
+> this is not health*. **Value-level disagreement — $4,000 vs $3,500 vs $3,700 — is unrepresentable
+> anywhere in the module.** The gap is larger than that document claimed, not smaller.
+
+**One interaction worth carrying forward:** fail-closed (§8 of `HEALTH_TRUST_BOUNDARY.md`) plus an
+unrepresentable `NOT_APPLICABLE` (gap 3) is corrosive — it refuses a whole class permanently, and
+permanent refusals get routed around. The two are individually correct and jointly bad.
+
+**On the "does strength belong to the fact or the graph" question: neither.** It is a function over
+the graph, recomputed on every read, so no consumer walks `sources` and none can forget to. The
+real exposure is one step narrower — **`consume()` is the only way in by convention, not by
+construction**; `DerivedFact.value` is a public attribute. Gap 6 asserted the *absence* of a
+`paid()` accessor for exactly this reason; the analogous assertion here was never written. **A test,
+not a mechanism.**
+
+---
+
 ## The closing criticism, which I think is correct
 
 > *The biggest danger is not getting healthcare wrong. It is becoming the first place Groundwork

@@ -278,17 +278,27 @@ payment history implies  $3,176
 **This is not a rung. It is a different axis.** The user has *more* information than U0 and can
 support *fewer* conclusions about the current balance.
 
-**And the machinery already exists** — the case set simply failed to exercise it. `CONTRADICTED`
-sits at the **floor** of the strength lattice beside `NOT_EVALUATED`, the weakest-link rule drags
-any derived fact down to its weakest material source, and `consume()` refuses a consumer whose
-declared requirement is not met. Four conflicting figures do not produce a best guess; they produce
-a `contradicted` strength that most consumers cannot take.
+> **CORRECTED 2026-09-10 by `EVIDENCE_MATRIX.md` §4 — and the correction makes this worse.** The
+> first version of this rung said the machinery already existed and the case set had merely failed
+> to exercise it: `CONTRADICTED` at the floor of the lattice, weakest-link dragging derived facts
+> down, `consume()` refusing. **That was my claim and it is wrong.**
+>
+> `Evidence.supports` is a boolean about whether evidence supports **a health-domain claim on an
+> axis**. `CONTRADICTED` means *a knowing party said this is not health*. It does not mean *two
+> sources gave different amounts*. **There is no representation anywhere for value-level
+> disagreement** — four conflicting figures are four facts with no stated relationship and no
+> strength consequence at all.
+
+The contradiction that *is* handled is the boolean kind: user says medical, EOB says not medical,
+the derived fact drops to rank 0 and every declared consumer refuses it. More evidence, strictly
+less permission — enforced, and the right shape. **It is simply not this case.**
 
 > **Information quantity and evidentiary certainty are independent axes. More documents can permit
 > fewer conclusions.**
 
 What survives is the honest report: four figures, their sources, their dates, and no fifth number
-manufactured to reconcile them.
+manufactured to reconcile them. **Which the model cannot currently express**, and that is the
+finding rather than the resolution.
 
 ---
 
