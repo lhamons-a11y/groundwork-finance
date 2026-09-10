@@ -342,6 +342,112 @@ question, and the standing rule is not to answer it in the same pass that found 
 
 ---
 
+## Three failure classes, and they must not be collapsed
+
+*(Rob, 2026-09-10, on the fixture results. The classification is his and it is the useful output
+of having written the tests.)*
+
+| Failure | What breaks | Status |
+|---|---|---|
+| **consumer bypass** | a permission declaration does not govern actual consumption | **live defect** |
+| **conflict disappearance** | the current fact loses the evidence that a disagreement occurred | **live defect** |
+| **effective vs recorded ordering** | the late-arrival case cannot presently be produced | **latent** |
+
+**These are three mechanisms, not one evidence-handling gap.** The first is an
+**authority-boundary bypass**, the second is **provenance and history loss**, the third is
+**temporal semantics the current mutator cannot exercise**. Collapsing them would produce one
+vague gap and, worse, one vague fix.
+
+### The consumer bypass, restated as the requirement it implies
+
+The module has **two parallel authority paths**, and the AST result is what makes it clean — the
+bypass is not a hypothetical future consumer, it is inside the implementation of two consumers
+that are named in `CONSUMER_STRENGTH`:
+
+```text
+narrator_facts()  ─┐
+export_row()      ─┼──→  fact.value          no check
+backup_row()      ─┘
+
+consume()          ───→  strength check      the declared boundary
+```
+
+> **A declared consumer permission is not an architectural permission boundary unless every path
+> by which that consumer obtains a fact is subject to the same permission check.**
+
+The behavioural failures establish this is not stylistic: weak evidence reaches narration despite
+narration's declared refusal, contradicted evidence reaches export despite export's, and backup
+inherits export's bypass.
+
+### Conflict disappearance, stated narrowly on purpose
+
+The two histories produce byte-identical representations:
+
+```text
+A   user says health                                 no disagreement ever existed
+B   EOB says not-health → user says health           a disagreement existed and vanished
+```
+
+Downstream code cannot tell A from B, which is the principle already applied elsewhere — *a
+correction must not destroy the history required to explain how the current fact came to be.*
+
+**The derived requirement is narrower than the obvious fix**, and the caution matters more than
+the finding:
+
+> **A resolution of conflicting evidence may change the current conclusion, but may not silently
+> erase the existence of the conflict.**
+
+*Therefore every conflict becomes `CONTRADICTED` forever* is **a possible design, not a derived
+requirement**, and adopting it here would be settling by convenience the question gap 15 left
+open. What survives a resolution — the prior contradictory evidence, a resolved-conflict marker,
+provenance showing conflict and resolution, or some combination — is a separate decision, and it
+is independent of the consumer-boundary fix.
+
+### The temporal case stays latent, and says something useful as a latent
+
+`record_evidence` sets `recorded_at = now` and appends in the same call, so call order and recorded
+time **necessarily agree today**. The implementation therefore does not demonstrate a temporal
+defect. What it demonstrates is:
+
+> **The representation already carries both temporal concepts the future case needs; the current
+> mutation path cannot create their divergence.**
+
+§10 supplies the future case — `effective_on` in March, `recorded_at` in September — at which point
+processing order stops being the same thing as effective chronology. **Retained as a latent matrix
+requirement, not promoted to a current bug.**
+
+---
+
+## What must be answered before either fix
+
+**Not implemented, deliberately.** Two design questions, and the fixtures become mutation tests
+rather than discovery instruments once they have answers:
+
+1. **Consumer refusal.** When narration or export may not use a fact, what does the consumer
+   receive instead — omission, an explicit unavailable state, a redacted representation, or
+   something else defined?
+2. **Resolved conflict.** When conflicting evidence is later resolved, what historical fact must
+   remain observable?
+
+**And the gate stays green until then.** A red gate is useful once the desired behaviour is
+defined; right now the fixtures are working correctly as discovery instruments, and a red gate
+that nobody can act on is a gate people learn to ignore.
+
+### The end-to-end test to add after the design lands
+
+```text
+weak evidence → derived fact → consumer refuses
+        ↓  strengthen the evidence
+same underlying fact → consumer now permits
+```
+
+The assertion that makes it worth writing: **permission changed because the evidence changed, not
+because a consumer happened to call a different accessor.** That is the one test that runs the
+whole chain — evidence → fact → permission → consumer — and it ties this defect directly back to
+the weakest-link work in gap 4, which is where the boundary was supposed to have been closed.
+
+---
+
 ## What has not been done
 
 No implementation, no schema, no new state added to the lattice, no consumer added to
