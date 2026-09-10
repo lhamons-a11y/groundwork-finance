@@ -248,6 +248,15 @@ contractual write-offs  partial settlements
 
 This is a semantics exercise, not a schema one, and it names no carrier.
 
+> **Case set written 2026-09-10 — `gw 2.0/DISPOSITION_VOCABULARY_CASES.md`.** Eight worked
+> cases, no enum proposed. Seven results forced, of which three narrow the invariant's own
+> domain: amounts that merely remain owed have no disposition, not-knowing is not one, and
+> **`overdue` cannot receive one at all** — it is a schedule-relative position, not money, so
+> capitalizing arrears is a category error rather than a modelling choice. One new doctrine
+> question surfaced and is Rob's: **does a disposition describe what happened to the
+> obligation, or on the creditor's books?** They separate on a bad-debt write-off. Case 8
+> (transfer to an agency) is recorded as **not expressible** — the fence firing on contact.
+
 ### The five-question reconstruction test
 
 Both 8.1 invariants — historical schedule authority and economic transfer — are model-independent,
