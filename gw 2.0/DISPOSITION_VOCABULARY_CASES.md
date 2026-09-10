@@ -308,11 +308,116 @@ by convenience.
 
 ---
 
+---
+
+## The semantic-definition blocker
+
+*(Rob, 2026-09-10, answering finding 4 by refusing to answer it prematurely — which is the
+answer.)*
+
+> **Do not introduce an enum for disposition until its semantic scope is resolved.**
+
+The design must distinguish:
+
+| | |
+|---|---|
+| **Obligation disposition** | what happened to the underlying obligation, claim, amount owed, or right to collect |
+| **Creditor accounting treatment** | what happened on the creditor's books as a result |
+
+**These must not be assumed synonymous.** One event may produce both an obligation-level
+consequence and a creditor-side accounting entry, but they are **separate semantic facts** unless
+the model explicitly establishes otherwise.
+
+### The bad-debt write-off is the boundary test
+
+> The fact that a creditor records an amount as bad debt, or writes it off on its books, **must
+> not by itself establish** that the underlying obligation has been extinguished, settled, waived,
+> reversed or otherwise disposed of. Conversely, an obligation may have a disposition without that
+> disposition being equivalent to any particular accounting treatment.
+
+It earns the name because it is the exact place where *what happened to the debt* and *what
+happened in the books* diverge, so a model that quietly picks one is forced to show it there.
+
+### The question, and what is forbidden until it has an answer
+
+> **Does "disposition" name the outcome of the obligation, the creditor's accounting treatment, or
+> a deliberately defined abstraction over both?**
+
+Until resolved: no enum; no encoding of accounting treatments as obligation dispositions; no
+encoding of obligation outcomes as accounting events; and **no special cases for individual
+write-off scenarios**.
+
+Findings that hold under either reading stay valid and are not invalidated by the vocabulary being
+unresolved. **Where a finding depends on the distinction, the dependency is marked rather than
+resolved by choosing.**
+
+---
+
+## The seven findings, re-marked against the distinction
+
+Checked rather than asserted. My earlier summary said *five of seven hold regardless*; that was
+close and imprecise. **Four hold cleanly, one holds as a rule while its extension moves, one
+depends squarely, and one has been promoted into the blocker itself.**
+
+| | Finding | |
+|---|---|---|
+| 1 | domain is narrower than "every amount" | **rule survives, extension moves** |
+| 2 | not-knowing is not a disposition | **survives** |
+| 3 | agreement-relative quantities cannot be dispositioned | **survives** |
+| 4 | a disposition must say whose treatment changed | **promoted — this is now the blocker** |
+| 5 | never-liable is not a disposition | **DEPENDS** |
+| 6 | container states are derived, not values | **survives** |
+| 7 | relocation needs a destination; the check needs origination | **survives** |
+
+### Finding 1 — the rule holds; which amounts it covers does not
+
+The prohibition stands either way: a `NO_CHANGE` value would make §5 unfalsifiable, so amounts
+outside the invariant's domain must simply have no disposition rather than a null one.
+
+**What moves is the boundary of that domain.** Under the obligation reading, case 1c's $650 that
+merely remains owed is unchanged and outside. Under the accounting reading it may not be — a
+creditor can re-age a receivable or move it into an allowance for doubtful accounts without
+anything happening to the obligation at all. So the same dollar is *outside* the domain on one
+reading and *inside* it on the other, while the rule that governs both is identical.
+
+### Finding 5 — this one depends squarely, and it is the boundary test a second time
+
+Case 1a and case 4c: the contractual adjustment, where the provider charges $1,200 and the
+network-allowed amount is $550.
+
+- **Obligation reading:** nothing happened to the $650. The patient was never liable for it; the
+  obligation was $550 from the start, and there is no disposition because there was no amount.
+- **Accounting reading:** a great deal happened to it. A contractual allowance is a real entry —
+  a reduction of gross charges on the provider's books, recorded as such.
+
+**Same dollar, disposition or not, decided entirely by which question "disposition" is asking.**
+That is Rob's boundary test arriving in a case the set already contained, one written before the
+question was posed — which is some evidence the case set is pointed at the right place.
+
+The user-facing consequence is unchanged and worth restating, because it is what makes the
+distinction matter rather than merely exist: *it was never your bill* and *the provider reduced
+its recognised revenue* are different sentences, and only the first is about the person.
+
+### Findings 2, 3, 6, 7 — independent of the distinction
+
+- **2** — not-knowing is a statement about knowledge on any reading.
+- **3** — `overdue` is a position against a schedule rather than a sum of money, so it is not
+  dispositionable by an obligation model *or* an accounting one; a ledger ages the amount, not the
+  position.
+- **6** — *partially settled* is derived from the dispositions beneath it regardless of what those
+  dispositions describe. The level-mixing objection is about containers and contents, not sides.
+- **7** — reconstructability holds either way. What differs is only the **range** of destinations:
+  a new principal under one reading, a ledger account under the other. The requirement that a
+  relocating amount name where it went, and that origination be recorded so the sum can balance,
+  is untouched.
+
+
 ## What has not been done
 
 No enum. No schema. No field names. No M1/M2 advocacy — case 8 is recorded as inexpressible
 rather than resolved. `core/payment_plan.py` still has zero consumers.
 
-The next legitimate step is **Rob's answer to finding 4**, since it is doctrine of the same kind
-as the carrier question — *whose economic treatment does a disposition describe?* — and five of
-the seven findings above are stable regardless of how it lands.
+Finding 4 has since been answered — **not by choosing a side, but by making the separation itself
+the requirement**, with the bad-debt write-off as its boundary test. See the blocker above. The
+enum stays unwritten, and the findings are now individually marked for whether they depend on the
+distinction rather than collectively assumed to survive it.

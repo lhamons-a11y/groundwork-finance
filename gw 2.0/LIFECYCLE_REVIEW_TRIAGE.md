@@ -256,6 +256,15 @@ This is a semantics exercise, not a schema one, and it names no carrier.
 > question surfaced and is Rob's: **does a disposition describe what happened to the
 > obligation, or on the creditor's books?** They separate on a bad-debt write-off. Case 8
 > (transfer to an agency) is recorded as **not expressible** — the fence firing on contact.
+>
+> **Blocker stated 2026-09-10 (Rob's), answering that question by refusing to settle it early.**
+> *Obligation disposition* and *creditor accounting treatment* are separate semantic facts unless
+> the model deliberately abstracts over both, and **the bad-debt write-off is the boundary test** —
+> a creditor writing an amount off its books does not by itself establish that the obligation was
+> extinguished, settled, waived or reversed. No enum until the scope question has an answer. The
+> seven findings are now **individually marked**: four hold cleanly, finding 1's rule survives
+> while the set it covers moves, finding 5 depends squarely — a contractual adjustment is nothing
+> on the obligation and a real entry on the books — and finding 4 is the blocker itself.
 
 ### The five-question reconstruction test
 
