@@ -128,9 +128,17 @@ the consumer boundary.
 
 **And a second-order finding falls out of #1.** `knowing[-1]` is described as *the latest*, but it
 is the **last element of a list**, not the latest by `recorded_at`. Supersession is positional
-where the record is temporal. Whenever evidence is accumulated in any order but arrival —
-re-imported, merged, backfilled with a past `effective_on` — the two readings diverge, and §10's
-whole discovered-transition requirement is built on evidence arriving late.
+where the record is temporal.
+
+> **Refined after writing the fixture, because the first statement of this was too strong.**
+> `record_evidence` stamps `recorded_at` itself and always appends in call order, so through the
+> **only public mutator, position and time coincide** and the defect cannot be reached. It is
+> **latent, not live** — reachable only by assembling an evidence tuple directly, which is what a
+> merge, a re-import, or a backfill does.
+>
+> **It will not stay latent.** §10 of `OBLIGATION_LIFECYCLE_QUESTION.md` makes late-arriving
+> evidence mandatory — `effective_on` in the past, `recorded_at` now — and that is precisely the
+> shape in which the two orderings disagree.
 
 This is `USER_KNOWLEDGE_CASES.md` U7 and gap 2's unstated invariant, landing on one attribute
 access.
@@ -276,6 +284,61 @@ FAILS      bill $4,000 · user $3,500 · statement $3,700 · payments imply $3,1
 
 **The first shape is enforced. The second has no representation at all**, and it is the shape a real
 household actually produces.
+
+---
+
+## Both tests are written, and both fail
+
+*(2026-09-10. The two findings the review marked as tests rather than mechanisms.)*
+
+**`tests/test_consumer_boundary_fixture.py` — 7 passed, 3 failed.** Three levels: the declared
+refusals still fire (regression guard, all pass); no function in the module hands out a raw value;
+no application file reads `.value` off a derived fact (passes today, exists to fail when the first
+consumer arrives).
+
+> **The middle level is not hypothetical, and it is worse than finding 9 described.** An AST scan
+> for a read of `<param>.value` outside `consume` returns two offenders:
+>
+> ```text
+> core/classification.py:430   narrator_facts()
+> core/classification.py:435   export_row()
+> ```
+>
+> **`narrator` and `export` are two of the four declared consumers in `CONSUMER_STRENGTH`** — and
+> the module's own helpers for exactly those two consumers read the value directly. The strength
+> each of them declares is never consulted on the path each of them uses. Verified behaviourally
+> as well as structurally: `narrator_facts` emits the number for a `single_weak_signal` fact that
+> `consume(fact, 'narrator')` refuses, and `export_row` emits it for a `contradicted` fact that
+> `consume(fact, 'export')` refuses. `backup_row` delegates to `export_row` and inherits it.
+>
+> So finding 9 understated the case. `consume()` is not merely *the only way in by convention* —
+> **the convention is already broken, inside the module, for half the consumer table.**
+
+**`tests/test_evidence_tie_fixture.py` — 4 passed, 4 failed.** The controls hold: a user statement
+establishes content, a non-knowing signal may not overturn a knowing one, and the same knowing
+source may correct itself. Then:
+
+```text
+user says health, then EOB says not   ->  contradicted
+EOB says not, then user says health   ->  user_asserted
+```
+
+Three assertions fail on that pair — order independence, *neither source wins by being recorded
+second*, and the sharpest one: **in the second order the disagreement leaves no trace at all.**
+`eob_then_user` is byte-identical to a user statement nothing ever contradicted. A conflict that
+reads as though it never happened is worse than an unresolved one.
+
+The fourth failure is the temporal half, asserted directly against `_state_from` because
+`record_evidence` cannot produce the ordering: with `recorded_at` disagreeing with list position,
+the *older* statement wins.
+
+**Neither fixture is wired into `smoke_test.py`.** It discovers `smoke_sections/` only, so the
+suite is unaffected — **824 passed, 0 failed**, verified after adding both. Wiring them in would
+turn the gate red, correctly, and that is a decision rather than a consequence.
+
+**No mechanism was written for either.** No tie state, no accessor guard, no change to
+`narrator_facts` or `export_row` — what those should do when the evidence is refused is a design
+question, and the standing rule is not to answer it in the same pass that found the defect.
 
 ---
 
