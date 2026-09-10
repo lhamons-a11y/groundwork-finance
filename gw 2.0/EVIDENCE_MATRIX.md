@@ -420,18 +420,109 @@ requirement, not promoted to a current bug.**
 
 ## What must be answered before either fix
 
-**Not implemented, deliberately.** Two design questions, and the fixtures become mutation tests
-rather than discovery instruments once they have answers:
+Two design questions stood between the fixtures and a fix. **One is now settled; the other is
+genuinely open and is not to be inferred from the first.**
 
-1. **Consumer refusal.** When narration or export may not use a fact, what does the consumer
-   receive instead — omission, an explicit unavailable state, a redacted representation, or
-   something else defined?
-2. **Resolved conflict.** When conflicting evidence is later resolved, what historical fact must
-   remain observable?
+### Q1 — CLOSED: refusal propagation semantics
+
+*(Rob, 2026-09-10.)*
+
+> **The refusal is the consumer-facing value, in place of the refused value.** It must preserve
+> `offered`, `reason`, `required` and `consumer`. **Presentation of those fields is a separate
+> downstream decision.**
+
+```text
+fact
+ ↓
+consume(fact, consumer)
+ ↓
+ ┌───────────────┐
+ │ permitted     │ → value
+ │ refused       │ → refusal(fact, consumer)
+ └───────────────┘
+                         ↓
+                  the consumer receives
+                  the refusal itself
+```
+
+**And no consumer may bypass that boundary by reading `.value` directly.**
+
+This closes the live defect **without inventing another state** — `refusal()` already returns
+exactly that structure, and `consume()` already computes the decision. Nothing new is added to the
+lattice.
+
+**The three alternatives, and why each is refused:**
+
+| | |
+|---|---|
+| **omission** | **prohibited** — absence alters downstream interpretation. A dropped row changes a total silently and a blank cell *is* a zero to a spreadsheet. This is `absence is not zero` exactly: blank income months once read as a $7,053 shortfall that was a surplus |
+| **bare `UNAVAILABLE`** | technically safe, and it loses the distinction between *not evaluated*, *contradicted* and *insufficient evidence* that the lattice deliberately preserves — the gap-12 pattern a second time, where a distinction survives the typed layer and dies at rendering |
+| **exception** | wrong failure mode for an export or narration boundary. An export that crashes on one contradicted row is worse than one that marks it |
+
+**Why `offered` is the field that carries the weight.** Gap 4 built `_prefer_contradicted`
+specifically so that *we looked and found against it* could never be reported as *we never looked*.
+These are three different sentences to a person, and collapsing them at the boundary would undo
+that at the last inch:
+
+```text
+not_evaluated        we have no evidence about this
+contradicted         we have evidence against it
+single_weak_signal   the evidence is real but too thin
+```
+
+**What each consumer then holds.** Export keeps the row present with a non-numeric refusal in the
+value slot, so no total can absorb it and a downstream reader either handles it or breaks visibly.
+The narrator receives something it structurally cannot render as a figure, and
+`HEALTHCARE_FAILURE_SEMANTICS.md` already governs what happens next — *say* is templated and **may
+name the gap without explaining it**, and the narrator may always say less than the return value
+supports and never more.
+
+**Still downstream and deliberately unanswered:** whether a refusal is visible to the user, and
+with how much of its reason. Showing `offered` means telling someone *we have evidence against
+this*, which is a teaching decision rather than a model one.
+
+### Q2 — OPEN: resolved-conflict persistence semantics
+
+**Not** *should contradictions be remembered* — that is settled: they may not silently disappear.
+The open question is narrower:
+
+> **After conflicting evidence is resolved, what historical representation survives, and what
+> claims may subsequently use it?**
+
+At least two materially different contracts satisfy the requirement:
+
+```text
+A   current fact = health
+    history      = EOB contradicted user, later resolved
+
+B   current fact = health
+    provenance   = the supporting evidence for the present conclusion only
+```
+
+**A preserves the event of the disagreement. B preserves only the chain behind the current
+conclusion.** Those are different capabilities, not different phrasings, and the evidence-tie
+fixture has found the defect without telling us which contract is correct.
+
+**No mechanism until it does.** In particular, *every conflict becomes `CONTRADICTED` forever* is
+one possible reading of A and is not derived from anything.
 
 **And the gate stays green until then.** A red gate is useful once the desired behaviour is
 defined; right now the fixtures are working correctly as discovery instruments, and a red gate
 that nobody can act on is a gate people learn to ignore.
+
+### The mutation this fixture must permanently carry
+
+*(Rob, 2026-09-10 — and it is the difference between a fixture that passed once and a guard.)*
+
+Once Q1 is implemented, **mutate `narrator_facts()` and `export_row()` back to direct `.value`
+access and confirm the fixture fails.** The assertion being protected is not *refusal works*; it
+is:
+
+> **the consumer cannot obtain a refused value through any other path.**
+
+Gap 6's lesson at the mutation level: a coherence assertion that can only examine states produced
+by the thing it validates is not validating anything. A boundary test that only ever sees the
+compliant implementation cannot tell a working boundary from a stub.
 
 ### The end-to-end test to add after the design lands
 
