@@ -217,6 +217,47 @@ Two things follow that are not mechanism, and are Rob's:
    classifications; nothing answers it for a formatted sentence, a route path, or an exception
    message — which is exactly what F2, F3 and F4 are made of.
 
+---
+
+## 7. Decision — the feedback path is not carried into 2.0
+
+*(Rob, 2026-09-10.)* **2.0's beta is closed rather than public, and the in-app bug-report
+feature is left out of 2.0 entirely.** The reasoning is that 2.0 is not a program written from
+scratch the way 1.0 was — 1.0's major defects were worked through before and after launch — so a
+self-service reporting channel is not buying what it bought then.
+
+**What this buys against the invariant, which is more than it looks.** F5 is the finding that a
+`mailto:` payload leaves the process for a client Groundwork cannot observe, making question 7 —
+maximum plausible scope — undeterminable by any instrumentation on our side. **That path is not
+enforced, constrained or instrumented. It is removed.** The one crossing whose blast radius could
+not be bounded stops existing, which is the outcome the enforcement discussion was trying to
+approximate and could not have reached: a boundary made simpler by subtraction rather than by
+mechanism.
+
+**What it does not buy, and the distinction matters more than the win.**
+
+```text
+the feature is absent from the code   →  structural
+the beta audience is closed           →  policy
+```
+
+Only the first is a guarantee of the kind this invariant asks for. A closed audience constrains
+*who* could trigger a crossing; it does nothing about deny-by-default, silent inheritance, or
+failing closed. **A later session must not read "the beta was closed" as the safeguard** — the
+safeguard is that the path is not built.
+
+**And it closes only the egress.** F3 and F4 are replicas, not crossings: `voice_miss_log.jsonl`
+still stores the narrator's generated sentence verbatim, and the application log still records
+tracebacks with route paths. Removing the report removes the route by which those left the
+machine; it leaves both files sitting outside the sensitivity layer, and leaves export, backup and
+`/api/debug/log-tail` exactly where they were. **Five of the six release-blocking conditions in §5
+still hold.**
+
+**1.x is unaffected by this decision.** The shipped app keeps its report, now print-only
+(`a7fc27e`), which is the right answer for a program with a public user base.
+
+---
+
 **One thing is separable and does not wait on either:** F2 is a present defect in shipped code,
 small, and fixable on the release line without touching the healthcare design. Fixing it makes the
 preview show the payload — it does not make the boundary exist, and must not be mistaken for
