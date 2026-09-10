@@ -190,10 +190,18 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
 /* Print styles */
 @media print {
-  body > *:not(#reportModal):not(#view-reports){display:none!important}
+  body > *:not(#reportModal):not(#view-reports):not(#gwFeedbackModal){display:none!important}
   #reportModal{position:static!important;background:#fff!important;overflow:visible!important}
   #reportToolbar,#reportModal > div:nth-child(2){display:none!important}
   #reportContent{padding:0!important;max-width:100%!important}
+  /* Bug report print - the preview is the printed artefact, exactly. Nothing is
+     added on the way to the page, which is the point of the print-only design. */
+  #gwFeedbackModal{position:static!important;background:#fff!important;overflow:visible!important;display:block!important}
+  #gwFeedbackModal .modal{max-width:100%!important;background:#fff!important;box-shadow:none!important;border:0!important}
+  #gwFeedbackModal .modal-close,#gwFeedbackModal .field,#gwFeedbackModal .btn,#gwFeedbackModal #gwFeedbackNote{display:none!important}
+  #gwFeedbackModal .modal-body > div{background:#fff!important;border:0!important;padding:0!important}
+  #gwFeedbackModal .modal-title{color:#000!important}
+  #gwFeedbackPreview{max-height:none!important;overflow:visible!important;color:#000!important;background:#fff!important}
   /* Report Center print */
   #view-reports{display:block!important;background:#fff!important}
   #reportCenterContent .card{border:1px solid #ddd!important;background:#fff!important;break-inside:avoid}

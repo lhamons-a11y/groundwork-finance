@@ -1267,7 +1267,20 @@ function _startHeartbeat() {
 }
 
 // ─── Beta feedback system ─────────────────────────────────────────────────────
-const GW_FEEDBACK_EMAIL = 'support@groundworkfinance.app';
+// Print-only by design. Groundwork does not compose, send, email or copy this
+// report: it renders exactly what the preview shows and hands that to the print
+// dialog. If the user prints to PDF and mails it, that is their own act on their
+// own data, and not a crossing Groundwork initiated.
+//
+// The previous version opened a mailto: with the server log appended *after* the
+// preview had rendered, so the panel labelled "Report preview" did not show the
+// report that left. See gw 2.0/HEALTH_TRUST_BOUNDARY.md, findings F2 and F5.
+
+// Three states, deliberately. `null` = not yet determined, 'unavailable' = we
+// tried and could not read it, [] = we read it and there was nothing. Collapsing
+// the last two would report "we never looked" as "there is nothing" - gap 4's
+// contradicted/not_evaluated tie, arriving in a different place.
+let _gwFeedbackServerLog = null;
 
 function _gwGetOSInfo() {
   if (window._gwServerPlatform) return window._gwServerPlatform;
@@ -1286,13 +1299,28 @@ function _gwBuildReport(userDescription) {
   const errorLines = (_gwErrorLog || []).length
     ? (_gwErrorLog||[]).map(e => '['+e.ts.slice(11,19)+'] '+e.src+':'+e.line+' — '+e.msg+(e.stack?'\n  '+e.stack:'')).join('\n')
     : '(no errors in log)';
+  const serverLines =
+      _gwFeedbackServerLog === null          ? '(not yet read)'
+    : _gwFeedbackServerLog === 'unavailable' ? '(server log could not be read - not included)'
+    : _gwFeedbackServerLog.length            ? _gwFeedbackServerLog.join('\n')
+    :                                          '(no recent server warnings or errors)';
   return [
     'GROUNDWORK BUG REPORT', SEP,
     'Version : ' + version, 'OS      : ' + os, 'Date    : ' + now, '',
     'What happened:', userDescription ? userDescription.trim() : '(no description)',
-    '', 'Error log:', errorLines, '', SEP,
-    'Please send this to ' + GW_FEEDBACK_EMAIL + ' — thank you for testing Groundwork!',
+    '', 'Browser error log:', errorLines,
+    '', 'Server log (recent warnings and errors):', serverLines,
+    '', SEP,
   ].join('\n');
+}
+
+// One builder, one preview, one printed artefact. Everything that will appear on
+// the page appears here first — that equality is the whole point of the redesign.
+function _gwRefreshFeedbackPreview() {
+  const preview = document.getElementById('gwFeedbackPreview');
+  if (!preview) return;
+  preview.textContent = _gwBuildReport(
+    document.getElementById('gwFeedbackDesc')?.value || '');
 }
 
 function openFeedbackModal() {
@@ -1317,54 +1345,45 @@ function openFeedbackModal() {
           <div style="font-size:11px;font-weight:600;color:var(--slate);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Report preview</div>
           <pre id="gwFeedbackPreview" style="font-size:11px;font-family:var(--font-mono);color:var(--slate);white-space:pre-wrap;word-break:break-word;margin:0;max-height:140px;overflow-y:auto"></pre>
         </div>
-        <div style="font-size:11px;color:var(--slate-2);margin-bottom:16px">No account numbers or transaction details are included.</div>
+        <div id="gwFeedbackNote" style="font-size:11px;color:var(--slate-2);margin-bottom:16px">Groundwork sends nothing. This preview is the complete report, and printing is the only action offered — what you do with the printout is yours.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="_gwSendFeedbackEmail()" style="flex:1;min-width:140px">✉ Open in mail app</button>
-          <button class="btn btn-secondary" onclick="_gwCopyFeedback()" style="flex:1;min-width:100px">Copy report</button>
-          <button class="btn btn-ghost" onclick="document.getElementById('gwFeedbackModal').remove()">Cancel</button>
+          <button id="gwFeedbackPrintBtn" class="btn btn-primary" onclick="_gwPrintFeedback()" disabled style="flex:1;min-width:140px;opacity:.5">Preparing report...</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('gwFeedbackModal').remove()">Close</button>
         </div>
-        <div id="gwFeedbackCopied" style="display:none;font-size:12px;color:var(--pine);margin-top:10px;text-align:center"></div>
       </div>
     </div>`;
   document.body.appendChild(modal);
-  const desc    = document.getElementById('gwFeedbackDesc');
-  const preview = document.getElementById('gwFeedbackPreview');
-  const update  = () => { preview.textContent = _gwBuildReport(desc?.value||''); };
-  desc?.addEventListener('input', update);
-  update();
+  const desc = document.getElementById('gwFeedbackDesc');
+  desc?.addEventListener('input', _gwRefreshFeedbackPreview);
+
+  // Fetched into the preview, never appended afterwards.
+  _gwFeedbackServerLog = null;
+  _gwRefreshFeedbackPreview();
+  Promise.resolve(API.get('/api/debug/log-tail'))
+    .then(t => { _gwFeedbackServerLog = (t?.log || [])
+                   .filter(l => / (WARNING|ERROR|CRITICAL) /.test(l)).slice(-8); })
+    .catch(e => { _gwFeedbackServerLog = 'unavailable';
+                  _gwErr('openFeedbackModal logTail')(e); })
+    .then(() => { _gwRefreshFeedbackPreview(); _gwSetPrintEnabled(true); });
+
   setTimeout(() => desc?.focus(), 50);
 }
 
-async function _gwSendFeedbackEmail() {
-  const desc    = document.getElementById('gwFeedbackDesc')?.value || '';
-  let   report  = _gwBuildReport(desc);
-  // Append recent server-side errors/warnings — mailto bodies are tight, so
-  // only WARNING+ lines make the cut.
-  try {
-    const tail = await API.get('/api/debug/log-tail');
-    const errs = (tail?.log || []).filter(l => / (WARNING|ERROR|CRITICAL) /.test(l)).slice(-8);
-    if (errs.length) report += '\n' + '─'.repeat(40) + '\nSERVER LOG (recent errors):\n' + errs.join('\n');
-  } catch (e) { _gwErr('_gwSendFeedbackEmail logTail')(e); }
-  const version = typeof GW_VERSION !== 'undefined' ? GW_VERSION : 'unknown';
-  const subject = encodeURIComponent('Groundwork Beta Report — ' + version + ' — ' + _gwGetOSInfo());
-  const body    = encodeURIComponent(report.length > 1800 ? report.slice(0,1800)+'\n\n[truncated]' : report);
-  window.location.href = 'mailto:' + GW_FEEDBACK_EMAIL + '?subject=' + subject + '&body=' + body;
-  setTimeout(() => {
-    const c = document.getElementById('gwFeedbackCopied');
-    if (c) { c.style.display='block'; c.textContent='If mail didn\'t open, use Copy report instead.'; }
-  }, 1500);
+// Deny by default, fail closed: the action that puts the report on a page is
+// refused while any part of it is still undetermined, rather than printing a
+// page with a hole in it and letting the reader decide what the hole meant.
+function _gwSetPrintEnabled(on) {
+  const b = document.getElementById('gwFeedbackPrintBtn');
+  if (!b) return;
+  b.disabled      = !on;
+  b.style.opacity = on ? '' : '.5';
+  b.textContent   = on ? 'Print report' : 'Preparing report...';
 }
 
-function _gwCopyFeedback() {
-  const desc   = document.getElementById('gwFeedbackDesc')?.value || '';
-  const report = _gwBuildReport(desc);
-  navigator.clipboard?.writeText(report).then(() => {
-    const c = document.getElementById('gwFeedbackCopied');
-    if (c) { c.style.display='block'; c.textContent='✓ Copied — paste into an email to ' + GW_FEEDBACK_EMAIL; }
-  }).catch(() => {
-    const pre = document.getElementById('gwFeedbackPreview');
-    if (pre) { const r=document.createRange(); r.selectNode(pre); window.getSelection()?.removeAllRanges(); window.getSelection()?.addRange(r); }
-  });
+function _gwPrintFeedback() {
+  if (_gwFeedbackServerLog === null) return;   // content not yet determined
+  _gwRefreshFeedbackPreview();
+  window.print();
 }
 async function bootFromDB() {
   /**
