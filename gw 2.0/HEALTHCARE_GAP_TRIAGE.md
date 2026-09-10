@@ -450,6 +450,31 @@ rather than on each new surface remembering.
 > value health-sensitive** — origin, classification domain, or available inference. The second is
 > unanswered for exactly the artefacts the findings are made of: a formatted sentence, a route
 > path, an exception message.
+>
+> **BOTH ANSWERED 2026-09-10 (Rob's), §8 — semantic, not structural.** Sensitivity may never be
+> read off a field name, storage location, source system, transport or representation. Three
+> independent limbs — origin, classification domain, **available inference** — and
+> **transformation does not declassify**: no pipeline may launder health information into an
+> apparently ordinary representation by changing its format or location. Where classification
+> cannot be established with confidence, the artefact **stays** health-sensitive; uncertainty may
+> not resolve to safe. The browser question was **malformed rather than open**: location is not
+> evidence of safety, and *where may this go* / *what does this reveal* / *is this operation
+> authorized* are three separate axes.
+>
+> **The finding that came out of applying it (§9): the doctrine is already in the code, and its
+> scope is the gap.** `DerivedFact` carries the sensitivity of what produced it, for the stated
+> reason that *"'spending increased 20%' contains no medical word and is still health
+> information"* — the doctrine's own argument, written before it. **Declassification happens at
+> rendering**: the moment a figure becomes a sentence, a route path or an exception message it
+> leaves the typed lattice and nothing carries the domain with it. F3 is that path in production
+> today.
+>
+> All three artefacts are classified **health-sensitive**, two of them because the blocker's
+> question cannot be answered rather than because the answer is bad. And F3 forces a structural
+> consequence rather than a policy one: the narration reaches the server as a bare string, so
+> *is this value health-sensitive* **cannot be evaluated at the boundary** — meaning **either
+> narration carries its sensitivity from the point the figure becomes a sentence, or the miss-log
+> cannot exist in 2.0.**
 
 
 ---

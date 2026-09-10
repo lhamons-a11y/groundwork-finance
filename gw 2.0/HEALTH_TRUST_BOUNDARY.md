@@ -206,16 +206,13 @@ taxonomy of sensitive fields. §5 of `HEALTHCARE_FAILURE_SEMANTICS.md` forbids r
 mechanism at the moment a design admits that violations are possible, and the same trap is
 available here in a more attractive form, because a plausible mechanism is easy to picture.
 
-Two things follow that are not mechanism, and are Rob's:
+Two things followed that were not mechanism, and were Rob's. **Both are now answered — §8.**
 
-1. **Where is the boundary?** The measurement above assumes it sits at the process edge — network,
-   filesystem, clipboard, `mailto:`. Whether the **local browser** is inside or outside it is
-   undecided and consequential: `/api/debug/log-tail` is a crossing under one reading and not
-   under the other.
-2. **What makes a value health-sensitive?** The origin of the record, the domain of the
-   classification, or the inference available from it. `core/classification.py` answers this for
-   classifications; nothing answers it for a formatted sentence, a route path, or an exception
-   message — which is exactly what F2, F3 and F4 are made of.
+1. ~~**Where is the boundary?**~~ The browser question was malformed. Location is not evidence of
+   safety, and *where may this go* is a different axis from *what does this reveal*.
+2. ~~**What makes a value health-sensitive?**~~ Three independent limbs, of which **available
+   inference** is the one that reaches a formatted sentence, a route path and an exception message
+   — which is exactly what F2, F3 and F4 are made of.
 
 ---
 
@@ -258,7 +255,165 @@ still hold.**
 
 ---
 
-**One thing is separable and does not wait on either:** F2 is a present defect in shipped code,
-small, and fixable on the release line without touching the healthcare design. Fixing it makes the
-preview show the payload — it does not make the boundary exist, and must not be mistaken for
-having done so.
+**One thing was separable and did not wait on either:** F2 was a present defect in shipped code,
+and was fixed in `a7fc27e` — the bug report is print-only, and its preview is now the artefact that
+prints. **That did not make the boundary exist**, and §9 records that F2 remains classified
+health-sensitive regardless, because what it prints is still unbounded free text.
+
+---
+
+## 8. Classification doctrine — semantic, not structural
+
+*(Rob, 2026-09-10. Answers both questions §6 left open, and the second answer dissolves the first
+rather than choosing a side.)*
+
+> **The system MUST NOT determine whether a value is health-sensitive solely from its field name,
+> storage location, source system, transport mechanism, or current representation.**
+
+**Three independent limbs.** A value is health-sensitive when *any* of these applies on its own:
+
+| | Limb | |
+|---|---|---|
+| 1 | **Origin** | it came from a source designated as containing health-sensitive information |
+| 2 | **Classification domain** | it is explicitly classified as health-domain, wherever it came from |
+| 3 | **Available inference** | it, alone or reasonably combined with information available in the permitted processing context, can be used to derive or infer health-sensitive information about an identifiable or reasonably identifiable person |
+
+**Transformation does not declassify.** Sensitivity persists through normalization, aggregation,
+summarization, encoding, tokenization, classification, filtering, calculation, copying, derivation,
+change of representation, or incorporation into another artefact. Classification follows the
+semantic information an artefact contains or makes reasonably inferable — never its physical
+representation.
+
+**The classification blocker.** For each derived artefact the implementation must answer: *what
+health-sensitive information, if any, can a recipient reasonably learn from this artefact using
+information available to that recipient?* **If that cannot be answered with sufficient confidence,
+the artefact remains classified health-sensitive.** Uncertainty may not be resolved by assuming
+non-sensitivity.
+
+**The local browser.** Being inside the local trust boundary does not make data non-sensitive, and
+the browser's location may not be used as evidence that a value is safe to cross. Three separate
+concepts, and conflating any two is the failure:
+
+```text
+trust boundary     ->  where may this value go?
+classification     ->  what does it reveal, or permit someone to infer?
+authorization      ->  is this operation allowed to move or process it?
+```
+
+**The crossing rule.**
+
+```text
+health-sensitive = true  AND  authorized = false   ->  BLOCK
+classification   = unknown                          ->  FAIL CLOSED
+```
+
+**No escape hatch.** No per-artefact exception. The rule applies uniformly to current and future
+derived artefacts, and **a transformation pipeline must not be capable of laundering
+health-sensitive information into an apparently non-sensitive representation by changing its format
+or location.**
+
+### What the repository already implements, and where it stops
+
+This is not new reasoning to the codebase — it is already written, with the same justification, in
+`core/classification.py`:
+
+> `DerivedFact` — *"Carries the sensitivity of what produced it, because 'spending increased 20%'
+> contains no medical word and is still health information — and a `if health_context: refuse`
+> check is useless by the time the sentence exists."*
+
+And `sensitivity()` attaches the health domain **even to evidence against a health claim**, because
+a stored row saying *evaluated and not supported* still discloses that the transaction was
+health-suspicious enough to evaluate. That is limb 3 already in force, and the comment beside it
+states the structural requirement the doctrine now generalises: *the health context is gone by the
+time the figure exists, so it has to have been attached upstream rather than re-derived*.
+
+**So the doctrine is not absent from the code — its scope is.** `core/classification.py` carries
+sensitivity through the typed lattice, from classification to `DerivedFact`. **Declassification
+happens at rendering**: the moment a figure becomes a sentence, a route path or an exception
+message, it leaves the lattice and nothing carries the domain with it. That is precisely the
+laundering path the no-escape-hatch clause forbids, and F3 below is it, in production, today.
+
+---
+
+## 9. F2–F4 under the classification blocker
+
+### First, a correction to the chain
+
+The doctrine's illustration reads `source -> F2 -> F3 -> F4`, a pipeline in which each artefact
+derives from the one before. **F2, F3 and F4 are finding numbers in §4, not pipeline stages**, and
+their actual relationship runs the other way in the one place they connect:
+
+```text
+model narration      ────────►  voice_miss_log.jsonl      (F3)   independent
+unhandled exception  ────────►  application log           (F4)
+                                        │
+                                        └──►  bug report  (F2)   1.x only
+```
+
+The rule applies unchanged. The direction matters only for **where the determination has to be
+made**: F2 inherits whatever F4 could not exclude, so F4's classification is upstream of F2's and
+cannot be settled after it.
+
+### F2 — the bug report *(1.x only; not carried into 2.0 per §7)*
+
+| | |
+|---|---|
+| **Represents** | a diagnostic snapshot: version, OS, timestamp, the user's own description, browser error entries, and the last eight server `WARNING`+ lines |
+| **Originating domain** | mixed — version/OS/date carry none; the description is the user's own; the error material originates wherever the failure occurred |
+| **Transformations** | rendered to text, truncated, concatenated, printed |
+| **Directly observable** | exception messages, stack frames with `file:line`, HTTP method and route path, timestamps |
+| **Reasonably inferable** | that the user has healthcare records at all, and when they were touched, from route paths; any value an exception message happens to interpolate |
+| **Context required** | knowledge of the route table for the first; none for the second |
+| **Who could infer** | whoever the user hands the printout to |
+| **Remains health-sensitive** | **YES — undetermined, therefore sensitive.** Exception messages are unbounded free text, so the blocker's question cannot be answered with sufficient confidence |
+
+The user's own typed description is excluded from this, per §6's line: a person deliberately
+describing their own situation is exercising their own authority, not suffering a crossing.
+
+### F3 — `voice_miss_log.jsonl`
+
+| | |
+|---|---|
+| **Represents** | rejected model narration, **verbatim**, with surface, model name, failed gate rules and timestamp |
+| **Originating domain** | the narration is generated from findings that, in the healthcare module, derive from health-domain classifications |
+| **Transformations** | rendered to a sentence by a model, truncated at 2000 chars in the browser (`_logVoiceMiss`), POSTed to `/api/ai/voice-miss`, JSON-encoded, appended to disk, read back by `get_llm_miss_log`, served at `/api/ai/miss-log` twenty most recent |
+| **Directly observable** | the sentence itself |
+| **Reasonably inferable** | nothing needs to be inferred — the health information is **readable**. This is `DerivedFact`'s own example arriving literally |
+| **Context required** | none |
+| **Who could infer** | anyone with read access to `DATA_DIR`; anything that can reach the local endpoint |
+| **Remains health-sensitive** | **YES, and it is the clearest of the three** |
+
+**And it produces a structural consequence rather than a policy one.** The text arrives at the
+server as a plain string from the browser, with no sensitivity object attached, so the crossing
+rule's first test — *is this value health-sensitive?* — **cannot be evaluated at the boundary**.
+`sensitivity()`'s own comment already says why: it has to have been attached upstream. So under this
+doctrine there are exactly two outcomes, and neither is a mechanism to be designed later:
+
+> **Either narration carries its sensitivity with it from the point the figure becomes a sentence,
+> or the miss-log cannot exist in 2.0.**
+
+Worth noting that a choke point already exists on the client side — `callAI()` is documented as
+*THE single choke point every narrative AI surface calls through* — so the place to attach it is
+identified, though attaching it is not this document's business.
+
+### F4 — the application log
+
+| | |
+|---|---|
+| **Represents** | unhandled exception tracebacks with HTTP method and route path, plus anything logged at INFO or above |
+| **Originating domain** | application-internal; route paths reflect the module in use |
+| **Transformations** | formatted by `logging`, written to a persistent file, exposed as a 60-line tail at `/api/debug/log-tail` |
+| **Directly observable** | method, path, exception type and message, stack frames |
+| **Reasonably inferable** | the existence and timing of healthcare activity, from route paths alone; interpolated values from exception messages |
+| **Context required** | knowledge of the route table |
+| **Who could infer** | local filesystem readers; any caller of the tail endpoint — which, per §8, is **not** made safe by being local |
+| **Remains health-sensitive** | **YES — undetermined, therefore sensitive**, same unbounded-message problem as F2 |
+
+### The result, stated plainly
+
+**All three remain classified health-sensitive**, two of them because the blocker's question cannot
+be answered rather than because the answer is bad. That is the doctrine working as designed: it
+converts *we have not established this* into a definite classification instead of a blank.
+
+**None of this is closed by §7's removal of the feedback path.** F2 leaves 2.0; F3 and F4 do not,
+and both are replicas that no part of the sensitivity machinery can see.
