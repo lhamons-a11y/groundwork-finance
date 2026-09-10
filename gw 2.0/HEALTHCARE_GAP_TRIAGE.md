@@ -425,6 +425,33 @@ fact crosses the local trust boundary unless the operation explicitly permits he
 not exist. Its framing is better than what is there, because it puts the burden on every exporter
 rather than on each new surface remembering.
 
+> **INVARIANT RECORDED, ENFORCEMENT MEASURED — `gw 2.0/HEALTH_TRUST_BOUNDARY.md`** (2026-09-10).
+> Rob's full statement is now doctrine: deny-by-default, no implicit inheritance, indirect paths
+> count, fail closed, plus the blast-radius and release-blocking lists. **No enforcement model was
+> designed** — §5 of the failure-semantics document forbids reaching for a mechanism at the moment
+> a design admits violations are possible.
+>
+> What was done instead was measurement, and it moves this entry off PARTIAL for the wrong reason.
+> **The sensitivity layer has no contact with any crossing that exists:** `server.py` imports six
+> `core/` modules and **never `core.classification`**, where `Sensitivity` and `consume()` live.
+> Roughly ten `urlopen` sites in `server.py` and eight further modules each open their own
+> connection, so there is no place a crossing is recognisable as one. **Five of the six
+> release-blocking conditions hold today**, against financial data, before healthcare exists.
+>
+> Three replicas sit outside the database and outside the sensitivity machinery: the application
+> log, `voice_miss_log.jsonl` — which stores **the narrator's generated sentence verbatim**, up to
+> 2000 characters — and the beta bug report. The bug report is the sharp one: the panel labelled
+> *Report preview* does not show the report, because `_gwSendFeedbackEmail` appends server log
+> lines after the preview is rendered, beside a line claiming no transaction details are included.
+> **A present defect in shipped 1.0 code, separable from healthcare.**
+>
+> Two questions are Rob's before any mechanism: **is the local browser inside the boundary**
+> (`/api/debug/log-tail` is a crossing under one reading and not the other), and **what makes a
+> value health-sensitive** — origin, classification domain, or available inference. The second is
+> unanswered for exactly the artefacts the findings are made of: a formatted sentence, a route
+> path, an exception message.
+
+
 ---
 
 ## ADDRESSED
