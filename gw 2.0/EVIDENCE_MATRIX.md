@@ -350,12 +350,14 @@ of having written the tests.)*
 | Failure | What breaks | Status |
 |---|---|---|
 | **consumer bypass** | a permission declaration does not govern actual consumption | **live defect** |
-| **conflict disappearance** | the current fact loses the evidence that a disagreement occurred | **live defect** |
+| **conflict disappearance** | the current fact's *summary* loses the disagreement; the record keeps it | **live defect** — relabelled, see Q2 |
 | **effective vs recorded ordering** | the late-arrival case cannot presently be produced | **latent** |
 
 **These are three mechanisms, not one evidence-handling gap.** The first is an
-**authority-boundary bypass**, the second is **provenance and history loss**, the third is
-**temporal semantics the current mutator cannot exercise**. Collapsing them would produce one
+**authority-boundary bypass**, the second is **summary loss over an intact record** — first
+labelled *provenance and history loss*, corrected by `RESOLVED_CONFLICT_CASES.md`, which found
+the determination chain and evidence tuple preserve the conflict and only the current state and
+strength collapse it — the third is **temporal semantics the current mutator cannot exercise**. Collapsing them would produce one
 vague gap and, worse, one vague fix.
 
 ### The consumer bypass, restated as the requirement it implies
@@ -505,6 +507,33 @@ fixture has found the defect without telling us which contract is correct.
 
 **No mechanism until it does.** In particular, *every conflict becomes `CONTRADICTED` forever* is
 one possible reading of A and is not derived from anything.
+
+> **Histories run 2026-09-11 — `gw 2.0/RESOLVED_CONFLICT_CASES.md`.** Six evidence histories
+> against the shipped module, each answered against the five questions by locating where the
+> answer lives. **Both contracts already exist, at different layers.** The determination chain and
+> the current determination's evidence tuple preserve the conflict, its sequence and what resolved
+> it — questions 1–4 are answerable today from the record with no new concept. What fails is
+> question 5: `strength_of` reads the current state and nothing else, so H2 (EOB:not → user:health)
+> and H1 (user:health, never opposed) are both rank 3 and both deliver the number.
+>
+> **This relabels the failure.** Not history loss — *summary loss over an intact record*, the same
+> shape as sensitivity dying at rendering and the refusal never reaching the consumer before Q1.
+> **This codebase's recurring defect is holding information that does not travel.**
+>
+> **Three findings forced.** Rank 3 is a ceiling that absorbs every history — an independent
+> second source confirming after a conflict (H5) ranks identically to a bare unopposed statement
+> (H1) and to recency alone (H2); **resolution kind is not a strength**, and encoding it as one
+> needs headroom the lattice was never built to have. Reaffirmation (H4) is invisible, and gap 4's
+> dedup-by-source-identity makes that probably correct. And an external contradiction (H3) and a
+> self-correction (H6) are one state, `contradicted` — noticed, adjacent, not pursued.
+>
+> **The question narrowed:** *should a resolved conflict affect what a consumer receives, and
+> through what — the strength, or something carried beside it?* Four answers with costs. Demoting
+> (ii) **penalises evidence** — a user who corrected a wrong EOB ends weaker than one who never
+> imported it. Ranking the resolution (iii) is a lattice change. **Carrying the conflict beside the
+> value (iv), strength untouched**, is the one consistent with the last three fixes of this shape,
+> and it leaves *what exactly travels* — overridden · by recency or reaffirmation · by independent
+> confirmation — as the decision, which is Rob's.
 
 **And the gate stays green until then.** A red gate is useful once the desired behaviour is
 defined; right now the fixtures are working correctly as discovery instruments, and a red gate
