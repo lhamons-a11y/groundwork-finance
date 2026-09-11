@@ -375,6 +375,37 @@ question, and the standing rule is not to answer it in the same pass that found 
 
 ---
 
+## Three categories of the same phenomenon, and why they are not one abstraction
+
+*(Rob, 2026-09-11.)* Several findings now share one shape and are deliberately **not** forced into
+one fix:
+
+```text
+information exists
+      ↓
+correct internal representation
+      ↓
+summary / projection
+      ↓
+consumer boundary
+```
+
+The failure can sit at three different places, and the remedy is different at each:
+
+| Category | Shape | Instance |
+|---|---|---|
+| **representation** | the distinction is held, but wrongly | the `[-1]` resolver bug — fixed |
+| **projection** | the distinction is held correctly and the summary drops it | **Q2** — chain ✓, history ✓, state ✓, projection ✗, consumer ✗ — fixed by `resolution()` |
+| **upstream absence** | the distinction does not exist, so nothing downstream can project it | **document identity**, **value-level disagreement** — cannot be fixed by any projection |
+
+Q2 sat firmly in the second category, which is why a read-time projection closed it without
+touching the lattice. Document identity and the proposition space sit in the third, which is why
+they were kept separate from Q2 rather than bolted onto it: **no projection can carry a
+distinction the record cannot make.** Sorting a finding into the right category before reaching
+for a fix is most of the work.
+
+---
+
 ## Three failure classes, and they must not be collapsed
 
 *(Rob, 2026-09-10, on the fixture results. The classification is his and it is the useful output

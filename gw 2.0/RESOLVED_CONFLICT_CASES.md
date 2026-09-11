@@ -408,6 +408,28 @@ it makes leaving it out a decision rather than an omission.
 > `contradictions`, and `post` — where the resolver is the event that made the current conclusion
 > current. It travels beside the current value and strength and never becomes evidence itself.**
 
+**A conceptual split to preserve, Rob's, after implementation.** The four fields are not one
+thing. Three describe the **resolution event**; the fourth describes **what happened after it**:
+
+```text
+resolution
+├── kind
+├── resolver
+└── contradictions
+
+post_resolution
+└── subsequent agreements
+```
+
+Whether the eventual API nests them that way is a mechanism decision and the shipped `resolution()`
+returns them flat. The distinction is kept here so that `post` does not become a catch-all
+historical bucket — it holds exactly one thing, agreements strictly after the resolver, and the
+`U:y → E:n → U:n` case is why it holds that one thing at all.
+
+**The invariant underneath the fields**, which matters more than they do: **the current
+determination and the history of how it became current are different dimensions.** That is what
+lets the lattice keep its meaning instead of asking `strength` to become a narrative.
+
 Two statements tightened by Rob and recorded as boundaries, not mechanisms:
 
 > **Source type ≠ source instance.** Two `IMPORTED_EOB` observations are not demonstrably two
