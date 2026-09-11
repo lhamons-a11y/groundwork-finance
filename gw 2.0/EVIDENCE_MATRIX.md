@@ -135,6 +135,20 @@ enforced rather than described.
 > $3,500 vs $3,700 vs $3,176 is not expressible as contradiction; it is four facts with no stated
 > relationship. U6 is a genuine gap, not an unexercised mechanism, and the correction makes it
 > worse rather than better.
+>
+> **Cased 2026-09-11 — `gw 2.0/VALUE_DISAGREEMENT_CASES.md`.** Hypothesis stated before the cases:
+> *evidence carries exactly one boolean about exactly one proposition, and everything that is not
+> that proposition is invisible.* **Earned.** `Evidence` has two fixed propositions (the axes), a
+> one-bit verdict, and `amount` as **scope** not claim — so D3, U6, this finding, `contradicted`
+> firing with **zero** competing evidence (V5: one EOB says no, alone → `contradicted`, and
+> `resolution()` correctly says `none`), and agreement on a negative all reduce to it. Age and
+> referent correctly do not. **Worse than invisible:** `qualifying_amount()` returns
+> `attested[-1]`, so two readings of one EOB as `$412` and `$4.12` yield a **tax-qualifying amount
+> decided by which was recorded last** — `[-1]` as conflict resolution for the **third time** in
+> the module, now named as the pattern: *wherever a disagreement cannot be represented, position
+> decides it.* A second layer kept separate: the lattice ranks support-for-P, so even an
+> expressible well-supported negative lands at the floor — `is_protected`'s fusion, a distinct
+> decision. Five requirements as sentences they permit, no fields. `attested[-1]` left as found.
 
 ### 5. Can historical evidence establish a historical fact without establishing the current value?
 
