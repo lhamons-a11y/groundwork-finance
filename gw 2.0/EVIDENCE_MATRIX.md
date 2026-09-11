@@ -604,6 +604,24 @@ one possible reading of A and is not derived from anything.
 > remains visible afterwards* — is asserted against `resolution()`, where the design put it. **8
 > passed, 1 failed**: the remaining failure is the temporal one, latent, unchanged, and correct.
 >
+> **Q2, characterised (Rob, 2026-09-11):** *implemented projection, validated against the complete
+> finite history space, with consumer propagation enforced and unresolved multi-source semantics
+> explicitly left unspecified.* The number moving 833 → 846 is not the evidence; 10 of 10
+> mutations caught over the exhaustive oracle is. Two things are **not** to be "fixed": the
+> multi-source pending — making it pass by inventing semantics is the pressure that creates
+> accidental doctrine — and the temporal failure in the tie fixture, which is projection
+> correctness kept separate from temporal semantics nobody has settled.
+>
+> **The next subtle failure is not in `resolution()`.** It is in whether any downstream consumer
+> can interpret the four fields in a way that **recreates an implicit confidence ranking** —
+> `contradictions` read as a score, `superseded` treated as weaker than `reaffirmation`, `post`
+> length taken as corroboration. Two forms are already refused by s98 (a resolved conflict
+> demoting strength; the projection carrying a strength). The rest cannot be tested yet, for a
+> structural reason: **`core/classification.py` has no consumer outside its own fixtures**, so
+> the risk sits in the first narrator or export wiring, not in anything that exists. When that
+> wiring arrives, the consumer-boundary fixture's level-3 scan is the place to extend — an
+> application read of a resolution field inside a comparison or sort is the shape to refuse.
+>
 > **The question narrowed:** *should a resolved conflict affect what a consumer receives, and
 > through what — the strength, or something carried beside it?* Four answers with costs. Demoting
 > (ii) **penalises evidence** — a user who corrected a wrong EOB ends weaker than one who never
