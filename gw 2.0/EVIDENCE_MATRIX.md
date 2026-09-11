@@ -397,12 +397,16 @@ The failure can sit at three different places, and the remedy is different at ea
 | **representation** | the distinction is held, but wrongly | the `[-1]` resolver bug — fixed |
 | **projection** | the distinction is held correctly and the summary drops it | **Q2** — chain ✓, history ✓, state ✓, projection ✗, consumer ✗ — fixed by `resolution()` |
 | **upstream absence** | the distinction does not exist, so nothing downstream can project it | **document identity**, **value-level disagreement** — cannot be fixed by any projection |
+| **operation gap** | the history is representable, but the operation that resolves it in time is missing | **gap 2, T4/T8** — a period cannot be closed, so overlap is resolved by insertion order or by an unrecorded mutation |
 
 Q2 sat firmly in the second category, which is why a read-time projection closed it without
 touching the lattice. Document identity and the proposition space sit in the third, which is why
 they were kept separate from Q2 rather than bolted onto it: **no projection can carry a
-distinction the record cannot make.** Sorting a finding into the right category before reaching
-for a fix is most of the work.
+distinction the record cannot make.** Gap 2 added a fourth, distinct from all three: the record
+*can* hold both plans and both periods, and `as_of` replays them faithfully — what is missing is
+the **operation** that says one of them ended earlier, so the resolution falls to position or to
+an unrecorded edit. Sorting a finding into the right category before reaching for a fix is most
+of the work, and the categories are a working taxonomy rather than doctrine.
 
 ---
 

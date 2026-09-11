@@ -191,9 +191,23 @@ record was written.*
 No `close_period`. No `correct_period`. No change to `plan_at`'s first-match. No overlap
 detection. The direct mutation in T8 was performed in a scratch registry and nowhere else.
 
-**What is Rob's:** whether a period close is a third operation kind or a correction with a
-narrower target; and whether overlapping periods are an error the API refuses, or a state it
-records and reports as ambiguous — the same choice `allocation.state()` made by asking the caller
-rather than deriving.
+**What is Rob's, and deliberately left open — with his reasoning recorded so neither gets decided
+by an implementation:**
+
+1. **Period close versus a narrower correction.** Not to be decided from the name. The cases
+   establish the *semantic operation* — *this was true, and ceased to be true at an earlier
+   effective boundary* — not whether it deserves a new operation kind. The question that
+   decides it later is whether *period ended earlier* has **different provenance and history
+   semantics** from `correct_terms`, not whether the API reads better with three verbs.
+2. **Overlap.** Not automatically an error. An overlap can be **truthful evidence of unresolved
+   history** — *two plans claim coverage for August, and Groundwork cannot establish which one
+   governed* — and that is a very different thing from silently choosing `[0]`. C9 in the
+   applicability cases is the precedent: when the module lacks the household knowledge to
+   resolve the distinction, **ask rather than manufacture the answer.** So the choice stays
+   exactly here — reject, or represent-and-report — and is not to be made by accident.
+
+**And the finding is narrower than the suspicion that opened gap 2.** `as_of` survives every
+adversarial case. The defect is in the temporal resolution of overlapping effective periods, not
+in historical replay.
 
 **Next, per the sequence:** gap 14 — the general rule for naming external actions.
