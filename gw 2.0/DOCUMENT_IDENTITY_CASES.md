@@ -179,6 +179,46 @@ confirm it* — until independence is itself established, which is not a documen
 
 ---
 
+## The progression, and the boundary after this one
+
+*(Rob, 2026-09-11.)* The case set establishes an ordering, and each step is a separate fact
+rather than a refinement of the one before:
+
+```text
+source type
+    ↓
+source instance
+    ↓
+artefact / reading relationship
+    ↓
+value-level disagreement       ← separate gap
+    ↓
+source independence            ← separate fact
+```
+
+**The parse-dispute / source-conflict distinction is the strongest result here**, because it
+means the system is not merely missing a prettier provenance record — it is currently capable of
+**assigning the wrong causal story to an evidence history.**
+
+### Named and not attacked: artefact identity ≠ file identity
+
+The five distinctions above are requirements, not fields, and none of them yet says
+`Evidence.instance_id = …`. Before anyone designs the referent, one more collision has to be
+forced by cases rather than guessed at with a UUID:
+
+```text
+one EOB, downloaded twice
+one EOB, copied to a backup
+one EOB, renamed, imported from two locations
+one logical document, several physical representations
+```
+
+The eventual cases must make the system answer whether a referent means **the logical document**
+or **the particular bytes Groundwork observed** — and they must do it before a schema freezes
+either answer. Not solved here. Not to be solved by picking.
+
+---
+
 ## What has not been done
 
 No field on `Evidence`. No referent type, no observation id, no held/referenced flag, no
