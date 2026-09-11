@@ -483,7 +483,7 @@ supports and never more.
 with how much of its reason. Showing `offered` means telling someone *we have evidence against
 this*, which is a teaching decision rather than a model one.
 
-### Q2 — OPEN: resolved-conflict persistence semantics
+### Q2 — DIRECTION ESTABLISHED, mechanism not specified: resolved-conflict semantics
 
 **Not** *should contradictions be remembered* — that is settled: they may not silently disappear.
 The open question is narrower:
@@ -526,6 +526,21 @@ one possible reading of A and is not derived from anything.
 > needs headroom the lattice was never built to have. Reaffirmation (H4) is invisible, and gap 4's
 > dedup-by-source-identity makes that probably correct. And an external contradiction (H3) and a
 > self-correction (H6) are one state, `contradicted` — noticed, adjacent, not pursued.
+>
+> **Answered 2026-09-11 (Rob's): beside it.** *A resolved conflict travels beside the value and
+> does not alter its strength.* The invariant: **resolution metadata describes how the current
+> determination was reached; it does not constitute evidence for it** — so *was previously
+> contradicted* can never become a strength. Vocabulary still to be scrutinised; presentation
+> separate, as in Q1.
+>
+> **And the reaffirmation challenge was tested rather than blessed.** A probe over the chain
+> distinguishes *none · superseded · reaffirmation · self_reversal* from data the module already
+> keeps, with resolver and contradiction count beside them — so the earlier *reaffirmation is
+> invisible* was wrong at the record layer. **What the probe proved unreachable is independent
+> confirmation**: with two knowing source identities, a second agreement after a conflict is
+> always a reversal by one of them, and the record cannot tell one EOB re-read from a different
+> EOB because `IMPORTED_EOB` is a type, not a document. **That is finding 3's gap, not a Q2
+> mechanism.** Derived on read, never stored — gap 4's rule, same reason.
 >
 > **The question narrowed:** *should a resolved conflict affect what a consumer receives, and
 > through what — the strength, or something carried beside it?* Four answers with costs. Demoting

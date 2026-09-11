@@ -2,8 +2,9 @@
 
 **Q2 of `EVIDENCE_MATRIX.md`, attacked with concrete histories before any storage question.**
 
-> Status: **Case set, 2026-09-11. No mechanism, no schema, and the decision is Rob's.** The
-> question, as he posed it:
+> Status: **Case set, 2026-09-11. No mechanism, no schema. Direction decided the same day
+> (Rob's) — see *The Q2 decision* — and the resolution-kind vocabulary probed, not specified.**
+> The question, as he posed it:
 >
 > > **When conflicting evidence is later resolved, what must remain reconstructable about the
 > > conflict, and what may subsequently be treated as the current fact?**
@@ -96,11 +97,14 @@ H1, H2, H4 and H5 are all rank 3 and all deliver `1250.00`. Their evidentiary hi
 H1   one knowing source, never opposed
 H2   one knowing source, overriding another by recency alone
 H4   one knowing source, reaffirming after seeing the opposition
-H5   two independent knowing sources agreeing, after one of them disagreed
+H5   the EOB source disagreeing, then agreeing   ← first read as "independent"; see below
 ```
 
-**The strongest resolution possible — an independent second source confirming — yields exactly
-the same rank as a bare unopposed statement.** And the weakest — recency among equals — also does.
+**Every one of these yields exactly the same rank as a bare unopposed statement.** Recency among
+equals, reaffirmation, and a source reversing itself are one number to a consumer. *(The first
+draft called H5 "an independent second source confirming". The probe in the later section shows
+it is not — with two knowing identities there is no such thing — and the point of this finding
+survives the correction: the lattice cannot distinguish any of them.)*
 The lattice has no headroom above 3 and no second axis, so every history that ends in a knowing
 `yes` is one number to a consumer.
 
@@ -108,13 +112,14 @@ This is not a defect in the lattice as a *strength* lattice. It is the finding t
 kind is not a strength**, and trying to encode it as one would need headroom the lattice was never
 designed to have.
 
-### 2. Reaffirmation is invisible, and that is probably correct
+### 2. ~~Reaffirmation is invisible, and that is probably correct~~ — superseded
 
-H4 and H2 are identical to every layer above the chain. A user who reaffirms after seeing the EOB
-is treated exactly as a user who spoke once after it. Gap 4 deduplicates corroboration by **source
-identity**, so the same source twice is one source — and that rule is right. What follows is that
-*the user looked at the contradiction and stood by their answer* is a fact the chain records and
-nothing else can express. Whether it **should** be expressible is part of the decision.
+**Wrong at the layer that matters, and Rob challenged it before it was blessed.** H4 and H2 are
+identical to *strength* — correctly, by gap 4's dedup — and **fully distinguishable from the
+record**, as the probe in *The reaffirmation challenge, tested* shows. What the first draft said
+"nothing else can express" is derivable from the chain in a dozen lines. The finding that survives
+is narrower: reaffirmation is invisible to strength and visible to the record, and **whether it
+travels** is the decision — now answered: it does, beside the value.
 
 ### 3. An external contradiction and a self-correction are one state
 
@@ -167,8 +172,145 @@ deliberately not decided here.
 
 ---
 
+---
+
+## The Q2 decision — direction established, mechanism not specified
+
+*(Rob, 2026-09-11.)*
+
+> **A resolved conflict travels beside the value. It does not alter the value's strength.**
+
+The evidence history already answers *what happened*. What is missing is **a summary of the
+resolution event that a consumer can actually receive.** So the current determination may carry a
+separate descriptor — vocabulary still to be scrutinised, and the shape below is a candidate, not
+a commitment:
+
+```text
+current value        = health
+current strength     = rank 3
+resolution           = conflict_resolved
+resolution_basis     = user_assertion
+resolution_relation  = superseded_prior_evidence
+```
+
+**The invariant that makes it safe:**
+
+> **Resolution metadata describes the history of how the current determination was reached. It
+> does not constitute evidence for the current determination.**
+
+That is what stops the lattice acquiring a second meaning in which *was previously contradicted*
+becomes a strength. Two axes, kept apart:
+
+```text
+                    current determination
+                           │
+              ┌────────────┴────────────┐
+              ↓                         ↓
+        evidence strength         resolution history
+        "how strong now?"         "how did we get here?"
+```
+
+All four histories in the table below may retain the **same** strength if their present evidence
+warrants it; only the descriptor differs. Whether a consumer *sees* all four distinctions is a
+surface decision, downstream, exactly as Q1 separated refusal contents from presentation.
+
+---
+
+## The reaffirmation challenge, tested
+
+The earlier finding said *reaffirmation is invisible, and that is probably correct*. Rob's
+challenge: *probably correct* is not a contract, and the case that decides it is
+
+```text
+EOB: no  →  user: yes  →  EOB: no again  →  user: yes again
+```
+
+— because if dedup-by-source-identity makes the second assertion vanish, Groundwork cannot tell
+*asserted once after a contradiction* from *explicitly reaffirmed after being shown one*.
+
+**Tested with a probe over the chain, not a claim.** The probe reads only what the module already
+keeps — the knowing evidence in the current determination's tuple — and names how the current
+conclusion was reached. Nine histories:
+
+| | History | State | Derived resolution |
+|---|---|---|---|
+| H1 | U:y | `user_asserted` | **none** |
+| H2 | E:n U:y | `user_asserted` | **superseded** — user corrected the EOB |
+| H4 | U:y E:n U:y | `user_asserted` | **reaffirmation** |
+| R1 | E:n U:y E:n U:y | `user_asserted` | **reaffirmation**, contradictions = 2 |
+| X3 | E:n U:y U:y | `user_asserted` | **superseded** — repeated, but nothing new was answered |
+| H5' | E:y U:y | `user_asserted` | **none** — agreement, no conflict |
+| H5 | E:n U:y E:y | `imported_attested` | **self_reversal** — the EOB source flipped |
+| X1 | U:y E:n E:y | `imported_attested` | **self_reversal** — same |
+| X2 | U:y E:n U:n | `contradicted` | **self_reversal** — the user conceded |
+
+**The earlier finding was wrong at the layer that matters.** Reaffirmation is invisible to
+*strength* — correctly, by gap 4's dedup — and **fully derivable from the record.** H4 and H2 are
+distinguishable. R1 and H4 are distinguishable, by contradiction count. X3 is distinguishable from
+H4: saying it twice is not the same as saying it again *after being contradicted*, and the chain
+knows which. So the answer to the challenge is: **yes, Groundwork can distinguish them, today,
+from data it already holds.**
+
+### The finding the probe forced: independent confirmation is unreachable
+
+`independent_confirmation` — a source that never disagreed adding its agreement after a conflict
+— **fired for no history**, and cannot:
+
+> With exactly two knowing source identities, `USER_STATED` and `IMPORTED_EOB`, a second agreement
+> after a conflict is **always a reversal by one of the two.** For two asserters to exist and one
+> contradictor to exist, one identity must have said both *yes* and *no*.
+
+So H5 — the case the earlier document called *an independent EOB confirms* — is not that. It is
+the EOB **source** contradicting and then agreeing. And the record cannot say whether that was
+**one document re-read**, or **a genuinely different document** — because `IMPORTED_EOB` is the
+identity of every EOB ever imported. Source identity is a *type*, not a document.
+
+**That is `EVIDENCE_MATRIX.md` finding 3 arriving from a new direction**: there is no state for
+*this document said this*, so there can be no state for *a different document said this*. The
+fourth resolution kind is **not a Q2 mechanism.** It is blocked on evidence carrying document
+identity, which is an upstream change to what `Evidence` records, and a separate decision.
+
+### What self-reversal does and does not separate
+
+It collapses three situations with different teaching value — an EOB re-imported with a different
+reading, a second EOB that disagrees with the first, and a user conceding to a document. **The
+third is separable now** by `resolver`: X2's resolver is the user, H5's and X1's is the EOB. *The
+user changed their mind after seeing the document* is derivable. The first two are the irreducible
+ambiguity, and it is the document-identity gap again.
+
+---
+
+## What travels — the shape the probe supports
+
+**Derived on read from the chain, never stored** — gap 4's rule for strength, applied for the same
+reason: a stored summary can drift from the record it summarises; a derived one cannot.
+
+```text
+kind             none · superseded · reaffirmation · self_reversal
+resolver         which knowing source made the current conclusion current
+contradictions   how many times a knowing source disagreed with it
+```
+
+`independent_confirmation` is **reserved and unreachable** until evidence carries document identity.
+The probe that produces the table above is roughly fifteen lines over data the module already
+keeps; **it is not in the module, on purpose.** Whether these three fields are the vocabulary, and
+which of them a narrator or an export may show, is Rob's — and the invariant above holds
+whichever way that lands.
+
+---
+
+## Adjacent, and now a third sighting
+
+X2 ends with the user and the EOB **agreeing** that the transaction is not health — two knowing
+sources, no remaining dissent — and lands at `contradicted`, rank 0, refused. **Agreement on a
+negative is the floor of the lattice.** This is H3/H6 from the first pass and `is_protected`'s
+fusion warning: `contradicted` is a verdict about the health claim wearing a strength's name.
+Three sightings in two days. It is still outside Q2, and it should stop being *noticed* and get an
+entry of its own.
+
 ## What has not been done
 
 No mechanism. No change to `strength_of`, `_state_from`, the lattice, `refusal()`, or the
-consumer helpers. The tie fixture stays red. The three doctrine questions stay where they are —
-nothing here touches carrier, disposition scope, or F3.
+consumer helpers. The probe lives in a scratch directory, not the module. The tie fixture stays
+red. The three doctrine questions stay where they are — nothing here touches carrier, disposition
+scope, or F3.
