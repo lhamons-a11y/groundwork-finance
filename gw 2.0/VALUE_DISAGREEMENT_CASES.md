@@ -137,6 +137,37 @@ proposition and do.
 `amount` is scope. So the record cannot say what a value is *about*, and therefore cannot say
 whether two values that differ are a disagreement or two facts.
 
+### V6 — a value that is absent rather than disputed *(added after Rob's review; the case set was missing it)*
+
+An EOB is imported and the parser cannot read the amount. `amount = None`. What does the record
+do with it?
+
+```text
+A1   one EOB, amount unreadable                 attested [None]          qualifying  $950.00
+A2   one EOB, $412                              attested [412]           qualifying  $412.00
+A3   two EOBs, one unreadable, one $412         attested [None, 412]     qualifying  $412.00
+A5   two EOBs, both unreadable                  attested [None, None]    qualifying  $950.00
+A6   two EOBs, $412 and $4.12                   attested [412, 4.12]     qualifying  $4.12
+                                                                    (transaction amount: $950)
+```
+
+**Absence falls through to the whole transaction.** `qualifying_amount` filters out `None`, and
+when nothing is left it returns `src.amount` — the raw transaction figure. So an EOB whose amount
+could not be read produces a tax-qualifying amount of **$950**, which no document ever said.
+
+This is not a bug in `qualifying_amount`. It is `amount = None` meaning **two incompatible
+things**: *this evidence speaks to the whole charge* (scope, the documented meaning) and *this
+evidence carries no value* (absence, the undocumented one). The code reads it as the first,
+always, because the first is the only meaning the model has. **Absence of a value is not merely
+invisible — it is read as a positive claim about scope.**
+
+`absence is not zero` was the lesson when blank months read as a $7,053 shortfall. Here absence
+is not zero either; it is **the maximum**, and it lands in the figure the tax engine consumes.
+
+**Distinguishable from disputed?** A5 (both unreadable → $950) and A6 (both readable, disagreeing
+→ $4.12) differ only because one of them happened to have numbers. Neither situation is
+represented; each produces a confident figure by a different accident.
+
 ### U6 — four figures for one balance
 
 ```python
@@ -163,6 +194,7 @@ Every consumer receives each one as a permitted, well-supported figure.
 | V5 — `contradicted` without competition | **yes** — `False` is the whole negative side |
 | V3 — agreement on a negative at the floor | **yes for invisibility; a second layer for rank** |
 | V2 — different propositions inexpressible | **yes**, directly |
+| V6 — absent value read as whole-charge scope | **yes** — with no value slot, `None` can only mean the one thing `amount` means |
 
 **What correctly does not reduce to it:** age (its own boundary, latent), and referent (its own
 case set). The hypothesis explains the five and stops at the two that already have homes, which
@@ -194,7 +226,10 @@ is exactly `is_protected`'s fusion, and it is a separate decision from the propo
 4. **`contradicted` should mean what `resolution()` means by it** — competition exists — or be
    renamed for what it is, a negative verdict. Two meanings under one word is how the next probe
    gets written against the wrong one.
-5. **Separately:** the lattice's rank is support-for-P. If a well-supported negative needs to
+5. **An absent value must be representable as absent**, distinct from *speaks to the whole
+   charge*, and must never fall through to a figure no source stated. Honest-null at the
+   evidence layer, where today the fallback is the transaction amount.
+6. **Separately:** the lattice's rank is support-for-P. If a well-supported negative needs to
    rank as well-supported, that is a change to what strength *is*, and it must not be smuggled in
    with the proposition change.
 
@@ -207,6 +242,7 @@ is exactly `is_protected`'s fusion, and it is a separate decision from the propo
 | different propositions | *your bill and your statement are not disagreeing — they measure different things* |
 | `contradicted` disambiguated | *someone said no* versus *sources disagree* |
 | verdict strength | *it is well established that this was not medical* |
+| absent ≠ whole-charge | *the EOB was imported but its amount could not be read* — instead of $950 |
 
 ---
 
