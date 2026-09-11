@@ -390,6 +390,41 @@ Four of the review's six already exist, and the split was deliberate:
 it*, deliberately split from *we never looked*. **So the challenge is answered for four, and two
 are genuinely unrepresented.**
 
+> **CASED 2026-09-11 — `gw 2.0/APPLICABILITY_CASES.md`.** Rob's five states measured across
+> `plan_year`, `allocation` and `classification`, with his warning carried in: do not add refusal
+> states until it is established whether they are different facts or different reasons for one
+> absence. **Answer: neither — two axes.** Three are facts about the *rule* (does not exist here ·
+> exists and this is outside it · exists and this is inside it); two are facts about *our
+> knowledge* (cannot determine · never asked). *Not covered* is not a sixth state; it is
+> *negative* about the coverage proposition, and it looked separate only because the proposition
+> space is fixed.
+>
+> **The present defect, and it is the module's own central promise failing.** `plan_year`'s
+> docstring: *when the terms have not arrived, the interpretation is `UNKNOWN` — never `False`,
+> never zero.* `add_plan` defaults `deductible=0.0` and `float()`-coerces, so a plan added before
+> its terms are known reads as **`deductible_met = True`**. Not unmet — **met.** And the
+> `deductible is None → UNKNOWN` branch that guards the promise is **unreachable**: both mutators
+> raise `TypeError` on `None`. The fixture asserts `UNKNOWN` only when *no plan is on file*, which
+> is a different situation from *a plan is on file and its terms are not* — the common real
+> state. Gap 4's shape: the fixture exercises a state production cannot reach. *Plausible and
+> wrong*, at every layer, coherently.
+>
+> **C1 (terms unknown) and C2 (HMO with no deductible) are byte-identical and both read as met** —
+> V6's mechanism exactly: two absences forced through the only channel, a numeric deductible,
+> and acquiring its meaning, which is the positive one. Expense-level exemption is unrepresentable
+> (a preventive visit counts). A denial has no determination and must be recorded as `unpaid` or
+> `pending_claim`, acquiring *still open* or *still undecided*. And **`None` means three things in
+> three modules** — unknown in `plan_year`, *no plan* in `allocation`, *whole charge* in
+> `classification` — two of them opposite.
+>
+> **The precedent that gets it right:** `allocation.state(e, plan=UNRESOLVED)` versus
+> `plan=None`, distinguished with the reason stated, and put on the **caller** because the module
+> cannot derive it. **The boundary:** applicability is a fact about the rule, determinability a
+> fact about our knowledge, and they are orthogonal — a vocabulary that puts them on one axis will
+> always have a cell where an absence reads as a fact. Fail-closed is right on the knowledge axis
+> and wrong on the rule axis. `0.0` left as found. Decision Rob's: whether the axes become
+> explicit, and whether applicability is derived or asserted by the caller.
+
 ### 5. Payment-to-obligation attribution
 
 Representable but unnamed. A confirmed payment is `cleared + attached + user_confirmed`; an
