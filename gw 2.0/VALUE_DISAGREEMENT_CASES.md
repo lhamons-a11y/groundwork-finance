@@ -168,6 +168,25 @@ is not zero either; it is **the maximum**, and it lands in the figure the tax en
 → $4.12) differ only because one of them happened to have numbers. Neither situation is
 represented; each produces a confident figure by a different accident.
 
+> **The finding, restated by Rob, and it is stronger than the hypothesis it came from.** The
+> discovery is not that `None` is ambiguous. It is that **absence is forced through an existing
+> semantic channel and acquires that channel's meaning**:
+>
+> > **When the evidence model cannot represent absence explicitly, an absent value is
+> > interpreted as whichever represented state the consumer already assigns to the missing
+> > value.**
+>
+> | | actual evidence | consumer's interpretation |
+> |---|---|---|
+> | blank month | no value | `$0`, and a shortfall consequence |
+> | unreadable EOB | no amount | the whole transaction, `$950` |
+> | `$412` and `$4.12` | two values | a disagreement can at least *exist*, because values are present |
+>
+> The corruption is **downstream**. The absence survives long enough to be consumed, and then the
+> consumer supplies a meaning the evidence never established. That is the shape to carry into gap
+> 3: the dangerous failure is not that the system refuses — it is **an unrepresented state being
+> silently converted into a represented one.**
+
 ### U6 — four figures for one balance
 
 ```python
