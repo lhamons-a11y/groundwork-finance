@@ -373,6 +373,31 @@ the invariant stated as such** — *a historical conclusion is an immutable repr
 knowledge available then; a current conclusion may be superseded by later evidence.* Both true
 at once, and nothing says so in one place.
 
+> **STATED, and a leak found — `gw 2.0/HISTORICAL_TRUTH_CASES.md`** (2026-09-11). The invariant is
+> now written in one place, decomposed into three guarantees: every change is itself recorded;
+> `as_of` reproduces the record including its gaps; **the current answer never depends on the
+> order the record was written.** A temporal matrix on one plan-year value, mutating insertion
+> order and observation timing: corrections, late-arriving earlier plans, same-fact re-recording
+> and effective-vs-recorded all **hold** — `as_of` does what it claims for everything the API can
+> express.
+>
+> **The leak is in the one fact it cannot express.** A mid-year change discovered late: a plan
+> entered Jan–Dec, then *from July the deductible is $1,000*. `plan_at` returns the **first**
+> plan in insertion order whose period contains the date, so August reads $3,000 — the historical
+> observation wins because it was written down first. Same plans, other order: $1,000. Position
+> again, `[0]` this time. And the correct move — shorten the first plan — is impossible:
+> **`close_period` is named in `DELETION_MODES` and in `delete_plan`'s docstring and does not
+> exist**; `correct_terms` cannot touch `effective_to`. Mutating the period directly gives the
+> right current answer and **rewrites the past** — `plan_at(Aug, as_of=before)` returns `None`,
+> when the record then said the full-year plan covered it. The two available moves each break one
+> half of the invariant.
+>
+> The missing operation is neither *change* nor *correction* as defined — it is *was true, and
+> stopped being true earlier than recorded* — the gap-8 inspection's *one value short*, with the
+> value named. Nothing changed; the direct mutation lived in a scratch registry. Rob's: third
+> operation kind or a correction with a narrower target, and whether overlap is refused or
+> recorded as ambiguous.
+
 ### 3. Unknown is not one state
 
 Four of the review's six already exist, and the split was deliberate:
