@@ -91,6 +91,25 @@ first shall-not at the evidence layer: **successful processing is not evidence o
 parser that reads `$412` as `$4.12` produces `IMPORTED_ATTESTED`, indistinguishable from one that
 read it right.
 
+> **Cased 2026-09-11 — `gw 2.0/DOCUMENT_IDENTITY_CASES.md`.** This gap, finding 2, independent
+> confirmation being unreachable, and U5 are one gap: **`IMPORTED_EOB` is the identity of every EOB
+> ever imported.** Measured: one EOB imported twice and two different EOBs are byte-identical in
+> the record; a re-parse that disagrees and two documents that disagree are byte-identical — and
+> `resolution()` reports both as `self_reversal by imported_eob`, faithfully projecting a record
+> that cannot say whether any source reversed anything. **Document identity is upstream of Q2's
+> fidelity.** A re-parse of one document as `$412` then `$4.12` registers **no disagreement at
+> all**, because `supports` agrees — finding 4's value-level gap meeting this one.
+>
+> **Five distinctions the record must be able to make**, each tied to a sentence it permits:
+> which artefact (*two documents say this*); which reading (*read two ways*); about / referenced
+> (*you told us the letter says this; we have not seen it*); held (*here is what it says*);
+> retractable by referent (*that document was withdrawn, and so was everything it told us*).
+> Utterances need none of this — nothing to re-read. **And the boundary after Rob's:** source
+> instance ≠ source independence. Two EOBs from one insurer for one claim are two artefacts and
+> not independent evidence; distinct referents make independence *expressible*, never
+> *established*. **Decision is Rob's**, including whether a referent is bytes Groundwork holds or
+> an identity the user asserts.
+
 ### 4. Does conflicting evidence lower permission, or does the system select a best source?
 
 **For classification it lowers permission, and does so correctly.**
