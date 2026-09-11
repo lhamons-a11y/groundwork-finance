@@ -289,7 +289,13 @@ reason: a stored summary can drift from the record it summarises; a derived one 
 kind             none · superseded · reaffirmation · self_reversal
 resolver         which knowing source made the current conclusion current
 contradictions   how many times a knowing source disagreed with it
+post             agreements recorded after the resolution          ← added after the exhaustive run
 ```
+
+> **The probe that produced the table above defined `resolver` as the last event. That was a
+> bug**, found by Rob's second case and measured at 42% of all histories to length 6 — see *The
+> probe corrected*. The table's classifications happen to be right; the definition that produced
+> them was not.
 
 `independent_confirmation` is **reserved and unreachable** until evidence carries document identity.
 The probe that produces the table above is roughly fifteen lines over data the module already
@@ -299,18 +305,143 @@ whichever way that lands.
 
 ---
 
+---
+
+## The probe corrected, and the vocabulary checked against every history
+
+*(2026-09-11. Rob asked whether `self_reversal` and `reaffirmation` stay distinguishable once the
+number and order of events vary, rather than only across nine chosen histories, and named three
+cases. The second of them found a bug.)*
+
+### The bug
+
+The probe took the **resolver** to be the last knowing event. Rob's case:
+
+```text
+E:n  U:y  U:n  E:n
+```
+
+The last event is the EOB repeating *no*. But *no* was already current — the user's reversal at
+the third step made it so, and the EOB's final statement changed nothing. The probe named the EOB
+as resolver and, because the EOB had said *no* before, called it a **reaffirmation**. It is a
+**self-reversal by the user**, followed by an agreement.
+
+> **The resolver is the event that made the current conclusion current — the first event after
+> the last disagreement — not the most recent event.**
+
+**That is not an edge case.** Every history of length 1–6 over `{U, E} × {yes, no}` was enumerated:
+5,460 histories. The two definitions disagree on **2,312 of them** — 42%. The nine hand-picked
+histories happened to fall where the two coincide, which is exactly why Rob's instruction was to
+vary the shape rather than trust the sample.
+
+### The corrected derivation, and why it cannot be ambiguous
+
+```text
+current      the last event's stance
+dissent      every event whose stance differs from current
+resolver     the first event after the last dissent          ← must exist: the last event agrees
+prior        the resolver's own earlier stances, in order
+post         every event after the resolver                  ← all agree with current, by construction
+
+kind         none            no dissent ever
+             superseded      prior is empty   — the resolver's first statement, after another source disagreed
+             reaffirmation   prior[-1] == current
+             self_reversal   prior[-1] != current
+```
+
+The three non-`none` kinds partition on **the resolver's most recent prior stance**, of which there
+is exactly one or none. So a history cannot receive two kinds, and the flip-flop —
+
+```text
+U:y  U:n  E:n  U:y     the user's last stance before resolving was "no"  →  self_reversal
+```
+
+— is a reversal, not a reaffirmation of the original *yes*, and the definition says so without a
+priority rule.
+
+### Five properties, held over all 5,460 histories
+
+| | | |
+|---|---|---|
+| P1 | `none` ⇔ no dissent | holds |
+| P2 | `superseded` ⇔ the resolver had no prior stance | holds |
+| P3 | `reaffirmation` ⇔ the resolver last stood **for** current | holds |
+| P4 | `self_reversal` ⇔ the resolver last stood **against** current | holds |
+| P5 | **appending an agreeing event changes neither kind nor resolver** | holds |
+
+P5 is the one with doctrine behind it. A resolution is a **fixed historical event**. Later
+agreement — the EOB repeating itself, the user saying it again — does not rewrite how the conflict
+was resolved. That is *correction must not destroy the history required to explain how the
+current fact came to be*, holding under enumeration rather than by assertion.
+
+### Rob's three cases, under the corrected probe
+
+| History | kind | resolver | contradictions | post |
+|---|---|---|---|---|
+| `E:n U:y U:n` | self_reversal | user | 1 | — |
+| `E:n U:y U:n E:n` | self_reversal | user | 1 | EOB |
+| `E:n U:y U:n U:n` | self_reversal | user | 1 | user |
+
+All three are the user reversing to agree with the document. They differ only in what happened
+afterwards, and **`post` is where that difference lives** — which produces the last finding.
+
+### `post` has to be part of the projection, or the concession vanishes again
+
+```text
+U:y  E:n  U:n
+```
+
+The user claimed health; the EOB said not; the user conceded. Under the corrected definition the
+**EOB** is the resolver — its *no* is what made *no* current — and the kind is `superseded`. The
+user's concession is not the resolution. It is a **subsequent agreement**, and it is in `post`.
+
+So the contract's three fields — kind, resolver, contradiction count — would carry *the EOB
+overrode the user* and drop *the user then agreed*. That is precisely the fact `USER_KNOWLEDGE_CASES.md`
+would want a narrator to have. Naming `post` in the contract does not decide whether it is shown;
+it makes leaving it out a decision rather than an omission.
+
+---
+
+## Q2 — settled
+
+> **Resolution metadata is a read-time projection of the evidence chain — `kind`, `resolver`,
+> `contradictions`, and `post` — where the resolver is the event that made the current conclusion
+> current. It travels beside the current value and strength and never becomes evidence itself.**
+
+Two statements tightened by Rob and recorded as boundaries, not mechanisms:
+
+> **Source type ≠ source instance.** Two `IMPORTED_EOB` observations are not demonstrably two
+> documents. Until an evidence instance can identify its underlying document, Groundwork must not
+> claim independent confirmation from source types alone. An upstream evidence-model decision, kept
+> out of Q2 on purpose.
+
+> **Agreement on a negative does not become positive evidence because two sources agree.** X2 —
+> user and EOB agreeing the transaction is *not* health — lands `contradicted`, rank 0, refused,
+> and that is the lattice correctly separating *two sources agree* from *the evidence establishes
+> the positive proposition*. A property of the resulting determination, **not a fifth resolution
+> kind.**
+
+Contradiction count is historical metadata. It is not a confidence score, and nothing may treat
+it as one.
+
+**Not built.** The probe stays in scratch. The tie fixture stays red until the projection exists
+and is tested — and when it is, the exhaustive enumeration above is the shape of its mutation
+harness, because a nine-case fixture is what let the resolver bug through.
+
 ## Adjacent, and now a third sighting
 
 X2 ends with the user and the EOB **agreeing** that the transaction is not health — two knowing
 sources, no remaining dissent — and lands at `contradicted`, rank 0, refused. **Agreement on a
 negative is the floor of the lattice.** This is H3/H6 from the first pass and `is_protected`'s
 fusion warning: `contradicted` is a verdict about the health claim wearing a strength's name.
-Three sightings in two days. It is still outside Q2, and it should stop being *noticed* and get an
-entry of its own.
+Three sightings in two days. Rob's reading, now recorded under *Q2 — settled*: this is the lattice
+**working** — separating *two sources agree* from *the positive proposition is established* — and
+it is a property of the determination, not a resolution kind. It still deserves its own entry in
+the matrix, as a boundary rather than a defect.
 
 ## What has not been done
 
 No mechanism. No change to `strength_of`, `_state_from`, the lattice, `refusal()`, or the
-consumer helpers. The probe lives in a scratch directory, not the module. The tie fixture stays
-red. The three doctrine questions stay where they are — nothing here touches carrier, disposition
-scope, or F3.
+consumer helpers. Both probes and the 5,460-history enumeration live in a scratch directory, not
+the module. The tie fixture stays red. The three doctrine questions stay where they are — nothing
+here touches carrier, disposition scope, or F3.

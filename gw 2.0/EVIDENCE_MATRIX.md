@@ -483,7 +483,7 @@ supports and never more.
 with how much of its reason. Showing `offered` means telling someone *we have evidence against
 this*, which is a teaching decision rather than a model one.
 
-### Q2 — DIRECTION ESTABLISHED, mechanism not specified: resolved-conflict semantics
+### Q2 — SETTLED (contract), not built: resolved-conflict semantics
 
 **Not** *should contradictions be remembered* — that is settled: they may not silently disappear.
 The open question is narrower:
@@ -541,6 +541,18 @@ one possible reading of A and is not derived from anything.
 > always a reversal by one of them, and the record cannot tell one EOB re-read from a different
 > EOB because `IMPORTED_EOB` is a type, not a document. **That is finding 3's gap, not a Q2
 > mechanism.** Derived on read, never stored — gap 4's rule, same reason.
+>
+> **Settled 2026-09-11 — `RESOLVED_CONFLICT_CASES.md` §"Q2 — settled".** *Resolution metadata is a
+> read-time projection of the evidence chain — `kind`, `resolver`, `contradictions`, `post` — where
+> the resolver is the event that made the current conclusion current. It travels beside the value
+> and strength and never becomes evidence itself.* Checked against **every history to length 6,
+> 5,460 of them**, under five properties, all holding — including that appending an agreeing event
+> never rewrites the resolution. Rob's second adversarial case found that the earlier probe named
+> the *last* event as resolver, which is wrong on **42%** of histories; nine hand-picked cases sat
+> where the definitions coincide. `post` was added because without it the user's concession after
+> being overridden by a document is invisible again. Two boundaries recorded: **source type ≠
+> source instance**, and **agreement on a negative is not positive evidence** — a property of the
+> determination, not a fifth kind. Contradiction count is history, not confidence.
 >
 > **The question narrowed:** *should a resolved conflict affect what a consumer receives, and
 > through what — the strength, or something carried beside it?* Four answers with costs. Demoting
