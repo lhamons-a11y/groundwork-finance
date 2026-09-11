@@ -350,7 +350,7 @@ of having written the tests.)*
 | Failure | What breaks | Status |
 |---|---|---|
 | **consumer bypass** | a permission declaration does not govern actual consumption | **live defect** |
-| **conflict disappearance** | the current fact's *summary* loses the disagreement; the record keeps it | **live defect** — relabelled, see Q2 |
+| **conflict disappearance** | the current fact's *summary* loses the disagreement; the record keeps it | **fixed** — `resolution()` carries it beside the value; gate-guarded by s98 |
 | **effective vs recorded ordering** | the late-arrival case cannot presently be produced | **latent** |
 
 **These are three mechanisms, not one evidence-handling gap.** The first is an
@@ -483,7 +483,7 @@ supports and never more.
 with how much of its reason. Showing `offered` means telling someone *we have evidence against
 this*, which is a teaching decision rather than a model one.
 
-### Q2 — CLOSED, design settled; implementation pending
+### Q2 — CLOSED and IMPLEMENTED; multi-source pending
 
 **Not** *should contradictions be remembered* — that is settled: they may not silently disappear.
 The open question is narrower:
@@ -576,6 +576,33 @@ one possible reading of A and is not derived from anything.
 > was given `post = U`. The final `U:y` **is** the resolver; nothing follows it; `post` is empty.
 > `post` is non-empty only when something agrees *after* the resolving event. Encoded the other
 > way, the resolver would sit in `post` and the off-by-one would be back. Corrected in the fixture.
+>
+> **Q2 IMPLEMENTED 2026-09-11 — `resolution(c, axis)` in `core/classification.py`.** A read-time
+> projection of the chain and deliberately nothing more: it does not evaluate evidence, rank
+> sources, or compute confidence. Constants `RESOLUTION_NONE · SUPERSEDED · REAFFIRMATION ·
+> SELF_REVERSAL` beside the evidence states. `NarratorFacts` gains a `resolution` field;
+> `export_row` a `resolution` key; both via `_fact_resolution`, which carries a single source's
+> content-axis resolution and returns `None` for several sources — **multi-source stays
+> unspecified, and the helper is explicitly not a fold.**
+>
+> **Verified in the sequence set out:** the ordinary fixture, 28 passed / 0 failed / 1 pending
+> (the expected multi-source pending); `--exhaustive`, **all 5,460 histories match the oracle**;
+> and mutation — `smoke_sections/s98_resolution_projection.py`, **10 of 10 caught**, every
+> mutation checked against the full enumeration (it runs in half a second), the expected pending
+> tracked **by name** so the section fails if multi-source is ever specified silently. The
+> seeded defects: the 42% resolver bug, the off-by-one that puts the resolver in `post`,
+> reaffirmation by *ever stood for* rather than most recent stance, an undercounted
+> contradiction count, `post` always empty (the concession vanishes), a resolution constant
+> across H1 and H2, each consumer dropping it, **a resolved conflict demoting strength**, and a
+> resolution carrying a strength of its own — the last two being the two ways a projection
+> quietly becomes a second evidence evaluator. **Gate 833 → 846.**
+>
+> **The tie fixture re-pointed, not deleted.** It was a discovery instrument and it found the
+> defect. Two of its assertions demanded an order-independent *state*, which Q2 deliberately
+> rejected — the state resolves by recency among equals and the history travels beside it. Those
+> are retired in place with the reason, and the requirement they reached for — *the disagreement
+> remains visible afterwards* — is asserted against `resolution()`, where the design put it. **8
+> passed, 1 failed**: the remaining failure is the temporal one, latent, unchanged, and correct.
 >
 > **The question narrowed:** *should a resolved conflict affect what a consumer receives, and
 > through what — the strength, or something carried beside it?* Four answers with costs. Demoting

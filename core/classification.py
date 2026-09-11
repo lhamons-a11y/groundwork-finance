@@ -69,6 +69,15 @@ SINGLE_WEAK_SIGNAL = 'single_weak_signal'
 CONTRADICTED = 'contradicted'
 NOT_EVALUATED = 'not_evaluated'
 
+# ── Resolution kinds ────────────────────────────────────────────────────────
+# How the current conclusion on an axis came to be current - a projection of the evidence
+# chain, never a judgement about it. `gw 2.0/RESOLVED_CONFLICT_CASES.md`, Q2. Named in
+# history terms: none of these says anything about how strong the conclusion is.
+RESOLUTION_NONE = 'none'               # no knowing source ever disagreed
+SUPERSEDED = 'superseded'              # the resolver's first statement, after another source disagreed
+REAFFIRMATION = 'reaffirmation'        # the resolver had stood for the current conclusion before
+SELF_REVERSAL = 'self_reversal'        # the resolver had stood against it before
+
 # States in which supporting evidence exists. This set, and not a threshold, is what
 # puts a transaction inside the boundary.
 SUPPORTING_STATES = frozenset((USER_ASSERTED, IMPORTED_ATTESTED,
@@ -318,6 +327,54 @@ def evidence(c, axis_name):
     return determination(c, axis_name).evidence
 
 
+def resolution(c, axis_name):
+    """How the current conclusion on this axis was reached. A read-time projection of the
+    evidence chain, and deliberately nothing more.
+
+    This function does not evaluate evidence, rank sources, or compute confidence. It reads
+    the knowing evidence in order and reports the shape of the history:
+
+        resolver        the event that made the current conclusion current - the FIRST
+                        knowing event after the last disagreement. Not the most recent
+                        event: that definition was wrong on 42% of all histories to length 6.
+        kind            by the resolver's most recent prior stance on this axis - none if no
+                        source ever disagreed; superseded if the resolver had no prior stance;
+                        reaffirmation if it last stood for the current conclusion;
+                        self_reversal if it last stood against it. Exactly one prior stance
+                        or none, so exactly one kind.
+        contradictions  how many knowing events disagreed with the current conclusion. A
+                        count of history, never a confidence score.
+        post            the sources of every knowing event strictly after the resolver. All
+                        agree with the current conclusion, by construction - and the user
+                        conceding after a document overrode them lives here, not in `kind`.
+
+    Derived on every read and never stored, for the reason `strength_of` is: a stored
+    summary can drift from the record it summarises. Appending an agreeing event changes
+    neither `kind` nor `resolver` - a resolution is a fixed historical event.
+
+    Checked against every history of length 1-6 over {user, EOB} x {yes, no}: 5,460 of them.
+    """
+    knowing = [(e.source, e.supports) for e in evidence(c, axis_name)
+               if e.source in KNOWING_SOURCES]
+    none = {'kind': RESOLUTION_NONE, 'resolver': None, 'contradictions': 0, 'post': ()}
+    if not knowing:
+        return none
+    current = knowing[-1][1]
+    dissent = [i for i, (_, supports) in enumerate(knowing) if supports != current]
+    if not dissent:
+        return none
+    ri = dissent[-1] + 1                       # exists: the last event agrees with itself
+    resolver = knowing[ri][0]
+    prior = [supports for source, supports in knowing[:ri] if source == resolver]
+    kind = (SUPERSEDED if not prior
+            else REAFFIRMATION if prior[-1] == current
+            else SELF_REVERSAL)
+    return {'kind': kind,
+            'resolver': resolver,
+            'contradictions': len(dissent),
+            'post': tuple(source for source, _ in knowing[ri + 1:])}
+
+
 def record_evidence(c, axis_name, source=None, supports=True, amount=None,
                     rule_version=CLASSIFIER_RULE_VERSION):
     """Add one signal and re-determine that axis, returning a NEW classification.
@@ -408,6 +465,10 @@ class NarratorFacts:
     # the lie that made the bypass below easy to write in the first place.
     value: object
     includes_records: bool = False
+    # How the conclusion behind `value` was reached (Q2). Beside the value, never inside
+    # its strength: a rank-3 figure that overrode a contradicting EOB and a rank-3 figure
+    # nothing ever contradicted are the same number and different histories.
+    resolution: object = None
 
 
 def category_delta(classifications, category, month=None, from_month=None):
@@ -451,16 +512,31 @@ def _permitted_value(derived, consumer):
     return denied if denied is not None else consume(derived, consumer)
 
 
+def _fact_resolution(derived):
+    """The resolution a derived fact carries to its consumers.
+
+    A fact over ONE source carries that source's content-axis resolution - content is the
+    axis knowing sources establish. A fact over several sources carries None: how the
+    resolutions of several chains combine is UNSPECIFIED in Q2, marked pending in the
+    fixture, and not something a fold written here should decide.
+    """
+    if len(derived.sources) != 1:
+        return None
+    return resolution(derived.sources[0], CONTENT)
+
+
 def narrator_facts(derived):
     return NarratorFacts(metric=derived.metric,
                          value=_permitted_value(derived, 'narrator'),
-                         includes_records=False)
+                         includes_records=False,
+                         resolution=_fact_resolution(derived))
 
 
 def export_row(derived):
     return {'metric': derived.metric,
             'value': _permitted_value(derived, 'export'),
-            'sensitivity': derived.sensitivity.domain}
+            'sensitivity': derived.sensitivity.domain,
+            'resolution': _fact_resolution(derived)}
 
 
 def backup_row(derived):

@@ -31,6 +31,16 @@ the past and `recorded_at` is now.
 **What is NOT asserted here:** any particular tie state, name or shape. That would be inventing
 the mechanism this fixture exists to demand. The assertions are properties.
 
+**RE-POINTED after Q2 (2026-09-11).** This fixture was a discovery instrument, and it found the
+defect. Q2 then settled that the *current state* resolves by recency among equals and stays that
+way — what must not happen is the conflict being erased, and the settled answer is that it
+travels beside the value as a read-time projection (`resolution()`), never inside the state.
+So the two assertions that demanded an order-independent STATE were asserting something the
+design deliberately rejected, and they are retired below with the reason kept in place. The
+requirement they were reaching for — *the disagreement remains visible afterwards* — is now
+asserted against the projection, where the design put it. The temporal assertion is unchanged
+and still fails: it is latent, and §10's late-arriving evidence will make it live.
+
 Run:  python tests/test_evidence_tie_fixture.py
 """
 import sys
@@ -89,17 +99,31 @@ def run(m):
     print(f'        user then EOB  -> {content_state(user_then_eob)}')
     print(f'        EOB then user  -> {content_state(eob_then_user)}')
 
-    check('the same disagreement resolves the same way in either order',
-          content_state(user_then_eob) == content_state(eob_then_user))
+    # RETIRED, not deleted: `the same disagreement resolves the same way in either order`
+    # asserted an order-independent STATE. Q2 settled that the state resolves by recency
+    # among equals - the resolver is by definition the event that made the conclusion
+    # current - and that the history travels beside it. Asserting otherwise now would be
+    # asserting against the design. The property it was reaching for is the next check.
+    #
+    # RETIRED for the same reason: `neither source wins merely by being recorded second`.
+    # One of them does make the conclusion current. What may not happen is the other one
+    # being forgotten, and that is what `resolution()` exists to carry.
 
-    # The sharper half. In one of the two orders the disagreement leaves no trace at all:
-    # the result is identical to a user statement that was never contradicted by anything.
+    # The sharper half, re-pointed. In one of the two orders the STATE is identical to a
+    # user statement nothing ever contradicted. The disagreement must still be visible -
+    # and Q2 put that visibility in the projection, not the state.
+    r_eu = m.resolution(eob_then_user, m.CONTENT)
+    r_ue = m.resolution(user_then_eob, m.CONTENT)
+    r_1 = m.resolution(said_yes, m.CONTENT)
     check('a disagreement between equal-rank sources is still visible afterwards',
-          content_state(eob_then_user) != content_state(said_yes))
-
-    check('neither source wins merely by being recorded second',
-          not (content_state(user_then_eob) == m.CONTRADICTED
-               and content_state(eob_then_user) == m.USER_ASSERTED))
+          r_eu['kind'] != m.RESOLUTION_NONE and r_eu['contradictions'] >= 1)
+    check('...and distinguishes the history from one that was never contradicted',
+          r_eu != r_1 and r_1['kind'] == m.RESOLUTION_NONE)
+    check('in both orders the projection names the source that made the conclusion current',
+          r_eu['resolver'] == m.USER_STATED and r_ue['resolver'] == m.IMPORTED_EOB)
+    check('the current state still resolves by recency among equals, as the design settled',
+          content_state(user_then_eob) == m.CONTRADICTED
+          and content_state(eob_then_user) == m.USER_ASSERTED)
 
     print('\n3. "Latest" should mean latest, not last in the list\n')
 
@@ -146,9 +170,10 @@ def main():
     run(model)
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed, {len(PENDING)} pending')
     if FAIL:
-        print('\nThe failures are the finding, not a broken fixture:')
-        print('  EVIDENCE_MATRIX.md finding 1 - the deliberate tie at rank 3 is broken')
-        print('  by list position, and gap 15\'s explicit tie state is unimplemented.')
+        print('\nThe remaining failure is the finding, not a broken fixture:')
+        print('  EVIDENCE_MATRIX.md finding 2 / area 5 - supersession is positional where')
+        print('  the record is temporal. Latent through record_evidence(); live once')
+        print('  evidence can arrive with recorded_at out of order (§10).')
     return 1 if (FAIL or PENDING) else 0
 
 
