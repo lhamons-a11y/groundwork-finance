@@ -483,7 +483,7 @@ supports and never more.
 with how much of its reason. Showing `offered` means telling someone *we have evidence against
 this*, which is a teaching decision rather than a model one.
 
-### Q2 — SETTLED (contract), not built: resolved-conflict semantics
+### Q2 — CLOSED, design settled; implementation pending
 
 **Not** *should contradictions be remembered* — that is settled: they may not silently disappear.
 The open question is narrower:
@@ -553,6 +553,29 @@ one possible reading of A and is not derived from anything.
 > being overridden by a document is invisible again. Two boundaries recorded: **source type ≠
 > source instance**, and **agreement on a negative is not positive evidence** — a property of the
 > determination, not a fifth kind. Contradiction count is history, not confidence.
+>
+> **Closed 2026-09-11 (Rob).** Contract: `resolution = kind · resolver · contradictions · post`,
+> all four derived from the evidence chain at read time. Two negative boundaries that must not
+> quietly become implementation assumptions: **source type ≠ source instance**, and **agreement on
+> a negative ≠ positive evidence**. And the property the enumeration made load-bearing: **a
+> resolution is a fixed historical event** — later agreement never rewrites why the current
+> determination became current.
+>
+> **The projection-boundary fixture is written, before the projection —
+> `tests/test_resolution_projection_fixture.py`.** Q1 proved a refused value cannot bypass the
+> boundary; this has to prove the other half: *every consumer permitted to receive the value
+> receives the resolution with it, and no consumer can manufacture a resolution from the value
+> alone.* The dangerous case is the ordinary permitted rank-3 result — `value = 1250, rank 3` —
+> from which a consumer cannot tell *never contradicted* from *contradicted → resolved* even
+> though the model can. The oracle is embedded (the definition that survived 5,460 histories),
+> `--exhaustive` re-runs that enumeration against the implementation, and today the fixture
+> prints its specification, checks its own oracle against the table, and reports every
+> projection assertion pending.
+>
+> **One row in the table as handed over was wrong, and it is the bug's shape.** `U:y → E:n → U:y`
+> was given `post = U`. The final `U:y` **is** the resolver; nothing follows it; `post` is empty.
+> `post` is non-empty only when something agrees *after* the resolving event. Encoded the other
+> way, the resolver would sit in `post` and the off-by-one would be back. Corrected in the fixture.
 >
 > **The question narrowed:** *should a resolved conflict affect what a consumer receives, and
 > through what — the strength, or something carried beside it?* Four answers with costs. Demoting
