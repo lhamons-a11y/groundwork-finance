@@ -177,6 +177,38 @@ fix C1/C2. It would give them names while leaving `add_plan` defaulting to `0.0`
 
 ---
 
+## Three things preserved from Rob's review, so the finding cannot drift
+
+**The two axes are a conceptual result, not an implementation prescription.** The cases
+establish that *does the rule apply* and *can we determine whether it applies* are different
+dimensions. They do **not** establish that `rule_state × knowledge_state` is the right primitive
+for everything in Groundwork. C9 shows another architecture entirely — the engine does not decide
+applicability; the caller supplies what lets it distinguish `UNRESOLVED` from `None` — and that
+may be the more important lesson than the vocabulary:
+
+> **Some distinctions cannot be manufactured by the module that needs them.** If the allocation
+> engine cannot know whether *no plan* means no plan covered this date or we have not established
+> the plan, demanding that it infer the distinction is V6 again.
+
+**Applicability is evaluated at more than one level.** C6 is neither *the plan has no deductible*
+nor *we don't know the deductible*. It is a negative applicability determination at the
+expense/rule intersection. A plan can have a deductible while a particular expense does not
+participate in it — so applicability is not a property of the plan alone.
+
+**Fail-closed is a rule for uncertainty, not a universal response to every non-positive state.**
+*This plan has no deductible* and *we don't know this plan's deductible* are opposite epistemic
+situations that share the shape *not a positive number*. Refusing to calculate for the first is
+wrong; calculating for the second is wrong. And C1 is the nasty version: the current
+implementation is not even consistently fail-closed — it **manufactures a positive conclusion
+from missing knowledge.**
+
+**The requirement the cases earned**, stated once:
+
+> **Applicability and determinability are orthogonal distinctions, and absence must not acquire
+> the semantics of the representation through which it passes.**
+
+---
+
 ## What the fail-closed rule does to this
 
 `classification = unknown → fail closed` is correct **on the knowledge axis** — cannot-determine
