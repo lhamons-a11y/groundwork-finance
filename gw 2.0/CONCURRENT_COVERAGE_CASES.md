@@ -208,3 +208,58 @@ Whether to lift the fence as a refinement of Cluster C on these terms: C is a di
 determinate state; represent-and-report governs B and the unresolved priority fact inside C,
 never C's attribution; period overlap is necessary and not sufficient — applicability first;
 and the built year-level `UNKNOWN` is recorded as carrying three situations.
+
+---
+
+## Ruling — Rob, 2026-09-12. Concurrent-coverage fence lifted exactly as written. Evidence mode closed.
+
+**B and C differ ontologically, not merely in confidence:**
+
+```text
+B   competing applicability claims → which governs? UNKNOWN → represent-and-report
+C   both applicable → both govern → attribution is determinate and multi-valued
+```
+
+Calling C *unresolved* would destroy information Groundwork possesses.
+
+**Frozen — the refinement to Cluster C:**
+
+> **Period overlap does not determine applicability. Applicability is evaluated for the
+> particular expense. Where two plans genuinely govern, concurrency is a determinate
+> multi-valued state, not unresolvedness. Represent-and-report applies to an unresolved fact
+> within that state, such as priority, but does not collapse the concurrent attribution
+> itself.**
+
+CC3 is the case that makes it precise: the state is **C + unresolved priority**, not
+*UNKNOWN period*. The system can truthfully say both plans apply while saying which paid first
+is not established. Separate propositions; they remain separate.
+
+**`plan_at()` — a sharper live hazard, with no implementation decision made:**
+
+```text
+B   + [0]   invents a winner where none is established
+C   + [0]   discards a legitimate second governing plan
+CC4 + [0]   selects a plan on temporal overlap before determining expense applicability
+```
+
+> **A single-valued positional lookup is incapable of representing the semantic states the
+> evidence cases now establish.** What `plan_at()` should become remains a consumer/build
+> decision.
+
+**CC5 preserved — the three-way conflation is not cosmetic:**
+
+> **The built year-level `UNKNOWN` currently conflates unresolved competing governance,
+> determinate concurrent governance, and sequential periods. This is a consumer hazard, not a
+> reason to invent a universal replacement state here.**
+
+One generic `UNKNOWN` obscures rather than protects uncertainty.
+
+**Evidence mode is genuinely exhausted.** The cases that can settle semantics without choosing
+representation, consumers or implementation have all been run: entitlement/payee/discharge ·
+acknowledgment · capture/held artefact · asserted referent · proposition kind · source ties ·
+concurrent coverage. Each removed ambiguity without turning a finding into a new type or an
+implementation rule.
+
+**The board stops generating cases.** The next move is an explicit mode change — hazard
+remediation, or build/representation selection — and neither is to be quietly begun because
+the hazards are now obvious.
