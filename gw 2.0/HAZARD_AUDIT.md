@@ -388,4 +388,161 @@ invalid consumers — another reason not to fix the resolver globally.
 
 ---
 
-*H3 – H5 follow, each on the same rule.*
+## H3 — the dated resolvers: `knowing[-1]`, `attested[-1]`, and the three others
+
+### Frozen rule
+
+From `SOURCE_TIE_CASES.md` (ruled), `REPARSE_CLUSTER_B_TEST.md` (ruled), Q2:
+
+> Recency is measured on the evidence's own temporal axis, never by record/import position.
+> utterance → `recorded_at` · dated document / capture → its **as-of** · import order →
+> provenance of arrival, never evidence time. For dated documents `[-1]` is semantically
+> invalid as a resolver.
+
+> Two readings of one held artefact that disagree about a value are a **parse dispute**; the
+> value is `UNKNOWN` while unresolved — never `[-1]`.
+
+> Same party, same as-of → no evidentiary recency axis → **unresolved**, resolved only by
+> evidence (a later as-of, a supersession claim, E's confirmation).
+
+**Rob's audit question, verbatim:** *what proposition does each consumer need resolved, what
+temporal axis belongs to that proposition, and is `[-1]` being used as evidence time or
+merely insertion order?*
+
+### Actual implementation — every positional read in `core/classification.py`
+
+| # | line | read | over | proposition it resolves |
+|---|---|---|---|---|
+| R1 | 319 | `determinations(c, axis)[-1]` | the axis's determination history | *the module's current conclusion* |
+| R2 | 273 | `knowing[-1]` in `_state_from` | knowing evidence on an axis | *the current state* (health, per axis) |
+| R3 | 362, 366, 367, 370 | `knowing[-1][1]`, `dissent[-1]`, `knowing[ri]`, `prior[-1]` in `resolution()` | the same knowing sequence | *how the current conclusion was reached* (Q2's projection) |
+| R4 | 593 | `attested[-1]` in `qualifying_amount` | supporting evidence with an amount | *the tax-qualifying figure* |
+| R5 | 791, 800 | `sorted(...)[-1]`, `sorted(...)[0]` in `strength_of` | states / sources **sorted by rank** | *the weakest material source* |
+
+And the one fact underneath all of them: **`Evidence` has one time, `recorded_at`, stamped
+`_now()` by `record_evidence` at append.** There is no field for a document's own date. So
+for a held EOB, `recorded_at` *is* import time — the thing the frozen rule says is never
+evidence time.
+
+### Classification, per read
+
+**R1 — valid.** Determinations are *module events*, produced only by `record_evidence`
+(the single mutator — `determinations + (_determine(...),)`, L390; nothing else appends).
+"Latest determination" *is* "last appended" by construction; the proposition's axis is the
+module's own event order, and position is that order. Not a hazard.
+
+**R5 — valid.** These index a list **sorted by rank** with `_prefer_contradicted` as the
+tie-break; `[-1]` after sort is *max*, `[0]` is *min*. Not positional in the record's sense.
+Not a hazard.
+
+**R2 — valid for some inputs, invalid for others, and the invalid case has no field to fix
+it with.** Classify by the evidence kind in the knowing sequence:
+
+| knowing evidence | evidence time per the frozen rule | today | verdict |
+|---|---|---|---|
+| `USER_STATED` (an utterance) | `recorded_at` | `recorded_at` = append time ≈ when said | **valid** while utterances are recorded promptly |
+| `IMPORTED_EOB` (a held document) | **its own as-of** | `recorded_at` = import time; **as-of not stored** | **invalid** whenever import order ≠ document order — T1's late-arriving EOB |
+
+Position and evidence time coincide today *only* because `record_evidence` is the sole
+mutator and every knowing party's stance is appended when learned. The tie fixture's own
+header says so: *"they diverge the moment evidence is assembled any other way — a merge, a
+re-import, or §10's late-arriving discovery."* **The repair is not "sort by `recorded_at`"** —
+for a document that is import order under another name (T3). The correct axis for documents
+is a field that does not exist. **Representation. Next mode.**
+
+**R3 — inherits R2's axis problem, plus H4's kind problem.** `resolution()` walks the same
+sequence, so wherever R2 is invalid R3 is too. Separately, the R-ASSERT ruling: the
+source-history kinds are **correct for testimony conflicts** (utterance vs utterance, or
+utterance vs document about the *bit*) and **wrong for held-referent parse disputes** (two
+readings of one artefact reported as a source reversing). That is H4's audit — R3's positional
+reads are noted here and its callers classified there.
+
+**R4 — invalid, and repairable in this mode.** `attested[-1]` resolves a *value* dispute by
+position. The proposition is *the tax-qualifying figure*; the frozen rule says a disputed
+P-subject value is `UNKNOWN` until resolved by evidence. No time axis rescues it — two
+readings of one EOB have the same as-of. **This is H1's shape**: the single-valued contract
+can be kept and the ambiguous case *refused*, with no representation decided.
+
+### Actual consumers
+
+| read | internal consumers | external |
+|---|---|---|
+| R1 | `axis()`, `evidence()`, `resolution()`, `record_evidence` (prior) — everything | — |
+| R2 | `_determine` → every determination | — |
+| R3 | `_fact_resolution` → `narrator_facts`, `export_row`, `backup_row` | — |
+| R4 | `qualifying_total` (→ tax) | — |
+| R5 | `consume`, `refusal`, `_permitted_value` | — |
+
+**Production:** none. `server.py` imports six `core/` modules and never `core.classification`
+(`HEALTH_TRUST_BOUNDARY.md`'s systemic finding). Tests and smoke sections only: s65, s95, s96,
+s98 and five fixtures. **Shipped blast radius: zero** — the third hazard in a row.
+
+**What the suite pins:** `test_evidence_tie_fixture.py` §3 measures R2's position-vs-time
+divergence directly and is **failing on purpose** (a discovery instrument, not in the gate);
+`test_resolution_projection_fixture.py` pins R3 over 5,460 histories *in call order*; nothing
+asserts R4's `[-1]` and s65 does not mutate it — **R4 is unpinned in both directions, like
+H1's `[0]`.**
+
+### Specific contradiction
+
+| read | frozen | implemented | when it bites |
+|---|---|---|---|
+| R2 | latest by evidence time; document → as-of | latest by position; as-of unrepresentable | late-arriving document whose date precedes an utterance |
+| R3 | same, plus kinds by referent kind | same, plus source-history kinds for everything | same, plus any re-parse |
+| R4 | disputed value → `UNKNOWN` | last-appended amount → the tax figure | any re-parse with a different amount; **decides a tax figure by scan order** |
+| R1, R5 | — | — | never |
+
+### Blast radius
+
+Zero shipped. On wiring: R4 reaches the tax total, which `qualifying_total` already presents
+with an `UNAVAILABLE` sentinel for the *unevaluated* case — so a consumer of tax already
+handles a non-figure. R2/R3 reach every state and every narrator/export/backup row.
+
+### Minimum safe repair boundary
+
+The five reads fall into **three boundaries**, and only one is a code change:
+
+1. **R4 — refuse on disagreement.** When the supporting evidence carries more than one
+   distinct amount, `qualifying_amount` returns a refusal rather than `attested[-1]` — the
+   H1 shape: fail closed, single-valued contract kept, the resolution's representation fenced.
+   `qualifying_total` must then treat a refused amount as making `definitive` `UNAVAILABLE`.
+   **One coupling to rule on:** `qualifying_total` today distinguishes *unevaluated* from
+   *reviewed, none qualifying*; a *reviewed, amount disputed* transaction is neither, and
+   counting it under `unevaluated` would misdescribe it. The minimum is that `definitive`
+   becomes `UNAVAILABLE`; whether a third count is added is a small representation question —
+   Rob's. Plus the s65 mutation R4 lacks.
+2. **R2 / R3 — contract + guard, no logic.** No in-mode repair exists: the correct axis for a
+   document is a field the model does not have, and sorting by `recorded_at` would encode the
+   wrong axis. The minimum: (a) the module states that `_state_from` and `resolution()` are
+   valid **only while the knowing sequence is in evidence-time order**, which holds by
+   construction through `record_evidence` for promptly-recorded utterances and is **not
+   guaranteed for documents**; (b) a guard that `record_evidence` remains the sole mutator
+   (an absence assertion — no other path appends a determination), so the latent stays latent
+   *by construction* rather than by luck until the as-of field exists. **Out of the boundary:**
+   the document as-of field; any reordering; the reading-level kind (H4).
+3. **R1 / R5 — nothing.** Valid; recorded so they are not "fixed" alongside the others.
+
+### Coordination note
+
+- **R4 is H1's shape** (refuse on ambiguity, shape fenced) and **R2/R3 are H2's shape**
+  (contract + guard because the repair is representation). The two-kind pattern from H1/H2
+  recurs inside one module — which is the evidence Rob asked H3–H5 to supply about whether the
+  pattern is real. Three of three so far.
+- **R2 and R3 share one axis and must be repaired together, later**, when the as-of field
+  exists — the same field the acknowledgment ruling requires for P-ack (*every acknowledgment
+  is dated*). One representation decision serves both.
+- **Rob's expectation confirmed:** the same mechanism — position over the knowing sequence —
+  has valid consumers (utterances; the determination history; rank sorts) and invalid ones
+  (documents; values). A global "fix the resolver" would break R1 and R5 and mis-repair R2.
+
+### Implementation decision — Rob's
+
+Whether R4's refusal is in the minimum (with `definitive` → `UNAVAILABLE`, and whether a
+*disputed* count is added now or later); and whether the R2/R3 contract-plus-sole-mutator
+guard is sufficient to hold the latent by construction until representation mode.
+
+**No code is changed by this section.**
+
+---
+
+*H4 – H5 follow, each on the same rule.*
