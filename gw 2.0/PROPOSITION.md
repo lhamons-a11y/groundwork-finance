@@ -203,3 +203,64 @@ independent of truth and interpretation, sameness neither textual nor relational
 party, correspondence — and the next question is the first that designs a representation for
 any of it, which is a build-mode question: *what is the smallest schema that carries these six
 without collapsing any of the distinctions the rulings drew.*
+
+---
+
+## 7. Ruling — Rob, 2026-09-12. §3 ruled as the proposition concept. The semantic phase is complete.
+
+*The danger test did what it needed to: neither reduction can represent the already-ruled
+cases without destroying distinctions the architecture explicitly relies on.*
+
+**The strongest result — the relocation of "not established":** it is not an utterance state,
+and not a proposition-existence state. **It is a subject state.**
+
+```text
+utterance
+  └── asserts
+       └── proposition
+            ├── kind
+            ├── subject
+            │    ├── established
+            │    ├── not established
+            │    └── not established, with candidates
+            └── content
+```
+
+Resolved simultaneously: **S3** — the proposition exists before its subject is an established
+party (*kind = servicing relationship · content = serves me · subject = S3, not yet
+established → the assertion mints S3*); no pre-existing party row required, the institution
+ruling preserved without weakening the concept. **The correction** — subject = Monday's
+utterance, kind = correction, content = *Monday's assertion was wrong*; propositions are not
+merely relations among parties. **The world** — some propositions concern the world; *subject
+is semantic structure, not a foreign-key slot.* **V4** — content cannot collapse into text; one
+proposition survives while readings produce competing content, which is why the family
+preserves disagreement instead of choosing a parser's answer.
+
+**Two cautions carried into build mode, explicitly:**
+
+1. **"Subject" is not necessarily "a reference to a record."** *A reference into the record or
+   an absence* is doing important work. If implementation turns `subject` into a polymorphic
+   FK on reflex, it reintroduces the assumption the ontology just rejected. The representation
+   must carry the semantic possibility that the subject is not yet established.
+2. **"Same kind + same subject + same content" must not quietly become a database uniqueness
+   constraint.** Proposition sameness beyond that minimum is deliberately unresolved, and the
+   distinction between semantic sameness and event identity stays intact.
+
+**The chain, stated for the first time without borrowing across boundaries:**
+
+```text
+Artefact ─► Reading ─► content / evidence encountered
+
+Person ─► Utterance ─► Proposition ─ kind · subject · content ─► may establish ─► Institution
+
+correspondence operates ACROSS these, never silently becoming one of them
+```
+
+**The next question is different in kind — build mode:**
+
+> **What is the smallest schema that can carry artefact, reading, utterance, proposition,
+> party, and correspondence without collapsing any distinction the rulings established?**
+
+**Deliberately hostile to convenience:** start from the six semantic objects and their required
+edges, then find the smallest representation — **not** from the existing tables, retrofitting
+the ontology onto them.
