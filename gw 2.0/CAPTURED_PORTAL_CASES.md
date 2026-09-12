@@ -221,3 +221,73 @@ reproducibility axis alone; *held* means the artefact and never the data; the ca
 remains live-system channel at its own as-of; and the *faithful-capture* assertion is a
 property of every household-made artefact, to be taken up — if ever — as one question rather
 than a portal-specific one.
+
+---
+
+## Ruling — Rob, 2026-09-12. Fence lifted exactly this far.
+
+> **Capture does not create a new knowledge channel. It creates a held artefact of an
+> observation, and therefore changes the observation's reproducibility.**
+
+```text
+live portal observation
+        │
+        ├── no retained artefact  →  observation / testimony only
+        │
+        └── retained artefact
+                ↓
+          held artefact
+                ↓
+       readings are readings of it
+```
+
+Three independent axes:
+
+| axis | captured portal |
+|---|---|
+| **channel** | still live system of the servicer of record |
+| **as-of** | still the portal's represented date |
+| **reproducibility** | now Groundwork can re-read the retained artefact |
+
+And critically: **held is not strength. Held is not verification. Held is not faithfulness.
+Held is not recency.** It is a property of what Groundwork possesses and can subsequently
+operate on.
+
+**C3 kept explicit — held artefact vs held data derived from an artefact.** If Groundwork
+retains only `$1,925`, even timestamped and with provenance *transcribed from S's portal*, it
+cannot perform a later reading of the portal. The retained number is evidence/testimony about
+an observation, not the portal artefact. This prevents the tempting conversion:
+
+```text
+captured value  ≠  captured source
+```
+
+**Frozen as general rules — not portal logic** (C4: source persistence is irrelevant to
+held-ness; Groundwork's custody is what matters):
+
+> **An artefact is held when Groundwork retains the artefact itself such that its contents can
+> later be re-read, independently of whether the originating source remains available.**
+
+> **Retaining a value, transcription, or observation derived from an artefact does not make the
+> artefact held.**
+
+**Deliberately open, fenced exactly as the case set left them:** faithfulness of the capture;
+cryptographic/authenticity questions; capture-format equivalence; representation; render-time
+vs source-stated as-of; evidence rank; resolver behaviour. **No special "portal evidence"
+ranking is created from this result.**
+
+The deeper result:
+
+```text
+SOURCE CHANNEL ──────────────── unchanged
+AS-OF ──────────────────────── unchanged
+REPRODUCIBILITY ────────────── changed by custody
+                ↓
+          HELD ARTEFACT
+```
+
+A clean abstraction that applies to statements, EOBs, portal captures, PDFs and scans without
+pretending they are equivalent sources.
+
+**Fence lifted: captured-portal classification. No implementation decision opened. Evidence
+mode remains.**
