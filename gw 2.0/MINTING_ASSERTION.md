@@ -133,3 +133,52 @@ If ruled, the next question is the evidence family's first: **the utterance prim
 smallest representation of *a claim made by a party, with strength, about a proposition* —
 which the minting assertion, the servicer-of-record relation, and every correspondence claim
 all turn out to be.
+
+---
+
+## 6. Ruling — Rob, 2026-09-12. §5 ruled. The point where the ontology stops describing the architecture and starts constraining its implementation order.
+
+**The strongest sentence:** *the anchor references the utterance that minted it, and that
+pointer is the one evidentiary thing an anchor carries — a reference to a claim, not a claim.*
+The anchor does not become a second evidence store because the thing it identifies was
+created by evidence.
+
+**Locked in:**
+
+1. **The utterance is the primitive, not an institution-specific mechanism.** *"My insurer is
+   Lakeview Health"* creates no special `InstitutionAssertion` object; it is an ordinary utterance whose
+   proposition happens to participate in identity creation. One evidence family expresses
+   *"my insurer is Lakeview Health"* · *"this is my servicer"* · *"these two artefacts came from the same
+   institution"* — the semantics differ, the primitive does not.
+2. **"Subject created by the claim" is not circular.** It looks circular only if identity and
+   proposition are treated as one object. The utterance existed as evidence before the
+   institution existed as a party; after minting, the institution becomes the subject of that
+   already-existing claim. This matters enormously for bad assertions: **a false
+   correspondence does not retroactively mean the utterance never existed** (S3).
+3. **The build dependency is genuinely forced** — *dependency, not a plan.* An institution
+   anchor built first has only two implementations, inline assertion data or a provisional
+   assertion representation, both competing with the family for the same claim, both to be
+   reconciled later. The ordering is a consequence of the semantic dependency:
+
+   ```text
+   utterance → minting provenance → institution identity → correspondence / relations
+   ```
+
+**To watch in the next question.** *"The smallest representation of a claim made by a party,
+with strength, about a proposition"* is the right boundary — and it must not silently answer
+**what propositions are.** The next ruling establishes the primitive's minimum semantics —
+**origin · strength · proposition**, plus whatever provenance the evidence doctrine already
+forces — and does **not** decide whether propositions are normalised objects, strings,
+structured predicates, or typed relations. That would be designing the table while settling
+the ontology.
+
+**A question hiding inside it, to be demonstrated from the corpus rather than assumed:**
+
+> **Does an utterance exist independently of whether its proposition is true, resolvable, or
+> even currently understood?**
+
+The prior rulings point strongly to *yes* — otherwise S3-type false assertions cannot be
+represented cleanly — but it is shown, not assumed, the way this record showed its answer.
+
+**Accepted as the next fence:** don't build the institution · don't design its table · don't
+decide unminting · **establish the evidence primitive first.**
