@@ -183,3 +183,89 @@ question, and the point at which the correspondence regress terminates.
 If ruled, the next question is the first implementation question in the whole chain, and it
 is small: **whether minted institutions live beside `Person` or as a second kind under one
 reference.** That is a table question, and it is not this one.
+
+---
+
+## 7. Ruling — Rob, 2026-09-12. §6 ruled.
+
+*The case work showed the hybrid is not a compromise between two mechanisms; the cases force
+it because the knowing relation is different.*
+
+**The strongest part is the fixed-point argument.** It closes a recursion that would otherwise
+quietly infect the model — *who establishes that this institution is party A? → another party
+→ who establishes that? → …* — because `Person` is not merely another evidence-derived
+identity; it is the domain's authoritative declaration of household membership. Materially
+different from an institution identified by an artefact.
+
+**Preserved aggressively — future implementation must not collapse these:**
+
+```text
+Person identity        →  the household's declaration
+Institution identity   →  Groundwork-minted identity  →  correspondence evidence
+```
+
+Not "two ways to create IDs" — **two different epistemic foundations for identity.** And:
+
+```text
+NOT ESTABLISHED   is not   UNKNOWN PARTY   and certainly not   PARTY_ID = NULL
+```
+
+The four-state distinction matters because **NO PARTY has positive semantic meaning**: the
+process originated the thing and there is no party assertion behind it. It prevents the
+manufactured classifier from acquiring a fake provenance merely because its output is attached
+to an artefact.
+
+**The role ruling — a rule reviewers may reject future designs against:**
+
+> **Roles are dated relations over parties, never parties.**
+
+```text
+P ──[E, t1..t2]──► X
+P ──[not E, t2..t3]──► X
+P ──[E, t3..]──────► X          still P; the relation changed, the party did not
+```
+
+Exactly the distinction the capture/source machinery could not express.
+
+### The primitive layer
+
+```text
+ARTEFACT
+  minted identity
+      ├── owns    → READING
+      └── carries → ORIGIN PARTY (when established)
+
+PARTY
+  household member → Person / household declaration
+  institution      → minted identity
+  correspondence   → evidence, never identity
+
+RELATIONS
+  role             → dated relation over parties
+  correspondence   → asserted relation with strength
+  lineage          → derived over established relations
+  independence     → derived over established provenance
+
+PARTY STATE
+  established A · established B · not established · no party
+```
+
+> **Identity is primitive; relationships explain what we know about identities.**
+
+### The next question — implementation-shaped, and allowed to touch schema
+
+The semantic requirement now earned:
+
+> **There must be a single usable party reference capable of referring to either a household
+> `Person` or a minted institution.**
+
+Not decided: one polymorphic/reference table · separate tables with an abstraction above ·
+a party table alongside `Person` · something else. The ontology has earned the right to ask.
+
+**The constraint carried into that discussion:**
+
+> **The implementation must not make the semantic distinction between household-declared and
+> institution-minted identity disappear merely because they share a reference type.** "One
+> reference" does not necessarily mean "one ontology."
+
+That is the next place to look for a hidden architectural trap.
