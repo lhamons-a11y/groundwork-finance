@@ -230,3 +230,108 @@ model is never a locus at all.
 visible refusal upstream, check downstream, never text to the model. And 9, which the case
 neither requires nor forbids — it requires only that if the field exists, the findings
 assembler is not among its readers.
+
+---
+
+## 5. Ruling — Rob, 2026-09-12. Constraint 3 closed.
+
+**11, for the narration path, ruled conservatively — and the reason matters more than the
+rule, because the rule is not "health-sensitive things cannot be narrated":**
+
+> **A claim may be voiced only when the claim is asserted by the findings record. A
+> manufactured classification is not an asserted claim, and narrator inference from strings is
+> never an authorisation to make one.**
+
+Applied to the case (referents as the case records them):
+
+| row | what the record holds | voiceable as a health claim? |
+|---|---|---|
+| `category_delta:Prescriptions` | user-set category → **asserted** content evidence | potentially — subject to the existing gates |
+| the two CVS rows under *Other* | classifier-marked health, **manufactured** | **no** — manufactured provenance cannot satisfy the authorisation requirement |
+| memo *wheelchair ramp lumber* | **nothing** — both axes `not_evaluated`; only the narrator would infer | **no** — an inference from a string is not in the record and authorises nothing |
+
+**This is not a general prohibition on mentioning the transaction.** It is a prohibition on
+the narrator *upgrading* an inference or a manufactured fact into an asserted health claim.
+
+**Why this and not "never voice manufactured":** provenance is doing the work. The rule is not
+`manufactured = forbidden` as a universal semantic law; it is **manufactured provenance cannot
+satisfy the authorisation requirement for an asserted claim.** That leaves room for a future
+policy to decide whether a manufactured fact may participate in some *other* form of narration
+— an explicitly non-claiming statement — without silently granting it the status of a finding.
+
+**Enforcement geometry, preserved exactly as the test found it:**
+
+```text
+classifier
+   │
+   ├── sensitivity / provenance ──► boundary
+   │                                └── visible refusal, if policy requires
+   │
+   └──────────────────────────────► findings
+                                    │
+                                    ▼
+                                 callAI()
+                                    │
+                                    ▼
+                                  model
+                                    │
+                                    ▼
+                               voice gate
+                                    │
+                                    └── verifies output against findings
+```
+
+Nothing about sensitivity is serialised into the model as an instruction or a fact whose
+presence authorises speech.
+
+**The `callAI()` finding, weighted as Rob reads it — more significant than it first looks:**
+the findings assembler is *currently the implicit authorisation boundary.* Anything it puts
+into the model's text has, under R8, effectively been admitted for narration. So if
+`NarratorFacts.Sensitivity` ever exists, the dangerous implementation is not *the model sees a
+flag*; it is
+
+```text
+Sensitivity → findings text → model
+```
+
+because that silently converts representation into authorisation.
+
+**§9 left unchanged.** The constraint is not *sensitivity must not travel downstream*; it is:
+
+> **Sensitivity may travel to components that enforce policy, but may not be converted into
+> model-visible content merely because it exists.**
+
+So the sharper arrow stands — `9 ──X──► 11 (policy)` — with the caveat that **findings text is
+an authorisation-bearing boundary, not a neutral transport layer.**
+
+**Fenced, deliberately:**
+
+- the exact 11 policy beyond this narration rule;
+- whether the check becomes R8, a sibling gate, or another validation — the doctrine says
+  *assertion status is required for voice authorisation*; where the check lives is
+  implementation architecture;
+- what "asserted" means for an imported classification such as `Prescriptions` — stays in
+  classification/evidence semantics, **not to be solved by making the narrator smarter**;
+- F3.
+
+**Constraint 3, recorded:**
+
+```text
+3  narrator sensitivity ↔ voice permission
+
+   voice authorisation   → asserted findings
+   manufactured facts    → cannot authorise a voiced claim
+   narrator inference    → never authorisation
+
+   enforcement           → upstream boundary or downstream gate
+   model                 → never an enforcement locus
+
+   9 → 11 policy: no — sensitivity may travel, provided it never becomes
+   model-visible authorisation merely by being serialised into findings
+```
+
+**The pattern across all three joint constraints (Rob's):** *don't make one semantic dimension
+impersonate another merely because the data happens to travel through the same object.*
+§7.7: entitlement is not classification, though one event touches both. Time: an observed
+claim is not a resolved period, though one operation closes both. Voice: a carried fact is not
+an authorised claim, though one text carries both.
