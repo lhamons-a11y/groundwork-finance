@@ -170,7 +170,68 @@ is scored against §2's contract, not against the code it replaces.
 
 ---
 
-## 5. Decision remaining — Rob's
+## 5. Ruling — Rob, 2026-09-12. §2 is the identity/lineage contract.
+
+**A constraint on representation, not a representation.** It states what any eventual
+mechanism must preserve without smuggling in an implementation choice. P-subject reader
+corroboration stays fenced exactly as §3 has it — a different proposition domain, not to
+contaminate the world-provenance independence rule.
+
+### The representation question, now open
+
+> **What identity mechanism makes origin, artefact, and reading comparable while preserving
+> the distinction between them?**
+
+The design space, constrained before fields:
+
+| thing | what must be comparable | what must *not* be conflated |
+|---|---|---|
+| **origin** | *whose knowledge does this proposition convey?* | channel, capture method, reader |
+| **artefact** | *which particular thing was observed?* | source type, file, reading |
+| **reading** | *which observation/interpretation of that artefact produced this proposition?* | the artefact itself, an independent source |
+| **lineage** | *how did this evidence get from origin through artefact/reading to proposition?* | evidentiary strength |
+| **independence** | *are these propositions grounded in distinct origins?* | the number of artefacts/readings |
+
+```text
+origin ≠ artefact ≠ reading
+             │
+             └── lineage connects them
+```
+
+**Lineage is not an identity object** — it describes relationships between the
+already-distinguishable things. The evidentiary relationship stays separate and owns strength.
+
+### The hard mechanical tests any mechanism must make decidable
+
+```text
+T-A   R1 ∈ D1 · R2 ∈ D1 · R1 ≠ R2 · D1 ≠ D2 · origin(R1) = origin(R2)
+      ⇒ R1 + R2 ≠ two independent sources
+
+T-B   R1 ∈ D1 · R2 ∈ D2 · D1 ≠ D2 · origin(D1) = origin(D2)
+      ⇒ two artefacts ≠ independent provenance          ← NON-NEGOTIABLE: kills distinct = {e.source}
+
+T-C   D1 ─┬─ R1 → $412        must stay distinguishable from      D1 ── R1 → $412
+          └─ R2 → $4.12                                           D2 ── R2 → $4.12
+      without examining insertion order or source enum
+
+T-D   stable identity across time:
+      same real artefact + different arrival + different reading  = same artefact, distinct readings
+      different real artefact + same origin                       = different artefacts, same origin
+```
+
+T-D is the constraint that separates *are these two readings of the same artefact?* from the
+harder cases — the same artefact imported twice, re-read later, or arriving through another
+capture path.
+
+### Rejected as the identity contract itself
+
+Any candidate whose identity is derived **primarily** from: source enum · import event · row
+position · reading content alone · filename alone · timestamp alone · number of observations.
+These may be attributes *used by* a mechanism; none is sufficient as identity.
+
+**The mode proceeds from *what must identity mean* to *what mechanism can provide it*, without
+reopening the ontology. No code. No schema. The next artefact is a comparison of candidate
+identity mechanisms against these invariants, ending in a ruling — not an implementation.**
 
 Whether §2 is the contract — the minimum identity/lineage semantics every eventual schema must
 satisfy — with reader-independence for P-subject explicitly left fenced, and the identity
