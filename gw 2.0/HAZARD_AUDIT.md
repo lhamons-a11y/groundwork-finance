@@ -737,6 +737,59 @@ representation mode's agenda, without deciding its shape.
 
 **No code is changed by this section.**
 
+### H4 ruling — Rob, 2026-09-12. Minimum accepted exactly as proposed.
+
+1. **No resolver repair.** `resolution()` receives an observation model in which two readings
+   of one artefact and two independent artefacts are indistinguishable. *No resolver can
+   recover a distinction that isn't represented.* Changing it would be cosmetic at best,
+   dangerous at worst.
+2. **Contract: yes.** `resolution()` operates on source-history events where each knowing event
+   is a distinct source stance — `self_reversal by imported_eob` legitimate for D4,
+   illegitimate for D3b. The H3 ordering assumption belongs in the same contract.
+3. **Fixture note: yes.** Prevents the large fixture becoming accidental doctrine: 5,460
+   histories demonstrate behaviour under a particular provenance model; they do not establish
+   it for a future model containing document identity and readings.
+
+**The architectural conclusion — recorded as a requirement, not a design:**
+
+```text
+                 dated, individuated evidence
+                    /                 \
+              evidence time       referent identity
+                   |                    |
+                 H3 / R2              H4 / D3b
+                   |                    |
+             P-ack ties            parse disputes
+                    \                  /
+                     Cluster B / R-ASSERT
+```
+
+Acknowledgment evidence adds the same temporal requirement without proving its storage shape
+must be identical. So the agenda item is a **capability requirement**, not *add two fields to
+`Evidence`*:
+
+> **Representation requirement: the evidence model must be capable of preserving an evidence
+> item's own temporal coordinate and individuating referent where those properties are
+> required to distinguish source chronology or artefact readings. Representation shape
+> remains undecided.**
+
+> **H4 status:** contract accept · fixture provenance note accept · resolver rewrite
+> reject/defer · reading-level kind defer · document as-of defer · referent representation
+> defer · consumers not modified · shipped blast radius zero · representation agenda item yes,
+> requirement only. The four-pattern summary stays an audit observation, not doctrine.
+
+**H5 is to be treated differently.** Unlike H1–H4 there is a live path — `callAI()` and the
+voice gate. Its blast radius must distinguish, carefully:
+
+```text
+(1)  a live safety failure
+(2)  a latent safety hazard with no currently demonstrated violating output
+(3)  a representation / boundary weakness exploitable only when a future finding
+     reaches the narrator
+```
+
+That distinction decides whether H5 gets contract + guard or an actual remediation boundary.
+
 ---
 
 *H5 follows, on the same rule.*
