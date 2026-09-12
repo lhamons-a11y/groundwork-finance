@@ -116,6 +116,22 @@ def _mutations(m):
                                                                            None, **kw)
         return lambda: setattr(m, 'correct_terms', orig)
 
+    def unsupplied_terms_become_zero():
+        # The shipped state before the quarantine repair: add_plan defaulted the deductible to
+        # 0.0, so a plan entered before its terms were known read `met = True`. The most
+        # mundane false sentence in the module, and the one the fixture could not see because
+        # the UNKNOWN branch was unreachable through the API.
+        orig = m.add_plan
+
+        def broken(name=None, deductible=None, oop_max=None, effective_from=None,
+                   effective_to=None):
+            return orig(name=name,
+                        deductible=0.0 if deductible is None else deductible,
+                        oop_max=0.0 if oop_max is None else oop_max,
+                        effective_from=effective_from, effective_to=effective_to)
+        m.add_plan = broken
+        return lambda: setattr(m, 'add_plan', orig)
+
     def unknown_becomes_false():
         orig = m.year_summary
 
@@ -176,6 +192,8 @@ def _mutations(m):
         ('a correction records no previous value', previous_not_recorded),
         ('a correction records no source', source_not_recorded),
         ('not knowing the plan becomes "deductible not met"', unknown_becomes_false),
+        ('not knowing the deductible becomes "deductible met" - a zero nobody entered',
+         unsupplied_terms_become_zero),
         ('spending under no plan is absorbed rather than reported', unattributed_absorbed),
         ('out-of-pocket is derived from the deductible', oop_follows_the_deductible),
         ('deleting a plan with expenses under it is allowed', delete_ignores_history),

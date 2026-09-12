@@ -111,9 +111,30 @@ def now():
 
 # ── Plans and their terms ───────────────────────────────────────────────────
 
-def add_plan(name=None, deductible=0.0, oop_max=0.0, effective_from=None,
+def _term(v):
+    """A term the caller supplied, or None for one they did not.
+
+    Not `float(v)`, and not a default of `0.0`. A plan added before its terms are known used to
+    get a deductible of zero, and `applied >= 0.0` is true the moment anything is spent - so
+    the module's own promise (`UNKNOWN`, never False, never zero) was unreachable through its
+    own API, and a user who had not found their deductible yet was told it was met.
+    `gw 2.0/APPLICABILITY_CASES.md` C1/C4/C5; quarantined in `HEALTHCARE_GAP_TRIAGE.md`.
+
+    This is a narrow repair, not the applicability decision. A plan that genuinely has no
+    deductible must be entered as `deductible=0.0` explicitly - and a plan whose caller omits
+    the deductible reads UNKNOWN, which for an HMO is conservative rather than correct. That is
+    an intentional consequence of today's representation, NOT evidence that "unknown
+    deductible" and "no deductible" are one state. They are not, and that is the open axis.
+    """
+    return None if v is None else float(v)
+
+
+def add_plan(name=None, deductible=None, oop_max=None, effective_from=None,
              effective_to=None):
-    """A plan change: what is true going forward. Never a correction to what came before."""
+    """A plan change: what is true going forward. Never a correction to what came before.
+
+    Terms default to None - not supplied - and stay None until a caller supplies them.
+    """
     r = _r()
     r._seq += 1
     p = Plan(id=r._next_id, name=name, effective_from=effective_from,
@@ -121,8 +142,8 @@ def add_plan(name=None, deductible=0.0, oop_max=0.0, effective_from=None,
     r._next_id += 1
     r.plans.append(p)
     r.terms.append(TermVersion(plan_id=p.id,
-                               terms={'deductible': float(deductible),
-                                      'oop_max': float(oop_max)},
+                               terms={'deductible': _term(deductible),
+                                      'oop_max': _term(oop_max)},
                                previous=None, seq=r._seq, recorded_at=_now()))
     r.ops.append(Operation(kind='change', plan_id=p.id, seq=r._seq, recorded_at=_now()))
     return p
@@ -139,7 +160,7 @@ def correct_terms(plan, reason=None, source=None, **new_terms):
     r._seq += 1
     prior = terms_at(plan)
     merged = dict(prior)
-    merged.update({k: float(v) for k, v in new_terms.items()})
+    merged.update({k: _term(v) for k, v in new_terms.items()})
     r.terms.append(TermVersion(plan_id=plan.id, terms=merged, previous=dict(prior),
                                reason=reason, source=source, seq=r._seq,
                                recorded_at=_now()))

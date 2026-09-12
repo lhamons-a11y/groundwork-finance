@@ -35,9 +35,24 @@ None`, is **unreachable**: both mutators raise `TypeError` on `None`.
 
 **Why this one is quarantined and the others are not:** it fires on the **default path**, with
 no unusual input. A user enters the plan they know they have, has not found the deductible yet,
-and is told it is met. `APPLICABILITY_CASES.md` C1/C4/C5. Recorded, not repaired — the right
-default depends on which axis the absence is on (rule or knowledge) and the API cannot say —
-but it must not wait behind the seven decisions as though it were one of them.
+and is told it is met. `APPLICABILITY_CASES.md` C1/C4/C5.
+
+> **REPAIRED 2026-09-11, narrowly.** `add_plan` and `correct_terms` no longer manufacture `0.0`;
+> a term the caller did not supply is `None`, and the `UNKNOWN` branch is reachable through the
+> API. The behaviour moved from *unknown → fabricated zero → met* to *unknown → unknown → no
+> determination*. The fixture gained the case it was missing — *a plan on file with terms not
+> yet entered* — plus the guard on the other side: an **explicitly supplied** zero is a known
+> zero and still reads met. s85 gained the pre-repair state as a mutation, caught. The
+> DB-backed substrate experiment round-trips `None` unchanged, because the column was already
+> `nullable=True` — the table anticipated this; only the module refused it. **Gate 846 → 847.**
+>
+> **This is not the applicability decision, and must not become it.** A plan whose caller omits
+> the deductible now reads `UNKNOWN` — which for an HMO with genuinely no deductible is
+> **conservative rather than correct**. That is an intentional consequence of today's
+> representation, and it is *evidence for* the eventual axis decision — the interim repair
+> demonstrates that *unknown deductible* and *no deductible* are being served by one value and
+> should not be — not a claim that they are the same state. The axis stays open. The entry stays
+> here, marked repaired, so the false sentence and its removal are both on record.
 
 ### Same class, trigger-dependent — recorded, not quarantined
 

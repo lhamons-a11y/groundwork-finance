@@ -173,6 +173,39 @@ def run(model):
           model.year_summary(EXPENSES, 2027,
                              as_of=before_c)['deductible_met'] is model.UNKNOWN)
 
+    # ── A plan on file whose terms are not yet entered ───────────────────────
+    # The state the docstring promised UNKNOWN for, and the one the fixture never tested:
+    # not "no plan on file" (covered above) but "the plan is known and its deductible is not".
+    # Through the shipped API this read `met = True`, because add_plan defaulted the deductible
+    # to 0.0. APPLICABILITY_CASES.md C1/C4/C5; quarantined in HEALTHCARE_GAP_TRIAGE.md.
+    model.reset()
+    known_plan = model.add_plan(name='Aetna PPO, deductible not found yet',
+                                effective_from='2028-01-01', effective_to='2028-12-31')
+    spent = {'y1': {'date': '2028-03-01', 'amount': 800.00}}
+    acc = model.accumulators(spent, known_plan)
+    check('a plan on file with terms not yet entered reports UNKNOWN - never met, never unmet',
+          acc['deductible_met'] is model.UNKNOWN and acc['oop_met'] is model.UNKNOWN)
+    check('and the spend under it is still reported',
+          acc['applied'] == 800.00)
+    check('the year rolls that up as UNKNOWN too',
+          model.year_summary(spent, 2028)['deductible_met'] is model.UNKNOWN)
+    check('terms can be withdrawn back to unknown by a correction, and it is recorded',
+          model.correct_terms(known_plan, deductible=None, reason='card was wrong') is not None
+          and model.terms_at(known_plan)['deductible'] is None
+          and model.operations(known_plan)[-1].kind == 'correction')
+
+    # The other side, so the repair cannot over-reach: a deductible the caller SUPPLIED as zero
+    # is a known zero, and it is met. Whether "met" is the right word for a plan that has no
+    # deductible at all is the open applicability axis, and this fixture does not decide it.
+    model.reset()
+    zero_plan = model.add_plan(name='HMO, entered as zero', deductible=0.0, oop_max=0.0,
+                               effective_from='2028-01-01', effective_to='2028-12-31')
+    check('an explicitly supplied zero deductible is known, and reads met',
+          model.accumulators(spent, zero_plan)['deductible_met'] is True)
+    model.reset()
+    a = model.add_plan(**PLAN_A)
+    b = model.add_plan(**PLAN_B)
+
     # ── A historical plan record is effectively immutable ───────────────────
     check('deleting a plan with expenses under it is refused',
           model.delete_plan(a, EXPENSES) is False)
