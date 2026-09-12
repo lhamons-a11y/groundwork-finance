@@ -113,3 +113,80 @@ the provider/lender test — if at all — as a stated default for unheld terms 
 definition; or whether the party test is what §7.7 intends and the recourse relabelling is
 accepted behaviour. The inventory's contribution is that the second option now has to be chosen
 knowing that no consumer asked for it.
+
+---
+
+## 5. Decision — Rob, 2026-09-12, on reading §1–§4
+
+*The strongest finding is not that the party is unnecessary. It is that the party test
+demonstrably produces a classification change without producing a change in any downstream
+reason for that classification — a proxy that escaped its original context.*
+
+**§7.7 is restated. *Carries* is removed as the semantic definition.**
+
+> **Classification describes the obligation by its financial terms and, where applicable, the
+> nature of the underlying expense — not by the party currently entitled to collect it.**
+
+The dimensions are made explicit rather than replaced by a new single label — and they are
+**facts consumed by different behaviours, not three classifications and not one object**:
+
+```text
+instrument character     read by C1 / C2 / C6
+care necessity           read by C3
+financial terms          rate · term · deferred/retroactive consequence · cliff — read by C4 / C5
+```
+
+**Not frozen as an ontology.** The evidence establishes that these are the things the consumers
+read. It does not establish that they belong inside one unified classification object, and no
+master label whose job is to collapse them back together is to be created.
+
+**The provider/lender test is retained only as an evidence fallback, never as classification
+semantics.** Rob's wording:
+
+> *When the terms necessary to classify an obligation are not held, Groundwork may use the
+> identified party as a conservative default where explicitly authorized; that default is not
+> evidence that the party defines the classification.*
+
+If later evidence establishes the terms, the classification changes **because the evidence
+changed, not because the creditor changed.**
+
+**The architecture this gives:**
+
+```text
+OBLIGATION
+    ├── disposition identity        persists across entitlement changes      (doctrine test)
+    ├── entitlement                 consumed by §8 collections               (left alone)
+    └── classification facts        instrument · care necessity · terms      (this document)
+```
+
+One event may update two dimensions without one masquerading as the other. Under the current
+wording, *vendor → lender → vendor* flips *healthcare cost → credit card → healthcare cost*
+with nothing relevant to C1–C6 changed; under the restatement it changes entitlement and
+nothing else unless the terms did.
+
+**§8 is left completely alone.** Its entitlement consumption is independently justified.
+
+### Pushback recorded against the decision — unresolved, Rob's
+
+1. **The fallback cannot be one default, because *conservative* points in opposite directions
+   across the consumers.** *Adversary until the terms prove otherwise* is fail-closed for
+   C5 (no serene payoff date on unheld terms) and arguably C4. Applied to C1/C2/C6 it **calls
+   care "debt" by default** — a 0% plan whose terms are not yet entered is listed among the cards
+   and denied §0.2's protection. That is §0.2's harm inflicted on the innocent case, not
+   caution. The repository's own rule applies: *absence is not zero*, and *Unknown must be an
+   acceptable terminal state*. Under unheld terms the honest state for the noun is **unknown**
+   — *we do not hold this plan's terms* — not *adversary*. If the fallback is kept it has to be
+   scoped **per consumer**: fail closed where that protects the household (C4, C5), refuse to
+   classify where a default would be a verdict (C1, C2, C6). One default across six consumers
+   is the master-label collapse, arriving through the fallback door.
+2. **"Instrument character" is an existing requirement under another name, and the fact is the
+   kind, not the verdict.** `OBLIGATION_LIFECYCLE_QUESTION.md` §4 already lists *the
+   explicitness of instrument kind — `NOT NULL`, no default, never computed* as settled.
+   C1/C2/C6 read the kind; *adversary* is §1.4's doctrine applied to it. Store the kind; never
+   store the verdict.
+3. **Never-list 17 must move with §7.7 or the proxy survives in the never-list.** *"Never
+   classify a lender's balance as a healthcare cost, however medical the purchase"* contradicts
+   the restatement for a vendor-funded 0% term plan with no cliff. Same edit, both places.
+
+Items 2 and 3 are alignment. Item 1 is a defect in the fallback as worded and is not adopted
+into the doctrine until Rob rules on it.
