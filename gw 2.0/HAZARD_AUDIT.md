@@ -952,6 +952,61 @@ sufficient until representation mode.
 
 **No code is changed by this section.**
 
+### H5 ruling — Rob, 2026-09-12. The right place to break the pattern.
+
+**Live half: the declaration-based guard, inside the remediation boundary.** Not because
+today's four surfaces are unsafe — they are not — but because the current safety property is
+**accidental and feature-addition fragile.** A harness assertion says *these four things are
+safe today*; the declaration says *a gated narrator call must explicitly declare what evidence
+classes it is authorised to receive.* Materially stronger. Frozen for remediation:
+
+> **A gated `callAI` invocation must declare its findings kinds. An undeclared gated
+> invocation, or one declaring prohibited free transaction text, fails closed.**
+
+This does **not** establish a claim-provenance policy — it is an input-side boundary only.
+`callAI()` must not start interpreting individual claims, resolving provenance, or deciding
+whether a sentence is allowed; that belongs to the later gate design.
+
+**Why declaration over harness:** it makes the caller state its contract at the crossing.
+
+```text
+without:   feature → prompt builder → callAI → model        (reviewer inspects the whole builder)
+with:      feature → declared findings kinds → callAI → model
+                                  ↓
+                             fail closed                    (the crossing is auditable)
+```
+
+Appropriate for Groundwork because the model is downstream of a deterministic evidence
+boundary, not a participant in deciding what evidence is permissible.
+
+**Unwired half: accepted as proposed** — `NarratorFacts` contract; no sensitivity
+serialisation into model-visible findings; boundary fixture extended to detect
+`.sensitivity`; the sensitivity-aware reader deferred to the representation/gate decision.
+**`_permitted_value` is not modified** — neither the representation nor the settled gate
+rule exists.
+
+**Wording correction, applied:** *dated / individuated evidence* is a **representation
+requirement**; the *sensitivity reader* is a **boundary capability requirement**. Adjacent,
+not one schema requirement — the audit has not established that the reader's storage shape
+belongs to the same representation decision.
+
+| part | ruling |
+|---|---|
+| today's four gated surfaces | safe |
+| live future-feature hazard | **real latent hazard** |
+| live remediation | **yes — declaration at `callAI`** |
+| harness alternative | rejected as primary boundary |
+| claim-level gate | deferred |
+| R8 | untouched |
+| `_permitted_value` sensitivity | deferred |
+| `NarratorFacts` contract | accept |
+| `.sensitivity` boundary scan | accept |
+| model as enforcement locus | absolutely not |
+
+> **The absence of a violating output does not prove the boundary is safe when the safety
+> property exists only because today's callers happen to behave.** A legitimate remediation
+> target even with zero shipped blast radius.
+
 ---
 
 ## Audit summary — H1 to H5
@@ -962,12 +1017,40 @@ sufficient until representation mode.
 | H2 `record_payment`/`remaining` | 0 (by rule) | vocabulary > computation | contract; absence guard; rename deferred; 1.x scope fenced | **ruled** |
 | H3 dated resolvers | 0 | position ≠ evidence time (R2/R3); value by position (R4) | R4 refuse; R2/R3 contract + construction guard; as-of deferred | **ruled** |
 | H4 `resolution()` | 0 | type ≠ instance | contract; fixture note; referent deferred | **ruled** |
-| H5 narrator boundary | 0 live / (2) latent / (3) unwired | input-side assertion holds by construction | live: input declaration guard; unwired: contract + scan | **awaiting ruling** |
+| H5 narrator boundary | 0 live / (2) latent / (3) unwired | input-side assertion holds by construction | live: input declaration guard; unwired: contract + scan | **ruled** |
 
-**Shared representation requirement (H3, H4, H5-unwired, and four evidence-mode rulings):**
-dated, individuated evidence, with a sensitivity reader on the gate side — a capability
-requirement, shape undecided, first item of the next mode.
+**Two requirements carried forward, adjacent and not merged (Rob):**
+- **Representation requirement** (H3, H4, and four evidence-mode rulings): dated, individuated
+  evidence — an evidence item's own temporal coordinate and individuating referent, where
+  required to distinguish source chronology or artefact readings. Shape undecided.
+- **Boundary capability requirement** (H5-unwired): a sensitivity/provenance reader at the
+  narrator boundary on the gate side, never in the model's text. May or may not touch the
+  representation; not assumed to.
 
 **Coordination:** H1–H4 repair as one contract-and-guard pass over three modules with zero
 shipped consumers, plus two fail-closed refusals (`plan_at`, `qualifying_amount`). H5's live
 half is its own small change at one choke point.
+
+---
+
+## Audit phase — closed. Rob, 2026-09-12.
+
+**H1–H5 audited and closed.** No code was changed under the audit. The only changes later made
+are the contract / fixture / guard decisions explicitly authorised above, applied in
+remediation.
+
+**Next mode, explicit: REPRESENTATION & REMEDIATION DESIGN.** Not implementation. Take the
+exposed requirements and determine the **smallest representation** that can carry:
+
+1. evidence referent identity
+2. the evidence's own temporal coordinate
+3. P-ack / acknowledgment evidence
+4. the reading-vs-source distinction
+5. sensitivity / provenance at the narrator boundary
+6. the unresolved states required by the consumers
+
+while deliberately **not** deciding what remains fenced: `plan_at()`'s eventual return shape ·
+payment projection semantics · supersession semantics · the full claim-level narration policy.
+
+**Carried separately, not buried in representation work:** *does the frozen discharge rule
+have 1.x scope, or is it a 2.0 obligation only?*
