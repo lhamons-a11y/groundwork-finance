@@ -47,7 +47,8 @@ The shape, before the detail:
 ```text
 parties        (built)                   artefacts ──owns──► readings
    ▲                                          ▲                 │
-   │ origin                                   │ subject/object  │ asserts
+   │ origin                                   │ subject (+ any  │ asserts
+   │                                          │  2nd participant)│
 utterances ──evidences──► propositions ◄──────┘                 │
    │                         ▲                                  │
    └── minted_by (institution party) ◄── ... ◄── evidentiary relationship ◄──┘
@@ -83,7 +84,7 @@ anchor stays a guard (SQLite cannot add a CHECK after creation).
 | **mandatory edges** | **asserted artefacts:** `asserted_by` (→ `utterances`) — an artefact Groundwork never held exists because the household asserted it (R-ASSERT), the same *under-a-claim* shape as an institution. **Held artefacts:** none — the encounter is the provenance |
 | **cardinality** | one artefact → 0..n readings; asserted artefact → exactly one asserting utterance (guard) |
 | **evidence vs structure** | `id · held · content_hash · as_of · encountered_at` are structure and encounter provenance. **Origin is not a column** — see states |
-| **states — origin** | **derived, not stored.** The artefact's origin party is established by a *proposition* (kind: *origin-of-artefact*, subject: the artefact, object: a party) asserted by an utterance or a reading — contract C3: origin is asserted, with a chain, at a strength. Storing it as a column would be a stored summary of evidence that can drift from the claims that determine it — the tie fixture's lesson, and the same reason `resolution()` and `strength_of` are computed on read. The four origin states — established · not established (with candidates) · no party — are therefore **read off the origin propositions**, exactly as *governing plan* is read off plan claims (the concurrent-coverage ruling) |
+| **states — origin** | **derived, not stored.** The artefact's origin party is established by a *proposition* (kind: *origin-of-artefact*, subject: the artefact, second participant: a party) asserted by an utterance or a reading — contract C3: origin is asserted, with a chain, at a strength. Storing it as a column would be a stored summary of evidence that can drift from the claims that determine it — the tie fixture's lesson, and the same reason `resolution()` and `strength_of` are computed on read. The four origin states — established · not established (with candidates) · no party — are therefore **read off the origin propositions**, exactly as *governing plan* is read off plan claims (the concurrent-coverage ruling) |
 | **derived, not stored** | origin and its state; supersession (a proposition: *B supersedes A*); "which readings agree"; independence |
 
 **A consequence worth stating:** Rob's primitive-layer diagram says an artefact *carries* an
