@@ -216,3 +216,45 @@ Whether to lift the fence on these terms: the four figures are three kinds; P-ac
 is history and at one date a source conflict; the computation is a diagnostic, not a claim; the
 user's figure has no kind until asked; and the honest report is already expressible with no
 new proposition kind.
+
+---
+
+## Ruling — Rob, 2026-09-12. U6 lifted on exactly these terms.
+
+*The strongest result is the rejection of the original dichotomy. There is no "four figures =
+one proposition" problem to solve. The first job is kind identification.*
+
+**Frozen distinction:**
+
+```text
+P-ack         the entitled party's stated position, always dated
+projection    a Groundwork-derived result; not evidence
+testimony     a household report; kind remains unresolved until identified
+```
+
+**The relationships that follow:**
+- P-ack at different as-of dates → history, not disagreement.
+- P-ack at the same as-of → potentially conflicting source claims.
+- P-ack vs Groundwork projection → acknowledgment-state diagnostic, not claim-vs-claim.
+- User figure → **no automatic classification.** Ask what the user means before giving it a
+  proposition role. *The system must not silently convert "I think the balance is $3,500" into
+  either a document assertion or a P-world proposition because that makes the data model
+  easier.*
+
+**The computation boundary:** the computed `$3,176` is not a fifth version of the balance. It
+answers a different question — *given the payment history Groundwork currently holds, what
+follows from that history?* Its disagreement with P's `$3,700` is a diagnostic finding: it can
+**expose** an unacknowledged payment or an unexplained charge; it cannot **manufacture** either.
+*A protection against the financial engine becoming an evidence source.*
+
+**The standing principle, refined and frozen:**
+
+> **More documents can permit fewer conclusions when they introduce competing claims at the
+> same as-of. Across different as-of dates, additional documents may instead add history.**
+
+**Closed as a proposition-space ambiguity without creating a new proposition kind.** Remaining
+questions stay where placed and are not touched as a consequence: the exact same-date resolver
+beyond date → channel; user interaction for unidentified testimony; representation of figure
+kind; `remaining` and payment implementation.
+
+**U6 lifted. No new proposition kind. No implementation decision. Evidence mode remains.**
