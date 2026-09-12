@@ -274,3 +274,74 @@ dimensions; payee placed as the servicing dimension (context); and **discharge p
 acknowledgment fact rather than a payee fact** — which is the part the fence did not
 anticipate and is the part that needs his word, because it reaches the payment model's
 `remaining`.
+
+---
+
+## Ruling — Rob, 2026-09-12. Fence lifted on the cases' terms.
+
+Not merely *entitlement ≠ payee*. The cases found the more fundamental boundary:
+
+> **Entitlement, payee, and discharge are three distinct facts.**
+
+```text
+ENTITLED PARTY   whose obligation / whose acknowledgment matters      mandatory to disposition
+PAYEE            whom the household actually pays                     servicing context on the
+                                                                      obligation; transaction-level fact
+DISCHARGE        whether the obligation has been acknowledged          evidence fact; not established
+                 as satisfied                                          by payment destination alone
+```
+
+**The discharge result — frozen.** A payment is evidence of a possible discharge, not discharge
+itself. Groundwork can establish: that the household made/attached a payment; the amount; when;
+whom the transaction identifies as payee; which party was entitled at the relevant effective
+date. **None of those alone establishes discharge.** S6 is decisive: if paying the entitled party
+itself can leave the payment uncredited, returned, or temporarily unrecognised, then *payment to
+the authorised payee* cannot be the definition — there is no payee choice that solves it. S3
+exposes the epistemic boundary: Groundwork cannot turn a convincing instruction from an apparent
+payee into knowledge that the payee was authorised, and must not silently promote that inference
+into discharge.
+
+> **Discharge is an acknowledgment fact, not a payee fact. A payment may evidence discharge;
+> it does not establish discharge without acknowledgment by the entitled party.**
+
+This is why today's `record_payment()` behaviour is semantically too strong.
+
+**Consequence for `remaining` — the line drawn carefully.** The cases establish that attachment
+alone cannot mean *confirmed discharge*. They do **not** establish how `remaining` must be
+represented or computed. The semantic sequence the cases establish:
+
+```text
+payment attached
+      ↓
+attached / unacknowledged
+      ↓
+entitled party acknowledges
+      ↓
+discharge established
+      ↓
+confirmed remaining changes
+```
+
+Whether that is a new payment state, a projection, another ledger, or something else is
+implementation design and is not designed here. **The `remaining` question is now legitimately
+downstream of a ruled semantic fact — queue 4, ruled/specifiable — rather than another fence.**
+
+**Stays fenced, exactly these three:**
+1. **Servicing history** — whether payee belongs in an obligation-level servicing record.
+2. **Acknowledgment evidence** — what sources qualify and how they rank.
+3. **Payment implementation** — how `record_payment()` represents the intermediate state and
+   projects `remaining`.
+
+§8 remains untouched.
+
+**Final ruling, recorded:**
+
+> Entitlement ≠ payee. They are independent dimensions. Entitlement determines whose obligation
+> is being tracked; payee records whom the household sends money to and belongs to servicing
+> context. Neither defines discharge. Discharge is established by acknowledgment from the
+> entitled party; a payment may evidence discharge but never establishes it merely by
+> destination. Until acknowledgment exists, the payment is attached but unacknowledged and must
+> not be treated as confirmed discharge.
+
+Stronger than the original fence, and not a leap beyond the cases: S3 and S6 exist to make the
+payee definition fail in both directions.
