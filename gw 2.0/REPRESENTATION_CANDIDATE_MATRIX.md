@@ -1,110 +1,153 @@
 # Representation candidate matrix — what must exist, before what it looks like
 
-> Status: **Design mode, opened 2026-09-12. Mode: REPRESENTATION & REMEDIATION DESIGN — no
-> code, no schema commitment, no migration.** First deliverable of the mode, on Rob's rule:
+> Status: **Design mode, 2026-09-12 — revised on Rob's ontology ruling. No code, no schema
+> commitment, no migration.** Mode rule:
 >
 > > **We are allowed to decide what information must exist. We are not yet allowed to decide
 > > what the final API/schema looks like merely because a particular implementation is
 > > convenient.**
 >
-> **Purpose:** discover whether the six requirements the audit exposed want **one**
-> representation or **several related** ones. Candidate locations are listed, never chosen.
-> "Add `as_of` to `Evidence`", "add `document_id`", "make readings first-class rows", "replace
-> `Evidence` with X" are all **candidates**, and appear below only as such.
+> **Purpose:** discover whether the requirements the audit exposed want one representation or
+> several related ones. Candidate locations are listed, never chosen. "Add `as_of` to
+> `Evidence`", "add `document_id`", "make readings first-class rows", "replace `Evidence` with
+> X" appear only as candidates.
 >
-> **Two tracks, adjacent and separate:** Track A — evidence representation (rows 1–6).
-> Track B — narrator boundary capability (a separate table; it asks *may this cross into
-> model-visible findings?* and does not presume the same object).
+> **Rob's refinement, applied:** the matrix separates **identity**, **temporal coordinates**
+> and **epistemic status** explicitly, so they cannot be bundled as "evidence metadata". Two
+> columns added — *invariant if absent* and *what must never be inferred from it* — because
+> representation bugs become policy bugs at the consumer boundary.
 >
-> **Carried separately, not here:** the 1.x discharge-scope question. It may affect
-> remediation later; it does not shape the 2.0 evidence model.
+> **Two tracks, adjacent and separate:** Track A — evidence representation. Track B — narrator
+> boundary capability. **Carried separately, not here:** the 1.x discharge-scope question.
 
 ---
 
-## 0. The ontology, and the two tests any representation must pass
+## 0. The minimum ontology — Rob's provisional ruling
 
-Rob's minimum unit question: before fields, settle what the units are.
-
-```text
-source        a party or process that can know something        (user · insurer · provider · a parser)
-artefact      a thing that can be held and re-read               (an EOB · a statement · a capture)
-reading       one observation of an artefact, or one utterance   (a parse · a scan · "the user said")
-proposition   what a reading lets the record say                 (P-subject · P-world · P-ack · health-on-axis)
-```
-
-What `Evidence` conflates today: `Evidence(axis, source, supports, amount, recorded_at)` is
-**a proposition (axis + bit) stamped with a source *type*, with no artefact, no reading, and
-one time that is the import clock.** A document is not a proposition; a reading is not a
-source; strength belongs to the evidentiary relationship, not to the document.
-
-**Test 1 — same referent vs different referents**, mechanically distinguishable:
+Five conceptual units. The first four are a chain; the fifth is deliberately not on it.
 
 ```text
-D1 → R1: $412        D1 → R1: $412
-D2 → R2: $4.12       D1 → R2: $4.12
-source conflict      parse dispute inside one referent
+SOURCE          who / what can know or originate a claim
+                (user · insurer · provider · a parser)
+
+ARTEFACT        a particular held or asserted thing through which that source's
+                position can be encountered
+                (an EOB · a statement · a capture · "the Sept 1 statement", asserted)
+
+READING         a particular interpretation / extraction of that artefact
+                (a parse · a scan · a transcription — or, for an utterance, the saying itself)
+
+PROPOSITION     the claim that can be stated from the reading
+                (P-subject · P-world · P-ack · health-on-axis)
+
+EVIDENTIARY     how strongly a proposition is supported, and by what independent
+RELATIONSHIP    knowing source / channel
 ```
 
-**Test 2 — evidence time vs import time**, without treating import order as chronology:
+**Strength belongs to the evidentiary relationship, not to the proposition and not to the
+artefact.** The same proposition can be supported by different relationships; two readings of
+one artefact do not acquire strength by being two rows.
+
+**What `Evidence` conflates today:** `Evidence(axis, source, supports, amount, recorded_at)` is
+a *proposition* (axis + bit) stamped with a source *type*, with no artefact, no reading, one
+time that is the import clock, and strength computed over it by counting source types. A
+document is not a proposition; a reading is not a source; a row is not independence.
+
+### The mechanical invariant — the test any candidate must pass
+
+The representation must make this relationship **inspectable by resolution logic without
+reconstructing it from timestamps, descriptions, or row order**:
 
 ```text
-document as-of Aug 31, imported Sep 10      ≠      document as-of Sep 10, imported Sep 10
+source S1                                    source S1 ── artefact D1 ── reading R1 ── P1
+   └── artefact D1
+          ├── reading R1 ── P1                source S2 ── artefact D2 ── reading R2 ── P2
+          └── reading R2 ── P2
+
+one artefact, competing readings             two potentially independent source artefacts
+→ parse dispute inside one referent          → source conflict (independence still a further fact)
 ```
 
-Every candidate below is scored against both.
+And the temporal test, alongside it:
+
+```text
+document as-of Aug 31, imported Sep 10   ≠   document as-of Sep 10, imported Sep 10
+```
+
+with import order never read as chronology.
 
 ---
 
-## 1. Track A — the matrix
+## 1. Track A — the matrix, seven rows in three groups
 
-| # | requirement | information required | current holder | current loss | candidate locations *(none chosen)* | consumer needing it |
-|---|---|---|---|---|---|---|
-| **1** | **referent identity** — which artefact this evidence is *of* | an individuating identity per artefact: for held, the bytes (content hash); for asserted, an individuating description (issuer · date · kind); plus *held vs asserted* | **`PdfExtractCache.source_hash`** — a content-hash identity for held PDFs, shipped, **unlinked to any evidence**; `Evidence.source` is a *type* (`IMPORTED_EOB`); `ExpenseDetermination.evidence` is a `String(80)` label | two artefacts ≡ one artefact read twice (D1/D2); independent confirmation unreachable; retraction cannot find derived facts (D6); `resolution()` reports a reversal that did not happen (D3b) | (a) a reference on each evidence item to an artefact record keyed by content hash, with `PdfExtractCache` as the existing artefact store · (b) an artefact entity that *owns* its readings, evidence hanging off readings · (c) a referent field on `Evidence` only, no artefact entity · (d) for asserted referents, a description record with candidate-set evaluation (RA2's non-monotonicity) | Cluster B (4 ↔ 5); H4; R-ASSERT; captured-portal |
-| **2** | **evidence time** — the evidence's own temporal coordinate | per evidence *kind*: utterance → when said; document → its as-of; capture → render time (and the portal's stated as-of, where they differ — fenced); *and* import time kept beside it, never in its place | `Evidence.recorded_at` = **import clock** (`_now()` at append); `Entry.on` in payment_plan = effective (correct); **`ExpenseObligationVersion.effective_seq` + `recorded_seq`** — the dual pattern, shipped for amounts; `Plan.effective_from/to` | a document's own date is unrepresentable; `knowing[-1]` and `resolution()` are valid only by construction (H3); P-ack cannot be dated (K7); ties between same-party documents cannot be told from history (T3) | (a) an as-of on the artefact (a document has one date; all its readings inherit it) · (b) an as-of on each evidence item · (c) the `effective_seq / recorded_seq` pair generalised from obligation versions to evidence · (d) time on the reading (when read) *and* on the artefact (as-of) — two coordinates, because a re-read of an Aug 31 statement on Oct 1 has both | H3 (R2/R3); acknowledgment (dated P-ack); tie (recency axis); Cluster C (late discovery) |
-| **3** | **reading identity** — so multiple readings of one artefact are one source | per reading: which artefact, when read, by what (parser version / person), what it yielded; and the rule that readings of one referent never corroborate | **`PdfExtractCache.extracted_json`** — exactly one reading per hash, shipped; **a re-parse overwrites or is refused, so the second reading of D3 cannot even be stored**; `Evidence` rows are readings without a referent | `attested[-1]` decides tax by scan order (R4); corroboration counts readings as sources (D1/D2, `distinct = {e.source}`); no parse dispute can be *represented*, only resolved by position | (a) a reading record beneath an artefact, evidence items pointing at readings · (b) a reading id on `Evidence` with the artefact id · (c) treat `PdfExtractCache` as the reading store and version it (hash + parser version) | H4 (reading-vs-source); Cluster B (parse dispute); R4; R-ASSERT (asserted referents have *no* readings — RA4) |
-| **4** | **P-acknowledgment evidence** — the entitled party's stated position about a payment or balance, as of a date | a proposition kind whose subject is E; the payment it concerns (a named payment — the ledger's `Entry`); the stated balance; the as-of (row 2); the channel (E's statement · servicer-of-record · live system · user report — row 1's held/asserted plus an agency link); *attached-unacknowledged* as the state before it | **nothing.** `payment_plan.Entry` has no acknowledgment; `Evidence` has two health axes only; 1.x `debt_pdf_reconcile` computes `{implied, stated, diff}` once and discards it | discharge unrepresentable (H2); `remaining` asserts confirmation; the four-figures case cannot say which figure is E's | (a) P-ack as a proposition kind in the evidence model, evidenced by readings of E's artefacts (row 1–3) — *downstream of identity/time, per Rob* · (b) an acknowledgment entry kind in the payment ledger, referencing evidence · (c) both — the ledger holds *that* a payment is acknowledged and points at the evidence that says so | discharge; `remaining` (its required strength fenced); K8's balance-vs-computed diagnostic |
-| **5** | **resolution provenance** — enough to tell source-history conflict from parse dispute | for each knowing event: *distinct source stance* or *reading of artefact X*; ordering on row 2's axis; a supersession relation where a document claims one (T4) | `resolution()` derives `kind · resolver · contradictions · post` from `(source type, bit)` in position order; **`ExpenseObligationVersion.supersedes_id`** — a supersession pointer, shipped, for amounts | one wrong row: D3b reported as `self_reversal by imported_eob`; positional ordering (H3); supersession claims unrepresentable (T4) | **nothing new** if rows 1–3 exist — provenance is *derived on read* from referent + reading + time, which is `resolution()`'s own principle (never stored); plus (a) a supersession relation between artefacts, on the `supersedes_id` pattern | narrator / export / backup (presentation); the reading-level kind (deferred) |
-| **6** | **unresolved state** — where evidence cannot establish one conclusion | per consumer: the *fact* that is unresolved, its candidates, and no manufactured winner | **four consumer-local sentinels already exist:** `plan_year.UNKNOWN` · `allocation.UNRESOLVED` · `classification.UNAVAILABLE` · `payment_plan.REFUSED`; Q1's refusal-as-value carries `offered · reason · required · consumer` | none of the four says *what* is unresolved or *between what*; `year_summary.UNKNOWN` carries three truths (CC5); `plan_at` and `attested[-1]` manufacture instead of refusing | (a) keep consumer-local sentinels — the tie ruling says *unresolved is a state, not a rank, and each consumer fails closed its own way* · (b) a shared refusal shape (Q1's) carrying the candidates · (c) an unresolved *fact* in the evidence model (the two claimants, the priority sub-fact) with consumer-local terminals reading it | every consumer; H1 (refusal); R4; T3/T5; CC3 |
+Columns: *what must be knowable* · *current holder* (the code) · *current loss* · *candidate
+locations (none chosen)* · *invariant if absent* · *must never be inferred from it* ·
+*consumer*.
+
+### Group I — identity
+
+| # | requirement | what must be knowable | current holder | current loss | candidate locations | **invariant if absent** | **must never be inferred** | consumer |
+|---|---|---|---|---|---|---|---|---|
+| **1** | **referent identity** | which artefact this evidence belongs to; held (bytes) vs asserted (individuating description); for asserted, that identity is relative to the candidate set and can degrade (RA2) | `PdfExtractCache.source_hash` — content-hash identity for held PDFs, shipped, **unlinked to evidence**; `Evidence.source` is a *type*; `ExpenseDetermination.evidence` is a `String(80)` label | two artefacts ≡ one read twice; retraction cannot find derived facts; D3b reported as a source reversal | (a) evidence → artefact record keyed by hash, `PdfExtractCache` as the store · (b) artefact owns readings, evidence hangs off readings · (c) referent field on evidence only · (d) description record for asserted referents with candidate-set evaluation | **source-history and parse disputes collapse** into one shape | **same description = same artefact** (RA2); **held = verified** (captured-portal) | Cluster B; H4; R-ASSERT |
+| **3** | **reading identity** | which interpretation / extraction of that artefact produced this value; when read; by what (parser version · person); that readings of one referent are one source | `PdfExtractCache.extracted_json` — **one reading per hash**; a second parse cannot coexist; `Evidence` rows are readings with no referent | `attested[-1]` decides tax by scan order; corroboration counts readings as sources; a parse dispute cannot be *represented* | (a) reading record beneath an artefact · (b) reading id + artefact id on evidence · (c) version `PdfExtractCache` by (hash, parser) | **re-reads can masquerade as corroboration** | **row count = independent evidence**; **latest reading = correct reading** | H4; Cluster B; R4 |
+| **7** | **independence identity** *(added)* | which evidence paths are genuinely independent knowing sources for corroboration and ranking; lineage sufficient to answer *how many independent knowing sources support this?* | `_state_from`: `distinct = {e.source for e in supporting}` — **independence by source *type***; nothing for the P-ack chain (E → servicer → capture → user report) | `USER_STATED` reporting the EOB + `IMPORTED_EOB` = two independent sources (K5's inflation, shipped in the pure module); three readings of D1 = corroborated; a capture of S's portal = a source | (a) lineage on the reading (*derived from artefact X, which is source S's*) so independence is computed by walking to distinct sources · (b) an explicit *independent-of* relation between artefacts (DI: source instance ≠ independence; two EOBs from one insurer are not independent) · (c) independence declared per channel for P-ack (one knowing party, four channels — ruled) | **strength can be inflated** by custody, capture, report or re-read | **capture / user report / re-read = new knowing source**; **distinct source type = independent** | corroboration; `strength_of`; acknowledgment (one knowing party); tie |
+
+### Group II — temporal coordinates
+
+| # | requirement | what must be knowable | current holder | current loss | candidate locations | **invariant if absent** | **must never be inferred** | consumer |
+|---|---|---|---|---|---|---|---|---|
+| **2** | **evidence time** | when the proposition was true / stated *according to the evidence itself*: utterance → when said; document → its as-of; capture → render time (and the portal's stated as-of where they differ — fenced); import time kept **beside** it | `Evidence.recorded_at` = import clock; `payment_plan.Entry.on` = effective (correct); `ExpenseObligationVersion.effective_seq / recorded_seq` — the dual pattern, shipped for amounts; `Plan.effective_from/to` | a document's own date is unrepresentable; `knowing[-1]`/`resolution()` valid only by construction; P-ack undated; same-party ties untellable from history | (a) as-of on the artefact, readings inherit · (b) as-of per evidence item · (c) generalise `effective_seq / recorded_seq` to evidence · (d) two coordinates — artefact as-of *and* reading time — because a re-read on Oct 1 of an Aug 31 statement has both | **chronology becomes import-order-dependent** | **`recorded_at` = evidence date**; **later-imported = later-stated** | H3 (R2/R3); acknowledgment; tie; Cluster C |
+
+### Group III — epistemic status
+
+| # | requirement | what must be knowable | current holder | current loss | candidate locations | **invariant if absent** | **must never be inferred** | consumer |
+|---|---|---|---|---|---|---|---|---|
+| **4** | **P-ack** | what the entitled party said about this payment / balance, and as of when; which channel (E's artefact · servicer-of-record · live system · user report); the named payment it concerns; *attached-unacknowledged* before it | **nothing.** `Entry` has no acknowledgment; `Evidence` has two health axes; 1.x `debt_pdf_reconcile` computes `{implied, stated, diff}` once and discards | discharge unrepresentable; `remaining` asserts confirmation; the four figures cannot say which is E's | (a) a proposition kind over the family, evidenced by readings of E's artefacts — **downstream of rows 1–3, 7** · (b) an acknowledgment entry kind in the ledger referencing evidence · (c) both: ledger holds *that*, evidence holds *why* | **payment attachment is read as discharge** | **cleared payment = acknowledged** (K6); **stated balance = acknowledged payment** (K8); **household confirmation = E acknowledgment** (1.x `is_auto_confirm`) | discharge; `remaining` (strength fenced) |
+| **5** | **resolution provenance** | whether a disagreement is between sources or between readings of one artefact; ordering on row 2's axis; a supersession relation where a document claims one (T4) | `resolution()` derives kind · resolver · contradictions · post from `(source type, bit)` in position order; `ExpenseObligationVersion.supersedes_id` — shipped pattern | D3b's wrong row; positional ordering; supersession unrepresentable | **nothing of its own if rows 1, 2, 3, 7 exist** — derived on read, `resolution()`'s own principle · plus (a) a supersession relation between artefacts on the `supersedes_id` pattern | **the resolver assigns a wrong causal story** it cannot detect | **a later row = a source changed its stance**; **supersession = arrival order** (T4 vs T3) | narrator / export / backup; the reading-level kind (deferred) |
+| **6** | **unresolved state** | that no single conclusion is established, *which fact* is unresolved, and *between what* — with no manufactured winner | four consumer-local sentinels: `plan_year.UNKNOWN` · `allocation.UNRESOLVED` · `classification.UNAVAILABLE` · `payment_plan.REFUSED`; Q1's refusal-as-value carries `offered · reason · required · consumer` | none says *what* or *between what*; `year_summary.UNKNOWN` carries three truths; `plan_at` and `attested[-1]` manufacture | (a) keep local terminals — *unresolved is a state, not a rank* (ruled) · (b) Q1's refusal shape carrying candidates · (c) the unresolved **condition** in the family (two claimants; priority sub-fact), terminals reading it | **the consumer is forced to choose** | **`UNKNOWN` = both equally true**; **`UNKNOWN` = neither applies**; **one sentinel = one situation** (CC5) | every consumer |
 
 ---
 
 ## 2. What the matrix says — one representation, or several?
 
-**Rows 1, 2, 3, 5 are one family.** Referent, evidence time, reading identity, and resolution
-provenance all attach to the **artefact → reading** pair, and row 5 needs nothing of its own
-if the other three exist — it is derived, which is how `resolution()` already works. Both tests
-in §0 are passed or failed *together* by any candidate for rows 1–3: Test 1 needs referent +
-reading; Test 2 needs the artefact's as-of beside the import clock. **This family wants one
-representation.**
+**Group I + row 2 + row 5 are one family**, and row 7 is what makes the family *worth
+having*. Referent, reading, and independence are three questions about the same
+artefact → reading lineage; evidence time attaches to the artefact (as-of) and the reading
+(when read); resolution provenance is **derived** from the four and needs nothing stored.
+The mechanical invariant in §0 is passed or failed by any candidate for rows 1, 3, 7 *together*
+— none of the three can pass it alone: a referent without readings cannot show competing
+readings; readings without a referent cannot show they are of one thing; both without
+independence cannot say whether D1 and D2 are two knowing sources or one insurer printing
+twice. **This family wants one representation.**
 
-**Row 4 is downstream, by Rob's rule and by the matrix.** P-ack is a *proposition kind* — its
-subject is E — and it is evidenced by readings of E's artefacts. It needs rows 1–3 to be
-well-formed (which statement, as of when, held or reported) and adds a proposition and a
-ledger link. **It should not shape the family; it should consume it.** Candidate (c) — ledger
-holds *that*, evidence holds *why* — keeps the payment module from inventing evidence
-semantics, which the acknowledgment ruling's chain requires.
-
-**Row 6 may want no shared representation at all.** The tie ruling: *unresolved is a state,
-not a rank; each consumer fails closed in its own direction.* The code already has four
-consumer-local sentinels, and the audit's repairs (H1's refusal, R4's `UNAVAILABLE`) add
-refusals, not a shared state. What is missing is not a common object but **the unresolved
-*fact*** — *two plans claim August*, *two readings of D1 disagree*, *priority between A and B*
-— which lives in the evidence family (rows 1–3, 5) as a derived condition, and which each
-consumer maps to its own terminal. So row 6 splits: the *condition* belongs to the family;
-the *terminal* stays consumer-local.
-
-**So: two representations and a set of local terminals, not one and not six.**
+**Row 4 is downstream, by Rob's ruling and by the matrix.** P-ack is a proposition kind whose
+subject is E, evidenced by readings of E's artefacts, ranked by row 7's independence (one
+knowing party, four channels). It consumes the family and adds a ledger link. Candidate (c) —
+*ledger holds that, evidence holds why* — is the one that keeps `payment_plan` from inventing
+evidence semantics. Not chosen; noted as the candidate that respects the chain:
 
 ```text
-EVIDENCE FAMILY      artefact (identity · held/asserted · as-of · supersedes)
-                     reading  (of artefact · when · by what · yields)
-                     evidence (a reading's claim on a proposition; or an utterance)
-                     ─ resolution provenance derived on read
-                     ─ unresolved conditions derived on read
+artefact → reading → proposition → P-ack assertion → evidentiary relationship → discharge → projection
+```
 
-DOWNSTREAM           P-ack as a proposition kind over the family + a ledger link
+**Row 6 splits.** The *condition* (what is unresolved, between what) is a derived fact over
+the family — *two readings of D1 disagree*, *two plans claim August*, *priority between A and
+B*. The *terminal* stays consumer-local, as the tie ruling requires and as the four existing
+sentinels already do. The matrix does not propose converging them.
 
-LOCAL TERMINALS      UNKNOWN · UNRESOLVED · UNAVAILABLE · REFUSED — kept, consumer-owned
+**So: one evidence family, one downstream proposition kind, and consumer-local terminals.**
+
+```text
+EVIDENCE FAMILY     artefact   identity (held/asserted) · as-of · supersedes · lineage to source
+                    reading    of artefact · when · by what · yields
+                    evidence   a reading's claim on a proposition; or an utterance
+                    ─ independence     derived by lineage, never by row count or source type
+                    ─ resolution       derived on read
+                    ─ unresolved       derived condition
+
+DOWNSTREAM          P-ack: a proposition kind over the family + a ledger link
+
+LOCAL TERMINALS     UNKNOWN · UNRESOLVED · UNAVAILABLE · REFUSED — consumer-owned, kept
 ```
 
 ---
@@ -112,49 +155,50 @@ LOCAL TERMINALS      UNKNOWN · UNRESOLVED · UNAVAILABLE · REFUSED — kept, c
 ## 3. What already exists, in the wrong place — findings, not proposals
 
 - **`PdfExtractCache` is an artefact-and-reading store.** Content-hash identity, issuer, one
-  parse. Shipped for debt statements in 1.x, unknown to the evidence model. It has exactly the
-  shape rows 1 and 3 need and exactly the limitation D3 exposes: **one reading per hash** — a
-  second parse cannot coexist with the first. Whether it *becomes* the artefact store or is a
-  precedent for one is a design choice; that it exists is a fact the matrix would be dishonest
-  to omit.
-- **`ExpenseObligationVersion` already carries `effective_seq / recorded_seq / supersedes_id`.**
-  Dual time and supersession, shipped, for amounts. The pattern rows 2 and 5 need is in the
-  schema for a neighbouring entity. Reuse as a *pattern* is a candidate; reuse as a *table* is
-  not proposed.
-- **`ExpenseDetermination.evidence` is a `String(80)`.** The persisted determination's link to
-  its evidence is a label. Whatever row 1 becomes, this column is where the persisted side
-  currently loses the referent.
+  parse; shipped for debt statements; unknown to the evidence model. It has rows 1 and 3's
+  shape and D3's limitation — **one reading per hash**. Whether it becomes the store or is
+  precedent for one is a choice; that it exists is a fact.
+- **`ExpenseObligationVersion` carries `effective_seq / recorded_seq / supersedes_id`.** Rows 2
+  and 5's pattern, shipped for amounts. Reuse as a pattern is a candidate; as a table, not
+  proposed.
+- **`ExpenseDetermination.evidence` is a `String(80)`.** Where the persisted side loses the
+  referent today.
+- **`_state_from`'s `distinct = {e.source …}`** is row 7's current holder and is *wrong by
+  type*: it counts source kinds, not knowing sources. Independence has never been represented;
+  it has been approximated by an enum.
 
 ---
 
-## 4. Track B — narrator boundary capability *(separate table, separate object not presumed)*
+## 4. Track B — narrator boundary capability *(separate; no shared object presumed)*
 
-| requirement | information required | current holder | current loss | candidate locations | consumer |
-|---|---|---|---|---|---|
-| **may this cross into model-visible findings?** | for each item a surface would pass: its *kind* (category · total · annotation · description · …) and, for 2.0 facts, its sensitivity domain and whether the underlying classification was manufactured | `Sensitivity(domain, manufactured)` on `Classification` and `DerivedFact` — preserved through derivation, **dropped at `NarratorFacts`**; nothing on the 1.x findings at all | H5: safe by construction of inputs, unenforced; 2.0: the two-CVS figure reaches the narrator unmarked | (a) the **declaration at `callAI`** — ruled and authorised: kinds declared per gated call, fail closed on undeclared / free text; (b) a sensitivity carrier *beside* `NarratorFacts` for the gate's reader, never in the findings text (the ruled collapse) · (c) `_permitted_value` refusing on `manufactured` with Q1's reason — **deferred, needs the settled gate rule** | `callAI` (live); the 2.0 narrator (unwired); the gate |
+| requirement | what must be knowable | current holder | current loss | candidate locations | invariant if absent | must never be inferred | consumer |
+|---|---|---|---|---|---|---|---|
+| **may this cross into model-visible findings?** | per item a surface passes: its *kind*; for 2.0 facts, sensitivity domain and whether the classification was manufactured | `Sensitivity(domain, manufactured)` on `Classification` / `DerivedFact`, **dropped at `NarratorFacts`**; nothing on 1.x findings | H5: safe by construction, unenforced; 2.0: the two-CVS figure reaches the narrator unmarked | (a) **the declaration at `callAI`** — ruled and authorised · (b) a sensitivity carrier *beside* `NarratorFacts` for the gate's reader, never in findings text · (c) `_permitted_value` refusing on `manufactured` with Q1's reason — deferred, needs the settled gate rule | **the model becomes the enforcement locus** by default | **given to the model = permitted to say** (R8's logic applied to claims); **not a health word = not health** (the two-CVS case) | `callAI` (live); the 2.0 narrator; the gate |
 
-**Track B does not require Track A's object.** The declaration needs no evidence
-representation at all — it is a property of the *call*. The 2.0 carrier needs `Sensitivity`,
-which already exists on the fact and is lost only at one projection. Neither needs referent or
-time. **Adjacent; not merged** — Rob's correction holds in the matrix.
+Track B needs nothing from Track A: the declaration is a property of the call; the 2.0
+carrier needs a field that exists and is lost at one projection. Adjacent, not merged.
 
 ---
 
-## 5. What this matrix does not decide
+## 5. Design boundary at this point — Rob's
 
-- Which candidate in any row. Every cell lists alternatives; none is preferred.
-- Whether the evidence family is one table, three, or a pure-module dataclass set; whether
-  `Evidence` is extended or replaced.
-- `plan_at()`'s return shape · payment projection semantics · supersession *trust* · the
-  claim-level narration policy · the 1.x discharge scope. All fenced, all untouched.
-- Whether the four local terminals should ever converge. The matrix says they need not.
+**Decided:** source, artefact, reading, proposition are conceptually distinguishable ·
+evidence time is not import time · reading multiplicity cannot equal source independence ·
+strength is a relationship, not an artefact property · P-ack is downstream of
+proposition/evidence identity · discharge is downstream of P-ack · 1.x discharge scope is
+outside this exercise · narrator authorisation is a separate boundary problem.
+
+**Not decided:** whether these become classes, tables, value objects, linked records, or
+something else · whether `Evidence` survives · whether readings are persistent · exact
+identity keys · exact temporal fields · strength representation · resolution algorithm /
+state names · migration strategy.
 
 ---
 
 ## 6. Next, in this mode — Rob's
 
-The matrix's answer to the mode's question is **two representations and local terminals**.
-The next design question it hands back, without answering: **for the evidence family, does
-the artefact own its readings, or does the reading own its artefact reference?** That is the
-first choice that makes Test 1 cheap or expensive, and it is the one the candidates in rows 1
-and 3 actually differ on.
+The matrix's answer is **one evidence family, one downstream proposition kind, local
+terminals.** The question it hands back, unanswered: **within the family, does the artefact
+own its readings, or does the reading own its artefact reference — and where does lineage to
+the source live?** That is the choice rows 1, 3 and 7 differ on, and the one that makes the
+mechanical invariant cheap or expensive.
