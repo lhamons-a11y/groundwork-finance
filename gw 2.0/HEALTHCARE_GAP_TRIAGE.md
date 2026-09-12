@@ -12,6 +12,51 @@
 
 ---
 
+## Live defects — quarantined from the design questions
+
+*(2026-09-11. Rob's distinction, kept here so it cannot get lost among architecture:)*
+
+> **A modelling gap says "we don't yet have a truthful way to represent this."
+> A live defect says "the system currently tells a false story."**
+
+The seven open decisions below are the first kind. This section is the second, and it is kept
+short on purpose: an entry belongs here only if shipped code, on a reachable path, produces a
+sentence that is **plausible, internally coherent, and wrong** — no exception, no broken
+invariant, no visible `None` at the consumer. The kind nothing can catch, because every layer
+agrees.
+
+### 1. A plan with unentered terms reads *deductible met*
+
+`core/plan_year.py`. `add_plan` defaults `deductible=0.0` and `float()`-coerces, so a plan added
+before its terms are known has a zero deductible and `applied >= 0.0` is true the moment
+anything is spent. **`deductible_met = True`.** The module's own docstring promises `UNKNOWN` —
+*never False, never zero* — and the branch that would deliver it, `UNKNOWN if deductible is
+None`, is **unreachable**: both mutators raise `TypeError` on `None`.
+
+**Why this one is quarantined and the others are not:** it fires on the **default path**, with
+no unusual input. A user enters the plan they know they have, has not found the deductible yet,
+and is told it is met. `APPLICABILITY_CASES.md` C1/C4/C5. Recorded, not repaired — the right
+default depends on which axis the absence is on (rule or knowledge) and the API cannot say —
+but it must not wait behind the seven decisions as though it were one of them.
+
+### Same class, trigger-dependent — recorded, not quarantined
+
+Three more produce a false figure, each needing an input the default path does not supply:
+
+- **`qualifying_amount` returns `attested[-1]`** — two readings of one EOB as `$412` and `$4.12`
+  yield a tax figure decided by recording order. Needs a re-parse. `VALUE_DISAGREEMENT_CASES.md`
+  V4.
+- **An unreadable EOB amount falls through to the whole transaction** — `$950` where no
+  document said so. Needs a parser miss. `VALUE_DISAGREEMENT_CASES.md` V6.
+- **`plan_at` picks the first-inserted plan for an overlapping date** — August reads the
+  full-year deductible. Needs a late-discovered mid-year change entered as an overlap.
+  `HISTORICAL_TRUTH_CASES.md` T4.
+
+They share the class. They do not share the reach. If any of them turns out to fire on a
+default path, it moves up.
+
+---
+
 ## NEW — nothing in the repository does this
 
 ### 1. Two valid histories, one present state — **the sharpest new gap**
