@@ -158,3 +158,87 @@ attributes.
 
 If ruled, the next question is the first that touches a table: **what the party reference
 is** — because it is the one identity the record lacks entirely.
+
+---
+
+## 7. Ruling — Rob, 2026-09-12. A4 + R2 + O4 frozen as the primitive boundary, with two corrections.
+
+**Artefact — minted identity is right.** The decisive observation: *identity is not something
+Groundwork discovers by examining the arrival; it is something Groundwork assigns to the thing
+it has encountered, after which the system may make claims about whether another arrival
+corresponds to it.* One distinction, several problems: a document downloaded twice → two
+arrivals, potentially one artefact; PDF / scan / photo → potentially one artefact despite
+different bytes; a letter with no byte identity → still an artefact; identical descriptions →
+not accidentally one artefact; a later arrival established as corresponding without
+retroactively pretending the earlier record knew. *Held vs asserted as a property of the
+artefact* is cleaner than two competing identity kinds, and R-ASSERT then has somewhere to
+live: **correspondence is an evidentiary assertion about identity, not an identity-generation
+mechanism.**
+
+**Correspondence strength — preserved carefully.** A hash, an issuer's identifier, a
+description, and a user saying *"yes, that's the same statement"* are each correspondence
+evidence at their own strength, **without being the identity.** The boundary prevents
+`hash == X → artefact_id = X` and `description == "Sept 1 statement" → artefact_id = …`:
+
+```text
+artefact_id     = minted identity
+correspondence  = assertion that arrival A corresponds to artefact X
+strength        = the relationship / evidence for that assertion
+```
+
+**Reading — observation event, and the stronger part of the ruling.** The semantic fact is
+not that two parses have different ids; it is that **the second act of observation happened.**
+Two readings of one artefact yielding the same balance is knowledge a content-keyed reading
+cannot represent — *observed twice, agreed* — and it matters for provenance, extraction
+failures, parser changes, historical reconstruction and validation. **Reading identity belongs
+to the observation, not to its resulting content.**
+
+**Origin — the most consequential part.** The capture enum answers *where did this come
+from?* and cannot answer **whose proposition is this?** — not the same question. A string
+cannot reliably express identity; a role cannot, because roles are relational; an enum is
+categorically incapable of representing arbitrary parties. And C3's mediation chain is
+inherently *parties plus asserted relationships*, so O4 is not a nicer source field — **it is
+a prerequisite for expressing the doctrine.**
+
+**Independence — structural.** `distinct = {e.source}` is dead not as a rule to remember but
+because *there is no longer an appropriate primitive from which to perform that calculation.*
+Independence operates over artefact → origin party → correspondence / mediation assertions →
+party relationship. No `independent_source` concept hides in the data model; the rejected-
+bases list has done its job — one heuristic was not replaced by another.
+
+**Two corrections applied before freezing:**
+1. *"carrying an origin as a comparable party reference that may be absent"* sounded singular
+   and intrinsic, and would pre-decide the cardinality and semantics of origin — an artefact
+   may legitimately involve an issuer, a preparer, a provider, a transmitting intermediary, a
+   user asserting it, or several parties. Made neutral: *an origin reference, when
+   established.*
+2. *"assigns on first encounter"* implied the first arrival creates the definitive artefact.
+   Correspondence can be established later — arrival A → artefact 17, arrival B → artefact 42,
+   later evidence establishes they correspond — and the ontology must not imply that
+   separately-minted identities can never be recognised as one artefact. **"Mints."**
+
+### The frozen ruling
+
+> **Identity is minted and owned: Groundwork mints an artefact identity when an artefact is
+> encountered, and the artefact owns its reading identities, one per act of observation. An
+> artefact may carry an origin reference, when established, as a comparable party reference
+> that may be absent. Every claim that an arrival corresponds to an artefact is an asserted
+> correspondence with a strength; correspondence is never computed as identity from bytes,
+> description, or file identity. Held versus asserted is a property of the artefact, not a
+> second identity kind. Lineage and independence are derived over artefact, reading,
+> correspondence, and origin, and consult no enum, order, or count.**
+
+### The primitive layer, as a boundary
+
+| thing | what it is |
+|---|---|
+| artefact | **minted identity** |
+| reading | **observation event** |
+| origin | **comparable party reference, possibly absent** |
+| hash / issuer id / description / user confirmation | **evidence for correspondence** |
+| "this arrival is that artefact" | **assertion** |
+| independence | **derived relationship over established provenance** |
+
+**Next question — the remaining semantic primitive: what the party reference is.** Tables,
+migrations, UUIDs, `PdfExtractCache`, and correspondence storage are implementation
+consequences and are not touched before it is settled.
