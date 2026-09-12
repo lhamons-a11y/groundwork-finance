@@ -347,6 +347,45 @@ partial embodiment to keep or a second mechanism to bring under the same rule la
 
 **No code is changed by this section.**
 
+### H2 ruling — Rob, 2026-09-12. Boundary accepted with one qualification: no rename yet.
+
+1. **Contract and absence guard: yes.** The module says what it knows — *attached-payment
+   projections, not discharge* — and that covers `paid`, `remaining`, `ahead` and `overdue`.
+   The absence guard prevents `confirmed` / `discharged` / `acknowledged` being added as though
+   they were merely another computed field.
+2. **Rename to `attached_remaining`: deferred.** Once it crosses the module/fixture boundary
+   it is not merely naming — it changes the vocabulary consumers build around, and whether the
+   eventual projection exposes attached amount, acknowledged amount, confirmed remaining, both,
+   or an explicit state object is undecided. *A misleading name is a hazard; an unresolved
+   replacement name is not yet a reason to choose an API.* The contract prevents the semantic
+   lie while preserving the consumer decision.
+3. **1.x debt scope: explicitly fenced.** The debt path shows this is not hypothetical, and the
+   2.0 discharge doctrine is **not** silently imported into 1.x. Recorded exactly as:
+
+   > **Does the frozen discharge rule have 1.x scope, or is it a 2.0 obligation only?**
+
+   Until answered: do not "fix" `debt_pdf_reconcile`, and do not use its overwrite as precedent
+   for 2.0 semantics. Noted distinction: that path treats the statement balance as verified
+   evidence of the creditor's position, where `record_payment()` has only attachment evidence —
+   potentially useful architecture later; it does not establish that 1.x already satisfies the
+   doctrine.
+
+**Coordination ruling.** The H1/H2 comparison is convincing:
+
+| hazard | actual computation | vocabulary overclaim | safe audit response |
+|---|---|---|---|
+| H1 | period membership | "plan" → governing plan | contract + fail-closed guard |
+| H2 | attached payment arithmetic | attached → discharged | contract + absence guard |
+| H2 rename | — | ambiguous API vocabulary | **defer** |
+
+A pattern worth watching, **not yet architecture doctrine** — two examples; H3–H5 say whether
+it recurs.
+
+**H3 proceeds exactly as stated.** The question is not *is `[-1]` bad?* but: **what proposition
+does each consumer need resolved, what temporal axis belongs to that proposition, and is `[-1]`
+being used as evidence time or merely insertion order?** The same mechanism may have valid and
+invalid consumers — another reason not to fix the resolver globally.
+
 ---
 
 *H3 – H5 follow, each on the same rule.*
