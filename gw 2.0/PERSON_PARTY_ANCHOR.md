@@ -213,3 +213,50 @@ is the smallest build that does so without opening downstream questions?*
 **And nothing institution-specific.** Implementation must not "finish the job" by adding
 institution correspondence, issuer normalisation, external ids, or provenance consumers. Those
 are not consequences to be guessed; they are subsequent questions.
+
+---
+
+## 8. Slice accepted — Rob, 2026-09-12. `dadb823`, 860 green, clean tree, no downstream ontology implemented.
+
+**The orphan discovery strengthened the invariant.** Not *every `Person` should eventually have
+a `Party`* but:
+
+> **The `Person` and its anchor have the same lifecycle boundary.**
+
+So the delete path belongs inside the slice; otherwise the forward forbidden state is
+implemented while its inverse is permitted:
+
+```text
+Person exists, Party absent       ← creation violation
+Person absent, Party exists       ← deletion violation
+```
+
+The lifecycle is symmetric:
+
+```text
+Person lifecycle
+    ├── create ──same unit──────► Party anchor
+    └── delete ──same lifecycle─► Party anchor removed
+
+Party
+    └── person_id UNIQUE FK  →  one Person ↔ one Party
+        the missing cross-table half guarded by  people_without_party() == empty
+```
+
+**The mutation fixture is appropriately adversarial** — it removes the mechanism that
+guarantees creation and corrupts the supposedly idempotent remediation, and restores the
+module afterwards: the right pattern for architecture fixtures — prove the guard has teeth
+without leaving the repository modified by the proof.
+
+**The migration is remediation, not a second creation mechanism:** it repairs legacy state and
+then the construction invariant takes over.
+
+**Recording two invariants as *not exercisable* rather than manufacturing placeholder tests**
+preserves the distinction between *green because tested* and *green because the forbidden
+machinery doesn't exist yet.*
+
+### The next question — the institution side
+
+An institution, unlike `Person`, has no existing sovereign declaration to anchor. Its creation
+path is therefore **not assumed to copy the `Person` solution.** The next record establishes
+**what encountering an institution means** before deciding how an institution row gets minted.
