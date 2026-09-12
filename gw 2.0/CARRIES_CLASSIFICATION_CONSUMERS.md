@@ -190,3 +190,46 @@ nothing else unless the terms did.
 
 Items 2 and 3 are alignment. Item 1 is a defect in the fallback as worded and is not adopted
 into the doctrine until Rob rules on it.
+
+### Rulings — Rob, 2026-09-12. Constraint 1 closed except for two fenced decisions.
+
+**Item 1 — fallback scoped per consumer, not removed.** The two failure modes are asymmetric:
+C4/C5, uncertainty can create a false-positive financial conclusion → fail closed (don't assume
+0%, don't assume a payoff date, don't rank as though terms are known); C1/C2/C6, uncertainty can
+create a false-negative protection decision → `instrument_kind = Unknown`, no adversary
+classification is manufactured, §0.2's protection cannot be removed because terms are missing.
+The doctrine does not say the fallback is *conservative*. It says:
+
+> **Where required evidence is absent, the consumer determines the safe terminal behaviour. A
+> fallback may be used only where that consumer's rule explicitly permits it; otherwise the
+> result is Unknown.**
+
+And *fail closed* does not always mean *choose the more restrictive classification*; sometimes
+it means **refuse to produce the classification at all**, which is what C1/C2/C6 do.
+
+**Item 2 — "instrument/adversary character" retracted as a proposed fact. Instrument kind is
+the fact.** *Adversary* is the downstream interpretation and is never persisted as evidence:
+
+```text
+evidence → instrument_kind → doctrine → consumer behaviour        yes
+evidence → "adversary" fact                                       no — a conclusion as an input
+```
+
+**Item 3 — never-17 moves with the rule.** Otherwise the proxy has been removed from one
+sentence and not from the system. The resulting principle:
+
+> **A creditor's identity can tell us something about entitlement. It cannot, by itself, tell
+> us the kind of instrument.**
+
+```text
+party changes
+     ├── disposition       → obligation persists
+     ├── §8                → entitlement changes; collections duties may change
+     └── classification    → nothing necessarily changes, unless classification evidence changes
+```
+
+**Closed:** fallback per consumer, explicitly authorised, otherwise Unknown.
+**Fenced, not inferred from these cases:** entitlement ≠ payee. The cases establish that
+entitlement matters to disposition and collections; they do not establish whether a valid
+discharge can be defined independently as payment to an authorised payee. Its own evidence.
+**The classification doctrine is not to be reopened while constraint 2 is worked.**
