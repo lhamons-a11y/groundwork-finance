@@ -543,6 +543,54 @@ guard is sufficient to hold the latent by construction until representation mode
 
 **No code is changed by this section.**
 
+### H3 ruling — Rob, 2026-09-12. Classification accepted; no resolver rewrite.
+
+*The strongest audit so far, because it shows why "find every `[-1]` and replace it" would have
+been the wrong engineering move.*
+
+- **R1 — leave alone.** Event order, not evidence time; the position is semantically
+  meaningful because the module itself creates the events.
+- **R5 — leave alone.** Sorted by rank; `[-1]` means maximum rank, not latest record. Not the
+  same hazard class.
+- **R4 — fail closed.** A real defect: `attested[-1]` cannot resolve a disputed tax figure
+  because one reading was appended last. When the supporting amount is genuinely disputed,
+  `qualifying_total` must not emit a figure. *Unevaluated*, *evaluated-none* and
+  *evaluated-but-disputed* are semantically different; the third is not collapsed into the
+  first because `UNAVAILABLE` happens to exist. **The existing `UNAVAILABLE` output is permitted
+  as the fail-closed result without deciding whether the representation needs a third state.**
+- **R2/R3 — contract and guard only.** No legitimate algorithmic repair exists because the
+  required temporal coordinate does not. `sorted(knowing, key=recorded_at)[-1]` would look more
+  principled while encoding the same bug. The conclusion:
+
+  > **The evidence model is missing the temporal dimension required by dated-document
+  > resolution.** That is representation, not resolver logic.
+
+  The same missing axis is required by P-ack — an emerging shared requirement:
+
+  ```text
+  dated evidence → the evidence's own as-of → resolution by evidence time
+  ```
+
+  **Not yet "add `as_of` to `Evidence`."** Not every evidence kind has been audited, nor
+  whether every kind can share that representation. Record the requirement; the
+  representation decision happens later.
+- **R3 — one extra fence.** `resolution()` is not inherently broken because it uses the knowing
+  sequence. It is broken when the sequence's ordering is treated as evidence chronology, and —
+  separately — it has the held-referent vs asserted-referent resolution-kind problem. **Not
+  repaired as part of H3.** H4's caller classification decides which semantic contract each
+  invocation needs.
+
+**Coordination finding.** Three of three now guide the remediation pass without becoming an
+architecture principle: H1 and H2 — computation narrower than vocabulary → contract + guard;
+H3 — some positional reads legitimate, some not, and missing evidence-time representation
+prevents the real repair. The engineering lesson: **audit the proposition before auditing the
+mechanism.** The syntax `[-1]` tells us almost nothing by itself.
+
+> **H3 accepted:** R1 no change · R5 no change · R4 fail closed on genuine disagreement, no
+> state expansion · R2/R3 contract + construction guard, no resolver rewrite · missing document
+> as-of: representation requirement, deferred · `resolution()` global repair: deferred to H4 ·
+> production blast radius zero, kept at zero.
+
 ---
 
 *H4 – H5 follow, each on the same rule.*
