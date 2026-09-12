@@ -172,6 +172,46 @@ the cost of making the consumer decision now, in build mode rather than this one
 
 **No code is changed by this section.**
 
+### H1 ruling — Rob, 2026-09-12. Minimum repair boundary accepted. Return shape NOT decided.
+
+> *Do not decide the return shape in Hazard Audit. That is exactly the kind of decision this
+> mode is supposed to prevent us from smuggling in under the label of "repair."*
+
+1. **`plan_at()` — refuse on genuine period overlap.** Single-valued contract kept: one
+   applicable period → that plan; none → `None`; more than one contains the date →
+   **refuse / fail closed.** Refusal is not a new semantic answer; it is the API saying the
+   existing single-plan representation cannot faithfully represent what the evidence
+   establishes. Preserves A and CC5; prevents B/C being silently collapsed.
+2. **`accumulators` — guard, don't repair the accounting.** The full expense against both
+   plans is demonstrably wrong under C, and `$400/$150` is not something this module is
+   entitled to invent. *If an expense falls within multiple governing periods, `accumulators`
+   must not produce a normal per-plan applied amount.* Guard; manufacture no share. The
+   allocation question stays separate from the period question.
+3. **`year_summary` — don't touch it because `plan_at()` changes.** Its use asks *is there any
+   plan?*, not *which governs?*; `[0]` does not contaminate it. Verify the refusal
+   sentinel/exception does not break that contract; do not redesign.
+4. **CC4 — contract, not logic.** `plan_at()` answers period membership; it cannot evaluate
+   medical-vs-dental applicability. *The caller must establish applicability before treating
+   a plan as governing an expense.* Made explicit, or a correct primitive becomes a semantic
+   trap.
+5. **Add the s85 mutation.** Protects frozen behaviour against regression; expands no doctrine.
+
+**Explicitly not decided now:** `plan_at()` return shape · B's representation · C's
+representation · per-plan allocation/share · `allocation.state()` signature · year-level
+`UNKNOWN` decomposition · period-close representation. Consumer/build-selection decisions.
+**The argument "period close is blocked, so decide the shape now" is rejected** — that is how
+a blocked consumer starts dictating an API before the other consumers are audited.
+
+**Audit observation kept:** zero shipped blast radius means this is not an emergency repair;
+the boundary can be made correct before the first consumer is wired.
+
+> **H1 minimum repair accepted: fail closed on multi-period `plan_at()`; guard `accumulators`
+> on the same condition; clarify the period-vs-applicability contract; add the overlap
+> mutation. Do not decide representation or consumer shape in Hazard Audit.**
+
+**H1 is not implemented yet.** H2–H5 are audited first, because a later hazard may expose a
+shared mechanism whose repair boundary should be coordinated.
+
 ---
 
 *H2 – H5 follow, each on the same rule, once H1 is ruled or Rob directs the audit to proceed
