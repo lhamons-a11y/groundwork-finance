@@ -82,6 +82,19 @@ can hold.
 
 **6 ──X──► 5.** Nothing about how strength should work tells you whether the space should open.
 
+### 4 constrains 6 — discovered after the map was drawn *(maintenance, 2026-09-12)*
+
+Not on the original map, which routed everything from 4 through 5. The re-parse case
+(`REPARSE_CLUSTER_B_TEST.md` §4, ruled §8) showed the referent reaches verdict strength on
+its own: **multiple readings of one referent cannot constitute independent corroboration** —
+*source instance ≠ source independence* is a referent boundary (4), and it bounds what any
+strength function (6) may count. Three readings of one EOB are one source; the second `$412`
+cannot corroborate the first.
+
+**A constraint, not a gate.** 6 is posable without 4 answered; 4's answer narrows 6's
+admissible answers. Rob: *recorded as a constraint arrow, exactly as the case proposes, not
+promoted to a gate.*
+
 ### 4 ↔ 5 — mutual constraint, no gate
 
 Each answers a different question and they meet at evidence:
@@ -155,9 +168,17 @@ which is where the two would have met if they were one.
 This X is load-bearing. Without it §7.7 — already the highest-leverage decision on the board —
 becomes the master abstraction by default, and the map would have decided that, not a case.
 
-### 7 ↔ 8 — mutual constraint, no gate
+### 8 → 7, conditional — weakened from mutual *(maintenance, 2026-09-12)*
 
-*(Corrected from a one-way `7 → 8`. The argument for the arrow runs both ways.)*
+*(Drawn as `7 ↔ 8` when the map was made. The period-close/overlap test
+(`PERIOD_CLOSE_OVERLAP_TEST.md` §2, ruled §5) found the arrow one-way and branch-conditional:
+**8 = represent-and-report constrains 7** — it obliges 7 to carry a provenance kind that
+distinguishes *resolution of competing claims* from *correction*; **7 does not constrain 8** —
+both shapes of 7 sit under both answers to 8, and 7's own deciding criterion never mentions
+overlap. The argument below for "7 constrains 8" was the operation gap talking, not the
+decision: it is true of the *absence* of any period operation and disappears once either shape
+exists. Kept as written so the correction is visible. Rob's ruling: `7 → 8` no dependency;
+`8 → 7` conditional dependency.)*
 
 - **7 constrains 8.** If the record cannot say *this plan was true until June 30, although we
   learned that later*, then overlap is the only state a late discovery can leave — so a
@@ -229,6 +250,15 @@ mean the narrator is permitted to say it."* That X stands. The map records the t
 9  ◄────►  11   (locus)      where the refusal lives decides whether the field must exist
 ```
 
+*(Locus sharpened by the voice test — `NARRATOR_VOICE_PERMISSION_TEST.md` §2, ruled §5 —
+maintenance, 2026-09-12. The locus is not *boundary vs narrator*; it is **boundary-or-gate vs
+findings-text**, and the model is never a locus at all. At `callAI()` the findings text is what
+the model knows *and* what it is permitted to say (R8), so sensitivity serialised into the
+findings is a grant, not a restriction. The X on policy holds with that stated exception:
+`NarratorFacts.Sensitivity` may travel to policy-enforcing components — the boundary, the gate
+— and may not become model-visible content merely because it exists. Rob: *findings text is an
+authorisation-bearing boundary, not a neutral transport layer.*)*
+
 The warning survives intact: **a representation decision must never smuggle in a permission
 decision.** The locus arrow is not a loophole in it — the locus is an engineering question that
 becomes answerable once the policy is stated, and the policy is Rob's.
@@ -266,21 +296,24 @@ what a miss-log is for. Neither answers the other.
    what can be claimed, and about what          whose fact is it
 
    4. document referent ◄────────► 5. proposition space  ◄──X──  1. §7.7 carries ◄────────► 2. disposition scope
-                                        │                              │
-                                        │ gates (not constrains)       │ gates
-                                        ▼                              ▼
-                                   6. verdict strength           recourse case → M1/M2 → schema   (stopped)
+            │                           │                              │
+            │ constrains (m.)           │ gates (not constrains)       │ gates
+            │                           ▼                              ▼
+            └─────────────────────► 6. verdict strength           recourse case → M1/M2 → schema   (stopped)
 
 
    CLUSTER C — time                            CLUSTER D — teaching boundary
    what was true when, and when we knew         what survives into a projection, and what may be said
 
-   7. period-close shape ◄────────► 8. overlap policy    3. F3 fork ──── constrains ────► 9. NarratorFacts.Sensitivity
+   7. period-close shape ◄── 8=report ── 8. overlap policy    3. F3 fork ──── constrains ────► 9. NarratorFacts.Sensitivity
+            (7 → 8: none)  (m.)
             ▲                                                 ▲                                  │
             │ constrains (settled, off-board)                 └──── 9 = NO forecloses ───────────┘
    discovered-transition rule 2                                     branch "carry it"
    (effective-at ≠ learned-at)                                                                   │
-                                                              3 ──── X ────► 11                  │ locus only (X on policy)
+                                                              3 ──── X ────► 11                  │ locus only (X on policy):
+                                                                                                 │ boundary-or-gate vs
+                                                                                                 │ findings-text (m.)
                                                                                                  ▼
    INDEPENDENT                                                                11. voice a manufactured suspicion?
    10. export.manufactured  ──?──  9    (interaction, no dependency)
@@ -289,7 +322,8 @@ what a miss-log is for. Neither answers the other.
 Read `◄────►` as *constrains both ways, neither gates*; `▼ gates` as *B has no content until
 A*; `X` as *tempting and unsupported*; `──?──` as *interaction, no dependency established*.
 Cluster D is deliberately **not** drawn with the symmetric arrow: 3 → 9 is an ordinary
-constraint, and the return arrow is a foreclosure that exists only under one answer.
+constraint, and the return arrow is a foreclosure that exists only under one answer. `(m.)`
+marks an arrow changed by the maintenance pass of 2026-09-12 — see §6.
 
 **What the map says.** Four clusters, one independent decision, and exactly one multi-step
 gate (§7.7 → M1/M2 → schema, already recorded as a rule). Everything else is constraint. The
@@ -305,7 +339,7 @@ why *decision dependency, not another gap hunt* was the right call.
 proposition space     ──X──►  verdict strength's answer (gates the question; "must not ride on the first")
 proposition space     ──X──►  document referent, as a gate
 document referent     ──X──►  proposition space, as a gate
-period-close shape    ──X──►  overlap policy, as a forced answer
+period-close shape    ──X──►  overlap policy, at all (m.) — 7 does not constrain 8; 8 = report constrains 7
 F3                    ──X──►  voice permission
 NarratorFacts.Sens.   ──X──►  voice permission (policy)
 voice permission      ──X──►  NarratorFacts.Sens. (policy) — "never" needs a boundary, not a field
@@ -330,7 +364,7 @@ dependency  ≠  implementation order  ≠  authority  ≠  semantic containment
 Applied to the board: `5 gates 6` means strength cannot be settled until the proposition exists
 — not that proposition space *owns* verdict strength. `4 ↔ 5` means referent and proposition
 interact — not that they need one combined abstraction. `9` may constrain what F3 can do — it
-does not decide what the narrator is permitted to say. `7 ↔ 8` means temporal semantics meet —
+does not decide what the narrator is permitted to say. `8 → 7` (was `7 ↔ 8`; §6) means temporal semantics meet —
 choosing 7 does not choose 8. And `10` stays independent because no case has established its
 consumer requirement: one downstream representation losing `Sensitivity` does not establish that
 every other downstream representation must preserve some other attribute.
@@ -359,3 +393,25 @@ Q2's resolver, not a decision.
 **Next, per the sequence:** take the clusters to the cases — A to the write-off and recourse,
 B to the re-parse, C to the late-discovered plan change, D to the two-CVS-rows case — and
 find out where a cluster's answers are jointly constrained. Not to implement anything.
+
+---
+
+## 6. Maintenance log
+
+The map is not edited during a case pass. Discovered changes are recorded in the test document
+that found them and applied here only in an explicit maintenance step, so the pass cannot
+silently rewrite its own starting model. Each entry names what changed, the ruling it comes
+from, and nothing else was touched.
+
+**2026-09-12 — opened by Rob after the three joint constraints and Cluster B were ruled.**
+
+| change | from | to | source |
+|---|---|---|---|
+| `4 → 6` | absent | **constraint** (not a gate): readings of one referent are never independent corroboration | `REPARSE_CLUSTER_B_TEST.md` §4, ruled §8 |
+| `7 ↔ 8` | mutual constraint | **`8 → 7` conditional** (8 = report obliges a third provenance kind); `7 → 8` none; §5's reference updated to match | `PERIOD_CLOSE_OVERLAP_TEST.md` §2, ruled §5 |
+| D locus | boundary vs narrator | **boundary-or-gate vs findings-text**; model never a locus; findings text is an authorisation-bearing boundary | `NARRATOR_VOICE_PERMISSION_TEST.md` §2, ruled §5 |
+
+Not applied, by rule: anything the rulings decided about the *answers* (those live in the test
+documents); the sharpenings that did not change an arrow's kind (1 ↔ 2's mandatory-dimension
+result; 5 → 6 "hole not refinement"; 4 ↔ 5's three artefact roles); and the eleventh's two
+referents. The vocabulary in §0 is unchanged.
