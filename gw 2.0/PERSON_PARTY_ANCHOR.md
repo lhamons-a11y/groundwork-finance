@@ -156,3 +156,60 @@ that is the *next* creation path, not this one); anything about correspondence o
 If ruled, the design mode has reached its first table-changing decision with its shape,
 timing and guard all settled, and **the next question is whether to write it** — which is a
 build-selection question, not a design one.
+
+---
+
+## 7. Ruling — Rob, 2026-09-12. §6 ruled as written. The design chain reaches its first build boundary.
+
+*The data inspection collapsed the migration question into a creation invariant.* With zero
+`Person` rows in production there is no meaningful choice between migration strategies; the
+migration is still required because the schema must be safe for databases that may contain
+rows, but today's production backfill is empty.
+
+**Lazy creation fails semantically, not just operationally.** The sentence that carries it:
+*an identity that appears because a consumer needed it is an identity whose absence is a live
+state* — the consumer-boundary principle in a new place. The party reference exists because
+the person exists; it cannot exist because some later relationship required a target.
+
+```text
+Person exists  ──same unit of work──►  Party anchor exists  ──►  relationships may reference Party
+
+never:   Person exists  ──…some consumer eventually needs Party…──►  Party gets created
+```
+
+**The SQLite limitation is a constraint boundary, not permission to weaken the invariant:**
+
+```text
+UNIQUE(person_id)        →  at most one
+creation path + guard    →  at least one
+```
+
+The project's existing approach: when the storage engine cannot express a semantic invariant,
+the application path owns it and a test guards it.
+
+### The design work is over for this branch
+
+```text
+1. artefact identity              ruled
+2. reading identity               ruled
+3. origin / party semantics       ruled
+4. party reference shape          ruled
+5. Person → Party anchor timing   ruled
+```
+
+**The next decision is no longer philosophical:** *do we implement the settled shape, and what
+is the smallest build that does so without opening downstream questions?*
+
+**The build, if authorised, is deliberately boring:**
+
+- the `Party` anchor structure
+- the `Person` creation path
+- the substrate's `_sync_person`
+- the idempotent audit / backfill
+- the guard — no `Person` without a party
+- tests
+- schema / version wiring as the existing convention requires
+
+**And nothing institution-specific.** Implementation must not "finish the job" by adding
+institution correspondence, issuer normalisation, external ids, or provenance consumers. Those
+are not consequences to be guessed; they are subsequent questions.
