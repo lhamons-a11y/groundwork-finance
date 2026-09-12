@@ -180,7 +180,39 @@ def _mutations(m):
         m.rollover = rollover
         return lambda: delattr(m, 'rollover')
 
+    def overlap_resolved_by_position():
+        # The shipped behaviour before HAZARD_AUDIT H1: first inserted plan wins when two
+        # periods contain the date. Position is not evidence; this must be caught.
+        orig = m.plan_at
+
+        def broken(when, as_of=None):
+            for p in m.plans(as_of):
+                if m._in_period(p, when):
+                    return p
+            return None
+        m.plan_at = broken
+        return lambda: setattr(m, 'plan_at', orig)
+
+    def overlap_applied_to_both():
+        # The other half of H1: `accumulators` summing the full amount against every plan
+        # whose period contains the expense - a double count under concurrent coverage.
+        orig = m.accumulators
+
+        def broken(expenses, plan, as_of=None):
+            terms = m.terms_at(plan, as_of)
+            applied = round(sum(e['amount'] for e in (expenses or {}).values()
+                                if m._in_period(plan, e.get('date'))), 2)
+            d, o = terms.get('deductible'), terms.get('oop_max')
+            return {'plan': plan.name, 'applied': applied, 'deductible': d,
+                    'deductible_met': (m.UNKNOWN if d is None else applied >= d),
+                    'oop_applied': applied, 'oop_max': o,
+                    'oop_met': (m.UNKNOWN if o is None else applied >= o)}
+        m.accumulators = broken
+        return lambda: setattr(m, 'accumulators', orig)
+
     return [
+        ('overlapping periods are resolved by insertion order', overlap_resolved_by_position),
+        ('an expense in two periods is applied in full to both', overlap_applied_to_both),
         ('the plan period is ignored, so every expense counts everywhere', period_ignored),
         ('a terms correction rewrites history with no way back', terms_as_of_ignored),
         ('the record cannot be read as it stood - as-of is ignored throughout',

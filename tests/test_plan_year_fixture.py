@@ -216,6 +216,38 @@ def run(model):
                                            effective_from='2030-01-01',
                                            effective_to='2030-12-31'), EXPENSES) is True)
 
+    # ── Overlap is refused, never resolved by position (HAZARD_AUDIT H1) ────
+    # T4: a full-year plan entered first, then a mid-year change entered as a second plan.
+    # Two periods contain August. The first-inserted plan must not win because it was written
+    # down earlier; nor may the second because it was written down later. And under genuine
+    # concurrent coverage neither may be dropped. So `plan_at` refuses - OVERLAP, which is not
+    # None (no plan) and is not a plan - and `accumulators` declines to apply the full amount
+    # against either, because the share is evidence this module does not hold.
+    model.reset()
+    full = model.add_plan(name='Full year', deductible=3000.00, oop_max=6000.00,
+                          effective_from='2026-01-01', effective_to='2026-12-31')
+    july = model.add_plan(name='From July', deductible=1000.00, oop_max=2000.00,
+                          effective_from='2026-07-01', effective_to='2026-12-31')
+    aug = model.plan_at('2026-08-01')
+    check('two periods containing a date is refused, not resolved by insertion order',
+          aug is model.OVERLAP)
+    check('the refusal is distinguishable from "no plan" and from a plan',
+          aug is not None and aug is not full and aug is not july)
+    check('a date only one period contains is still answered',
+          model.plan_at('2026-03-01') is full)
+    both = {'y1': {'date': '2026-08-15', 'amount': 600.00}}
+    acc_full = model.accumulators(both, full)
+    acc_july = model.accumulators(both, july)
+    check('an expense inside two periods is applied in full to neither plan',
+          acc_full['applied'] is model.UNKNOWN and acc_july['applied'] is model.UNKNOWN)
+    check('and neither plan claims the deductible was met on it',
+          acc_full['deductible_met'] is model.UNKNOWN
+          and acc_july['deductible_met'] is model.UNKNOWN)
+    check('year-level: no plan is invented and the spend is not lost',
+          model.year_summary(both, 2026)['deductible_met'] is model.UNKNOWN
+          and model.year_summary(both, 2026)['unattributed'] == 0.0
+          and model.year_summary(both, 2026)['applied'] == 600.00)
+
 
 def main():
     print(__doc__.split('Run:')[0].strip().splitlines()[0])

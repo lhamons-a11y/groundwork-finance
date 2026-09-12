@@ -40,6 +40,13 @@ UNKNOWN = object()
 # every expense incurred under it.
 DELETION_MODES = ('close_period', 'delete_if_unused')
 
+# Returned by `plan_at` when more than one plan's period contains the date. A refusal, not an
+# answer: the single-plan contract cannot faithfully represent what the record holds there
+# (`gw 2.0/HAZARD_AUDIT.md` H1). Whether that is two competing claims with the governing plan
+# unknown, or two plans that genuinely both govern, is a state this module does not decide
+# and a return shape that is deliberately NOT chosen here. Not None - None means no plan.
+OVERLAP = object()
+
 
 def _now():
     return datetime.utcnow().isoformat(timespec='seconds')
@@ -189,16 +196,30 @@ def plans(as_of=None):
 
 
 def plan_at(when, as_of=None):
-    """The plan in force on a date, as the record stood at `as_of`.
+    """The plan whose period contains a date, as the record stood at `as_of`.
 
     Two different times, and keeping them apart is what makes late-arriving plan data first
     class: a plan entered in March covers a January expense, and the answer given in February
     is still reproducible.
+
+    **This answers period membership, not applicability.** A plan being in force on a date
+    does not make it the plan that governs a particular expense - a dental expense falls
+    outside a medical plan's rule however the periods line up. The caller establishes
+    applicability for the expense FIRST (`gw 2.0/APPLICABILITY_CASES.md`) and only then treats
+    a plan returned here as governing it. Reading *in force* as *governs* is the semantic
+    trap `gw 2.0/CONCURRENT_COVERAGE_CASES.md` CC4 names.
+
+    **Refuses when more than one period contains the date.** Returning the first inserted
+    plan let a historical belief win over a later discovery merely because it was written
+    down earlier (`HISTORICAL_TRUTH_CASES.md` T4), and under genuine concurrent coverage it
+    silently discarded a governing plan. Position is not evidence. `OVERLAP` is returned
+    instead - a refusal that keeps the single-plan contract for the cases it can serve, and
+    decides nothing about how overlap is eventually represented.
     """
-    for p in plans(as_of):
-        if (p.effective_from or '') <= (when or '') <= (p.effective_to or '9999-12-31'):
-            return p
-    return None
+    hits = [p for p in plans(as_of) if _in_period(p, when)]
+    if len(hits) > 1:
+        return OVERLAP
+    return hits[0] if hits else None
 
 
 def plan_of(expense_key, expenses, as_of=None):
@@ -240,10 +261,29 @@ def accumulators(expenses, plan, as_of=None):
     promise that nothing further will be charged.
     """
     terms = terms_at(plan, as_of)
-    applied = round(sum(e['amount'] for e in (expenses or {}).values()
-                        if _in_period(plan, e.get('date'))), 2)
+    rows = [e for e in (expenses or {}).values() if _in_period(plan, e.get('date'))]
     deductible = terms.get('deductible')
     oop_max = terms.get('oop_max')
+
+    # Guard, not repair (HAZARD_AUDIT H1). If any expense in this plan's period also falls in
+    # another plan's period, the full amount cannot honestly be applied here: under genuine
+    # concurrent coverage each plan applies its own share, and that share is evidence (each
+    # plan's EOB) this module does not hold. Summing the whole expense against every plan
+    # double-counts; inventing a split manufactures a figure. So the applied amount is UNKNOWN
+    # - the module says it cannot compute, rather than computing something false.
+    overlapped = any(plan_at(e.get('date'), as_of) is OVERLAP for e in rows)
+    if overlapped:
+        return {
+            'plan': plan.name,
+            'applied': UNKNOWN,
+            'deductible': deductible,
+            'deductible_met': UNKNOWN,
+            'oop_applied': UNKNOWN,
+            'oop_max': oop_max,
+            'oop_met': UNKNOWN,
+        }
+
+    applied = round(sum(e['amount'] for e in rows), 2)
     return {
         'plan': plan.name,
         'applied': applied,
@@ -277,6 +317,9 @@ def year_summary(expenses, year, as_of=None):
             continue
         periods.append(accumulators(rows, p, as_of))
 
+    # `is None` asks only "does no plan cover this date?" - position-independent, and
+    # unaffected by `plan_at` refusing overlap (OVERLAP is not None). Deliberately untouched
+    # by H1: this consumer never asked which plan governs.
     unattributed = round(sum(e['amount'] for e in rows.values()
                              if plan_at(e.get('date'), as_of) is None), 2)
 
