@@ -24,7 +24,9 @@
 
 ## 0. The minimum ontology — Rob's provisional ruling
 
-Five conceptual units. The first four are a chain; the fifth is deliberately not on it.
+**Four conceptual layers plus an evidentiary relationship** — not five entities. The four are a
+chain; the relationship connects evidence to a proposition and is deliberately not a layer.
+Independence / lineage is a **property of the source/referent relationship**, not a fifth thing.
 
 ```text
 SOURCE          who / what can know or originate a claim
@@ -195,10 +197,95 @@ state names · migration strategy.
 
 ---
 
-## 6. Next, in this mode — Rob's
+## 6. Ruling — Rob, 2026-09-12. Artefact owns its readings.
 
-The matrix's answer is **one evidence family, one downstream proposition kind, local
-terminals.** The question it hands back, unanswered: **within the family, does the artefact
-own its readings, or does the reading own its artefact reference — and where does lineage to
-the source live?** That is the choice rows 1, 3 and 7 differ on, and the one that makes the
-mechanical invariant cheap or expensive.
+**The ontology:**
+
+```text
+Source
+  └── Artefact
+        ├── Reading 1
+        │     └── Proposition(s)
+        └── Reading 2
+              └── Proposition(s)
+```
+
+with **lineage running through the whole chain**, not the reading owning the artefact
+reference. The reason is mechanical: *the referent is the thing that existed independently of
+our interpretation of it; a reading is an observation of that thing; therefore two readings must
+be able to point to the same referent without becoming two sources.* That gives the two
+invariants actually needed, kept separate:
+
+```text
+same artefact + different reading   ≠   different artefact + different reading
+different artefact                  ≠   independent source
+```
+
+Two documents from one insurer may be two artefacts and one evidentiary source. A household
+statement about an EOB and the EOB itself may be two representations of one underlying fact and
+must not become independent merely because their `source` enums differ.
+
+**Lineage lives on the relationship, conceptually:**
+
+```text
+source ── produced / holds ──► artefact ── read-as ──► reading ── asserts ──► proposition
+```
+
+Not `reading → "some source enum"` — that recreates K5. The lineage needed for independence
+answers *what real-world origin does this evidence trace back to?*, not *what ingestion
+mechanism produced this row?* So these stay distinguishable — different capture channels,
+potentially one underlying referent — and the representation must permit that relationship to
+be **discovered**, never assumed either way:
+
+```text
+USER_STATED    └── "I saw the EOB saying $412"
+IMPORTED_EOB   └── EOB.pdf saying $412
+```
+
+**The seven rows, regrouped:**
+
+```text
+IDENTITY     1 referent identity · 2 reading identity · 3 independence / lineage
+TEMPORAL     4 evidence time · 5 P-ack evidence date
+EPISTEMIC    6 resolution provenance · 7 unresolved state
+```
+
+The evidentiary relationship stays outside the hierarchy: it connects these to a proposition; it
+is not another identity layer.
+
+**One hard invariant, added to the design:**
+
+> **No independence claim may be derived solely from capture / source type.**
+
+That catches the shipped K5 defect exactly.
+
+**Correction to "five units":** four conceptual layers plus an evidentiary relationship.
+Independence/lineage is a property of the source/referent relationship, not necessarily a fifth
+entity — otherwise a useful decomposition becomes a premature schema.
+
+**Recorded as the representation decision:**
+
+> **Artefact owns readings; readings identify their artefact through lineage; source
+> independence is represented independently of capture/source type; propositions are
+> downstream assertions of readings; evidentiary relationships connect evidence to
+> propositions. No schema or API shape is implied by this ontology.**
+
+**Deliberately not decided:** table/object names · whether `source` becomes an entity · whether
+artefact IDs are generated or externally supplied · whether readings are immutable · whether a
+proposition belongs to one or many readings · how supersession is encoded · how P-ack is
+represented · how an unresolved state is encoded · the API shape. Implementation choices,
+downstream of the ontology.
+
+**What build mode now inherits:** it must preserve who/what produced the evidence, what
+artefact it came from, which reading produced the proposition, and whether two pieces of
+evidence have independent provenance — with none of those answerable by list position or enum
+identity.
+
+---
+
+## 7. Next, in this mode — Rob's
+
+The ontology is ruled (§6). What remains in this mode is downstream of it and Rob's to open:
+the remediation authorisation (the H1–H5 contracts, guards and refusals, and the `callAI`
+declaration — none of which need the representation), and the implementation choices the
+ruling lists as not decided.
