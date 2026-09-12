@@ -286,3 +286,81 @@ Whether to lift the fence on these terms: P-ack as the proposition; one knowing 
 channels, weakest-link strength, dated; the health ranking's reason shown not to hold; and the
 boundary — discharge is P-ack for the payment, at its evidence's strength, with the consumer's
 required strength left to the consumer.
+
+---
+
+## Ruling — Rob, 2026-09-12. Fence lifted on exactly these terms.
+
+*The case tested the reason behind the existing health ranking rather than pattern-matching its
+output. That gives a principled non-transfer result.*
+
+**1. The proposition is P-ack.**
+
+> **The entitled party's stated position about a payment or balance, as of a stated date.**
+
+Not the balance itself; not the truth of the household's obligation. For a payment, **P-ack for
+that payment = discharge of that payment** — by the previously ruled definition of discharge,
+not by inference from the evidence.
+
+**2. One knowing party, four evidence channels.** The knowing party is E. The channels: E's held
+statement; E's servicer-of-record's held statement, **bounded by the household's evidence that
+the servicer actually serves E**; E/servicer live systems, which are dated observations rather
+than held evidence; the user's testimony reporting one of those artefacts.
+
+The health table's underlying reason — different first-hand parties can independently know the
+proposition — does not exist for P-ack: the user does not independently know what E
+acknowledges. Therefore:
+
+> **The weakest-link mechanism transfers; the health `KNOWING_SOURCES` set, ranks, and tie
+> behaviour do not.**
+
+**3. Every acknowledgment is dated — frozen.**
+
+> **P-ack has an as-of date; reproducibility and timeliness are separate dimensions.**
+
+K7: what looks like a channel conflict may be two observations at different dates. The
+existing positional resolver is therefore not merely theoretically questionable here — **it is
+live-wrong for this proposition.** Its replacement is still not designed.
+
+**4. Payment evidence stays separate from acknowledgment evidence.** K6 is the guardrail: **a
+cleared payment does not establish acknowledgment** — the bank can know the household's money
+left; it cannot thereby establish what E recorded. K8 keeps balance evidence from swallowing
+discharge:
+
+```text
+payment acknowledgment   →   discharge of payment
+balance statement        →   P-world / balance proposition
+                             not the same proposition
+```
+
+The `$1,900` statement does not turn the `$175` acknowledgment question into a
+balance-resolution question.
+
+**The boundary around `remaining` — frozen, with the case's restraint kept:**
+
+```text
+payment attached
+      ↓
+acknowledgment evidence
+      ↓
+P-ack established at evidence strength
+      ↓
+discharge established at that strength
+      ↓
+remaining consumer decides what strength it requires        ← NOT decided; payment-implementation fence
+```
+
+> **Acknowledgment evidence establishes P-ack with a strength. P-ack for a payment is
+> discharge. Whether that discharge is sufficient to change `remaining` belongs to the
+> consuming projection and is not established here.**
+
+**Explicitly not frozen:** no representation for P-ack; no automatic reuse of health source
+ranks; no answer to U6; no captured-portal classification; no reading-level resolver design;
+no servicing-history model; no §8 consequence. The fence lifts and **splits into new fences**
+rather than opening payment implementation prematurely.
+
+**The strongest result:** *same mechanism shape, different proposition, different subject,
+different knowing relationships* — which is exactly why the health ranking could not simply be
+copied.
+
+`record_payment()` is left alone.
