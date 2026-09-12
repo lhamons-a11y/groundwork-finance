@@ -479,7 +479,20 @@ class DerivedFact:
 
 @dataclass(frozen=True)
 class NarratorFacts:
-    """What the narrator is allowed to see. Never the underlying records."""
+    """What the narrator is allowed to see. Never the underlying records.
+
+    **Carries no sensitivity, and that is a known loss, not a contract (HAZARD_AUDIT H5).**
+    `DerivedFact` arrives here with `Sensitivity(domain, manufactured)` and leaves without it:
+    a figure over two manufactured health rows reaches the narrator as `category_delta:Other`,
+    accurate to the dollar and unmarked (`gw 2.0/SENSITIVITY_TRACE_CASES.md`). Where the
+    marking must go is ruled: to the components that ENFORCE - a refusal at the boundary, a
+    check at the gate - and **never into the findings text the model reads**, because at
+    `callAI()` what the model is given is what it is permitted to say (R8), so serialising
+    sensitivity into the prompt would grant the model the word rather than restrict it
+    (`NARRATOR_VOICE_PERMISSION_TEST.md`, ruled). Until a gate-side carrier exists, no
+    findings assembler may read `DerivedFact.sensitivity` and put it in the prompt; the
+    consumer-boundary fixture scans application files for exactly that read.
+    """
     metric: str
     # A float, or the refusal that stands in its place. Annotating this `float` would be
     # the lie that made the bypass below easy to write in the first place.

@@ -85,8 +85,16 @@ def _raw_value_readers(module_path):
     return offenders
 
 
+# Attributes an application surface may not read directly off a derived fact. `.value` is
+# the number (Q1: consume() is the only path). `.sensitivity` is the domain and the
+# `manufactured` flag - and an application surface reading it is the one way sensitivity
+# reaches the model's findings text, which the voice ruling forbids (HAZARD_AUDIT H5): the
+# marking travels to the boundary and the gate, never into the prompt.
+GUARDED_ATTRS = ('value', 'sensitivity')
+
+
 def _application_readers():
-    """Application files that import the module and read `.value` off something."""
+    """Application files that import the module and read a guarded attribute off something."""
     out = []
     for path in ROOT.rglob('*.py'):
         rel = path.relative_to(ROOT).as_posix()
@@ -103,9 +111,9 @@ def _application_readers():
         except SyntaxError:
             continue
         for sub in ast.walk(tree):
-            if (isinstance(sub, ast.Attribute) and sub.attr == 'value'
+            if (isinstance(sub, ast.Attribute) and sub.attr in GUARDED_ATTRS
                     and isinstance(sub.ctx, ast.Load)):
-                out.append((rel, sub.lineno))
+                out.append((rel, sub.lineno, sub.attr))
     return out
 
 
@@ -182,15 +190,17 @@ def run(m):
           m.narrator_facts(strong_fact).value == 1250.00
           and m.export_row(strong_fact)['value'] == 1250.00)
 
-    print('\n3. No application file reads a value off a derived fact\n')
+    print('\n3. No application file reads a value or a sensitivity off a derived fact\n')
 
     readers = _application_readers()
     if readers:
-        print('        application `.value` reads in files importing the module:')
-        for rel, line in readers:
-            print(f'          {rel}:{line}')
+        print('        application reads of guarded attributes in files importing the module:')
+        for rel, line, attr in readers:
+            print(f'          {rel}:{line}  .{attr}')
     check('no application surface bypasses the boundary (nothing consumes the module yet)',
-          not readers)
+          not any(attr == 'value' for _, _, attr in readers))
+    check('no application surface reads sensitivity toward the findings text',
+          not any(attr == 'sensitivity' for _, _, attr in readers))
 
 
 def describe():
