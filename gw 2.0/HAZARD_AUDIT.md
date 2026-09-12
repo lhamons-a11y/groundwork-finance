@@ -1007,6 +1007,66 @@ belongs to the same representation decision.
 > property exists only because today's callers happen to behave.** A legitimate remediation
 > target even with zero shipped blast radius.
 
+### H5 correction — found during remediation, 2026-09-12. The audit under-counted the live path.
+
+**The audit's consumer table was wrong.** It enumerated `callAI` sites by the literal
+`surface: '…'` and found four gated surfaces. The static declaration check written for the
+remediation found two more `callAI` sites with template-literal surface names — the generic
+report path `_rcAnalyzeWithAI` (`surface: reportId`) and its follow-up thread
+(`surface: \`${reportId}_followup\``) — through which **sixteen** further report kinds reach the
+gate: `savings_goals_advisor`, `trip_advisor`, `debt_advisor`, `investment_advisor`,
+`gift_advisor`, `retirement_advisor`, `trophy_room_narrative`, `snapshot`,
+`distance_traveled`, `income_savings`, `debt_payoff`, `annual_*`, `category_*`, and the
+report-centre re-analysis path. The follow-up additionally passes the user's own typed
+question (asserted — the annotation's shape).
+
+**Fifteen of the sixteen are clean** on inspection of their prompt builders: goal, debt,
+person, category and achievement *names* (household-asserted), computed figures, dates,
+price benchmarks.
+
+**One is not.** The category report (`category_<name>_<from>_<to>`, `app.js` ~L23588–23699)
+builds its prompt with
+
+```text
+Top merchants: <name> ($amt), …      where name = t.merchant || t.description
+```
+
+— bank description strings, on a gated surface, today. `CVS PHARMACY #1234 ($180)` is
+exactly the referent-2 input the voice ruling named: the record asserts no health claim for
+those rows (1.x has no classifier), and the narrator can infer one from the string and voice
+it; R3's verb list is the only thing in the way.
+
+**Classification, corrected:** the live path is **(2) with an existing input path**, not (1)
+"none" and not (2) "reachable only by a future feature". No violating output has been
+observed; that is the accident — the path exists. The (1) claim *"no gated surface passes a
+transaction description or memo"* is withdrawn.
+
+**Remediation state.** The declaration is implemented: a vocabulary of asserted kinds, a
+prohibited set (`description · memo · transaction_text · free_text · notes · merchant_text`),
+`callAI` refusing an undeclared or prohibited gated call before the model, the four literal
+surfaces declared, a registry for the generic path keyed by `reportId` (prefix-matched for
+`category_*` / `annual_*`; an unknown id is undeclared and refuses), and the follow-up
+declaring the report's kinds plus `user_question`. The static check in
+`s25_voice_rules_sync.py` pins that every gated call declares and every kind is known.
+
+**The category report is declared truthfully — `['category', 'total', 'date',
+'merchant_text']` — and therefore refuses at runtime under Rob's rule as written.** Its AI
+analysis falls through to the non-AI rendering; the merchants table the household sees is
+unaffected (that is HTML, not findings). The static check reports the surface as refusing,
+which is one honest red line in the gate.
+
+**Not decided here — Rob's, and the JS half is uncommitted until he rules:**
+- (a) **keep it refusing** — the surface stays dark until its builder is redesigned;
+- (b) **trim the merchant line from the prompt's `dataLines`** — the AI analysis returns, without
+  merchant names in its narration; the on-screen merchants table stays;
+- (c) **admit `merchant` as an asserted kind** — rejected on the audit's own evidence unless Rob
+  reads the bank's description string as household-asserted, which the voice test's
+  *wheelchair ramp lumber* row says it is not.
+
+**What this correction says about the audit method:** the static guard found in one run what
+the manual enumeration missed. That is the argument for the declaration over the harness,
+made by the declaration itself.
+
 ---
 
 ## Audit summary — H1 to H5
@@ -1017,7 +1077,7 @@ belongs to the same representation decision.
 | H2 `record_payment`/`remaining` | 0 (by rule) | vocabulary > computation | contract; absence guard; rename deferred; 1.x scope fenced | **ruled** |
 | H3 dated resolvers | 0 | position ≠ evidence time (R2/R3); value by position (R4) | R4 refuse; R2/R3 contract + construction guard; as-of deferred | **ruled** |
 | H4 `resolution()` | 0 | type ≠ instance | contract; fixture note; referent deferred | **ruled** |
-| H5 narrator boundary | 0 live / (2) latent / (3) unwired | input-side assertion holds by construction | live: input declaration guard; unwired: contract + scan | **ruled** |
+| H5 narrator boundary | (2) with a live input path (corrected) / (3) unwired | one gated surface passes bank description strings | live: input declaration guard — built, one surface refuses, Rob to rule; unwired: contract + scan — done | **ruled; correction pending** |
 
 **Two requirements carried forward, adjacent and not merged (Rob):**
 - **Representation requirement** (H3, H4, and four evidence-mode rulings): dated, individuated
