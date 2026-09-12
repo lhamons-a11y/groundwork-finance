@@ -282,6 +282,23 @@ The failure this catches is the one `e74d673` named: a perfect, immutable, `as_o
 version chain satisfies the first half of the criterion completely and says nothing whatsoever
 about the second.
 
+> **Run 2026-09-11 — `gw 2.0/RECONSTRUCTION_CASES.md`.** Against `core/payment_plan.py` as it
+> is, with both natural ways of recording a restructure. **Each path preserves exactly what
+> the other loses.** Mutating the plan keeps the ledger continuous and the economic record
+> dated — and overwrites the schedule history (June's expectation goes from $1,050 to $0) and
+> credits six months of old payments as *$350 ahead* on a schedule that had not begun. Making
+> a new plan keeps both schedules — and severs the economic link, so the $50 that moved is
+> arithmetic between two strangers. **The five questions are jointly answerable only with both
+> a schedule history and an economic-transfer record between schedules; the model holds one or
+> the other, and the caller's choice decides which false story is told.** That is `e74d673`
+> reproduced at the code level in both directions, and it is M1/M2 without deciding it — the
+> test does not prefer either anchoring. Losses classified per Rob's five types: never
+> represented (Q1, Q5), referent unavailable (Q3), transition unrecorded (Q4); Q2 holds. Two
+> loss types absent, meaningfully: nothing is projected away, and nothing was asked for that
+> the doctrine did not promise. *$350 ahead with no payments* is a false sentence of the
+> quarantine's kind, unreachable because `payment_plan` has no consumers — recorded with a
+> condition on the first wiring.
+
 ---
 
 ## FENCED — rejected from current work because it crosses the dependency boundary
