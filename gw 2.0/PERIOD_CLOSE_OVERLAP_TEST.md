@@ -213,3 +213,73 @@ must represent is now stated, and it is not a correction; the sentence 8 must sa
 overlap is now stated, and the year-level record already says it.** 8-REPORT costs one
 provenance kind; 8-REFUSE costs asking, in the adjacent case, for a conclusion the user may
 not hold. Neither cost is decided here.
+
+---
+
+## 5. Ruling — Rob, 2026-09-12. Constraint 2 closed, with one asymmetry.
+
+**8 = represent-and-report.** Not because reporting is more convenient: because *the thing
+being observed and the thing being resolved are different facts.* If Groundwork has evidence
+that Q claims coverage from July 1 while it cannot establish whether P ended June 30, it has
+learned something real. Refusing to record Q until the user can prove which plan governed would
+turn **uncertainty about resolution into absence of evidence** — the discipline preserved
+everywhere else: *Unknown is a valid state; uncertainty is not permission to manufacture an
+answer.* So the record must be able to say:
+
+```text
+Q claims [July 1 → …]
+P claims [… → …]
+governing plan:   UNKNOWN
+deductible_met:   UNKNOWN
+```
+
+No position-based winner. No invented coverage. No forced user conclusion.
+
+**7 — frozen from the case's narrower result:**
+
+> **A late-discovered effective change is not semantically equivalent to a correction of an
+> always-wrong record.** Strong enough to be a provenance requirement. The information is not
+> *old value · new value*; it is *what was believed · what actually became true · when the truth
+> changed · when Groundwork learned it · why the record now knows.* Those let the observer
+> distinguish *"our belief was correct until June 30; reality changed July 1"* from *"our
+> June 30 record was wrong when we entered it"* — materially different historical statements.
+
+**8 → 7, accepted as the case implies:** REPORT requires 7 to represent a close/resolution
+whose semantics distinguish *this period ended* from *this record was always wrong*, and, where
+applicable, **identify which competing claim was resolved.** Whether that is
+`HealthPlanOperation.kind = CLOSED / RESOLVED`, a separate operation, or another representation
+is implementation design; the doctrine requires only the semantic distinction.
+
+**Recorded:**
+
+```text
+7        period close must be representable as a late-discovered real-world transition,
+         distinct from correction
+8        represent-and-report governs unresolved competing claims in this case; overlapping
+         claims stay explicitly unresolved, never position-resolved
+7 → 8    no dependency
+8 → 7    conditional dependency — REPORT requires 7's provenance to distinguish resolution
+         of competing claims from correction
+```
+
+**Explicitly NOT generalised — three materially different states, and this case establishes
+only B:**
+
+```text
+A.  one plan governs
+B.  competing claims exist, governing plan UNKNOWN          ← this case
+C.  multiple plans genuinely govern (primary + secondary)   ← fenced, undecided
+```
+
+**`plan_at()` fenced.** The doctrine establishes that the record cannot silently resolve B by
+list position. It does not dictate whether `plan_at()` returns a set, `UNKNOWN`, an explicit
+ambiguity object, or refuses the query — a consumer question.
+
+### Consequence noted, not a further decision
+
+With 8 ruled, the conditional on 7 has fired. 7 now carries **three** distinguishable
+provenances, from two different sources of requirement: *always wrong* (built), *ended* (T4's
+sentence, unconditional), *resolved — which claim* (REPORT). And *governing plan* becomes a
+fact **derived on read from the claims**, never stored — B is what derivation reports when it
+finds two claimants — which is the module's existing pattern (accumulators, `resolution()`) and
+the one-owner-per-fact rule arriving where it was needed.
