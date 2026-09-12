@@ -792,4 +792,182 @@ That distinction decides whether H5 gets contract + guard or an actual remediati
 
 ---
 
-*H5 follows, on the same rule.*
+## H5 — the narrator authorisation boundary
+
+### Frozen rule
+
+`NARRATOR_VOICE_PERMISSION_TEST.md` §5, ruled:
+
+> A claim may be voiced only when the claim is asserted by the findings record. A manufactured
+> classification is not an asserted claim, and narrator inference from strings is never an
+> authorisation to make one. **Findings text is an authorisation-bearing boundary, not a
+> neutral transport layer.** Sensitivity may travel to policy-enforcing components (the
+> boundary, the gate) but may not become model-visible content merely because it exists.
+> Enforcement is upstream (boundary, visible refusal) or downstream (gate, check) — **the model
+> is never an enforcement locus.** §9 unchanged.
+
+Standing, adjacent, not reopened: `HEALTH_TRUST_BOUNDARY.md` — F3 (`voice_miss_log.jsonl`
+stores rejected narration verbatim) is a replica outside the sensitivity layer; five of six
+release-blocking conditions hold today against financial data.
+
+### Actual implementation — two halves, one live and one not
+
+**Live (1.x, shipped):** `static/js/app.js`
+
+```text
+surface assembles a prompt from S (the household's 1.x data)
+   → callAI({system, messages, surface, skipGate?})                       L22351
+       findings := the user-message text                                    (what the model knows AND may say)
+       → POST /api/ai/chat  → server.py → local Ollama | Anthropic cloud   (provider-switched, L6607)
+       → _voiceGateCheck(text, findings)                                    L22264
+            R1–R5b, R7, R9: wordlists     R8: every figure in text ∈ findings
+            reads TEXT ONLY; no sensitivity input; no claim-level rule
+       → on rejection: _logVoiceMiss(surface, model, rules, text)  → voice_miss_log.jsonl (F3)
+       → retry ×2 with the offending phrases cited; then ok:false → honest fallback
+```
+
+The system prompt (`static/voice_rules.json` → `GW_VOICE`) already **asks** for the frozen rule:
+*"Computed facts you were given are stated plainly… Anything NOT computed gets explicit
+uncertainty or is omitted entirely. Never present an inference as a finding."* The gate
+**enforces** it for figures (R8) and for inference *verbs* (R3), and for nothing else.
+
+**Not live (2.0, unwired):** `core/classification.py` — `narrator_facts()` builds
+`NarratorFacts(metric, value, includes_records=False, resolution)` with **no sensitivity
+field**; `_permitted_value` refuses on **strength only**; the boundary fixture's AST scan
+catches `.value` reads outside `consume()` and **not `.sensitivity`**. No production caller.
+
+### Actual consumers — every gated surface, and what it hands the model
+
+| surface | gate | what enters the findings | free text? |
+|---|---|---|---|
+| `monthly_report` L10029 | yes | category names, totals, budget deltas; **a user-typed annotation** | the user's own words |
+| `sunday_checkin` L11372 | yes | spent, income, *biggest category* name + amount | no |
+| `projection` L22493 | yes | one category name, over/surplus, redirect target debt name, dates | no |
+| `monthly_report_v2` L23384 | yes | spent, income, top **parent** categories, price benchmarks; **the annotation** | the user's own words |
+| `trip_learn_classify` L10374 | **skip** | transaction ids · dates · **descriptions** · categories | yes — but the model returns bucket labels only, no prose; no number in its output |
+| `trip_quote_extract` L10563 | **skip** | a pasted quote | JSON extraction |
+| (L11105) | **skip** | live web prices | JSON |
+
+**No gated surface passes a transaction description or memo to the model.** What reaches a
+gated model's findings is: category names (user-set, or the importer's parent-category map),
+computed totals, debt names, dates, price benchmarks, and the household's own annotation.
+
+### Specific contradiction, classified by Rob's three kinds
+
+**(1) Live safety failure — none found.** The frozen rule is *voiced claims must be asserted in
+the findings*. On every gated surface today, every claim-bearing string in the findings is
+**asserted by the household**: a category name the user set (content evidence — asserted; the
+*Prescriptions* row of the voice test), a parent-category name derived from it, or the user's
+own annotation. There is no classifier-manufactured claim on the live path (1.x has no
+classifier of that kind), and no unasserted memo for the model to infer from (the
+*wheelchair ramp lumber* row is unreachable). A narrator sentence *"Medical was your largest
+category at $412"* is authorised — the category is asserted and the figure is in the findings.
+**Under the frozen rule, the live path is clean.**
+
+**(2) Latent hazard, no demonstrated violating output — one, and it is the important one.**
+The live path is clean **by construction of its inputs, not by enforcement.** Nothing checks
+that a gated surface passes only asserted content; the gate has no claim-level rule; the
+system prompt asks. The day a surface passes `t.description` into a gated prompt — the
+skip-gated trip classifier already does, harmlessly, because it returns labels — the narrator
+can manufacture a claim from wording and R3's verb list is the only thing in its way. No such
+surface exists; no violating output is on record; the harness does not exercise it. Latent,
+reachable by an ordinary feature change, ungated.
+
+Also (2), already on the register and not reopened: F3 stores rejected sentences verbatim,
+and a rejected sentence about a *Medical* category is health-sensitive by limb 2. Gap 12's
+finding; 1.x's data is financial; recorded there as release-blocking for 2.0.
+
+**(3) Boundary weakness, exploitable only when a future finding reaches the narrator —
+three, all in the unwired 2.0 module:**
+- `NarratorFacts` carries no sensitivity → the 2.0 narrator would receive a manufactured
+  health figure with no way to know (the two-CVS case). Ruled: sensitivity travels to the
+  gate/boundary, never into the model's text; **which reader gets it is the representation
+  decision**, and no field exists for either.
+- `_permitted_value` refuses on strength only → a manufactured health fact reaches
+  `narrator_facts` if corroborated. The ruled locus for a refusal-with-reason has no rule in
+  it yet.
+- the boundary fixture scans `.value` only → a future surface reading
+  `DerivedFact.sensitivity` directly and serialising it into findings would be the
+  representation-becomes-authorisation collapse, and the scan would not see it.
+
+### Blast radius
+
+| kind | radius |
+|---|---|
+| (1) | **zero** — no live violation |
+| (2) | **every gated surface, on the next feature that passes free text**; today none does. Not a production repair; a construction that must be made a guarantee |
+| (3) | zero shipped; the full 2.0 narrator on first wiring |
+
+**H5 is the first hazard whose live-path radius is not zero by rule** — it is zero by the
+accident of what four surfaces happen to pass — and the first where a *contract* cannot hold
+the line, because the contract's subject is JavaScript surfaces added by feature work, not a
+pure module with a fence on its consumers.
+
+### Minimum safe repair boundary
+
+Two different answers for the two halves, and Rob's question — contract + guard, or an actual
+remediation boundary — comes out **split**:
+
+**Live half — an actual guard, small, no policy decided.** The property to guarantee is *a
+gated surface's findings contain only asserted content*. Two ways in this mode, neither a
+claim-provenance rule:
+
+1. **Declare it at `callAI`.** A gated call names what it passes — `findings_kinds:
+   ['category', 'total', 'annotation', …]` — and `callAI` refuses a gated call that declares
+   `description`/`memo`/free transaction text, or that declares nothing. The declaration is
+   the guard; the list of asserted kinds is short and known. Fail-closed for new surfaces: an
+   undeclared gated call does not run. **Decides no policy** — it enforces the input side of
+   the ruled rule (*asserted in the findings*) rather than the output side (a claim check).
+2. **Or a harness assertion** over the four prompt builders that no `t.description` / memo
+   reaches a gated prompt — weaker (it pins today's surfaces, not tomorrow's) and cheaper.
+
+The first is the actual remediation boundary Rob asked whether H5 needs: **yes, for the live
+half, and it is an input declaration, not a claim resolver.** The gate's text-only design and
+R8's number rule are untouched.
+
+**Unwired half — contract + guard, as H1–H4.** `NarratorFacts`'s contract states it carries
+no sensitivity and that the findings assembler must never serialise `Sensitivity` into model
+text (the ruled collapse); the boundary fixture's scan extends to `.sensitivity` reads outside
+the declared consumers — the wiring condition the voice test recorded. Representation of the
+gate-side reader: deferred with H3/H4's requirement.
+
+**Out of the boundary:** any claim-provenance rule in the gate (R8 vs a sibling — fenced);
+11's policy beyond narration; F3 (gap 12's); the cloud provider path (a crossing, gap 12's);
+`_permitted_value`'s sensitivity refusal (needs the rule and the field — build mode).
+
+### Coordination note — four and a half of five
+
+The unwired half is the pattern (contract + guard, representation deferred). The live half is
+**not** — it is the first place the audit finds a property that holds by construction on a
+surface that feature work can change, and the response is a **declaration-based input guard**,
+which is a new kind of repair in this audit. Recorded as the exception that the pattern needed
+in order to be a pattern and not a reflex.
+
+### Implementation decision — Rob's
+
+Whether the live half's guard is the declaration at `callAI` (fail-closed for undeclared gated
+calls) or the harness assertion; whether it is in this mode's boundary at all given no
+violating output exists; and whether the unwired half's contract + scan extension is
+sufficient until representation mode.
+
+**No code is changed by this section.**
+
+---
+
+## Audit summary — H1 to H5
+
+| hazard | shipped radius | kind | minimum boundary | status |
+|---|---|---|---|---|
+| H1 `plan_at`/overlap | 0 | vocabulary > computation | refuse on multi-period; guard `accumulators`; contract; mutation | **ruled** |
+| H2 `record_payment`/`remaining` | 0 (by rule) | vocabulary > computation | contract; absence guard; rename deferred; 1.x scope fenced | **ruled** |
+| H3 dated resolvers | 0 | position ≠ evidence time (R2/R3); value by position (R4) | R4 refuse; R2/R3 contract + construction guard; as-of deferred | **ruled** |
+| H4 `resolution()` | 0 | type ≠ instance | contract; fixture note; referent deferred | **ruled** |
+| H5 narrator boundary | 0 live / (2) latent / (3) unwired | input-side assertion holds by construction | live: input declaration guard; unwired: contract + scan | **awaiting ruling** |
+
+**Shared representation requirement (H3, H4, H5-unwired, and four evidence-mode rulings):**
+dated, individuated evidence, with a sensitivity reader on the gate side — a capability
+requirement, shape undecided, first item of the next mode.
+
+**Coordination:** H1–H4 repair as one contract-and-guard pass over three modules with zero
+shipped consumers, plus two fail-closed refusals (`plan_at`, `qualifying_amount`). H5's live
+half is its own small change at one choke point.
