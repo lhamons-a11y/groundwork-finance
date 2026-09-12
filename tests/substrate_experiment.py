@@ -460,6 +460,10 @@ def _sync_person():
     for p in reg.people:
         row = have.get(p.id)
         if row is None:
+            # The Party anchor is minted in the same unit of work by the `after_insert`
+            # listener on Person (gw 2.0/PERSON_PARTY_ANCHOR.md). Nothing to add here - and
+            # `_verify_party_anchors` below proves the experiment never leaves a person
+            # without one, which would be the forbidden state manufactured by a test.
             s.add(Person(id=p.id, display_name=p.display_name, active=p.active))
         else:
             row.display_name, row.active = p.display_name, p.active
@@ -567,6 +571,11 @@ class PersonStore:
 def _sync_delete_person(person):
     s = _s()
     s.query(PersonAlias).filter_by(person_id=person.id).delete()
+    # The anchor goes with the person it anchors. A `Party` row pointing at a deleted
+    # `Person` would be the forbidden state's mirror image - a reference-layer identity
+    # with no declaration behind it - and nothing in this experiment references the party
+    # yet, so removing it is exact.
+    s.query(db.Party).filter_by(person_id=person.id).delete()
     s.query(Person).filter_by(id=person.id).delete()
     s.commit()
 
@@ -758,8 +767,10 @@ def _clear():
                   ExpenseRefund, ExpenseFundingAllocation, ExpenseObligationVersion,
                   HealthcareExpense,
                   HealthPlanOperation, HealthPlanTermVersion, HealthPlan,
-                  PersonEnrolment, PersonAlias, Person, TaxRuleVersion,
+                  PersonEnrolment, PersonAlias, db.Party, Person, TaxRuleVersion,
                   ReserveAllocation, ReserveTarget):
+        # `Party` beside `Person`: an anchor that outlives its person is the forbidden
+        # state's mirror, and it also collides with the next phase's re-minted anchor.
         s.query(model).delete()
     s.query(Historian).filter(Historian.event_category.like('healthcare_%')).delete(
         synchronize_session=False)
@@ -807,6 +818,20 @@ def main():
         print('        raised: %s' % err)
     for f in failures[:6]:
         print('        failing: %s' % f)
+
+    # ── The Person -> Party anchor survives the experiment (gw 2.0/PERSON_PARTY_ANCHOR.md) ──
+    # `_sync_person` writes Person rows with explicit ids and `_sync_delete_person` removes
+    # them. Neither may leave the forbidden state behind: a person without its anchor, or an
+    # anchor without its person. If either check fails, a TEST manufactured the state the
+    # ontology forbids - which is exactly what the anchor ruling said the experiment must not do.
+    orphaned_people = db.people_without_party(_s())
+    orphaned_parties = (_s().query(db.Party)
+                        .outerjoin(Person, Person.id == db.Party.person_id)
+                        .filter(db.Party.person_id.isnot(None), Person.id.is_(None)).all())
+    check('every person the experiment wrote has its party anchor',
+          not orphaned_people)
+    check('and no anchor outlived its person',
+          not orphaned_parties)
 
     # ── The criterion, part 1: the manifest ─────────────────────────────────
     in_json = [r for r in RELATIONSHIPS if r[1] == 'context_json']

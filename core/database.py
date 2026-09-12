@@ -10,6 +10,7 @@ from sqlalchemy import (
     Boolean, DateTime, Text, ForeignKey, Date, Index, UniqueConstraint
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session, relationship
+from sqlalchemy import event
 from sqlalchemy.pool import NullPool
 
 
@@ -636,6 +637,9 @@ class Person(Base):
     active       = Column(Boolean, default=True)
     created_at   = Column(DateTime, default=datetime.utcnow)
 
+    # The reference-layer anchor, minted with the row (see `Party`). Structural, not evidence.
+    party = relationship('Party', back_populates='person', uselist=False)
+
 
 class PersonAlias(Base):
     """The explicit mapping an import must make. `patient = "ROB L."` is a string a billing
@@ -649,6 +653,54 @@ class PersonAlias(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (Index('ix_person_alias', 'alias'),)
+
+
+class Party(Base):
+    """The one usable party reference — the stable target relationships point to.
+
+    Ruled 2026-09-12 (`gw 2.0/PARTY_REFERENCE_SHAPE.md`, `PERSON_PARTY_ANCHOR.md`). A party
+    is either a household member or an institution, and the two have different epistemic
+    foundations: a household member's identity is the household's own declaration (`Person`);
+    an institution's identity is minted by Groundwork and every "this is the same institution"
+    is an asserted correspondence with a strength. One reference, two foundations - and which
+    foundation a party has is a join to its anchor, never a kind that consumers switch on.
+
+    **This row is structural, not evidence.** Its existence, its foreign key and its anchor
+    relationship carry no source, no strength, no reason and no supersession, and none of them
+    may be read as correspondence evidence. A party reference establishes only *this relation
+    points to party X*; that X is the same as some entity described elsewhere still requires
+    a correspondence claim, which lives in its own relation (not in this slice).
+
+    **The household anchor.** `person_id` is 1:1 with `people`: UNIQUE gives *at most one*
+    party per person; *at least one* - every `Person` has its anchor - is a cross-table
+    existence constraint SQLite cannot express, so the creation path owns it (the
+    `after_insert` listener below mints the anchor in the same unit of work as the `Person`,
+    never afterwards, never on demand) and a guard asserts it (`tests/test_party_anchor_
+    fixture.py`; the migration's audit query). A person without a party is the forbidden
+    state.
+
+    **The institution anchor is not here yet.** This slice is the household branch only. The
+    institution anchor arrives as an additive column with the institution slice; that a party
+    has exactly one anchor is then also a guard, since a CHECK cannot be added to a SQLite
+    table after creation. No `kind` column: with one anchor there is nothing to discriminate,
+    and when there are two, foundation is still a join.
+
+    **The pure registry (`core/person.py`) has no reference layer**; its `Person` is its own
+    anchor. The persisted layer is where the anchor is a row.
+    """
+    __tablename__ = 'parties'
+    id         = Column(Integer, primary_key=True)
+    person_id  = Column(Integer, ForeignKey('people.id'), unique=True, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    person = relationship('Person', back_populates='party')
+
+
+# Same unit of work, every ORM creation path, by construction. A raw SQL insert into `people`
+# bypasses this - which is why the guard and the backfill exist beside it.
+@event.listens_for(Person, 'after_insert')
+def _mint_party_anchor(mapper, connection, target):
+    connection.execute(Party.__table__.insert().values(person_id=target.id))
 
 
 class PersonAssignment(Base):
@@ -1037,6 +1089,28 @@ CATEGORY_TREE = [
     ('Side Income',             'income', '#22c55e','trending-up', 'Income', 1, True, True),
     ('Rental Income',           'income', '#22c55e','home',        'Income', 2, True, True),
 ]
+
+
+def people_without_party(session):
+    """The forbidden state, as a query: every `Person` with no `Party` anchor. Empty is the
+    invariant; non-empty is what the guard reports and the backfill repairs."""
+    return (session.query(Person)
+            .outerjoin(Party, Party.person_id == Person.id)
+            .filter(Party.id.is_(None))
+            .all())
+
+
+def backfill_party_anchors(session):
+    """Mint the missing anchors. Idempotent by construction - it only ever creates what
+    `people_without_party` reports - and today finds nothing in production, where no route
+    has ever created a `Person`. Exists so a database that predates the construction (a test
+    database; a future upgrade path) becomes conformant, and as the audit the constraint
+    cannot be."""
+    missing = people_without_party(session)
+    for p in missing:
+        session.add(Party(person_id=p.id))
+    session.flush()
+    return len(missing)
 
 
 def init_db():

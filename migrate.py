@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260907-reserve-allocation'
+SCHEMA_VERSION = '20260912-party-anchor'
 
 
 def _stored_schema_version():
@@ -173,6 +173,25 @@ def _mark_migration_done(session, flag: str):
         session.add(AppSetting(key=flag, value='1'))
 
 
+def _backfill_party_anchors(session):
+    """Every `Person` gets its 1:1 `Party` anchor (gw 2.0/PERSON_PARTY_ANCHOR.md, ruled).
+
+    Going forward the anchor is minted in the same unit of work as the `Person` by
+    construction (`core.database._mint_party_anchor`). This step exists for databases that
+    predate the construction: it creates the anchors `people_without_party` reports, and
+    nothing else. Idempotent by construction, and additionally flagged so it does not re-scan
+    on every start. In production today it finds nothing - no route has ever created a
+    `Person` - and that emptiness is recorded rather than assumed: the count is logged.
+    """
+    from core.database import backfill_party_anchors
+    flag = 'migration_party_anchors_20260912'
+    if _migration_done(session, flag):
+        return
+    created = backfill_party_anchors(session)
+    logger.info('Party anchors backfilled: %d person(s) lacked one', created)
+    _mark_migration_done(session, flag)
+
+
 def _seed_child_categories(session):
     """
     Add child categories to an existing database.
@@ -325,6 +344,7 @@ def run_migration_if_needed():
         try:
             _seed_child_categories(session)
             _migrate_old_category_names(session)
+            _backfill_party_anchors(session)
             for name, ctype, color in [
                 ('Interest / Fees', 'expense', '#dc2626'),
                 ('Other', 'expense', '#6b7280'),
