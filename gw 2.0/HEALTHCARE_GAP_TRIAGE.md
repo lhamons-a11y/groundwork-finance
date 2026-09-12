@@ -74,6 +74,12 @@ Three more produce a false figure, each needing an input the default path does n
   experiment in `LIFECYCLE_REVIEW_TRIAGE.md`. **Condition on the first wiring:** it must not be
   able to produce this.
 
+- **A narrator built on `NarratorFacts` narrates manufactured health suspicion with no way to
+  know it** — `category_delta:Other`, $180, accurate, from two pharmacy rows the system suspected
+  and nobody asserted. Needs a narrator consumer, and `core.classification` has none.
+  `SENSITIVITY_TRACE_CASES.md`. **Condition on the first wiring:** a health-domain derived fact
+  must not reach the narrator without `domain` and `manufactured` beside it.
+
 They share the class. They do not share the reach. If any of them turns out to fire on a
 default path, it moves up.
 
@@ -571,6 +577,32 @@ The mechanism exists: sensitivity propagates through narrator, export and backup
 facts inherit it. **What is untested is reconstruction** — whether a health situation can be
 rebuilt from surfaces that carry no health marking. That is a different and harder property than
 "health rows are hidden", and the review is right that it is architectural rather than cosmetic.
+
+> **TRACED 2026-09-11 — `gw 2.0/SENSITIVITY_TRACE_CASES.md`.** One manufactured-health fact
+> followed through every layer that exists, its state named at each. **The sentence above was
+> wrong about the narrator, and it was written from a fixture's printout rather than its
+> assertions.** `DerivedFact` preserves domain and `manufactured` (asserted). `export_row`
+> preserves the domain and **drops `manufactured`** (domain asserted). **`NarratorFacts` has no
+> sensitivity field at all** — its contract is *never the underlying records*, which is about
+> rows, not about what kind of information the figure is. The fixture asserts only
+> `includes_records is False` for the narrator while its `describe()` prints *"derived figures
+> inherit sensitivity through narrator, export, backup"* — gap 4's shape a fourth time.
+>
+> **The adversarial case exists at the first representation the narrator sees:** two CVS
+> transactions filed under *Other*, delta `corroborated`, narrator permitted — receives
+> `metric='category_delta:Other', value=180.0`. Exactly right, and nothing it holds can tell that
+> a manufactured health suspicion is inside it. **Genuinely unrecoverable**, and not by a
+> renderer: the generic representation is **lossy by contract**, at layer 3, before any surface.
+> **The reverse holds correctly** — the classifier does not read memos, so *wheelchair ramp
+> lumber* on a hardware purchase stays `not_evaluated`; the only way to manufacture sensitivity
+> from wording is a consumer that reads text the record does not, which is the path to refuse.
+>
+> **Class: projection** — Q2's exactly, and Q2's shape (beside the value, never inside the
+> strength) is the shape it would take. Not built. Register entry below the line with a wiring
+> condition: the first narrator consumer must not receive a health-domain fact without domain and
+> `manufactured` beside it. **Rob's:** whether `NarratorFacts` carries `Sensitivity`; whether
+> export carries `manufactured`; and whether *manufactured* — a suspicion nobody asserted — is
+> something a narrator may ever voice.
 
 ### 12. Export, logs, backups, diagnostics
 
