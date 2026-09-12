@@ -361,6 +361,34 @@ user-verifiable external action may be named when it follows from an established
 outcome or negotiation position may not** — does not exist as a reusable rule, and it should,
 because the next module will face it.
 
+> **CASED 2026-09-11 — `gw 2.0/EXTERNAL_ACTION_CASES.md`.** Eleven wordings held against §0.3,
+> the permission ladder and the interface rule, because nothing in shipped `core/` names an
+> external action and the surface is unwritten. **Four features decide every case and no one
+> feature does:** whether the action's *result* is evidence or a changed state of the world
+> (*your EOB will say* versus *submit an appeal*); whether the *goal* is left with the user or
+> presumed by the sentence (*if you want to establish X, your insurer can tell you* versus *you
+> need to call your insurer* — **same action, opposite sides of the line, and the difference is
+> presumption of goal, not the verb**); whether the named *source is knowing for this
+> proposition* (an insurer can answer coverage and no nameable party may answer enforceability);
+> and whether the *purpose* is stated (*contact your provider about the balance* permits both the
+> permitted and the refused reading).
+>
+> **The rule, generalising §0.3's third permitted item and its second refusal:** Groundwork may
+> name where evidence lives and who can supply it, conditionally on the user's goal, when the
+> named source is knowing for the proposition; it may not name an action whose result is a
+> change in the world, and may not presume the goal. **An instruction shown is a fact about the
+> surface, never evidence; the result of an action re-enters only as the user's testimony about
+> a third party.**
+>
+> **Run against the model:** the result of a permitted call re-enters as `USER_STATED`, rank 3,
+> indistinguishable from the user's own knowledge — testimony about a phone call, with no
+> artefact to ever hold. That is the document-identity gap from a fourth direction and is filed
+> there. **The adversarial case, refused before it exists:** a future *done* control that records
+> `supports=True` when the prompt is dismissed would be `qualifying_amount`'s `[-1]` for
+> actions — V6's shape. **No `ExternalAction` abstraction:** the instruction half has no
+> representation need until a surface exists, and the result half already has two homes.
+> Rob's: whether the bare imperative *check your insurer* sits with the referral or with counsel.
+
 ---
 
 ## PARTIAL — mechanism exists, statement or coverage does not
