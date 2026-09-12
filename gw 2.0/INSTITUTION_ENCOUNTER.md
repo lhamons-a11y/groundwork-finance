@@ -211,3 +211,39 @@ correspondence storage; any table.
 
 If ruled, the next question is **how the minting assertion is recorded** — the institution
 branch's analogue of "anchor timing", and the first place its shape diverges from `Person`'s.
+
+---
+
+## 7. Ruling — Rob, 2026-09-12. §6 ruled as stated, with one emphasis.
+
+The distinction is clean: encounter ≠ mint · an artefact can describe an institution without
+establishing one · another institution can provide correspondence evidence without creating the
+party · **only the household's individuating assertion crosses the identity threshold** · that
+assertion is not omniscient — a claim with evidentiary strength · therefore **the institution's
+identity has a provenance dependency that `Person` does not.**
+
+**Emphasis:** *"an institution comes to exist as a party by one event only"* is tied to the
+**identity-creating event** specifically. It must not later be read to imply that every
+subsequent change to the institution is another mint/unmint event.
+
+**The consequence:** the institution anchor cannot simply be the analogue of the `Person`
+anchor.
+
+```text
+Person
+  └── declaration = identity
+
+Institution
+  └── household assertion
+        └── establishes / mints institution identity
+              └── institution becomes referent
+```
+
+**The next question, narrowed:**
+
+> **Once the household assertion mints an institution, where does that assertion live, and
+> what exactly is the relationship between the assertion and the minted institution?**
+
+**Not to be decided by it:** whether the assertion is mutable · whether it can be superseded ·
+whether the institution can be unminted · whether correspondence can independently strengthen
+it · the eventual database shape. Downstream consequences.
