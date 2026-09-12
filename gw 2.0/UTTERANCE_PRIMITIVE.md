@@ -156,9 +156,14 @@ stored summaries.
 
 **Provenance the doctrine already forces, and no more:**
 
-- **when** — an utterance's evidence time *is* `recorded_at` (the tie ruling: *utterance →
-  recorded_at, its only time*). The one evidence kind where import time and evidence time
-  coincide by nature, so no second coordinate is forced.
+- **when** — the utterance's evidence time is **when the party made the assertion.** For an
+  utterance made *in* the app that coincides with `recorded_at`, which is what the tie ruling's
+  shorthand (*utterance → recorded_at*) described; but the two are different events, and the
+  software may learn of an utterance later than it was made — *"I told the servicer in March"*
+  is asserted in September about a March act. **Asserted-at is intrinsic; recorded-at is
+  Groundwork's encounter with the evidence.** The shorthand must not harden into a rule that
+  the recording is the assertion (D8's *recorded_at separates them* is about in-app
+  utterances, and is not an ontology rule).
 - **that it was surfaced** — satisfied by construction: an utterance is something the party
   said; the no-silent-learning boundary (an unsurfaced observation may never persist) is met
   because the party is the one who surfaced it.
@@ -176,7 +181,8 @@ stored summaries.
 > establishes about it. The primitive is origin, strength and proposition — origin a party
 > reference, proposition opaque at this boundary, strength derived from the origin's knowing
 > relation to the proposition's kind and never stored — with the one provenance the doctrine
-> forces: when it was made, which for an utterance is its evidence time.**
+> forces: when it was made, which is its evidence time and is not the same event as when
+> Groundwork recorded it.**
 
 Run against the record: S3 stands as a made, false, provenance-bearing assertion; *"my
 servicer is Acme"* is held with its referent not established and candidates beside it; an
@@ -201,3 +207,65 @@ mechanically derived — accepted or overruled. If ruled, the next boundary is t
 **what makes two utterances two, and what provenance is intrinsic to the utterance versus
 merely evidence about it** — where cardinality and provenance can be tested without designing
 the representation.
+
+---
+
+## 9. Ruling — Rob, 2026-09-12. §6 ruled, including the strength refinement.
+
+**The refinement adds no fourth component; it protects the three-component model from a
+representation mistake:**
+
+```text
+semantic:   origin · proposition · strength = derived(origin × proposition kind)
+stored:     origin · proposition · evidence time
+```
+
+Materially better than storing `strength` and eventually having the stored value disagree with
+the knowing relationship that determines it.
+
+**Evidence time is genuinely intrinsic for an utterance** — there is no artefact/import
+boundary to separate: the event of the assertion is the evidence event.
+
+**Preserved explicitly:** *"by virtue of the originating party making the assertion"* must not
+become *"when Groundwork records the assertion."* Different events. The utterance's evidence
+time is when the party made it; `recorded_at` may be the system's later encounter with that
+evidence. (§5 corrected to say so; the tie ruling's shorthand was about in-app utterances and
+must not quietly become an ontology rule as event identity is examined.)
+
+### The next question — event identity
+
+> **What makes two utterances two distinct events?**
+
+Readings to test, with the conclusion deliberately *not* carried forward:
+
+```text
+same origin + same proposition   ⇒  same utterance
+same content                     ⇒  same utterance
+different recording times        ⇒  different utterances
+each act of assertion            ⇒  a distinct utterance, regardless of whether its content repeats
+```
+
+The cases the record must survive:
+
+```text
+Monday:   Person → "My insurer is Lakeview Health."
+Friday:   Person → "My insurer is Lakeview Health."                        the second does not strengthen the first
+                                                                  merely because the proposition is identical
+
+Monday:   Person → "My insurer is Lakeview Health."
+Friday:   Person → "My insurer is Lakeview Health, but I was wrong Monday." same subject, related proposition,
+                                                                  different assertion event
+```
+
+Event cardinality before provenance decoration:
+
+> **Is an utterance fundamentally an assertion event, with its identity supplied by the
+> occurrence of that act, rather than by its content, resolution, or storage encounter?**
+
+Then provenance splits cleanly:
+
+```text
+intrinsic:           who asserted · what was asserted · when asserted
+about the utterance: when/where/how Groundwork learned it · later interpretations ·
+                     later correspondence · later contradiction / retraction
+```
