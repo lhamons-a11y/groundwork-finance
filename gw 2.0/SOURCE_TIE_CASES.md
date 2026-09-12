@@ -236,3 +236,76 @@ for utterances, as-of for documents — never list position; the health tie keep
 rule on that axis; the P-ack within-channel tie has no axis and is held unresolved, resolved
 only by evidence, consumed fail-closed per consumer; and no rank is created for a tie in
 either case.
+
+---
+
+## Ruling — Rob, 2026-09-12. Source-tie fence lifted on exactly these terms.
+
+*"Tie" is not one semantic condition. The reason the evidence is tied determines whether a
+temporal axis exists.*
+
+**Frozen:**
+
+> **Recency is measured on the evidence's own temporal axis, never by record/import position.**
+
+```text
+utterance                 →  recorded_at
+dated document / capture  →  as-of
+import order              →  provenance of arrival, never evidence time
+```
+
+The existing `[-1]` behaviour is therefore not merely an implementation shortcut: **for dated
+documents it is semantically invalid as a resolver.**
+
+**Two different ties.**
+
+*Health — two independent knowing parties, equal rank:*
+
+```text
+equal rank → evidence has time → most recent stance wins → prior dissent remains history
+```
+
+Q2 left exactly as settled. Nothing here justifies reopening its last-word property.
+
+*P-ack within one knowing party* — frozen in the refined wording:
+
+> **There is no evidentiary recency axis between two statements from the same entitled party
+> having the same as-of date.** The record must be capable of representing **unresolved**
+> without manufacturing a winner. Import order, array position, count, and "which one arrived
+> last" cannot substitute for evidence.
+
+The wording leaves room for future evidence that establishes supersession or correction,
+without implying that time can never matter to P-ack.
+
+**Supersession is different from recency.** A document that says *B supersedes A* gives the
+record a proposition relating two artefacts — evidence capable of resolving the conflict. It is
+not *B arrived later, therefore B wins.* Whether the supersession assertion is trustworthy is
+the faithfulness question, left there.
+
+**Consumer behaviour — T6 closes a temptation:**
+
+> **Unresolved is a state, not a low-confidence rank.**
+
+There cannot be a universal *use the weaker value* or *use the safer value* resolver called
+resolution:
+
+```text
+                 unresolved
+                    │
+          ┌─────────┼─────────┐
+          ↓         ↓         ↓
+       health      tax     remaining
+      own rule    own rule   own rule
+```
+
+Each consumer fails closed by its own semantics without pretending the evidence was resolved.
+
+**Still fenced, exactly as the case set left them:** the unresolved state's representation and
+name · resolver implementation · the document-level / reading-level resolution kind ·
+supersession trust · representation · faithfulness. **`resolution()` is not modified.** Which
+existing behaviour is valid, which is invalid, and why, is now known; the implementation
+question remains separate.
+
+**The day's evidence-mode shape (Rob):** things that first looked like one mechanism,
+separated without a new abstraction each time — payee / discharge · observation /
+acknowledgment · capture / source · referent / content · tie / recency.
