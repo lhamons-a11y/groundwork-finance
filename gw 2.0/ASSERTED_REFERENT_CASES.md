@@ -212,3 +212,68 @@ for P-subject's *identity* (pose, find) and never for its *contents* (re-read); 
 asserted referent; sufficiency non-monotonic and relative to the record; and — the result
 with a consequence for shipped code — disagreements about an asserted referent are testimony
 conflicts, for which `resolution()`'s existing kinds are already right.
+
+---
+
+## Ruling — Rob, 2026-09-12. R-ASSERT lifted on exactly these terms.
+
+*The cases make a distinction the original Cluster B result needed and did not yet have:*
+
+> **A referent establishes identity; it does not establish contents.**
+
+**Frozen:**
+
+```text
+held artefact                    POSE + FIND + RE-READ + derived-fact RETRACT
+asserted, individuating          POSE + FIND · no RE-READ · RETRACT reaches testimony only
+asserted, singular view          POSE · no durable FIND · no RE-READ · RETRACT reaches testimony only
+below individuation              no referent
+```
+
+**The most important result — non-monotonic identity (RA2).** An asserted identity is
+epistemically provisional:
+
+```text
+"the Sept 1 statement"  →  currently one candidate  →  findable
+later: two Sept 1 statements  →  ambiguous  →  MUST NOT choose by position
+```
+
+Findability cannot quietly become permanent identity because it worked when first recorded.
+The asymmetry, as a general rule:
+
+> **Held identity is stable because it is grounded in the held artefact. Asserted identity can
+> degrade because its distinguishing description is evaluated against the current candidate set.**
+
+**RA4 closes the earlier wiring ambiguity.**
+
+```text
+ASSERTED REFERENT   disagreement  →  testimony conflict       →  existing source-history resolution kinds
+HELD REFERENT       disagreement  →  reading / parse conflict →  requires a reading-level resolution kind
+```
+
+`resolution()` is **not** to be repaired globally because Cluster B found it wrong for
+re-parsing. Its existing vocabulary is correct for asserted-source testimony. *Don't fix a
+mechanism for one semantic case by breaking the case where it is already correct.*
+
+**Preserved explicitly (RA3):** *re-identifiable* vs *singular* is a **referent kind, not an
+evidence-strength distinction.** A singular view is a perfectly individuated referent for posing
+P-subject; its limitation is that Groundwork cannot subsequently establish correspondence to
+that same view.
+
+**Asserted → held upgrade stays fenced.** The system must not silently turn *"the Sept 1
+statement"* into a held statement merely because a later artefact happens to match the
+description. That is exactly where "helpful" inference would manufacture provenance.
+
+**Frozen ruling:**
+
+> An individuating assertion is sufficient to establish a referent for P-subject's identity: it
+> permits the proposition to be posed and its readings to be found by description. It does not
+> provide re-readability or establish the contents of the referent. Asserted referent
+> sufficiency is relative to the record's candidates and may become ambiguous; held artefact
+> identity does not. Asserted and held referents therefore have different disagreement
+> semantics: asserted-referent disagreements are testimony conflicts, while held-referent
+> disagreements may be reading/parse conflicts.
+
+**Still fenced:** truth · strength · corroboration · asserted→held correspondence ·
+individuation threshold · representation. **No implementation change follows.** The
+`resolution()` observation is a clarified boundary, not permission to modify it.
