@@ -239,3 +239,84 @@ referent — the only combination the re-parse survives under — and 6, now sho
 functions rather than one rank, with one hard constraint from 4 (re-reading never corroborates)
 and one from the case (the built lattice cannot express a value verdict's strength at all). No
 object is defined here; three arrows are, and one the map did not have.
+
+---
+
+## 8. Ruling — Rob, 2026-09-12. A genuine Cluster B doctrine result, not an implementation observation.
+
+**4 and 5 are jointly necessary, and neither is sufficient alone.** For a value proposition to
+be open to disagreement, Groundwork needs (1) a **held document referent** identifying the
+source instance, and (2) a **proposition space capable of distinguishing what the document says
+from what the world is claimed to be.** The document is therefore the *subject* of one
+proposition, not the proposition itself:
+
+```text
+P-subject   "Document A states patient-responsibility = $412."
+P-world     "Patient-responsibility for this claim   = $412."
+```
+
+The `$412 → $4.12 → $412` sequence is a disagreement about P-subject. Re-reading resolves what
+A says. It does not establish that A's statement is true of the world.
+
+> **Frozen: 4 ↔ 5 is a joint opening condition, not a hierarchy.** A held referent without an
+> open proposition cannot express the disagreement; an open proposition without a held referent
+> cannot establish what source instance is being disputed.
+
+**Not generalised to R-ASSERT.** That remains D5/D7.
+
+**6 is independent — and the map's "one strength" was wrong.** Two different functions are
+currently being called strength, and they are not two values on one ladder:
+
+```text
+P-subject strength   =  resolution state of the source's reading      disputed | resolved
+P-world strength     =  evidentiary rank over independent sources
+```
+
+Three `Evidence` rows are not three independent attestations; they are three readings of one
+document. The second `$412` cannot corroborate the first. The world-level evidence is exactly
+as strong after the re-parse as before — one independent source; the parse changed *which
+value* that source attests, not the number or independence of sources.
+
+> **Frozen: 6 does not inherit strength from evidence representation.** Strength is a function
+> evaluated over the evidence graph, and **the function depends on which proposition is being
+> evaluated.** This makes *recomputed on read* more precise without replacing it.
+
+**4 → 6 is real — recorded as a constraint, not promoted to a gate:**
+
+> Document referent constrains admissible verdict strength because multiple readings of one
+> referent cannot constitute independent corroboration.
+
+The map was incomplete. **The map is not edited during a case pass**; the arrow is recorded
+here and the map is revised only as a later, explicit map-maintenance step.
+
+**Q2 consequence — real, kept out of today's doctrine.** `self_reversal` and its siblings
+describe *source* history; this case exposes *reading* history.
+
+> `resolution()` is not trustworthy on a re-parsed record until reading-level resolution is
+> represented distinctly from source-level resolution.
+
+An implementation/design consequence, not a decision about what the new kind should be.
+
+**Frozen from this case:**
+
+```text
+Cluster B — re-parse
+
+4 ↔ 5     joint opening condition: held document referent + open proposition space;
+          neither alone sufficient; document ≠ proposition
+5 → 6     confirmed as a gate; proposition space must identify what is being evaluated;
+          6 is not merely a refinement of 5
+6         two independent functions: P-subject → resolution state; P-world → evidentiary rank
+4 → 6     newly discovered constraint; one referent ≠ multiple independent sources; not a gate
+repr.     does not determine verdict strength
+
+fenced    R-ASSERT · proposition representation (two kinds vs a subject field) · resolution
+          mechanism · U6 · the USER_STATED ↔ IMPORTED_EOB tie · the reading-level resolution kind
+```
+
+**Not authorised by this case:** defining the proposition object; inventing a strength type
+hierarchy; resolving U6; settling the tie.
+
+**The strongest result is the negative one:** the three concepts cannot be collapsed into a
+single evidence-row interpretation without producing exactly the false `$412`/`$4.12` story that
+prompted this pass.
