@@ -269,3 +269,58 @@ behaviour is reading a different dimension than disposition needs (§3 item 3), 
 question splits into two objects before either is chosen. The test's contribution is narrower
 than an answer: **it eliminated M-LED on evidentiary grounds rather than expressive ones, showed
 M-ABS is not a third option, and located the one distinction the two cases cannot make.**
+
+---
+
+## 6. Decisions — Rob, 2026-09-12, on reading §1–§5
+
+*The important result is not "M-OBL wins, therefore §7.7 is settled." It is almost the opposite:
+the test settled the disposition object while exposing that classification may have been asking
+a different question all along.*
+
+**Frozen, provisionally — the disposition doctrine:**
+
+> **Disposition follows the household obligation, across changes in entitlement, with
+> entitlement transitions carrying their effective time, learned time, source, and amount
+> relationship.**
+
+Subject to §3 item 1 — the entitlement/payee distinction stays open; the two cases cannot make
+it and this freeze does not pretend they did.
+
+**Not decided, and explicitly NOT to be borrowed from the above — the classification question,
+opened separately:**
+
+> **What property of a financial obligation is §7.7's "carries" classification actually
+> intended to describe, and what downstream behaviour is supposed to change when that property
+> changes?**
+
+Under the disposition doctrine, recourse reads *healthcare → credit card → healthcare* while
+the household's obligation, the amount and the interest characteristic never change and only
+the entitled party does. That may be what §7.7 intends. If downstream behaviour does *not* need
+to change when entitlement changes, then disposition identity and classification identity were
+being conflated — a category error, **not to be fixed by tweaking terminology.**
+
+**Constraint on that inquiry (Rob's):**
+
+> Do not start by proposing candidate dimensions — risk, interest-bearing, creditor type,
+> servicing. **Start with the consumer of the classification.** If nothing downstream behaves
+> differently when the classification changes, the distinction may be semantically interesting
+> and architecturally unnecessary. If something does, that consumer says what the classification
+> must preserve.
+
+This is what keeps *entitlement won the disposition test* from becoming *entitlement is what
+§7.7 classification means*.
+
+**The write-off's residue — observed, not named:**
+
+> There exists a creditor-side event capable of changing household exposure — collection, sale
+> or assignment, reporting, who the household interacts with — without disposing of the
+> household obligation.
+
+An observed phenomenon, not yet an object. Naming it now would turn an observation into
+doctrine. §4's "a name for what W leaves over" stays unfilled on purpose.
+
+**M1/M2 stays closed.** The fence not firing is itself a result: there was no hidden
+identity/successor problem the test failed to expose. Both cases are expressible as continuity
+of the obligation across change. The classification question being uncomfortable is a different
+axis and is not a reason to reopen the anchoring.
