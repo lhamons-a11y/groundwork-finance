@@ -409,6 +409,24 @@ the **operation** that says one of them ended earlier, so the resolution falls t
 an unrecorded edit. Sorting a finding into the right category before reaching for a fix is most
 of the work, and the categories are a working taxonomy rather than doctrine.
 
+**The board's separation, and what each kind demands** *(Rob, 2026-09-11 — the taxonomy stops
+here unless another concrete case forces a sixth):*
+
+```text
+LIVE DEFECT        shipped + reachable + plausible + coherent + wrong     →  quarantine immediately
+MODELLING GAP      a truthful distinction cannot currently be represented  →  case it; don't invent a fix
+OPERATION GAP      representable, but the required operation is absent     →  case the operation; don't improvise one
+BOUNDARY           nothing missing; a rule about what may be said or done  →  record the semantic boundary
+DESIGN DECISION    the problem is established; several truthful shapes remain  →  Rob decides
+```
+
+The live-defect register lives at the top of `HEALTHCARE_GAP_TRIAGE.md`, with a **reachability
+criterion** as its admission rule and a **promotion rule** — *if a trigger-dependent entry becomes
+reachable on a default path, it moves up* — so it is an operational definition rather than a
+severity list. The deductible case stays conspicuous precisely because it is mundane: the
+dangerous bugs in a financial teaching system are not crashes, they are credible sentences a
+user has every reason to trust.
+
 **The four-step sequence closed 2026-09-11 with a different kind of finding at each step** —
 projection, representation, operation, boundary — and none required redesigning the system. Rob's
 reading of why that matters: *the cases are telling you where the architecture is actually
