@@ -593,4 +593,150 @@ mechanism.** The syntax `[-1]` tells us almost nothing by itself.
 
 ---
 
-*H4 – H5 follow, each on the same rule.*
+## H4 — `resolution()`: do its callers divide into the two known worlds?
+
+### Frozen rule
+
+Q2 (`RESOLVED_CONFLICT_CASES.md`, ruled and implemented): *resolution = kind · resolver ·
+contradictions · post, derived on read from the chain, never stored; travels beside value and
+strength; never becomes evidence.* Kinds partition on the resolver's prior stance: `none ·
+superseded · reaffirmation · self_reversal`.
+
+R-ASSERT ruling (`ASSERTED_REFERENT_CASES.md` §8):
+
+> Asserted-referent disagreements are **testimony conflicts**, for which `resolution()`'s
+> source-history kinds are already correct. Held-referent disagreements may be **reading/parse
+> conflicts**, for which they are wrong (D3b: two readings of one artefact reported as
+> `self_reversal by imported_eob`). Do not repair `resolution()` globally.
+
+H3 ruling: R3's positional reads over the knowing sequence are valid only while that sequence
+is in evidence-time order — a representation requirement, deferred.
+
+**Rob's question:** *do the `resolution()` callers divide cleanly into asserted-referent
+testimony history versus held-referent reading/parse history?*
+
+### Actual implementation
+
+```python
+resolution(c, axis_name)                                            # L330
+    knowing = [(e.source, e.supports) for e in evidence(c, axis_name) if e.source in KNOWING_SOURCES]
+    # reads (source TYPE, bit) pairs, in position order; amount, recorded_at, referent: not consulted
+```
+
+Two properties of the input that decide H4 before any caller is read:
+
+1. **The projection sees source *types*, not instances.** `IMPORTED_EOB` is the identity of
+   every EOB ever imported. Two entries `(imported_eob, no)`, `(imported_eob, yes)` are
+   byte-identical whether they are two documents (a source conflict — D4) or two readings of one
+   (a parse dispute — D3b). **`resolution()` cannot know which world it is in, because the
+   record cannot say.** This is the document-identity gap arriving at H4: the referent
+   distinction the R-ASSERT ruling relies on has no field.
+2. **It reads the bit only.** Value disagreements (V4) never register; `resolution()` reports
+   `none` for `$412` vs `$4.12`. Correct behaviour for a projection over a record that holds no
+   value proposition — not a hazard here, a consequence of Cluster B's fence.
+
+### Actual callers — every invocation, classified
+
+| caller | what it passes | what it does with the result | world |
+|---|---|---|---|
+| `_fact_resolution(derived)` L515 | `derived.sources[0]`, `CONTENT` — **only when exactly one source**; several sources → `None` (multi-source combination is Q2-unspecified and marked *pending*) | returns it to the three consumers below | whatever the single source's evidence is — **the caller cannot tell** |
+| `narrator_facts` L528 | via `_fact_resolution` | carries it beside `value` in `NarratorFacts.resolution` | **presentation** — a projection to be shown, never acted on |
+| `export_row` L535 | via `_fact_resolution` | `'resolution'` column | **presentation** |
+| `backup_row` L547 | delegates to `export_row` | same | **presentation** |
+| `test_resolution_projection_fixture.py` | every history of length 1–6 over `{U, E} × {yes, no}`, 5,460 of them | asserts `kind/resolver/contradictions/post` against an oracle | **assumes the testimony world for every entry, including `E`** — an `IMPORTED_EOB` event is treated as *the EOB source spoke*, never as *a reading of a held artefact* |
+| `test_evidence_tie_fixture.py` L115–117 | `eob_then_user`, `user_then_eob`, `said_yes` | asserts the conflict remains visible (`contradictions`) | testimony world |
+| `s98_resolution_projection.py` | mutations: narrator/export drop it; strength demoted by it; strength carried inside it | asserts the projection **travels beside** value and **never becomes evidence** | boundary properties, world-independent |
+| production | — | — | **none** — `core.classification` unimported by `server.py` |
+
+### The answer to Rob's question
+
+**The callers do not divide. The inputs divide, and the record cannot say which is which.**
+
+Every production-shaped caller is `_fact_resolution`, and every consumer of it is
+*presentation* — the projection is carried beside a value so a reader can see how the
+conclusion was reached. None of the three consumers *branches* on `kind`; s98 asserts that
+none may (a resolution that demoted strength or was folded into it is a caught mutation).
+So there is no caller that needs the testimony contract and another that needs the reading
+contract. **There is one caller, and it needs the true history — which is the testimony
+history when the knowing events are utterances or distinct documents, and the reading history
+when they are readings of one held artefact.** The projection cannot deliver the second because
+`Evidence` carries a source type and no referent.
+
+This is the same finding as H3's, one level up: H3 found the *temporal* axis for documents has
+no field; H4 finds the *identity* axis for documents has no field. Both are the document-
+referent representation the Cluster B ruling named as jointly necessary with the proposition
+space, and both are what `resolution()` would need to be correct for held artefacts.
+
+**And the fixture pins the wrong world for `E`.** 5,460 histories treat every `IMPORTED_EOB`
+event as a source stance. For genuinely distinct EOBs that is right; for a re-parse it is the
+D3b misreport, asserted as correct. The fixture is not wrong about the *projection* — it is
+faithful to a record that cannot distinguish — but it will have to be re-pointed when the
+referent exists, and that should be known now.
+
+### Specific contradiction
+
+| situation | frozen | `resolution()` today |
+|---|---|---|
+| utterance vs utterance (D8) | testimony conflict; source kinds correct | correct |
+| utterance vs held document, on the bit (T1) | testimony conflict on the bit; source kinds correct — *ordering* subject to H3 | correct in call order; wrong if document date ≠ import order |
+| two distinct documents (D4) | source conflict; `self_reversal by imported_eob` **is** what happened | correct |
+| two readings of one document (D3b) | parse dispute; needs a reading-level kind | **`self_reversal by imported_eob` — a source reversal that did not happen** |
+| value disagreement (V4) | not this projection's | `none` — correct for what it reads |
+
+Only one row is wrong, and it is wrong because the record cannot distinguish it from the row
+above it.
+
+### Blast radius
+
+Zero shipped. On wiring: the narrator, export and backup would carry a resolution whose
+`kind` is wrong for re-parsed records — a wrong causal story, faithfully projected, in the
+narrator's input and the export file. Not a value error; a *provenance* error, which is the
+kind Q2 was built to prevent.
+
+### Minimum safe repair boundary
+
+**No resolver change.** Confirmed from the other side: there is nothing to branch on. The
+minimum:
+
+1. **Contract.** `resolution()`'s docstring states its domain: *source-history kinds over
+   knowing events; correct where each knowing event is a distinct source stance (utterances,
+   distinct documents); not applicable to multiple readings of one artefact, which the record
+   cannot yet distinguish.* And that its ordering assumes H3's construction guard.
+2. **The fixture's assumption made explicit.** A one-line note in
+   `test_resolution_projection_fixture.py` that its `E` events model distinct-source stances
+   and will need re-pointing when a document referent exists. Not a code change; a
+   provenance note on a test, so that the day the referent lands the 5,460 are not read as
+   proof the projection is right for re-parses.
+3. **Out of the boundary:** the reading-level resolution kind (needs the referent — Cluster B
+   representation); the document as-of (H3, same field family); the multi-source
+   combination (Q2-pending, deliberately); anything in the three consumers.
+
+### Coordination note — four of four
+
+H4 is H3's shape exactly: a mechanism that is correct for the inputs it can distinguish and
+wrong for the ones it cannot, where the fix is **a field the record lacks**, not logic. Across
+H1–H4 the pattern now reads:
+
+```text
+H1  vocabulary > computation          contract + fail-closed guard
+H2  vocabulary > computation          contract + absence guard
+H3  position ≠ evidence time          contract + construction guard; as-of field deferred
+H4  type ≠ instance                   contract + fixture note;     referent field deferred
+```
+
+And H3 + H4 together name the representation decision that build mode will face first:
+**dated, individuated evidence** — the as-of and the referent — which the Cluster B ruling,
+the acknowledgment ruling, the tie ruling and the R-ASSERT ruling all require, and which no
+resolver rewrite can substitute for.
+
+### Implementation decision — Rob's
+
+Whether the contract and the fixture note are the whole of H4's minimum; and whether the
+"dated, individuated evidence" requirement is recorded now as the first item of the
+representation mode's agenda, without deciding its shape.
+
+**No code is changed by this section.**
+
+---
+
+*H5 follows, on the same rule.*
