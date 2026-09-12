@@ -160,9 +160,36 @@ reconstruction is downstream of a loss that happens first.
 **No gap in the reverse direction.** The record correctly refuses to manufacture sensitivity from
 wording, and the only way to break that is a consumer that reads text the record does not.
 
+**The finding, in one sentence (Rob's):**
+
+> **Sensitivity is preserved through classification and derivation but projected away at the
+> narrator boundary.**
+
 **Nothing to decide about renderers.** The two losses are both in `core/classification.py`'s
-consumer helpers, and both are the projection class. **What is Rob's:** whether the narrator's
-representation carries `Sensitivity` beside the value as `resolution` now does; whether export
-carries `manufactured`; and — the one that shapes the surface — whether *manufactured* is
-something a narrator may ever voice at all, given that it is a suspicion about a person that
-nobody asserted.
+consumer helpers, and both are the projection class. **What is Rob's, and they are three
+different kinds of question:**
+
+1. whether `NarratorFacts` carries `Sensitivity` beside its value, as `resolution` now does —
+   a **representation** decision;
+2. whether export carries `manufactured` — another representation decision, *if export actually
+   needs that distinction*;
+3. whether a manufactured suspicion may ever be **voiced** by the narrator — the policy boundary,
+   and the genuinely interesting one.
+
+**#3 does not follow from #1.** Carrying the distinction does not mean the narrator is permitted
+to say it. The two questions stay apart because the architecture keeps them apart:
+
+```text
+representation   what do we know?
+permission       what may this layer say?
+```
+
+**And a note on what `includes_records = False` is doing.** It is the reason the narrator
+*cannot* reconstruct what its contract excludes: it does not secretly hold the underlying
+evidence. That assertion is doing real work — it is the reason the loss at layer 3 is a clean
+loss rather than a leak by another route.
+
+**The symmetry with the reconstruction experiment**, worth noticing and not building on: the
+economic model was found unable to preserve two independent historical dimensions at once; the
+teaching pipeline was found able to preserve a sensitive distinction perfectly and then
+discarding it at a contract boundary. **Neither result says what the architecture should be.**
