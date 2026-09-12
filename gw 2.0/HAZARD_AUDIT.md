@@ -214,5 +214,139 @@ shared mechanism whose repair boundary should be coordinated.
 
 ---
 
-*H2 – H5 follow, each on the same rule, once H1 is ruled or Rob directs the audit to proceed
-in parallel.*
+## H2 — `record_payment()` / `remaining`
+
+### Frozen rule
+
+From `SERVICING_ONLY_CASES.md` and `ACKNOWLEDGMENT_EVIDENCE_CASES.md`, both ruled:
+
+> Discharge is an acknowledgment fact, not a payee fact. A payment may evidence discharge; it
+> does not establish discharge without acknowledgment by the entitled party. Until
+> acknowledgment exists, the payment is **attached but unacknowledged** and must not be treated
+> as confirmed discharge.
+
+The ruled sequence, with the one step that is fenced:
+
+```text
+payment attached → attached/unacknowledged → E acknowledges → discharge established
+→ confirmed remaining changes                      ← what strength `remaining` requires: FENCED
+```
+
+And two adjacent rulings that bear on it: a projection over attached payments is **not
+evidence** and its discrepancy from P-ack is **diagnostic** (U6/F2); a cleared bank payment is
+**no evidence of acknowledgment** (K6).
+
+### Actual implementation — `core/payment_plan.py`
+
+```python
+Entry(kind, amount, on, reason, reverses, recorded_at)         # L54  — no acknowledgment field
+record_payment(plan, amount, on)  → appends Entry('payment')   # L82
+ledger(plan, as_of)  → payment + reversal entries, filtered by `on` (effective)   # L121
+payment_state(plan, as_of):                                    # L158
+    paid      = Σ ledger                    # attached payments net of NAMED reversals
+    remaining = gross + adjustments − paid  # moves the moment a payment is attached
+    expected_by_now, ahead, overdue         # agreement-relative, computed FROM paid
+incoherences(plan, state)  → checks the projection against ITS OWN ledger              # L186
+```
+
+What the implementation gets right, and should keep: **dual dating** (`on` = effective,
+`recorded_at` = provenance; the projection filters by `on`, never by position — H3's hazard is
+*not* here); **named reversals** (a reversal is a household-side fact that money came back —
+K6's inverse, and correctly not an acknowledgment); **adjustments kept apart from payments**;
+one projection, no partial accessors.
+
+What it has no concept of: **acknowledgment.** There is no input by which E's statement can
+reach the module, no state for *attached, unacknowledged*, and therefore no distinction between
+*paid* as *what the household attached* and *paid* as *what E credited.* `remaining` is the
+first, presented as the second.
+
+### Actual consumers
+
+| consumer | what it reads | classification |
+|---|---|---|
+| production (`server.py`, `app.js`, `core/*`) | — | **none.** By rule: gap 8's fence — *do not add a consumer to `core/payment_plan.py`* — still stands |
+| `tests/test_payment_state_fixture.py` (24 assertions) | the full projection | pins **attached arithmetic** — correct as such; asserts nothing about confirmation |
+| `smoke_sections/s99_payment_state.py` (9 mutations) | `payment_state` | catches drift between the five dimensions; no mutation concerns acknowledgment |
+| `tests/substrate_experiment.py` | — | no payment_plan store |
+
+**Shipped consumers on the default path: none.** Same as H1, and for a stronger reason: the
+zero-consumer condition is a *rule*, not an accident.
+
+### Specific contradiction
+
+| ruled | implemented |
+|---|---|
+| a payment is *attached, unacknowledged* until E acknowledges | a payment is *paid* on attachment |
+| confirmed remaining changes only on discharge | `remaining` changes on attachment |
+| the projection vs P-ack discrepancy is diagnostic | no P-ack can enter; nothing to diagnose against |
+| ahead / overdue are positions against the agreement **as E sees it** | computed from attached `paid` — S2's household believes itself on track while E has it overdue |
+
+The contradiction is **structural, not arithmetic**: the arithmetic over attached payments is
+right; what is wrong is that the projection's names — `paid`, `remaining`, `ahead` — assert the
+*acknowledged* meaning while computing the *attached* one. The module answers a narrower
+question than its vocabulary claims — **the same shape as H1's period-vs-governs**, one
+module over.
+
+### Blast radius
+
+- **Today, shipped:** zero, and held at zero by rule.
+- **On first wiring:** every consumer reads `remaining` as confirmed. Given S2/S3 (misdirected
+  or unauthorised payee), a wired consumer would show the household a balance lower than what
+  they owe, and `ahead` where E has them behind.
+- **Adjacent, shipped, and outside H2's boundary — flagged for Rob:** the 1.x debt path
+  carries the same semantic *and* half of the remedy. `DebtAccount.current_balance` is advanced
+  from committed transactions (B3.5, `server.py` ~L8208–8257) — attachment advances remaining.
+  `debt_pdf_reconcile` (~L3157) then reads the statement's printed balance, reports
+  `balance_check {implied, stated, diff, matches}` — which is F2's diagnostic exactly — and
+  **overwrites `current_balance` with the stated figure**, with the comment *"a verified figure,
+  not an inference."* That is P-ack winning, monthly; the diagnostic is returned to the caller
+  once and not persisted as an attached-unacknowledged state. And `RecurringDebtPayment.
+  is_auto_confirm` (default `False`, reserved) is a *household* confirmation step — the
+  household confirming a payment happened, which is not E acknowledging it. **Whether the frozen
+  discharge rule governs 1.x debt accounts is a doctrine-scope question, not a repair**, and it
+  is not decided here. Recorded so the two mechanisms are not repaired separately without that
+  decision.
+
+### Minimum safe repair boundary
+
+**There is no code-level repair for H2 that does not introduce representation** — an
+acknowledgment input is a new evidence kind, and the ruled sequence's middle state needs a
+place to live. Both are the next mode. The minimum that stays inside this one:
+
+1. **The contract.** `payment_state`'s docstring and the module header state that `paid`,
+   `remaining`, `ahead` and `overdue` are projections **over attached payments**, that the
+   module holds no acknowledgment, and that no figure it returns is confirmed discharge. The
+   H1 shape: a correct primitive kept from becoming a semantic trap by saying what it answers.
+2. **Naming, as the one code change that is not representation** — offered, not chosen:
+   returning the key as `attached_remaining` (and `attached_paid`) rather than `remaining`
+   makes a future consumer *unable* to read it as confirmed without noticing. This is Q1's
+   lesson in the other direction — *annotating it `float` was the lie that made the bypass
+   easy to write.* It costs the fixture's key names and s99's, nothing else, and decides no
+   representation. Rob's call whether a rename is inside "minimum".
+3. **A guard of the gap-6 kind:** the fixture asserts the *absence* of any accessor or key
+   that claims confirmation — `confirmed`, `discharged`, `acknowledged` — so that adding one
+   later is a deliberate act with a test to change, not a drift.
+4. **Out of the boundary:** any acknowledgment input; the attached-unacknowledged state's
+   representation; what strength `remaining` requires; the 1.x debt path (doctrine scope
+   first); `ahead`/`overdue` against E's view (needs acknowledgment to exist).
+
+### Coordination note — the shared shape with H1
+
+H1 and H2 are not one mechanism, but they are one **kind** of hazard: a pure module whose
+vocabulary claims a broader answer than it computes (*in force* read as *governs*; *attached*
+read as *confirmed*), with zero shipped consumers and a fence holding consumers off. The
+minimum repair in both is **contract + guard**, not logic. If H3–H5 show the same shape, the
+repair pass can be one pass over contracts rather than five over mechanisms.
+
+### Implementation decision — Rob's
+
+Whether the minimum boundary is the contract and the absence-guard alone (1, 3), or includes
+the rename (2); and — separately, and first — whether the frozen discharge rule's scope includes
+the 1.x debt accounts, which decides whether `debt_pdf_reconcile`'s monthly overwrite is a
+partial embodiment to keep or a second mechanism to bring under the same rule later.
+
+**No code is changed by this section.**
+
+---
+
+*H3 – H5 follow, each on the same rule.*
