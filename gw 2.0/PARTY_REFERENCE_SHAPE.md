@@ -180,3 +180,82 @@ or `DebtAccount.name` are ever read as correspondence evidence.
 If ruled, the next question is the first that changes a table: **whether existing `Person`
 rows acquire party rows by migration or on first reference** — and that is a migration
 question, not this one.
+
+---
+
+## 6. Ruling — Rob, 2026-09-12. B ruled. §5 frozen, with one invariant promoted.
+
+*B does not win because one table is cleaner. It wins because the schema can encode the
+semantic distinction without turning the distinction itself into a consumer-visible identity
+mechanism.*
+
+**The decisive point:** the household branch is created with its `Person`, 1:1, UNIQUE NOT
+NULL, with no correspondence between party and person that could itself become a claim. *The
+fixed point in relational form.* The common `Party` reference is not claiming how the party
+became known; it is the stable target relationships point to — which is the invariant: *a
+party reference is a referential mechanism, not evidence of party identity.*
+
+```text
+Person
+  │ household declaration
+  ↓
+Party ────────────────► Institution
+  │                        │
+  │ common reference       │ minted identity
+  │                        │
+  └──────── relationships ─┘
+             │
+      role / correspondence /
+      mediation / provenance
+```
+
+**Why A is genuinely out:** the `HistorianEntry` reasoning is unusually valuable evidence
+because it is not architectural taste — the project already identified the exact defect.
+Adopting A would deliberately reintroduce a known defect at a more fundamental layer, and
+`party_kind` would recreate identity-as-categorical-label, the thing several records just
+eliminated.
+
+**Why C is worse than it first appears:** `PartyReference 7 → Person 42` and
+`PartyReference 8 → Person 42` — if 7 and 8 are distinct identities, two parties were
+invented for one household-declared person; if the same, a correspondence mechanism between
+two supposed party identities is now needed. The third identity layer. C is B with uniqueness
+or an unnecessary correspondence problem without it.
+
+**D is the honest runner-up:** direct referential integrity to each concrete identity is a
+real virtue. It fails the thing the abstraction exists for — every relation has to understand
+the ontology, so the common party concept lives in application convention rather than
+relational structure. B gives `origin.party_id · role.party_id · correspondence.party_id ·
+lineage.party_id` one enforceable target: T-E exactly.
+
+**Promoted from explanatory prose to an invariant:**
+
+> **Correspondence never crosses foundations.** A `Person` and an institution may
+> participate in a *relation* ("Partner's account is with Lakeview Health" is a relation involving two
+> parties); they may never be collapsed by *correspondence*. An institution's external
+> identifier cannot establish correspondence to a `Person` because the same string appears
+> somewhere.
+
+**Party state is explicit; NULL follows from it, never the reverse:**
+
+```text
+party_state = ESTABLISHED       reference = Party X
+party_state = NOT_ESTABLISHED   reference = NULL
+party_state = NO_PARTY          reference = NULL
+```
+
+`NOT_ESTABLISHED` and `NO_PARTY` are not inferred from NULL. This is exactly the distinction
+that disappears if someone later "simplifies" to a nullable foreign key.
+
+**Not to be reopened:** party semantics · correspondence · external identifiers · institution
+identity · the Party shape. Upstream now.
+
+**The next question — a migration question, and only this:**
+
+> **When and how do existing authoritative `Person` rows acquire their required 1:1 `Party`
+> anchors?**
+
+Candidates: backfill in one migration · lazy creation on first participation in a party-
+bearing relation · a staged variant. May inspect actual data and migration conventions.
+**The likely fault line:** if every `Person` has exactly one party anchor *by construction*,
+lazy creation permits a transient state — a person without its party — that the ontology says
+should not exist.
