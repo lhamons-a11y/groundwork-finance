@@ -169,7 +169,24 @@ def _mutations(m):
         m.narrator_facts = lambda d: m.replace(orig(d), includes_records=True)
         return lambda: setattr(m, 'narrator_facts', orig)
 
+    def last_reading_wins():
+        # The shipped behaviour before HAZARD_AUDIT H3: `attested[-1]` - a disputed tax figure
+        # decided by which reading was appended last. Position is not evidence.
+        orig = m.qualifying_amount
+
+        def broken(c):
+            state = m.axis(c, m.CONTENT).state
+            if state not in (m.USER_ASSERTED, m.IMPORTED_ATTESTED):
+                return 0.00
+            attested = [e.amount for e in m.evidence(c, m.CONTENT)
+                        if e.supports and e.amount is not None]
+            src = getattr(c, 'classification', c)
+            return round(attested[-1] if attested else src.amount, 2)
+        m.qualifying_amount = broken
+        return lambda: setattr(m, 'qualifying_amount', orig)
+
     return [
+        ('a disputed amount is decided by the last reading recorded', last_reading_wins),
         ('tax reads the counterparty axis - the wall between the axes is gone', wall),
         ('the boundary is entered by strength rather than existence',
          boundary_by_strength),

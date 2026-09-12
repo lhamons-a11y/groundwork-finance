@@ -263,6 +263,16 @@ def _state_from(evidence):
     an EOB said, in either direction. That asymmetry is what makes `contradicted` sticky,
     and without it the user answers "no, it was a birthday card" and is asked again next
     month.
+
+    **`knowing[-1]` is valid only while the knowing sequence is in evidence-time order**
+    (HAZARD_AUDIT H3 / R2). Among equal knowing parties the most recent stance is current
+    (Q2), and "most recent" means on the evidence's own time: when an utterance was made, or
+    a document's own as-of. `Evidence.recorded_at` is the import clock and a document's as-of
+    is not represented, so position stands in for time. That holds by construction - only
+    `record_evidence` appends, and the fixture asserts nothing else does - for stances
+    recorded when learned, and it is NOT guaranteed for a document whose date precedes an
+    utterance imported before it. Sorting by `recorded_at` would not repair this; it would
+    encode import order under a better name. The repair is representation, not here.
     """
     ev = list(evidence)
     if not ev:
@@ -353,6 +363,16 @@ def resolution(c, axis_name):
     neither `kind` nor `resolver` - a resolution is a fixed historical event.
 
     Checked against every history of length 1-6 over {user, EOB} x {yes, no}: 5,460 of them.
+
+    **Domain (HAZARD_AUDIT H4).** The kinds above describe SOURCE history: each knowing event
+    is taken to be a distinct source stating its stance. That is correct for utterances and
+    for distinct documents - `self_reversal by imported_eob` when two EOBs from the insurer
+    disagree is what happened. It is NOT applicable to two readings of one artefact - one EOB
+    parsed twice - which is a parse dispute and not a source reversing itself; the record
+    cannot currently distinguish the two, because `Evidence.source` is a type and carries no
+    referent, so this projection cannot either. It also assumes the ordering `_state_from`
+    assumes: position stands in for evidence time, guaranteed by construction and not for
+    late-arriving documents. Neither is repaired here; both are representation.
     """
     knowing = [(e.source, e.supports) for e in evidence(c, axis_name)
                if e.source in KNOWING_SOURCES]
@@ -589,8 +609,15 @@ def qualifying_amount(c):
         return 0.00
     attested = [e.amount for e in evidence(c, CONTENT)
                 if e.supports and e.amount is not None]
+    # HAZARD_AUDIT H3 / R4. Two supporting readings that disagree about the amount - one EOB
+    # parsed as $412 and again as $4.12 - are a parse dispute, and a parse dispute is resolved
+    # by re-reading the artefact, never by which reading was appended last. Until the record
+    # can hold that resolution, the figure is UNAVAILABLE: a refusal the tax consumer already
+    # knows how to receive. Equal readings are not a dispute; one reading is not a dispute.
+    if len(set(attested)) > 1:
+        return UNAVAILABLE
     src = getattr(c, 'classification', c)
-    return round(attested[-1] if attested else src.amount, 2)
+    return round(attested[0] if attested else src.amount, 2)
 
 
 @dataclass(frozen=True)
@@ -610,13 +637,21 @@ def qualifying_total(classifications, rules=None):
     consumer that must tell `contradicted` from `not_evaluated`.
     """
     rows = list(classifications)
-    attested = round(sum(qualifying_amount(c) for c in rows), 2)
+    amounts = [qualifying_amount(c) for c in rows]
     unevaluated = [c for c in rows if axis(c, CONTENT).state == NOT_EVALUATED]
+    # A disputed amount (R4) has no figure. Summing the others and presenting the result as
+    # `attested` would omit a row silently - absence read as zero, the failure Q1 refused at
+    # the consumer boundary. So a dispute anywhere makes the attested total UNAVAILABLE as
+    # well as the definitive one. Whether "evaluated but disputed" deserves its own count,
+    # distinct from "unevaluated", is a representation question deliberately not answered
+    # here (H3 ruling): the sentinel fails closed; it does not yet say why.
+    disputed = any(a is UNAVAILABLE for a in amounts)
+    attested = UNAVAILABLE if disputed else round(sum(amounts), 2)
     return QualifyingTotal(
         attested=attested,
         unevaluated_count=len(unevaluated),
         evaluated_count=len(rows) - len(unevaluated),
-        definitive=UNAVAILABLE if unevaluated else attested,
+        definitive=UNAVAILABLE if (unevaluated or disputed) else attested,
         rules=rules)
 
 

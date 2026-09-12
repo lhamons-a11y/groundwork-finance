@@ -371,6 +371,53 @@ def run(model):
     check('and still qualifies nothing',
           reviewed.attested == 62.00)
 
+    # ── A disputed amount is refused, never decided by scan order (HAZARD_AUDIT H3 / R4) ──
+    # One EOB imported twice, read as $412 and then as $4.12. Both readings say health; the
+    # amounts disagree. That is a parse dispute (`gw 2.0/REPARSE_CLUSTER_B_TEST.md`) and it is
+    # resolved by re-reading the artefact - never by which reading happened to be appended
+    # last. Until the record can hold that resolution the figure is UNAVAILABLE, and a total
+    # containing it is UNAVAILABLE too, because summing around it would omit a row silently.
+    once = model.record_evidence(c['t3_target_split'], 'content',
+                                 source='imported_eob', supports=True, amount=412.00)
+    twice = model.record_evidence(once, 'content',
+                                  source='imported_eob', supports=True, amount=4.12)
+    check('two supporting readings that disagree about the amount yield no figure',
+          model.qualifying_amount(twice) is model.UNAVAILABLE)
+    check('and not the last one recorded',
+          model.qualifying_amount(twice) != 4.12)
+    agree = model.record_evidence(once, 'content',
+                                  source='imported_eob', supports=True, amount=412.00)
+    check('two readings that agree are not a dispute',
+          model.qualifying_amount(agree) == 412.00)
+    disputed_total = model.qualifying_total(
+        [twice if k == 't3_target_split' else v for k, v in c.items()], rules='v2026.1')
+    check('a total containing a disputed amount has no attested figure',
+          disputed_total.attested is model.UNAVAILABLE)
+    check('and no definitive one',
+          disputed_total.definitive is model.UNAVAILABLE)
+
+    # ── record_evidence is the sole mutator (HAZARD_AUDIT H3 / R2-R3) ──────────
+    # `knowing[-1]` and `resolution()` read the knowing sequence in position order and treat
+    # position as evidence time. That is true by construction only while nothing but
+    # `record_evidence` (and `classify`, which builds the first determination) can add a
+    # determination. The guard: `_determine` is the only way to make a new one, and no
+    # function other than those two calls it (`reproduce` re-wraps an existing determination
+    # and makes nothing). When a document's own as-of is representable this guard is
+    # superseded by the field; until then it is what keeps the latent latent.
+    import ast as _ast
+    import inspect as _inspect
+    _tree = _ast.parse(_inspect.getsource(model))
+    _builders = set()
+    for _fn in _tree.body:
+        if isinstance(_fn, _ast.FunctionDef):
+            for _node in _ast.walk(_fn):
+                if isinstance(_node, _ast.Call) and getattr(_node.func, 'id', '') == '_determine':
+                    _builders.add(_fn.name)
+    check('only classify and record_evidence construct determinations',
+          _builders == {'classify', 'record_evidence'})
+    if _builders != {'classify', 'record_evidence'}:
+        print('        builders found: %s' % sorted(_builders))
+
 
 def main():
     print(__doc__.split('Run:')[0].strip().splitlines()[0])

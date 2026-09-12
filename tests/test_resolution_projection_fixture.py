@@ -7,6 +7,17 @@
     all four derived from the evidence chain at read time, never stored;
     travelling beside the current value and strength, and never becoming evidence.
 
+**Provenance model this fixture assumes (HAZARD_AUDIT H4, 2026-09-12).** Every `E` event in
+the histories below is treated as the EOB SOURCE stating its stance - a distinct source event.
+That is correct for distinct documents and for testimony, and it is the only thing the record
+can currently express: `Evidence.source` is a type with no referent, so two readings of ONE
+EOB are byte-identical to two EOBs here. The 5,460 histories therefore demonstrate the
+projection's behaviour under a model in which readings and sources are indistinguishable.
+They do NOT establish that behaviour for a future model containing document identity and
+readings, where two readings of one artefact are a parse dispute and not a source reversal
+(`gw 2.0/ASSERTED_REFERENT_CASES.md` RA4, `REPARSE_CLUSTER_B_TEST.md` D3b). When a referent
+exists, this fixture is re-pointed, not cited.
+
 Q1 proved a refused value cannot bypass the consumer boundary. This fixture has to prove the
 other half of the same shape for Q2:
 
