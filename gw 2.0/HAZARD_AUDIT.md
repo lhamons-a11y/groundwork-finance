@@ -1067,6 +1067,37 @@ which is one honest red line in the gate.
 the manual enumeration missed. That is the argument for the declaration over the harness,
 made by the declaration itself.
 
+### H5 correction — ruled. Rob, 2026-09-12: (b), trim the input; do not darken, do not admit.
+
+Not (a): a known, bounded prompt-construction defect must not become a permanently darkened
+feature. Not (c): the evidence-mode ruling is specifically that household-facing findings may
+not manufacture claims from raw transaction descriptions.
+
+```text
+merchant_text  →  raw transaction description  →  not authorised as finding evidence
+```
+
+Removing it from the model's input does not weaken the narrator boundary; it makes the
+existing prompt conform to it. **Constraint:** remove the raw merchant/description value from
+the AI prompt's `dataLines` only — the merchants table, deterministic category calculations,
+transaction storage and non-AI rendering are unchanged. `merchant_text` stays **out** of the
+declared vocabulary: the declaration describes what the model is permitted to receive; it is
+not a mechanism for legitimising another class of evidence. And the repair is **not**
+generalised to "merchant information is always forbidden" — the rule is narrower: *raw
+transaction description is not an asserted finding merely because it exists in the
+household's transaction record.*
+
+**Applied.** The merchant line is gone from the category report's `dataLines`; `topMerchants`
+is still computed and still rendered on screen. The registry declares `category_*` as
+`['category', 'total', 'date', 'price_benchmark']`. **Gate: 855 passed, 0 failed.** The
+declaration fixture stays in place so a future surface attempting the same thing is caught at
+`callAI` rather than by manual enumeration.
+
+**Remediation pass complete and frozen.** Next: the representation primitive question,
+exactly where it was left — *what is the smallest identity/lineage primitive that
+mechanically distinguishes artefact, reading, and independent provenance, without committing
+to the eventual schema/API?* — with no code.
+
 ---
 
 ## Audit summary — H1 to H5
@@ -1077,7 +1108,7 @@ made by the declaration itself.
 | H2 `record_payment`/`remaining` | 0 (by rule) | vocabulary > computation | contract; absence guard; rename deferred; 1.x scope fenced | **ruled** |
 | H3 dated resolvers | 0 | position ≠ evidence time (R2/R3); value by position (R4) | R4 refuse; R2/R3 contract + construction guard; as-of deferred | **ruled** |
 | H4 `resolution()` | 0 | type ≠ instance | contract; fixture note; referent deferred | **ruled** |
-| H5 narrator boundary | (2) with a live input path (corrected) / (3) unwired | one gated surface passes bank description strings | live: input declaration guard — built, one surface refuses, Rob to rule; unwired: contract + scan — done | **ruled; correction pending** |
+| H5 narrator boundary | (2) with a live input path (corrected) / (3) unwired | one gated surface passed bank description strings | live: declaration guard built, category prompt trimmed (b); unwired: contract + scan | **ruled; remediated** |
 
 **Two requirements carried forward, adjacent and not merged (Rob):**
 - **Representation requirement** (H3, H4, and four evidence-mode rulings): dated, individuated

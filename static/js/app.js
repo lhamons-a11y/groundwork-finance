@@ -10027,6 +10027,7 @@ Use their actual numbers. Be specific. Sound like you know them.`;
       system: systemPrompt,
       messages: [{ role:'user', content: prompt }],
       surface: 'monthly_report',
+      findings_kinds: ['income', 'total', 'category', 'budget', 'debt', 'date', 'annotation', 'profile'],
     });
 
     if (result.ok) {
@@ -11370,6 +11371,7 @@ No greeting. No sign-off. No question marks. Write as if you're a trusted friend
       system: 'You write brief, warm, honest Sunday financial check-ins for couples. Two sentences. Conversational. Never preachy.',
       messages: [{ role:'user', content: prompt }],
       surface: 'sunday_checkin',
+      findings_kinds: ['income', 'total', 'category', 'debt', 'household_name'],
     });
 
     if (result.ok) {
@@ -22340,6 +22342,90 @@ function _logVoiceMiss(surface, model, gate, text) {
   }).catch(_gwErr('_logVoiceMiss'));
 }
 
+// ── Findings-kinds declaration (gw 2.0/HAZARD_AUDIT.md H5, ruled) ────────────
+// At callAI the findings text is both what the model knows and what it may say
+// (R8), so what a gated surface passes in is an authorisation, not a transport.
+// Today every gated surface passes only household-asserted content - category
+// names, totals, debt names, the user's own annotation - and that is why the
+// live path is clean under the voice rule. It is clean by construction of four
+// prompt builders, not by enforcement, and the next surface that pastes a
+// transaction description into a gated prompt hands the model wording to
+// manufacture a claim from. So a gated call DECLARES the kinds it passes, and
+// an undeclared call, an unknown kind, or a prohibited free-text kind fails
+// closed before the model is reached. This is an input-side boundary only:
+// callAI never interprets claims, resolves provenance, or judges a sentence -
+// that stays with the gate. Rob's rule: "A gated callAI invocation must declare
+// its findings kinds. An undeclared gated invocation, or one declaring
+// prohibited free transaction text, fails closed."
+const GW_FINDINGS_KINDS = new Set([
+  'income',          // computed income figures
+  'total',           // computed totals, deltas, surpluses, streak counts
+  'category',        // category NAMES (user-set, or the importer's parent map) and per-category totals
+  'budget',          // budget figures and performance stats
+  'debt',            // debt names, method, interest, payoff dates
+  'date',            // dates, days-left, month names
+  'household_name',  // the household members' own names
+  'annotation',      // the user's own typed note for the period
+  'profile',         // derived profile stats (_buildProfileContext)
+  'price_benchmark', // external price benchmarks the surface fetched
+  'achievement',     // achievement names
+  'user_question',   // the user's own typed follow-up question in a report thread
+  'goal',            // savings / sinking-fund / college-fund names and figures
+  'trip',            // trip names, dates, per-day figures
+  'investment',      // holdings, allocations, prices
+  'person',          // household member names and their gift/occasion entries
+  'net_worth',       // snapshots and milestones
+]);
+// Free transaction text: whatever a bank or importer wrote on a row. Not asserted
+// by the household, and exactly the wording a narrator can manufacture a claim
+// from ("CVS PHARMACY #1234" -> "your pharmacy spending"). Fails closed.
+const GW_FINDINGS_KINDS_PROHIBITED = new Set([
+  'description', 'memo', 'transaction_text', 'free_text', 'notes', 'merchant_text',
+]);
+
+// The generic report path (_rcAnalyzeWithAI) runs one callAI for many report
+// kinds, so its declaration is a registry keyed by reportId - prefix-matched
+// for ids that fold a selection into the id (category_*, annual_*). A reportId
+// with no entry is UNDECLARED and refuses; adding a report means adding a row
+// here, which is the point: the crossing is declared in one auditable place.
+const GW_REPORT_FINDINGS_KINDS = {
+  savings_goals_advisor: ['goal', 'total', 'date'],
+  trip_advisor:          ['trip', 'total', 'date', 'price_benchmark'],
+  debt_advisor:          ['debt', 'total', 'date', 'income'],
+  investment_advisor:    ['investment', 'total', 'date'],
+  gift_advisor:          ['person', 'goal', 'total', 'date'],
+  retirement_advisor:    ['goal', 'total', 'date', 'income'],
+  trophy_room_narrative: ['achievement', 'total', 'date'],
+  snapshot:              ['income', 'total', 'category', 'budget', 'debt', 'net_worth', 'date'],
+  distance_traveled:     ['net_worth', 'debt', 'total', 'date', 'achievement'],
+  income_savings:        ['income', 'total', 'goal', 'date'],
+  debt_payoff:           ['debt', 'total', 'date'],
+  'annual_*':            ['income', 'total', 'category', 'budget', 'debt', 'date'],
+  // Its builder once passed "Top merchants: <t.merchant || t.description> ($)" -
+  // bank description strings - and declaring that truthfully made this surface refuse.
+  // The line was removed from the prompt (HAZARD_AUDIT.md H5, Rob's ruling: trim the
+  // input, do not admit it). Price benchmarks are external figures the surface fetched.
+  'category_*':          ['category', 'total', 'date', 'price_benchmark'],
+};
+function _reportFindingsKinds(reportId) {
+  if (GW_REPORT_FINDINGS_KINDS[reportId]) return GW_REPORT_FINDINGS_KINDS[reportId];
+  for (const key of Object.keys(GW_REPORT_FINDINGS_KINDS)) {
+    if (key.endsWith('*') && reportId.startsWith(key.slice(0, -1))) return GW_REPORT_FINDINGS_KINDS[key];
+  }
+  return null;   // undeclared -> callAI refuses
+}
+
+// Returns null when a gated call's declaration is acceptable, else a reason.
+function _findingsKindsRefusal(payload) {
+  const kinds = payload.findings_kinds;
+  if (!Array.isArray(kinds) || kinds.length === 0) return 'undeclared';
+  for (const k of kinds) {
+    if (GW_FINDINGS_KINDS_PROHIBITED.has(k)) return `prohibited kind "${k}"`;
+    if (!GW_FINDINGS_KINDS.has(k)) return `unknown kind "${k}"`;
+  }
+  return null;
+}
+
 // ── callAI() — THE single choke point every narrative AI surface calls
 // through. Appends _GW_VOICE, runs the voice gate on the response, retries
 // once with a corrective terser prompt on failure, and returns ok:false on a
@@ -22352,6 +22438,16 @@ async function callAI(payload) {
   await _loadVoiceRules();
   const skipGate = !!payload.skipGate;
   const surface  = payload.surface || 'unknown';
+  // Fail closed BEFORE the model: a gated call that has not declared what it
+  // passes, or declares free transaction text, does not run. The caller falls
+  // through to its honest fallback exactly as it does on a gate rejection.
+  if (!skipGate) {
+    const why = _findingsKindsRefusal(payload);
+    if (why) {
+      _gwErr('callAI.findings_kinds')(new Error(`${surface}: ${why}`));
+      return { ok:false, text:'', payload, refusedInput:why };
+    }
+  }
   const baseSystem = skipGate ? (payload.system || '') : (payload.system || '') + _GW_VOICE;
   const findings = skipGate ? '' : (payload.messages || [])
     .filter(m => m.role === 'user')
@@ -22490,7 +22586,7 @@ async function _renderProjectionAI(content, badge, d) {
   const achNote=d.nextAch?`Nearest achievement: "${d.nextAch.name}"`:'' ;
   const prompt=`${stageCtx.leanContext?stageCtx.leanContext+'\n\n':''}${stageCtx.stageNote}\n\nSpending: ${d.category} is $${d.over>0?d.over+' over':''+d.surplus+' opportunity'} with ${d.daysLeft} days left.\nRedirect $${d.surplus} → ${d.topDebt?.name||'highest-rate debt'}: payoff ${d.baseline?.freeDate}→${d.withRedirect?.freeDate||'same'}, ${d.monthsSooner} months sooner, saves $${d.intSaved}.\n${dtiNote} ${achNote}\nWrite 2 sentences. Sentence 1: category, amount, payoff impact. Sentence 2: next milestone or achievement. Second person. No greeting.`;
   try {
-    const result=await callAI({max_tokens:140,system:'Direct financial projection. Two sentences max. Exact numbers.',messages:[{role:'user',content:prompt}],surface:'projection'});
+    const result=await callAI({max_tokens:140,system:'Direct financial projection. Two sentences max. Exact numbers.',messages:[{role:'user',content:prompt}],surface:'projection',findings_kinds:['category','total','debt','date','achievement']});
     if(result.ok){
       // d21: unified renderer
       const projDataLines=[
@@ -22684,6 +22780,7 @@ Rules: no greetings, no sign-offs, no use of "journey", "wellness", or "holistic
 Use the actual dollar amounts provided. 3 short paragraphs max.`,
     messages: _rcAIThread[reportId],
     surface: reportId,
+    findings_kinds: _reportFindingsKinds(reportId),
   });
 
   if (previewPanel) previewPanel.remove();
@@ -22861,6 +22958,7 @@ async function _rcFollowUp(reportId) {
     system: `You are Groundwork's financial analysis engine. Answer follow-up questions concisely and specifically. 1-2 short paragraphs max.`,
     messages: _rcAIThread[reportId],
     surface: `${reportId}_followup`,
+    findings_kinds: (_reportFindingsKinds(reportId) || []).concat(['user_question']),
   });
 
   spinner.remove();
@@ -23382,6 +23480,7 @@ async function _rcMonthlyGenerate() {
       messages:[{role:'user',content:`Monthly report for ${monthName}. Spent: ${fmt(spent)}. Income: ${fmt(income)}. ${under>=0?`Under budget by ${fmt(under)}.`:`Over by ${fmt(Math.abs(under))}.`} Top categories: ${topCats}. ${priceLines.length?`Real market price benchmarks for the categories above (use these to tell price-driven changes apart from usage-driven ones — don't blame the household for a price increase): ${priceLines.join(' ')}`:''} ${annotation?`Note: "${annotation}"`:''}. Write 3-4 paragraphs. Start with one punchy sentence. Follow with analysis. End by naming the single largest category above and its exact dollar amount, stated as a plain fact — not a command or suggestion, and never calculate a new number yourself (write "Transfer was the largest category at $X," never "Consider cutting..." or "You should trim..." or any dollar figure not listed above). No bullets. No headings.`}],
       system:'You are writing a monthly financial report. Tone: direct, honest, like a trusted friend who knows their numbers. Never preachy.',
       surface: 'monthly_report_v2',
+      findings_kinds: ['income', 'total', 'category', 'budget', 'date', 'price_benchmark', 'annotation'],
     });
     if (!result.ok || !result.text) throw new Error('empty');
     if (stillCurrent()) {
@@ -23620,7 +23719,13 @@ function _rcUpdateCategoryDeepDive() {
       `Highest month: ${fmt(highest.amt)} (${highest.mo})`,
       ...(lowest ? [`Lowest month: ${fmt(lowest.amt)} (${lowest.mo})`] : []),
       `Months with activity: ${moActive.length} of ${monthly.length}`,
-      ...(topMerchants.length ? [`Top merchants: ${topMerchants.slice(0,5).map(([n,a]) => `${n} (${fmt(a)})`).join(', ')}`] : []),
+      // No merchant line. `topMerchants` is built from `t.merchant || t.description` -
+      // the bank's own description strings - and a raw transaction description is not
+      // an asserted finding merely because it sits in the household's transaction record
+      // (gw 2.0/HAZARD_AUDIT.md H5, correction and ruling). "CVS PHARMACY #1234 ($180)"
+      // in a gated prompt hands the model wording to manufacture a claim from. The
+      // merchants table the household sees above is untouched: that is rendered HTML,
+      // not model input. Deterministic totals, counts, dates and the category name stay.
       ...priceNames.map(n => _utilityPriceSentence(n)),
     ];
     const buildPrompt = (profileCtx) => [
