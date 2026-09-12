@@ -282,22 +282,38 @@ The failure this catches is the one `e74d673` named: a perfect, immutable, `as_o
 version chain satisfies the first half of the criterion completely and says nothing whatsoever
 about the second.
 
-> **Run 2026-09-11 — `gw 2.0/RECONSTRUCTION_CASES.md`.** Against `core/payment_plan.py` as it
-> is, with both natural ways of recording a restructure. **Each path preserves exactly what
-> the other loses.** Mutating the plan keeps the ledger continuous and the economic record
-> dated — and overwrites the schedule history (June's expectation goes from $1,050 to $0) and
-> credits six months of old payments as *$350 ahead* on a schedule that had not begun. Making
-> a new plan keeps both schedules — and severs the economic link, so the $50 that moved is
-> arithmetic between two strangers. **The five questions are jointly answerable only with both
-> a schedule history and an economic-transfer record between schedules; the model holds one or
-> the other, and the caller's choice decides which false story is told.** That is `e74d673`
-> reproduced at the code level in both directions, and it is M1/M2 without deciding it — the
-> test does not prefer either anchoring. Losses classified per Rob's five types: never
-> represented (Q1, Q5), referent unavailable (Q3), transition unrecorded (Q4); Q2 holds. Two
-> loss types absent, meaningfully: nothing is projected away, and nothing was asked for that
-> the doctrine did not promise. *$350 ahead with no payments* is a false sentence of the
-> quarantine's kind, unreachable because `payment_plan` has no consumers — recorded with a
-> condition on the first wiring.
+> **Run 2026-09-11, against `core/payment_plan.py` as it is.** The experiment was kept as a
+> result, not as a file. A restructure (24 × $175 → 18 × $233.33, $50 fee capitalised) was
+> recorded both natural ways and the five questions asked as of a date then in the past.
+> **Each path preserves exactly what the other loses.** Mutating the plan's scalars keeps the
+> ledger continuous and the economic record dated — Q2 holds, the fee is on record with reason
+> and date — and overwrites the schedule history (June's expectation goes from $1,050 to $0) and
+> credits six months of old payments as *$350 ahead* on a schedule that had not begun, with
+> nothing paid on it. Making a new plan keeps both schedules, only via a reference the module
+> does not hold, and severs the economic link, so the $50 that moved is arithmetic between two
+> strangers.
+>
+> **The result that matters:** *schedule history and economic succession are separate
+> information requirements.* The five questions are jointly answerable only with both; the
+> current model holds one or the other; and the caller's choice decides which false story is
+> told. That is `e74d673`'s finding — a perfect version chain saying nothing about the second half
+> — reproduced in code in **both** directions, and it is the M1/M2 tension without deciding it:
+> the test does not prefer either anchoring, which is why the fence held. Whichever anchoring
+> wins must preserve both, and the test says exactly that without saying which.
+>
+> **Losses, classified** (Rob's five types): *never represented* — the schedule has no history
+> and a schedule change carries no reason; *referent unavailable* — no succession edge;
+> *transition unrecorded* — the ledger has no boundary between agreements. **Q2 holds**, so this
+> is not a generalised historical-truth failure. Two types are absent and that is information:
+> nothing is projected away, and nothing was asked for that gap 8's doctrine did not promise.
+>
+> **Two rules from it.** *Cannot reconstruct* is the correct answer for the old schedule after a
+> mutation — **no inference may manufacture the missing schedule history from a payment
+> pattern**; that would be `[-1]` for schedules. And *$350 ahead with no payments on the new
+> agreement* is a false sentence of the quarantine's kind, unreachable only because
+> `payment_plan` has no consumers — **the first consumer wired to it must be prevented from
+> producing it.** No sixth gap category: the losses classify as representation, referent and
+> operation, and the experiment strengthened gap 8 rather than opening anything.
 
 ---
 

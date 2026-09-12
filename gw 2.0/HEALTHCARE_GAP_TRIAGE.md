@@ -70,8 +70,9 @@ Three more produce a false figure, each needing an input the default path does n
 - **`payment_state` credits payments made under a superseded schedule as *ahead* on its
   successor** — six payments under the old agreement, none under the new, reads *$350 ahead*.
   Needs the plan's schedule scalars to be mutated in place, and needs a consumer — and
-  `core/payment_plan.py` has none, deliberately, while gap 8 is open. `RECONSTRUCTION_CASES.md`
-  Path A, Q4. **Condition on the first wiring:** it must not be able to produce this.
+  `core/payment_plan.py` has none, deliberately, while gap 8 is open. The reconstruction
+  experiment in `LIFECYCLE_REVIEW_TRIAGE.md`. **Condition on the first wiring:** it must not be
+  able to produce this.
 
 They share the class. They do not share the reach. If any of them turns out to fire on a
 default path, it moves up.
