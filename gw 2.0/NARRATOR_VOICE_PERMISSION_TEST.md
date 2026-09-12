@@ -250,6 +250,17 @@ Applied to the case (referents as the case records them):
 | the two CVS rows under *Other* | classifier-marked health, **manufactured** | **no** — manufactured provenance cannot satisfy the authorisation requirement |
 | memo *wheelchair ramp lumber* | **nothing** — both axes `not_evaluated`; only the narrator would infer | **no** — an inference from a string is not in the record and authorises nothing |
 
+**All three fail the same test: none supplies an asserted health claim.** So the rule is about
+**assertion status**, not about the classifier's `manufactured` flag — and that distinction is
+load-bearing, because the wrong shortcut is easy to encode later:
+
+```text
+WRONG    health = manufactured  →  forbidden
+RIGHT    a claim must be asserted in the findings record to authorise that claim's
+         narration; neither classifier inference nor narrator inference can
+         manufacture that authorisation
+```
+
 **This is not a general prohibition on mentioning the transaction.** It is a prohibition on
 the narrator *upgrading* an inference or a manufactured fact into an asserted health claim.
 
@@ -330,7 +341,13 @@ an authorisation-bearing boundary, not a neutral transport layer.**
    model-visible authorisation merely by being serialised into findings
 ```
 
-**The pattern across all three joint constraints (Rob's):** *don't make one semantic dimension
+**Fences a future implementation session must not convert into conclusions because they look
+architecturally convenient (Rob's):** entitlement → payee · exposure residue → a named domain
+object · overlap → `plan_at()` semantics · sensitivity → a universal prohibition · manufactured
+→ "never narrate". Each is a fence, not a disguised TODO.
+
+**The pattern across all three joint constraints (Rob's):** *an event touching two concepts
+does not make those concepts identical* — *don't make one semantic dimension
 impersonate another merely because the data happens to travel through the same object.*
 §7.7: entitlement is not classification, though one event touches both. Time: an observed
 claim is not a resolved period, though one operation closes both. Voice: a carried fact is not
