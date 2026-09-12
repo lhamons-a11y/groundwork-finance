@@ -398,6 +398,7 @@ The failure can sit at three different places, and the remedy is different at ea
 | **projection** | the distinction is held correctly and the summary drops it | **Q2** — chain ✓, history ✓, state ✓, projection ✗, consumer ✗ — fixed by `resolution()` |
 | **upstream absence** | the distinction does not exist, so nothing downstream can project it | **document identity**, **value-level disagreement** — cannot be fixed by any projection |
 | **operation gap** | the history is representable, but the operation that resolves it in time is missing | **gap 2, T4/T8** — a period cannot be closed, so overlap is resolved by insertion order or by an unrecorded mutation |
+| **boundary / interface rule** | nothing is missing from the model; what matters is what may be *said*, and what may re-enter as evidence | **gap 14** — no `ExternalAction`; the action/result distinction keeps workflow state out of epistemic state |
 
 Q2 sat firmly in the second category, which is why a read-time projection closed it without
 touching the lattice. Document identity and the proposition space sit in the third, which is why
@@ -407,6 +408,11 @@ distinction the record cannot make.** Gap 2 added a fourth, distinct from all th
 the **operation** that says one of them ended earlier, so the resolution falls to position or to
 an unrecorded edit. Sorting a finding into the right category before reaching for a fix is most
 of the work, and the categories are a working taxonomy rather than doctrine.
+
+**The four-step sequence closed 2026-09-11 with a different kind of finding at each step** —
+projection, representation, operation, boundary — and none required redesigning the system. Rob's
+reading of why that matters: *the cases are telling you where the architecture is actually
+deficient, instead of the architecture telling the cases what deficiencies it ought to have.*
 
 ---
 

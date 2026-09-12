@@ -244,6 +244,26 @@ and it would invite E11's *done* control by giving it somewhere to write.
 No `ExternalAction`. No copy. No surface. No change to how testimony re-enters the evidence model
 — E9's finding is filed under document identity, where it belongs, and not repaired here.
 
-**What is Rob's:** whether E2 — the bare imperative referral, *check your insurer* — sits on the
-permitted side with E1 or the refused side with E6. The cases put it between them, and the
-sentence a narrator is allowed to produce depends on the answer.
+**E2 — answered (Rob, 2026-09-11): with the referral, conditionally.** The bare imperative sits
+on the permitted side **provided it is shorthand for an evidence path, not counsel.** The problem
+is never that a sentence is imperative; it is whether it presumes *why* the user should act.
+
+```text
+Check your insurer to establish whether this service was covered.     permitted — source + purpose, goal left open
+You need to call your insurer.                                        refused   — goal presumed, action made mandatory
+```
+
+So there is **no syntactic rule** — *imperatives are prohibited* would be too blunt and would
+miss the boundary the cases found. The earned rule is semantic:
+
+> **A permitted referral may tell the user where evidence can be obtained and why that evidence
+> would answer the question, without presuming that obtaining it is the user's goal.**
+
+Which is the four features restated: result → evidence; goal → the user's; source → actually
+knows the proposition; purpose → explicit enough that the referral is not covert counsel.
+
+**And E9 is the result that says what not to solve here.** Phone-call testimony arriving as
+`USER_STATED` rank 3 is not evidence that external actions need an abstraction. It is evidence
+that the testimony/document distinction is not yet expressive enough for **non-artefact
+third-party testimony** — and filing it under document identity is better than inventing an
+`ExternalAction` to make it disappear.
