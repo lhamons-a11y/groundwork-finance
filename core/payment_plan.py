@@ -35,6 +35,17 @@ arithmetic instead of a sentence.
 **The schedule is supplied by the caller and is not an entity here.** Versioning an agreement —
 `24 × $175` becoming `18 × $233.33` — is gap 8, it needs a domain object that does not exist,
 and inventing one here would hide the gap rather than close it.
+
+**What this module knows, and does not (HAZARD_AUDIT H2).** Every figure here is a projection
+over payments the household *attached* to the obligation. The module holds no acknowledgment
+from the entitled party and has no way to receive one, so nothing it returns is confirmed
+discharge: `paid` is what was attached net of named reversals, `remaining` is what would be
+left *if every attached payment is credited*, and `ahead` / `overdue` are positions against
+the agreement as the household's own record sees it — not as the creditor does. A payment may
+evidence discharge; discharge is established only by the entitled party's acknowledgment
+(`gw 2.0/SERVICING_ONLY_CASES.md`, `ACKNOWLEDGMENT_EVIDENCE_CASES.md`, both ruled). Until
+that evidence has somewhere to live, the honest reading of `remaining` is *attached
+remaining*, and no key returned here may claim otherwise - the fixture asserts the absence.
 """
 
 from dataclasses import dataclass, field
@@ -161,6 +172,15 @@ def payment_state(plan, as_of=None):
     There is deliberately no `paid()` or `ahead()` accessor. Five numbers that must agree are
     one answer, and offering them separately is how a consumer ends up holding two versions of
     "ahead" that were computed at different moments from different subsets.
+
+    **Attached-payment projections, not discharge.** `paid`, `remaining`, `ahead` and
+    `overdue` are computed from payments the household attached to this obligation. None of
+    them says the entitled party has credited anything: a payment sent to the wrong servicer,
+    or to a party that no longer holds the obligation, is attached here and unacknowledged
+    there, and this projection cannot tell the two apart. A consumer that presents
+    `remaining` as what the household owes has read attachment as acknowledgment - the
+    hazard the module header names. The key is kept as `remaining` for now; renaming it is
+    a consumer-vocabulary decision deliberately not made here.
     """
     rows = ledger(plan, as_of)
     paid = round(sum(e.amount for e in rows), 2)

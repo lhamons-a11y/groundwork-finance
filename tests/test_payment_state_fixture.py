@@ -187,6 +187,19 @@ def run(model):
     check('so the four readings of a negative number are not interchangeable',
           model.payment_state(plan, as_of='2026-05-01')['remaining'] != st_adj['remaining'])
 
+    # ── Nothing here may claim discharge (HAZARD_AUDIT H2) ──────────────────
+    # Every figure is a projection over ATTACHED payments; the module holds no
+    # acknowledgment from the entitled party. So no key and no accessor may claim that a
+    # payment was credited or an obligation discharged. Asserted as an absence, the way the
+    # missing `paid()` accessor is: adding one later is a deliberate act with a test to
+    # change, not a drift.
+    CLAIMS = ('confirmed', 'discharged', 'acknowledged', 'credited')
+    st_keys = set(model.payment_state(plan))
+    check('no projection key claims confirmation, discharge or acknowledgment',
+          not any(any(c in k.lower() for c in CLAIMS) for k in st_keys))
+    check('and no module accessor does either',
+          not any(any(c in name.lower() for c in CLAIMS) for name in dir(model)))
+
 
 def main():
     print(__doc__.split('Run:')[0].strip().splitlines()[0])
