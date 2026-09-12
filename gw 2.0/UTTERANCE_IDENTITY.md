@@ -179,3 +179,71 @@ question before the family can be built is the one every record has fenced: **wh
 proposition is** — now with two constraints on it from this record (it can take an utterance
 as subject; it can take a party the utterance created as subject) and one from the primitive
 (it has a *kind* the knowing relation is defined over).
+
+---
+
+## 8. Ruling — Rob, 2026-09-12. §4 and §5 ruled as written, including the evidence-time correction.
+
+**The correction is more than editorial:** *evidence time is when the party made the
+assertion; `recorded_at` is when Groundwork encountered it.* That keeps the ontology
+independent of the ingestion path — an in-app assertion may have identical timestamps, but
+that is an implementation circumstance, not a semantic identity rule.
+
+**The identity ruling:** *an utterance is an assertion event; its identity is the occurrence
+of the act.* The exact analogue of readings:
+
+```text
+read twice   =  two readings           one act encountered twice   =  one utterance
+said twice   =  two utterances         two acts, identical content =  two utterances
+```
+
+E3's failure is decisive: it shows why **recording is provenance about evidence, not the
+evidence event itself.**
+
+**Both deductions agreed:** retraction is *about* the utterance, not removal of it — preserving
+the assertion that explains S3's provenance; surface is *about* the encounter — the same
+assertion does not become a different one for crossing through another surface.
+
+**The evidence family's boundary:**
+
+```text
+UTTERANCE
+    assertion event
+    ├── origin
+    ├── proposition
+    └── evidence time
+         ├── strength         → derived, never stored
+         └── everything else  → about the utterance
+```
+
+Duplicate encounter is no longer an ontology problem; it is correspondence / deduplication
+machinery downstream.
+
+### The remaining question — what is a proposition?
+
+Opened **without designing a representation**, under seven accumulated constraints:
+
+1. a proposition has a **kind** — the origin's knowing relation is evaluated against it;
+2. it can take a **party** as subject;
+3. it can take an **utterance** as subject;
+4. the subject can therefore be something **created by another assertion**;
+5. truth, resolution and comprehension are **not prerequisites** for its existence;
+6. it cannot collapse into the utterance — the **same proposition can be asserted by multiple
+   utterances**;
+7. **identical textual content does not necessarily mean identical proposition semantics.**
+
+**The danger test:**
+
+> **Can the proposition be reduced to either text/content or a relation between already-
+> existing parties?**
+
+If either reduction fails in the corpus, Groundwork needs a genuine proposition concept rather
+than an `utterance.text` field or a collection of typed foreign keys. The two cases to test:
+
+```text
+Person ─ asserts → [proposition A] ─ subject: Institution S3
+Person ─ asserts → [proposition B] ─ subject: an earlier utterance
+```
+
+The second means the proposition system must express claims about **evidence events**, not
+merely about worldly entities.
