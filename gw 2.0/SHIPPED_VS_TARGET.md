@@ -252,3 +252,91 @@ impossibilities as the build's definition of done and the four fusions as its de
 points. If so, the next question is the first that orders work: **which of the ten is made
 possible first** — and the forced dependency already recorded (utterance before institution)
 is the first constraint on that order.
+
+---
+
+## 6. Ruling — Rob, 2026-09-13. Accepted as the shipped-to-target map; the first build slice named.
+
+*The decomposition shows the target is not inventing a parallel financial ontology; it is
+separating concepts the shipped system has historically fused.*
+
+**One distinction before ordering:**
+
+> **The ten impossibilities are the acceptance targets; they are not necessarily ten
+> independent build slices.** Some are consequences of the same primitive becoming available.
+
+### The dependency graph the comparison yields
+
+| target capability | requires first |
+|---|---|
+| utterance-shaped evidence | utterance primitive |
+| value proposition on a health record | proposition + reading / evidence |
+| document's own date | artefact + its date |
+| two readings of one artefact | artefact + reading |
+| asserted artefact | artefact + utterance |
+| origin as a party | utterance + party |
+| institution as a party | utterance + minting assertion |
+| claim about an utterance | utterance + proposition |
+| E's acknowledgment | proposition + appropriate parties / subject |
+| subject not established with candidates | proposition + correspondence machinery |
+| independence by lineage | the identity / provenance graph |
+
+### First: make the evidence primitives possible
+
+Not `Institution`, not `PdfExtractCache`, not even `Artefact`. The first slice is the smallest
+operational substrate producing
+
+```text
+Party → Utterance → Proposition ← evidentiary relationship
+```
+
+with the ruled semantics intact — because an institution cannot be minted without an
+utterance; an asserted artefact cannot exist without one; a claim about an utterance cannot
+exist without one; the proposition is the utterance's target; proposition kinds determine
+derived strength; and the evidentiary relationship connects propositions to utterances and
+readings without making either cease to be evidence. **The first build is not one of the ten;
+it is the primitive that makes several of them possible.**
+
+### The sequence the ten then fall into
+
+```text
+1  evidence substrate        proposition · utterance · evidentiary relationship
+2  artefact + reading         two readings of one artefact · document date · then asserted artefacts
+                              (the first cannot be reconstructed from PdfExtractCache where history is absent)
+3  institution anchor         minted through an existing utterance — the forced dependency honoured
+4  correspondence             ambiguous subjects with candidates · artefact↔artefact · party↔party · lineage
+5  higher-order propositions  claims whose subjects are utterances — ordinary propositions, not mechanisms
+6  domain propositions        health value claims · E's acknowledgment · roles · obligations — instances
+```
+
+**The later ten are mostly tests of generality, not reasons to expand the ontology.**
+
+### The build gate before moving from slice 1 to artefacts / readings
+
+End to end:
+
+```text
+Person → makes utterance → has proposition (kind · subject · content)
+                         → has evidence time
+                         → has derived strength
+```
+
+and separately:
+
+```text
+same act            → one utterance
+same proposition    → may be asserted by multiple utterances
+false proposition   → remains representable
+unresolved subject  → remains representable
+```
+
+No institution, no migration, no correspondence beyond what is strictly required to make the
+primitive operational.
+
+> **Ruled: the first build slice is the evidence substrate — proposition, utterance, and the
+> evidentiary relationship that connects propositions to utterances / readings. It precedes
+> artefact / readings and therefore institution. The ten impossibilities are acceptance tests
+> over that substrate and its subsequent slices, not ten mandatory tables or ten sequential
+> migrations.**
+
+A build order without the order becoming a second ontology.
