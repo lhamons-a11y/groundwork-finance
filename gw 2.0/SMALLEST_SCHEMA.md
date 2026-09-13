@@ -1,7 +1,7 @@
 # The smallest schema for the six semantic objects
 
 > Status: **Build mode, first question, 2026-09-12 — PARTIAL on review (§11); the two open
-> choices RULED 2026-09-13 (§12), and the evidence substrate authorised. A schema proposal is not permission to migrate, alter existing tables, or add
+> choices RULED 2026-09-13 (§12); slice 1 BUILT (`6700b69`) and ACCEPTED (§13). A schema proposal is not permission to migrate, alter existing tables, or add
 > compatibility machinery.** Rob's question:
 >
 > > **What is the smallest relational schema that can represent the six semantic objects and
@@ -356,3 +356,69 @@ substrate minimally supports.
 
 *The schema decision is made by the ontology and its cases, not by whichever SQL shape was
 easiest to type.*
+
+---
+
+## 13. Slice 1 accepted — Rob, 2026-09-13. `6700b69`, 865 green, clean tree. Slice 2 opened.
+
+**The default-listener finding is an implementation detail, not a semantic problem.** SQLAlchemy
+applies the column default after `before_insert`, so the listener cannot use the ORM default as
+evidence that the semantic state is `none`; normalising an unset state to `none` before
+validation is the right mechanical projection of the ruling and does not expand the ontology.
+The invariant it protects stands:
+
+> **`NULL` means the participant slot is empty; `none` means the proposition explicitly has no
+> participant in that semantic position.**
+
+**What slice 1 accomplished is not the three tables — it is the direction of causality:**
+
+```text
+Person ──origin──► Utterance ──asserts──► Proposition ◄──evidenced-by── evidentiary relationship
+```
+
+and the avoided shortcut is exactly the shipped `Evidence` structure (`source · proposition ·
+strength · whatever else we need`). The distinctions are now physically representable rather
+than documented.
+
+**The false-proposition case is the one to watch as the project grows:** U1 asserts P1; later U2
+asserts P2 whose *subject is U1*. Nothing deleted, nothing rewritten as though U1 never existed,
+no `retracted=True` on U1. That is the historical model Groundwork needs to explain why it
+believed something and why that changed.
+
+**`derived_strength()` being caller-knowing-dependent is important — resist convenience in
+slice 2.** `origin foundation × proposition kind × knowing relation` at read time is safer than a
+`proposition.strength` / `utterance.strength` / `evidence.strength` ever floating around. An
+unruled catalogue yielding *undetermined* is correct: preferable to inventing a strength rule.
+
+**The warning carried into slice 2 — the next semantic pressure.** Slice 2 adds `reading_id`
+beside `utterance_id` under exactly-one-source. The danger is letting *reading → proposition*
+come to mean the same thing as *utterance → proposition*. It does not: a reading is an
+observation of an artefact; an utterance is an assertion by a party. The shape to preserve:
+
+```text
+Artefact ──► Reading ────┐
+                         ▼
+                    Proposition
+                         ▲
+                    Utterance ◄── Party
+```
+
+never `Reading → Utterance → Proposition` unless a later ruling establishes that relation.
+**Do not let the implementation convenience of `reading_id` turn Reading into an alternate
+kind of Utterance** — the distinction matters enormously once documents, EOBs, OCR, repeated
+reads and provenance interact.
+
+**Not reopened, though visibly begging:** institution · correspondence · migration · `Evidence` ·
+`PdfExtractCache` · weakest-link · independence · proposition-kind catalogue · legacy-table repair.
+
+**Slice 2's question (Rob's):** *can an artefact and its reading be represented independently,
+while preserving the distinction between the thing encountered and the act of observing it?* —
+a better next question than "what database changes do we need?". The symmetry to earn:
+
+```text
+SLICE 1   Person → Utterance → Proposition ↘
+                                             evidence
+SLICE 2   Artefact → Reading ───────────────┘
+```
+
+Record: `ARTEFACT_READING_SLICE.md`.
