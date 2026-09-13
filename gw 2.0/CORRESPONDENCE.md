@@ -1,10 +1,11 @@
 # Slice 4 — what is a correspondence claim?
 
-> Status: **Build mode, slice 4 opened by Rob 2026-09-13 — record only, no code.** Slice 3 is
+> Status: **Build mode, slice 4 opened by Rob 2026-09-13; candidate RULED (§8). Record only — no
+> code has been written for this slice; build authorisation is a separate step.** Slice 3 is
 > accepted and closed at `d626218` (`ARTEFACT_ORIGIN.md` §9). This record tests three readings
 > of the question against the cases already ruled, finds one conflict between two earlier
 > records and resolves it by the cases, finds two things the substrate must add, and ends
-> with a ruling candidate. Nothing here is authorised to build.
+> with a ruling candidate, ruled in §8.
 
 **Rob's question, verbatim:** *what is a correspondence claim?*
 
@@ -206,3 +207,73 @@ importer's contract · any consumer of the component · `utterance_`/`propositio
 · Person ↔ Person · the resolver.
 
 *The line the slice must hold: a match is a reason to ask; only an answer is a claim.*
+
+---
+
+## 8. Ruling — Rob, 2026-09-13. §7 ruled as stated; no fenced question reopened.
+
+*Slice 4 did not merely add "correspondence." It made a much more precise separation, and
+none of the four can silently substitute for another:*
+
+```text
+Origin          answers   whose statement is this?
+Correspondence  answers   are these two established identities one referent?
+Content         answers   what does this artefact say?
+Identity        answers   is this the same event / row / arrival?
+```
+
+**The strongest part is the conflict resolution around the process/hash match.** The tempting
+architecture — *identical bytes → strong correspondence → same referent* — is refused. The
+hash tells Groundwork something it observed; it does not constitute a party asserting that two
+artefacts are one referent. The evidence direction stays intact:
+
+```text
+observation → candidate → party assertion → correspondence claim → derived referent
+```
+
+never `observation → identity`. Consistent with the origin ruling just closed.
+
+**Carried forward — referent vs identity stays extremely sharp.** *The referent is the
+connected component under established claims* is right because it is derived; but the
+sentence *"artefacts 17 and 42 are the same"* is easy for a consumer or UI to read as row
+identity. **The safer vocabulary: *17 and 42 correspond; their derived referent contains
+both.*** Two artefact identities, two histories, potentially two arrival events remain.
+
+**X2 becomes a permanent regression case:** `A ≠ B`, `origin(A) = origin(B)` — one case that
+prevents an enormous class of future mistakes. **Likewise X9:** the Lakeview Health EOB's content
+"Riverbend Hospital Hospital" becomes neither `origin(EOB) = Riverbend Hospital` nor `EOB ↔ Riverbend Hospital artefact` unless a
+separate ruled mechanism establishes it. *The conceptual firewall to preserve.*
+
+**The slot registry is a real substrate correction, not overengineering.** Slice 3 had a
+convention; convention is not enforcement. If the proposition system is deliberately
+open-ended, known kinds need their known participant contracts enforced without pretending
+all future kinds are known — *a correction discovered by implementation, not a new design
+agenda.*
+
+**Where the architecture is left:**
+
+```text
+                 ASSERTED CLAIMS
+                       │
+          ┌────────────┴────────────┐
+   artefact_origin          artefact_corresponds
+          ▼                         ▼
+      origin state             referent state
+          └────────────┬────────────┘
+                 CONSUMERS LATER
+
+   candidate ≠ claim · claim ≠ identity · claim ≠ truth · derived state ≠ stored identity
+```
+
+Correspondence does not need to know *why* the party asserted it: hash, identifier,
+description, "yes, that's it" remain the basis — content of the assertion. The substrate
+establishes that a party made the claim; consumers decide how to present or act on its basis.
+
+**Not to be opened until an actual case forces one:** `utterance_corresponds` ·
+`proposition_corresponds` · candidate ranking · resolver behaviour · correspondence consumers.
+The next slice starts from the next actual question the architecture needs, not from the
+interesting things correspondence has made possible.
+
+The two lines, paired:
+> *A match is a reason to ask; only an answer is a claim.*
+> *A document can say where it is from; only a party can say where a document is from.*
