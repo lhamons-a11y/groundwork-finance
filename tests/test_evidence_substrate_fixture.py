@@ -21,8 +21,8 @@ What this slice can and cannot exercise, stated so greenness is not over-read:
                                              the catalogue is not ruled)
     asserted-at distinct from recorded-at    EXERCISED
     a claim about an utterance (Case B)      EXERCISED - subject_utterance_id
-    reading as a source                      NOT EXERCISABLE - readings are slice 2
-    artefact subjects                        NOT EXERCISABLE - artefacts are slice 2
+    reading as a source                      slice 2 - tests/test_artefact_reading_fixture.py
+    artefact subjects                        slice 2 - tests/test_artefact_reading_fixture.py
     institution origins                      NOT EXERCISABLE - institutions are slice 3
     correspondence / candidates              NOT EXERCISABLE - slice 4; the state exists,
                                              the candidate claims do not
@@ -211,10 +211,15 @@ def run(db):
           not db.evidence_without_one_source(s))
 
     print('\n7. Not exercised here, stated so it is not assumed\n')
-    check('no reading source exists in this slice (slice 2)',
-          'reading_id' not in {c.name for c in db.EvidentiaryRelationship.__table__.columns})
-    check('no artefact subject slot exists in this slice (slice 2)',
-          'subject_artefact_id' not in {c.name for c in db.Proposition.__table__.columns})
+    # Slice 2 (2026-09-13) retired two absence checks in place: the reading source and the
+    # artefact subject slot now exist and are exercised by tests/test_artefact_reading_fixture.py.
+    check('the reading source arrived additively - utterance-sourced rows are untouched by it',
+          'reading_id' in {c.name for c in db.EvidentiaryRelationship.__table__.columns}
+          and all(r.reading_id is None for r in s.query(db.EvidentiaryRelationship).all()))
+    check('the artefact subject slot arrived additively - the state discipline did not change',
+          'subject_artefact_id' in db.Proposition.SUBJECT_SLOTS
+          and db.participant_violations(db.Proposition(kind='x', subject_state=db.PARTICIPANT_NONE,
+                                                   object_state=db.PARTICIPANT_NONE)) == [])
     check('no institution party exists in this slice (slice 3)',
           'minted_by' not in {c.name for c in db.Party.__table__.columns})
 

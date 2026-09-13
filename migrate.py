@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260913-evidence-substrate'
+SCHEMA_VERSION = '20260913-artefact-reading'
 
 
 def _stored_schema_version():
@@ -111,6 +111,19 @@ _NEW_HISTORIAN_COLUMNS = [
 
 # Added with reversal/chargeback: when the money actually moved, distinct from when the
 # expense was incurred and from when we heard about it.
+# Slice 2 of the evidence substrate (gw 2.0/ARTEFACT_READING_SLICE.md). `artefacts` and
+# `readings` are new tables (create_all). These are the additive columns on the two slice-1
+# tables that create_all will not add: the reading source on the relationship, and the artefact
+# slots on propositions. Nullable, no row rewritten, the state discipline unchanged - which is
+# why slice 1 left `utterance_id` nullable and enforces exactly-one-source as a guard.
+_NEW_EVIDENCE_COLUMNS = [
+    ('reading_id', "INTEGER REFERENCES readings(id)"),
+]
+_NEW_PROPOSITION_COLUMNS = [
+    ('subject_artefact_id', "INTEGER REFERENCES artefacts(id)"),
+    ('object_artefact_id',  "INTEGER REFERENCES artefacts(id)"),
+]
+
 _NEW_FUNDING_ALLOCATION_COLUMNS = [
     ('occurred_on', "VARCHAR(10)"),
 ]
@@ -274,6 +287,11 @@ def _migrate_old_category_names(session):
 
 
 _PERFORMANCE_INDEXES = [
+    # Slice 2: indexes declared on the models for columns added to EXISTING tables, which
+    # create_all does not create there. Neither is unique - content_hash is correlation
+    # material, never identity, and lives on a new table where create_all handles it.
+    ('ix_evidence_reading',      'evidence(reading_id)'),
+    ('ix_prop_subject_artefact', 'propositions(subject_artefact_id)'),
     ('ix_txn_account_import', 'transactions(account_id, import_id)'),
     ('ix_txn_account_date',   'transactions(account_id, date)'),
     ('ix_txn_category',       'transactions(category_id)'),
@@ -306,6 +324,8 @@ def run_migration_if_needed():
     _add_missing_columns('byb_items',            _NEW_BYB_COLUMNS)
     _add_missing_columns('historian_entries',    _NEW_HISTORIAN_COLUMNS)
     _add_missing_columns('expense_funding_allocations', _NEW_FUNDING_ALLOCATION_COLUMNS)
+    _add_missing_columns('evidence',             _NEW_EVIDENCE_COLUMNS)
+    _add_missing_columns('propositions',         _NEW_PROPOSITION_COLUMNS)
     _drop_reserve_contributions()
     _ensure_indexes()
 

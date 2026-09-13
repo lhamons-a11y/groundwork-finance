@@ -708,11 +708,14 @@ def _mint_party_anchor(mapper, connection, target):
 #
 #     Person -> Utterance -> Proposition <- evidentiary relationship
 #
-# Three tables. Utterances and propositions are the evidence family's first two objects;
-# the relationship is what connects them. Artefacts and readings are slice 2 and arrive as
-# additive columns/tables; institutions are slice 3 (an utterance mints one). Nothing here
-# is a repair of, or a mapping onto, `core.classification.Evidence` - that dataclass fuses
-# four of these objects (SHIPPED_VS_TARGET s1) and is left exactly as it is.
+#     Artefact -> Reading ------------------^   (slice 2: ARTEFACT_READING_SLICE.md)
+#
+# Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
+# saw of a held artefact; propositions are what they evidence; the relationship connects them.
+# Institutions are slice 3 (an utterance mints one; the artefact-origin proposition kind lives
+# there too). Nothing here is a repair of, or a mapping onto, `core.classification.Evidence` or
+# `PdfExtractCache` - the former fuses four of these objects (SHIPPED_VS_TARGET s1), the latter
+# is the shipped artefact+reading 1:1 by hash; both are left exactly as they are.
 
 # Explicit participant states for a proposition's subject and second participant. States,
 # not NULL semantics: a NULL reference FOLLOWS from a state, never the reverse (the party-
@@ -755,6 +758,158 @@ class Utterance(Base):
     origin = relationship('Party')
 
 
+class Artefact(Base):
+    """A thing encountered - a document, a capture, a statement the household says exists.
+    Identity is MINTED on encounter (`id`); held vs asserted is a property, not a second kind.
+    Ruled `IDENTITY_MECHANISM_COMPARISON.md`, `SMALLEST_SCHEMA.md` s2, `ARTEFACT_READING_SLICE.md`.
+
+    `held` must be stated (no default): held means Groundwork retains the artefact such that its
+    contents can later be re-read (the capture ruling, C4); asserted means the household said it
+    exists and Groundwork never held it (R-ASSERT) - it then exists UNDER the asserting
+    utterance (`asserted_by_id`), the same under-a-claim shape an institution will have. Held
+    artefacts carry no `asserted_by`: the encounter is their provenance. Enforced by
+    `_validate_artefact`, since SQLite cannot express it.
+
+    `content_hash` is CORRESPONDENCE EVIDENCE, never identity: nullable, indexed, NOT unique.
+    Two encounters with identical bytes are two artefacts until a correspondence claim says
+    otherwise (`hash == X -> artefact_id = X` is forbidden by construction).
+
+    Three times are three columns: `as_of` (the artefact's OWN date - a statement date, a
+    capture's stated as-of; nullable because it may be absent or unknown), `encountered_at`
+    (when Groundwork first held or was told of it - the minting event), and each reading's
+    `read_at`. None may be read as another: `encountered_at` is never evidence of when the
+    document existed; `read_at` is never the document's date (the tie ruling; H3).
+
+    Not here, by ruling: ORIGIN. The artefact's origin party is derived from origin-of-artefact
+    propositions (slice 3), never a column - a stored origin would be a summary of evidence that
+    can drift from the claims that determine it. No issuer string, no description-as-origin.
+    """
+    __tablename__ = 'artefacts'
+    id             = Column(Integer, primary_key=True)
+    held           = Column(Boolean, nullable=False)
+    content_hash   = Column(String(64), nullable=True)
+    as_of          = Column(String(10), nullable=True)
+    encountered_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    asserted_by_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+
+    asserted_by = relationship('Utterance')
+    readings    = relationship('Reading', back_populates='artefact')
+
+    __table_args__ = (
+        Index('ix_artefact_hash', 'content_hash'),     # for finding CANDIDATES - not unique
+    )
+
+
+def artefact_violations(artefact):
+    """held <-> no asserting utterance; asserted <-> exactly the asserting utterance."""
+    out = []
+    if artefact.held is None:
+        out.append('held must be stated')
+    elif artefact.held and artefact.asserted_by_id is not None:
+        out.append('a held artefact carries no asserting utterance - the encounter is its provenance')
+    elif not artefact.held and artefact.asserted_by_id is None:
+        out.append('an asserted artefact exists only under the utterance that asserted it')
+    return out
+
+
+@event.listens_for(Artefact, 'before_insert')
+@event.listens_for(Artefact, 'before_update')
+def _validate_artefact(mapper, connection, target):
+    problems = artefact_violations(target)
+    if problems:
+        raise ValueError('artefact violated: ' + '; '.join(problems))
+
+
+class Reading(Base):
+    """An observation event of one HELD artefact - what Groundwork saw, as distinct from what a
+    party said (`Utterance`). Ruled `SMALLEST_SCHEMA.md` s3, `ARTEFACT_READING_SLICE.md` s8.
+
+    The artefact owns its readings, one per act of observation: the same artefact read twice
+    is two rows under one `artefact_id` (one artefact, two observations), and that is how a
+    parse dispute is distinguished from a source conflict - by structure, never by timestamp,
+    text or row order.
+
+    The READER is who performed the observation, not who asserted anything: `reader_party_id`
+    (a household member transcribing) xor `reader_process` (a parser, name/version). A reading
+    by a process has NO PARTY - a positive state, never a party minted for the parser, never
+    NULL-ambiguity (exactly one reader slot is set; a guard). The reader is never an origin:
+    a member reading Aetna's EOB does not become the origin of Aetna's figures (contract C1/C2),
+    so `derived_strength` never consults the reader.
+
+    `read_at` is this observation's own time - neither the artefact's `as_of` nor its
+    `encountered_at`. No content column: a reading's content is the propositions it evidences;
+    zero is legitimate (V6 - the reading happened and the field was unreadable).
+
+    A reading exists only of a held artefact. An asserted artefact gives POSE + FIND, never
+    RE-READ: the household's "the EOB says $412" about a document Groundwork does not hold is an
+    UTTERANCE whose proposition has the artefact as subject - the same words, a different
+    evidence event - and the record tells them apart without reading the text.
+    """
+    __tablename__ = 'readings'
+    id              = Column(Integer, primary_key=True)
+    artefact_id     = Column(Integer, ForeignKey('artefacts.id'), nullable=False)
+    read_at         = Column(DateTime, default=datetime.utcnow, nullable=False)
+    reader_party_id = Column(Integer, ForeignKey('parties.id'), nullable=True)
+    reader_process  = Column(String(80), nullable=True)
+
+    artefact     = relationship('Artefact', back_populates='readings')
+    reader_party = relationship('Party')
+
+    READER_SLOTS = ('reader_party_id', 'reader_process')
+
+    __table_args__ = (
+        Index('ix_reading_artefact', 'artefact_id'),
+    )
+
+
+def reading_violations(reading, artefact_held):
+    """exactly one reader; the artefact is held. `artefact_held` is the artefact's `held`
+    value, or None when the artefact does not exist (a violation in itself)."""
+    out = []
+    set_slots = [c for c in Reading.READER_SLOTS if getattr(reading, c) is not None]
+    if len(set_slots) != 1:
+        out.append(f'exactly one reader slot must be set, {len(set_slots)} are: {set_slots}')
+    if artefact_held is None:
+        out.append('the artefact does not exist')
+    elif not artefact_held:
+        out.append('a reading exists only of a held artefact - an asserted artefact cannot be observed')
+    return out
+
+
+@event.listens_for(Reading, 'before_insert')
+@event.listens_for(Reading, 'before_update')
+def _validate_reading(mapper, connection, target):
+    held = None
+    if target.artefact is not None:
+        held = target.artefact.held
+    elif target.artefact_id is not None:
+        row = connection.execute(
+            Artefact.__table__.select().where(Artefact.__table__.c.id == target.artefact_id)
+        ).first()
+        held = row.held if row is not None else None
+    problems = reading_violations(target, held)
+    if problems:
+        raise ValueError('reading violated: ' + '; '.join(problems))
+
+
+def artefacts_with_inconsistent_assertion(session):
+    """Audit: held artefacts under an utterance, or asserted artefacts under none. Empty is
+    the invariant."""
+    return [a for a in session.query(Artefact).all() if artefact_violations(a)]
+
+
+def readings_without_one_reader(session):
+    """Audit: readings with no reader or two. Empty is the invariant."""
+    return [r for r in session.query(Reading).all()
+            if sum(getattr(r, c) is not None for c in Reading.READER_SLOTS) != 1]
+
+
+def readings_of_unheld_artefacts(session):
+    """Audit: readings whose artefact is asserted, not held. Empty is the invariant - the
+    mechanical form of never-RE-READ."""
+    return [r for r in session.query(Reading).join(Artefact).filter(Artefact.held.is_(False)).all()]
+
+
 class Proposition(Base):
     """A claim-shape: kind, subject, content - and, where the kind requires one, a second
     referential participant. Ruled `PROPOSITION.md` s7; representation ruled
@@ -781,9 +936,9 @@ class Proposition(Base):
     evidentiary lives on this row: what supports it is in `evidence`; its truth, resolution and
     strength are derived on read.
 
-    Referent slots present in this slice: party, utterance. Artefact slots arrive with slice 2
-    as additive columns; further ruled referent types (a transaction, an obligation, a plan) as
-    their slices land. Adding a slot never changes the state discipline.
+    Referent slots present: party, utterance (slice 1), artefact (slice 2, additive). Further
+    ruled referent types (a transaction, an obligation, a plan) arrive as their slices land.
+    Adding a slot never changes the state discipline.
     """
     __tablename__ = 'propositions'
     id                   = Column(Integer, primary_key=True)
@@ -792,23 +947,26 @@ class Proposition(Base):
     subject_state        = Column(String(32), nullable=False, default=PARTICIPANT_NONE)
     subject_party_id     = Column(Integer, ForeignKey('parties.id'), nullable=True)
     subject_utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+    subject_artefact_id  = Column(Integer, ForeignKey('artefacts.id'), nullable=True)   # slice 2
 
     object_state         = Column(String(32), nullable=False, default=PARTICIPANT_NONE)
     object_party_id      = Column(Integer, ForeignKey('parties.id'), nullable=True)
     object_utterance_id  = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+    object_artefact_id   = Column(Integer, ForeignKey('artefacts.id'), nullable=True)    # slice 2
 
     content              = Column(Text, nullable=True)
     as_of                = Column(String(10), nullable=True)
     created_at           = Column(DateTime, default=datetime.utcnow)
 
     # The slot columns per participant side, so guards and future slices enumerate one list.
-    SUBJECT_SLOTS = ('subject_party_id', 'subject_utterance_id')
-    OBJECT_SLOTS  = ('object_party_id', 'object_utterance_id')
+    SUBJECT_SLOTS = ('subject_party_id', 'subject_utterance_id', 'subject_artefact_id')
+    OBJECT_SLOTS  = ('object_party_id', 'object_utterance_id', 'object_artefact_id')
 
     __table_args__ = (
         Index('ix_prop_kind', 'kind'),
         Index('ix_prop_subject_party', 'subject_party_id'),
         Index('ix_prop_subject_utterance', 'subject_utterance_id'),
+        Index('ix_prop_subject_artefact', 'subject_artefact_id'),
     )
 
 
@@ -853,10 +1011,12 @@ class EvidentiaryRelationship(Base):
     of them evidences which proposition, and must never be read as "the only thing that is
     evidence" (`SMALLEST_SCHEMA.md` s6, Rob's fence).
 
-    One source per row. Only `utterance_id` exists in this slice; `reading_id` arrives with
-    slice 2 as an additive nullable column, and exactly-one-source is then a guard (SQLite
-    cannot add a CHECK to an existing table), which is why `utterance_id` is nullable from the
-    start rather than NOT NULL now and rebuilt later.
+    One source per row: `utterance_id` xor `reading_id` (slice 2, additive). Exactly-one-source
+    is a guard (`_validate_source`, `evidence_without_one_source`) because SQLite cannot add a
+    CHECK to an existing table - which is why `utterance_id` was nullable from slice 1. At this
+    row the two sources are symmetric: each evidences the proposition. Upstream they are not -
+    an utterance is what a party said, a reading is what Groundwork saw of a held artefact - and
+    `derived_strength` is where that asymmetry is enforced.
 
     No `supports` flag: a negative claim is a proposition with negative content evidenced here.
     No strength column: strength is `derived_strength(...)`, computed on read from the source's
@@ -867,25 +1027,39 @@ class EvidentiaryRelationship(Base):
     id             = Column(Integer, primary_key=True)
     proposition_id = Column(Integer, ForeignKey('propositions.id'), nullable=False)
     utterance_id   = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+    reading_id     = Column(Integer, ForeignKey('readings.id'), nullable=True)      # slice 2
     created_at     = Column(DateTime, default=datetime.utcnow)
 
     proposition = relationship('Proposition')
     utterance   = relationship('Utterance')
+    reading     = relationship('Reading')
 
-    SOURCE_SLOTS = ('utterance_id',)
+    SOURCE_SLOTS = ('utterance_id', 'reading_id')
 
     __table_args__ = (
         Index('ix_evidence_proposition', 'proposition_id'),
         Index('ix_evidence_utterance', 'utterance_id'),
+        Index('ix_evidence_reading', 'reading_id'),
     )
 
 
+def source_violations(relation):
+    n = sum(getattr(relation, c) is not None for c in EvidentiaryRelationship.SOURCE_SLOTS)
+    return [] if n == 1 else [f'exactly one source must be named, {n} are']
+
+
+@event.listens_for(EvidentiaryRelationship, 'before_insert')
+@event.listens_for(EvidentiaryRelationship, 'before_update')
+def _validate_source(mapper, connection, target):
+    problems = source_violations(target)
+    if problems:
+        raise ValueError('evidentiary relationship violated: ' + '; '.join(problems))
+
+
 def evidence_without_one_source(session):
-    """The relationship's forbidden state: a row naming no source (or, from slice 2, more than
-    one). Empty is the invariant; the guard the constraint cannot be."""
-    rows = session.query(EvidentiaryRelationship).all()
-    return [r for r in rows
-            if sum(getattr(r, c) is not None for c in EvidentiaryRelationship.SOURCE_SLOTS) != 1]
+    """The relationship's forbidden state: a row naming no source, or more than one. Empty is
+    the invariant; the audit half of the guard the constraint cannot be."""
+    return [r for r in session.query(EvidentiaryRelationship).all() if source_violations(r)]
 
 
 STRENGTH_KNOWING = 'knowing'
@@ -904,11 +1078,24 @@ def derived_strength(session, relation, knowing):
     column (the party-shape ruling).
 
     Returns knowing / not_knowing / undetermined. Undetermined when the kind has no entry in
-    the relation supplied: the absence of a rule is not a rule. Weakest-link over a mediation
-    chain and independence over lineage are slice-4 derivations and are not attempted here.
+    the relation supplied: the absence of a rule is not a rule.
+
+    A READING-sourced relation is `undetermined` in this slice, and never anything else: the
+    strength of what a reading evidences follows from the ARTEFACT'S origin (contract C1 - the
+    party whose knowledge the reading conveys), which is derived from origin-of-artefact
+    propositions that slice 3 rules. The reader is a channel, never an origin (C2): a member
+    transcribing Aetna's EOB is not knowing for its figures, and a parser is no party at all.
+    Consulting `reader_party_id` here would be the collapse the slice-2 ruling forbids.
+    Weakest-link over a mediation chain and independence over lineage are later derivations.
     """
-    prop = relation.proposition if relation.proposition is not None else         session.get(Proposition, relation.proposition_id)
-    utt = relation.utterance if relation.utterance is not None else         session.get(Utterance, relation.utterance_id)
+    if relation.reading_id is not None or relation.reading is not None:
+        return STRENGTH_UNDETERMINED
+    prop = relation.proposition
+    if prop is None:
+        prop = session.get(Proposition, relation.proposition_id)
+    utt = relation.utterance
+    if utt is None:
+        utt = session.get(Utterance, relation.utterance_id)
     if prop is None or utt is None or prop.kind not in knowing:
         return STRENGTH_UNDETERMINED
     party = utt.origin if utt.origin is not None else session.get(Party, utt.origin_party_id)
