@@ -1,9 +1,8 @@
 # Slice 2 — artefact and reading: the thing encountered vs the act of observing it
 
-> Status: **Build mode, slice 2 opened by Rob 2026-09-13 — record only, no code.** Slice 1 is
-> accepted at `6700b69` (`SMALLEST_SCHEMA.md` §13). This record tests the ruled artefact/reading
-> shape against Rob's carried-in warning, states what the slice would and would not contain, and
-> ends with a ruling candidate. Nothing here is authorised to build.
+> Status: **Build mode, slice 2 opened by Rob 2026-09-13; candidate RULED as written and the
+> build AUTHORISED under Rob's gate (§8).** Slice 1 is accepted at `6700b69` (`SMALLEST_SCHEMA.md`
+> §13). §1–§7 test the ruled artefact/reading shape against Rob's carried-in warning.
 
 **Rob's question, verbatim:** *can an artefact and its reading be represented independently,
 while preserving the distinction between the thing encountered and the act of observing it?*
@@ -249,3 +248,58 @@ strength         -> undetermined for every reading-sourced relation in this slic
 
 *The distinction the slice must preserve, in one line: an utterance is what a party said; a
 reading is what Groundwork saw — and the record must tell them apart without reading the text.*
+
+---
+
+## 8. Ruling — Rob, 2026-09-13. Candidate ruled as written; slice 2 ready to build under this gate.
+
+*The important thing is that this is not merely adding `artefacts` and `readings`; it proves
+the new evidence source cannot accidentally inherit the semantics of the assertion side.*
+
+1. **A reading is not an utterance.** `reader_party` establishes who *performed the reading*,
+   not who asserted the proposition. A member reading an EOB remains an observer of that
+   artefact; they do not become the origin of its contents. A reading-sourced relationship
+   cannot acquire knowing strength from `reader_party`; absent the artefact-origin proposition,
+   **`undetermined` is the honest result.**
+2. **`reader_process` really does mean no party.** NO PARTY is a positive semantic state, not a
+   missing-value accident. Promoting the process into a party would manufacture epistemic
+   ownership the evidence does not contain.
+3. **Held-only is the right guard** — the cleanest expression of the distinction:
+
+   ```text
+   held artefact → reading → observation of that artefact
+   Person → utterance → proposition about an artefact
+   ```
+
+   Similar English sentences; fundamentally different evidence events. *"The EOB says $412"*:
+   a parser reading the held EOB produces a reading; a member saying it produces an utterance
+   whose proposition has the artefact as subject. Same words, different event — and the
+   substrate now has somewhere to preserve that.
+4. **Hash remains description/correlation material, not identity.** `A1 ─ H`, `A2 ─ H` are two
+   artefacts until correspondence establishes otherwise; a unique hash would turn an
+   implementation convenience into an ontological assertion.
+5. **The three times remain three times** — `as_of · encountered_at · read_at`, as
+   `asserted_at · recorded_at`. `encountered_at` never becomes evidence of when the document
+   existed; `read_at` never becomes the document's date.
+
+**Especially endorsed — origin-of-artefact kind is OUT.** Tempting because the reading's
+strength is otherwise `undetermined`, but that is backwards: *the need for a value downstream is
+not evidence that the proposition kind is already ruled.* Slice 2 correctly leaves `reading →
+proposition → strength → undetermined`; **slice 3 answers the actual question: what
+proposition establishes an artefact's origin, and what evidence is sufficient to establish it?**
+
+**The gate, in Rob's words:**
+
+> An artefact and a reading must be independently representable, and neither may acquire the
+> semantics of the other through convenience. A reading identifies an observation of a held
+> artefact; it does not establish the artefact's origin, create a party, or become an
+> assertion. An artefact's hash, dates, and reader information remain distinct coordinates, and
+> every source-dependent conclusion remains derived rather than stored.
+
+**One practical acceptance requirement:** the fixture must deliberately construct the two
+identical-looking statements and prove they remain different evidence paths — not merely
+*reading exists, utterance exists*, but `reading("EOB says $412") ≠ utterance("EOB says $412")`,
+because **the event that produced the proposition is what is being protected.**
+
+If that passes, slice 2 is ready to build. After it, slice 3 is the artefact-origin question —
+not another schema question disguised as implementation.
