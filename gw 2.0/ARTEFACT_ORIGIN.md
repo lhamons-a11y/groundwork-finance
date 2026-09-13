@@ -1,6 +1,7 @@
 # Slice 3 — what proposition establishes an artefact's origin?
 
-> Status: **Build mode, slice 3 opened by Rob 2026-09-13 — record only, no code.** Slice 2 is
+> Status: **Build mode, slice 3 opened by Rob 2026-09-13; candidate RULED and the build AUTHORISED
+> at the line drawn (§8).** Slice 2 is
 > accepted at `9cdb4e6` (`ARTEFACT_READING_SLICE.md` §9). This record answers one question by
 > testing three readings of it against the cases already ruled, finds the dependency the answer
 > forces, and ends with a ruling candidate. Nothing here is authorised to build.
@@ -226,3 +227,58 @@ reading; reader consulted; anchor doubled; position chosen among competing claim
 
 *The line the slice must hold: a document can say where it is from; only a party can say
 where a document is from.*
+
+---
+
+## 8. Ruling — Rob, 2026-09-13. Candidate ruled; build authorised at exactly the line drawn.
+
+*Architecturally strong and appropriately constrained. It preserves the distinction fought for
+since the beginning: **an artefact does not become authoritative because something read it.***
+The origin is an assertion about the artefact, and the assertion has to come from a party —
+a clean causal direction:
+
+```text
+party → utterance → origin proposition → artefact → reading → proposition
+```
+
+never `artefact → reading → reader → "therefore origin"`.
+
+**Three things endorsed.**
+1. **Origin is not a property of the artefact.** The artefact has an origin *state*, not an
+   `origin` field somebody keeps synchronised. Rob said Lakeview Health; later somebody said Riverbend Hospital; both
+   assertions remain; the state is derived; nothing silently overwrites history.
+2. **O5 is the most valuable case in the slice.** "Rob created the document, therefore Rob is
+   the source of the information" would destroy the evidence model. Instead: origin of the
+   spreadsheet = Rob; Rob not knowing for `eob_amount`; the spreadsheet does not launder
+   Lakeview Health's figure into first-hand knowledge — the subtle failure a conventional model misses.
+3. **O9 is treated as a failure of the current model, not something to patch.** Allowing
+   `origin_party_id = NULL` for "process-originated" would contaminate the meaning of
+   `Utterance.origin_party_id`. *The substrate currently cannot represent this case* is
+   valuable information; it gives the manufactured/export question a real reason to exist.
+
+**The one thing to watch — the phrase "this artefact is a statement by P" carries a lot of
+semantic weight.** Not wrong on the cases; the danger is what a future consumer *hears* when it
+asks "what is this artefact's origin?" and translates it to "who authored this file?" O4 shows
+they differ: captured by Rob, knowledge originating with Lakeview Health. **Keep the implementation
+extremely literal: `artefact_origin` means exactly what the proposition says.** No future UI
+renames it *Issuer*, *Created by*, *Source* or *Author* because one looks nicer. That is where
+this architecture is stronger than the shipped system.
+
+**Healthcare, again as consequence rather than category:** *this $412 is a real cost; you do not
+get to negotiate the fact that it exists* — then the consequences: what is actually available,
+what could reasonably be offered, what would remain, whether $X leaves enough for essentials,
+what payment fits if a plan is offered, $50/month vs $100/month, cheaper prescription
+alternatives. The cost stays real; the user's choices happen around it. *Tell the truth about
+the situation, then show the person what choices they actually have.*
+
+**Do not broaden the slice because the model has exposed interesting possibilities.** O9,
+mediation, correspondence, competing origin claims — finding them is evidence the slice is
+working: boundaries discovered. **The line stays exactly where drawn:**
+
+```text
+origin proposition → institution anchor → derivation → fixture → mutation gate.   Then stop.
+```
+
+*The biggest success is not that Groundwork can now answer "this EOB came from Lakeview Health." It is
+that it has become increasingly difficult for Groundwork to accidentally claim it knows
+something merely because a document happened to contain it.*
