@@ -1,7 +1,7 @@
 # The smallest schema for the six semantic objects
 
-> Status: **Build mode, first question, 2026-09-12 — PARTIAL, two fences applied on Rob's review
-> (§11). A schema proposal is not permission to migrate, alter existing tables, or add
+> Status: **Build mode, first question, 2026-09-12 — PARTIAL on review (§11); the two open
+> choices RULED 2026-09-13 (§12), and the evidence substrate authorised. A schema proposal is not permission to migrate, alter existing tables, or add
 > compatibility machinery.** Rob's question:
 >
 > > **What is the smallest relational schema that can represent the six semantic objects and
@@ -297,3 +297,62 @@ boundaries.
 > represent?**
 
 The first comparison where the existing tables are allowed into the room.
+
+---
+
+## 12. Rulings — Rob, 2026-09-13. A and B closed; the evidence substrate authorised.
+
+*The evidence points one way: make the referential structure explicit rather than hiding it
+inside opaque content.*
+
+**A — second referential participant: explicit, with its own state.** Not because `object` is
+cleaner: because the proposition inventory already contains claims whose semantics depend on
+two independently referential terms, and burying those operands in `content` moves the
+proposition's referential structure into kind-specific interpretation — precisely what this
+build is to avoid. The explicit form preserves the distinction; not every kind uses `object`;
+the second participant needs the same state machinery because the same semantic problem
+applies (established · not established · not established with candidates · absent).
+
+> **A proposition may have an explicit second referential participant with its own
+> subject-like state. Its presence is determined by proposition kind, not by forcing every
+> proposition to have an object. Referential operands are not hidden inside opaque content.**
+
+`content` stays content, not a second schema language.
+
+**B — subject: explicit per-type referential slots governed by `subject_state`; no `subjects`
+anchor table.** The subject is not an entity the proposition system mints; it is a semantic
+position whose referent may or may not be established. A `subjects` table would add an
+identity-bearing object between the proposition and its referent that the ontology did not
+rule. The explicit form keeps the semantics visible, candidates stay a separate correspondence
+mechanism, and `HistorianEntry`'s typed-FK convention is meaningful precedent.
+
+> **A proposition's subject is represented by explicit per-type referential slots governed by
+> `subject_state`; absence and non-establishment are states, not NULL semantics. No generic
+> `subjects` identity layer is introduced.** The same pattern applies to the second participant.
+
+**The proposition substrate, locked:**
+
+```text
+propositions
+    id · kind
+    subject_state · subject_party_id · subject_utterance_id · subject_artefact_id · …ruled referent types
+    object_state  · object_party_id  · object_utterance_id  · object_artefact_id  · …kind-permitted types
+    content · as_of
+```
+
+Guards: `subject_state ↔ exactly the permitted subject reference`; `object_state ↔ exactly the
+permitted object reference`; **no universal subject/object requirement** — kind determines
+which slots are meaningful. **The kind catalogue is not settled;** the substrate's ability to
+carry the referential structures the named propositions require is.
+
+**Cautions intact:** no uniqueness on kind + subject + content · strength derived · origin
+derived · resolution derived · candidates are evidence/correspondence, never subject identity ·
+opaque `content` stays opaque · no proposition-specific representation invented.
+
+**Authorised — Slice 1, the evidence substrate:** `Person → Utterance → Proposition ←
+evidentiary relationship`, with model, guards/listeners, fixtures, mutation tests, gate. **Then
+stop.** No institution. No migration. No legacy-table repair. No correspondence beyond what the
+substrate minimally supports.
+
+*The schema decision is made by the ontology and its cases, not by whichever SQL shape was
+easiest to type.*
