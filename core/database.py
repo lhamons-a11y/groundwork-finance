@@ -703,6 +703,219 @@ def _mint_party_anchor(mapper, connection, target):
     connection.execute(Party.__table__.insert().values(person_id=target.id))
 
 
+# ── The evidence substrate (slice 1) ─────────────────────────────────────────
+# gw 2.0/SMALLEST_SCHEMA.md (ruled s12) and SHIPPED_VS_TARGET.md (ruled s6), 2026-09-13.
+#
+#     Person -> Utterance -> Proposition <- evidentiary relationship
+#
+# Three tables. Utterances and propositions are the evidence family's first two objects;
+# the relationship is what connects them. Artefacts and readings are slice 2 and arrive as
+# additive columns/tables; institutions are slice 3 (an utterance mints one). Nothing here
+# is a repair of, or a mapping onto, `core.classification.Evidence` - that dataclass fuses
+# four of these objects (SHIPPED_VS_TARGET s1) and is left exactly as it is.
+
+# Explicit participant states for a proposition's subject and second participant. States,
+# not NULL semantics: a NULL reference FOLLOWS from a state, never the reverse (the party-
+# shape ruling, relocated to the proposition's subject by the proposition ruling).
+PARTICIPANT_ESTABLISHED = 'established'
+PARTICIPANT_NOT_ESTABLISHED = 'not_established'       # asserted; referent not yet settled
+PARTICIPANT_CANDIDATES = 'not_established_with_candidates'   # candidates live in correspondence, not here
+PARTICIPANT_NONE = 'none'                             # the world, a process, or a kind with no such participant
+PARTICIPANT_STATES = (PARTICIPANT_ESTABLISHED, PARTICIPANT_NOT_ESTABLISHED,
+                      PARTICIPANT_CANDIDATES, PARTICIPANT_NONE)
+
+
+class Utterance(Base):
+    """An assertion event. Its identity is the occurrence of the act.
+
+    Ruled (`UTTERANCE_PRIMITIVE.md`, `UTTERANCE_IDENTITY.md`): an utterance exists by virtue of
+    the originating party making the assertion - its truth, resolvability and comprehensibility
+    are later findings ABOUT it, never conditions of it. Two acts are two utterances even with
+    identical content; one act is one utterance even if encountered twice (a duplicate encounter
+    is a correspondence question, never a second row minted by the importer).
+
+    Intrinsic: who (`origin_party_id`), what (`content`, opaque), when asserted (`asserted_at` -
+    the EVIDENCE TIME, nullable because "sometime in March" is a real coordinate that can be
+    uncertain). About the utterance, kept separate: `recorded_at` - when Groundwork encountered
+    it. For an in-app assertion the two may coincide; that is an implementation circumstance,
+    not a rule, and the two columns exist so nothing can ever read one as the other.
+
+    Not here, by ruling: strength (derived from origin x proposition kind - see
+    `derived_strength`); any truth / resolution / retraction state (later propositions whose
+    subject is this utterance); a surface or channel (about the encounter, not the act).
+    An utterance with NO propositions is legitimate: content held, not yet interpreted.
+    """
+    __tablename__ = 'utterances'
+    id              = Column(Integer, primary_key=True)
+    origin_party_id = Column(Integer, ForeignKey('parties.id'), nullable=False)
+    asserted_at     = Column(String(19), nullable=True)      # evidence time; ISO; may be absent
+    recorded_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
+    content         = Column(Text, nullable=True)
+
+    origin = relationship('Party')
+
+
+class Proposition(Base):
+    """A claim-shape: kind, subject, content - and, where the kind requires one, a second
+    referential participant. Ruled `PROPOSITION.md` s7; representation ruled
+    `SMALLEST_SCHEMA.md` s12.
+
+    `kind` is primary: the knowing relation (who can be knowing for this) is defined over it,
+    and nothing about a proposition can be computed before its kind is known. The kind
+    CATALOGUE is not settled; the substrate carries whatever the ruled propositions require.
+
+    Subject and second participant are explicit per-type referential slots, each governed by
+    its own state column. `subject_state = established` means exactly one subject slot is set;
+    any other state means every subject slot is NULL - and the same for the object side.
+    "Not established with candidates" is a state; the candidates themselves are correspondence
+    claims elsewhere, never a placeholder reference here. "None" is positive: the world, a
+    process, or a kind that has no such participant. Enforced by `_validate_participants` on
+    insert and update, and asserted by the fixture, because SQLite cannot express it.
+
+    `content` is opaque and stays opaque - it is what is claimed, not a second schema. `as_of`
+    is the date a dated kind is about (a stance as of d, an entitlement at d); it individuates
+    the proposition, so it is a column rather than buried in content.
+
+    NOT unique on (kind, subject, content), by ruling: proposition sameness beyond that
+    minimum is a correspondence claim, and semantic sameness is not event identity. Nothing
+    evidentiary lives on this row: what supports it is in `evidence`; its truth, resolution and
+    strength are derived on read.
+
+    Referent slots present in this slice: party, utterance. Artefact slots arrive with slice 2
+    as additive columns; further ruled referent types (a transaction, an obligation, a plan) as
+    their slices land. Adding a slot never changes the state discipline.
+    """
+    __tablename__ = 'propositions'
+    id                   = Column(Integer, primary_key=True)
+    kind                 = Column(String(48), nullable=False)
+
+    subject_state        = Column(String(32), nullable=False, default=PARTICIPANT_NONE)
+    subject_party_id     = Column(Integer, ForeignKey('parties.id'), nullable=True)
+    subject_utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+
+    object_state         = Column(String(32), nullable=False, default=PARTICIPANT_NONE)
+    object_party_id      = Column(Integer, ForeignKey('parties.id'), nullable=True)
+    object_utterance_id  = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+
+    content              = Column(Text, nullable=True)
+    as_of                = Column(String(10), nullable=True)
+    created_at           = Column(DateTime, default=datetime.utcnow)
+
+    # The slot columns per participant side, so guards and future slices enumerate one list.
+    SUBJECT_SLOTS = ('subject_party_id', 'subject_utterance_id')
+    OBJECT_SLOTS  = ('object_party_id', 'object_utterance_id')
+
+    __table_args__ = (
+        Index('ix_prop_kind', 'kind'),
+        Index('ix_prop_subject_party', 'subject_party_id'),
+        Index('ix_prop_subject_utterance', 'subject_utterance_id'),
+    )
+
+
+def participant_violations(prop):
+    """The state discipline, as a list of what is wrong with one proposition (empty = fine).
+
+    established        -> exactly one slot on that side is set
+    any other state    -> every slot on that side is NULL
+    unknown state      -> a violation in itself
+    """
+    out = []
+    for side, slots in (('subject', Proposition.SUBJECT_SLOTS),
+                        ('object', Proposition.OBJECT_SLOTS)):
+        state = getattr(prop, f'{side}_state')
+        set_slots = [c for c in slots if getattr(prop, c) is not None]
+        if state not in PARTICIPANT_STATES:
+            out.append(f'{side}_state {state!r} is not a participant state')
+        elif state == PARTICIPANT_ESTABLISHED and len(set_slots) != 1:
+            out.append(f'{side}_state is established but {len(set_slots)} slot(s) are set: {set_slots}')
+        elif state != PARTICIPANT_ESTABLISHED and set_slots:
+            out.append(f'{side}_state is {state!r} but slot(s) are set: {set_slots}')
+    return out
+
+
+@event.listens_for(Proposition, 'before_insert')
+@event.listens_for(Proposition, 'before_update')
+def _validate_participants(mapper, connection, target):
+    # The column default (`none`) is applied at INSERT, after this hook runs - so an unset
+    # state is applied here first. Nothing said about a participant means there is none.
+    for side in ('subject', 'object'):
+        if getattr(target, f'{side}_state') is None:
+            setattr(target, f'{side}_state', PARTICIPANT_NONE)
+    problems = participant_violations(target)
+    if problems:
+        raise ValueError('proposition participant state violated: ' + '; '.join(problems))
+
+
+class EvidentiaryRelationship(Base):
+    """*This proposition is evidenced by this utterance* (and, from slice 2, *or by this
+    reading*). The table is named `evidence` because that is the eventual name; its semantic
+    role is the RELATIONSHIP. Utterances and readings ARE the evidence - this row records which
+    of them evidences which proposition, and must never be read as "the only thing that is
+    evidence" (`SMALLEST_SCHEMA.md` s6, Rob's fence).
+
+    One source per row. Only `utterance_id` exists in this slice; `reading_id` arrives with
+    slice 2 as an additive nullable column, and exactly-one-source is then a guard (SQLite
+    cannot add a CHECK to an existing table), which is why `utterance_id` is nullable from the
+    start rather than NOT NULL now and rebuilt later.
+
+    No `supports` flag: a negative claim is a proposition with negative content evidenced here.
+    No strength column: strength is `derived_strength(...)`, computed on read from the source's
+    origin and the proposition's kind, so a stored value can never drift from the knowing
+    relation that determines it.
+    """
+    __tablename__ = 'evidence'
+    id             = Column(Integer, primary_key=True)
+    proposition_id = Column(Integer, ForeignKey('propositions.id'), nullable=False)
+    utterance_id   = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+    created_at     = Column(DateTime, default=datetime.utcnow)
+
+    proposition = relationship('Proposition')
+    utterance   = relationship('Utterance')
+
+    SOURCE_SLOTS = ('utterance_id',)
+
+    __table_args__ = (
+        Index('ix_evidence_proposition', 'proposition_id'),
+        Index('ix_evidence_utterance', 'utterance_id'),
+    )
+
+
+def evidence_without_one_source(session):
+    """The relationship's forbidden state: a row naming no source (or, from slice 2, more than
+    one). Empty is the invariant; the guard the constraint cannot be."""
+    rows = session.query(EvidentiaryRelationship).all()
+    return [r for r in rows
+            if sum(getattr(r, c) is not None for c in EvidentiaryRelationship.SOURCE_SLOTS) != 1]
+
+
+STRENGTH_KNOWING = 'knowing'
+STRENGTH_NOT_KNOWING = 'not_knowing'
+STRENGTH_UNDETERMINED = 'undetermined'
+
+
+def derived_strength(session, relation, knowing):
+    """Strength, computed on read and never stored.
+
+    `knowing` is the knowing relation for proposition kinds - `{kind: {origin_kind, ...}}` -
+    supplied by the caller because the kind catalogue is not ruled (the health kinds' relation
+    lives in `core.classification.KNOWING_SOURCES` today; P-ack's is "the entitled party only";
+    P-world's is nobody). `origin_kind` is 'person' for a household-anchored party and
+    'institution' for a minted one - which foundation, by a join to the anchor, never a kind
+    column (the party-shape ruling).
+
+    Returns knowing / not_knowing / undetermined. Undetermined when the kind has no entry in
+    the relation supplied: the absence of a rule is not a rule. Weakest-link over a mediation
+    chain and independence over lineage are slice-4 derivations and are not attempted here.
+    """
+    prop = relation.proposition if relation.proposition is not None else         session.get(Proposition, relation.proposition_id)
+    utt = relation.utterance if relation.utterance is not None else         session.get(Utterance, relation.utterance_id)
+    if prop is None or utt is None or prop.kind not in knowing:
+        return STRENGTH_UNDETERMINED
+    party = utt.origin if utt.origin is not None else session.get(Party, utt.origin_party_id)
+    origin_kind = 'person' if party is not None and party.person_id is not None else 'institution'
+    return STRENGTH_KNOWING if origin_kind in knowing[prop.kind] else STRENGTH_NOT_KNOWING
+
+
 class PersonAssignment(Base):
     """Which person an expense belongs to, as a version rather than a field.
 

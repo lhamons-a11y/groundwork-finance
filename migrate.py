@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260912-party-anchor'
+SCHEMA_VERSION = '20260913-evidence-substrate'
 
 
 def _stored_schema_version():
