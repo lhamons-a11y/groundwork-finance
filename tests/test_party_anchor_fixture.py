@@ -105,8 +105,10 @@ def run(db):
     cols = {c.name for c in db.Party.__table__.columns}
     check('a party row carries no evidentiary column',
           not any(any(e in c for e in EVIDENTIARY) for c in cols))
-    check('and nothing but its identity, its anchor, and when it was made',
-          cols == {'id', 'person_id', 'created_at'})
+    # Slice 3 (2026-09-13) retired the exact column set in place: the institution anchor
+    # `minted_by_id` arrived additively - a reference to the minting claim, not a claim.
+    check('and nothing but its identity, its two anchors, and when it was made',
+          cols == {'id', 'person_id', 'minted_by_id', 'created_at'})
     check('the anchor is a foreign key to the declaration, not a copy of it',
           bool(db.Party.__table__.columns['person_id'].foreign_keys))
 

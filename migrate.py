@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260913-artefact-reading'
+SCHEMA_VERSION = '20260913-artefact-origin'
 
 
 def _stored_schema_version():
@@ -119,6 +119,13 @@ _NEW_HISTORIAN_COLUMNS = [
 _NEW_EVIDENCE_COLUMNS = [
     ('reading_id', "INTEGER REFERENCES readings(id)"),
 ]
+# Slice 3 (gw 2.0/ARTEFACT_ORIGIN.md): the institution anchor - a reference to the utterance
+# that minted the institution. Additive and nullable; household parties keep person_id and
+# never receive it. Exactly-one-anchor is a guard in core/database.py, not a CHECK.
+_NEW_PARTY_COLUMNS = [
+    ('minted_by_id', "INTEGER REFERENCES utterances(id)"),
+]
+
 _NEW_PROPOSITION_COLUMNS = [
     ('subject_artefact_id', "INTEGER REFERENCES artefacts(id)"),
     ('object_artefact_id',  "INTEGER REFERENCES artefacts(id)"),
@@ -326,6 +333,7 @@ def run_migration_if_needed():
     _add_missing_columns('expense_funding_allocations', _NEW_FUNDING_ALLOCATION_COLUMNS)
     _add_missing_columns('evidence',             _NEW_EVIDENCE_COLUMNS)
     _add_missing_columns('propositions',         _NEW_PROPOSITION_COLUMNS)
+    _add_missing_columns('parties',              _NEW_PARTY_COLUMNS)
     _drop_reserve_contributions()
     _ensure_indexes()
 

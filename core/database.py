@@ -679,21 +679,58 @@ class Party(Base):
     fixture.py`; the migration's audit query). A person without a party is the forbidden
     state.
 
-    **The institution anchor is not here yet.** This slice is the household branch only. The
-    institution anchor arrives as an additive column with the institution slice; that a party
-    has exactly one anchor is then also a guard, since a CHECK cannot be added to a SQLite
-    table after creation. No `kind` column: with one anchor there is nothing to discriminate,
-    and when there are two, foundation is still a join.
+    **The institution anchor** (slice 3, `ARTEFACT_ORIGIN.md` s5, ruled). `minted_by_id` points
+    to the utterance that minted the institution - the household's individuating assertion
+    ("this is from Aetna, my insurer"), whose origin is a Person: the fixed point one step out.
+    It is a REFERENCE to a claim, not a claim: the party row still carries no source, strength
+    or descriptor. An institution's name, plan number and address are the minting utterance's
+    CONTENT and become correspondence evidence later - there is no name column here, and there
+    will not be one. **Exactly one anchor per party** - `person_id` xor `minted_by_id` - is a
+    guard (`_validate_party_anchor`, `parties_without_one_anchor`), since a CHECK cannot be
+    added to a SQLite table after creation. A party with neither is the forbidden state; a
+    party with both is the collapse of the two foundations. No `kind` column: foundation is
+    which anchor is set, by join.
 
     **The pure registry (`core/person.py`) has no reference layer**; its `Person` is its own
     anchor. The persisted layer is where the anchor is a row.
     """
     __tablename__ = 'parties'
-    id         = Column(Integer, primary_key=True)
-    person_id  = Column(Integer, ForeignKey('people.id'), unique=True, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id           = Column(Integer, primary_key=True)
+    person_id    = Column(Integer, ForeignKey('people.id'), unique=True, nullable=True)
+    # use_alter breaks the parties <-> utterances cycle for create_all's ordering; SQLite
+    # renders the constraint inline regardless (verified), and existing databases receive the
+    # column through migrate.py's _add_missing_columns.
+    minted_by_id = Column(Integer, ForeignKey('utterances.id', use_alter=True, name='fk_party_minted_by'),
+                          nullable=True)
+    created_at   = Column(DateTime, default=datetime.utcnow)
 
-    person = relationship('Person', back_populates='party')
+    person    = relationship('Person', back_populates='party')
+    minted_by = relationship('Utterance', foreign_keys=[minted_by_id], post_update=True)
+
+    ANCHOR_SLOTS = ('person_id', 'minted_by_id')
+
+
+def party_anchor_violations(party):
+    n = sum(getattr(party, c) is not None for c in Party.ANCHOR_SLOTS)
+    return [] if n == 1 else [f'exactly one anchor must be set, {n} are']
+
+
+@event.listens_for(Party, 'before_insert')
+@event.listens_for(Party, 'before_update')
+def _validate_party_anchor(mapper, connection, target):
+    problems = party_anchor_violations(target)
+    if problems:
+        raise ValueError('party anchor violated: ' + '; '.join(problems))
+
+
+def parties_without_one_anchor(session):
+    """Audit: parties with no anchor or two. Empty is the invariant."""
+    return [p for p in session.query(Party).all() if party_anchor_violations(p)]
+
+
+def party_foundation(party):
+    """'person' | 'institution' - which anchor is set. A join, never a stored kind."""
+    return 'person' if party.person_id is not None else 'institution'
 
 
 # Same unit of work, every ORM creation path, by construction. A raw SQL insert into `people`
@@ -712,8 +749,9 @@ def _mint_party_anchor(mapper, connection, target):
 #
 # Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
 # saw of a held artefact; propositions are what they evidence; the relationship connects them.
-# Institutions are slice 3 (an utterance mints one; the artefact-origin proposition kind lives
-# there too). Nothing here is a repair of, or a mapping onto, `core.classification.Evidence` or
+# Slice 3 (ARTEFACT_ORIGIN.md): the institution anchor on `parties` (`minted_by` -> the
+# household's minting utterance) and the first ruled proposition kind, `artefact_origin`, with
+# origin STATE derived from those propositions and reading strength derived over one link. Nothing here is a repair of, or a mapping onto, `core.classification.Evidence` or
 # `PdfExtractCache` - the former fuses four of these objects (SHIPPED_VS_TARGET s1), the latter
 # is the shipped artefact+reading 1:1 by hash; both are left exactly as they are.
 
@@ -755,7 +793,7 @@ class Utterance(Base):
     recorded_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
     content         = Column(Text, nullable=True)
 
-    origin = relationship('Party')
+    origin = relationship('Party', foreign_keys=[origin_party_id])
 
 
 class Artefact(Base):
@@ -1062,45 +1100,144 @@ def evidence_without_one_source(session):
     return [r for r in session.query(EvidentiaryRelationship).all() if source_violations(r)]
 
 
+# ── Slice 3: the artefact-origin proposition kind and its derivation ─────────
+# gw 2.0/ARTEFACT_ORIGIN.md, ruled s8. The first ruled entry in the proposition-kind catalogue.
+#
+# `artefact_origin` means EXACTLY: *this artefact is a statement by P* - subject the artefact,
+# second participant the party whose knowledge the artefact's readings convey (contract C1).
+# It does not mean who authored the file, who captured it, who transmitted it, who received
+# it, or who is named in it (O4: captured by Rob, knowledge originating with Aetna). Rob's
+# fence: no consumer or UI renames this "Issuer", "Created by", "Source" or "Author".
+ARTEFACT_ORIGIN = 'artefact_origin'
+
+# Origin STATE - read off the origin propositions, never a column on the artefact.
+ORIGIN_ESTABLISHED = 'established'                        # one party, asserted by a party's utterance
+ORIGIN_NOT_ESTABLISHED = 'not_established'                # no origin claim at all
+ORIGIN_CANDIDATES = 'not_established_with_candidates'     # reading-sourced claims only (self-description, other documents)
+ORIGIN_MULTIPLE = 'multiple'                              # utterance-sourced claims naming distinct parties
+
+
+def artefact_origin(session, artefact):
+    """The artefact's origin, derived: `(state, parties)`.
+
+    Only a party's UTTERANCE establishes an origin. A reading of the artefact itself (the
+    letterhead, O2) or of another artefact (Aetna's EOB naming Mercy, O6) yields a CANDIDATE
+    and never establishes: a reading's strength would derive from the origin it established.
+    *A document can say where it is from; only a party can say where a document is from.*
+
+    Established means referentially asserted - not true (S3, forgery), not held (an asserted
+    artefact has an origin, O10), not unique. Several utterance-sourced claims naming DISTINCT
+    parties read as `multiple` with every party listed: whether that is a joint statement
+    (O11) or competing claims (O8) needs a claim of correction or contradiction and a resolver
+    over it - fenced - so this derivation reports the multiplicity and chooses nothing. Never
+    by position, never by count, never by recency of recording.
+    """
+    props = (session.query(Proposition)
+             .filter(Proposition.kind == ARTEFACT_ORIGIN,
+                     Proposition.subject_artefact_id == artefact.id,
+                     Proposition.object_state == PARTICIPANT_ESTABLISHED,
+                     Proposition.object_party_id.isnot(None))
+             .all())
+    asserted, candidate = {}, {}
+    for prop in props:
+        for rel in session.query(EvidentiaryRelationship).filter_by(proposition_id=prop.id).all():
+            if rel.utterance_id is not None:
+                asserted.setdefault(prop.object_party_id, []).append(rel)
+            elif rel.reading_id is not None:
+                candidate.setdefault(prop.object_party_id, []).append(rel)
+    if len(asserted) == 1:
+        return ORIGIN_ESTABLISHED, list(asserted)
+    if len(asserted) > 1:
+        return ORIGIN_MULTIPLE, sorted(asserted)
+    if candidate:
+        return ORIGIN_CANDIDATES, sorted(candidate)
+    return ORIGIN_NOT_ESTABLISHED, []
+
+
+def _origin_claims(session, artefact, party_id):
+    """The utterance-sourced relations asserting `artefact_origin(artefact, party_id)`."""
+    return (session.query(EvidentiaryRelationship)
+            .join(Proposition, EvidentiaryRelationship.proposition_id == Proposition.id)
+            .filter(Proposition.kind == ARTEFACT_ORIGIN,
+                    Proposition.subject_artefact_id == artefact.id,
+                    Proposition.object_party_id == party_id,
+                    EvidentiaryRelationship.utterance_id.isnot(None))
+            .all())
+
+
 STRENGTH_KNOWING = 'knowing'
 STRENGTH_NOT_KNOWING = 'not_knowing'
 STRENGTH_UNDETERMINED = 'undetermined'
+
+
+def _weakest(*strengths):
+    """Weakest link (contract C3): undetermined absorbs; not_knowing beats knowing."""
+    if STRENGTH_UNDETERMINED in strengths:
+        return STRENGTH_UNDETERMINED
+    return STRENGTH_NOT_KNOWING if STRENGTH_NOT_KNOWING in strengths else STRENGTH_KNOWING
+
+
+def _utterance_strength(session, utt, kind, knowing):
+    if utt is None or kind not in knowing:
+        return STRENGTH_UNDETERMINED
+    party = utt.origin if utt.origin is not None else session.get(Party, utt.origin_party_id)
+    if party is None:
+        return STRENGTH_UNDETERMINED
+    return STRENGTH_KNOWING if party_foundation(party) in knowing[kind] else STRENGTH_NOT_KNOWING
 
 
 def derived_strength(session, relation, knowing):
     """Strength, computed on read and never stored.
 
     `knowing` is the knowing relation for proposition kinds - `{kind: {origin_kind, ...}}` -
-    supplied by the caller because the kind catalogue is not ruled (the health kinds' relation
+    supplied by the caller because the kind catalogue is not settled (the health kinds' relation
     lives in `core.classification.KNOWING_SOURCES` today; P-ack's is "the entitled party only";
     P-world's is nobody). `origin_kind` is 'person' for a household-anchored party and
     'institution' for a minted one - which foundation, by a join to the anchor, never a kind
-    column (the party-shape ruling).
+    column (the party-shape ruling). The one ruled entry (`ARTEFACT_ORIGIN.md` s4): for
+    `artefact_origin` the recipient household and the origin party itself are knowing
+    (`{'person', 'institution'}`); a third party's document and a parser are candidates only.
 
     Returns knowing / not_knowing / undetermined. Undetermined when the kind has no entry in
     the relation supplied: the absence of a rule is not a rule.
 
-    A READING-sourced relation is `undetermined` in this slice, and never anything else: the
-    strength of what a reading evidences follows from the ARTEFACT'S origin (contract C1 - the
-    party whose knowledge the reading conveys), which is derived from origin-of-artefact
-    propositions that slice 3 rules. The reader is a channel, never an origin (C2): a member
-    transcribing Aetna's EOB is not knowing for its figures, and a parser is no party at all.
-    Consulting `reader_party_id` here would be the collapse the slice-2 ruling forbids.
-    Weakest-link over a mediation chain and independence over lineage are later derivations.
+    UTTERANCE-sourced: the utterance's origin party's foundation x the proposition kind.
+
+    READING-sourced (slice 3): the reading conveys the ARTEFACT'S origin's knowledge (C1) -
+    never the reader's (C2; a member transcribing Aetna's EOB is not knowing for its figures,
+    a parser is no party). So: the artefact's origin is derived (`artefact_origin`); if it is
+    not a single established party the result is undetermined - nothing chosen among
+    candidates or multiple claims; otherwise the strength is the WEAKEST LINK (C3) of
+        knowing(kind, origin party's foundation)         - is P knowing for this kind?
+        the strength of the origin claim itself           - how well is P established as origin?
+    the second being the strongest of the agreeing claims naming P (parallel evidence for one
+    referent is not a choice among referents). One link only: the capture-faithfulness and
+    agency chains are fenced. O5's danger test holds by construction - Rob's spreadsheet has
+    origin Rob, and Rob is not knowing for an insurer's figure, so relaying does not launder.
     """
-    if relation.reading_id is not None or relation.reading is not None:
-        return STRENGTH_UNDETERMINED
     prop = relation.proposition
     if prop is None:
         prop = session.get(Proposition, relation.proposition_id)
+    if prop is None:
+        return STRENGTH_UNDETERMINED
+    if relation.reading_id is not None or relation.reading is not None:
+        rd = relation.reading if relation.reading is not None else session.get(Reading, relation.reading_id)
+        art = rd.artefact if rd.artefact is not None else session.get(Artefact, rd.artefact_id)
+        state, parties = artefact_origin(session, art)
+        if state != ORIGIN_ESTABLISHED or prop.kind not in knowing:
+            return STRENGTH_UNDETERMINED
+        origin = session.get(Party, parties[0])
+        link = STRENGTH_KNOWING if party_foundation(origin) in knowing[prop.kind] else STRENGTH_NOT_KNOWING
+        claim_strengths = [_utterance_strength(session, c.utterance, ARTEFACT_ORIGIN, knowing)
+                           for c in _origin_claims(session, art, origin.id)]
+        best = (STRENGTH_KNOWING if STRENGTH_KNOWING in claim_strengths
+                else STRENGTH_NOT_KNOWING if STRENGTH_NOT_KNOWING in claim_strengths
+                else STRENGTH_UNDETERMINED)
+        return _weakest(link, best)
     utt = relation.utterance
     if utt is None:
         utt = session.get(Utterance, relation.utterance_id)
-    if prop is None or utt is None or prop.kind not in knowing:
-        return STRENGTH_UNDETERMINED
-    party = utt.origin if utt.origin is not None else session.get(Party, utt.origin_party_id)
-    origin_kind = 'person' if party is not None and party.person_id is not None else 'institution'
-    return STRENGTH_KNOWING if origin_kind in knowing[prop.kind] else STRENGTH_NOT_KNOWING
+    return _utterance_strength(session, utt, prop.kind, knowing)
 
 
 class PersonAssignment(Base):

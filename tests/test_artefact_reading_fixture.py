@@ -26,7 +26,7 @@ What this slice can and cannot exercise, stated so greenness is not over-read:
     readings only of held artefacts                    EXERCISED
     same sentence, two evidence events                 EXERCISED
     reading-sourced strength                           EXERCISED - undetermined, never from the reader
-    the artefact's ORIGIN                              NOT EXERCISABLE - slice 3 (origin-of-artefact kind)
+    the artefact's ORIGIN                              slice 3 - tests/test_artefact_origin_fixture.py
     correspondence between the two hash-twins          NOT EXERCISABLE - slice 4
     asserted -> held upgrade                           NOT BUILT - fenced (never auto-match)
     which readings agree / independence                NOT BUILT - derived later, by consumers
@@ -259,7 +259,7 @@ def run(db):
     e_member = db.EvidentiaryRelationship(proposition_id=p_member.id, reading_id=r_member.id)
     s.add(e_member)
     s.commit()
-    check('a process reading yields undetermined even when the kind has a rule',
+    check('a process reading yields undetermined even when the kind has a rule (no origin established)',
           db.derived_strength(s, e_r1, knowing) == db.STRENGTH_UNDETERMINED)
     check('a member reading yields undetermined - the reader is a channel, never an origin (C2)',
           db.derived_strength(s, e_member, knowing) == db.STRENGTH_UNDETERMINED)
@@ -287,8 +287,11 @@ def run(db):
           not any('origin' in c.name or 'party' in c.name for c in db.Artefact.__table__.columns))
 
     print('\n11. Not exercised here, stated so it is not assumed\n')
-    check('no origin-of-artefact proposition kind is ruled or seeded here (slice 3)',
-          s.query(db.Proposition).filter(db.Proposition.kind.like('%origin%')).count() == 0)
+    # Slice 3 retired the origin-kind absence in place: `artefact_origin` is ruled and exercised
+    # by tests/test_artefact_origin_fixture.py. Here, no origin claim exists, so the state is
+    # not established - and the reading strength above was undetermined for that reason.
+    check('with no origin claim the artefact origin derives to not established (slice 3 exercises the rest)',
+          db.artefact_origin(s, eob) == (db.ORIGIN_NOT_ESTABLISHED, []))
     check('the hash twins are not corresponded - no correspondence kind exists yet (slice 4)',
           s.query(db.Proposition).filter(db.Proposition.kind.like('%correspond%')).count() == 0)
     check('the shipped cache is not read as an artefact store - PdfExtractCache is untouched',

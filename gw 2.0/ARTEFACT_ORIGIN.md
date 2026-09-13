@@ -4,7 +4,7 @@
 > at the line drawn (§8).** Slice 2 is
 > accepted at `9cdb4e6` (`ARTEFACT_READING_SLICE.md` §9). This record answers one question by
 > testing three readings of it against the cases already ruled, finds the dependency the answer
-> forces, and ends with a ruling candidate. Nothing here is authorised to build.
+> forces, and ends with a ruling candidate, ruled in §8.
 
 **Rob's question, verbatim:** *what proposition establishes an artefact's origin?*
 

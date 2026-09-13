@@ -23,7 +23,7 @@ What this slice can and cannot exercise, stated so greenness is not over-read:
     a claim about an utterance (Case B)      EXERCISED - subject_utterance_id
     reading as a source                      slice 2 - tests/test_artefact_reading_fixture.py
     artefact subjects                        slice 2 - tests/test_artefact_reading_fixture.py
-    institution origins                      NOT EXERCISABLE - institutions are slice 3
+    institution origins                      slice 3 - tests/test_artefact_origin_fixture.py
     correspondence / candidates              NOT EXERCISABLE - slice 4; the state exists,
                                              the candidate claims do not
 
@@ -220,8 +220,11 @@ def run(db):
           'subject_artefact_id' in db.Proposition.SUBJECT_SLOTS
           and db.participant_violations(db.Proposition(kind='x', subject_state=db.PARTICIPANT_NONE,
                                                    object_state=db.PARTICIPANT_NONE)) == [])
-    check('no institution party exists in this slice (slice 3)',
-          'minted_by' not in {c.name for c in db.Party.__table__.columns})
+    # Slice 3 retired the institution absence in place; tests/test_artefact_origin_fixture.py
+    # exercises institution origins.
+    check('the institution anchor arrived additively - the household anchor is untouched by it',
+          'minted_by_id' in {c.name for c in db.Party.__table__.columns}
+          and all(p.minted_by_id is None for p in s.query(db.Party).all()))
 
 
 def main():
