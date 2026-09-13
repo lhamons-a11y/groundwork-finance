@@ -1,7 +1,7 @@
 # Slice 3 — what proposition establishes an artefact's origin?
 
-> Status: **Build mode, slice 3 opened by Rob 2026-09-13; candidate RULED and the build AUTHORISED
-> at the line drawn (§8).** Slice 2 is
+> Status: **Build mode, slice 3 opened by Rob 2026-09-13; RULED (§8); BUILT (`d626218`); ACCEPTED and
+> CLOSED (§9).** Slice 2 is
 > accepted at `9cdb4e6` (`ARTEFACT_READING_SLICE.md` §9). This record answers one question by
 > testing three readings of it against the cases already ruled, finds the dependency the answer
 > forces, and ends with a ruling candidate, ruled in §8.
@@ -282,3 +282,51 @@ origin proposition → institution anchor → derivation → fixture → mutatio
 *The biggest success is not that Groundwork can now answer "this EOB came from Lakeview Health." It is
 that it has become increasingly difficult for Groundwork to accidentally claim it knows
 something merely because a document happened to contain it.*
+
+---
+
+## 9. Slice accepted and closed — Rob, 2026-09-13. `d626218`, 881 green, clean tree.
+
+*A clean slice boundary; the ruling is closed rather than reopened.* `d626218` did not add an
+origin field under a new name — it established a **causal provenance edge**:
+
+```text
+party → utterance → artefact_origin(artefact, party) → artefact → reading → proposition
+```
+
+and keeps the proposition separate from the derivation of its state and from the strength of
+downstream readings.
+
+**Endorsed.**
+1. **`multiple` is the correct stopping point.** `A → B` cannot honestly be distinguished from
+   `A → B; later "no, C"` merely from two origin propositions existing; doing so needs the
+   correction/resolution machinery. *Inventing `competing` now would be smuggling the next
+   ruling into this one.* O11 likewise: the data establishes multiplicity, not why.
+2. **O5 is the strongest regression case in the slice.** `origin(sheet) = Rob` does not imply
+   `Rob knows(eob_amount)`. The system can say, simultaneously: *Rob knows this is his
+   spreadsheet* and *Rob does not thereby know that Lakeview Health acknowledged $412.*
+3. **The institution anchor belongs here** — a real dependency, not sequencing convenience:
+   `origin(EOB) = Lakeview Health` needs Lakeview Health as a party, and one utterance can establish both
+   `party(Lakeview Health)` and `artefact_origin(EOB, Lakeview Health)`.
+4. **O9 remains a finding.** *The current proposition substrate cannot represent a process as
+   the origin of an artefact* — an actual boundary condition for the manufactured/export
+   question, better than weakening `Utterance.origin_party_id` to fit one case.
+
+**Carried into slice 4 — origin and correspondence must never become interchangeable.**
+
+```text
+EOB
+ ├── origin → Lakeview Health
+ └── content mentions → Riverbend Hospital ─── correspondence may later establish a relationship
+                                  to ANOTHER artefact
+```
+
+The fact that Riverbend Hospital appears in an Lakeview Health document is **not a weak version of
+`origin(EOB) = Riverbend Hospital`**. It is a different proposition about a different relationship — and
+slice 4 is exactly where the temptation to collapse the two will reappear.
+
+The slice has earned its stopping point: `artefact_origin → institution anchor → origin-state
+derivation → one-link strength derivation → O1–O11 fixture → mutation/gate → STOP`.
+
+**Slice 4 opened (Rob): *what is a correspondence claim?*** — genuinely correspondence, not
+another attempt to perfect origin. Record: `CORRESPONDENCE.md`.
