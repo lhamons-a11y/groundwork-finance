@@ -1,7 +1,7 @@
 # Slice 2 — artefact and reading: the thing encountered vs the act of observing it
 
 > Status: **Build mode, slice 2 opened by Rob 2026-09-13; candidate RULED as written and the
-> build AUTHORISED under Rob's gate (§8).** Slice 1 is accepted at `6700b69` (`SMALLEST_SCHEMA.md`
+> build AUTHORISED under Rob's gate (§8); BUILT (`9cdb4e6`) and ACCEPTED (§9).** Slice 1 is accepted at `6700b69` (`SMALLEST_SCHEMA.md`
 > §13). §1–§7 test the ruled artefact/reading shape against Rob's carried-in warning.
 
 **Rob's question, verbatim:** *can an artefact and its reading be represented independently,
@@ -303,3 +303,87 @@ because **the event that produced the proposition is what is being protected.**
 
 If that passes, slice 2 is ready to build. After it, slice 3 is the artefact-origin question —
 not another schema question disguised as implementation.
+
+---
+
+## 9. Slice accepted — Rob, 2026-09-13. `9cdb4e6`, 873 green, clean tree.
+
+*Slice 2 is an example of why the groundwork-first approach is paying off: the implementation
+preserves the distinction the semantic work spent so long establishing.*
+
+**The event distinction is now structural.** `reading("EOB says $412") ≠ utterance("EOB says
+$412")` — the model is not asked to infer from wording whether something was read or said; the
+database already knows. That is what lets Groundwork later say, as different evidentiary
+situations: *the document was read as $412* · *Rob said the EOB says $412* · *those two agree* ·
+*those two disagree*.
+
+**The reader is not an epistemic authority.** `reader_party ≠ origin_party`; `reader_process ≠
+party`. A person opening an EOB does not become the institution that issued it; a parser does
+not become a person. Systems blur exactly this boundary because the convenient field is already
+available — the mutation proving the collapse is caught is particularly valuable.
+
+**The system can represent "we don't know."** A reading with zero evidence rows; an undated
+artefact without an invented date. *Absence of knowledge does not become false knowledge.*
+
+### The part to watch most closely — the consumers
+
+The risk is no longer the tables. It is the first consumer that writes:
+
+> *"Find the latest reading of the artefact and use its proposition as the current value."*
+
+That would quietly recreate the semantics just removed from the schema — the `[-1]` / `[0]`
+pattern the hazard audit found three times in shipped code. **The schema is now capable of
+preserving ambiguity; the consumer must remain capable of preserving ambiguity too.** *Nothing
+chosen* must stay true all the way up through the Financial Validation Engine and the teaching
+layer.
+
+### Direction recorded, not opened — healthcare as a consuming domain
+
+Healthcare cost is **a fact to account for, not a discretionary category to optimise away.** A
+$1,200 bill is not a $1,200 "spending choice" to trim. The shape Groundwork can reason in:
+
+```text
+Medical obligation:       $1,200
+Available cash:             $374
+Protected cash reserve:     $150
+Currently available:        $244
+```
+
+and teach: *you cannot pay the whole $1,200 without consuming money you have protected; you
+could ask whether a payment plan is accepted; based on the cash you have available, about $X
+would fit without using the protected amount.* Never *"you should pay $X"* — *"$X is an amount
+you could afford without taking your buffer below the level you've protected"*; the user
+decides. Prescription comparison fits the same philosophy: establish current cost, alternative
+prices, frequency, expected difference, applicability — present the consequence.
+
+**Not to be done: a special healthcare ontology.** Healthcare is another domain consuming the
+same primitives:
+
+```text
+EOB / bill  → artefact → reading → proposition → amount → obligation → financial consequence
+"I called the medical center; they'll accept $75/month."
+            → utterance → proposition → payment-plan claim
+```
+
+— and Groundwork can then distinguish what the document says from what the user was told,
+without pretending either is automatically authoritative. The honest-teacher behaviour.
+
+### The standing rule for the build phase
+
+> **Do not let the build phase gradually reintroduce the old abstractions under different
+> names.** If a later consumer wants "current healthcare cost", "amount owed", "affordable
+> payment" or "prescription savings", those are **derived findings with visible evidence and
+> consequences — never new truth-bearing fields in the evidence substrate.**
+
+The progression, as Rob now reads it:
+
+```text
+Artefact        what was encountered        Party           who can be involved
+Reading         what was observed           Evidence        how a proposition is evidenced
+Utterance       what someone asserted       Correspondence  how things are claimed to relate
+Proposition     what is asserted/observed
+                            ↓
+              Financial facts → Consequences → Teaching
+```
+
+Slice 3 — the artefact-origin question — remains Rob's to open.
