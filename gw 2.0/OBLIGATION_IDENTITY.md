@@ -376,3 +376,24 @@ the same obligation"* is not yet *"this artefact concerns obligation O."* The ho
 assertion crossed that boundary in the fixture (Ob2, Ob7); the next slice determines **exactly
 what proposition that crossing creates — without letting the matching mechanism itself become
 an authority.**
+
+**The fence, stated cleanly (Rob):** *obligation identity is settled; artefact → obligation
+about-ness is not.* The question for slice 8, sharpened once more: **what makes an artefact's
+proposition *about this obligation*, rather than merely *compatible with an obligation*?**
+
+**Three tests to carry in:**
+
+1. **Identity test** — what actually establishes the referent `O`?
+2. **Authority test** — what lets the proposition cross from *"this artefact says X"* to *"X is
+   about O"* **without the matching mechanism becoming evidence for X**?
+3. **History test** — if the artefact–obligation association is later disputed, retracted,
+   superseded or corrected, is that history about the *association itself* or about the
+   *proposition it supports*?
+
+**The account number stays fenced out of all three until the cases prove otherwise:** a
+matching descriptor can be evidence *for* a correspondence claim without becoming the
+correspondence claim itself.
+
+**When slice 8 opens, do not start by designing `artefact_concerns`.** Ask the cases first *what
+kind of thing the crossing is* — whether a first-class relation is needed, whether re-assertion
+is sufficient, or whether the two proposals are answering different questions.
