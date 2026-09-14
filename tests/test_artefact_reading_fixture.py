@@ -27,7 +27,7 @@ What this slice can and cannot exercise, stated so greenness is not over-read:
     same sentence, two evidence events                 EXERCISED
     reading-sourced strength                           EXERCISED - undetermined, never from the reader
     the artefact's ORIGIN                              slice 3 - tests/test_artefact_origin_fixture.py
-    correspondence between the two hash-twins          NOT EXERCISABLE - slice 4
+    correspondence between the two hash-twins          slice 4 - tests/test_correspondence_fixture.py
     asserted -> held upgrade                           NOT BUILT - fenced (never auto-match)
     which readings agree / independence                NOT BUILT - derived later, by consumers
 
@@ -292,8 +292,11 @@ def run(db):
     # not established - and the reading strength above was undetermined for that reason.
     check('with no origin claim the artefact origin derives to not established (slice 3 exercises the rest)',
           db.artefact_origin(s, eob) == (db.ORIGIN_NOT_ESTABLISHED, []))
-    check('the hash twins are not corresponded - no correspondence kind exists yet (slice 4)',
-          s.query(db.Proposition).filter(db.Proposition.kind.like('%correspond%')).count() == 0)
+    # Slice 4 retired the correspondence absence in place: with no claim between them the hash
+    # twins are separate referents - and stay so until a party says otherwise.
+    check('the hash twins are separate referents until a party asserts correspondence (slice 4 exercises the rest)',
+          db.referent(s, eob) == (db.REFERENT_SEPARATE, [eob.id], [])
+          and db.referent(s, twin) == (db.REFERENT_SEPARATE, [twin.id], []))
     check('the shipped cache is not read as an artefact store - PdfExtractCache is untouched',
           {c.name for c in db.PdfExtractCache.__table__.columns}
           == {'source_hash', 'issuer', 'extracted_json', 'created_at'})

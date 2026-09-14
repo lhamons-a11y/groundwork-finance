@@ -1,7 +1,7 @@
 # Slice 4 — what is a correspondence claim?
 
-> Status: **Build mode, slice 4 opened by Rob 2026-09-13; candidate RULED (§8). Record only — no
-> code has been written for this slice; build authorisation is a separate step.** Slice 3 is
+> Status: **Build mode, slice 4 opened by Rob 2026-09-13; candidate RULED (§8); build AUTHORISED
+> and BUILT — see the commit for the build boundary.** Slice 3 is
 > accepted and closed at `d626218` (`ARTEFACT_ORIGIN.md` §9). This record tests three readings
 > of the question against the cases already ruled, finds one conflict between two earlier
 > records and resolves it by the cases, finds two things the substrate must add, and ends

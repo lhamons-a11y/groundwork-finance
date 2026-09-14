@@ -749,6 +749,9 @@ def _mint_party_anchor(mapper, connection, target):
 #
 # Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
 # saw of a held artefact; propositions are what they evidence; the relationship connects them.
+# Slice 4 (CORRESPONDENCE.md): artefact_corresponds / party_corresponds, the RULED_KINDS slot
+# registry, the same-foundation guard, `referent()` - and reference slots immutable after
+# insert, because a merge is a re-point and a re-point rewrites history.
 # Slice 3 (ARTEFACT_ORIGIN.md): the institution anchor on `parties` (`minted_by` -> the
 # household's minting utterance) and the first ruled proposition kind, `artefact_origin`, with
 # origin STATE derived from those propositions and reading strength derived over one link. Nothing here is a repair of, or a mapping onto, `core.classification.Evidence` or
@@ -930,6 +933,32 @@ def _validate_reading(mapper, connection, target):
         raise ValueError('reading violated: ' + '; '.join(problems))
 
 
+# "Never merges rows, never rewrites a reference" (CORRESPONDENCE.md s4/s8), mechanically:
+# the referential slots that make an event what it is - which artefact a reading observed,
+# which party uttered, which things a claim is about - are immutable once the row exists.
+# Re-pointing any of them is how a merge would be implemented, and a merge rewrites history.
+# Unification happens only on read (`referent`, `artefact_origin`), never in the rows.
+_IMMUTABLE_REFERENCES = {
+    'Reading':     ('artefact_id',),
+    'Utterance':   ('origin_party_id',),
+    'Artefact':    ('asserted_by_id',),
+    'Proposition': ('kind', 'subject_party_id', 'subject_utterance_id', 'subject_artefact_id',
+                    'object_party_id', 'object_utterance_id', 'object_artefact_id'),
+    'EvidentiaryRelationship': ('proposition_id', 'utterance_id', 'reading_id'),
+}
+
+
+def _refuse_repoint(mapper, connection, target):
+    from sqlalchemy import inspect as _inspect
+    state = _inspect(target)
+    for col in _IMMUTABLE_REFERENCES[type(target).__name__]:
+        hist = state.attrs[col].history
+        if hist.has_changes() and hist.deleted and hist.deleted[0] is not None:
+            raise ValueError(f'{type(target).__name__}.{col} is a reference and is never re-pointed '
+                             f'({hist.deleted[0]!r} -> {hist.added[0]!r}); sameness is asserted by a '
+                             f'correspondence claim and read by derivation, never written into rows')
+
+
 def artefacts_with_inconsistent_assertion(session):
     """Audit: held artefacts under an utterance, or asserted artefacts under none. Empty is
     the invariant."""
@@ -1014,6 +1043,10 @@ def participant_violations(prop):
     established        -> exactly one slot on that side is set
     any other state    -> every slot on that side is NULL
     unknown state      -> a violation in itself
+
+    And, for a RULED kind (`RULED_KINDS`, slice 4): both participants established, each in one
+    of the slots that kind permits; a correspondence kind is never reflexive. Unruled kinds are
+    not constrained beyond the state discipline - the catalogue stays open.
     """
     out = []
     for side, slots in (('subject', Proposition.SUBJECT_SLOTS),
@@ -1026,6 +1059,23 @@ def participant_violations(prop):
             out.append(f'{side}_state is established but {len(set_slots)} slot(s) are set: {set_slots}')
         elif state != PARTICIPANT_ESTABLISHED and set_slots:
             out.append(f'{side}_state is {state!r} but slot(s) are set: {set_slots}')
+    rule = RULED_KINDS.get(getattr(prop, 'kind', None))
+    if rule is not None and not out:
+        for side in ('subject', 'object'):
+            permitted = rule[side]
+            state = getattr(prop, f'{side}_state')
+            if state != PARTICIPANT_ESTABLISHED:
+                out.append(f'{prop.kind}: {side} must be established, is {state!r}')
+                continue
+            set_slot = next(c for c in getattr(Proposition, f'{side.upper()}_SLOTS')
+                            if getattr(prop, c) is not None)
+            if set_slot not in permitted:
+                out.append(f'{prop.kind}: {side} may be {permitted}, is {set_slot}')
+        if rule['symmetric'] and not out:
+            sub = getattr(prop, rule['subject'][0])
+            obj = getattr(prop, rule['object'][0])
+            if sub == obj:
+                out.append(f'{prop.kind}: a thing does not correspond to itself')
     return out
 
 
@@ -1038,8 +1088,25 @@ def _validate_participants(mapper, connection, target):
         if getattr(target, f'{side}_state') is None:
             setattr(target, f'{side}_state', PARTICIPANT_NONE)
     problems = participant_violations(target)
+    if not problems and target.kind == PARTY_CORRESPONDS:
+        problems = _foundation_violations(connection, target.subject_party_id, target.object_party_id)
     if problems:
         raise ValueError('proposition participant state violated: ' + '; '.join(problems))
+
+
+def _foundation_violations(connection, a_id, b_id):
+    """Correspondence never crosses foundations (the party-reference ruling): both parties
+    must exist and both must have the same anchor kind. Person and institution may RELATE -
+    a kind of its own, later - never be collapsed."""
+    t = Party.__table__
+    rows = {r.id: r for r in connection.execute(t.select().where(t.c.id.in_([a_id, b_id])))}
+    if a_id not in rows or b_id not in rows:
+        return ['party_corresponds: both parties must exist']
+    fa = 'person' if rows[a_id].person_id is not None else 'institution'
+    fb = 'person' if rows[b_id].person_id is not None else 'institution'
+    if fa != fb:
+        return [f'party_corresponds never crosses foundations ({fa} vs {fb})']
+    return []
 
 
 class EvidentiaryRelationship(Base):
@@ -1165,6 +1232,96 @@ def _origin_claims(session, artefact, party_id):
             .all())
 
 
+# ── Slice 4: correspondence ──────────────────────────────────────────────────
+# gw 2.0/CORRESPONDENCE.md, ruled s8. Two kinds: *X and Y are one referent*, for two separately
+# minted identities of one type. Established ONLY by a party's utterance; every observed match
+# (hash, import id, issuer string, description, date + origin) is a candidate with no party
+# behind it, however strong its basis. The basis is the claim's CONTENT - shown to a person,
+# never consulted by a derivation. Never merges rows, never rewrites a reference, never
+# crosses foundations or types, never reflexive. Sameness is read, never stored.
+#
+# Vocabulary (Rob): *17 and 42 CORRESPOND; their derived referent CONTAINS both.* Never "17 and
+# 42 are the same" - two identities, two histories, two arrival events remain.
+#
+# Not origin, not mention, not role: same origin is not same artefact (X2); a name in a
+# document is content (X9); relatedness is another kind (X4).
+ARTEFACT_CORRESPONDS = 'artefact_corresponds'
+PARTY_CORRESPONDS = 'party_corresponds'
+
+# The kind -> participant-slot registry, for RULED kinds only (the catalogue stays open; an
+# unruled kind is constrained by the state discipline alone). Slice 3 fixed artefact_origin's
+# shape by convention; convention is not enforcement - this tightens it retroactively, stated.
+# `reading_establishes`: whether a reading-sourced claim of this kind can be more than a
+# candidate. For all three it cannot - a document cannot vouch for its own origin, and bytes
+# equal to bytes is an observation, not a party's assertion.
+RULED_KINDS = {
+    ARTEFACT_ORIGIN:      {'subject': ('subject_artefact_id',), 'object': ('object_party_id',),
+                           'symmetric': False, 'reading_establishes': False},
+    ARTEFACT_CORRESPONDS: {'subject': ('subject_artefact_id',), 'object': ('object_artefact_id',),
+                           'symmetric': True,  'reading_establishes': False},
+    PARTY_CORRESPONDS:    {'subject': ('subject_party_id',),    'object': ('object_party_id',),
+                           'symmetric': True,  'reading_establishes': False},
+}
+
+REFERENT_SEPARATE = 'separate'                          # no established claim touches it
+REFERENT_CANDIDATES = 'separate_with_candidates'        # reading-sourced claims only
+REFERENT_CORRESPONDING = 'corresponding'                # at least one established claim; one component
+REFERENT_CONTESTED = 'contested'                        # an establishing utterance is itself the subject of a claim
+
+_CORRESPONDENCE_OF = {'Artefact': (ARTEFACT_CORRESPONDS, 'subject_artefact_id', 'object_artefact_id'),
+                      'Party':    (PARTY_CORRESPONDS,    'subject_party_id',    'object_party_id')}
+
+
+def referent(session, thing):
+    """The derived referent of an artefact or a party: `(state, contains, candidates)`.
+
+    `contains` is the connected component under ESTABLISHED correspondence claims - claims
+    evidenced by a party's utterance - always including `thing` itself; a claim is read both
+    ways (symmetric in meaning, stored once). `candidates` are the things reachable from the
+    component only through reading-sourced claims (the importer's hash match, a description
+    match): a reason to ask, never a member. Nothing here is stored; nothing here merges.
+
+    `contested`: some establishing utterance in the component is itself the SUBJECT of a
+    proposition - something has been said about the claim (Case B: "no, 42 was the corrected
+    one"). WHAT was said is not derived: the correction/contradiction kinds and the resolver
+    over them are fenced. So the state is reported fail-closed, the component is still
+    returned in full, and nothing is chosen - never by position, recency of recording or count.
+    """
+    kind, sub_col, obj_col = _CORRESPONDENCE_OF[type(thing).__name__]
+    claims = (session.query(Proposition, EvidentiaryRelationship)
+              .join(EvidentiaryRelationship, EvidentiaryRelationship.proposition_id == Proposition.id)
+              .filter(Proposition.kind == kind).all())
+    established, candidate, establishing_utts = {}, {}, {}
+    for prop, rel in claims:
+        a, b = getattr(prop, sub_col), getattr(prop, obj_col)
+        bucket = established if rel.utterance_id is not None else candidate
+        bucket.setdefault(a, set()).add(b)
+        bucket.setdefault(b, set()).add(a)
+        if rel.utterance_id is not None:
+            establishing_utts.setdefault(frozenset((a, b)), set()).add(rel.utterance_id)
+    component, frontier = {thing.id}, [thing.id]
+    while frontier:
+        nxt = frontier.pop()
+        for other in established.get(nxt, ()):
+            if other not in component:
+                component.add(other)
+                frontier.append(other)
+    cands = set()
+    for member in component:
+        cands |= candidate.get(member, set())
+    cands -= component
+    if len(component) == 1:
+        return (REFERENT_CANDIDATES if cands else REFERENT_SEPARATE), [thing.id], sorted(cands)
+    utts = set()
+    for pair, ids in establishing_utts.items():
+        if pair <= component:
+            utts |= ids
+    spoken_about = (session.query(Proposition)
+                    .filter(Proposition.subject_utterance_id.in_(sorted(utts))).count() if utts else 0)
+    state = REFERENT_CONTESTED if spoken_about else REFERENT_CORRESPONDING
+    return state, sorted(component), sorted(cands)
+
+
 STRENGTH_KNOWING = 'knowing'
 STRENGTH_NOT_KNOWING = 'not_knowing'
 STRENGTH_UNDETERMINED = 'undetermined'
@@ -1221,6 +1378,12 @@ def derived_strength(session, relation, knowing):
     if prop is None:
         return STRENGTH_UNDETERMINED
     if relation.reading_id is not None or relation.reading is not None:
+        rule = RULED_KINDS.get(prop.kind)
+        if rule is not None and not rule['reading_establishes']:
+            # A candidate, by ruling: the knowledge "these bytes equal those bytes" or "the
+            # letterhead says Aetna" is nobody's - routing it through the artefact's origin
+            # would score it by accident (CORRESPONDENCE.md s3).
+            return STRENGTH_UNDETERMINED
         rd = relation.reading if relation.reading is not None else session.get(Reading, relation.reading_id)
         art = rd.artefact if rd.artefact is not None else session.get(Artefact, rd.artefact_id)
         state, parties = artefact_origin(session, art)
@@ -1238,6 +1401,11 @@ def derived_strength(session, relation, knowing):
     if utt is None:
         utt = session.get(Utterance, relation.utterance_id)
     return _utterance_strength(session, utt, prop.kind, knowing)
+
+
+for _name in _IMMUTABLE_REFERENCES:
+    event.listen(globals()[_name], 'before_update', _refuse_repoint)
+del _name
 
 
 class PersonAssignment(Base):

@@ -28,7 +28,8 @@ What this slice can and cannot exercise, stated so greenness is not over-read:
     O8/O11  two utterance-sourced claims -> multiple, nothing chosen   EXERCISED - joint vs competing NOT derivable (resolver fenced)
     O9  process-originated artefact                           NOT REPRESENTABLE - asserted as such
     O10 origin without custody                                EXERCISED
-    correspondence · descriptors · chain · unminting          NOT BUILT
+    correspondence                                            slice 4 - tests/test_correspondence_fixture.py
+    descriptors · chain · unminting                           NOT BUILT
 
 Run:  python tests/test_artefact_origin_fixture.py
 """
@@ -303,9 +304,11 @@ def run(db):
           {db.ORIGIN_ESTABLISHED, db.ORIGIN_NOT_ESTABLISHED, db.ORIGIN_CANDIDATES, db.ORIGIN_MULTIPLE}
           and not any('origin' in c.name for m in (db.Artefact, db.Reading, db.Party, db.EvidentiaryRelationship)
                       for c in m.__table__.columns))
-    check('no correspondence kind, no descriptor column, no chain link exists (slice 4 and fences)',
-          s.query(db.Proposition).filter(db.Proposition.kind.like('%correspond%')).count() == 0
-          and not any(c.name in ('name', 'display_name', 'external_id', 'issuer') for c in db.Party.__table__.columns))
+    # Slice 4 retired the correspondence absence in place; the two hash twins of O7 stay
+    # separate referents here because nobody has asserted otherwise.
+    check('no descriptor column, no chain link exists (fences); the O7 letters are separate referents',
+          not any(c.name in ('name', 'display_name', 'external_id', 'issuer') for c in db.Party.__table__.columns)
+          and db.referent(s, l1) == (db.REFERENT_SEPARATE, [l1.id], []))
     check('every audit is empty',
           not db.parties_without_one_anchor(s) and not db.people_without_party(s)
           and not db.evidence_without_one_source(s) and not db.readings_of_unheld_artefacts(s))
