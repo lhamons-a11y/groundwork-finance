@@ -1,7 +1,7 @@
 # Slice 5 — what is a claim about a claim?
 
-> Status: **Build mode, slice 5 opened by Rob 2026-09-13; RULED as the one-kind result with a
-> terminology correction (§7); BUILT at that line — see the commit for the boundary.** Slice 4 is
+> Status: **Build mode, slice 5 opened by Rob 2026-09-13; RULED (§7); BUILT (`2f127c9`); CLOSED
+> (§8).** Slice 4 is
 > accepted at `780c5f1` (`CORRESPONDENCE.md` §9). This record tests the four named candidates —
 > correction · retraction · contradiction · reaffirmation — against the Case-B history and the
 > rulings that already touch it, answers Rob's five questions for each, finds one substrate
@@ -283,3 +283,27 @@ It cannot itself rewrite, resolve, or replace that utterance.
 `subject_utterance_id` mechanism · fixture coverage for the forced cases · **no** resolver ·
 **no** `subject_proposition_id` · **no** relational-knowing expansion · **no** change to the
 existing `multiple` / `contested` derivations unless a separate ruling requires them.
+
+---
+
+## 8. Slice closed — Rob, 2026-09-13. `2f127c9`, 898 green, clean tree.
+
+Cleanly closed. **Slice 6 is opened — not as "how do we model health / roles / obligations?"
+(that jumps from the sequence into implementation) but as the common substrate question
+underneath those instances: *what is a domain proposition?*** Three things to test without
+designing any particular domain: its subject (a world referent, not an utterance) · what
+distinguishes content from participants (a genuine referential operand is structural, never
+smuggled into text) · what makes it a domain claim rather than a claim-about-a-claim (slice 5
+gives the boundary: `utterance_retraction` is about an act; slice 6 needs propositions that
+say something about the world, even when the evidence is an utterance).
+
+**Fence, held especially hard:** *slice 6 rules representation of the domain propositions, not
+their interpretation.* If a case says an EOB acknowledges something: establish what proposition
+was asserted, its subject/participants, and who can establish it — not what the
+acknowledgement means for an obligation, balance, health state or downstream derivation.
+
+**P-ack is not permission to generalise the strength model.** It is a concrete case that may
+force the substrate to represent *who knows a claim in relation to this particular thing*; if
+the cases do not force a generalisation, it stays fenced exactly as slice 5 left it.
+
+Record: `DOMAIN_PROPOSITION.md`.
