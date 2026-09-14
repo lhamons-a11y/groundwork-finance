@@ -1,12 +1,12 @@
 # The obligation as a 2.0 identity — what is it, and what makes something correspond to it?
 
-> Status: **Build mode, opened by Rob 2026-09-14 — record only, no code.** Slice 6 is accepted
+> Status: **Build mode, opened by Rob 2026-09-14; §8 ACCEPTED and the representational build
+> AUTHORISED, exactly as fenced (§9).** Slice 6 is accepted
 > at `88abc97` (`DOMAIN_PROPOSITION.md` §8): *identity precedes proposition instances*, and the
 > obligation is the first referent to rule. This record tests four readings of the obligation's
 > identity against the cases the disposition, servicing, acknowledgment and lifecycle records
 > already ruled, answers the second half of the question (correspondence), evaluates the 1.x
-> rows only afterwards, finds two blockers, and ends with a ruling candidate. Nothing here is
-> authorised to build.
+> rows only afterwards, finds two blockers, and ends with a ruling candidate, ruled in §9.
 
 **Rob's question, verbatim:** *what is the obligation as a 2.0 identity, and what makes
 something correspond to that identity?*
@@ -235,3 +235,56 @@ anchor; a missed payment records a transition; retraction unmints) · migration:
 form · role period · restructure relation · any consumer · any `DebtAccount` decomposition.
 
 *The line: a bill can describe a debt; only the household can say it owes one.*
+
+---
+
+## 9. Ruling — Rob, 2026-09-14. §8 accepted; the representational build authorised, exactly as fenced.
+
+*A does not merely win the case comparison; it preserves the distinctions slice 6 established
+without creating a new hidden ontology.* The cleanest formulation:
+
+> **An obligation is a continuant minted by the household's individuating assertion.**
+
+Everything else — creditor · amount · kind · obligor · servicer · terms · account number ·
+entitlement · disposition · balance — is *information about that continuant*. That is why the
+obligation survives changes to those things without a magical continuity algorithm. **S4/S5 is
+decisive:** if creditor or account number can change while the obligation persists, they cannot
+constitute its identity.
+
+**B** would let an institution create a new world object merely by issuing another statement —
+the evidence artefact partly responsible for ontology; the transactions category error again:
+*the record describing the thing becomes the thing.* The bill establishes a proposition about
+the obligation; it does not manufacture it. **C** has the wrong ontological direction, not
+merely inconvenience: an obligation can exist before its creditor is known, so creditor-derived
+identity is impossible independently of the transition cases. **D** was rightly evaluated last —
+what it is · how it is minted · what corresponds · *then* whether a 1.x row instantiates it —
+otherwise the existing schema dictates the ontology; `DebtAccount` is yes-shaped, which does not
+mean "therefore it is the obligation".
+
+**The correspondence section exposes the next real question.** Three supported directions —
+obligation ↔ obligation · party ↔ obligation through dated role propositions · artefact →
+obligation through a still-unruled about-ness relation — and the last is correctly not chosen
+between (an explicit *concerns* proposition vs re-assertion through every reading). Its
+recurrence across claim / statement / plan / obligation is strong evidence it deserves **its own
+slice** rather than being hidden inside whatever consumes it.
+
+**The Person blocker is exactly the fixed point wanted.** There is no legitimate way to retrofit
+`DebtAccount.asserted_by = ???` from today's data; *"we know it was the household"* is not
+enough to manufacture a person identity. **The ontology is settled before the migration data
+is** — the implementation may not invent historical facts to populate the new model.
+
+**One subtle point, preserved explicitly in the ruling: the minting act is not the minted
+identity.** The obligation is not the utterance. The utterance mints the obligation and supplies
+its anchor; the obligation thereafter exists as the continuant to which later propositions
+refer. This matters for retraction, correspondence, restructuring, disposition and historical
+truth — otherwise *minted by assertion* can sound as if the assertion remained the identity.
+
+**Authorised — the representational projection of the ruling, exactly as fenced:** obligation
+anchor · additive identity slots · `obligation_corresponds` · fixture · mutation tests. **Not:**
+data migration · payment identity · artefact-about-ness decision · role-period decision ·
+restructure relation · interpretation or consumer. **And the absence of `Person` production
+rows must not tempt a synthetic migration** — a downstream data question, not a reason to
+weaken the identity ruling.
+
+*A bill can describe a debt; only the household can say it owes one* — essentially the whole
+ontology in one sentence.
