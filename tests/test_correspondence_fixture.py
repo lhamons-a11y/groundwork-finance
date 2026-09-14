@@ -283,7 +283,8 @@ def run(db):
     evidence(corr_a(b1, b2), utterance=u_same)
     check('established: corresponding', db.referent(s, b1)[0] == db.REFERENT_CORRESPONDING)
     u_no = utter('No - b2 was the corrected one, not the same.', '2026-09-05T09:00:00')
-    about = db.Proposition(kind='correction', subject_state=db.PARTICIPANT_ESTABLISHED,
+    # Slice 5 retired the placeholder label 'correction' onto the ruled kind utterance_retraction.
+    about = db.Proposition(kind=db.UTTERANCE_RETRACTION, subject_state=db.PARTICIPANT_ESTABLISHED,
                            subject_utterance_id=u_same.id, object_state=db.PARTICIPANT_NONE,
                            content='the earlier assertion was wrong')
     s.add(about)
@@ -292,8 +293,9 @@ def run(db):
     state, contains, cands = db.referent(s, b1)
     check('a claim about the establishing utterance makes the referent CONTESTED - the component is still returned in full',
           state == db.REFERENT_CONTESTED and contains == sorted([b1.id, b2.id]))
-    check('what the contest SAYS is not derived - no correction kind is ruled, the resolver is fenced',
-          'correction' not in db.RULED_KINDS)
+    check('what the contest MEANS for the referent is not derived - the retraction is represented, the resolver is fenced',
+          db.RULED_KINDS[db.UTTERANCE_RETRACTION]['relational_knowing'] is True
+          and not any(hasattr(db, n) for n in ('resolve_referent', 'governing_claim', 'is_retracted')))
     check('the later utterance does not win and the earlier does not win - both claims remain',
           s.get(db.Proposition, about.id) is not None
           and s.query(db.Proposition).filter_by(kind=db.ARTEFACT_CORRESPONDS, subject_artefact_id=b1.id).count() == 1)

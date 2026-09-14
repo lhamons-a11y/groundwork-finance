@@ -1,7 +1,7 @@
 # Slice 5 — what is a claim about a claim?
 
 > Status: **Build mode, slice 5 opened by Rob 2026-09-13; RULED as the one-kind result with a
-> terminology correction, and the build AUTHORISED at that line (§7).** Slice 4 is
+> terminology correction (§7); BUILT at that line — see the commit for the boundary.** Slice 4 is
 > accepted at `780c5f1` (`CORRESPONDENCE.md` §9). This record tests the four named candidates —
 > correction · retraction · contradiction · reaffirmation — against the Case-B history and the
 > rulings that already touch it, answers Rob's five questions for each, finds one substrate

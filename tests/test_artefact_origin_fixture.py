@@ -268,8 +268,12 @@ def run(db):
           db.derived_strength(s, e_ltr, KNOWING) == db.STRENGTH_UNDETERMINED)
     check('both claims remain - the correction is about, not a removal',
           s.query(db.Proposition).filter_by(kind=db.ARTEFACT_ORIGIN, subject_artefact_id=ltr.id).count() == 3)
-    check('joint (O11) vs competing (O8) is NOT derivable here - no correction/contradiction kind exists (fenced)',
-          s.query(db.Proposition).filter(db.Proposition.kind.in_(('correction', 'contradiction', 'retraction'))).count() == 0)
+    # Slice 5 retired the absence check in place: utterance_retraction now exists (tests/
+    # test_utterance_retraction_fixture.py); here none has been asserted, and even where one
+    # is, joint vs competing remains the resolver's question - which is still fenced.
+    check('joint (O11) vs competing (O8) is NOT derivable here - no retraction asserted, and the resolver is fenced',
+          s.query(db.Proposition).filter_by(kind=db.UTTERANCE_RETRACTION).count() == 0
+          and db.artefact_origin(s, ltr)[0] == db.ORIGIN_MULTIPLE)
 
     print('\n10. O9 - Groundwork\'s own export: NOT representable, asserted as such\n')
     export = db.Artefact(held=True, content_hash='h-export', as_of='2026-12-31')

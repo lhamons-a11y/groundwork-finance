@@ -749,6 +749,8 @@ def _mint_party_anchor(mapper, connection, target):
 #
 # Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
 # saw of a held artefact; propositions are what they evidence; the relationship connects them.
+# Slice 5 (CLAIM_ABOUT_CLAIM.md): utterance_retraction - the one higher-order kind; about the
+# utterance, never a verdict on it; strength undetermined until relational knowing is ruled.
 # Slice 4 (CORRESPONDENCE.md): artefact_corresponds / party_corresponds, the RULED_KINDS slot
 # registry, the same-foundation guard, `referent()` - and reference slots immutable after
 # insert, because a merge is a re-point and a re-point rewrites history.
@@ -1064,6 +1066,12 @@ def participant_violations(prop):
         for side in ('subject', 'object'):
             permitted = rule[side]
             state = getattr(prop, f'{side}_state')
+            if not permitted:
+                # A required ABSENCE: the kind has no such participant (utterance_retraction has
+                # no second term - a replacement is a separate proposition, never an operand).
+                if state != PARTICIPANT_NONE:
+                    out.append(f'{prop.kind}: has no {side}; {side}_state must be none, is {state!r}')
+                continue
             if state != PARTICIPANT_ESTABLISHED:
                 out.append(f'{prop.kind}: {side} must be established, is {state!r}')
                 continue
@@ -1254,13 +1262,41 @@ PARTY_CORRESPONDS = 'party_corresponds'
 # `reading_establishes`: whether a reading-sourced claim of this kind can be more than a
 # candidate. For all three it cannot - a document cannot vouch for its own origin, and bytes
 # equal to bytes is an observation, not a party's assertion.
+# ── Slice 5: the one higher-order kind ────────────────────────────────────────
+# gw 2.0/CLAIM_ABOUT_CLAIM.md, ruled s7. `utterance_retraction` means EXACTLY: *the assertion
+# made by utterance U no longer stands.* It is ABOUT the utterance - the act - not about the
+# truth of the proposition the utterance contained. Subject: the utterance. Second
+# participant: NONE, required - a replacement or contrary value is a separate domain
+# proposition, which the same utterance may evidence (O8: one act, two propositions:
+# utterance_retraction(U1) + artefact_origin(EOB, Mercy)). Content: the claimant's stance -
+# text the derivations never read; the kind carries the whole meaning, and a retraction with
+# empty content is complete.
+#
+# Correction is an interpretation of retraction + a new claim in one act, not a kind.
+# Contradiction and reaffirmation are DERIVED relationships (Q2's resolver vocabulary), never
+# stored kinds. Nothing here is a verdict: no column, accessor or function says "U1 is
+# retracted"; U1, its evidence and everything under it remain; `multiple` and `contested` are
+# untouched. The invariant, Rob's:
+#
+#     A higher-order claim can say that an utterance's assertion no longer stands.
+#     It cannot itself rewrite, resolve, or replace that utterance.
+#
+# Strength: UNDETERMINED, always, in this slice. The knowing party for a retraction is the
+# subject utterance's own origin - a relation between claimant and subject, which the
+# foundation-keyed `knowing` map cannot express (P-ack's "entitled party of THIS obligation"
+# is relational too). The relational form is a separate ruling, forced by the first consumer.
+UTTERANCE_RETRACTION = 'utterance_retraction'
+
 RULED_KINDS = {
     ARTEFACT_ORIGIN:      {'subject': ('subject_artefact_id',), 'object': ('object_party_id',),
-                           'symmetric': False, 'reading_establishes': False},
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': False},
     ARTEFACT_CORRESPONDS: {'subject': ('subject_artefact_id',), 'object': ('object_artefact_id',),
-                           'symmetric': True,  'reading_establishes': False},
+                           'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
     PARTY_CORRESPONDS:    {'subject': ('subject_party_id',),    'object': ('object_party_id',),
-                           'symmetric': True,  'reading_establishes': False},
+                           'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
+    # object: () - a REQUIRED absence, enforced (object_state must be `none`).
+    UTTERANCE_RETRACTION: {'subject': ('subject_utterance_id',), 'object': (),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
 }
 
 REFERENT_SEPARATE = 'separate'                          # no established claim touches it
@@ -1377,8 +1413,13 @@ def derived_strength(session, relation, knowing):
         prop = session.get(Proposition, relation.proposition_id)
     if prop is None:
         return STRENGTH_UNDETERMINED
+    rule = RULED_KINDS.get(prop.kind)
+    if rule is not None and rule.get('relational_knowing'):
+        # The knowing party is defined relative to the SUBJECT (utterance_retraction: the
+        # subject utterance's own origin), not by foundation. Not expressible in `knowing`;
+        # not expanded here (CLAIM_ABOUT_CLAIM.md s3, s7). Undetermined until ruled.
+        return STRENGTH_UNDETERMINED
     if relation.reading_id is not None or relation.reading is not None:
-        rule = RULED_KINDS.get(prop.kind)
         if rule is not None and not rule['reading_establishes']:
             # A candidate, by ruling: the knowledge "these bytes equal those bytes" or "the
             # letterhead says Aetna" is nobody's - routing it through the artefact's origin

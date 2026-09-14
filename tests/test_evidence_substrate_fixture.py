@@ -126,8 +126,12 @@ def run(db):
           s.query(db.EvidentiaryRelationship).filter_by(proposition_id=p1.id).count() == 2)
 
     print('\n3. A false proposition remains representable; a claim about an utterance (Case B)\n')
-    correction = db.Proposition(kind='correction', subject_state=db.PARTICIPANT_ESTABLISHED,
-                                subject_utterance_id=u1.id, content='the March assertion was wrong')
+    # Slice 5 (2026-09-13) retired the placeholder label 'correction' in place: the ruled kind is
+    # utterance_retraction - "the assertion made by utterance U no longer stands" - with no
+    # second participant. Case B has been this proposition since slice 1; now it has its name.
+    correction = db.Proposition(kind=db.UTTERANCE_RETRACTION, subject_state=db.PARTICIPANT_ESTABLISHED,
+                                subject_utterance_id=u1.id, object_state=db.PARTICIPANT_NONE,
+                                content='the March assertion was wrong')
     s.add(correction)
     s.commit()
     u3 = db.Utterance(origin_party_id=party.id, asserted_at='2026-09-01T10:00:00',
