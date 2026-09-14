@@ -1,12 +1,12 @@
 # Slice 8 — what kind of thing is the crossing?
 
-> Status: **Build mode, opened by Rob 2026-09-14 — record only, no code. Precision pass `00ec394`
-> accepted by Rob; the record is READY FOR RULING (§8) — not yet ruled, not yet authorised.** The obligation slice
+> Status: **Build mode, opened by Rob 2026-09-14; precision pass `00ec394` accepted (§8); K1 RULED
+> as written and the build AUTHORISED (§9).** The obligation slice
 > is accepted at `8fd7382` (`OBLIGATION_IDENTITY.md` §10); its §10.1 holds the fence, the three
 > tests and the instruction this record follows: *do not start by designing `artefact_concerns`;
 > ask the cases what kind of thing the crossing is.* This record does that, finds that the two
 > proposals answer different questions and that a third question hides behind them, and ends
-> with a ruling candidate. Nothing here is authorised to build.
+> with a ruling candidate, ruled in §9.
 
 **Rob's question, verbatim:** *what makes an artefact's proposition about **this** obligation,
 rather than merely **compatible with** an obligation?* — and the sharper form: *what kind of
@@ -242,3 +242,15 @@ concerns(A, O) does not rewrite: proposition subject · participants · authorit
 
 *A considerably stronger slice 8 than the original draft, without being broader.* No further
 edits to this record; the next step is the ruling.
+
+---
+
+## 9. Ruling — Rob, 2026-09-14. K1 ruled as written (§7); the slice 8 build authorised.
+
+The candidate stands verbatim. The build is the one listed under §7 and nothing more: the
+single `artefact_concerns` kind in the registry (subject the artefact; second participant the
+identities ruled so far — the obligation; reading-sourced claims candidates only; relational
+knowing, strength `undetermined`) · fixture over Ab1–Ab10 with Ab7 asserted *not representable*
+and Ab8 *not establishable* · the five mutations · no migration. Out, as fenced: proposition-
+level about-ness · multi-link strength · any consumer of "about O" · candidate generation · the
+other identities.
