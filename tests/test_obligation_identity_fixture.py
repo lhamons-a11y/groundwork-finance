@@ -32,7 +32,7 @@ What this build can and cannot exercise, stated so greenness is not over-read:
     Ob12 retracting the minting utterance does not unmint                     EXERCISED
     minting act != minted identity; one act may mint two                      EXERCISED
     D4 P-ack payment                                                          NOT REPRESENTABLE - the payment referent (fenced)
-    artefact -> obligation about-ness (concerns vs re-assert)                 NOT BUILT - its own ruling
+    artefact -> obligation about-ness                                        slice 8 - tests/test_artefact_concerns_fixture.py
     role period · restructure relation · DebtAccount decomposition            NOT BUILT - fenced
 
 Run:  python tests/test_obligation_identity_fixture.py
@@ -204,8 +204,10 @@ def run(db):
           p_read.object_state == db.PARTICIPANT_CANDIDATES and p_read.object_obligation_id is None)
     u_er = utter("That's the ER visit - I owe Mercy for it.")
     o2 = mint_obligation(u_er)
-    check('the household\'s assertion mints O2; how the bill is tied to O2 (concerns vs re-assert) is NOT built here',
-          o2.minted_by is u_er and s.query(db.Proposition).filter(db.Proposition.kind.like('%concern%')).count() == 0)
+    # Slice 8 retired "not built here" in place: the tie is artefact_concerns (tests/
+    # test_artefact_concerns_fixture.py). Here none is asserted, and minting O2 asserted none.
+    check('the household\'s assertion mints O2 and, by itself, ties no artefact to it (the tie is a separate claim, slice 8)',
+          o2.minted_by is u_er and s.query(db.Proposition).filter_by(kind=db.ARTEFACT_CONCERNS).count() == 0)
 
     print('\n4. Ob3 - Chase assigns the mortgage to NewCo: a new dated claim; the old remains; the anchor is untouched\n')
     newco, _ = mint_party('NewCo Servicing LLC.')

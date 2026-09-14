@@ -749,6 +749,8 @@ def _mint_party_anchor(mapper, connection, target):
 #
 # Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
 # saw of a held artefact; propositions are what they evidence; the relationship connects them.
+# Slice 8 (ARTEFACT_ABOUTNESS.md): artefact_concerns - the crossing from "A says X" to "X is about O"
+# is a claim of its own, presupposing O; it never rewrites what A said or how it is known.
 # Obligation (OBLIGATION_IDENTITY.md): a continuant minted by the household's assertion - anchor =
 # pointer to the minting utterance and nothing else; obligation slots; obligation_corresponds.
 # Slice 5 (CLAIM_ABOUT_CLAIM.md): utterance_retraction - the one higher-order kind; about the
@@ -1320,6 +1322,29 @@ ARTEFACT_CORRESPONDS = 'artefact_corresponds'
 PARTY_CORRESPONDS = 'party_corresponds'
 OBLIGATION_CORRESPONDS = 'obligation_corresponds'     # the third type (Ob7): two minted obligations, one referent
 
+# ── Slice 8: about-ness ──────────────────────────────────────────────────────
+# gw 2.0/ARTEFACT_ABOUTNESS.md, ruled s9. `artefact_concerns(A, X)` means EXACTLY: *this artefact
+# concerns this identity* - subject the artefact, second participant an ALREADY-ESTABLISHED
+# identity (the obligation now; each further identity as it is ruled). It PRESUPPOSES the
+# identity: it does not mint, establish, identify or create it. It is asserted by a party's
+# utterance under the ordinary discipline; whether that party is KNOWING for the relational
+# claim is a separate, fenced question (relational_knowing -> undetermined). An observed match
+# (account number, name, date) is a reading-sourced candidate for this claim and for nothing
+# else - it never touches the evidence of anything the artefact says.
+#
+# The anti-collapse invariant: artefact_concerns(A, O) never changes the subject, participants,
+# authority, evidence or history of any proposition derived from a reading of A. Values read
+# from A keep their source's authority (via artefact_origin) and are about O only by a
+# consumer's derivation through this claim - never by rewriting their own participants (which
+# the immutability guard refuses anyway). About-ness is not endorsement (a wrong letter can
+# concern the right debt) and needs no custody (an asserted artefact can concern an identity).
+#
+# Not the crossing: re-assertion - the household saying a value itself is testimony, a
+# different proposition ("what does the household say about O?"), already representable.
+# Not built: which of several identities a PARTICULAR read proposition concerns (a combined
+# statement) - forced, reopening slice 5's finding, not designed here.
+ARTEFACT_CONCERNS = 'artefact_concerns'
+
 # The kind -> participant-slot registry, for RULED kinds only (the catalogue stays open; an
 # unruled kind is constrained by the state discipline alone). Slice 3 fixed artefact_origin's
 # shape by convention; convention is not enforcement - this tightens it retroactively, stated.
@@ -1360,6 +1385,9 @@ RULED_KINDS = {
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
     OBLIGATION_CORRESPONDS: {'subject': ('subject_obligation_id',), 'object': ('object_obligation_id',),
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
+    # object: the identities ruled so far. Grows additively as each further identity is minted.
+    ARTEFACT_CONCERNS:    {'subject': ('subject_artefact_id',), 'object': ('object_obligation_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
     # object: () - a REQUIRED absence, enforced (object_state must be `none`).
     UTTERANCE_RETRACTION: {'subject': ('subject_utterance_id',), 'object': (),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},

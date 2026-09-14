@@ -1,7 +1,7 @@
 # Slice 8 — what kind of thing is the crossing?
 
 > Status: **Build mode, opened by Rob 2026-09-14; precision pass `00ec394` accepted (§8); K1 RULED
-> as written and the build AUTHORISED (§9).** The obligation slice
+> as written (§9); BUILT at the §7 line — see the commit for the boundary.** The obligation slice
 > is accepted at `8fd7382` (`OBLIGATION_IDENTITY.md` §10); its §10.1 holds the fence, the three
 > tests and the instruction this record follows: *do not start by designing `artefact_concerns`;
 > ask the cases what kind of thing the crossing is.* This record does that, finds that the two
