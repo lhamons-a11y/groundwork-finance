@@ -749,6 +749,8 @@ def _mint_party_anchor(mapper, connection, target):
 #
 # Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
 # saw of a held artefact; propositions are what they evidence; the relationship connects them.
+# Obligation (OBLIGATION_IDENTITY.md): a continuant minted by the household's assertion - anchor =
+# pointer to the minting utterance and nothing else; obligation slots; obligation_corresponds.
 # Slice 5 (CLAIM_ABOUT_CLAIM.md): utterance_retraction - the one higher-order kind; about the
 # utterance, never a verdict on it; strength undetermined until relational knowing is ruled.
 # Slice 4 (CORRESPONDENCE.md): artefact_corresponds / party_corresponds, the RULED_KINDS slot
@@ -935,6 +937,58 @@ def _validate_reading(mapper, connection, target):
         raise ValueError('reading violated: ' + '; '.join(problems))
 
 
+class Obligation(Base):
+    """A continuant minted by the household's individuating assertion that it owes.
+    Ruled `OBLIGATION_IDENTITY.md` s9 (2026-09-14).
+
+    The anchor is structure plus a pointer to the minting utterance - and nothing else. No
+    creditor, amount, kind, obligor, servicer, status, terms or account number lives here:
+    every one of those is a CLAIM about the obligation (instrument kind, balance and terms as
+    dated stances; entitled party, servicer, funder, risk-bearer and obligor as dated role
+    relations over parties - s10's three layers are three kinds, not one field). That is why the
+    obligation survives assignment, sale, write-off, recourse and restructure without a
+    continuity algorithm: none of them touches the anchor (S4/S5: creditor and account number
+    change, the obligation persists, so they cannot be its identity). It exists without a known
+    creditor (Ob9). It is never minted by a bill, a statement, a payment or an inference - those
+    yield candidates; a bill can describe a debt; only the household can say it owes one.
+
+    The minting ACT is not the minted IDENTITY (Rob's emphasis). The obligation is not the
+    utterance: the utterance mints it and supplies its anchor; the obligation thereafter exists
+    as the continuant later propositions refer to. One utterance may mint several ("I have two
+    loans with Chase"); retracting the minting utterance does not unmint (Ob12 - unminting is
+    fenced, as for institutions).
+
+    `DebtAccount` is a household assertion with descriptors fused onto one row - yes-shaped -
+    and is decomposable into this identity only where its asserting party is a fact, which in
+    production (zero Person rows) it is not. No synthetic migration: the ontology is settled
+    before the migration data is.
+    """
+    __tablename__ = 'obligations'
+    id           = Column(Integer, primary_key=True)
+    minted_by_id = Column(Integer, ForeignKey('utterances.id'), nullable=False)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+    minted_by = relationship('Utterance')
+
+
+@event.listens_for(Obligation, 'before_insert')
+def _validate_obligation(mapper, connection, target):
+    # NOT NULL covers the column; this covers the referent when foreign keys are not enforced
+    # (production runs without the pragma): the minting utterance must exist.
+    if target.minted_by is None:
+        t = Utterance.__table__
+        row = connection.execute(t.select().where(t.c.id == target.minted_by_id)).first() \
+            if target.minted_by_id is not None else None
+        if row is None:
+            raise ValueError('an obligation exists only under the utterance that minted it')
+
+
+def obligations_without_minting_utterance(session):
+    """Audit: obligations whose minting utterance is missing. Empty is the invariant."""
+    return [o for o in session.query(Obligation).all()
+            if o.minted_by_id is None or session.get(Utterance, o.minted_by_id) is None]
+
+
 # "Never merges rows, never rewrites a reference" (CORRESPONDENCE.md s4/s8), mechanically:
 # the referential slots that make an event what it is - which artefact a reading observed,
 # which party uttered, which things a claim is about - are immutable once the row exists.
@@ -944,8 +998,11 @@ _IMMUTABLE_REFERENCES = {
     'Reading':     ('artefact_id',),
     'Utterance':   ('origin_party_id',),
     'Artefact':    ('asserted_by_id',),
+    'Obligation':  ('minted_by_id',),
     'Proposition': ('kind', 'subject_party_id', 'subject_utterance_id', 'subject_artefact_id',
-                    'object_party_id', 'object_utterance_id', 'object_artefact_id'),
+                    'subject_obligation_id',
+                    'object_party_id', 'object_utterance_id', 'object_artefact_id',
+                    'object_obligation_id'),
     'EvidentiaryRelationship': ('proposition_id', 'utterance_id', 'reading_id'),
 }
 
@@ -1005,9 +1062,11 @@ class Proposition(Base):
     evidentiary lives on this row: what supports it is in `evidence`; its truth, resolution and
     strength are derived on read.
 
-    Referent slots present: party, utterance (slice 1), artefact (slice 2, additive). Further
-    ruled referent types (a transaction, an obligation, a plan) arrive as their slices land.
-    Adding a slot never changes the state discipline.
+    Referent slots present: party, utterance (slice 1), artefact (slice 2), obligation
+    (OBLIGATION_IDENTITY.md) - each additive. Further ruled referent types (a payment, a
+    transaction, a plan, a claim) arrive only when their identity is ruled - a 1.x row is never
+    presumed to be the thing (DOMAIN_PROPOSITION.md s4). Adding a slot never changes the state
+    discipline.
     """
     __tablename__ = 'propositions'
     id                   = Column(Integer, primary_key=True)
@@ -1017,25 +1076,29 @@ class Proposition(Base):
     subject_party_id     = Column(Integer, ForeignKey('parties.id'), nullable=True)
     subject_utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
     subject_artefact_id  = Column(Integer, ForeignKey('artefacts.id'), nullable=True)   # slice 2
+    subject_obligation_id = Column(Integer, ForeignKey('obligations.id'), nullable=True) # obligation slice
 
     object_state         = Column(String(32), nullable=False, default=PARTICIPANT_NONE)
     object_party_id      = Column(Integer, ForeignKey('parties.id'), nullable=True)
     object_utterance_id  = Column(Integer, ForeignKey('utterances.id'), nullable=True)
     object_artefact_id   = Column(Integer, ForeignKey('artefacts.id'), nullable=True)    # slice 2
+    object_obligation_id = Column(Integer, ForeignKey('obligations.id'), nullable=True)  # obligation slice
 
     content              = Column(Text, nullable=True)
     as_of                = Column(String(10), nullable=True)
     created_at           = Column(DateTime, default=datetime.utcnow)
 
     # The slot columns per participant side, so guards and future slices enumerate one list.
-    SUBJECT_SLOTS = ('subject_party_id', 'subject_utterance_id', 'subject_artefact_id')
-    OBJECT_SLOTS  = ('object_party_id', 'object_utterance_id', 'object_artefact_id')
+    SUBJECT_SLOTS = ('subject_party_id', 'subject_utterance_id', 'subject_artefact_id', 'subject_obligation_id')
+    OBJECT_SLOTS  = ('object_party_id', 'object_utterance_id', 'object_artefact_id', 'object_obligation_id')
 
     __table_args__ = (
         Index('ix_prop_kind', 'kind'),
         Index('ix_prop_subject_party', 'subject_party_id'),
         Index('ix_prop_subject_utterance', 'subject_utterance_id'),
         Index('ix_prop_subject_artefact', 'subject_artefact_id'),
+        Index('ix_prop_subject_obligation', 'subject_obligation_id'),
+        Index('ix_prop_object_obligation', 'object_obligation_id'),
     )
 
 
@@ -1255,6 +1318,7 @@ def _origin_claims(session, artefact, party_id):
 # document is content (X9); relatedness is another kind (X4).
 ARTEFACT_CORRESPONDS = 'artefact_corresponds'
 PARTY_CORRESPONDS = 'party_corresponds'
+OBLIGATION_CORRESPONDS = 'obligation_corresponds'     # the third type (Ob7): two minted obligations, one referent
 
 # The kind -> participant-slot registry, for RULED kinds only (the catalogue stays open; an
 # unruled kind is constrained by the state discipline alone). Slice 3 fixed artefact_origin's
@@ -1294,6 +1358,8 @@ RULED_KINDS = {
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
     PARTY_CORRESPONDS:    {'subject': ('subject_party_id',),    'object': ('object_party_id',),
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
+    OBLIGATION_CORRESPONDS: {'subject': ('subject_obligation_id',), 'object': ('object_obligation_id',),
+                           'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
     # object: () - a REQUIRED absence, enforced (object_state must be `none`).
     UTTERANCE_RETRACTION: {'subject': ('subject_utterance_id',), 'object': (),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
@@ -1304,8 +1370,9 @@ REFERENT_CANDIDATES = 'separate_with_candidates'        # reading-sourced claims
 REFERENT_CORRESPONDING = 'corresponding'                # at least one established claim; one component
 REFERENT_CONTESTED = 'contested'                        # an establishing utterance is itself the subject of a claim
 
-_CORRESPONDENCE_OF = {'Artefact': (ARTEFACT_CORRESPONDS, 'subject_artefact_id', 'object_artefact_id'),
-                      'Party':    (PARTY_CORRESPONDS,    'subject_party_id',    'object_party_id')}
+_CORRESPONDENCE_OF = {'Artefact':   (ARTEFACT_CORRESPONDS,   'subject_artefact_id',   'object_artefact_id'),
+                      'Party':      (PARTY_CORRESPONDS,      'subject_party_id',      'object_party_id'),
+                      'Obligation': (OBLIGATION_CORRESPONDS, 'subject_obligation_id', 'object_obligation_id')}
 
 
 def referent(session, thing):

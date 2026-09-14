@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260913-artefact-origin'
+SCHEMA_VERSION = '20260914-obligation-identity'
 
 
 def _stored_schema_version():
@@ -129,6 +129,12 @@ _NEW_PARTY_COLUMNS = [
 _NEW_PROPOSITION_COLUMNS = [
     ('subject_artefact_id', "INTEGER REFERENCES artefacts(id)"),
     ('object_artefact_id',  "INTEGER REFERENCES artefacts(id)"),
+    # Obligation identity (gw 2.0/OBLIGATION_IDENTITY.md): the obligation referent slots. The
+    # `obligations` table itself is new (create_all). No data step: a DebtAccount is decomposable
+    # into an obligation only where its asserting party is a fact, and in production (zero
+    # Person rows) it is not - no synthetic migration, by ruling.
+    ('subject_obligation_id', "INTEGER REFERENCES obligations(id)"),
+    ('object_obligation_id',  "INTEGER REFERENCES obligations(id)"),
 ]
 
 _NEW_FUNDING_ALLOCATION_COLUMNS = [
@@ -299,6 +305,8 @@ _PERFORMANCE_INDEXES = [
     # material, never identity, and lives on a new table where create_all handles it.
     ('ix_evidence_reading',      'evidence(reading_id)'),
     ('ix_prop_subject_artefact', 'propositions(subject_artefact_id)'),
+    ('ix_prop_subject_obligation', 'propositions(subject_obligation_id)'),
+    ('ix_prop_object_obligation',  'propositions(object_obligation_id)'),
     ('ix_txn_account_import', 'transactions(account_id, import_id)'),
     ('ix_txn_account_date',   'transactions(account_id, date)'),
     ('ix_txn_category',       'transactions(category_id)'),

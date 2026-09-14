@@ -284,11 +284,14 @@ def run(db):
           and s.query(db.Proposition).filter(db.Proposition.kind.in_(('reaffirmation', 'reaffirms'))).count() == 0)
     check('no proposition takes a proposition as subject - no such slot exists',
           'subject_proposition_id' not in {c.name for c in db.Proposition.__table__.columns})
-    check('no schema change: the tables are exactly slice 4\'s',
-          {c.name for c in db.Proposition.__table__.columns}
-          == {'id', 'kind', 'subject_state', 'subject_party_id', 'subject_utterance_id', 'subject_artefact_id',
-              'object_state', 'object_party_id', 'object_utterance_id', 'object_artefact_id',
-              'content', 'as_of', 'created_at'})
+    # The obligation slice (2026-09-14) retired the exact column set in place: referent slots
+    # arrive additively as identities are ruled; what this slice pins is that no slot for a
+    # PROPOSITION subject exists (checked above) and that the retraction kind's own shape is
+    # unchanged.
+    check('no slot was added for this slice: the retraction kind uses only subject_utterance_id',
+          db.RULED_KINDS[db.UTTERANCE_RETRACTION] == {'subject': ('subject_utterance_id',), 'object': (),
+                                                     'symmetric': False, 'reading_establishes': False,
+                                                     'relational_knowing': True})
     check('every audit is empty',
           not db.parties_without_one_anchor(s) and not db.evidence_without_one_source(s)
           and not db.readings_of_unheld_artefacts(s) and not db.artefacts_with_inconsistent_assertion(s))

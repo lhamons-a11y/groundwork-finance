@@ -1,7 +1,7 @@
 # The obligation as a 2.0 identity — what is it, and what makes something correspond to it?
 
-> Status: **Build mode, opened by Rob 2026-09-14; §8 ACCEPTED and the representational build
-> AUTHORISED, exactly as fenced (§9).** Slice 6 is accepted
+> Status: **Build mode, opened by Rob 2026-09-14; §8 ACCEPTED (§9); the representational build
+> BUILT exactly as fenced — see the commit for the boundary.** Slice 6 is accepted
 > at `88abc97` (`DOMAIN_PROPOSITION.md` §8): *identity precedes proposition instances*, and the
 > obligation is the first referent to rule. This record tests four readings of the obligation's
 > identity against the cases the disposition, servicing, acknowledgment and lifecycle records
