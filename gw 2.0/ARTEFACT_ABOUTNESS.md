@@ -1,6 +1,7 @@
 # Slice 8 — what kind of thing is the crossing?
 
-> Status: **Build mode, opened by Rob 2026-09-14 — record only, no code.** The obligation slice
+> Status: **Build mode, opened by Rob 2026-09-14 — record only, no code. Precision pass `00ec394`
+> accepted by Rob; the record is READY FOR RULING (§8) — not yet ruled, not yet authorised.** The obligation slice
 > is accepted at `8fd7382` (`OBLIGATION_IDENTITY.md` §10); its §10.1 holds the fence, the three
 > tests and the instruction this record follows: *do not start by designing `artefact_concerns`;
 > ask the cases what kind of thing the crossing is.* This record does that, finds that the two
@@ -206,3 +207,38 @@ two-link derivation · any consumer of "about O" · candidate generation · the 
 
 *The line: a statement can be about your debt without you having said a word about the debt;
 but nothing is about your debt until you say which debt it is about.*
+
+---
+
+## 8. Review — Rob, 2026-09-14. Precision pass accepted; ready for ruling. No further wording pass.
+
+*The improvement is not cosmetic: several places where a future implementation could have
+mistaken an epistemic statement for an ontological one are gone.* Three changes materially
+strengthen the record:
+
+- **"Presupposes"** cleanly prevents `concerns` from becoming a backdoor identity-minting
+  mechanism.
+- **Assertion ≠ knowing** prevents *a party asserted this* from silently becoming *the party
+  knows this*.
+- **The anti-collapse invariant** gives the future implementation a hard semantic boundary:
+  the association can explain *which identity*, but cannot rewrite what the artefact said or
+  how we know it.
+
+The Ab7 correction identifies the actual forced fact without prematurely deciding that the
+answer must be a particular slot or relation shape.
+
+**The conceptual structure, as Rob now reads it:**
+
+```text
+            ┌── reading ──► proposition ──► "A says X"
+artefact A ─┤
+            └── concerns ──► identity O ──► "A is about O"
+
+party ──asserts──────────► concerns(A, O)
+party ──may/may not know─► concerns(A, O)      ← still fenced
+
+concerns(A, O) does not rewrite: proposition subject · participants · authority · evidence · history
+```
+
+*A considerably stronger slice 8 than the original draft, without being broader.* No further
+edits to this record; the next step is the ruling.
