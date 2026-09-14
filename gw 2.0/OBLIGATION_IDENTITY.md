@@ -350,3 +350,29 @@ is an identity to point *at*:
 > artefact's proposition about this obligation rather than merely a candidate for one?**
 
 A genuine ontology question, not a schema question. Opened when Rob opens it.
+
+### 10.1 The next slice's dependency boundary, as Rob framed it (2026-09-14) — waiting, not opened
+
+```text
+artefact
+   └── reading ──► proposition
+                       ▼
+                  obligation O ?        ← what justifies this final relationship
+```
+
+The two candidate forms are **genuinely different semantics**, not two encodings:
+
+- **`artefact_concerns`** — the artefact is explicitly related to an already-identified
+  obligation; individual readings then make propositions about that obligation.
+- **re-assertion** — each reading's proposition independently carries the assertion that it
+  concerns that obligation.
+
+Not to be decided from implementation convenience. **The cases decide whether about-ness is
+itself a world/domain relation that deserves identity, provenance and history, or simply part
+of establishing each proposition.**
+
+**The account-number candidate is the dangerous middle ground:** *"these two records look like
+the same obligation"* is not yet *"this artefact concerns obligation O."* The household's
+assertion crossed that boundary in the fixture (Ob2, Ob7); the next slice determines **exactly
+what proposition that crossing creates — without letting the matching mechanism itself become
+an authority.**
