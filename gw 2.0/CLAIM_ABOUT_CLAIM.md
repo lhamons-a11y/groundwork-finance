@@ -1,10 +1,11 @@
 # Slice 5 — what is a claim about a claim?
 
-> Status: **Build mode, slice 5 opened by Rob 2026-09-13 — record only, no code.** Slice 4 is
+> Status: **Build mode, slice 5 opened by Rob 2026-09-13; RULED as the one-kind result with a
+> terminology correction, and the build AUTHORISED at that line (§7).** Slice 4 is
 > accepted at `780c5f1` (`CORRESPONDENCE.md` §9). This record tests the four named candidates —
 > correction · retraction · contradiction · reaffirmation — against the Case-B history and the
 > rulings that already touch it, answers Rob's five questions for each, finds one substrate
-> limitation, and ends with a ruling candidate. Nothing here is authorised to build.
+> limitation, and ends with a ruling candidate, ruled in §7.
 
 ```text
 ordinary proposition → subject may be an utterance
@@ -208,3 +209,77 @@ the foundation) · no migration. **Not in it:** the resolver · narrowing `conte
 
 *The line: a party may say its earlier word does not stand; the record keeps both words and
 decides nothing.*
+
+---
+
+## 7. Ruling — Rob, 2026-09-13. The one-kind result, with one terminology correction; build authorised.
+
+**The key distinction:** *the proposition is about the utterance, not about the truth of the
+proposition the utterance contained.* That keeps the higher-order layer from becoming a hidden
+resolver.
+
+**The kind is named `utterance_retraction`.** Its literal proposition: **"The assertion made by
+utterance U no longer stands."**
+
+- Subject: `utterance` · Second participant: none · Content: the claimant's stance toward that
+  utterance's assertion · Evidence: an ordinary party utterance · Replacement: not part of the
+  retraction; a new domain proposition may be evidenced by the same utterance · Truth /
+  conflict / repetition: not encoded here — resolver-derived concepts.
+
+```text
+U1: "The EOB is from Lakeview Health."          U2: "I was wrong. It was from Riverbend Hospital."
+U2 produces two propositions:   utterance_retraction(U1)   ·   artefact_origin(EOB, Riverbend Hospital)
+```
+
+Correction is an *interpretation* of those two propositions occurring in one act, not a kind.
+`"That is false"` produces a domain proposition, not `contradiction(U1)`; `"I still stand by
+that"` produces a later assertion, not `reaffirmation(U1)` — both derived.
+
+**One tightening — "opaque" must not mean an arbitrary payload.** The substrate preserves the
+proposition as a *normal* proposition under the ordinary evidence/strength discipline. What it
+must not preserve is a semantic verdict — `retracted = true`, `contradicted = true`,
+`reaffirmed = true` — resolver vocabulary. The chain is
+
+```text
+party → utterance U2 → utterance_retraction(U1) → a resolver later interprets the relationship
+```
+
+never `party → U2 → "U1 is retracted"`, which has already performed the resolution.
+
+*Applied in the build as:* `content` stays what every proposition's content is — text the
+derivations never read — and the kind carries the whole meaning; a retraction with empty
+content is a complete retraction (so no meaning can migrate into content); and no column,
+accessor or function anywhere yields a verdict on U1.
+
+**The limitation is real and remains a fence.** *Does the origin of U2 know the status of U1's
+assertion?* is relational — `origin(U2) → knows_about → U1` — not `Person → knowing`. The
+strength system is **not** expanded in slice 5; `undetermined` is the correct result until a
+ruled consumer requires the relational form. *Represent the claim now; don't invent the
+machinery needed to interpret it.*
+
+**The ruling, as Rob stated it:**
+
+> One higher-order proposition kind is forced: `utterance_retraction` — a proposition whose
+> subject is an utterance and whose content asserts that the assertion made by that utterance
+> no longer stands. It has no second participant; any replacement or contrary domain
+> proposition is a separate proposition, potentially evidenced by the same utterance.
+> `correction` decomposes into retraction plus a new domain proposition; `contradiction` and
+> `reaffirmation` are derived relationships, not stored kinds. No proposition takes another
+> proposition as subject. The claim is established through the ordinary party/utterance
+> discipline. Its knowing relation is currently relational to the subject utterance rather
+> than foundation-keyed, so strength remains `undetermined` until that relational form is
+> separately ruled. Resolver interpretation is fenced: this slice represents claims about
+> assertions; it does not decide whether an assertion is retracted, contradicted, reaffirmed,
+> replaced, or otherwise resolved.
+
+**The invariant, explicit:**
+
+```text
+A higher-order claim can say that an utterance's assertion no longer stands.
+It cannot itself rewrite, resolve, or replace that utterance.
+```
+
+**Authorised at exactly this line:** the single `utterance_retraction` kind on the existing
+`subject_utterance_id` mechanism · fixture coverage for the forced cases · **no** resolver ·
+**no** `subject_proposition_id` · **no** relational-knowing expansion · **no** change to the
+existing `multiple` / `contested` derivations unless a separate ruling requires them.
