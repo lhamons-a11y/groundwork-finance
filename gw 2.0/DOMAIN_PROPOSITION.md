@@ -1,11 +1,12 @@
 # Slice 6 — what is a domain proposition?
 
-> Status: **Build mode, slice 6 opened by Rob 2026-09-13 — record only, no code.** Slice 5 is
+> Status: **Build mode, slice 6 opened by Rob 2026-09-13; ACCEPTED as written with (b) no code
+> (§8). The obligation referent question is opened next.** Slice 5 is
 > closed at `2f127c9` (`CLAIM_ABOUT_CLAIM.md` §8). This record answers Rob's three questions
 > from the inventory of domain propositions the rulings have already named, finds that the
 > cases force the *shape* of a domain proposition but do not yet permit an *instance* of most of
-> them — for two reasons that are each a ruling of their own — and ends with a ruling candidate.
-> Nothing here is authorised to build.
+> them — for two reasons that are each a ruling of their own — and ends with a ruling candidate,
+> ruled in §8.
 
 **Rob's question, verbatim:** *what is a domain proposition?* — tested by three things:
 
@@ -219,3 +220,56 @@ relational knowing · P-ack, health, role, P-world instances · any consumer.
 
 *The line: a domain proposition says something about a thing in the world; the record must
 first be able to point at the thing.*
+
+---
+
+## 8. Ruling — Rob, 2026-09-14. Accepted as written; (b) no code. The obligation question opens next.
+
+*The record does not merely define "domain proposition" abstractly. It discovers a hard
+prerequisite the earlier proposition work could otherwise have hidden:* **a proposition cannot
+be structurally represented merely because the thing it talks about exists as a 1.x row.** A
+`subject_transaction_id` pointing at the existing row would have answered the ontology
+question by accident — *the row is the transaction* — when the row is closer to someone's
+assertion that a transaction occurred. Exactly the semantic smuggling the provenance work is
+designed to prevent.
+
+**Four boundaries settled:**
+1. **Subject is structural.** A domain proposition points at a world referent; it does not
+   encode the referent inside `content`.
+2. **Participants are not content.** The payment in P-ack, the obligation in an entitlement
+   claim, the counterparty in a role cannot be strings buried in the proposition.
+3. **Evidence does not determine proposition layer.** An utterance can evidence a domain
+   proposition; "was this evidenced by an utterance?" is not the domain/higher-order test.
+4. **Identity precedes proposition instances.** *The real result of the slice.* Before
+   `P-ack(payment = X)` can be meaningful, what X is must be ruled. This prevents a huge class
+   of future shortcuts.
+
+**Endorsed:** D9 — calling "classification" a possible subject would blur a process's output
+with a thing in the domain; manufactured-ness stays with the sensitivity/processing machinery,
+so the proposition model does not become a universal container for every internal software
+state. `layer` left out: the subject's type already distinguishes the layers; another taxonomy
+field is redundant machinery.
+
+**Relational knowing — appropriately restrained.** *The cases establish relationality* is
+distinguished from *the cases establish how relational knowing is represented*; a repeated case
+is evidence for a question, not authorisation to generalise the mechanism. And the dependency is
+real: *the insurer of this claim* is meaningless until this claim has an identity; likewise *E
+of this obligation*. `undetermined` is right.
+
+**Next-question ordering agreed: obligation first.** It sits under P-ack balance, P-ack
+payment, entitlement, disposition, `remaining`, discharge and E's role — a good test of whether
+the ontology can connect the rulings without cheating. **The negative criterion:** *do not
+start by asking "which existing table represents the obligation?"* The question is: **what is
+the obligation as a 2.0 identity, and what makes something correspond to that identity?** Only
+after that can the 1.x rows be evaluated as possible records of it.
+
+**`artefact_supersedes` — agreed, not built.** The ruling already says both operands are
+artefacts, the relationship is structural, its knowing path is origin, its consumer is fenced;
+code would duplicate the record. Not building it demonstrates the distinction between *we know
+what this means* and *there is now a reason for production code to consume it*.
+
+**Preserved almost verbatim:** *the shape is forced by the inventory; instances are not.* It
+gives every referent slice an acceptance test: once an identity is proposed, come back here and
+ask whether it satisfies the domain-proposition contract without reopening the definition.
+
+Record for the next question: `OBLIGATION_IDENTITY.md`.
