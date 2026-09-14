@@ -1,7 +1,7 @@
 # The obligation as a 2.0 identity — what is it, and what makes something correspond to it?
 
-> Status: **Build mode, opened by Rob 2026-09-14; §8 ACCEPTED (§9); the representational build
-> BUILT exactly as fenced — see the commit for the boundary.** Slice 6 is accepted
+> Status: **Build mode, opened by Rob 2026-09-14; RULED (§9); BUILT (`8fd7382`); ACCEPTED as-is
+> (§10).** Slice 6 is accepted
 > at `88abc97` (`DOMAIN_PROPOSITION.md` §8): *identity precedes proposition instances*, and the
 > obligation is the first referent to rule. This record tests four readings of the obligation's
 > identity against the cases the disposition, servicing, acknowledgment and lifecycle records
@@ -288,3 +288,65 @@ weaken the identity ruling.
 
 *A bill can describe a debt; only the household can say it owes one* — essentially the whole
 ontology in one sentence.
+
+---
+
+## 10. Slice accepted as-is — Rob, 2026-09-14. `8fd7382`, 906 green, clean tree.
+
+*The implementation does not accidentally broaden the ruling while proving it.*
+
+**The build matches the ruling unusually tightly.** `id · minted_by_id · created_at` is the
+right minimalism: `created_at` is lifecycle metadata, not promoted into identity; everything
+that could be mistaken for identity is deliberately absent. The immutable `minted_by_id` makes
+the act/identity distinction operational — **the utterance establishes the birth of the
+identity; later claims cannot rewrite its birth** — stronger than documenting it.
+
+**The mutation suite attacks five different ontological mistakes, not five variations of one
+test:**
+
+| Attack | What it would imply |
+|---|---|
+| bill mints | evidence creates the world object |
+| descriptor appears | properties become identity |
+| role re-anchors | later evidence changes identity |
+| retraction unmints | historical assertion controls existence |
+| correspondence merges | recognising sameness collapses identity |
+
+The correspondence test demonstrates explicitly: **correspondence establishes sameness without
+collapsing identity** — two obligations correspond while remaining two separately minted
+identities; this will matter across restructuring, refinancing and transfers. **Ob12** makes
+the ontology explicitly historical: `retract(minting utterance) ≠ delete obligation` — the
+obligation remains an identity even when the statement that minted it is later retracted.
+**Ob5** does not fake a payment concept to complete the scenario; it demonstrates that the
+obligation implementation cannot make payment semantics appear through the back door — which
+protects H2 and the eventual payment slice. **`DebtAccount` untouched** is arguably the most
+important migration decision in the slice: `DebtAccount → not yet established as → Obligation`,
+never `→ obviously →`; with no production `Person` rows, *the implementation has reached the
+exact edge of what the existing evidence can support.*
+
+**The general pattern to carry forward:**
+
+```text
+WORLD IDENTITY  ──is minted by──►  MINTING UTTERANCE  ──can evidence──►  PROPOSITIONS ABOUT IDENTITY
+                                                                          ├── party relations
+                                                                          ├── amounts · terms
+                                                                          ├── entitlement
+                                                                          └── other domain facts
+```
+
+and the arrows do not run backward: a proposition about an obligation does not create it; a
+bill does not create it; a correspondence does not merge it; a retraction does not destroy it;
+a descriptor does not become identity. *A substantial piece of the ontology, encoded in the
+record and in executable resistance to the obvious wrong implementations.*
+
+**Nothing else opened inside this slice.** Fences left alone: artefact → obligation about-ness ·
+payment identity · relational knowing · role period · restructure relation · `DebtAccount`
+decomposition · disposition / entitlement / discharge / remaining.
+
+**The next question Rob favours — artefact → obligation about-ness**, now sharper because there
+is an identity to point *at*:
+
+> **An artefact can describe an obligation without minting it. What, exactly, makes the
+> artefact's proposition about this obligation rather than merely a candidate for one?**
+
+A genuine ontology question, not a schema question. Opened when Rob opens it.
