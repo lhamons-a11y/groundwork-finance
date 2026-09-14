@@ -1,7 +1,7 @@
 # Slice 4 — what is a correspondence claim?
 
-> Status: **Build mode, slice 4 opened by Rob 2026-09-13; candidate RULED (§8); build AUTHORISED
-> and BUILT — see the commit for the build boundary.** Slice 3 is
+> Status: **Build mode, slice 4 opened by Rob 2026-09-13; RULED (§8); BUILT (`780c5f1`); ACCEPTED
+> (§9).** Slice 3 is
 > accepted and closed at `d626218` (`ARTEFACT_ORIGIN.md` §9). This record tests three readings
 > of the question against the cases already ruled, finds one conflict between two earlier
 > records and resolves it by the cases, finds two things the substrate must add, and ends
@@ -277,3 +277,47 @@ interesting things correspondence has made possible.
 The two lines, paired:
 > *A match is a reason to ask; only an answer is a claim.*
 > *A document can say where it is from; only a party can say where a document is from.*
+
+---
+
+## 9. Slice accepted — Rob, 2026-09-13. `780c5f1`, 890 green, clean tree.
+
+*The ruling was at §8; the implementation is now present.* The smoke section is the right kind
+of boundary test: it removes the architectural fences one at a time and verifies the fixture
+catches each removal — not merely that the happy path works.
+
+**Endorsed.**
+1. **The vocabulary correction matters.** *17 and 42 correspond; their derived referent contains
+   both* — neither row becomes another row; the referent is a consequence of the claims.
+2. **The hash mutation proves the central doctrine**, and proves it *after origin is
+   established* — closing the subtle laundering path `hash observation → reading → Lakeview Health origin
+   → Lakeview Health knows → therefore correspondence established`.
+3. **The immutability guard does real architectural work.** *Never merges rows, never rewrites
+   a reference* is now mechanically enforceable, below the level of developer discipline: a
+   future implementation cannot casually turn correspondence into canonicalisation without
+   fighting the substrate.
+4. **X2 and X9 guard two different category errors** — `same origin ≠ same artefact`, `mention
+   ≠ correspondence` — precisely the mistakes a later consumer makes because the data looks
+   related.
+
+**To watch — `contested` is deliberately provisional.** `claims → component → a claim about an
+establishing utterance → contested` is a reasonable fail-closed signal, not a general semantic
+definition of contradiction, and was correctly not presented as one. **Treat it as implemented
+behaviour with a deliberately fenced semantic boundary, not as an invitation to design a
+resolver now.** The same for `proposition_corresponds` / `utterance_corresponds`: no reason to
+add them merely because the structure could support them.
+
+**Where slice 4 leaves the architecture:**
+
+```text
+Slice 2   artefact → reading → proposition
+Slice 3   party → origin proposition → artefact origin
+Slice 4   artefact A ──correspondence claim── artefact B
+                 └──────── derived referent ────────┘
+
+observation ──→ candidate ──ask──→ party utterance ──→ asserted claim ──→ derived identity
+```
+
+Correspondence now has somewhere legitimate for its consequences to land without becoming
+identity itself. **No change to slice 4.** The next question is whatever the sequence designates
+next — not a cleanup pass on correspondence.
