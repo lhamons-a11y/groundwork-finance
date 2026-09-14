@@ -1,7 +1,7 @@
 # Slice 8 — what kind of thing is the crossing?
 
-> Status: **Build mode, opened by Rob 2026-09-14; precision pass `00ec394` accepted (§8); K1 RULED
-> as written (§9); BUILT at the §7 line — see the commit for the boundary.** The obligation slice
+> Status: **Build mode, opened by Rob 2026-09-14; precision pass accepted (§8); K1 RULED (§9); BUILT
+> (`06bd42d`); ACCEPTED and CLOSED (§10).** The obligation slice
 > is accepted at `8fd7382` (`OBLIGATION_IDENTITY.md` §10); its §10.1 holds the fence, the three
 > tests and the instruction this record follows: *do not start by designing `artefact_concerns`;
 > ask the cases what kind of thing the crossing is.* This record does that, finds that the two
@@ -254,3 +254,42 @@ knowing, strength `undetermined`) · fixture over Ab1–Ab10 with Ab7 asserted *
 and Ab8 *not establishable* · the five mutations · no migration. Out, as fenced: proposition-
 level about-ness · multi-link strength · any consumer of "about O" · candidate generation · the
 other identities.
+
+---
+
+## 10. Slice accepted and closed — Rob, 2026-09-14. `6ebe153` ruling · `06bd42d` build · 914 green · schema unchanged.
+
+*The build matches the ruling unusually well, and the fixture tests non-collapse rather than
+merely proving that `ARTEFACT_CONCERNS` can be inserted.* The strongest evidence is the mutation
+suite — each mutation a specific semantic failure:
+
+- matching evidence becoming authority;
+- association rewriting immutable proposition participants;
+- association history reaching backward into reading evidence;
+- testimony becoming about-ness;
+- matcher-created referents bypassing the concerns claim.
+
+The baseline fingerprint proves the anti-collapse invariant **over structure and evidence, not
+just over a convenient field**.
+
+**Especially:** the build refuses `concerns` with the obligation not established — which makes
+the earlier ruling operationally meaningful: *about-ness is a relation to an identity, not a
+mechanism for discovering or creating one.* Exactly the boundary the obligation slice required.
+
+**Ab7 correctly left alone:** *two concerns claims; per-proposition relation — NOT REPRESENTABLE*
+is the right stopping behaviour; artefact-level about-ness does not pretend to answer the
+finer-grained question. No two-link strength derivation slipped in.
+
+**To keep exactly as it is:** the fixture's supplied `KNOWING` entry for `ARTEFACT_CONCERNS`
+(*"supplied — and must not score"*) — an adversarial detail proving `relational_knowing = True`
+is not accidentally read as *knowing*; the derivation still returns `undetermined`. It protects
+against a future implementation shortcut.
+
+**The resulting invariant:**
+
+> **An artefact can be related to an identity without its readings becoming claims by that
+> identity, and without the relation changing what the artefact says, how the artefact's
+> claims are evidenced, or who supplied their authority.**
+
+Closed. Carried forward: only the explicitly fenced dependency — proposition-level about-ness
+(Ab7), a reopening of slice 5's finding, not designed.
