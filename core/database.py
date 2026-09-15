@@ -749,6 +749,9 @@ def _mint_party_anchor(mapper, connection, target):
 #
 # Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
 # saw of a held artefact; propositions are what they evidence; the relationship connects them.
+# Plan (PLAN_IDENTITY.md): an identity for a coverage arrangement the household individuates - its being
+# covered under an insurer's product, not the product; the insurer's product name and plan / group /
+# member identifiers are content and correspondence evidence; terms, period, members, premium are claims.
 # Expense (EXPENSE_IDENTITY.md): an event identity for an incurrence the household individuates;
 # the household's assertion mints it, other parties assert claims about it but do not mint it;
 # nature / category / amounts are claims; a source's category never mints or establishes nature.
@@ -1142,6 +1145,66 @@ def expenses_without_minting_utterance(session):
     return out
 
 
+class Plan(Base):
+    """A plan is a Groundwork identity for a coverage arrangement that the household individuates
+    - its being covered under an insurer's product, not the insurer's product - minted by a
+    Person's individuating assertion. Ruled `PLAN_IDENTITY.md` s7 (2026-09-14).
+
+    The insurer's assertion mints nothing: its product name and its plan, group and member
+    identifiers are content and correspondence evidence; the card, the SBC and the portal are
+    artefacts whose encounter mints only the artefact. Two households on one product have two
+    plans. The minting act establishes only the identity - "we have a plan" with no terms, no
+    document and no identifier is a plan (Pl15): the arrangement exists as an identity before
+    Groundwork knows anything substantive about it, and unknown terms are ABSENT term claims,
+    never a zero and never an inferred nonexistence.
+
+    The anchor is structure plus the minting utterance and nothing else. The insurer, the
+    product, the terms (deductible, copay, out-of-pocket maximum, coinsurance), the effective
+    period, who is covered and when, the premium, and whether it covered any expense are CLAIMS.
+    Coverage of a person under a plan is a dated relation with the plan as an endpoint (item 5,
+    not ruled); the premium is an obligation and payments, tied to the plan only by a relation
+    claim (item 6, not ruled); which plan covered an expense is a relation claim or a consumer
+    derivation, never a field on the expense; an authorization is the insurer's dated stance
+    about a prospective service - no expense exists yet; an accumulator is the insurer's dated
+    stance or a consumer's derivation; responsibility is a proposition about the expense.
+
+    "Coverage arrangement" is the referent of this row and acquires no ontology by implication:
+    there is no ruled coverage relation, contract, enrollment, benefit object or legal agreement.
+    Whether a renewal, a COBRA continuation or a changed deductible is the same plan or a new one
+    is the household's individuation choice, corrected later by `plan_corresponds` if two
+    assertions individuated one arrangement differently - never a licence for arbitrary
+    duplicates, and never decided by `created_at`, product ID, plan year or changing terms. A
+    terminated, disputed or superseded plan remains minted: identity is not truth or currency.
+
+    The 1.x `HealthPlan` / `HealthPlanTermVersion` rows fuse the plan with household-asserted
+    terms; they are untouched and not decomposed. `created_at` is when this row was written,
+    never an effective date.
+    """
+    __tablename__ = 'plans'
+    id           = Column(Integer, primary_key=True)
+    minted_by_id = Column(Integer, ForeignKey('utterances.id'), nullable=False)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+    minted_by = relationship('Utterance')
+
+
+@event.listens_for(Plan, 'before_insert')
+def _validate_plan(mapper, connection, target):
+    problems = _minting_violations(target, connection, 'a plan')
+    if problems:
+        raise ValueError('; '.join(problems))
+
+
+def plans_without_minting_utterance(session):
+    """Audit: plans whose minting utterance is missing or does not originate from a Person."""
+    out = []
+    for p in session.query(Plan).all():
+        utt = session.get(Utterance, p.minted_by_id) if p.minted_by_id is not None else None
+        if utt is None or party_foundation(utt.origin) != 'person':
+            out.append(p)
+    return out
+
+
 # "Never merges rows, never rewrites a reference" (CORRESPONDENCE.md s4/s8), mechanically:
 # the referential slots that make an event what it is - which artefact a reading observed,
 # which party uttered, which things a claim is about - are immutable once the row exists.
@@ -1154,12 +1217,13 @@ _IMMUTABLE_REFERENCES = {
     'Obligation':  ('minted_by_id',),
     'Payment':     ('minted_by_id',),
     'Expense':     ('minted_by_id',),
+    'Plan':        ('minted_by_id',),
     'Proposition': ('kind', 'subject_party_id', 'subject_utterance_id', 'subject_artefact_id',
                     'subject_obligation_id', 'subject_payment_id', 'subject_proposition_id',
-                    'subject_expense_id',
+                    'subject_expense_id', 'subject_plan_id',
                     'object_party_id', 'object_utterance_id', 'object_artefact_id',
                     'object_obligation_id', 'object_payment_id', 'object_proposition_id',
-                    'object_expense_id'),
+                    'object_expense_id', 'object_plan_id'),
     'EvidentiaryRelationship': ('proposition_id', 'utterance_id', 'reading_id'),
 }
 
@@ -1236,6 +1300,7 @@ class Proposition(Base):
     subject_obligation_id = Column(Integer, ForeignKey('obligations.id'), nullable=True) # obligation slice
     subject_payment_id   = Column(Integer, ForeignKey('payments.id'), nullable=True)     # payment slice
     subject_expense_id   = Column(Integer, ForeignKey('expenses.id'), nullable=True)     # expense slice
+    subject_plan_id      = Column(Integer, ForeignKey('plans.id'), nullable=True)        # plan slice
     # Ab7 (PROPOSITION_ABOUTNESS.md): a PROPOSITION as subject - narrowly. The only ruled kind that
     # uses it is proposition_concerns; slice 5's finding is reopened on that evidence and narrowed,
     # not reversed (truth / contradiction / reaffirmation claims about a proposition stay non-kinds).
@@ -1253,6 +1318,7 @@ class Proposition(Base):
     object_obligation_id = Column(Integer, ForeignKey('obligations.id'), nullable=True)  # obligation slice
     object_payment_id    = Column(Integer, ForeignKey('payments.id'), nullable=True)     # payment slice
     object_expense_id    = Column(Integer, ForeignKey('expenses.id'), nullable=True)     # expense slice
+    object_plan_id       = Column(Integer, ForeignKey('plans.id'), nullable=True)        # plan slice
 
     content              = Column(Text, nullable=True)
     as_of                = Column(String(10), nullable=True)
@@ -1260,9 +1326,9 @@ class Proposition(Base):
 
     # The slot columns per participant side, so guards and future slices enumerate one list.
     SUBJECT_SLOTS = ('subject_party_id', 'subject_utterance_id', 'subject_artefact_id', 'subject_obligation_id',
-                     'subject_payment_id', 'subject_proposition_id', 'subject_expense_id')
+                     'subject_payment_id', 'subject_proposition_id', 'subject_expense_id', 'subject_plan_id')
     OBJECT_SLOTS  = ('object_party_id', 'object_utterance_id', 'object_artefact_id', 'object_obligation_id',
-                     'object_payment_id', 'object_proposition_id', 'object_expense_id')
+                     'object_payment_id', 'object_proposition_id', 'object_expense_id', 'object_plan_id')
 
     __table_args__ = (
         Index('ix_prop_kind', 'kind'),
@@ -1277,6 +1343,8 @@ class Proposition(Base):
         Index('ix_prop_object_proposition', 'object_proposition_id'),
         Index('ix_prop_subject_expense', 'subject_expense_id'),
         Index('ix_prop_object_expense', 'object_expense_id'),
+        Index('ix_prop_subject_plan', 'subject_plan_id'),
+        Index('ix_prop_object_plan', 'object_plan_id'),
     )
 
 
@@ -1352,10 +1420,10 @@ def _validate_participants(mapper, connection, target):
 # g1 never reads them.
 _IDENTITY_SLOT_COLUMNS = ('subject_party_id', 'subject_utterance_id', 'subject_artefact_id',
                           'subject_obligation_id', 'subject_payment_id', 'subject_proposition_id',
-                          'subject_expense_id',
+                          'subject_expense_id', 'subject_plan_id',
                           'object_party_id', 'object_utterance_id', 'object_artefact_id',
                           'object_obligation_id', 'object_payment_id', 'object_proposition_id',
-                          'object_expense_id')
+                          'object_expense_id', 'object_plan_id')
 
 
 def _proposition_correspondence_violations(connection, target):
@@ -1565,6 +1633,7 @@ PARTY_CORRESPONDS = 'party_corresponds'
 OBLIGATION_CORRESPONDS = 'obligation_corresponds'     # the third type (Ob7): two minted obligations, one referent
 PAYMENT_CORRESPONDS = 'payment_corresponds'           # the fourth (Pm8 b): two minted payments, one referent
 EXPENSE_CORRESPONDS = 'expense_corresponds'           # the sixth type (Ex7): two minted expenses, one incurrence
+PLAN_CORRESPONDS = 'plan_corresponds'                 # the seventh (Pl4 / Pl13): two minted plans, one arrangement
 
 # ── Ab7: proposition-level about-ness ────────────────────────────────────────
 # gw 2.0/PROPOSITION_ABOUTNESS.md, ruled s7. `proposition_concerns(P, X)` means EXACTLY: *this
@@ -1670,9 +1739,11 @@ RULED_KINDS = {
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
     EXPENSE_CORRESPONDS:  {'subject': ('subject_expense_id',),    'object': ('object_expense_id',),
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
+    PLAN_CORRESPONDS:     {'subject': ('subject_plan_id',),       'object': ('object_plan_id',),
+                           'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
     # subject: a proposition - the only ruled use of that slot. object: the identities ruled so far.
     PROPOSITION_CONCERNS: {'subject': ('subject_proposition_id',),
-                           'object': ('object_obligation_id', 'object_payment_id', 'object_expense_id'),
+                           'object': ('object_obligation_id', 'object_payment_id', 'object_expense_id', 'object_plan_id'),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
                            'knowing_relation': KNOWING_MINTER_OF_OBJECT_IDENTITY},
     # proposition_corresponds: relational_knowing True and NO knowing_relation - a correctly fenced
@@ -1682,9 +1753,10 @@ RULED_KINDS = {
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': True},
     # object: the identities ruled so far. Grows additively as each further identity is minted
     # (obligation; payment - PAYMENT_IDENTITY.md s4: an artefact that is the payment's own record;
-    # expense - EXPENSE_IDENTITY.md s4: a bill, an EOB, a receipt).
+    # expense - EXPENSE_IDENTITY.md s4: a bill, an EOB, a receipt; plan - PLAN_IDENTITY.md s3: the
+    # card, the SBC, an EOB naming the group).
     ARTEFACT_CONCERNS:    {'subject': ('subject_artefact_id',),
-                           'object': ('object_obligation_id', 'object_payment_id', 'object_expense_id'),
+                           'object': ('object_obligation_id', 'object_payment_id', 'object_expense_id', 'object_plan_id'),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
                            'knowing_relation': KNOWING_MINTER_OF_OBJECT_IDENTITY},
     # object: () - a REQUIRED absence, enforced (object_state must be `none`).
@@ -1703,6 +1775,7 @@ _CORRESPONDENCE_OF = {'Artefact':   (ARTEFACT_CORRESPONDS,   'subject_artefact_i
                       'Obligation': (OBLIGATION_CORRESPONDS, 'subject_obligation_id', 'object_obligation_id'),
                       'Payment':    (PAYMENT_CORRESPONDS,    'subject_payment_id',    'object_payment_id'),
                       'Expense':    (EXPENSE_CORRESPONDS,    'subject_expense_id',    'object_expense_id'),
+                      'Plan':       (PLAN_CORRESPONDS,       'subject_plan_id',       'object_plan_id'),
                       'Proposition': (PROPOSITION_CORRESPONDS, 'subject_proposition_id', 'object_proposition_id')}
 
 
@@ -1816,6 +1889,8 @@ def _designated_minter_of_object_identity(session, prop):
         ident = session.get(Payment, prop.object_payment_id)
     elif prop.object_expense_id is not None:
         ident = session.get(Expense, prop.object_expense_id)
+    elif prop.object_plan_id is not None:
+        ident = session.get(Plan, prop.object_plan_id)
     else:
         return None
     if ident is None:

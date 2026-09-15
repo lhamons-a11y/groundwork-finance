@@ -286,11 +286,11 @@ def run(db):
     check('Ab7: with no proposition-level claim asserted, the read proposition still names no identity',
           s.get(db.Proposition, p_which.id).object_state == db.PARTICIPANT_CANDIDATES
           and s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS).count() == 0)
-    # The payment and expense slices added their object slots (the ruled growth path); the claim
-    # and plan identities still do not exist, so the check is stated over them.
+    # The payment, expense and plan slices added their object slots (the ruled growth path); the
+    # insurer's claim was ruled to have NO identity (4b), so its absence is by ruling, not by omission.
     check('Ab8: an EOB cannot concern an insurance claim - no such identity, no such slot; the kind\'s object is the ruled identities only',
-          set(db.RULED_KINDS[db.ARTEFACT_CONCERNS]['object']) == {'object_obligation_id', 'object_payment_id', 'object_expense_id'}
-          and not any('claim' in c.name or 'plan' in c.name for c in db.Proposition.__table__.columns))
+          set(db.RULED_KINDS[db.ARTEFACT_CONCERNS]['object']) == {'object_obligation_id', 'object_payment_id', 'object_expense_id', 'object_plan_id'}
+          and not any('claim' in c.name for c in db.Proposition.__table__.columns))
 
     print('\n8. Ab9 / Ab10 - no custody needed; not endorsement\n')
     u_march = utter("My March Chase statement - I don't have it - it's for the mortgage.", '2026-04-25T09:00:00')

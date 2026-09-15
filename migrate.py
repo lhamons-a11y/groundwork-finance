@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260914-expense-identity'
+SCHEMA_VERSION = '20260914-plan-identity'
 
 
 def _stored_schema_version():
@@ -150,6 +150,11 @@ _NEW_PROPOSITION_COLUMNS = [
     # about nothing minted and is not re-homed. No synthetic migration, by ruling.
     ('subject_expense_id',     "INTEGER REFERENCES expenses(id)"),
     ('object_expense_id',      "INTEGER REFERENCES expenses(id)"),
+    # Plan identity (gw 2.0/PLAN_IDENTITY.md): the plan referent slots; `plans` is new (create_all).
+    # No data step: HealthPlan / HealthPlanTermVersion fuse the plan with asserted terms and are
+    # decomposable only where the asserting party is a fact - not in production. Additive only.
+    ('subject_plan_id',        "INTEGER REFERENCES plans(id)"),
+    ('object_plan_id',         "INTEGER REFERENCES plans(id)"),
     # proposition_corresponds (gw 2.0/PROPOSITION_CORRESPONDENCE.md): the object-side proposition
     # slot, forced because a correspondence has two participants of one type; used by that kind
     # alone. No data step.
@@ -332,6 +337,8 @@ _PERFORMANCE_INDEXES = [
     ('ix_prop_object_proposition',  'propositions(object_proposition_id)'),
     ('ix_prop_subject_expense',     'propositions(subject_expense_id)'),
     ('ix_prop_object_expense',      'propositions(object_expense_id)'),
+    ('ix_prop_subject_plan',        'propositions(subject_plan_id)'),
+    ('ix_prop_object_plan',         'propositions(object_plan_id)'),
     ('ix_txn_account_import', 'transactions(account_id, import_id)'),
     ('ix_txn_account_date',   'transactions(account_id, date)'),
     ('ix_txn_category',       'transactions(category_id)'),

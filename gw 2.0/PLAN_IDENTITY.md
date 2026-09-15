@@ -1,12 +1,12 @@
 # The plan — does it have a Groundwork identity, and what assertion could mint it?
 
-> Status: **Queue item 4c, opened by Rob 2026-09-14 — a doctrine record, no code.** 4b closed at
+> Status: **Queue item 4c — RULED as written (§7, PL2) and BUILD AUTHORISED by Rob 2026-09-14; built to exactly §5 — see the commit for the boundary.** 4b closed at
 > `ea8f9d4` with the insurer's claim dissolved: no identity, nothing can mint one, the household's
 > "claim" is the expense and the insurer's is its record. Rob's warning on opening 4c, verbatim:
 > *likely the more dangerous of the two, because "plan," "coverage," "benefit," "authorization,"
 > and "responsibility" are extremely easy to collapse into one financial object … approach it with
 > the same identity-first discipline rather than assuming a plan is an identity merely because
-> insurers have plan IDs.* Nothing here is authorised to build.
+> insurers have plan IDs.* Built to §5 and nothing beyond it.
 
 **Stopping question:** *does a plan have a Groundwork identity, and if so, what assertion is
 capable of minting it?*
@@ -202,3 +202,60 @@ absences.** **Outside it:** items 5, 6, 7 · the catalogues · the resolver · l
 
 *The line: the insurer sells a product; the household has a plan. Groundwork holds the plan the
 household individuates, and everything the insurer says about it as what the insurer said.*
+
+---
+
+## 7. Ruling — Rob, 2026-09-14: PL2 as written / build authorised
+
+*This pass earned the distinction rather than assuming it: Pl3, Pl2/Pl10 and Pl15 are enough to
+kill PL1 structurally, not merely because PL2 is more convenient.*
+
+> **A plan is a Groundwork identity for a coverage arrangement that the household individuates —
+> its being covered under an insurer's product, not the insurer's product — minted by a Person's
+> individuating assertion.**
+
+The rest of the candidate is consequence / boundary material, confirmed: insurer product and
+identifiers remain content / evidence, not identity · terms, period, insurer, members, premium
+remain claims · membership is not smuggled onto the anchor · authorization is not confused with
+an incurred expense · premium remains an Obligation / Payment · responsibility remains about the
+Expense · coverage of X remains a relation / consumer question · absent terms mean no term claim,
+not zero · termination / dispute does not destroy the identity · correspondence corrects mistaken
+individuation without merging plans.
+
+**The decisive point — Pl15 is the strongest case in the record.** *"We have a plan"* with no
+terms, document, identifier or other descriptive information still gives the household something
+it can individuate. That demonstrates the identity is not secretly manufactured out of the plan's
+content: the arrangement can exist as an identity before Groundwork knows anything substantive
+about it — **identity first → claims afterward** — and the APPLICABILITY distinction becomes
+clean: *unknown* is represented by absent claims, never fabricated zeros or inferred nonexistence.
+
+**Two boundaries preserved tightly (Rob):**
+
+1. **"Coverage arrangement" acquires no ontology by implication.** It is the referent of `Plan`;
+   it does not establish that there is already a ruled `coverage` relation, contract, enrollment
+   object, benefit object, or legal agreement.
+2. **"The household decides: same P with a new dated term claim, or a new P"** is an
+   *individuation choice*, not a semantic licence for arbitrary duplicate plans. If two assertions
+   purport to individuate the same arrangement differently, correspondence is the mechanism for
+   saying so later. **Nothing about `created_at`, product ID, plan year, or changing terms decides
+   identity.**
+
+**Build authorised — exactly §5:** (1) `Plan` anchor with only `id`, `minted_by_id`,
+`created_at` · (2) Person-origin minting guard · (3) `plan_corresponds` · (4) plan proposition /
+concern slots · (5) plan in the correspondence machinery · (6) the fixture and absence /
+regression cases specified · (7) additive migration only · (8) no data migration. **Fences
+preserved:** no item 5 membership · no item 6 plan ↔ payment / obligation / expense relations ·
+no item 7 coverage / accumulator / status consumers · no term catalogue · no resolver · no legacy
+decomposition. 4b §4 retained: recurrence of the P-ack shape authorises no shared relation kind
+or generic resolver.
+
+**Disposition: 4c — PLAN IDENTITY: RULED / BUILD AUTHORISED.** The resulting symmetry:
+
+```text
+Expense   household individuates the incurrence
+Plan      household individuates the coverage arrangement
+Insurer   supplies products and assertions about both
+```
+
+*Neither bank vocabulary nor insurer vocabulary gets to mint the household's referents.* Build
+the slice, then stop again at the exact §5 boundary.

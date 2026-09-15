@@ -34,7 +34,8 @@ What this build can and cannot exercise, stated so greenness is not over-read:
     Ex12 1.x rows: HealthcareExpense untouched; category_id not re-homed      EXERCISED (absence)
     D1 / D3 acquire their subject                                             EXERCISED
     identity authority != epistemic authority (provider/insurer/bank cannot mint) EXERCISED
-    the insurer's claim, the plan, the relation family, consumers             NOT BUILT
+    the insurer's claim (ruled: no identity), the relation family, consumers  NOT BUILT
+    the plan                                                                  its own slice (PLAN_IDENTITY.md)
 
 Run:  python tests/test_expense_identity_fixture.py
 """
@@ -301,9 +302,13 @@ def run(db):
     check('no schema beyond the anchor and the additive slots; no expense status/state accessor',
           'expenses' in db.Base.metadata.tables
           and not any(hasattr(db, n) for n in ('expense_state', 'is_health', 'expense_total', 'net_cost')))
-    check('the insurer\'s claim and the plan have no identity, slot or kind here',
-          not any(n in db.Base.metadata.tables for n in ('claims', 'insurance_claims', 'plans'))
-          and not any(('claim' in c.name or 'plan' in c.name) for c in db.Proposition.__table__.columns))
+    # 4b ruled the insurer's claim has no identity and nothing can mint one; the plan is its own
+    # identity (4c) with its own slots - the check is narrowed to what stays absent by ruling, and
+    # to the one thing 4c forbids on this side: a plan reference on the expense anchor.
+    check('the insurer\'s claim has no identity, slot or kind - by ruling, not by omission; the expense carries no plan_id',
+          not any(n in db.Base.metadata.tables for n in ('claims', 'insurance_claims'))
+          and not any('claim' in c.name for c in db.Proposition.__table__.columns)
+          and not any('plan' in c.name for c in db.Expense.__table__.columns))
     check('every audit is empty',
           not db.expenses_without_minting_utterance(s) and not db.obligations_without_minting_utterance(s)
           and not db.evidence_without_one_source(s) and not db.parties_without_one_anchor(s))
