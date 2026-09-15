@@ -1,7 +1,7 @@
 # `proposition_corresponds` — what is a correspondence between propositions?
 
-> Status: **Build mode, opened by Rob 2026-09-14; RULED as written with g1 narrowed (§7); build
-> AUTHORISED.** Ab7 is closed at
+> Status: **Build mode, opened by Rob 2026-09-14; RULED as written with g1 narrowed (§7); BUILT —
+> see the commit for the boundary.** Ab7 is closed at
 > `9566f23` (`PROPOSITION_ABOUTNESS.md` §8). `proposition_corresponds` was in slice 4's PARTIAL kind
 > list, found **unforced** there (X8), and **pressed by a case** at Ab7 (Pa5: a re-reading's P3′
 > has no about-ness of its own). This record asks what "two propositions are one referent" can

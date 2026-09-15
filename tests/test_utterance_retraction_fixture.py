@@ -285,8 +285,11 @@ def run(db):
     # Ab7 (2026-09-14) reopened slice 5's finding on evidence and NARROWED it: a proposition-subject
     # slot now exists, and exactly one ruled kind uses it (proposition_concerns). What slice 5 ruled
     # still holds - truth, contradiction and reaffirmation claims about a proposition are not kinds.
-    check('the proposition-subject slot is used by exactly one ruled kind, and none of the slice-5 non-kinds became one',
-          [k for k, r in db.RULED_KINDS.items() if 'subject_proposition_id' in r['subject']] == [db.PROPOSITION_CONCERNS]
+    # proposition_corresponds (2026-09-14) is the second - and last - ruled kind with a proposition
+    # participant (subject and object, symmetric). The slice-5 non-kinds still gained nothing.
+    check('proposition participants are used by exactly two ruled kinds, and none of the slice-5 non-kinds became one',
+          sorted(k for k, r in db.RULED_KINDS.items() if 'subject_proposition_id' in r['subject'])
+          == sorted([db.PROPOSITION_CONCERNS, db.PROPOSITION_CORRESPONDS])
           and not any(k in db.RULED_KINDS for k in ('contradiction', 'reaffirmation', 'proposition_false',
                                                     'proposition_true', 'agrees_with')))
     # The obligation slice (2026-09-14) retired the exact column set in place: referent slots

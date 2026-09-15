@@ -142,9 +142,12 @@ def run(ctx):
     except Exception as e:                                    # noqa: BLE001
         check(f'core/database.py imports ({type(e).__name__}: {e})', False)
         return
-    check('core/database.py carries proposition_concerns as the one ruled kind with a proposition subject, and its guard',
+    # (proposition_corresponds later took a proposition subject AND object; proposition_concerns stays
+    # the only kind whose proposition participant is subject-only.)
+    check('core/database.py carries proposition_concerns as the one ruled kind with a subject-only proposition participant, and its guard',
           hasattr(db, 'PROPOSITION_CONCERNS') and hasattr(db, '_aboutness_violations')
-          and [k for k, r in db.RULED_KINDS.items() if 'subject_proposition_id' in r['subject']] == [db.PROPOSITION_CONCERNS]
+          and [k for k, r in db.RULED_KINDS.items()
+               if 'subject_proposition_id' in r['subject'] and 'object_proposition_id' not in r['object']] == [db.PROPOSITION_CONCERNS]
           and db.RULED_KINDS[db.PROPOSITION_CONCERNS]['reading_establishes'] is False
           and db.RULED_KINDS[db.PROPOSITION_CONCERNS]['relational_knowing'] is True)
 

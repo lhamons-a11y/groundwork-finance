@@ -749,6 +749,8 @@ def _mint_party_anchor(mapper, connection, target):
 #
 # Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
 # saw of a held artefact; propositions are what they evidence; the relationship connects them.
+# proposition_corresponds (PROPOSITION_CORRESPONDENCE.md): two observations/recordings of one claim;
+# relational never transmissive; g1 - established same-type participants may not disagree.
 # Ab7 (PROPOSITION_ABOUTNESS.md): proposition_concerns - a proposition as subject, narrowly; about-ness
 # is information about a proposition, not inserted into it; the one-source guard.
 # Payment (PAYMENT_IDENTITY.md): an event identity minted by a Person's assertion that it occurred;
@@ -1089,7 +1091,7 @@ _IMMUTABLE_REFERENCES = {
     'Proposition': ('kind', 'subject_party_id', 'subject_utterance_id', 'subject_artefact_id',
                     'subject_obligation_id', 'subject_payment_id', 'subject_proposition_id',
                     'object_party_id', 'object_utterance_id', 'object_artefact_id',
-                    'object_obligation_id', 'object_payment_id'),
+                    'object_obligation_id', 'object_payment_id', 'object_proposition_id'),
     'EvidentiaryRelationship': ('proposition_id', 'utterance_id', 'reading_id'),
 }
 
@@ -1169,6 +1171,11 @@ class Proposition(Base):
     # uses it is proposition_concerns; slice 5's finding is reopened on that evidence and narrowed,
     # not reversed (truth / contradiction / reaffirmation claims about a proposition stay non-kinds).
     subject_proposition_id = Column(Integer, ForeignKey('propositions.id'), nullable=True)
+    # proposition_corresponds (PROPOSITION_CORRESPONDENCE.md): the object-side proposition slot, forced
+    # because a correspondence has two participants of one type - used by that kind alone. The
+    # proposition-participant taxonomy stays explicit and asymmetric: proposition_concerns -> subject;
+    # proposition_corresponds -> object (and subject); the slice-5 non-kinds -> neither.
+    object_proposition_id  = Column(Integer, ForeignKey('propositions.id'), nullable=True)
 
     object_state         = Column(String(32), nullable=False, default=PARTICIPANT_NONE)
     object_party_id      = Column(Integer, ForeignKey('parties.id'), nullable=True)
@@ -1185,7 +1192,7 @@ class Proposition(Base):
     SUBJECT_SLOTS = ('subject_party_id', 'subject_utterance_id', 'subject_artefact_id', 'subject_obligation_id',
                      'subject_payment_id', 'subject_proposition_id')
     OBJECT_SLOTS  = ('object_party_id', 'object_utterance_id', 'object_artefact_id', 'object_obligation_id',
-                     'object_payment_id')
+                     'object_payment_id', 'object_proposition_id')
 
     __table_args__ = (
         Index('ix_prop_kind', 'kind'),
@@ -1197,6 +1204,7 @@ class Proposition(Base):
         Index('ix_prop_subject_payment', 'subject_payment_id'),
         Index('ix_prop_object_payment', 'object_payment_id'),
         Index('ix_prop_subject_proposition', 'subject_proposition_id'),
+        Index('ix_prop_object_proposition', 'object_proposition_id'),
     )
 
 
@@ -1261,8 +1269,43 @@ def _validate_participants(mapper, connection, target):
         problems = _foundation_violations(connection, target.subject_party_id, target.object_party_id)
     if not problems and target.kind == PROPOSITION_CONCERNS:
         problems = _aboutness_violations(connection, target)
+    if not problems and target.kind == PROPOSITION_CORRESPONDS:
+        problems = _proposition_correspondence_violations(connection, target)
     if problems:
         raise ValueError('proposition participant state violated: ' + '; '.join(problems))
+
+
+# The identity slots a proposition can carry, by type - the columns g1 compares, same column on
+# both rows. Participant STATE columns, kind, content, as_of and evidence are not in this list and
+# g1 never reads them.
+_IDENTITY_SLOT_COLUMNS = ('subject_party_id', 'subject_utterance_id', 'subject_artefact_id',
+                          'subject_obligation_id', 'subject_payment_id', 'subject_proposition_id',
+                          'object_party_id', 'object_utterance_id', 'object_artefact_id',
+                          'object_obligation_id', 'object_payment_id', 'object_proposition_id')
+
+
+def _proposition_correspondence_violations(connection, target):
+    """g1 (PROPOSITION_CORRESPONDENCE.md s4/s7), narrowly: both propositions must exist, and a
+    correspondence may not identify one referent when the two propositions' ALREADY-ESTABLISHED
+    same-type structural participants explicitly disagree - one claim cannot have two established
+    structural subjects. g1 inspects established participants only: never candidates,
+    proposition_concerns, content, kind, evidence, reading position, authority or semantic
+    similarity. It is not a "these don't seem equivalent" validator and must not become one."""
+    t = Proposition.__table__
+    rows = {}
+    for pid in (target.subject_proposition_id, target.object_proposition_id):
+        if pid is None:
+            return ['proposition_corresponds: both propositions must be named']
+        rows[pid] = connection.execute(t.select().where(t.c.id == pid)).first()
+        if rows[pid] is None:
+            return ['proposition_corresponds: both propositions must exist']
+    a, b = rows[target.subject_proposition_id], rows[target.object_proposition_id]
+    for col in _IDENTITY_SLOT_COLUMNS:
+        va, vb = getattr(a, col), getattr(b, col)
+        if va is not None and vb is not None and va != vb:
+            return [f'proposition_corresponds: the two propositions have established {col} participants '
+                    f'that disagree ({va} vs {vb}) - one claim cannot have two established structural subjects']
+    return []
 
 
 def _aboutness_violations(connection, target):
@@ -1466,6 +1509,20 @@ PAYMENT_CORRESPONDS = 'payment_corresponds'           # the fourth (Pm8 b): two 
 # about-ness of their own (proposition_corresponds is pressed by that case and not ruled).
 PROPOSITION_CONCERNS = 'proposition_concerns'
 
+# ── proposition_corresponds ───────────────────────────────────────────────────
+# gw 2.0/PROPOSITION_CORRESPONDENCE.md, ruled s7. Two separately minted propositions are two
+# OBSERVATIONS OR RECORDINGS OF ONE CLAIM - one statement an artefact makes, read more than once;
+# one assertion a party made, entered more than once. Slice 4's shape, a fifth type: established
+# only by a party's utterance; a position or content match observed by a reading MAY produce a
+# candidate (the observation is not itself the claim; candidate generation is outside the
+# substrate); the referent is derived; never merged, never re-pointed. Contents and kinds MAY
+# differ - that difference is the parse dispute, made computable and never resolved. Not
+# agreement (a comparison), not shared subject (structural), not the entry path's reuse of one
+# row (identity), not replacement (retraction), and NOT about-ness carrying: the substrate copies
+# nothing across corresponding propositions; what a consumer derives through the correspondence
+# is the consumer's rule. Relational, never transmissive.
+PROPOSITION_CORRESPONDS = 'proposition_corresponds'
+
 # ── Slice 8: about-ness ──────────────────────────────────────────────────────
 # gw 2.0/ARTEFACT_ABOUTNESS.md, ruled s9. `artefact_concerns(A, X)` means EXACTLY: *this artefact
 # concerns this identity* - subject the artefact, second participant an ALREADY-ESTABLISHED
@@ -1534,6 +1591,9 @@ RULED_KINDS = {
     # subject: a proposition - the only ruled use of that slot. object: the identities ruled so far.
     PROPOSITION_CONCERNS: {'subject': ('subject_proposition_id',), 'object': ('object_obligation_id', 'object_payment_id'),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
+    # the only ruled kind with a proposition OBJECT.
+    PROPOSITION_CORRESPONDS: {'subject': ('subject_proposition_id',), 'object': ('object_proposition_id',),
+                           'symmetric': True,  'reading_establishes': False, 'relational_knowing': True},
     # object: the identities ruled so far. Grows additively as each further identity is minted
     # (obligation; payment - PAYMENT_IDENTITY.md s4: an artefact that is the payment's own record).
     ARTEFACT_CONCERNS:    {'subject': ('subject_artefact_id',), 'object': ('object_obligation_id', 'object_payment_id'),
@@ -1551,7 +1611,8 @@ REFERENT_CONTESTED = 'contested'                        # an establishing uttera
 _CORRESPONDENCE_OF = {'Artefact':   (ARTEFACT_CORRESPONDS,   'subject_artefact_id',   'object_artefact_id'),
                       'Party':      (PARTY_CORRESPONDS,      'subject_party_id',      'object_party_id'),
                       'Obligation': (OBLIGATION_CORRESPONDS, 'subject_obligation_id', 'object_obligation_id'),
-                      'Payment':    (PAYMENT_CORRESPONDS,    'subject_payment_id',    'object_payment_id')}
+                      'Payment':    (PAYMENT_CORRESPONDS,    'subject_payment_id',    'object_payment_id'),
+                      'Proposition': (PROPOSITION_CORRESPONDS, 'subject_proposition_id', 'object_proposition_id')}
 
 
 def referent(session, thing):

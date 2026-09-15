@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260914-proposition-aboutness'
+SCHEMA_VERSION = '20260914-proposition-correspondence'
 
 
 def _stored_schema_version():
@@ -144,6 +144,10 @@ _NEW_PROPOSITION_COLUMNS = [
     # Ab7 (gw 2.0/PROPOSITION_ABOUTNESS.md): a proposition as subject - used by exactly one ruled
     # kind, proposition_concerns. Subject side only; nothing forced an object-side slot. No data step.
     ('subject_proposition_id', "INTEGER REFERENCES propositions(id)"),
+    # proposition_corresponds (gw 2.0/PROPOSITION_CORRESPONDENCE.md): the object-side proposition
+    # slot, forced because a correspondence has two participants of one type; used by that kind
+    # alone. No data step.
+    ('object_proposition_id',  "INTEGER REFERENCES propositions(id)"),
 ]
 
 _NEW_FUNDING_ALLOCATION_COLUMNS = [
@@ -319,6 +323,7 @@ _PERFORMANCE_INDEXES = [
     ('ix_prop_subject_payment',    'propositions(subject_payment_id)'),
     ('ix_prop_object_payment',     'propositions(object_payment_id)'),
     ('ix_prop_subject_proposition', 'propositions(subject_proposition_id)'),
+    ('ix_prop_object_proposition',  'propositions(object_proposition_id)'),
     ('ix_txn_account_import', 'transactions(account_id, import_id)'),
     ('ix_txn_account_date',   'transactions(account_id, date)'),
     ('ix_txn_category',       'transactions(category_id)'),

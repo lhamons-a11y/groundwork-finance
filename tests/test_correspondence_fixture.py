@@ -25,7 +25,7 @@ What this slice can and cannot exercise, stated so greenness is not over-read:
     X5  asserted -> held only by "that's it"; nothing upgraded   EXERCISED
     X6  user's report vs the EOB: discovered, never assumed      EXERCISED (same shape as X5)
     X7  replayed sync = identity, not correspondence             NOT EXERCISABLE - the importer's contract; asserted absent
-    X8  "$412" vs "412.00" = a comparison, not a correspondence  NOT BUILT - proposition_corresponds unforced
+    X8  "$412" vs "412.00" = a comparison, not a correspondence  still a comparison; proposition_corresponds (two readings of ONE claim) is its own slice
     X9  a mention is content, not origin, not correspondence     EXERCISED - PERMANENT
     X10 transitivity derived as the component, weakest-link      EXERCISED (component); strength over the path NOT derived (no consumer)
     X11 contested: reported, nothing chosen                      EXERCISED - what the contest SAYS is not derived (resolver fenced)
@@ -344,8 +344,11 @@ def run(db):
                       for m in (db.Artefact, db.Party, db.Reading, db.Proposition) for c in m.__table__.columns))
 
     print('\n11. Not built, stated so it is not assumed\n')
-    check('no utterance_corresponds or proposition_corresponds kind exists (unforced)',
-          not any(k.startswith(('utterance_corr', 'proposition_corr')) for k in db.RULED_KINDS))
+    # proposition_corresponds was forced later (PROPOSITION_CORRESPONDENCE.md, 2026-09-14) and is
+    # exercised by tests/test_proposition_correspondence_fixture.py. utterance_corresponds is
+    # still unforced - E3 is identity.
+    check('no utterance_corresponds kind exists (unforced - a replayed sync is identity, E3)',
+          not any(k.startswith('utterance_corr') for k in db.RULED_KINDS))
     check('no schema change: the tables are exactly slice 3\'s',
           {c.name for c in db.Party.__table__.columns} == {'id', 'person_id', 'minted_by_id', 'created_at'}
           and 'referent' not in db.Base.metadata.tables)

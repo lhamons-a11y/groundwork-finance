@@ -22,7 +22,7 @@ What this build can and cannot exercise, stated so greenness is not over-read:
     Pa2  a bank line -> a payment with NO artefact-level claim above it            EXERCISED
     Pa3  heading matches are reading-sourced candidates - the candidates carrier   EXERCISED
     Pa4  the line-level association disputed; P3 unchanged                         EXERCISED
-    Pa5  a re-reading's P3' has no about-ness; proposition_corresponds pressed      EXERCISED (absence); correspondence NOT BUILT
+    Pa5  a re-reading's P3' has no about-ness; proposition_corresponds pressed      EXERCISED (absence); correspondence is its own slice
     Pa6  testimony about O2 is not about-ness                                       EXERCISED
     Pa7  level inconsistency is representable and reported by consumers only       EXERCISED (report NOT BUILT)
     Pa8  a single-identity statement needs no line-level claim                      EXERCISED
@@ -239,9 +239,11 @@ def run(db):
     check('Pa5: a re-reading yields P3\' with NO about-ness of its own - nothing carried across by position or content',
           s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS, subject_proposition_id=P3b.id).count() == 0
           and P3b.object_state == db.PARTICIPANT_CANDIDATES)
-    check('Pa5: proposition_corresponds is pressed and NOT built - no such kind, no bridge',
-          'proposition_corresponds' not in db.RULED_KINDS
-          and s.query(db.Proposition).filter(db.Proposition.kind.like('%correspond%')).count() == 0)
+    # proposition_corresponds is now ruled and built (tests/test_proposition_correspondence_fixture.py).
+    # Here none is asserted: P3' still has no about-ness and no bridge - the correspondence would
+    # carry nothing across even if it were.
+    check('Pa5: no correspondence asserted here; P3\' stays without about-ness (correspondence copies nothing anyway)',
+          s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CORRESPONDS).count() == 0)
 
     print('\n5. Pa6 / Pa7 / Pa8 - testimony; level inconsistency; single-identity statements\n')
     n_c = s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS).count()
@@ -265,15 +267,19 @@ def run(db):
           not any(hasattr(db, n) for n in ('about', 'identity_of', 'concerns_of', 'about_identity')))
 
     print('\n6. Pa9 - slice 5 narrowed, not reversed\n')
-    check('exactly one ruled kind takes a proposition subject: proposition_concerns',
-          [k for k, r in db.RULED_KINDS.items() if 'subject_proposition_id' in r['subject']] == [db.PROPOSITION_CONCERNS])
+    # narrowed again by proposition_corresponds: two ruled kinds carry a proposition participant -
+    # proposition_concerns (subject only) and proposition_corresponds (subject and object). No other.
+    check('proposition_concerns is the only ruled kind whose proposition participant is subject-only',
+          [k for k, r in db.RULED_KINDS.items()
+           if 'subject_proposition_id' in r['subject'] and 'object_proposition_id' not in r['object']] == [db.PROPOSITION_CONCERNS])
     check('utterance_retraction is unchanged - its subject is still an utterance, never a proposition',
           db.RULED_KINDS[db.UTTERANCE_RETRACTION]['subject'] == ('subject_utterance_id',))
     check('"P3 is false", agreement and reaffirmation are still not kinds',
-          not any(k in db.RULED_KINDS for k in ('contradiction', 'reaffirmation', 'proposition_false', 'agrees_with',
-                                                'proposition_corresponds')))
-    check('no object-side proposition slot exists - nothing forced one',
-          'object_proposition_id' not in {c.name for c in db.Proposition.__table__.columns})
+          not any(k in db.RULED_KINDS for k in ('contradiction', 'reaffirmation', 'proposition_false', 'agrees_with')))
+    # the object-side slot was forced by proposition_corresponds and is used by that kind alone.
+    check('the object-side proposition slot is used by proposition_corresponds alone - not by proposition_concerns',
+          [k for k, r in db.RULED_KINDS.items() if 'object_proposition_id' in r['object']] == [db.PROPOSITION_CORRESPONDS]
+          and 'object_proposition_id' not in db.RULED_KINDS[db.PROPOSITION_CONCERNS]['object'])
 
     print('\n7. Pa10 - about-ness attaches only where no participant of the identity\'s type is established\n')
     check('a concerns claim on Rob\'s testimony T (object O2 established) naming O1 is refused',
