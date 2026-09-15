@@ -1,7 +1,7 @@
 # Ab7 — what is proposition-level about-ness?
 
 > Status: **Build mode, opened by Rob 2026-09-14; two wording refinements on his review; K1p RULED as
-> written (§7); BUILT at §6's shape — see the commit for the boundary.** The payment slice is
+> written (§7); BUILT (`9566f23`); ACCEPTED and CLOSED (§8).** The payment slice is
 > closed at `6390804` (`PAYMENT_IDENTITY.md` §11) with the constraint that *the payment identity
 > is complete without Ab7*. Ab7 was found at slice 8 (`ARTEFACT_ABOUTNESS.md` Ab7), forced a
 > second time by the payment slice (Pm2, Pm3), and is a **reopening of slice 5's finding** —
@@ -232,3 +232,40 @@ migrate, and why Ab7 coexists with the proposition model without corrupting it:*
 > proposition.**
 
 Ruled; build authorised at §6's shape; then stop. `proposition_corresponds` stays where it is.
+
+---
+
+## 8. Ab7 accepted and closed — Rob, 2026-09-14. `9566f23`, 932 green, clean tree.
+
+*A clean closure; the implementation carries the ruling rather than quietly expanding it.*
+
+- **The self-FK is correctly one-sided** — `subject_proposition_id` expresses exactly the ruled
+  shape; no object-side proposition slot invented prematurely.
+- **`PROPOSITION_CONCERNS` is narrowly registered** — *first and only proposition-subject kind* is
+  executable, not merely documentary.
+- **The reading boundary is preserved** — `reading_establishes = False`: a parser/matcher can
+  produce a candidate; it cannot manufacture an assertion.
+- **The one-source rule is correctly asymmetric** — the participant slot and about-ness are
+  different information; once the former is established the latter cannot become a second source.
+- **The fixture catches the dangerous shortcuts** — especially a reading-sourced match
+  manufacturing an utterance-backed assertion, *the failure mode of most concern*.
+- **Pa5 properly fenced; Pa7 correctly not an ontology guard; the absence tests valuable; the
+  payment fixture's Pm2 retirement correct.**
+
+**The architectural result:** `Artefact → Reading → Proposition → proposition_concerns →
+Identity` — a real representational path with no layer collapsed into another.
+`proposition_concerns` does not make the proposition know its subject; it records another
+proposition about that proposition, and the underlying one remains exactly what the reading
+produced — authority, evidence, history, content, participant state.
+
+**Preserved going forward, as an architectural invariant:** the slot must not tempt the next
+slice into *"if P concerns X, therefore P's participant must be X."* That reverses the direction
+of information and recreates the category error Ab7 eliminated. The valid direction: **an
+assertion says that P concerns X** — never *because P concerns X, P therefore contains or knows
+X*.
+
+**Ab7 — proposition-level about-ness: CLOSED.** The next pressure is not something Ab7 absorbs:
+`proposition_corresponds` is a separate question — Pa5 demonstrates a need to relate
+propositions produced by different readings — and is not to be smuggled in as "about-ness
+carrying". 923 → 932: nine units for one narrowly ruled capability, no migration data, no
+downstream derivation.
