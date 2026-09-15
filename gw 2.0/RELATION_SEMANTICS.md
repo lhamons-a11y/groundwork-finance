@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D OPENED 2026-09-15 by Rob — run from its own pressure sources (Ex8, the 1.x allocation row, the determinations) to a candidate `payment_in_respect_of` (§D.7), the funding / direction / 1:1 collapses rejected (§D.3), no code; awaiting Rob. Passes D′–G open one at a time.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D OPENED 2026-09-15 by Rob — candidate `payment_in_respect_of` (§D.7) from its own pressure sources, the funding / direction / 1:1 collapses rejected (§D.3), tightened after Rob's review (§D.8), no code; awaiting Rob's ruling. Passes D′–G open one at a time.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -947,6 +947,9 @@ payment → several expenses · a payment with no established expense · an expe
 disputed attribution**; and D **begins from its own pressure sources**, not from
 `obligation_in_respect_of` — whatever D turns out to be, C is not evidence for it.
 
+*Tightened 2026-09-15 after Rob's review (§D.8) — the payment-specific ambiguity of "in respect
+of", cardinality vs allocation, payer / payee semantics, and composition with pass A.*
+
 ### D.1 What is already fixed
 
 | Ruling | Constraint on pass D |
@@ -991,7 +994,7 @@ Three collapses hide in the phrase, each rejected on its own ground:
 | Collapse | What it would assert | Why it fails |
 |---|---|---|
 | **movement = payment** | the bank line is the payment | ruled already (Pm11 / Pm12): a payment may have no movement, a movement may be no payment; the line is evidence, never the identity |
-| **payment = funding of the expense** | the relation means *p paid (some of) the cost of X* — money flowed *from* the household *to* the provider *for* X | **contradicted by the case set**: D9 (the HSA reimburses Rob for X — money flows *to* the household), D18 (Lakeview Health's payment to Riverbend Hospital for X — neither payer nor payee is the household), D19 (mother paid CVS — the payer is not the incurrer). The direction of money is **p's payer / payee claims**; the relation carries none of it. A "funds" reading would need a different kind for each money direction — and D9's reimbursement is the same sentence, *that was for the ER visit* |
+| **payment = funding of the expense** | the relation means *p paid (some of) the cost of X* — money flowed *from* the household *to* the provider *for* X | **contradicted by three independent cases, for three different reasons**: D9 (reimbursement — money flows *to* the household), D18 (the insurer's payment — a payment can exist with **no household participant as payer or payee**), D19 (a third party — **payer and incurrer can be different people**). Together they refuse the silent chain *payment → payer → expense's incurrer → payment funds expense*. **The relation carries no payer / payee semantics; those remain separately asserted claims about the payment** — a consumer may join them to the relation, and may not turn them into its meaning. A "funds" reading would need a different kind for each money direction — and D9's reimbursement is the same sentence, *that was for the ER visit* |
 | **one movement, one expense** | the relation is 1:1 | contradicted by D3 (copay + bill payment for one visit) and D4 / D17 (one swipe for two prescriptions, or a prescription and shampoo nobody individuates) |
 
 What survives is the household's sentence, which says none of those things: **the payment was in
@@ -1005,8 +1008,8 @@ import from C — and is recorded for G in §D.6.)*
 |---|---|---|---|
 | **D1 (Ex8) — 1 → 1** | Rob: *the CVS charge on 3/2 was Kim's prescription.* Rob individuates X and p — one utterance, or two. | X minted; p minted (payer Rob, payee CVS, $24.99, 3/2 — claims on p); **p in respect of X** — a claim with two established participants; the bank line concerns p and concerns X (about-ness) | no obligation is minted or implied; X acquires no *paid* status; p's amount is not X's cost; the merchant string proves nothing |
 | **D2** | The feed: `CVS PHARMACY 24.99 · Medical`. Nothing minted yet. | a proposition from a capture with candidates (a payment Rob has not asserted; an expense he has not individuated) | it mints neither p nor X and relates nothing; **purpose is not proven from the description**; once p and X exist, a matcher's pairing is a **reading-sourced candidate** for the relation |
-| **D3 — 1 expense → n payments** | The ER visit: $30 copay at the desk (p1, cash — no bank line); $382 paid on the bill in April (p2). | **two claims**: p1 in respect of X · p2 in respect of X | no sum; no *fully paid*; nothing compares $412 to $30 + $382; `user_paid_cash` is item 7's |
-| **D4 — 1 payment → n expenses** | One CVS swipe, $61.48: Kim's prescription (X1) and Rob's (X2). | **two claims**: p in respect of X1 · p in respect of X2 | no allocation, no split, no percentage, no priority; *how much of $61.48 was Kim's* is a consumer's, and X's own amount claims are where the pharmacy's figures live |
+| **D3 — 1 expense → n payments** | The ER visit: $30 copay at the desk (p1, cash — no bank line); $382 paid on the bill in April (p2); a third payment p3 Rob later says was also for it. | **three claims**: p1 in respect of X · p2 in respect of X · p3 in respect of X | **cardinality is not allocation**: no sum; no *fully paid*; nothing compares $412 to $30 + $382; **no implication that any of them is a duplicate (`payment_corresponds` is a separate claim), a replacement, a counteraction (pass A) or "partial" unless another claim says so**; `user_paid_cash` is item 7's |
+| **D4 — 1 payment → n expenses** | One CVS swipe, $61.48: Kim's prescription (X1) and Rob's (X2). | **two claims**: p in respect of X1 · p in respect of X2 | **the relation does not say how p relates to each**: no allocation, no split, no percentage, no order of satisfaction (*the first expense gets paid first*), no *remainder*; **several assertions of this kind are never an implicit allocation** — *how much of $61.48 was Kim's* is a consumer's question, and X's own amount claims are where the pharmacy's figures live |
 | **D5 — payment, no expense** | Rob paid the plumber $200 in cash and never individuated the job as an expense; Rob gave his brother $500. | p minted with payee and amount; **no X and no relation** | nothing manufactures an incurrence for a payment — *every payment is for something* is false in the ontology |
 | **D6 — expense, no payment** | Ex5's wellness visit; Riverbend Hospital's bill still unpaid. | X; its stances | **no p and no relation**; *unpaid* is a determination (item 7), never derived from an absent relation — absence of a relation is absence of evidence |
 | **D7 — disputed attribution** | Rob: *the $84 was for the cushion* (X1); Kim: *no — the brace* (X2). | two claims: p in respect of X1 (Rob); p in respect of X2 (Kim) — **contested, derived** | nothing chooses; no current attribution |
@@ -1017,14 +1020,14 @@ import from C — and is recorded for G in §D.6.)*
 | **D12 — the determinations** | Rob marks the visit *user_paid_cash*. | a reconciliation stance — a consumer's reading over X, its amount claims, p and the relation; representable later as a dated claim on X if item 7 rules it | **not this kind, not derived from it**: *paid* is not a status the relation confers; `unpaid` / `pending_claim` stay uncollapsed |
 | **D13 — direction** | Is *X in respect of p* a different claim? | subject the payment, object the expense — **fixed by type**; no reverse claim to read | **no inverse kind** (`expense_paid_by`, `expense_funded_by` would be second relations, not this one backwards); navigation either way is a query, never an accessor that selects |
 | **D14 (Pm13)** | Rob later: *that charge wasn't the prescription — it was the brace.* | `utterance_retraction` of the utterance behind the relation claim; a new claim to X′ | p, X, X′ untouched; the history survives |
-| **D15 (pass A)** | CVS refunds the prescription: p2 counteracts p1. | p2 counteracts p1 (A); p1 in respect of X stands; **p2 in respect of X is Rob's to assert** (a refund is *for* the prescription too, if he says so) | not derived across kinds; X acquires no *refunded*; nothing nets |
+| **D15 (pass A) — composition refused both ways** | CVS refunds the prescription: p2 counteracts p1; p1 in respect of X. And the mirror: Rob asserts only p2 in respect of X and p2 counteracts p1. | p2 counteracts p1 (A); p1 in respect of X; **p2 in respect of X is Rob's to assert** (a refund is *for* the prescription too, if he says so) | **no composition across independently ruled relations, in either direction**: *counteracts + in-respect-of* does not derive the counteracting payment's relation to X, and *in-respect-of + counteracts* does not derive the counteracted payment's; X acquires no *refunded*; nothing nets (A's fence, item 7) |
 | **D16 — vocabulary** | *paid for* · *funded* · *covered* · *reimbursed* · *copay* · *out-of-pocket* · *attached* · *allocated*. | content, or claims on p (its payer, its payee, its kind) | **not kinds**: they differ in money direction, station and label — claims about p — not in what is claimed of the relation, who may establish it, its participants or what follows; *covered* is pass E/F's word |
 | **D17 — the mixed basket** | One swipe $61.48: Kim's prescription (X1) and shampoo, which nobody individuates. | p in respect of X1 | the relation says nothing about the rest of p; no *unallocated remainder*; no expense is manufactured for the shampoo |
 | **D18 — the insurer's payment** | The EOB says *plan paid $568*. Rob: *Lakeview Health paid Riverbend Hospital $568 for the ER visit.* | the EOB's stance on X (Ex3) is one thing; **p′ minted by Rob** (payer Lakeview Health, payee Riverbend Hospital) is another; p′ in respect of X, asserted by Rob | the EOB line mints no payment; the stance on X and the payment identity are not one thing and neither derives the other; **neither payer nor payee is the household** — the relation requires no household party anywhere on p |
 | **D19 (Pm9)** | Rob's mother paid CVS for Kim's prescription. | p (payer the mother — a minted party); p in respect of X | **no payer / incurrer mirroring**: the payer of p need not be the person who incurred X, nor the household (A7 / C8's role in this pass) |
 | **D20 — about-ness** | The CVS receipt (artefact, origin CVS) concerns p and concerns X. CVS's receipt line *Rx #4471 — $24.99*. | two `artefact_concerns` claims; CVS **may assert the relation as a party**; from a reading it is a candidate | **the relation is not derived** from a document concerning both; *any party may assert, both endpoints already established; the assertion establishes neither endpoint nor any property of either* (C19's rule, restated for D) |
-| **D21 — timing** | The $500 surgery deposit paid in April (p); the surgery in May (X); Rob: *the deposit was for the surgery.* Also: a payment in 2027 for a 2026 visit. | p in respect of X, `as_of` permitted | **no temporal order** — p before X or long after; `created_at` not consulted; C7's invariant holds here on D's own case. **PERMANENT** |
-| **D22 — the semantic floor** | *The $24.99 CVS payment on 3/2 was in respect of Kim's prescription.* | exactly that | it does not establish p's amount = X's cost · X paid · nothing remaining · the payee is the provider (S1: a billing company) · the payer is the incurrer · p was necessary · p discharged anything · the expense was covered; each is a further claim or a consumer's reading |
+| **D21 — timing** | The $500 surgery deposit paid in April (p); the surgery in May (X); Rob: *the deposit was for the surgery.* Also: a payment in 2027 for a 2026 visit. | p in respect of X, `as_of` permitted | **no temporal order** — p before X or long after; `created_at` not consulted. D reproduces C7's result independently, so the invariant is not an artefact of obligation semantics and is stated generally, to survive D′: ***a relation's direction and participant types do not establish temporal precedence between its endpoints.*** **PERMANENT** |
+| **D22 — the semantic floor, payment-specific** | *I made this payment in respect of Kim's prescription.* | exactly that — the asserted subject / object relationship | **"in respect of" ≠ "made for"**: it does not establish, merely by the relation, that the payer is Kim · the payer is the incurrer · the payee is CVS or the provider (S1: a billing company) · the payment funded CVS · the payment was made *because of* the prescription · the payment discharged an obligation · the amount corresponds to the prescription · this is the only payment for the expense · X is paid, or nothing remains · the expense was covered; each is a further claim or a consumer's reading |
 
 ### D.5 Testing the readings
 
@@ -1075,8 +1078,11 @@ from the household to the provider* · *p's amount equals or contributes to X's 
 responsibility or any residual* · *X is paid, partly paid, reimbursed or covered* · *p discharged
 an obligation* · *p was allocated to X* · *p preceded or followed X* · *the payer incurred X* ·
 *the payee provided X* · *p is exclusively in respect of X*. Each is a further claim by a party,
-a consumer's reading, or another pass's relation. **The direction of money is p's payer and payee
-claims, never the relation's.**
+a consumer's reading, or another pass's relation. **"In respect of" identifies the asserted
+subject / object relationship; it does not describe the economic purpose, direction, funding
+mechanism or legal effect of the payment.** The relation carries **no payer / payee semantics**;
+payer and payee remain separately asserted claims about the payment — a consumer may join them to
+the relation (as it may join X's nature claims in C17), and may not make them its meaning.
 
 | The claim | *the subject payment was in respect of the object expense*, as the asserting party holds — and nothing above the floor |
 |---|---|
@@ -1087,17 +1093,22 @@ claims, never the relation's.**
 | **knowing** | `relational_knowing` **True with no designated relation → `undetermined`** — the payer of p? the payee? the incurrer of X? none forced (A's and C's restraint) |
 | **content** | opaque — the party's wording (*copay*, *reimbursement*, *the whole swipe*); never read by a derivation |
 | **`as_of`** | permitted; p's date and X's date of service are their own claims |
-| **derives** | **nothing**: no amount, share, sum or reconciliation (D3, D4, D10); no *paid* / *reimbursed* / *covered* on X (D6, D9); no discharge on any obligation (D8); no direction of money (D9, D18); no temporal order (D21); no payer / incurrer or payee / provider mirroring (D19, D22); no transitivity with `toward` or `obligation_in_respect_of` (D8) or `payment_counteracts` (D15); no manufactured expense for an untied payment or the rest of a swipe (D5, D17); no determination (D12) |
+| **derives** | **nothing**: no amount, share, sum, allocation, order of satisfaction or reconciliation (D3, D4, D10); no duplicate / replacement / partial reading of several payments (D3); no *paid* / *reimbursed* / *covered* on X (D6, D9); no discharge on any obligation (D8); no payer / payee semantics or direction of money (D9, D18); no temporal order (D21); no payer / incurrer or payee / provider mirroring (D19, D22); no composition with `toward` or `obligation_in_respect_of` (D8) or `payment_counteracts` (D15, both directions); no manufactured expense for an untied payment or the rest of a swipe (D5, D17); no determination (D12) |
 | **what it is not** | not the movement (D2); not `toward` (D′); not about-ness (D20); not correspondence; not the 1.x allocation row (D11); not a determination (D12); not funding (D.3) |
 | **name** | a working name is needed for a kind; not a source word (*funds*, *pays for*, *allocated*, *attached*): `payment_in_respect_of` — chosen because **D's own cases arrived at the same floor as C's**; the name records that result and carries no semantics beyond this table |
 
-**For G — the first pair that may share semantics.** C and D were opened from different pressure
-(Ex4 / §7.7 vs Ex8 / the 1.x allocation row) and reached the same floor: *a party's statement
-that the subject is in respect of the object expense*, the same establisher rule, direction fixed
-by type, no cardinality, nothing derived. On the stopping rule's dimensions — establisher ·
-meaning · direction · participants · downstream — they differ **only in the subject's type**.
-That is the strongest evidence yet *for* a shared substrate between two relations, standing
-beside C.12's evidence *against* one between C and A/B. **G inspects both; D concludes neither.**
+**For G — same semantic floor, not the same relation.** C and D were opened from different
+pressure (Ex4 / §7.7 vs Ex8 / the 1.x allocation row) and **currently exhibit the same relational
+semantic floor under substitution of the subject participant type**: *a party's statement that
+the subject is in respect of the object expense*, the same establisher rule, direction fixed by
+type, no cardinality, nothing derived. The relational shape is parallel; **the subject identities
+have different ontology and different downstream possibilities** (a payment has payer, payee,
+cleared, counteraction; an obligation has entitlement, terms, replacement, discharge). On the
+stopping rule's dimensions they differ only in participants — which is **evidence for later
+family inspection, not a ruling that they belong to one semantic family**, standing beside C.12's
+evidence *against* a family with A / B. **G inspects both; D concludes neither.** The name
+`payment_in_respect_of` describes the candidate — the same linguistic relation phrase with a
+different typed subject — and asserts no family.
 
 ### D.7 Ruling candidate — pass D, for Rob
 
@@ -1140,8 +1151,10 @@ transitivity; no manufactured expense; no determination; no allocation row shape
 the payment fixture's stand-in note and the expense fixture's Ex8 check updated truthfully;
 **no schema, no migration**; and **nothing at family level** — D′ opens only after this is ruled.
 
-**What pass D leaves exactly where it found it:** `toward(p, O)` — D′, to be tested against
-this floor next · discharge and `remaining` · netting (A's fence, item 7) · the four
+**What pass D leaves exactly where it found it:** `toward(p, O)` — D′, **to determine
+independently whether *toward* means what the fixtures have assumed, not to take D as its semantic
+foundation**; in particular D establishes neither *p in respect of X + O in respect of X ⇒ p toward
+O* nor its reverse (D8) · discharge and `remaining` · netting (A's fence, item 7) · the four
 determinations and every reconciliation (item 7) · coverage (E/F) · the role catalogue (payer,
 payee, incurrer, provider) · candidate generation and the importer contract · `ExpenseFundingAllocation`
 decomposition (blocked on Person rows).
@@ -1149,3 +1162,29 @@ decomposition (blocked on Person rows).
 *The line: the money moved; the visit happened; that the money was for the visit is what someone
 said about the two of them — and which way it went, how much it met, and whether anything is now
 paid are not in it.*
+
+### D.8 Rob's review, 2026-09-15 — tightened before ruling
+
+Rob's four checks, applied where the record did not already pin the boundary: **(1)** the
+economic-purpose / funding fence stated on the floor in his words — *"in respect of" identifies
+the asserted subject / object relationship; it does not describe the economic purpose, direction,
+funding mechanism or legal effect of the payment* — and D22 rewritten as the payment-specific
+ambiguity test (*in respect of* ≠ *made for*, with the things it does not establish);
+**(2)** D3 / D4 now say *cardinality is not allocation* explicitly — several payments for one
+expense imply no duplicate, replacement, counteraction or "partial"; one payment for several
+expenses implies no allocation, split, percentage or order of satisfaction, and several assertions
+are never an implicit allocation; **(3)** *"the relation carries none of it"* tightened to *carries
+no payer / payee semantics; those remain separately asserted claims about the payment* — a
+consumer may join them, may not make them the relation's meaning (the C17 traversal / projection
+fence, mirrored); **(4)** D15 now refuses composition with `payment_counteracts` **in both
+directions** (the record had one).
+
+Also applied: D9 / D18 / D19 recorded as **three independent reasons** against *funds the
+expense* — money to the household · no household participant on the payment · payer ≠ incurrer —
+refusing the silent chain *payment → payer → incurrer → funds*; D21's invariant stated generally
+so it survives D′ — *a relation's direction and participant types do not establish temporal
+precedence between its endpoints* — now supported independently by C and D; the G note reworded
+to *same relational semantic floor under substitution of subject participant type — evidence for
+inspection, not a family ruling*; the D′ boundary stated — D establishes neither *p in respect of
+X + O in respect of X ⇒ p toward O* nor its reverse. **Name retained** (`payment_in_respect_of`
+describes the candidate; it asserts no family).
