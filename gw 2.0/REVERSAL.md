@@ -1,13 +1,14 @@
 # Reversal — an event identity, or a claim?
 
-> Status: **Queue item 3, opened by Rob 2026-09-14 — a doctrine record, no code.** The transaction
+> Status: **Queue item 3, opened by Rob 2026-09-14; C RULED with three corrections applied (§8);
+> `Reversal` identity rejected; no build; the payment-to-payment relation forced-but-unruled.** The transaction
 > referent is closed at `5af820c` with six hard constraints for this record (`TRANSACTION_REFERENT.md`
 > §8). The payment slice left reversal undecided (Pm7: *representable as a dated claim about p;
 > whether it is instead its own event identity is not decided; the relation kind, if any, not
 > ruled*). This record starts from constraint 6 — what Groundwork must be able to say truthfully,
 > and what Person-originating act could establish it — takes the source vocabulary apart before
 > testing anything, keeps the two candidates separate through every case, and ends with a ruling
-> candidate. Nothing here is authorised to build.
+> candidate, ruled in §8.
 
 **Rob's question, verbatim:** *is reversal an event identity or a claim?*
 
@@ -98,10 +99,14 @@ plus **one relation claim** (Rv1, Rv2, Rv7, Rv8) that the record does not yet ha
 - **Where money moved again, that is a second payment** — minted by the household when it
   individuates it, payer and payee the other way (Rv1, Rv2, Rv7, Rv8). The first payment is not
   mutated, collapsed or discharged by it (constraint 4).
-- **Where money did not move again, "reversal" is a party's dated stance about the existing
-  payment** — the bank's (returned, voided — Rv3, Rv4), E's (application reversed — Rv5), a
-  funder's (funding withdrawn / reinstated — Rv6) — with `as_of` and the utterance's or capture's
-  recorded time. The shipped `mode` + `occurred_on` + dual time is this shape, as claims.
+- **Where no second payment is individuated, "reversal" is a party's dated claim about the
+  existing payment *or about a party's treatment of that payment*** — the bank's that it was
+  returned or voided (Rv3, Rv4: about the movement); E's that an application to an obligation
+  was reversed (Rv5: about E's *treatment*, with the obligation as a participant); a funder's
+  that funding was withdrawn or restored (Rv6: about the funder's treatment) — with `as_of` and
+  the utterance's or capture's recorded time. **These are distinct predicates with potentially
+  different designated participants and knowing relations; they are not one universal
+  `payment_status`.** The shipped `mode` + `occurred_on` + dual time is this shape, as claims.
 - **A bank line is evidence for either shape and manufactures neither** (Rv9); **absence of a
   line is not a claim** (Rv4).
 - **Which shape applies is decided by a party's assertion, never by a derivation** (constraint
@@ -127,12 +132,16 @@ It is:
   asserting that the later stands in an economic relation to the earlier, which the obligation
   slice fenced until *the economic-transfer invariant's consumer is built*.
 
-Two queue items now press the family (this one and item 6, restructure). The record does **not**
-name the kind here — *reverses*, *refunds*, *returns* are all source words (constraint 1); the
-meaning is *the later payment returns to the payer of the earlier payment some or all of what it
-paid* — and does not decide whether the payment case is ruled alone now or the family together
-at item 6. **It records that the relation is forced by four cases and is a claim between two
-identities, and hands the naming and the timing to Rob.** Until it is ruled, Rv1's two payments
+Two queue items now press the family (this one and item 6, restructure). **What the cases
+establish is exactly this and no more: there must eventually be a claim relating certain
+payments when one payment is asserted to economically undo some or all of another.** They do
+**not** establish the relation's final ontology or name: *refund*, *chargeback*, *partial refund*
+and *chargeback reversal* (Rv8: `p3` undoes `p2` which undid `p1`) are directional and contextual,
+and *"the later returns to the earlier's payer some or all of what it paid"* — the first draft's
+wording — already over-specifies one economic relation across cases that may not all share it.
+*Reverses*, *refunds*, *returns* are source words besides (constraint 1). **Forced-but-unruled:
+the naming and the family treatment (with item 6) are deferred, and no registry kind is created
+merely because four cases show something will be needed.** Until it is ruled, Rv1's two payments
 are representable and their relation is not — honestly, as the obligation slice left Ob6.
 
 ---
@@ -157,19 +166,21 @@ are representable and their relation is not — honestly, as the obligation slic
 > has. Where money moved again, that movement is a second payment identity — minted by a
 > Person's assertion when the household individuates it, its payer and payee the other way —
 > and the first payment is neither mutated, collapsed nor discharged by it. Where money did not
-> move again, "reversal" is a party's dated stance about the existing payment — the bank's
-> that it was returned or voided, the entitled party's that an application was reversed, a
-> funder's that funding was withdrawn or restored — a claim with its own time, never a change
-> to the payment. A bank line naming a reversal is a proposition from a later capture: evidence
+> move again — where no second payment is individuated — "reversal" is a party's dated claim
+> about the existing payment or about a party's treatment of that payment: the bank's that it
+> was returned or voided, the entitled party's that an application to an obligation was
+> reversed, a funder's that funding was withdrawn or restored — distinct predicates, each with
+> its own time and participants, never one universal status and never a change to the payment. A bank line naming a reversal is a proposition from a later capture: evidence
 > for either shape, manufacturing neither; the disappearance of a line from a later capture is
 > not a claim at all. Which shape applies is decided by a party's assertion and never by a
 > derivation — netting, remaining and discharge consume these claims and do not create them.
 > Retraction is about the act and reversal about the world; a reversal of charges on an
 > obligation is the obligation slice's stance, not a payment matter. The one thing the cases
-> force that the record lacks is a relation claim between two payments — *the later returns to
-> the earlier's payer some or all of what it paid* — a claim between two identities, not a
+> force that the record lacks is a claim relating certain payments when one is asserted to
+> economically undo some or all of another — a claim between two identities, not a
 > correspondence, not named after any source word, of the same family as *O3 settled O1*; its
-> name and whether it is ruled now or with the restructure relation are Rob's.**
+> ontology and name are not established by these cases and remain forced-but-unruled, deferred
+> to the family treatment.**
 
 **Build, if ruled as doctrine alone: none** — no anchor, no column, no kind; the executable trace
 is an absence the fixtures can assert (no `reversals` table, no `reversed` or `status` column on
@@ -182,5 +193,53 @@ Rv3/Rv5/Rv6 asserted as stances and Rv9/Rv4 as nothing. **Outside it under eithe
 cases · any legacy `mode` decomposition.
 
 *The line: money can go back; that is another payment. A party can say a payment failed or was
-undone; that is a claim about it. Nothing in the world is "a reversal" except in a bank's
-column heading.*
+undone; that is a claim about it. **"Reversal" does not identify a distinct Groundwork event
+kind.***
+
+---
+
+## 8. Ruling — Rob, 2026-09-14. C accepted; `Reversal` identity rejected; no build.
+
+*The record has demonstrated why, rather than merely asserted it.* The central distinction —
+**money moving back is another payment; "reversal" is the claim about the relationship or
+disposition of that payment** — gives a clean ontology without a special `Reversal` object.
+The eleven cases do real work: Rv1/2/7/8 defeat a reversal-event identity because Payment already
+is the adequate event identity; Rv3/5/6 defeat *every "reversal" names something that happened*;
+Rv4 protects absence-is-not-zero; Rv9 stops bank vocabulary manufacturing ontology; Rv10 keeps
+obligation semantics out; Rv11 makes act/world crisp. **Rv3's negative result especially:** a
+bounced ACH needs no invented "return event" — one household-individuated payment and claims
+about what happened to it.
+
+**Three corrections applied before freezing:**
+1. **§5/§7 compressed two claims.** *"The later returns to the earlier's payer some or all of what
+   it paid"* over-specified one economic relation across cases (refund · chargeback · partial ·
+   chargeback reversal · ACH return · application reversal) that do not all share it; Rv8 shows
+   the relations are directional and contextual. What is established: *there must eventually be a
+   claim relating certain payments when one is asserted to economically undo some or all of
+   another* — not its final ontology or name. **Fence preserved; no registry kind created merely
+   because four cases show something will be needed.**
+2. **The subject of the "dated stance" made explicit:** *where no second payment is individuated,
+   "reversal" is a party's dated claim about the existing payment **or about a party's treatment
+   of that payment*** — Rv5 is about application to an obligation, Rv6 about funding treatment:
+   distinct predicates with potentially different designated participants and knowing relations,
+   **not one universal `payment_status`** for later consumers to reach for.
+3. **The final line narrowed** from a claim about how banks and people may speak to the
+   ontological point: **"Reversal" does not identify a distinct Groundwork event kind.**
+
+**The doctrine as ruled:** reversal is not an identity; everything the cases establish is
+representable with existing primitives —
+
+```text
+payment identity          when money actually moves and the household individuates that movement
+claim                     when a party asserts that an existing payment failed, was returned,
+                          was applied / unapplied, or otherwise had some treatment
+later payment + relation  when money actually moves back and someone asserts the economic
+                          relationship between the two payments   ← relation forced-but-unruled
+```
+
+*A strong result because it leaves the ontology less populated than the source vocabulary
+suggests, rather than translating every bank noun into an object.*
+
+**Verdict:** C accepted · `Reversal` identity rejected · **no build** · payment-to-payment
+economic relation recorded as forced-but-unruled, naming and family treatment (with item 6)
+deferred.
