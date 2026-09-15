@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED as written (§B.7) 2026-09-15 and built — see the commit. Passes C–G open one at a time; C next, Rob opens.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED as written (§B.7) 2026-09-15, built (`c0215a6`), ACCEPTED and closed (§B.8). Passes C–G open one at a time; C next, Rob opens.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -489,5 +489,49 @@ symmetric. Retired in place, truthfully: the obligation fixture's Ob6 check *"th
 O3 and O1 is NOT built — no kind for it exists"* → *ruled elsewhere as `obligation_replaces` and not
 asserted here; the obligation slots carry only correspondence and replaces*. No schema, no
 migration, no family abstraction. Gate 986 → 997, 0 failed.
+
+### B.8 Build accepted and pass B closed — Rob, 2026-09-15. `c0215a6`, 997 green, clean tree.
+
+*Faithful to the ruling; the smoke section attacks ways the semantic boundary could leak rather
+than checking that the happy-path row can be inserted.*
+
+**The ontology was not quietly widened — the strongest check is the absence surface:** no
+`Relation` / `RelationBase` · no resolver · no inverse · no successor chain · no status · no
+discharge · no disposition helper · no source-specific relation kinds · no schema change. The
+registry is exactly the authorised contract, and the fixture records that knowing, disposition and
+the consumers remain unbuilt rather than accidentally absent.
+
+**B15 is the right adversarial test** — not merely *replacement doesn't imply `closed`* but the
+stronger fact: **the replacement relation and a contradictory-looking balance position coexist
+without the relation resolving either one.** Much harder for a future consumer to misread.
+
+**B8 protects the identity / correspondence boundary:** sale + new account number does not become
+replacement because the record looks new; the changed creditor is a role claim; a second obligation
+exists only when the household mints one; *the same mortgage* is then `obligation_corresponds`.
+
+**B18 may be the most valuable regression in the fixture:** *same bill, now on a plan* → terms
+claim; *a new plan* → potentially a new obligation + replaces — and **the substrate does not decide
+which arm the words imply; the household's individuation does.** The software does not get to
+manufacture the user's identity decision from vocabulary.
+
+**The eight mutations attack eight genuinely different failure modes** (label → assertion ·
+relation → status · direction → inverse · chain → transitivity · relation → discharge · relation →
+money disposition · terms → automatic successor · directional → symmetric), the baseline is
+required green before mutation results count, and the module is restored and re-checked.
+
+**One thing not to change — recorded so it is not "improved" later:** do **not** add a test that
+`obligation_replaces` validates the subject was created later than the object. B10 demonstrates
+the opposite: minting order does not establish direction; the replacing obligation may have an
+identity created *before* the obligation it is later asserted to replace. Preserving that keeps
+`created_at` from becoming accidental temporal ontology.
+
+**Three things left fenced exactly where they are, and not a reason to reopen B:** knowing (no
+designated epistemic role yet) · economic disposition / transfer (a separate relation, still
+unruled) · discharge / remaining / status (consumer territory, not a property of replacement).
+
+**The boundary for C, as Rob stated it:** *C should determine what it means for an Obligation to
+stand in relation to an Expense — starting from Ex4's `arises_from` — without importing
+`obligation_replaces`, payment tracing, plan semantics, or discharge into it.* Opened when Rob
+opens it.
 
 
