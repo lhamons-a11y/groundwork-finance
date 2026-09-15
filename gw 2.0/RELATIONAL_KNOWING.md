@@ -1,7 +1,7 @@
 # Relational knowing — what does it mean for a party to know a proposition, and what does that relation establish?
 
-> Status: **Build mode, queue item 1, opened by Rob 2026-09-14; repairs §8a; R2 RULED (§9); mechanism
-> BUILT — see the commit for the boundary.** Nine
+> Status: **Queue item 1, opened by Rob 2026-09-14; repairs §8a; R2 RULED (§9); mechanism BUILT
+> (`79b817f`); ACCEPTED and CLOSED (§10).** Nine
 > ruled kinds carry `relational_knowing = True` and derive `undetermined`; the shipped health
 > classifier carries a foundation-keyed set (`KNOWING_SOURCES = {USER_STATED, IMPORTED_EOB}`);
 > slice 1's `derived_strength` takes a caller-supplied map `{kind: {person, institution}}`. This
@@ -306,3 +306,37 @@ correspondence, and incapable of saying anything psychological about what a part
 
 **Authorised:** mechanism only. **Not pulled in:** role kinds · claim identity · chain resolution ·
 independence · consumer derivations.
+
+---
+
+## 10. Slice accepted and closed — Rob, 2026-09-14. `1501d89` doctrine · `79b817f` mechanism · 949 green · no schema.
+
+*A clean implementation of the ruling.* Strongest parts: **named relations rather than generic
+reachability** — `_KNOWING_RELATIONS` gives the ontology an explicit finite vocabulary with no
+"find somebody connected to this proposition" escape hatch; **the minter relation correctly
+scoped** — the designated relation for the two about-ness kinds, not *minters know things about
+what they mint*, with Kn7 making the boundary executable; **the three-way boundary implemented,
+not described**; **the foundation map demoted** — an empty map, "nobody" and "everyone" produce
+the same result for a relational kind, proving the new mechanism is not consulting the old one
+through a different path; **`proposition_corresponds` genuinely unresolved**; **no schema
+contamination**; **the smoke test attacks the architecture** — five materially different failure
+modes.
+
+*Particularly:* `relation not ruled → undetermined: an unknown relation name resolves to nothing`
+makes the finite table **a closed vocabulary**, not merely a registry of preferred
+implementations.
+
+**The slice's architectural consequence, recorded:**
+
+```text
+IDENTITY / ROLE STRUCTURE → designated epistemic relation → named resolver → designated party
+                                                                          → derived strength classification
+```
+
+**and the last arrow does not create a new fact about the party.** Later work can consume
+`knowing / not_knowing / undetermined` without turning it into a proposition about someone's
+mental state.
+
+**Relational knowing: CLOSED.** Permanent Kn7 regression established; no downstream scope pulled
+forward. Queue item 2 — the transaction referent — opens as the next independent doctrine
+question.
