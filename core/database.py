@@ -1731,6 +1731,42 @@ OBLIGATION_REPLACES = 'obligation_replaces'
 # of O, the incurrer of X nor E of O is forced by the relation. Not a source word.
 OBLIGATION_IN_RESPECT_OF = 'obligation_in_respect_of'
 
+# ── Item 6, pass D: the payment-to-expense relation ──────────────────────────
+# gw 2.0/RELATION_SEMANTICS.md s D.9, ruled 2026-09-15 - from D's own pressure (Ex8's card purchase,
+# where no obligation exists to chain through; the 1.x ExpenseFundingAllocation row, whose `attached`
+# is this relation and whose amount / mode / station booleans are NOT inherited onto the edge).
+# "Payment = money movement for expense" is three collapses, each refused: the movement is the bank's
+# statement and not the payment (Pm11/Pm12); funding is a direction of money that reimbursement (D9),
+# an insurer's payment (D18 - no household party on p at all) and a third party's payment (D19 -
+# payer != incurrer) independently contradict; one-to-one is contradicted by a copay beside a bill
+# payment (D3) and one swipe for two prescriptions (D4). `payment_in_respect_of(p, X)` means EXACTLY:
+# *the asserting party holds that the subject payment was in respect of the object expense* - and
+# nothing above that floor. "In respect of" identifies the asserted subject/object relationship; it
+# does not describe the economic purpose, direction, funding mechanism or legal effect of the
+# payment. The relation carries NO payer/payee semantics - payer and payee remain separately asserted
+# claims about the payment a consumer may join, never the relation's meaning. Both participants are
+# established - the claim mints neither. Direction is fixed by participant type, not meaning: no
+# reverse claim, no inverse kind (expense_paid_by / expense_funded_by would be second relations);
+# navigation either way is a query. No cardinality, and cardinality is not allocation: several
+# payments in respect of one expense imply no duplicate, replacement, counteraction or "partial"; one
+# payment in respect of several expenses implies no allocation, split, percentage, order of
+# satisfaction or remainder; several assertions are never an implicit allocation. Established only by
+# a party's assertion with both endpoints already established (the household, the payee, any party -
+# no household party is required anywhere on p); a bank line, a merchant string, a category, a
+# matcher, a receipt concerning both identities or an insurer's paid figure yields at most a
+# candidate. Derives NOTHING: no amount, sum or reconciliation; no paid / reimbursed / covered status
+# on X (absence of a relation is absence of evidence, never "unpaid"); no discharge on any
+# obligation; no direction of money; no temporal order (D21, PERMANENT: a relation's direction and
+# participant types do not establish temporal precedence between its endpoints); no payer/incurrer
+# or payee/provider mirroring; no composition with toward, obligation_in_respect_of or
+# payment_counteracts (either direction); no manufactured expense for an untied payment or the rest
+# of a swipe; no determination (user_paid_cash etc. are item 7). Paid-for / funded / covered /
+# reimbursed / copay / attached / allocated are content or claims about p, never kinds. For G: C and
+# D exhibit the same relational semantic floor under substitution of subject participant type -
+# evidence for inspection, not a family ruling. Knowing: relational_knowing True with no designated
+# relation -> undetermined (payer? payee? incurrer? none forced). Not a source word.
+PAYMENT_IN_RESPECT_OF = 'payment_in_respect_of'
+
 # ── Ab7: proposition-level about-ness ────────────────────────────────────────
 # gw 2.0/PROPOSITION_ABOUTNESS.md, ruled s7. `proposition_concerns(P, X)` means EXACTLY: *this
 # proposition concerns this identity* - subject a PROPOSITION (the first and only ruled kind with a
@@ -1848,6 +1884,10 @@ RULED_KINDS = {
     # obligation_in_respect_of (item 6 pass C): obligation subject, expense object - direction fixed by
     # type, carrying no meaning; relational_knowing True and NO knowing_relation: undetermined by design.
     OBLIGATION_IN_RESPECT_OF: {'subject': ('subject_obligation_id',), 'object': ('object_expense_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
+    # payment_in_respect_of (item 6 pass D): payment subject, expense object - direction fixed by type,
+    # carrying no meaning; relational_knowing True and NO knowing_relation: undetermined by design.
+    PAYMENT_IN_RESPECT_OF: {'subject': ('subject_payment_id',),    'object': ('object_expense_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
     # subject: a proposition - the only ruled use of that slot. object: the identities ruled so far.
     PROPOSITION_CONCERNS: {'subject': ('subject_proposition_id',),

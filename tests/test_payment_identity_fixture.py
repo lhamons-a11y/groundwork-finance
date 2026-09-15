@@ -337,8 +337,10 @@ def run(db):
     print('\n9. Generic slots; artefact_concerns grows; absences; audits\n')
     # Item 6 pass A ruled payment_counteracts on the payment slots (RELATION_SEMANTICS.md A.6); the
     # role-shaped claims used here (paid_by, paid_to, toward) remain stand-ins - unruled by design.
-    check('payment slots are generic proposition participation - only payment_corresponds and payment_counteracts are ruled on them; paid_by / toward stay stand-ins',
-          set(k for k, r in db.RULED_KINDS.items() if 'subject_payment_id' in r['subject']) == {db.PAYMENT_CORRESPONDS, db.PAYMENT_COUNTERACTS}
+    # ...and item 6 pass D ruled payment_in_respect_of on the payment subject slot (RELATION_SEMANTICS.md D.9)
+    # - a payment -> expense relation; toward (payment -> obligation, D') is still a stand-in.
+    check('payment slots are generic proposition participation - only payment_corresponds, payment_counteracts and payment_in_respect_of are ruled on them; paid_by / toward stay stand-ins',
+          set(k for k, r in db.RULED_KINDS.items() if 'subject_payment_id' in r['subject']) == {db.PAYMENT_CORRESPONDS, db.PAYMENT_COUNTERACTS, db.PAYMENT_IN_RESPECT_OF}
           and 'paid_by' not in db.RULED_KINDS and 'toward' not in db.RULED_KINDS)
     receipt = held('h-receipt', '2026-03-03', chase, u_chase)
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=receipt.id, object_payment_id=p1.id),

@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D OPENED 2026-09-15 by Rob — candidate `payment_in_respect_of` (§D.7) from its own pressure sources, the funding / direction / 1:1 collapses rejected (§D.3), tightened after Rob's review (§D.8), no code; awaiting Rob's ruling. Passes D′–G open one at a time.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED as written (§D.9) 2026-09-15 and built — see the commit. Passes D′–G open one at a time; D′ (`toward`) next, a fresh semantic question, Rob opens.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -1188,3 +1188,82 @@ to *same relational semantic floor under substitution of subject participant typ
 inspection, not a family ruling*; the D′ boundary stated — D establishes neither *p in respect of
 X + O in respect of X ⇒ p toward O* nor its reverse. **Name retained** (`payment_in_respect_of`
 describes the candidate; it asserts no family).
+
+### D.9 Ruling — Rob, 2026-09-15: PD1 / `payment_in_respect_of` accepted as written; pass D closed
+
+*The revision addresses the remaining semantic pressure without expanding the slice.*
+
+- **The floor is sufficiently narrow.** It identifies only the asserted relationship between an
+  established Payment and an established Expense; the explicit exclusion of economic purpose,
+  funding mechanism, legal effect, payer / payee meaning and amount semantics prevents *in respect
+  of* from becoming a disguised funding relation.
+- **D3 / D4 properly separate cardinality from allocation** — several payments to one expense, one
+  payment to several expenses, without the relation specifying how money is divided, prioritised
+  or allocated.
+- **D9 / D18 / D19 are usefully independent** — three different illicit chains, not variants of
+  *payer isn't necessarily the incurrer*; **D18 in particular prevents the household from being
+  smuggled into the payment merely because the payment economically benefits the household.**
+- **The payer / payee clarification is correct** — separately asserted Payment claims a consumer
+  may join: *relational navigation is not semantic projection.*
+- **D21 is a proper general invariant** — participant typing plus direction establishes neither
+  temporal precedence nor lifecycle ordering; it survives D′ instead of being a D-specific rule.
+- **The `payment_counteracts` boundary is symmetric** — neither endpoint inherits meaning from the
+  other relation; an obvious composition shortcut closed.
+- **The G observation is appropriately restrained** — *same relational semantic floor under
+  substitution of subject participant type* is evidence to inspect later, not a family ruling.
+- **The D′ fence is where it belongs** — D does not provide `toward`, and no composition from
+  *p ↔ X* plus *O ↔ X* may manufacture *p → O*.
+
+**The semantic contract, frozen:**
+
+> **`payment_in_respect_of`: the asserting party holds that the subject Payment stands in respect
+> of the object Expense.**
+
+subject = established Payment · object = established Expense · directional · not symmetric ·
+established only by a party assertion · reading / matcher / label → candidate only · no
+cardinality · no allocation or split semantics · no payer / payee semantics · no funding /
+reimbursement semantics · no amount reconciliation · no temporal precedence · no lifecycle /
+discharge implication · no property projection · no composition with `payment_counteracts` · no
+inverse · no consumer derivation · relational knowing **undetermined** absent a designated
+epistemic relation. **Nothing in D changes the identity rulings for Payment or Expense** — the
+relation connects two already-established identities; it mints neither.
+
+**Representation authorised — the B / C shape:** one registry entry; the existing Payment /
+Expense immutable slots only; a fixture over the D cases and the explicit absence surface;
+mutation smoke tests; no schema migration and no generic relation abstraction; **no D′
+implementation bundled into this build.**
+
+```text
+PAYMENT_IN_RESPECT_OF
+    subject: subject_payment_id
+    object:  object_expense_id
+    symmetric: false
+    reading_establishes: false
+    relational_knowing: true
+    knowing_relation: none
+```
+
+**Carried forward, not changed now:** D′ is a **fresh semantic question** even though `toward`
+already appears in the payment fixtures — a clean *Payment → Expense* relation makes the
+temptation to infer *Payment → Obligation* stronger, which is precisely why D′ deserves its own
+pressure test. **Pass D: RULED / CLOSED on build.**
+
+#### Built — 2026-09-15
+
+One registry entry exactly as authorised; both slots pre-existed; no guard change (the type
+discipline already refuses the slots swapped — D13 executable for free, as C12 was). Fixture
+`tests/test_payment_in_respect_of_fixture.py` (45 checks, D1–D22 and the absences: no
+`payments_for_expense` / `expense_of_payment` resolver; no allocation, split, share, remainder or
+order-of-satisfaction column or helper; no reconciliation or funding helper; no *paid* /
+*reimbursed* / *covered* / *funded* claim or attribute on X; no `expense_paid_by` inverse; no order
+guard; no determination kind or helper; no `funder` / `mode` / `cleared` / `attached` /
+`user_confirmed` / `duplicate_of` on the proposition — the 1.x table untouched; `toward` still a
+stand-in; D21 permanent). Smoke `s104_payment_in_respect_of.py`, **ten** mutations caught, the
+baseline re-established after every undo: the matcher's pairing acquires an assertion · the
+expense gets a `paid` status · the relation allocates · reconciles · names a funder · **the phrase
+supplies order (a D21 guard)** · the inverse kind · **the chain composes through the obligation
+(toward + obligation_in_respect_of ⇒ p ↔ X)** · **`payment_counteracts` composes into the
+relation** · the kind turns symmetric. Retired in place, truthfully: the payment fixture's
+"only payment_corresponds and payment_counteracts are ruled on the payment slots" → plus
+`payment_in_respect_of`, `toward` still a stand-in. No schema, no migration, no family
+abstraction. Gate 1018 → 1041, 0 failed.
