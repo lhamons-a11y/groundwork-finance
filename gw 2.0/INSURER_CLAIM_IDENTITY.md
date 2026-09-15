@@ -1,6 +1,6 @@
 # The insurer's claim — does it have a Groundwork identity, and what assertion could mint it?
 
-> Status: **Queue item 4b, opened by Rob 2026-09-14 — a doctrine record, no code.** Expense
+> Status: **Queue item 4b — RULED as written and CLOSED by Rob 2026-09-14 (§7); §4 clarified on his review; no code, no schema, no relation work.** Expense
 > identity is closed at `4051e35` with the boundary that opens this record: *an EOB claim number
 > is institution content / correspondence evidence; it does not itself establish an Expense
 > identity.* This record asks what, if anything, an insurer claim is as an identity — without
@@ -141,12 +141,16 @@ Nothing new. The insurer's claim decomposes without remainder into:
 | an episode (pending → paid → denied → appealed) | a **sequence of dated claims** by the insurer and the household about X; the episode is a consumer's derivation |
 | "the claim for the ER visit" | **the expense** |
 
-**A finding, not a build:** the P-ack shape (*an institution's dated stance about an identity, as
-of d, one knowing party*) now has three instances in the record — E's acknowledgment of a payment,
-E's balance on an obligation, and the insurer's adjudication of an expense. That is a **domain
-kind family** (the catalogue), not new ontology; its knowing relation is the designated role
-(*entitled party of O*, *insurer of X*) that relational knowing left `undetermined` until the
-roles are ruled.
+**An observation, not a build — and not a family (wording pinned by Rob, §7):** the P-ack
+*structural shape* — *an institution-originated dated assertion about an already-established
+identity, `as_of d`* — now recurs three times in the record: E's acknowledgment of a payment,
+E's balance on an obligation, the insurer's adjudication of an expense. **Recurrence of shape
+does not establish a common relation kind, resolver, consumer, or ontology family.** Payment
+acknowledgment carries the discharge consequences already fenced; balance has its own financial
+semantics; adjudication has insurer-specific semantics. The shape is evidence for a
+catalogue-level pattern and nothing more. Its knowing relation is untouched: *insurer of X* is a
+role that needs its own ruling before it can become an epistemic relation; relational knowing
+leaves it `undetermined` until then.
 
 ---
 
@@ -192,3 +196,36 @@ the resolver · consumers · the role kinds · the adjudication catalogue.
 
 *The line: the insurer keeps a claim; the household had a visit. Groundwork holds the insurer's
 statements about the visit — and the visit is the expense.*
+
+---
+
+## 7. Ruling — Rob, 2026-09-14: 4b RULED as written / CLOSED
+
+**The candidate survives because the cases eliminate the tempting referents one by one:** the
+expense X is the household-individuated event · the EOB is an artefact · the claim number is
+identifier / content and possible correspondence evidence · adjudication is an institutional
+proposition, a dated stance · patient responsibility is a proposition about X · "pending" is not
+an identity and belongs to a later derivation · repeated, corrected and resubmitted records do
+not manufacture a missing Groundwork identity.
+
+**So the conclusion is stronger than "we don't currently model insurer claims":** *the insurer's
+claim has no Groundwork identity, and no act in the current ontology can mint one* — a genuine
+ontology ruling, not a deferral. The sentence that preserves the distinction without forcing the
+everyday word to acquire a Groundwork referent: **what the household calls "the claim" is the
+expense; what the insurer calls it is its record.**
+
+**Clarification pinned (applied in §4):** *P-ack is a shared proposition shape, not yet a single
+ontology "family."* Three cases share the structure *institution-originated dated assertion about
+an already-established identity, `as_of d`* — useful evidence for a catalogue-level shape, but
+not grounds to infer that payment acknowledgment, balance and adjudication are interchangeable
+kinds or should share a generic resolver / accessor: acknowledgment has the fenced discharge
+consequences; balance its own financial semantics; adjudication insurer-specific semantics.
+**The P-ack structural shape recurs across domains; recurrence of shape does not establish a
+common relation kind, resolver, consumer, or ontology family.** The knowing relation is not
+touched: *insurer of X* needs its own ruling before it can become an epistemic relation.
+
+**Disposition:** 4b — INSURER CLAIM IDENTITY: **RULED / CLOSED.** No code, no schema, no
+relation work was the correct stopping point. Next: **4c — the plan**, likely the more dangerous
+of the two, because *plan, coverage, benefit, authorization, responsibility* are extremely easy
+to collapse into one financial object; approached with the same identity-first discipline, not
+assuming a plan is an identity merely because insurers have plan IDs.
