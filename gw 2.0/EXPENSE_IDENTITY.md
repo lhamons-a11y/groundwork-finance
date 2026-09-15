@@ -1,7 +1,7 @@
 # The expense as a 2.0 identity — what is it, and what makes something correspond to it?
 
 > Status: **Queue item 4 (first referent of three), opened by Rob 2026-09-14; clarification §7; X3
-> RULED as written (§8); BUILT — see the commit for the boundary.** Reversal is closed at `8ee5f76`. Slice 6 left D1 (*transaction t is health on axis X*)
+> RULED (§8); BUILT (`4051e35`); ACCEPTED and CLOSED (§9).** Reversal is closed at `8ee5f76`. Slice 6 left D1 (*transaction t is health on axis X*)
 > and D3 (P-world, *patient responsibility for this claim*) blocked on referents with no 2.0
 > identity; the transaction referent (Tx8) sent D1's subject here — *the classifier's subject
 > moves from the row to the expense identity*. This record tests four readings of the expense's
@@ -266,3 +266,42 @@ identity structure · no migration beyond the additive ontology shape · **no** 
 implementation · **no** insurer claim, plan, determination or consumer work. *After the build, the
 closure verifies the cases rather than using implementation behaviour to reinterpret the
 doctrine.* **Item 4a: closed at the doctrine level; implementation authorised.**
+
+---
+
+## 9. Slice accepted and closed — Rob, 2026-09-14. `4051e35`, 958 green, clean tree.
+
+*The implementation did not merely make the fixture green — it preserved the semantic
+boundaries the ruling established.*
+
+- **The `Expense` anchor is correctly impoverished** — `id + minted_by_id + created_at`; the
+  temptation to put `incurred_on`, provider, nature, amount or category on it explicitly
+  resisted.
+- **Identity authority and epistemic authority remain separate** — *probably the most important
+  architectural property in this slice*: Riverbend Hospital, Lakeview Health and the bank can speak about X; their
+  ability to make claims grants no authority to mint X.
+- **The bank-category trap is executable** — Ex2 demonstrates that a categorised movement
+  produces neither an Expense nor a nature claim.
+- **D1 / D3 moving to the Expense subject is correct** — the bank's proposition remains about its
+  artefact / party; the household-world proposition can concern X.
+- **The classifier test is particularly good** — a reading-sourced candidate, never a
+  manufactured party utterance; the knowing result follows the evidence's origin, not the
+  process that classified.
+- **The absence tests do useful work** — `arises_from` absent keeps this slice from quietly
+  becoming the start of the relation-family implementation; Ex4 makes the missing relation
+  executable *as an absence*.
+- **Correspondence remains correspondence** — two expense identities survive the assertion.
+
+**Not to be read into the 958 green:** the semantics of expense ↔ obligation · expense ↔ payment ·
+the insurance claim · plan / coverage · expense amount / net cost · classification resolution ·
+any consumer derivation. The fixture demonstrates those are *not yet implemented* — a feature of
+the slice, not a gap.
+
+**The architectural consequence:** `bank line → proposition → may concern Expense X`, not
+`bank line → transaction → expense`; and `household individuating assertion → Expense identity
+X` separately from `provider / insurer / bank assertion → claims about X` — the distinction
+preserved across the transaction, reversal, correspondence and knowing work.
+
+**Expense identity: ACCEPTED / CLOSED.** Not item 6 yet, however tempting the relation family
+looks: the next clean question is **4b, the insurer's claim** (or 4c, the plan); the relation
+family waits until its endpoint identities and their semantics are settled.
