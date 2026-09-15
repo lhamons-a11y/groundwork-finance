@@ -179,8 +179,12 @@ def run(db):
           all(p.object_obligation_id is None for p, _ in values))
 
     print('\n2. Assertion is not knowing; the claim presupposes the identity\n')
-    check('the concerns claim is asserted by Rob\'s utterance - and derives UNDETERMINED even with a foundation rule supplied',
-          e_c1.utterance is u_that and db.derived_strength(s, e_c1, KNOWING) == db.STRENGTH_UNDETERMINED
+    # Relational knowing (2026-09-14) retired "undetermined until ruled" in place: the designated relation
+    # is the origin of the utterance that minted the identity concerned - Rob minted O1, so Rob's
+    # concerns claim derives KNOWING; the supplied foundation map is never consulted.
+    check('the concerns claim is asserted by Rob\'s utterance and derives KNOWING by the designated relation (Rob minted O1) - the foundation map is not consulted',
+          e_c1.utterance is u_that and db.derived_strength(s, e_c1, KNOWING) == db.STRENGTH_KNOWING
+          and db.derived_strength(s, e_c1, {}) == db.STRENGTH_KNOWING
           and db.RULED_KINDS[db.ARTEFACT_CONCERNS]['relational_knowing'] is True)
     check('concerns presupposes O: a claim naming an obligation that does not exist is refused',
           _refused(s, db.Proposition(kind=db.ARTEFACT_CONCERNS, subject_state=db.PARTICIPANT_ESTABLISHED,

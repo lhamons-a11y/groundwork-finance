@@ -749,6 +749,9 @@ def _mint_party_anchor(mapper, connection, target):
 #
 # Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
 # saw of a held artefact; propositions are what they evidence; the relationship connects them.
+# Relational knowing (RELATIONAL_KNOWING.md): knowing = a derived classification of an evidentiary
+# relationship - the kind-designated relation to the kind-designated participant; named relations
+# only, no generic resolver; not_knowing = not the identified party; Kn7: minting != knowing.
 # proposition_corresponds (PROPOSITION_CORRESPONDENCE.md): two observations/recordings of one claim;
 # relational never transmissive; g1 - established same-type participants may not disagree.
 # Ab7 (PROPOSITION_ABOUTNESS.md): proposition_concerns - a proposition as subject, narrowly; about-ness
@@ -1509,6 +1512,11 @@ PAYMENT_CORRESPONDS = 'payment_corresponds'           # the fourth (Pm8 b): two 
 # about-ness of their own (proposition_corresponds is pressed by that case and not ruled).
 PROPOSITION_CONCERNS = 'proposition_concerns'
 
+# The named designated knowing relations (RELATIONAL_KNOWING.md s9) - the names a ruled kind may
+# carry as `knowing_relation`; their resolvers live beside derived_strength.
+KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE = 'origin_of_subject_utterance'
+KNOWING_MINTER_OF_OBJECT_IDENTITY = 'origin_of_the_utterance_that_minted_the_object_identity'
+
 # ── proposition_corresponds ───────────────────────────────────────────────────
 # gw 2.0/PROPOSITION_CORRESPONDENCE.md, ruled s7. Two separately minted propositions are two
 # OBSERVATIONS OR RECORDINGS OF ONE CLAIM - one statement an artefact makes, read more than once;
@@ -1590,17 +1598,22 @@ RULED_KINDS = {
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
     # subject: a proposition - the only ruled use of that slot. object: the identities ruled so far.
     PROPOSITION_CONCERNS: {'subject': ('subject_proposition_id',), 'object': ('object_obligation_id', 'object_payment_id'),
-                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
+                           'knowing_relation': KNOWING_MINTER_OF_OBJECT_IDENTITY},
+    # proposition_corresponds: relational_knowing True and NO knowing_relation - a correctly fenced
+    # unknown (held is custody, not knowledge; assertion origin is not knowing). Stays undetermined.
     # the only ruled kind with a proposition OBJECT.
     PROPOSITION_CORRESPONDS: {'subject': ('subject_proposition_id',), 'object': ('object_proposition_id',),
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': True},
     # object: the identities ruled so far. Grows additively as each further identity is minted
     # (obligation; payment - PAYMENT_IDENTITY.md s4: an artefact that is the payment's own record).
     ARTEFACT_CONCERNS:    {'subject': ('subject_artefact_id',), 'object': ('object_obligation_id', 'object_payment_id'),
-                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
+                           'knowing_relation': KNOWING_MINTER_OF_OBJECT_IDENTITY},
     # object: () - a REQUIRED absence, enforced (object_state must be `none`).
     UTTERANCE_RETRACTION: {'subject': ('subject_utterance_id',), 'object': (),
-                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
+                           'knowing_relation': KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE},
 }
 
 REFERENT_SEPARATE = 'separate'                          # no established claim touches it
@@ -1677,6 +1690,79 @@ def _weakest(*strengths):
     return STRENGTH_NOT_KNOWING if STRENGTH_NOT_KNOWING in strengths else STRENGTH_KNOWING
 
 
+# ── Relational knowing (RELATIONAL_KNOWING.md, ruled s9) ─────────────────────
+# Knowing is a derived classification of an evidentiary relationship, not an independent fact
+# about the party. A party knows a proposition when it stands in the epistemic relation the
+# proposition's KIND designates, to the participant the kind designates - and in no other way:
+#
+#     PROPOSITION KIND -> designated epistemic relation -> designated participant -> party
+#
+# never "party relates to P somehow -> party knows P". Each named relation below resolves ONE
+# designated participant for ONE kind of proposition, from structure already in the record. There
+# is deliberately no generic resolver: nothing here finds "a related party" and calls it knowing.
+# A kind that carries no `knowing_relation` derives undetermined (relational_knowing True) or falls
+# back to the caller's foundation stand-in (relational_knowing False) - the stand-in survives only
+# for kinds whose relation is unruled, per the ruling's last sentence.
+#
+# Knowing establishes exactly one thing - the strength class of an evidentiary relationship:
+#     relation ruled + designated participant established + party stands in it   -> knowing
+#     relation ruled + designated participant established + party does not        -> not_knowing
+#     relation not ruled                                                          -> undetermined
+#     designated participant not established                                      -> undetermined
+# not_knowing means "this party is not the party the ruled relation identifies" - never "shown
+# not to know". Minting an identity does not make the minter knowing for the event's properties
+# (Kn7); originating an utterance does not make the origin knowing for its content (Kn5);
+# originating an artefact does not make the origin knowing for every kind read from it (Kn10);
+# holding an artefact is custody, not knowledge; a process is never knowing.
+
+def _designated_origin_of_subject_utterance(session, prop):
+    """utterance_retraction: the party knowing for "U's assertion no longer stands" is U's own
+    origin. Designated participant: the subject utterance; relation: its origin party."""
+    if prop.subject_utterance_id is None:
+        return None
+    utt = session.get(Utterance, prop.subject_utterance_id)
+    return utt.origin_party_id if utt is not None else None
+
+
+def _designated_minter_of_object_identity(session, prop):
+    """artefact_concerns / proposition_concerns: the party knowing for "this concerns identity X"
+    is the origin of the utterance that minted X - the household member who declared the
+    obligation or payment knows which documents and lines are about it. Designated participant:
+    the object identity (obligation or payment); relation: its minting utterance's origin.
+    This is NOT "minted_by -> knowing" in general: it applies to the about-ness kinds only, whose
+    designated participant IS the minted identity. Kn7 stands: the minter is not thereby knowing
+    for the event's amount, date, payee or occurrence."""
+    if prop.object_obligation_id is not None:
+        ident = session.get(Obligation, prop.object_obligation_id)
+    elif prop.object_payment_id is not None:
+        ident = session.get(Payment, prop.object_payment_id)
+    else:
+        return None
+    if ident is None:
+        return None
+    utt = session.get(Utterance, ident.minted_by_id)
+    return utt.origin_party_id if utt is not None else None
+
+
+# name -> resolver. Adding a relation means adding a NAMED entry here and naming it on a ruled
+# kind; nothing resolves a relation that is not in this table.
+_KNOWING_RELATIONS = {
+    KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE: _designated_origin_of_subject_utterance,
+    KNOWING_MINTER_OF_OBJECT_IDENTITY: _designated_minter_of_object_identity,
+}
+
+
+def _relational_strength(session, prop, claimant_party_id, relation_name):
+    """The ruled classification, for a kind whose designated relation is named."""
+    resolver = _KNOWING_RELATIONS.get(relation_name)
+    if resolver is None:
+        return STRENGTH_UNDETERMINED                       # relation not ruled
+    designated = resolver(session, prop)
+    if designated is None or claimant_party_id is None:
+        return STRENGTH_UNDETERMINED                       # designated participant not established
+    return STRENGTH_KNOWING if claimant_party_id == designated else STRENGTH_NOT_KNOWING
+
+
 def _utterance_strength(session, utt, kind, knowing):
     if utt is None or kind not in knowing:
         return STRENGTH_UNDETERMINED
@@ -1722,10 +1808,17 @@ def derived_strength(session, relation, knowing):
         return STRENGTH_UNDETERMINED
     rule = RULED_KINDS.get(prop.kind)
     if rule is not None and rule.get('relational_knowing'):
-        # The knowing party is defined relative to the SUBJECT (utterance_retraction: the
-        # subject utterance's own origin), not by foundation. Not expressible in `knowing`;
-        # not expanded here (CLAIM_ABOUT_CLAIM.md s3, s7). Undetermined until ruled.
-        return STRENGTH_UNDETERMINED
+        # Relational knowing (RELATIONAL_KNOWING.md s9): the caller's foundation map is never
+        # consulted for these kinds. A reading-sourced claim of a relational kind is a candidate
+        # (reading_establishes is False for all of them) -> undetermined. An utterance-sourced
+        # claim is classified by the kind's NAMED designated relation, if it has one; a relational
+        # kind with no named relation stays undetermined - nothing is manufactured for a flag.
+        if relation.reading_id is not None or relation.reading is not None:
+            return STRENGTH_UNDETERMINED
+        utt = relation.utterance if relation.utterance is not None else session.get(Utterance, relation.utterance_id)
+        if utt is None:
+            return STRENGTH_UNDETERMINED
+        return _relational_strength(session, prop, utt.origin_party_id, rule.get('knowing_relation'))
     if relation.reading_id is not None or relation.reading is not None:
         if rule is not None and not rule['reading_establishes']:
             # A candidate, by ruling: the knowledge "these bytes equal those bytes" or "the

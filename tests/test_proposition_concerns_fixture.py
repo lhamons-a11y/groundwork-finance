@@ -185,8 +185,11 @@ def run(db):
     check('P3\'s own participant stays candidates; the claim is beside P3, not in it',
           s.get(db.Proposition, P3.id).object_state == db.PARTICIPANT_CANDIDATES
           and s.get(db.Proposition, P3.id).object_obligation_id is None)
-    check('assertion is not knowing: the concerns claim derives UNDETERMINED even with a foundation rule supplied',
-          db.derived_strength(s, e_c3, KNOWING) == db.STRENGTH_UNDETERMINED)
+    # Relational knowing (2026-09-14) retired "undetermined until ruled" in place: Rob minted O2, so his
+    # line-level concerns claim derives KNOWING by the designated relation; the map is not consulted.
+    check('assertion is not knowing by itself - the claim derives KNOWING because Rob minted O2 (the designated relation), not because a map says so',
+          db.derived_strength(s, e_c3, KNOWING) == db.STRENGTH_KNOWING
+          and db.derived_strength(s, e_c3, {}) == db.STRENGTH_KNOWING)
 
     print('\n2. Pa2 - a bank statement with NO artefact-level claim: "line 7 is my March payment"\n')
     bank, u_bank = mint_party('My bank.')

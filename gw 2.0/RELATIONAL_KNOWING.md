@@ -1,7 +1,7 @@
 # Relational knowing — what does it mean for a party to know a proposition, and what does that relation establish?
 
-> Status: **Build mode, queue item 1, opened by Rob 2026-09-14; repairs §8a; R2 RULED as written and
-> the mechanism build AUTHORISED (§9).** Nine
+> Status: **Build mode, queue item 1, opened by Rob 2026-09-14; repairs §8a; R2 RULED (§9); mechanism
+> BUILT — see the commit for the boundary.** Nine
 > ruled kinds carry `relational_knowing = True` and derive `undetermined`; the shipped health
 > classifier carries a foundation-keyed set (`KNOWING_SOURCES = {USER_STATED, IMPORTED_EOB}`);
 > slice 1's `derived_strength` takes a caller-supplied map `{kind: {person, institution}}`. This

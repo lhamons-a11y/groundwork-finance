@@ -25,7 +25,7 @@ What this slice can and cannot exercise, stated so greenness is not over-read:
     H10  retracting the utterance that minted an institution EXERCISED - the institution stays; unminting NOT derived
     the required absence of a second participant            EXERCISED
     content carries no meaning; empty content is complete   EXERCISED
-    strength undetermined, any source, any claimant         EXERCISED
+    strength: knowing for the subject utterance's origin     EXERCISED (relational knowing, ruled later)
     contradiction / reaffirmation                           NOT KINDS - asserted absent; derived by a resolver, NOT BUILT
     a proposition as subject                                Ab7 - one ruled kind only (tests/test_proposition_concerns_fixture.py)
     the resolver; narrowing multiple/contested; reach       NOT BUILT - fenced
@@ -256,13 +256,18 @@ def run(db):
           and not db.parties_without_one_anchor(s))
 
     print('\n7. Strength - undetermined from any source and any claimant; the relation is relational\n')
-    check('self-retraction derives undetermined even when a caller supplies a foundation rule for the kind',
-          db.derived_strength(s, e_b, KNOWING) == db.STRENGTH_UNDETERMINED)
+    # Relational knowing (2026-09-14) retired "undetermined until ruled" in place: the kind's designated
+    # relation is the subject utterance's origin. Self-retraction derives KNOWING - and the supplied
+    # foundation map is never consulted (an empty map gives the same answer).
+    check('self-retraction derives KNOWING by the designated relation (origin of the subject utterance), whatever the foundation map says',
+          db.derived_strength(s, e_b, KNOWING) == db.STRENGTH_KNOWING
+          and db.derived_strength(s, e_b, {}) == db.STRENGTH_KNOWING
+          and db.derived_strength(s, e_b, {db.UTTERANCE_RETRACTION: set()}) == db.STRENGTH_KNOWING)
     other, _ = mint('Some other institution.')
     u_other = utter('Their March claim was wrong.', origin=other)
     e_other = evidence(retract(u1, 'disputed by a third party'), utterance=u_other)
-    check('a third party\'s retraction of another\'s utterance is representable, and equally undetermined',
-          e_other.utterance.origin_party_id == other.id and db.derived_strength(s, e_other, KNOWING) == db.STRENGTH_UNDETERMINED)
+    check('a third party\'s retraction of another\'s utterance is representable and derives NOT KNOWING - not the party the relation identifies',
+          e_other.utterance.origin_party_id == other.id and db.derived_strength(s, e_other, KNOWING) == db.STRENGTH_NOT_KNOWING)
     check('the registry says why: relational_knowing, not a foundation rule',
           db.RULED_KINDS[db.UTTERANCE_RETRACTION]['relational_knowing'] is True)
     check('the knowing map is still foundation-keyed - no relational form was added',
@@ -296,10 +301,10 @@ def run(db):
     # arrive additively as identities are ruled; what this slice pins is that no slot for a
     # PROPOSITION subject exists (checked above) and that the retraction kind's own shape is
     # unchanged.
-    check('no slot was added for this slice: the retraction kind uses only subject_utterance_id',
-          db.RULED_KINDS[db.UTTERANCE_RETRACTION] == {'subject': ('subject_utterance_id',), 'object': (),
-                                                     'symmetric': False, 'reading_establishes': False,
-                                                     'relational_knowing': True})
+    check('no slot was added for this slice: the retraction kind uses only subject_utterance_id (its knowing relation named later)',
+          db.RULED_KINDS[db.UTTERANCE_RETRACTION]['subject'] == ('subject_utterance_id',)
+          and db.RULED_KINDS[db.UTTERANCE_RETRACTION]['object'] == ()
+          and db.RULED_KINDS[db.UTTERANCE_RETRACTION]['relational_knowing'] is True)
     check('every audit is empty',
           not db.parties_without_one_anchor(s) and not db.evidence_without_one_source(s)
           and not db.readings_of_unheld_artefacts(s) and not db.artefacts_with_inconsistent_assertion(s))
