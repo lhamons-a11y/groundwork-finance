@@ -21,7 +21,7 @@ or confirmation.
 What this build can and cannot exercise, stated so greenness is not over-read:
 
     Pm1  one act mints p; amount, date, payee, toward are claims          EXERCISED
-    Pm2  a bank line mints nothing; a candidate names no referent          EXERCISED (the line->p tie: Ab7, asserted NOT representable)
+    Pm2  a bank line mints nothing; a candidate names no referent          EXERCISED (the line->p tie: Ab7 slice)
     Pm3  D4 - E acknowledges p as of d - is representable                  EXERCISED (consequence NOT derived)
     Pm4  S6 - bank says yes, E says nothing; nothing chosen                EXERCISED
     Pm5  S3 - payee != entitled; toward != discharge                       EXERCISED
@@ -227,8 +227,11 @@ def run(db):
     check('Pm2: a bank line mints nothing; the read claim names no payment referent (candidates, empty)',
           s.query(db.Payment).count() == n_before and p_line.object_payment_id is None
           and p_line.object_state == db.PARTICIPANT_CANDIDATES)
-    check('Pm2: the line -> p tie is NOT representable here - a statement lists many lines (Ab7); no slot for it exists',
-          'subject_proposition_id' not in {c.name for c in db.Proposition.__table__.columns})
+    # Ab7 retired the absence in place: the line -> p tie is proposition_concerns (tests/
+    # test_proposition_concerns_fixture.py). Here none is asserted; the bank line names nothing.
+    check('Pm2: the line -> p tie is a separate claim (Ab7), none asserted here - the line names nothing',
+          s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS).count() == 0
+          and p_line.object_payment_id is None)
     check('a process cannot utter, so a draft cannot mint (O9) - the Person requirement covers it',
           _refused(s, db.Utterance(content='draft: mortgage payment due 4/1'), IntegrityError))
 

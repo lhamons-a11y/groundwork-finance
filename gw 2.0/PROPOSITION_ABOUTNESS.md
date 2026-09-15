@@ -1,7 +1,7 @@
 # Ab7 — what is proposition-level about-ness?
 
 > Status: **Build mode, opened by Rob 2026-09-14; two wording refinements on his review; K1p RULED as
-> written and the build AUTHORISED (§7).** The payment slice is
+> written (§7); BUILT at §6's shape — see the commit for the boundary.** The payment slice is
 > closed at `6390804` (`PAYMENT_IDENTITY.md` §11) with the constraint that *the payment identity
 > is complete without Ab7*. Ab7 was found at slice 8 (`ARTEFACT_ABOUTNESS.md` Ab7), forced a
 > second time by the payment slice (Pm2, Pm3), and is a **reopening of slice 5's finding** —

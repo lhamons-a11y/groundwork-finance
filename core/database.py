@@ -749,6 +749,8 @@ def _mint_party_anchor(mapper, connection, target):
 #
 # Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
 # saw of a held artefact; propositions are what they evidence; the relationship connects them.
+# Ab7 (PROPOSITION_ABOUTNESS.md): proposition_concerns - a proposition as subject, narrowly; about-ness
+# is information about a proposition, not inserted into it; the one-source guard.
 # Payment (PAYMENT_IDENTITY.md): an event identity minted by a Person's assertion that it occurred;
 # not a transaction, not discharge, not a confirmation state; payment slots; payment_corresponds;
 # artefact_concerns gains the payment object slot. The minting guard now requires a Person origin
@@ -1085,7 +1087,7 @@ _IMMUTABLE_REFERENCES = {
     'Obligation':  ('minted_by_id',),
     'Payment':     ('minted_by_id',),
     'Proposition': ('kind', 'subject_party_id', 'subject_utterance_id', 'subject_artefact_id',
-                    'subject_obligation_id', 'subject_payment_id',
+                    'subject_obligation_id', 'subject_payment_id', 'subject_proposition_id',
                     'object_party_id', 'object_utterance_id', 'object_artefact_id',
                     'object_obligation_id', 'object_payment_id'),
     'EvidentiaryRelationship': ('proposition_id', 'utterance_id', 'reading_id'),
@@ -1163,6 +1165,10 @@ class Proposition(Base):
     subject_artefact_id  = Column(Integer, ForeignKey('artefacts.id'), nullable=True)   # slice 2
     subject_obligation_id = Column(Integer, ForeignKey('obligations.id'), nullable=True) # obligation slice
     subject_payment_id   = Column(Integer, ForeignKey('payments.id'), nullable=True)     # payment slice
+    # Ab7 (PROPOSITION_ABOUTNESS.md): a PROPOSITION as subject - narrowly. The only ruled kind that
+    # uses it is proposition_concerns; slice 5's finding is reopened on that evidence and narrowed,
+    # not reversed (truth / contradiction / reaffirmation claims about a proposition stay non-kinds).
+    subject_proposition_id = Column(Integer, ForeignKey('propositions.id'), nullable=True)
 
     object_state         = Column(String(32), nullable=False, default=PARTICIPANT_NONE)
     object_party_id      = Column(Integer, ForeignKey('parties.id'), nullable=True)
@@ -1177,7 +1183,7 @@ class Proposition(Base):
 
     # The slot columns per participant side, so guards and future slices enumerate one list.
     SUBJECT_SLOTS = ('subject_party_id', 'subject_utterance_id', 'subject_artefact_id', 'subject_obligation_id',
-                     'subject_payment_id')
+                     'subject_payment_id', 'subject_proposition_id')
     OBJECT_SLOTS  = ('object_party_id', 'object_utterance_id', 'object_artefact_id', 'object_obligation_id',
                      'object_payment_id')
 
@@ -1190,6 +1196,7 @@ class Proposition(Base):
         Index('ix_prop_object_obligation', 'object_obligation_id'),
         Index('ix_prop_subject_payment', 'subject_payment_id'),
         Index('ix_prop_object_payment', 'object_payment_id'),
+        Index('ix_prop_subject_proposition', 'subject_proposition_id'),
     )
 
 
@@ -1252,8 +1259,37 @@ def _validate_participants(mapper, connection, target):
     problems = participant_violations(target)
     if not problems and target.kind == PARTY_CORRESPONDS:
         problems = _foundation_violations(connection, target.subject_party_id, target.object_party_id)
+    if not problems and target.kind == PROPOSITION_CONCERNS:
+        problems = _aboutness_violations(connection, target)
     if problems:
         raise ValueError('proposition participant state violated: ' + '; '.join(problems))
+
+
+def _aboutness_violations(connection, target):
+    """proposition_concerns(P, X) attaches only to a proposition P that exists and has NO
+    established participant of X's identity type (PROPOSITION_ABOUTNESS.md, Pa10): P's
+    participant slot is structural participation; the concerns claim is a claim about what P is
+    about; once the structural participant is established, P's about-ness is already
+    structurally established, and the claim may not provide a competing source for it. Two
+    representations of one fact that can drift are what the one-source rule forbids. And a
+    proposition never concerns itself."""
+    t = Proposition.__table__
+    subj = connection.execute(t.select().where(t.c.id == target.subject_proposition_id)).first() \
+        if target.subject_proposition_id is not None else None
+    if subj is None:
+        return ['proposition_concerns: the subject proposition must exist']
+    if target.id is not None and subj.id == target.id:
+        return ['proposition_concerns: a proposition does not concern itself']
+    for slot in RULED_KINDS[PROPOSITION_CONCERNS]['object']:
+        if getattr(target, slot) is None:
+            continue
+        kind_suffix = slot[len('object_'):]                     # e.g. 'obligation_id'
+        for side in ('subject_', 'object_'):
+            if getattr(subj, side + kind_suffix) is not None:
+                return [f'proposition_concerns: the subject proposition already has an established '
+                        f'{kind_suffix[:-3]} participant - its about-ness is structurally established; '
+                        f'to re-identify it, retract its utterance and assert anew (Case B)']
+    return []
 
 
 def _foundation_violations(connection, a_id, b_id):
@@ -1412,6 +1448,24 @@ PARTY_CORRESPONDS = 'party_corresponds'
 OBLIGATION_CORRESPONDS = 'obligation_corresponds'     # the third type (Ob7): two minted obligations, one referent
 PAYMENT_CORRESPONDS = 'payment_corresponds'           # the fourth (Pm8 b): two minted payments, one referent
 
+# ── Ab7: proposition-level about-ness ────────────────────────────────────────
+# gw 2.0/PROPOSITION_ABOUTNESS.md, ruled s7. `proposition_concerns(P, X)` means EXACTLY: *this
+# proposition concerns this identity* - subject a PROPOSITION (the first and only ruled kind with a
+# proposition subject), second participant an already-minted identity. It presupposes X. It is
+# asserted by a party's utterance; a match observed by a reading (a heading, an account number, a
+# position) produces a CANDIDATE for this claim - it is not itself the claim - and is evidence for
+# nothing else; those candidates are what PARTICIPANT_CANDIDATES has always referred to.
+#
+#     About-ness is information about a proposition, not information inserted into the proposition.
+#
+# It never changes the subject, participants, authority, evidence or history of P; P's own identity
+# participant stays unestablished; it attaches only where P has no established participant of X's
+# type (_aboutness_violations). Independent of artefact_concerns: needed where an artefact concerns
+# several identities or none, never required; consistency between the levels is a consumer's to
+# report, never a guard's to refuse or a resolver's to settle. A re-reading's propositions carry no
+# about-ness of their own (proposition_corresponds is pressed by that case and not ruled).
+PROPOSITION_CONCERNS = 'proposition_concerns'
+
 # ── Slice 8: about-ness ──────────────────────────────────────────────────────
 # gw 2.0/ARTEFACT_ABOUTNESS.md, ruled s9. `artefact_concerns(A, X)` means EXACTLY: *this artefact
 # concerns this identity* - subject the artefact, second participant an ALREADY-ESTABLISHED
@@ -1477,6 +1531,9 @@ RULED_KINDS = {
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
     PAYMENT_CORRESPONDS:  {'subject': ('subject_payment_id',),    'object': ('object_payment_id',),
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
+    # subject: a proposition - the only ruled use of that slot. object: the identities ruled so far.
+    PROPOSITION_CONCERNS: {'subject': ('subject_proposition_id',), 'object': ('object_obligation_id', 'object_payment_id'),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
     # object: the identities ruled so far. Grows additively as each further identity is minted
     # (obligation; payment - PAYMENT_IDENTITY.md s4: an artefact that is the payment's own record).
     ARTEFACT_CONCERNS:    {'subject': ('subject_artefact_id',), 'object': ('object_obligation_id', 'object_payment_id'),

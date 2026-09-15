@@ -27,7 +27,7 @@ What this slice can and cannot exercise, stated so greenness is not over-read:
     content carries no meaning; empty content is complete   EXERCISED
     strength undetermined, any source, any claimant         EXERCISED
     contradiction / reaffirmation                           NOT KINDS - asserted absent; derived by a resolver, NOT BUILT
-    a proposition as subject                                NOT BUILT - no slot
+    a proposition as subject                                Ab7 - one ruled kind only (tests/test_proposition_concerns_fixture.py)
     the resolver; narrowing multiple/contested; reach       NOT BUILT - fenced
 
 Run:  python tests/test_utterance_retraction_fixture.py
@@ -282,8 +282,13 @@ def run(db):
           s.query(db.EvidentiaryRelationship).filter_by(proposition_id=p_serv.id).count() == 2
           and 'reaffirmation' not in db.RULED_KINDS
           and s.query(db.Proposition).filter(db.Proposition.kind.in_(('reaffirmation', 'reaffirms'))).count() == 0)
-    check('no proposition takes a proposition as subject - no such slot exists',
-          'subject_proposition_id' not in {c.name for c in db.Proposition.__table__.columns})
+    # Ab7 (2026-09-14) reopened slice 5's finding on evidence and NARROWED it: a proposition-subject
+    # slot now exists, and exactly one ruled kind uses it (proposition_concerns). What slice 5 ruled
+    # still holds - truth, contradiction and reaffirmation claims about a proposition are not kinds.
+    check('the proposition-subject slot is used by exactly one ruled kind, and none of the slice-5 non-kinds became one',
+          [k for k, r in db.RULED_KINDS.items() if 'subject_proposition_id' in r['subject']] == [db.PROPOSITION_CONCERNS]
+          and not any(k in db.RULED_KINDS for k in ('contradiction', 'reaffirmation', 'proposition_false',
+                                                    'proposition_true', 'agrees_with')))
     # The obligation slice (2026-09-14) retired the exact column set in place: referent slots
     # arrive additively as identities are ruled; what this slice pins is that no slot for a
     # PROPOSITION subject exists (checked above) and that the retraction kind's own shape is

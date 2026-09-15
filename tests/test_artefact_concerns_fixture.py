@@ -27,7 +27,7 @@ What this build can and cannot exercise, stated so greenness is not over-read:
     Ab4  the association disputed: retract + new claim; A still says $1,925       EXERCISED
     Ab5  a parse dispute inside A; the association untouched                       EXERCISED
     Ab6  household testimony about O is a different proposition, not the crossing  EXERCISED
-    Ab7  combined statement: two concerns claims; per-proposition relation         NOT REPRESENTABLE - asserted
+    Ab7  combined statement: two concerns claims; per-proposition relation         Ab7 slice - tests/test_proposition_concerns_fixture.py
     Ab8  an EOB concerns an insurance claim                                        NOT ESTABLISHABLE - no such identity or slot
     Ab9  an asserted (unheld) artefact concerns O                                  EXERCISED
     Ab10 a wrong letter concerns the right obligation                               EXERCISED
@@ -276,9 +276,12 @@ def run(db):
     p_which, _ = read_value(combo, r_combo, 'balance', '$44,000', cu)
     check('Ab7: an artefact may concern two identities - two claims, both asserted',
           s.query(db.Proposition).filter_by(kind=db.ARTEFACT_CONCERNS, subject_artefact_id=combo.id).count() == 2)
-    check('Ab7: which of them a PARTICULAR read proposition concerns is NOT representable - no proposition-subject slot exists',
-          'subject_proposition_id' not in {c.name for c in db.Proposition.__table__.columns}
-          and s.get(db.Proposition, p_which.id).object_state == db.PARTICIPANT_CANDIDATES)
+    # Ab7 retired the absence in place: proposition_concerns now exists (tests/test_proposition_
+    # concerns_fixture.py). Here none is asserted, so the read proposition still names nothing -
+    # and artefact_concerns did not fill it, which is the anti-collapse invariant.
+    check('Ab7: with no proposition-level claim asserted, the read proposition still names no identity',
+          s.get(db.Proposition, p_which.id).object_state == db.PARTICIPANT_CANDIDATES
+          and s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS).count() == 0)
     # The payment slice added the payment object slot (the ruled growth path); the claim and plan
     # identities still do not exist, so the check is stated over them.
     check('Ab8: an EOB cannot concern an insurance claim - no such identity, no such slot; the kind\'s object is the ruled identities only',
