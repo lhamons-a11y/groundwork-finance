@@ -749,6 +749,10 @@ def _mint_party_anchor(mapper, connection, target):
 #
 # Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
 # saw of a held artefact; propositions are what they evidence; the relationship connects them.
+# Payment (PAYMENT_IDENTITY.md): an event identity minted by a Person's assertion that it occurred;
+# not a transaction, not discharge, not a confirmation state; payment slots; payment_corresponds;
+# artefact_concerns gains the payment object slot. The minting guard now requires a Person origin
+# for obligations too.
 # Slice 8 (ARTEFACT_ABOUTNESS.md): artefact_concerns - the crossing from "A says X" to "X is about O"
 # is a claim of its own, presupposing O; it never rewrites what A said or how it is known.
 # Obligation (OBLIGATION_IDENTITY.md): a continuant minted by the household's assertion - anchor =
@@ -973,22 +977,100 @@ class Obligation(Base):
     minted_by = relationship('Utterance')
 
 
+def _minting_violations(target, connection, noun):
+    """The minting act for a household-minted identity: the utterance must exist (the referent
+    check foreign keys would do if the pragma were on) and must ORIGINATE FROM A PERSON - both
+    identity rulings say *an individuating assertion originating from a Person*. A bank line, a
+    creditor's statement, a draft or any institution-origin utterance yields a candidate and
+    never mints. Payment slice, 2026-09-14: the Person requirement is enforced here for
+    obligations too - the ruling said it; the obligation build had only stated it."""
+    utt = target.minted_by
+    if utt is None:
+        t = Utterance.__table__
+        utt = connection.execute(t.select().where(t.c.id == target.minted_by_id)).first() \
+            if target.minted_by_id is not None else None
+    if utt is None:
+        return [f'{noun} exists only under the utterance that minted it']
+    pt = Party.__table__
+    origin = connection.execute(pt.select().where(pt.c.id == utt.origin_party_id)).first()
+    if origin is None or origin.person_id is None:
+        return [f'{noun} is minted only by an assertion originating from a Person - '
+                f'an institution-origin utterance yields a candidate, never an identity']
+    return []
+
+
 @event.listens_for(Obligation, 'before_insert')
 def _validate_obligation(mapper, connection, target):
-    # NOT NULL covers the column; this covers the referent when foreign keys are not enforced
-    # (production runs without the pragma): the minting utterance must exist.
-    if target.minted_by is None:
-        t = Utterance.__table__
-        row = connection.execute(t.select().where(t.c.id == target.minted_by_id)).first() \
-            if target.minted_by_id is not None else None
-        if row is None:
-            raise ValueError('an obligation exists only under the utterance that minted it')
+    problems = _minting_violations(target, connection, 'an obligation')
+    if problems:
+        raise ValueError('; '.join(problems))
 
 
 def obligations_without_minting_utterance(session):
     """Audit: obligations whose minting utterance is missing. Empty is the invariant."""
     return [o for o in session.query(Obligation).all()
             if o.minted_by_id is None or session.get(Utterance, o.minted_by_id) is None]
+
+
+class Payment(Base):
+    """A payment is an event identity. Ruled `PAYMENT_IDENTITY.md` s8/s10 (2026-09-14).
+
+    An individuating assertion originating from a Person mints that identity; the asserting
+    utterance is the minting act, not the payment. Minting establishes the identity, not the
+    truth of any property asserted about the event - the assertion may be false and p still
+    exists, as the payment event individuated by that assertion.
+
+    The anchor is structure plus a pointer to the minting utterance and nothing else: payer,
+    payee, amount, date, method, purpose, clearance, attachment, acknowledgment, discharge and
+    reversal are NOT identity properties. They are claims about the payment, made by the party
+    knowing for that claim - the bank for movement, the entitled party for acknowledgment
+    (which IS the discharge claim, by definition, and does not establish the payment's
+    existence), the household for what it was toward and to whom it was meant. Payer and payee
+    are dated relations; `minted_by` names the asserting act, never the payer (Pm9: "my mother
+    paid Mercy for me" - Rob asserts, the mother is `paid_by`).
+
+    `created_at` is when this row was written - identity creation time - and is never the
+    occurred date: a payment entered in September for one asserted to have occurred in March
+    keeps March as a claim's `as_of` (the same discipline as asserted_at vs recorded_at).
+
+    A payment is not a transaction (it may have none - cash; a debit may be no payment - a
+    transfer to one's own savings), not discharge (it exists before, without or despite
+    acknowledgment), not a "confirmed payment" (cleared / attached / user-confirmed are claims
+    about an existing payment). A bank line, ledger row, draft or entitled-party statement can
+    produce a candidate but cannot mint it - `_validate_payment` refuses a minting utterance
+    that does not originate from a Person.
+
+    Relations stay typed: `payment_corresponds` (separately minted identities later established
+    as one referent - derived, never merged); `paid_by` / `paid_to` (role claims); `toward(p, O)`
+    (a household claim; it does not establish discharge, as payee does not establish
+    entitlement); `artefact_concerns(A, p)` for the payment's own record. A LINE in a statement
+    needs proposition-level about-ness (Ab7), a separate ruling. A candidate match does not
+    establish correspondence: similarity generates a candidate; it does not establish identity.
+    """
+    __tablename__ = 'payments'
+    id           = Column(Integer, primary_key=True)
+    minted_by_id = Column(Integer, ForeignKey('utterances.id'), nullable=False)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+    minted_by = relationship('Utterance')
+
+
+@event.listens_for(Payment, 'before_insert')
+def _validate_payment(mapper, connection, target):
+    problems = _minting_violations(target, connection, 'a payment')
+    if problems:
+        raise ValueError('; '.join(problems))
+
+
+def payments_without_minting_utterance(session):
+    """Audit: payments whose minting utterance is missing or does not originate from a Person.
+    Empty is the invariant."""
+    out = []
+    for pm in session.query(Payment).all():
+        utt = session.get(Utterance, pm.minted_by_id) if pm.minted_by_id is not None else None
+        if utt is None or party_foundation(utt.origin) != 'person':
+            out.append(pm)
+    return out
 
 
 # "Never merges rows, never rewrites a reference" (CORRESPONDENCE.md s4/s8), mechanically:
@@ -1001,10 +1083,11 @@ _IMMUTABLE_REFERENCES = {
     'Utterance':   ('origin_party_id',),
     'Artefact':    ('asserted_by_id',),
     'Obligation':  ('minted_by_id',),
+    'Payment':     ('minted_by_id',),
     'Proposition': ('kind', 'subject_party_id', 'subject_utterance_id', 'subject_artefact_id',
-                    'subject_obligation_id',
+                    'subject_obligation_id', 'subject_payment_id',
                     'object_party_id', 'object_utterance_id', 'object_artefact_id',
-                    'object_obligation_id'),
+                    'object_obligation_id', 'object_payment_id'),
     'EvidentiaryRelationship': ('proposition_id', 'utterance_id', 'reading_id'),
 }
 
@@ -1079,20 +1162,24 @@ class Proposition(Base):
     subject_utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
     subject_artefact_id  = Column(Integer, ForeignKey('artefacts.id'), nullable=True)   # slice 2
     subject_obligation_id = Column(Integer, ForeignKey('obligations.id'), nullable=True) # obligation slice
+    subject_payment_id   = Column(Integer, ForeignKey('payments.id'), nullable=True)     # payment slice
 
     object_state         = Column(String(32), nullable=False, default=PARTICIPANT_NONE)
     object_party_id      = Column(Integer, ForeignKey('parties.id'), nullable=True)
     object_utterance_id  = Column(Integer, ForeignKey('utterances.id'), nullable=True)
     object_artefact_id   = Column(Integer, ForeignKey('artefacts.id'), nullable=True)    # slice 2
     object_obligation_id = Column(Integer, ForeignKey('obligations.id'), nullable=True)  # obligation slice
+    object_payment_id    = Column(Integer, ForeignKey('payments.id'), nullable=True)     # payment slice
 
     content              = Column(Text, nullable=True)
     as_of                = Column(String(10), nullable=True)
     created_at           = Column(DateTime, default=datetime.utcnow)
 
     # The slot columns per participant side, so guards and future slices enumerate one list.
-    SUBJECT_SLOTS = ('subject_party_id', 'subject_utterance_id', 'subject_artefact_id', 'subject_obligation_id')
-    OBJECT_SLOTS  = ('object_party_id', 'object_utterance_id', 'object_artefact_id', 'object_obligation_id')
+    SUBJECT_SLOTS = ('subject_party_id', 'subject_utterance_id', 'subject_artefact_id', 'subject_obligation_id',
+                     'subject_payment_id')
+    OBJECT_SLOTS  = ('object_party_id', 'object_utterance_id', 'object_artefact_id', 'object_obligation_id',
+                     'object_payment_id')
 
     __table_args__ = (
         Index('ix_prop_kind', 'kind'),
@@ -1101,6 +1188,8 @@ class Proposition(Base):
         Index('ix_prop_subject_artefact', 'subject_artefact_id'),
         Index('ix_prop_subject_obligation', 'subject_obligation_id'),
         Index('ix_prop_object_obligation', 'object_obligation_id'),
+        Index('ix_prop_subject_payment', 'subject_payment_id'),
+        Index('ix_prop_object_payment', 'object_payment_id'),
     )
 
 
@@ -1321,6 +1410,7 @@ def _origin_claims(session, artefact, party_id):
 ARTEFACT_CORRESPONDS = 'artefact_corresponds'
 PARTY_CORRESPONDS = 'party_corresponds'
 OBLIGATION_CORRESPONDS = 'obligation_corresponds'     # the third type (Ob7): two minted obligations, one referent
+PAYMENT_CORRESPONDS = 'payment_corresponds'           # the fourth (Pm8 b): two minted payments, one referent
 
 # ── Slice 8: about-ness ──────────────────────────────────────────────────────
 # gw 2.0/ARTEFACT_ABOUTNESS.md, ruled s9. `artefact_concerns(A, X)` means EXACTLY: *this artefact
@@ -1385,8 +1475,11 @@ RULED_KINDS = {
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
     OBLIGATION_CORRESPONDS: {'subject': ('subject_obligation_id',), 'object': ('object_obligation_id',),
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
-    # object: the identities ruled so far. Grows additively as each further identity is minted.
-    ARTEFACT_CONCERNS:    {'subject': ('subject_artefact_id',), 'object': ('object_obligation_id',),
+    PAYMENT_CORRESPONDS:  {'subject': ('subject_payment_id',),    'object': ('object_payment_id',),
+                           'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
+    # object: the identities ruled so far. Grows additively as each further identity is minted
+    # (obligation; payment - PAYMENT_IDENTITY.md s4: an artefact that is the payment's own record).
+    ARTEFACT_CONCERNS:    {'subject': ('subject_artefact_id',), 'object': ('object_obligation_id', 'object_payment_id'),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
     # object: () - a REQUIRED absence, enforced (object_state must be `none`).
     UTTERANCE_RETRACTION: {'subject': ('subject_utterance_id',), 'object': (),
@@ -1400,7 +1493,8 @@ REFERENT_CONTESTED = 'contested'                        # an establishing uttera
 
 _CORRESPONDENCE_OF = {'Artefact':   (ARTEFACT_CORRESPONDS,   'subject_artefact_id',   'object_artefact_id'),
                       'Party':      (PARTY_CORRESPONDS,      'subject_party_id',      'object_party_id'),
-                      'Obligation': (OBLIGATION_CORRESPONDS, 'subject_obligation_id', 'object_obligation_id')}
+                      'Obligation': (OBLIGATION_CORRESPONDS, 'subject_obligation_id', 'object_obligation_id'),
+                      'Payment':    (PAYMENT_CORRESPONDS,    'subject_payment_id',    'object_payment_id')}
 
 
 def referent(session, thing):

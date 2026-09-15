@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260914-obligation-identity'
+SCHEMA_VERSION = '20260914-payment-identity'
 
 
 def _stored_schema_version():
@@ -135,6 +135,12 @@ _NEW_PROPOSITION_COLUMNS = [
     # Person rows) it is not - no synthetic migration, by ruling.
     ('subject_obligation_id', "INTEGER REFERENCES obligations(id)"),
     ('object_obligation_id',  "INTEGER REFERENCES obligations(id)"),
+    # Payment identity (gw 2.0/PAYMENT_IDENTITY.md): the payment referent slots; `payments` is new
+    # (create_all). No data step: DebtLedgerEntry / CheckingTransactionLink are household assertions
+    # with the payment identity missing from the middle, decomposable only where the asserting
+    # party is a fact - not in production. No synthetic migration, by ruling.
+    ('subject_payment_id',    "INTEGER REFERENCES payments(id)"),
+    ('object_payment_id',     "INTEGER REFERENCES payments(id)"),
 ]
 
 _NEW_FUNDING_ALLOCATION_COLUMNS = [
@@ -307,6 +313,8 @@ _PERFORMANCE_INDEXES = [
     ('ix_prop_subject_artefact', 'propositions(subject_artefact_id)'),
     ('ix_prop_subject_obligation', 'propositions(subject_obligation_id)'),
     ('ix_prop_object_obligation',  'propositions(object_obligation_id)'),
+    ('ix_prop_subject_payment',    'propositions(subject_payment_id)'),
+    ('ix_prop_object_payment',     'propositions(object_payment_id)'),
     ('ix_txn_account_import', 'transactions(account_id, import_id)'),
     ('ix_txn_account_date',   'transactions(account_id, date)'),
     ('ix_txn_category',       'transactions(category_id)'),

@@ -279,8 +279,10 @@ def run(db):
     check('Ab7: which of them a PARTICULAR read proposition concerns is NOT representable - no proposition-subject slot exists',
           'subject_proposition_id' not in {c.name for c in db.Proposition.__table__.columns}
           and s.get(db.Proposition, p_which.id).object_state == db.PARTICIPANT_CANDIDATES)
+    # The payment slice added the payment object slot (the ruled growth path); the claim and plan
+    # identities still do not exist, so the check is stated over them.
     check('Ab8: an EOB cannot concern an insurance claim - no such identity, no such slot; the kind\'s object is the ruled identities only',
-          db.RULED_KINDS[db.ARTEFACT_CONCERNS]['object'] == ('object_obligation_id',)
+          set(db.RULED_KINDS[db.ARTEFACT_CONCERNS]['object']) == {'object_obligation_id', 'object_payment_id'}
           and not any('claim' in c.name or 'plan' in c.name for c in db.Proposition.__table__.columns))
 
     print('\n8. Ab9 / Ab10 - no custody needed; not endorsement\n')

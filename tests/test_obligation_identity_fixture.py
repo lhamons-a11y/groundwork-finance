@@ -31,7 +31,7 @@ What this build can and cannot exercise, stated so greenness is not over-read:
     Ob11 amount is never identity; competing balances, nothing chosen         EXERCISED
     Ob12 retracting the minting utterance does not unmint                     EXERCISED
     minting act != minted identity; one act may mint two                      EXERCISED
-    D4 P-ack payment                                                          NOT REPRESENTABLE - the payment referent (fenced)
+    D4 P-ack payment                                                          payment slice - tests/test_payment_identity_fixture.py
     artefact -> obligation about-ness                                        slice 8 - tests/test_artefact_concerns_fixture.py
     role period · restructure relation · DebtAccount decomposition            NOT BUILT - fenced
 
@@ -237,9 +237,12 @@ def run(db):
     check('Ob5: provider -> financing party -> provider is three dated claims on ONE obligation',
           s.query(db.Proposition).filter_by(kind='entitled_party', object_obligation_id=o2.id).count() == 3
           and s.query(db.Obligation).filter_by(id=o2.id).count() == 1)
-    check('no payment referent exists, so payment state cannot be consulted for a transition - by construction',
-          not any('payment' in c.name for c in db.Proposition.__table__.columns)
-          and 'payments' not in db.Base.metadata.tables)
+    # The payment slice (2026-09-14) retired the absence in place: a payment referent now exists,
+    # and still nothing consults payment state for a transition - no accessor, no derivation.
+    check('payment state is never consulted for a transition - no accessor or derivation exists (the payment referent now does)',
+          'payments' in db.Base.metadata.tables
+          and not any(hasattr(db, n) for n in ('transition_from_payments', 'entitled_after_payment',
+                                               'carrier_from_payment_state', 'payment_state')))
 
     print('\n6. Ob6 - restructure: the household says which; both shapes are representable\n')
     u_terms = utter('Chase re-amortised the same loan over 30 years.', '2026-12-01T09:00:00')
@@ -319,8 +322,11 @@ def run(db):
     print('\n10. What the identity satisfies, and what it does not\n')
     check('D5-shaped and D7-shaped claims are representable with the obligation as a structural participant',
           p_bal.subject_obligation_id == o1.id and p_new.object_obligation_id == o1.id)
-    check('D4 (P-ack payment) is NOT representable - there is no payment referent, and none was smuggled in',
-          not any('payment' in c.name for m in (db.Proposition, db.Obligation) for c in m.__table__.columns))
+    # Retired in place by the payment slice: D4 is now representable (tests/test_payment_identity_
+    # fixture.py); what this fixture pins is that the OBLIGATION anchor gained nothing for it.
+    check('D4 became representable through the payment slice, and the obligation anchor is unchanged by it',
+          'subject_payment_id' in db.Proposition.SUBJECT_SLOTS
+          and {c.name for c in db.Obligation.__table__.columns} == {'id', 'minted_by_id', 'created_at'})
     check('nothing derives disposition, entitlement, discharge or remaining from these claims',
           not any(hasattr(db, n) for n in ('disposition', 'discharge', 'remaining', 'entitlement_of', 'obligation_state')))
     check('DebtAccount is untouched and nothing maps it - the asserting party is not a fact in production',

@@ -1,7 +1,7 @@
 # The payment as a 2.0 identity — what is it, and what makes something correspond to it?
 
 > Status: **Build mode, opened by Rob 2026-09-14; precision pass `61b78cf`; consistency check §9;
-> Reading A RULED as written and the build AUTHORISED (§10).** Slice 8 is closed at
+> Reading A RULED as written (§10); BUILT as the obligation shape's projection — see the commit.** Slice 8 is closed at
 > `06bd42d` (`ARTEFACT_ABOUTNESS.md` §10). The payment was found missing at slice 6 (D4: *E
 > acknowledges payment p* has no `p`) and confirmed missing at the obligation slice (the
 > obligation alone does not unblock D4). This record tests four readings of the payment's
