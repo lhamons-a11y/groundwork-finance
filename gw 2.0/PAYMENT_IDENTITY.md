@@ -256,3 +256,21 @@ shape · the catalogue · any consumer · `DebtLedgerEntry` / allocation decompo
 
 *The line: a bank can say money left; a creditor can say money arrived; only the household's
 assertion mints the payment — whoever paid.*
+
+---
+
+## 9. Pre-ruling consistency check — the intended shape against §8's exclusions (2026-09-14)
+
+Rob's six points, checked against the obligation implementation the payment would copy
+(`core/database.py` at `e45ccc0`), before anything is ruled or built:
+
+| Exclusion | Where the obligation shape already holds it | Carried into a payment build as |
+|---|---|---|
+| `minted_by_id` = the minting act's utterance, whose origin is the asserting Person — **not the payer** | `Obligation.minted_by_id → utterances`; the utterance's `origin_party_id` is the asserting party; nothing on the anchor names an obligor — the obligor is `obligated_on`, a role claim (Ob8) | payer = `paid_by`, a role claim; the anchor never names one — asserted by the fixture's descriptor scan (Pm9) |
+| the pointer identifies the **act**, not the identity | `id` is the identity; `minted_by_id` is **not unique** — one act mints several (fixture: *"one act may mint two identities — minted_by is a pointer, not a unique key"*) | same check, verbatim |
+| `created_at` is **not** the occurred date | substrate `created_at` columns are row-creation defaults only; no substrate code reads any `created_at` as evidence time (the only `created_at` indexes are 1.x historian) — `Artefact` keeps `encountered_at` and `as_of` apart for the same reason | the occurred date is a claim with `as_of` (Pm1); the docstring says `created_at` is when the row was written; the fixture asserts the anchor has exactly `id · minted_by_id · created_at` and that no claim reads `created_at` |
+| `subject_/object_payment_id` are **generic participation**, not payer/payee/toward shortcuts | the slots carry no semantics; `RULED_KINDS` constrains only ruled kinds; `obligation_corresponds` is the only ruled kind on the obligation slots | same; `paid_by` / `paid_to` / `toward` remain stand-in kinds, unruled, using the generic slots |
+| no accessor infers **confirmed / cleared / discharged / paid** from `p`'s existence | no such function exists in the substrate (checked: none of `is_paid · paid · confirmed · discharged · cleared · remaining · is_confirmed · is_cleared`); the obligation fixture asserts none of `disposition · discharge · remaining · entitlement_of · obligation_state` | the same absence list, extended with the payment's own vocabulary |
+| correspondence stays correspondence — **no resolver substitutes identities** | `referent()` is read-only (its only `.add` calls are Python-set adds); `_refuse_repoint` forbids re-pointing every referential slot including the obligation's; the fixtures assert no `merge_* · canonical_id · duplicate_of · referent_id` in the substrate (`ExpenseFundingAllocation.duplicate_of` and `expense_merge_links` are 1.x, noted in §6 as the shape **not** inherited); s90 catches *position resolves a contested referent* | `payment_corresponds` joins `referent()` unchanged; the X1 pattern (Pm8 b) derives a referent and merges nothing |
+
+Nothing in the intended shape encodes anything §8 excludes. Ready for the ruling.
