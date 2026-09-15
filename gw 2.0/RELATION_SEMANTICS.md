@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED as written (§A.6) and its representation authorised 2026-09-15; built — see the commit. Passes B–G open one at a time.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED as written (§A.6) and its representation authorised 2026-09-15; built (`63848fa`). Pass B OPENED 2026-09-15 — run to a ruling candidate (§B.6), no code; awaiting Rob. Passes C–G open one at a time.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -208,4 +208,182 @@ relation base, a relation resolver, an inverse accessor, a counteracted status, 
 or any item 7 consumer.
 
 **Pass A: RULED / CLOSED on build.** Then — and only then — pass B: Obligation ↔ Obligation.
+
+---
+
+## Pass B — Obligation ↔ Obligation
+
+**The question, applied:** when a household member says *the new loan replaced the Harbor
+mortgage*, *they rolled my hospital bill into a payment plan*, *the consolidation loan paid off
+the three cards*, or *NewCo took over my loan*, what is being claimed, who can establish it, and
+what follows? Rob's framing carried from §2: *one ending and another beginning · one continuing
+with changed terms · a refinancing · a transfer of servicing · merely a new dated stance* — none
+collapsed because an institution says "restructured"; **first determine whether there is an
+obligation-to-obligation relation at all.**
+
+### B.1 What is already fixed
+
+| Ruling | Constraint on pass B |
+|---|---|
+| **Obligation identity** (§9) | *an obligation is a continuant minted by the household's individuating assertion*; creditor, amount, kind, terms, account number, entitlement, obligor, servicer, balance are **information about the continuant**; the identity **survives assignment, sale, write-off, recourse and restructure because none of those touches the anchor**; the minting act is not the minted identity |
+| **Ob6** | restructure is *either* the same O with new terms (terms claims with `as_of`) *or* a new O that settled the old (O3 minted by the household + a relation between O3 and O1, kind not ruled) — **the household says which (C9); both must be representable** |
+| **M1 / M2 — closed** (`CARRIES_DOCTRINE_TEST.md` §6) | the obligation is the continuant; *both cases are expressible as continuity of the obligation across change*; **no hidden identity/successor problem**; agreement identity (M2's object) *not needed by any case* — nothing forecloses it, nothing requires it |
+| **Servicing** (S1–S7, frozen) | assignment, sale, a new servicer, a new account number, a recourse return: **one obligation, dated role claims** — *NewCo is E of O1 as of d*, *S services O1 as of d*; **payment state may evidence but never establish a change of carrier** (§10) |
+| **Role period** (RP2) | `began` / `ended` are boundary kinds **bound to role kinds**; a boundary never rewrites, implies its opposite, resolves or establishes continuous effect — an obligation is not a role, so RP2 supplies pass B nothing |
+| **Economic-transfer invariant** (§5) | *whenever economic terms change, every amount whose treatment changes must have an explicit, reconstructable disposition*; the anchoring decides only **where** it is represented — under the identity ruling, *a claim on whichever the household asserted*; **the disposition is not this pass's** (OBLIGATION_IDENTITY §7: ruled when the invariant's consumer is built) |
+| **Disposition vocabulary** (case 3, case 6) | arrears are **not an amount** but a schedule-relative position; partial settlement is not a value — nothing here gives a relation an amount to carry |
+| **Discharge** (S1) | *established by the entitled party's acknowledgment, not by the payee* — and not by anything else |
+| **Correspondence** (Ob7) | `obligation_corresponds` = **one obligation minted twice**; a new obligation is never one referent with the old; a matching creditor or account number is a *candidate* for correspondence, and the household says whether it is Ob7 or Ob6 |
+| **Pass A** | the precedent: one kind, two established participants, directional, no inverse, no cardinality, party-asserted, **no amount**, derives nothing; source words are content, not kinds |
+| **`toward(p, O)`** | a **stand-in** (D′, unruled) — usable in a case as what the payoff payment is *claimed toward*, never as something this pass rules |
+| **K8** | a referential operand is a participant: *O3 replaced (O1)* with O1 in content is the hidden-operand mistake |
+| **Prohibitions 1–12** | §1 |
+
+### B.2 The five phenomena, first — is there a relation at all?
+
+Rob's five, taken one at a time against what is already ruled, *before* any case is written:
+
+| Phenomenon | What it is, under the rulings | Obligation ↔ obligation? |
+|---|---|---|
+| **one continuing with changed terms** | terms claims about **one O**, `as_of` the effective date, the earlier terms remaining (Ob6 first arm) | **no** — one participant |
+| **a transfer of servicing** (and assignment, sale, recourse) | dated **role claims** about one O (S2, S4/S5, S7); a new account number is a descriptor in content | **no** — one participant; an institution's "your new account" mints nothing |
+| **merely a new dated stance** | a claim about one O at d — E's balance, a write-off, the household's *I consider this closed* | **no** — one participant |
+| **one ending and another beginning** | *two independent facts*: the ending of O1 is a claim about O1 (E's acknowledgment of discharge; the household's stance); the beginning of O3 is the household's minting assertion — **neither establishes the other**; a third thing may be asserted *between* them, and only that third thing is two-participant | **only if asserted** — and then it is the row below |
+| **a refinancing** (consolidation, rollover, balance transfer, a plan replacing a bill) | O3 minted by the household; a **payment** from the new lender to the old (payer may be anyone, Pm9; *toward O1* as a stand-in); E's acknowledgment of O1's discharge (D4/D5); and the household's assertion that **O3 was taken on in place of O1** — the last is a claim whose referential operands are two obligations | **yes — one relation**, and it is exactly the third thing in the row above |
+
+**So: four of the five are not obligation-to-obligation at all, and the fifth is one claim.** The
+relation exists because the household says something that has two obligations as its
+operands — *this one was incurred in substitution for that one* — and K8 forbids recording it as a
+claim about the new obligation with the old in content. It does **not** exist because a
+restructure "creates a successor" (M2, closed), because RP2 can now say `ended` (roles only), or
+because an institution's product has a name. Everything the relation might be tempted to say
+*about either obligation* — ended, discharged, closed, carried, netted — is either a claim of a
+different shape on one obligation or item 7's.
+
+### B.3 The cases
+
+| # | Case | What must be sayable | What must not follow |
+|---|---|---|---|
+| **B1 (Ob6, first arm)** | Harbor modifies the mortgage: new rate, new payment; Rob: *same mortgage, new terms*. | terms claims on **O1** with `as_of` the effective date; the earlier terms remain | no O3; the modification agreement (an artefact from Harbor) mints nothing; no relation — one participant |
+| **B2 (Ob6, second arm)** | Riverbend Hospital closes the $3,000 plan and opens a new one at $250/month; Rob: *they closed the old plan and started a new one*. | Rob mints **O3**; **O3 replaces O1** — a claim with two obligation participants, asserted by Rob | O1 acquires no `closed` / `replaced` status; O1's discharge is not derived from the relation; the household's choice of the second arm is not second-guessed by the substrate |
+| **B3** | Refinance with a different lender: NewBank pays Harbor $178,412; Harbor sends a paid-in-full letter; Rob: *the NewBank loan replaced the Harbor mortgage*. | **four separate things**: O3 minted (Rob); a payment p — payer NewBank, payee Harbor, *toward O1* (stand-in), asserted by Rob; Harbor's letter → a reading → E's acknowledgment claims about O1; **O3 replaces O1** (Rob) | the payment does not establish the relation; the relation does not establish the discharge; the letter mints nothing; the relation is not `toward`, not acknowledgment, not correspondence |
+| **B4** | Consolidation: one personal loan pays off three cards. | three claims: **O4 replaces O1 · O4 replaces O2 · O4 replaces O3** | no cardinality; nothing sums the three; "consolidation" is not a kind |
+| **B5** | Partial: the consolidation loan covers $5,000 of an $8,000 card; the card stays open. | **O4 replaces O1** — the relation's scope is *some or all*, as the party's assertion | the relation carries **no amount**; "$3,000 remains on O1" is a consumer's (item 7); O1 continues, un-statused |
+| **B6** | Split: the hospital separates one bill into a facility plan and a physician plan. | two claims: **O2 replaces O1 · O3 replaces O1** | many-to-many with B4; nothing apportions O1 between them |
+| **B7 (case 3)** | $525 behind on the old plan; the new plan is $250/month. | B1 or B2, **the household says which**; the $525 is a schedule-relative position under the old terms, reconstructable (8.1-a) | the relation does not carry *$525 rolled in*; the invariant's disposition (8.1-b) is a **separate claim of a different shape**, fenced to the invariant's consumer — not a field on this kind |
+| **B8 (S2 / S4 / S5 / S7)** | Harbor sells the mortgage to NewCo; NewCo issues a new account number and a welcome letter: *your new NewCo loan*. | **one O1**; *NewCo is E of O1 as of d* (D7); the account number is content | **no relation** — one participant; NewCo's word mints nothing and relates nothing; if the household nonetheless mints O2 for "the NewCo loan", that is **Ob7** — `obligation_corresponds` on the household's say-so — not this kind |
+| **B9** | NewBank's statement shows a first payment on a loan whose amount equals Harbor's payoff; the matcher pairs them; the closing disclosure reads `PAYOFF — HARBOR ****4471`. | a **reading-sourced candidate** *O3 replaces O1* (if O3 exists); a proposition concerning nothing established (if it does not) | the matcher establishes nothing; `PAYOFF` establishes nothing; no obligation is minted from a statement |
+| **B10** | Direction: could *O1 replaces O3* be asserted for B3? | the claim is directional — **the replacing obligation is the subject**; asserting the reverse asserts something else | **direction is not derived from minting order or dates** — O1 may be minted in Groundwork *after* O3 (Ob9-style late recording); a party asserts which replaced which |
+| **B11** | Chain: O3 replaced O1 (2020); O5 replaced O3 (2024). | two claims, same kind, different pairs | **no transitivity**: *O5 replaces O1* is not derived; O1's standing is not computed |
+| **B12** | Rob: *the new loan replaced the mortgage*; Kim: *no — it replaced the HELOC*. | two claims: O3 replaces O1 (Rob); O3 replaces O2 (Kim) — **contested, derived** | nothing chooses; no "current successor" |
+| **B13** | Rob later: *I was wrong — the loan didn't pay off that card.* | `utterance_retraction` of the utterance behind the relation claim; a new relation claim if he has one | O1, O4 untouched; the relation claim's history survives; retraction ≠ the card being "restored" |
+| **B14** | Rob pays off the card and closes it. No second obligation. | a dated claim about O1 — E's acknowledgment of discharge, or Rob's *closed* stance | **not a relation** — pass B does not reach for it; an ending needs no successor, and no successor is manufactured for it (the A12 shape) |
+| **B15** | O3 replaces O1 is asserted; the payoff was $40 short and Harbor keeps billing O1. | Harbor's D5 balance claims on O1 stand beside the relation; both are true as asserted | the relation **does not derive O1's ending** — this is the structural reason, not a stylistic one (A7's role in pass A): a status derived from the relation would contradict E's acknowledged balance |
+| **B16** | NewBank (an institution) asserts, in its own words, that the proceeds paid off the Harbor loan. | NewBank **may assert** the relation as a party; from a reading it is a candidate; the household may assert it | knowing for the relation is **not ruled** — `undetermined`; the participant whose relationship would constitute knowing (the obligor of the subject obligation? E of the object?) has no ruled role kind |
+| **B17** | *Refinance* vs *consolidation* vs *restructure* vs *rollover* vs *modification* vs *balance transfer* vs *payment plan*. | the product, who initiated, why, and the terms are claims about O3 (its kind, its creditor, its terms) or content | **not kinds**: they do not differ in what is claimed *of the relation*, who can establish it, its direction or its participants — the stopping rule inside one pass (A14's shape); *modification* is B1, not this kind at all |
+| **B18** | A hospital bill becomes a payment plan: is the plan a new obligation replacing the bill's, or terms on the same one? | **the household says which** (Ob6 / C9); if a new O, B2 | the substrate never infers the arm from the creditor being the same; pass C (obligation ↔ expense, Ex4) is not reached for — what the *expense* is to either obligation is C's |
+
+### B.4 Testing the readings
+
+**PB0 — no obligation-to-obligation relation; everything is one-participant claims.** Tested
+honestly first, because Rob's framing asks it. It holds for four of the five phenomena (§B.2) and
+fails on the fifth by K8: *O3 was incurred in place of O1* has two referential operands, and
+recording it as a claim about O3 with O1 in content makes B4, B6 and B12 indistinguishable or
+unstatable. Ob6's second arm — *both must be representable* — is not representable under PB0.
+
+**PB1 — one ruled kind with two obligation participants**, meaning exactly *the asserting party
+holds that the subject obligation was incurred in substitution for some or all of the object
+obligation*. Every case is representable; every "must not follow" is a non-derivation the
+substrate already refuses; B1, B8, B14 are correctly *outside* it.
+
+**PB2 — a claim about the new obligation with the old in content.** Rejected by K8, as in PA2.
+
+**PB3 — one generic `obligation_relation` with the relation named in content** (`refinance`,
+`consolidation`, `restructure`…). Rejected: prohibitions 1 and 4; the generic abstraction
+arriving first.
+
+**PB4 — several kinds by context** (`obligation_refinances`, `obligation_consolidates`,
+`obligation_rolls_into`, `obligation_transfers_balance`…). Tested by the stopping rule inside
+the pass (B17): the contexts differ in **product, initiator and reason** — claims about O3 or
+content — not in what is claimed of the relation, who may establish it, its direction or its
+participants. One kind survives.
+
+**PB5 — correspondence.** Rejected by ruling: a new obligation is never one referent with the
+old. B8 is the important boundary — the *same* obligation under a new account number is Ob7
+(`obligation_corresponds`), and the household, not the matcher, says whether a new number is a
+new obligation.
+
+**PB6 — derive it** (O1's balance reaches zero as O3 appears with a matching amount ⇒ replaced).
+Rejected: prohibitions 4 and 11; §10 — *payment state may evidence but never establish*; B15
+shows the heuristic is false; the matcher yields candidates only (B9).
+
+**PB7 — succession as identity** (O1 ends, O3 begins, the edge carries the disposition — M2's
+shape re-entering as a relation). Rejected: M1/M2 is closed; the obligation is the continuant; a
+relation cannot end an identity (prohibitions 5–7); the disposition lives on claims, not on an
+edge (§5, as the identity ruling placed it). B15 is the case that makes this structural.
+
+**PB8 — an `ended` boundary on the obligation via RP2.** Rejected: RP2's boundary kinds are
+bound to *role* kinds; an obligation is not a role; and the ending of an obligation is E's
+acknowledgment or the household's stance about O1 — never a consequence of a relation to O3
+(prohibition 10).
+
+### B.5 What the relation is — and is not
+
+| The claim | *the subject obligation was incurred in substitution for some or all of the object obligation*, as the asserting party holds |
+|---|---|
+| **participants** | subject: the replacing obligation · object: the replaced obligation — both **established** obligations; no other slot |
+| **direction** | directional; **not symmetric**; **no inverse kind** — *O1 was replaced by O3* is the same claim read backwards |
+| **cardinality** | none ruled: many-to-many (B4, B6) |
+| **who establishes** | any party's assertion — the household, the new lender; a reading yields **candidates only**; no label (`PAYOFF`, `REFINANCE`, *your new account*) establishes |
+| **knowing** | `relational_knowing` **True with no designated relation → `undetermined`** — the designated participant (obligor of the subject? entitled party of the object?) is a role kind not ruled |
+| **content** | opaque — the party's wording, the product, the reason, the portion; never read by a derivation |
+| **`as_of`** | permitted (the date the stance is about); each obligation's terms and boundaries are its own claims |
+| **derives** | **nothing**: no ending, discharge, closed or replaced status on the object (B15); no beginning on the subject (it was minted, not begun); no disposition of any amount across the pair (B7 — the invariant's consumer); no remaining (B5); no transitivity (B11); no apportionment (B6); no temporal continuity; no inference of the Ob6 arm |
+| **what it is not** | not terms (B1); not a role claim (B8); not correspondence (B8, Ob7); not `toward` (B3's payment); not acknowledgment (B3's letter); not an RP2 boundary (PB8); not a successor identity (PB7) |
+| **relation to Ob6** | the *second arm's* relation, now ruled; the first arm needs no relation; **the household's choice between the arms is a fact the substrate records, never infers** |
+| **name** | a working name is needed for a kind; **not** a source word (*refinance*, *restructure*, *consolidate*, *supersede* — the last is artefact vocabulary): `obligation_replaces` — the name carries no semantics beyond this table |
+
+### B.6 Ruling candidate — pass B, for Rob
+
+> **There is exactly one obligation-to-obligation relation, and it is needed for exactly one of
+> the five phenomena. Changed terms are claims on one obligation; a transfer of servicing,
+> assignment, sale or recourse is a dated role claim on one obligation; a new dated stance is a
+> claim on one obligation; an ending and a beginning are two independent facts about two
+> obligations that establish nothing about each other. The relation is the household's — or any
+> party's — assertion that one obligation was incurred in substitution for some or all of
+> another: one ruled kind, `obligation_replaces`, meaning exactly that the asserting party holds
+> the subject obligation was incurred in substitution for some or all of the object obligation.
+> Both participants are established obligations; the claim is directional and never symmetric;
+> no inverse kind exists; no cardinality is implied — one obligation may replace several and be
+> replaced by several. It is established only by a party's assertion; a reading, a matcher, a
+> payoff line or an institution's product name yields at most a candidate. Knowing for it is
+> undetermined until a role designates the relevant participant. It derives nothing: no ending,
+> discharge or status on the replaced obligation, no beginning on the replacing one, no
+> disposition of any amount across the pair, no remaining, no transitivity across a chain, no
+> apportionment among several, no temporal continuity, and no inference of which Ob6 arm the
+> household meant. Refinance, consolidation, rollover, balance transfer, restructure and payment
+> plan are content or claims about the replacing obligation, never kinds; modification is the
+> first arm and no relation at all. Where no second obligation is individuated there is no
+> relation — a paid-off, closed, written-off or transferred obligation remains one obligation
+> under dated claims. The disposition the economic-transfer invariant requires is a claim of its
+> own shape, fenced to that invariant's consumer, and is not carried by this kind. Nothing is
+> merged and nothing is minted by the claim.**
+
+**If ruled, the representation is one registry entry** — `OBLIGATION_REPLACES: subject
+(subject_obligation_id) · object (object_obligation_id) · symmetric False · reading_establishes
+False · relational_knowing True, no knowing_relation` — the obligation slots already exist, the
+generalised reflexive guard already covers it; a fixture over B1–B18 and the absences (no
+`closed` / `replaced` column or accessor, no discharge derived, no disposition field, no
+transitivity, no inverse kind, no Ob6-arm inference); **no schema, no migration**; and **nothing
+at family level** — pass C opens only after this is ruled.
+
+**What pass B leaves exactly where it found it:** the invariant's disposition claim (8.1-b) ·
+discharge and `remaining` (item 7) · agreement identity (M2's object — still unforced) · the
+write-off's unnamed residue · the role catalogue (obligor, E, servicer as ruled kinds) · pass C's
+question of what the *expense* is to either obligation (B18) · D′ (`toward`, still a stand-in in
+B3).
+
+*The line: the new loan is a loan; that it took the old one's place is what someone said about
+the two of them — and whether the old one is really gone is what its creditor says.*
+
 
