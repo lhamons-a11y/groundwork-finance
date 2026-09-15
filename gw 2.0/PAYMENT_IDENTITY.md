@@ -1,14 +1,13 @@
 # The payment as a 2.0 identity — what is it, and what makes something correspond to it?
 
-> Status: **Build mode, opened by Rob 2026-09-14 — record only, no code. Precision pass applied on Rob's
-> review (2026-09-14); Reading A stands; ready for ruling — not yet ruled, not yet authorised.** Slice 8 is closed at
+> Status: **Build mode, opened by Rob 2026-09-14; precision pass `61b78cf`; consistency check §9;
+> Reading A RULED as written and the build AUTHORISED (§10).** Slice 8 is closed at
 > `06bd42d` (`ARTEFACT_ABOUTNESS.md` §10). The payment was found missing at slice 6 (D4: *E
 > acknowledges payment p* has no `p`) and confirmed missing at the obligation slice (the
 > obligation alone does not unblock D4). This record tests four readings of the payment's
 > identity against the servicing, acknowledgment, lifecycle and allocation rulings, answers the
 > correspondence half, evaluates the 1.x rows only afterwards, finds what the identity unblocks
-> and what it immediately runs into, and ends with a ruling candidate. Nothing here is authorised
-> to build.
+> and what it immediately runs into, and ends with a ruling candidate, ruled in §10.
 
 **Rob's question, verbatim:** *what is a payment as a 2.0 identity?* — with the obligation
 slice's negative criterion carried over: not *which existing table represents the payment*, but
@@ -274,3 +273,30 @@ Rob's six points, checked against the obligation implementation the payment woul
 | correspondence stays correspondence — **no resolver substitutes identities** | `referent()` is read-only (its only `.add` calls are Python-set adds); `_refuse_repoint` forbids re-pointing every referential slot including the obligation's; the fixtures assert no `merge_* · canonical_id · duplicate_of · referent_id` in the substrate (`ExpenseFundingAllocation.duplicate_of` and `expense_merge_links` are 1.x, noted in §6 as the shape **not** inherited); s90 catches *position resolves a contested referent* | `payment_corresponds` joins `referent()` unchanged; the X1 pattern (Pm8 b) derives a referent and merges nothing |
 
 Nothing in the intended shape encodes anything §8 excludes. Ready for the ruling.
+
+---
+
+## 10. Ruling — Rob, 2026-09-14. Reading A ruled as written (§8); the build authorised.
+
+*No remaining semantic objection.* The record separates four things 1.x tends to collapse —
+**identity** (`p`, the payment event itself) · **minting** (a Person's individuating assertion
+creates the identity; the utterance is the minting act) · **claims** (amount, date, payer,
+payee, toward, clearance, attachment, acknowledgment, discharge, reversal — propositions *about*
+`p`) · **correspondence** (other identities or artefacts later established as referring to the
+same referent, without merging or rewriting either) — and the consistency check (§9)
+establishes that the intended substrate does not smuggle them back into the identity.
+
+**Especially:** the `created_at` check — **identity creation time ≠ event occurrence time**. A
+payment entered on September 14 for something asserted to have occurred on March 3 must not
+have the database's timestamp pretend March 3 happened on September 14. The same discipline as
+`as_of` and `recorded_at`: *the system's record of a fact is not automatically the time of the
+fact.*
+
+**The answer to the question, as Rob states it:** *what is a payment as a 2.0 identity?* Not a
+transaction. Not a ledger row. Not a discharge. Not a confirmation state. Not a bank event. Not
+a collection of amounts and dates. **It is the payment event individuated by a Person's
+assertion that it occurred.** Everything else earns its way back in as a claim, relation,
+correspondence or evidence about that identity.
+
+**Authorised:** the implementation as a projection of the settled ontology — the obligation
+identity's shape — not another design pass. No more cases, fields or constraints.
