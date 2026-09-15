@@ -1,11 +1,12 @@
 # `proposition_corresponds` — what is a correspondence between propositions?
 
-> Status: **Build mode, opened by Rob 2026-09-14 — record only, no code.** Ab7 is closed at
+> Status: **Build mode, opened by Rob 2026-09-14; RULED as written with g1 narrowed (§7); build
+> AUTHORISED.** Ab7 is closed at
 > `9566f23` (`PROPOSITION_ABOUTNESS.md` §8). `proposition_corresponds` was in slice 4's PARTIAL kind
 > list, found **unforced** there (X8), and **pressed by a case** at Ab7 (Pa5: a re-reading's P3′
 > has no about-ness of its own). This record asks what "two propositions are one referent" can
 > mean, tests it against the ruled cases, finds the one place the slice-4 shape is not enough
-> and one slot it forces, and ends with a ruling candidate. Nothing here is authorised to build.
+> and one slot it forces, and ends with a ruling candidate, ruled in §7.
 
 **Rob's question, verbatim:** *what is a correspondence between propositions?*
 
@@ -124,11 +125,16 @@ foundations). Is there one here? Two candidates, stated so Rob can rule:
 - **(g2) No guard beyond slice 4's** (type, distinct, existence). Claims can be wrong; the
   consumer reports incoherence as it reports Pa7's level inconsistency.
 
-The record leans **g1**: it enforces something structural the record already holds (the
-participants), not a semantic judgement; it costs nothing; and it prevents the one case where a
-correspondence would make the *same* proposition's established participant say two things.
-Pc4 remains representable-but-wrong under either, which is the honest position for a doctrine
-(P-subject ≠ P-world) the substrate cannot see in the rows.
+The record leans **g1**, with its scope stated exactly so it cannot grow: **g1 does not judge
+whether two propositions are semantically about the same thing. It prevents correspondence from
+identifying one referent when the propositions' already-established same-type structural
+participants explicitly disagree** — because then the "one claim" would have two established
+structural subjects, a contradiction in the identity structure itself, not merely a false claim.
+**g1 inspects established participants only** — never candidates, `proposition_concerns`,
+content, kind, evidence, reading position, authority or semantic similarity; those stay outside
+the guard, and a future "these don't seem equivalent" validator is exactly what g1 is not. Pc4
+remains representable-but-wrong under g1, which is the honest position for a doctrine (P-subject
+≠ P-world) the substrate cannot see in the rows.
 
 ---
 
@@ -151,8 +157,9 @@ Pc4 remains representable-but-wrong under either, which is the honest position f
 > two observations or recordings of one claim — one statement an artefact makes, read more
 > than once, or one assertion a party made, entered more than once. It is slice 4's kind shape,
 > a fifth type: both participants established, distinct propositions; established only by a
-> party's utterance; a position or content match observed by a reading produces a candidate for
-> the claim and is not itself the claim; the referent is the connected component, derived;
+> party's utterance; a position or content match observed by a reading may produce a candidate
+> for the claim — the observation is not itself the claim, and candidate generation is outside
+> this slice; the referent is the connected component, derived;
 > never merged, never re-pointed; contested when its establishing utterance is disputed. Their
 > contents and kinds may differ — that difference is the parse dispute, made computable and
 > never resolved. It is not agreement, which is a comparison; not shared subject, which is
@@ -160,9 +167,11 @@ Pc4 remains representable-but-wrong under either, which is the honest position f
 > replacement, which is retraction; and not about-ness carrying — the substrate copies nothing
 > across corresponding propositions, and what a consumer derives through the correspondence is
 > the consumer's rule. It forces one additive slot, `object_proposition_id`, used by this kind
-> alone; and it refuses a correspondence between propositions whose established participants
-> of one type disagree, since one claim cannot be about two things. Its knowing relation is
-> relational and its strength `undetermined`.**
+> alone; and it refuses a correspondence between propositions whose already-established
+> same-type structural participants explicitly disagree — inspecting established participants
+> only, never content, kind, evidence or similarity — since one claim cannot have two
+> established structural subjects. Its knowing relation is relational and its strength
+> `undetermined`.**
 
 **If ruled**, implementation follows slice 4's shape: the additive object-side slot; the registry
 entry; `referent()` extended to propositions; the g1 guard; a fixture over Pc1–Pc10 asserting
@@ -170,3 +179,57 @@ what is *not* carried or derived; no data step. **Outside it:** every consumer d
 in §5 · the pipeline's authorisation · `utterance_corresponds`.
 
 *The line: two readings can be of one line; saying so decides nothing about what the line says.*
+
+---
+
+## 7. Ruling — Rob, 2026-09-14. Ruled as written; g1 ruled narrowly; the build authorised.
+
+*The proposition-correspondence problem is not a new correspondence shape — slice 4 answered
+that; what was missing was what the referent means when the thing individuated is itself a
+proposition.* **M1 ruled; M2 and M3 rejected.** The decisive sentence: *two separately minted
+propositions are two observations or recordings of one claim* — surviving the cases without
+importing agreement, truth, subject identity or replacement. Pc1 proves correspondence cannot
+mean semantic equality: the correspondence establishes that two proposition identities are
+intended as representations of one claim; the disagreement remains information. **Pc3 keeps
+correspondence relational rather than transmissive** — a consumer may reason *P3 ~ P3′ and P3
+concerns O2, therefore for this purpose P3′ may be treated as concerning O2*; the substrate
+mutates nothing, manufactures no `proposition_concerns`, transfers no evidence.
+
+**g1 — ruled, narrowly**, as an *established-same-type-participant incompatibility guard*: it
+does not judge semantic sameness; it prevents identifying one referent when the already-
+established same-type structural participants explicitly disagree (a contradiction in the
+identity structure, not merely a false claim). **g1 inspects established participants only** —
+not candidates, `proposition_concerns`, content, kind, evidence, reading position, authority or
+semantic similarity. Pc4 is a category error the ontology cannot recognise in the rows and is
+not g1's business.
+
+**`object_proposition_id` — forced**, for `proposition_corresponds` alone. The proposition-
+participant taxonomy stays explicit and asymmetric, and is not to be generalised:
+
+| Kind | Proposition participant |
+|---|---|
+| `proposition_concerns` | subject |
+| `proposition_corresponds` | object (and subject) |
+| slice-5 non-kinds | neither |
+
+**Wording adopted:** *a position or content match observed by a reading **may** produce a
+candidate for the claim; the observation is not itself the claim* — candidate generation stays
+outside this slice.
+
+**What the slice accomplishes:**
+
+```text
+READING ──observes/matches──► candidate
+   ▼
+PROPOSITION ──concerns────► IDENTITY
+            └─corresponds─► PROPOSITION
+```
+
+Neither relation changes the thing on the left. `proposition_concerns` says what a proposition
+concerns; `proposition_corresponds` says which proposition identities represent one claim;
+neither says what the claim is true of, which content is correct, or what should be derived.
+
+**Recorded:** M1 ruled · M2, M3 rejected · g1 ruled narrowly · `object_proposition_id` forced ·
+consumer derivations not part of the ruling · about-ness propagation explicitly not part of the
+ruling · `proposition_corresponds` ready for minimal implementation. No further semantic question
+opened before building. **Build it.**
