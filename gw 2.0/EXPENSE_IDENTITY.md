@@ -1,7 +1,7 @@
 # The expense as a 2.0 identity — what is it, and what makes something correspond to it?
 
-> Status: **Queue item 4 (first referent of three), opened by Rob 2026-09-14; X3 ACCEPTED with one
-> identity-authority clarification applied (§7); frozen wording below; READY FOR RULING — no code.** Reversal is closed at `8ee5f76`. Slice 6 left D1 (*transaction t is health on axis X*)
+> Status: **Queue item 4 (first referent of three), opened by Rob 2026-09-14; clarification §7; X3
+> RULED as written and the build AUTHORISED (§8).** Reversal is closed at `8ee5f76`. Slice 6 left D1 (*transaction t is health on axis X*)
 > and D3 (P-world, *patient responsibility for this claim*) blocked on referents with no 2.0
 > identity; the transaction referent (Tx8) sent D1's subject here — *the classifier's subject
 > moves from the row to the expense identity*. This record tests four readings of the expense's
@@ -237,3 +237,32 @@ for consumers turn it into a kind today.*
 subject. A bank line remains a bank proposition; when the household has individuated an expense,
 the line can concern it. No code until ruled; if ruled, the proposed additive implementation is
 appropriately narrow.
+
+---
+
+## 8. Ruling — Rob, 2026-09-14. X3 ruled as written; the expense build authorised.
+
+*X3 is the only candidate that survives the existing ontology and all twelve cases without
+smuggling another identity into the substrate.* The key boundary: **the household's
+individuating assertion mints the expense identity; other parties may assert claims about that
+expense but do not thereby mint it** — identity authority separated from epistemic authority,
+consistent with relational knowing.
+
+> **An expense is a Groundwork event identity for an incurrence that the household individuates
+> — a visit, purchase, or service received. Its minting act establishes only the identity. The
+> expense anchor does not acquire date, provider, patient, nature, necessity, category, or
+> monetary amounts as intrinsic properties. Those remain claims about the expense.**
+
+**The separations:** expense ≠ bank movement · ≠ payment · ≠ obligation · ≠ insurer claim ·
+≠ classification · ≠ source record. A source can provide evidence concerning the expense without
+creating it; a category can propose a classification without establishing one; separately minted
+expenses can correspond without being merged. **`O arises from X` remains a required future
+relation claim, not an opportunistically created kind in this slice.**
+
+**Build authorised, exactly:** the `expenses` anchor · expense slots · `expense_corresponds` ·
+expense object slots on `artefact_concerns` and `proposition_concerns` · Ex1–Ex12 fixture · the
+D1 / D3 subject correction · an explicit regression that nature / category cannot mint or become
+identity structure · no migration beyond the additive ontology shape · **no** relation-family
+implementation · **no** insurer claim, plan, determination or consumer work. *After the build, the
+closure verifies the cases rather than using implementation behaviour to reinterpret the
+doctrine.* **Item 4a: closed at the doctrine level; implementation authorised.**
