@@ -1,13 +1,13 @@
 # Ab7 — what is proposition-level about-ness?
 
-> Status: **Build mode, opened by Rob 2026-09-14 — record only, no code.** The payment slice is
+> Status: **Build mode, opened by Rob 2026-09-14; two wording refinements on his review; K1p RULED as
+> written and the build AUTHORISED (§7).** The payment slice is
 > closed at `6390804` (`PAYMENT_IDENTITY.md` §11) with the constraint that *the payment identity
 > is complete without Ab7*. Ab7 was found at slice 8 (`ARTEFACT_ABOUTNESS.md` Ab7), forced a
 > second time by the payment slice (Pm2, Pm3), and is a **reopening of slice 5's finding** —
 > *no proposition takes a proposition as subject; nothing forced it then* — on this evidence
 > only. This record asks what kind of thing the proposition-level crossing is, tests the
-> candidates against the ruled cases under the three tests, and ends with a ruling candidate.
-> Nothing here is authorised to build.
+> candidates against the ruled cases under the three tests, and ends with a ruling candidate, ruled in §7.
 
 **Rob's question, verbatim:** *what is proposition-level about-ness?*
 
@@ -93,7 +93,7 @@ K1p is tested.
 | **Pa7** | A concerns {O1, O2}; Rob says line 3 concerns O3 (the car loan). | O3 exists | representable — both claims stand; **the inconsistency between levels is a consumer's to report, never a guard's to refuse and never a resolver's to settle**; nothing chosen | each claim's own |
 | **Pa8** | A single-obligation statement (concerns O1 only); no line-level claims. | O1 exists | **no proposition-level claim is required**: a consumer that wants "which identity is this line about" has the artefact-level claim and nothing contradicting it. Proposition-level about-ness is *needed* only where the artefact concerns several identities or none (Pa1, Pa2); it is never required — and how a consumer combines the two levels is the consumer's rule, not derived here | — |
 | **Pa9** | With a proposition-subject slot in existence: "P3 is false", "P3 agrees with P3′", "I stand by P3". | — | **none of these becomes a kind** — slice 5's substance holds: "P3 is false" is a domain negative about O2; agreement and reaffirmation are derived. The slot is *narrowly* opened: the only ruled kind with a proposition subject is `proposition_concerns`; the registry says so and the fixture asserts it | — |
-| **Pa10** | Rob's own testimony T = "HELOC balance $44k" (object O2 established). Someone asserts `proposition_concerns(T, O1)`. | — | **refused.** A proposition whose identity participant is already established says which identity it is about *itself*; a concerns claim on it would be a second source of truth for the same fact, able to drift (the minting doctrine's one-source rule). About-ness attaches only to a proposition with **no established participant of the identity's type**. To say T was about O1 after all is a retraction of T's utterance and a new testimony — Case B, not about-ness | — |
+| **Pa10** | Rob's own testimony T = "HELOC balance $44k" (object O2 established). Someone asserts `proposition_concerns(T, O1)`. | — | **refused.** Two representations of apparently related information exist by design: P's participant slot is **structural participation**; `proposition_concerns(P, X)` is **a claim about what P is about**. The one-source rule says they may not both establish the same semantic fact — so **once a proposition's participant of the relevant identity type is established, its about-ness is already structurally established, and `proposition_concerns` may not provide a competing source for that same about-ness.** (Not because the proposition "knows" what it is about — because its structural participant establishes it.) `participant = O2` with `proposition_concerns(P, O1)` is never two competing established facts. To say T was about O1 after all is a retraction of T's utterance and a new testimony — Case B, not an about-ness override | — |
 
 **What the cases fix about K1p's meaning:**
 
@@ -101,7 +101,10 @@ K1p is tested.
   (Pa9). Slice 5's finding is *reopened and narrowed, not reversed*: it said no case forced a
   proposition subject; Ab7 and Pm2/Pm3 do; truth, contradiction and reaffirmation claims about
   propositions remain non-kinds.
-- **Presupposes the identity** (Pa1, Pa2); never establishes it (Pa3).
+- **Presupposes the identity** (Pa1, Pa2); never establishes it (Pa3). **A match observed by a
+  reading produces a candidate for a `proposition_concerns` claim; it is not itself that claim**
+  — `reading observes heading → candidate → possible proposition_concerns(P, O2) → only an
+  assertion establishes the claim`.
 - **Anti-collapse, extended** (Pa1, Pa4): `proposition_concerns(P, X)` never changes P's
   subject, participants, authority, evidence or history. P's identity participant stays
   *candidates* forever; **the candidates are the reading-sourced concerns claims about P** —
@@ -111,7 +114,8 @@ K1p is tested.
   identities or none; never required; consistency between levels is reported by consumers, never
   enforced or resolved (Pa7).
 - **Attaches only to a proposition with no established participant of that type** (Pa10) — a
-  guard, so the slot and the claim cannot become two sources of one fact.
+  guard: once the structural participant is established, about-ness is structurally
+  established, and the claim may not compete with it.
 - **Does not survive a re-reading** (Pa5): a new reading's propositions have no about-ness of
   their own; carrying it across is a correspondence or policy question, not decided.
 
@@ -152,12 +156,15 @@ K1p is tested.
 > is an already-minted identity. It presupposes the identity and does not establish it. It is
 > asserted by a party's utterance under the ordinary discipline; whether that party is knowing
 > for the relational claim is a separate question, and its strength is `undetermined` until
-> relational knowing is ruled. A section heading, account number, position or any other match
-> is a reading-sourced candidate for the concerns claim and for nothing else; those candidates
-> are what the *not established with candidates* state has always referred to. The claim never
-> changes the subject, participants, authority, evidence or history of the proposition it is
-> about, whose own identity participant remains unestablished; it attaches only to a
-> proposition with no established participant of the identity's type. It is independent of
+> relational knowing is ruled. A match observed by a reading — a section heading, an account
+> number, a position — produces a candidate for a `proposition_concerns` claim; it is not itself
+> that claim, and it is evidence for nothing else; those candidates are what the *not
+> established with candidates* state has always referred to. The claim never changes the
+> subject, participants, authority, evidence or history of the proposition it is about, whose
+> own identity participant remains unestablished: **about-ness is information about a
+> proposition, not information inserted into the proposition.** Once a proposition's participant
+> of the relevant identity type is established, its about-ness is already structurally
+> established, and `proposition_concerns` may not provide a competing source for it. It is independent of
 > artefact-level about-ness — needed where an artefact concerns several identities or none,
 > never required, with consistency between the levels reported by consumers and never enforced
 > or resolved. This is the first and only ruled kind with a proposition subject: slice 5's
@@ -175,3 +182,53 @@ consumer · the transaction referent.
 
 *The line: a document can be about your debts; a line in it is about one of them only when
 someone says which — and saying which changes nothing about what the line says.*
+
+---
+
+## 7. Ruling — Rob, 2026-09-14. K1p ruled as written; the Ab7 build authorised.
+
+*Ab7 is not a special property of documents or lines. It is a new proposition whose subject
+happens to be another proposition* — the right abstraction. Two wording refinements applied
+before ruling (above): Pa10 phrased over the **structural participant**, not a proposition's
+self-knowledge; and *a match observed by a reading produces a candidate for a
+`proposition_concerns` claim; it is not itself that claim.*
+
+**The three-level separation, each arrow a different claim, neither concerns claim changing P:**
+
+```text
+Artefact ──artefact_concerns──► Identity
+   └── reading → Proposition ──proposition_concerns──► Identity
+```
+
+**Pa2 establishes something bigger than the payment case:** proposition-level about-ness exists
+without an artefact-level claim; the two are *independent claims consumers may combine later —
+the substrate does not*, not a layer that inherits. **Pa5** is architecturally correct: history
+does not jump from one proposition identity to another because a pipeline thinks they came from
+the same line; `proposition_corresponds` is the clean question that leaves — **pressed, not
+decided**, and not smuggled in.
+
+**"First and only" is preserved exactly as scoped:** not *propositions may generally be subjects
+of propositions* but *one domain relation has been forced whose subject happens to be a
+proposition* — a narrow reopening of slice 5, not an ontology expansion.
+
+| Boundary | Result |
+|---|---|
+| identity | presupposes an already-minted identity |
+| truth | does not alter P or establish P's truth |
+| authority | the concerns claim has its own asserting origin |
+| evidence | a match is candidate evidence, never the value's evidence |
+| history | concerns history stays separate from P's |
+| immutability | never fills or re-points P's participant |
+| artefact level | independent; neither level requires the other |
+| re-reading | does not automatically carry forward |
+| candidates | finally has a legitimate carrier |
+| proposition subject | narrowly permitted for this one ruled kind |
+| correspondence | a separate, currently unruled question |
+
+**The invariant that captures why K3 fails, why history stays separate, why authority does not
+migrate, and why Ab7 coexists with the proposition model without corrupting it:**
+
+> **About-ness is information about a proposition, not information inserted into the
+> proposition.**
+
+Ruled; build authorised at §6's shape; then stop. `proposition_corresponds` stays where it is.
