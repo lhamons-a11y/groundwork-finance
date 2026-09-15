@@ -1,13 +1,12 @@
 # The expense as a 2.0 identity — what is it, and what makes something correspond to it?
 
-> Status: **Queue item 4 (first referent of three), opened by Rob 2026-09-14 — a doctrine record,
-> no code.** Reversal is closed at `8ee5f76`. Slice 6 left D1 (*transaction t is health on axis X*)
+> Status: **Queue item 4 (first referent of three), opened by Rob 2026-09-14; X3 ACCEPTED with one
+> identity-authority clarification applied (§7); frozen wording below; READY FOR RULING — no code.** Reversal is closed at `8ee5f76`. Slice 6 left D1 (*transaction t is health on axis X*)
 > and D3 (P-world, *patient responsibility for this claim*) blocked on referents with no 2.0
 > identity; the transaction referent (Tx8) sent D1's subject here — *the classifier's subject
 > moves from the row to the expense identity*. This record tests four readings of the expense's
 > identity against the classification, obligation, transaction and reversal rulings, answers
-> the correspondence half, evaluates the 1.x rows afterwards, and ends with a ruling candidate.
-> Nothing here is authorised to build.
+> the correspondence half, evaluates the 1.x rows afterwards, and ends with a ruling candidate; Rob's frozen wording is in §7.
 
 **Rob's question, verbatim:** *what is an expense as a 2.0 identity?*
 
@@ -93,8 +92,13 @@ X3 is tested.
 
 **X3 survives every case.** What the cases fix:
 
-- **An expense is an event identity the household individuates** — the incurrence — minted by a
-  Person's assertion; identity = the minting act and nothing else (Ex1). The 1.x author had
+- **An expense is an event identity for an incurrence the household individuates** — minted by
+  the household's individuating assertion; identity = the minting act and nothing else (Ex1).
+  **Other parties — the provider ("the service occurred"), the insurer ("these amounts were
+  allowed"), the bank ("this movement occurred") — may assert claims about that expense but do
+  not thereby mint it.** Minting authority and epistemic authority are different things: the
+  provider can know and say what it provided; that assertion does not establish the Groundwork
+  expense identity. The 1.x author had
   reached "identity only" already (Ex12); 2.0 adds the provenance and moves `incurred_on` to a
   claim.
 - **Nature is a claim, never structure** (Ex1, Ex9, Ex10): health-on-axis, care necessity, a
@@ -156,14 +160,16 @@ X3 is tested.
 
 ## 6. Ruling candidate — for Rob
 
-> **An expense is an event identity: the incurrence the household individuates — a visit, a
-> purchase, a service received — minted by a Person's individuating assertion; the asserting
-> utterance is the minting act, not the expense; minting establishes the identity, not the truth
-> of any property asserted about it. The anchor is structure plus a pointer to the minting
-> utterance and nothing else: date of service, provider, who incurred it, nature on either axis,
-> care necessity, category, and every amount — billed, allowed, plan-paid, patient
-> responsibility, household-paid — are claims about the expense, made by the party knowing for
-> that claim, with the roles that make them knowable ruled later. A source's category for a
+> **An expense is a Groundwork event identity for an incurrence that the household
+> individuates — a visit, a purchase, or a service received. The household's individuating
+> assertion mints the identity; other parties can make claims about it but do not thereby mint
+> it. The asserting utterance is the minting act, not the expense; minting establishes the
+> identity, not the truth of any property asserted about it. The identity carries only its
+> provenance and anchor — structure plus a pointer to the minting utterance and nothing else —
+> while date of service, provider, person, nature on either axis, care necessity, category and
+> every monetary amount — billed, allowed, plan-paid, patient responsibility, household-paid —
+> remain claims about the expense, made by the party knowing for that claim, with the roles
+> that make them knowable ruled later. A source's category for a
 > movement or a line is content of the source's statement and at most a candidate for a
 > classification claim about an expense; it never mints the expense and never establishes its
 > nature — and a classification a process proposes is a candidate until a party asserts it. An
@@ -185,5 +191,49 @@ claim with subject X; the obligation ↔ expense relation asserted *not built*);
 **Outside it:** the relation family · the insurer's claim · the plan · the classification
 catalogue · the determinations · any consumer.
 
-*The line: a bank can say what it was billed as; an insurer can say what it allowed; only the
-household can say what happened — and what happened is the expense.*
+*The line: a bank can say what it recorded; an insurer can say what it allowed; a provider can
+say what it provided; the household individuates the incurrence as its expense — and that is
+the expense identity.*
+
+---
+
+## 7. Rob's review — X3 accepted; one identity-authority clarification; frozen wording (2026-09-14)
+
+**The one thing worth stopping on:** the record alternated between *the household individuates
+expenses* and the general rule *minted by a Person's individuating assertion*, and the cases
+establish only the first — that Groundwork needs an expense identity the household can
+individuate — not that only the household can ever assert something about the incurrence. The
+provider, the insurer and the bank all know and assert different propositions about X. So:
+
+> **The expense identity is minted by the household's individuating assertion. Other parties may
+> assert claims about that expense but do not thereby mint it.**
+
+Applied in §3's summary and §6, and the final line changed from *only the household can say
+what happened* (literally false — the provider can) to the ontological point.
+
+**Frozen wording, Rob's:**
+
+> An expense is a Groundwork event identity for an incurrence that the household individuates —
+> a visit, purchase, or service received. The household's individuating assertion mints the
+> identity; other parties can make claims about it but do not thereby mint it. Identity carries
+> only its provenance/anchor, while date, provider, person, nature, necessity, category, and
+> monetary amounts remain claims.
+
+**What the doctrine separates**, and 1.x tempts one to collapse: movement → possibly a payment ·
+incurrence → expense · amount owed → obligation · source statement → proposition / artefact — the
+relationships among them staying claims, not stuffed into the identities. Ex5 shows an expense
+is not an accounting artefact of money moving or being owed; Ex6 the inverse for obligation; Ex7
+forces no universal granularity — correspondence represents a later "one incurrence". The §4
+invariant is preserved exactly (it stops the same mistake via MCCs, EOB categories, provider
+classifications, AI classification). D1 / D3 / P-subject are now properly grounded, not
+retrofitted.
+
+**Fences kept, none solved now:** expense ↔ obligation · payment ↔ expense · the insurer's
+"claim" · plan identity · classification catalogue · role catalogue · determinations · legacy
+decomposition · relation-family naming. *Don't let the fact that `O arises from X` is necessary
+for consumers turn it into a kind today.*
+
+**The milestone:** the transaction ruling was not replaced by "expense" — it got its proper
+subject. A bank line remains a bank proposition; when the household has individuated an expense,
+the line can concern it. No code until ruled; if ruled, the proposed additive implementation is
+appropriately narrow.
