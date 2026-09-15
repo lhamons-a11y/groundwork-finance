@@ -749,6 +749,9 @@ def _mint_party_anchor(mapper, connection, target):
 #
 # Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
 # saw of a held artefact; propositions are what they evidence; the relationship connects them.
+# Role period (ROLE_PERIOD.md): a role has NO intrinsic period; began / ended are propositions in their own
+# right - boundary kinds bound to their role kind in the registry, `as_of` the date asserted about; a
+# boundary never rewrites, implies its opposite, resolves, establishes continuous effect or creates a role.
 # Plan (PLAN_IDENTITY.md): an identity for a coverage arrangement the household individuates - its being
 # covered under an insurer's product, not the product; the insurer's product name and plan / group /
 # member identifiers are content and correspondence evidence; terms, period, members, premium are claims.
@@ -1411,6 +1414,8 @@ def _validate_participants(mapper, connection, target):
         problems = _aboutness_violations(connection, target)
     if not problems and target.kind == PROPOSITION_CORRESPONDS:
         problems = _proposition_correspondence_violations(connection, target)
+    if not problems:
+        problems = _boundary_violations(target)
     if problems:
         raise ValueError('proposition participant state violated: ' + '; '.join(problems))
 
@@ -1764,6 +1769,100 @@ RULED_KINDS = {
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
                            'knowing_relation': KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE},
 }
+
+# ── Item 5: the role period ───────────────────────────────────────────────────
+# gw 2.0/ROLE_PERIOD.md, ruled s7 (RP2, 2026-09-14). A role - a dated relation between a party
+# and an identity - has NO intrinsic period. Its temporal history is propositions in their own
+# right, of three sorts: that it HOLDS AT d (the role kind itself, `as_of` = d - D7's shape), that
+# it BEGAN AT d, that it ENDED AT d. A beginning and an ending are kinds of their own, bound to the
+# role kind they temporally qualify by two registry entries:
+#
+#     'boundary': 'began' | 'ended'     which boundary this kind asserts
+#     'of':       <role kind>           the ruled role kind it bounds
+#
+# The sort is part of what is claimed, so it lives in the kind - never in coordinates on a claim
+# (no effective_from / effective_to: that makes a derived interval look like intrinsic structure
+# and fuses two provenances - the household's January beginning and the insurer's June ending,
+# learned in August - into one row) and never in content. `as_of` is the date the boundary is
+# about; the utterance's time and the row's `created_at` are when it was learned, so a late-
+# discovered transition is a new claim recorded now about a boundary then, the prior claims
+# untouched (T4/T8; OBLIGATION_LIFECYCLE rule 2: effective-at never collapses into learned-at).
+#
+# The guard below establishes STRUCTURAL validity only - *this boundary kind is permitted to
+# bound this role kind*: the bound kind is ruled, is itself a role (not a boundary), takes the
+# same participants; a boundary kind is not symmetric, a reading never establishes it, and a
+# boundary claim requires `as_of`. The registry may not become "anything can be a beginning of
+# anything." Nothing here says a role actually began or ended, implies the opposite boundary,
+# resolves a disputed boundary (two claims, derived), infers a period, establishes continuous
+# effect, decides overlap (two relations holding at once is a state the record shows), answers
+# "in effect on d" (a derivation, item 7), or creates a role - a beginning is not a holds-at
+# claim. A withdrawn beginning is an `utterance_retraction`, never an ending.
+#
+# No role kind is ruled by this slice: the catalogue (serves, entitled party of, obligor on,
+# provider of, insurer of, covered under) and each role's semantics - who may assert it, what it
+# establishes, who is knowing for it - are separate rulings; an endpoint's existence (a party, an
+# obligation, a plan) gives a role no meaning. The shipped registry therefore carries no boundary
+# entries; the fixture exercises the discipline on stand-in kinds it registers and removes.
+BOUNDARY_BEGAN = 'began'
+BOUNDARY_ENDED = 'ended'
+BOUNDARIES = (BOUNDARY_BEGAN, BOUNDARY_ENDED)
+
+
+def registry_violations(registry=None, kinds=None):
+    """Structural validity of the registry's boundary metadata, as a list of what is wrong
+    (empty = fine). `kinds` narrows the check to those entries. Structure only - never whether
+    any role began or ended."""
+    reg = RULED_KINDS if registry is None else registry
+    out = []
+    for kind in (reg if kinds is None else kinds):
+        rule = reg.get(kind)
+        if rule is None:
+            continue
+        boundary, of = rule.get('boundary'), rule.get('of')
+        if boundary is None and of is None:
+            continue
+        if boundary not in BOUNDARIES:
+            out.append(f'{kind}: boundary must be one of {BOUNDARIES}, is {boundary!r}')
+        if of is None:
+            out.append(f'{kind}: a boundary kind must name the role kind it bounds')
+            continue
+        role = reg.get(of)
+        if role is None:
+            out.append(f'{kind}: bounds {of!r}, which is not a ruled kind')
+        elif role.get('boundary') is not None or role.get('of') is not None:
+            out.append(f'{kind}: bounds {of!r}, which is itself a boundary kind')
+        elif (tuple(role['subject']), tuple(role['object'])) != (tuple(rule['subject']), tuple(rule['object'])):
+            out.append(f'{kind}: must take exactly the participants of {of!r}')
+        if rule.get('symmetric'):
+            out.append(f'{kind}: a boundary kind is not symmetric')
+        if rule.get('reading_establishes'):
+            out.append(f'{kind}: a reading never establishes a boundary')
+    return out
+
+
+def boundary_kinds_of(role_kind, registry=None):
+    """The boundary kinds bound to a role kind, by boundary: {'began': kind, 'ended': kind} -
+    registry introspection, so a consumer finds boundaries structurally rather than by naming
+    convention. Not a temporal derivation: it reads the registry, never the rows."""
+    reg = RULED_KINDS if registry is None else registry
+    return {rule['boundary']: kind for kind, rule in reg.items()
+            if rule.get('of') == role_kind and rule.get('boundary') in BOUNDARIES}
+
+
+def _boundary_violations(prop):
+    rule = RULED_KINDS.get(getattr(prop, 'kind', None))
+    if rule is None or (rule.get('boundary') is None and rule.get('of') is None):
+        return []
+    out = registry_violations(kinds=(prop.kind,))
+    if not getattr(prop, 'as_of', None):
+        out.append(f'{prop.kind}: a boundary claim requires as_of - the date the boundary is about')
+    return out
+
+
+_registry_problems = registry_violations()
+if _registry_problems:
+    raise RuntimeError('RULED_KINDS boundary metadata is structurally invalid: ' + '; '.join(_registry_problems))
+del _registry_problems
 
 REFERENT_SEPARATE = 'separate'                          # no established claim touches it
 REFERENT_CANDIDATES = 'separate_with_candidates'        # reading-sourced claims only

@@ -1,6 +1,6 @@
 # The role period — what is the temporal shape of a dated relation?
 
-> Status: **Queue item 5, opened 2026-09-14 — a doctrine record, no code.** Item 4 is closed at
+> Status: **Queue item 5 — RULED RP2 (§7) and BUILD AUTHORISED by Rob 2026-09-14; built to exactly §5 (no schema) — see the commit for the boundary.** Item 4 is closed at
 > `6eb0623`. The party ruling fixed *roles are dated relations over parties, never parties*; the
 > domain-proposition record found that *a period-bearing claim is not representable* and fenced
 > the question — *whether a period is two coordinates on the proposition or two propositions
@@ -225,3 +225,62 @@ stand-in kinds — no schema.** **Outside it:** the catalogue and every role's s
 
 *The line: a relation is not a line on a calendar; it is what people said about when it held,
 began and ended — and the calendar is drawn from that, never written into it.*
+
+---
+
+## 7. Ruling — Rob, 2026-09-14: RP2 / build authorised
+
+*A good stopping point because the record has separated the temporal semantics from the
+particular role catalogue. `effective_from` / `effective_to` on a future role table must not
+creep back in.*
+
+**The decisive distinction:** *a role has no stored period; its temporal history is represented
+by propositions about when that role began or ended.* Holds-at is a question / derivation, not a
+stored interval; began-at and ended-at are separate claims about boundaries; `as_of` says when the
+asserted fact is about, the utterance / recording time says when we learned it; a late discovery
+does not rewrite history; absence of an ending remains absence; overlap remains representable; a
+disputed ending remains multiple claims — **the ontology must not manufacture a continuous
+interval from two point claims merely because humans commonly read one that way.**
+
+**RP1 stays dead** — stronger than "NULL is awkward": it makes a derived temporal interpretation
+look like intrinsic structure of the claim. Household says began January 1; insurer says ended
+June 30; household learns of it in August — distinct assertions with different provenance and
+potentially different epistemic status, not one proposition with two coordinates.
+
+**RP3 stays dead** — point stances leave an unspoken interpolation rule (*covered on 1/1* and
+*covered on 3/1* license nothing about 2/1), silent consumer logic the substrate must not
+smuggle; and "ended" cannot be reconstructed from a later negative stance without deciding what
+the negative means temporally.
+
+**The constraint on the registry (accepted with the build):** `boundary = began / ended` and
+`of = the role kind it bounds` are acceptable, **provided the guard enforces the relationship
+between the boundary kind and its role kind** — the registry must not become *anything can be a
+beginning of anything*, or the ambiguity has moved rather than been solved. The guard establishes
+**structural validity only** — *this boundary kind is permitted to bound this role kind* — and
+never that the role actually began or ended, never resolves disputes, infers a period, or
+decides overlap.
+
+**R10 correctly fenced:** *Kim is covered under the work plan* gets the endpoint and the `as_of`
+machinery without item 5 deciding what "covered under" means. Item 5 establishes the temporal
+grammar; it does not establish membership, enrollment, coverage, knowing for the role, overlap
+resolution, effective-status consumers, plan membership, or plan / expense relationships. The
+later role ruling decides meaning first, then uses the ruled temporal machinery.
+
+**Retraction vs ending, pinned:** retracting *Kim was covered beginning January 1* is about the
+assertion and does not mean *Kim's coverage ended on [some date]*; an insurer's *coverage ended
+June 30* is a boundary claim, not a retraction of earlier coverage propositions. This prevents a
+large class of lifecycle bugs.
+
+**The ruling, as pinned by Rob:**
+
+> **A role has no intrinsic period. Temporal boundaries are propositions in their own right: a
+> ruled beginning or ending kind, bound to the role kind it temporally qualifies, with `as_of`
+> identifying the date asserted about. Boundary claims preserve their own provenance and
+> learned-at time. A beginning or ending does not rewrite prior claims, imply the opposite
+> boundary, resolve disputes, establish continuous effect, or itself create a role.**
+
+**Build authorised — appropriately tiny:** no schema change · the two registry metadata fields
+with their guard · a fixture of the structural discipline on stand-in role kinds · no actual role
+kind · no membership semantics · no temporal consumer · no resolver · no overlap policy · no
+item 6 relation work. **Item 5 — ROLE PERIOD: RP2 ACCEPTED / RULED.** Stop at that boundary;
+then item 6 addresses the relation families accumulating behind the identity rulings.
