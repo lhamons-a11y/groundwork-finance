@@ -1,7 +1,7 @@
 # The payment as a 2.0 identity — what is it, and what makes something correspond to it?
 
 > Status: **Build mode, opened by Rob 2026-09-14; precision pass `61b78cf`; consistency check §9;
-> Reading A RULED as written (§10); BUILT as the obligation shape's projection — see the commit.** Slice 8 is closed at
+> Reading A RULED (§10); BUILT (`6390804`); ACCEPTED and CLOSED (§11).** Slice 8 is closed at
 > `06bd42d` (`ARTEFACT_ABOUTNESS.md` §10). The payment was found missing at slice 6 (D4: *E
 > acknowledges payment p* has no `p`) and confirmed missing at the obligation slice (the
 > obligation alone does not unblock D4). This record tests four readings of the payment's
@@ -300,3 +300,42 @@ correspondence or evidence about that identity.
 
 **Authorised:** the implementation as a projection of the settled ontology — the obligation
 identity's shape — not another design pass. No more cases, fields or constraints.
+
+---
+
+## 11. Slice accepted and closed — Rob, 2026-09-14. `6390804`, 923 green, clean tree.
+
+*A clean closure: the build did not quietly expand the ruling; it projected the established
+identity pattern and made the negative boundaries executable.*
+
+**What makes the acceptance strong:**
+- **Person-origin minting is enforced**, and the obligation implementation was tightened to the
+  same already-settled rule — *a consistency repair, not a new semantic decision.*
+- **`created_at` remains identity metadata**; the event's asserted occurrence stays outside the
+  identity.
+- **Institution-origin statements remain candidates**, preserving the distinction between
+  *knowing something about a payment* and *being entitled to mint its identity*.
+- **Pm8 demonstrates both correspondence and about-ness without conflating them.**
+- **Retraction does not destroy the identity** — exactly what identity ≠ truth requires.
+- **The six negative smoke checks** test the places an implementation is most likely to regress
+  into 1.x thinking.
+- **D4 is representable without making acknowledgment constitutive of payment existence.**
+
+**The boundary, agreed.** The payment slice stops here. **Ab7 is the natural next question** —
+no longer an interesting consequence but a genuine architectural boundary, demonstrated
+independently twice: *combined statement → individual section*; *bank statement → individual
+payment line*. Both produce the same unresolved problem: **a document contains a proposition
+about a particular thing, but document-level `artefact_concerns` cannot establish which
+proposition is about which identity.**
+
+**One constraint carried forward from this slice:**
+
+> **The payment identity is complete without Ab7. Ab7 exists because already-minted identities
+> need a way to establish proposition-level about-ness; Ab7 must not become part of payment
+> identity.**
+
+The dependency direction is *payment identity → exposes the need for Ab7*, never *Ab7 →
+required to define payment identity* — the chain-fence doctrine applied.
+
+Payment identity: accepted, closed. No further payment semantics are pulled into it. **Ab7 is
+the next legitimate reopening.**
