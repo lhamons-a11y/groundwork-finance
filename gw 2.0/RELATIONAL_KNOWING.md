@@ -1,8 +1,7 @@
 # Relational knowing — what does it mean for a party to know a proposition, and what does that relation establish?
 
-> Status: **Build mode, queue item 1, opened by Rob 2026-09-14 — a doctrine record, no code. Two
-> doctrinal repairs applied on Rob's review (§8a); the candidate is READY FOR RULING — not yet ruled,
-> not yet authorised.** Nine
+> Status: **Build mode, queue item 1, opened by Rob 2026-09-14; repairs §8a; R2 RULED as written and
+> the mechanism build AUTHORISED (§9).** Nine
 > ruled kinds carry `relational_knowing = True` and derive `undetermined`; the shipped health
 > classifier carries a foundation-keyed set (`KNOWING_SOURCES = {USER_STATED, IMPORTED_EOB}`);
 > slice 1's `derived_strength` takes a caller-supplied map `{kind: {person, institution}}`. This
@@ -10,7 +9,7 @@
 > says exactly what the relation establishes and what it does not, projects the result onto the
 > waiting kinds to see which become derivable and which honestly stay `undetermined`, and ends
 > with a ruling candidate **and a readiness judgement** — whether the ontology is ready to
-> freeze. Nothing here is authorised to build.
+> freeze — ruled in §9.
 
 **Rob's question, verbatim:** *what does it mean for a party to know a proposition, and what
 exactly does that relation establish?*
@@ -265,3 +264,45 @@ the chain derivation · the resolver · independence · the shipped classifier.
 
 *The line: a party knows a claim by where it stands to the thing the claim is about — not by
 what kind of party it is, not by having said it, and not by being right.*
+
+---
+
+## 9. Ruling — Rob, 2026-09-14. R2 ruled as written; the mechanism build authorised.
+
+*The repairs did not change R2; they made its boundary conditions explicit enough that
+implementation cannot quietly broaden it.*
+
+1. **The designated-participant chain is closed.** `proposition kind → designated epistemic
+   relation → designated participant → party`, with the explicit prohibition that *no other
+   relation to another participant confers knowing* — which prevents relational knowing from
+   becoming a generic graph traversal once propositions have multiple participants.
+2. **The `not_knowing` distinction is excellent.** `not_knowing` = *this party is not the party
+   identified by the ruled relation* — the ontology makes no psychological claim it cannot
+   establish. **Kn10 is a particularly strong regression case:** Harbor can be the origin of the
+   artefact and `not_knowing` for a proposition whose designated relation is adjudication —
+   artefact provenance separated from epistemic standing.
+3. **Leaving `proposition_corresponds` undetermined is the correct restraint.** *Correspondence
+   is asserted by Rob → Rob knows it* sneaks assertion-origin-equals-knowing back in under another
+   name; *household holds the artefact → knows* is worse, custody having been ruled a capture
+   concept. **A correctly fenced unknown, not an incompleteness.** The identity-correspondence
+   kinds' conditional treatment is appropriate: the corpus must establish the path before the
+   doctrine claims it — **don't manufacture it because the shape looks familiar.**
+4. **Kn7 is permanent.** It protects three boundaries at once: `minted_by ≠ knowing for event
+   properties ≠ truth of the proposition`.
+
+**Protected during implementation:** the prose must **not** become a generic resolver —
+`find_related_party(proposition) → if related: knowing`. The kind-specific designated relation
+must be explicit; *choose whichever party happens to be reachable* must remain structurally
+impossible.
+
+**The interpretation preserved with the ruling:**
+
+> **Knowing is a derived classification of an evidentiary relationship, not an independent fact
+> about the party.**
+
+— which is why it is derived not stored, kind-specific, participant-specific, capable of
+`not_knowing` and `undetermined`, independent of truth, assertion origin, custody and
+correspondence, and incapable of saying anything psychological about what a party "really knows".
+
+**Authorised:** mechanism only. **Not pulled in:** role kinds · claim identity · chain resolution ·
+independence · consumer derivations.
