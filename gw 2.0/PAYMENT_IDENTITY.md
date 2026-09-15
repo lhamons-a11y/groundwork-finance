@@ -1,6 +1,7 @@
 # The payment as a 2.0 identity — what is it, and what makes something correspond to it?
 
-> Status: **Build mode, opened by Rob 2026-09-14 — record only, no code.** Slice 8 is closed at
+> Status: **Build mode, opened by Rob 2026-09-14 — record only, no code. Precision pass applied on Rob's
+> review (2026-09-14); Reading A stands; ready for ruling — not yet ruled, not yet authorised.** Slice 8 is closed at
 > `06bd42d` (`ARTEFACT_ABOUTNESS.md` §10). The payment was found missing at slice 6 (D4: *E
 > acknowledges payment p* has no `p`) and confirmed missing at the obligation slice (the
 > obligation alone does not unblock D4). This record tests four readings of the payment's
@@ -36,11 +37,13 @@ reopening its definition: subject structural, participants not content, identity
 | **Party reference** | roles are dated relations over parties; a party is a household `Person` or a minted party |
 | **Slice 4 / immutability** | correspondence per type, never merges; references never re-pointed |
 
-Two consequences before any case runs. First, **the payment is what three different parties
-make statements about**: the bank (money moved), the entitled party (money received / applied),
-the household (I paid this, toward that). S6 is *bank says yes, E says no* about one event;
-K6 is *bank's statement is not E's*. Three statements about one referent is exactly the
-condition that forces an identity (the same argument that forced the obligation). Second,
+Two consequences before any case runs. First, **the same payment can be the object of claims
+from different knowing parties** — the bank (money moved), the entitled party (money received /
+applied), the household (I paid this, toward that). S6 is *bank says yes, E says no* about one
+event; K6 is *bank's statement is not E's*. Several parties' statements about one referent is
+exactly the condition that forces an identity (the same argument that forced the obligation).
+The **payer** may be a separate party again (Pm9), but payerhood is a relation asserted about
+the payment, not a further epistemic source. Second,
 **every fact in the rulings is a claim about the payment, made by the party knowing for it** —
 cleared (bank) · payee (bank, household) · toward which obligation (household) · acknowledged /
 applied (E) · amount as sent vs as applied (bank vs E) · reversed (bank or E). None of them is
@@ -50,11 +53,14 @@ the payment.
 
 ## 2. Four readings of "the payment as an identity"
 
-**Reading A — an event minted by the household's individuating assertion.** *"I paid Harbor
-$1,412 on March 3"*, *"my mother paid Riverbend Hospital $300 for me"*: an utterance, origin a Person, mints
-the payment — an **event** identity where the obligation was a continuant, but minted the same
-way. The anchor is structure + a pointer to the minting utterance. Payer, payee, amount, date,
-method, purpose, clearance, acknowledgment and reversal are claims about it.
+**Reading A — an event identity, minted by an individuating assertion originating from a
+Person.** *"I paid Harbor $1,412 on March 3"*, *"my mother paid Riverbend Hospital $300 for me"*: the payment
+is an **event** identity (where the obligation was a continuant); an utterance whose origin is a
+Person mints that identity — **the asserting utterance is the minting act, not the payment**,
+exactly as the obligation ruling put it. **Minting establishes the identity, not the truth of
+any property asserted about the event.** The anchor is structure + a pointer to the minting
+utterance. Payer, payee, amount, date, method, purpose, clearance, acknowledgment and reversal
+are claims about it.
 
 **Reading B — the payment is the bank transaction.** The `transactions` row (or the feed line)
 *is* the payment; a payment exists when the bank shows a debit.
@@ -86,13 +92,13 @@ A is tested.
 | # | Case | Ruled in | Under A |
 |---|---|---|---|
 | **Pm1** | Rob: "I paid Harbor $1,412 on March 3 for the mortgage." | minting | one utterance mints payment **p**; the same act evidences claims about p: amount ($1,412), occurred (March 3), payee (Harbor), **toward O1** (a claim with object the obligation); "$1,412" and "March 3" are **content / `as_of`**, never identity |
-| **Pm2** | The bank feed shows `HARBOR MTG  3/3  −1,412.00`. | slice 6; K6 | mints nothing. What the feed *states* is the bank's claim (a debit occurred) — a value read from the bank's artefact, with the payment as a participant **not established, with candidates**; if Rob has asserted p, the line is a candidate *for* p; if not, it is a candidate for a payment Rob has not yet said he made. Rob's "yes, that's my March payment" is the crossing — **and the bank statement lists many lines, so the tie is proposition-level about-ness (Ab7), forced a second time** (§5) |
+| **Pm2** | The bank feed shows `HARBOR MTG  3/3  −1,412.00`. | slice 6; K6 | mints nothing. What the feed *states* is the bank's claim that a debit occurred — a value read from the bank's artefact **with no payment referent established by the line itself** (structurally, the read claim's payment participant is in the *not established with candidates* state and names nothing); if Rob has asserted p, the line is a candidate *for* p; if not, it is a candidate for a payment Rob has not yet said he made. Rob's "yes, that's my March payment" is the crossing — **and the bank statement lists many lines, so the tie is proposition-level about-ness (Ab7), forced a second time** (§5) |
 | **Pm3** | Harbor's statement: "payment received 3/5, $1,412, applied." | K-cases, D4 | **D4 becomes representable:** `acknowledged(E = Harbor, p, as of 3/5)` — subject the party whose stance it is, object the payment, content the position, `as_of` the date; E's statement is an artefact whose reading evidences it (the line-item tie again Ab7; Rob's "Harbor confirmed it" as testimony is representable now). **Discharge is this claim, by definition — and whether it moves anything downstream is not derived** (H2) |
 | **Pm4** | S6 — Rob paid Harbor directly; Harbor never credited it. | S6 | p exists (Rob minted it); the bank's claim *debited* stands; E's acknowledgment is **absent** — or present as *not received*. Bank-says-yes / E-says-nothing about one referent, representable, **nothing chosen**; the projection that would move `remaining` is a consumer and is fenced |
 | **Pm5** | S3 — Rob paid the never-authorised servicer. | S3 | p exists; payee = S3 (a claim); toward O1 (Rob's intent, a claim); E's acknowledgment never comes. **A real payment, no discharge** — the three facts held apart by structure: entitled party (a role on O1), payee (a claim on p), discharge (E's claim on p) |
 | **Pm6** | K8's $25: the bank shows $1,412 sent; Harbor applies $1,387 after a fee. | K8, U6 | two claims about p by two origins — and probably two **kinds** (*amount sent* · *amount applied*); if one kind, a conflict; nothing chosen; the catalogue is not ruled here |
 | **Pm7** | Reversal / chargeback (`ExpenseFundingAllocation.mode = reversed`, `occurred_on`). | allocation | representable as **a dated claim about p** by the bank or E (*reversed as of d*); whether a reversal is instead its own event identity (a second payment, negative) related to p is **not decided** — the household or the bank's statement says which, and the relation kind is not ruled |
-| **Pm8** | Rob paid $700 and $712 the same day; the bank shows one $1,412 debit. | correspondence | two payments minted (Rob's two assertions) *or* one — Rob says which; `payment_corresponds` if he later says the two were one; never merged; the bank line's candidate points at whichever he asserts |
+| **Pm8** | Rob paid $700 and $712 the same day; the bank shows one $1,412 debit. | slice 4 (X1), slice 8 | Two distinct situations, kept apart. **(a) Two real payments, one bank debit** (the bank batched them): two identities; the single line *concerns both* — an about-ness matter (Ab7 at line level), **not** payment ↔ payment correspondence. **(b) Rob later says "those two were actually one payment":** two identities were minted by two assertions; slice 4 already ruled this shape — *separately minted identities later established as one referent* (X1: one EOB uploaded twice) — as `payment_corresponds`: the referent is derived, **the two identities are never merged or re-pointed**, and nothing about them is unminted. Retraction of one minting utterance ("I never made the second one") is a different case — Pm13 — not this one |
 | **Pm9** | "My mother paid Riverbend Hospital $300 for me." | party reference | p minted by Rob's assertion; **payer = a role relation** (*paid_by(mother, p)*), not an anchor column; the mother is a non-household party — a *minted* party under Rob's utterance. *(Finding: the minted foundation covers non-household individuals; `party_foundation()`'s label `'institution'` is a misnomer for them — a naming matter, not this slice's.)* |
 | **Pm10** | Autopay: twelve mortgage payments a year, no fresh utterance for each. | importer contract (fenced) | each bank line is a **candidate** until asserted; the identity rule is unchanged. That twelve confirmations a year is heavy is a **policy / standing-authorisation** question — the same fence slice 4 left (*how a standing household authorisation lets a pipeline act on its own candidates*) — not a reason to let the bank mint |
 | **Pm11** | Rob paid the plumber in cash. | — | p minted; no bank line will ever correspond; amount and payee are Rob's claims at Rob's strength. **A payment with no transaction** — the case that kills B on its own |
@@ -115,35 +121,44 @@ is.
   exists before, without, or despite it.
 - **Payment ≠ confirmed payment** (the 2026-09-06 answer): *cleared · attached · user-confirmed*
   are three claims — the bank's, the household's, the household's — about a payment; *confirmed*
-  is a state read off claims, not the identity; and the fourth claim, E's, was the missing party.
-- **The payer is a relation** (Pm9), like the obligor.
-- **Minted only by the household's assertion** (Pm2, Pm10, Pm14): never by a bank line, a draft, a
-  ledger row, or E's statement — those yield candidates.
+  is a state read off claims, not the identity; and the entitled party's claim — acknowledgment —
+  was the one that answer did not have.
+- **Payer and payee are relations** (Pm9, Pm5), like the obligor — and **payee does not establish
+  entitlement, and `toward(p, O)` does not establish discharge** (S3: the payee was never
+  entitled; S6: the intended obligation was never credited). Entitlement is a role on the
+  obligation; discharge is E's claim on the payment; neither is read off the other.
+- **Minted only by an individuating assertion originating from a Person** (Pm2, Pm10, Pm14):
+  never by a bank line, a draft, a ledger row, or E's statement — those yield candidates.
+  ("The household" throughout this record means that: the Person foundation, not the household
+  as payer — Pm9.)
+- **Identity is not truth.** The minting assertion may be false ("I paid Harbor" when he did
+  not); p still exists, as *the payment event individuated by that assertion*, and its asserted
+  properties are claims that can be disputed, absent or later retracted (Pm4, Pm5, Pm6, Pm13).
+  This is why p can exist with no transaction, no acknowledgment, a disputed amount, a disputed
+  payee, and survive a challenge to the assertion that minted it.
 
 ---
 
-## 4. What makes something correspond to the payment
+## 4. What may refer to, relate to, or concern the payment
 
-Four different things, three ruled mechanisms and one blocked:
+These are **different relation families**, not four kinds of correspondence — slice 4's
+discipline (*correspondence per type, never merges*) is preserved by keeping them apart:
 
-1. **Another payment identity** (Pm8): `payment_corresponds` — slice 4's shape, fourth type.
-2. **A party**: dated role claims — *paid_by(P, p)*, *paid_to(P, p)* (the payee fact of the
-   servicing ruling, now a claim about p rather than "on the row").
-3. **An obligation**: *toward(p, O)* — the household's claim about what the payment was for,
-   with object the obligation (Pm1, Pm5, Pm13). Not identity of either; a claim, retractable.
-4. **An artefact — the bank's statement, E's statement, a receipt.** `artefact_concerns(A, p)`
-   where A is the payment's own record (a receipt; a confirmation email; a single-transaction
-   artefact) — the slice-8 kind, gaining `object_payment_id` as its ruled growth path says. But
-   where A is a **statement listing many payments** (Pm2, Pm3 — the common case), the tie between
-   *this line* and *this payment* is the **proposition-level about-ness Ab7 forced** — forced
-   again here, and more sharply: bank statements are line-item documents by nature. **Blocked;
-   its own ruling; not designed here.** Whether the 1.x `transactions` row could be treated as a
-   single-line *artefact* (making the tie artefact-level) is the *transaction referent's* question
-   (slice 6 §4), also not this slice's.
+| Referent / participant | Relation | Status |
+|---|---|---|
+| another **payment** | `payment_corresponds` — slice 4's shape, a fourth type; separately minted identities later established as one referent; never merged (Pm8 b) | ruled shape |
+| a **party** | `paid_by(P, p)` · `paid_to(P, p)` — dated role claims (the payee fact of the servicing ruling, now a claim about p rather than "on the row"); **payee does not establish entitlement** | role claims, catalogue unruled |
+| an **obligation** | `toward(p, O)` — the household's claim about what the payment was for (Pm1, Pm5, Pm13); not identity of either; retractable; **does not establish discharge** | a domain claim, catalogue unruled |
+| an **artefact** that is the payment's own record — a receipt, a confirmation, a single-transaction artefact | `artefact_concerns(A, p)` — the slice-8 kind, gaining a payment object slot as its ruled growth path says | ruled kind, slot not yet added |
+| a **line in a statement** listing many payments (Pm2, Pm3 — the common case) | the tie between *this proposition* and *this payment* — **proposition-level about-ness (Ab7)**, forced a second time and more sharply: bank statements are line-item documents by nature | **unresolved; its own ruling; not designed here** |
 
-What does **not** make something correspond: a matching amount and date (a candidate), a
-merchant string (a candidate), a draft (a candidate), a cleared flag (the bank's claim about
-movement, nothing about identity).
+Whether the 1.x `transactions` row could be treated as a single-line *artefact* (making the
+line tie artefact-level) is the *transaction referent's* question (slice 6 §4), not this one's.
+
+> **Invariant — a candidate is not a correspondence.** Evidence may nominate a candidate
+> without making the referent known. A matching amount and date, a merchant string, an account
+> number, a draft, a cleared flag: each generates a candidate; none mints, establishes or
+> identifies. *Similarity generates a candidate; it does not establish identity.*
 
 ---
 
@@ -205,36 +220,39 @@ minting payments from them. No synthetic migration.
 
 ## 8. Ruling candidate — for Rob
 
-> **A payment is an event identity minted by the household's individuating assertion that a
-> payment was made — an utterance whose origin is a Person. The anchor is structure plus a
-> pointer to the minting utterance and nothing else: no payer, payee, amount, date, method,
-> purpose, clearance, acknowledgment or reversal lives on it. Every such property is a claim
-> about the payment, made by the party knowing for it — the bank for movement, the entitled
-> party for acknowledgment (D4, which this identity makes representable: discharge is that claim,
-> by definition, and nothing downstream is derived from it here), the household for what it was
-> toward and to whom it was meant — and payer and payee are dated role relations, not anchor
-> columns. A payment is not a transaction (it may have none; a debit may be no payment), not a
-> discharge (it exists before, without or despite E's acknowledgment), and not a "confirmed
-> payment" (cleared · attached · confirmed are three claims from two of the four parties; the
-> fourth was E's). It is never minted by a bank line, a ledger row, a draft or E's statement —
-> those yield candidates. Something corresponds to it as another payment (`payment_corresponds`),
-> as a party (a role claim), as an obligation (a *toward* claim), or as an artefact — its own
-> record by `artefact_concerns`; a line in a statement by the proposition-level about-ness that is
-> now forced twice and remains its own ruling. `DebtLedgerEntry` and `CheckingTransactionLink` are
-> household assertions with the payment identity missing from the middle, decomposable only
-> where their asserting party is a fact, which today it is not.**
+*(Rob's tightening of the first draft, 2026-09-14, adopted verbatim: event vs utterance
+explicit; identity vs truth explicit; correspondence vs ordinary relations explicit.)*
 
-If ruled, the build is the obligation slice's shape exactly: `payments(id · minted_by_id →
-utterances · created_at)` with the minting-utterance guard · additive `subject_payment_id` /
-`object_payment_id` slots · `payment_corresponds` in the registry and `referent()` ·
-`artefact_concerns` gaining `object_payment_id` as its ruled growth path · fixture over Pm1–Pm14
-with stand-in kinds and the not-derived consequences asserted (D4 representable; no `remaining`;
-no discharge derivation; Pm2/Pm3 line ties asserted *not representable*; Pm12 asserted as *no
-payment*; Pm14 as *no mint*) · mutations (a bank line mints; a draft mints; a payee/amount column
-appears; E's acknowledgment moves something; a cleared flag establishes acknowledgment;
-correspondence merges) · migration: `create_all` + two additive columns, **no data step**. **Not
-in it:** Ab7 · the transaction referent · reversal's shape · the catalogue · any consumer ·
-`DebtLedgerEntry` / allocation decomposition.
+> **A payment is an event identity. An individuating assertion originating from a Person mints
+> that identity; the asserting utterance is the minting act, not the payment. Minting
+> establishes the identity, not the truth of any property asserted about the event. The
+> payment anchor is structure plus a pointer to the minting utterance and nothing else: payer,
+> payee, amount, date, method, purpose, clearance, attachment, acknowledgment, discharge and
+> reversal are not identity properties. They are claims about the payment, made by the party
+> knowing for that claim. Payer and payee are dated relations; `toward(p, O)` is a household
+> claim about the obligation for which the payment was intended; acknowledgment by the entitled
+> party is the discharge claim and does not establish the payment's existence.**
+>
+> **A payment is not a transaction: a payment may have no transaction, and a transaction may
+> be no payment. It is not discharge: it exists before, without, or despite acknowledgment. It
+> is not a confirmed payment: cleared, attached and user-confirmed are claims about an existing
+> payment, not the identity itself. A bank line, ledger row, draft or entitled-party statement
+> can produce a candidate but cannot mint the payment.**
+>
+> **Relations to a payment remain typed: another payment may correspond to it; a party may
+> stand in a payer/payee relation to it; an obligation may be the object of a `toward` claim;
+> and an artefact may concern it. A candidate match does not establish correspondence. A
+> statement line requires proposition-level about-ness to establish its relation to the
+> payment, which remains a separate ruling. No relation merges or re-points payment
+> identities.**
 
-*The line: a bank can say money left; a creditor can say money arrived; only the household can
-say it paid.*
+**If ruled**, implementation follows the obligation identity's shape; the exact schema,
+registry changes, fixtures, migration mechanics and consumer treatment are implementation work
+after the ruling, authorised separately. Expected shape, for orientation only: a `payments`
+anchor of the obligation's form; additive payment slots; `payment_corresponds`; a payment
+object slot on `artefact_concerns`; a fixture over Pm1–Pm14 asserting what is *not* derived; no
+data step. **Outside it under any authorisation:** Ab7 · the transaction referent · reversal's
+shape · the catalogue · any consumer · `DebtLedgerEntry` / allocation decomposition.
+
+*The line: a bank can say money left; a creditor can say money arrived; only the household's
+assertion mints the payment — whoever paid.*
