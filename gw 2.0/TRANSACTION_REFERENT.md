@@ -1,7 +1,7 @@
 # The transaction referent — what does a transaction refer to, and is that referent an identity at all?
 
-> Status: **Queue item 2, opened by Rob 2026-09-14; one correspondence-wording correction on his
-> review; T2 RULED (§7). No build.** Relational
+> Status: **Queue item 2, opened by Rob 2026-09-14; correction on review; T2 RULED (§7); CLOSED (§8).
+> No build.** Relational
 > knowing is closed at `79b817f`. The question was framed at `BUILD_QUEUE.md` §2: *transaction row
 > ≠ payment event* and *a transaction can exist without a payment* are ruled; what remains is
 > **what exactly a transaction refers to, and whether that referent is an identity at all or a
@@ -215,3 +215,39 @@ contract · reversal — untouched · legacy rows — insufficient provenance fo
 This ruling reopens neither payment, nor proposition correspondence, nor relational knowing, nor
 the closed identity doctrine: *the next layer down, not a backdoor redefinition.* The final line
 is kept as the memorable explanation.
+
+---
+
+## 8. Closed — Rob, 2026-09-14. The hard constraints carried into item 3, reversal.
+
+*The correction is exactly the important boundary: the bank identifier supplies evidence for
+candidate correspondence, not correspondence itself.* Transaction referent: cleanly closed.
+
+**Carried forward as the hard constraints for item 3 — reversal:**
+
+1. **Do not inherit "reversal" from bank vocabulary.** *Reversed, reversal, returned, voided* are
+   source language; they do not determine whether Groundwork needs an event identity, a
+   proposition, or a relation.
+2. **Keep the two ontological candidates genuinely separate** — reversal as an *event identity*
+   (something happened in the world that undoes another event) vs reversal as a *claim* (someone
+   asserts that payment / event X was reversed). Do not quietly make one the implementation of
+   the other while examining cases.
+3. **A later bank line is still only a proposition.** It can be evidence that something happened
+   and can potentially correspond to another proposition; it cannot manufacture a reversal
+   identity.
+4. **Payment identity remains distinct.** A later movement that appears to undo an earlier
+   payment does not collapse the two payments, mutate the first, or automatically establish
+   discharge or reversal.
+5. **No derivation gets to settle the ontology.** `payment_state()`, remaining balance, discharge
+   or consequence logic must not become the mechanism that decides what "reversal" is.
+6. **The key question is what Groundwork needs to be able to say truthfully** — whether the
+   domain requires a separately individuated thing that occurred, or merely a proposition whose
+   content is "X was reversed", and what authority / Person-originating act could establish
+   either.
+
+No code, schema or consumer work; the next record establishes the ontology first — reversal is
+exactly the term where a seemingly harmless implementation smuggles an event identity into
+existence.
+
+> **A bank line tells us what the bank said happened. It does not decide what happened, nor does
+> its vocabulary decide what Groundwork's ontology calls that happening.**
