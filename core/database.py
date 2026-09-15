@@ -749,6 +749,9 @@ def _mint_party_anchor(mapper, connection, target):
 #
 # Five tables. Utterances and readings ARE the evidence - what a party said, what Groundwork
 # saw of a held artefact; propositions are what they evidence; the relationship connects them.
+# Relation semantics (RELATION_SEMANTICS.md), one relation at a time - pass A: payment_counteracts, the
+# asserting party holds that the subject payment economically counteracts some or all of the object payment;
+# directional, no inverse, no cardinality, no amount, no status, no netting, no transitivity; knowing undetermined.
 # Role period (ROLE_PERIOD.md): a role has NO intrinsic period; began / ended are propositions in their own
 # right - boundary kinds bound to their role kind in the registry, `as_of` the date asserted about; a
 # boundary never rewrites, implies its opposite, resolves, establishes continuous effect or creates a role.
@@ -1391,11 +1394,15 @@ def participant_violations(prop):
                             if getattr(prop, c) is not None)
             if set_slot not in permitted:
                 out.append(f'{prop.kind}: {side} may be {permitted}, is {set_slot}')
-        if rule['symmetric'] and not out:
+        # Two participants means two: a kind whose subject and object are the same single type
+        # (the correspondences; payment_counteracts) is never reflexive - a thing does not
+        # correspond to, or counteract, itself.
+        if not out and len(rule['subject']) == 1 and len(rule['object']) == 1 and (
+                rule['symmetric'] or rule['subject'][0].replace('subject_', '') == rule['object'][0].replace('object_', '')):
             sub = getattr(prop, rule['subject'][0])
             obj = getattr(prop, rule['object'][0])
             if sub == obj:
-                out.append(f'{prop.kind}: a thing does not correspond to itself')
+                out.append(f'{prop.kind}: a thing does not stand in this relation to itself')
     return out
 
 
@@ -1640,6 +1647,26 @@ PAYMENT_CORRESPONDS = 'payment_corresponds'           # the fourth (Pm8 b): two 
 EXPENSE_CORRESPONDS = 'expense_corresponds'           # the sixth type (Ex7): two minted expenses, one incurrence
 PLAN_CORRESPONDS = 'plan_corresponds'                 # the seventh (Pl4 / Pl13): two minted plans, one arrangement
 
+# ── Item 6, pass A: the payment-to-payment relation ──────────────────────────
+# gw 2.0/RELATION_SEMANTICS.md s A.6, ruled 2026-09-15. `payment_counteracts(p2, p1)` means EXACTLY:
+# *the asserting party holds that the subject payment economically counteracts some or all of
+# the object payment.* Both participants are established payments - the claim mints neither and
+# merges neither. Directional: the counteracting payment is the subject; never symmetric; no
+# inverse kind ("p1 was counteracted by p2" is this claim read backwards); no cardinality - one
+# refund may counteract several payments and one payment may be counteracted by several. It is
+# established only by a party's assertion - the household, or the issuer of the counteracting
+# payment; a reading, a matcher or a bank's REFUND label yields at most a candidate. It carries NO
+# amount ("some or all" is the scope of the assertion, not a field), requires NO payer/payee
+# mirroring (a refund may land on a different card), and derives NOTHING: no net or remaining, no
+# discharge, no `reversed`/`refunded` status on either payment, no transitivity along a chain
+# (p3 counteracts p2 says nothing of p1), no amount validation, no period from RP2. Refund,
+# chargeback, return, partial and goodwill are content or separate claims about the counteracting
+# payment, never kinds. Where no second payment is individuated there is no relation - a failed,
+# returned, unapplied or voided payment remains a dated claim about the one payment (REVERSAL C).
+# Knowing: relational_knowing True with no designated relation -> undetermined; the designated
+# participant would be the payer of the subject payment, a role not ruled. Not a source word.
+PAYMENT_COUNTERACTS = 'payment_counteracts'
+
 # ── Ab7: proposition-level about-ness ────────────────────────────────────────
 # gw 2.0/PROPOSITION_ABOUTNESS.md, ruled s7. `proposition_concerns(P, X)` means EXACTLY: *this
 # proposition concerns this identity* - subject a PROPOSITION (the first and only ruled kind with a
@@ -1746,6 +1773,10 @@ RULED_KINDS = {
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
     PLAN_CORRESPONDS:     {'subject': ('subject_plan_id',),       'object': ('object_plan_id',),
                            'symmetric': True,  'reading_establishes': False, 'relational_knowing': False},
+    # item 6 pass A - the one ruled relation between two payments; NOT a correspondence (two events,
+    # never one referent); relational_knowing True and NO knowing_relation: undetermined by design.
+    PAYMENT_COUNTERACTS:  {'subject': ('subject_payment_id',),    'object': ('object_payment_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
     # subject: a proposition - the only ruled use of that slot. object: the identities ruled so far.
     PROPOSITION_CONCERNS: {'subject': ('subject_proposition_id',),
                            'object': ('object_obligation_id', 'object_payment_id', 'object_expense_id', 'object_plan_id'),

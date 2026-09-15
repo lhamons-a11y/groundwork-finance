@@ -270,7 +270,9 @@ def run(db):
           and not any(hasattr(db, n) for n in ('amount_of', 'current_amount')))
     u_rev = utter('The bank reversed the June 2 payment on June 9.', '2026-06-10T09:00:00')
     about('reversed', p4, 'reversed', utterance=u_rev, as_of='2026-06-09')
-    check('Pm7: a reversal is representable as a dated claim about p4; whether it is also an event of its own is NOT decided',
+    # REVERSAL ruled C (a claim, never an identity); item 6 pass A ruled the two-payment relation as
+    # payment_counteracts - so 'reverses' / 'reversal_of' stay non-kinds by ruling, not by omission.
+    check('Pm7: a reversal is representable as a dated claim about p4 (ruled: a claim, never an identity); no source-word relation kind exists',
           s.query(db.Proposition).filter_by(kind='reversed', subject_payment_id=p4.id).count() == 1
           and s.query(db.Proposition).filter(db.Proposition.kind.in_(('reverses', 'reversal_of'))).count() == 0)
 
@@ -333,8 +335,10 @@ def run(db):
           and not db.payments_without_minting_utterance(s))
 
     print('\n9. Generic slots; artefact_concerns grows; absences; audits\n')
-    check('payment slots are generic proposition participation - only payment_corresponds is ruled on them',
-          [k for k, r in db.RULED_KINDS.items() if 'subject_payment_id' in r['subject']] == [db.PAYMENT_CORRESPONDS]
+    # Item 6 pass A ruled payment_counteracts on the payment slots (RELATION_SEMANTICS.md A.6); the
+    # role-shaped claims used here (paid_by, paid_to, toward) remain stand-ins - unruled by design.
+    check('payment slots are generic proposition participation - only payment_corresponds and payment_counteracts are ruled on them; paid_by / toward stay stand-ins',
+          set(k for k, r in db.RULED_KINDS.items() if 'subject_payment_id' in r['subject']) == {db.PAYMENT_CORRESPONDS, db.PAYMENT_COUNTERACTS}
           and 'paid_by' not in db.RULED_KINDS and 'toward' not in db.RULED_KINDS)
     receipt = held('h-receipt', '2026-03-03', chase, u_chase)
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=receipt.id, object_payment_id=p1.id),

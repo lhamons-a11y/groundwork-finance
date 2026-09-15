@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14 — a doctrine record, no code.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED as written (§A.6) and its representation authorised 2026-09-15; built — see the commit. Passes B–G open one at a time.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -163,3 +163,49 @@ migration**; and **nothing at family level** — pass B opens only after this is
 
 *The line: the second payment is a payment; that it undid the first is what someone said about
 the two of them — and the ledger's arithmetic waits for item 7.*
+
+### A.6 Ruling — Rob, 2026-09-15: PA1 / `payment_counteracts` accepted as written
+
+*No remaining semantic defect requires another case. A7 makes the candidate substantially stronger
+than the earlier reversal wording — the replacement-card case makes the payer-based formulation
+structurally wrong.*
+
+**The operative definition is sound:** `payment_counteracts` means the asserting party holds that
+the subject payment economically counteracts some or all of the object payment. The important
+parts are the boundaries: both endpoints are Payment identities and the relation cannot
+manufacture either · subject / object are semantically meaningful — the counteracting payment is
+the subject · directional, not symmetric, no manufactured inverse · no cardinality · no
+payer / payee mirroring (A7) · **the relation carries no amount — "some or all" is the semantic
+scope of the assertion, not a numeric field or calculation** · refund / chargeback / return /
+goodwill are not relation kinds — they describe the payment or the circumstances asserted around
+it · a matcher discovers a candidate and cannot establish · a bank's `REFUND` label cannot
+establish · no transitivity · no payment status · no netting or remaining (item 7) · no temporal
+semantics from RP2 · retraction remains retraction · **no relation where there is no second
+Payment identity** — the reversal ruling preserved for bounced / void / unapplied cases.
+
+**One particularly important acceptance:** `relational_knowing = True` with no
+`knowing_relation`, so knowing remains `undetermined` — the relation is semantically ruled, but
+the participant whose relationship would constitute knowing (the payer of the subject payment)
+has not been given role semantics; pass A does not reach forward and invent them.
+
+**Representation authorised, for this relation only:**
+
+```text
+PAYMENT_COUNTERACTS
+    subject: subject_payment_id
+    object:  object_payment_id
+    symmetric: false
+    reading_establishes: false
+    relational_knowing: true
+    knowing_relation: none
+```
+
+No schema change · no migration · no family abstraction. The distinction preserved:
+**Payment** → identity · **payment facts** → amount / date / payer / payee as propositions ·
+**`payment_counteracts`** → an assertion relating two established Payments · **item 7** →
+whatever consumers can legitimately derive. The implementation may not introduce a generic
+relation base, a relation resolver, an inverse accessor, a counteracted status, a netting helper,
+or any item 7 consumer.
+
+**Pass A: RULED / CLOSED on build.** Then — and only then — pass B: Obligation ↔ Obligation.
+
