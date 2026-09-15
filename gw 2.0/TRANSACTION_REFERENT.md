@@ -1,13 +1,13 @@
 # The transaction referent — what does a transaction refer to, and is that referent an identity at all?
 
-> Status: **Queue item 2, opened by Rob 2026-09-14 — a doctrine record, no code.** Relational
+> Status: **Queue item 2, opened by Rob 2026-09-14; one correspondence-wording correction on his
+> review; T2 RULED (§7). No build.** Relational
 > knowing is closed at `79b817f`. The question was framed at `BUILD_QUEUE.md` §2: *transaction row
 > ≠ payment event* and *a transaction can exist without a payment* are ruled; what remains is
 > **what exactly a transaction refers to, and whether that referent is an identity at all or a
 > relationship to some institution-side record**. This record derives the readings from the
 > rulings and the shipped `Transaction` row, tests them, decomposes the 1.x row afterwards, finds
-> what the answer defers to later queue items, and ends with a ruling candidate. Nothing here is
-> authorised to build.
+> what the answer defers to later queue items, and ends with a ruling candidate, ruled in §7.
 
 **Rob's caution, carried in:** do it before reversal, because reversal will touch the
 transaction/payment boundary — and do not let bank terminology decide the ontology.
@@ -74,7 +74,7 @@ between propositions — inside T2.
 | **Tx1** | Feed line `HARBOR MTG 3/3 −1,412.00`; Rob: "that's my March payment." | Pm2, Pa2 | a proposition read from the feed capture (origin the bank; content the line); its payment participant *not established with candidates*; `proposition_concerns(line, p)` asserted by Rob. **Already representable — the payment slice built exactly this** |
 | **Tx2** | `TRANSFER TO SAVINGS −2,000.00`. | Pm12 | a proposition read from the capture, concerning nothing minted — legitimately, forever. A movement the household never individuates. **No identity is missing here** |
 | **Tx3** | The same bank record arrives in Monday's pull and Tuesday's pull. | E3, captured-portal, `proposition_corresponds` | each pull is a **capture** — a held artefact of an observation of a live system, `as_of` the pull time. The line in each is a proposition read from *that* capture. The bank's transaction id is **correspondence evidence** between them (`proposition_corresponds`, candidate from the id, established… by whom? — the importer's contract, §5). 1.x collapses this at ingest by `import_id`: identity by process — E3's *same arrival* rule stretched over two arrivals |
-| **Tx4** | Pending on Monday ($48.20, date 3/12); posted on Thursday ($51.90, posted 3/14). | tie ruling, as_of | two propositions from two captures, **corresponding, with different content** — the bank's statement changed over time. 1.x updates the row in place and loses the pending state; T2 keeps both with their `as_of`. **The parse-dispute shape carrying a real state change** |
+| **Tx4** | Pending on Monday ($48.20, date 3/12); posted on Thursday ($51.90, posted 3/14). | tie ruling, as_of | two propositions from two captures that **may correspond — candidate from the bank id, established under the importer's contract — with different content** — the bank's statement changed over time. 1.x updates the row in place and loses the pending state; T2 keeps both with their `as_of`. **The parse-dispute shape carrying a real state change** |
 | **Tx5** | Rob enters "$40 cash, farmers' market" by hand. | K5 / C1 | **not a bank line at all**: an utterance of Rob's evidencing a proposition of Rob's (his stance about a movement he made), with Rob's authority. 1.x stores it in the same table with `source = 'manual'` — **two provenances under a source enum**, the exact K5 collapse `Evidence.source` shipped |
 | **Tx6** | A check: `CHECK #1042 −300.00`. | payment slice | a bank line whose content includes the check number; the payee is *Rob's* claim (`paid_to`) about the payment the line concerns; the number is correspondence evidence tying line to payment (and to the check image, an artefact) |
 | **Tx7** | The card statement shows the purchase; the bank statement shows the card payment. | payment slice | two lines from two artefacts about **two different movements** — never one referent; the card payment is a payment toward the card obligation; the purchase is a movement the household may or may not individuate as an expense |
@@ -93,9 +93,16 @@ between propositions — inside T2.
   claim (Tx1).
 - **Institution-side identifiers are content and correspondence evidence** (Tx3, Tx6) — never
   identity (T3 rejected as identity, kept as evidence).
-- **Each feed pull is a capture**; the same record across pulls is `proposition_corresponds`,
-  and a changed record across pulls is that correspondence with differing content and two
-  `as_of`s (Tx4). 1.x's in-place update is history loss.
+- **Each feed pull is a capture; propositions read from successive captures *may* correspond.**
+  The bank's transaction identifier is **evidence for a correspondence candidate, not
+  correspondence itself**; establishment of `proposition_corresponds` belongs to the importer's
+  contract. A changed record may therefore be two corresponding propositions with differing
+  content and two `as_of`s (Tx4) — but the change does not itself establish the correspondence.
+  1.x's in-place update is history loss.
+
+  ```text
+  bank transaction id → correspondence evidence → candidate → [importer's authorised assertion] → proposition_corresponds
+  ```
 - **A manual entry is the household's utterance**, not a bank line (Tx5) — two provenances 1.x
   fused under a source enum.
 - **Reversal is a later line whose meaning is item 3's** (Tx11); **the account is fenced** (Tx9);
@@ -144,10 +151,12 @@ the only terms the ontology has.
 > where the household does individuate one, it does so as a payment, an obligation or — when
 > that identity is ruled — an expense, and the line then concerns that identity by a
 > `proposition_concerns` claim, candidate from a match, asserted by a party. Institution-side
-> identifiers are content and correspondence evidence between propositions read from successive
-> captures — never identity; each feed pull is a capture, the same record across pulls is a
-> proposition correspondence, and a changed record is that correspondence with differing
-> content and two dates. A movement the household enters by hand is the household's utterance
+> identifiers are content and evidence for a correspondence candidate between propositions read
+> from successive captures — never identity and never correspondence itself; each feed pull is
+> a capture, propositions read from successive captures may correspond, establishment of that
+> correspondence belongs to the importer's contract, and a changed record may be two
+> corresponding propositions with differing content and two dates without the change
+> establishing anything. A movement the household enters by hand is the household's utterance
 > evidencing the household's proposition, not a bank line: two provenances, never one enum. A
 > reversal line is a proposition from a later capture whose meaning is the reversal question's,
 > not this one's. Legacy `transactions` rows are readings whose artefacts were never retained and
@@ -163,3 +172,46 @@ importer's contract · any legacy decomposition.
 
 *The line: the bank tells us money moved; the household tells us what moved it. A line in a
 statement is the first; "transaction" was never the second.*
+
+---
+
+## 7. Ruling — Rob, 2026-09-14. T2 accepted and ruled, with one correction applied.
+
+**The correction (applied above in §3 summary, Tx4 and §6):** *the same record across pulls is a
+`proposition_corresponds`* was too strong and contradicted the closed correspondence doctrine.
+A matching bank identifier is **evidence for a correspondence candidate**; it does not establish
+correspondence; establishment belongs to the importer's contract. Tx3 had it right; the summary
+now says the same. This also keeps T2 from becoming an importer doctrine by accident.
+
+*Otherwise exceptionally clean.* The crucial distinction:
+
+```text
+BANK  ── asserts a movement occurred ──► proposition
+                                          ├── content: amount · date · merchant · …
+                                          ├── evidence: captured artefact + reading
+                                          └── concerns → a household-minted identity, if one exists
+WORLD ── the movement ──► no Groundwork identity merely because the bank gave it an identifier
+```
+
+T1 would manufacture world identities from ingestion; T3 would mistake an institution's
+identifier for a Groundwork identity; T4 would collapse transaction and payment. T2 needs none
+of those inventions. **Tx2 is not a missing-identity bug** — the ontology may represent a
+statement without forcing a household object into existence. **Tx8 correctly fenced** — the
+bank-line proposition cannot be the subject of the world-event classification merely because 1.x
+called the row a transaction; item 4 decides what the household individuates there. **Tx12 is an
+important negative result, preserved almost exactly:** *the available 1.x row does not contain
+enough provenance to reconstruct the 2.0 evidence structure* — an ontological boundary, not an
+engineering inconvenience; inventing a Person assertion to make the row decomposable would
+manufacture provenance after the fact.
+
+**The boundary, as Rob states it:** transaction — no 2.0 identity · bank line — proposition · bank
+transaction id — content / evidence for correspondence, never identity · movement — no identity
+merely by appearing in a feed · payment / expense / obligation — household identities when
+separately individuated · line → household identity — `proposition_concerns`, not identity
+substitution · repeated captures — candidate correspondence; establishment remains the importer's
+contract · reversal — untouched · legacy rows — insufficient provenance for decomposition ·
+**build — none.**
+
+This ruling reopens neither payment, nor proposition correspondence, nor relational knowing, nor
+the closed identity doctrine: *the next layer down, not a backdoor redefinition.* The final line
+is kept as the memorable explanation.
