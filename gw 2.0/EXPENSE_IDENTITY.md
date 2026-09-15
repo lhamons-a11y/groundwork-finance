@@ -1,7 +1,7 @@
 # The expense as a 2.0 identity — what is it, and what makes something correspond to it?
 
 > Status: **Queue item 4 (first referent of three), opened by Rob 2026-09-14; clarification §7; X3
-> RULED as written and the build AUTHORISED (§8).** Reversal is closed at `8ee5f76`. Slice 6 left D1 (*transaction t is health on axis X*)
+> RULED as written (§8); BUILT — see the commit for the boundary.** Reversal is closed at `8ee5f76`. Slice 6 left D1 (*transaction t is health on axis X*)
 > and D3 (P-world, *patient responsibility for this claim*) blocked on referents with no 2.0
 > identity; the transaction referent (Tx8) sent D1's subject here — *the classifier's subject
 > moves from the row to the expense identity*. This record tests four readings of the expense's
