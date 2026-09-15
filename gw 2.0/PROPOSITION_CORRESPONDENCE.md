@@ -1,7 +1,7 @@
 # `proposition_corresponds` — what is a correspondence between propositions?
 
-> Status: **Build mode, opened by Rob 2026-09-14; RULED as written with g1 narrowed (§7); BUILT —
-> see the commit for the boundary.** Ab7 is closed at
+> Status: **Build mode, opened by Rob 2026-09-14; RULED (§7); BUILT (`ff8fcc4`); ACCEPTED and CLOSED
+> (§8).** Ab7 is closed at
 > `9566f23` (`PROPOSITION_ABOUTNESS.md` §8). `proposition_corresponds` was in slice 4's PARTIAL kind
 > list, found **unforced** there (X8), and **pressed by a case** at Ab7 (Pa5: a re-reading's P3′
 > has no about-ness of its own). This record asks what "two propositions are one referent" can
@@ -233,3 +233,43 @@ neither says what the claim is true of, which content is correct, or what should
 consumer derivations not part of the ruling · about-ness propagation explicitly not part of the
 ruling · `proposition_corresponds` ready for minimal implementation. No further semantic question
 opened before building. **Build it.**
+
+---
+
+## 8. Slice accepted and closed — Rob, 2026-09-14. `2256ef7` ruling · `ff8fcc4` build · 941 green.
+
+*Stronger than "941 tests pass": the implementation carries the ruling unusually faithfully.*
+
+1. **The asymmetry is preserved deliberately** — no generic "proposition can point at
+   proposition" mechanism: `proposition_concerns` → subject only; `proposition_corresponds` →
+   subject + object; slice-5 non-kinds → neither.
+2. **The reverse-order fixture repair was important** — it establishes the actual invariant,
+   *correspondence is relational, not transmissive, regardless of which proposition already has
+   the about-ness claim*; and the mutation attempts to implement precisely the forbidden
+   architecture rather than merely corrupting a value.
+3. **g1 stayed appropriately stupid** — *the most important engineering detail*: established
+   same-type participant A ≠ B, and nothing more. Different content, different kind, different
+   reading, candidates, about-ness, authority, similarity — all irrelevant. The moment g1 became a
+   semantic equivalence checker, correspondence would have changed from a claim that can itself
+   be wrong into a validator that decides truth. `g1_overreaches` protects against exactly that.
+4. **Pc1 is the crucial test** — two readings, one line, different content, correspondence
+   established, and *nothing chooses between the contents*. If future code ever "helpfully"
+   reconciles $44,000 and $4,400, this fixture should break it.
+5. **The migration is exactly the size it should be** — one self-FK, one index, no data step.
+6. **The smoke mutations are pointed at architectural failure modes** — observation → assertion ·
+   relation → transmission · relation → merge · guard → semantic judge · unruled kind → ontology
+   slot.
+
+**Recorded as an invariant of the whole relation, not merely a Pc3 test:**
+
+> **No state belonging to either proposition is transmissively copied to the other by
+> correspondence.**
+
+Today demonstrated through about-ness; if another proposition-level relation appears, it is not
+to be assumed to carry either. No expansion, no new tests now — the ruling says what it says.
+
+**Verdict:** ruling accepted · implementation accepted · gate accepted · migration appropriately
+minimal · mutation coverage meaningful including the previously missing reverse direction ·
+scope clean · **no consumer rule smuggled into the substrate.** The correspondence says *these two
+proposition identities have been asserted to be two recordings or observations of one claim* —
+and then it stops. Exactly where it should.
