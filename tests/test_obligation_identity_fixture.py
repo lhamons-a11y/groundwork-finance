@@ -23,7 +23,7 @@ What this build can and cannot exercise, stated so greenness is not over-read:
     Ob3  assignment/sale: new dated claim, old remains, anchor untouched      EXERCISED (as_of vs recorded_at)
     Ob4  write-off leaves the anchor                                          EXERCISED (the residue stays unnamed)
     Ob5  recourse loop: three dated claims; payments never consulted          EXERCISED (no payment concept exists)
-    Ob6  restructure: same O + terms claim, or a new O                        EXERCISED (the relation between them NOT built)
+    Ob6  restructure: same O + terms claim, or a new O                        EXERCISED (the relation: tests/test_obligation_replaces_fixture.py)
     Ob7  two minted obligations correspond; never merged                      EXERCISED
     Ob8  joint obligor = two dated relations, not a column                    EXERCISED
     Ob9  identity without a creditor                                          EXERCISED
@@ -33,7 +33,8 @@ What this build can and cannot exercise, stated so greenness is not over-read:
     minting act != minted identity; one act may mint two                      EXERCISED
     D4 P-ack payment                                                          payment slice - tests/test_payment_identity_fixture.py
     artefact -> obligation about-ness                                        slice 8 - tests/test_artefact_concerns_fixture.py
-    role period · restructure relation · DebtAccount decomposition            NOT BUILT - fenced
+    role period -> tests/test_role_period_fixture.py · restructure relation -> obligation_replaces
+    DebtAccount decomposition                                                 NOT BUILT - fenced
 
 Run:  python tests/test_obligation_identity_fixture.py
 """
@@ -253,10 +254,13 @@ def run(db):
     o3 = mint_obligation(u_refi)
     check('a new obligation that settled the old: O3 minted by the household\'s assertion; O1 remains',
           o3.id != o1.id and s.get(db.Obligation, o1.id) is not None)
-    check('the relation between O3 and O1 (settled / replaced) is NOT built - no kind for it exists',
-          s.query(db.Proposition).filter(db.Proposition.kind.in_(('settles', 'replaces', 'obligation_replaces',
-                                                                 'obligation_supersedes'))).count() == 0
-          and not any(k.startswith('obligation_') and k != db.OBLIGATION_CORRESPONDS for k in db.RULED_KINDS))
+    # Item 6 pass B ruled the second arm's relation as obligation_replaces (RELATION_SEMANTICS.md B.7) -
+    # so 'settles' / 'supersedes' stay non-kinds by ruling, not by omission; this fixture still asserts
+    # nothing about the relation and mints O3 without one (the household need not assert it).
+    check('the relation between O3 and O1 is ruled elsewhere (obligation_replaces) and not asserted here; no source-word kind exists; the obligation slots carry only correspondence and replaces',
+          s.query(db.Proposition).filter(db.Proposition.kind.in_(('settles', 'replaces', 'obligation_supersedes',
+                                                                 db.OBLIGATION_REPLACES))).count() == 0
+          and set(k for k in db.RULED_KINDS if k.startswith('obligation_')) == {db.OBLIGATION_CORRESPONDS, db.OBLIGATION_REPLACES})
 
     print('\n7. Ob7 - "my Chase mortgage" (March) and "the 4471 loan" (June): two minted; corresponding; never merged\n')
     u_june = utter('The 4471 loan - about $178k now.', '2026-06-10T09:00:00')

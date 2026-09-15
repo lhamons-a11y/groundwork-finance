@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED as written (§A.6) and its representation authorised 2026-09-15; built (`63848fa`). Pass B OPENED 2026-09-15 — run to a ruling candidate (§B.6), no code; awaiting Rob. Passes C–G open one at a time.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED as written (§B.7) 2026-09-15 and built — see the commit. Passes C–G open one at a time; C next, Rob opens.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -385,5 +385,109 @@ B3).
 
 *The line: the new loan is a loan; that it took the old one's place is what someone said about
 the two of them — and whether the old one is really gone is what its creditor says.*
+
+### B.7 Ruling — Rob, 2026-09-15: PB1 / `obligation_replaces` accepted as written
+
+*No semantic defect warrants another case before the ruling.*
+
+**"In substitution for" survives — the right level of abstraction.** It says **why the subject
+obligation exists in relation to the old obligation**, not what happened afterward to the old
+obligation. O2 can be incurred in substitution for O1 while O1 remains outstanding · while O1 is
+later discharged · while O1 is disputed, partially paid or never actually discharged · even if the
+economic amount differs. So substitution does **not** require *O2 replaces O1 → O1 ended*, and it
+must not acquire that implication downstream. Pinned explicitly, in the record and the fixture:
+**"in substitution for" is not itself a temporal or lifecycle assertion** — B15 carries it.
+
+**The economic-transfer claim stays out — the place to resist expanding the pass.** Two
+propositions that are easy to collapse are kept separate: *O2 was incurred in substitution for O1*
+and *some economic position associated with O1 was transferred / reallocated into O2*. They are not
+the same claim. The second has its own unresolved questions — what exactly is transferred (an
+amount, an obligation position, a funding allocation, something else) · who can assert it · its
+operands · its cardinality · whether it survives partial payoff · whether it implies anything about
+O1's balance — and none of them is `obligation_replaces`'s to answer merely because refinance is a
+common context. **8.1-b is retained exactly as a fence, not treated as an implementation hole.**
+The invariant: **`obligation_replaces` does not explain where money went.** A good absence.
+
+**Knowing: not forced.** An important demonstration that the relational-knowing ruling is working.
+For `payment_counteracts` the candidate participant was relatively obvious; here both candidates
+show a problem — *obligor of the subject* is plausible in some refinances but not necessarily the
+party establishing the claim; *E / obligor of the object* is plausible but not semantically forced.
+*The party that incurred O2 knows O2 replaced O1* would quietly turn **participation / agency in
+the obligation into an epistemic rule** that has not been established; *the party responsible for
+O1 knows O2 replaced it* would manufacture knowledge from the object's role. Neither follows from
+the relation. `relational_knowing = True` with no `knowing_relation` → `undetermined` is exactly the
+correct stopping point.
+
+**The more important result of pass B is §B.2.** The pass did not start from *what relations
+might obligations have?* — it started from the phenomena and discovered that most of them **are not
+relations**, which is exactly what the item 6 fence was meant to accomplish:
+
+| Phenomenon | Ontological result |
+|---|---|
+| changed terms | claims about one O |
+| servicing / assignment / sale / recourse | role claims about one O |
+| new dated stance | claim about one O |
+| end + beginning | independent boundary claims |
+| refinance / consolidation / substitution | **O → O relation** |
+
+`obligation_replaces` is a **narrow residue**, not a turning of every lifecycle phenomenon into an
+O ↔ O relation. **Preserve that reasoning at implementation** — otherwise a future engineer will
+look at RP2 and say *obligations have beginnings and endings, therefore they need succession
+relations*; the cases already show why that does not follow.
+
+**B15 is especially important.** O2 incurred in substitution for O1 · the payoff $40 short · Harbor
+continues billing O1: the relation cannot manufacture an `ended`, `settled` or `discharged`
+interpretation. *O2 replaces O1* · *O1 still has an acknowledged balance* · *O1 has not been
+discharged* stand simultaneously. It blocks the shortcut **replacement → termination**, which
+would otherwise be incredibly easy for a consumer to encode.
+
+**Wording kept:** *some or all of the object obligation* — it means the relation encodes no amount
+and presumes no complete replacement; not tightened to *the object obligation* or *the entire
+object obligation*. No *financially*, *legally*, *fully*, *substantially*, *formally* — each would
+introduce semantics that belong somewhere else.
+
+**The semantic contract, frozen:**
+
+> **`obligation_replaces`: the asserting party holds that the subject obligation was incurred in
+> substitution for some or all of the object obligation.**
+
+subject = established Obligation · object = established Obligation · directional · not symmetric ·
+no inverse · no cardinality · any party may assert · reading / matcher / source vocabulary cannot
+establish it · content opaque · `as_of` may date the assertion · no amount semantics · no transfer
+semantics · no discharge / settlement semantics · no lifecycle implication · no status derivation ·
+no transitivity · no temporal continuity · no automatic party / role mirroring · relational knowing
+**undetermined** · no consumer yet.
+
+**Representation authorised, for this relation only:**
+
+```text
+OBLIGATION_REPLACES
+    subject: subject_obligation_id
+    object:  object_obligation_id
+    symmetric: false
+    reading_establishes: false
+    relational_knowing: true
+    knowing_relation: none
+```
+
+No schema work · no economic-transfer relation · no resolver · no inverse accessor · no obligation
+status · no family substrate. **Pass B: RULED / CLOSED on build.** The next semantic question is
+**C**, not a reopening of the unresolved money-tracing claim.
+
+#### Built — 2026-09-15
+
+One registry entry exactly as authorised; the obligation slots already existed and the generalised
+reflexive guard already covered the kind (its comment now names it). Fixture
+`tests/test_obligation_replaces_fixture.py` (39 checks, B1–B18 and the absences: no
+`closed` / `replaced` / `discharged` column or accessor, no discharge or disposition helper, no
+inverse, no transitivity, no apportionment, no successor chain, no Ob6-arm inference, no boundary
+kind bound to the relation, no relation table). Smoke `s102_obligation_replaces.py`, eight
+mutations caught: the PAYOFF label establishes · the relation becomes an obligation status · the
+inverse is manufactured · transitivity slips in · discharge is derived · a disposition helper
+explains the money · **the Ob6 arm is inferred (a terms claim mints a successor)** · the kind turns
+symmetric. Retired in place, truthfully: the obligation fixture's Ob6 check *"the relation between
+O3 and O1 is NOT built — no kind for it exists"* → *ruled elsewhere as `obligation_replaces` and not
+asserted here; the obligation slots carry only correspondence and replaces*. No schema, no
+migration, no family abstraction. Gate 986 → 997, 0 failed.
 
 

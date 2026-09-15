@@ -1395,8 +1395,8 @@ def participant_violations(prop):
             if set_slot not in permitted:
                 out.append(f'{prop.kind}: {side} may be {permitted}, is {set_slot}')
         # Two participants means two: a kind whose subject and object are the same single type
-        # (the correspondences; payment_counteracts) is never reflexive - a thing does not
-        # correspond to, or counteract, itself.
+        # (the correspondences; payment_counteracts; obligation_replaces) is never reflexive - a
+        # thing does not correspond to, counteract, or replace itself.
         if not out and len(rule['subject']) == 1 and len(rule['object']) == 1 and (
                 rule['symmetric'] or rule['subject'][0].replace('subject_', '') == rule['object'][0].replace('object_', '')):
             sub = getattr(prop, rule['subject'][0])
@@ -1667,6 +1667,38 @@ PLAN_CORRESPONDS = 'plan_corresponds'                 # the seventh (Pl4 / Pl13)
 # participant would be the payer of the subject payment, a role not ruled. Not a source word.
 PAYMENT_COUNTERACTS = 'payment_counteracts'
 
+# ── Item 6, pass B: the obligation-to-obligation relation ────────────────────
+# gw 2.0/RELATION_SEMANTICS.md s B.7, ruled 2026-09-15. Of Rob's five phenomena - changed terms,
+# a transfer of servicing (assignment, sale, recourse), a new dated stance, an ending and a
+# beginning, a refinancing - FOUR are not obligation-to-obligation at all: terms claims, dated role
+# claims and stances on ONE obligation, and two independent facts about two obligations that
+# establish nothing about each other. The fifth is one claim with two obligation operands, forced
+# by K8 (a referential operand is a participant), not by M2 (closed). `obligation_replaces(O3, O1)`
+# means EXACTLY: *the asserting party holds that the subject obligation was incurred in substitution
+# for some or all of the object obligation.* It says WHY the subject exists in relation to the object,
+# not what happened afterward to the object - "in substitution for" is not a temporal or lifecycle
+# assertion. Both participants are established obligations - the claim mints neither and merges
+# neither. Directional: the replacing obligation is the subject; never symmetric; no inverse kind;
+# no cardinality - one loan may replace several cards (B4) and one bill may be split into several
+# plans (B6). Established only by a party's assertion - the household, or the new lender; a reading,
+# a matcher, a PAYOFF line or "your new account" yields at most a candidate. It carries NO amount
+# ("some or all" is the scope of the assertion, not a field), NO transfer semantics (the
+# economic-transfer invariant's disposition, 8.1-b, is a claim of its own shape, fenced to that
+# invariant's consumer - obligation_replaces does not explain where money went), and derives
+# NOTHING: no ending, discharge, settled, closed or replaced status on the object (B15: the payoff
+# is $40 short and the creditor keeps billing - both facts stand), no beginning on the subject (it
+# was minted, not begun), no remaining, no transitivity along a chain, no apportionment among
+# several, no period from RP2 (an obligation is not a role), no inference of which Ob6 arm the
+# household meant. Refinance, consolidation, rollover, balance transfer, restructure and payment
+# plan are content or claims about the replacing obligation, never kinds; a modification is the
+# first arm and no relation at all; the same obligation under a new account number is Ob7
+# (obligation_corresponds), not this kind. Where no second obligation is individuated there is no
+# relation - a paid-off, closed, written-off or transferred obligation remains one obligation under
+# dated claims. Knowing: relational_knowing True with no designated relation -> undetermined; neither
+# the obligor of the subject nor the entitled party of the object is semantically forced by the
+# relation, and participation in an obligation is not an epistemic rule. Not a source word.
+OBLIGATION_REPLACES = 'obligation_replaces'
+
 # ── Ab7: proposition-level about-ness ────────────────────────────────────────
 # gw 2.0/PROPOSITION_ABOUTNESS.md, ruled s7. `proposition_concerns(P, X)` means EXACTLY: *this
 # proposition concerns this identity* - subject a PROPOSITION (the first and only ruled kind with a
@@ -1776,6 +1808,10 @@ RULED_KINDS = {
     # item 6 pass A - the one ruled relation between two payments; NOT a correspondence (two events,
     # never one referent); relational_knowing True and NO knowing_relation: undetermined by design.
     PAYMENT_COUNTERACTS:  {'subject': ('subject_payment_id',),    'object': ('object_payment_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
+    # obligation_replaces (item 6 pass B): the replacing obligation is the subject, the replaced the
+    # object; never symmetric; relational_knowing True and NO knowing_relation: undetermined by design.
+    OBLIGATION_REPLACES:  {'subject': ('subject_obligation_id',), 'object': ('object_obligation_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
     # subject: a proposition - the only ruled use of that slot. object: the identities ruled so far.
     PROPOSITION_CONCERNS: {'subject': ('subject_proposition_id',),
