@@ -1,6 +1,6 @@
 # The plan — does it have a Groundwork identity, and what assertion could mint it?
 
-> Status: **Queue item 4c — RULED as written (§7, PL2) and BUILD AUTHORISED by Rob 2026-09-14; built to exactly §5 — see the commit for the boundary.** 4b closed at
+> Status: **Queue item 4c — RULED (§7, PL2); BUILT (`dcac27e`); ACCEPTED and CLOSED (§8).** 4b closed at
 > `ea8f9d4` with the insurer's claim dissolved: no identity, nothing can mint one, the household's
 > "claim" is the expense and the insurer's is its record. Rob's warning on opening 4c, verbatim:
 > *likely the more dangerous of the two, because "plan," "coverage," "benefit," "authorization,"
@@ -259,3 +259,45 @@ Insurer   supplies products and assertions about both
 
 *Neither bank vocabulary nor insurer vocabulary gets to mint the household's referents.* Build
 the slice, then stop again at the exact §5 boundary.
+
+---
+
+## 8. Slice accepted and closed — Rob, 2026-09-14. `dcac27e`, 967 green, clean tree.
+
+*No further pass on the plan slice: another test pass would mostly re-litigate settled
+boundaries.*
+
+- **The anchor is correctly impoverished** — `Plan(id, minted_by_id, created_at)` is exactly PL2's
+  result; the strongest evidence is Pl15: the identity exists before the system knows terms,
+  insurer, members, dates or economics. That prevents "plan" becoming a disguised
+  insurance-record table.
+- **Identity authority is cleanly separated from informational authority** — the insurer can say
+  *you are enrolled in Lakeview Health Choice POS II, Group 12345* without thereby creating a `Plan`; its
+  statement produces propositions and evidence, never the household referent.
+- **Pl3 and Pl4 do important work** — two Lakeview Health arrangements can be two plans despite identical
+  visible terms; a renewal can be the same plan with new dated claims; and the test refuses to let
+  `created_at`, product ID, group number, plan year or changing terms decide it. *Identity before
+  description, in executable form.*
+- **Correspondence remains correspondence** — `P ↔ P_new`: both identities survive; the later
+  assertion establishes correspondence; neither row is canonicalised; neither minting pointer
+  changes; `referent()` gives the connected component. The same immutability doctrine as the
+  other identity types, not a special exception for plans.
+- **The slice fence held** — no membership, enrollment, plan ↔ expense / obligation / payment,
+  coverage determination, accumulator state, current-plan resolution, term catalogue,
+  authorization identity or legacy decomposition; the fixture asserts several of the absences.
+  The first escaped mutation was met by strengthening the test, not weakening the mutation —
+  the fixture is an adversarial boundary, not a green-count generator.
+
+**Recorded, not opened as a defect — the pressure point waiting for item 5:** *plan identity is
+not membership identity.* "Kim is covered under P during period T" must be handled without making
+membership an attribute of `Plan`, `Person` or the expense. And *coverage* is now explicitly
+overloaded: the coverage arrangement is what `Plan` identifies · who is covered and when is a
+future relation · whether a particular expense is covered is another future question · insurer
+payment / adjudication is another proposition. That separation is strong enough that item 5 can
+address the middle one without reopening 4c.
+
+**Rule carried into item 5:** ***do not let the existence of `Plan` pre-answer the meaning of
+"covered under."*** The relation now has a real endpoint to attach to; its semantics must still be
+independently earned.
+
+**4c — PLAN IDENTITY: ACCEPTED / CLOSED.** Item 4 is complete. Next: item 5, the role period.
