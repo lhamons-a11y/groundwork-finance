@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C OPENED 2026-09-15 by Rob — candidate `obligation_in_respect_of` (§C.7), `arises_from` rejected on three separate grounds (§C.3), tightened after Rob's review (§C.8: semantic floor, no reconciliation, endpoint ≠ projection, standing, no inverse, traversal ≠ derivation; "in whole or in part" dropped), no code; awaiting Rob's ruling. Passes D–G open one at a time.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED as written (§C.9) 2026-09-15 and built — see the commit. Passes D–G open one at a time; D next, Rob opens. Passes D–G open one at a time.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -794,3 +794,111 @@ no inverse (C20) · traversal vs derivation (C21).
 
 **"In whole or in part" dropped** on Rob's challenge — the reasoning is in §C.6. The candidate
 sentence changes accordingly; the floor now carries what the qualifier was trying to.
+
+### C.9 Ruling — Rob, 2026-09-15: PC1 / `obligation_in_respect_of` accepted as written
+
+*Both pushbacks agreed; the rewrite improved the pass rather than merely satisfying the review.*
+
+**The correction on "the" is exactly right.** The reviewer's wording had introduced the very
+resolver discipline the passes exist to prevent. With C5 / C13 the valid result is not `O → X` as
+though X were *the* underlying expense; it is
+
+```text
+O
+├── asserted in_respect_of → X1   [Party A]
+├── asserted in_respect_of → X2   [Party B]
+└── asserted in_respect_of → X3   [Party C]
+```
+
+each assertion retaining its provenance and any contest. **The relation gives a directed
+assertion between established endpoints; a consumer can enumerate those established assertions;
+it cannot collapse them into a singular semantic answer.** Query / navigation (every established
+endpoint with provenance) vs derivation (select or manufacture one "underlying expense") is the
+right architectural boundary — **C21 accepted as written on that basis.**
+
+**Dropping "in whole or in part" was right.** In A *counteracts some/all* and in B *substitution
+for some/all* have semantic work to do; *in respect of* needs no completeness qualifier, and the
+phrase would have created an apparent quantitative dimension without defining one. C4 / C5 plus
+the semantic floor do the cleaner job — multiple obligations may point at one expense; one
+obligation may be asserted against multiple expenses; no allocation, no share, no exclusivity, no
+cardinality rule — **stronger than encoding multiplicity into the wording.**
+
+**The candidate survives the important attacks — the boundaries now explicit:** identity (neither
+endpoint minted) · evidence (readings produce candidates, never the relation) · semantics (not
+caused by / preceded by / began / generated / legally owed because of / amount-equivalent /
+payment toward / covered by) · multiplicity (no 1:1, 1:n or n:1 decided) · quantification (no
+allocation, percentage, residual, sum or reconciliation) · direction (typed Obligation → Expense;
+a reverse relation would be separately ruled, never implied) · provenance (the asserting party
+stays part of the assertion; provider assertion acquires no special ontological authority) ·
+traversal (enumerating established endpoints ≠ deriving a privileged endpoint or fact) ·
+downstream (no balance, status, discharge, payment tracing, plan meaning, lifecycle or
+expense-property projection). *A very clean relation floor.*
+
+**The G observation accepted — and not turned into a conclusion yet.** *Participant typing and
+participant-role semantics* is retained as the G comparison dimension:
+
+| Relation | Endpoint structure | What distinguishes the roles |
+|---|---|---|
+| `payment_counteracts` | Payment → Payment | semantic role of each same-typed participant |
+| `obligation_replaces` | Obligation → Obligation | semantic role of each same-typed participant |
+| `obligation_in_respect_of` | Obligation → Expense | the endpoint types themselves |
+
+Evidence that an eventual family substrate may have to accommodate genuinely different semantic
+structures; **not yet** evidence that a shared substrate is impossible. G inspects it, not solves
+it prematurely.
+
+**C7 is permanent, and protects a general invariant:** *relation semantics must not derive
+temporal order from the relation's linguistic direction or from identity creation order* —
+connected to the B10 fence without importing B's relation. Exactly the regression a later
+"helpful" implementation would introduce on seeing `obligation_in_respect_of(expense)` and
+deciding the expense must precede the obligation.
+
+**The semantic contract, frozen:**
+
+> **`obligation_in_respect_of`: the asserting party holds that the subject obligation is in
+> respect of the object expense.**
+
+subject = established Obligation · object = established Expense · directional · not symmetric ·
+established by party assertion · reading / matching / EOB / bill labels produce candidates only ·
+no inverse · no cardinality · no allocation or quantitative semantics · no temporal / lifecycle
+semantics · no balance reconciliation · no property projection · no status / discharge / payment /
+plan derivation · relational knowing **undetermined** unless a separately ruled epistemic relation
+designates the relevant participant · traversal may enumerate established assertions / endpoints
+but may not select a privileged endpoint.
+
+**Representation authorised — the same build discipline as A / B:** one registry entry on the
+existing obligation / expense slots, fixture coverage for the C cases and absences, no family
+abstraction.
+
+```text
+OBLIGATION_IN_RESPECT_OF
+    subject: subject_obligation_id
+    object:  object_expense_id
+    symmetric: false
+    reading_establishes: false
+    relational_knowing: true
+    knowing_relation: none
+```
+
+**Pass C: RULED / CLOSED on build. No pass D yet — C earns its own closure first.**
+
+#### Built — 2026-09-15
+
+One registry entry exactly as authorised; both slots pre-existed; no guard change (the reflexive
+guard does not apply to a cross-typed kind — the type discipline in `participant_violations`
+already refuses the slots swapped, which is C12 / C20 made executable). Fixture
+`tests/test_obligation_in_respect_of_fixture.py` (43 checks, C1–C21 and the absences: no
+`underlying_expense` / `expense_of_obligation` / `obligations_of_expense` resolver, no
+reconciliation or residual helper, no allocation or share column, no nature / date / provider /
+amount projected onto O — as claim, column or attribute — no inverse or expense-subject kind, no
+order guard, no `arises` kind, no correspondence candidate from a shared expense, no relation
+table; C7 permanent). Smoke `s103_obligation_in_respect_of.py`, **nine** mutations caught: the
+matcher's pairing acquires a party's assertion · expense facts project onto O · a resolver selects
+the underlying expense · the relation reconciles amounts · **the phrase supplies temporal order
+(a C7 guard)** · the inverse kind is manufactured · **patient responsibility mints the obligation**
+(escaped first — the fixture had no obligation count around C6's $412 stance; closed, as A's
+label-establishes escape was) · about-ness derives the relation · the kind turns symmetric.
+Retired in place, truthfully: the expense fixture's Ex4 *"O ↔ X NOT built"* → *ruled elsewhere,
+`arises_from` rejected, not asserted here*; the obligation and obligation-replaces fixtures'
+"obligation-subject kinds are exactly {corresponds, replaces}" → plus `obligation_in_respect_of`.
+No schema, no migration, no family abstraction. Gate 997 → 1009, 0 failed.

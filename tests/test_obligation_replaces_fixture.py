@@ -179,8 +179,10 @@ def run(db):
                                                     'symmetric': False, 'reading_establishes': False, 'relational_knowing': True})
     check('no source-word, succession, boundary or generic obligation-relation kind exists beside it',
           not any(k in db.RULED_KINDS for k in SOURCE_KINDS))
-    check('the only ruled kinds on the obligation slots are obligation_corresponds and obligation_replaces - the role and stance kinds used here stay stand-ins',
-          set(k for k, r in db.RULED_KINDS.items() if 'subject_obligation_id' in r['subject']) == {db.OBLIGATION_CORRESPONDS, db.OBLIGATION_REPLACES}
+    # Pass C added obligation_in_respect_of on the obligation subject slot (RELATION_SEMANTICS.md C.9) - an
+    # obligation -> expense relation, not an obligation -> obligation one; recorded here truthfully.
+    check('the only ruled kinds on the obligation-subject slot are obligation_corresponds, obligation_replaces and obligation_in_respect_of - the role and stance kinds used here stay stand-ins',
+          set(k for k, r in db.RULED_KINDS.items() if 'subject_obligation_id' in r['subject']) == {db.OBLIGATION_CORRESPONDS, db.OBLIGATION_REPLACES, db.OBLIGATION_IN_RESPECT_OF}
           and not any(k in db.RULED_KINDS for k in ('terms', 'entitled_party', 'balance', 'closed', 'toward')))
 
     print('\n2. B1 - modification: same mortgage, new terms; no O3, no relation\n')

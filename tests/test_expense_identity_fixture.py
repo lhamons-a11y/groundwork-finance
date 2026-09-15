@@ -23,7 +23,7 @@ What this build can and cannot exercise, stated so greenness is not over-read:
          category mints nothing and establishes no nature                    EXERCISED - Rob's constraint, executable
     Ex3  the EOB concerns X; claim #A77 is content                            EXERCISED
     Ex4  the bill concerns X; the obligation is a separate identity; the
-         O <-> X relation is NOT built                                        EXERCISED (relation asserted absent)
+         O <-> X relation -> tests/test_obligation_in_respect_of_fixture.py   EXERCISED (not asserted here)
     Ex5  a fully covered visit: X with no obligation                          EXERCISED
     Ex6  a loan: an obligation with no expense                                EXERCISED
     Ex7  one visit, three bills; or three expenses; correspondence             EXERCISED
@@ -233,10 +233,15 @@ def run(db):
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=bill.id, object_expense_id=X.id), utterance=u_owe)
     check('Ex4: the bill concerns X; the same act mints the obligation O - a separate identity in a separate table',
           O.minted_by_id == u_owe.id and type(O) is not type(X) and O.__tablename__ != X.__tablename__)
-    check('Ex4: the O <-> X relation ("O arises from X") is NOT built - no kind, no claim, no accessor',
+    # Item 6 pass C ruled the O <-> X relation as obligation_in_respect_of (RELATION_SEMANTICS.md C.9) and
+    # REJECTED arises_from as the kind - so 'arises_from' stays a non-kind by ruling, not by omission; this
+    # fixture still asserts no relation here (the household need not assert one) and no accessor exists.
+    check('Ex4: the O <-> X relation is ruled elsewhere (obligation_in_respect_of; arises_from rejected) and not asserted here - no arises kind, no claim, no accessor',
           not any(k in db.RULED_KINDS for k in ('arises_from', 'obligation_arises_from_expense', 'expense_obligation'))
+          and db.OBLIGATION_IN_RESPECT_OF in db.RULED_KINDS
           and s.query(db.Proposition).filter(db.Proposition.kind.like('%arise%')).count() == 0
-          and not any(hasattr(db, n) for n in ('obligations_of_expense', 'expense_of_obligation')))
+          and s.query(db.Proposition).filter_by(kind=db.OBLIGATION_IN_RESPECT_OF).count() == 0
+          and not any(hasattr(db, n) for n in ('obligations_of_expense', 'expense_of_obligation', 'underlying_expense')))
 
     print('\n5. Ex5 / Ex6 / Ex7 - expense without obligation; obligation without expense; granularity is the household\'s\n')
     W = mint_expense(utter('Kim\'s wellness visit on 4/2 - fully covered.'))
