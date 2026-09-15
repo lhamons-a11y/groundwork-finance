@@ -195,7 +195,9 @@ def run(db):
         return q
 
     def asserters(o):
-        # C21: traversal - every asserted endpoint with its asserter; a query, not an accessor
+        # C21: test-only enumeration of proposition rows + their evidence - every asserted endpoint with
+        # its asserter, a reading-backed relation as (X, None). Deliberately NOT a database/model accessor
+        # or semantic resolver, and not a canonical traversal API: it selects nothing and hides nothing.
         out = set()
         for pr in rel(o):
             for e in s.query(db.EvidentiaryRelationship).filter_by(proposition_id=pr.id):
@@ -403,13 +405,16 @@ def run(db):
 
     print('\n13. C19 / C16 - provider standing; knowing undetermined; vocabulary is content\n')
     u_mercy_says = utter('Statement: balance $450 - for services 02/14.', '2026-04-01T09:00:00', origin=mercy)
+    n_obl_before_mercy_assertion = s.query(db.Obligation).count()
+    n_exp_before_mercy_assertion = s.query(db.Expense).count()
     e_c19, r_c19 = in_respect_of(O, X, utterance=u_mercy_says, content='for services 02/14')
     check('C19: Mercy (an institution) may assert the relation - a claim with its own evidence; "for services" is content',
           e_c19.utterance.origin_party_id == mercy.id and 'services' in r_c19.content)
     check('C19: the assertion establishes neither endpoint nor any property - O and X were already established; Mercy\'s stance added no creditor role, no amount, no correctness',
           s.query(db.EvidentiaryRelationship).filter_by(utterance_id=u_mercy_says.id).count() == 1
           and s.query(db.Proposition).filter_by(kind='entitled_party', object_obligation_id=O.id).count() == 0
-          and s.query(db.Obligation).count() == n_obl + 1 and s.query(db.Expense).count() == n_exp)
+          and s.query(db.Obligation).count() == n_obl_before_mercy_assertion
+          and s.query(db.Expense).count() == n_exp_before_mercy_assertion)
     check('C19: knowing for the relation is undetermined for every asserter - ruled True with no designated relation; no role of O or X is forced',
           db.derived_strength(s, e_c19, KNOWING) == db.STRENGTH_UNDETERMINED
           and db.derived_strength(s, e_c1, KNOWING) == db.STRENGTH_UNDETERMINED

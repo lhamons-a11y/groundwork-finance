@@ -902,3 +902,33 @@ Retired in place, truthfully: the expense fixture's Ex4 *"O ↔ X NOT built"* �
 `arises_from` rejected, not asserted here*; the obligation and obligation-replaces fixtures'
 "obligation-subject kinds are exactly {corresponds, replaces}" → plus `obligation_in_respect_of`.
 No schema, no migration, no family abstraction. Gate 997 → 1009, 0 failed.
+
+#### Smoke review — Rob, 2026-09-15: no semantic defect; two test-quality fixes; C stays closed
+
+*An adversarial smoke review, not a plausibility check.* **The C7 mutation is especially valuable:
+it proves the permanent temporal invariant is executable, not merely documented** — the realistic
+future mistake `O in_respect_of X → X must have existed first → created_at ordering guard`, killed
+by the fixture; and the raw-SQL mutations (`aboutness_derives`, `pr_mints`) are appropriate: they
+test whether an implementation could manufacture a relation or an identity *structurally*, not
+whether a normal API would accept it. The registry mutation attacks the contract, not an
+implementation detail; C12 / C20 keep cross-type direction from being "symmetry false because the
+registry says so" — reversing the endpoint types would be a different proposition kind.
+
+Applied: **(1) C19's obligation count decoupled** — it read `n_obl + 1` inherited from C10, i.e.
+*"since C10 exactly B450 was created"*, which is not what C19 tests and would break on any
+legitimate addition between them; the counts are now captured immediately before Riverbend Hospital's
+assertion, so the check says exactly *the assertion minted nothing*. **(2) C21's helper comment
+strengthened** — *test-only enumeration of proposition rows + their evidence; deliberately not a
+database / model accessor or semantic resolver* — so it is never read as a canonical traversal
+API. **(3) The baseline is re-established after every mutation's undo**, not only at the end — a
+mutation whose undo leaves global state the fixture happens not to observe is attributed to the
+mutation that left it. (s86–s102 check only the final state; not changed unasked.) **Not changed:
+the C7 mutation.** Gate 1009 → 1018, 0 failed.
+
+**The mutation surface, as Rob read it:** evidence → assertion · expense facts → obligation facts ·
+relation → resolver · relation → reconciliation · relation → temporal ontology · relation →
+inverse · determination → identity · about-ness → relation · typed direction → symmetry.
+
+**C: CLOSED.** *The next semantic work is D, but it should begin from its own pressure source
+rather than treating `in_respect_of` as evidence for whatever D turns out to be.* Opened when Rob
+opens it.

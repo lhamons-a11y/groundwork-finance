@@ -16,7 +16,8 @@ the obligation, no temporal order - and whether each way of letting it is caught
     about-ness derives it           a bill concerning both O and X inserts the relation
     the kind turns symmetric        the registry entry flips symmetric True
 
-Same shape as s86-s102: fixture passes, every mutation is caught, the module is left as found.
+Same shape as s86-s102 - fixture passes, every mutation is caught, the module is left as found - plus
+the baseline re-established after every undo (Rob's smoke review, 2026-09-15).
 """
 import importlib.util
 import io
@@ -168,6 +169,12 @@ def run(ctx):
         finally:
             undo()
         check('caught: ' + name, bool(mutated) or bool(mutated_err))
+        # The baseline is re-established after EVERY undo, not only at the end - a mutation whose
+        # undo is incomplete (global state the fixture happens not to observe) is attributed to
+        # the mutation that left it, not discovered as an unexplained final failure.
+        after, after_failures, after_err = _run_fixture(fx, db)
+        check('restored after: ' + name,
+              after == passed and not after_failures and not after_err)
 
     restored, restored_failures, restored_err = _run_fixture(fx, db)
     check('the module is left exactly as it was found',
