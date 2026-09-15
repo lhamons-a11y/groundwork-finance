@@ -1,6 +1,8 @@
 # Relational knowing — what does it mean for a party to know a proposition, and what does that relation establish?
 
-> Status: **Build mode, queue item 1, opened by Rob 2026-09-14 — a doctrine record, no code.** Nine
+> Status: **Build mode, queue item 1, opened by Rob 2026-09-14 — a doctrine record, no code. Two
+> doctrinal repairs applied on Rob's review (§8a); the candidate is READY FOR RULING — not yet ruled,
+> not yet authorised.** Nine
 > ruled kinds carry `relational_knowing = True` and derive `undetermined`; the shipped health
 > classifier carries a foundation-keyed set (`KNOWING_SOURCES = {USER_STATED, IMPORTED_EOB}`);
 > slice 1's `derived_strength` takes a caller-supplied map `{kind: {person, institution}}`. This
@@ -72,8 +74,17 @@ others. This is slice 1's `{kind: {person, institution}}` and the shipped `KNOWI
 (source *types*). Kills itself on Kn10 (any institution knowing for health) and on Q2 (*source
 type ≠ source instance*). It was always a stand-in; slice 1 said so.
 
-**R2 — knowing is a relation derived from the party's ruled relation to a participant of the
-proposition.** Per kind, the catalogue names *which* relation confers knowing: for a retraction,
+**R2 — knowing is a relation derived from the party's ruled relation to the participant the
+kind designates.** Not *some* relation to *any* participant: **the kind names one epistemically
+relevant relation to one designated participant**, and only standing in *that* relation to
+*that* participant confers knowing —
+
+```text
+PROPOSITION KIND → designated epistemic relation → designated participant → party
+```
+
+never `party relates to P somehow → party knows P`. Per kind, the catalogue names which
+relation and which participant: for a retraction,
 *being the origin of the subject utterance*; for P-ack, *being the entitled party of the object
 obligation*; for a health value read from an EOB, *being the origin of the artefact that
 adjudicated the claim*; for a payment's movement, *being the bank the payment went through*; for
@@ -100,7 +111,7 @@ R2 is tested.
 | **Kn1** | Rob retracts his own March assertion (U1). | slice 5 | Rob is knowing for `utterance_retraction(U1)` **because he is the origin of U1** — a structural relation already in the record (`U1.origin_party_id`). A third party's "your March claim was wrong" is *not knowing* by this relation (it may be knowing for the domain fact by another). **Derivable today** |
 | **Kn2** | Harbor acknowledges Rob's payment p (D4 / P-ack). | K-cases | Harbor is knowing **because Harbor is the entitled party of the obligation p is toward** — a **role claim** (`entitled_party(Harbor, O)`, stand-in kind, unruled). Rob is not (K5). **Derivable only once the entitled-party kind is ruled**; until then `undetermined`, honestly |
 | **Kn3** | A health value read from Lakeview Health's EOB. | C1, slice 3 | Lakeview Health is knowing **because Lakeview Health is the origin of the artefact** (built) **and the adjudicator of the claim** — the second half needs the *claim* identity (queue item 4). With origin alone: knowing for *what the EOB states* (P-subject), not yet for *the claim's true value* (P-world) — which is exactly Cluster B's two propositions. **Partly derivable now, correctly scoped** |
-| **Kn4** | Rob says "that statement is my mortgage" (`artefact_concerns`); "line 3 is the HELOC" (`proposition_concerns`); "those two parses are one line" (`proposition_corresponds`). | slices 8, Ab7, corr | Rob is knowing **because he is the origin of the utterance that minted the identity in question** (`O.minted_by.origin`) — the household member who declared the obligation knows which documents are about it. Structural, built. For `proposition_corresponds` (two parses of one line) the relation is *being able to see the artefact* — the household for a held artefact; **weaker footing; candidate only** |
+| **Kn4** | Rob says "that statement is my mortgage" (`artefact_concerns`); "line 3 is the HELOC" (`proposition_concerns`); "those two parses are one line" (`proposition_corresponds`). | slices 8, Ab7, corr | For the two **concerns** kinds Rob is knowing **because he is the origin of the utterance that minted the identity concerned** (`O.minted_by.origin`) — the household member who declared the obligation knows which documents are about it. Structural, built. For **`proposition_corresponds`** no epistemic relation is established by the corpus: *being able to see a held artefact* would be a general shortcut the record does not support (held is custody, not knowledge — the capture ruling). **Stays `undetermined`**: correspondence must not acquire an epistemology merely because a flag needs a value |
 | **Kn5** | K5: Rob says "the EOB says $412". | C1, C2 | Rob is the **origin** of the utterance and **not knowing** for the value: he has no ruled relation to the claim's adjudication. His utterance is testimony *about* an artefact; the value's knowing party is the artefact's origin. **R2 gives K5 for free** — no special case |
 | **Kn6** | K2: the servicer S states E's acknowledgment. | C3 | S is not E; S's statement conveys E's knowledge **through an asserted link** (*S services O*, a role claim). Knowing is E's; the chain S → E is weakest-link over the link's strength. **A consumer derivation over role claims; not this slice's** |
 | **Kn7** | Pm9: "my mother paid Riverbend Hospital $300 for me." | payment slice | Rob **minted** p and is **not knowing** that it occurred — he was told. The mother (`paid_by`) and Riverbend Hospital (`paid_to`) are the first-hand parties. **Minting ≠ knowing** — the sharpest case: identity comes from the household's assertion, knowledge of the event's properties from the participants |
@@ -113,13 +124,16 @@ R2 is tested.
 **R2 survives every case, and gives K5, O5, Kn7 and Kn10 without special-casing.** What the cases
 fix:
 
-- **Knowing is a relation, fixed per kind, between a party and a participant of the
-  proposition** — *origin of the subject utterance* · *origin of the artefact* · *entitled party
-  of the object obligation* · *payer / payee of the object payment* · *origin of the minting
-  utterance of the identity concerned*. It is **read off structure** (origins, minting) and **off
+- **Knowing is a relation, fixed per kind, between a party and the participant the kind
+  designates, in the relation the kind designates** — *origin of the subject utterance* · *origin
+  of the artefact* · *entitled party of the object obligation* · *payer / payee of the object
+  payment* · *origin of the minting utterance of the identity concerned*. A party's other
+  relations to the proposition's other participants confer nothing. It is **read off structure** (origins, minting) and **off
   role claims** (roles are dated relations, ruled but not yet built as kinds). **Never stored,
   never asserted directly** — roles are asserted; knowing is derived from them.
-- **Minting ≠ knowing** (Kn7). **Origin of an utterance ≠ knowing for its content** (Kn5).
+- **Minting ≠ knowing** (Kn7 — **a mandatory permanent regression case**: it forecloses
+  `minted_by → knowing` and protects *identity provenance ≠ event knowledge ≠ proposition truth*).
+  **Origin of an utterance ≠ knowing for its content** (Kn5).
   **Origin of an artefact ≠ knowing for every kind read from it** (Kn10). **A process is never
   knowing** (Kn9).
 - **Several parties may be knowing for one kind** (Kn11); knowing does not rank them.
@@ -131,9 +145,21 @@ fix:
 
 **Establishes:** exactly one thing — **the strength class of an evidentiary relationship** whose
 source (utterance, or reading via its artefact's origin) originates from that party, for that
-proposition's kind: `knowing` / `not_knowing`; `undetermined` where the kind's relation is not
-ruled or the participant it needs is not established. Over a mediated chain, weakest-link (C3) —
-a later consumer derivation.
+proposition's kind. The three values have exact conditions:
+
+```text
+the kind's relation is ruled  AND  the designated participant is established
+     AND  the party stands in that relation                          → knowing
+     AND  the party does not stand in that relation                  → not_knowing
+the kind's relation is not ruled                                     → undetermined
+the designated participant is not established                        → undetermined
+```
+
+**`not_knowing` means "this party is not the party the ruled relation identifies"** — it does
+*not* mean "we established that this party does not know." The record has no way to establish
+the latter and never claims it (Kn10: Harbor is not the adjudicator, so `not_knowing`; nothing is
+said about what Harbor knows). Over a mediated chain, weakest-link (C3) — a later consumer
+derivation.
 
 **Does not establish:** truth (Kn12) · participant establishment (structural) · resolution among
 competing claims (Q2's resolver; fenced) · independence (C4 is between *origins*; knowing feeds
@@ -170,9 +196,10 @@ derived relation over structure and role claims, per kind, establishing strength
 | Kind | Relation (R2) | Its participant | Derivable if ruled now? |
 |---|---|---|---|
 | `utterance_retraction` | origin of the subject utterance | built | **yes** |
-| `artefact_concerns`, `proposition_concerns`, `proposition_corresponds` | origin of the minting utterance of the identity concerned (concerns); the household holding the artefact (corresponds) | built (minting); held-ness built | **yes**, on the minting relation; the *corresponds* footing is the weakest of the set and may be better left `undetermined` — Rob's call |
+| `artefact_concerns`, `proposition_concerns` | origin of the minting utterance of the identity concerned | built (minting) | **yes** |
+| `proposition_corresponds` | none established — *held* is custody, not knowledge | — | **no — stays `undetermined`**; no epistemic shortcut is manufactured to make the flag derivable |
 | `artefact_origin` | the recipient household (which household? the one whose Person asserted — the origin of the origin claim itself); the origin party itself | built | **yes** |
-| the four correspondence kinds | the origin of the minting utterances of both identities | built | **yes** |
+| `artefact_`, `party_`, `obligation_`, `payment_corresponds` | the origin of the minting utterances of both identities — a candidate relation of the same shape as the concerns kinds; **Rob decides whether it is established by the corpus or stays `undetermined` like `proposition_corresponds`** | built | conditional |
 | P-ack / D4 (payment acknowledgment), D5, D7 | entitled party of the object obligation | **role kind unruled** (`entitled_party` is a stand-in) | **no** — `undetermined` until the role kinds are ruled |
 | health value (P-world) | adjudicator of the claim | **claim identity unminted** | **no** |
 | payment movement / occurrence | the bank of the payment; the payer | role kinds unruled | **no** |
@@ -188,30 +215,52 @@ is the domain catalogue, and Rob's ordering puts identities and roles later. Tho
 
 ## 8. Ruling candidate — for Rob
 
-> **A party knows a proposition when it stands, in the record, in the relation the
-> proposition's kind names to one of the proposition's participants — the origin of the
+> **A party knows a proposition when it stands, in the record, in the epistemic relation the
+> proposition's kind designates, to the participant the kind designates — the origin of the
 > subject utterance, the origin of the artefact, the entitled party of the object obligation,
 > the payer or payee of the object payment, the origin of the utterance that minted the identity
-> concerned. Knowing is derived on read from that structure and from ruled role claims; it is
-> never stored, never a foundation, and never asserted directly — roles are asserted, knowing
-> follows from them. It establishes exactly one thing: the strength class of an evidentiary
-> relationship whose source originates from that party, for that kind — knowing, not knowing, or
-> undetermined where the kind's relation is unruled or its participant is not established; over
-> a mediated chain, weakest-link. It establishes nothing else: not truth, not participant
-> establishment, not resolution, not independence, not any domain consequence, and no ranking
-> among several knowing parties. Minting an identity does not make the minter knowing for the
-> event's properties; originating an utterance does not make the origin knowing for its
-> content; originating an artefact does not make the origin knowing for every kind read from
-> it; a process is never knowing. The foundation-keyed map is withdrawn as a definition and
-> survives only as the caller's stand-in for unruled kinds. Nothing in any closed slice changes
-> representation; kinds whose relation depends on an unruled role or an unminted identity
-> remain undetermined, as built.**
+> concerned. No other relation to any other participant confers knowing. Knowing is derived on
+> read from that structure and from ruled role claims; it is never stored, never a foundation,
+> and never asserted directly — roles are asserted, knowing follows from them. It establishes
+> exactly one thing, the strength class of an evidentiary relationship whose source originates
+> from that party, for that kind: *knowing* when the kind's relation is ruled, its designated
+> participant is established, and the party stands in the relation; *not knowing* when the
+> relation is ruled and the participant established but the party does not stand in it —
+> meaning only that this is not the party the ruled relation identifies, never that the party
+> has been shown not to know; *undetermined* when the kind's relation is unruled or its
+> designated participant is not established; over a mediated chain, weakest-link. It
+> establishes nothing else: not truth, not participant establishment, not resolution, not
+> independence, not any domain consequence, and no ranking among several knowing parties.
+> Minting an identity does not make the minter knowing for the event's properties; originating
+> an utterance does not make the origin knowing for its content; originating an artefact does
+> not make the origin knowing for every kind read from it; a process is never knowing; holding
+> an artefact is custody, not knowledge. The foundation-keyed map is withdrawn as a definition
+> and survives only as the caller's stand-in for unruled kinds. Nothing in any closed slice
+> changes representation; kinds whose designated relation depends on an unruled role or an
+> unminted identity remain undetermined, as built — and no relation is manufactured to make a
+> flag derivable.**
+
+### 8a. The two doctrinal repairs, on Rob's review (2026-09-14)
+
+1. **"One of the proposition's participants" → the kind-designated participant and relation.**
+   The earlier wording could be read as *Rob relates to P somehow → Rob knows P*; the cases
+   describe `kind → designated relation → designated participant → party`. Applied in R2, §4's
+   summary and §8.
+2. **The `not_knowing` / `undetermined` boundary made explicit** (§5): ruled relation +
+   established participant + party not in the relation → `not_knowing`; unruled relation →
+   `undetermined`; participant not established → `undetermined`. `not_knowing` is *"not the party
+   the ruled relation identifies,"* never *"shown not to know."*
+
+And, on Rob's third point: **`proposition_corresponds` stays `undetermined`** — *held* is custody,
+not knowledge, and no epistemic shortcut is encoded to give the flag a value. Kn7 is marked a
+mandatory permanent regression case.
 
 **If ruled**, the build is mechanism only: a per-kind `knowing_relation` in `RULED_KINDS` for the
-kinds whose participants are built, evaluated by `derived_strength` in place of the foundation
-lookup for those kinds; the fixtures' adversarial foundation entries kept and shown not to score;
-a fixture over Kn1–Kn12 (Kn2, Kn3-world, Kn6, Kn7-payer asserted *undetermined — role kind or
-identity unruled*); no schema, no migration. **Outside it:** the role kinds · the claim identity ·
+kinds whose designated participants are built, evaluated by `derived_strength` in place of the
+foundation lookup for those kinds; the fixtures' adversarial foundation entries kept and shown
+not to score; a fixture over Kn1–Kn12 with Kn7 permanent (Kn2, Kn3-world, Kn6, Kn7-payer asserted
+*undetermined — role kind or identity unruled*; `proposition_corresponds` asserted *undetermined —
+no established relation*); no schema, no migration. **Outside it:** the role kinds · the claim identity ·
 the chain derivation · the resolver · independence · the shipped classifier.
 
 *The line: a party knows a claim by where it stands to the thing the claim is about — not by
