@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C OPENED 2026-09-15 by Rob — run to a ruling candidate (§C.7), `arises_from` interrogated and rejected as the kind, no code; awaiting Rob. Passes D–G open one at a time.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C OPENED 2026-09-15 by Rob — candidate `obligation_in_respect_of` (§C.7), `arises_from` rejected on three separate grounds (§C.3), tightened after Rob's review (§C.8: semantic floor, no reconciliation, endpoint ≠ projection, standing, no inverse, traversal ≠ derivation; "in whole or in part" dropped), no code; awaiting Rob's ruling. Passes D–G open one at a time.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -546,6 +546,10 @@ says an obligation arises from an expense, `arises_from` is already the correct 
 that is the candidate to interrogate, not the answer**; and import nothing from
 `obligation_replaces`, payment tracing, plan semantics or discharge.
 
+*Tightened 2026-09-15 after Rob's review (§C.8) — C is the first pass where the endpoint types
+carry the direction, so the record must not establish by implication what the wording leaves
+open.*
+
 ### C.1 What is already fixed
 
 | Ruling | Constraint on pass C |
@@ -561,6 +565,7 @@ that is the candidate to interrogate, not the answer**; and import nothing from
 | **Plan identity §5** | Plan's existence answers nothing about coverage — **pass E/F's**; "covered" is not this pass's word |
 | **About-ness** | `artefact_concerns(bill, X)`, `artefact_concerns(bill, O)`, `proposition_concerns(P, X)` — a document or a line concerns an identity; **neither O nor X is a document or a proposition** |
 | **Correspondence** | within one type only; O and X are never one referent |
+| **Role period** (RP2) | boundary kinds bound to *role* kinds; neither an obligation nor an expense is a role; X's occurrence is not a boundary of O |
 | **Passes A / B** | the precedent: one kind, two established participants, party-asserted, no amount, derives nothing; source words are content; **direction was semantic in both because both participants were the same type** — to be re-tested here, not carried |
 | **K8** | a referential operand is a participant: *I owe Riverbend Hospital for (the ER visit)* with X in content is the hidden-operand mistake |
 | **Prohibitions 1–12** | §1 |
@@ -581,25 +586,24 @@ that is the candidate to interrogate, not the answer**; and import nothing from
 thing: a party's statement whose referential operands are two identities.** It is not manufactured
 by a bill, an EOB, a shared utterance, a patient-responsibility figure or a consumer's need.
 
-### C.3 Interrogating `arises_from`
+### C.3 Interrogating `arises_from` — three defects, separately
 
-Ex4's phrase was a placeholder for a claim the consumers need. Taken as *semantics*, it asserts
-three things the household's sentence does not:
+Ex4's phrase was a placeholder for a claim the consumers need. Taken as *semantics*, its ordinary
+relational reading carries three implications, each rejected on its own ground:
 
-1. **Cause.** *Arises from* is genetic: O exists *because of* X. Groundwork cannot establish
-   why an obligation exists; it can hold what a party says the obligation is in respect of. A
-   causal kind would be satisfiable only by inference — the shape §10 forbade for carrier
-   transitions.
-2. **Order.** *Arises from* puts X before O. C7 (the pre-service deposit) has O minted before X
-   is incurred; C7′ has the bill fourteen months after. The claim carries no order; the language
-   does. B10's lesson in a new place: **do not let the phrase supply a temporal ontology.**
-3. **Lifecycle.** *Arises* makes X's occurrence O's beginning. O began when it was minted (and
-   the ontology holds no beginning for it beyond that); X's date of service is X's claim. Neither
-   is the other's boundary (prohibition 10).
+| Implication | What it would assert | Why it fails |
+|---|---|---|
+| **causal origin** | *O exists because X caused it* | stronger than Ex4 establishes — the household said what the debt is *for*, not why it exists; Groundwork cannot establish why an obligation exists, and a causal kind would be satisfiable only by inference, the shape §10 forbade for carrier transitions |
+| **temporal origin** | *X precedes O* | **contradicted by a case, not merely a concern**: C7 — the pre-service deposit — has O minted before X is incurred; C7′ has the bill fourteen months after. The claim carries no order; the phrase does. B10's lesson in a new place: **the phrase must not supply a temporal ontology, and `created_at` on either anchor is not consulted** |
+| **lifecycle origin** | *X begins O / O begins when X occurs* | prohibited by RP2 and prohibition 10: boundary kinds bind to role kinds; X's date of service is X's claim and is nobody's boundary; O has no beginning in the ontology beyond its minting |
 
-And it mis-reads the household. *I owe Riverbend Hospital for it* is not an origin story; it says **what the
-debt is in respect of**. That is the whole of the claim. So `arises_from` is rejected **as the
-semantic kind** (PC2 below) and kept as what it was — Ex4's placeholder, now discharged.
+**Conclusion (Rob's wording):** *`arises_from` is rejected because its ordinary relational
+reading carries causal, temporal, or lifecycle-origin implications that are not established by
+the household assertion and are contradicted or prohibited by the case set.* Not because the
+phrase merely *sounds* causal. **C7 is the decisive anti-`arises_from` case** and is a permanent
+regression. And it mis-reads the household: *I owe Riverbend Hospital for it* is not an origin story; it says
+**what the debt is in respect of** — the whole of the claim. `arises_from` is rejected as the
+semantic kind (PC2) and kept as what it was: Ex4's placeholder, now discharged.
 
 ### C.4 The cases
 
@@ -608,21 +612,25 @@ semantic kind** (PC2 below) and kept as what it was — Ex4's placeholder, now d
 | **C1 (Ex4)** | Riverbend Hospital's bill for $412 arrives. Rob: *that's the ER visit — I owe Riverbend Hospital for it.* | **three things from one act**: the bill concerns X (`artefact_concerns`); O minted (Ob2); **O in respect of X** — a claim with two established participants, asserted by Rob | the relation is not derived from the shared utterance, from the bill concerning both, or from the EOB's $412; O's amount is O's claim |
 | **C2 (Ex5)** | Kim's wellness visit: billed $250, plan paid $250, patient responsibility $0. | X; Lakeview Health's PR stance on X | **no O and no relation**; PR = $0 (or > $0) mints nothing |
 | **C3 (Ex6)** | The mortgage. | O; its claims | **no X and no relation**; nothing manufactures an incurrence for a debt |
-| **C4 (Ex7)** | One ER visit; bills from the hospital, the radiologist, the lab. Rob mints three obligations. | **three claims**: O1 in respect of X · O2 in respect of X · O3 in respect of X | no cardinality; nothing sums them to "what the visit cost"; nothing apportions X |
-| **C5** | One Riverbend Hospital account statement, one balance: the ER visit and the follow-up. Rob mints one O. | **two claims**: O in respect of X1 · O in respect of X2 — *in whole or in part* is the scope of the assertion | the relation carries no amount and no share; "how much of the balance is the follow-up" is a consumer's |
-| **C6** | Lakeview Health's EOB: patient responsibility $412 (a stance on X). Riverbend Hospital's statement: balance $450 (a stance on O). | both stances stand; the relation stands beside them | the relation **validates nothing and reconciles nothing** — O's amount ≠ X's PR is not an error the substrate sees; the four determinations are item 7 |
-| **C7** | *I owe Riverbend Hospital a $500 deposit for the surgery* — O minted from the pre-service estimate; the surgery happens next month; Rob individuates X afterwards and says the deposit was for it. | O minted first; X minted later; **O in respect of X** asserted then, `as_of` permitted | **no temporal order** — the relation does not require X to precede O; `created_at` on either anchor is not consulted; *arises from* would misdescribe this |
+| **C4 (Ex7) — one expense, several obligations** | One surgery; Rob mints the Riverbend Hospital obligation, the radiologist's, the lab's — and the CareCredit balance he financed part of it with. | **four claims**: O1 in respect of X · O2 in respect of X · O3 in respect of X · O4 in respect of X | no cardinality is *ruled*, and the case shows why none could be: the four are not merged, not duplicates (the substrate derives no correspondence candidate from a shared expense — candidate generation stays fenced), no single creditor is inferred, nothing allocates X among them, nothing sums them to "what the surgery cost" |
+| **C5 — one obligation, several expenses** | One Riverbend Hospital account statement, one balance; Rob: *that balance is the ER visit and the follow-up.* Rob mints one O. | **two claims**: O in respect of X1 · O in respect of X2 | **no allocation, no percentage, no amount split, no priority, no requirement that anything adds up, no determination that X1 and X2 jointly produced O**; "how much of the balance is the follow-up" is a consumer's — and *in respect of* asserts **no exclusivity**: being in respect of X1 says nothing against being in respect of X2 (§C.6) |
+| **C6 — the relation is not a reconciliation operator** | Lakeview Health's EOB: patient responsibility $412 (a stance on X). Riverbend Hospital's statement: balance $450 (a stance on O). Riverbend Hospital's billed charge: $1,300 (a stance on X). | all three stances stand; the relation stands beside them | **three temptations, all absent**: *O's amount = X's amount* (billed, allowed or any other) · *O's amount = X's patient responsibility* · *O's amount = a residual derived from X's figures* (billed − plan-paid, allowed − plan-paid…); O's balance ≠ X's PR is not an error the substrate sees and not a permission to compute a "corresponding obligation amount"; the four determinations are item 7 |
+| **C7** | *I owe Riverbend Hospital a $500 deposit for the surgery* — O minted from the pre-service estimate; the surgery happens next month; Rob individuates X afterwards and says the deposit was for it. | O minted first; X minted later; **O in respect of X** asserted then, `as_of` permitted | **no temporal order** — the relation does not require X to precede O; `created_at` on either anchor is not consulted; *arises from* would misdescribe this. **PERMANENT** |
 | **C7′** | A radiology bill arrives fourteen months after the visit. | O minted; O in respect of X | no timing semantics; no "late" |
-| **C8** | The CareCredit balance is for Kim's surgery (Synchrony is E; Riverbend Hospital provided). | **O in respect of X**, asserted by Rob; instrument kind *deferred-interest card* is a claim on O; provider Riverbend Hospital is a role claim on X | **no creditor / provider mirroring** — E of O need not be the provider of X (A7's role in this pass); the instrument does not change what O is in respect of; care necessity is **not derived** onto O |
-| **C9 (pass B)** | The consolidation loan O4 replaces the CareCredit O (`obligation_replaces`). | O4 replaces O is one claim; O in respect of X is another | **no transitivity across kinds**: *O4 in respect of X* is not derived; Rob may assert it |
+| **C8** | The CareCredit balance is for Kim's surgery (Synchrony is E; Riverbend Hospital provided). | **O in respect of X**, asserted by Rob; instrument kind *deferred-interest card* is a claim on O; provider Riverbend Hospital is a role claim on X | **no creditor / provider mirroring** — E of O need not be the provider of X (A7's role in this pass); the instrument does not change what O is in respect of |
+| **C9 (pass B)** | The consolidation loan O5 replaces the CareCredit O4 (`obligation_replaces`). | O5 replaces O4 is one claim; O4 in respect of X is another | **no transitivity across kinds**: *O5 in respect of X* is not derived; Rob may assert it |
 | **C10** | The EOB's reading yields *patient responsibility $412* with X as a candidates participant; Rob: *Lakeview Health's EOB for the ER visit* (`artefact_concerns`). No O yet. Later Rob mints O. | the P-world stance on X; the EOB concerns X; O minted by Rob | the EOB **mints no O and asserts no relation**; if a matcher pairs Riverbend Hospital's account number to the visit, that is a **reading-sourced candidate** for the relation, never the claim |
 | **C11** | Riverbend Hospital's bill concerns X (Rob) and concerns O (Rob). | two `artefact_concerns` claims | **the relation is not derived** from a document concerning both — a statement can concern several identities without relating them |
-| **C12** | Direction: is *X in respect of O* a different claim? | the participants are of different types: subject the obligation, object the expense, **fixed by type**; there is no second claim to read | **direction is not semantic here** — unlike A and B, where two same-type participants made *which is which* the meaning; the phrase *arises from* / *gave rise to* suggests a direction (cause, order) the claim does not carry |
+| **C12** | Direction: is *X in respect of O* a different claim? | the participants are of different types: subject the obligation, object the expense, **fixed by type**; there is no second claim to read | **direction is not semantic here** — unlike A and B, where two same-type participants made *which is which* the meaning; the phrase *arises from* / *gave rise to* suggests a direction (cause, order) the claim does not carry. See C20 for what this does *not* license |
 | **C13** | Rob: *the Riverbend Hospital balance is for the ER visit*; Kim: *no — it's for my follow-up.* | two claims: O in respect of X (Rob); O in respect of X′ (Kim) — **contested, derived** | nothing chooses; no "current attribution" |
 | **C14 (Ex11)** | Rob later: *that bill wasn't for the ER — it was the follow-up on the 20th.* | `utterance_retraction` of the utterance behind the relation claim; a new relation claim to X′ | O, X, X′ untouched; the history survives |
 | **C15** | Rob pays Riverbend Hospital $412 (a payment *toward* O — stand-in); Lakeview Health's plan "covered" the rest. | a payment claim toward O; a coverage stance about X by Lakeview Health | **the relation says nothing about payment, discharge or coverage**: paying O does not make X "paid" (pass D); *O in respect of X* does not make X covered or O's amount the patient responsibility (passes E/F) |
-| **C16** | *Bill for* · *charge for* · *responsibility for* · *balance for* · *financed* · *arising from* · *on account of*. Riverbend Hospital's statement: *for services 02/14*. | content; **Riverbend Hospital may assert the relation as a party**; from a reading it is a candidate | **not kinds** — they differ in instrument, who billed, and phrasing: claims about O, or content; the stopping rule inside the pass (A14 / B17) |
-| **C17** | Rob: *the ER visit was necessary care* (a nature claim on X). Lever protection (C3) wants to know whether O is protected. | the nature claim on X; O in respect of X | **the relation classifies nothing**: O acquires no *necessary care*, no *healthcare*, no nature; C3's reading of X's nature *through* the relation is a consumer derivation (item 7); instrument kind on O is untouched |
+| **C16** | *Bill for* · *charge for* · *responsibility for* · *balance for* · *financed* · *arising from* · *on account of*. | content | **not kinds** — they differ in instrument, who billed, and phrasing: claims about O, or content; the stopping rule inside the pass (A14 / B17) |
+| **C17 — endpoint, not projection** | Rob: *the ER visit was necessary care* (a nature claim on X); *it was on Feb 14* (a date claim on X); *Riverbend Hospital provided it* (a role claim on X). Lever protection (C3) wants to know whether O is protected. | the claims on X; O in respect of X; **a consumer may traverse the relation to reach X** | **two different statements, only the first legitimate**: (1) given O and a ruled *O in respect of X*, a consumer can identify X as an expense O is asserted to be in respect of — *by whom, and beside any competing assertion*; (2) the relation tells us the nature, necessity, date, provider or amount of O — **never**. *O in respect of X* does **not** make O medical, necessary, incurred on X's date, owed to X's provider, or equal to X's amount. Expense facts do not silently become obligation facts through the edge. C3's reading is item 7's, and it reads X, not O |
+| **C18 — the semantic floor** | *The $450 Riverbend Hospital obligation is in respect of the February 14 ER expense.* | exactly that: O is asserted as being in respect of X | the relation has **no mechanism for choosing among interpretations**: it does not establish why $450 exists, that Riverbend Hospital's bill is correct, that Lakeview Health's $412 is correct, that all $450 is attributable to X, that O is legally enforceable because of X, that O is *the* payment obligation for X, or that O is the final responsibility for X. Any of those is a further claim by a party, or a consumer's reading |
+| **C19 — provider standing** | Riverbend Hospital's statement: *for services 02/14*. Riverbend Hospital (a party) asserts *this balance is in respect of the visit*. | Riverbend Hospital **may assert the relation** — a claim with its own evidence; from a reading it is a candidate | **the standing rule**: *any party may assert the relation, provided both endpoints are already established; the party's ability to assert the relation establishes neither endpoint nor any property of either endpoint* — not X's identity, not O's, not Riverbend Hospital as creditor, not the amount, not the correctness of the bill. "Provider may assert" never becomes "provider establishes the debt" |
+| **C20 — no inverse kind** | Could a kind with subject X and object O exist — *expense has obligation* · *expense generates* · *expense is owed*? | no: there is no reverse *claim* here (C12), so a kind with the slots swapped would be **a second relation needing its own ruling**, not this one read backwards | **no inverse kind** is manufactured; and none of the three named would be this claim in another order — each asserts something else (cause, entitlement, existence) |
+| **C21 — traversal is not derivation** | A consumer wants "the underlying expense" of O for C3. | a **query over the established directed relation** — filter by `subject_obligation_id`, get every asserted X with its asserter, contested or not — is graph navigation and needs no accessor; it may run in either direction (from X to its obligations likewise) without that being an inverse kind | **a named accessor that presents as a fact** — `underlying_expense(O)` returning *one* X, choosing among several, silent about who asserted it — is a resolver and a derivation, and is not built; *the relation establishes no additional fact about the endpoint it reaches* |
 
 ### C.5 Testing the readings
 
@@ -633,14 +641,13 @@ both; C11 shows a document may concern two things without relating them; and K8 
 has two operands and PC0 cannot record it.
 
 **PC1 — one ruled kind with an obligation subject and an expense object**, meaning exactly *the
-asserting party holds that the subject obligation is, in whole or in part, in respect of the
-object expense*. Every case is representable; every "must not follow" is a non-derivation the
-substrate already refuses; C2, C3 and C11 are correctly *outside* it.
+asserting party holds that the subject obligation is in respect of the object expense* — with
+the semantic floor of §C.6 and nothing above it. Every case is representable; every "must not
+follow" is a non-derivation the substrate already refuses; C2, C3 and C11 are correctly *outside*
+it.
 
 **PC2 — `arises_from` as the ruled semantics** (O exists because of, and after, X). Rejected in
-C.3: cause is unestablishable, order is false (C7), lifecycle is imported (prohibition 10), the
-financing case (C8) fits only awkwardly, and it lets the phrase decide the kind — prohibition 1
-read backwards.
+C.3 on three separate grounds; C7 is the counterexample.
 
 **PC3 — a claim about O with X in content** (*O is for the ER visit*). Rejected by K8; C4, C5,
 C13 become indistinguishable or unstatable; nothing can reach X from O for any consumer.
@@ -659,75 +666,131 @@ takes a document or a proposition as its subject; an obligation is neither; and 
 about-ness claims exist *alongside* the relation without producing it.
 
 **PC7 — fold it into the amount** (O minted from PR; O's amount = X's PR; the relation carries
-a share). Rejected: Ob2; C6; the four determinations are item 7; the relation carries no amount.
+a share). Rejected: Ob2; C6's three temptations; C5's allocation; the four determinations are
+item 7; the relation carries no amount.
 
 **PC8 — a classification of O** (*healthcare obligation* = an obligation carrying its expense).
 Rejected by §7.7: nature is *read off the underlying expense*, not stored on the obligation;
-instrument kind is the fact on O; the relation is what makes "the underlying expense" statable
+instrument kind is the fact on O; the relation is what makes "the underlying expense" reachable
 and is not itself a classification (C17).
 
 ### C.6 What the relation is — and is not
 
-| The claim | *the subject obligation is, in whole or in part, in respect of the object expense*, as the asserting party holds |
+**The semantic floor, first.** The relation means only: **O is asserted as being in respect of
+X.** It has no mechanism for choosing among the readings the phrase could be stretched to, and it
+does **not** mean any of: *X caused O* · *X preceded O* · *X generated O* · *O is incurred because
+of X* · *O is legally owed because of X* · *O is billed for X* (a claim about O, or content) · *O is
+allocated to X* · *O is the payment obligation for X* · *O is the coverage responsibility for X* ·
+*O's amount equals X's amount, X's patient responsibility, or any residual of X's figures* · *O is
+exclusively in respect of X*. Each of those is a further claim by a party, a consumer's reading,
+or another pass's relation. The floor is the relation; nothing above it is.
+
+**"In whole or in part" — dropped.** Rob's challenge: the phrase opens an allocation door by
+implying there *is* a part. It was borrowed from A and B, where *some or all* qualified a verb
+(*counteracts*, *incurred in substitution for*) that would otherwise read as complete. *In
+respect of* is not a verb of completeness and carries no exclusivity, so the qualifier added a
+quantitative flavour without fencing anything the floor does not already fence. Multiplicity (C4,
+C5) is carried by the absence of cardinality; the absence of a share is stated in the floor.
+
+| The claim | *the subject obligation is in respect of the object expense*, as the asserting party holds — and nothing above the floor |
 |---|---|
 | **participants** | subject: the obligation · object: the expense — both **established**; no other slot |
-| **direction** | **fixed by type, not by meaning** — there is no reverse claim to distinguish; `symmetric` is false in the registry only because the slots are of different types, and the kind carries **no directional semantics** (C12) |
-| **cardinality** | none ruled: many-to-many (C4, C5) |
-| **who establishes** | any party's assertion — the household, the provider (*for services 02/14*); a reading yields **candidates only**; no figure (the EOB's PR) and no label establishes |
+| **direction** | **fixed by participant type, not by meaning** — there is no reverse claim to distinguish (C12); `symmetric` is false in the registry only because the slots differ in type; the kind carries **no directional semantics**; **no inverse kind** (C20); navigation in either direction is a query, not a relation (C21) |
+| **cardinality** | none ruled — and C4 / C5 show none could be: many-to-many, no share, no exclusivity |
+| **who establishes** | any party's assertion, **both endpoints already established** — the household, the provider (C19); the assertion establishes neither endpoint nor any property of either; a reading yields **candidates only**; no figure (the EOB's PR) and no label establishes |
 | **knowing** | `relational_knowing` **True with no designated relation → `undetermined`** — the obligor of O? the party who incurred X? E of O? none is forced by the relation (B's restraint, again) |
 | **content** | opaque — the party's wording, the portion, the instrument; never read by a derivation |
 | **`as_of`** | permitted (the date the stance is about); O's and X's dates are their own claims |
-| **derives** | **nothing**: no amount on either side (C6); no share (C5); no temporal order (C7); no beginning or ending of O; no occurrence of X; no discharge, payment or "paid" (C15); no coverage (C15); no nature, necessity or classification on O (C17); no creditor / provider mirroring (C8); no transitivity across `obligation_replaces` (C9); no minting of either endpoint |
-| **what it is not** | not the minting (C1); not about-ness (C11); not correspondence; not the insurer's stance on X (C10); not `toward` (C15); not a classification (C17); not cause, order or lifecycle (C.3) |
-| **relation to §7.7** | the tie through which *the nature of the underlying expense* becomes **readable** by C3 — the reading is item 7's; the relation grants it nothing |
+| **derives** | **nothing**: no amount, share or reconciliation on either side (C5, C6); no temporal order (C7); no beginning or ending of O; no occurrence of X; no discharge, payment or "paid" (C15); no coverage (C15); no nature, necessity, date, provider or amount projected onto O (C17); no creditor / provider mirroring (C8); no transitivity across `obligation_replaces` (C9); no correspondence candidate between obligations sharing an expense (C4); no minting of either endpoint; no single "underlying expense" (C21) |
+| **what it is not** | not the minting (C1); not about-ness (C11); not correspondence; not the insurer's stance on X (C10); not `toward` (C15); not a classification (C17); not cause, order or lifecycle (C.3); not a reconciliation operator (C6); not an inverse of anything (C20) |
+| **relation to §7.7** | the edge through which a consumer *reaches* X from O; what it reads there — nature, necessity — it reads **of X**, and item 7 decides what it may then say of O; the relation grants it nothing |
 | **name** | a working name is needed for a kind; **not** `arises_from` (C.3), not a source word (*bill*, *charge*, *responsibility*, *finance*): `obligation_in_respect_of` — the name carries no semantics beyond this table. (`obligation_owed_for` rejected: *owed* hints a status; `obligation_for` rejected: too bare to fence.) |
 
-**A note for G, recorded now so it is not lost:** pass C differs from A and B on the
-**directionality** dimension of the stopping rule — there, subject and object were semantically
-meaningful; here direction is a slot convention. Three relations, two of which share a
-property the third lacks, is early evidence *against* a common family, not for one.
+**For G — recorded now, in Rob's sharper terms.** The stopping-rule dimension C exposes is not
+"directionality" as a registry flag but **participant typing and participant-role semantics**:
+*does the relation's semantics distinguish endpoint roles independently of slot order?* In A and
+B the slots are the same type and the kind's meaning is what tells the two payments (or
+obligations) apart; in C the endpoint kinds themselves distinguish the roles and the relation
+adds no role semantics. G must compare **what makes the participants semantically different**,
+not registry flags — and three relations, two of which share a property the third lacks, is early
+evidence *against* a common family.
 
 ### C.7 Ruling candidate — pass C, for Rob
 
 > **There is exactly one obligation-to-expense relation, and it is a party's statement of what
 > an obligation is in respect of — not why it exists, not when it began, not what it costs, and
-> not what happened to it. `arises_from` is rejected as the semantic kind: it asserts cause,
-> order and lifecycle that the household's sentence does not, and Groundwork cannot establish.
-> The relation is one ruled kind, `obligation_in_respect_of`, meaning exactly that the
-> asserting party holds the subject obligation is, in whole or in part, in respect of the object
-> expense. Both participants are established identities — the obligation the subject, the
-> expense the object, a direction fixed by type and carrying no meaning; no reverse claim exists;
+> not what happened to it. `arises_from` is rejected as the semantic kind because its ordinary
+> relational reading carries causal, temporal or lifecycle-origin implications that the
+> household's assertion does not establish and the cases contradict or prohibit. The relation is
+> one ruled kind, `obligation_in_respect_of`, meaning exactly that the asserting party holds the
+> subject obligation is in respect of the object expense — and nothing above that floor: not
+> caused by, preceded by, generated by, billed for, allocated to, legally owed because of, the
+> payment obligation for, the coverage responsibility for, equal in amount to, or exclusively in
+> respect of. Both participants are established identities — the obligation the subject, the
+> expense the object, a direction fixed by participant type and carrying no meaning; no reverse
+> claim and no inverse kind exist, and a query in either direction is navigation, not a relation;
 > no cardinality is implied — an obligation may be in respect of several expenses and an expense
-> the subject of several obligations. It is established only by a party's assertion — the
-> household's, or the provider's; a reading, a matcher, a bill concerning both identities, a
-> shared minting utterance or an insurer's patient-responsibility figure yields at most a
-> candidate. Knowing for it is undetermined until a role designates the relevant participant. It
-> derives nothing: no amount or share on either side, no reconciliation of the obligation's
-> balance with the expense's patient responsibility, no temporal order between the two, no
-> beginning or ending of the obligation, no occurrence of the expense, no discharge or payment,
-> no coverage, no nature, necessity or classification on the obligation, no requirement that the
-> obligation's creditor be the expense's provider, and no transitivity across
-> `obligation_replaces`. Bill, charge, responsibility, balance, financing and their phrasings are
-> content or claims about the obligation, never kinds. Where either endpoint is absent there is
-> no relation — an expense nobody owes for and a debt for nothing incurred are each complete
-> without the other. Nothing is minted, merged or classified by the claim; what the §7.7
-> consumers read through it is theirs to derive.**
+> the subject of several obligations, with no share, allocation, sum, merge or single creditor
+> following. It is established only by a party's assertion, both endpoints already established
+> — the household's, or the provider's — and the assertion establishes neither endpoint nor any
+> property of either; a reading, a matcher, a bill concerning both identities, a shared minting
+> utterance or an insurer's patient-responsibility figure yields at most a candidate. Knowing
+> for it is undetermined until a role designates the relevant participant. It derives nothing:
+> no amount or reconciliation on either side, no temporal order, no beginning or ending of the
+> obligation, no occurrence of the expense, no discharge, payment or coverage, no nature,
+> necessity, date, provider or amount projected from the expense onto the obligation, no
+> requirement that the obligation's creditor be the expense's provider, no transitivity across
+> `obligation_replaces`, and no single "underlying expense" — a consumer may traverse the
+> established relation to its asserted endpoints, by whom and beside any competing assertion,
+> and the relation establishes no further fact about what it reaches. Bill, charge,
+> responsibility, balance, financing and their phrasings are content or claims about the
+> obligation, never kinds. Where either endpoint is absent there is no relation. Nothing is
+> minted, merged, classified or reconciled by the claim.**
 
 **If ruled, the representation is one registry entry** — `OBLIGATION_IN_RESPECT_OF: subject
 (subject_obligation_id) · object (object_expense_id) · symmetric False · reading_establishes
 False · relational_knowing True, no knowing_relation` — both slots already exist; a fixture over
-C1–C17 and the absences (no amount or share, no reconciliation, no nature on O, no
-`obligations_of_expense` / `expense_of_obligation` accessor beyond a query, no transitivity, no
-derivation from about-ness or shared provenance, no minting from PR); the expense fixture's
-*"O ↔ X NOT built"* check retired truthfully; **no schema, no migration**; and **nothing at
-family level** — pass D opens only after this is ruled.
+C1–C21 and the absences (no amount, share or reconciliation; no nature / date / provider /
+amount projected onto O; no `underlying_expense` resolver; no inverse kind; no transitivity; no
+correspondence candidate from a shared expense; no derivation from about-ness or shared
+provenance; no minting from PR); C7 permanent; the expense fixture's *"O ↔ X NOT built"* check
+retired truthfully; **no schema, no migration**; and **nothing at family level** — pass D opens
+only after this is ruled.
 
 **What pass C leaves exactly where it found it:** payment ↔ expense (D) · `toward` (D′) ·
 coverage (E/F) · the four determinations and every reconciliation (item 7) · C3's reading of
 necessity through the relation (item 7) · the role catalogue (obligor, incurred-by, provider,
-E) · the classification catalogue · the insurer's stances as P-ack-shaped claims.
+E) · the classification catalogue · the insurer's stances as P-ack-shaped claims · candidate
+generation.
 
 *The line: the visit is what happened; the debt is what is owed; that the debt is for the visit
-is what someone said about the two of them — and why, when, and how much are not in it.*
+is what someone said about the two of them — and why, when, how much, and how it divides are not
+in it.*
 
+### C.8 Rob's review, 2026-09-15 — tightened before ruling
 
+Rob's seven required tightenings and three worth-having are applied above: the three
+`arises_from` defects separated and independently justified, with C7 named decisive (§C.3) · the
+semantic floor defined and a case for it (C18, §C.6) · C6 made a three-way reconciliation test ·
+C17 split into endpoint retrieval vs projection, with the five negatives · one expense → several
+obligations (C4, now including the financing obligation) · one obligation → several expenses
+(C5) · C12 recorded for G as participant typing and role semantics · provider standing (C19) ·
+no inverse (C20) · traversal vs derivation (C21).
+
+**Two places the record departs from the review's wording, deliberately:**
+
+1. **"A consumer can identify X as *the* expense the obligation is in respect of."** The singular
+   hides a resolver. C13 and C5 give one O several asserted expenses, by different parties,
+   possibly contested. What a consumer can identify is *every X asserted, by whom, beside any
+   competing assertion* — never "the" X. C17 and C21 are worded that way, and
+   `underlying_expense(O)` returning one value is named as the thing not built.
+2. **"No `expenses_for_obligation()` unless justified as a query."** The distinction the review
+   draws — navigation vs derivation — is right, and C21 pins it; but the fence is drawn on the
+   *shape of the answer*, not on the existence of a function: a query returning every asserted
+   endpoint with its evidence is the same thing every fixture already does with a filter and is
+   neither built nor forbidden; a function that returns *one* endpoint, or hides the asserter, is
+   a derivation and is refused. This keeps the fence from being read as "no reading the
+   relation".
+
+**"In whole or in part" dropped** on Rob's challenge — the reasoning is in §C.6. The candidate
+sentence changes accordingly; the floor now carries what the qualifier was trying to.
