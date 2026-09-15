@@ -1,6 +1,6 @@
 # The role period — what is the temporal shape of a dated relation?
 
-> Status: **Queue item 5 — RULED RP2 (§7) and BUILD AUTHORISED by Rob 2026-09-14; built to exactly §5 (no schema) — see the commit for the boundary.** Item 4 is closed at
+> Status: **Queue item 5 — RULED RP2 (§7); BUILT (`1321170`, no schema); ACCEPTED and CLOSED (§8).** Item 4 is closed at
 > `6eb0623`. The party ruling fixed *roles are dated relations over parties, never parties*; the
 > domain-proposition record found that *a period-bearing claim is not representable* and fenced
 > the question — *whether a period is two coordinates on the proposition or two propositions
@@ -284,3 +284,39 @@ with their guard · a fixture of the structural discipline on stand-in role kind
 kind · no membership semantics · no temporal consumer · no resolver · no overlap policy · no
 item 6 relation work. **Item 5 — ROLE PERIOD: RP2 ACCEPTED / RULED.** Stop at that boundary;
 then item 6 addresses the relation families accumulating behind the identity rulings.
+
+---
+
+## 8. Slice accepted and closed — Rob, 2026-09-14. `1321170`, 977 green, clean tree.
+
+*The implementation matches the RP2 ruling unusually tightly; no semantic leak warrants reopening.*
+
+- **No intrinsic period** — no `effective_from/to`, interval, period table or equivalent state.
+- **Boundary = proposition** — `began` and `ended` are distinct kinds with their own provenance
+  and `created_at`; **`as_of` does the right job** — the date the boundary is about, not a
+  substitute for learned-at.
+- **Binding is structural, not semantic** — a boundary kind must identify a ruled role kind, use
+  the same participants, and be exactly `began` / `ended`; the import-time check is a good
+  additional integrity measure.
+- **No role creation · no historical rewriting (R3: the 6/30 ending learned 8/15 does not alter
+  what could truthfully be replayed as of 7/1) · no inference of the opposite boundary · no
+  resolution (two endings remain two claims; two beginnings remain representable) · no
+  interpolation (*holds at d* stays a future derivation) · retraction remains retraction (R6) ·
+  reading remains non-establishing (R11) · no role semantics smuggled (the stand-ins are the right
+  mechanism; `standin_covered_under` rules nothing) · knowing remains undetermined · legacy periods
+  untouched · the mutation suite is meaningful** — the two escaped mutations were caught by
+  strengthening the fixture, not weakening the implementation.
+- **The strongest part, architecturally:** `boundary_kinds_of(role_kind)` reads the registry rather
+  than discovering boundaries by naming convention — the temporal grammar is discoverable without
+  the registry becoming a temporal engine.
+
+**Fence recorded explicitly (Rob):** the registry's `boundary` / `of` metadata does **not** mean a
+role kind has temporal semantics merely because somebody registers it that way. It says only:
+*if this is a ruled role kind, these ruled proposition kinds are its beginning / ending boundary
+kinds.* It does not establish the role, establish a boundary claim, calculate a period, or answer
+whether the role holds at a date.
+
+**Item 5 — ROLE PERIOD: CLOSED.** RP2 implemented exactly within its authorised scope: no schema
+change · no role catalogue · no membership / enrollment semantics · no `in_effect_on` · no
+overlap resolver · no knowing rule · no item 6 relation family · no consumer derivation.
+967 → 977 is the expected increment; the tree is clean.
