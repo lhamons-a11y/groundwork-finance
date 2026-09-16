@@ -2716,3 +2716,44 @@ kinds are outside the family and correspondence is still seven per-type kinds; *
 that any member composes with another**. Three mutations, caught and restored: a typed-slot merge
 kind appears · a seventh pair appears (`expense_in_respect_of_obligation`, C's refused inverse) · a
 family resolver appears. Gate 1069 → 1083, 0 failed.
+
+### G.10 Follow-on accepted — Rob, 2026-09-16: the regression logic reviewed, not the intent
+
+*No semantic mistake in what was added.* The core test is correctly shaped — *every registry key
+containing "in_respect_of" ∈ the six ruled pairs, with exactly the ruled slots* — so the regression
+cannot silently tolerate `expense_in_respect_of_obligation` or a seventh legitimate-looking pair;
+and `3 <= len(built) <= 6` is correct because E is accepted-but-unbuilt — *"eventually six" was not
+converted into "currently six".* The three mutations attack three different architectural failures
+(typed-slot merge · a relation joining the family by name · the family becoming an executable
+mechanism), the third protecting D′.11: *family membership does not become a composition path.*
+**The section tests the family's absence, not its existence** — no base, resolver, selector,
+inverse accessor, composition helper — protecting G's negative space rather than inventing an
+implementation requirement from G.
+
+**Two limitations recorded, neither blocking:** (1) *"stated once"* is tested for presence, not
+uniqueness — a duplicated contract would pass; a documentation concern, not an ontology
+invariant, and source review establishes it is stated once. (2) The mutation set is not
+exhaustive — `symmetric = True`, `reading_establishes = True`, a `knowing_relation` are caught by
+`_violations()`'s flag checks but not independently demonstrated by a mutation; not to be
+expanded merely to raise the count. One subtle correctness noted: the cardinality check does not
+attempt `[0]` after detecting the wrong shape, so the regression does not crash on the malformed
+structure it exists to detect.
+
+**Instructions:** `RULED_PAIRS` and `FAMILY_FLAGS` stay in the smoke regression — **never
+production registry metadata**: assertions about the ruling, not a second source of ontology
+truth. *The registry implements individual ruled kinds; `s106` verifies their structural
+representation still conforms to G; neither defines what the family means.*
+
+```text
+G semantic ruling       ACCEPTED
+G registry contract     recorded
+G s106                  added
+G semantic definition   unchanged
+G composition           untouched
+D′.11                   still OPEN
+E                       accepted, unbuilt
+F                       accepted, unbuilt
+```
+
+**Item 6 closed. The next semantic frontier is item 7: consumer derivations —
+`gw 2.0/CONSUMER_DERIVATIONS.md`.**
