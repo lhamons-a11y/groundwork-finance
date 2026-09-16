@@ -2160,6 +2160,145 @@ def referent(session, thing):
     return state, sorted(component), sorted(cands)
 
 
+# ── Item 7, pass 7A: the parse dispute - a CONSUMER derivation ────────────────
+# gw 2.0/CONSUMER_DERIVATIONS.md s 7A.6, ruled 2026-09-16. The first consumer: a read-only derivation
+# over the observations of ONE artefact that reports disagreement and never resolves it. It answers
+# one question - do the readings of this artefact disagree, and about what? - and returns its answer
+# with the claims it rests on and what it could not settle.
+#
+#   established correspondence  ->  established referent / component   (referent(); never re-derived)
+#   candidate correspondence    ->  candidate grouping only
+#   no correspondence           ->  no claim that the propositions are one referent
+#
+# It CHOOSES nothing - not the latest reading, the newest parser, the majority or the household's
+# preference (the hazard audit's R4); it STORES nothing and is recomputed on every read; it COUNTS
+# readings of one referent as ONE source, never as corroboration (Pc2 / Pc9 - three readings, two
+# contents, one source); it compares readings of one artefact only - two artefacts are a source
+# question for later passes (Pd6); a person's transcription is a reading, not testimony (Pd9); a
+# retracted correspondence reads contested and the derivation stops (Pd10); an omission is not a
+# dispute and absence is not zero (Pd5); a single reading is "one observation", never "agreed" (Pd13).
+# It is STRUCTURAL - same referent + different content or kind - so its null model is a correctness
+# oracle (identical re-parse -> 0, one changed figure -> 1), never a similarity threshold.
+# It must not call anything whose purpose is to establish correspondence: candidates originate from
+# the fenced matcher / reading machinery; this reports them. It is the reading-level answer the hazard
+# audit (H4) required to exist distinctly from source-level; `resolution()` may not read past it.
+# The narrator may voice the dispute's existence and its readings, never a chosen value.
+PARSE_CONTENT_DISPUTE = 'content_dispute'
+PARSE_KIND_DISPUTE = 'kind_dispute'
+PARSE_AGREED_ONE_SOURCE = 'agreed_one_source'
+PARSE_OMISSION = 'omission'
+PARSE_SINGLE_READING = 'single_reading'
+GROUP_ESTABLISHED = 'established'
+GROUP_CANDIDATE = 'candidate'
+GROUP_CONTESTED = 'contested'
+
+
+def parse_disputes(session, artefact):
+    """The parse-dispute derivation for one artefact: a plain dict, computed on read, storing nothing.
+
+        {'artefact_id', 'observations': n readings, 'sources': 1,
+         'readings': [(reading_id, reader, read_at)],
+         'groups':   [{'state': established|candidate|contested,
+                       'propositions': [(prop_id, kind, content, reading_id)],
+                       'readings': [reading_id...], 'kinds': [...], 'contents': [...],
+                       'classification': [content_dispute | kind_dispute | agreed_one_source]}],
+         'omissions': [{'proposition': (prop_id, kind, content, reading_id),
+                        'present_in': [reading_id], 'absent_in': [reading_id...]}],
+         'classification': [single_reading] when the artefact has one observation}
+
+    A group is the established component `referent()` returns (state established / contested) or,
+    failing that, the propositions a reading-sourced `proposition_corresponds` candidate joins
+    (state candidate) - nothing else groups propositions, and nothing here establishes anything.
+    Members read from another artefact's readings are excluded from the group (a source question,
+    not this one) and reported under 'beyond_artefact' so the exclusion is visible.
+    """
+    readings = (session.query(Reading).filter(Reading.artefact_id == artefact.id)
+                .order_by(Reading.id).all())
+    reading_ids = [r.id for r in readings]
+    out = {'artefact_id': artefact.id, 'observations': len(readings), 'sources': 1,
+           'readings': [(r.id, r.reader_process if r.reader_process else ('party', r.reader_party_id), r.read_at)
+                        for r in readings],
+           'groups': [], 'omissions': [], 'classification': []}
+    if not readings:
+        return out
+    if len(readings) == 1:
+        out['classification'].append(PARSE_SINGLE_READING)
+    # every proposition observed by a reading of THIS artefact, with the reading that observed it
+    observed = {}
+    rows = (session.query(Proposition, EvidentiaryRelationship)
+            .join(EvidentiaryRelationship, EvidentiaryRelationship.proposition_id == Proposition.id)
+            .filter(EvidentiaryRelationship.reading_id.in_(reading_ids))
+            .filter(Proposition.kind != PROPOSITION_CORRESPONDS).all())
+    for prop, rel in rows:
+        observed.setdefault(prop.id, (prop, set()))[1].add(rel.reading_id)
+    if not observed:
+        return out
+    # reading-sourced correspondence candidates between observed propositions (the matcher's; reported, never made)
+    cand_edges = {}
+    for prop, rel in (session.query(Proposition, EvidentiaryRelationship)
+                      .join(EvidentiaryRelationship, EvidentiaryRelationship.proposition_id == Proposition.id)
+                      .filter(Proposition.kind == PROPOSITION_CORRESPONDS,
+                              EvidentiaryRelationship.utterance_id.is_(None)).all()):
+        a, b = prop.subject_proposition_id, prop.object_proposition_id
+        cand_edges.setdefault(a, set()).add(b)
+        cand_edges.setdefault(b, set()).add(a)
+    seen = set()
+    for pid in sorted(observed):
+        if pid in seen:
+            continue
+        prop = observed[pid][0]
+        state, component, _cands = referent(session, prop)
+        if state in (REFERENT_CORRESPONDING, REFERENT_CONTESTED):
+            members = set(component)
+            gstate = GROUP_CONTESTED if state == REFERENT_CONTESTED else GROUP_ESTABLISHED
+        else:
+            # candidate grouping: the connected component under reading-sourced candidates only
+            members, frontier = {pid}, [pid]
+            while frontier:
+                nxt = frontier.pop()
+                for other in cand_edges.get(nxt, ()):
+                    if other not in members:
+                        members.add(other)
+                        frontier.append(other)
+            gstate = GROUP_CANDIDATE
+        here = sorted(m for m in members if m in observed)
+        beyond = sorted(m for m in members if m not in observed)
+        if len(here) < 2:
+            continue                                        # a lone proposition is an omission candidate, below
+        seen |= set(here)
+        props = []
+        for m in here:
+            pr, rids = observed[m]
+            for rid in sorted(rids):
+                props.append((pr.id, pr.kind, pr.content, rid))
+        kinds = sorted({k for _, k, _, _ in props})
+        contents = sorted({c if c is not None else '' for _, _, c, _ in props})
+        rids = sorted({rid for _, _, _, rid in props})
+        classification = []
+        if len(kinds) > 1:
+            classification.append(PARSE_KIND_DISPUTE)
+        if len(contents) > 1:
+            classification.append(PARSE_CONTENT_DISPUTE)
+        if not classification:
+            classification.append(PARSE_AGREED_ONE_SOURCE)
+        group = {'state': gstate, 'propositions': props, 'readings': rids, 'kinds': kinds,
+                 'contents': contents, 'classification': classification}
+        if beyond:
+            group['beyond_artefact'] = beyond
+        out['groups'].append(group)
+    if len(readings) >= 2:
+        for pid in sorted(observed):
+            if pid in seen:
+                continue
+            pr, rids = observed[pid]
+            present = sorted(rids)
+            absent = sorted(set(reading_ids) - rids)
+            if absent:
+                out['omissions'].append({'proposition': (pr.id, pr.kind, pr.content, present[0]),
+                                         'present_in': present, 'absent_in': absent})
+    return out
+
+
 STRENGTH_KNOWING = 'knowing'
 STRENGTH_NOT_KNOWING = 'not_knowing'
 STRENGTH_UNDETERMINED = 'undetermined'

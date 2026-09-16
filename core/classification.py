@@ -373,6 +373,47 @@ def resolution(c, axis_name):
     referent, so this projection cannot either. It also assumes the ordering `_state_from`
     assumes: position stands in for evidence time, guaranteed by construction and not for
     late-arriving documents. Neither is repaired here; both are representation.
+    How the current conclusion on this axis was reached. A read-time projection of the
+    evidence chain, and deliberately nothing more.
+
+    This function does not evaluate evidence, rank sources, or compute confidence. It reads
+    the knowing evidence in order and reports the shape of the history:
+
+        resolver        the event that made the current conclusion current - the FIRST
+                        knowing event after the last disagreement. Not the most recent
+                        event: that definition was wrong on 42% of all histories to length 6.
+        kind            by the resolver's most recent prior stance on this axis - none if no
+                        source ever disagreed; superseded if the resolver had no prior stance;
+                        reaffirmation if it last stood for the current conclusion;
+                        self_reversal if it last stood against it. Exactly one prior stance
+                        or none, so exactly one kind.
+        contradictions  how many knowing events disagreed with the current conclusion. A
+                        count of history, never a confidence score.
+        post            the sources of every knowing event strictly after the resolver. All
+                        agree with the current conclusion, by construction - and the user
+                        conceding after a document overrode them lives here, not in `kind`.
+
+    Derived on every read and never stored, for the reason `strength_of` is: a stored
+    summary can drift from the record it summarises. Appending an agreeing event changes
+    neither `kind` nor `resolver` - a resolution is a fixed historical event.
+
+    Checked against every history of length 1-6 over {user, EOB} x {yes, no}: 5,460 of them.
+
+    **Domain (HAZARD_AUDIT H4).** The kinds above describe SOURCE history: each knowing event
+    is taken to be a distinct source stating its stance. That is correct for utterances and
+    for distinct documents - `self_reversal by imported_eob` when two EOBs from the insurer
+    disagree is what happened. It is NOT applicable to two readings of one artefact - one EOB
+    parsed twice - which is a parse dispute and not a source reversing itself; the record
+    cannot currently distinguish the two, because `Evidence.source` is a type and carries no
+    referent, so this projection cannot either. It also assumes the ordering `_state_from`
+    assumes: position stands in for evidence time, guaranteed by construction and not for
+    late-arriving documents. Neither is repaired here; both are representation.
+
+    Domain (HAZARD_AUDIT H4): source-history kinds over knowing events - correct where each knowing
+    event is a distinct source stance (utterances, distinct documents); NOT applicable to multiple
+    readings of one artefact, which this 1.x record cannot distinguish. The reading-level answer
+    exists in the 2.0 substrate as core.database.parse_disputes (item 7, pass 7A) - a derivation
+    this projection may not read past and never resolves.
     """
     knowing = [(e.source, e.supports) for e in evidence(c, axis_name)
                if e.source in KNOWING_SOURCES]

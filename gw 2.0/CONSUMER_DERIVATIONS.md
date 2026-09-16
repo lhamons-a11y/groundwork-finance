@@ -2,8 +2,8 @@
 
 > Status: **Queue item 7, opened by Rob 2026-09-16 after item 6 closed A–G. This record carries the
 > governing question, the discipline, the inventory of everything the record has fenced to item 7,
-> a proposed order, and runs pass 7A — the parse dispute — to a candidate. Passes 7B onward follow
-> one at a time, each after the previous ruling. No code.** The queue's own framing, carried:
+> the order (ACCEPTED by Rob 2026-09-16, §3), and pass 7A — the parse dispute — RULED (§7A.6) and built. Passes 7B onward follow
+> one at a time, each after the previous ruling and a green build; 7B is not opened until 7A's build is green.** The queue's own framing, carried:
 > *the substrate can now represent ambiguity without resolving it; consumer work becomes valuable
 > exactly then — but only after the ontology stops moving underneath it.* Items 1–6 are closed.
 > What still moves: D′.11 (composition across relation kinds — an open **constraint** every
@@ -99,7 +99,7 @@ consumer: a consumer reads candidates as candidates.
 
 ---
 
-## 3. The order — proposed, for Rob
+## 3. The order — ACCEPTED, Rob, 2026-09-16
 
 Rob's queue order (2026-09-14) stands as the spine: **parse dispute → independence → about-ness
 via correspondence → level consistency → multi-link strength → discharge → remaining →
@@ -121,6 +121,23 @@ resolver.
 Each pass: the question · what is fixed · the cases · the readings · what the derivation is and
 is not · a candidate — and, for a consumer, two things the relation passes did not need: **where
 its failure can appear** and **its null model**.
+
+**Rob's dependency note, recorded with the acceptance.** 7A must be first: before deciding
+whether evidence is independent, a consumer must know whether it is looking at multiple
+observations of one artefact / referent — otherwise 7B counts repeated parsing as
+corroboration. 7B before 7C: independence establishes the provenance relationship between
+claims; 7C then asks whether about-ness can travel through an *already-established*
+correspondence, and **7C does not turn independence into about-ness**. 7C → 7D → 7E: 7C what
+about-ness can be said through correspondence; 7D reports disagreement between levels rather than
+deciding which wins; 7E evaluates a chain whose links have known provenance — so **strength never
+becomes a shortcut around an unresolved semantic disagreement**. 7F after that: the first traversal
+of item 6's relations, before money moves, under D′.11 — *traversal does not become composition
+because a consumer happens to traverse two relations*. 7G before 7I: what economic state may be
+said of an obligation, before where amounts went when obligations change. 7H and 7J last: the
+places most tempting to manufacture a household-level answer from several legitimate lower-level
+facts. **And a boundary for the whole chain: 7E may not "solve" anything 7A–7D left unresolved —
+weak + weak + weak is not strong because there are three; candidate correspondence + a strong
+source is not established correspondence.**
 
 ---
 
@@ -234,3 +251,84 @@ importer's contract · every economic consumer.
 
 *The line: two readings of one line are one line read twice — and when they disagree, the record
 holds both and says so; which one is right is not a question a parser gets to answer.*
+
+### 7A.6 Ruling — Rob, 2026-09-16: 7A RULED as proposed; the build authorised after one wording guard
+
+*The central ruling is correct: a parse dispute is a read-only consumer derivation over
+observations of one artefact / referent; it reports disagreement; it does not resolve
+disagreement.* The strongest part: `disputed` is not made into ontology — the dispute is a
+question answered from the record, not a property attached to the proposition. Against the
+governing question — *what may it say?* the observations disagree, and precisely how; *on whose
+authority?* the readings, propositions, correspondence state and their provenance; *what may it
+not turn into fact?* a selected value, kind, established correspondence or "current"
+interpretation.
+
+**The cases, as Rob read them:** Pd1 vs Pd2 give the two states needed — *a candidate that
+these are the same line, and if it holds they disagree* vs *established as the same line, and
+they disagree* — without a dispute state in the database, and Pd1 must never upgrade candidate →
+established. Pd3 / Pd8 are the anti-majority cases: three observations, two contents, one source
+— the two `$44,000`s do not outvote the `$4,400`; **multiplicity of observation must not
+masquerade as evidentiary independence.** Pd5's omission is a classification, not a dispute —
+absence is not zero. Pd6 / Pd7 keep 7A from becoming a general-purpose conflict engine: one
+artefact, multiple readings — not artefact ↔ artefact, not assertion ↔ reading. Pd9: a
+human-produced reading remains a reading; the reader's identity does not smuggle semantic weight
+back in. Pd10: a retracted correspondence is *contested*, the consumer cannot settle whether these
+are one line, and it stops — *unresolved substrate state is an answer boundary, not an invitation
+to guess.*
+
+**The wording guard, made explicit before coding.** *"Groups of propositions that are one line"*
+risked sounding as if the consumer knew line identity. It does not:
+
+```text
+established correspondence  →  established referent / component   (referent())
+candidate correspondence    →  candidate grouping only
+no correspondence           →  no claim that the propositions are one referent
+```
+
+7A reports what follows from each state; it is **never a second correspondence mechanism** —
+exactly the wording that later becomes an innocent `[0]` or helper.
+
+**The implementation boundary, protected aggressively:** `parse_disputes` **must not call
+anything whose purpose is to establish correspondence.** It consumes established correspondence,
+candidate correspondence and `referent()`; it may never do *"these look like the same line" →
+create correspondence*. Candidates originate from the already-fenced matcher / reading machinery;
+7A merely reports them.
+
+**The `resolution()` hazard is correctly assigned to 7A** — the old failure *read history →
+latest value → call it resolved*; 7A gives *readings → correspondence state → disagreement →
+provenance → no choice*, and `resolution()` may not read past that layer. A wiring repair, not a
+new concept, as the audit classified it — and H4's boundary stands: **no resolver change**; the
+reading-level answer lives in the 2.0 substrate where the referent now exists.
+
+**The null model is a correctness oracle, not a statistical measure:** same established referent +
+same kind / content = no dispute; same referent + different content / kind = dispute; identical
+re-parse → 0, one changed figure → 1; **no `if similarity > threshold` — ever.**
+
+**Disposition — order ACCEPTED; 7A RULED; implementation authorised exactly as narrow as the
+record proposes:** one read-only consumer, no schema, no persistence, no threshold, no resolver,
+and a fixture / smoke suite whose mutations specifically attempt to make it choose. **7B is not
+opened until 7A's build is green.**
+
+#### Built — 2026-09-16
+
+`core/database.py`: `parse_disputes(session, artefact)` beside `referent()` — read-only, plain
+tuples and dicts, no ORM writes, no threshold, no cache; reads the artefact's readings and every
+proposition with reading-sourced evidence under them, groups them **only** by `referent()`'s
+established component or by reading-sourced `proposition_corresponds` candidates (the wording
+guard, executable: it calls nothing that establishes), restricts every group to this artefact's
+readings (Pd6), and classifies each group *content_dispute · kind_dispute · agreed_one_source*
+with the correspondence state *established · candidate · contested*, each proposition with its
+reading (party or process, `read_at`); reports *omission* for a proposition with no counterpart
+across ≥ 2 readings, *single_reading* for an artefact with one observation, and `sources = 1`
+always. `resolution()` (`core/classification.py`) gains one docstring paragraph — H4's mode: its
+domain unchanged, and the reading-level answer for the 2.0 substrate named as `parse_disputes`.
+Fixture `tests/test_parse_disputes_fixture.py` (Pd1–Pd14 and the absences: no `disputed` /
+`current_value` / `resolved` column or attribute, no threshold, no `resolve_dispute` /
+`latest_reading` / `majority` / `pick_reading`, no persistence, no establishing call). Smoke
+`s107_parse_disputes.py`, mutations each an attempt to make it choose or grow: the latest reading
+wins · a similarity threshold appears · agreement raises strength (`sources` counts readings) ·
+the candidate is upgraded to established · the consumer establishes correspondence itself · the
+answer is cached · two artefacts are folded into one dispute · omission read as zero. Baseline
+re-established after every undo. No schema, no migration. One escape on the first fixture run: a lone
+proposition was marked seen before the omission loop and so never reported - fixed in the derivation,
+not the check (Pd5 is the omission invariant and stays as written). Gate 1083 → 1102, 0 failed.
