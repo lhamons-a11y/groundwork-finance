@@ -2,8 +2,7 @@
 
 > Status: **Queue item 7, opened by Rob 2026-09-16 after item 6 closed A–G. This record carries the
 > governing question, the discipline, the inventory of everything the record has fenced to item 7,
-> the order (ACCEPTED by Rob 2026-09-16, §3), and pass 7A — the parse dispute — RULED (§7A.6) and built. Passes 7B onward follow
-> one at a time, each after the previous ruling and a green build; 7B is not opened until 7A's build is green.** The queue's own framing, carried:
+> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), and pass 7B — independence — OPENED 2026-09-16 as a semantic pressure test, cases first, run to a candidate (§7B.6), no code; awaiting Rob. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
 > *the substrate can now represent ambiguity without resolving it; consumer work becomes valuable
 > exactly then — but only after the ontology stops moving underneath it.* Items 1–6 are closed.
 > What still moves: D′.11 (composition across relation kinds — an open **constraint** every
@@ -332,3 +331,192 @@ answer is cached · two artefacts are folded into one dispute · omission read a
 re-established after every undo. No schema, no migration. One escape on the first fixture run: a lone
 proposition was marked seen before the omission loop and so never reported - fixed in the derivation,
 not the check (Pd5 is the omission invariant and stays as written). Gate 1083 → 1102, 0 failed.
+
+### 7A.7 Build accepted — Rob, 2026-09-16: 7A ACCEPTED / BUILT / GREEN at `f0275ec`, gate 1102
+
+*The fixture and smoke logic reviewed, not the summary.* The implementation boundary is executable,
+not documented: *one artefact → observations → established / candidate correspondence → report
+disagreement → stop*, refusing the three ways it could become ontology — it does not establish
+correspondence, does not persist a dispute, does not choose a reading. **The source inspection is
+warranted here** — normally disliked, but this is a specific *anti-mechanism* test defending
+against the consumer acquiring a second correspondence mechanism, which is part of the ruling.
+The fixture tests *the things the derivation is forbidden to become*: Pd1 / Pd2 the candidate /
+established boundary · Pd3 / Pd8 observation multiplicity ≠ evidentiary independence · Pd5 the
+absence boundary · Pd6 the one-artefact jurisdiction · Pd7 / Pd9 reading ≠ testimony · Pd10
+contested correspondence as a stopping condition, not an instruction to reinterpret the graph ·
+Pd11 recomputation · Pd14 the structural null model. Fixing the Pd5 escape in the derivation rather
+than the fixture was right — the omission invariant is the thing protected. Each of the eight
+mutations is a plausible future engineer "helpfully" extending the function, and the
+per-mutation restoration keeps the harness from polluting itself.
+
+**One observation, not touched:** the last Pd14 line checks only that the contents list has more
+than one distinct value; redundant beside the preceding assertion of `['$9,190', '$9,910']`, not
+weak. Not to be changed for aesthetics.
+
+**7A — parse dispute: ACCEPTED / BUILT / GREEN.** Not to be revisited while opening 7B unless 7B
+finds a genuine semantic contradiction — the consumer sequence must not become a recursive
+redesign of previous passes.
+
+---
+
+## Pass 7B — Independence / the one-source rule
+
+**Rob's question, verbatim:** *when two claims appear to support the same proposition, what
+establishes that their origins are independent, and what observations are insufficient to
+establish independence?* Opened as a semantic pressure test, **cases first, no `is_independent()`
+designed** — 7A has already established *three readings → one referent → one source*, and 7B
+attacks the next shortcut:
+
+```text
+different reading · different parser · different document · different channel
+· different party · different timestamp · different row
+        ↓
+therefore independent            — none of these follows from difference
+```
+
+Two things made explicit before the cases, on Rob's instruction: **independence is not a
+strength score** — 7B may say *independent · not independent · undetermined* and may never turn
+that into *two independent sources = stronger* (that would smuggle 7E into 7B); and **"independent"
+cannot mean "different database rows"** — the whole provenance work exists because two rows can
+descend from one origin.
+
+### 7B.1 What is already fixed
+
+| Ruling | Constraint on 7B |
+|---|---|
+| **C1 — origin** | the origin of a proposition is *who is knowing for it as asserted*; a party can be an origin for one proposition and a mere channel for another (the household originates *it was health* and relays *the statement says $1,925*) |
+| **C2 — channel** | the capture channel never determines origin; `USER_STATED` carrying *I saw the EOB say $412* has origin **insurer**, channel *utterance*; the shipped `distinct = {e.source}` reads channel as origin — **the defect 7B arrives at** (REPRESENTATION_CANDIDATE_MATRIX row 7: *strength can be inflated by custody, capture, report or re-read*) |
+| **C3 — mediation** | origin can be mediated by asserted links, each with its own strength; the chain is data, not a type; **weakest-link is 7E's** — 7B reads only whether each link is *established* |
+| **C4 — independence** | *between origins, for a given proposition, three-valued*: **same origin → not independent; distinct origins, both knowing for the proposition, both chains established → independent; any chain unestablished → not established.** Never *yes* from artefact count, reading count, row count or channel type; two EOBs from one insurer are two artefacts and not independent evidence; a second letter creates no relationship — *unresolved* is the default |
+| **4 → 6; K7; 7A** | readings of one referent never corroborate; two channels agreeing are not corroboration — one knowing party; `sources = 1` however many readings |
+| **Party ruling; O9** | **no party is positive**: a process contributes nothing to independence; a process cannot utter |
+| **Relational knowing** (§9, built) | knowing is derived per evidentiary relationship from a kind-designated relation to a kind-designated participant; *no ranking among several knowing parties*; a reading-sourced claim of a non-establishing kind is `undetermined` |
+| **Correspondence** (slice 4; `referent()`) | separately minted artefacts, parties or propositions established as one referent are **one**; candidates are a reason to ask, never members; a retracted correspondence reads *contested* |
+| **RA5 — fenced** | reader independence for **P-subject** (two household members independently reading one statement as two observations of *what it says*) is fenced: the independence clause is stated for propositions about the world and does not decide independence of readers with respect to what a document says; **7B leaves it exactly there** — a case is needed only if P-subject corroboration ever matters to a consumer (7D's territory if anywhere) |
+| **§1 above** | the twelve; in particular 7 (no ranking by type, channel or count) and 11 (no consumer's output read as a claim) |
+
+### 7B.2 The shortcut, interrogated — what "different" would smuggle
+
+| "Different …" | Why it does not establish independence | The case |
+|---|---|---|
+| **reading** | two readings of one artefact are two observations of one thing (7A) | In1 |
+| **parser / process** | a process contributes nothing; a re-parse by a newer parser is a reading | In1, In11 |
+| **document / artefact** | two artefacts from one origin are one origin (two EOBs from Lakeview Health); distinct artefacts are *necessary for some* independence, never sufficient | In3 |
+| **channel** | the channel is how the reading reached Groundwork, never who knows (K5: the user reporting the EOB is the insurer's origin through the user's channel) | In5 |
+| **party** | two parties repeating one underlying source are one origin through two channels; two parties who each *know* are two origins — the difference is in the **assertion's provenance**, not the party count | In5 vs In4 |
+| **timestamp / row** | recency and row identity are nothing; the same utterance evidenced twice is one origin | In2 |
+| **correspondence** | two artefacts or two parties established as corresponding are one; a *candidate* correspondence leaves independence **undetermined**, not false | In7 |
+
+What establishes independence is exactly C4's sentence and nothing weaker: **distinct origins,
+each knowing for the proposition, each chain to its origin established** — where *origin* is read
+from the assertion's provenance (C1), *knowing* from `derived_strength` (per relationship), and
+*chain* from asserted links (C3) and correspondence (one referent = one origin). Everything else
+is *not independent* (same origin) or *undetermined* (a chain or an origin not established).
+
+### 7B.3 The cases
+
+| # | Case | What the derivation must say | What it must never do |
+|---|---|---|---|
+| **In1 — same artefact, different readings** | Lakeview Health's EOB parsed twice; both readings yield *patient responsibility $412* (7A: agreed, one source). | **not independent** — one artefact, one origin (Lakeview Health), two observations | count readings; count parsers |
+| **In2 — same origin, duplicated evidence** | Rob's utterance *the visit was Feb 14* is evidenced against the proposition twice (two evidence rows, one utterance); or Rob says it again in September (a second utterance, same origin). | **not independent** — one origin (Rob), whether one utterance twice or two utterances | count rows; count utterances; read recency |
+| **In3 — same origin through two artefacts** | Two EOBs from Lakeview Health for one claim (the original and the corrected reprocessing), both *patient responsibility $412*. | **not independent** — two artefacts, one origin; the artefacts' `artefact_origin` claims both resolve to Lakeview Health | count artefacts; treat *distinct documents* as sufficient |
+| **In4 — two genuinely different origins agreeing** | Rob: *we took Kim to the ER on Feb 14* (origin Rob — he was there); Riverbend Hospital's bill: *date of service 02/14/2026* (origin Riverbend Hospital — it served). One proposition (X's date of service), two origins, both knowing, both chains established (Rob's utterance is its own chain; Riverbend Hospital's bill has `artefact_origin` established). | **independent** — and that is the *whole* answer: no score, no "corroborated ×2" | raise a strength; count to two; rank Rob vs Riverbend Hospital |
+| **In5 — two parties repeating one source** | Rob: *the EOB says $412*; Kim: *yes, $412 — I read the same EOB.* Both utterances carry the chain *the EOB says*. | **not independent** — one origin (Lakeview Health), two channels (two utterances); C2 exactly, K5's inflation refused | count parties; treat *two household members agree* as two origins |
+| **In5′ — the same two parties, each from their own knowledge** | Rob: *Kim's copay was $30 — I paid it*; Kim: *it was $30 — I was at the desk.* No chain to a document; each asserts as origin. | **independent** — two origins, each knowing for what they each did / saw | conflate with In5 because the parties are the same two people: **origin is read from the assertion's provenance, never guessed from who is speaking** |
+| **In6 — a process vs a party** | The classifier proposes *health* (reading-sourced, MCC 5912); Rob asserts *health*. | **not established** with respect to the process — a process is not an origin and contributes nothing; the only origin is Rob; there is nothing for Rob's claim to be independent *of* | count the process; treat agreement as corroboration |
+| **In7 — correspondence chains connecting origins** | (a) Two artefacts later established as one (X1: one EOB uploaded twice) — In3's two become one artefact. (b) Two parties *Lakeview Health* and *Lakeview Health Health Inc.* established as `party_corresponds`. (c) The same, but the correspondence is only a **candidate**. | (a) not independent (one artefact); (b) not independent (one origin); **(c) undetermined** — a candidate that they are one origin means independence is *not established*, not *false* | collapse a candidate into established; read *no correspondence claim* as *distinct origins* when the origins' identities are themselves unestablished |
+| **In8 — one origin, many downstream claims** | Lakeview Health's EOB: read twice (7A), quoted by Rob (*the EOB says $412*), transcribed by Kim (a reading by a party), imported by the pipeline (a reading by a process). Five rows. | **one origin** — every row's chain resolves to Lakeview Health; five observations / channels, one source | count five; count four; count two "kinds of source" |
+| **In9 — independence unknown, not false** | A collection letter from a party whose `artefact_origin` is only a candidate (the letter *says* it is from NewCo; nobody has asserted its origin). Its *balance $1,900* and Harbor's statement's *balance $1,900*. | **undetermined** — one chain to an origin is unestablished; not *not independent*, not *independent*: C4's third value | default to *not independent*; default to *independent* because two artefacts exist |
+| **In10 — contested provenance** | Rob retracts *that letter came from NewCo*; the origin claim is contested. | **undetermined** (contested chain) — the derivation reports the contest and stops | resolve the contest; read the retraction as *from someone else* |
+| **In11 — a process-generated observation with no origin** | The matcher's candidate; the recurring-payment draft (Pm14); the classifier's proposal — reading-sourced claims with no party behind them. | **no origin** — they are candidates, not claims by anyone; they enter no independence verdict | let a candidate be one of the "two sources" |
+| **In12 — per proposition, never per document** | Rob's utterance *I saw the EOB: patient responsibility $412, and the visit was necessary care.* Against *PR $412*: origin Lakeview Health (relayed). Against *necessary care*: origin Rob (originated). Riverbend Hospital's bill against each: *PR* — Riverbend Hospital is not knowing for the insurer's adjudication; *necessary care* — not knowing either. | for *PR $412*: Rob's utterance and the EOB are **one origin** (Lakeview Health); for *necessary care*: Rob is the origin and Riverbend Hospital's bill is **not knowing** — independence is undefined where a party is not knowing; **the same two artefacts give different answers for different propositions** | store *Rob is independent of Lakeview Health*; compute independence between documents or parties in the abstract |
+| **In13 — mediated chains (K2 / K3)** | Servicer S₁ states *Harbor received the March payment*; servicer S₂ states the same; each chain *S services O* asserted by the household. | **one origin** (E = Harbor), two mediated chains — not independent; whether each chain's link is established is 7B's; **the chain's strength is 7E's** | treat two servicers as two origins; fold weakest-link into 7B |
+| **In14 — not a score** | Three origins independently assert *date of service Feb 14*: Rob, Riverbend Hospital, Lakeview Health's EOB. | the verdict is the set of origins with their pairwise independence — three origins, three independent pairs — **and no number that means "strength"**; 7E reads this, 7B does not summarise it | emit `corroboration = 3`; emit *strong*; order the origins |
+| **In15 — the shipped defect (row 7)** | 1.x `_state_from`: `distinct = {e.source for e in supporting}`; `USER_STATED` reporting the EOB + `IMPORTED_EOB` = two. | 7B is the answer that mechanism cannot give: origin, not source type; K5's pair is **one origin** | repair by counting better; the repair is the derivation existing in the 2.0 substrate and the 1.x count being named as *channel type*, not independence (the audit's mode) |
+| **In16 (RA5) — readers of one document** | Two household members each read the statement and each transcribe *$44,000* (P-subject). | **fenced — not decided here**: for propositions about the world, one artefact is one source; whether two readers corroborate *what the document says* is RA5's question, stated for P-subject only, and stays fenced until a consumer needs it | decide it in passing |
+| **In17 — where the failure appears** | The derivation is asked about a proposition with one claim. | *one origin — independence has no second term*; distinguished from *two claims, one origin* and from *undetermined* | report "not independent" as if there were two |
+| **In18 — the null model** | A corpus in which every claim is a re-reading, quotation, transcription or import of **one** document; and a corpus of assertions by distinct knowing parties, each with an established chain. | zero independent pairs in the first; exactly the knowing-party pairs in the second — **a correctness oracle**: the derivation is structural (origin identity + knowing + chain state), not a similarity or a threshold | ship a heuristic ("different source type ⇒ probably independent") |
+
+### 7B.4 Testing the readings
+
+**IN0 — count distinct rows / artefacts / channels / source types.** The shipped defect; rejected
+by C2, C4, K5, 4 → 6, In1–In3, In5, In8.
+
+**IN1 — independence as a property of a source or document** (*Lakeview Health is independent of Riverbend Hospital*).
+Rejected by C4 and In12 — independence is per proposition; the same two artefacts give different
+answers for different propositions; and a party is an origin for one proposition and a channel
+for another (C1).
+
+**IN2 — a score** (`corroboration = n`, *strong* / *weak*). Rejected: §1.7, §1.11, In14 — 7E's
+territory, and even 7E adds nothing; 7B returns a set of origins and three-valued pairwise
+verdicts, never a number that means strength.
+
+**IN3 — "different party ⇒ independent".** Rejected by In5 vs In5′ — the difference is in the
+assertion's provenance (a chain to a document, or none), not in who is speaking.
+
+**IN4 — default unknown to false, or to true.** Rejected by In9 / In10 — C4 is three-valued
+precisely so that *not established* is reportable; defaulting either way is the resolver §1.2
+forbids.
+
+**IN5 — stored independence** (an *independent-of* relation between artefacts — the matrix's
+option (b)). Rejected: §1.1; it is a derivation over origin claims and correspondence, recomputed
+on read; a stored relation would go stale the moment a correspondence or origin claim changed.
+
+**IN6 — the candidate: a read-only derivation `independence(session, proposition)`** — for a
+proposition (or a referent of corresponding propositions, taken as one), the set of
+**origins** reached by resolving each evidentiary relationship's chain (utterance origin, or
+artefact origin through the reading, through asserted mediation links), collapsing origins and
+artefacts that are established as corresponding, marking each chain *established / candidate /
+contested / none*, marking each origin's knowing for the proposition from `derived_strength`, and
+returning, per pair of origins, **independent · not independent · undetermined** by C4's sentence —
+with processes excluded, candidates excluded, and no count, rank or score.
+
+### 7B.5 What the derivation is — and is not
+
+| **reads** | the proposition's evidentiary relationships; utterances and their origin parties; readings and their artefacts' `artefact_origin` claims; mediation links (role claims asserted between parties, as data); `referent()` over artefacts, parties and propositions; `derived_strength` per relationship |
+|---|---|
+| **returns** | `origins`: [(origin party or *unestablished*, chain state, knowing state, the rows it grounds)]; `pairs`: [(origin_a, origin_b, verdict)]; `processes`: the reading-sourced rows with no origin, listed and excluded; for a single origin, *one origin — no second term* |
+| **verdict** | **independent** iff two distinct established origins, both knowing, both chains established; **not independent** iff one origin (directly, or through established correspondence, or through a chain to the same origin); **undetermined** otherwise — a chain or an origin candidate / contested / unasserted |
+| **per** | proposition — never document, party or source in the abstract (In12) |
+| **chooses / stores / counts / ranks** | nothing — no score, no ordering, no `n_sources` |
+| **is not** | a strength (7E); a corroboration count; a resolver of contested provenance; a reader-independence rule for P-subject (RA5, fenced); a repair of `_state_from` by better counting |
+| **failure appears at** | In17 (one claim) and In9 (unknown) — the two places a false *not independent* or a false *independent* can be said; measured there |
+| **null model** | zero independent pairs over a one-document corpus; exactly the knowing-party pairs over a distinct-origin corpus (In18) — a correctness oracle |
+| **hazard arrived at** | row 7's `distinct = {e.source}` — named as *channel type*, not independence; the 2.0 derivation is the answer; the 1.x count is not repaired by counting differently (audit's mode) |
+
+### 7B.6 Ruling candidate — pass 7B, for Rob
+
+> **Independence is a three-valued derivation between origins, for one proposition, and
+> nothing weaker or stronger. Two claims are independent exactly when they resolve to two
+> distinct established origins, each knowing for the proposition, each with its chain
+> established — the origin read from the assertion's provenance, never from who is speaking, the
+> chain read from asserted links and established correspondence, the knowing read per
+> relationship. They are not independent when they resolve to one origin — through one
+> artefact, through two artefacts of one origin, through two channels of one source, through a
+> duplicated utterance, through two mediated chains to one entitled party, or through a
+> correspondence a party established. And independence is undetermined — never defaulted to
+> either answer — when a chain or an origin is a candidate, contested or unasserted. Difference
+> establishes nothing: not a different reading, parser, document, channel, party, timestamp or
+> row. A process is not an origin and contributes nothing; a candidate is not a claim by anyone.
+> The verdict is a set of origins and their pairwise states, never a count, a rank, a score or a
+> strength — three independent origins are three independent pairs and no number; what a
+> consumer may make of independent origins is 7E's question and is not answered here.
+> Independence is never a property of a document, a source or a party: the same two artefacts
+> are one origin for one proposition and, for another, one knowing party and one that is not.
+> Reader independence for what a document says remains fenced. Nothing is stored; nothing is
+> resolved; the 1.x count of distinct source types is named as what it is — a count of channel
+> types — and is not repaired by counting differently.**
+
+**If ruled, the build is one read-only function** — `independence(session, proposition)` beside
+`parse_disputes`, plain structures; a fixture over In1–In18 with the absences (no `n_sources` /
+`corroboration` / `independent_of` column or helper, no score, no default, no ranking, no
+stored relation, no process counted); a smoke section whose mutations each try to *count*
+(rows, artefacts, parties, channels, processes), to *default* unknown to an answer, to *score*,
+or to *store*; **no schema, no migration; 7C not opened until it is green.**
+
+**What pass 7B leaves exactly where it found it:** about-ness through correspondence (7C) ·
+level consistency (7D) · strength and weakest-link (7E) · RA5 reader independence · candidate
+generation · the resolver over contested provenance.
+
+*The line: two claims are independent when two different parties each knew, and each said so in
+a way the record can trace to them — not when the same knowledge reached Groundwork twice.*
