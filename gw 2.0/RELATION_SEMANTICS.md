@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED (§D′.9), build AUTHORISED (§D′.10), built (`cf107e8`), assessed (§D′.11). Pass E OPENED 2026-09-15 by Rob — the coverage magnet interrogated (§E.2), three pairings each forced by its own case (§E.3), candidate three kinds `expense_ / obligation_ / payment_in_respect_of_plan` (§E.8), tightened (§E.9), ACCEPTED as written at `54a24a3` (§E.10), unbuilt by instruction. Pass F OPENED 2026-09-15 by Rob as the recorded order's next move — the meaning of covered-under ruled before the relation (§F.2), a party ↔ plan role with RP2's boundary kinds bound for the first time (§F.3–F.4), candidate `under_plan` + `_began` / `_ended` (§F.8), tightened (§F.9), ACCEPTED (§F.10), unbuilt. Pass G OPENED 2026-09-15 by Rob — nine kinds on the six dimensions (§G.1): three shapes, one family — the six in-respect-of kinds share every stopping-rule dimension and differ only in slot types; A and B two singletons sharing a shape; F a singleton role; representation stays per-pair as correspondence's (a typed-slot merge would rule three refused pairs by accident, §G.4); the registry is the common abstraction and is empty (§G.5); composition untouched (§G.6); candidate §G.8, no code; awaiting Rob. D′.11 stays an open constraint.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED (§D′.9), build AUTHORISED (§D′.10), built (`cf107e8`), assessed (§D′.11). Pass E OPENED 2026-09-15 by Rob — the coverage magnet interrogated (§E.2), three pairings each forced by its own case (§E.3), candidate three kinds `expense_ / obligation_ / payment_in_respect_of_plan` (§E.8), tightened (§E.9), ACCEPTED as written at `54a24a3` (§E.10), unbuilt by instruction. Pass F OPENED 2026-09-15 by Rob as the recorded order's next move — the meaning of covered-under ruled before the relation (§F.2), a party ↔ plan role with RP2's boundary kinds bound for the first time (§F.3–F.4), candidate `under_plan` + `_began` / `_ended` (§F.8), tightened (§F.9), ACCEPTED (§F.10), unbuilt. Pass G OPENED 2026-09-15 by Rob — nine kinds on the six dimensions (§G.1): three shapes, one family — the six in-respect-of kinds share every stopping-rule dimension and differ only in slot types; A and B two singletons sharing a shape; F a singleton role; representation stays per-pair as correspondence's (a typed-slot merge would rule three refused pairs by accident, §G.4); the registry is the common abstraction and is empty (§G.5); composition untouched (§G.6); RULED / ACCEPTED (§G.9) 2026-09-16 with the wording tightened; the two non-semantic follow-ons authorised and done (family contract stated once; `s106` structural regression). E and F stay unbuilt. D′.11 stays an open constraint. **Passes A–G complete.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -2481,10 +2481,13 @@ And the substrate beneath all nine, ruled before any of them and never given rel
 
 ### G.2 Reading the matrix — three shapes, one family
 
-**On the five stopping-rule dimensions the six "in respect of" kinds do not differ at all** —
-same establisher rule, the same floor (*the subject is asserted as being in respect of the
-object*, with the object type substituted), type-fixed direction, roles distinguished by type
-only, nothing downstream. Each pass reached that floor separately, from its own pressure, after
+**The six "in respect of" kinds have identical relational semantics after subject and object
+types are treated as parameters; their only semantic specialisation is the established type of
+each participant slot** — same establisher rule, the same floor (*the subject is asserted as being
+in respect of the object*), type-fixed direction, roles distinguished by type only, nothing
+downstream. (Not "they do not differ on any dimension": they differ in participant type, and that
+difference is itself semantically significant — C concerns an expense and E a plan; it is the
+*parameter*, not the *relation*, that differs.) Each pass reached that floor separately, from its own pressure, after
 interrogating and rejecting a source word (`arises_from`, *funds*, `toward`, *under*), and each
 recorded the parallel as a result rather than an import (§C.6, §D.6, §D′.7, §E.7). **They differ in
 exactly one thing: the pair of types filling the slots.** By the stopping rule as refined, that is
@@ -2594,10 +2597,10 @@ candidate.
 > and, until the catalogue rules another role kind on its own meaning, a singleton. The six kinds
 > `obligation_in_respect_of`, `payment_in_respect_of`, `payment_in_respect_of_obligation`,
 > `expense_in_respect_of_plan`, `obligation_in_respect_of_plan` and `payment_in_respect_of_plan`
-> do not differ on any dimension of the stopping rule — establisher, meaning, direction,
-> participant-role semantics, downstream — and differ only in the types filling their slots: they
-> are one semantic family, in respect of, whose floor is stated once and adds nothing to any
-> member. The family is represented as its members already are — six kinds, as the seven
+> have identical relational semantics — establisher, floor, direction, participant-role semantics,
+> downstream — once subject and object types are treated as parameters, their only semantic
+> specialisation being the established type of each participant slot: they are one semantic
+> family, in respect of, whose floor is stated once and adds nothing to any member. The family is represented as its members already are — six kinds, as the seven
 > correspondence kinds carry one ruled shape — because one typed-slot kind would permit the cross
 > product of its types and so rule by accident three pairs the passes refused by name, and a
 > pair guard would be new machinery to reproduce six entries while inviting the intra-kind
@@ -2624,3 +2627,92 @@ P · candidate generation · item 7 · E's and F's builds.
 *The line: six relations said the same thing about different pairs, and that is a family; two
 said different things the same way, and that is a coincidence of shape; one said something else
 entirely — and none of them, together, says anything a single one did not.*
+
+### G.9 Ruling — Rob, 2026-09-16: G ACCEPTED; the two follow-ons authorised
+
+*G is the point to be most suspicious of a convenient abstraction; the argument was gone through
+as a semantic ruling rather than accepted for the elegance of the matrix.*
+
+1. **The family result is earned.** Not that six relations look alike, but that the preceding
+   passes *independently* arrived at the same floor — *the asserting party holds the subject is in
+   respect of the object*, with the subject / object types supplying the particular relation — and
+   discovered no different establishment rule, participant role, directionality or downstream
+   consequence. The stopping rule is satisfied, not violated. The contrast with A / B holds:
+   *same structural silhouette does not make them a family.*
+2. **The six-way argument is the right objection to a generic typed kind** — to be preserved
+   carefully. A single `in_respect_of(subject_type, object_type)` with independently typed sides
+   admits a Cartesian space larger than the six ruled relations; *expense → obligation*,
+   *obligation → obligation* and *payment → payment* are not merely unbuilt combinations — their
+   meanings already belong to other rulings or were refused. **The objection is not "generic
+   abstractions are bad"; it is that this particular generic representation admits semantic
+   combinations the ontology has not licensed** — a representational space larger than the
+   semantic ontology, precisely backwards for Groundwork.
+3. **The pair guard is rightly rejected** — *one generic relation + special prohibitions +
+   type-pair restrictions* to reproduce *six independently ruled relations*, and a new mechanism
+   whose existence could be mistaken for semantic permission. *Semantic ruling → specific registry
+   kind → specific participant slots*, never *generic relation → runtime restrictions → hopefully
+   equivalent semantics*. Representation projects settled semantics; it does not manufacture them.
+4. **Wording tightened** (applied in §G.2 and §G.8): not *"do not differ on any dimension"* — they
+   differ in participant type, which is semantically significant — but ***identical relational
+   semantics after subject and object types are treated as parameters; their only semantic
+   specialisation is the established type of each participant slot.*** So nobody later asks why C
+   and E are not the same relation.
+5. **The founding fear is convincingly answered** — the most important architectural conclusion of
+   G. The substrate existed before the semantics were settled and the semantics were not derived
+   from it: `RULED_KINDS` knows slots, symmetry / direction, reading, relational knowing and
+   temporal boundaries, and nothing of counteraction, replacement, "in respect of" or membership.
+   **The abstraction remained semantically inert** — an implementation substrate, not an ontology
+   generator. The architecture need not pretend abstractions do not exist.
+6. **G does not close D′.11.** *Same family* does not imply *member A → member B*; the family is
+   a statement about semantic floor, not a traversal rule. G makes D′.11 cleaner: `payment_in_respect_of(p, X)`
+   and `obligation_in_respect_of(O, X)` both in one family still does not yield
+   `payment_in_respect_of_obligation(p, O)` — which is exactly why D′ was necessary before G.
+7. **The two follow-ons authorised**, on one condition: the fixture is a regression assertion of
+   the ruling, never the thing that defines the family. `s106` pins *exactly six in-respect-of
+   kinds · exactly these subject / object type pairs · the same permitted semantic flags · no
+   generic base kind · no family resolver · no cross-pair selector* — and **does not assert
+   "therefore they compose."**
+
+**The result, recorded:**
+
+```text
+A        singleton: payment_counteracts
+B        singleton: obligation_replaces
+
+C/D/D′/E×3
+         one semantic family
+         six distinct relation kinds
+         shared floor
+         type-specialised slots
+         no family-level derivation
+
+F        singleton role relation
+         no role-family ruling
+
+D′.11    remains OPEN
+```
+
+**The strongest architectural conclusion, and its two separate justifications:** *a common
+implementation substrate is permitted because it remained semantically inert; a common semantic
+relation is permitted for the six kinds because their individual rulings independently
+established the same floor.* G keeps them apart. No code is required for the ruling; the
+follow-ons are regression / documentation, not an opportunity to introduce a family abstraction;
+**E and F stay unbuilt exactly as they are.**
+
+#### Follow-ons done — 2026-09-16
+
+**(1) The family contract stated once**, in `core/database.py` beside the in-respect-of kinds: a
+comment block — no constant, no list, no runtime object — carrying the floor, the six ruled pairs
+(three built, three accepted and unbuilt), the parameterisation wording of §G.9(4), the refused
+pairs, and the non-composition and non-inverse restatements; each member's own contract block is
+left intact (reduction was optional and would have risked the rulings' wording). **(2)
+`smoke_sections/s106_relation_family.py`**: a structural regression, not a definition — every
+in-respect-of kind in the registry is one of the six ruled pairs and no seventh exists; each has
+exactly one subject and one object slot (no typed-slot merge); the built members carry identical
+flags (`symmetric False · reading_establishes False · relational_knowing True · no
+knowing_relation`); no bare `in_respect_of`, `Relation` / `RelationBase`, family resolver,
+cross-pair selector, inverse accessor or composition helper exists; A, B and the correspondence
+kinds are outside the family and correspondence is still seven per-type kinds; **nothing asserts
+that any member composes with another**. Three mutations, caught and restored: a typed-slot merge
+kind appears · a seventh pair appears (`expense_in_respect_of_obligation`, C's refused inverse) · a
+family resolver appears. Gate 1069 → 1083, 0 failed.

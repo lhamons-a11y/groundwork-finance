@@ -1699,6 +1699,47 @@ PAYMENT_COUNTERACTS = 'payment_counteracts'
 # relation, and participation in an obligation is not an epistemic rule. Not a source word.
 OBLIGATION_REPLACES = 'obligation_replaces'
 
+# ── Item 6, pass G: THE IN-RESPECT-OF FAMILY - the contract stated once ───────
+# gw 2.0/RELATION_SEMANTICS.md s G.9, ruled 2026-09-16. Six kinds have IDENTICAL relational semantics
+# after subject and object types are treated as parameters; their only semantic specialisation is the
+# established type of each participant slot:
+#
+#     obligation_in_respect_of              obligation -> expense     (C,  built)
+#     payment_in_respect_of                 payment    -> expense     (D,  built)
+#     payment_in_respect_of_obligation      payment    -> obligation  (D', built)
+#     expense_in_respect_of_plan            expense    -> plan        (E,  accepted, unbuilt)
+#     obligation_in_respect_of_plan         obligation -> plan        (E,  accepted, unbuilt)
+#     payment_in_respect_of_plan            payment    -> plan        (E,  accepted, unbuilt)
+#
+# THE FLOOR, once: a member means EXACTLY *the asserting party holds that the subject is in respect
+# of the object* - both participants established (the claim mints neither); direction fixed by
+# participant type and carrying no meaning (no reverse claim, no inverse kind, navigation either way
+# a query); no cardinality (and cardinality is not allocation); established only by a party's
+# assertion with both endpoints established - a reading, matcher, label, figure or document
+# concerning both yields at most a candidate; relational_knowing True with no designated relation
+# -> undetermined; it derives NOTHING - no amount, status, discharge, coverage, direction of money,
+# temporal precedence or property projection. Each member keeps its own NOT-list beside its constant
+# (E15's "what the plan didn't cover" is not C6's reconciliation).
+#
+# The family is a shared FLOOR, not a shared PATH: members do not compose with each other or with
+# any other kind (C9, D8, D15, D'15, E15, E18, E19, F13/F14 restated, deciding nothing about the
+# open composition question D'.11); the family licenses no inverse and no coverage relation from
+# its existence. Each pass reached the floor separately after rejecting a source word
+# (arises_from, funds, toward, under); the parallel is a RESULT, and the family adds no semantics
+# to any member.
+#
+# REPRESENTATION: six kinds, as the seven correspondence kinds carry one shape (_CORRESPONDENCE_OF).
+# A single typed-slot `in_respect_of` kind is REFUSED on structure: the registry's slots are per
+# side, so one kind would permit the cross product - nine pairs - of which six are ruled and three
+# were refused by name (expense -> obligation is C's inverse; obligation -> obligation is B's
+# territory; payment -> payment is A's); a pair guard would be new machinery reproducing six
+# entries while inviting intra-kind transitivity. artefact_concerns is no precedent (fixed subject,
+# every object type ruled: its cross product IS its ruled set). The common implementation
+# abstraction is RULED_KINDS and its guards - built before any ruling, carrying none; no relation
+# base, family resolver, cross-pair selector or inverse accessor exists or is permitted.
+# smoke_sections/s106_relation_family.py pins these invariants as a regression; it does not
+# define the family, and it asserts nothing about composition.
+
 # ── Item 6, pass C: the obligation-to-expense relation ───────────────────────
 # gw 2.0/RELATION_SEMANTICS.md s C.9, ruled 2026-09-15. Ex4's `arises_from` was interrogated and
 # REJECTED as the kind: its ordinary relational reading carries causal, temporal or lifecycle-origin
