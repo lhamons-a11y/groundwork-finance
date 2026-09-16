@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED and closed (§D.10). Passes D′–G open one at a time; D′ (`toward`) next, a fresh semantic question, Rob opens.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8), no code; awaiting Rob. Passes E–G open one at a time.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -1285,3 +1285,247 @@ is exactly why it must be a separate semantic question rather than an implementa
 **D — accepted.** Build conforms to the ruled B / C-shaped relation and its explicit composition
 surface. **D′ remains unopened and carries forward as a distinct semantic question.** `ef04ddb` is a
 legitimate stopping point.
+
+---
+
+## Pass D′ — Payment ↔ Obligation: shared-X convergence, and the `toward` stand-in
+
+**Rob's question, verbatim (2026-09-15):** *What, if anything, permits a payment's relation to X and
+an obligation's relation to X to establish a payment-to-obligation relation, and what evidence
+boundary prevents shared-X convergence from manufacturing obligation identity?*
+
+Opened as a **semantic pressure test, not as "how do we derive `payment_in_respect_of` from
+`obligation_in_respect_of`"**. D established `p → X`; C established `O → X`; the tempting inference
+is *p → X + O → X ⇒ p → O* — **not a logical consequence merely because both propositions share
+the same X.** The central trap, in Rob's words: *"a payment is in respect of an obligation because
+the payment and obligation are both in respect of the same entity"* — which would collapse
+about-ness / subject identity into relation identity. Two propositions can legitimately converge
+on X without one thereby becoming a relation to the other:
+
+```text
+p ──in_respect_of──> X
+O ──in_respect_of──> X          ≠          p ──in_respect_of──> O
+```
+
+And the pass carries §2's original D′ item — `toward(p, O)` **used as a stand-in in the payment
+fixtures since Pm1 / Pm5 / Pm13, a relation used before it is ruled** — because once convergence is
+refused, the only remaining source of *p → O* is a direct assertion, and that assertion's kind has
+never been ruled. Neither D's clean *p → X* nor the fixtures' `toward` is D′'s foundation.
+
+### D′.1 What is already fixed
+
+| Ruling | Constraint on pass D′ |
+|---|---|
+| **Pass D** (§D.9) | `payment_in_respect_of(p, X)` — the asserted relationship, no funding / direction / amount / status; **no composition with toward or `obligation_in_respect_of`** (D8): *p ↔ X + O ↔ X ⇒ p → O* is refused, and its reverse; **D′ is a fresh question** |
+| **Pass C** (§C.9) | `obligation_in_respect_of(O, X)` — no composition; several obligations may be in respect of one X (C4) |
+| **Payment identity** (Pm1, Pm5, Pm13) | *toward O1* is **a claim about what the payment was for**, retractable, **does not establish discharge**; the payer may be anyone (Pm9); **S3**: a payment to the never-authorised servicer is a real payment *toward O1* by Rob's intent, no discharge; **S6**: a payment to E directly, uncredited — *toward O1*, no discharge |
+| **Acknowledgment** (K1–K8, D4) | **P-ack for a payment = discharge of that payment, by definition** — *E's stated position about a payment*, subject E, object p, `as_of`; **K6**: a cleared bank payment is no evidence of acknowledgment; **K8**: acknowledgment and balance are two propositions; E only |
+| **H2** | the ruled sequence *attached → attached/unacknowledged → E acknowledges → discharge → confirmed remaining changes*; `remaining` is an attached-payment **projection**, not discharge; moving it on attachment alone is too strong |
+| **Servicing** (S1–S7) | payee ≠ entitlement; *a payment to Y may evidence D; it never establishes D* |
+| **Obligation identity** (Ex6, Ob1) | **the mortgage has no expense** — an obligation with no X exists, and payments toward it exist (Pm1) |
+| **1.x rows** | `DebtLedgerEntry` — attached-payment records, H2's projection input; `ExpenseFundingAllocation.attached` — the household's tie of a funding event to an expense (D11), **not** to an obligation |
+| **Passes A / B** | `payment_counteracts`, `obligation_replaces` — no composition across kinds |
+| **Prohibitions 1–12**; **K8**; **D21 / C7** (*a relation's direction and participant types do not establish temporal precedence between its endpoints*) | §1; hidden operand; permanent |
+
+### D′.2 The convergence question — the case table, answered
+
+Rob's rows, each run against the rulings, with two rows added (the insurer's payment; an obligation
+with no X):
+
+| Case | p → X | O → X | p → O | Why |
+|---|---:|---:|---:|---|
+| **D′-a** payment and obligation genuinely connected — the $382 Rob paid on Riverbend Hospital's bill for the ER visit | yes | yes | **not from the two arrows** — only if Rob (or a party) asserts *p toward O* | the connection is real *because Rob says so*; the arrows say only that both concern X |
+| **D′-b** multiple obligations for X — Riverbend Hospital's O1, the radiologist's O2 (C4) | yes | yes, yes | **no** — any rule producing *p → O1* or *p → O2* **manufactures identity the premises do not contain** | the first pressure point: with two O's the derivation cannot even name its result |
+| **D′-c** payment before the obligation exists — the deposit (D21) paid before Riverbend Hospital's balance obligation is minted | yes | later yes | **no** — order adds nothing; Riverbend Hospital may later *credit* the deposit (E's stance), Rob may later assert *toward* | temporal precedence is neither for nor against (D21 / C7) |
+| **D′-d** payment satisfies something other than the obligation — **Lakeview Health pays Riverbend Hospital $568** (D18) for the ER visit; Rob's O is the $412 patient responsibility | yes | yes | **no — and a derivation would be *false***: Lakeview Health's payment is not toward Rob's obligation; Rob owes $412 regardless | the decisive counterexample: convergence produces a *wrong* p → O, not merely an unlicensed one |
+| **D′-e** X merely the common economic subject — the HSA reimbursement (D9); the $30 copay paid at the desk before any bill existed (D3) | yes | yes | **no** — the reimbursement is not toward the bill; the copay was never toward O (O is for the remainder) | shared subject, no relation |
+| **D′-f** explicit evidence identifies the obligation — Rob: *that was toward the mortgage*; Harbor's statement: *applied to loan 4471* | yes / — | yes / — | **potentially yes — from the assertion, never from the convergence**: Rob's utterance establishes; Harbor's line is a reading → a candidate; Harbor as a party may assert | the distinction Rob named: **shared semantic target** vs **identified obligation relationship** |
+| **D′-g** an obligation with no X — the mortgage (Ex6); Rob: *I paid Harbor $1,412 toward the mortgage* (Pm1) | — | — | **yes, asserted** — and there is no X to converge on | the relation is needed where convergence is impossible: D′'s Ex8 |
+
+**Answer to the question: nothing.** Shared-X convergence never establishes *p → O* — in D′-b it
+cannot name its result, in D′-d its result is false, in D′-e it is unwanted, and in D′-g the
+relation exists with no X at all. **The evidence boundary is the one every pass has drawn: a
+relation between two identities exists when a party asserts it with both as operands, and a
+reading yields at most a candidate.** Convergence is not a party and not a reading; it is two
+claims by possibly different parties about possibly different things that happen to share a
+referent.
+
+**The four things Rob separated, and where each lives:**
+
+| | What it is | Where it lives |
+|---|---|---|
+| **1. common referent** | p and O both concern X | two claims of two kinds (D, C); *nothing more* |
+| **2. economic relationship** | p actually bears on the economic obligation — reduces it, was credited, discharged some of it | **E's acknowledgment** (K-cases, D4) and item 7's `remaining` — E's stance about p, never a relation the household or the substrate makes |
+| **3. identity relationship** | evidence identifies *which* obligation p concerns | **a party's assertion with p and O as operands** — the relation D′ rules; a statement line naming the account is a candidate |
+| **4. derived relationship** | the system infers p → O from other propositions | **refused** — prohibitions 8, 11, 12; D8; D′-b / D′-d |
+
+None is silently interchangeable with another. In particular **2 ≠ 3**: E acknowledging p (2) is
+not E asserting *p is in respect of O* (3) — the acknowledgment kind has subject E and object p,
+and *which* obligation E applied it to is **not a participant of that claim** (§D′.4, a finding).
+
+### D′.3 The `toward` stand-in, interrogated
+
+Once convergence is refused, *p → O* comes only from an assertion — and the assertion's kind has
+been `toward` in every fixture since Pm1, unruled. Taken as *semantics*, *toward* carries two
+things the household's sentence may or may not mean:
+
+| Implication | What it would assert | Why it fails as the kind |
+|---|---|---|
+| **direction of money** | money went *to* the creditor, reducing O | **D′11**: Harbor refunds an escrow overage — a payment (payer Harbor, payee Rob) *in respect of the mortgage*; the household's sentence is the same shape with the money the other way; D9's lesson on D′'s own case |
+| **intent to reduce / discharge** | p was meant to pay O down | intent is the household's **content**, not the relation; S3 / S6 already separate intent from effect (*toward O1*, no discharge); the effect is E's acknowledgment (2 above) and `remaining` (item 7) — and a payment E *rejects* (returned, unapplied) was still asserted in respect of O |
+
+What survives, on D′'s own cases, is the floor the pass expected to have to fight for: **p is
+asserted as being in respect of O.** Not funded, not reduced, not applied, not discharged. That
+D′ lands on the same floor as C and D — a third time, with the third participant pairing — is a
+result for G (§D′.6); it is not why the floor was chosen.
+
+### D′.4 A finding — the acknowledgment shape has a hidden operand
+
+`acknowledged(E, p, as_of)` — the payment fixture's stand-in for D4 — has subject E and object p.
+*Which obligation E applied p to* is nowhere in it: it rides on *E is E of O* (a role) and on
+content (*applied to loan 4471*). Under K8 that is a hidden operand **when the acknowledgment is
+read as establishing p → O** — which is exactly the derivation D′ refuses. The finding is
+recorded, not fixed: the acknowledgment kind is a stand-in from the catalogue (item 7 territory);
+D′ says only that **acknowledgment evidences a candidate for *p in respect of O* and never
+establishes it**, and that when the catalogue rules acknowledgment it must decide whether O is a
+participant or content. Nothing here changes D4's shape.
+
+### D′.5 The cases
+
+| # | Case | What must be sayable | What must not follow |
+|---|---|---|---|
+| **D′1 (Pm1, Ex6)** | *I paid Harbor $1,412 on 3/3 toward the mortgage.* No expense exists. | p minted; **p in respect of O1** — a claim with two established participants, asserted by Rob | no X is manufactured; no discharge; no `remaining` moved (H2); the claim needs no convergence |
+| **D′2 (D′-a)** | The $382 on Riverbend Hospital's bill: p in respect of X (D); O in respect of X (C); Rob: *and it was toward the bill.* | three claims, three kinds | **p in respect of O is not derived from the first two** — it exists because Rob asserted it (D8's fence, now from D′'s side) |
+| **D′3 (D′-b)** | X with O1 (Riverbend Hospital) and O2 (radiologist); p in respect of X. | p → X; O1 → X; O2 → X | **no p → O1 and no p → O2** — a rule producing either manufactures identity; Rob asserts *toward O1* or nothing |
+| **D′4 (D′-c, D21)** | The deposit paid in April; the balance obligation minted in June; Riverbend Hospital's June statement credits the deposit. | p in respect of X; later O; Riverbend Hospital's *credited $500* — E's stance about p; Rob may assert p in respect of O | no p → O from order, from convergence, or from the credit; the credit is evidence (2), the assertion is (3). **PERMANENT** with D21 |
+| **D′5 (D′-d)** | Lakeview Health pays Riverbend Hospital $568 (p′); p′ in respect of X; O (Rob's $412) in respect of X. | the two claims | **p′ in respect of O is not derived — and would be false**; nothing about O changes; Rob still owes $412 |
+| **D′6 (D′-e)** | The HSA reimbursement; the $30 desk copay. | each in respect of X | neither is in respect of O; convergence with O → X produces nothing |
+| **D′7 (D′-f)** | Harbor's statement: *payment received 3/5, $1,412, applied to loan 4471.* | a reading → **a candidate** for *p in respect of O1*; E's acknowledgment claim (D4) separately; Harbor **may assert the relation as a party** | the line establishes nothing; *applied* does not derive the relation; the acknowledgment does not derive it (§D′.4) |
+| **D′8 (S3)** | Rob paid the never-authorised servicer $1,412 *toward the mortgage*. | p; payee S3 (a claim on p); **p in respect of O1** (Rob's intent as content) | no discharge; no entitlement of S3; E's acknowledgment never comes and the relation stands |
+| **D′9 (S6)** | Rob paid Harbor directly; Harbor never credited it. | p in respect of O1; the bank's *cleared*; E's acknowledgment absent | the relation does not establish discharge; `remaining` is not moved; bank-says-yes / E-says-nothing stands unchosen |
+| **D′10 — E rejects** | Harbor returns the payment as unapplied (a dated claim on p, REVERSAL C). | p in respect of O1 stands beside *returned as of d* | the relation is not withdrawn by E's rejection; no status on p or O |
+| **D′11 — money the other way** | Harbor refunds a $210 escrow overage (payer Harbor, payee Rob): *that refund was on the mortgage.* | p″ minted; **p″ in respect of O1** — the same kind | the relation carries no direction of money; *toward* would misdescribe it; O1 acquires nothing |
+| **D′12 — no cardinality, no allocation** | One cheque to Riverbend Hospital for two payment plans (O1, O2); twelve autopay payments toward one mortgage. | p → O1 · p → O2; p1..p12 → O1 | no allocation, split or order of satisfaction; no sum, no *paid down*, no `remaining` (H2 / item 7); cardinality is not allocation (D3 / D4's rule) |
+| **D′13 (Pm13)** | *That March payment wasn't for the mortgage — it was the HELOC.* | `utterance_retraction`; a new claim to O2 | p, O1, O2 untouched |
+| **D′14 — dispute** | Rob: toward the mortgage; Kim: toward the HELOC. | two claims — contested, derived | nothing chooses |
+| **D′15 — composition, both neighbours** | O3 replaces O1 (B); p in respect of O1. And: p2 counteracts p1 (A); p1 in respect of O1. | the claims as asserted | **p in respect of O3 is not derived** (the refinance payment is Rob's to assert); **p2 in respect of O1 is not derived** (either direction, D15's rule) |
+| **D′16 — vocabulary** | *toward* · *against* · *on* · *applied to* · *attached* · *for the bill* · *paid down*. | content; *attached* is the household's station name in H2's sequence — which this relation **is** | **not kinds**; *applied* is E's word (2); *paid down* is item 7's |
+| **D′17 — the semantic floor** | *The $1,412 payment was in respect of the mortgage.* | exactly that | it does not establish that p was applied · credited · discharged anything · equalled the instalment · was on time · cleared · went to the entitled party · reduced `remaining` · was the only payment that month |
+| **D′18 — direction fixed by type; no inverse** | Is *O in respect of p* a claim? | subject the payment, object the obligation, by type; no reverse claim | **no inverse kind** (`obligation_paid_by`, `obligation_receives`); navigation either way is a query; a resolver choosing *the* obligation for a payment is refused (D′3) |
+
+### D′.6 Testing the readings
+
+**PD′0 — derive p → O from convergence** (shared X; order; matching amounts; E's credit). Rejected
+on every row of §D′.2: D′3 cannot name its result, D′5's result is false, D′6's is unwanted, D′1
+has no X to converge on; prohibitions 8, 11, 12; D8 from D's side.
+
+**PD′1 — one ruled kind with a payment subject and an obligation object**, meaning exactly *the
+asserting party holds that the subject payment was in respect of the object obligation*, with the
+floor of §D′.7. Every case representable; every "must not follow" a non-derivation the substrate
+already refuses; D′5, D′6 correctly outside it.
+
+**PD′2 — `toward` as the ruled semantics** (money to the creditor, intended to reduce it).
+Rejected in §D′.3: D′11 refutes the direction; S3 / S6 / D′10 separate intent from effect; the
+effect is E's (2) and item 7's.
+
+**PD′3 — a claim about p with O in content** (*p was for the mortgage*). Rejected by K8; D′3, D′12,
+D′14 unstatable.
+
+**PD′4 — extend `payment_in_respect_of`'s object to obligations** (one kind, two typed object
+slots, as `artefact_concerns` has). **Rejected here — not on the merits, on jurisdiction**: one
+kind serving two object types *is* a decision that D and D′ share semantics, which is **G's**
+(prohibition 12). D′ records that D and D′ share subject type and floor and differ in object type
+— the mirror of C / D — and leaves the representation question to G. A distinct kind is the
+conservative representation until then.
+
+**PD′5 — fold it into acknowledgment** (E's *applied* = p → O). Rejected: different subject (E,
+not p), different establisher (E only), a discharge consequence the relation must not carry, and
+the hidden operand (§D′.4).
+
+**PD′6 — several kinds by direction or station** (`payment_toward`, `payment_refund_on`,
+`payment_attached`, `payment_applied`). Stopping rule inside the pass (D′11, D′16): direction is
+p's payer / payee claims; *attached* / *applied* are stations of two different parties — the
+household's assertion *is* attached, E's is acknowledgment. One kind survives.
+
+**PD′7 — the 1.x `DebtLedgerEntry` shape** (an attached row with an amount that moves
+`remaining`). Rejected: H2 — attachment alone moving `remaining` is the audit's finding; the row
+is the projection's input, decomposable into p + this relation + claims on p.
+
+**PD′8 — an obligation status** (*paid down*, *current*). Prohibition 7; item 7.
+
+### D′.7 What the relation is — and is not
+
+**The semantic floor.** The relation means only: **p is asserted as being in respect of O.** It
+does not mean: *p was applied to O* (E's) · *p discharged some of O* (E's, by definition) · *p
+reduced `remaining`* (item 7) · *money moved to O's creditor* (p's payee) · *p was intended to pay
+O down* (content) · *p reached the entitled party* (S3 / S6) · *p was on time, in full, or the
+instalment* · *p is the only payment in respect of O* · *O is the only obligation p is in respect
+of*. It carries no payer / payee semantics and no station: **the household's assertion of this
+relation is H2's "attached"; E's acknowledgment is a different claim by a different party.**
+
+| The claim | *the subject payment was in respect of the object obligation*, as the asserting party holds — and nothing above the floor |
+|---|---|
+| **participants** | subject: the payment · object: the obligation — both **established**; no other slot; no X required anywhere (D′1) |
+| **direction** | **fixed by participant type, not by meaning**; no reverse claim; **no inverse kind**; navigation either way a query; no resolver selecting *the* obligation (D′3) |
+| **cardinality** | none ruled; cardinality is not allocation (D′12) |
+| **who establishes** | any party's assertion, both endpoints established — the household (Pm1), the creditor (D′7), a servicer; a statement line, a matcher, E's credit or acknowledgment yields **candidates only** |
+| **knowing** | `relational_knowing` **True with no designated relation → `undetermined`** — the payer of p? E of O? the obligor? none forced |
+| **content** | opaque — *toward*, *against*, the instalment, the intent |
+| **`as_of`** | permitted |
+| **derives** | **nothing**: no discharge, application, credit or acknowledgment (D′8–D′10); no `remaining` (H2); no direction of money (D′11); no temporal order (D′4); no allocation or sum (D′12); no composition with `obligation_replaces` or `payment_counteracts` (D′15) or with D + C (D′2, D′3, D′5); no manufactured expense; no status on p or O |
+| **what it is not** | not convergence (§D′.2); not acknowledgment (§D′.4, PD′5); not the ledger row (PD′7); not `payment_in_respect_of` with a wider object (PD′4 — G's) |
+| **name** | a working name is needed; **not** `toward` (§D′.3), not *applied* / *attached* / *against*: **`payment_in_respect_of_obligation`** — distinct from D's kind by object type; the name records the mirror of C / D and asserts no family. *(If G rules that D and D′ are one kind with typed object slots, the name changes there, not here.)* |
+
+**For G — the pattern is now complete on both axes.** C and D: same floor, same object type,
+**different subject type**. D and D′: same floor, same subject type, **different object type**.
+A and B: same-typed participants where the kind's meaning distinguishes the roles. Three floors
+that read identically under participant substitution, and two that do not; whether the first
+three are one semantic family or three that happen to share a phrase is exactly the stopping
+rule's question — **inspected here, decided in G.**
+
+### D′.8 Ruling candidate — pass D′, for Rob
+
+> **Shared-X convergence establishes nothing. A payment's relation to an expense and an
+> obligation's relation to the same expense are two claims of two kinds by possibly different
+> parties, and no rule may produce a payment-to-obligation relation from them: with several
+> obligations it cannot name its result, with an insurer's payment its result is false, with a
+> reimbursement or a desk copay its result is unwanted, and with a mortgage there is no expense to
+> converge on. The evidence boundary is the one every pass has drawn — a party's assertion with
+> both identities as operands establishes; a reading, a statement line, a matcher, the creditor's
+> credit or the creditor's acknowledgment yields at most a candidate; and convergence is neither a
+> party nor a reading. Common referent, economic relationship, identity relationship and derived
+> relationship are four different things: the first is two claims, the second is the entitled
+> party's acknowledgment and item 7's remaining, the third is the relation ruled here, and the
+> fourth is refused. That relation is one ruled kind, `payment_in_respect_of_obligation`, meaning
+> exactly that the asserting party holds the subject payment was in respect of the object
+> obligation — and nothing above that floor: not applied, credited, discharged, reduced, intended,
+> on time, in full, exclusive, or moved in any direction. `toward` is rejected as the kind: it
+> asserts a direction of money a creditor's refund contradicts and an intent-to-reduce that is
+> content. Both participants are established; the payment the subject, the obligation the object,
+> a direction fixed by type; no inverse kind; no cardinality and no allocation; established only
+> by a party's assertion; knowing undetermined; deriving no discharge, no remaining, no status, no
+> temporal order, no composition with any other ruled relation. The household's assertion of it is
+> the "attached" station of the ruled acknowledgment sequence; the entitled party's acknowledgment
+> is a different claim, whose own shape — whether the obligation is its participant or its content
+> — is recorded as an open question for the catalogue and not decided here. Whether this kind and
+> `payment_in_respect_of` are one kind with typed object slots is G's question; a distinct kind is
+> the representation until G rules.**
+
+**If ruled, the representation is one registry entry** — `PAYMENT_IN_RESPECT_OF_OBLIGATION:
+subject (subject_payment_id) · object (object_obligation_id) · symmetric False ·
+reading_establishes False · relational_knowing True, no knowing_relation` — both slots exist; a
+fixture over D′1–D′18 and the absences (no convergence-derived row in any of D′2 / D′3 / D′5 / D′6;
+no resolver choosing an obligation for a payment; no discharge, application or `remaining` from
+the relation; no direction of money; no order guard; no composition with A / B / C / D; no
+`obligation_paid_by` inverse); D′4 permanent beside D21; **the payment fixture's `toward` stand-in
+retired truthfully into the ruled kind** (the one place a fixture changes shape — the stand-in was
+this relation under an unruled name); `acknowledged` **stays a stand-in**, with §D′.4's finding
+noted beside it; **no schema, no migration, nothing at family level**.
+
+**What pass D′ leaves exactly where it found it:** acknowledgment's own shape (§D′.4 — the
+catalogue's) · discharge and `remaining` (item 7) · the four determinations · `DebtLedgerEntry`
+decomposition (blocked on Person rows) · the importer contract / standing authorisation (Pm10) ·
+coverage (E / F) · the role catalogue (payer, payee, E, obligor) · G.
+
+*The line: the payment was made; the debt is owed; that the one was for the other is what someone
+said about the two of them — and that both were about the same visit is not that.*
