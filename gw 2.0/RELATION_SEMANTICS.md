@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8), no code; awaiting Rob. Passes E–G open one at a time.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED at the semantic level (§D′.9) 2026-09-15 — no convergence rule exists; build not yet authorised. Passes E–G open one at a time.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -1529,3 +1529,56 @@ coverage (E / F) · the role catalogue (payer, payee, E, obligor) · G.
 
 *The line: the payment was made; the debt is owed; that the one was for the other is what someone
 said about the two of them — and that both were about the same visit is not that.*
+
+### D′.9 Ruling — Rob, 2026-09-15: D′ closed at the semantic level
+
+*The pass did not merely say "convergence is insufficient"; it demonstrated why no derivation
+rule can safely cross that boundary.* The Lakeview Health example is decisive: *Lakeview Health's payment in respect
+of X* and *O in respect of X* converge on exactly the same X, and *Lakeview Health's payment → Rob's
+obligation* is **false** — not an epistemic weakness but a semantically unsound inference.
+
+**The identity boundary, now crisp:**
+
+```text
+C/D:   claims establish common referent
+E:     evidence can establish economic relationship
+D′:    an assertion can identify the particular obligation
+       convergence cannot manufacture that identity
+```
+
+*Convergence is neither a party nor a reading* — stronger than "not enough evidence": it says why
+convergence has **no authority** to establish the relation.
+
+**Rejecting `toward` is justified** — an important correction to what could otherwise become
+accidental ontology: repeated use as the fixture stand-in does not make it the kind. The
+separation: *p is in respect of O* — not *toward* O, not *reduced* O, not *applied to* O, not
+*caused O's balance to change*; those are consequences, content or separate evidence, never
+silently packed into the relation. The same floor surviving a third participant pairing is
+evidence for G, not a reason to decide G early.
+
+**The acknowledgment finding stays beside the ruling, unfixed** — if `acknowledged(E, p)` is used
+as though it meant *E applied p to O*, O is a hidden operand; exactly the K8 participant / content
+question that belongs in the catalogue, not patched locally. *Finding recorded; no implementation
+change.*
+
+**PD′4 is an especially important fence** — otherwise *does the relation exist?* becomes *what is
+the ontology of its object slot?* `payment_in_respect_of_obligation` is a candidate, not a
+decision; and G now has a coherent question:
+
+```text
+A/B  → same participant types, role semantics differ
+C/D  → subject type changes
+D/D′ → object type changes
+```
+
+**Disposition, verbatim:** *No convergence rule exists. Shared reference to X cannot establish
+payment → obligation. A payment-to-obligation relation requires an assertion / evidence that
+identifies the obligation; a reading may yield that assertion as a candidate, but convergence
+itself has no evidentiary authority. `toward` is rejected as the semantic kind. The
+acknowledgment participant / content issue is recorded for D4 and remains unfixed. Object-type
+jurisdiction is deferred to G.*
+
+**Implementation consequence, as specified — if / when the build is authorised:** one registry
+entry; the payment fixture's `toward` stand-in becomes the ruled relation; `acknowledged` remains
+a stand-in with its finding preserved beside it. **No E.** D′ closed at the semantic level; G has
+a well-defined family question rather than a collection of unresolved local choices.
