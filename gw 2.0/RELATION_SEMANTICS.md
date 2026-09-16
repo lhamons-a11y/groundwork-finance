@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED (§D′.9), build AUTHORISED (§D′.10), built (`cf107e8`), assessed (§D′.11). Pass E OPENED 2026-09-15 by Rob — the coverage magnet interrogated (§E.2), three pairings each forced by its own case (§E.3), candidate three kinds `expense_ / obligation_ / payment_in_respect_of_plan` (§E.8), tightened (§E.9), ACCEPTED as written at `54a24a3` (§E.10) — semantic acceptance; **no implementation from E**; F not opened; G owns the structural question.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED (§D′.9), build AUTHORISED (§D′.10), built (`cf107e8`), assessed (§D′.11). Pass E OPENED 2026-09-15 by Rob — the coverage magnet interrogated (§E.2), three pairings each forced by its own case (§E.3), candidate three kinds `expense_ / obligation_ / payment_in_respect_of_plan` (§E.8), tightened (§E.9), ACCEPTED as written at `54a24a3` (§E.10), unbuilt by instruction. Pass F OPENED 2026-09-15 by Rob as the recorded order's next move — the meaning of covered-under ruled before the relation (§F.2), a party ↔ plan role with RP2's boundary kinds bound for the first time (§F.3–F.4), candidate `covered_under` / `under_plan` (§F.8), no code; awaiting Rob. G remains; D′.11 stays an open constraint.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -2080,3 +2080,232 @@ semantics after the fact.* Nothing is to be opened opportunistically; the next m
 recorded order, with D′.11 available as a *constraint* rather than silently becoming doctrine. A
 productive stop: the known semantic surface is settled, the unresolved boundary is named, and
 there is no implementation artefact capable of accidentally answering it.
+
+---
+
+## Pass F — Covered-under / membership
+
+**The question, applied — the recorded order's next move, not an opportunistic one:** what does
+*covered under* mean? When a household member says *Kim's on my work plan*, *the baby was added
+from her birth date*, *Lakeview Health says Kim was never eligible*, what is being claimed, who can establish
+it, and what follows? Rob's framing carried from §2: **its own semantic ruling, never an automatic
+consequence of Plan + RP2** —
+
+```text
+Plan identity → meaning of covered-under → party / Plan relation → temporal boundary kinds → later consumers
+```
+
+**not** *Plan exists + temporal grammar exists → membership exists.* ROLE_PERIOD R10 carried: `Plan`
+supplies the endpoint and the `as_of` machinery and **no meaning**; PLAN_IDENTITY §8 carried: *do
+not let the existence of `Plan` pre-answer the meaning of "covered under"*; E24 carried from the
+other side: F's relation is never a carrier of plan attribution for an expense.
+
+The order inside the pass follows the arrow: §F.2 the meaning, §F.3 the relation, §F.4 the
+boundary kinds, §F.5 what consumers are left.
+
+### F.1 What is already fixed
+
+| Ruling | Constraint on pass F |
+|---|---|
+| **Plan identity** (PL2) | *a coverage arrangement the household individuates*; **membership is not smuggled onto the anchor** — not a field on `Plan`, `Person` or the expense (§8); Pl6: *Kim under P₁ from d* is a dated relation person ↔ plan, *item 5's shape with a non-party endpoint*; Pl15: a plan with no claims — **no members known is the absence of claims** |
+| **The collapsing words** (PLAN_IDENTITY §2) | coverage ② = *who is under it, when* = **this pass**; coverage ③ = whether a service is covered = the insurer's stance; benefit, authorization, responsibility, premium, accumulator — placed elsewhere |
+| **Role period** (RP2, ruled and built) | a role has no intrinsic period; *holds at d · begins at d · ends at d* are three sorts of proposition; boundary kinds are bound to a ruled role kind by registry metadata (`boundary`, `of`) under a **structural** guard — same participants, a role not a boundary, never symmetric, a reading never establishes, `as_of` required; a boundary never rewrites, implies its opposite, resolves, establishes continuous effect or creates a role; retraction ≠ ending; overlap represented, never resolved; *in effect on d* is a derivation (R9, item 7). **No role kind is ruled; the registry carries no boundary metadata** — `standin_covered_under` in the fixture *is not "covered under"* |
+| **R10 / R11 / R3 / R5 / R7** | the endpoint and grammar for *Kim is covered under the work plan* exist; the card line is P-subject (reading → candidate); T4 / T8 — Lakeview Health's *ended 6/30* learned 8/15; Lakeview Health vs household on the ending = a dispute, derived; overlap detectable, never resolved |
+| **Party reference** | roles are dated relations over parties, never parties; a party is a household `Person` or a minted party (a dependent who is not a Groundwork Person is minted under the household's utterance, as the mother was in Pm9) |
+| **Pass E** (accepted) | `expense / obligation / payment → plan` are attribution claims; **shared person ≠ plan attribution** (E24) — *Kim under P + X is Kim's ⇒ X under P* is refused; E's relations say nothing about who is a member |
+| **4b** | *eligible*, *enrolled*, *member since*, *terminated* are the insurer's dated stances and identifiers — content, evidence, propositions; the insurer mints nothing |
+| **Correspondence; about-ness; K8; prohibitions 1–12; D21 / C7** | never one referent; a card concerning Kim and P relates neither; hidden operand; §1; no temporal precedence from direction or type |
+
+### F.2 The meaning — interrogated before the relation
+
+*Kim is covered under the work plan.* Four senses hide in the sentence; three are already placed
+and refused as the meaning:
+
+| Sense | What it would assert | Where it lives |
+|---|---|---|
+| **covered** (③) | services rendered to Kim are covered — the insurer owes benefits | **the insurer's dated stances** about P's terms or about an X; **F5**: Lakeview Health's *never eligible* and its denials leave the household's *Kim is under P* standing as a claim |
+| **enrolled** | the insurer's records list Kim | **the insurer's stance / record** — *member since 01/01/2026* is P-subject content (R11); a party's assertion, including the insurer's as a party, establishes; the record does not |
+| **the subscriber** | the plan is Kim's — her employment carries it | a **different role**: who holds the arrangement (and owes the premium — E12's obligor) is not who is under it; **F10**: Rob is the subscriber, Kim a dependent, both are under P |
+| **premiums paid / in good standing** | the arrangement is current for Kim | E12's obligation and its payments; *current* is a status (prohibition 7) |
+
+What survives is the meaning the household actually asserts: **the party is one of the persons the
+arrangement is for** — the household's statement of who its coverage arrangement includes, as of a
+date. Not that anything is covered, not that the insurer agrees, not that the premium is paid, not
+that the party is the subscriber. **Plan's existence contributes the endpoint only** (R10): a plan
+with no such claims has no known members (Pl15), and a claim of this kind about a plan says nothing
+about the plan's terms, period or product.
+
+### F.3 The relation — a role, party ↔ plan
+
+**Is there a relation at all?** *Kim is on the work plan* has two referential operands — a party
+and a plan — and nothing else in the ontology can carry it: not a field on `Plan` (§8), not a field
+on `Person`, not E's relations (an expense under P is not a person under P; E24 refuses the
+inference both ways), not the insurer's record (4b), not `Plan`'s existence (R10). K8 makes it a
+two-participant claim. **It is a role in RP2's sense** — a dated relation over a party — and so
+the first *ruled* role kind.
+
+| The claim | *the subject party is one of the persons the object plan is for*, as the asserting party holds, at the date the stance is about |
+|---|---|
+| **participants** | subject: a party (a household Person's party, or a minted party — a dependent the household names) · object: the plan — both **established**; the household party as such is not "covered": persons are (F11) |
+| **direction** | fixed by type — party subject, plan object — RP2's role shape; no reverse claim; **no inverse kind** (`plan_covers_party`, `plan_members` — the magnet as a name, as in E10) |
+| **cardinality** | none: a party under several plans (R7 overlap, Pl14); a plan with several parties (F10); none is exclusive |
+| **who establishes** | any party's assertion, both endpoints established — the household (R1); **the insurer as a party** (its enrollment statement, asserted); a card, a portal, a member ID → **candidates only** (R11) |
+| **temporal sort** | the role claim is **holds at d** (R1: nothing about since when); *began* / *ended* are §F.4's kinds |
+| **knowing** | `relational_knowing` True with no designated relation → `undetermined` — the party itself? the insurer? the subscriber? none forced |
+| **content** | opaque — *dependent*, *spouse*, *via my employer*, the member ID |
+
+### F.4 The boundary kinds — RP2 applied to a ruled role for the first time
+
+*Kim's been on the work plan since January 1* · *Lakeview Health's letter: coverage ended June 30.* With a
+ruled role kind, RP2's machinery is finally bound to something real: **two boundary kinds**, each a
+proposition in its own right with `as_of` the date it is about and its own provenance and
+`created_at`, registered with `boundary = began / ended` and `of = the role kind` — the structural
+guard already built (`_registry_problems`, `_boundary_violations`) doing exactly what it was
+authorised to do and no more. The ruled temporal grammar, now with a subject:
+
+| | Kind | Meaning | Does **not** |
+|---|---|---|---|
+| holds at d | `covered_under` | the party is under the plan, as of d | imply a beginning or an ending |
+| begins at d | `covered_under_began` | the party came under the plan on d, as asserted | rewrite a prior *holds*; imply an ending; create the role (a *began* with no *holds* is a claim like any other — R12's mirror) |
+| ends at d | `covered_under_ended` | the party ceased to be under the plan on d, as asserted | imply the beginning; resolve a dispute (R5); establish that nothing was covered after d (③ is the insurer's); withdraw earlier claims (T4 / T8) |
+
+**Retraction ≠ ending, pinned again on the real kind:** retracting *Kim was covered beginning
+January 1* is about the assertion; Lakeview Health's *coverage ended June 30* is a boundary claim, not a
+retraction. And **a period is never written** — *from March to June* is two boundary claims (R2);
+*was Kim under P on 5/12?* is a derivation (R9, item 7).
+
+### F.5 The cases
+
+| # | Case | What must be sayable | What must not follow |
+|---|---|---|---|
+| **F1 (R1)** | January: *Kim is on the work plan.* Nothing about since when. | **Kim `covered_under` P**, as of the stance date — a role claim with two established participants | no beginning is implied; no ending; P's terms are not applied to Kim; nothing is covered by it |
+| **F2 (R2 / R11)** | *Kim's been on it since January 1.* The card: *Member since 01/01/2026.* | `covered_under_began`, `as_of` 2026-01-01, asserted by Rob; the card line is P-subject → a candidate for the same claim | the card establishes nothing; the insurer's *member since* is its stance; the beginning implies no ending |
+| **F3 (R3, T4 / T8)** | August 15: Lakeview Health's letter — coverage ended June 30. | `covered_under_ended`, `as_of` 2026-06-30, recorded 8/15; the *began* and *holds* claims stand; a reader asking what the record held on 7/1 sees them | **no row rewritten**; nothing about ③ follows — whether July's visit was covered is the insurer's adjudication, not this boundary's consequence |
+| **F4 (R5)** | Lakeview Health: ended 6/30; the household: it ran through December. | two `ended` claims (or an `ended` and a later `holds`), different parties | a **dispute, derived**; nothing chosen; no "current membership" |
+| **F5 — the meaning invariant** | Lakeview Health: *Kim was never eligible* — rescinds, denies every claim, refunds nothing. Rob: *she was on my plan all year.* | Rob's `covered_under` claims stand; Lakeview Health's *never eligible* is its stance — representable as a competing claim of this kind by Lakeview Health (holds-not?) or as its own stance about P and Kim | **`covered_under` remains true as asserted when the insurer denies eligibility, covers nothing and pays nothing** — the relation is the household's statement of who the arrangement is for, not the insurer's agreement (E8's role in F); nothing is unminted |
+| **F6 (R6)** | *I was wrong — Kim was never on the work plan; that was the dental.* | `utterance_retraction` of the utterance behind the claim; a new claim about the dental plan | **not an ending**; the history that it was believed survives; P and Kim untouched |
+| **F7 (R7 / Pl14)** | Kim under P₁ from 1/1; under P₂ from 7/1; no ending on P₁. Medicare + a supplement. | two `began` claims, two plans | **overlap represented, never resolved**; not tied by which row was written first; no *primary* |
+| **F8 — the newborn** | The baby, born 4/3, is added; the insurer backdates to the birth. Rob enters it 5/2. | a new party (a Person, or minted); `covered_under_began` `as_of` 2026-04-03, `created_at` 5/2 | no temporal precedence from creation order (D21 / C7 — the party may be minted after the date it came under P); nothing derives *eligible since birth* |
+| **F9 — COBRA (Pl13)** | The household leaves the employer; COBRA continues the same product. Same P or new P is the household's. | if the same P: the role continues — no claim needed, or a *holds* stance; if a new P′: `covered_under` P′ from d, `covered_under_ended` P as asserted | the substrate infers neither arm; *continuation* is the insurer's word; E16's obligation change says nothing about membership |
+| **F10 — subscriber ≠ covered** | Rob's employment carries the plan; Rob, Kim and the children are under it. | four `covered_under` claims; *subscriber* is content, or a later role kind; the premium is Rob's obligation (E12) | **the subscriber role is not this kind** and is not derived from it; being under P does not make anyone the subscriber; the obligor of the premium is not thereby "more covered" |
+| **F11 — persons, not the household** | *We're all on the Lakeview Health plan.* | one `covered_under` claim per person the household names; the household party (Rob's) is under P as Rob, not as "the household" | no household-level membership; no claim is manufactured for a person nobody named |
+| **F12 (Pl15)** | *We have a plan* — no members entered. | P with no `covered_under` claims | **no members known is the absence of claims** — not *no members*, not *Rob by default* |
+| **F13 (E24 from F's side)** | Kim under P during T; X is Kim's, incurred on d ∈ T. | the role claim; X | **nothing about X follows** — no `expense_in_respect_of_plan`, no candidate from the substrate; F is never a carrier of plan attribution |
+| **F14 — the reverse** | X is asserted in respect of P (E1); nobody has said who is under P. | E's claim | **no membership is derived** from an expense being under P — *X under P + X is Kim's ⇒ Kim under P* is convergence through X, refused as D′ refused it |
+| **F15 — the insurer asserts** | Lakeview Health's enrollment confirmation, as a party: *Kim enrolled effective 1/1.* | Lakeview Health **may assert** `covered_under_began` as a party; from a reading it is a candidate | knowing undetermined; the insurer's assertion does not outrank the household's (contest is derived) and does not establish ③ |
+| **F16 — the ex-spouse** | Rob's ex-spouse remains on the plan by court order; not a Groundwork Person. | a minted party (Pm9's shape); `covered_under` P | no Person is manufactured; the subject slot takes any established party |
+| **F17 — direction; inverse; resolver** | *P has Kim*? `plan_members(P)`? *the* plan Kim is under? | subject party, object plan — by type; a query either way | **no inverse kind, no `members_of` / `current_plan_of` accessor that selects** — with F7's overlap a selector would manufacture a choice (D′3's rule) |
+| **F18 — vocabulary** | *on the plan* · *under* · *enrolled* · *eligible* · *member* · *dependent* · *subscriber* · *active* · *terminated*. | content, or the insurer's stances, or a later role kind | **not kinds**; *active* / *terminated* are statuses (prohibition 7) — *terminated* becomes an `ended` claim only when a party asserts the ending |
+| **F19 — the floor** | *Kim is covered under the Lakeview Health plan as of March.* | exactly that | establishes nothing about coverage of any service, enrollment in the insurer's records, the subscriber, the premium, the plan's terms, a beginning, an ending, or any expense of Kim's |
+
+### F.6 Testing the readings
+
+**PF0 — membership from Plan + RP2** (*the plan exists and the temporal grammar exists, therefore
+membership exists*) — Rob's named trap. Rejected: R10 and PLAN_IDENTITY §8 by ruling; F12 (a plan
+with nobody under it); the grammar binds to a *ruled* role kind and there was none — F rules one.
+
+**PF0′ — membership from the insurer's record, the card, or the portal.** Rejected: 4b, R11 —
+readings yield candidates; the insurer as a *party* may assert (F15).
+
+**PF1 — one ruled role kind, party subject / plan object, with two bound boundary kinds**, meaning
+exactly *the subject party is one of the persons the object plan is for, as the asserting party
+holds, at the date the stance is about*. Every case representable; every "must not follow" a
+non-derivation the substrate refuses; F12, F13, F14 correctly outside.
+
+**PF2 — *covered under* as coverage ③** (Kim's services are covered). Rejected in §F.2; F5 is the
+counterexample (never eligible, nothing covered, still under P as asserted).
+
+**PF3 — membership as an attribute** (`members` on `Plan`; `plan_id` on `Person`; a membership
+table with a period). Rejected: PL2 §8, RP1 (a period never written), the anchor discipline; F7's
+overlap and F4's dispute are unrepresentable as attributes.
+
+**PF4 — several kinds by the insurer's vocabulary** (`enrolled_in`, `eligible_under`, `member_of`,
+`dependent_of`, `subscriber_of`). Stopping rule inside the pass (F18): *enrolled / eligible / member*
+differ in **whose stance** — the insurer's — not in what is claimed; *subscriber* is a **different
+role** (F10) and is left to the catalogue, not folded in; *dependent* is content. One kind.
+
+**PF5 — a claim about Kim with P in content** (*Kim is on the Lakeview Health plan*). Rejected by K8; F7 and
+F4 unstatable.
+
+**PF6 — fold it into E** (Kim's expenses under P ⇒ Kim under P; or the reverse). Rejected: F13 /
+F14 — convergence through X or through Kim, both directions, as E24 and D′ refused.
+
+**PF7 — the household as the subject.** Rejected: F11 — persons are under plans; the household party
+is Rob's party and Rob is under P as a person.
+
+### F.7 What the relation is — and is not; what consumers are left
+
+**The semantic floor.** `covered_under(party, plan)` means only: **the party is asserted to be one
+of the persons the plan is for, as of the date the stance is about.** It does not mean: *services
+are covered* · *the insurer has enrolled the party* · *the party is eligible* · *the party is the
+subscriber* · *the premium is paid* · *the arrangement is active* · *the party's expenses are under
+the plan* · *the plan's terms apply to the party* · *the party is under no other plan*. The boundary
+kinds mean only that the role began / ended on the date asserted, as asserted, and imply neither
+the opposite boundary nor anything about ③.
+
+| | `covered_under` | `covered_under_began` | `covered_under_ended` |
+|---|---|---|---|
+| **slots** | `subject_party_id` · `object_plan_id` | same | same |
+| **registry** | `symmetric False · reading_establishes False · relational_knowing True`, no `knowing_relation` | same + `boundary: 'began' · of: 'covered_under'` | same + `boundary: 'ended' · of: 'covered_under'` |
+| **`as_of`** | permitted (the date the stance is about) | **required** (the guard) | **required** |
+| **derives** | nothing (§F.2) | no ending; no prior rewrite; no role | no beginning; no resolution; no ③; no withdrawal |
+
+**Name.** The item has carried *covered-under* through R10, PLAN_IDENTITY §2 / §8, BUILD_QUEUE and
+§2 of this record as the name of **coverage ② specifically**; the household's word is *on / under
+the plan*; the insurer's are *enrolled / eligible / member*. `covered_under` is therefore not a
+source word — but it carries the magnet's syllable. **Two candidates, Rob's choice:**
+`covered_under` (continuity with every record that names the item; the floor fixes sense ②) or
+`under_plan` (the word *covered* out of the registry altogether, as `plan_covers_*` was refused in
+E10). The semantics are identical; the boundary kinds follow the role's name.
+
+**Consumers left where they are (item 7):** *in effect on d* (R9) · *who is covered today* ·
+eligibility · overlap policy · *which plan covered X* (Pl9's derivation) · coverage determination
+for any service · the subscriber role · the catalogue of the insurer's stances.
+
+**For G.** F is the first **role** kind ruled — a dated relation over a party with bound boundary
+kinds — and it is not "in respect of": its subject is a party, its meaning is membership of an
+arrangement, its temporal grammar is RP2's. Beside A / B (same-typed, role-semantic direction) and
+the six "in respect of" kinds (typed direction, attribution floors), it is a third shape. Recorded;
+not compared further here.
+
+### F.8 Ruling candidate — pass F, for Rob
+
+> **Covered-under is a role: the household's — or any party's — assertion that a party is one of
+> the persons a coverage arrangement is for, as of a date. It is not the insurer's agreement, not
+> enrollment in the insurer's records, not eligibility, not the subscriber's role, not a paid
+> premium, not an active status, and not coverage of any service — a party the insurer says was
+> never eligible, whose every claim it denied, is under the plan exactly as the household asserted.
+> It is one ruled role kind — `covered_under`, or `under_plan` if the word is to leave the registry —
+> with a party subject and a plan object, direction fixed by type, no inverse kind, no cardinality
+> (a party under several plans, a plan for several parties, overlap represented and never
+> resolved), established only by a party's assertion with both endpoints established — the
+> household, or the insurer as a party — while a card, a portal, a member ID or an enrollment
+> record yields at most a candidate; knowing undetermined. It is the first ruled role kind, and
+> RP2's temporal grammar binds to it: two boundary kinds, `_began` and `_ended`, each a proposition
+> with its own provenance and learned-at time, `as_of` the date asserted about, bound by the
+> registry's structural metadata and its existing guard; a beginning implies no ending, an ending
+> implies no beginning and rewrites nothing, retraction is not an ending, a period is never
+> written, and "in effect on d" is a derivation. It derives nothing about any expense — a person
+> under a plan attributes nothing of theirs to it, and an expense under a plan makes nobody a member
+> — and nothing about coverage, the subscriber, the premium or the plan's terms. Membership is not
+> an attribute of the plan, the person or the expense; a plan with no such claims has no known
+> members, which is not no members. Plan's existence supplied the endpoint; this ruling supplies
+> the meaning; nothing was manufactured from the two existing together.**
+
+**If ruled, the representation is three registry entries** — the role and its two boundary kinds,
+all slots existing, the boundary metadata exactly as RP2 authorised, **no schema, no migration**; a
+fixture over F1–F19 and the absences (no `members` / `plan_id` / period on any anchor; no
+`plan_members` / `current_plan_of` / `is_eligible` / `is_active` accessor; no derivation from Plan +
+grammar, from the card, from an expense, or to an expense; no subscriber kind; F5 as the meaning
+invariant; F7 overlap unresolved; F8 no order from creation; F13 / F14 both convergence directions);
+**the role-period fixture's `standin_covered_under` and its boundaries retired into the ruled kinds**
+(the one stand-in that was this relation under an unruled name — the other stand-ins, over
+obligations, stay stand-ins); the plan fixture's *membership is not built* check retired
+truthfully; **nothing at family level, no consumer.**
+
+**What pass F leaves exactly where it found it:** the subscriber role and the rest of the role
+catalogue · the insurer's stance catalogue · every consumer (R9, eligibility, overlap policy, *which
+plan covered X*) · E's build · D′.11 · G.
+
+*The line: the plan is the arrangement; who it is for is what the household says, dated; whether
+it covered anything is what the insurer says — and neither is the other.*
