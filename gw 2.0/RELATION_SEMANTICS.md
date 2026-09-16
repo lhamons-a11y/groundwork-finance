@@ -2041,3 +2041,36 @@ E does not decide:
 ```
 
 *A properly bounded pass; G owns the structural question.*
+
+### E.11 The boundary, stated — Rob, 2026-09-15 (the stopping point)
+
+*Semantically clean rather than merely implementation-clean.* Four things kept visibly separate:
+
+```text
+E:      what does expense / obligation / payment → plan mean?          CLOSED (accepted, unbuilt)
+F:      what does covered-under mean?                                  NOT OPEN
+D′.11:  what, if anything, permits composition across relation kinds?  OPEN QUESTION
+G:      what structural family / representation should the ruled
+        relations have?                                                NOT OPEN
+```
+
+**The failure mode this prevents:** using G's eventual representation to retroactively justify
+D′.11's composition semantics. *That several relations eventually look like members of an
+`in_respect_of` family cannot itself establish that they compose; conversely, that they currently
+have separate registry identities does not establish that they must remain structurally
+unrelated.*
+
+**Why D′.11 has become more significant:** E independently reproduced the same kind of boundary.
+D′ showed *payment → expense + obligation → expense ≠ payment → obligation*; E shows *person →
+plan + person → expense ≠ expense → plan* — while also establishing the legitimate direct
+relations *expense / obligation / payment → plan*. The record is accumulating examples of both
+legitimate relations and illegitimate convergence **without a general composition doctrine** —
+exactly where the system should be before the next semantic question is opened: evidence that
+composition matters, no premature generalisation of the answer.
+
+**And 1069 green does not settle D′.11.** The tests demonstrate the rulings already encoded; they
+do not turn the cross-kind composition question into a closed doctrine.
+
+**The tree is left exactly here:** E accepted · nothing built · F unopened · G unopened · D′.11
+carried as an explicit unresolved semantic question. *"G owns the structural question" identifies
+where that question belongs once the ordered work reaches it; it is not authorisation to open G.*
