@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED (§D′.9), build AUTHORISED (§D′.10), built (`cf107e8`), assessed (§D′.11). Pass E OPENED 2026-09-15 by Rob — the coverage magnet interrogated (§E.2), three pairings each forced by its own case (§E.3), candidate three kinds `expense_ / obligation_ / payment_in_respect_of_plan` (§E.8), tightened after Rob's review (§E.9: the five statements; E8 minimal-floor invariant; E24 shared person; the inverse / coverage invariant), no code; awaiting Rob's ruling. F and G remain.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED (§D′.9), build AUTHORISED (§D′.10), built (`cf107e8`), assessed (§D′.11). Pass E OPENED 2026-09-15 by Rob — the coverage magnet interrogated (§E.2), three pairings each forced by its own case (§E.3), candidate three kinds `expense_ / obligation_ / payment_in_respect_of_plan` (§E.8), tightened (§E.9), ACCEPTED as written at `54a24a3` (§E.10) — semantic acceptance; **no implementation from E**; F not opened; G owns the structural question.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -1964,3 +1964,80 @@ convergence.* With both doors closed the general invariant accumulates without a
 doctrine — *a relation must not be manufactured merely because its operands can be connected
 through a shared person, entity, date, or other contextual fact* — and that is among the most
 important things to preserve going into G.
+
+### E.10 Ruling — Rob, 2026-09-15: E ACCEPTED as written at `54a24a3`; no build from E
+
+*The tightening addressed the two places where E was most vulnerable, and did so without quietly
+turning the pressure-test findings into a new derivation doctrine. `54a24a3` closes the actual
+semantic questions raised by the pass rather than documenting that the implementation happens to
+behave correctly.*
+
+**What is settled:**
+
+1. **The floor is genuinely weaker than coverage.** E8 is the critical test — submitted under P,
+   denied, paid nothing, cash-paid, and `expense_in_respect_of_plan(X, P)` can still be true: an
+   attribution / association claim, not a disguised `covered_by`. **E5 is the necessary lower
+   boundary** — never submitted means no basis for the relation; without it *in respect of* could
+   have become "somehow associated with a plan".
+2. **The membership trap is explicitly closed.** E24 — *member → plan + person → expense ≠
+   expense → plan* — and the result is not "the implementation happens not to derive it": the
+   fixture requires **no relation and no candidate**. Fencing the candidate-generator question
+   separately is correct: E must not answer a future question about candidates because it needs to
+   establish that this substrate cannot establish the relation.
+3. **Shared-person convergence is demonstrably rejected** — the plan-domain analogue of D′. The
+   pattern is becoming clear: *A → X, B → X, therefore A → B* is not a relation rule. E24 shows it
+   with a person as the shared node; D′ with an expense. Useful pressure without prematurely
+   turning the observation into a universal composition rule.
+4. **Inverse semantics are properly fenced** — the §E.6 invariant; and E14 makes money direction
+   concrete: *household owes insurer* and *insurer owes household* are the same relational kind
+   despite opposite monetary direction, so "obligation to plan" can never become a synonym for
+   "plan owes / charges / covers obligation".
+5. **The three E relations have earned their existence independently** — each has an Ex8-shaped
+   case where it remains meaningful without the other two. G is not being asked to rescue an
+   under-specified E; G can genuinely answer *one relational family, or three distinct relations?*
+
+**Two statements the acceptance keeps apart:**
+
+> **Established by E:** these three subject / object relationships are semantically warranted by
+> independently constructed cases.
+>
+> **Not established by E:** that they constitute one relation family, compose with one another,
+> or share a generic typed relation mechanism. — G's.
+
+Nor does E establish *membership + person + date → expense_in_respect_of_plan*, or
+*expense_in_respect_of_plan → plan_covers_expense*, or *expense_in_respect_of_plan +
+obligation_in_respect_of → obligation_in_respect_of_plan* — precisely the things E demonstrated
+are not licensed.
+
+**Carried forward, not reopened:** *what exactly is the identity of P?* The plan is an object
+distinct from insurer, person, expense, obligation and document; G / document-identity work can
+determine the structural implications. E's job was to establish that when P is known, the three
+relations have legitimate floors and that contextual convergence cannot manufacture them — done.
+
+**Disposition — E: ACCEPTED.** Not to be done: another case; a change to the three candidates;
+opening F; **implementation from E.** The handoff:
+
+```text
+E establishes:
+    expense    → plan
+    obligation → plan
+    payment    → plan
+
+E rejects:
+    membership / date / person convergence
+    shared-person attribution
+    inverse-from-existence
+    coverage-from-in-respect-of
+    money-direction as relational meaning
+
+E does not decide:
+    whether the three relations are one family
+    whether / how they compose
+    typed-slot architecture
+    candidate-generation doctrine
+
+                 ↓
+                 G
+```
+
+*A properly bounded pass; G owns the structural question.*
