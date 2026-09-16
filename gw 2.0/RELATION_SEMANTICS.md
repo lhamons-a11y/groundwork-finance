@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED as written (§D.9) 2026-09-15 and built — see the commit. Passes D′–G open one at a time; D′ (`toward`) next, a fresh semantic question, Rob opens.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED and closed (§D.10). Passes D′–G open one at a time; D′ (`toward`) next, a fresh semantic question, Rob opens.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -1267,3 +1267,21 @@ relation** · the kind turns symmetric. Retired in place, truthfully: the paymen
 "only payment_corresponds and payment_counteracts are ruled on the payment slots" → plus
 `payment_in_respect_of`, `toward` still a stand-in. No schema, no migration, no family
 abstraction. Gate 1018 → 1041, 0 failed.
+
+### D.10 Build accepted and pass D closed — Rob, 2026-09-15. `ef04ddb`, 1041 green, clean tree.
+
+*The implementation stayed narrower than the semantic temptation.* One new registered relation, no
+new schema semantics · the existing slot discipline does the work, no redundant guard · the fixture
+tests the **absence** of tempting interpretations, not merely the presence of the relation · the
+obligation composition and the `payment_counteracts` composition are **explicitly executable** —
+the composition surface is concrete, not documented · the EOB's *plan paid* does not manufacture a
+payment · Lakeview Health → Riverbend Hospital establishes the relation **without inventing a household party** · the
+proposition stays deliberately non-denormalised — no `funder`, `mode`, `cleared`, `attached`,
+`confirmed`, `duplicate_of` or `source` sneaking semantic payload in · the payment fixture's
+retirement is truthful (three ruled kinds; `paid_by` / `toward` still stand-ins) · **most
+importantly, D′ remains outside the build** — that *p → O* becomes tempting once *p → X* is clean
+is exactly why it must be a separate semantic question rather than an implementation consequence.
+
+**D — accepted.** Build conforms to the ruled B / C-shaped relation and its explicit composition
+surface. **D′ remains unopened and carries forward as a distinct semantic question.** `ef04ddb` is a
+legitimate stopping point.
