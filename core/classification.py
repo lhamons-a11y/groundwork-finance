@@ -286,6 +286,10 @@ def _state_from(evidence):
         return USER_ASSERTED if latest.source == USER_STATED else IMPORTED_ATTESTED
 
     supporting = [e for e in ev if e.supports]
+    # A count of CHANNEL TYPES, not independence (REPRESENTATION_CANDIDATE_MATRIX row 7; contract
+    # C4): USER_STATED relaying the EOB and IMPORTED_EOB are one origin. Independence in the 2.0
+    # substrate is core.database.independence (item 7, pass 7B) - between origins, per proposition,
+    # three-valued; this 1.x count is named, not repaired by counting differently.
     distinct = {e.source for e in supporting}
     if len(distinct) >= 2:
         return CORROBORATED

@@ -2,7 +2,7 @@
 
 > Status: **Queue item 7, opened by Rob 2026-09-16 after item 6 closed A–G. This record carries the
 > governing question, the discipline, the inventory of everything the record has fenced to item 7,
-> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), and pass 7B — independence — OPENED 2026-09-16 as a semantic pressure test, cases first, run to a candidate (§7B.6), no code; awaiting Rob. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
+> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), and pass 7B — independence — RULED / SEMANTICALLY CLOSED (§7B.7) and built within the §7B.6 boundary. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
 > *the substrate can now represent ambiguity without resolving it; consumer work becomes valuable
 > exactly then — but only after the ontology stops moving underneath it.* Items 1–6 are closed.
 > What still moves: D′.11 (composition across relation kinds — an open **constraint** every
@@ -520,3 +520,98 @@ generation · the resolver over contested provenance.
 
 *The line: two claims are independent when two different parties each knew, and each said so in
 a way the record can trace to them — not when the same knowledge reached Groundwork twice.*
+
+### 7B.7 Ruling — Rob, 2026-09-16: 7B ACCEPTED / SEMANTICALLY CLOSED; implementation within §7B.6 only
+
+*7B did not invent an "independence detector". It established what independence means in this
+ontology and, as importantly, what observations cannot establish it.*
+
+**Why accepted.** In5 / In5′ expose the trap: *different people ≠ different origins* — provenance
+determines origin, speaker identity does not; and the same speaker does not collapse genuinely
+distinct knowing into one origin if provenance establishes otherwise. In12 closes the subtler
+loophole: independence cannot attach to an artefact, document, party or source as a reusable
+property; it is evaluated for the proposition being considered. The semantic unit is
+
+```text
+proposition → assertion → provenance → origin → established chain + knowing
+```
+
+not *document / source / person → independence status*.
+
+**The three-valued result is essential.** The candidate-correspondence case is the important one:
+two origins that *might* be connected, with only a candidate correspondence, have earned neither
+conclusion — *not independent* would manufacture a negative fact, *independent* a positive one;
+**undetermined is the truthful terminal state**, consistent with the rule that unresolved evidence
+stays unresolved rather than being normalised into a usable status.
+
+**7B correctly stops before 7E.** In14 is the fence: three independently established origins
+yield *three origins, three independent pairs* and nothing about evidentiary strength — no
+*corroborated · stronger · confidence · majority · score · threshold · preferred source*.
+Otherwise 7B becomes the first half of a strength engine and 7E a formatter. **7B: are these
+origins independent? 7E: what may be said about the evidentiary significance of multiple links?**
+Different questions.
+
+**In15 preserved as a regression target.** The old `distinct = {e.source}` is not "a bad
+implementation of independence"; it answers a different question — how many source / channel
+identities occur in the record. The audit language is preserved rather than "fixed" into a more
+sophisticated count, which could still be completely wrong semantically.
+
+**The 7B wiring guard, made explicit before implementation:** *the consumer may inspect the
+established provenance / relationship chain to determine the three-valued result, but it may not
+establish, upgrade, resolve or mutate any provenance, correspondence, knowing relationship or
+independence relationship while doing so.*
+
+```text
+established record → 7B reads provenance → follows the established chain
+→ evaluates knowing for this proposition → independent / not independent / undetermined
+
+never:   7B sees evidence → creates correspondence → creates provenance → declares independence
+```
+
+**Independence remains a consumer answer, not a new ontology relation.**
+
+**Established, as Rob recorded it:** (1) per proposition · (2) origin from assertion provenance,
+not speaker identity · (3) distinct origins required · (4) each knowing for that proposition · (5)
+the chain established · (6) different rows, readings, parsers, documents, channels, parties or
+timestamps do not establish independence · (7) candidate or unresolved chains → undetermined,
+never guessed · (8) process observations do not become independent knowing by being separate
+records · (9) not strength; no count / rank / score · (10) the consumer writes and creates none
+of the relationships it evaluates · (11) failure reported at the claim where evidence cannot
+establish the result · (12) the null model is the correctness oracle.
+
+**Disposition — 7B: ACCEPTED / SEMANTICALLY CLOSED.** 7C stays unopened until 7B is implemented
+and its semantic tests pass. **The natural next question for 7C is not "how do we calculate
+about-ness?" but *what exactly establishes that a proposition is about an artefact when
+correspondence is involved, and what tempting paths must explicitly fail?***
+
+#### Built — 2026-09-16
+
+`core/database.py`: `independence(session, proposition, knowing)` beside `parse_disputes` — a
+plain dict, computed on read, storing nothing: the proposition taken with its **established**
+correspondence component as one claim; for each evidentiary relationship the origin resolved from
+provenance — an utterance's origin party, or the artefact's origin through `artefact_origin()`
+(established only by a party's utterance; candidate → chain *candidate*; none → *unestablished*;
+several → *contested*), artefacts and parties collapsed through `referent()`'s established
+components, a retracted utterance or a retracted origin claim → *contested*; knowing per
+relationship from `derived_strength`; origins listed with their chain state, knowing, grounds and
+**multiplicity** (several grounds resolving to one origin *is* "not independent" — shown, never
+scored); pairwise verdicts between distinct *knowing* origins only — *independent* iff both
+established and no candidate correspondence between them, else *undetermined*; readers
+(processes) listed and never origins; *one origin — no second term* / *no knowing origin* as the
+note. The 7B wiring guard is executable: the fixture inspects the function's source for
+`session.add`, `commit` and any `Proposition( / Party( / Artefact(` construction, and snapshots
+every table before and after eight reads. `core/classification.py`: the 1.x
+`distinct = {e.source for e in supporting}` gains a comment naming it a count of channel types
+pointing at the 2.0 derivation — no logic change (the audit's mode). Fixture
+`tests/test_independence_fixture.py` (30 checks, In1–In18; **In13 honestly NOT EXERCISED** — the
+acknowledgment kind and its knowing relation are stand-ins while D4 is open, and nothing is faked;
+In16 asserted fenced). One escape on the first run: a retracted *origin* utterance did not contest
+a reading's chain — the derivation read `artefact_origin()`'s state without the origin claim's own
+evidence; fixed in the derivation (the chain includes the origin claim's evidence), the check
+unchanged. Smoke `s108_independence.py`, nine mutations, each an attempt to count, default, score
+or store — rows counted · reader as origin (channel as origin) · processes counted · unknown → independent
+· candidate collapses the pair · a corroboration score · not-knowing origins pair · stored · establishes
+— all caught, baseline re-established after every undo. Retired truthfully: the proposition-correspondence
+fixture's *"one source is a consumer's derivation, not built here"* → *built in item 7 as
+`independence()`; the substrate holds no source count*. No schema, no migration. Gate 1102 → 1123,
+0 failed.

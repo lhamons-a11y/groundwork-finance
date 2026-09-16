@@ -2299,6 +2299,158 @@ def parse_disputes(session, artefact):
     return out
 
 
+# ── Item 7, pass 7B: independence - a CONSUMER derivation ─────────────────────
+# gw 2.0/CONSUMER_DERIVATIONS.md s 7B.7, ruled 2026-09-16. Independence is a three-valued derivation
+# between ORIGINS, for ONE proposition, and nothing weaker or stronger (contract C4):
+#
+#     independent      two distinct established origins, each knowing for the proposition, each chain established
+#     not independent  the grounds resolve to one origin - through one artefact, two artefacts of one origin, two
+#                      channels of one source, a duplicated utterance, or a correspondence a party established
+#     undetermined     a chain or an origin is a candidate, contested or unasserted - NEVER defaulted either way
+#
+# Origin is read from the assertion's PROVENANCE, never from who is speaking (C1 / C2): an utterance's
+# origin party is an origin; a reading conveys the ARTEFACT'S origin (artefact_origin(), established
+# only by a party's utterance) and never the reader's; a process is not an origin and contributes
+# nothing (O9); a candidate is not a claim by anyone. Artefacts and parties established as
+# corresponding are ONE (referent()); a candidate correspondence between two origins leaves their
+# pair undetermined. Knowing is read per evidentiary relationship (derived_strength); an origin not
+# knowing for the proposition is listed and takes part in no pair. Difference establishes nothing -
+# not a different reading, parser, document, channel, party, timestamp or row. The verdict is a set
+# of origins and their pairwise states: NEVER a count, rank, score or strength (7E's question) -
+# three independent origins are three independent pairs and no number. Independence is never a
+# property of a document, source or party: it is evaluated for the proposition at hand.
+#
+#     THE 7B WIRING GUARD (Rob, s 7B.7): the consumer may inspect the established provenance /
+#     relationship chain to determine the result, but may not establish, upgrade, resolve or mutate
+#     any provenance, correspondence, knowing relationship or independence relationship while doing
+#     so. Independence remains a consumer ANSWER, not an ontology relation. Nothing is stored.
+#
+# The 1.x count `distinct = {e.source for e in supporting}` (core/classification.py, the matrix's row
+# 7) is a count of CHANNEL TYPES, not independence; it is named as such and not repaired by counting
+# differently. Reader independence for P-subject (RA5) stays fenced.
+INDEPENDENT = 'independent'
+NOT_INDEPENDENT = 'not_independent'
+INDEPENDENCE_UNDETERMINED = 'undetermined'
+CHAIN_ESTABLISHED = 'established'
+CHAIN_CANDIDATE = 'candidate'
+CHAIN_CONTESTED = 'contested'
+CHAIN_UNESTABLISHED = 'unestablished'
+
+
+def independence(session, proposition, knowing):
+    """The independence derivation for one proposition: a plain dict, computed on read, storing nothing.
+
+        {'proposition_id', 'component': [prop ids taken as one claim - the established referent],
+         'origins': [{'origin': party_id | None, 'state': established|candidate|contested|unestablished,
+                      'knowing': knowing|not_knowing|undetermined,
+                      'grounds': [(relationship_id, 'utterance'|'reading', source_id, artefact_id|None)],
+                      'multiplicity': n grounds  -> n > 1 means NOT INDEPENDENT among those grounds}],
+         'pairs': [(origin_a, origin_b, independent|undetermined)]   between distinct KNOWING origins only,
+         'readers': [reader_process...]   processes seen - never origins,
+         'note': 'one origin - no second term' | 'no knowing origin' | None}
+
+    `knowing` is the caller's kind -> foundations map, as for derived_strength. Origins are collapsed
+    by established party correspondence and artefacts by established artefact correspondence
+    (referent()); a candidate correspondence between two origins leaves their pair undetermined.
+    An origin whose chain is not established, or which is not knowing, takes part in no pair.
+    """
+    props = [proposition]
+    state, component, _ = referent(session, proposition)
+    if state in (REFERENT_CORRESPONDING, REFERENT_CONTESTED):
+        props = [session.get(Proposition, pid) for pid in component]
+    out = {'proposition_id': proposition.id, 'component': sorted(p.id for p in props),
+           'origins': [], 'pairs': [], 'readers': [], 'note': None}
+    rels = (session.query(EvidentiaryRelationship)
+            .filter(EvidentiaryRelationship.proposition_id.in_([p.id for p in props]))
+            .order_by(EvidentiaryRelationship.id).all())
+    if not rels:
+        out['note'] = 'no knowing origin'
+        return out
+
+    party_key_cache = {}
+
+    def party_key(pid):
+        # collapse parties established as one referent; report candidates separately
+        if pid not in party_key_cache:
+            pstate, comp, cands = referent(session, session.get(Party, pid))
+            party_key_cache[pid] = (min(comp), pstate, set(cands))
+        return party_key_cache[pid]
+
+    retracted = {u for (u,) in session.query(Proposition.subject_utterance_id)
+                 .filter(Proposition.kind == UTTERANCE_RETRACTION, Proposition.subject_utterance_id.isnot(None)).all()}
+    entries = {}
+    for rel in rels:
+        strength = derived_strength(session, rel, knowing)
+        if rel.utterance_id is not None:
+            utt = rel.utterance
+            key, pstate, pcands = party_key(utt.origin_party_id)
+            chain = CHAIN_CONTESTED if (utt.id in retracted or pstate == REFERENT_CONTESTED) else CHAIN_ESTABLISHED
+            ground = (rel.id, 'utterance', utt.id, None)
+            origin = key
+        else:
+            rd = rel.reading
+            art = rd.artefact
+            if rd.reader_process:
+                out['readers'].append(rd.reader_process)
+            astate, comp_a, _ = referent(session, art)
+            # the artefact's origin, through its established component: one artefact, one origin
+            ostates = {}
+            a_ids = comp_a if astate in (REFERENT_CORRESPONDING, REFERENT_CONTESTED) else [art.id]
+            for aid in a_ids:
+                o_state, parties = artefact_origin(session, session.get(Artefact, aid))
+                ostates.setdefault(o_state, set()).update(parties)
+            ground = (rel.id, 'reading', rd.id, art.id)
+            if ORIGIN_ESTABLISHED in ostates and len(ostates) == 1 and len(ostates[ORIGIN_ESTABLISHED]) == 1:
+                pid = next(iter(ostates[ORIGIN_ESTABLISHED]))
+                key, pstate, pcands = party_key(pid)
+                # the chain includes the origin claim's own evidence: a retracted origin utterance contests it
+                origin_utts = {u for (u,) in (session.query(EvidentiaryRelationship.utterance_id)
+                                              .join(Proposition, Proposition.id == EvidentiaryRelationship.proposition_id)
+                                              .filter(Proposition.kind == ARTEFACT_ORIGIN,
+                                                      Proposition.subject_artefact_id.in_(sorted(a_ids)),
+                                                      Proposition.object_party_id == pid,
+                                                      EvidentiaryRelationship.utterance_id.isnot(None)).all())}
+                contested_origin = bool(origin_utts) and origin_utts <= retracted
+                chain = CHAIN_CONTESTED if (astate == REFERENT_CONTESTED or pstate == REFERENT_CONTESTED or contested_origin) else CHAIN_ESTABLISHED
+                origin = key
+            elif ORIGIN_MULTIPLE in ostates or len(ostates.get(ORIGIN_ESTABLISHED, ())) > 1:
+                origin, chain, pcands = None, CHAIN_CONTESTED, set()
+            elif ORIGIN_CANDIDATES in ostates:
+                origin, chain, pcands = None, CHAIN_CANDIDATE, set()
+            else:
+                origin, chain, pcands = None, CHAIN_UNESTABLISHED, set()
+        ekey = origin if origin is not None else ('none', rel.id)
+        e = entries.setdefault(ekey, {'origin': origin, 'state': chain, 'knowing': strength, 'grounds': [], 'candidates': set()})
+        e['grounds'].append(ground)
+        e['candidates'] |= pcands
+        # a contested chain on any ground makes the origin's state contested; knowing is the weakest seen
+        if chain == CHAIN_CONTESTED:
+            e['state'] = CHAIN_CONTESTED
+        e['knowing'] = _weakest(e['knowing'], strength)
+    origins = []
+    for ekey, e in entries.items():
+        origins.append({'origin': e['origin'], 'state': e['state'], 'knowing': e['knowing'],
+                        'grounds': e['grounds'], 'multiplicity': len(e['grounds']),
+                        'correspondence_candidates': sorted(e['candidates'])})
+    origins.sort(key=lambda o: (o['origin'] is None, o['origin'] or 0, o['grounds'][0][0]))
+    out['origins'] = origins
+    knowing_origins = [o for o in origins if o['origin'] is not None and o['knowing'] == STRENGTH_KNOWING]
+    if len(knowing_origins) == 0:
+        out['note'] = 'no knowing origin'
+    elif len(knowing_origins) == 1:
+        out['note'] = 'one origin - no second term'
+    for i, a in enumerate(knowing_origins):
+        for b in knowing_origins[i + 1:]:
+            if a['state'] != CHAIN_ESTABLISHED or b['state'] != CHAIN_ESTABLISHED:
+                verdict = INDEPENDENCE_UNDETERMINED
+            elif a['origin'] in b['correspondence_candidates'] or b['origin'] in a['correspondence_candidates']:
+                verdict = INDEPENDENCE_UNDETERMINED
+            else:
+                verdict = INDEPENDENT
+            out['pairs'].append((a['origin'], b['origin'], verdict))
+    return out
+
+
 STRENGTH_KNOWING = 'knowing'
 STRENGTH_NOT_KNOWING = 'not_knowing'
 STRENGTH_UNDETERMINED = 'undetermined'

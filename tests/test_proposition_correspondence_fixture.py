@@ -187,8 +187,12 @@ def run(db):
           P3c.content == P3.content and not any(hasattr(db, n) for n in ('corroborated', 'independent_sources', 'source_count')))
     check('Pc9: the referent is the connected component {P3, P3\', P3"} - three readings of one claim, derived',
           db.referent(s, P3) == (db.REFERENT_CORRESPONDING, sorted([P3.id, P3b.id, P3c.id]), []))
-    check('one source is a consumer\'s derivation over this structure, not built here',
-          not any(hasattr(db, n) for n in ('independence', 'independent', 'sources_of')))
+    # Item 7 pass 7B built the one-source derivation as core.database.independence (CONSUMER_DERIVATIONS.md
+    # s 7B.7) - a consumer over this structure, read-only, three-valued; this fixture still asserts that the
+    # substrate itself holds no source count and that correspondence carries no independence.
+    check('one source is a consumer\'s derivation over this structure (built in item 7 as independence()); the substrate holds no source count',
+          callable(getattr(db, 'independence', None)) and not any(hasattr(db, n) for n in ('sources_of', 'n_sources', 'source_count'))
+          and not any('independen' in c.name for c in db.Proposition.__table__.columns))
 
     print('\n3. Pc3 - about-ness is not carried\n')
     evidence(prop(db.PROPOSITION_CONCERNS, subject_proposition_id=P3.id, object_obligation_id=o2.id),
