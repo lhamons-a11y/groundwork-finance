@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED (§D′.9), build AUTHORISED (§D′.10), built (`cf107e8`), assessed (§D′.11). Pass E OPENED 2026-09-15 by Rob — the coverage magnet interrogated (§E.2), three pairings each forced by its own case (§E.3), candidate three kinds `expense_ / obligation_ / payment_in_respect_of_plan` (§E.8), tightened (§E.9), ACCEPTED as written at `54a24a3` (§E.10), unbuilt by instruction. Pass F OPENED 2026-09-15 by Rob as the recorded order's next move — the meaning of covered-under ruled before the relation (§F.2), a party ↔ plan role with RP2's boundary kinds bound for the first time (§F.3–F.4), candidate `under_plan` + `_began` / `_ended` (§F.8), tightened after Rob's review (§F.9: the structural floor, F5 as an evidence boundary, the name, F20), no code; awaiting Rob's ruling. G remains; D′.11 stays an open constraint.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED (§D′.9), build AUTHORISED (§D′.10), built (`cf107e8`), assessed (§D′.11). Pass E OPENED 2026-09-15 by Rob — the coverage magnet interrogated (§E.2), three pairings each forced by its own case (§E.3), candidate three kinds `expense_ / obligation_ / payment_in_respect_of_plan` (§E.8), tightened (§E.9), ACCEPTED as written at `54a24a3` (§E.10), unbuilt by instruction. Pass F OPENED 2026-09-15 by Rob as the recorded order's next move — the meaning of covered-under ruled before the relation (§F.2), a party ↔ plan role with RP2's boundary kinds bound for the first time (§F.3–F.4), candidate `under_plan` + `_began` / `_ended` (§F.8), tightened (§F.9), ACCEPTED at `2b49d75` + `d1eeac5` (§F.10) — semantic acceptance, **no build from F**; G unopened; D′.11 an open constraint.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -2375,3 +2375,64 @@ represents; it does not mean the `Person` table.
 **Still no code** — F's job is to settle what `under_plan` means, not to prove it belongs in any
 implementation family. G inherits six `in_respect_of` relations plus one role relation, and may not
 alter any of their meanings.
+
+### F.10 Ruling — Rob, 2026-09-15: F ACCEPTED at `2b49d75` + `d1eeac5`; no build from F
+
+**The `Person` → party departure is correct and not a weakening** — it makes the ontology more
+faithful to what the cases establish. The floor is now *the asserting party holds that established
+**party** P is under established plan Q at the date the assertion concerns*, which avoids making
+`under_plan` a household-membership relation: F16 shows the relevant party can have the relationship
+without being a household member.
+
+```text
+party ── under_plan ──> plan          not:  household member ──> plan
+                                      and certainly not:  Person + membership + date ──> under_plan
+```
+
+**The three corrections, resolved:** (1) the structural floor — the relation defines itself
+without importing beneficiary / enrollment / eligibility / subscriber semantics; (2) the evidence
+boundary — F5 no longer risks asserting objective eligibility; a contradictory assertion produces
+contested evidence, it does not erase or override the original claim; (3) multiple plans — F20:
+*P under Plan₁, P under Plan₂ → two relations; NOT current_plan_of(P) / primary_plan(P) /
+selected_plan(P)*, with F7 the corresponding time-domain pressure.
+
+**The boundary kinds now have a legitimate anchor** — RP2's `_began` / `_ended` were structurally
+available with nothing to attach to; F gives them a real relation. **The direction of dependency
+is the point:**
+
+```text
+under_plan semantics  →  temporal boundary semantics apply to it
+NOT
+RP2 temporal machinery  →  therefore a person must be under a plan
+```
+
+**The NOT-block does real work** — these are independently fenced, and **G cannot look at similar
+subject / object / temporal shapes and conclude they share semantics:**
+
+```text
+under_plan  ≠ enrolled ≠ eligible ≠ subscriber ≠ covered
+            ≠ plan_covers_expense ≠ plan_covers_obligation ≠ plan_covers_payment
+            ≠ premium_active
+```
+
+**Final F state:** meaning RULED · relation RULED · participants party → plan · temporal — RP2
+boundaries applicable · convergence refused · inverse not licensed · cardinality not implied ·
+consumers none · implementation none. **F establishes `under_plan`; it does not establish what
+that relation permits downstream** — later work.
+
+**Disposition — F: ACCEPTED.** `2b49d75` + `d1eeac5` are the right scope of change; no code from F,
+consistent with the pass discipline. The sequence:
+
+```text
+A   payment_counteracts                 ruled + built
+B   obligation_replaces                 ruled + built
+C   obligation_in_respect_of            ruled + built
+D   payment_in_respect_of               ruled + built
+D′  payment_in_respect_of_obligation    ruled + built, D′.11 open
+E   *_in_respect_of_plan                accepted, unbuilt
+F   under_plan                          accepted, unbuilt
+G   family decision                     unopened
+```
+
+*G inherits seven individually examined semantic relationships, not seven presumed members of a
+relation framework — exactly the state wanted before opening the family question.*
