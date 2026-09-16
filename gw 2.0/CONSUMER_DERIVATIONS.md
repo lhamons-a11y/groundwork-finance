@@ -2,7 +2,7 @@
 
 > Status: **Queue item 7, opened by Rob 2026-09-16 after item 6 closed A–G. This record carries the
 > governing question, the discipline, the inventory of everything the record has fenced to item 7,
-> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), and pass 7B — independence — RULED / SEMANTICALLY CLOSED (§7B.7), built within the §7B.6 boundary, and tightened after Rob's review of the implementation (§7B.8: three fences on the shape, an AST + row-content wiring guard, three more mutations); awaiting Rob's acceptance. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
+> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), pass 7B — independence — RULED, built, tightened and ACCEPTED (§7B.9, `c82c9da`, gate 1129), and pass 7C — about-ness via correspondence — OPENED 2026-09-16, run to a candidate (§7C.6), no code; awaiting Rob. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
 > *the substrate can now represent ambiguity without resolving it; consumer work becomes valuable
 > exactly then — but only after the ontology stops moving underneath it.* Items 1–6 are closed.
 > What still moves: D′.11 (composition across relation kinds — an open **constraint** every
@@ -675,3 +675,184 @@ that would invent a second entity out of a collapsed identity.
 
 Fixture 30 → 35 checks; smoke nine → twelve mutations, all caught and restored. Gate 1123 → 1129,
 0 failed.
+
+### 7B.9 Build accepted — Rob, 2026-09-16: 7B ACCEPTED as ruled and built, `c82c9da`, gate 1129
+
+*The revisions close the substantive gaps without expanding the ontology.* The acceptance basis:
+multiplicity properly fenced (structural cardinality only) · unresolved `None` semantically
+contained, the two-unresolved-ground case particularly valuable · the read-only invariant actually
+enforced — the AST guard for the obvious write paths, the row-content snapshot for count-preserving
+mutations · provenance pinned by In4′ · correspondence direction-insensitive at the consumer
+boundary without an ontology-level symmetry rule · contested → undetermined asserted directly ·
+readers diagnostic trace only · the 1.x count historically named as a source-preservation guard ·
+no convenience verdict · the mutations attack the semantic boundaries, especially *multiplicity →
+strength*. The contract:
+
+```text
+ONE proposition → evidence grounds → resolve each ground's origin chain
+    (established origin · candidate / contested / unestablished · unresolved origin-bearing ground)
+→ collapse only established correspondence → knowing per proposition
+→ independent / not_independent / undetermined
+
+derivation ≠ ontology fact ≠ stored relation ≠ score ≠ confidence ≠ count of "sources" ≠ establishment operation
+```
+
+**7B — independence: ACCEPTED / BUILT / GREEN.** Not to be polished further; 7C next.
+
+---
+
+## Pass 7C — About-ness via correspondence
+
+**Rob's framing, verbatim:** *not "how do we calculate about-ness?" but what exactly establishes
+that a proposition is about an artefact when correspondence is involved, and what tempting paths
+must explicitly fail?* Read here as: **what establishes that a proposition is about an identity —
+an obligation, a payment, an expense, a plan — when the only path to that identity runs through an
+artefact-level claim or through a correspondence**, since Ab7 ruled that a proposition's own
+about-ness is a claim *about the proposition* and a re-reading's propositions have none of their
+own (Pa5), and Pc3 left the consumer's rule open: *the substrate says nothing; a consumer may
+derive P3′'s about-ness through the correspondence — that is the consumer's rule, not the
+substrate's.* 7C rules that consumer's rule.
+
+The pressure, one source at a time, and the two questions that come with each: **does about-ness
+reach P by this path — and if it does, with whose provenance, and as what (asserted · derived ·
+candidate · undetermined)?**
+
+### 7C.1 What is already fixed
+
+| Ruling | Constraint on 7C |
+|---|---|
+| **Ab7 / K1p** (`proposition_concerns`, built) | *an assertion says that P concerns X* — the first and only proposition-subject kind; presupposes X, never establishes it; a reading's match yields a **candidate** (the reading-sourced concerns claims *are* the candidates state's carrier); attaches only where P has no established participant of that type (Pa10); **never changes P's subject, participants, authority, evidence or history**; **does not survive a re-reading** (Pa5) — carrying it across is a correspondence or policy question, not decided. **The invariant:** *never "because P concerns X, P therefore contains or knows X"* — information runs from the assertion to the claim, never back into the proposition |
+| **Ab7 Pa8 / Pa2** | where the artefact concerns **exactly one** identity and nothing contradicts, *a consumer that wants "which identity is this line about" has the artefact-level claim*; where the artefact concerns several (Pa1) or none (Pa2), only a line-level claim answers |
+| **Slice 8** (`artefact_concerns`, K1) | one claim `concerns(A, O)` evidenced by Rob; *the values are about O by derivation through the concerns claim; the read claims themselves are never re-asserted*; the values keep the artefact origin's authority, the association keeps Rob's |
+| **Pa7** | artefact-level and line-level claims may disagree; **a consumer's to report, never a guard's to refuse and never a resolver's to settle** — 7D's |
+| **Proposition correspondence** (M1) | two separately minted propositions are **two observations or recordings of one claim**; established by a party's utterance; a reading's position match is a candidate; the referent is `referent()`'s component; retraction → *contested*; **not agreement, not shared subject, not about-ness carrying — the substrate copies nothing** (Pc3) |
+| **Pa10** | a proposition with an established participant of type T is *structurally* about it; `proposition_concerns` may not compete with that |
+| **D′.11; §1.3** | no composition across relation kinds — `proposition_concerns(P, O)` + `obligation_in_respect_of(O, X)` does not make P about X; no manufacture from convergence — two propositions about one X are not one claim |
+| **7A / 7B** | a re-reading is a new observation; readings of one referent are one source; the derivation's provenance is the claims it read |
+| **Relational knowing** | `proposition_concerns` and `artefact_concerns` know through *the minter of the object identity*; a derived about-ness manufactures no knowing of its own |
+
+### 7C.2 The paths — which reach, and as what
+
+| Path to "P is about X" | Reaches? | As | Provenance carried |
+|---|---|---|---|
+| **P's own established participant of X's type** (Pa10) | yes — **structurally**; no derivation | *structural* | P's own evidence |
+| **an established `proposition_concerns(P, X)`** (Pa1, Pa2) | yes | *asserted* | the concerns claim and its asserter |
+| **a reading-sourced `proposition_concerns` candidate** (Pa3) | **no** — a candidate | *candidate* | the reading (a process or a party reading), never an assertion |
+| **an established `artefact_concerns(A, X)` where P was read from A and A concerns exactly one identity of X's type** (Pa8) | yes — **derived through the artefact level** | *derived (artefact)* | the artefact claim and its asserter; the reading that ties P to A |
+| **… where A concerns several identities of that type** (Pa1) | **no** — the artefact level does not decide which line is which | *candidates* (each identity A concerns) | — |
+| **… where the artefact claim is only a candidate or contested** | no | *candidate* / *undetermined* | — |
+| **an established `proposition_corresponds(P, P′)` where P′ is about X by assertion or structure** (Pc3) | yes — **derived through correspondence**: P and P′ are one claim, and a claim asserted about X is about X in every recording | *derived (correspondence)* | the concerns claim on P′, its asserter, and the correspondence claim and its asserter |
+| **… where the correspondence is a candidate** (Pc10 — the pipeline wants prior about-ness to "follow") | **no** | *candidate* | — |
+| **… where the correspondence is contested** (Pc8) | no — the consumer stops | *undetermined* | — |
+| **… where P′'s own about-ness is itself derived** (through another correspondence, or the artefact level) | yes, transitively through *established* links only — the referent is the connected component (Pc9) | *derived*, the whole chain listed | every link |
+
+**What may not reach, and must be seen to fail (§7C.4):** content or position matching (Pa3);
+the artefact's origin party's roles (Harbor is E of O1 ⇒ Harbor's statement's lines are about O1);
+composition through a ruled relation (P about O, O in respect of X ⇒ P about X); convergence
+(P about X, Q about X ⇒ P ~ Q, or ⇒ P about what Q is about); about-ness inherited *by a re-reading
+from position* (Pa5); a derived about-ness written back as a `proposition_concerns` claim or as
+P's participant (the Ab7 invariant, and §1.1); a derived about-ness outranking an asserted one, or
+resolving a level conflict (7D); a derived about-ness acquiring knowing.
+
+### 7C.3 The cases
+
+| # | Case | What the derivation must say | What it must never do |
+|---|---|---|---|
+| **Ac1 (Pa1)** | The credit-union statement A concerns O1 and O2; line 3 `$44,000`; Rob: *that line is the HELOC* (`proposition_concerns(P3, O2)`). | **about O2 — asserted**, by Rob; provenance the concerns claim | promote the artefact-level pair into a choice; make O2 P3's participant |
+| **Ac2 (Pa10)** | Rob's testimony T: *the HELOC balance is about $44k* — subject O2 established. | **about O2 — structural**; no concerns claim exists or may | derive anything; report a concerns candidate |
+| **Ac3 (Pa8)** | A single-obligation statement concerns O1 only; line 2 `payment due $1,412`; no line-level claim. | **about O1 — derived through the artefact level**; provenance: Rob's `artefact_concerns(A, O1)` and the reading of A that produced P2 | write `proposition_concerns(P2, O1)`; report it as asserted |
+| **Ac4 (Pa1, no line claim)** | A concerns O1 and O2; line 4 has no line-level claim. | **candidates {O1, O2}** from the artefact level — *not established between them*; nothing chosen | pick by heading, position, amount or order |
+| **Ac5 (Pa2)** | A bank statement with no artefact-level claim; line 7 `HARBOR MTG −1,412.00`; Rob: *that's my March payment* (`proposition_concerns(P7, p)`). | **about p — asserted**; the artefact level contributes nothing and is not needed | require an artefact-level claim; manufacture one |
+| **Ac6 (Pc3) — the question** | P3 concerns O2 (Rob). P3 ~ P3′ established (Rob: *same line, both readings*). | **P3′ is about O2 — derived through correspondence**: two recordings of one claim, and the claim is asserted about O2; provenance: Rob's concerns claim on P3 + Rob's correspondence claim | copy a `proposition_concerns(P3′, O2)` row; report P3′'s about-ness as *asserted*; touch P3′'s participant (stays candidates) |
+| **Ac7 (Pc10)** | The pipeline re-parses monthly and emits **candidate** correspondences P3 ~ P3″. | **candidate about-ness only** for P3″ — *if this is the same line, it is about O2*; nothing more | let prior about-ness "follow" a re-parse on a reading's match |
+| **Ac8 (Pc8)** | Rob retracts the correspondence: *two different lines after all.* | the referent reads **contested**; P3′'s derived about-ness becomes **undetermined**; the consumer reports the contest and stops | infer P3′ is about something else; keep the derivation alive |
+| **Ac9 (Pa3)** | The parser sees `Acct …4471` over lines 1–5 → five reading-sourced concerns candidates naming O1. | **candidates**, listed with their reading; not about-ness | promote by count or repetition (five candidates are one process) |
+| **Ac10 — convergence** | P is about X (asserted); Q is about X (asserted). | nothing about P ~ Q; nothing about P being about what else Q is about | manufacture a correspondence or a shared about-ness (the D′ / E24 shape) |
+| **Ac11 — the Ab7 invariant** | P3 concerns O2 established. | P3's participant slot is **still candidates**; the derivation reports about-ness *about* P3 and never as P3's participant | *because P concerns X, P contains X* |
+| **Ac12 — composition (D′.11)** | P3 concerns O2; O2 in respect of X (C). | **P3 is not about X** by derivation — about-ness stops at the endpoint it reaches; a consumer may *traverse* O2 → X and read X's claims *as X's* (C17 / C21) | report P3 about X; chain through a ruled relation |
+| **Ac13 — the origin party** | A is from Harbor; Harbor is E of O1 and of O3. | nothing — the artefact's origin party's roles do not make its lines about the obligations it holds | derive from `artefact_origin` + role claims |
+| **Ac14 (Pa7) — level conflict** | A concerns {O1, O2}; Rob: *line 3 concerns O3.* | **about O3 — asserted**; the artefact-level candidates {O1, O2} listed beside it; **the conflict reported, not resolved** (7D's report is a consumer's) | refuse; prefer a level |
+| **Ac15 (Pa4) — retraction** | *No — line 3 was the mortgage*: retract the O2 utterance; assert `proposition_concerns(P3, O1)`. | **about O1 — asserted**; the retracted claim's history survives; P3 byte-identical | keep O2 as a second about-ness; treat the retraction as *not about O2* |
+| **Ac16 (Pa5) — re-reading without correspondence** | P3′ from a second reading; no correspondence claim. | **no about-ness** — not from position, not from content, not from P3 | inherit by position (the shortcut Pa5 fenced) |
+| **Ac17 — knowing** | P3′'s derived about-ness (Ac6). | carries the strengths of the claims it read (both `undetermined` — relational knowing for the concerns kinds is undetermined) and **manufactures none**; the derived about-ness is not itself a claim and has no asserter | give the derivation a strength; let the narrator voice *P3′ is about O2* as an assertion |
+| **Ac18 — transitivity through established links (Pc9)** | P3 ~ P3′ ~ P3″, all established; P3 concerns O2. | P3″ about O2 — derived through the component; **every link listed** | derive through a candidate link in the chain; hide the chain |
+| **Ac19 — where the failure appears** | A proposition with no path at all (no participant, no concerns claim, no artefact claim, no correspondence). | *no about-ness established* — distinguished from *candidates exist* and from *contested* | report "about nothing"; default to the artefact's origin |
+| **Ac20 — the null model** | A corpus where every about-ness is directly asserted; a corpus with no about-ness claims. | exactly the assertions, each *asserted*; nothing — no derivation from content, headings, amounts or order | a heuristic |
+
+### 7C.4 Testing the readings
+
+**AC0 — about-ness from content** (the heading, the account number, the amount, the position).
+Rejected: Pa3; Ac9, Ac16, Ac20 — candidates at most, never about-ness.
+
+**AC1 — the substrate carries it** (copy `proposition_concerns` across correspondences; set P's
+participant). Rejected by ruling: Pc3 (*the substrate copies nothing*), the Ab7 invariant (Ac11),
+§1.1.
+
+**AC2 — the candidate: a read-only derivation `aboutness(session, proposition)`** returning, per
+identity type, what P is about and **as what** — *structural* (its own established participant),
+*asserted* (established `proposition_concerns`), *derived* (through the artefact level where A
+concerns exactly one, or through *established* correspondence to a proposition that is about X by
+structure or assertion — transitively through established links only), *candidate* (reading-sourced
+concerns; candidate correspondence; a multi-identity artefact), *undetermined* (a contested
+correspondence or artefact claim) — each with the claims it rests on and their asserters; choosing
+nothing, writing nothing, ranking nothing.
+
+**AC3 — derived outranks or equals asserted.** Rejected: the answer is *as what*, and the levels
+are reported side by side (Ac14); ranking is 7E's territory and even 7E ranks nothing.
+
+**AC4 — derive through candidates** (Pc10). Rejected: Ac7 — a candidate correspondence yields
+candidate about-ness, never derived about-ness.
+
+**AC5 — derive through relations or parties** (Ac12, Ac13). Rejected: D′.11; convergence.
+
+**AC6 — the derivation acquires knowing or becomes voiceable as a fact.** Rejected: Ac17;
+constraint 3.
+
+### 7C.5 What the derivation is — and is not
+
+| **reads** | P's own participant slots and states; established and reading-sourced `proposition_concerns` on P; the readings that produced P and their artefacts' `artefact_concerns` claims (established / candidate / contested); `referent()` over P and, transitively, the about-ness of the component's other members |
+|---|---|
+| **returns** | `structural`: [(type, id)] · `asserted`: [(type, id, claim_id, asserter)] · `derived`: [(type, id, path ∈ {artefact, correspondence}, links)] · `candidates`: [(type, id, source)] · `undetermined`: [(type, id, reason)] · `conflicts`: the level disagreements *as found* (for 7D) · `note` |
+| **derives** | through exactly two paths — the artefact level (one identity of the type; nothing contradicting) and *established* correspondence — and nothing else |
+| **chooses / writes / ranks / knows** | nothing |
+| **is not** | a correspondence mechanism; a resolver between levels (7D); a strength (7E); a traversal of ruled relations (7F); a heading / position / content matcher (candidate generation) |
+| **failure appears at** | Ac19 (no path) and Ac4 (several identities at the artefact level) — the two places a false "about X" can be said; measured there |
+| **null model** | exactly the assertions on an asserted-only corpus; nothing on a claim-free corpus (Ac20) — a correctness oracle |
+
+### 7C.6 Ruling candidate — pass 7C, for Rob
+
+> **A proposition is about an identity by exactly four things and nothing else: its own established
+> participant of that type — structurally; an established assertion that it concerns the identity —
+> asserted; derivation through the artefact level, where the artefact it was read from is
+> established to concern exactly one identity of that type and nothing contradicts — derived; and
+> derivation through established correspondence, because two recordings of one claim are one claim
+> and a claim asserted about an identity is about it in every recording — derived, transitively
+> through established links only, every link listed. A candidate is never about-ness: a
+> reading-sourced concerns claim, a candidate correspondence, or an artefact that concerns several
+> identities yields candidates, and a contested correspondence or artefact claim yields
+> undetermined and stops the consumer. About-ness does not come from content, heading, amount,
+> position or order; not from the artefact's origin party's roles; not through a ruled relation
+> from the identity it reaches to another; not from convergence of two propositions on one
+> identity; and not to a re-reading from the position of the line it re-read. A derived about-ness
+> is reported as derived, beside any asserted one, with the claims and asserters it rests on; it is
+> never written back as a concerns claim or as the proposition's participant, never outranks or
+> resolves an asserted one or a conflict between levels, acquires no knowing of its own, and is
+> voiced by the narrator as a derivation, never as an assertion. Nothing is chosen, stored or
+> manufactured.**
+
+**If ruled, the build is one read-only function** — `aboutness(session, proposition)` beside
+`independence` and `parse_disputes`; a fixture over Ac1–Ac20 with the absences (no copied
+concerns row, no participant set, no ranking, no content / heading matcher, no derivation through a
+candidate, a relation or a party, no strength on a derivation) and the 7A / 7B wiring guard
+(AST + row-content snapshot); a smoke section whose mutations each try to *carry* (copy the
+claim, set the participant, follow a candidate, follow a relation, match content, rank derived over
+asserted, resolve the level conflict, give the derivation knowing); **no schema, no migration; 7D
+not opened until it is green.**
+
+**What pass 7C leaves exactly where it found it:** the level-consistency *report* (7D — Ac14
+lists the conflict; 7D characterises it) · multi-link strength (7E) · traversal of ruled relations
+(7F) · candidate generation and the pipeline's re-parse policy · RA5.
+
+*The line: a proposition is about what someone said it is about, or what it structurally is
+about — and about the same thing in every recording of the same claim; never about what it looks
+like it is about.*
