@@ -2074,3 +2074,9 @@ do not turn the cross-kind composition question into a closed doctrine.
 **The tree is left exactly here:** E accepted · nothing built · F unopened · G unopened · D′.11
 carried as an explicit unresolved semantic question. *"G owns the structural question" identifies
 where that question belongs once the ordered work reaches it; it is not authorisation to open G.*
+
+**The architectural guard, now explicit (Rob):** *representation cannot become evidence for
+semantics after the fact.* Nothing is to be opened opportunistically; the next move follows the
+recorded order, with D′.11 available as a *constraint* rather than silently becoming doctrine. A
+productive stop: the known semantic surface is settled, the unresolved boundary is named, and
+there is no implementation artefact capable of accidentally answering it.
