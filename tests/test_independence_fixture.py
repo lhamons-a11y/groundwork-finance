@@ -30,7 +30,12 @@ What this slice can and cannot exercise
     In16 RA5 reader independence for P-subject: fenced, not decided                              NOT DECIDED (asserted absent)
     In17 one claim: "one origin - no second term"                                                EXERCISED
     In18 the null model: one-document corpus -> zero independent pairs; distinct knowing parties -> exactly those pairs  EXERCISED
+    In4' Rob asserts the EOB's origin: Rob is the assertion's provenance, Aetna the origin       EXERCISED
+    In7d the candidate correspondence encountered in the OPPOSITE direction: the same result      EXERCISED
+    In9' two unrelated unresolved grounds: two entries, never collapsed into one origin None      EXERCISED
+    multiplicity is structural cardinality, never support; readers are trace only; None is no origin  EXERCISED
     absences: no score / count / rank / stored relation / default / establishing call             EXERCISED
+    the wiring guard: AST-based (no session write / no constructor) + a full row-content snapshot  EXERCISED
 
 Run:  python tests/test_independence_fixture.py
 """
@@ -143,8 +148,33 @@ def run(db):
         return {o['origin']: o for o in res['origins']}
 
     def snapshot():
-        return (s.query(db.Proposition).count(), s.query(db.EvidentiaryRelationship).count(), s.query(db.Utterance).count(),
-                s.query(db.Artefact).count(), s.query(db.Party).count())
+        # every row of every table, by content - not cardinality: an in-place UPDATE must be visible
+        out = {}
+        for name, table in sorted(db.Base.metadata.tables.items()):
+            out[name] = sorted(tuple(str(v) for v in row) for row in s.execute(table.select()))
+        return out
+
+    def writes_in(func):
+        # AST, not substring: any call to a session write method, or any construction of a mapped class
+        import ast, inspect, textwrap
+        tree = ast.parse(textwrap.dedent(inspect.getsource(func)))
+        write_methods = {'add', 'add_all', 'commit', 'flush', 'merge', 'delete', 'execute', 'bulk_save_objects',
+                         'bulk_insert_mappings', 'bulk_update_mappings', 'refresh', 'expunge'}
+        constructors = {'Proposition', 'Party', 'Artefact', 'Reading', 'Utterance', 'EvidentiaryRelationship',
+                        'Obligation', 'Payment', 'Expense', 'Plan', 'Person'}
+        found = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                fn = node.func
+                if isinstance(fn, ast.Attribute) and fn.attr in write_methods:
+                    found.append(fn.attr)
+                if isinstance(fn, ast.Name) and fn.id in constructors:
+                    found.append(fn.id)
+                if isinstance(fn, ast.Attribute) and fn.attr in constructors:
+                    found.append(fn.attr)
+            if isinstance(node, ast.Name) and node.id in ('update', 'insert', 'delete') and isinstance(getattr(node, 'ctx', None), ast.Load):
+                found.append(node.id)
+        return found
 
     aetna, u_aetna = mint_party('Aetna, our insurer.')
     mercy, u_mercy = mint_party('Mercy Hospital.')
@@ -201,6 +231,13 @@ def run(db):
     five = db.independence(s, pr, KNOWING)
     check('In8: read twice, reprocessed, transcribed by Kim, imported by the pipeline - five rows, ONE origin (Aetna), multiplicity 5; no pair',
           len(five['origins']) == 1 and five['origins'][0]['multiplicity'] == 5 and five['pairs'] == [])
+    check('FENCE: multiplicity is structural cardinality of grounds on one resolved origin and nothing else - no support / strength / corroboration / confidence key anywhere in the result, and no self-pair',
+          not any(k in five for k in ('support', 'strength', 'corroboration', 'confidence', 'score', 'weight'))
+          and not any(k in five['origins'][0] for k in ('support', 'strength', 'corroboration', 'confidence', 'score', 'weight'))
+          and not any(a == b for a, b, _ in five['pairs']))
+    check('FENCE: readers is explanatory trace only - three process readers and one origin is one source; readers never appear among origins',
+          len([r for r in five['readers']]) >= 3 and len(five['origins']) == 1
+          and not any(isinstance(o['origin'], str) for o in five['origins']))
 
     print("\n4. In4 / In5 / In5' - two origins agreeing; two parties repeating one source; the same two parties from their own knowledge\n")
     bill = held('h-bill', '2026-03-05', mercy, u_mercy)
@@ -211,6 +248,10 @@ def run(db):
           {o['origin'] for o in four['origins']} == {household.id, mercy.id}
           and four['pairs'] == [(household.id, mercy.id, db.INDEPENDENT)] and four['note'] is None
           and not any(k in four for k in ('score', 'strength', 'corroboration', 'count')))
+    check("In4': the EOB's origin was asserted by Rob's utterance ('this EOB came from Aetna') - Rob is the assertion's provenance, Aetna the artefact's origin; Rob appears as no origin for the EOB's figure",
+          (lambda o: set(o) == {aetna.id} and household.id not in o)(origins_of(db.independence(s, pr, KNOWING)))
+          and s.query(db.EvidentiaryRelationship).join(db.Proposition, db.Proposition.id == db.EvidentiaryRelationship.proposition_id)
+               .filter(db.Proposition.kind == db.ARTEFACT_ORIGIN, db.Proposition.subject_artefact_id == eob.id).one().utterance.origin_party_id == household.id)
     r_rob_eob = read(eob, party=household, when=datetime(2026, 3, 15))
     evidence(pr, reading=r_rob_eob)                                        # Rob reads the EOB: $412
     five_b = db.independence(s, pr, KNOWING)
@@ -233,7 +274,7 @@ def run(db):
     evidence(nature, utterance=utter('Yes, that was health.', '2026-03-01T09:00:00'))
     six = db.independence(s, nature, KNOWING)
     o6 = origins_of(six)
-    check("In6 / In11: the classifier's proposal carries the BANK'S origin (the artefact's), which is not knowing for nature; the process is listed as a reader, never an origin; Rob is the only knowing origin - 'one origin - no second term'",
+    check("In6 / In11: the process contributes no origin; the reading reaches the artefact's established origin, which is the bank - not knowing for nature; the process is listed as a reader, never an origin; Rob is the only knowing origin - 'one origin - no second term'",
           set(o6) == {bank.id, household.id} and o6[bank.id]['knowing'] == db.STRENGTH_NOT_KNOWING
           and o6[household.id]['knowing'] == db.STRENGTH_KNOWING and six['pairs'] == []
           and six['note'] == 'one origin - no second term' and 'classifier/mcc' in six['readers'])
@@ -277,6 +318,19 @@ def run(db):
     cand = db.independence(s, pr7b, KNOWING)
     check('In7(c): a CANDIDATE party correspondence between the two origins - the pair is UNDETERMINED, not false and not true',
           cand['pairs'] == [(aetna.id, aetna2.id, db.INDEPENDENCE_UNDETERMINED)])
+    # In7(d): the same candidate encountered in the OPPOSITE direction, on a fresh pair of parties
+    cig1, u_c1 = mint_party('Cigna.')
+    cig2, u_c2 = mint_party('Cigna Healthcare Inc.')
+    l1 = held('h-cigna-1', '2026-04-05', cig1, u_c1)
+    l2 = held('h-cigna-2', '2026-04-06', cig2, u_c2)
+    rl1, rl2 = read(l1, process='parser/5'), read(l2, process='parser/5')
+    pr7d = world('patient_responsibility', '$88', subject_expense=X)
+    evidence(pr7d, reading=rl1)
+    evidence(pr7d, reading=rl2)
+    corresponds(db.PARTY_CORRESPONDS, 'subject_party_id', 'object_party_id', cig1, cig2, reading=rl2)     # subject/object the other way round
+    seven_d = db.independence(s, pr7d, KNOWING)
+    check("In7(d): the candidate correspondence with subject and object the other way round gives exactly the same result - UNDETERMINED; the consumer does not depend on which side of the correspondence a party sits",
+          seven_d['pairs'] == [(cig1.id, cig2.id, db.INDEPENDENCE_UNDETERMINED)])
     corresponds(db.PARTY_CORRESPONDS, 'subject_party_id', 'object_party_id', aetna2, aetna,
                 utterance=utter('Aetna Health Inc. is Aetna - same insurer.', '2026-04-04T09:00:00'))
     est = db.independence(s, pr7b, KNOWING)
@@ -298,6 +352,14 @@ def run(db):
     check("In9: the NewCo letter's origin is unasserted - its ground has no origin and chain 'unestablished'; Chase is the one knowing origin; no pair says independent and none says not",
           None in o9 and o9[None]['state'] == db.CHAIN_UNESTABLISHED and o9[chase.id]['knowing'] == db.STRENGTH_KNOWING
           and nine['pairs'] == [] and nine['note'] == 'one origin - no second term')
+    other_letter = held('h-someone-else', '2026-05-01')                     # a second artefact with no origin asserted
+    r_other = read(other_letter, process='parser/5', when=datetime(2026, 5, 2))
+    evidence(bal, reading=r_other)
+    nine_two = db.independence(s, bal, KNOWING)
+    unresolved = [o for o in nine_two['origins'] if o['origin'] is None]
+    check("In9': two unrelated unresolved grounds are TWO entries with origin None and multiplicity 1 each - None is not an origin identity and unresolved grounds are never collapsed into one",
+          len(unresolved) == 2 and all(o['multiplicity'] == 1 for o in unresolved) and nine_two['pairs'] == []
+          and {o['grounds'][0][3] for o in unresolved} == {newco_letter.id, other_letter.id})
     newco, u_newco = mint_party('NewCo Servicing.')
     self_desc = db.Proposition(kind=db.ARTEFACT_ORIGIN, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_ESTABLISHED,
                                subject_artefact_id=newco_letter.id, object_party_id=newco.id)
@@ -305,8 +367,10 @@ def run(db):
     s.commit()
     evidence(self_desc, reading=r_newco)                                      # the letterhead says NewCo - a candidate origin
     nine_c = db.independence(s, bal, KNOWING)
-    check("In9: with the letterhead's self-description the origin is a CANDIDATE - chain 'candidate', still no pair: undetermined, never defaulted",
-          origins_of(nine_c)[None]['state'] == db.CHAIN_CANDIDATE and nine_c['pairs'] == [])
+    newco_entry = [o for o in nine_c['origins'] if o['origin'] is None and o['grounds'][0][3] == newco_letter.id]
+    check("In9: with the letterhead's self-description the origin is a CANDIDATE - chain 'candidate', still no pair: undetermined, never defaulted (the other unresolved ground stays its own entry)",
+          len(newco_entry) == 1 and newco_entry[0]['state'] == db.CHAIN_CANDIDATE and nine_c['pairs'] == []
+          and len([o for o in nine_c['origins'] if o['origin'] is None]) == 2)
     u_from = utter('That letter came from NewCo.', '2026-05-03T09:00:00')
     evidence(self_desc, utterance=u_from)
     nine_e = db.independence(s, bal, KNOWING)
@@ -318,8 +382,9 @@ def run(db):
     s.commit()
     evidence(retr, utterance=utter("I'm not sure that letter was NewCo's after all.", '2026-05-04T09:00:00'))
     ten = db.independence(s, bal, KNOWING)
-    check("In10: the origin assertion retracted - the derivation reports it and stops; the pair is no longer 'independent' and is not 'not independent' either",
-          not any(v == db.INDEPENDENT for _, _, v in ten['pairs']) and not any(v == db.NOT_INDEPENDENT for _, _, v in ten['pairs']))
+    check("In10: the origin assertion retracted - the NewCo chain is CONTESTED and the pair with Chase is explicitly UNDETERMINED (not absent, not independent, not 'not independent')",
+          origins_of(ten)[newco.id]['state'] == db.CHAIN_CONTESTED
+          and ten['pairs'] == [(chase.id, newco.id, db.INDEPENDENCE_UNDETERMINED)])
     dos2 = world('date_of_service', '2026-02-14', subject_expense=X)
     u_r = utter('Feb 14.', '2026-02-16T09:00:00')
     evidence(dos2, utterance=u_r)
@@ -363,7 +428,9 @@ def run(db):
     import inspect
     import core.classification as cl
     src = inspect.getsource(cl._state_from) if hasattr(cl, '_state_from') else inspect.getsource(cl)
-    check('In15: the 1.x distinct = {e.source} still exists and is named as a count of CHANNEL TYPES pointing at the 2.0 derivation - not repaired by counting differently',
+    # SOURCE-PRESERVATION GUARD, not a semantic test: the exact 1.x spelling is kept so the audit language is
+    # not silently "fixed" into a smarter count; a formatting change here breaks the gate on purpose.
+    check('In15 (source-preservation guard, not a semantic test): the 1.x distinct = {e.source} still exists and is named as a count of CHANNEL TYPES pointing at the 2.0 derivation - not repaired by counting differently',
           'distinct = {e.source for e in supporting}' in src and 'CHANNEL TYPES' in src and 'core.database.independence' in src)
     check('In16 (RA5): reader independence for P-subject is not decided - no reader-independence helper, and readers are listed, never origins',
           not any(hasattr(db, n) for n in ('reader_independence', 'readers_independent', 'reader_corroboration'))
@@ -373,11 +440,10 @@ def run(db):
     before = snapshot()
     for prop in (pr, dos, copay, nature, pr7b, bal, dos3, null_pr):
         db.independence(s, prop, KNOWING)
-    check('reading the derivation eight times wrote no proposition, evidence, utterance, artefact or party',
+    check('the 7B wiring guard is executable (AST, not substring): independence() calls no session write method (add / commit / flush / merge / execute / delete / bulk_*) and constructs no mapped class; no update / insert / delete construct is referenced',
+          writes_in(db.independence) == [])
+    check('reading the derivation eight times left every row of every table byte-for-byte identical - not merely the counts',
           snapshot() == before)
-    check('the 7B wiring guard is executable: the source of independence() contains no session.add, no commit, no Proposition( / Party( / Artefact( construction',
-          (lambda src: 'session.add' not in src and 'commit' not in src and 'Proposition(' not in src.replace('Proposition.', '').replace('Proposition,', '')
-             and 'Party(' not in src.replace('Party,', '') and 'Artefact(' not in src.replace('Artefact,', ''))(inspect.getsource(db.independence)))
 
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:

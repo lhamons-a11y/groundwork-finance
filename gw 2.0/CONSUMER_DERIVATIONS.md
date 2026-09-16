@@ -2,7 +2,7 @@
 
 > Status: **Queue item 7, opened by Rob 2026-09-16 after item 6 closed A–G. This record carries the
 > governing question, the discipline, the inventory of everything the record has fenced to item 7,
-> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), and pass 7B — independence — RULED / SEMANTICALLY CLOSED (§7B.7) and built within the §7B.6 boundary. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
+> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), and pass 7B — independence — RULED / SEMANTICALLY CLOSED (§7B.7), built within the §7B.6 boundary, and tightened after Rob's review of the implementation (§7B.8: three fences on the shape, an AST + row-content wiring guard, three more mutations); awaiting Rob's acceptance. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
 > *the substrate can now represent ambiguity without resolving it; consumer work becomes valuable
 > exactly then — but only after the ontology stops moving underneath it.* Items 1–6 are closed.
 > What still moves: D′.11 (composition across relation kinds — an open **constraint** every
@@ -614,4 +614,64 @@ or store — rows counted · reader as origin (channel as origin) · processes c
 — all caught, baseline re-established after every undo. Retired truthfully: the proposition-correspondence
 fixture's *"one source is a consumer's derivation, not built here"* → *built in item 7 as
 `independence()`; the substrate holds no source count*. No schema, no migration. Gate 1102 → 1123,
+0 failed.
+
+### 7B.8 Rob's review of the implementation, 2026-09-16 — the contract tightened to the doctrine
+
+*The core ruling is coherent; the implementation / test contract was weaker or more ambiguous than
+the doctrine in several places.* Ten points, three levels; all applied.
+
+**Settled in the ruling itself — the literal contradiction "counts nothing" vs `multiplicity: 5`:**
+
+> **Multiplicity is structural cardinality of grounds attached to one resolved origin. It has no
+> evidentiary, corroborative, comparative, confidence, ranking, threshold or independence
+> meaning. No consumer may interpret multiplicity as a measure of support.**
+
+It is technically a count, and a later consumer could do `origin["multiplicity"]` and turn it into
+exactly what 7B says must not exist; the `rows are counted` mutation catches *splitting grounds
+into origins*, not *"I kept the one origin but used multiplicity as strength"* — a distinct failure
+mode. Now a fixture fence and a smoke mutation (**multiplicity becomes evidence**: a `support` key
+and a self-pair marked independent — caught).
+
+**`origin: None` does two jobs — clarified, not restructured:**
+
+> **`None` is not an origin identity. It represents an unresolved origin-bearing ground and is
+> never eligible for pairing or correspondence collapse.**
+
+Each unresolved ground is its own entry (the implementation already keyed them separately); now
+tested — In9′: two unrelated unresolved grounds are two entries, multiplicity 1 each, never one
+`origin: None` with multiplicity 2 — and a mutation (**unresolved grounds collapse**, caught).
+
+**The wiring guard was weaker than the prose:** the substring check did not prohibit `db.Proposition(…)`,
+and `session.execute / flush / merge / bulk_*` contained neither `session.add` nor `commit`; the
+snapshot compared **counts**, so an in-place `UPDATE` would have passed. Now: the source guard is
+**AST-based** — any call to a session write method, any construction of a mapped class, any
+`update / insert / delete` construct referenced — and the snapshot is **every row of every table
+by content**, equal before and after eight reads. The invariant enforced is the doctrine's —
+*calling `independence()` cannot alter persistent state* — not an implementation style. And a
+mutation (**the derivation mutates a row in place** — an UPDATE with no count change; caught by
+the content snapshot).
+
+**Origin from provenance, one edge pinned (In4′):** Rob says *this EOB came from Lakeview Health* — Rob is
+the assertion's provenance, Lakeview Health the artefact's origin; Rob appears as no origin for the EOB's
+figure. **Correspondence direction (In7d):** the candidate encountered with subject and object the
+other way round, on a fresh pair of parties, gives the identical *undetermined* — the consumer does
+not depend on which side of the correspondence a party sits. **In10 asserts the state explicitly:**
+NewCo's chain *contested*, the pair with Harbor exactly `undetermined` — not merely "neither of the
+other two", which `pairs = []` would also have satisfied. **In6 reworded to teach the chain:** *the
+process contributes no origin; the reading reaches the artefact's established origin, which is
+the bank* — never "the classifier's proposal carries the bank's origin."
+
+**`readers` — the fence recorded:** *explanatory trace only; not an alternative evidence
+population; readers never participate in independence* (three readers and one origin is one
+source; RA5 stays fenced). **In15 labelled:** *a source-preservation guard, not a semantic test* —
+the exact 1.x spelling is kept so the audit language is not silently "fixed"; a formatting change
+breaks the gate on purpose, and the spelling is not part of the ontology.
+
+**Not changed, on Rob's instruction:** no `is_independent()` convenience — the structural
+explanation (origins · chain state · pairs · vocabulary) is the aligned shape; and **not
+independent = one resolved origin with multiplicity > 1**, never a self-pair `(Lakeview Health, Lakeview Health)` —
+that would invent a second entity out of a collapsed identity.
+
+Fixture 30 → 35 checks; smoke nine → twelve mutations, all caught and restored. Gate 1123 → 1129,
 0 failed.

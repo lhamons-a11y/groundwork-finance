@@ -2353,6 +2353,16 @@ def independence(session, proposition, knowing):
     by established party correspondence and artefacts by established artefact correspondence
     (referent()); a candidate correspondence between two origins leaves their pair undetermined.
     An origin whose chain is not established, or which is not knowing, takes part in no pair.
+
+    THREE FENCES ON THE SHAPE (s 7B.8):
+      multiplicity   is the structural cardinality of grounds attached to ONE resolved origin. It has
+                     no evidentiary, corroborative, comparative, confidence, ranking, threshold or
+                     independence meaning; no consumer may read it as a measure of support.
+      origin: None   is NOT an origin identity. It marks an unresolved origin-bearing ground; each
+                     such ground is its own entry, never collapsed with another unresolved ground,
+                     never eligible for pairing or correspondence collapse.
+      readers        is explanatory trace only - the processes that observed - not an alternative
+                     evidence population; readers never participate in independence (RA5 stays fenced).
     """
     props = [proposition]
     state, component, _ = referent(session, proposition)

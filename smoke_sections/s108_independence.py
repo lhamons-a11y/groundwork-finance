@@ -3,7 +3,7 @@ counts nothing, defaults nothing, scores nothing and stores nothing - and whethe
 count, default, score or store is caught.
 
 `gw 2.0/CONSUMER_DERIVATIONS.md` pass 7B (ruled 2026-09-16). Runs the build gate
-(`tests/test_independence_fixture.py`) and then breaks the consumer nine ways:
+(`tests/test_independence_fixture.py`) and then breaks the consumer twelve ways:
 
     rows are counted                each ground becomes its own origin (different row => independent)
     parties are counted             a reading's origin becomes its READER, not the artefact's origin (channel as origin)
@@ -14,6 +14,9 @@ count, default, score or store is caught.
     not-knowing origins pair        an origin not knowing for the proposition takes part in pairs
     it stores                       `independence_cache` appears on the module
     it establishes                  `establish_independence(session, a, b)` appears on the module
+    multiplicity becomes evidence   an origin with multiplicity > 1 gains a `support` figure and a self-pair marked independent
+    unresolved grounds collapse     every origin-None entry is merged into one entry with summed multiplicity
+    it mutates a row in place       the derivation UPDATEs a proposition's content (no count changes) before returning
 
 Same shape as s103-s107: fixture passes, every mutation is caught, the baseline is re-established after
 every undo, the module is left as found.
@@ -143,6 +146,39 @@ def _mutations(db):
         db.independence_cache = {}
         return lambda: delattr(db, 'independence_cache')
 
+    def multiplicity_is_evidence():
+        def post(out, session):
+            for o in out['origins']:
+                if o['multiplicity'] > 1:
+                    o['support'] = o['multiplicity']
+                    if o['origin'] is not None:
+                        out['pairs'].append((o['origin'], o['origin'], db.INDEPENDENT))
+            return out
+        db.independence = _wrap(post)
+        return lambda: setattr(db, 'independence', original)
+
+    def unresolved_collapse():
+        def post(out, session):
+            nones = [o for o in out['origins'] if o['origin'] is None]
+            if len(nones) > 1:
+                merged = dict(nones[0], grounds=[g for o in nones for g in o['grounds']], multiplicity=sum(o['multiplicity'] for o in nones))
+                out['origins'] = [o for o in out['origins'] if o['origin'] is not None] + [merged]
+            return out
+        db.independence = _wrap(post)
+        return lambda: setattr(db, 'independence', original)
+
+    def mutates_in_place():
+        from sqlalchemy import update
+
+        def mutated(session, proposition, knowing):
+            session.execute(update(db.Proposition).where(db.Proposition.id == proposition.id)
+                            .values(content=(proposition.content or '') + ' '))
+            session.commit()
+            return original(session, proposition, knowing)
+        mutated.__doc__ = original.__doc__
+        db.independence = mutated
+        return lambda: setattr(db, 'independence', original)
+
     def it_establishes():
         db.establish_independence = lambda session, a, b: None
         return lambda: delattr(db, 'establish_independence')
@@ -157,6 +193,9 @@ def _mutations(db):
         ('not-knowing origins take part in pairs', not_knowing_pairs),
         ('the answer is stored', it_stores),
         ('the consumer establishes independence', it_establishes),
+        ('multiplicity becomes evidence', multiplicity_is_evidence),
+        ('unresolved grounds collapse into one origin None', unresolved_collapse),
+        ('the derivation mutates a row in place', mutates_in_place),
     ]
 
 
