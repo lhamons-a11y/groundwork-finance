@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED (§D′.9), build AUTHORISED with the non-derivability clause and non-selection fixtures (§D′.10), built — see the commit. Passes E–G open one at a time; E next, Rob opens.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED (§D′.9), build AUTHORISED (§D′.10), built (`cf107e8`), assessed (§D′.11). Pass E OPENED 2026-09-15 by Rob — the coverage magnet interrogated (§E.2), three pairings each forced by its own case (§E.3), candidate three kinds `expense_ / obligation_ / payment_in_respect_of_plan` (§E.8), no code; awaiting Rob. F and G remain.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -1683,3 +1683,231 @@ general: prohibition 8 (no implied inverse) and 11 (no consumer derivation) are 
 The general rule exists today **only by accumulation** — the same shape §1 forbids for relation
 *meaning*, here for a *prohibition*. Whether that is a doctrine gap or a one-line lift into §1 is
 the question, not a conclusion.
+
+---
+
+## Pass E — Plan ↔ Expense · Obligation · Payment
+
+**The question, applied:** when a household member says *the ER visit was on Kim's Lakeview Health plan*,
+*the $412 a month is the premium for it*, or *that payroll deduction is the plan*, what is being
+claimed, who can establish it, and what follows? Rob's framing carried from §2: **a very hard fence
+around the word "coverage"** — Plan's existence answers none of *who is covered · when · whether an
+expense is covered · whether the insurer owes a benefit · whether it paid · whether an obligation is
+covered*; **Plan must not become a semantic magnet.** PLAN_IDENTITY §8's rule carried: *do not let
+the existence of `Plan` pre-answer the meaning of "covered under"* — that is F's. And D′'s
+invariant, now generalised in §D′.11's terms and applied here: convergence through a shared
+identity establishes nothing.
+
+Three pairings, each run from its own pressure — the plan-pressure was named in PLAN_IDENTITY §2
+before any of them: **Pl9** (*which plan covered the ER visit?* — a relation claim or a consumer
+derivation), **Pl7** (the premium — *"for P"* is a relation claim), and payment as the pairing
+nobody named because the premium obligation was assumed to sit between them.
+
+### E.1 What is already fixed
+
+| Ruling | Constraint on pass E |
+|---|---|
+| **Plan identity** (PL2, §7) | *a coverage arrangement the household individuates — its being covered under an insurer's product, not the product*; anchor impoverished; **"coverage arrangement" acquires no ontology by implication** — no ruled coverage relation, contract, enrollment, benefit or agreement object; identity ≠ currency (Pl5); identity ≠ truth (Pl12) |
+| **The collapsing words** (PLAN_IDENTITY §2) | coverage ① = the plan · ② *who is under it, when* = a dated relation person ↔ plan, **F's** · ③ *whether a service is covered* = **the insurer's dated stance** (a term claim about P, or an adjudication about X — 4b) · benefit ② = adjudication · authorization = the insurer's stance about P with the service as content · responsibility = about X · premium = an Obligation and Payments, *"for P"* a relation claim · accumulator = the insurer's stance / a consumer derivation |
+| **Pl9** | *which plan covered X*: **either a relation claim X ↔ P or a consumer derivation from membership-period claims and X's date claim** — the 1.x row's derivation is a consumer; **never a `plan_id` on X** |
+| **Pl7 / Pl8** | the premium is never the plan; the employer's contribution is a claim about the employer party; the household's obligation is its share |
+| **Pl11** | an authorization is never an expense and never a plan; tied to X later by `proposition_concerns` if a party ties it |
+| **Pl12** | the insurer's retroactive termination is a dated stance; earlier stances stand as history; P remains minted |
+| **4b** | adjudication is the insurer's dated stance about X; *what the household calls the claim is the expense*; the P-ack shape recurs and establishes no family |
+| **Expense identity** | Ex8 — an incurrence with no plan involved at all; the 1.x row has *deliberately no `plan_id`* |
+| **Passes C / D / D′** | `obligation_in_respect_of(O, X)`, `payment_in_respect_of(p, X)`, `payment_in_respect_of_obligation(p, O)` — three "in respect of" floors; **no composition across kinds; convergence through a shared operand establishes nothing** (§D′.2; A4, B11, C9, D8, D15, D′15) |
+| **F, unopened** | membership — *Kim under P from d* — is F's own ruling; E may not use it, imply it, or derive from it |
+| **About-ness** | `artefact_concerns(EOB, X)` and `artefact_concerns(EOB, P)` — a document concerning both relates neither |
+| **K8**; **prohibitions 1–12**; **D21 / C7** (no temporal precedence from direction or type) | hidden operand; §1; permanent |
+
+### E.2 The magnet, interrogated — what "under the plan" would smuggle
+
+*The ER visit was under the Lakeview Health plan* is the household's sentence for all three pairings. Taken as
+semantics, *under* carries four things, each already placed elsewhere and each refused as the kind:
+
+| Implication | What it would assert | Where it actually lives |
+|---|---|---|
+| **covered** (coverage ③) | the service is covered — the insurer owes a benefit | **the insurer's dated stance** about P's terms or about X (adjudication, 4b); **E8**: a claim submitted under P and *denied* is still under P |
+| **member** (coverage ②) | Kim was under P when X occurred | **F's** relation, unruled; **E3**: an expense adjudicated under P after the insurer retroactively ended coverage was still submitted under P |
+| **terms applied** | P's deductible / coinsurance governed X's amounts | a **consumer derivation** over term claims and adjudications (item 7); the relation is the edge it traverses, not the arithmetic |
+| **benefit paid** | the plan paid on X | the insurer's stance on X (Ex3 *plan paid*), or a payment identity the household mints (D18) — never the relation |
+
+What survives, on E's own cases, is the floor: **the subject is asserted as being in respect of the
+plan** — the arrangement it is asserted to relate to — nothing about whether that arrangement
+covered it, admitted the person, governed the amounts or paid. That the floor is the one C, D and D′
+reached is a result of E's cases and is recorded for G (§E.7).
+
+**And the second magnet — the derivation.** Pl9's other reading, *derive which plan from
+membership and the date*, is the 1.x approach and is item 7's to do as a **consumer**. It must not
+manufacture the relation: *Kim under P during T* (F) + *X incurred by Kim on d ∈ T* ⇒ *X under P* is
+convergence through Kim, the D′ invariant's shape exactly — and E2 (two plans on one date) shows it
+cannot name its result, E3 (retroactive termination) shows its result is wrong, E5 (cash-pay) shows
+its result is unwanted.
+
+### E.3 Is there a relation at all — three pairings, each from its own pressure
+
+| Pairing | Where the pressure comes from | Is anything else able to carry it? | Relation? |
+|---|---|---|---|
+| **expense ↔ plan** | Pl9's sentence — *the ER visit was on Kim's plan*: two operands | **no**: the derivation from membership + date cannot name its result with two plans on one date (E2 — Pl3 medical and dental with Lakeview Health, Pl14 Medicare + supplement), gives the wrong answer under retroactive termination (E3 — Pl12), and gives an unwanted answer for a cash-pay prescription (E5); the EOB concerning both X and P is about-ness (E6); the authorization is a stance about P (E7) | **yes — one kind**, asserted |
+| **obligation ↔ plan** | Pl7's sentence — *the $412 a month is the premium for the plan*: two operands | **no**: a *premium* kind on O would put the plan in content (K8); a *cost* on P is a property the anchor refuses; the employer's share is a claim about the employer (E13); the insurer's own duty to the household (E14) is an obligation with the household as entitled party and needs the same tie | **yes — one kind**, asserted |
+| **payment ↔ plan** | the payroll deduction where **no premium obligation was ever minted** (E17 — the household never individuated "we owe the premium"; it just comes out): two operands, no O to chain through | **no**: the D′-shaped chain *p in respect of O + O in respect of P* is unavailable (no O) and, where O exists, is refused as composition (E18); the bank line `AETNA PREMIUM` is a candidate (E21); the insurer's benefit payment and reimbursement need the same tie (E19, E20) | **yes — one kind**, asserted |
+
+**So: three relations, each forced by a case nothing else in the ontology can carry — the Ex8 shape
+three times** — and none forced by "the plan should know its expenses / cost / payments", which
+is the magnet talking.
+
+### E.4 The cases
+
+| # | Case | What must be sayable | What must not follow |
+|---|---|---|---|
+| **E1 (Pl9)** | Rob: *the ER visit was on Kim's Lakeview Health plan.* | **X in respect of P** — two established participants, asserted by Rob | X acquires no *covered* / *in network* / *adjudicated*; Kim's membership is not established (F); P's terms are not applied; the plan is not said to have paid |
+| **E2 (Pl3 / Pl14) — two plans, one date** | Medical and dental both with Lakeview Health; a dental cleaning on 4/2. Medicare + a supplement; one visit. | X in respect of P_dental (Rob); X in respect of P_medicare · X in respect of P_supp | **the membership-and-date derivation cannot name its result** — no rule produces either; **F's membership + X's date + incurred-by does not derive the relation** (convergence through Kim); no *primary / secondary* — that is content or the insurers' stances |
+| **E3 (Pl12)** | X on 7/15 adjudicated under P; on 8/15 Lakeview Health says coverage ended 6/30 retroactively; adjudications reversed. | X in respect of P stands (it went under P); Lakeview Health's *ended 6/30 as of 8/15* is a stance about P; the reversals are stances about X | the relation is **not withdrawn** by the insurer's later stance; a derivation from membership would say "no plan" — wrong; *covered* was never in the relation, so nothing about it changes |
+| **E4 (Pl14) — coordination** | One visit, two plans; each insurer adjudicates. | X in respect of P1 · X in respect of P2 | no cardinality; no priority; no netting of the two adjudications (item 7) |
+| **E5 (Ex8)** | Kim's prescription bought cash at CVS; never submitted. | X; no plan | **no relation**; absence of a relation derives no *uninsured*, *not covered*, *out of network* |
+| **E6** | The EOB concerns X (Rob) and concerns P (Rob); Group 12345 on it. | two `artefact_concerns`; the group number a correspondence candidate (Pl16) | **the relation is not derived** from a document concerning both (C11's shape); *plan paid $568* is the insurer's stance on X |
+| **E7 (Pl11)** | Prior authorization for an MRI, 2/10 — a stance about P with the MRI as content. The MRI happens 3/1; Rob mints X; a party ties the authorization to X (`proposition_concerns`). | the stance about P; the about-ness tie; **X in respect of P is Rob's to assert** | not derived from the authorization; an authorization is never an expense, a plan or this relation |
+| **E8 — denied** | Lakeview Health denies the claim for X: *not covered*. | X in respect of P (it was submitted under P); Lakeview Health's *denied* stance on X | **the relation ≠ coverage** — a denied claim is in respect of the plan that denied it; nothing on X or P changes; this is the structural reason the floor carries no coverage (B15 / D′5's role in E) |
+| **E9 — dispute; retraction** | Rob: *on Kim's plan*; Kim: *no — Rob's marketplace plan*. Later Rob retracts. | two claims, contested; `utterance_retraction` + a new claim | nothing chooses; X, P1, P2 untouched |
+| **E10 — direction; no inverse** | Is *P in respect of X* a claim? Could `plan_covers_expense` exist? | subject the expense, object the plan, **fixed by type**; no reverse claim | **no inverse kind — and the obvious inverse name is the magnet word**; navigation either way is a query; no resolver choosing *the* plan for an expense (E2) |
+| **E11 — the floor** | *The ER visit was in respect of the Lakeview Health plan.* | exactly that | establishes nothing about coverage, membership, adjudication, benefit, responsibility, network, terms or the plan year |
+| **E12 (Pl7)** | *We owe $412 a month — the premium for the plan.* | O minted; **O in respect of P**; *premium* is a claim on O (its kind) or content | P acquires no *cost*; O acquires no *premium* status; "the plan costs $412" is a consumer's sentence |
+| **E13 (Pl8)** | The employer pays 70% of the premium. | the employer's contribution is a claim about the employer party; the household's O is its share; O in respect of P | no total is derived; the employer's share is not a household obligation; nothing sums |
+| **E14 — the insurer owes the household** | An out-of-network claim: Lakeview Health owes Rob $340 under the plan. Rob mints O′ (obligor Lakeview Health, entitled party the household). | **O′ in respect of P** — the same kind | the relation carries **no direction of money** (D9's lesson): who owes whom is O′'s role claims; PL3 (the plan as a pair of obligations) stays rejected — O′ is one obligation the household individuated, not the plan's structure |
+| **E15 — the magnet's favourite: "what the plan didn't cover"** | Riverbend Hospital's bill O ($412 patient responsibility) for X; Rob: *that's what the plan didn't cover.* | O in respect of X (C); *what the plan didn't cover* is content, or the insurer's PR stance on X; **O in respect of P is assertable** if Rob asserts it — and derives nothing | **not derived**: *X in respect of P + O in respect of X ⇒ O in respect of P* is convergence through X — refused (§D′.2); *didn't cover* is coverage ③ and lives with the insurer |
+| **E16 (Pl13) — COBRA** | The household now pays the whole premium; same P or new P is the household's (Pl13); O_new minted. | O_new in respect of P (or P′); if P′ replaces nothing — plans are not obligations, `obligation_replaces` does not apply to plans | no composition with `obligation_replaces` (O_new replaces O? the household's, and it says nothing about P) |
+| **E17 — the deduction with no obligation minted** | $412 comes out of every paycheque; the household never individuated "we owe the premium"; Rob: *that deduction is the plan.* | p minted (payer the household via the employer — a claim); **p in respect of P** — no O anywhere | no obligation is manufactured; no chain is needed or available |
+| **E18 — with the obligation** | O (the premium) in respect of P; p in respect of O (D′). | the two claims | **p in respect of P is not derived** — composition through O refused; Rob may assert it |
+| **E19 (D18)** | *Lakeview Health paid Riverbend Hospital $568 under the plan.* Rob mints p′ (payer Lakeview Health, payee Riverbend Hospital). | p′ in respect of X (D); **p′ in respect of P** (Rob) | not derived from the EOB's *plan paid* (a stance on X) nor from X in respect of P; no household party required on p′ |
+| **E20 — reimbursement** | Lakeview Health pays Rob $340 (payer Lakeview Health, payee Rob). | p in respect of P; p in respect of O′ (E14) if Rob says so | no direction of money; no discharge of O′ (E's acknowledgment) |
+| **E21 — the bank line** | `AETNA PREMIUM 412.00` — the feed. | a proposition with candidates; once p and P exist, a reading-sourced candidate | the label establishes nothing; *PREMIUM* proves no purpose |
+| **E22 — timing** | The first premium paid in December for a plan starting January 1 — or P minted in March, retroactively, for a January arrangement. | p in respect of P, `as_of` permitted | **no temporal precedence** — *a relation's direction and participant types do not establish temporal precedence between its endpoints* (D21, C7, D′4). **PERMANENT** |
+| **E23 — vocabulary** | *under* · *on* · *covered by* · *through* · *premium* · *benefit* · *claim* · *in network*. | content, or claims on the subject, or the insurer's stances | **not kinds**; *covered by* is the magnet and is refused as a kind name and as semantics |
+
+### E.5 Testing the readings
+
+**PE0 — no relation: derive the plan** from membership + date (Pl9's second reading), from
+about-ness (the EOB concerns both), from the insurer's role (*Lakeview Health is P's insurer and adjudicated
+X*), or through O. Rejected: E2 cannot name its result, E3's result is wrong, E5's is unwanted;
+prohibitions 3, 4, 11; §D′.2; E17 has no O; and K8 — the household's sentence has two operands.
+
+**PE1 — three ruled kinds**, one per pairing, each with the floor *the asserting party holds that
+the subject is in respect of the object plan*. Every case is representable; every "must not
+follow" is a non-derivation the substrate already refuses; E5 and E15's derivation are correctly
+outside.
+
+**PE2 — *under* / *covered under* as the ruled semantics.** Rejected in §E.2: coverage ③ is the
+insurer's, membership is F's, terms-applied is item 7's, paid is a stance or a payment; E8 (denied
+yet under P) and E3 (terminated yet under P) are the counterexamples.
+
+**PE3 — a claim about X (or O, or p) with P in content** (*X was on the Lakeview Health plan*). Rejected by
+K8; E2, E4, E9 unstatable.
+
+**PE4 — one generic `plan_relation` with the pairing named in content.** Prohibitions 1 and 4.
+
+**PE5 — several kinds by context** (`expense_claimed_under`, `obligation_premium_for`,
+`payment_premium_for`, `payment_benefit_under`, `payment_reimbursed_under`…). Stopping rule inside
+the pass (E23): the contexts differ in **which side the money is on, and what the insurer said** —
+claims on the subject, or the insurer's stances — not in what is claimed of the relation, who may
+establish it, or what follows. Within each pairing, one kind survives.
+
+**PE6 — fold it into about-ness** (the EOB concerns P; enough). Rejected: X is an identity with,
+possibly, no document at all (E5's cash-pay has none; E1's visit may have none yet); C11's shape.
+
+**PE7 — plan as subject: `plan_covers_expense`, `plan_costs`, `plan_paid`.** Rejected on two
+grounds: direction is type-fixed and carries no meaning, so a plan-subject kind would be the same
+claim with the magnet's name; and each name asserts exactly what the floor refuses.
+
+**PE8 — one kind `in_respect_of_plan` with three typed subject slots** (as `artefact_concerns`
+has typed object slots). **Rejected on jurisdiction, as PD′4 was**: one kind serving three subject
+types *is* a decision that the three pairings share semantics — G's (prohibition 12). Three
+distinct kinds are the representation until G rules.
+
+### E.6 What the relations are — and are not
+
+**The semantic floor, shared by the three on E's own cases.** Each means only: **the subject is
+asserted as being in respect of the plan.** None means: *covered* · *a member at the time* ·
+*submitted* · *adjudicated* · *in network* · *terms applied* · *the plan paid* · *the plan owes* ·
+*the plan's cost* · *premium* (a claim on the obligation or payment) · *primary / secondary* ·
+*the only plan* · *the only expense / obligation / payment for the plan*. Each of those is the
+insurer's stance, F's relation, a claim on the subject, or item 7's derivation.
+
+| | `expense_in_respect_of_plan` | `obligation_in_respect_of_plan` | `payment_in_respect_of_plan` |
+|---|---|---|---|
+| **participants** | subject the expense · object the plan | subject the obligation · object the plan | subject the payment · object the plan |
+| **forced by** | E2 / E3 / E5 (derivation fails three ways) | E12 / E14 (nothing else carries *for P*) | E17 (no obligation to chain through) |
+| **direction** | fixed by type, no meaning; no reverse claim; **no inverse kind — `plan_covers_*` is the magnet as a name** | same | same |
+| **cardinality** | none; E4 — no priority | none; E13 — no sum | none; no allocation |
+| **who establishes** | any party, both endpoints established — the household; the insurer (as a party); a reading, a group number, a label → candidates | same | same; **no household party required on p** (E19) |
+| **knowing** | `relational_knowing` True, no designated relation → `undetermined` | same | same |
+| **derives** | **nothing** — no coverage, membership, adjudication, network, terms, benefit; no *uninsured* from absence (E5); not withdrawn by the insurer's later stance (E3); no composition with C / D / D′ (E15, E18, E19); no temporal order (E22) | **nothing** — no cost on P, no premium status, no total (E13), no direction of money (E14), no composition (E15, E16) | **nothing** — no premium status, no discharge (E20), no direction of money, no composition (E18, E19), no manufactured obligation (E17) |
+| **what it is not** | not Pl9's derivation (item 7); not about-ness (E6); not the authorization (E7); not `plan_id` | not the plan's structure (PL3 rejected); not the employer's contribution | not the premium obligation; not the insurer's *plan paid* stance |
+| **content** | opaque — *under*, *primary*, *claim #* | opaque — *premium*, *COBRA* | opaque — *deduction*, *benefit*, *reimbursement* |
+| **`as_of`** | permitted | permitted | permitted |
+
+### E.7 For G — the shape is now fully populated
+
+| Kind | Subject | Object |
+|---|---|---|
+| `obligation_in_respect_of` (C) | obligation | expense |
+| `payment_in_respect_of` (D) | payment | expense |
+| `payment_in_respect_of_obligation` (D′) | payment | obligation |
+| `expense_in_respect_of_plan` (E) | expense | plan |
+| `obligation_in_respect_of_plan` (E) | obligation | plan |
+| `payment_in_respect_of_plan` (E) | payment | plan |
+
+Six "in respect of" floors, reached separately, each from a case nothing else could carry; subject
+∈ {obligation, payment, expense}, object ∈ {expense, obligation, plan}; the same establisher rule,
+type-fixed direction, no cardinality, nothing derived — beside A and B, whose same-typed
+participants are distinguished by the kind's own role semantics. **Whether six kinds are one
+relation with typed slots, three, or six is exactly the stopping rule's question — inspected in
+every pass, decided in G.** E records the evidence; it neither generalises the kind (PE8) nor
+lets the count decide.
+
+### E.8 Ruling candidate — pass E, for Rob
+
+> **There are exactly three plan relations, one per pairing, and each is a party's statement that
+> an expense, an obligation or a payment is in respect of a plan — nothing about coverage.
+> "Under the plan" is rejected as the semantics of any of them: it would assert that the service
+> is covered (the insurer's stance — a denied claim was still under the plan), that the person was
+> a member (F's relation — an expense adjudicated under a plan whose coverage the insurer later
+> ended retroactively was still under it), that the plan's terms governed the amounts (a
+> consumer's arithmetic) and that the plan paid (a stance, or a payment identity). Each relation
+> is forced by a case nothing else carries: two plans on one date, where a derivation from
+> membership and date cannot name its result; a premium the household owes, where "for the plan"
+> has two operands; a payroll deduction the household never individuated an obligation for. Each
+> is one ruled kind — `expense_in_respect_of_plan`, `obligation_in_respect_of_plan`,
+> `payment_in_respect_of_plan` — meaning exactly that the asserting party holds the subject is in
+> respect of the object plan. Both participants are established, the plan the object, a direction
+> fixed by type; no inverse kind — and `plan_covers_*` is refused as a name because it is the
+> magnet; no cardinality, priority, sum or allocation; established only by a party's assertion
+> with both endpoints established — the household, or the insurer as a party; a reading, a group
+> number, a bank label or an authorization yields at most a candidate; knowing undetermined. Each
+> derives nothing: no coverage, membership, adjudication, network, applied terms, benefit, cost,
+> premium status, discharge or direction of money; no "uninsured" from an absent relation; no
+> withdrawal by the insurer's later stance; no temporal precedence; and no composition — not
+> from membership and a date, not through an expense, not through an obligation, not from a
+> document concerning both, not from the insurer's role. The plan is the object of six "in
+> respect of" kinds' worth of evidence for G and decides none of it; whether the three are one
+> kind with typed subject slots is G's question, and three distinct kinds are the representation
+> until G rules. Nothing is minted, merged, covered or paid by any of the three.**
+
+**If ruled, the representation is three registry entries** — `EXPENSE_IN_RESPECT_OF_PLAN: subject
+(subject_expense_id) · object (object_plan_id)`; `OBLIGATION_IN_RESPECT_OF_PLAN: subject
+(subject_obligation_id) · object (object_plan_id)`; `PAYMENT_IN_RESPECT_OF_PLAN: subject
+(subject_payment_id) · object (object_plan_id)`; each `symmetric False · reading_establishes False ·
+relational_knowing True, no knowing_relation` — all slots exist; a fixture over E1–E23 with the
+absences (no `plan_covers_*` / `covered_by` / `plan_of_expense` / `which_plan` / `coverage_of`; no
+membership derivation; no `plan_id`; no premium or cost on P; no composition through X, O or Kim; no
+resolver choosing a plan; no order guard); E8 and E3 as the coverage counterexamples, E2 mandatory
+(two plans, neither chosen), E22 permanent; **the plan fixture's Pl7 / Pl9 absence checks retired
+truthfully** (the relations now exist; `plan_id`, `which_plan`, `plan_covers` still do not); **no
+schema, no migration, no family abstraction, nothing from F.**
+
+**What pass E leaves exactly where it found it:** membership / covered-under (F) · coverage
+determination, accumulators, *which plan covered X* as a derivation, deductible met (item 7) ·
+the term and adjudication catalogues · the resolver over the insurer's successive stances ·
+`HealthPlan` / `TermVersion` decomposition · G.
+
+*The line: the plan is the arrangement; the visit, the premium and the deduction are what
+someone said were in respect of it — and whether it covered anything is what the insurer says.*
