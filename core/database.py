@@ -1767,6 +1767,49 @@ OBLIGATION_IN_RESPECT_OF = 'obligation_in_respect_of'
 # relation -> undetermined (payer? payee? incurrer? none forced). Not a source word.
 PAYMENT_IN_RESPECT_OF = 'payment_in_respect_of'
 
+# ── Item 6, pass D': the payment-to-obligation relation ─────────────────────
+# gw 2.0/RELATION_SEMANTICS.md s D'.9, ruled 2026-09-15 as a semantic pressure test on shared-X
+# convergence. `payment_in_respect_of_obligation(p, O)` means EXACTLY: *the asserting party holds that
+# the subject payment was in respect of the object obligation* - and nothing above that floor.
+#
+#     NON-DERIVABILITY (the D' invariant, stated where the kind is defined):
+#         payment_in_respect_of_obligation(p, O) is assertable from evidence identifying both p and O.
+#         It is NOT derivable merely from
+#             payment_in_respect_of(p, X)  +  obligation_in_respect_of(O, X)
+#         nor from any composition whose only shared operand is X, nor from E's acknowledgment of p,
+#         nor from a payment's creation order, amount, payee or clearing.
+#     Shared reference to X cannot establish payment -> obligation: with several obligations in respect
+#     of X a derivation cannot name its result (D'3); with the insurer's payment (Aetna -> Mercy $568
+#     beside Rob's $412 obligation, both in respect of the same visit) its result is FALSE (D'5,
+#     PERMANENT); with a reimbursement or a desk copay it is unwanted (D'6); and the mortgage has no
+#     expense to converge on at all (D'1). Convergence is neither a party nor a reading: it has no
+#     evidentiary authority. Rob's four things are four: common referent (two claims of kinds C and D)
+#     · economic relationship (E's acknowledgment; item 7's remaining) · identity relationship (THIS
+#     kind, asserted) · derived relationship (refused). No selector, resolver or accessor may choose an
+#     obligation for a payment; the relation is boring - p -> O - and the evidence explains why it exists.
+#
+# `toward` - the payment fixtures' stand-in since Pm1 - is REJECTED as the kind: it asserts a direction
+# of money (a creditor's escrow refund is in respect of the mortgage with the money the other way, D'11)
+# and an intent-to-reduce that is content (S3 / S6 separate intent from effect). The household's
+# assertion of this relation IS the "attached" station of the ruled acknowledgment sequence (H2); E's
+# acknowledgment is a different claim by a different party - and when read as *E applied p to O* it
+# carries O as a hidden operand (K8), a participant / content question recorded for the catalogue (D4)
+# and not fixed here. Both participants established - the claim mints neither. Direction fixed by
+# participant type, no inverse kind (obligation_paid_by would be a second relation), navigation either
+# way a query. No cardinality, and cardinality is not allocation (one cheque for two plans, twelve
+# autopays for one mortgage: no split, no sum, no remaining). Established only by a party's assertion
+# with both endpoints already established (the household, the creditor, a servicer); a statement line
+# "applied to loan 4471", a matcher, E's credit yields at most a candidate. Derives NOTHING: no
+# discharge, application or credit (E's, by definition); no remaining (H2 / item 7); no direction of
+# money; no temporal order (D'4 with D21 / C7, PERMANENT); no composition with obligation_replaces,
+# payment_counteracts, obligation_in_respect_of or payment_in_respect_of; no status on p or O.
+# Toward / against / on / applied / attached / paid down are content or another party's claim, never
+# kinds. JURISDICTION: whether this kind and payment_in_respect_of are one kind with typed object slots
+# is G's question - a distinct kind is the representation until G rules, and G may not retroactively
+# supply the semantics D' refused to derive. Knowing: relational_knowing True with no designated
+# relation -> undetermined. Not a source word.
+PAYMENT_IN_RESPECT_OF_OBLIGATION = 'payment_in_respect_of_obligation'
+
 # ── Ab7: proposition-level about-ness ────────────────────────────────────────
 # gw 2.0/PROPOSITION_ABOUTNESS.md, ruled s7. `proposition_concerns(P, X)` means EXACTLY: *this
 # proposition concerns this identity* - subject a PROPOSITION (the first and only ruled kind with a
@@ -1888,6 +1931,11 @@ RULED_KINDS = {
     # payment_in_respect_of (item 6 pass D): payment subject, expense object - direction fixed by type,
     # carrying no meaning; relational_knowing True and NO knowing_relation: undetermined by design.
     PAYMENT_IN_RESPECT_OF: {'subject': ('subject_payment_id',),    'object': ('object_expense_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
+    # payment_in_respect_of_obligation (item 6 pass D'): payment subject, obligation object; NOT derivable
+    # from payment_in_respect_of + obligation_in_respect_of sharing an X (see the constant); relational_knowing
+    # True and NO knowing_relation: undetermined by design.
+    PAYMENT_IN_RESPECT_OF_OBLIGATION: {'subject': ('subject_payment_id',), 'object': ('object_obligation_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
     # subject: a proposition - the only ruled use of that slot. object: the identities ruled so far.
     PROPOSITION_CONCERNS: {'subject': ('subject_proposition_id',),

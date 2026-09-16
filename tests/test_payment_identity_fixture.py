@@ -187,7 +187,9 @@ def run(db):
     e_amt, p_amt = about('amount', p1, '$1,412', utterance=u_paid)
     e_occ, p_occ = about('occurred_on', p1, None, utterance=u_paid, as_of='2026-03-03')
     e_to, p_to = role('paid_to', chase, p1, u_paid)
-    p_toward = prop('toward', subject_payment_id=p1.id, object_obligation_id=o1.id)
+    # Item 6 pass D' ruled the payment -> obligation relation as payment_in_respect_of_obligation and REJECTED
+    # `toward` as the kind (RELATION_SEMANTICS.md D'.9); the stand-in used here since Pm1 is retired into it.
+    p_toward = prop(db.PAYMENT_IN_RESPECT_OF_OBLIGATION, subject_payment_id=p1.id, object_obligation_id=o1.id)
     e_toward = evidence(p_toward, utterance=u_paid)
     check('the same act evidences amount, occurred date, payee and toward - four claims about p, none on the anchor',
           s.query(db.EvidentiaryRelationship).filter_by(utterance_id=u_paid.id).count() == 4
@@ -254,7 +256,7 @@ def run(db):
     u_s3pay = utter('I paid S3 $1,412 in April - they said they were the servicer.', '2026-04-05T09:00:00')
     p5 = mint_payment(u_s3pay)
     role('paid_to', s3, p5, u_s3pay)
-    evidence(prop('toward', subject_payment_id=p5.id, object_obligation_id=o1.id), utterance=u_s3pay)
+    evidence(prop(db.PAYMENT_IN_RESPECT_OF_OBLIGATION, subject_payment_id=p5.id, object_obligation_id=o1.id), utterance=u_s3pay)
     check('Pm5 (S3): a real payment; payee S3; toward O1; no acknowledgment from E - a payment, no discharge',
           s.query(db.Proposition).filter_by(kind='paid_to', object_payment_id=p5.id).count() == 1
           and s.query(db.Proposition).filter_by(kind='acknowledged', object_payment_id=p5.id).count() == 0)
@@ -336,11 +338,11 @@ def run(db):
 
     print('\n9. Generic slots; artefact_concerns grows; absences; audits\n')
     # Item 6 pass A ruled payment_counteracts on the payment slots (RELATION_SEMANTICS.md A.6); the
-    # role-shaped claims used here (paid_by, paid_to, toward) remain stand-ins - unruled by design.
+    # role-shaped claims used here (paid_by, paid_to) remain stand-ins - unruled by design.
     # ...and item 6 pass D ruled payment_in_respect_of on the payment subject slot (RELATION_SEMANTICS.md D.9)
-    # - a payment -> expense relation; toward (payment -> obligation, D') is still a stand-in.
-    check('payment slots are generic proposition participation - only payment_corresponds, payment_counteracts and payment_in_respect_of are ruled on them; paid_by / toward stay stand-ins',
-          set(k for k, r in db.RULED_KINDS.items() if 'subject_payment_id' in r['subject']) == {db.PAYMENT_CORRESPONDS, db.PAYMENT_COUNTERACTS, db.PAYMENT_IN_RESPECT_OF}
+    # - a payment -> expense relation; pass D' ruled payment_in_respect_of_obligation and rejected toward as a kind.
+    check('payment slots are generic proposition participation - only payment_corresponds, payment_counteracts, payment_in_respect_of and payment_in_respect_of_obligation are ruled on them; paid_by stays a stand-in; toward is rejected, never a kind',
+          set(k for k, r in db.RULED_KINDS.items() if 'subject_payment_id' in r['subject']) == {db.PAYMENT_CORRESPONDS, db.PAYMENT_COUNTERACTS, db.PAYMENT_IN_RESPECT_OF, db.PAYMENT_IN_RESPECT_OF_OBLIGATION}
           and 'paid_by' not in db.RULED_KINDS and 'toward' not in db.RULED_KINDS)
     receipt = held('h-receipt', '2026-03-03', chase, u_chase)
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=receipt.id, object_payment_id=p1.id),

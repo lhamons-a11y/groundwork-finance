@@ -216,7 +216,7 @@ def run(db):
     check('no kind with an expense subject and a payment object exists - the slots swapped would be a second relation, not this one read backwards',
           not any('subject_expense_id' in r['subject'] and 'object_payment_id' in r['object'] for r in db.RULED_KINDS.values()))
     check("D' is not bundled: toward stays a stand-in, unruled",
-          'toward' not in db.RULED_KINDS and 'payment_toward' not in db.RULED_KINDS)
+          'toward' not in db.RULED_KINDS and 'payment_toward' not in db.RULED_KINDS)   # D' ruled its own kind; toward rejected
 
     print("\n2. D1 - Ex8: the CVS charge was Kim's prescription; no obligation anywhere\n")
     X, u_X = incur("Kim's prescription at CVS on 3/2.", '2026-03-03T09:00:00')
@@ -321,14 +321,14 @@ def run(db):
     O, u_O = owe("That's the ER visit - I owe Mercy for it.", '2026-03-06T09:00:00')
     evidence(prop(db.OBLIGATION_IN_RESPECT_OF, subject_obligation_id=O.id, object_expense_id=ER.id), utterance=u_O)
     pb, u_pb = pay('I paid Mercy $382 toward the bill.', '2026-04-10T09:01:00')
-    evidence(prop('toward', subject_payment_id=pb.id, object_obligation_id=O.id), utterance=u_pb)          # stand-in, unruled
-    check('D8: toward(pb, O) + O in respect of ER does NOT derive pb in respect of ER',
+    evidence(prop(db.PAYMENT_IN_RESPECT_OF_OBLIGATION, subject_payment_id=pb.id, object_obligation_id=O.id), utterance=u_pb)   # ruled in pass D' (was the toward stand-in)
+    check('D8: pb in respect of O + O in respect of ER does NOT derive pb in respect of ER',
           rel(p=pb, x=ER).count() == 0)
-    n_toward = s.query(db.Proposition).filter_by(kind='toward').count()
+    n_toward = s.query(db.Proposition).filter_by(kind=db.PAYMENT_IN_RESPECT_OF_OBLIGATION).count()
     in_respect_of(q2, ER, utterance=utter('The $382 was for the ER visit.', '2026-04-10T09:02:00'))
-    check('D8: q2 in respect of ER + O in respect of ER does NOT derive q2 toward O; the household asserts toward, or does not',
-          s.query(db.Proposition).filter_by(kind='toward', subject_payment_id=q2.id).count() == 0
-          and s.query(db.Proposition).filter_by(kind='toward').count() == n_toward)
+    check('D8: q2 in respect of ER + O in respect of ER does NOT derive q2 in respect of O; the household asserts it, or does not',
+          s.query(db.Proposition).filter_by(kind=db.PAYMENT_IN_RESPECT_OF_OBLIGATION, subject_payment_id=q2.id).count() == 0
+          and s.query(db.Proposition).filter_by(kind=db.PAYMENT_IN_RESPECT_OF_OBLIGATION).count() == n_toward)
     check('D8: discharge of O is untouched - no acknowledgment claim appeared, no discharge helper exists',
           s.query(db.Proposition).filter_by(kind='acknowledged', object_payment_id=pb.id).count() == 0
           and not any(hasattr(db, n) for n in ('is_discharged', 'discharged_by', 'discharge_of', 'remaining_on')))

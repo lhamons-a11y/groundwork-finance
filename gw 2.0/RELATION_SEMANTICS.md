@@ -1,6 +1,6 @@
 # Relation semantics — item 6, opened not as "design the relation family"
 
-> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED at the semantic level (§D′.9) 2026-09-15 — no convergence rule exists; build not yet authorised. Passes E–G open one at a time.** Items 1–5 are
+> Status: **Queue item 6, opened by Rob 2026-09-14. Pass A RULED (§A.6), built (`63848fa`). Pass B RULED (§B.7), built (`c0215a6`), ACCEPTED (§B.8). Pass C RULED (§C.9), built, smoke-reviewed and CLOSED. Pass D RULED (§D.9), built (`ef04ddb`), ACCEPTED (§D.10). Pass D′ OPENED 2026-09-15 by Rob as a semantic pressure test — shared-X convergence refused on every row (§D′.2), `toward` interrogated and rejected as the kind (§D′.3), a finding on the acknowledgment shape (§D′.4), candidate `payment_in_respect_of_obligation` (§D′.8); RULED (§D′.9), build AUTHORISED with the non-derivability clause and non-selection fixtures (§D′.10), built — see the commit. Passes E–G open one at a time; E next, Rob opens.** Items 1–5 are
 > closed at `1deb727`. Rob's reframing, verbatim: *I would not open it as "design the relation
 > family." That name is already a potential trap. The previous slices have deliberately established
 > identities without allowing relations to acquire meaning by accumulation. Item 6 should therefore
@@ -1582,3 +1582,65 @@ jurisdiction is deferred to G.*
 entry; the payment fixture's `toward` stand-in becomes the ruled relation; `acknowledged` remains
 a stand-in with its finding preserved beside it. **No E.** D′ closed at the semantic level; G has
 a well-defined family question rather than a collection of unresolved local choices.
+
+### D′.10 Build authorised — Rob, 2026-09-15: one safety improvement, four fixture protections
+
+*Not reopening the semantic ruling; making sure the implementation cannot accidentally turn the
+existence of the relation into a new inference engine.*
+
+1. **The registry entry carries an explicit non-derivability boundary** — stated where the kind
+   is defined, not in a document six months away from the join someone will otherwise write:
+   *`payment_in_respect_of_obligation(p, O)` is assertable from evidence identifying both p and O;
+   it is not derivable merely from `payment_in_respect_of(p, X)` + `obligation_in_respect_of(O, X)`,
+   nor from any composition whose only shared operand is X.*
+2. **The fixture proves non-selection, not just non-existence** — for every convergence case
+   (D′2 / D′3 / D′5 / D′6): zero relation row, zero selected obligation, zero resolver choice. The
+   dangerous implementation is not `insert(relation)`; it is `candidate = find_obligation_for_payment(…)`
+   followed by a later derivation.
+3. **The multiple-obligation case is mandatory** (D′3): *p → O1* absent, *p → O2* absent, and
+   `selected_obligation(p) == none` — **the point is not that the system didn't happen to choose the
+   wrong one; it must have no authority to choose one.**
+4. **The Lakeview Health counterexample is a named permanent fixture** (D′5) — stronger than the generic
+   ambiguity case: a known real-world interpretation makes the inferred relation *false*, not merely
+   unknowable; it protects against *"we can safely infer it because usually the payment is related
+   to the obligation."*
+5. **Assertion is not a new evidence mechanism** — no `payment.obligation`, no
+   `resolve_payment_obligation(payment)`; the relation stays boring — *p → O* — and the evidence /
+   provenance machinery explains why the proposition exists. No smart resolver.
+6. **The `toward` migration carries a migration-shape assertion** — every fixture use of `toward`
+   that represented the D′ semantic case becomes the ruled kind; no unrelated use is silently
+   reclassified (`toward` is broader / different; a global rename would be dangerous).
+
+**Not waiting for G** — that would make the build hostage to a future family decision. The
+jurisdiction fence preserved: *D′ authorises the distinct relation as the current ruled semantic
+kind; G may determine whether it belongs to a broader relation-family representation; G must not
+retroactively supply the semantics D′ refused to derive.* **Authorised: `payment_in_respect_of_obligation`
+now, with the registry clause and the stronger convergence / non-selection fixtures. No E, no
+schema, no family abstraction, no resolver, no new acknowledgment semantics.** G will decide
+representation over already-tested relations rather than inferring what D′ meant from behaviour.
+
+#### Built — 2026-09-15
+
+`core/database.py`: `PAYMENT_IN_RESPECT_OF_OBLIGATION` with the **NON-DERIVABILITY** clause in the
+constant's contract block (the smoke section asserts the clause is present beside the kind), and
+the registry entry; both slots pre-existed; no guard change. Fixture
+`tests/test_payment_in_respect_of_obligation_fixture.py` (41 checks, D′1–D′18): every convergence
+case asserts `nothing_selected()` — no selector, resolver, convergence join or `Payment.obligation`
+/ `Obligation.payments` accessor — beside the absent row; D′3 mandatory (two obligations, neither
+chosen, no candidate list); **D′5 named PERMANENT** (Lakeview Health's payment and Rob's obligation converge
+on X; the derived relation would be false; O untouched); D′4 permanent with D21; D′7 shows the
+statement line as a candidate and the `acknowledged` stand-in deriving nothing (O is not its
+participant — the §D′.4 finding beside it, unfixed); D′1 the mortgage with zero expenses; D′15 the
+convergence join never made even after O1 is asserted in respect of X. Smoke
+`s105_payment_in_respect_of_obligation.py`, **twelve** mutations caught, baseline re-established
+after every undo: the label establishes · **CONVERGENCE DERIVES — the obvious join, both
+directions** · a selector · a `Payment.obligation` accessor · **E's acknowledgment derives** ·
+discharge derived · remaining moves · a D′4 order guard · the inverse kind · `obligation_replaces`
+composes · **`toward` comes back as a kind** · the kind turns symmetric — **plus a static
+migration-shape scan**: no fixture or smoke section uses `toward` as a proposition kind (prop /
+kind= / kind==; comment lines skipped), prose uses untouched. **The `toward` stand-in retired into
+the ruled kind in exactly its five D′-semantic uses** — payment fixture Pm1 and Pm5 (S3),
+obligation_in_respect_of C15, obligation_replaces B3, payment_in_respect_of D8, and s104's chain
+mutation — each check's wording updated to *toward rejected, never a kind*; the payment fixture's
+slot check now names four ruled kinds and keeps `paid_by` as a stand-in. `acknowledged` untouched.
+No schema, no migration, no family abstraction. Gate 1041 → 1069, 0 failed.

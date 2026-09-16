@@ -218,10 +218,10 @@ def run(db):
     n_rel = rel().count()
     p_payoff, u_payoff = pay('NewBank sent Chase the payoff - $178,412 on Jan 3.', '2027-01-05T09:01:00')
     prop('paid_by', object_state=db.PARTICIPANT_NONE, subject_payment_id=p_payoff.id, content='NewBank')
-    evidence(prop('toward', subject_payment_id=p_payoff.id, object_obligation_id=o1.id), utterance=u_payoff)   # stand-in, unruled
-    check('B3: the payoff is a payment (payer NewBank - Pm9) claimed toward O1 by a stand-in; it asserted no obligation relation',
+    evidence(prop(db.PAYMENT_IN_RESPECT_OF_OBLIGATION, subject_payment_id=p_payoff.id, object_obligation_id=o1.id), utterance=u_payoff)   # ruled in pass D' (was the toward stand-in)
+    check('B3: the payoff is a payment (payer NewBank - Pm9) asserted in respect of O1 (pass D\'s kind; toward rejected); it asserted no obligation-obligation relation',
           rel().count() == n_rel and 'toward' not in db.RULED_KINDS
-          and s.query(db.Proposition).filter_by(kind='toward', subject_payment_id=p_payoff.id, object_obligation_id=o1.id).count() == 1)
+          and s.query(db.Proposition).filter_by(kind=db.PAYMENT_IN_RESPECT_OF_OBLIGATION, subject_payment_id=p_payoff.id, object_obligation_id=o1.id).count() == 1)
     letter = db.Artefact(held=True, content_hash='h-paid-in-full', as_of='2027-01-10')
     s.add(letter)
     s.commit()
@@ -234,7 +234,7 @@ def run(db):
     check("B3: Chase's paid-in-full letter is an artefact whose reading yields a balance claim about O1 - it mints nothing and relates nothing",
           s.query(db.Obligation).count() == n_obl and rel().count() == n_rel)
     e_b3, r_b3 = replaces(o3, o1, utterance=utter('The NewBank loan replaced the Chase mortgage.', '2027-01-05T09:10:00'))
-    check('B3: the relation is the fourth thing - asserted by Rob, with O3 the subject and O1 the object; it is not toward, not acknowledgment, not correspondence',
+    check('B3: the relation is the fourth thing - asserted by Rob, with O3 the subject and O1 the object; it is not the payment relation, not acknowledgment, not correspondence',
           rel(o3, o1).count() == 1 and r_b3.kind == db.OBLIGATION_REPLACES
           and s.query(db.Proposition).filter_by(kind=db.OBLIGATION_CORRESPONDS).count() == 0)
     check('B3: the relation does not establish the discharge and the payment does not establish the relation - no helper joins them',

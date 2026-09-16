@@ -376,9 +376,9 @@ def run(db):
 
     print('\n11. C15 - payment toward O and coverage: the relation says nothing\n')
     p1, u_p1 = pay('I paid Mercy $412 on 3/20.', '2026-03-20T09:00:00')
-    evidence(prop('toward', subject_payment_id=p1.id, object_obligation_id=O.id), utterance=u_p1)     # stand-in, unruled
+    evidence(prop(db.PAYMENT_IN_RESPECT_OF_OBLIGATION, subject_payment_id=p1.id, object_obligation_id=O.id), utterance=u_p1)   # ruled in pass D' (was the toward stand-in)
     about_x('covered', X, 'plan paid $568', utterance=utter('Aetna covered the rest.', '2026-03-21T09:00:00', origin=household), as_of='2026-03-10')
-    check('C15: a payment toward O (stand-in) and a coverage stance on X sit beside the relation; nothing marks X paid, O discharged or O covered',
+    check('C15: a payment in respect of O (pass D\'s ruled kind; toward rejected) and a coverage stance on X sit beside the relation; nothing marks X paid, O discharged or O covered',
           'toward' not in db.RULED_KINDS and rel(o=O, x=X).count() >= 1
           and not any(hasattr(db, n) for n in ('is_paid', 'paid_for', 'expense_paid', 'is_discharged', 'discharged_by', 'is_covered', 'covered_by'))
           and s.query(db.Proposition).filter_by(kind='covered', subject_obligation_id=O.id).count() == 0)

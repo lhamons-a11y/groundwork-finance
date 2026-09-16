@@ -14,7 +14,7 @@ each way of letting it is caught.
     the relation funds              `funder_of(expense)` reads the payer through the relation
     the phrase supplies order       a guard refuses the relation when the expense was minted after the payment (D21)
     the inverse is manufactured     the registry gains an expense -> payment kind
-    the chain composes              toward(p, O) + obligation_in_respect_of(O, X) inserts payment_in_respect_of(p, X)
+    the chain composes              payment_in_respect_of_obligation(p, O) + obligation_in_respect_of(O, X) inserts payment_in_respect_of(p, X)
     counteracts composes            payment_counteracts(p2, p1) + p1 in respect of X inserts p2 in respect of X
     the kind turns symmetric        the registry entry flips symmetric True
 
@@ -96,7 +96,7 @@ def _mutations(db):
 
     def chain_composes():
         def compose(mapper, connection, target):
-            if target.kind != 'toward' or not target.subject_payment_id or not target.object_obligation_id:
+            if target.kind != db.PAYMENT_IN_RESPECT_OF_OBLIGATION or not target.subject_payment_id or not target.object_obligation_id:
                 return
             for r in connection.execute(P.select().where(P.c.kind == db.OBLIGATION_IN_RESPECT_OF,
                                                           P.c.subject_obligation_id == target.object_obligation_id)).fetchall():
