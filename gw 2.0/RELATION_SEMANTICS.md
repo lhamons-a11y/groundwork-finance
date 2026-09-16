@@ -1644,3 +1644,42 @@ obligation_in_respect_of C15, obligation_replaces B3, payment_in_respect_of D8, 
 mutation — each check's wording updated to *toward rejected, never a kind*; the payment fixture's
 slot check now names four ruled kinds and keeps `paid_by` as a stand-in. `acknowledged` untouched.
 No schema, no migration, no family abstraction. Gate 1041 → 1069, 0 failed.
+
+### D′.11 What D′ fixed, and what it did not — Rob, 2026-09-15 (the distinction to preserve)
+
+*D′ fixed the concrete flaw and strengthened the architecture against recurrence. It has not
+demonstrated that Groundwork needs a new general composition doctrine — and that is good news.*
+
+| Concern | Status |
+|---|---|
+| shared-X convergence could manufacture *payment → obligation* | **fixed** |
+| a resolver could secretly choose an obligation | **fixed / fenced** |
+| a convenience accessor could reintroduce the inference | **fixed / fenced** |
+| `toward` could accidentally become permanent ontology | **fixed for the D′ migration** |
+| acknowledgment could silently establish the obligation relationship | **caught / fenced; D4 remains open** |
+| object-type / family abstraction decided prematurely | **fenced; correctly deferred to G** |
+| valid vs invalid relation composition lacks an established general doctrine | **not yet resolved** |
+| evidence → candidate → proposition boundaries in general | **partially addressed; broader question remains** |
+| identity semantics across the whole system | **not fully resolved** |
+| lifecycle / evidence interaction | **not addressed by D′** |
+
+**What changed:** before D′ one specific dangerous inference existed; now there is a semantic
+ruling that it is invalid, a registry contract saying so, fixtures with the counterexamples, a
+mandatory multiple-obligation test, the Lakeview Health counterexample, no resolver or accessor for it to
+re-enter through, smoke mutations that try to introduce it, and migration protection around the
+old terminology — *a real architectural repair, not documentation.*
+
+**What did not change:** the general question *how does Groundwork know which compositions are
+legitimate?* D′ answered one instance — *convergence is not enough to establish identity* — not
+the class. **No giant composition doctrine is to be created because the pattern was noticed**;
+the next step is to determine, from the A / B / C / D / D′ rulings as they stand, whether they
+already provide the necessary rules — *find the hotspot → pressure-test it → determine whether
+it is an actual gap → fix only the part that is actually unsupported.*
+
+**One observation for that determination, recorded so it is not re-found:** the refusal of
+composition across kinds appears in every pass as a *local* fence — A4 (no transitivity along a
+chain), B11, C9, D8 / D15, D′15 and §D′.2 — while §1's twelve prohibitions state it nowhere in
+general: prohibition 8 (no implied inverse) and 11 (no consumer derivation) are adjacent, not it.
+The general rule exists today **only by accumulation** — the same shape §1 forbids for relation
+*meaning*, here for a *prohibition*. Whether that is a doctrine gap or a one-line lift into §1 is
+the question, not a conclusion.
