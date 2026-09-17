@@ -2,7 +2,7 @@
 
 > Status: **Queue item 7, opened by Rob 2026-09-16 after item 6 closed A–G. This record carries the
 > governing question, the discipline, the inventory of everything the record has fenced to item 7,
-> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), pass 7B — independence — RULED, built, tightened and ACCEPTED (§7B.9, `c82c9da`, gate 1129), pass 7C — about-ness — RULED, built and ACCEPTED (§7C.8, `c902461`, gate 1152), and pass 7D — level consistency — OPENED 2026-09-16, run to a candidate (§7D.6), no code; awaiting Rob. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
+> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), pass 7B — independence — RULED, built, tightened and ACCEPTED (§7B.9, `c82c9da`, gate 1129), pass 7C — about-ness — RULED, built and ACCEPTED (§7C.8, `c902461`, gate 1152), and pass 7D — level consistency — RULED as written (§7D.7) with six fixture demonstrations required, and built. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
 > *the substrate can now represent ambiguity without resolving it; consumer work becomes valuable
 > exactly then — but only after the ontology stops moving underneath it.* Items 1–6 are closed.
 > What still moves: D′.11 (composition across relation kinds — an open **constraint** every
@@ -1125,3 +1125,78 @@ outlier at write, call a candidate a conflict, call an empty level consistent, s
 
 *The line: the document says what it is about; the lines say what they are about; when they
 disagree, the record holds both and the household is told — and nobody is told who is right.*
+
+### 7D.7 Ruling — Rob, 2026-09-16: 7D RULED as written; six things the fixture must demonstrate
+
+*Correctly framed; the crucial distinction preserved — 7D is a characterisation / reporting consumer,
+not a resolver.* The core definition is right: **an established line-level about-ness identity
+outside the artefact's established identity set for the same requested type** — level consistency,
+not general proposition disagreement; the negative cases keep 7D from becoming a generic
+contradiction detector.
+
+**The edges settled, and the six demonstrations required before acceptance:**
+
+1. **Empty artefact-level evidence is neither consistency nor inconsistency.** The three-state
+   distinction is mechanical, never collapsed by `if line in artefact_identities … else
+   inconsistent`: *{O1} / O1 → consistent · {O1} / O2 → inconsistent · {} / O1 → no level basis.*
+2. **Contested artefact evidence has exact STOP semantics.** *O1 established, O2 contested; P → O1,
+   Q → O2*: the report preserves *O1 → established basis exists; O2 → basis contested*, derives no
+   level disagreement for Q from the contested state, and does not pretend the artefact's set is
+   simply {O1} in order to manufacture one — a line outside the established set while the
+   artefact side is contested for that type is **unresolved**, not inconsistent; a line inside it
+   is consistent (its basis is established regardless).
+3. **Candidate paths never become inconsistencies.** *7C candidate → 7D sees candidate → NOT a
+   level inconsistency* — a line whose only about-ness is candidate has **no line basis**; a
+   candidate artefact concern is not part of the established set. Otherwise 7D would acquire
+   exactly the promotion authority 7C was forbidden.
+4. **Type isolation applies at the report level.** The report is partitioned *artefact → identity
+   type → {artefact established set · lines by classification}*; an artefact concerning O1, E1 and
+   p never makes an obligation line about O1 "in conflict" because of E1 or p (Ac21's rule).
+5. **No Boolean.** The report distinguishes **consistent · inconsistent · no line basis · no level
+   basis · unresolved** — never `consistent=False` for the last three. And artefact-derived
+   about-ness (7C's artefact path) is *the artefact level itself* and is excluded from the
+   comparison — a line whose only established about-ness is artefact-derived has no independent
+   line basis; correspondence-derived about-ness does count (Lc-g).
+6. **Counts are descriptive metadata about the observed report, not an evidentiary primitive.**
+   *1 / 5 · 3 / 5 · 5 / 5 inconsistent* all remain reportable without 7D acquiring majority,
+   confidence, weight, probability or a recommended retraction.
+
+**The unit and the dependency direction, pinned:** `aboutness()` → established / candidate /
+undetermined / conflict → *7D interprets only the established about-ness, with its provenance,
+never as a claim* → the report. Never *7D reinterprets participants → creates about-ness*. 7D is
+a consumer of 7C's result, not a second implementation of about-ness. The assertion-disagreement
+class (Lc-h) stays separate: *proposition ↔ proposition* versus *line ↔ artefact* are different
+questions.
+
+**Disposition — 7D: RULED as written; build it.** 7D characterises the disagreement; which
+evidence wins belongs elsewhere, if and when that later pass is actually ruled.
+
+#### Built — 2026-09-16
+
+`core/database.py`: `level_consistency(session, artefact)` beside `aboutness` — a plain dict,
+computed on read, storing nothing, partitioned by identity type: the artefact side (*state:
+established · candidates_only · contested · none*; the established set with claims and asserters;
+candidates; contested identities), every line read from the artefact (the ruled meta-kinds —
+origin, concerns, correspondence, retraction — are not lines) with its 7C about-ness taken with
+provenance — established line identities = structural ∪ asserted ∪ correspondence-derived, the
+artefact-derived path excluded as the artefact level itself — classified **consistent ·
+inconsistent · no_line_basis · no_level_basis · unresolved**, each inconsistency naming the line's
+identities with their sources and the established set it lies outside; a separate
+`proposition_disagreements` class for members of one established correspondence component
+asserted about different identities; `counts` by classification as descriptive output; a note.
+The 7A–7C wiring guard applies (AST on session receivers; a full row-content snapshot). Fixture
+`tests/test_level_consistency_fixture.py` over Ld1–Ld17 and Rob's six demonstrations; smoke
+`s110_level_consistency.py`, mutations each an attempt to *decide*: prefer the artefact level ·
+prefer the line level · prefer recency · the majority flips the artefact set · refuse the outlier
+at write · a candidate raises an inconsistency · an empty level reads consistent · a contested
+basis manufactures an inconsistency · the five states collapse to a Boolean · a cross-type
+conflict · a recommended retraction · store — twelve, all caught, baseline re-established after every
+undo. Fixture 27 checks (Ld1–Ld17 and the six demonstrations, each a named check). One escape on the
+first run, fixed in the derivation: the artefact side's *contested* state was leaking into every
+line's classification through 7C's `undetermined` entries (and a *retracted* line assertion beside
+an established one was making the line unresolved) — the line-level undetermined entries are now
+reported on the line and classify nothing, since a retracted assertion is not a basis and the
+artefact-side contest is the type's own state; the checks unchanged. No schema, no migration. Gate
+1152 → 1179, 0 failed. (The full gate now exceeds ten minutes — the consumer fixtures rerun
+under a dozen mutations each and `level_consistency` calls `aboutness` per line; noted, not
+optimised here.)

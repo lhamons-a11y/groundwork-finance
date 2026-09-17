@@ -256,9 +256,13 @@ def run(db):
           db.derived_strength(s, e_T, KNOWING) == db.STRENGTH_NOT_KNOWING
           and s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS).count() == n_c)
     evidence(pconcerns(lines[3][0], obligation=o3), utterance=utter('That rate line is actually the car loan.', '2026-04-16T09:00:00'))
-    check('Pa7: a line-level claim naming an identity the artefact does not concern is REPRESENTABLE - inconsistency is a consumer\'s report',
+    # Item 7 pass 7D built that consumer's report as core.database.level_consistency (CONSUMER_DERIVATIONS.md
+    # s 7D.7) - a report, never a guard and never a resolver; this fixture still asserts the claim is
+    # representable (no guard refused it) and that no resolver exists.
+    check('Pa7: a line-level claim naming an identity the artefact does not concern is REPRESENTABLE - inconsistency is a consumer\'s report (built in item 7 as level_consistency(); still no guard, no resolver)',
           s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS, object_obligation_id=o3.id).count() == 1
-          and not any(hasattr(db, n) for n in ('level_consistency', 'consistent_aboutness', 'resolve_aboutness')))
+          and callable(getattr(db, 'level_consistency', None))
+          and not any(hasattr(db, n) for n in ('consistent_aboutness', 'resolve_aboutness', 'resolve_levels', 'refuse_inconsistent')))
     S1 = held('h-single', '2026-03-31', cu, u_cu)
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=S1.id, object_obligation_id=o1.id), utterance=utter('My mortgage statement.'))
     rS = read(S1)

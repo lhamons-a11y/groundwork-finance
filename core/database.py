@@ -2654,6 +2654,156 @@ def aboutness(session, proposition):
     return out
 
 
+# ── Item 7, pass 7D: level consistency - a CONSUMER derivation, a REPORT not a verdict ─
+# gw 2.0/CONSUMER_DERIVATIONS.md s 7D.7, ruled 2026-09-16. For one artefact and one identity type: the
+# artefact's ESTABLISHED concern set (claims, asserters) and every line read from the artefact classified
+# by whether its established about-ness - asserted, structural, or derived through ESTABLISHED
+# correspondence, taken from aboutness() WITH ITS PROVENANCE and never as a claim; the artefact-derived
+# path excluded because it IS the artefact level - lies within that set:
+#     consistent      established line identity in the established artefact set
+#     inconsistent    established line identity outside it - both sides named
+#     no_line_basis   the line has no established about-ness independent of the artefact level
+#                     (candidates are listed and never raise an inconsistency)
+#     no_level_basis  the artefact has no established concern of the type - NOT consistent (s1.5)
+#     unresolved      the artefact side is contested for the type and the line lies outside the
+#                     established set - contested stops the consumer; nothing is manufactured
+# Never a Boolean. Partitioned by type - an artefact concerning O1, E1 and p never makes an obligation
+# line "in conflict" because of E1 or p. Two propositions established as one claim but asserted about
+# different identities are a PROPOSITION DISAGREEMENT, its own class, not a level. It refuses no claim
+# at write (Pa7), settles nothing by level, specificity, recency, count or party, ranks no asserter,
+# writes no status and suggests no retraction; the count of disagreeing lines is descriptive metadata,
+# never majority, weight, confidence or probability. Surfaced to the household, who may retract or
+# re-assert; recomputed on every read. Which evidence wins belongs elsewhere, if ever ruled.
+LEVEL_CONSISTENT = 'consistent'
+LEVEL_INCONSISTENT = 'inconsistent'
+LEVEL_NO_LINE_BASIS = 'no_line_basis'
+LEVEL_NO_LEVEL_BASIS = 'no_level_basis'
+LEVEL_UNRESOLVED = 'unresolved'
+ARTEFACT_SIDE_ESTABLISHED = 'established'
+ARTEFACT_SIDE_CANDIDATES = 'candidates_only'
+ARTEFACT_SIDE_CONTESTED = 'contested'
+ARTEFACT_SIDE_NONE = 'none'
+_META_KINDS = (ARTEFACT_ORIGIN, ARTEFACT_CONCERNS, PROPOSITION_CONCERNS, PROPOSITION_CORRESPONDS, UTTERANCE_RETRACTION)
+
+
+def level_consistency(session, artefact):
+    """The level-consistency report for one artefact: a plain dict, computed on read, storing nothing.
+
+        {'artefact_id',
+         'types': {type: {'artefact_state': established|candidates_only|contested|none,
+                          'established': {id: [(claim_id, asserter_party_id)]},
+                          'candidates': [id], 'contested': [id],
+                          'lines': [{'proposition': id, 'classification': ..., 'identities': [(id, source)],
+                                     'candidates': [id], 'against': [id]}],
+                          'inconsistencies': [line entries classified inconsistent],
+                          'counts': {classification: n}}},
+         'proposition_disagreements': [{'type', 'component': [ids], 'identities': {id: [(prop, source)]}}],
+         'note': None | 'no lines'}
+    """
+    retracted = {u for (u,) in session.query(Proposition.subject_utterance_id)
+                 .filter(Proposition.kind == UTTERANCE_RETRACTION, Proposition.subject_utterance_id.isnot(None)).all()}
+    # ── the artefact side, per type ──────────────────────────────────────────
+    types = {}
+    claims = (session.query(Proposition, EvidentiaryRelationship)
+              .join(EvidentiaryRelationship, EvidentiaryRelationship.proposition_id == Proposition.id)
+              .filter(Proposition.kind == ARTEFACT_CONCERNS, Proposition.subject_artefact_id == artefact.id).all())
+    for typ, (_, obj_col) in ABOUT_IDENTITY_TYPES.items():
+        established, cand, contested = {}, set(), set()
+        for claim, rel in claims:
+            ident = getattr(claim, obj_col)
+            if ident is None:
+                continue
+            if rel.utterance_id is None:
+                cand.add(ident)
+            elif rel.utterance_id in retracted:
+                contested.add(ident)
+            else:
+                established.setdefault(ident, []).append((claim.id, rel.utterance.origin_party_id))
+        contested -= set(established)
+        cand -= set(established) | contested
+        if established:
+            state = ARTEFACT_SIDE_ESTABLISHED
+        elif contested:
+            state = ARTEFACT_SIDE_CONTESTED
+        elif cand:
+            state = ARTEFACT_SIDE_CANDIDATES
+        else:
+            state = ARTEFACT_SIDE_NONE
+        types[typ] = {'artefact_state': state, 'established': established, 'candidates': sorted(cand),
+                      'contested': sorted(contested), 'lines': [], 'inconsistencies': [], 'counts': {}}
+    # ── the lines: every non-meta proposition read from this artefact ─────────
+    reading_ids = [r.id for r in session.query(Reading).filter(Reading.artefact_id == artefact.id).all()]
+    lines = []
+    if reading_ids:
+        seen = set()
+        for prop, _rel in (session.query(Proposition, EvidentiaryRelationship)
+                           .join(EvidentiaryRelationship, EvidentiaryRelationship.proposition_id == Proposition.id)
+                           .filter(EvidentiaryRelationship.reading_id.in_(reading_ids),
+                                   Proposition.kind.notin_(_META_KINDS)).order_by(Proposition.id).all()):
+            if prop.id not in seen:
+                seen.add(prop.id)
+                lines.append(prop)
+    out = {'artefact_id': artefact.id, 'types': types, 'proposition_disagreements': [], 'note': None if lines else 'no lines'}
+    components_seen = set()
+    for prop in lines:
+        ab = aboutness(session, prop)
+        for typ, t in types.items():
+            idents = []                                       # established line identities, independent of the artefact level
+            for tt, i in ab['structural']:
+                if tt == typ:
+                    idents.append((i, ABOUT_STRUCTURAL))
+            for tt, i, claim_id, asserter in ab['asserted']:
+                if tt == typ:
+                    idents.append((i, ABOUT_ASSERTED))
+            for d in ab['derived']:
+                if d['type'] == typ and any(pth['path'] == ABOUT_PATH_CORRESPONDENCE for pth in d['paths']):
+                    idents.append((d['id'], ABOUT_DERIVED + ':' + ABOUT_PATH_CORRESPONDENCE))
+            line_cands = sorted({i for tt, i, _, _ in ab['candidates'] if tt == typ})
+            # line-level undetermined entries (a retracted assertion, a contested correspondence) are reported;
+            # they are not a basis and they classify nothing - the artefact-side contest is the type's own state
+            line_undet = sorted({(i, reason) for tt, i, reason, _ in ab['undetermined']
+                                 if tt == typ and reason != 'contested artefact concerns'})
+            entry = {'proposition': prop.id, 'identities': sorted(set(idents)), 'candidates': line_cands,
+                     'undetermined': line_undet, 'against': []}
+            est = set(t['established'])
+            if not idents:
+                cls = LEVEL_NO_LINE_BASIS
+            elif t['artefact_state'] == ARTEFACT_SIDE_ESTABLISHED:
+                outside = sorted({i for i, _ in idents} - est)
+                if not outside:
+                    cls = LEVEL_CONSISTENT
+                elif t['contested']:
+                    cls = LEVEL_UNRESOLVED                    # the artefact side is contested for this type: nothing manufactured
+                else:
+                    cls = LEVEL_INCONSISTENT
+                    entry['against'] = sorted(est)
+            elif t['artefact_state'] == ARTEFACT_SIDE_CONTESTED:
+                cls = LEVEL_UNRESOLVED
+            else:
+                cls = LEVEL_NO_LEVEL_BASIS
+            entry['classification'] = cls
+            t['lines'].append(entry)
+            if cls == LEVEL_INCONSISTENT:
+                t['inconsistencies'].append(entry)
+            t['counts'][cls] = t['counts'].get(cls, 0) + 1
+        # proposition-level disagreement: members of one ESTABLISHED component asserted about different identities
+        state, component, _ = referent(session, prop)
+        key = tuple(sorted(component))
+        if state == REFERENT_CORRESPONDING and len(component) > 1 and key not in components_seen:
+            components_seen.add(key)
+            per_type = {}
+            for pid in component:
+                q = ab if pid == prop.id else aboutness(session, session.get(Proposition, pid))
+                for tt, i in q['structural']:
+                    per_type.setdefault(tt, {}).setdefault(i, []).append((pid, ABOUT_STRUCTURAL))
+                for tt, i, _, _ in q['asserted']:
+                    per_type.setdefault(tt, {}).setdefault(i, []).append((pid, ABOUT_ASSERTED))
+            for tt, idents in per_type.items():
+                if len(idents) > 1:
+                    out['proposition_disagreements'].append({'type': tt, 'component': list(key), 'identities': idents})
+    return out
+
+
 STRENGTH_KNOWING = 'knowing'
 STRENGTH_NOT_KNOWING = 'not_knowing'
 STRENGTH_UNDETERMINED = 'undetermined'
