@@ -2,7 +2,7 @@
 
 > Status: **Queue item 7, opened by Rob 2026-09-16 after item 6 closed A–G. This record carries the
 > governing question, the discipline, the inventory of everything the record has fenced to item 7,
-> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), pass 7B — independence — RULED, built, tightened and ACCEPTED (§7B.9, `c82c9da`, gate 1129), and pass 7C — about-ness via correspondence — RULED as written with four semantic edges settled before the build (§7C.7) and built. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
+> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), pass 7B — independence — RULED, built, tightened and ACCEPTED (§7B.9, `c82c9da`, gate 1129), pass 7C — about-ness — RULED, built and ACCEPTED (§7C.8, `c902461`, gate 1152), and pass 7D — level consistency — OPENED 2026-09-16, run to a candidate (§7D.6), no code; awaiting Rob. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
 > *the substrate can now represent ambiguity without resolving it; consumer work becomes valuable
 > exactly then — but only after the ontology stops moving underneath it.* Items 1–6 are closed.
 > What still moves: D′.11 (composition across relation kinds — an open **constraint** every
@@ -961,3 +961,167 @@ store — ten, all caught, baseline re-established after every undo. Fixture 34 
 notes: the AST wiring guard's first form flagged a Python set's `.add` as a session write — refined in
 both the 7B and 7C fixtures to write methods *called on a session receiver*, which is the invariant
 meant; and no escape in the derivation. No schema, no migration. Gate 1129 → 1152, 0 failed.
+
+### 7C.8 Build accepted — Rob, 2026-09-16: 7C ACCEPTED at `c902461` (`95350f9` the ruling / build)
+
+*The four edges are not documented but executable, and the fixture demonstrates the consumer
+refusing to invent the missing semantics.* What is solid: the artefact rule is epistemically
+bounded (Ac22 — the established set derives, the candidate is merely reported; Ac21 — no
+cross-type contamination) · correspondence is a graph of established identity, not a scoring
+system (Ac23 / 24 / 25: candidate edge stops, cycle terminates, two routes are *two explanations
+of one derived about-ness, not two pieces of evidence*) · Ac26 closes a subtle hole with a clean
+three-way distinction — established, candidate, conflicting-established · the party leak is dead
+(Ac27, reinforced from the artefact side by Ac13) · Ac28 keeps parser output from becoming an
+accidental semantic graph because propositions share a reading. The AST correction agreed: the
+invariant is *no mutation through the persistence layer*, not *no method named `add`*; the
+row-content snapshot means the AST check does not carry the whole burden — defence in depth.
+
+**Not to be added:** 7C is not to expand because the fixture looks comprehensive. 7D, 7E, 7F are
+semantic boundaries, not omissions; `aboutness()` must never become the place where conflicting
+levels are resolved, knowing is inferred, relation semantics are followed, candidates are
+adjudicated, or a general identity resolver emerges. The contract ends in **STOP**: report
+candidates, report conflicts, report undetermined — stop.
+
+**7C — about-ness: ACCEPTED / BUILT / GREEN.**
+
+---
+
+## Pass 7D — Level consistency
+
+**The question, applied:** the credit-union statement is asserted to concern the mortgage and the
+HELOC; line 3 is asserted to concern the car loan. *Do the artefact-level and the proposition-level
+about-ness claims agree — and when they do not, what may a consumer say?* Pa7 answered the last
+part before 7D existed: *the inconsistency between levels is a consumer's to report, never a
+guard's to refuse and never a resolver's to settle.* Ab7's findings left the report itself
+unbuilt. 7C now reports the conflict *as found* on one proposition; **7D characterises it** —
+from the artefact's side, across its lines, by kind, with every asserter — and stops.
+
+7D is the pass Rob named as the one where 7C must not have quietly acquired conflict-resolution
+authority. So the first thing 7D does is say what it is not: **it is not a resolver, and the
+report it produces is not a verdict.** A consumer that reports *the artefact-level claim by Rob is
+contradicted by three line-level claims by Kim* has stated a fact about the record; a consumer
+that concludes *so the artefact-level claim is wrong* has manufactured one.
+
+### 7D.1 What is already fixed
+
+| Ruling | Constraint on 7D |
+|---|---|
+| **Pa7** | artefact-level and line-level claims may disagree; both stand; **reported, never refused at write, never settled** |
+| **Slice 8 / Ab7 (i) vs (ii)** | two legitimate representations of "what A's values are about": one artefact-level claim covering every value (i), or the household re-asserting each value with the identity established (ii); **neither is required, neither outranks** |
+| **7C** (built) | `aboutness(P)` reports, per type: structural · asserted · derived (artefact, correspondence) · candidates · undetermined · **conflicts as found** — a conflict = established sources reaching incompatible identities of one type, including the artefact-level established set; provenance labels are not an ordering of authority |
+| **7A / 7B** | a re-reading is a new observation; several grounds to one origin are one origin; **count is nothing** |
+| **§1** | 1 (never writes) · 2 (reports ambiguity, never resolves — no recency, position, count, source type) · 5 (absence is not zero — *no artefact-level claim* is not *consistent*) · 6 (provenance carried; the report is not an assertion) · 8 (one consumer, one question) · 11 (another consumer's output taken *with its provenance*, never as a claim) |
+| **Relational knowing** | `artefact_concerns` and `proposition_concerns` know through the minter of the object identity; **who asserted each level is a fact the report carries; whose is *better* is nobody's** |
+| **No-silent-learning** | the report is *surfaced* — it is what the household is shown so it can retract or re-assert; it is never *persisted* as a status on the artefact or the line |
+
+### 7D.2 What a level disagreement is — and the things that look like one and are not
+
+| Situation | Is it a level inconsistency? | What 7D says |
+|---|---|---|
+| **Lc-a** the artefact's established set for a type is {O1, O2}; a line is asserted about O3 | **yes** — the line's established about-ness is outside the artefact's established set | *inconsistent*: the line (its claim, asserter) against the artefact set (its claims, asserters) |
+| **Lc-b** the artefact's set is {O1} (so the line is *derived* O1 via 7C) and the line is *asserted* O2 | **yes** — derived and asserted disagree on one proposition | *inconsistent*: derived (artefact) O1 vs asserted O2, both listed |
+| **Lc-c** the artefact's set is {O1, O2}; lines asserted about O1 and O2 | **no** | *consistent* |
+| **Lc-d** the artefact has **no** established concern of that type (Pa2, a bank statement); lines asserted about p, p′ | **no — and not "consistent" either**: there is no artefact level to agree with | *no artefact level* (§1.5: absence is not agreement) |
+| **Lc-e** the artefact's concerns are **candidates only**; a line is asserted about O2 | **no** — a candidate is not a claim | *no established artefact level*; candidates listed |
+| **Lc-f** the artefact-level claim is **contested** (retracted) | undetermined | *artefact level contested* — 7D stops on that type |
+| **Lc-g** a line's about-ness is *derived through correspondence* (P ~ P′ established, P′ asserted O2) and the artefact's set is {O1} | **yes** — an established derivation disagrees with the artefact level | *inconsistent*: derived (correspondence) O2 — with its links — vs the artefact set |
+| **Lc-h** two propositions in one established correspondence component are asserted about different identities (P concerns O1, P′ concerns O2) | **yes**, but **not between levels** — between two assertions on one claim | *proposition-level disagreement* — reported as its own class; 7C already shows it as a conflict on each member |
+| **Lc-i** a line asserted about an **expense** E1; the artefact's obligation set is {O1} | **no** — different types | nothing; per type |
+| **Lc-j** a line with **structural** about-ness O2 (the household re-asserted it, (ii)) read from an artefact whose set is {O1} | **yes** | *inconsistent*: structural O2 vs the artefact set |
+| **Lc-k** the artefact set is {O1}; line 3 asserted about O2 by Kim; the artefact claim by Rob | yes | the report **names both parties and ranks neither** |
+| **Lc-l** the artefact set is {O1}; **three** lines asserted about O2 | yes, three times | three inconsistencies, listed; **the count is a fact about the record, not a weight**: 7D does not conclude the artefact claim is wrong |
+| **Lc-m** the line-level claim was made **after** the artefact-level claim | irrelevant | recency decides nothing |
+| **Lc-n** a line with **no** about-ness at all under an artefact set {O1} | **no** — it is *derived* O1 by 7C; nothing to disagree | *consistent (derived)* |
+| **Lc-o** a line with candidates only (Pa3 heading matches naming O2) under {O1} | **no** | *consistent (no established line level)*; candidates listed — a candidate never makes an inconsistency |
+
+### 7D.3 The cases — what the report must say and must never do
+
+| # | Case | What the report must say | What it must never do |
+|---|---|---|---|
+| **Ld1 (Pa7)** | A concerns {O1, O2} (Rob); line 3 asserted O3 (Rob). | **inconsistent** on obligations: line 3 — asserted O3 by Rob — outside the artefact set {O1 (Rob), O2 (Rob)} | refuse the O3 claim; drop O3 from `aboutness`; pick a level |
+| **Ld2** | S1 concerns {O1}; line 2 asserted O2. | inconsistent: derived (artefact) O1 vs asserted O2 on line 2 | resolve to O2 because it is more specific, or to O1 because it is the document's |
+| **Ld3** | A concerns {O1, O2}; line 1 asserted O1, line 3 asserted O2. | **consistent**; each line's identity within the set | report a conflict because the set has two members |
+| **Ld4 (Pa2)** | B has no artefact-level claim; line 7 asserted p. | **no artefact level** — not consistent, not inconsistent; distinguished by name | say "consistent" |
+| **Ld5** | A concerns only *candidates* {O1} (a reading's heading); line 3 asserted O2. | no established artefact level; the candidate listed; nothing inconsistent | make a candidate contradict an assertion |
+| **Ld6** | Rob retracts *that is my credit-union statement*. | artefact level **contested** for obligations; 7D stops there for that type | read the retraction as *the artefact concerns nothing* |
+| **Ld7 (Lc-g)** | S1 concerns {O1}; line 2 ~ line 2′ established; line 2′ asserted O2. | inconsistent: line 2 derived (correspondence) O2 — links listed — vs the artefact set {O1} | drop the derivation because it is indirect |
+| **Ld8 (Lc-h)** | P ~ P′ established; P asserted O1, P′ asserted O2. | a **proposition-level disagreement** on one claim — its own class, both asserters; not a level inconsistency | fold it into the level report; resolve which recording is right |
+| **Ld9** | A concerns {O1}; a line asserted about expense E1. | **nothing** — different types; per type | cross-type conflict |
+| **Ld10 (Lc-j)** | S1 concerns {O1}; a line the household re-asserted with subject O2 established. | inconsistent: structural O2 vs the artefact set | prefer structural because it is "in the row" |
+| **Ld11 — parties** | Artefact claim by Rob; line claim by Kim. | both named; no rank | "Rob's document-level claim outranks Kim's line" or the reverse |
+| **Ld12 — count** | S1 concerns {O1}; lines 2, 3 and 4 asserted O2. | three inconsistencies listed; a summary *3 of 5 lines disagree with the artefact level* as a fact; **no verdict** | "the artefact claim is probably wrong"; a percentage threshold |
+| **Ld13 — recency** | The O2 line claim is newer than the artefact claim. | nothing changes | later wins |
+| **Ld14 — no about-ness / candidates only** | Lines with nothing (derived O1) and with heading candidates. | consistent (derived); consistent (no established line level), candidates listed | a candidate raising an inconsistency |
+| **Ld15 — surfaced, not stored** | The household is shown the report and retracts the line claim. | the next read shows consistent; nothing was ever written by 7D | write `inconsistent` on the artefact or the line; suggest which to retract |
+| **Ld16 — where the failure appears** | An artefact with no established level and no line claims. | *no artefact level* and *no line level* — never "consistent" | vacuous consistency |
+| **Ld17 — the null model** | A corpus where every line claim is within its artefact's set; a corpus with exactly one line asserted outside. | zero inconsistencies; exactly one | a heuristic |
+
+### 7D.4 Testing the readings
+
+**LD0 — a guard** (refuse a `proposition_concerns` outside the artefact's set). Rejected by Pa7 and
+§1.2; Ld1.
+
+**LD1 — a resolver** (by level, by specificity, by recency, by count, by party). Rejected: Ld2,
+Ld11–Ld13; the report is a fact about the record, never a verdict.
+
+**LD2 — a stored status** (`consistent` on the artefact or line). Rejected: §1.1; Ld15 — surfaced,
+recomputed on read.
+
+**LD3 — vacuous consistency** (no artefact level ⇒ consistent). Rejected: §1.5; Ld4, Ld16.
+
+**LD4 — candidates as claims** (a candidate artefact concern or line candidate raising an
+inconsistency). Rejected: Ld5, Ld14.
+
+**LD5 — one report for both classes** (level inconsistency and proposition-level disagreement
+merged). Rejected: Ld8 — different things, both reported, each by its name.
+
+**LD6 — the candidate: a read-only derivation `level_consistency(session, artefact)`** — per
+identity type: the artefact's established set (with claims and asserters) and its state
+(*established · candidates only · contested · none*); per proposition read from the artefact,
+its 7C about-ness taken *with provenance*, classified *consistent · consistent (derived) ·
+consistent (no established line level) · inconsistent · no artefact level · artefact level
+contested*; every inconsistency listed with the line's source (asserted / derived / structural),
+its identity and asserters or links, and the artefact set it lies outside; proposition-level
+disagreements within established correspondence components reported as their own class; a
+count of lines by classification as a fact; **no verdict, no rank, no write**.
+
+### 7D.5 What the derivation is — and is not
+
+| **reads** | `artefact_concerns` claims on the artefact (established / candidate / contested); the artefact's readings and the propositions they produced; `aboutness()` per proposition (§1.11: with its provenance, never as a claim); `referent()` for proposition-level components |
+|---|---|
+| **returns** | per type: `artefact_level` {state, identities: {id: [(claim, asserter)]}} · `lines`: [{proposition, classification, about: what 7C reported, against: the artefact set}] · `inconsistencies`: [...] · `proposition_disagreements`: [...] · `counts` by classification (a fact) · `note` |
+| **decides** | nothing — which level is right is nobody's; the household retracts or re-asserts |
+| **is not** | a guard; a resolver; a status; a weight; a suggestion engine; 7C (it reads 7C); 7E (it carries no strength) |
+| **failure appears at** | Ld16 (nothing on either level) and Ld4 (no artefact level) — the two places "consistent" can be said falsely; measured there |
+| **null model** | zero on a within-set corpus; exactly one on a one-outlier corpus (Ld17) — a correctness oracle |
+
+### 7D.6 Ruling candidate — pass 7D, for Rob
+
+> **Level consistency is a report, not a verdict. For one artefact and one identity type, the
+> consumer states the artefact's established concern set with its claims and asserters, and
+> classifies every proposition read from the artefact by whether its established about-ness —
+> asserted, structural, or derived through established correspondence — lies within that set:
+> consistent, or inconsistent with both sides named. Where the artefact has no established
+> concern of the type it says so and calls nothing consistent; where the artefact's concerns are
+> candidates only, or contested, it says that and stops; where a line has no established about-
+> ness it is consistent by derivation or by silence and never by a candidate; where two
+> propositions established as one claim are asserted about different identities, that is a
+> disagreement between assertions and is reported as its own class, not as a level. It refuses no
+> claim at write, settles nothing by level, specificity, recency, count or party, ranks no
+> asserter, writes no status, and suggests no retraction; the number of disagreeing lines is a
+> fact it reports and not a weight it applies. It is surfaced to the household, who may retract or
+> re-assert, and recomputed on every read. Its failure can appear only where "consistent" is
+> said of an artefact with no established level, and it is measured there.**
+
+**If ruled, the build is one read-only function** — `level_consistency(session, artefact)` beside
+`aboutness`; a fixture over Ld1–Ld17 with the absences (no stored status, no guard, no resolver,
+no rank, no threshold, no suggestion) and the AST + row-content wiring guard; a smoke section whose
+mutations each try to *decide* (prefer a level, prefer recency, prefer the majority, refuse the
+outlier at write, call a candidate a conflict, call an empty level consistent, store the result);
+**no schema, no migration; 7E not opened until it is green.**
+
+**What pass 7D leaves exactly where it found it:** strength (7E) · traversal of ruled relations
+(7F) · candidate generation · the resolver over contested claims · RA5.
+
+*The line: the document says what it is about; the lines say what they are about; when they
+disagree, the record holds both and the household is told — and nobody is told who is right.*
