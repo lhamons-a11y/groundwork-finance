@@ -2,6 +2,7 @@
 Groundwork — Core Database Layer
 Column names match server.py exactly.
 """
+import itertools
 import os
 from datetime import datetime
 from pathlib import Path
@@ -2972,6 +2973,176 @@ def derived_strength(session, relation, knowing):
     if utt is None:
         utt = session.get(Utterance, relation.utterance_id)
     return _utterance_strength(session, utt, prop.kind, knowing)
+
+
+# ── Item 7, pass 7E: multi-link strength - a CONSUMER derivation ─────────────
+# gw 2.0/CONSUMER_DERIVATIONS.md s 7E.7, ruled 2026-09-17. A CLASS, not a quantity. For one
+# proposition: the class of each of its evidentiary relationships as the substrate derives it
+# (derived_strength - as given, never re-derived), and, for every about-ness aboutness() reports as
+# ESTABLISHED, every chain by which it is reached - the value's evidence followed by the links of
+# one 7C path - as a list of links, each a claim on record with its own ground, and the chain's
+# class as the WEAKEST link on the substrate's lattice (_weakest: undetermined absorbs).
+#
+#     evidence (L0)  ->  proposition_concerns | artefact_concerns | proposition_corresponds ...  ->  weakest
+#
+# 7E's only new operation is composition: consume the class of each already-established link and
+# take the weakest along ONE established chain. Ground aggregation belongs entirely to
+# derived_strength: the substrate's class is per evidentiary relationship, its only resolution of
+# parallel grounds lives inside L0 (the origin claims within a reading-sourced relationship) and is
+# inherited whole; for a concerns or correspondence link a ground IS an evidentiary relationship, so a
+# link with n established grounds yields n chains - 7E aggregates nowhere, ranks no party, and
+# assigns no class to a link beside its ground's. A correspondence link is undetermined BY DESIGN
+# (Kn4 - correspondence has no ruled epistemology; 7E manufactures none), so every chain through
+# correspondence is undetermined whatever its other links say; a correspondence path is expanded
+# into its hops, every simple route listed, none chosen; a structural terminus is trace, not a link.
+# Not links: readers (channels), role claims (no role kind is ruled - Kn6's servicer chain has
+# nothing to evaluate and nothing is built from context), the fenced capture-faithfulness link
+# (neither added nor claimed evaluated), ruled domain relations (D'.11), candidates, contested, counts.
+# Across chains to one identity: NOTHING - listed in structural order (evidence, claim, ground ids),
+# never chosen, summed, counted or ordered by class; no per-identity class. Across identities:
+# nothing - 7C's conflicts are carried as a structural condition and graded not at all. The value's
+# own class is reported unchanged beside its chains (Ab7: the chain grades the derivation that the
+# value is about the identity, never the value). Where about-ness is a candidate, contested or
+# undetermined there is no chain and no class - `unchained` is a report condition, not a strength;
+# where there is no evidence there is no chain and no class - neither absence is undetermined.
+# Reads no independence (independence is not strength; multiplicity is not strength), no level
+# report, chooses no reading, says nothing of truth (Kn12). Computed on read, stored nowhere.
+CHAIN_LINK_EVIDENCE = 'evidence'
+CHAIN_TRACE_STRUCTURAL = 'structural'
+
+
+def _link_grounds(session, claim_id, retracted):
+    """The established grounds of one claim on record: its utterance-sourced, unretracted evidentiary
+    relationships, in id order. A reading-sourced relationship of a relational kind is a candidate,
+    never a ground; a retracted assertion is not a basis."""
+    rels = (session.query(EvidentiaryRelationship)
+            .filter(EvidentiaryRelationship.proposition_id == claim_id, EvidentiaryRelationship.utterance_id.isnot(None))
+            .order_by(EvidentiaryRelationship.id).all())
+    return [r for r in rels if r.utterance_id not in retracted]
+
+
+def _correspondence_routes(session, start, end, retracted):
+    """Every simple route of established proposition_corresponds claims from `start` to `end`, each a
+    list of (claim_id, from, to) hops; a claim is read both ways (symmetric). None is chosen."""
+    edges = {}
+    for c in session.query(Proposition).filter(Proposition.kind == PROPOSITION_CORRESPONDS).order_by(Proposition.id).all():
+        if _link_grounds(session, c.id, retracted):
+            edges.setdefault(c.subject_proposition_id, []).append((c.id, c.object_proposition_id))
+            edges.setdefault(c.object_proposition_id, []).append((c.id, c.subject_proposition_id))
+    routes = []
+
+    def walk(node, visited, path):
+        if node == end:
+            routes.append(list(path))
+            return
+        for cid, nxt in sorted(edges.get(node, [])):
+            if nxt not in visited:
+                walk(nxt, visited | {nxt}, path + [(cid, node, nxt)])
+    walk(start, {start}, [])
+    return routes
+
+
+def chain_strength(session, proposition, knowing):
+    """The multi-link strength derivation for one proposition: a plain dict, computed on read, storing nothing.
+
+        {'proposition_id',
+         'evidence':  [{'relationship', 'source': utterance|reading, 'source_id', 'artefact', 'origin',
+                        'class': knowing|not_knowing|undetermined}]        - L0, derived_strength AS GIVEN
+         'about':     [{'type', 'id', 'provenance': structural|asserted|derived, 'path': None|artefact|correspondence,
+                        'chains': [{'evidence': relationship_id,
+                                    'links': [{'kind', 'claim', 'ground', 'class'}],   the first link is L0
+                                    'trace': [(kind, id)...],                          reading / artefact / structural terminus
+                                    'class': the weakest link}]}]
+         'unchained': [(type, id, candidate|undetermined, reason)]   - 7C's; no chain, NO class - a report condition
+         'conflicts': 7C's, as found - a structural condition; no class is assigned to a conflict
+         'note': 'no evidentiary relationship' | 'no about-ness established' | None}
+
+    `knowing` is the caller's kind -> foundations map, as for derived_strength. No class per identity, no
+    class per proposition, no count, no number, no order by class, no write.
+    """
+    retracted = {u for (u,) in session.query(Proposition.subject_utterance_id)
+                 .filter(Proposition.kind == UTTERANCE_RETRACTION, Proposition.subject_utterance_id.isnot(None)).all()}
+    rels = (session.query(EvidentiaryRelationship).filter(EvidentiaryRelationship.proposition_id == proposition.id)
+            .order_by(EvidentiaryRelationship.id).all())
+    evidence = []
+    for r in rels:
+        artefact_id, origin = None, None
+        if r.reading_id is not None:
+            rd = r.reading if r.reading is not None else session.get(Reading, r.reading_id)
+            art = rd.artefact if rd.artefact is not None else session.get(Artefact, rd.artefact_id)
+            artefact_id = art.id
+            state, parties = artefact_origin(session, art)
+            origin = parties[0] if state == ORIGIN_ESTABLISHED else None
+        else:
+            utt = r.utterance if r.utterance is not None else session.get(Utterance, r.utterance_id)
+            origin = utt.origin_party_id if utt is not None else None
+        evidence.append({'relationship': r.id, 'source': 'reading' if r.reading_id is not None else 'utterance',
+                         'source_id': r.reading_id if r.reading_id is not None else r.utterance_id,
+                         'artefact': artefact_id, 'origin': origin, 'class': derived_strength(session, r, knowing)})
+    out = {'proposition_id': proposition.id, 'evidence': evidence, 'about': [], 'unchained': [], 'conflicts': [], 'note': None}
+    if not evidence:
+        out['note'] = 'no evidentiary relationship'
+        return out
+    ab = aboutness(session, proposition)
+    out['unchained'] = ([(t, i, ABOUT_CANDIDATE, reason) for t, i, reason, _ in ab['candidates']]
+                        + [(t, i, ABOUT_UNDETERMINED, reason) for t, i, reason, _ in ab['undetermined']])
+    out['conflicts'] = ab['conflicts']
+
+    def l0(e):
+        return {'kind': CHAIN_LINK_EVIDENCE, 'claim': None, 'ground': e['relationship'], 'class': e['class']}
+
+    def ground(kind, claim_id, rel):
+        return {'kind': kind, 'claim': claim_id, 'ground': rel.id, 'class': derived_strength(session, rel, knowing)}
+
+    def chain(links, trace=()):
+        return {'evidence': links[0]['ground'], 'links': links, 'trace': list(trace), 'class': _weakest(*(l['class'] for l in links))}
+
+    entries = {}                                              # (type, id, provenance, path) -> chains
+
+    def add(typ, ident, provenance, path, chains):
+        entries.setdefault((typ, ident, provenance, path), []).extend(chains)
+
+    for typ, ident in ab['structural']:
+        add(typ, ident, ABOUT_STRUCTURAL, None, [chain([l0(e)]) for e in evidence])
+    for typ, ident, claim_id in sorted({(t, i, c) for t, i, c, _ in ab['asserted']}):
+        add(typ, ident, ABOUT_ASSERTED, None,
+            [chain([l0(e), ground(PROPOSITION_CONCERNS, claim_id, g)])
+             for e in evidence for g in _link_grounds(session, claim_id, retracted)])
+    for d in ab['derived']:
+        typ, ident = d['type'], d['id']
+        for pth in d['paths']:
+            links = pth['links']
+            if pth['path'] == ABOUT_PATH_ARTEFACT:
+                reading_id = next(x[1] for x in links if x[0] == 'reading')
+                artefact_id = next(x[1] for x in links if x[0] == 'artefact')
+                claims = sorted({x[1] for x in links if x[0] == ARTEFACT_CONCERNS})
+                add(typ, ident, ABOUT_DERIVED, ABOUT_PATH_ARTEFACT,
+                    [chain([l0(e), ground(ARTEFACT_CONCERNS, c, g)], trace=[('reading', e['source_id']), ('artefact', artefact_id)])
+                     for e in evidence if e['source'] == 'reading' and e['artefact'] == artefact_id
+                     for c in claims for g in _link_grounds(session, c, retracted)])
+            else:
+                _, start, end = next(x for x in links if x[0] == PROPOSITION_CORRESPONDS)
+                terminal = links[-1]
+                chains = []
+                for route in _correspondence_routes(session, start, end, retracted):
+                    hop_grounds = [[(cid, g) for g in _link_grounds(session, cid, retracted)] for cid, _, _ in route]
+                    if terminal[0] == PROPOSITION_CONCERNS:
+                        ends = [[(PROPOSITION_CONCERNS, terminal[1], g)] for g in _link_grounds(session, terminal[1], retracted)]
+                        trace = []
+                    else:
+                        ends = [[]]
+                        trace = [(CHAIN_TRACE_STRUCTURAL, end)]
+                    for e in evidence:
+                        for combo in itertools.product(*hop_grounds):
+                            for tail in ends:
+                                chains.append(chain([l0(e)] + [ground(PROPOSITION_CORRESPONDS, cid, g) for cid, g in combo]
+                                                    + [ground(k, c, g) for k, c, g in tail], trace=trace))
+                add(typ, ident, ABOUT_DERIVED, ABOUT_PATH_CORRESPONDENCE, chains)
+    out['about'] = [{'type': t, 'id': i, 'provenance': pv, 'path': pth, 'chains': ch}
+                    for (t, i, pv, pth), ch in entries.items()]
+    if not out['about']:
+        out['note'] = 'no about-ness established'
+    return out
 
 
 for _name in _IMMUTABLE_REFERENCES:

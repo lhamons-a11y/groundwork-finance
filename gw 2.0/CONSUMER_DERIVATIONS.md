@@ -1441,3 +1441,119 @@ ruled relations (7F) · D′.11.
 
 *The line: a chain is as strong as its weakest link, no stronger for being long, no stronger for
 having company — and the record says which link, so the household knows what to ask about.*
+
+
+### 7E.7 Ruling — Rob, 2026-09-17: 7E ACCEPTED as proposed, with one tightening before implementation
+
+**Ground aggregation belongs entirely to `derived_strength`.** *7E must inherit the substrate's
+existing ground resolution literally rather than introduce its own notion of "strongest."* Ms23
+is accepted **by inheritance, not redesigned**: for each link, 7E consumes the class already
+established by that link's substrate derivation — never *one link → 7E invents its own ground
+aggregation → a different link class*. Two reasons: a chain with zero extra links must be
+identical to `derived_strength`; and 7E cannot introduce a second interpretation of parallel
+evidence merely because it is now looking at that evidence as part of a chain. **7E does not
+define ground aggregation.**
+
+**"Weakest" operates only on links.** Ms2 as written: `L0 = knowing · concerns = not_knowing →
+chain = not_knowing`, and the value's L0 remains knowing — 7E is not saying *the value is not
+known*; it is saying *the derivation of this proposition's about-ness through this chain has
+class not_knowing* — exactly the accidental leakage Ab7 prevents. Likewise `L0 = knowing ·
+correspondence = undetermined → chain = undetermined`: an established correspondence-derived
+about-ness does not acquire epistemic strength because its endpoints happen to be strong.
+
+**The multi-chain rule accepted explicitly:** `O1 ├ chain A → knowing ├ chain B → not_knowing
+└ chain C → undetermined` as three independently reported chains — not `O1 → not_knowing`, not
+`O1 → knowing`, not `O1 → 3 pieces of evidence`, and certainly not `O1 → 2/3 knowing → stronger`.
+**7E does not need — and must not acquire — a per-identity strength result.** Ms7's STOP: a
+candidate correspondence between two strong ends → *no chain → no chain class*; two strong
+endpoints cannot bridge an unestablished relation. Ms20/Ms21 exactly as written: `no evidence ≠
+undetermined · no chain ≠ undetermined` — *undetermined* is the class of something evaluated
+that could not be established at the required level; absence is not an epistemic result.
+
+**Two implementation-sensitive points the ruling makes explicit (required before code):**
+
+1. **Ground aggregation belongs entirely to `derived_strength`.** 7E consumes; it never
+   re-derives or re-aggregates.
+2. **`unchained` and `conflicts` are report conditions, not strength classes.** *Conflict is
+   reported as an existing structural condition; 7E assigns no strength class to the conflict
+   itself.* *Unchained* does not mean *strength = undetermined*; it means there is no established
+   chain on which chain strength can operate.
+
+**The acceptance fence — what 7E must not do:** recompute `derived_strength` · aggregate grounds
+independently of `derived_strength` · rank parties / origins · read 7B independence · resolve 7C
+conflicts · consume 7D consistency · aggregate chains · aggregate chains by identity · aggregate
+identities · convert absence into `undetermined` · convert candidate correspondence into a chain ·
+convert contested / candidate relations into established links · grade the value itself · write
+strength back anywhere · create a new strength lattice. **7E's only new operation is composition:
+consume the class of each already-established link and take the weakest class along one
+established chain. That is the entire derivation.**
+
+**The 7E invariant:**
+
+```text
+7E derives the class of one established aboutness chain by consuming each link's
+already-established substrate class and taking the weakest class along that chain;
+it neither re-derives link strength nor resolves, aggregates, or grades multiple
+chains, identities, or the value itself.
+```
+
+```text
+7B → establishes / reports independence of origins
+7C → establishes / reports aboutness paths
+7D → compares line aboutness with artefact-level aboutness
+7E → grades one established aboutness path
+```
+
+None of these consumers becomes the authority for another consumer's unresolved question. No new
+ontology concept; no reopening of 7B, 7C or 7D.
+
+#### The tightening, applied literally — what "inherit" means against the substrate as built
+
+The substrate's class is **per evidentiary relationship** (`derived_strength(relationship,
+knowing)`), never per claim. Its only resolution of parallel grounds is *inside* L0 — the origin
+claims naming one party, within a reading-sourced relationship — and 7E inherits that untouched
+by consuming L0's class whole. **For a concerns or correspondence link there is no per-claim
+substrate class to consume.** So, applying Rob's ruling literally rather than the §7E.2 wording:
+**a link's ground *is* an evidentiary relationship, and a link with n established grounds yields
+n chains** — one per ground, each carrying that ground's own substrate class. 7E aggregates
+nowhere. The phrase *the strongest of them* in §7E.2 / §7E.6 is **withdrawn** by this ruling; it
+would have been 7E defining ground aggregation. **Ms23 restated:** one concerns claim, Rob's
+ground (knowing) and Kim's (not_knowing) → **two chains**, `[L0 knowing · concerns(Rob) knowing]
+→ knowing` and `[L0 knowing · concerns(Kim) not_knowing] → not_knowing`, both listed, neither
+chosen, no party ranked, no link-level class beside them. Correspondingly a correspondence path
+is expanded into its **hops** — each established `proposition_corresponds` claim on a route from
+P to P′ is its own link with its own grounds, every simple route listed, none chosen — and every
+such ground is undetermined by design, so every chain through correspondence is undetermined
+whatever its other links say. A structural terminus (P′'s own participant) is trace on the chain,
+not a link, and enters no weakest computation. The oracle (Ms5) holds by construction: a
+zero-extra-link chain is one evidentiary relationship and its class *is* `derived_strength`.
+
+
+#### Built — 2026-09-17
+
+`core/database.py`: `chain_strength(session, proposition, knowing)` beside `level_consistency`, with two
+helpers — `_link_grounds` (a claim's utterance-sourced, unretracted evidentiary relationships, in id
+order) and `_correspondence_routes` (every simple route of established `proposition_corresponds`
+claims between two propositions; none chosen). A plain dict, computed on read, storing nothing:
+`evidence` (L0 per relationship — `derived_strength` as given, with source, artefact and origin) ·
+`about` (one entry per identity × provenance × path, its chains one per evidentiary relationship ×
+ground of every link on the path, each chain its links `{kind, claim, ground, class}`, its trace —
+reading / artefact / structural terminus — and its class by `_weakest`) · `unchained` (7C's candidates
+and undetermined, with the condition and reason; no class) · `conflicts` (7C's, as found; no class) ·
+`note`. Chains are in structural order — evidence id, claim id, ground id — never by class; entries
+carry no class; nothing counts. It calls `derived_strength`, `_weakest`, `aboutness`, `artefact_origin`
+and nothing that independence, level consistency or parse disputes compute. The 7A–7D wiring guard
+applies (AST on session receivers over the function and both helpers; a full row-content snapshot).
+Fixture `tests/test_chain_strength_fixture.py` over Ms1–Ms26, Rob's fence and the strength-blind
+null — 33 checks; smoke `s111_chain_strength.py`, mutations each an attempt to *quantify or choose*:
+a numeric score · paths counted (enough make knowing) · the strongest chain answers for the identity ·
+chains ordered by class · undetermined reads not_knowing · a candidate chain carries a class · the
+correspondence link graded knowing · the servicer link built from an unruled role claim · the chain's
+class replaces L0 · grounds on one link aggregated to the strongest · entries for one identity
+aggregated with a summary class · store — twelve, all caught, baseline re-established after every
+undo. No escape in the derivation on the first run; the fixture's own helper needed one correction
+(a proposition with an object slot must carry an established object state). The proposition-concerns
+fixture's Pa8 check — *no consumer derives "about X" through either level; no multi-link strength* —
+retired truthfully: 7C and 7E exist as read-only derivations; the absence that still holds (no helper
+writes about-ness or strength back as a claim) is what it now asserts. No schema, no migration. Gate
+1179 → 1206, 0 failed.

@@ -315,8 +315,12 @@ def run(db):
     print('\n8. Absences; audits\n')
     check('no schema change beyond the one additive slot; SCHEMA_VERSION is the payment slice\'s',
           'subject_proposition_id' in {c.name for c in db.Proposition.__table__.columns})
-    check('no consumer derives "about X" through either level; no multi-link strength',
-          not any(hasattr(db, n) for n in ('strength_about', 'about_strength', 'values_about')))
+    # Item 7 built the consumers this check once said did not exist: aboutness() (7C) derives "about X" through
+    # both levels as a derivation, and chain_strength() (7E) grades a chain of established links. Both are
+    # read-only reports; neither writes a concerns claim or a strength. The absence that still holds is stated.
+    check('no helper writes "about X" or a strength back as a claim (7C aboutness() and 7E chain_strength() exist as read-only derivations)',
+          callable(getattr(db, 'aboutness', None)) and callable(getattr(db, 'chain_strength', None))
+          and not any(hasattr(db, n) for n in ('strength_about', 'about_strength', 'values_about', 'write_aboutness', 'store_strength')))
     check('every audit is empty',
           not db.evidence_without_one_source(s) and not db.readings_of_unheld_artefacts(s)
           and not db.obligations_without_minting_utterance(s) and not db.payments_without_minting_utterance(s))
