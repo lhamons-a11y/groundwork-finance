@@ -956,4 +956,8 @@ constructors and snapshots every row of every table around the reads. Fixture
 mutations each an attempt to *carry*: copy the concerns claim onto the correspondent · set the
 participant from the derivation · follow a candidate link · follow a ruled relation (P about O, O in
 respect of X) · match content / heading · rank derived over asserted (drop the conflict) · let a
-candidate unsettle an established result · count paths as support · give the derivation a strength.
+candidate unsettle an established result · count paths as support · give the derivation a strength ·
+store — ten, all caught, baseline re-established after every undo. Fixture 34 checks (Ac1–Ac28). Two
+notes: the AST wiring guard's first form flagged a Python set's `.add` as a session write — refined in
+both the 7B and 7C fixtures to write methods *called on a session receiver*, which is the invariant
+meant; and no escape in the derivation. No schema, no migration. Gate 1129 → 1152, 0 failed.
