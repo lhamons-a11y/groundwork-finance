@@ -2,7 +2,7 @@
 
 > Status: **Queue item 7, opened by Rob 2026-09-16 after item 6 closed A–G. This record carries the
 > governing question, the discipline, the inventory of everything the record has fenced to item 7,
-> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), pass 7B — independence — RULED, built, tightened and ACCEPTED (§7B.9, `c82c9da`, gate 1129), and pass 7C — about-ness via correspondence — OPENED 2026-09-16, run to a candidate (§7C.6), no code; awaiting Rob. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
+> the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), pass 7B — independence — RULED, built, tightened and ACCEPTED (§7B.9, `c82c9da`, gate 1129), and pass 7C — about-ness via correspondence — RULED as written with four semantic edges settled before the build (§7C.7) and built. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
 > *the substrate can now represent ambiguity without resolving it; consumer work becomes valuable
 > exactly then — but only after the ontology stops moving underneath it.* Items 1–6 are closed.
 > What still moves: D′.11 (composition across relation kinds — an open **constraint** every
@@ -738,13 +738,14 @@ candidate · undetermined)?**
 | **P's own established participant of X's type** (Pa10) | yes — **structurally**; no derivation | *structural* | P's own evidence |
 | **an established `proposition_concerns(P, X)`** (Pa1, Pa2) | yes | *asserted* | the concerns claim and its asserter |
 | **a reading-sourced `proposition_concerns` candidate** (Pa3) | **no** — a candidate | *candidate* | the reading (a process or a party reading), never an assertion |
-| **an established `artefact_concerns(A, X)` where P was read from A and A concerns exactly one identity of X's type** (Pa8) | yes — **derived through the artefact level** | *derived (artefact)* | the artefact claim and its asserter; the reading that ties P to A |
-| **… where A concerns several identities of that type** (Pa1) | **no** — the artefact level does not decide which line is which | *candidates* (each identity A concerns) | — |
+| **an established `artefact_concerns(A, X)` where P was read from A and A's *established* concern set for X's type contains exactly one identity** (Pa8, as defined in §7C.7) | yes — **derived through the artefact level**; the one established concern supplies the derivation — the *absence* of a second is not evidence of anything | *derived (artefact)* | the artefact claim and its asserter; the reading that ties P to A |
+| **… where A's established concern set for that type contains several identities** (Pa1) | **no** — the artefact level does not decide which line is which; identities of *other* types are neither multiplicity nor conflict | *candidates* (each identity A concerns, of that type) | — |
 | **… where the artefact claim is only a candidate or contested** | no | *candidate* / *undetermined* | — |
 | **an established `proposition_corresponds(P, P′)` where P′ is about X by assertion or structure** (Pc3) | yes — **derived through correspondence**: P and P′ are one claim, and a claim asserted about X is about X in every recording | *derived (correspondence)* | the concerns claim on P′, its asserter, and the correspondence claim and its asserter |
 | **… where the correspondence is a candidate** (Pc10 — the pipeline wants prior about-ness to "follow") | **no** | *candidate* | — |
 | **… where the correspondence is contested** (Pc8) | no — the consumer stops | *undetermined* | — |
-| **… where P′'s own about-ness is itself derived** (through another correspondence, or the artefact level) | yes, transitively through *established* links only — the referent is the connected component (Pc9) | *derived*, the whole chain listed | every link |
+| **… where P′ is reached through further correspondences** | yes, transitively through *established* links only — the referent is the connected component (Pc9); a candidate link anywhere in the chain stops the chain there; a cycle is one component and yields **one** derivation; several established paths to one identity are **one** derivation with its paths listed — never multiplicity, never strength | *derived*, every link listed | every link |
+| **a candidate path beside an established one** | the established path reaches; the candidate is **reported as a candidate beside it** — neither suppressed by the established result nor able to turn it undetermined | *derived / asserted* + *candidate* | — |
 
 **What may not reach, and must be seen to fail (§7C.4):** content or position matching (Pa3);
 the artefact's origin party's roles (Harbor is E of O1 ⇒ Harbor's statement's lines are about O1);
@@ -856,3 +857,103 @@ lists the conflict; 7D characterises it) · multi-link strength (7E) · traversa
 *The line: a proposition is about what someone said it is about, or what it structurally is
 about — and about the same thing in every recording of the same claim; never about what it looks
 like it is about.*
+
+### 7C.7 Ruling — Rob, 2026-09-16: 7C RULED as written; four semantic edges settled before the build
+
+*The framing needed no reframing. Narrower issues than 7B's, but one important enough not to pass
+as wording.* All nine points settled here, in §7C.2 and in the cases Ac21–Ac28.
+
+1. **"Nothing contradicts" is a defined condition, not a hidden resolver.** *Artefact-level
+   derivation is available only when the artefact's established concern set for the requested
+   identity type contains exactly one identity and no established contrary concern for that same
+   type. Candidate, contested, unestablished or otherwise unresolved concerns do not satisfy the
+   condition and are not resolved by this consumer.* The one established concern supplies the
+   derivation; the absence of a second identity is not evidence that the first is true (Ac22).
+2. **"Exactly one" is scoped to the requested identity type.** An artefact concerning O1, E1 and
+   P1 is about O1 for the obligation type — E1 and P1 are neither multiplicity nor conflict; an
+   artefact concerning O1 and O2 is ambiguous for that type however settled everything else is
+   (Ac21).
+3. **Correspondence does the work only as established identity of recordings.** The contract is
+   mechanical: *P is about X through a chain only if every traversed correspondence link is
+   established*; a candidate link stops the chain there — the mixed chain *P ↔ Q established, Q ↔
+   R candidate, R → X* yields X as a candidate for P, never derived (Ac23).
+4. **Cycles and multiple paths create no multiplicity.** *P ↔ Q, Q ↔ R, R ↔ P, R → X* is one
+   component and one derivation (Ac24); *P → artefact A → X* and *P → Q → artefact B → X* is one
+   derived entry with two paths listed (Ac25). **Multiple established derivations terminating in
+   the same identity do not strengthen, rank or multiply the about-ness result** — 7B's
+   multiplicity fence in 7C's clothing; paths are not counted.
+5. **Provenance labels are not an ordering of authority.** *Structural / asserted / derived
+   describe how an about-ness result is obtained; where independently established paths yield
+   incompatible identities of one type, 7C reports the conflict and does not resolve it* — 7D's
+   territory, kept out of 7C (Ac14, Ac26).
+6. **"Own established participant" is precise.** Structural about-ness is Pa10's relationship —
+   an established participant slot of one of the **identity types that about-ness ranges over**
+   (obligation · payment · expense · plan, the concerns kinds' object types). A party subject is
+   not "about the party" in this sense; `if proposition.subject_party_id: return about(...)` is
+   exactly the silent expansion refused (Ac27).
+7. **A reading is a carrier of access, not an about-ness edge.** *A reading is a carrier of access
+   to its artefact's established semantics; it is not itself an about-ness assertion and cannot
+   create or transmit a concerns relation merely because a read proposition says so.* *Reading →
+   artefact → artefact concerns X* can work; *reading → proposition that concerns X* cannot, and a
+   sibling proposition's asserted concerns transmits nothing to P (Ac28).
+8. **Established and candidate paths coexisting — ruled, not chosen by implementation:** the
+   established path reaches; the candidate is **reported as a candidate beside it** — faithful to
+   the evidence architecture; and a candidate can never turn an otherwise settled result into
+   *undetermined*, which would make candidate evidence a resolver (Ac26).
+9. The two rejections Rob singled out stand as architectural boundaries: *Harbor is E of O1 ⇒ its
+   lines are about O1* — the role → about-ness leak with no valid general rule (Ac13); *P about O,
+   O in respect of X ⇒ P about X* — D′.11 stays a separate question, not an accidental composition
+   operator in 7C (Ac12).
+
+```text
+                    ABOUT IDENTITY
+                          │
+          ┌───────────────┼────────────────┐
+      structural       asserted        derived
+                                      /          \
+                                  artefact    correspondence
+
+candidate ──→ does not reach      contested ──→ stops       multiple identities ──→ conflict, no choosing
+composition ─→ does not follow    convergence ─→ does not infer   reading itself ──→ does not establish
+derivation ──→ does not write     derivation ──→ does not know
+```
+
+**Disposition — 7C: RULED as written; build it.** 7D is exactly where 7C must not have quietly
+acquired conflict-resolution authority — these edges are closed so it cannot.
+
+**The cases added for the ruling:**
+
+| # | Case | What the derivation must say | What it must never do |
+|---|---|---|---|
+| **Ac21 — type scoping** | A concerns O1, E1 and P1 (established); line 2 has no line claim. Asked about obligations. | **derived O1 (artefact)**; for expenses, derived E1; for plans, derived P1 | count three identities; report conflict across types |
+| **Ac22 — "nothing contradicts", defined** | A concerns O1 (established) and O2 (a reading-sourced **candidate** artefact claim). | **derived O1**; O2 listed as a **candidate**; not undetermined, not conflict — the candidate does not satisfy the condition and is not resolved | let a candidate block or unsettle the derivation; resolve the candidate |
+| **Ac23 — the mixed chain** | P ↔ Q established; Q ↔ R **candidate**; R concerns X (established). | X reaches P as a **candidate** (through the candidate link), never derived; the chain stops at Q | let X flow backward through the candidate link |
+| **Ac24 — the cycle** | P ↔ Q, Q ↔ R, R ↔ P all established; R concerns X. | **one derived X**, one path listing the links; no infinite traversal, no duplicate | three recordings = three about-nesses |
+| **Ac25 — two established paths, one identity** | P read from A, A concerns X only; P ↔ Q established, Q read from B, B concerns X only. | **one derived X** with **two paths** (artefact; correspondence → artefact); no multiplicity, no rank | *about X twice*; a strength |
+| **Ac26 — established and candidate coexisting** | P concerns X (established); P ↔ Q candidate; Q concerns Y (established). | **asserted X** and **candidate Y**, side by side; X is not made undetermined by Y's candidacy; Y is not suppressed by X | let the candidate win, vanish, or unsettle |
+| **Ac27 — a party subject is not structural about-ness** | A P-subject line: *Lakeview Health states PR $412* (subject the party Lakeview Health, object candidates). | **no structural about-ness** — a party is not an identity about-ness ranges over; the line's about-ness is whatever the concerns claims say | `subject_party_id ⇒ about the party` |
+| **Ac28 — the reading transmits nothing** | Line 2 (Q) and line 3 (P) from one reading of A; Rob: *line 2 concerns O1*; nothing about line 3. | P has **no about-ness** from Q's claim; if A itself concerns O1 only, P is derived (artefact) — through A, never through Q | treat a sibling's asserted concerns as an edge |
+
+#### Built — 2026-09-16
+
+`core/database.py`: `aboutness(session, proposition)` beside `independence` and `parse_disputes`
+— a plain dict, computed on read, storing nothing: *structural* (an established participant slot
+of one of the four identity types; never a party), *asserted* (utterance-evidenced
+`proposition_concerns` on P, with the claim and asserter; a retracted assertion → *undetermined*),
+*derived* (one entry per (type, identity) with every path listed — the artefact level where the
+established artefact-level concern set for that type is exactly one, the reading and claim as
+links; and established correspondence, the component from `referent()` — cycles are one
+component — carrying the members' structural and asserted about-ness with the correspondence
+claims as links), *candidates* (reading-sourced concerns on P; artefact-level candidate concerns;
+identities of a multi-identity established artefact set; about-ness of candidate correspondents —
+reported beside any established result, never suppressing or unsettling it), *undetermined* (a
+contested component; a retracted concerns claim), *conflicts* (per type, the distinct identities
+reached by established sources and the artefact-level established set they disagree with — reported
+as found, for 7D), and a *note* distinguishing *no about-ness established* from *candidates
+exist*. The 7A / 7B wiring guard applies: the fixture inspects the AST for session writes and
+constructors and snapshots every row of every table around the reads. Fixture
+`tests/test_aboutness_fixture.py` over Ac1–Ac28 with the absences; smoke `s109_aboutness.py`,
+mutations each an attempt to *carry*: copy the concerns claim onto the correspondent · set the
+participant from the derivation · follow a candidate link · follow a ruled relation (P about O, O in
+respect of X) · match content / heading · rank derived over asserted (drop the conflict) · let a
+candidate unsettle an established result · count paths as support · give the derivation a strength.

@@ -2461,6 +2461,199 @@ def independence(session, proposition, knowing):
     return out
 
 
+# ── Item 7, pass 7C: about-ness - a CONSUMER derivation ───────────────────────
+# gw 2.0/CONSUMER_DERIVATIONS.md s 7C.7, ruled 2026-09-16. A proposition is about an identity by exactly
+# four things and nothing else:
+#     structural   its own ESTABLISHED participant slot of one of the identity types about-ness ranges over
+#                  (obligation, payment, expense, plan - the concerns kinds' object types; a party is not one)
+#     asserted     an established proposition_concerns(P, X) - a party's utterance behind it
+#     derived      (artefact)        P was read from A, and A's ESTABLISHED concern set for X's type contains
+#                                    exactly one identity - the one concern supplies the derivation; the
+#                                    absence of a second is evidence of nothing; candidate / contested /
+#                                    unestablished concerns neither satisfy the condition nor get resolved
+#                  (correspondence)  P is ESTABLISHED as corresponding to a proposition that is about X by
+#                                    structure or assertion - two recordings of one claim are one claim;
+#                                    transitively through established links only (referent()'s component;
+#                                    a cycle is one component); a candidate link stops the chain there
+# A candidate is never about-ness: a reading-sourced concerns claim, a candidate correspondence, a candidate
+# artefact claim, or an artefact whose established set for the type has several identities yields
+# CANDIDATES - reported beside any established result, never suppressed by it and never able to unsettle
+# it (candidate evidence is not a resolver). A contested component or a retracted assertion yields
+# UNDETERMINED and stops the consumer. Several established paths to one identity are ONE derivation with
+# its paths listed - paths are not counted and never strengthen, rank or multiply the result. Provenance
+# labels are not an ordering of authority: where established sources reach incompatible identities of one
+# type the CONFLICT is reported as found, never resolved (7D's). About-ness does not come from content,
+# heading, amount, position or order; not from the artefact's origin party's roles; not through a ruled
+# relation from the identity reached to another (D'.11); not from two propositions converging on one
+# identity; not to a re-reading from the position of the line it re-read; and a reading is a carrier of
+# access to its artefact's established semantics, never an about-ness edge - a sibling proposition's
+# asserted concerns transmits nothing. A derived about-ness is reported AS derived, is never written back
+# as a concerns claim or as the proposition's participant, acquires no knowing, and is voiced by the
+# narrator as a derivation, never as an assertion. Nothing is chosen, stored or manufactured.
+ABOUT_STRUCTURAL = 'structural'
+ABOUT_ASSERTED = 'asserted'
+ABOUT_DERIVED = 'derived'
+ABOUT_CANDIDATE = 'candidate'
+ABOUT_UNDETERMINED = 'undetermined'
+ABOUT_PATH_ARTEFACT = 'artefact'
+ABOUT_PATH_CORRESPONDENCE = 'correspondence'
+# the identity types about-ness ranges over: the concerns kinds' object slots, and the matching subject slots
+ABOUT_IDENTITY_TYPES = {
+    'obligation': ('subject_obligation_id', 'object_obligation_id'),
+    'payment':    ('subject_payment_id',    'object_payment_id'),
+    'expense':    ('subject_expense_id',    'object_expense_id'),
+    'plan':       ('subject_plan_id',       'object_plan_id'),
+}
+
+
+def _about_direct(session, prop, retracted):
+    """The proposition's own about-ness - structural slots and its proposition_concerns claims - as
+    (structural, asserted, candidates, undetermined). Reads only; establishes nothing."""
+    structural, asserted, candidates, undetermined = [], [], [], []
+    for typ, (sub_col, obj_col) in ABOUT_IDENTITY_TYPES.items():
+        if prop.subject_state == PARTICIPANT_ESTABLISHED and getattr(prop, sub_col) is not None:
+            structural.append((typ, getattr(prop, sub_col)))
+        if prop.object_state == PARTICIPANT_ESTABLISHED and getattr(prop, obj_col) is not None:
+            structural.append((typ, getattr(prop, obj_col)))
+    rows = (session.query(Proposition, EvidentiaryRelationship)
+            .join(EvidentiaryRelationship, EvidentiaryRelationship.proposition_id == Proposition.id)
+            .filter(Proposition.kind == PROPOSITION_CONCERNS, Proposition.subject_proposition_id == prop.id).all())
+    for claim, rel in rows:
+        for typ, (_, obj_col) in ABOUT_IDENTITY_TYPES.items():
+            ident = getattr(claim, obj_col)
+            if ident is None:
+                continue
+            if rel.utterance_id is not None:
+                if rel.utterance_id in retracted:
+                    undetermined.append((typ, ident, 'retracted assertion', claim.id))
+                else:
+                    asserted.append((typ, ident, claim.id, rel.utterance.origin_party_id))
+            else:
+                candidates.append((typ, ident, 'reading-sourced concerns', rel.reading_id))
+    return structural, asserted, candidates, undetermined
+
+
+def aboutness(session, proposition):
+    """The about-ness derivation for one proposition: a plain dict, computed on read, storing nothing.
+
+        {'proposition_id',
+         'structural':  [(type, id)],
+         'asserted':    [(type, id, claim_id, asserter_party_id)],
+         'derived':     [{'type', 'id', 'paths': [{'path': artefact|correspondence, 'links': [...]}]}],
+         'candidates':  [(type, id, source, ref_id)],
+         'undetermined': [(type, id, reason, ref_id)],
+         'conflicts':   [{'type', 'identities': {id: [sources...]}}],     as found, for 7D - never resolved
+         'note': 'no about-ness established' | 'candidates only' | None}
+    """
+    retracted = {u for (u,) in session.query(Proposition.subject_utterance_id)
+                 .filter(Proposition.kind == UTTERANCE_RETRACTION, Proposition.subject_utterance_id.isnot(None)).all()}
+    structural, asserted, candidates, undetermined = _about_direct(session, proposition, retracted)
+    derived = {}                                              # (type, id) -> [paths]
+
+    def add_path(typ, ident, path, links):
+        derived.setdefault((typ, ident), []).append({'path': path, 'links': links})
+
+    # ── the artefact level: reading -> artefact -> established concern set for the type ──────────
+    artefact_sets = {}                                        # type -> set of established identities (for conflicts)
+    rels = (session.query(EvidentiaryRelationship)
+            .filter(EvidentiaryRelationship.proposition_id == proposition.id,
+                    EvidentiaryRelationship.reading_id.isnot(None)).order_by(EvidentiaryRelationship.id).all())
+    seen_artefacts = set()
+    for rel in rels:
+        rd = rel.reading
+        art = rd.artefact
+        if art.id in seen_artefacts:
+            continue
+        seen_artefacts.add(art.id)
+        claims = (session.query(Proposition, EvidentiaryRelationship)
+                  .join(EvidentiaryRelationship, EvidentiaryRelationship.proposition_id == Proposition.id)
+                  .filter(Proposition.kind == ARTEFACT_CONCERNS, Proposition.subject_artefact_id == art.id).all())
+        for typ, (_, obj_col) in ABOUT_IDENTITY_TYPES.items():
+            established, cand, contested = {}, set(), set()
+            for claim, crel in claims:
+                ident = getattr(claim, obj_col)
+                if ident is None:
+                    continue
+                if crel.utterance_id is None:
+                    cand.add(ident)
+                elif crel.utterance_id in retracted:
+                    contested.add(ident)
+                else:
+                    established.setdefault(ident, []).append((claim.id, crel.utterance.origin_party_id))
+            if established:
+                artefact_sets.setdefault(typ, set()).update(established)
+            if len(established) == 1:
+                ident, claim_refs = next(iter(established.items()))
+                add_path(typ, ident, ABOUT_PATH_ARTEFACT,
+                         [('reading', rd.id), ('artefact', art.id)] + [('artefact_concerns', c, a) for c, a in claim_refs])
+            elif len(established) > 1:
+                for ident in sorted(established):
+                    candidates.append((typ, ident, 'artefact concerns several', art.id))
+            for ident in sorted(cand - set(established)):
+                candidates.append((typ, ident, 'candidate artefact concerns', art.id))
+            for ident in sorted(contested - set(established)):
+                undetermined.append((typ, ident, 'contested artefact concerns', art.id))
+
+    # ── established correspondence: the component's members' structural and asserted about-ness ──
+    state, component, cands = referent(session, proposition)
+    if state == REFERENT_CONTESTED:
+        for pid in component:
+            if pid == proposition.id:
+                continue
+            q = session.get(Proposition, pid)
+            q_struct, q_assert, _, _ = _about_direct(session, q, retracted)
+            for typ, ident in q_struct + [(t, i) for t, i, _, _ in q_assert]:
+                undetermined.append((typ, ident, 'contested correspondence', pid))
+    elif state == REFERENT_CORRESPONDING:
+        for pid in component:
+            if pid == proposition.id:
+                continue
+            q = session.get(Proposition, pid)
+            q_struct, q_assert, _, _ = _about_direct(session, q, retracted)
+            for typ, ident in q_struct:
+                add_path(typ, ident, ABOUT_PATH_CORRESPONDENCE, [('proposition_corresponds', proposition.id, pid), ('structural', pid)])
+            for typ, ident, claim_id, asserter in q_assert:
+                add_path(typ, ident, ABOUT_PATH_CORRESPONDENCE,
+                         [('proposition_corresponds', proposition.id, pid), ('proposition_concerns', claim_id, asserter)])
+    for pid in cands:                                         # candidate correspondents: candidates only
+        q = session.get(Proposition, pid)
+        q_struct, q_assert, _, _ = _about_direct(session, q, retracted)
+        for typ, ident in q_struct + [(t, i) for t, i, _, _ in q_assert]:
+            candidates.append((typ, ident, 'candidate correspondence', pid))
+
+    # ── conflicts: established sources reaching incompatible identities of one type - reported, not resolved ──
+    conflicts = []
+    for typ in ABOUT_IDENTITY_TYPES:
+        reached = {}
+        for t, i in structural:
+            if t == typ:
+                reached.setdefault(i, []).append(ABOUT_STRUCTURAL)
+        for t, i, _, _ in asserted:
+            if t == typ:
+                reached.setdefault(i, []).append(ABOUT_ASSERTED)
+        for (t, i), paths in derived.items():
+            if t == typ:
+                reached.setdefault(i, []).extend(ABOUT_DERIVED + ':' + pth['path'] for pth in paths)
+        art_set = artefact_sets.get(typ, set())
+        if reached and art_set and not set(reached) <= art_set:
+            for i in sorted(art_set - set(reached)):
+                reached.setdefault(i, []).append('artefact level')
+        if len(reached) > 1:
+            conflicts.append({'type': typ, 'identities': {i: sorted(v) for i, v in sorted(reached.items())}})
+
+    out = {'proposition_id': proposition.id,
+           'structural': sorted(structural),
+           'asserted': sorted(asserted),
+           'derived': [{'type': t, 'id': i, 'paths': paths} for (t, i), paths in sorted(derived.items())],
+           'candidates': sorted(candidates, key=lambda c: (c[0], c[1], c[2], c[3] or 0)),
+           'undetermined': sorted(undetermined, key=lambda u: (u[0], u[1], u[2], u[3] or 0)),
+           'conflicts': conflicts,
+           'note': None}
+    if not structural and not asserted and not derived:
+        out['note'] = 'candidates only' if candidates else 'no about-ness established'
+    return out
+
+
 STRENGTH_KNOWING = 'knowing'
 STRENGTH_NOT_KNOWING = 'not_knowing'
 STRENGTH_UNDETERMINED = 'undetermined'

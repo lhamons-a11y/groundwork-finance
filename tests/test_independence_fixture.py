@@ -166,7 +166,9 @@ def run(db):
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
                 fn = node.func
-                if isinstance(fn, ast.Attribute) and fn.attr in write_methods:
+                # a write METHOD is one called on the session (or a session-like receiver), never a set's .add
+                if (isinstance(fn, ast.Attribute) and fn.attr in write_methods
+                        and isinstance(fn.value, ast.Name) and fn.value.id in ('session', 's', 'sess', 'db_session', 'conn', 'connection')):
                     found.append(fn.attr)
                 if isinstance(fn, ast.Name) and fn.id in constructors:
                     found.append(fn.id)
