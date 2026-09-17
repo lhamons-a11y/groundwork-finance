@@ -1200,3 +1200,244 @@ artefact-side contest is the type's own state; the checks unchanged. No schema, 
 1152 → 1179, 0 failed. (The full gate now exceeds ten minutes — the consumer fixtures rerun
 under a dozen mutations each and `level_consistency` calls `aboutness` per line; noted, not
 optimised here.)
+
+
+### 7D.8 Build accepted — Rob, 2026-09-17: 7D ACCEPTED at `6b8a5f6`, gate 1179
+
+*The build did not merely test the happy path; it tested the places where a "report" can quietly
+become a decision mechanism.* What closes the remaining semantic gaps: the three-way absence
+distinction is mechanically protected (`{O1}/O1 → consistent`, `{O1}/O2 → inconsistent`,
+`{}/O1 → no_level_basis` — so `not in` cannot become the definition of inconsistency) · contested
+really is a STOP, not a weak form of inconsistency (R→O3 under a contested O-side is *unresolved*,
+never "not in the established set, therefore inconsistent" — the distinction between *an
+established basis this line disagrees with* and *a level not settled enough for the comparison*)
+· candidates remain candidates all the way through the consumer chain; 7D does not reopen 7C's
+question · the five states are not a disguised Boolean — information is preserved instead of
+forcing the next layer to reconstruct why something was not classified · counts remain
+observational (`3 of 5` describes what the report found and never becomes `3 > 2 → the artefact
+claim loses`) · 7D has not acquired correction authority — `refuse_at_write` is the right test,
+because a level-consistency report must be able to say *this line disagrees with the artefact*
+while the underlying proposition remains perfectly representable, or reporting disagreement
+becomes a hidden validation constraint; and the report cannot turn *inconsistent* into *retract
+this*.
+
+**The architectural decision endorsed:** excluding artefact-derived about-ness from the
+comparison. Otherwise *artefact says O1 → line derives O1 from the artefact → 7D declares the
+line consistent with the artefact* is the artefact compared against itself through 7C, not an
+independent check of the line. Correspondence-derived about-ness is different — the line has an
+established identity through an independent established correspondence path — and legitimately
+participates. **The escape was useful:** the correction does not paper over the symptom; it
+establishes the boundary — *line-level `undetermined` is evidence about the line's own about-ness,
+not permission for 7D to reinterpret the artefact-level state.*
+
+**The 7D invariant, carried forward:**
+
+```text
+7D classifies established line aboutness against the artefact's established
+concern set; it does not establish either side, resolve either side, or
+turn absence/candidate/contested evidence into disagreement.
+```
+
+```text
+ontology / propositions → 7C aboutness → (established provenance) → 7D level_consistency → report only
+```
+
+No write-back. No resolution. No ranking. No recommendation. **Not to be reopened:** 7C; **not
+to be added to:** 7D — the STOP is important.
+
+**7D — level consistency: ACCEPTED / BUILT / GREEN.**
+
+---
+
+## Pass 7E — Multi-link strength
+
+**The question, applied:** the parser read *balance $1,925* from a Harbor statement; Rob said
+*that statement is my mortgage.* The value is about O by a derivation through two things — the
+reading of an artefact whose origin is Harbor, and Rob's concerns claim. *How strong is the value
+about O — through that chain?* Slice 3 answered the first link (`derived_strength`: the origin's
+knowing for the kind × how well the origin is established, weakest-link, one link only, the
+longer chains fenced); slice 8 named the second (*a consumer that wants to say how strongly a
+value is about O may need to combine the provenance of the value with the strength of the
+concerns claim — a future consumer derivation*); C3 fixed the rule (*each mediation link is an
+asserted relationship with its own strength; the chain's strength is weakest-link; the chain is
+data, not a type*); Kn6 fenced the servicer chain here. 7E is that consumer.
+
+7E is the pass Rob named as the one that **may not solve anything 7A–7D left unresolved** —
+*weak + weak + weak is not strong because there are three; candidate correspondence + a strong
+source is not established correspondence.* It is also the first consumer whose output looks like
+it could be a number, and so the first where the twelve-point discipline is tested against
+arithmetic rather than against choosing. The whole pass is the observation that **a chain is
+never stronger than its weakest link and never stronger for being one of several** — and that
+this is a lattice operation over three named classes, not a calculation over anything.
+
+### 7E.1 What is already fixed
+
+| Ruling | Constraint on 7E |
+|---|---|
+| **C3** | origin can be mediated by asserted links, each with its own strength; the chain's strength is **weakest-link**; *the chain is data, not a type* — 7E lists links, stores no chain, mints no kind |
+| **Slice 3 (built)** | `derived_strength(relationship, knowing)` — three classes *knowing · not_knowing · undetermined*; for a reading-sourced claim the weakest of *knowing(kind, origin)* and *the strength of the origin claim* (the strongest of the agreeing claims naming that origin — *parallel evidence for one referent is not a choice among referents*); **one link only**; O5's danger test (relaying does not launder); *not established / candidates / competing → undetermined* — **7E takes this link as given and never re-derives it** |
+| **`_weakest` (built)** | *undetermined absorbs; not_knowing beats knowing* — the lattice is the substrate's; 7E inherits it and reorders nothing |
+| **Relational knowing §5** | strength is **the strength class of an evidentiary relationship** — per relationship, never per proposition, never per party; *not_knowing* means *not the party the ruled relation identifies*, never *shown not to know*; **knowing ≠ true** (Kn12); no ranking among knowing parties (Kn11) |
+| **Kn4 / registry** | `proposition_corresponds` has *relational_knowing True and no knowing relation — undetermined by design*: *correspondence must not acquire an epistemology merely because a flag needs a value* — **a chain through correspondence is undetermined in strength, and 7E may not manufacture the epistemology** |
+| **Kn6 / C3 K2** | the servicer's statement conveys E's knowledge *through an asserted link — S services O, a role claim*; **no role kind is ruled** (item 5 fixed the period, not the catalogue) — so today there is **no mediation link in the record to evaluate**; 7E may not construct one from context (D′.11's prohibition, applied to strength) |
+| **Slice 3 §4** | the capture-faithfulness link (*capture is faithful → the portal displayed X*) is **fenced, not represented** — 7E evaluates links on record, neither adds a phantom link nor claims to have evaluated an absent one |
+| **Ab7 / slice 8 invariant** | *values read from A keep their source's authority (via `artefact_origin`) and are about O only by a consumer's derivation through the concerns claim* — **7E grades the derivation, never the value's own strength, which it reports unchanged beside the chain** |
+| **7C (built)** | `aboutness(P)` reports established about-ness with its provenance and, for a derived entry, **its paths with their links** (`reading · artefact · artefact_concerns(claim, asserter)`; `proposition_corresponds(P, P′) · structural / proposition_concerns(claim, asserter)`); several established paths are *one derivation with its paths listed — never counted, never strengthening*; candidates and contested never reach; conflicts reported as found — **7E reads 7C's established paths and grades each link; it reads no candidate, follows no ruled relation, resolves no conflict** |
+| **7B (built)** | independence is between origins, three-valued, never a count; *the use a consumer may make of independent origins is 7E's question* — and **7E's answer is: none. Independence is not strength and strength is not corroboration**; 7E does not read 7B |
+| **7D (built)** | a level inconsistency is a report; **7E does not read 7D** and strength never settles which level is right |
+| **§1** | 1 (never writes) · 2 (reports, never resolves) · 3 (traverses, never composes — a chain of about-ness links is not a new relation) · 5 (absence is not zero — *no evidence* is not *undetermined strength*, and *undetermined* is not *weak*) · 6 (provenance carried) · 7 (**no ranking by type, channel or count** — and no arithmetic) · 8 (one consumer, one question) · 11 (7C's output with its provenance, never as a claim) |
+| **Rob's chain boundary (§3)** | *7E may not "solve" anything 7A–7D left unresolved — weak + weak + weak is not strong because there are three; candidate correspondence + a strong source is not established correspondence* |
+
+### 7E.2 What a link is — the chain vocabulary, closed
+
+A **chain** is one evidentiary relationship of the value followed by the links of one 7C path.
+Every link is **a claim on record with its own evidentiary relationships**, or the value's own
+evidence; nothing else is a link. The vocabulary, today:
+
+| Link | What it is | Its strength |
+|---|---|---|
+| **L0 — the value's evidence** | one evidentiary relationship of P (an utterance, or a reading whose artefact's origin is derived inside slice 3) | `derived_strength(rel, knowing)` — **as given**; the origin link and O5's laundering test live here |
+| **`proposition_concerns(P, X)`** | the asserted about-ness (7C *asserted*) | `derived_strength` of its evidentiary relationship(s): the minter-of-X relation — *knowing* for the household member who declared X, *not_knowing* for another asserter |
+| **`artefact_concerns(A, X)`** | the artefact-level claim (7C *derived: artefact*, where A's established set for the type is exactly {X}) | the same relation; the reading between P and A is a carrier of access, not a link — it has no strength of its own and adds none |
+| **`proposition_corresponds(P, P′)`** | an established correspondence (7C *derived: correspondence*) followed by P′'s structural or asserted about-ness | **undetermined by design** (Kn4) — until correspondence has a ruled epistemology, every chain through it is undetermined |
+| **structural** | P's own established participant (7C *structural*) | not a link: the chain is L0 alone |
+
+**Not links:** a reading or a parser (Kn9 — channels; no party, no strength) · a role claim (no
+role kind ruled; when one is, its claim becomes a link like any other — the shape does not
+change) · the capture-faithfulness assertion (fenced) · a ruled domain relation
+(`payment_in_respect_of` and the family — 7C does not follow them and 7E does not either; D′.11)
+· a candidate anything (a candidate correspondence, a reading-sourced concerns claim, a
+candidate origin — there is no chain, so there is no strength) · a contested anything (7C stops;
+so does 7E) · the *count* of paths, origins, readings or asserters.
+
+**The operation:** *within a link*, the link's strength is the strength class of its evidence —
+where one claim has several established evidentiary relationships, the strongest of them, which
+is slice 3's own precedent for parallel evidence of one claim and is not a ranking of parties
+(every ground is listed with its class; the link's class answers *is there first-hand evidence
+for this link on record*); *along a chain*, the weakest link, by the substrate's `_weakest`;
+*across chains to one identity*, **nothing** — each chain is listed with its class, none is
+chosen, none is summed, none is counted. *Across identities*, nothing — a conflict stays a
+conflict.
+
+### 7E.3 The cases
+
+| # | Case | What 7E must say | What it must never do |
+|---|---|---|---|
+| **Ms1 (Ab1 K1)** | Harbor statement A (origin Harbor, established); *balance* read from A; Rob (who minted O): *that's my mortgage.* | about O, derived (artefact): chain **[L0 knowing · artefact_concerns knowing] → knowing** — slice 8 §5's combination, done | store `strength` on anything; write the derivation back |
+| **Ms2 — the association weaker than the value** | As Ms1, but the concerns claim is Kim's (not O's minter). | chain **[knowing · not_knowing] → not_knowing**; **L0 reported unchanged as knowing** — the value keeps Harbor's authority (Ab7); what is not first-hand is *that it is about O* | downgrade the value; report the chain's class as the value's |
+| **Ms3 (O5)** | Rob's spreadsheet *"$412 (Lakeview Health EOB)"*; Rob's concerns claim on the line. | **[not_knowing · knowing] → not_knowing** — a knowing about-ness link does not lift a relayed value; relaying does not launder | let the stronger link win |
+| **Ms4 (Ab1 K2)** | The household re-asserts *balance $1,925* with subject O established (structural). | chain **[L0] → not_knowing** (Rob's utterance, an institution's kind) — the crossing downgrades E's statement into testimony, exactly as slice 8 said; 7E equals `derived_strength` | invent a second link to explain it |
+| **Ms5 — the oracle** | Any proposition with structural about-ness only. | **7E's chain class = `derived_strength` on that relationship, exactly**, for every relationship — a zero-extra-link chain is the substrate's own answer | differ from the substrate on one link |
+| **Ms6 (Pc3)** | P3 asserted about O2 by Rob (knowing); P3′ ~ P3 established by Rob's utterance. | P3′ about O2, derived (correspondence): **[L0 · proposition_corresponds undetermined · proposition_concerns knowing] → undetermined**. **Established about-ness, undetermined strength** — establishment is 7C's, strength is 7E's, and undetermined strength un-establishes nothing | manufacture knowing for the correspondence link (Rob asserted it; Rob minted O2 — neither is the ruled relation, because none is ruled) |
+| **Ms7 — Rob's boundary (i)** | P3 ~ P3′ a **candidate** (a reading's position match); P3 asserted O2 by Rob (knowing); P3′ read from Harbor (knowing). | **no chain** — 7C: candidate; 7E: *unchained*, with 7C's reason; **no strength is reported for "P3′ about O2"**, not even L0's, because there is no established about-ness to grade | grade the candidate chain; report *knowing* because both ends are strong |
+| **Ms8 — Rob's boundary (ii)** | P about O by three established paths, each chain not_knowing (or undetermined). | one about-ness (7C), **three chains, each listed with its class; no aggregate; no count key** | three not_knowing → knowing; `paths: 3`; *corroborated* |
+| **Ms9 — three strong chains** | The same, each chain knowing. | three chains, each knowing — and **nothing more than one knowing chain says**; no *stronger* | strength grows with paths |
+| **Ms10 — mixed chains** | P about O2 via the artefact (knowing) and via correspondence (undetermined). | **both chains listed, in structural order (relationship id, path order), never by class; no summary class per identity** — a consumer asking *is there a knowing chain* reads the list; 7E does not answer it for them | pick the strongest as *the* strength; pick the weakest; order by class |
+| **Ms11 (7C conflict)** | P asserted O1 by Kim (not_knowing); P derived O2 through the artefact (knowing). | both about-nesses, each with its chains; **7C's conflict carried as found, ungraded** — a knowing chain to O2 does not settle a conflict with O1 | *O2 wins on strength* |
+| **Ms12 (7D)** | A line inconsistent with its artefact's level; the line's chain is knowing. | 7E does not read 7D; the chain is reported; **the inconsistency stands** | strength as a shortcut around an unresolved level disagreement |
+| **Ms13 (7A)** | Two readings of one artefact disagree on line 3's amount (a parse dispute). | the two propositions have **identical L0** (one artefact, one origin, one kind) — strength **cannot distinguish them, by construction**; 7E chooses no reading | prefer a reading |
+| **Ms14 (7B, In14)** | Three independent knowing origins for one value. | three relationships → **three chains**, each knowing; 7E does not read `independence` and says nothing about corroboration | fold independence in; *three independent knowing sources → strong* |
+| **Ms15 (7B, In13)** | One origin, two grounds (two readings of one artefact). | two chains, each the same class; **multiplicity is not strength** (7B's fence) | count grounds |
+| **Ms16 (Kn6)** | Servicer S states *E acknowledged p.* No role kind ruled. | **[L0] → undetermined** (`derived_strength`: the acknowledgment kind's relation — the entitled party — is unruled); **no mediation link exists to evaluate**; 7E reports the one link and constructs nothing from S's servicing relationship anywhere else in the record | manufacture *S services O* from context; treat S's statement as E's |
+| **Ms17 (O4)** | Rob's screenshot of Lakeview Health's portal; origin Lakeview Health established by Rob's assertion; a value read. | **[L0] → knowing** (Lakeview Health, knowing for the kind; the origin claim's strength inside slice 3); the capture-faithfulness link is **neither added as undetermined nor claimed evaluated** — it is not on record | a phantom link making every capture undetermined; a phantom link making every capture knowing |
+| **Ms18 — the lattice** | A chain with links knowing, not_knowing, undetermined. | **undetermined** — undetermined absorbs, by the substrate's `_weakest`; 7E reorders nothing and scores nothing | *not_knowing is worse than undetermined*; a numeric order |
+| **Ms19 — monotone** | Any chain, any extra link. | **a chain's class is never above any of its links'** — adding a link never raises a class; mechanical over every chain in the corpus | a chain stronger than its weakest link |
+| **Ms20 — no evidence** | A proposition with no evidentiary relationship at all. | **no chain, and not *undetermined*** — `evidence: []`, note *no evidentiary relationship*; absence is not a class | report undetermined for nothing |
+| **Ms21 — contested link** | Rob retracts his concerns claim. | 7C: undetermined; 7E: **unchained**, with the reason; no class | *weak* |
+| **Ms22 (Kn12)** | A knowing chain to X; E's own later statement contradicts the value. | 7E says nothing about truth; the chain's class is unchanged; the conflict is the fenced resolver's | knowing read as *correct*; the contradiction lowering the class |
+| **Ms23 — within a link** | One concerns claim evidenced by two utterances — Rob's (knowing) and Kim's (not_knowing). | the link **knowing**, both grounds listed with their classes — slice 3's precedent (parallel evidence for one claim; the strongest) — **and no party ranked** | a cartesian explosion of chains; *Rob outranks Kim* |
+| **Ms24 — surfaced, not stored** | The household reads the report and re-asserts the concerns claim itself. | the next read shows the new chain; **7E wrote nothing, ever** | `strength` / `chain` / `lineage` column or row; a cache |
+| **Ms25 — where the failure appears** | A chain reported *knowing* while a link is not_knowing or undetermined; a class reported where no established about-ness exists (Ms7); a class reported where no evidence exists (Ms20). | **the three places "knowing" (or any class) can be said falsely** — measured there | — |
+| **Ms26 — the null model** | A corpus where every link is knowing: every chain knowing. Flip exactly one link to not_knowing: exactly the chains through that link change, no other. | a correctness oracle, with Ms5 | a strength-blind consumer (every link taken as knowing) — the fixture must differ from it on Ms2, Ms3, Ms6 |
+
+### 7E.4 Testing the readings
+
+**ME0 — arithmetic** (a score; product / sum / mean of link strengths; a confidence; a
+probability). Rejected: §1.7, §1.11; Ms8, Ms9, Ms18 — three named classes on a lattice; no
+number exists to add.
+
+**ME1 — count** (paths, origins, grounds, asserters as strength). Rejected: Rob's boundary; Ms8,
+Ms9, Ms14, Ms15 — 7B's *multiplicity is not strength* and 7C's *paths never strengthen* are
+7E's fences too.
+
+**ME2 — rank** (the strongest chain is *the* strength; chains ordered by class; a party
+outranking another). Rejected: §1.7; Ms10, Ms11, Ms23 — chains are listed in structural order;
+within a link, slice 3's precedent is *is there first-hand evidence*, not *who is better*.
+
+**ME3 — the chain as a type** (a stored lineage; a `strength` column; a relation kind
+*value_strongly_about_X*). Rejected: C3, §1.1; Ms24.
+
+**ME4 — a resolver** (strength settling 7A's reading, 7B's undetermined pair, 7C's conflict,
+7D's inconsistency). Rejected: Rob's boundary; Ms11–Ms14.
+
+**ME5 — manufactured links** (a role-mediated chain built from context; correspondence given an
+epistemology; a capture-faithfulness link added). Rejected: Kn4, Kn6, slice 3 §4, D′.11;
+Ms6, Ms16, Ms17.
+
+**ME6 — undetermined as weak / absence as undetermined**. Rejected: §1.5; Ms18, Ms20, Ms21 —
+*undetermined* is a class meaning *cannot be said*; *no chain* and *no evidence* are not
+classes.
+
+**ME7 — the chain class as the value's** (Ms2's downgrade read as *Harbor's balance is
+not_knowing*). Rejected: Ab7's anti-collapse invariant; L0 reported beside the chain, unchanged.
+
+**ME8 — the candidate: a read-only derivation `chain_strength(session, proposition, knowing)`**
+— the value's evidentiary relationships each with its `derived_strength` class, as given; for
+every **established** about-ness 7C reports (structural, asserted, derived with its paths), the
+chains — one per (evidentiary relationship × path) — each as its list of links with each link's
+grounds and class, and the chain's class as the weakest link; 7C's candidates and undetermined
+carried as *unchained* with their reasons and no class; 7C's conflicts carried as found,
+ungraded; chains in structural order; **no class per identity, no class per proposition, no
+count, no number, no order by class, no write.**
+
+### 7E.5 What the derivation is — and is not
+
+| **reads** | the proposition's evidentiary relationships; `derived_strength` per relationship (as given); `aboutness()` (§1.11: with its provenance, never as a claim) for the established paths and their links; the concerns and correspondence claims named in those links, with their evidentiary relationships, each graded by `derived_strength` |
+|---|---|
+| **returns** | `evidence`: [{relationship, source, origin, class}] · `about`: [{type, id, provenance, path, chains: [{evidence: relationship, links: [{kind, claim, grounds: [(relationship, class)], class}], class}]}] · `unchained`: [(type, id, reason)] · `conflicts`: 7C's, as found · `note` |
+| **decides** | nothing — no chain is chosen, summed, counted or ordered; no identity is preferred; no reading, origin, level or truth is settled |
+| **is not** | a score; a corroboration; a rank; a stored lineage; a resolver; a manufacturer of links; 7B (it reads no independence); 7C (it reads 7C); 7D (it reads nothing of 7D) |
+| **failure appears at** | Ms25 — a class said of a chain above its weakest link; a class said where no about-ness is established; a class said where no evidence exists — measured there |
+| **null model** | Ms5 (the substrate's own `derived_strength` on every zero-extra-link chain) and Ms26 (all-knowing corpus; one flipped link changes exactly the chains through it) — correctness oracles, and the strength-blind consumer the fixture must differ from |
+
+### 7E.6 Ruling candidate — pass 7E, for Rob
+
+> **Multi-link strength is a class, not a quantity. For one proposition, the consumer reports the
+> strength class of each of its evidentiary relationships as the substrate derives it, and, for
+> each about-ness 7C reports as established, every chain by which it is reached — the value's
+> evidence followed by the links of one path — as a list of links, each a claim on record with
+> its own grounds and its own class, and the chain's class as the weakest link, on the
+> substrate's lattice, in which undetermined absorbs. A link is the value's own evidence, a
+> concerns claim, or an established correspondence; a correspondence link is undetermined until
+> correspondence has a ruled epistemology, and a role-mediated link exists only when a role kind
+> is ruled — neither is manufactured, and no link is added that is not on record. Within a link,
+> parallel established grounds for one claim give the link the class of the strongest of them,
+> every ground listed and no party ranked; along a chain, the weakest; across chains to one
+> identity, nothing — each is listed, none is chosen, summed, counted or ordered; across
+> identities, nothing — a conflict stays a conflict. A chain is never stronger than any of its
+> links and never stronger for being one of several. The value's own class is reported unchanged
+> beside its chains: the chain grades the derivation that the value is about the identity, never
+> the value. Where about-ness is a candidate, contested or undetermined there is no chain and no
+> class; where there is no evidence there is no chain and no class, and neither absence is
+> undetermined. It reads no independence and answers no corroboration; it reads no level report
+> and settles no level; it chooses no reading; it says nothing of truth. It is computed on read,
+> stored nowhere, voiced as a derivation, and its failure can appear only where a class is said
+> above a chain's weakest link, of an about-ness not established, or of evidence that does not
+> exist — and it is measured there.**
+
+**If ruled, the build is one read-only function** — `chain_strength(session, proposition,
+knowing)` beside `level_consistency`; a fixture over Ms1–Ms26 with the absences (no number, no
+count key, no per-identity class, no order by class, no stored lineage, no manufactured link)
+and the AST + row-content wiring guard; a smoke section whose mutations each try to *quantify or
+choose* (multiply, add, count paths, count origins, take the strongest chain as the answer, order
+chains by class, let undetermined read as not_knowing, let a candidate chain carry a class, grade
+the correspondence link knowing, manufacture the servicer link, let the chain's class replace L0,
+store); **no schema, no migration; 7F not opened until it is green.**
+
+**What pass 7E leaves exactly where it found it:** the role catalogue (Kn6's link becomes
+evaluable when a role kind is ruled — the shape does not change) · correspondence's epistemology
+(Kn4) · the capture-faithfulness link · the resolver over contested claims · RA5 · traversal of
+ruled relations (7F) · D′.11.
+
+*The line: a chain is as strong as its weakest link, no stronger for being long, no stronger for
+having company — and the record says which link, so the household knows what to ask about.*
