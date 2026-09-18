@@ -53,8 +53,13 @@ PERIOD_WORDS = ('effective', 'period', 'valid_from', 'valid_to', 'start', 'end_o
                 'begins_on', 'began_on', 'ended_on', 'interval')
 REAL_ROLE_NAMES = ('serves', 'servicer_of', 'entitled_party_of', 'entitled', 'obligor_on', 'obligor', 'provider_of',
                    'insurer_of', 'covered_under', 'member_of', 'enrolled_in', 'membership', 'payer_of', 'payee_of')
-CONSUMER_NAMES = ('in_effect_on', 'in_effect', 'current_role', 'role_period', 'period_of', 'roles_in_effect',
-                  'role_on', 'holds_on', 'effective_role', 'overlaps', 'resolve_boundaries', 'periods_of')
+# Item 7 pass 7F (CONSUMER_DERIVATIONS.md s 7F.8, ruled 2026-09-18) built the consumer this fixture once said
+# did not exist: `in_effect(session, party, role_kind, d)` answers "in effect on d" as a READ-ONLY derivation
+# under TS (G read forward, N read back, four states, the governing stance named). It is not a resolver, a
+# period, a status or an overlap policy - those absences still hold and are what CONSUMER_NAMES now lists.
+CONSUMER_NAMES = ('in_effect_on', 'current_role', 'role_period', 'period_of', 'roles_in_effect',
+                  'role_on', 'holds_on', 'effective_role', 'overlaps', 'resolve_boundaries', 'periods_of',
+                  'resolve_overlap', 'current_status', 'latest_stance', 'in_effect_cache')
 
 
 def _fresh():
@@ -332,8 +337,8 @@ def _run(db):
                   for t in ('propositions', 'parties', 'obligations', 'payments', 'expenses', 'plans', 'utterances', 'artefacts', 'readings')
                   for c in db.Base.metadata.tables[t].columns)
           and not any(n in db.Base.metadata.tables for n in ('roles', 'role_periods', 'memberships', 'enrollments')))
-    check('no temporal consumer, resolver or overlap policy - "in effect on d" is not answered here',
-          not any(hasattr(db, n) for n in CONSUMER_NAMES))
+    check('no resolver, period or overlap policy - "in effect on d" is answered by item 7\'s read-only in_effect() (7F), which is not one of those',
+          callable(getattr(db, 'in_effect', None)) and not any(hasattr(db, n) for n in CONSUMER_NAMES))
     check('the guard is structural and only structural - no function says a role began, ended, or holds',
           not any(hasattr(db, n) for n in ('role_began', 'role_ended', 'role_holds', 'began_on', 'ended_on', 'boundaries_of_role')))
     check('the boundary vocabulary is exactly began / ended',

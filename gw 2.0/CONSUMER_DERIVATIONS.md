@@ -1942,3 +1942,64 @@ back; a candidate or retracted stance neither governs nor contests; an ending's 
 date not in effect (TS-c)"* — and the report carries **G and N** by name. Nothing else in 7F
 changes. **Ruling sought: TS as written (the table, the rule, the straddle condition, Ts1–Ts14)
 and TS-c.**
+
+
+### 7F.8 Ruling — Rob, 2026-09-18: TS ACCEPTED as written, TS-c symmetric; 7F RULED, build authorised
+
+*You closed the seam without smuggling a generic "latest status wins" rule into 7F.* The decisive
+piece: a stance has a forward reading and, for transition stances, a backward one — `holds →
+forward in effect, backward nothing · began → forward in effect, backward not in effect · ended →
+forward not in effect, backward in effect` — and 7F asks two bounded questions, **G** (latest
+established stance at or before d) and **N** (earliest after d), evaluating the governing stance
+against the nearest possible backward-reading transition. *A real rule rather than an intuition
+about dates.* The boundary Rob wanted to see: **an ending alone supplies no answer before it** —
+its backward meaning can contest an existing forward reading but cannot become a standalone
+period-starting fact; the "period object by the back door" failure mode closed. The extrapolation
+is auditable: for `holds 1/15, d = 5/12` the report carries `G = holds @ 1/15`, so the consumer is
+not pretending the record contains a 5/12 assertion — it exposes the extrapolation and the stance
+responsible. **TS-c accepted:** not in effect on an `ended` stance's `as_of`; `began @ t → new state
+begins at t · ended @ t → new state ends at t`; the "last day" is the asserter's choice of date;
+no inclusive / exclusive period model. Checked under transitions: `began 1/1 · ended 5/1 · d 3/1`
+not contested (the ending reads back *in effect*, agreeing); at 5/1 the ending is G → not in
+effect; same-date `began 5/1 · ended 5/1` → contested; an ending after an established holding
+contests only where its backward reading actually disagrees.
+
+**Verdict:** TS accepted · TS-c accepted · Ts1–Ts14 the required coverage · G and N exposed in the
+report preserve the provenance of the temporal answer · no period object · no hidden
+continuous-effect assumption · no overlap resolution · no stance silently promoted to a status ·
+**the extrapolation is explicitly a consumer rule, not substrate ontology.** Recorded as the
+closure of the temporal seam. **Build 7F; 7G unopened until 7F is implemented and the gate is
+green.**
+
+
+#### Built — 2026-09-18
+
+`core/database.py`: `reach(session, thing, kind, as_object=False)` and `in_effect(session, party,
+role_kind, d)` beside `chain_strength`, with helpers `_claim_states` (one state per evidentiary
+relationship: established · candidate · contested), `_retracted`, `_referent_members` (the
+established referent of the subject; a contested component is read alone, noted) and
+`_stance_answer` (TS exactly: G read forward, N read back, contested where they disagree). Both
+plain dicts, computed on read, storing nothing. `reach` refuses by `ValueError`, naming the kind
+and the reason: unruled; one of the record's own kinds (`_META_KINDS` ∪ every correspondence
+kind — each has its own derivation); a boundary kind; a thing that does not fill the slot. It
+returns every claim × every ground as an endpoint with claim, asserter, state and ground;
+direction *subject · object · symmetric*; note *no claim* on an empty result. `in_effect` refuses
+an unruled kind, a boundary kind, a kind no boundary kind is `of` (a relation has no "in
+effect"), a non-party subject; returns per identity the answer, **G and N by name**, and every
+stance with its state; `in_effect` as a list — several is an overlap, a fact. Neither calls
+`aboutness`, `chain_strength`, `level_consistency`, `independence`, `parse_disputes` or
+`derived_strength`; neither reads `created_at`. The 7A–7E wiring guard applies over both functions
+and all four helpers. Fixture `tests/test_traversal_fixture.py` over Tr1–Tr26 and Ts1–Ts14 with the
+absences (no selector / inverse / period / path / status helper; no period, interval, status or
+`current` column on any 2.0 table) — 41 checks; stand-in role kinds registered and removed as
+item 5's fixture does, the shipped registry asserted role-free before and after. Smoke
+`s112_traversal.py`, mutations each an attempt to *choose or extend*: pick the newest endpoint ·
+pick the household's · compose the second hop (`via`) · project the endpoint's nature onto the
+subject · infer the plan from membership · resolve the overlap · the earlier ending governs a
+contest · absence reads not in effect · a retraction is an ending · a reading's stance counts · a
+period is materialised · store — twelve, all caught, baseline re-established after every undo. No
+escape in either derivation on the first run; fixture-construction corrections only (a missing
+main block; a payment id compared without its type; a party correspondence that crossed
+foundations, rewritten on two institutions; one smoke mutation — *pick the household's* — escaped
+until Tr2 gained an institution asserter beside the household's, which the case needed anyway).
+The first full gate failed twice, both in item 5's role-period fixture: its absence checks *no temporal consumer - "in effect on d" is not answered here* now false by ruling - retired truthfully (`in_effect` asserted to exist as the read-only consumer; the absences that still hold - no resolver, period, status, overlap policy - are what the list now names). No schema, no migration. Gate 1208 → 1235, 0 failed.

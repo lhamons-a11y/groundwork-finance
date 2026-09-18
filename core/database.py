@@ -3160,6 +3160,214 @@ def chain_strength(session, proposition, knowing):
     return out
 
 
+# ── Item 7, pass 7F: traversal - two CONSUMER derivations, one hop, nothing chosen ─────
+# gw 2.0/CONSUMER_DERIVATIONS.md s 7F.6-7F.8, ruled 2026-09-18. A traversal reads ONE ruled relation
+# ONE hop and stops at its endpoints - all of them, with the claim, the asserter and the state of
+# each - choosing none. It answers the reverse direction as a query so labelled and mints no
+# inverse kind (D'18); carries nothing of the endpoint onto the subject (C17); composes no second
+# hop (D'.11 open - no via / path / recursion) and infers no relation no claim asserts (E24 - not
+# from a shared person, membership or date); refuses BY NAME a kind that is unruled, one of the
+# record's own meta-kinds (origin, correspondence, concerns, retraction - each has its own
+# derivation) or a boundary kind - an empty list would be indistinguishable from "none exist".
+#
+# For a role, the dated derivation (TS, ruled s 7F.8): a stance is about its as_of = t and asserts
+#     holds  -> in effect at t;        immediately before t: nothing (R1)
+#     began  -> in effect at t;        immediately before t: NOT in effect   (a transition)
+#     ended  -> NOT in effect at t;    immediately before t: in effect       (a transition; TS-c: the
+#                                                                             ending's date is the first
+#                                                                             date not in effect)
+# and nothing about any other date. The one extrapolation - a consumer rule, not substrate
+# ontology - is "a stance stands until the next stance": G(d) = the established stances at the
+# latest as_of <= d read forward; N(d) = those at the earliest as_of > d read back; undetermined
+# when G is empty (absence is not zero - an ending alone supplies no answer before it); contested
+# when G disagrees within itself (began + ended on one date) or when a stance in N reads back
+# against G's answer (R5's two endings; two beginnings with no ending between); otherwise G's
+# answer. A holds reads nothing back and never contests; only the nearest next stance is consulted.
+# Candidate (reading-sourced) and contested (retracted) stances neither govern nor contest - they
+# are listed. G and N are both IN THE REPORT, so every answer shows the stance it rests on and the
+# stance that could contest it: an extrapolation is visible as one. No period is materialised, no
+# overlap resolved (two identities in effect are two), no disputed boundary settled, no retraction
+# read as an ending, no created_at consulted (as-the-record-stood is the audit's question).
+# No role kind is ruled: in_effect runs today on stand-in kinds a fixture registers and removes,
+# and changes shape for none of the kinds accepted and unbuilt (E, F). Computed on read; stored nowhere.
+EFFECT_IN = 'in_effect'
+EFFECT_NOT = 'not_in_effect'
+EFFECT_UNDETERMINED = 'undetermined'
+EFFECT_CONTESTED = 'contested'
+STANCE_HOLDS = 'holds'
+CLAIM_ESTABLISHED = 'established'
+CLAIM_CANDIDATE = 'candidate'
+CLAIM_CONTESTED = 'contested'
+DIRECTION_SUBJECT = 'subject'
+DIRECTION_OBJECT = 'object'
+DIRECTION_SYMMETRIC = 'symmetric'
+
+_TRAVERSAL_META = set(_META_KINDS) | {k for k, _, _ in _CORRESPONDENCE_OF.values()}
+
+
+def _slot_type(col):
+    """'subject_obligation_id' -> 'obligation'."""
+    return col.split('_', 1)[1].rsplit('_', 1)[0]
+
+
+def _claim_states(session, claim, retracted):
+    """One (state, asserter, relationship_id) per evidentiary relationship of a claim."""
+    out = []
+    for rel in (session.query(EvidentiaryRelationship).filter(EvidentiaryRelationship.proposition_id == claim.id)
+                .order_by(EvidentiaryRelationship.id).all()):
+        if rel.utterance_id is None:
+            out.append((CLAIM_CANDIDATE, None, rel.id))
+        elif rel.utterance_id in retracted:
+            out.append((CLAIM_CONTESTED, rel.utterance.origin_party_id, rel.id))
+        else:
+            out.append((CLAIM_ESTABLISHED, rel.utterance.origin_party_id, rel.id))
+    return out
+
+
+def _retracted(session):
+    return {u for (u,) in session.query(Proposition.subject_utterance_id)
+            .filter(Proposition.kind == UTTERANCE_RETRACTION, Proposition.subject_utterance_id.isnot(None)).all()}
+
+
+def _referent_members(session, thing):
+    """The established referent of `thing` (its own id when separate or when the component is contested)."""
+    if type(thing).__name__ not in _CORRESPONDENCE_OF:
+        return [thing.id], None
+    state, component, _ = referent(session, thing)
+    if state == REFERENT_CORRESPONDING:
+        return sorted(component), None
+    if state == REFERENT_CONTESTED:
+        return [thing.id], 'subject referent contested - read alone'
+    return [thing.id], None
+
+
+def reach(session, thing, kind, as_object=False):
+    """The endpoint traversal for one thing and one ruled relation kind: a plain dict, computed on read,
+    storing nothing.
+
+        {'kind', 'direction': subject|object|symmetric, 'subject': id, 'subject_type', 'referent': [ids],
+         'endpoints': [{'id', 'type', 'claim', 'asserter', 'state': established|candidate|contested, 'ground'}],
+         'note'}
+
+    Every claim, every ground, nothing chosen. `as_object=True` answers the reverse direction as a
+    query - the endpoints are the claims' SUBJECTS - labelled 'object'; no inverse kind exists.
+    Refuses by name (ValueError): an unruled kind; a meta-kind (origin, any correspondence, concerns,
+    retraction - each has its own derivation); a boundary kind; a thing whose type does not fill the
+    kind's slot.
+    """
+    rule = RULED_KINDS.get(kind)
+    if rule is None:
+        raise ValueError(f'reach: kind not ruled - {kind!r}; a traversal reads semantics, not strings')
+    if kind in _TRAVERSAL_META:
+        raise ValueError(f'reach: {kind!r} is one of the record\'s own kinds and has its own derivation; not traversed')
+    if rule.get('boundary'):
+        raise ValueError(f'reach: {kind!r} is a boundary kind - a stance, not a relation; in_effect reads it')
+    typ = type(thing).__name__.lower()
+    symmetric = rule.get('symmetric', False)
+    side, other = ('object', 'subject') if as_object else ('subject', 'object')
+    if symmetric:
+        cols = list(rule['subject']) + list(rule['object'])
+        direction = DIRECTION_SYMMETRIC
+    else:
+        cols = list(rule[side])
+        direction = DIRECTION_OBJECT if as_object else DIRECTION_SUBJECT
+    if not any(_slot_type(c) == typ for c in cols):
+        raise ValueError(f'reach: a {typ} does not fill the {side} slot of {kind!r}')
+    members, note = _referent_members(session, thing)
+    retracted = _retracted(session)
+    endpoints = []
+    for col in cols:
+        if _slot_type(col) != typ:
+            continue
+        claims = (session.query(Proposition).filter(Proposition.kind == kind, getattr(Proposition, col).in_(members))
+                  .order_by(Proposition.id).all())
+        for claim in claims:
+            if symmetric:
+                other_cols = [c for c in list(rule['subject']) + list(rule['object']) if c != col]
+            else:
+                other_cols = list(rule[other])
+            for ocol in other_cols:
+                ident = getattr(claim, ocol)
+                if ident is None:
+                    continue
+                for state, asserter, ground in _claim_states(session, claim, retracted):
+                    endpoints.append({'id': ident, 'type': _slot_type(ocol), 'claim': claim.id,
+                                      'asserter': asserter, 'state': state, 'ground': ground})
+    if not endpoints and note is None:
+        note = 'no claim'
+    return {'kind': kind, 'direction': direction, 'subject': thing.id, 'subject_type': typ, 'referent': members,
+            'endpoints': endpoints, 'note': note}
+
+
+def _stance_answer(established, d):
+    """TS: G(d) read forward, N(d) read back. Returns (answer, governing, next)."""
+    before = [st for st in established if st['as_of'] <= d]
+    after = [st for st in established if st['as_of'] > d]
+    if not before:
+        return EFFECT_UNDETERMINED, [], ([st for st in after if st['as_of'] == min(x['as_of'] for x in after)] if after else [])
+    g_date = max(st['as_of'] for st in before)
+    G = [st for st in before if st['as_of'] == g_date]
+    N = [st for st in after if st['as_of'] == min(x['as_of'] for x in after)] if after else []
+    fwd = {EFFECT_NOT if st['sort'] == BOUNDARY_ENDED else EFFECT_IN for st in G}
+    if len(fwd) > 1:
+        return EFFECT_CONTESTED, G, N
+    answer = next(iter(fwd))
+    for st in N:
+        bwd = EFFECT_IN if st['sort'] == BOUNDARY_ENDED else EFFECT_NOT if st['sort'] == BOUNDARY_BEGAN else None
+        if bwd is not None and bwd != answer:
+            return EFFECT_CONTESTED, G, N
+    return answer, G, N
+
+
+def in_effect(session, party, role_kind, d):
+    """The dated derivation for one party and one ruled role kind on date `d` (ISO string or date): a plain
+    dict, computed on read, storing nothing.
+
+        {'party', 'referent': [ids], 'kind', 'd',
+         'identities': {id: {'answer': in_effect|not_in_effect|undetermined|contested,
+                             'governing': [stance...], 'next': [stance...],
+                             'stances': [{'sort': holds|began|ended, 'kind', 'as_of', 'claim', 'asserter', 'state', 'ground'}]}},
+         'in_effect': [ids answered in_effect],    a fact - several is an overlap, reported, never resolved
+         'note'}
+
+    Refuses by name (ValueError): an unruled kind; a boundary kind (a stance, not a role); a kind no
+    boundary kind is `of` (a relation, not a role); a party that is not a Party.
+    """
+    rule = RULED_KINDS.get(role_kind)
+    if rule is None:
+        raise ValueError(f'in_effect: kind not ruled - {role_kind!r}')
+    if rule.get('boundary'):
+        raise ValueError(f'in_effect: {role_kind!r} is a boundary kind, not a role; name the role it is of')
+    bounds = {k: r for k, r in RULED_KINDS.items() if r.get('of') == role_kind and r.get('boundary') in (BOUNDARY_BEGAN, BOUNDARY_ENDED)}
+    if not bounds:
+        raise ValueError(f'in_effect: {role_kind!r} is not a role - no boundary kind is bound to it; a relation has no "in effect"')
+    if type(party).__name__ != 'Party' or 'subject_party_id' not in rule['subject']:
+        raise ValueError(f'in_effect: {role_kind!r} takes a party subject; got {type(party).__name__}')
+    d = d.isoformat() if hasattr(d, 'isoformat') else str(d)
+    members, note = _referent_members(session, party)
+    retracted = _retracted(session)
+    obj_cols = list(rule['object'])
+    sorts = {role_kind: STANCE_HOLDS}
+    sorts.update({k: r['boundary'] for k, r in bounds.items()})
+    per_identity = {}
+    for claim in (session.query(Proposition).filter(Proposition.kind.in_(sorted(sorts)), Proposition.subject_party_id.in_(members))
+                  .order_by(Proposition.id).all()):
+        ident = next((getattr(claim, c) for c in obj_cols if getattr(claim, c) is not None), None)
+        if ident is None:
+            continue
+        for state, asserter, ground in _claim_states(session, claim, retracted):
+            per_identity.setdefault(ident, []).append({'sort': sorts[claim.kind], 'kind': claim.kind, 'as_of': claim.as_of,
+                                                       'claim': claim.id, 'asserter': asserter, 'state': state, 'ground': ground})
+    identities = {}
+    for ident, stances in sorted(per_identity.items()):
+        established = [st for st in stances if st['state'] == CLAIM_ESTABLISHED and st['as_of']]
+        answer, G, N = _stance_answer(established, d)
+        identities[ident] = {'answer': answer, 'governing': G, 'next': N, 'stances': stances}
+    return {'party': party.id, 'referent': members, 'kind': role_kind, 'd': d, 'identities': identities,
+            'in_effect': [i for i, v in identities.items() if v['answer'] == EFFECT_IN],
+            'note': note if note else ('no stance' if not identities else None)}
+
+
 for _name in _IMMUTABLE_REFERENCES:
     event.listen(globals()[_name], 'before_update', _refuse_repoint)
 del _name
