@@ -1823,3 +1823,122 @@ audit's) · candidate generation.
 
 *The line: the record can be walked one step, and every step shows every door — none of them is
 opened for you.*
+
+
+### 7F.7 Rob's review, 2026-09-18 — TR6 is a real semantic rule; the temporal edge made exact before ruling
+
+Rob: *"order the stances by `as_of`; answer for d" does not by itself entail "latest established
+stance at or before d governs." That is an extrapolation rule.* It is to be ruled as consumer
+semantics, not accepted as convenient; the straddle condition needs an exact statement of **what is
+straddling**; and the record must say **what a stance at `as_of = t` asserts about dates other than
+t, and precisely when multiple established stances make the answer contested** — the existing
+stance semantics made executable, not 7F inventing temporal interpretation implicitly. Rob's two
+counter-examples: `holds @ 1/1 · holds @ 5/1 · d = 3/1` is not a dispute merely because two
+same-sort stances surround d; `holds @ 1/1 · ended @ 5/1 · d = 3/1` is not contested either. And
+one test required: the governing stance must be **part of the answer**, observable and auditable —
+`holds @ 1/15, d = 5/12 → in effect, governing holds @ 1/15`; add `ended @ 4/01 → not in effect,
+governing ended @ 4/01`; a *candidate* `ended @ 4/01` does not govern. Everything else in 7F
+accepted provisionally: the one-hop boundary (no `via` / `path` / recursion — D′.11 not rebuilt
+under a friendlier name); endpoint state with every endpoint retained (*traversal reports what each
+claim says and who asserts it; it does not decide which assertion is authoritative*); the reverse
+direction as a labelled query (the ontology contains no `inverse(K)`); refusal-by-name for
+meta-kinds (an empty list would be indistinguishable from *none exist*); roles conservative — the
+consumer is not the place role ontology is invented. **7F not yet accepted; 7G unopened.**
+
+#### TS — what a stance asserts, and the one extrapolation, stated exactly
+
+**The stances (RP2, as built).** A stance is a proposition of one of three sorts for one (party,
+role kind, identity), with `as_of = t` the date it is *about* (never when it was learned — R3).
+*Established* = evidenced by an unretracted utterance; a reading-sourced stance is a *candidate*
+(R11), a retracted one *contested* (R6). Only established stances take part in the answer; the
+others are listed with their state.
+
+**What each sort asserts — at t, immediately before t, and about other dates.** This table is the
+ruling's content; every case below follows from it.
+
+| Sort at `t` | at `t` | immediately before `t` | about any other date |
+|---|---|---|---|
+| **holds** | in effect | — (nothing: R1, *nothing about since when*) | **nothing** |
+| **began** | in effect | **not** in effect (it is a transition) | nothing |
+| **ended** | **not** in effect (convention TS-c below) | in effect (a transition) | nothing |
+
+**The extrapolation (the new rule, TR6a made exact).** *A stance stands until the next stance.*
+For a date d and the established stances E of one (party, kind, identity):
+
+```text
+G(d)  = the stances in E whose as_of is the LATEST date <= d          (the governing set)
+N(d)  = the stances in E whose as_of is the EARLIEST date  > d        (the next set)
+fwd(s) = in_effect      if s is holds or began                         (what s says about t, carried forward)
+         not_in_effect  if s is ended
+bwd(s) = in_effect      if s is ended                                  (what s says about "immediately before t",
+         not_in_effect  if s is began                                   carried back as far as the previous stance)
+         nothing        if s is holds
+
+answer(d):
+    G empty                                        -> undetermined      (no stance precedes d: absence is not zero)
+    {fwd(s) : s in G} has two values               -> contested         (began and ended on one date)
+    A = the one value of fwd over G
+    some s' in N with bwd(s') defined and != A     -> contested         (the next stance's transition
+                                                                          contradicts what governs d)
+    otherwise                                      -> A
+```
+
+**"Straddling", exactly:** the answer for d is contested when the governing stance's forward
+reading and the next stance's backward reading disagree about d — and only then. A *holds* reads
+nothing backward, so it never contests an earlier stance; a *began* or *ended* does, because a
+transition says what held immediately before it, and "immediately before" reaches back to the
+previous stance under the same rule that carries a stance forward. Only the nearest next stance
+is consulted: any farther stance's backward reading is bounded by the stance between.
+
+**Rob's two counter-examples resolve by the table, not by fiat:** `holds @ 1/1 · holds @ 5/1 ·
+d = 3/1` → G = {holds 1/1} → in effect; N = {holds 5/1}, bwd = nothing → **in effect, not
+contested**. `holds @ 1/1 · ended @ 5/1 · d = 3/1` → in effect; N = {ended 5/1}, bwd = in effect,
+agrees → **in effect, not contested**.
+
+**TS-c — one convention to rule, not derivable from the record:** is the role in effect *on* the
+date of an ending? The table takes `as_of` for a boundary as *the first date on which the new
+state holds* (began @ t → in effect on t; ended @ t → not in effect on t), symmetric between the
+two sorts. The alternative — an ending's date is *the last day in effect* — is a household
+idiom (*coverage ended June 30*) and is representable either way by the asserter choosing the
+date; the derivation must pick one reading of `as_of` and say it. **Recommended: the symmetric
+reading**, with the report naming the stance and its date so the idiom's off-by-one is visible.
+
+**What the rule never does:** it does not resolve R5 (two endings disagree → contested on the
+dates between); it does not resolve R7 (two identities each in effect → both, the overlap a fact);
+it does not read a retraction as an ending (R6 — the retracted stance leaves E); it does not let a
+candidate govern or contest (R11); it does not materialise a period; it does not consult
+`created_at`; and the governing set and the next set are **both in the report**, so every answer
+shows the stance it rests on and the stance that could contest it.
+
+#### The cases — Ts1–Ts14 (each a fixture check if ruled)
+
+| # | Stances (established unless marked) | d | G · N | Answer — and why |
+|---|---|---|---|---|
+| **Ts1 (R1, Rob's test)** | holds 1/15 | 5/12 | G {holds 1/15} · N ∅ | **in effect**, governing *holds 1/15* — an extrapolation, visible as one |
+| **Ts2 (Rob's test)** | holds 1/15 · ended 4/01 | 5/12 | G {ended 4/01} · N ∅ | **not in effect**, governing *ended 4/01* |
+| **Ts3 (Rob's test)** | holds 1/15 · *candidate* ended 4/01 | 5/12 | G {holds 1/15} · N ∅ | **in effect** — the candidate is listed and **does not govern** |
+| **Ts4 (Rob)** | holds 1/1 · holds 5/1 | 3/1 | G {holds 1/1} · N {holds 5/1} | **in effect** — bwd(holds) is nothing; no contest |
+| **Ts5 (Rob)** | holds 1/1 · ended 5/1 | 3/1 | G {holds 1/1} · N {ended 5/1} | **in effect** — bwd(ended) = in effect, agrees |
+| **Ts6 (R5)** | began 1/1 · ended 6/30 (Lakeview Health) · ended 12/31 (household) | 7/15 | G {ended 6/30} · N {ended 12/31} | **contested** — A = not in effect; bwd(ended 12/31) = in effect; both named |
+| **Ts6′** | the same | 5/1 | G {began 1/1} · N {ended 6/30} | **in effect** — agrees |
+| **Ts6″** | the same | 1/15 next year | G {ended 12/31} · N ∅ | **not in effect** — unanimous |
+| **Ts7 — two beginnings** | began 1/1 · began 5/1 (no ending between) | 3/1 | G {began 1/1} · N {began 5/1} | **contested** — bwd(began 5/1) = not in effect contradicts A; the record disagrees with itself about 3/1 |
+| **Ts8 (R4)** | began 1/1 · ended 3/1 · began 5/1 | 4/1 · 6/1 | G {ended 3/1} · N {began 5/1} / G {began 5/1} · N ∅ | 4/1 **not in effect** (bwd(began 5/1) = not in effect, agrees) · 6/1 **in effect** — *P is E, stops, is E again*, nothing written |
+| **Ts9 — one date** | began 5/1 · ended 5/1 | 5/1 | G {began 5/1, ended 5/1} | **contested** — fwd disagrees within G |
+| **Ts10 (TS-c)** | began 1/1 · ended 6/30 | 6/30 · 6/29 | G {ended 6/30} / G {began 1/1} · N {ended 6/30} | 6/30 **not in effect** · 6/29 **in effect** — the convention, shown |
+| **Ts11 (R12)** | ended 6/30 only | 5/1 · 7/1 | G ∅ / G {ended 6/30} | 5/1 **undetermined** (no stance precedes; the ending's backward reading is not an answer for a date with nothing governing it) · 7/1 **not in effect** |
+| **Ts12 (R6)** | began 1/1 (retracted) | 5/12 | G ∅ | **undetermined** — not *ended*; the retracted stance listed as contested |
+| **Ts13 (R7)** | Kim: began 1/1 under P₁ · began 7/1 under P₂ | 8/1 | per identity | P₁ **in effect**, P₂ **in effect** — two series; overlap a fact, unresolved |
+| **Ts14 — two parties, one stance** | holds 1/1 (Rob) · holds 1/1 (Lakeview Health) | 3/1 | G {both} | **in effect**, both governing stances named; neither ranked |
+
+**Ts11 makes one edge explicit:** a boundary's backward reading serves only to *contest* a
+governing stance; it never *supplies* an answer where nothing governs — otherwise an ending
+alone would manufacture a period before it (RP1's period by the back door).
+
+**What this adds to §7F.6 if ruled:** the sentence *"answers for one date by the latest stance at
+or before it"* becomes *"by the governing set G(d) read forward, contested where a stance in G
+disagrees or where the next stance's transition reads back against it; a holds reads nothing
+back; a candidate or retracted stance neither governs nor contests; an ending's date is the first
+date not in effect (TS-c)"* — and the report carries **G and N** by name. Nothing else in 7F
+changes. **Ruling sought: TS as written (the table, the rule, the straddle condition, Ts1–Ts14)
+and TS-c.**
