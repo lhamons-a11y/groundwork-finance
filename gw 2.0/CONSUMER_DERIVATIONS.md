@@ -1603,3 +1603,223 @@ derivation was not.
 **What 7F inherits, stated:** a chain's identity is its ground sequence; a route is simple; equal
 sequences are one chain; distinct claims are distinct chains. 7F traverses ruled relations, not
 about-ness chains, and may not reinterpret this seam. Gate 1206 → 1208, 0 failed.
+
+
+### 7E.9 Build accepted — Rob, 2026-09-18: 7E ACCEPTED; open 7F
+
+Rob's review of the build before the seam: *the fixture is testing the actual 7E boundary rather
+than merely proving that the function returns classes.* Ms26 is exactly the right null model —
+*change one link → change only chains containing that link* — and prevents a chain-strength
+calculation leaking state across chains or identities. The `derived_strength` oracle over every
+link, with the AST assertion that no `max` / `min` / `sum` is called, enforces the dependency
+direction `derived_strength → 7E` rather than *7E → its own interpretation of substrate evidence* —
+the Ms23 inheritance ruling made executable. The numeric prohibition catches the temptation to
+turn *multiple chains* into an implicit quantitative result; structural integers (ids) are allowed
+and should be. The read-only guard over the function and both helpers closes the implementation
+escape; 7E creates no persistent strength object. The helper failure was fixture construction, not
+an ontology rule; no ruling changed. Then the seam (§7E.8), answered from the code, a live
+duplication found and fixed, the chain identity stated for 7F to inherit.
+
+**7E — multi-link strength: ACCEPTED / BUILT / GREEN.** Ms23 preserved as inherited behaviour, not
+a 7E rule. 7B, 7C, 7D not reopened.
+
+---
+
+## Pass 7F — Traversal
+
+**The question, applied:** *which plan covered the ER visit? — who was the entitled party when I
+paid on 5/12? — was the care behind this obligation necessary? — who is covered today?* Each is a
+question a household asks and each is answered, in the record, by **reading a ruled relation and
+stopping at its endpoint** — or by **reading a role's dated stances and saying what they say about
+a date**. Item 6 ruled the relations and fenced every one of these questions to a consumer: C17
+(*a consumer may traverse the relation to reach X — and reads X, not O*), D′3 / D′18 (*no resolver
+selecting the obligation for a payment; navigation either way is a query; no inverse kind*), E2 /
+E24 (*membership + person + date does not derive the plan; shared person is not attribution*),
+F20 (*no selector picks the plan for a person*), R7 / R9 (*overlap detectable, never resolved; in
+effect on d computable from the record, not computed by it*). 7F is those consumers.
+
+7F is the pass §3 placed *before money moves*: the first traversal of item 6's relations, which
+must prove **non-selection, non-composition, non-projection and non-inference** before 7G reads
+`payment_in_respect_of_obligation` to say what remains. And it is the pass D′.11 watches: *traversal
+does not become composition because a consumer happens to traverse two relations.* So the pressure
+question comes first — **is there a derivation at all, or is a traversal just a query?** There is a
+derivation, and it is small: a traversal collapses party referents, classifies each claim's state
+(established · candidate · contested), lists every endpoint with its asserter and **selects none**,
+answers the reverse direction as a query without minting an inverse, refuses the substrate's own
+kinds (which have their own derivations) and unruled kinds, and — for a role — orders dated stances
+and says what they say about d, naming the stance it rests on and stopping where they disagree. Its
+value is the discipline the next four consumers will lean on: **one hop, every endpoint, nothing
+chosen.**
+
+### 7F.1 What is already fixed
+
+| Ruling | Constraint on 7F |
+|---|---|
+| **C17 — endpoint, not projection** | given O and *O in respect of X*, a consumer may identify X *by whom, and beside any competing assertion* — never "the" X; the relation says nothing of X's nature, necessity, date, provider or amount **about O**; expense facts do not become obligation facts through the edge |
+| **C21 — several** | one obligation may be in respect of several expenses; no single "underlying expense" |
+| **D′3 / D′18** | with O1 and O2 in respect of X and p in respect of X, **no p → O1 and no p → O2**; direction fixed by type; **navigation either way is a query; no inverse kind**; a resolver choosing *the* obligation for a payment is refused |
+| **D′.11 — composition OPEN** | *a relation must not be manufactured merely because its operands can be connected through a shared person, entity, date or other contextual fact*; C9 (no transitivity across `obligation_replaces`); D′15 (no composition with B or A). **7F is one hop.** A consumer that wants O → X → P makes two calls and holds two answers; 7F never returns a two-hop result and never presents the second hop as a relation of the first |
+| **E2 / E24 — membership is not attribution** | *person → plan + person → expense ⇒ expense → plan* is convergence through Kim, refused; E24 mandatory: nothing connects X to P → **no relation and no candidate from the substrate** |
+| **F20 — two plans, one person** | two `under_plan` claims → both; **no `current_plan_of`, `plan_of_person`, `primary_plan`**; no exclusivity |
+| **F5 / §F.2** | `under_plan` is an evidence boundary, not objective eligibility; coverage ③ (whether a service is covered) is never derived from membership |
+| **RP2 (built) / R9** | a role has no intrinsic period; *holds at · began at · ended at* are three sorts, bound by registry metadata (`boundary`, `of`) under a structural guard; a boundary never establishes continuous effect, implies its opposite, resolves or creates a role; **"in effect on d" is a derivation — order the stances for (party, kind, identity) by `as_of`; answer for d**; overlap (R7) detectable, never resolved; a disputed ending (R5) is *a dispute, derived — nothing chosen*; a retraction (R6) is not an ending; `as_of` is effective-at, `created_at` learned-at, never collapsed (R3) |
+| **No role kind is ruled** | the catalogue (serves · entitled party of · obligor on · provider of · insurer of · covered under) is a separate ruling; E and F are **accepted, unbuilt** — 7F's role derivation runs today only on stand-in kinds a fixture registers and removes, exactly as item 5's fixture does; **7F changes shape for none of them** |
+| **Substrate derivations** | `artefact_origin` · `referent` · `aboutness` · `derived_strength` are the record's own derivations over the meta-kinds; **7F does not traverse those kinds** — a traversal of `artefact_concerns` would bypass 7C's rules, of `artefact_corresponds` referent's contested state |
+| **7E's seam (§7E.8)** | *7F traverses ruled relations, not about-ness chains, and may not reinterpret* chain identity |
+| **§1** | 1 (never writes) · 2 (reports, never resolves — no selection by recency, count, position, party) · **3 (traverses, never composes)** · 4 (reads the endpoint, never projects) · 5 (absence is not zero — *no stance* is not *not in effect*; *no relation claim* is not *no relation*) · 6 (provenance carried) · 7 (no ranking) · 8 (one consumer, one question) · 10 (null-modelled) · 11 (7C / referent taken with provenance) |
+
+### 7F.2 Two questions, two derivations — and what a traversal is not
+
+The inventory's row names four household questions; they are answered by **two** derivations, one
+per question-shape, because they read different things:
+
+| | **`reach` — the endpoint question** | **`in_effect` — the dated question** |
+|---|---|---|
+| **asks** | *what does the record assert that S stands in relation K to — by whom, in what state, beside what?* | *what do the stances on record for a role say about date d — and on which stance does that rest?* |
+| **reads** | the claims of one ruled relation kind K with S in the subject slot (or, as a query, the object slot), their evidentiary relationships and retractions; `referent()` for a party subject | the *holds / began / ended* claims for (party, role kind, identity) — the role kind and its two bound boundary kinds from the registry — their `as_of`, evidence and retractions |
+| **answers** | `[endpoint, claim, asserter, state]` for every claim — **all of them** | per identity: *in effect · not in effect · undetermined · contested*, the governing stance(s) named |
+| **household questions** | *which plan covered X* (E1's asserted `expense_in_respect_of_plan`, when built) · *care necessity of O through X* (reach X, then read X's claims **as X's**) · *what is p in respect of* · *what replaced O* | *who was the entitled party on 5/12* · *who is covered today* · *was Kim under P on d* |
+
+**What a traversal is not — each refusal already ruled:**
+
+| Not this | Why |
+|---|---|
+| **composition** — O → X → P returned as *O's plan*; p → X → O as *p's obligation* | D′.11 open; D′3; C9; D′15. One hop. The second call is the caller's, and its result is not a relation of the first |
+| **projection** — X's nature / date / provider / amount reported as O's | C17. `reach` returns the endpoint's identity and the claim's provenance, never the endpoint's properties |
+| **selection** — *the* X, *the* obligation, *the current plan*, *primary* | C21, D′3, F20, E2. Every endpoint, none chosen; no `current_*`, `primary_*`, `*_of` helper |
+| **inference** — membership + incurred-by ⇒ plan; shared person ⇒ anything | E24. Nothing is reached that no claim asserts |
+| **inversion** — an inverse kind (`obligation_paid_by`, `plan_covers`, `plan_members`) | D′18, E10, §F.3. The reverse direction is answered *as a query*, labelled by direction; no kind minted |
+| **a period** — an interval materialised from a beginning and an ending | RP1 rejected. `in_effect` answers for one date and lists the stances; it stores no interval and returns none |
+| **continuous effect asserted by the substrate** | RP2. The *consumer* answers for d by the governing stance and **names it** — an extrapolation is visible as one (§7F.4 TR6) |
+| **resolution** — of overlap (R7), a disputed boundary (R5), two plans (F20) | §1.2. Reported; nothing chosen |
+| **a status** — `in_effect` / `current` / `active` written anywhere | §1.1; RP2's *no "current E" written anywhere* |
+| **a general query engine** — traversal of `artefact_origin`, correspondence, concerns, retraction, boundary kinds; or of an unruled kind by name | each meta-kind has its own derivation; an unruled kind has no semantics to traverse — **refused explicitly, never silently empty** |
+| **as-the-record-stood** — *what did the record say on 7/1?* (R3's `created_at` filter) | a different question (the audit's); 7F answers for effective dates and says so |
+
+### 7F.3 The cases
+
+| # | Case | What the derivation must say | What it must never do |
+|---|---|---|---|
+| **Tr1 (C17)** | Rob: *O is in respect of X* (the ER visit); X carries nature / date / provider claims. | `reach(O, obligation_in_respect_of)` → `[X, claim, Rob, established]`; **nothing of X's nature on O** — a consumer reads X's claims as X's, after | make O medical, necessary, dated, owed to Riverbend Hospital |
+| **Tr2 (C21)** | O in respect of X1 (Rob) and X2 (Kim). | both endpoints, each with its asserter; no "the underlying expense" | pick one; rank Rob over Kim |
+| **Tr3 (D′3)** | O1, O2 in respect of X; p in respect of X; no `payment_in_respect_of_obligation`. | `reach(p, payment_in_respect_of_obligation)` → **empty**, note *no claim*; `reach(X, obligation_in_respect_of, as_object)` → [O1, O2] as a query; **no p → O1 / O2 anywhere** | compose p → X → O; offer O1 / O2 as candidates |
+| **Tr4 (D′18)** | p in respect of O (Rob). | `reach(O, payment_in_respect_of_obligation, as_object)` → [p] — **labelled as the reverse direction**; no inverse kind exists | mint `obligation_paid_by`; present the reverse as a claim of another kind |
+| **Tr5 — candidate** | A reading's match asserts *O in respect of X* (reading-sourced). | `[X, claim, None, candidate]` — listed as a candidate, beside any established endpoint | treat it as established; drop it |
+| **Tr6 — contested** | Rob retracts *O in respect of X*. | `[X, claim, Rob, contested]` — the claim shown with its state; not established, not erased | read the retraction as *O is not in respect of X* |
+| **Tr7 — party referent** | Kim asserted under P via party row B; B ~ A established (X3). | `reach(A, <role>)` reaches P — the subject is the referent {A, B}; the claim named as B's | miss it; merge the rows |
+| **Tr8 (E24)** | Kim under P; X is Kim's expense; nothing connects X to P. | `reach(X, expense_in_respect_of_plan)` → **empty** (when the kind exists); until then **refused: kind not ruled** — never a silent empty list | infer X → P from Kim; produce a candidate |
+| **Tr9 (E2 / F20)** | Kim under P₁ and P₂, same period. | both; no primary | `current_plan_of(Kim)` |
+| **Tr10 (R9)** | *E is entitled party of O* began 1/1 (Rob); asked 5/12. | **in effect** on 5/12, governing stance *began 1/1 (Rob)* named | a bare Boolean; a hidden policy |
+| **Tr11 (R8)** | E₁ ended 5/1; E₂ began 5/1. | on 5/12: E₁ *not in effect* (ended 5/1), E₂ *in effect* (began 5/1); on 4/12: E₁ *in effect*, E₂ **undetermined** — no stance at or before d | say E₂ is *not in effect* on 4/12 (absence is not zero) |
+| **Tr12 (R5)** | Ending 6/30 (Lakeview Health) and ending 12/31 (household); began 1/1. | 5/1 → in effect (unanimous); **7/15 → contested** — the claims on record disagree about d, both named, nothing chosen; 1/15 of the next year → not in effect (unanimous) | let the earlier ending govern because it is earlier, or the household's because it is the household's |
+| **Tr13 (R7)** | Kim under P₁ from 1/1, under P₂ from 7/1, no ending. | August: **both in effect**; the overlap reported as a fact | resolve it; tie by which row was written first |
+| **Tr14 (R6)** | The utterance behind *began 1/1* retracted. | the beginning **excluded** (contested), listed; d after → **undetermined** if nothing else stands — not *ended* | read the retraction as an ending |
+| **Tr15 (R1) — the extrapolation** | *Kim is on the work plan*, holds at 1/15; asked 5/12; nothing since. | **in effect**, governing stance *holds at 1/15* — the report shows the answer rests on a stance four months old; the household can see it is an extrapolation | hide the stance; or refuse to answer (§7F.4 TR6 rules which) |
+| **Tr16 (R3)** | Ending as_of 6/30 recorded 8/15; asked "on 7/1". | **not in effect** — effective-at governs; the learned-at question is not 7F's and the report says so | filter by `created_at` silently |
+| **Tr17 (R11)** | The insurer's card read: *member since 1/1*. | a **candidate** stance — listed, **not a basis** for any answer | a reading establishing a role |
+| **Tr18 (R12)** | An ending 6/30 with no beginning on file. | before 6/30: **undetermined**; from 6/30: not in effect | invent the beginning |
+| **Tr19 — nothing** | No stance at all for (Kim, role, P). | **undetermined**; never *not in effect* | absence read as negation |
+| **Tr20 — surfaced, not stored** | The household reads the answer; asserts an ending. | the next read changes; 7F wrote nothing; no interval, status or `current` column exists | write `in_effect`; materialise a period |
+| **Tr21 — unruled kind** | `reach(O, 'services')`; `in_effect(S, 'serves', d)` with no such kind ruled. | **refused, by name**: *kind not ruled* — the consumer traverses semantics, not strings | an empty list; a free-text traversal |
+| **Tr22 — a non-role kind to `in_effect`** | `in_effect(O, obligation_in_respect_of, d)`. | **refused**: the kind carries no boundary metadata — an in-respect-of relation has no "in effect" | treat a relation as a role |
+| **Tr23 — a meta-kind to `reach`** | `reach(A, artefact_concerns)`; `reach(P, proposition_corresponds)`. | **refused**: those kinds have their own derivations (7C, `referent`) — 7F is not a query engine over them | bypass 7C's rules |
+| **Tr24 — one hop, mechanically** | O → X (established), X → P (established, when E is built). | `reach(O, obligation_in_respect_of)` returns X and **nothing about P**; no key, path or link reaches a second hop | a `via` / `through` / `path` result |
+| **Tr25 — null model** | `reach`: every ruled relation claim with S as subject, by kind — the direct query is the oracle; `in_effect`: one began, no ended → in effect for every d ≥ began, undetermined before. | exact agreement | a heuristic |
+| **Tr26 — where the failure appears** | *in effect* said with no stance (Tr19), or where the claims disagree (Tr12); an endpoint reached that no claim asserts (Tr3, Tr8); a second hop (Tr24). | measured there | — |
+
+### 7F.4 Testing the readings
+
+**TR0 — a query, no derivation** (7F is just `filter_by(kind, subject)`). Rejected: Tr5–Tr7, Tr21–
+Tr23 — state classification, referent collapse, the refusals and the direction label are the
+derivation; and the null model is exactly the query, which is why it is a correctness oracle.
+
+**TR1 — composition** (two hops as one answer). Rejected: D′.11, D′3, C9; Tr3, Tr24.
+
+**TR2 — selection** (*the* endpoint; `current_*`; `primary`). Rejected: C21, D′3, F20; Tr2, Tr9, Tr13.
+
+**TR3 — inference** (membership + person ⇒ plan). Rejected: E24; Tr8.
+
+**TR4 — a period object** (`Period(began, ended)` returned or stored). Rejected: RP1; Tr20 —
+`in_effect` answers for a date and lists stances.
+
+**TR5 — a Boolean for "in effect"**. Rejected: §1.5; Tr11, Tr12, Tr14, Tr19 — four states:
+*in effect · not in effect · undetermined · contested*, the governing stance named.
+
+**TR6 — the extrapolation: latest-stance-governs vs. bounded-only.** Two candidate readings of
+R9's *order the stances by `as_of`; answer for d*:
+- **TR6a — latest stance governs, named.** The governing stance is the latest established stance
+  with `as_of ≤ d`: *holds* or *began* → in effect; *ended* → not in effect; none → undetermined;
+  where established same-sort stances since the last opposite-sort stance straddle d (R5) →
+  contested. **The report names the governing stance and its date**, so R1's *holds at 1/15* read
+  on 5/12 is visibly an extrapolation the household can correct with an ending.
+- **TR6b — bounded only.** *holds at d₀* answers for d₀ alone; a *began* with no *ended* answers
+  in effect after it; a *holds* answers nothing for any other date. R1's *Kim is on the work
+  plan* is then useless the day after it was said, which is not what the record meant by
+  representing it (R1: *a role stance with no boundary must be representable on its own*).
+
+Recommended: **TR6a** — it is R9's sentence taken literally, and the policy it embodies (a stance
+stands until a later stance) is the record's own ordering, not a heuristic — *made visible* in
+the output rather than owned silently, which is the RP3 objection (*a policy the substrate must not
+own*) answered at the consumer where policy may live if it is named. Rob rules.
+
+**TR7 — an inverse kind** (or the reverse query presented as a claim). Rejected: D′18, E10; Tr4 —
+a direction label on a query.
+
+**TR8 — the candidate: two read-only derivations.** `reach(session, thing, kind, as_object=False)`
+— refuses a kind that is unruled, a meta-kind, or a boundary kind; refuses a `thing` whose type
+does not fill the kind's slot; returns `{kind, direction, subject_referent, endpoints: [{id, type,
+claim, asserter, state}], note}` with every claim, states *established · candidate · contested*,
+nothing selected. `in_effect(session, party, role_kind, d)` — refuses a kind without boundary
+metadata bound to it (a role kind is one some boundary kind is `of`); per identity in the object
+slot: `{answer: in_effect · not_in_effect · undetermined · contested, governing: [(stance kind,
+as_of, claim, asserter)], stances: [all, with state]}`; the overlap of several identities in effect
+reported as a fact; no interval, no Boolean, no write.
+
+### 7F.5 What the derivations are — and are not
+
+| **read** | one ruled relation kind's claims (or one role kind's *holds / began / ended* claims), their evidentiary relationships, retractions; `referent()` for party subjects; `RULED_KINDS` for slots and boundary bindings |
+|---|---|
+| **return** | `reach`: every endpoint with claim, asserter, state, direction · `in_effect`: per identity a four-state answer with the governing stance(s) and every stance listed |
+| **decide** | nothing — no endpoint chosen, no hop composed, no property projected, no relation inferred, no overlap or dispute resolved; the governing stance is *reported*, and where stances disagree about d the answer is *contested* |
+| **are not** | a query engine over meta-kinds; a resolver; a period; a status; a candidate generator; 7G (they move no money); 7J (they store no eligibility) |
+| **failure appears at** | Tr26 — *in effect* with no stance or against a dispute; an endpoint no claim asserts; a second hop — measured there |
+| **null model** | the direct claim query (`reach`) and the one-beginning corpus (`in_effect`) — correctness oracles |
+
+### 7F.6 Ruling candidate — pass 7F, for Rob
+
+> **A traversal reads one ruled relation one hop and stops at its endpoints, all of them, with
+> the claim, the asserter and the state of each, choosing none; it answers the reverse direction
+> as a query so labelled and mints no inverse; it carries nothing of the endpoint onto the
+> subject; it composes no second hop and infers no relation that no claim asserts — not from a
+> shared person, not from membership, not from a date; it refuses by name a kind that is unruled
+> or is one of the record's own meta-kinds. For a role, the dated derivation orders the
+> established stances for a party, kind and identity by the date they are about and answers for
+> one date by the latest stance at or before it — in effect on a holding or a beginning, not in
+> effect on an ending, undetermined where no stance precedes the date, contested where the
+> stances on record disagree about it — naming the stance the answer rests on so that an
+> extrapolation is visible as one; it materialises no period, resolves no overlap and no
+> disputed boundary, reads a retraction as a withdrawal and never as an ending, and treats a
+> reading's stance as a candidate that grounds nothing. Both are computed on read, stored
+> nowhere, and voiced as derivations; both run today on the relations item 6 built and, for
+> roles, on stand-in kinds only, changing shape for none of the kinds accepted and unbuilt. Their
+> failure can appear only where an endpoint is reached that no claim asserts, where a second hop
+> is returned as one, or where "in effect" is said without a stance or against a dispute — and
+> it is measured there.**
+
+**If ruled, the build is two read-only functions** — `reach(session, thing, kind, as_object=False)`
+and `in_effect(session, party, role_kind, d)` beside `chain_strength`; a fixture over Tr1–Tr26
+with the absences (no `current_*` / `primary_*` / `*_of` selector, no period object, no inverse
+kind, no `via` / `path`, no status column) and the AST + row-content wiring guard, stand-in role
+kinds registered and removed as item 5's fixture does; a smoke section whose mutations each try to
+*choose or extend* (pick the newest endpoint, pick the household's, compose the second hop, project
+X's nature onto O, infer the plan from membership, resolve the overlap, let the earlier ending
+govern, read absence as not in effect, read a retraction as an ending, count a reading's stance,
+materialise a period, store); **no schema, no migration; 7G not opened until it is green.**
+
+**What pass 7F leaves exactly where it found it:** E and F (accepted, unbuilt — 7F's role
+derivation evaluates them the day they are built) · the role catalogue · D′.11 · overlap policy
+and eligibility (7J) · discharge and `remaining` (7G) · the as-the-record-stood question (the
+audit's) · candidate generation.
+
+*The line: the record can be walked one step, and every step shows every door — none of them is
+opened for you.*
