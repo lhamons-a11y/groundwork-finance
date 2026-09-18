@@ -1557,3 +1557,49 @@ fixture's Pa8 check — *no consumer derives "about X" through either level; no 
 retired truthfully: 7C and 7E exist as read-only derivations; the absence that still holds (no helper
 writes about-ness or strength back as a claim) is what it now asserts. No schema, no migration. Gate
 1179 → 1206, 0 failed.
+
+
+### 7E.8 The seam Rob named — what a chain *is*, 2026-09-18
+
+Rob's question, before 7F may interpret it for itself: *what prevents 7E from enumerating the same
+semantic chain more than once through structurally equivalent traversals — are `A → B → C` and
+`A → B → C`, reached by two distinct structural traversals, one reported chain or two?* And: does
+"simple" have an exact operational meaning?
+
+**What 7C says.** 7C's unit is the *path*: one per correspondent proposition and about-ness
+(`(proposition_corresponds, P, P′) · structural P′` or `· proposition_concerns(claim, asserter)`);
+*several established paths to one identity are one derivation with its paths listed; two routes are
+two explanations of one derived about-ness, not two pieces of evidence; a cycle is one component
+and one derivation.* 7C does not expand routes into hops and does not identify paths by grounds —
+it lists one path per `(claim, ground)` of the correspondent's assertion, because `_about_direct`
+reports asserted about-ness per evidentiary relationship. **So 7C's path identity does not answer
+7E's question**; 7E's unit is finer, and the record must say what it is.
+
+**Ruling applied — a chain is its sequence of grounds.** `(L0, ground₁ … groundₙ)`, each an
+evidentiary-relationship id. Two enumerations that reach the same sequence are **one chain, reported
+once**, however many structural traversals reach it. Two different claims on record between the same
+nodes — a second `proposition_corresponds` between one pair, a second `proposition_concerns` naming
+one identity — are two grounds, hence **two chains**, however alike: a link is a claim on record and
+two claims are two. Nothing is merged that differs; nothing that is the same is listed twice. This
+is not aggregation (no class is combined) and not counting (no chain is weighed); it is identity.
+**"Simple"** = no proposition visited twice on a route, so a cycle in a component terminates rather
+than multiplying routes, and no claim can repeat on a route.
+
+**The seam was live.** Checked against the build rather than assumed: a correspondence to a
+correspondent whose concerns claim has two grounds produced **four chains, two of them the same
+ground sequence** — 7C's two paths for that claim (one per ground) each enumerated both grounds.
+Exactly Rob's `A → B → C` twice. Fixed in the derivation: `add` keys every chain by its ground
+sequence and reports each once; `_correspondence_routes` documents *simple* exactly. Fixture
+**Ms27**: the two-ground terminal → exactly two chains (both undetermined, through correspondence;
+their terminal links knowing and not_knowing); a second correspondence claim between the same pair
+→ four chains, all distinct sequences; a cycle `J ~ Jb ~ Jc ~ J` → three routes to Jb, no
+proposition twice, six distinct chains; and a corpus-wide check that no report lists one ground
+sequence twice — enforced, not assumed. Smoke s111 gains a thirteenth mutation (*the same chain
+enumerated twice through equivalent traversals*), caught. One expectation in the new check was
+written wrong on the first run (chains through correspondence are undetermined by design, not
+knowing / not_knowing — the terminal link's classes are what differ); the check was corrected, the
+derivation was not.
+
+**What 7F inherits, stated:** a chain's identity is its ground sequence; a route is simple; equal
+sequences are one chain; distinct claims are distinct chains. 7F traverses ruled relations, not
+about-ness chains, and may not reinterpret this seam. Gate 1206 → 1208, 0 failed.

@@ -2998,6 +2998,9 @@ def derived_strength(session, relation, knowing):
 # Not links: readers (channels), role claims (no role kind is ruled - Kn6's servicer chain has
 # nothing to evaluate and nothing is built from context), the fenced capture-faithfulness link
 # (neither added nor claimed evaluated), ruled domain relations (D'.11), candidates, contested, counts.
+# A chain IS its sequence of grounds (L0, ground_1 .. ground_n): equal sequences are one chain, reported
+# once, however many structural traversals reach it; different sequences are different chains, however
+# alike - a link is a claim on record, and two claims are two. "Simple" = no proposition visited twice.
 # Across chains to one identity: NOTHING - listed in structural order (evidence, claim, ground ids),
 # never chosen, summed, counted or ordered by class; no per-identity class. Across identities:
 # nothing - 7C's conflicts are carried as a structural condition and graded not at all. The value's
@@ -3022,8 +3025,10 @@ def _link_grounds(session, claim_id, retracted):
 
 
 def _correspondence_routes(session, start, end, retracted):
-    """Every simple route of established proposition_corresponds claims from `start` to `end`, each a
-    list of (claim_id, from, to) hops; a claim is read both ways (symmetric). None is chosen."""
+    """Every SIMPLE route of established proposition_corresponds claims from `start` to `end`, each a
+    list of (claim_id, from, to) hops; a claim is read both ways (symmetric). Simple = no proposition
+    visited twice on the route, so a cycle in the component terminates rather than multiplying routes,
+    and no claim can repeat. Two different claims between the same pair are two routes. None is chosen."""
     edges = {}
     for c in session.query(Proposition).filter(Proposition.kind == PROPOSITION_CORRESPONDS).order_by(Proposition.id).all():
         if _link_grounds(session, c.id, retracted):
@@ -3098,9 +3103,19 @@ def chain_strength(session, proposition, knowing):
         return {'evidence': links[0]['ground'], 'links': links, 'trace': list(trace), 'class': _weakest(*(l['class'] for l in links))}
 
     entries = {}                                              # (type, id, provenance, path) -> chains
+    seen = set()                                              # chain identities already reported
 
     def add(typ, ident, provenance, path, chains):
-        entries.setdefault((typ, ident, provenance, path), []).extend(chains)
+        # A chain IS its sequence of grounds (L0, ground_1 .. ground_n). Two enumerations that reach the same
+        # sequence - 7C lists one correspondence path per (claim, ground) of the correspondent's assertion, so
+        # a two-ground terminal claim arrives twice - are ONE chain, reported once. Two different claims on
+        # record between the same nodes are two grounds, hence two chains: nothing is merged that differs.
+        bucket = entries.setdefault((typ, ident, provenance, path), [])
+        for c in chains:
+            identity = tuple(l['ground'] for l in c['links'])
+            if identity not in seen:
+                seen.add(identity)
+                bucket.append(c)
 
     for typ, ident in ab['structural']:
         add(typ, ident, ABOUT_STRUCTURAL, None, [chain([l0(e)]) for e in evidence])

@@ -35,6 +35,7 @@ What this slice can and cannot exercise
     Ms24 surfaced not stored                                                                         EXERCISED
     Ms25 the three places a class can be said falsely - measured                                     EXERCISED
     Ms26 the null model: all-knowing corpus; one flipped link changes exactly its chains             EXERCISED
+    Ms27 chain identity: equal ground sequences are one chain; two claims are two; cycles terminate  EXERCISED
     Rob's fence: no recompute, no aggregation, no rank, no 7B, no 7C resolution, no 7D, no lattice   EXERCISED
     the wiring guard: AST (session receivers) + a full row-content snapshot                            EXERCISED
     a ruled role kind (Kn6's link evaluable), correspondence's epistemology, traversal (7F)           NOT BUILT
@@ -507,6 +508,38 @@ def run(db):
           [cls for _, cls in changed] == [db.STRENGTH_NOT_KNOWING] and unchanged)
     check('the strength-blind consumer (every link taken as knowing) would say KNOWING on Ms2, Ms3 and Ms6 - the fixture differs from it on all three',
           classes(ch2) == [db.STRENGTH_NOT_KNOWING] and classes(ch3) == [db.STRENGTH_NOT_KNOWING] and classes(ch6) == [db.STRENGTH_UNDETERMINED])
+
+    print("\n8b. Ms27 - what a chain IS: its sequence of grounds; equal sequences one chain; simple routes\n")
+    I = held('h-identity', '2027-01-31', chase, u_chase)
+    rI = read(I)
+    J, Jb = line(rI, 'balance', '$5', chase), line(rI, 'balance', '$5', chase)
+    _, jclaim = p_concerns(Jb, utterance=utter('Jb is the mortgage.'), object_obligation_id=o1.id)
+    evidence(jclaim, utterance=utter('Yes, the mortgage.', origin=kim_party))
+    corr(J, Jb, utterance=utter('J and Jb are one line.'))
+    rep27 = cs(J)
+    ch27 = chains(rep27, o1.id, provenance=db.ABOUT_DERIVED, path=db.ABOUT_PATH_CORRESPONDENCE)
+    ids27 = [tuple(l['ground'] for l in c['links']) for c in ch27]
+    check('Ms27: a correspondence to a claim with two grounds - 7C lists the path twice (once per ground); 7E reports exactly TWO chains, one per ground sequence, never four; a chain is its sequence of grounds',
+          len(db.aboutness(s, J)['derived'][0]['paths']) == 2 and len(ch27) == 2 and len(set(ids27)) == 2
+          and set(classes(ch27)) == {db.STRENGTH_UNDETERMINED} and [c['links'][-1]['class'] for c in ch27] == [db.STRENGTH_KNOWING, db.STRENGTH_NOT_KNOWING])
+    corr(J, Jb, utterance=utter('Same line, said again.', origin=kim_party))          # a second claim between the same pair
+    ch27b = chains(cs(J), o1.id, provenance=db.ABOUT_DERIVED, path=db.ABOUT_PATH_CORRESPONDENCE)
+    check('Ms27: a SECOND correspondence claim between the same pair is a different claim on record -> two routes, FOUR chains, all distinct ground sequences; nothing merged that differs, nothing counted',
+          len(ch27b) == 4 and len({tuple(l['ground'] for l in c['links']) for c in ch27b}) == 4
+          and not any(k in NUMERIC_KEYS for k, _ in _walk(cs(J))))
+    Jc = line(rI, 'balance', '$5', chase)
+    corr(Jb, Jc, utterance=utter('Jb and Jc are one line.'))
+    corr(Jc, J, utterance=utter('Jc and J are one line.'))                            # a cycle J ~ Jb ~ Jc ~ J
+    rep27c = cs(J)
+    ch27c = chains(rep27c, o1.id, provenance=db.ABOUT_DERIVED, path=db.ABOUT_PATH_CORRESPONDENCE)
+    check('Ms27 (simple): a cycle J~Jb~Jc~J terminates - routes J->Jb (two claims) and J->Jc->Jb, no proposition visited twice, no route repeated; every chain a distinct ground sequence; every chain through correspondence undetermined',
+          len(ch27c) == 6 and len({tuple(l['ground'] for l in c['links']) for c in ch27c}) == 6
+          and all(len({h[2] for h in r} | {r[0][1]}) == len(r) + 1 for r in db._correspondence_routes(s, J.id, Jb.id, set()))
+          and len(db._correspondence_routes(s, J.id, Jb.id, set())) == 3
+          and set(classes(ch27c)) == {db.STRENGTH_UNDETERMINED})
+    corpus.append(rep27c)
+    check('no report in the corpus lists one ground sequence twice - chain identity is enforced, not assumed',
+          all(len(all_chains(rep)) == len({tuple(l['ground'] for l in c['links']) for c in all_chains(rep)}) for rep in corpus))
 
     print("\n9. Rob's fence, the dependency direction and the wiring guard\n")
     check('7E consumes derived_strength and _weakest, and calls no aggregator of its own - every link class in the corpus equals derived_strength on its ground',

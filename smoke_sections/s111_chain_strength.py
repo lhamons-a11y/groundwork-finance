@@ -2,7 +2,7 @@
 or CHOOSE is caught.
 
 `gw 2.0/CONSUMER_DERIVATIONS.md` pass 7E (ruled 2026-09-17). Runs the build gate
-(`tests/test_chain_strength_fixture.py`) and then breaks the consumer twelve ways, each an attempt to quantify
+(`tests/test_chain_strength_fixture.py`) and then breaks the consumer thirteen ways, each an attempt to quantify
 or choose:
 
     a score                          every chain gains a numeric `score` (0.9 x 0.8 ...)
@@ -16,6 +16,7 @@ or choose:
     the chain replaces L0            the value's own class becomes the chain's
     grounds aggregated               two grounds on one link collapse to one chain with the strongest
     identities aggregated            entries for one identity merge into one with a summary class
+    a chain enumerated twice         the same ground sequence reported twice through equivalent traversals
     it stores                        `chain_cache` appears on the module
 
 Same shape as s107-s110: fixture passes, every mutation is caught, the baseline is re-established after every
@@ -191,6 +192,14 @@ def _mutations(db):
             return out
         return _swap(post)
 
+    def enumerated_twice():
+        def post(out, *_):
+            for a in out['about']:
+                if a['path'] == db.ABOUT_PATH_CORRESPONDENCE:
+                    a['chains'] = a['chains'] + [dict(c) for c in a['chains']]
+            return out
+        return _swap(post)
+
     def it_stores():
         db.chain_cache = {}
         return lambda: delattr(db, 'chain_cache')
@@ -207,6 +216,7 @@ def _mutations(db):
         ("the chain's class replaces the value's own", chain_replaces_l0),
         ('grounds on one link aggregated to the strongest', grounds_aggregated),
         ('entries for one identity aggregated with a summary class', identities_aggregated),
+        ('the same chain enumerated twice through equivalent traversals', enumerated_twice),
         ('the answer is stored', it_stores),
     ]
 
