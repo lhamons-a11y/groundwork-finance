@@ -428,3 +428,34 @@ kind and the acknowledgment kind's participant (9D) · D′.11.
 
 *The line: who holds it, who services it, who provided it, who insured it, who was there and who
 paid — seven things the household says, dated, and none of them says the others.*
+
+### 9B.7 Ruling — Rob, 2026-09-19: 9B-F1 yes, 9B-F2 yes, 9B RULED as written; no code by this ruling
+
+*Nothing needs addressing before the ruling; the sequence and the separation of concerns are
+clean.* 9A (`e8fecdd`) properly closed — scope limited to the three entries; the 27/27 fixture
+establishes the semantic surface rather than testing registration; s117's mutations show the
+consumers depend on the substitutions; the substitutions exposed no coupling; the retirements
+include the absence constraint, so the old semantic source is explicitly retired, not merely
+unused; the registry is not a second ontology source; the one escaped mutation caught and
+corrected before acceptance.
+
+**9B-F1 — yes, scope exactly as written.** Explicit role classification (`'role': True`) is the
+correct interpretation of 7F's *a role is a kind some boundary is of*, **provided the
+classification answers only whether the registry entry denotes a role.** The important negative:
+**`role: True` must not become a consumer instruction.** It says what kind of thing the entry is;
+it does not say how the role behaves, whether it currently has an occupant, whether it has a
+boundary, how recency is resolved, how servicing works, or anything else about consumption. F1 is
+settled without reopening 7F.
+
+**9B-F2 — yes.** 9B exposes exactly the information it owns — the roles, their occupants, the
+knowing relation, the applicable role boundaries — and manufactures no governing-party resolver.
+7H's cross-party governing-PR series is precisely why this belongs in 7H; a party-local
+*most recent* rule introduced here would silently answer a question 7H has deliberately not
+answered. The dependency stays: **9B supplies the role / boundary facts → 7H determines governing
+PR under 7H's own ruling** — not *9B supplies facts + guesses governing PR*.
+
+**The pass — accepted as opened, for build**, subject to the build remaining faithful to those
+boundaries, with one negative constraint preserved in the ruling so the dependency cannot blur in
+implementation: **9B does not determine governing PR, and no party-local recency resolver may be
+introduced as part of 9B.** No additional finding; no code beyond the settled semantics; **9B must
+not become a vehicle for solving 7H early** — the one boundary to watch when the build starts.
