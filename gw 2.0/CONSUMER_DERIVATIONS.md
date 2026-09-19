@@ -2761,3 +2761,139 @@ accumulators (7J) · D′.11.
 
 *The line: when the terms change, the record can say where every dollar went only if someone said
 it — and until then it says, to the dollar, what nobody has.*
+
+
+### 7I.7 Rob's review, 2026-09-19 — the reconstruction made impossible to over-read; six amendments before ruling
+
+Rob: *the central move is sound — while the vocabulary is blocked, the consumer can still perform
+a reconstruction over already-established balances, respecting the disposition fence rather than
+sneaking a category in through arithmetic. The issues are about making the reconstruction itself
+impossible to over-read.* Six amendments; the first is a correction to §7I.2's formula, not a
+clarification, and is recorded as one.
+
+#### (1) The partition — `before_contexts` and `after_contexts`, explicit
+
+§7I.2 wrote `after = Σ over contexts c in P ∪ N` and left "contexts" doing the work. Rob's hazard:
+the same obligation appearing on both sides so that consolidation becomes `O1 + O2 + O4 − O1`
+rather than `O4 − (O1 + O2)`. The sides, defined:
+
+```text
+before_contexts  = P   the established predecessor side of the single immediate transition
+                       (O, and every other established direct predecessor of each established
+                       direct successor of O)
+after_contexts   = N ∪ P   the established resulting side — the successors, AND each predecessor
+                       read AFTER the change: a predecessor is an after-context exactly when the
+                       entitled party restated it at or after `at` (to its residual, or to 0)
+
+before  = Σ_{p ∈ P} confirmed_p(at⁻)
+after   = Σ_{n ∈ N} confirmed_n(d)  +  Σ_{p ∈ P, restated} confirmed_p(d)
+```
+
+**Each obligation contributes at most one term per side, and its two terms are different
+figures at different dates** — `confirmed_p(at⁻)` on the before side, `confirmed_p(d)` on the
+after side. The sides are disjoint *as (obligation, side) terms*, never `O1 − O1`. Why a
+predecessor must be an after-context and not merely dropped: **erasure.** B5's card stays open
+with $3,000 after O4 replaces $5,000 of it; a strictly disjoint `{O1} → {O4}` would report
+`5,000 − 8,000 = −3,000 unaccounted` — money the record plainly still holds on O1. And in the
+full replacement the predecessor's post-`at` restatement to $0 is *the* evidence that it went to
+zero (Di3 vs Di4); without it the context is *not restated* and the check is undetermined. So:
+
+```text
+B4  consolidation   before = O1(at⁻) + O2(at⁻) + O3(at⁻) = 10,000
+                    after  = O4(d) + O1(d) + O2(d) + O3(d) = 10,000 + 0 + 0 + 0     → 0
+B5  partial         before = O1(at⁻) = 8,000
+                    after  = O4(d) + O1(d) = 5,000 + 3,000                          → 0
+B6  split           before = O1(at⁻) = 3,000
+                    after  = O2(d) + O3(d) + O1(d) = 1,800 + 1,200 + 0              → 0
+B1  same O          before = O(at⁻);  after = O(d)                                  (P = N = {O})
+```
+
+No family abstraction, no new concept: two derived sets and one rule for membership on each.
+
+#### (2) One hop, mechanically
+
+`N` = the established *direct* successors of O (`reach(O, obligation_replaces, as_object)`,
+state established). `P` = {O} ∪ the established *direct* predecessors of each n ∈ N (`reach(n,
+obligation_replaces)`, one call per successor, no recursion). Nothing is discovered two steps
+away. Rob's diagram, as **Di20**:
+
+```text
+O1 ─► O2 ─► O3
+O4 ───────► O3
+anchored at O1:   N = {O2};  P = {O1} ∪ predecessors(O2) = {O1}.   O3 and O4 are not in the group.
+anchored at O2:   N = {O3};  P = {O2, O4}.                          O1 is not in the group.
+```
+
+The transition being reconstructed has a single relation boundary; *other predecessors* are the
+other direct predecessors of that immediate successor and nothing recursive. B11 preserved
+without a family base.
+
+#### (3) Eligibility for `after` is a post-transition P-ack, never a `confirmed(d)` value
+
+The trap Rob names: 7G's `confirmed(d)` carries the governing position forward under G, so an old
+$3,000 P-ack yields `confirmed(d) = 2,700` and *looks* restated. **Invariant:**
+
+```text
+A context is eligible for the after sum iff its governing stated position S(d) (7G: an
+established balance P-ack by a party in effect as E) has as_of >= at.
+confirmed(d) supplies the amount only after eligibility is established; a confirmed value
+proves nothing about eligibility.
+```
+
+A context with `S(d).as_of < at` is *not restated*: listed, its carried-forward figure shown as
+carried forward, and `unaccounted` undetermined naming it. A context with no S at all is likewise
+not restated. Nothing about a `confirmed` value, its sign or its size makes a context eligible.
+
+#### (4) `at⁻`, defined without a new primitive
+
+`as_of` is a calendar date in the record. Every 7G predicate is `≤ d`. So **`confirmed(at⁻)` is
+7G's `remaining(O, d = the calendar day before at)`** — the figure whose governing position and
+qualifying events (statements, `occurred_on`, acknowledgments) are all dated strictly before `at`.
+No instant, no special operation, no schema. **Events dated exactly `at` belong to the after
+side**: a P-ack dated `at` is a restatement (eligible); a payment with `occurred_on = at` is not in
+`before`; an acknowledgment dated `at` does not discharge for `before`. **Di21** tests each on the
+boundary.
+
+#### (5) `unaccounted` is arithmetic; "appeared" and "left" are withdrawn from the definition
+
+```text
+unaccounted(d) = after − before          and nothing else
+```
+
+The report carries `value`, `before`, `after` and their terms — **no sign label, no reading, no
+key** for appeared / left / originated / waived. In prose, and only in prose: a positive gap is
+*an amount present after that was not present before*; a negative gap is *an amount present
+before that is not represented after*. Neither names a cause. `+300` is a reconstruction result,
+not *$300 was originated*; `−900` is not *$900 was waived*. The consumer may say *this is the
+slot a disposition claim would have to fill*; it never says what the claim is.
+
+#### (6) The null model strengthened — negatives kept, zero is arithmetic
+
+- **Di22 — the negative discriminator:** before 1,000, after 900 → `unaccounted = −100`, as it
+  comes — not normalised, not absolute, not a status. 7G permits a negative `remaining`; 7I
+  inherits *numbers are facts, not statuses*.
+- **Di23 — zero is not a disposition:** a predecessor restated at $0 → `confirmed(d) = 0`, an
+  arithmetic result of a P-ack and qualifying payments; the report carries no key and no word
+  *discharged · closed · written_off · waived · disposition · none*; and the write-off shape —
+  before 3,000, after 0 — is reported as `−3,000 unaccounted` and nothing more. **Zero means the
+  entitled party stated zero; it does not mean gone.**
+- Di18 stands, with its one-statement-moved-by-100 tripwire, and now sits between Di22 and Di23.
+
+#### The boundary this pass must leave
+
+```text
+7I reconstructs established economic amounts across an immediate obligation transition.
+It may identify an unaccounted difference.
+It may not explain that difference by inventing a disposition, infer a disposition from zero,
+infer a direction from the gap, collapse a chain, or choose between obligation outcome and
+creditor accounting treatment.
+```
+
+**§7I.6 amended accordingly:** *"each context's confirmed position on the date asked, counting a
+context only where the entitled party has restated it"* → *"the resulting side — the successors,
+and each predecessor read after the change — counting a context only where its governing stated
+position is dated at or after the change, eligibility established by that position and never by a
+confirmed value; `at⁻` the calendar day before the change; `unaccounted = after − before`, a
+number with its terms and no reading."* Cases Di20–Di23 added. **Ruling sought:** the partition
+(1), one hop (2), the eligibility invariant (3), `at⁻` (4), the arithmetic definition (5), the
+null-model discriminators (6), and the pass as amended.
