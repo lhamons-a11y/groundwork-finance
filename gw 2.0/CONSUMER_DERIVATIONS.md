@@ -2539,3 +2539,225 @@ that no discharge accessor, confirmed state or payment status does. The first fu
 installed a fake `remaining` — meaningful only while none existed — and its undo deleted the real consumer;
 the mutation is now *a discharge accessor appears* (`is_discharged`), which is the boundary the retired check
 actually asserts. No schema, no migration. Gate 1235 → 1262, 0 failed.
+
+
+### 7G.9 Build accepted — Rob, 2026-09-19: 7G ACCEPTED at `9086795`; open 7I
+
+*The implementation evidence closes the remaining concern from the ruling, and the mutation suite
+tests the exact semantic boundaries rather than happy paths.* Closed: the date correction is real,
+not documentary (Dg26); RG-a is mechanically protected (the RG-b mutation fails); the fences are
+tested independently (clearance, servicer role, candidate acknowledgment, direction, counteraction,
+missing base, allocation); the no-storage boundary is tested (`remaining_cache`); restoration is
+part of every mutation. The failed gate run was a stale mutation, not evidence against 7G — once
+`remaining` legitimately existed, *a remaining accessor appears* was no longer meaningful and its
+undo could destroy the real consumer; recasting it around the still-prohibited discharge accessor
+is the correct repair. **For the record:** the *one balance* mutation adds a `balance` field beside
+the three figures rather than replacing them — sufficient as a consumer-shape mutation, and to be
+understood as a mutation of the forbidden representation, not evidence that a production `balance`
+was ever proposed. **The boundary:**
+
+```text
+7G establishes remaining from discharged, directed payments against the governing P-ack position.
+7G does NOT: allocate a payment across obligations · invent discharge · infer direction from cash
+flow · net without payment_counteracts · reconcile conflicting statements · store a second balance.
+```
+
+D′12's double-count / allocation problem stays deliberately outside 7G.
+
+**7G — discharge → remaining: ACCEPTED / BUILT / GREEN.**
+
+---
+
+## Pass 7I — Disposition: the reconstruction
+
+**The question, applied:** *Riverbend Hospital closed the $3,000 plan and opened a new one at $250 a month —
+where did the $525 I was behind go? NewBank paid Harbor off and I owe NewBank now — is the Harbor
+mortgage gone? The collection agency says $3,300 and the hospital said $3,000 — where did $300
+come from?* §5 stated the invariant — *whenever economic terms change, every amount whose economic
+treatment changes must have an explicit, reconstructable disposition* — and finding 4 showed it
+belongs to no anchoring: it is a requirement to be stated and enforced on its own, whichever
+representation the household chose (B1: the same obligation with new terms; B2: a new obligation
+that replaces the old). The disposition cases attacked it with worked amounts and produced seven
+findings and **a blocker**: *do not introduce an enum for disposition until its semantic scope is
+resolved* — the outcome of the obligation, the creditor's accounting treatment, or a defined
+abstraction over both; the bad-debt write-off is the boundary test. So **no disposition kind is
+ruled**, and B7 fenced the invariant's disposition to *the invariant's consumer — a separate claim
+of a different shape, not a field on the relation.* 7I is that consumer — and the pressure question
+is sharper than in any pass so far: **what can a consumer of dispositions do when no disposition
+can yet be recorded?**
+
+The answer the sources give: **the check, not the vocabulary.** Finding 7 — *relocation requires a
+destination, and the check requires origination too; without the first, §5 is a declaration rather
+than a test; without the second, the test cannot balance* — and case 8's sum (`destination 3,300 =
+relocated 3,000 + originated 300`) already say what 7I is: **the reconstruction test**. It takes the
+amounts the record already establishes — the governing P-ack positions before and after the
+transition, and the discharged payments between them, all of it 7G's — and reports what balances
+and **what nothing in the record explains**: the *unaccounted* amount, named, dated, sourced, never
+zeroed, never a fifth number. When the vocabulary is ruled, 7I reads those claims and the
+unaccounted amount shrinks; **the shape does not change**. Today it is honest about the gap, which
+is what 8.1-a asked for — *the user must be able to reconstruct* — and what 8.1-b measures.
+
+### 7I.1 What is already fixed
+
+| Ruling | Constraint on 7I |
+|---|---|
+| **§5 (the invariant)** | every amount whose treatment changes has an explicit, reconstructable disposition — **a requirement 7I tests, not a fact it manufactures** |
+| **Finding 1** | amounts that simply remain owed have no disposition; `NO_CHANGE` would make the invariant unfalsifiable — 7I dispositions nothing that stayed |
+| **Finding 2** | not-knowing is not a disposition — an unexplained amount is *unaccounted*, reported as a gap in the record, never as a category |
+| **Finding 3 / B7** | **agreement-relative quantities cannot be dispositioned** — `overdue`, `ahead`, `expected_by_now` are positions against a schedule, not money, already inside the balance; 7I never reads them; the $525 is not an amount |
+| **Finding 4 → the blocker** | obligation disposition ≠ creditor accounting treatment; **no enum, no encoding of one as the other, no special cases** — 7I reads no disposition kind until one is ruled and says so |
+| **Finding 5** | never-liable is not a disposition (1a, 4c) — 7I reports the $650 as unaccounted by the record, not as *waived* |
+| **Finding 6** | container states are derived — *partially settled* is read off the amounts, never a value |
+| **Finding 7 / case 8** | the check needs relocation, termination **and origination**; origination is not a disposition but the check cannot balance without it — so an amount that appears with no source is *unaccounted*, and the tripwire case (agency $3,300 vs $3,000) is expressible as *$300 unaccounted* without choosing an anchoring |
+| **Ob6 / B (built)** | the household says which arm — terms claims on one O (B1) or O_new `obligation_replaces` O_old (B2); **the relation carries no amount, no scope, no discharge, no status, no apportionment, no transitivity** (B5, B6, B11, B15); many-to-many (B4, B6); a sale is one O with E changing (B8) |
+| **7G (built)** | the governing P-ack position S(d) named with b; `confirmed(d)` from discharged, directed payments; undetermined propagating; a context's S carried forward under G, visibly — **7I reads 7G for every amount and computes one difference** |
+| **7F (built)** | `reach(O, obligation_replaces)` in both directions, every claim, every state — successors and predecessors as the household asserted them |
+| **D′5 / D′.11** | a third party's payment (the insurer's, the new lender's payoff) is not *toward* O by convergence; its direction relative to the household is undetermined in 7G — **7I does not infer that the payoff relocated the balance; it lists the payment as unresolved and lets the new context's own P-ack say where the money is** |
+| **§1** | 1 (never writes) · 2 (reports, never resolves) · 3 (one hop — a chain of two replacements is two transitions) · 5 (absence is not zero — a context with no position after the transition is *not restated*, never erased to 0) · 7 (no ranking) · 8 (one consumer, one question) · 9 (failure named and measured) · 11 (7G's figures with their provenance) |
+
+### 7I.2 The reconstruction — what it computes, and what it refuses
+
+**The transition.** The household names an obligation O and the date `at` of the change. 7I reads
+O's established successors (`reach(O, obligation_replaces, as_object)`) and, for each successor,
+its other established predecessors — the **one-hop transition group**: predecessors P (O and the
+others a successor also replaced) and successors N. No successor → the B1 arm: the group is {O}
+before and {O} after. Candidate and contested replacement claims are listed and take no part.
+
+**The amounts — every one 7G's, with its provenance:**
+
+```text
+before   = Σ over predecessors p in P of   confirmed_p(at⁻)      p's position the day before the transition
+after    = Σ over contexts c in P ∪ N of   confirmed_c(d)        where c's governing position is dated ≥ at
+unaccounted(d) = after − before
+```
+
+`at⁻` is the day before `at`. A predecessor still open after the transition (B5: the card stays
+open) is a context after as well as before. A context whose governing position at d is dated
+*before* `at` is **not restated after the transition**: its 7G figure is a carry-forward of a
+pre-transition statement, and counting it would let a replaced obligation's old balance survive by
+silence — so that context is listed *not restated*, and `unaccounted` is **undetermined naming
+it**. Undetermined propagates from every 7G term (no P-ack; a conflicted statement; a payment of
+undetermined amount or direction — the third party's payoff, the insurer's payment). A negative
+`unaccounted` is money that left the obligation with no disposition in the record (case 1's $900:
+the insurer's $250 not attached to O, the $650 adjustment); a positive one is money that appeared
+with no source (case 8's $300; a capitalised fee). Both are reported as they come.
+
+**What 7I reads that is a disposition: nothing — and says so.** `dispositions: {read: [], note}`
+until the vocabulary is ruled. The `unaccounted` amount is exactly what such claims would have to
+explain; 7I names the contexts, the payments and the dates so the household knows what to assert.
+
+**What it refuses:**
+
+| Not this | Why |
+|---|---|
+| an amount on the relation — `obligation_replaces` read for scope, share or *$525 rolled in* | B5, B7; the relation carries none; its content is never read |
+| the arrears as money — `overdue` subtracted, added or dispositioned | finding 3; 7G never reads an agreement-relative kind and neither does 7I |
+| erasure — a replaced obligation's balance dropped to 0 because it was replaced | B15 (no ended / closed status derived); §1.5; *not restated* is the state |
+| inference — the new lender's payoff relocated the balance; the insurer's payment reduced the bill | D′5, D′.11; a third party's payment has undetermined direction; the new context's own P-ack says where the money is |
+| an anchoring — the check taking sides on M1 / M2 | the household chose B1 or B2; 7I reads what was asserted; case 8 is expressible as a gap |
+| a disposition category — `waived`, `written_off`, `adjusted`, `capitalised` | the blocker; nothing is ruled |
+| a chain — O3 replaces O1, O5 replaces O3 folded into one reconstruction | B11; one hop; two transitions |
+| a container state — `partially_settled`, `closed` | finding 6; derived by the reader from the amounts |
+
+### 7I.3 The cases
+
+| # | Case | What 7I must say | What it must never do |
+|---|---|---|---|
+| **Di1 (B1, case 3)** | Same O; old plan S = $3,000 at 1/1; $525 behind; new terms at 2/1; Riverbend Hospital's 2/1 statement $3,000. | before 3,000 · after 3,000 · **unaccounted 0** — the arrears were not rolled in; `overdue` never read | subtract or add the $525 |
+| **Di2 (case 3′)** | As Di1 but the 2/1 statement says $3,525. | **unaccounted +525** — appeared with no source; no *capitalised* category; the note names what a claim would have to say | call it capitalised interest |
+| **Di3 (B2)** | O3 replaces O1 (Rob); O1's S $3,000 at 1/1; Riverbend Hospital's 2/1 statement on O1 $0; O3's 2/1 statement $3,000. | group {O1} → {O3}; before 3,000; after 0 + 3,000; **unaccounted 0** | derive O1's 0 from the relation |
+| **Di4 (B2, not restated)** | As Di3 without Riverbend Hospital's $0 statement on O1. | O1 **not restated after the transition** (its 7G figure carries 1/1 forward); `unaccounted` **undetermined naming O1** — the record does not say O1 went to zero | erase O1 to 0; count 3,000 twice |
+| **Di5 (B3 — refinance)** | NewBank pays Harbor $178,412 (payer NewBank, payee Harbor), attached to O1 by Rob, acknowledged by Harbor; Harbor's paid-in-full letter → balance $0 on O1 at 3/1; O3 replaces O1; NewBank's statement $178,412 at 3/1. | the payoff is **discharged with undetermined direction** (a third party) and inside O1's new base; before 178,412; after 0 + 178,412; **unaccounted 0** — reconstructed because the letter is recorded | infer relocation from the payoff; need the payment's direction to balance |
+| **Di6 (B3 without the letter)** | As Di5 with no $0 statement on O1. | O1 not restated; the payoff's undetermined direction makes O1's `confirmed(d)` undetermined too; `unaccounted` undetermined naming both — *the record cannot say the Harbor mortgage is gone* | say it is gone |
+| **Di7 (case 8 — the tripwire)** | One O; hospital S $3,000 (E until 5/1); agency E from 5/1; agency's statement $3,300 at 5/15; `at` = 5/1. | B1 arm (no relation — a sale is one O); before 3,000; after 3,300; **unaccounted +300** — expressible without an anchoring | write the $300 as a fee; treat the agency's figure as a new obligation |
+| **Di8 (case 1 — the $650)** | Bill $1,200 at 1/1 (Riverbend Hospital); Rob pays $300 (discharged); Lakeview Health pays Riverbend Hospital $250 in respect of X (not attached to O — D′5); Riverbend Hospital's statement $0 at 3/1. | before 1,200 − 300 = 900; after 0; **unaccounted −900** — the insurer's payment and the adjustment are nowhere in O's record; not *waived*, not *never liable*: unaccounted | disposition the $650; attach Lakeview Health's payment by convergence |
+| **Di9 (B5 — partial)** | O4 replaces O1 (the $8,000 card); after: O1's statement $3,000, O4's $5,000, both at `at`. | group {O1} → {O1, O4}; before 8,000; after 3,000 + 5,000; **0**; O1 listed as a context on both sides | apportion by the relation; close O1 |
+| **Di10 (B4 — consolidation)** | O4 replaces O1, O2, O3 (5,000 · 3,000 · 2,000); O4's statement $10,000; the three restated $0. | asked about O1: the group is {O1, O2, O3} → {O4} (O4's other predecessors pulled in); before 10,000; after 10,000; **0** | run O1 alone against O4 and report 5,000 unaccounted |
+| **Di11 (B6 — split)** | O2 and O3 replace O1 ($3,000); statements $1,800 and $1,200; O1 restated $0. | {O1} → {O2, O3}; **0** | apportion |
+| **Di12 (B11 — a chain)** | O3 replaces O1; O5 replaces O3. | asked about O1: the group is {O1} → {O3}; O5 is another transition, not pulled in | fold the chain |
+| **Di13 — candidate / contested relation** | A reading-sourced *O3 replaces O1*; a retracted one. | listed as candidate / contested; **not in the group**; the B1 arm runs | let a candidate build a group |
+| **Di14 — the relation's content** | `obligation_replaces` with content *"$5,000 of the card"*. | nothing read from it; identical output with and without | scope from content |
+| **Di15 — undetermined propagates** | A predecessor with no P-ack; a successor with two statements at one date. | `unaccounted` undetermined with 7G's reasons, naming the context | zero; the household's figure |
+| **Di16 — as of d** | The successor's statement is dated after d. | the successor is *not restated by d*; undetermined naming it; asked later, it balances | consult `created_at` |
+| **Di17 — surfaced, not stored** | The household reads the report and records Harbor's letter. | the next read balances; 7I wrote nothing; no disposition, status or category column | write `reconstructed` |
+| **Di18 — the null model** | A group where every context is restated at `at` and every payment discharged and household-directed: unaccounted 0; change one statement by 100: exactly 100. | exact | a tolerance |
+| **Di19 — where the failure appears** | 0 said where a context is not restated; a group missing a successor's other predecessor; an amount read from the relation; an agreement-relative figure entering. | measured there | — |
+
+### 7I.4 Testing the readings
+
+**RI0 — a disposition enum, or a category inferred from the arithmetic** (a negative gap →
+*waived*; a positive → *fee*). Rejected: the blocker; findings 2, 5; Di2, Di8.
+
+**RI1 — the relation as the carrier** (scope, share, amount, ending). Rejected: B5, B7, B15;
+Di3, Di14.
+
+**RI2 — inference across a third party** (the payoff relocated it; the insurer's payment reduced
+it). Rejected: D′5, D′.11; Di5, Di6, Di8.
+
+**RI3 — erasure or carry-forward as an answer** (replaced → 0; not restated → its old balance).
+Rejected: §1.5, B15; Di4, Di6.
+
+**RI4 — the arrears as an amount.** Rejected: finding 3; Di1.
+
+**RI5 — a transitive or partial group** (chains folded; a consolidation's other predecessors
+ignored). Rejected: B11; Di10, Di12.
+
+**RI6 — the candidate: one read-only derivation `reconstruction(session, obligation, at, d,
+catalogue, knowing)`** — the one-hop transition group from established `obligation_replaces`
+claims (7F, both directions); every predecessor's 7G `confirmed(at⁻)` and every context's 7G
+`confirmed(d)` with its governing position and whether it is restated at or after `at`;
+`unaccounted(d)` = after − before, or undetermined naming the term; every payment across with its
+7G station and direction, the undetermined ones listed as unresolved; `dispositions` read: none,
+with the note; candidate and contested relations listed apart; **no category, no amount from the
+relation, no agreement-relative figure, no erasure, no write.** `catalogue` and `knowing` as 7G's.
+
+### 7I.5 What the derivation is — and is not
+
+| **reads** | `reach` over `obligation_replaces` in both directions (every claim, every state); 7G `remaining` for every predecessor at `at⁻` and every context at `d` (§1.11: with provenance); nothing else |
+|---|---|
+| **returns** | the group (predecessors, successors, candidates, contested) · `before` and `after` with every term named and dated · `unaccounted` or its reason · unresolved payments · `dispositions` (none read; the note) |
+| **decides** | nothing — no category, no anchoring, no apportionment, no closure; the gap is a fact about the record |
+| **is not** | a disposition vocabulary; the relation's meaning; 7G (it composes 7G's figures); a resolver of statements; a status; 7H (no insurer's share compared) |
+| **failure appears at** | Di19 — 0 said where a context is not restated; a group missing a predecessor; an amount from the relation; an agreement-relative figure — measured there |
+| **null model** | Di18 — a fully restated, fully discharged group balances to 0; one statement moved by 100 moves `unaccounted` by exactly 100 |
+
+### 7I.6 Ruling candidate — pass 7I, for Rob
+
+> **The disposition consumer is the reconstruction test, and it reads no disposition until one is
+> ruled. For one obligation and the date of a change, it takes the transition the household
+> asserted — the same obligation under new terms, or the obligations that replace it and the
+> others they replace, one hop and every established claim — and states, from the discharge
+> consumer's figures and with their provenance, what each predecessor's confirmed position was
+> the day before the change and what each context's confirmed position is on the date asked,
+> counting a context only where the entitled party has restated it at or after the change and
+> naming as not restated any context whose last stated position predates it. The difference is
+> the amount the record does not explain: positive where money appeared with no source, negative
+> where money left with no disposition, undetermined — naming the term — where any position or
+> payment is undetermined or any context is not restated; never zero by silence, never a
+> category, never a fifth number. It reads no amount, scope or ending from the replacement
+> relation; no agreement-relative quantity as money; no payment's direction from anything but the
+> household's own claims; no anchoring; no chain. It lists the payments across the change with
+> their stations, the ones whose direction is undetermined as unresolved, and the disposition
+> claims it read as none, so the household knows exactly what the record lacks. It writes
+> nothing and decides nothing; its failure can appear only where a balance is said of a context
+> not restated, where a group omits a predecessor a successor also replaced, where an amount is
+> taken from the relation, or where a schedule position enters as money — and it is measured
+> there.**
+
+**If ruled, the build is one read-only function** — `reconstruction(session, obligation, at, d,
+catalogue, knowing)` beside `remaining`; a fixture over Di1–Di19 with the absences (no
+`disposition`, `waived`, `written_off`, `capitalised`, `apportion`, `close_obligation`,
+`reconstructed`, no status or category column) and the AST + row-content wiring guard, the same
+stand-in kinds as 7G; a smoke section whose mutations each try to *explain* (a negative gap becomes
+*waived*; a positive becomes a fee; the relation's content supplies scope; a not-restated context
+carries forward as its answer; a replaced context reads 0; the payoff's direction is inferred from
+its payee; `overdue` enters; the chain folds; a consolidation's other predecessors are dropped;
+store); **no schema, no migration; 7H not opened until it is green.**
+
+**What pass 7I leaves exactly where it found it:** the disposition vocabulary and its blocker (the
+outcome / accounting-treatment distinction; the write-off boundary test) · the reversal question
+(finding 8, open on purpose) · the 1.x scope question · reconciliation with the insurer (7H) ·
+accumulators (7J) · D′.11.
+
+*The line: when the terms change, the record can say where every dollar went only if someone said
+it — and until then it says, to the dollar, what nobody has.*
