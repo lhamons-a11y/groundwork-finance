@@ -225,3 +225,206 @@ made order-independent, the fixture and the derivation untouched.
 
 **No coupling exposed:** the swap needed no structural change in either consumer. No schema, no
 migration. Gate 1333 → 1350, 0 failed.
+
+---
+
+## Pass 9B — The role catalogue
+
+**The question, applied:** *Harbor holds my mortgage but I pay a servicer; my mother paid Riverbend Hospital for
+me; Lakeview Health adjudicated Kim's visit; the collection agency now says it holds the hospital bill.* Every
+one of those is a **role** — a dated relation between a party and an identity — and every consumer
+from 7E onward gates on one: `remaining()` on *the entitled party of O* (S(d), discharge),
+`reconciliation()` on *the provider of X* (the charge, direction) and *the insurer of X* (PR),
+`accumulator()` on *the insurer of P* and *incurred by*, `chain_strength()` on *S serves E* (the
+mediation link it cannot evaluate), relational knowing on *the entitled party of the obligation*
+(Kn2, the acknowledgment kind) and *the insurer of the claim* (Kn3). Item 5 ruled the temporal
+grammar of roles and **refused to rule the catalogue**: *the catalogue and each role's semantics —
+who may assert it, what it establishes, who is knowing for it — are separate rulings; an
+endpoint's existence gives a role no meaning.* This pass is those rulings, one per role, on exactly
+those three points, with the boundaries bound where a transition is a fact the record must hold.
+
+### 9B.1 What is already fixed
+
+| Ruling | Constraint on 9B |
+|---|---|
+| **RP2 (item 5, built)** | a role has no intrinsic period; *holds at · began at · ended at* are three sorts; boundaries bind by registry metadata under the structural guard; a boundary never rewrites, implies its opposite, resolves or creates a role; retraction ≠ ending; overlap represented, never resolved; **no role kind ruled by that slice** |
+| **9A (built)** | `under_plan` — the first ruled role kind, the template: party subject, identity object, direction by type, no inverse, no cardinality, established only by a party's assertion, a reading a candidate, `relational_knowing True` |
+| **The servicing ruling** | **entitlement ≠ payee ≠ discharge — three distinct facts**; *the entitled party: whose obligation / whose acknowledgment matters*; *payee: whom the household actually pays — servicing context, a transaction-level fact*; S3: Groundwork cannot turn a convincing instruction from an apparent payee into knowledge that the payee was authorised; S6: paying the entitled party directly can still leave the payment uncredited |
+| **RELATIONAL_KNOWING (R2, built)** | knowing is a relation, fixed per kind, between a party and the participant the kind designates; Kn2 (*entitled party of O* — a role claim, stand-in), Kn3 (*the adjudicator of the claim* — the second half needs the role), Kn6 (*S serves O* — a consumer derivation over role claims), Kn7 (**minting ≠ knowing**: the mother (`paid_by`) and Riverbend Hospital (`paid_to`) are the first-hand parties), Kn12 (knowing ≠ true) |
+| **Payment identity (Pm1, Pm5, Pm9, Pm11)** | payer and payee are **claims about p, dated relations**, never anchor columns; `minted_by` names the asserting act, never the payer; a cash payment has a payee at Rob's strength |
+| **Expense identity (Ex1; §fences)** | *incurred by (the patient / consumer) · provided by — dated role claims, catalogue unruled*; relational knowing for nature claims waits on *the household member who incurred X* |
+| **Insurer-claim identity (4b)** | no claim identity; *insurer of this expense* is a role — relational knowing's designated relation for adjudication; the adjudication is the insurer's dated stances about X; Ic4: two insurers, two sets of stances, nothing to mint |
+| **Plan identity (Pl1, Pl3, Pl14)** | a plan's insurer is a party; two plans with one insurer are two plans; Medicare + a supplement are two insurers |
+| **7F (built)** | `in_effect(party, role_kind, d)` — and its refusal: *a kind no boundary kind is `of` is not a role* (§7F.4 TR8) — **which 9B must confront (§9B.3)** |
+| **Item 9 §2** | a role is its own ruling on three points; the catalogue rules kinds not content; **no consumer changes** — the substitution is the proof; registry only; relational knowing follows the role |
+
+### 9B.2 The catalogue — seven roles, three points each
+
+Every role: party subject (structurally a party — a household person, a minted institution, a
+non-Person party), an identity object, direction fixed by type, **no inverse kind** (navigation
+either way is a query, 7F), no cardinality, **established only by a party's assertion with both
+endpoints established; a document, a bank line, a card, an EOB or a letter yields at most a
+candidate** (`reading_establishes False`); retraction is a withdrawal, never an ending.
+
+| kind | subject → object | sorts | who may assert | what it establishes (and which consumer reads it) | who is knowing for the role claim |
+|---|---|---|---|---|---|
+| **`entitled_party_of`** | party → obligation | holds · **began · ended** (R8: the debt sold — E₁ ended 5/1, E₂ began 5/1; S4 / S5: a sale transitions it, an assignment does not) | the household (Ob1's minting act names whom it owes); the entitled party itself, as a party; a servicer's or agency's letter → candidate | *whose obligation, whose acknowledgment matters*: the E-test in 7G (S(d), discharge), 7H, 7I, 7J; the designated participant Kn2 waited for (the acknowledgment kind's knowing relation, 9D) | the subject party — it holds the note (Kn12: it can be wrong) |
+| **`servicer_of`** | party → obligation | holds · **began · ended** (R2 / S2: *Harbor serviced it from March to June*; the servicer changes and autopay does not) | the household (S1); the entitled party (whose authorisation it is); the servicer as a party (S3 — an assertion, not authorisation); a letter → candidate | *servicing context*: whom the household pays and why; **the mediation link Kn6 / C3 named** — `chain_strength` can evaluate *S → E* once this kind exists; **never entitlement** (S3: a servicer's own claim does not make it the entitled party — 7G's E-test unchanged) | the subject party — S3 asserts it and *is* knowing for its own assertion; knowing ≠ authorised ≠ true |
+| **`provider_of`** | party → expense | holds only | the household (Ex1's minting act: *Riverbend Hospital provided it*); the provider as a party (its bill); a bill's reading → candidate | *whose charge*: 7H's `billed` (P-ack for X's charge by the provider in effect) and the direction anchor for funding events | the subject party |
+| **`insurer_of`** | party → expense | holds only | the household (*Lakeview Health's EOB for the ER visit* — beside `artefact_concerns`); the insurer as a party; the EOB's reading → candidate | *whose adjudication*: 7H's PR / plan-paid stances, 7J's `applied_to_deductible` through the plan; **Kn3's second half** — knowing for the adjudication of X; **Ic4: two insurers of one X are two claims, each in effect, each knowing for its own stances** | the subject party |
+| **`insurer_of_plan`** | party → plan | holds only | the household (Pl1, minting P as *the Lakeview Health plan*); the insurer as a party; the SBC's reading → candidate | *whose plan*: 7J's stated accumulator and eligibility gate; the P-ack for P's terms (9D) | the subject party |
+| **`incurred_by`** | party → expense | holds only | the household (Ex1: *we took Kim to the ER*); the party itself | *whose expense*: relational knowing for nature claims (EXPENSE_IDENTITY — *the household member who incurred X*), 7J's individual figure; **never plan attribution** (E24) | the subject party — they were there (Kn8: *it was health*) |
+| **`paid_by` / `paid_to`** | party → payment | holds only | the household (Pm1's minting act); the payer or payee as a party; the bank line's reading → candidate (K6: the bank knows movement, and a reading is a candidate all the same) | *who paid, whom*: 7G / 7H direction; Kn7's first-hand parties for the event; **payee ≠ entitled party ≠ discharge** (the servicing ruling, structurally: three kinds) | the subject party — the mother knows she paid; Riverbend Hospital knows it was paid; Rob was told |
+
+**One knowing relation for all seven — `KNOWING_SUBJECT_PARTY`:** *the party knowing for a role
+claim is the party in the role* — the origin of the utterance is the claim's subject party. Rob
+asserting *Harbor is the entitled party* is `not_knowing` (he was told, or inferred it from the
+statement); Harbor asserting it is `knowing`; a reading is a candidate and undetermined. This is R2
+applied to roles with the designated participant = the subject, and it gives Kn7 for free (the
+mother is knowing for `paid_by(mother, p)`, Rob is not). Kn12 stands: S3 is knowing for its own
+servicing claim and may be lying; knowing says first-hand, never correct.
+
+**Boundaries bound to two roles only** — `entitled_party_of` and `servicer_of` — because those are
+the roles whose transitions are facts the record must hold (R8, S2, S4 / S5, R2 / R4). The other
+five are *holds at d* stances (RP2's base sort): an expense's provider, an expense's insurer, a
+plan's insurer, who incurred an expense and who paid whom **do not begin and end**; a correction is
+a retraction and a new claim, not a boundary. **Binding boundaries to a role that cannot
+transition would invite claims that mean nothing.** Which raises the finding.
+
+### 9B.3 The finding — 7F's definition of a role, and what 7G–7J inherited from the stand-ins
+
+7F ruled (§7F.4 TR8, built): *`in_effect` refuses a kind no boundary kind is `of` — a relation has
+no "in effect"*. 7G, 7H and 7J inherited it through `_require_role` and `_entitled_at`. **Every
+stand-in the consumer fixtures registered carried boundaries** — `standin_provider_began`,
+`standin_insurer_ended`, `standin_plan_insurer_began`, … — so the consumers never met a role
+without them. §9A.3 said the swap failing on more than the catalogue line is a finding, not a
+fix: **here it is, before the swap.** Five of the seven ruled roles are holds-only, and the
+consumers as built would refuse them by name. Three ways out, put to Rob:
+
+- **RB-a — bind boundaries to all seven.** Registry-only, no consumer changes. Rejected by §9B.2:
+  a `provider_of_ended` is a boundary that means nothing, and RP2's guard is structural — it would
+  admit the claim.
+- **RB-b — a role is what the registry says is a role: one metadata key, `'role': True`, on every
+  role kind** (including `under_plan`, a one-key addition to 9A's entries, semantics unchanged).
+  7F's refusal becomes *a kind the registry does not mark as a role is not a role*; `in_effect`
+  over a holds-only role runs G over holds stances (TS already reads a holds forward and nothing
+  back; N of a holds contests nothing); item 5's guard tightens to *a boundary binds only to a
+  kind marked as a role* — closing "anything bounds anything" more exactly than the current *not
+  itself a boundary* test. One line in `in_effect`, `_require_role` and the guard; no consumer's
+  inputs, branching, outputs or interpretation change — an *eligibility* predicate of the
+  registry, not a semantic one.
+- **RB-c — derive "role" structurally**: subject slot `subject_party_id`, not symmetric, not a
+  meta-kind, not a boundary. No metadata, but an implicit rule that `party_corresponds` and any
+  future party-subject kind would fall into or out of by accident.
+
+**Recommended: RB-b.** Explicit, one key, and it makes item 5's guard say what it meant. It is a
+change to 7F's *refusal condition* — the same test with a truer predicate — not to what 7F derives;
+it is recorded here as the one consumer-side change 9B needs, for Rob to rule before any swap.
+**Rob, on review:** the key answers *"is this registry entry a role?"* and nothing else — it does
+not answer *"how does this role behave?"*; it must acquire no consumer semantics merely because it
+fixes the registry classification, which is what keeps 9B from quietly reopening 7F.
+
+**A second finding, 7H's, exposed by Ic4:** `reconciliation()`'s governing PR is *the latest
+established claim at or before d by a party in effect as insurer of X* — one series across
+parties. With **two** insurers of X (Ic4, CC1), the later insurer's stance would govern by recency
+across parties — the resolver 7H refused for determinations (§7H.8 item 4: G per party's series,
+conflict across parties → none). **9B does not resolve this and must not**
+(Rob, on review): 9B rules *which roles exist · who occupies them · the knowing relation · where
+role boundaries occur*; what the governing PR is when the series crosses party boundaries is 7H's
+territory, and 9B may not manufacture a party-local recency rule — or any resolver — to make its
+build convenient. The role that exposes the question is ruled here; the question itself is
+recorded for 7H, to be resolved against 7H's own rulings (its G-per-series treatment of
+determinations is the precedent, not a decision) before the 7H fixture is substituted.
+
+**The two questions the ruling must settle, as Rob framed them — and nothing wider:**
+
+```text
+9B-F1   Is explicit role classification ('role': True) the correct interpretation of 7F's "a role
+        is a kind some boundary is of", without importing any consumer behaviour?
+9B-F2   Given 7H's cross-party governing-PR series, does 9B merely expose the relevant role /
+        boundary information and defer governing determination entirely to 7H?
+```
+
+Answered affirmatively, 9B proceeds without reopening 7F or 7H. The opening itself commits to
+neither: the findings and the proposed shape of their resolution are recorded; the semantic
+ruling precedes the build.
+
+### 9B.4 The cases
+
+| # | Case | What the catalogue must say | What it must never do |
+|---|---|---|---|
+| **Ro1 (S1)** | Riverbend Hospital keeps the bill; BillCo services it; Rob pays BillCo. | `entitled_party_of(Riverbend Hospital, O)` · `servicer_of(BillCo, O)` · `paid_to(BillCo, p)` — three kinds, three facts; 7G's E-test is Riverbend Hospital's; the payment's payee is BillCo | make BillCo the entitled party because it is paid |
+| **Ro2 (S2)** | The servicer changes 5/1; autopay keeps paying the old one. | `servicer_of(Old, O)` ended 5/1, `servicer_of(New, O)` began 5/1 — 7F's answers; `paid_to(Old, p)` after 5/1 stands as a fact; discharge is E's acknowledgment either way | end the payee; redirect the payment |
+| **Ro3 (S3)** | S3, never authorised, writes *pay us*. Rob does. | `servicer_of(S3, O)` asserted by S3 — established, S3 knowing, and **not** entitlement; `paid_to(S3, p)`; 7G: attached_unacknowledged, direction undetermined (S3's E-role undetermined) | let S3's claim pass the E-test; let a letter establish the role |
+| **Ro4 (S4 / S5)** | Assignment (same payee, entitlement unchanged) vs sale (same payee, entitlement transitions). | the assignment: `servicer_of` only; the sale: `entitled_party_of(E₁, O)` ended · `entitled_party_of(E₂, O)` began — the household says which (C9) | infer a sale from a payee change |
+| **Ro5 (S6)** | Rob pays Harbor directly, past the servicer; Harbor leaves it uncredited. | `paid_to(Harbor, p)` — payee the entitled party in effect → 7G direction −1; **still attached_unacknowledged** until Harbor acknowledges | payee = E ⇒ discharge |
+| **Ro6 (S7)** | Money sent to E₁ after E₁'s role ended. | `paid_to(E₁, p)` with E₁ *not_in_effect* at `occurred_on` → 7G direction undetermined, naming p — the record says the household paid a party that no longer held it | redirect; discharge |
+| **Ro7 (R8)** | E₁ ended 5/1; E₂ began 5/1; asked 5/12 and 4/12. | 7F over the ruled kind: E₁ not in effect / E₂ in effect on 5/12; on 4/12 E₁ in effect, E₂ undetermined | — |
+| **Ro8 (Pm9 / Kn7)** | *My mother paid Riverbend Hospital $300 for me.* | `paid_by(mother, p)` and `paid_to(Riverbend Hospital, p)` asserted by Rob — established, Rob `not_knowing`, the mother `knowing` for `paid_by` if she asserts it; the household is not the payer by default | a household-default payer; minting = knowing |
+| **Ro9 (Ex1)** | *We took Kim to the ER on Feb 14.* | `incurred_by(Kim, X)` · `provider_of(Riverbend Hospital, X)` from the minting act — holds only; no beginning, no ending | a `provider_of_began` |
+| **Ro10 (Ic4 / CC1)** | Lakeview Health and Cigna both adjudicate X. | `insurer_of(Lakeview Health, X)` · `insurer_of(Cigna, X)` — two claims, both in effect, each knowing for its own stances; **7H's finding (§9B.3): the PR governs per insurer's series** | one insurer selected; the later stance governing across parties |
+| **Ro11 (Pl3 / Pl14)** | Medical and dental both with Lakeview Health; Medicare + a supplement. | `insurer_of_plan(Lakeview Health, P₁)` · `insurer_of_plan(Lakeview Health, P₂)`; `insurer_of_plan(Medicare, P₃)` · `insurer_of_plan(Supp, P₄)` | the insurer as the plan; one plan for one insurer |
+| **Ro12 — the party asserts its own role** | Harbor: *we hold your mortgage*; Lakeview Health: *we insure this plan*. | established, **knowing** (`KNOWING_SUBJECT_PARTY`); beside the household's claim; contest derived where they differ | the party's word outranking the household's |
+| **Ro13 — a reading** | A statement's letterhead; an EOB's payer block; a bank line's payee. | a candidate for the role, never the claim | `reading_establishes` |
+| **Ro14 — a stranger asserts** | Kim's cousin: *Harbor holds it*. | established, `not_knowing`; listed; the E-test is about Harbor's role, not the asserter | refuse the claim; rank asserters |
+| **Ro15 — retraction** | *I was wrong — it was never Harbor.* | a retraction; the history survives; not an ending | read as `ended` |
+| **Ro16 — no inverse** | `obligation_entitled_party`, `plan_insurer`, `expense_provider`. | no such kinds; navigation a query (7F) | an inverse kind |
+| **Ro17 — knowing ≠ true (Kn12)** | S3's servicing claim; Harbor's mistaken entitlement claim. | knowing for their own assertions; both may be false; the resolver is fenced | knowing read as correct |
+| **Ro18 — the substitution** | Every consumer fixture with the stand-ins replaced by the seven ruled kinds and the catalogue lines changed. | **no other change** — the same counts, the same answers; where a consumer refuses a holds-only role, that is §9B.3's finding, resolved by RB before the swap, never by a fixture edit | a consumer edited to fit |
+
+### 9B.5 Testing the readings
+
+**RB0 — roles inferred** (from a payment's payee, a document's letterhead, a plan's name, an
+expense's provider being someone's usual doctor). Rejected: item 5, S3, Ro1, Ro3, Ro13.
+
+**RB1 — one role for several facts** (payee = entitled party; servicer = entitled; insurer of X =
+insurer of P). Rejected: the servicing ruling; Ro1, Ro3, Ro10 / Ro11.
+
+**RB2 — boundaries everywhere** (RB-a). Rejected: §9B.2, §9B.3.
+
+**RB3 — a household-default role** (the household is the payer, the incurrer, the entitled
+party's counterpart). Rejected: Pm9, Kn7; Ro8.
+
+**RB4 — the asserter's authority** (the party's own claim outranks; the household's is the truth).
+Rejected: F5's shape, Ro12, Ro14 — contest derived, nothing chosen.
+
+**RB5 — the candidate: seven ruled role kinds and one knowing relation.** `ENTITLED_PARTY_OF` (+
+`_BEGAN` / `_ENDED`), `SERVICER_OF` (+ `_BEGAN` / `_ENDED`), `PROVIDER_OF`, `INSURER_OF`,
+`INSURER_OF_PLAN`, `INCURRED_BY`, `PAID_BY`, `PAID_TO` — each `symmetric False ·
+reading_establishes False · relational_knowing True · knowing_relation KNOWING_SUBJECT_PARTY`, the
+new resolver `_designated_subject_party` beside the two existing ones; **and, on RB-b, `'role':
+True` on all eight role kinds** with 7F's refusal, `_require_role` and item 5's guard reading the
+key. A fixture over Ro1–Ro18; the substitution in the 7E, 7F, 7G, 7H, 7I and 7J fixtures with only
+the kind names and catalogue lines changed; the payment fixture's `paid_by` / `paid_to` / `toward`
+stand-ins and item 5's `serves` / `standin_role_of_obligation` retired into the ruled kinds; the
+absence checks that named the roles retired truthfully; s118. **No consumer changes beyond RB-b's
+predicate; nothing about the stance kinds (9D).**
+
+### 9B.6 Ruling candidate — pass 9B, for Rob
+
+> **A role is a party's asserted, dated standing toward an identity, and the catalogue rules
+> seven: the entitled party of an obligation, the servicer of an obligation, the provider of an
+> expense, the insurer of an expense, the insurer of a plan, the party who incurred an expense,
+> and the payer and payee of a payment. Each has a party subject and an identity object, is
+> asserted by any party under the ordinary discipline and established only by assertion — a
+> document is a candidate — and is known first-hand by the party in the role and by no one else.
+> Each establishes exactly what its consumers read — whose acknowledgment matters, whom the
+> household pays, whose charge, whose adjudication, whose plan, whose expense, who paid whom —
+> and none establishes another: the payee is not the entitled party, the servicer is not the
+> entitled party, the insurer of an expense is not the insurer of its plan, and discharge is none
+> of them. The entitled party and the servicer begin and end; the other five hold at a date and
+> do not. A role is what the registry marks as one, and a boundary binds only to such a kind; a
+> role's holds stances answer "in effect on d" without a boundary. No inverse kind, no default
+> party, no rank among asserters, no inference from any document, payment, name or other role.**
+
+**If ruled, the build is** the registry entries and the one resolver; RB-b's predicate in three
+places; the Ro1–Ro18 fixture; the six consumer substitutions with no other change; the
+retirements; s118; **and, before the 7H substitution, 7H's governing-PR question resolved in 7H's own terms** — not
+here. No schema, no migration.
+
+**What pass 9B leaves exactly where it found it:** the subscriber role (F10 — content or a later
+kind) · the obligor role (an obligation's debtor — no consumer reads it yet) · E (9C) · every stance
+kind and the acknowledgment kind's participant (9D) · D′.11.
+
+*The line: who holds it, who services it, who provided it, who insured it, who was there and who
+paid — seven things the household says, dated, and none of them says the others.*
