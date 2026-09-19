@@ -242,9 +242,12 @@ def run(db):
     check('D4: E acknowledges p as of d - subject E, object p, as_of - is representable',
           p_ack.subject_party_id == chase.id and p_ack.object_payment_id == p1.id and p_ack.as_of == '2026-03-05'
           and e_ack.utterance.origin_party_id == chase.id)
-    check('and its consequence is not derived: no remaining, no discharge accessor, no confirmed state',
-          not any(hasattr(db, n) for n in ('remaining', 'discharged', 'discharge', 'is_confirmed', 'confirmed',
-                                           'is_paid', 'paid', 'payment_status', 'cleared')))
+    # Item 7 pass 7G (CONSUMER_DERIVATIONS.md s 7G.8) built `remaining()` - a read-only consumer over acknowledgment
+    # claims like this one; it establishes no discharge and writes no state. The absences that still hold are listed.
+    check('and its consequence is not derived by the substrate: no discharge accessor, no confirmed state, no payment status (item 7\'s read-only remaining() exists and stores none)',
+          callable(getattr(db, 'remaining', None))
+          and not any(hasattr(db, n) for n in ('discharged', 'discharge', 'is_confirmed', 'confirmed',
+                                           'is_paid', 'paid', 'payment_status', 'cleared', 'is_discharged')))
     u_direct = utter('I paid Chase $400 directly at the branch on June 2.', '2026-06-03T09:00:00')
     p4 = mint_payment(u_direct)
     about('cleared', p4, 'debited 6/2', reading=r_stmt, as_of='2026-06-02')

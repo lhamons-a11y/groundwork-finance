@@ -7,7 +7,8 @@ each way of letting something else define it is caught.
     a bank line mints                 a read claim in the candidates state mints a payment
     E's statement mints               the Person requirement on the minting utterance is dropped
     a descriptor appears              the anchor grows a payee attribute
-    acknowledgment moves something    an accessor derives "remaining" from acknowledgment claims
+    acknowledgment moves something    a discharge accessor / confirmed state appears (item 7 pass 7G built the read-only
+                                      remaining(); the mutation is now the accessor that would make discharge a status)
     cleared establishes acknowledged  a bank's cleared claim manufactures E's acknowledgment
     correspondence merges             establishing payment_corresponds deletes the second row
 
@@ -64,10 +65,11 @@ def _mutations(db):
         return lambda: delattr(db.Payment, 'payee')
 
     def acknowledgment_moves_something():
-        def remaining(session, obligation):
-            return 0.0
-        db.remaining = remaining
-        return lambda: delattr(db, 'remaining')
+        # 7G's remaining() exists by ruling and is not the mutation; a discharge accessor is
+        def is_discharged(session, payment):
+            return True
+        db.is_discharged = is_discharged
+        return lambda: delattr(db, 'is_discharged')
 
     def cleared_establishes_acknowledged():
         def on_cleared(mapper, connection, target):
@@ -99,7 +101,7 @@ def _mutations(db):
         ('a bank line mints a payment', bank_line_mints),
         ('an institution-origin utterance mints a payment', institution_mints),
         ('a payee descriptor appears on the anchor', descriptor_appears),
-        ('acknowledgment moves something - a remaining accessor appears', acknowledgment_moves_something),
+        ('acknowledgment moves something - a discharge accessor appears', acknowledgment_moves_something),
         ('a cleared flag manufactures the creditor\'s acknowledgment', cleared_establishes_acknowledged),
         ('establishing a correspondence merges the two payments', correspondence_merges),
     ]

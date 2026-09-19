@@ -3368,6 +3368,297 @@ def in_effect(session, party, role_kind, d):
             'note': note if note else ('no stance' if not identities else None)}
 
 
+# ── Item 7, pass 7G: discharge -> remaining - a CONSUMER derivation, three figures and a diagnostic ──
+# gw 2.0/CONSUMER_DERIVATIONS.md s 7G.6-7G.8, ruled 2026-09-18. REMAINING IS THREE FIGURES AND A
+# DIAGNOSTIC, NEVER ONE NUMBER. For one obligation and one date d:
+#
+#   stations   every payment 7F's reach returns for O (every claim, every state), classified:
+#                attached_candidate · attached_contested · attached_unacknowledged · discharged
+#              discharge (RG-a) = an ESTABLISHED acknowledgment claim on p, dated <= d, by a party whose
+#              entitled-party role on O is IN EFFECT at that date (7F in_effect, G named), at strength
+#              KNOWING (derived_strength, as given). An acknowledgment that fails any test remains
+#              acknowledgment evidence, listed as what it is, and establishes no discharge. Nothing
+#              reads the acknowledgment's content for which obligation it meant (s D'.4): the
+#              attachment says p -> O, the acknowledgment says E's position on p; they meet on p.
+#   stated     P-ack balance history: every balance claim on O, dated, by whom, state, strength, the
+#              asserter's entitled-party answer at its as_of. The GOVERNING position S(d) = the latest
+#              established claim at or before d by a party in effect as E (TS's G, named with its
+#              date b); two at one date with different values -> a conflict and no S; none -> no S.
+#              The household's own amount is F3 testimony and never a base (TG-base).
+#   attached   S(d).value − Σ dir·amt over attachment-established, not-netted payments with
+#              b < occurred_on <= d                                       - a projection, NOT evidence
+#   confirmed  S(d).value − Σ dir·amt over DISCHARGED, not-netted payments with b < occurred_on <= d
+#              and discharge established as_of <= d (two independent predicates - s 7G.8: the base
+#              absorbs everything through b; ack.as_of never substitutes for occurred_on)
+#   remaining  = confirmed, by name. Nothing else is called remaining.
+#   diagnostic pending = attached − confirmed (the acknowledgment-state number, K8);
+#              statement_check = S − [S′ − Σ attached in (b′, b]] (F2 - the statement against the
+#              computation); each only where every term exists - a conflicted or missing S yields no
+#              subtraction, said in words; never a fifth balance.
+#
+# amt(p): the ONE established amount claim on p; several disagreeing -> undetermined; candidates never.
+# dir(p): −1 household person -> a party in effect as E at p's date (reduces); +1 the reverse
+#         (increases); anything else undetermined - never a cash-flow sign (s 7G.7 (4)).
+# net:    an ESTABLISHED payment_counteracts excludes both its payments from every figure (A, Rv7);
+#         payment_counteracts establishes NO discharge - it only changes the netting of payments
+#         already directioned. A reimbursement or refund without one enters by its own direction.
+# Undetermined propagates - with the reason and the payment named - and is never zero and never an
+# exclusion; a negative result is reported as it comes, no floor, no credit status.
+#
+# THE INVARIANT (s 7G.7 (2)): only a DISCHARGED payment contributes to confirmed; attachment,
+# acknowledgment without discharge, direction without discharge and netting without discharge
+# contribute nothing. Nothing is allocated across obligations (D'12 - the double count is named
+# for 7I, not prevented). As of d applies to acknowledgments and statements; created_at is never read.
+#
+# `catalogue` names the stand-in kinds until the domain and role catalogues rule them
+# (acknowledgment, entitled_party, balance, payment_amount, occurred_on, paid_by, paid_to);
+# `knowing` is the caller's foundation map the substrate needs to grade the stand-in acknowledgment
+# kind - a REGISTERED STAND-IN FOR THE RULED THRESHOLD, NOT A KNOB: the threshold is RG-a's knowing,
+# fixed here. Computed on read; stored nowhere; payment_plan.py untouched (1.x scope unanswered).
+STATION_ATTACHED_CANDIDATE = 'attached_candidate'
+STATION_ATTACHED_CONTESTED = 'attached_contested'
+STATION_ATTACHED_UNACKNOWLEDGED = 'attached_unacknowledged'
+STATION_DISCHARGED = 'discharged'
+CATALOGUE_KINDS = ('acknowledgment', 'entitled_party', 'balance', 'payment_amount', 'occurred_on', 'paid_by', 'paid_to')
+
+
+def _money(text):
+    """A content string as a Decimal, or None when it does not parse. No interpretation beyond that."""
+    from decimal import Decimal, InvalidOperation
+    if text is None:
+        return None
+    t = str(text).replace('$', '').replace(',', '').strip()
+    try:
+        return Decimal(t)
+    except InvalidOperation:
+        return None
+
+
+def _entitled_at(session, party_id, role_kind, obligation_id, when):
+    """7F's answer: is `party` the entitled party on the obligation at `when`? (answer, governing)."""
+    if party_id is None or not when:
+        return EFFECT_UNDETERMINED, []
+    party = session.get(Party, party_id)
+    rep = in_effect(session, party, role_kind, when)
+    v = rep['identities'].get(obligation_id)
+    return (v['answer'], v['governing']) if v else (EFFECT_UNDETERMINED, [])
+
+
+def _one_value(entries):
+    """(value, reason): the one established value among claim entries, or None with why."""
+    est = [e for e in entries if e['state'] == CLAIM_ESTABLISHED]
+    if not est:
+        return None, 'no established claim'
+    if any(e['value'] is None for e in est):
+        return None, 'unparsed'
+    values = {e['value'] for e in est}
+    if len(values) > 1:
+        return None, 'disputed'
+    return values.pop(), None
+
+
+def remaining(session, obligation, d, catalogue, knowing):
+    """The discharge -> remaining derivation for one obligation on date `d`: a plain dict, computed on
+    read, storing nothing. Three figures and a diagnostic, never one number.
+
+        {'obligation', 'd', 'role': entitled-party kind,
+         'payments':  [{'payment', 'attachment': {'state', 'claims': [(claim, asserter, state, ground)]},
+                        'station': attached_candidate|attached_contested|attached_unacknowledged|discharged,
+                        'acknowledgments': [{'claim', 'asserter', 'as_of', 'state', 'strength', 'entitled', 'governing', 'qualifies'}],
+                        'discharge': {'as_of', 'claim'} | None,
+                        'amount': {'value'|None, 'reason', 'claims'}, 'occurred_on': {'value'|None, 'reason', 'claims'},
+                        'direction': {'sign': -1|1|None, 'reason', 'payers', 'payees'},
+                        'netted': None | {'as': counteracted|counteraction, 'claim'}}],
+         'stated':    {'claims': [...], 'governing': {'claim', 'asserter', 'as_of', 'value'} | None, 'previous': ... | None,
+                       'conflict': [claims at the governing date] , 'reason'},
+         'figures':   {'attached':  {'value'|None, 'basis': [(payment, sign, amount)], 'inside_base': [payments], 'excluded': [(payment, why)], 'reason'},
+                       'confirmed': {... the same ...},
+                       'remaining': {'value', 'is': 'confirmed'}},
+         'diagnostic': {'pending': {'value'|None, 'reason', 'payments'}, 'statement_check': {'value'|None, 'reason', 'terms'}},
+         'note': [what was not read]}
+    """
+    missing = [k for k in CATALOGUE_KINDS if k not in catalogue]
+    if missing:
+        raise ValueError(f'remaining: catalogue names no kind for {missing}')
+    role_kind = catalogue['entitled_party']
+    if not any(r.get('of') == role_kind and r.get('boundary') for r in RULED_KINDS.values()):
+        raise ValueError(f'remaining: {role_kind!r} is not a ruled role - no boundary kind is bound to it')
+    if type(obligation).__name__ != 'Obligation':
+        raise ValueError(f'remaining: takes an Obligation; got {type(obligation).__name__}')
+    d = d.isoformat() if hasattr(d, 'isoformat') else str(d)
+    retracted = _retracted(session)
+    persons = {p.party.id for p in session.query(Person).all()}
+
+    def entries(kind, **slot):
+        out = []
+        for claim in session.query(Proposition).filter_by(kind=kind, **slot).order_by(Proposition.id).all():
+            for state, asserter, ground in _claim_states(session, claim, retracted):
+                out.append({'claim': claim.id, 'asserter': asserter, 'state': state, 'ground': ground,
+                            'as_of': claim.as_of, 'content': claim.content, 'value': _money(claim.content),
+                            'party': claim.subject_party_id})
+        return out
+
+    # ── the attachments: every payment 7F's reach returns for O ────────────────────────────────
+    att = reach(session, obligation, PAYMENT_IN_RESPECT_OF_OBLIGATION, as_object=True)
+    by_payment = {}
+    for e in att['endpoints']:
+        by_payment.setdefault(e['id'], []).append((e['claim'], e['asserter'], e['state'], e['ground']))
+    netted = {}
+    for c in session.query(Proposition).filter(Proposition.kind == PAYMENT_COUNTERACTS).order_by(Proposition.id).all():
+        if any(st == CLAIM_ESTABLISHED for st, _, _ in _claim_states(session, c, retracted)):
+            if c.object_payment_id in by_payment:
+                netted[c.object_payment_id] = {'as': 'counteracted', 'claim': c.id}
+            if c.subject_payment_id in by_payment:
+                netted[c.subject_payment_id] = {'as': 'counteraction', 'claim': c.id}
+    payments = []
+    for pid, claims in sorted(by_payment.items()):
+        states = {st for _, _, st, _ in claims}
+        a_state = (CLAIM_ESTABLISHED if CLAIM_ESTABLISHED in states else CLAIM_CONTESTED if CLAIM_CONTESTED in states else CLAIM_CANDIDATE)
+        amount_entries = entries(catalogue['payment_amount'], subject_payment_id=pid)
+        amt, amt_reason = _one_value(amount_entries)
+        date_entries = [dict(e, value=(e['as_of'] or e['content'])) for e in entries(catalogue['occurred_on'], subject_payment_id=pid)]
+        when, when_reason = _one_value(date_entries)
+        acks = []
+        for e in entries(catalogue['acknowledgment'], object_payment_id=pid):
+            rel = session.get(EvidentiaryRelationship, e['ground'])
+            strength = derived_strength(session, rel, knowing)
+            entitled, governing = _entitled_at(session, e['party'], role_kind, obligation.id, e['as_of'])
+            qualifies = (e['state'] == CLAIM_ESTABLISHED and bool(e['as_of']) and e['as_of'] <= d
+                         and entitled == EFFECT_IN and strength == STRENGTH_KNOWING)
+            acks.append({'claim': e['claim'], 'asserter': e['party'], 'as_of': e['as_of'], 'state': e['state'],
+                         'strength': strength, 'entitled': entitled, 'governing': governing, 'qualifies': qualifies})
+        discharge = None
+        if a_state == CLAIM_ESTABLISHED:
+            q = [a for a in acks if a['qualifies']]
+            if q:
+                first = min(q, key=lambda a: (a['as_of'], a['claim']))
+                discharge = {'as_of': first['as_of'], 'claim': first['claim']}
+        station = (STATION_DISCHARGED if discharge else STATION_ATTACHED_UNACKNOWLEDGED if a_state == CLAIM_ESTABLISHED
+                   else STATION_ATTACHED_CONTESTED if a_state == CLAIM_CONTESTED else STATION_ATTACHED_CANDIDATE)
+        payers = sorted({e['party'] for e in entries(catalogue['paid_by'], object_payment_id=pid) if e['state'] == CLAIM_ESTABLISHED})
+        payees = sorted({e['party'] for e in entries(catalogue['paid_to'], object_payment_id=pid) if e['state'] == CLAIM_ESTABLISHED})
+        sign, dir_reason = None, None
+        if not payers or not payees:
+            dir_reason = 'payer or payee not established'
+        elif when is None:
+            dir_reason = 'no date for the entitled-party test'
+        else:
+            payee_e = [_entitled_at(session, x, role_kind, obligation.id, when)[0] for x in payees]
+            payer_e = [_entitled_at(session, x, role_kind, obligation.id, when)[0] for x in payers]
+            if any(x in persons for x in payers) and EFFECT_IN in payee_e:
+                sign = -1
+            elif any(x in persons for x in payees) and EFFECT_IN in payer_e:
+                sign = 1
+            else:
+                dir_reason = ('payee\'s entitled-party role ' + '/'.join(sorted(set(payee_e))) if any(x in persons for x in payers)
+                              else 'neither household -> entitled party nor entitled party -> household')
+        payments.append({'payment': pid, 'attachment': {'state': a_state, 'claims': claims}, 'station': station,
+                         'acknowledgments': acks, 'discharge': discharge,
+                         'amount': {'value': amt, 'reason': amt_reason, 'claims': amount_entries},
+                         'occurred_on': {'value': when, 'reason': when_reason, 'claims': date_entries},
+                         'direction': {'sign': sign, 'reason': dir_reason, 'payers': payers, 'payees': payees},
+                         'netted': netted.get(pid)})
+
+    # ── stated: P-ack history; the governing position S(d) and the previous S' ─────────────────
+    stated_entries = []
+    for e in entries(catalogue['balance'], subject_obligation_id=obligation.id):
+        rel = session.get(EvidentiaryRelationship, e['ground'])
+        utt = rel.utterance
+        asserter = utt.origin_party_id if utt is not None else None
+        entitled, governing = _entitled_at(session, asserter, role_kind, obligation.id, e['as_of'])
+        stated_entries.append({'claim': e['claim'], 'asserter': asserter, 'as_of': e['as_of'], 'state': e['state'],
+                               'value': e['value'], 'strength': derived_strength(session, rel, knowing),
+                               'entitled': entitled, 'governing': governing,
+                               'qualifies': e['state'] == CLAIM_ESTABLISHED and bool(e['as_of']) and e['as_of'] <= d
+                               and entitled == EFFECT_IN and e['value'] is not None})
+
+    def governing_at(limit):
+        q = [x for x in stated_entries if x['qualifies'] and x['as_of'] <= limit]
+        if not q:
+            return None, [], 'no stated position by the entitled party'
+        b = max(x['as_of'] for x in q)
+        at = [x for x in q if x['as_of'] == b]
+        if len({x['value'] for x in at}) > 1:
+            return None, at, 'conflicting stated positions at ' + b
+        return {'claim': at[0]['claim'], 'asserter': at[0]['asserter'], 'as_of': b, 'value': at[0]['value']}, at, None
+    S, conflict, s_reason = governing_at(d)
+    S_prev = None
+    if S is not None:
+        prev_limit = [x['as_of'] for x in stated_entries if x['qualifies'] and x['as_of'] < S['as_of']]
+        if prev_limit:
+            S_prev, _, _ = governing_at(max(prev_limit))
+    stated = {'claims': stated_entries, 'governing': S, 'previous': S_prev, 'conflict': conflict if S is None else [], 'reason': s_reason}
+
+    # ── the figures ───────────────────────────────────────────────────────────────────────────
+    def project(base, lo, hi, discharged_only):
+        fig = {'value': None, 'basis': [], 'inside_base': [], 'excluded': [], 'reason': None}
+        if base is None:
+            fig['reason'] = s_reason
+            return fig
+        total = base['value']
+        reasons = []
+        for pm in payments:
+            pid = pm['payment']
+            if pm['attachment']['state'] != CLAIM_ESTABLISHED:
+                fig['excluded'].append((pid, 'attachment ' + pm['attachment']['state']))
+                continue
+            if pm['netted']:
+                fig['excluded'].append((pid, pm['netted']['as']))
+                continue
+            when = pm['occurred_on']['value']
+            if when is None:
+                reasons.append((pid, 'occurred_on ' + pm['occurred_on']['reason']))
+                continue
+            if when <= lo:
+                fig['inside_base'].append(pid)
+                continue
+            if when > hi:
+                fig['excluded'].append((pid, 'after d'))
+                continue
+            if discharged_only and pm['station'] != STATION_DISCHARGED:
+                fig['excluded'].append((pid, pm['station']))
+                continue
+            if pm['amount']['value'] is None:
+                reasons.append((pid, 'amount ' + pm['amount']['reason']))
+                continue
+            if pm['direction']['sign'] is None:
+                reasons.append((pid, 'direction ' + pm['direction']['reason']))
+                continue
+            fig['basis'].append((pid, pm['direction']['sign'], pm['amount']['value']))
+            total += pm['direction']['sign'] * pm['amount']['value']
+        if reasons:
+            fig['reason'] = 'undetermined: ' + '; '.join(f'payment {pid}: {why}' for pid, why in reasons)
+            fig['undetermined'] = reasons
+        else:
+            fig['value'] = total
+        return fig
+    attached = project(S, S['as_of'] if S else None, d, False)
+    confirmed = project(S, S['as_of'] if S else None, d, True)
+    figures = {'attached': attached, 'confirmed': confirmed, 'remaining': {'value': confirmed['value'], 'is': 'confirmed'}}
+
+    # ── the diagnostic ────────────────────────────────────────────────────────────────────────
+    if attached['value'] is not None and confirmed['value'] is not None:
+        pend = [pid for pid, _, _ in attached['basis'] if pid not in {q for q, _, _ in confirmed['basis']}]
+        pending = {'value': attached['value'] - confirmed['value'], 'reason': None, 'payments': pend}
+    else:
+        pending = {'value': None, 'reason': attached['reason'] or confirmed['reason'], 'payments': []}
+    if S is None:
+        check = {'value': None, 'reason': s_reason, 'terms': None}
+    elif S_prev is None:
+        check = {'value': None, 'reason': 'no previous stated position to check against', 'terms': None}
+    else:
+        between = project(S_prev, S_prev['as_of'], S['as_of'], False)
+        if between['value'] is None:
+            check = {'value': None, 'reason': between['reason'], 'terms': None}
+        else:
+            check = {'value': S['value'] - between['value'], 'reason': None,
+                     'terms': {'stated': S, 'previous': S_prev, 'computed': between['value'], 'attached_between': between['basis']}}
+    return {'obligation': obligation.id, 'd': d, 'role': role_kind, 'payments': payments, 'stated': stated, 'figures': figures,
+            'diagnostic': {'pending': pending, 'statement_check': check},
+            'note': ['a return / rejection kind is not read (D\'10 - the catalogue\'s to rule)',
+                     'a payment attached to several obligations is counted in full on each (D\'12 - the double count is 7I\'s)']}
+
+
 for _name in _IMMUTABLE_REFERENCES:
     event.listen(globals()[_name], 'before_update', _refuse_repoint)
 del _name

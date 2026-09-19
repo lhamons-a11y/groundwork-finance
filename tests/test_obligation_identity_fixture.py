@@ -332,8 +332,12 @@ def run(db):
     check('D4 became representable through the payment slice, and the obligation anchor is unchanged by it',
           'subject_payment_id' in db.Proposition.SUBJECT_SLOTS
           and {c.name for c in db.Obligation.__table__.columns} == {'id', 'minted_by_id', 'created_at'})
-    check('nothing derives disposition, entitlement, discharge or remaining from these claims',
-          not any(hasattr(db, n) for n in ('disposition', 'discharge', 'remaining', 'entitlement_of', 'obligation_state')))
+    # Item 7 pass 7G (CONSUMER_DERIVATIONS.md s 7G.8) built `remaining(session, obligation, d, catalogue, knowing)` - a
+    # read-only consumer that reports three figures and a diagnostic and establishes nothing; this fixture's claims
+    # still derive no disposition, entitlement, discharge or obligation state.
+    check('nothing derives disposition, entitlement, discharge or an obligation state from these claims (item 7\'s read-only remaining() exists and establishes none of them)',
+          callable(getattr(db, 'remaining', None))
+          and not any(hasattr(db, n) for n in ('disposition', 'discharge', 'entitlement_of', 'obligation_state', 'is_discharged', 'remaining_of')))
     check('DebtAccount is untouched and nothing maps it - the asserting party is not a fact in production',
           {c.name for c in db.DebtAccount.__table__.columns} >= {'id', 'name'}
           and not any(hasattr(db, n) for n in ('decompose_debt_account', 'backfill_obligations',

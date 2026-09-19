@@ -2457,3 +2457,85 @@ contributes. Everything else in Dg1–Dg25 stands.
 **Ruling sought:** the numeric construction (1), TG-base (P-ack base; no P-ack → undetermined),
 the invariant (2), the diagnostic rule (3), the direction rule (4), the netting consequence (5),
 RG-a as restated (6) and chosen by Dg22 (7), and the signature note (9).
+
+
+### 7G.8 Ruling — Rob, 2026-09-18: 7G ACCEPTED with one correction recorded before code; build authorised
+
+*Substantially tighter; §7G.7 closes the major hole — an actual arithmetic definition rather than
+a name attached to an intuition.* Rulings: **TG-base accepted** (P-ack is the holder's own
+position; the household's testimony can participate in the evidence model but cannot silently
+become the authoritative starting balance because it contains a number; S(d) visibly carrying b
+is exactly right — otherwise the subtraction rule would conceal the temporal assumption it
+depends on) · **the arithmetic accepted** (no re-subtraction at or before b; undetermined
+propagates; negatives stay negative; no floor; attachment ≠ discharge; netting ≠ discharge) ·
+**the invariant accepted** (*only a discharged payment contributes to `confirmed`* — a useful
+consumer boundary for 7I) · **the diagnostic rule accepted** (`stated − confirmed` correctly
+withdrawn; `pending` and `statement_check` have distinct jobs; no invented zero against a
+missing or conflicted statement) · **direction accepted** (household ↔ the entitled party in
+effect at the payment's date, over the payee's referent — a household payment to an unrelated
+party cannot become a reduction because cash left the household) · **netting accepted**
+(`payment → direction → discharge separately → counteraction → net`, never `counteraction →
+discharge`) · **RG-a accepted** — the Dg22 discriminator makes the choice materially grounded;
+"first-hand" rightly removed; *reading E's held statement does not turn the parser into E* ·
+**`knowing` a registered stand-in for the ruled threshold, not a knob** — the consumer has one
+settled threshold; the catalogue argument is an implementation accommodation, not a policy
+input · **7F `reach` as dependency accepted** · **7I remains unopened.**
+
+**The one semantic correction, recorded before code — the date predicate for a discharged
+payment.** §7G.7's `confirmed` range `b < ack.as_of ≤ d` conflated *when the payment occurred*
+with *when its discharge was established*. Dg26 exposes it: a payment that occurred before b
+and was acknowledged after b is already inside S(d); subtracting it because its acknowledgment
+postdates b double-counts it. **The inclusion condition is two independent predicates:**
+
+```text
+a payment contributes to confirmed(d) only when
+    occurred_on(p) > b          the payment itself postdates the governing statement base
+AND discharge established as_of ≤ d      its discharge is established by d
+```
+
+*The base absorbs everything through b; 7G moves that base only for subsequent payments whose
+discharge is established.* `ack.as_of` never substitutes for `occurred_on` in the base-exclusion
+test: `occurred_on` answers when the economic event happened, `ack.as_of` when E's acknowledgment
+establishes discharge — kept independent, consistent with effective-at never collapsing into
+learned-at. §7G.7's `when_confirmed(p)` is withdrawn; both figures range over `occurred_on`, and
+`confirmed` additionally requires discharge by d. **7G is semantically settled. Build.**
+
+
+#### Built — 2026-09-18 (7G)
+
+`core/database.py`: `remaining(session, obligation, d, catalogue, knowing)` beside `in_effect`, with
+helpers `_money` (a content string as a Decimal or None — no interpretation beyond that),
+`_entitled_at` (7F's answer for a party's entitled-party role on the obligation at a date) and
+`_one_value` (the one established value among claim entries, or *no established claim / unparsed /
+disputed*). A plain dict, computed on read, storing nothing: `payments` (every payment 7F's `reach`
+returns for O — attachment state and claims; station; every acknowledgment with asserter, `as_of`,
+state, strength, 7F's role answer and governing stance, and whether it qualifies under RG-a;
+discharge as the earliest qualifying acknowledgment; amount, `occurred_on`, direction with payers /
+payees and the reason when undetermined; netting) · `stated` (every balance claim with strength,
+role answer and qualification; the governing S(d) named with b; the previous S′; a conflict at the
+governing date listed with no S) · `figures` (`attached`, `confirmed` each with value or None,
+basis, `inside_base`, `excluded`, `undetermined` reasons naming payments; `remaining` = confirmed
+by name) · `diagnostic` (`pending`, `statement_check` with terms; None with the reason where a term
+is missing or conflicted) · `note` (the return kind not read; the cross-obligation double count).
+The §7G.8 correction is in the arithmetic: both figures range over `occurred_on` in (b, d];
+`confirmed` additionally requires discharge established by d; `ack.as_of` is never the base test.
+Refuses by name a catalogue missing a kind, an entitled-party kind no boundary is bound to, a
+non-Obligation. Reads 7F and `derived_strength`; nothing that resolves, scores or allocates;
+`payment_plan.py` untouched; `created_at` never read. The wiring guard applies over the function
+and all three helpers. Fixture `tests/test_remaining_fixture.py` over Dg1–Dg28 (Dg15 folded into
+Dg9) — 40 checks; the RG matrix's discriminator (Dg22) asserted as *established · E in effect ·
+not_knowing · not qualifying*; Dg2′ (a reading is a candidate); Dg26 (occurred before b,
+acknowledged after b → inside the base, discharged, not subtracted); Dg28 the invariant over the
+corpus mechanically. Smoke `s113_remaining.py`, mutations each an attempt to *confirm or
+reconcile*: attachment moves confirmed · clearance is discharge · the servicer's word is E's ·
+a relayed report is knowing (RG-b) · a candidate acknowledgment counts · the acknowledgment date
+replaces `occurred_on` in the base test · direction is a cash-flow sign · net by matching amount ·
+stated and attached averaged into one balance · no base is zero · a cheque allocated across
+obligations · store — twelve, all caught, baseline re-established after every undo. No escape in
+the derivation; one fixture check was vacuous by a typo (`or True`) on the first run and was made
+real. Two absence checks retired truthfully — the obligation-identity and payment-identity
+fixtures' *no `remaining`* — each now asserting `remaining` exists as the read-only consumer and
+that no discharge accessor, confirmed state or payment status does. The first full gate failed twice in `s94_payment_identity`: its mutation *a remaining accessor appears*
+installed a fake `remaining` — meaningful only while none existed — and its undo deleted the real consumer;
+the mutation is now *a discharge accessor appears* (`is_discharged`), which is the boundary the retired check
+actually asserts. No schema, no migration. Gate 1235 → 1262, 0 failed.
