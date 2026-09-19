@@ -3366,3 +3366,14 @@ recency resolver.** *Superseded, never overwritten* is a property of an individu
 underlying claim. **No further resolver, confidence concept, role restriction or reconciliation
 rule is added to 7H.** The opening gives 7H a closed semantic boundary while leaving the machinery
 it borrows from G and 7C intact. **Stop here; the build is not yet authorised.**
+
+
+#### The build, when authorised — scope fixed in advance (Rob, 2026-09-19)
+
+*7I is accepted at `018d8c1`; 7H is opened and ruled through §7H.8 at `af3cebd`. The semantic record
+is complete, and nothing in that acceptance authorises implementation.* The eventual build
+authorisation is narrowly scoped: implement `reconciliation(session, expense, d, catalogue,
+knowing)` · encode Rc1–Rc21 as the fixture boundary · add s115 · run the gate · record the build
+result · do not open 7J · **no additional 7H semantics, resolver, confidence layer, role restriction
+or cross-party recency machinery.** *The implementation must realise the ruled machinery, not
+discover new semantics while coding.* **Stopped until the separate 7H build authorisation.**
