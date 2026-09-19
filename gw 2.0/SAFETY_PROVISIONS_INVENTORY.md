@@ -181,6 +181,8 @@ Everything else in §3.B holds unchanged on this line.
 
 Numbered S so they do not collide with `HEALTH_TRUST_BOUNDARY.md`'s F-series.
 
+**Three failure classes, kept apart (Rob, 2026-09-19).** *Capability by absence* — S1: the model cannot act because there is no tool or action path. *Crossing into durable state* — S10: model output can become application state without provenance or review. *Untrusted text entering the model* — S11: third-party text already crosses into the model, its blast radius bounded today by S1. S9 says what currently contains the system; S1–S8 and S10–S12 say where it crosses, or where containment is weaker than its representation suggests. S10 is not evidence that the Assistant architecture is unsafe; it is evidence that one existing surface already crosses without the controls the 2.0 doctrine would require. Do not collapse these into one notion of "safety".
+
 ### S1 — "we never programmed the agent to go to the bank" is true, and it is true by absence
 
 On every line the provider payload is built from four keys and no `tool_use` block is ever
