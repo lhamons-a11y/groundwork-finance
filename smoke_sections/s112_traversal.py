@@ -105,7 +105,7 @@ def _mutations(db):
                 if inc is not None:
                     kim = next((p.party for p in session.query(db.Person).all() if p.display_name == inc.content), None)
                     if kim is not None:
-                        for m in reach0(session, kim, 'standin_under')['endpoints']:
+                        for m in reach0(session, kim, db.UNDER_PLAN)['endpoints']:
                             out['endpoints'].append(dict(m, claim=None))
             return out
         return _swap_reach(post)

@@ -71,9 +71,6 @@ STAND_INS = {
     'standin_entitled':        _role('subject_party_id', 'object_obligation_id'),
     'standin_entitled_began':  _boundary('standin_entitled', 'began', 'subject_party_id', 'object_obligation_id'),
     'standin_entitled_ended':  _boundary('standin_entitled', 'ended', 'subject_party_id', 'object_obligation_id'),
-    'standin_under':           _role('subject_party_id', 'object_plan_id'),
-    'standin_under_began':     _boundary('standin_under', 'began', 'subject_party_id', 'object_plan_id'),
-    'standin_under_ended':     _boundary('standin_under', 'ended', 'subject_party_id', 'object_plan_id'),
 }
 
 
@@ -119,8 +116,10 @@ def run(db):
     finally:
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
-    check('the stand-in role kinds are removed; the registry is as shipped - 7F ruled no role',
-          db.RULED_KINDS == shipped and not any(r.get('boundary') for r in shipped.values()))
+    # 9A (CATALOGUES.md) built under_plan and its boundaries - the shipped registry now carries exactly those two boundary
+    # entries; 7F ruled no role, and the substitution of the ruled kind for the stand-in changed nothing else here.
+    check('the stand-in role kinds are removed; the registry is as shipped - 7F ruled no role; the only boundary entries are under_plan\'s (9A)',
+          db.RULED_KINDS == shipped and {k for k, r in shipped.items() if r.get('boundary')} == {db.UNDER_PLAN_BEGAN, db.UNDER_PLAN_ENDED})
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -329,9 +328,9 @@ def _run(db):
     msg8 = _refused(db.reach, s, X, 'expense_in_respect_of_plan')
     check('Tr8 (E24): Kim under P1, X is Kim\'s, nothing connects X to P1 -> the (unbuilt) kind is REFUSED BY NAME, never a silent empty list; no candidate manufactured',
           msg8 is not None and 'not ruled' in msg8 and 'expense_in_respect_of_plan' in msg8)
-    claim('standin_under', utterance=utter('Kim is on her employer plan.'), as_of='2026-01-15', subject_party_id=kim_party.id, object_plan_id=P1.id)
-    claim('standin_under', utterance=utter('Kim is on my marketplace plan too.'), as_of='2026-01-15', subject_party_id=kim_party.id, object_plan_id=P2.id)
-    r9 = db.reach(s, kim_party, 'standin_under')
+    claim(db.UNDER_PLAN, utterance=utter('Kim is on her employer plan.'), as_of='2026-01-15', subject_party_id=kim_party.id, object_plan_id=P1.id)
+    claim(db.UNDER_PLAN, utterance=utter('Kim is on my marketplace plan too.'), as_of='2026-01-15', subject_party_id=kim_party.id, object_plan_id=P2.id)
+    r9 = db.reach(s, kim_party, db.UNDER_PLAN)
     check('Tr9 (E2 / F20): Kim under P1 and P2 -> both endpoints; no primary / current key',
           ids(r9) == sorted([P1.id, P2.id]) and not any(k in FORBIDDEN_KEYS for k, _ in _walk(r9)))
     m21 = _refused(db.reach, s, O, 'services')
@@ -339,12 +338,12 @@ def _run(db):
     check('Tr21: an unruled kind -> reach and in_effect both REFUSE BY NAME',
           m21 is not None and "'services'" in m21 and m21b is not None and "'serves'" in m21b)
     m22 = _refused(db.in_effect, s, household, db.OBLIGATION_IN_RESPECT_OF, '2026-05-12')
-    m22b = _refused(db.in_effect, s, household, 'standin_under_began', '2026-05-12')
+    m22b = _refused(db.in_effect, s, household, db.UNDER_PLAN_BEGAN, '2026-05-12')
     check('Tr22: a relation kind to in_effect -> refused ("not a role - no boundary kind is bound to it"); a boundary kind -> refused ("not a role")',
           m22 is not None and 'not a role' in m22 and m22b is not None and 'boundary kind' in m22b)
     m23 = [_refused(db.reach, s, A, db.ARTEFACT_CONCERNS), _refused(db.reach, s, c_ox, db.PROPOSITION_CORRESPONDS),
            _refused(db.reach, s, A, db.ARTEFACT_ORIGIN), _refused(db.reach, s, kim_party, db.PARTY_CORRESPONDS),
-           _refused(db.reach, s, kim_party, 'standin_under_began'), _refused(db.reach, s, X, db.OBLIGATION_IN_RESPECT_OF)]
+           _refused(db.reach, s, kim_party, db.UNDER_PLAN_BEGAN), _refused(db.reach, s, X, db.OBLIGATION_IN_RESPECT_OF)]
     check('Tr23: meta-kinds (concerns, correspondence, origin) and a boundary kind to reach -> refused by name; a thing that does not fill the slot -> refused',
           all(m is not None for m in m23) and 'own derivation' in m23[0] and 'boundary' in m23[4] and 'does not fill' in m23[5])
 
@@ -386,12 +385,12 @@ def _run(db):
     t5b = db.in_effect(s, chase, 'standin_entitled', '2026-05-01')
     check('Ts5 (Rob): holds 1/1 · ended 5/1 · d 3/1 -> IN EFFECT (the ending reads back in effect, agreeing); at 5/1 the ending is G -> NOT IN EFFECT',
           ans(t5, K5.id) == db.EFFECT_IN and nxt(t5, K5.id) == [('ended', '2026-05-01')] and ans(t5b, K5.id) == db.EFFECT_NOT)
-    stance('standin_under_began', kim_party, '2026-01-01', object_plan_id=P1.id)
-    stance('standin_under_ended', kim_party, '2026-06-30', utterance=utter('Coverage ended June 30.', origin=aetna), object_plan_id=P1.id)
-    stance('standin_under_ended', kim_party, '2026-12-31', utterance=utter('It runs through December.'), object_plan_id=P1.id)
-    t6 = db.in_effect(s, kim_party, 'standin_under', '2026-07-15')
-    t6b = db.in_effect(s, kim_party, 'standin_under', '2026-05-01')
-    t6c = db.in_effect(s, kim_party, 'standin_under', '2027-01-15')
+    stance(db.UNDER_PLAN_BEGAN, kim_party, '2026-01-01', object_plan_id=P1.id)
+    stance(db.UNDER_PLAN_ENDED, kim_party, '2026-06-30', utterance=utter('Coverage ended June 30.', origin=aetna), object_plan_id=P1.id)
+    stance(db.UNDER_PLAN_ENDED, kim_party, '2026-12-31', utterance=utter('It runs through December.'), object_plan_id=P1.id)
+    t6 = db.in_effect(s, kim_party, db.UNDER_PLAN, '2026-07-15')
+    t6b = db.in_effect(s, kim_party, db.UNDER_PLAN, '2026-05-01')
+    t6c = db.in_effect(s, kim_party, db.UNDER_PLAN, '2027-01-15')
     check('Ts6 (R5): began 1/1 · ended 6/30 (Aetna) · ended 12/31 (Rob) -> 7/15 CONTESTED with G [ended 6/30] and N [ended 12/31] both named; 5/1 IN EFFECT; 1/15/27 NOT IN EFFECT - nothing chosen by date or party',
           ans(t6, P1.id) == db.EFFECT_CONTESTED and gov(t6, P1.id) == [('ended', '2026-06-30')] and nxt(t6, P1.id) == [('ended', '2026-12-31')]
           and {st['asserter'] for st in t6['identities'][P1.id]['governing'] + t6['identities'][P1.id]['next']} == {aetna.id, household.id}
@@ -434,8 +433,8 @@ def _run(db):
     check('Ts12 (R6): the beginning retracted -> UNDETERMINED, not "ended"; the retracted stance listed as contested; governing []',
           ans(t12, K12.id) == db.EFFECT_UNDETERMINED and gov(t12, K12.id) == []
           and [st['state'] for st in t12['identities'][K12.id]['stances']] == [db.CLAIM_CONTESTED])
-    stance('standin_under_began', kim_party, '2026-07-01', object_plan_id=P2.id)
-    t13 = db.in_effect(s, kim_party, 'standin_under', '2026-08-01')
+    stance(db.UNDER_PLAN_BEGAN, kim_party, '2026-07-01', object_plan_id=P2.id)
+    t13 = db.in_effect(s, kim_party, db.UNDER_PLAN, '2026-08-01')
     check('Ts13 (R7 / Tr13): Kim under P1 (began 1/1, contested ending) and P2 (began 7/1) -> in August P2 IN EFFECT and P1 CONTESTED, per identity; the in_effect list is a fact; nothing resolved, no primary',
           ans(t13, P2.id) == db.EFFECT_IN and ans(t13, P1.id) == db.EFFECT_CONTESTED and t13['in_effect'] == [P2.id]
           and not any(k in FORBIDDEN_KEYS for k, _ in _walk(t13)))
@@ -475,7 +474,7 @@ def _run(db):
     print('\n9. Tr20 / Tr25 / Tr26 - surfaced not stored; null models; where the failure appears\n')
     before = snapshot()
     reports = [db.reach(s, O, db.OBLIGATION_IN_RESPECT_OF), db.reach(s, X, db.OBLIGATION_IN_RESPECT_OF, as_object=True),
-               db.reach(s, kim_party, 'standin_under'), db.in_effect(s, kim_party, 'standin_under', '2026-08-01'),
+               db.reach(s, kim_party, db.UNDER_PLAN), db.in_effect(s, kim_party, db.UNDER_PLAN, '2026-08-01'),
                db.in_effect(s, chase, 'standin_entitled', '2026-03-01'), db.in_effect(s, e1, 'standin_entitled', '2026-05-12')]
     check('Tr20: six reads wrote nothing - every row identical; no period / interval / status / current column or table exists',
           snapshot() == before

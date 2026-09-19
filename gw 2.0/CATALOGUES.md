@@ -156,3 +156,72 @@ stand-ins.
 
 **What 9A leaves exactly where it found it:** the subscriber role and the rest of the catalogue
 (9B) · E (9C) · the insurer's stance catalogue (9D) · every consumer · D′.11.
+
+### 9A.5 Ruling — Rob, 2026-09-19: 9A build AUTHORISED
+
+*Cleanly scoped: 9A is a substitution proof, not an opportunity to reinterpret F.* Held to: **(1)**
+exactly the three accepted entries with the party → plan relationship and boundary metadata — no
+additional role or value semantics; **(2)** F1–F20 the semantic oracle, including F5's evidence
+boundary, F20's mandatory condition, F13 / F14's convergence in both directions; **(3)** the
+consumer substitution is the decisive test — the 7F and 7J fixtures identical except for replacing
+the stand-in with the catalogue kind; *the consumer's inputs, branching, outputs and interpretation
+remain unchanged; only the identity of the relation supplied to it changes*; **(4)** the three
+retirements demonstrate the old absence / stand-in machinery is actually retired rather than left
+ambiguously alive; **(5)** s117 may expose coupling — if a consumer needs structural change beyond
+the substitution, do not repair the fixture; that is a finding to inspect before proceeding. **One
+boundary added: the registry entries are not a second semantic source.** The build establishes
+*this ruled kind exists in the catalogue with the already-accepted relation / boundary definition*
+and nothing new about who may assert `UNDER_PLAN`, what counts as knowing, candidate generation,
+role participation, or any 9B relation — those belong to their passes. *If the consumer
+substitution requires semantic changes, stop there rather than solving them inside 9A.*
+
+#### Built — 2026-09-19 (9A)
+
+`core/database.py`: `UNDER_PLAN`, `UNDER_PLAN_BEGAN`, `UNDER_PLAN_ENDED` — three registry entries exactly
+as §F.8 accepted at §F.10: party subject, plan object, `symmetric False · reading_establishes False ·
+relational_knowing True`, no `knowing_relation`; the two boundaries with `boundary began / ended · of
+under_plan` — the boundary metadata's first shipped entries, the registry guard passing at import. One
+comment block states F's meaning once (the floor, the evidence boundary, the NOT-block) and says
+that the entry is not a second semantic source. **Nothing else** — no asserter guard, no knowing
+relation, no candidate machinery, no other role.
+
+**The oracle:** `tests/test_under_plan_fixture.py` over F1–F20 — 27 checks: F5 (Lakeview Health's *never
+eligible* beside, the household's claims standing unchanged), F20 (two plans, two claims, no
+selector) with F7's overlap, F13 and F14 in both directions (nothing about an expense from
+membership; no membership from an expense), F15 (the insurer as a party may assert; from a reading
+a candidate), F16 (a non-Person party), F17 (a plan-subject claim refused by the registry; no
+inverse), the boundary guard on the real kind (`as_of` required; mismatched participants refused),
+and the 9B absences (no named knowing relation, no asserter guard, no matcher, no other role kind).
+One check reads the 7F consumer over the ruled kind (P2 in effect, P contested by its two endings)
+— the same answers the stand-in gave.
+
+**The substitution — the decisive test:** `tests/test_traversal_fixture.py` and
+`tests/test_accumulator_fixture.py` changed by exactly the stand-in's name → the ruled kind's
+(`'standin_under'` → `db.UNDER_PLAN`, and its boundaries; the three registrations dropped; the 7J
+catalogue line `'under_plan': 'under_plan'`); **41/41 and 31/31, identical counts, no other
+change** — the consumers' inputs, branching, outputs and interpretation unchanged; only the identity
+of the relation supplied changed. `s112`'s *infer the plan from membership* mutation named the
+stand-in and now names the ruled kind (a mutation, not a consumer).
+
+**The retirements, truthfully:** (1) item 5's `standin_covered_under` and its boundaries retired
+*into* `under_plan` and its boundaries — the role-period fixture now exercises RP2's grammar on the
+ruled kind (28/28); (2) its *the shipped registry rules NO role kind and carries NO boundary entry*
+→ *exactly one role kind and exactly its two boundary entries; the rest of the catalogue a separate
+ruling* — and the same assertion in `s100_role_period` (*no boundary entry of its own*), which is
+the same absence stated twice; (3) the plan fixture's *membership (item 5) is not built* → *built as
+`under_plan`, a claim never a slot on the anchor; no member manufactured here* (35/35). **One more
+of the same class, reported rather than hidden:** the 7F fixture's closing assertion *the registry
+is as shipped — 7F ruled no role* also asserted *no boundary entries at all*; narrowed to *the only
+boundary entries are under_plan's (9A)*. 7F's own claim (it ruled no role) stays true; the absence
+half was item 5's, restated in 7F's fixture.
+
+**Smoke `s117_under_plan.py`:** the fixture passes; seven mutations, each an attempt to give the
+endpoint a meaning — `plan_members` · `current_plan_of` · membership from the card
+(`reading_establishes` flipped) · membership from an expense (F14 reversed, firing on either
+insert order) · an expense from membership (F13 / E24) · a `members` column on the anchor ·
+`is_eligible` from the insurer's stance — all caught, baseline re-established after every undo.
+One mutation escaped on the first run because it fired only on one insert order; the mutation was
+made order-independent, the fixture and the derivation untouched.
+
+**No coupling exposed:** the swap needed no structural change in either consumer. No schema, no
+migration. Gate 1333 → 1350, 0 failed.

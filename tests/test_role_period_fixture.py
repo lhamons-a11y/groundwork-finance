@@ -8,8 +8,9 @@ establish continuous effect, or itself create a role.
 
 NO ROLE KIND IS RULED BY THIS SLICE. Every role kind here is a STAND-IN the fixture registers and
 removes: `serves` / `serves_began` / `serves_ended` (party <-> party), `standin_role_of_obligation`
-and its boundaries (party <-> obligation), `standin_covered_under` and its boundaries (party <->
-plan). Their names carry no ruling; `standin_covered_under` in particular is NOT "covered under" -
+and its boundaries (party <-> obligation). The party <-> plan stand-in (`standin_covered_under`) was retired into the
+RULED kind `under_plan` and its boundaries by item 9 pass 9A (CATALOGUES.md, 2026-09-19) - the first ruled role kind;
+this fixture now exercises RP2's grammar on it as built. `standin_covered_under` was NOT "covered under" -
 that relation's meaning is a separate ruling, and Plan's existence gives it none.
 
 What this slice can and cannot exercise
@@ -105,16 +106,16 @@ STAND_INS = {
     'standin_role_of_obligation':    _role('subject_party_id', 'object_obligation_id'),
     'standin_role_of_obligation_began': _boundary('standin_role_of_obligation', 'began', 'subject_party_id', 'object_obligation_id'),
     'standin_role_of_obligation_ended': _boundary('standin_role_of_obligation', 'ended', 'subject_party_id', 'object_obligation_id'),
-    'standin_covered_under':         _role('subject_party_id', 'object_plan_id'),
-    'standin_covered_under_began':   _boundary('standin_covered_under', 'began', 'subject_party_id', 'object_plan_id'),
-    'standin_covered_under_ended':   _boundary('standin_covered_under', 'ended', 'subject_party_id', 'object_plan_id'),
 }
 
 
 def run(db):
     shipped = {k: v for k, v in db.RULED_KINDS.items()}
-    check('the shipped registry rules NO role kind and carries NO boundary entry - the catalogue is a separate ruling',
-          not any(r.get('boundary') or r.get('of') for r in shipped.values())
+    # Item 9 pass 9A built under_plan and its boundaries as accepted in pass F: the shipped registry now rules exactly ONE
+    # role kind and carries exactly its two boundary entries; the rest of the catalogue stays a separate ruling (9B).
+    check('the shipped registry rules exactly one role kind (under_plan, 9A) and carries exactly its two boundary entries - the rest of the catalogue is a separate ruling',
+          {k for k, r in shipped.items() if r.get('boundary')} == {'under_plan_began', 'under_plan_ended'}
+          and {r['of'] for r in shipped.values() if r.get('of')} == {'under_plan'}
           and not any(n in shipped for n in REAL_ROLE_NAMES))
     for k in STAND_INS:
         assert k not in db.RULED_KINDS, k
@@ -243,25 +244,25 @@ def _run(db):
     s.add(P)
     s.commit()
     u_began = utter('Kim has been on it since January 1.', '2026-01-05T09:00:00')
-    p_kb = prop('standin_covered_under_began', as_of='2026-01-01', created=datetime(2026, 1, 5, 9), subject_party_id=kim_party.id, object_plan_id=P.id)
+    p_kb = prop(db.UNDER_PLAN_BEGAN, as_of='2026-01-01', created=datetime(2026, 1, 5, 9), subject_party_id=kim_party.id, object_plan_id=P.id)
     evidence(p_kb, utterance=u_began)
     u_letter = utter('Coverage terminated effective June 30.', '2026-08-15T09:00:00', origin=aetna)
-    p_ke = prop('standin_covered_under_ended', as_of='2026-06-30', created=datetime(2026, 8, 15, 9), subject_party_id=kim_party.id, object_plan_id=P.id)
+    p_ke = prop(db.UNDER_PLAN_ENDED, as_of='2026-06-30', created=datetime(2026, 8, 15, 9), subject_party_id=kim_party.id, object_plan_id=P.id)
     evidence(p_ke, utterance=u_letter)
     check('R3: the beginning created no holds-at claim for the stand-in - the role exists as claims only when a party makes them',
-          claims('standin_covered_under').count() == 0)
+          claims(db.UNDER_PLAN).count() == 0)
     check('R3: the ending is its own claim - as_of 6/30 (effective), created 8/15 (learned), the insurer\'s provenance - not a coordinate on the beginning',
           p_ke.as_of == '2026-06-30' and p_ke.created_at == datetime(2026, 8, 15, 9)
           and s.query(db.EvidentiaryRelationship).filter_by(proposition_id=p_ke.id).one().utterance.origin_party_id == aetna.id
           and p_kb.as_of == '2026-01-01')
-    record_on_jul_1 = s.query(db.Proposition).filter(db.Proposition.kind.like('standin_covered_under%'),
+    record_on_jul_1 = s.query(db.Proposition).filter(db.Proposition.kind.like('under_plan%'),
                                                      db.Proposition.created_at <= datetime(2026, 7, 1)).all()
     check('R3: what the record held on 7/1 replays - a beginning and no ending; the prior belief survives because nothing was rewritten',
-          [p.kind for p in record_on_jul_1] == ['standin_covered_under_began']
+          [p.kind for p in record_on_jul_1] == [db.UNDER_PLAN_BEGAN]
           and s.get(db.Proposition, p_kb.id).as_of == '2026-01-01')
     check('R3: the ending did not touch the beginning row, and cannot - references and kind are immutable; as_of is a claim\'s own',
-          (lambda: (p_kb.as_of, setattr(p_kb, 'kind', 'standin_covered_under_ended'), _refused(s, p_kb))[2])()
-          and s.get(db.Proposition, p_kb.id).kind == 'standin_covered_under_began')
+          (lambda: (p_kb.as_of, setattr(p_kb, 'kind', db.UNDER_PLAN_ENDED), _refused(s, p_kb))[2])()
+          and s.get(db.Proposition, p_kb.id).kind == db.UNDER_PLAN_BEGAN)
 
     print('\n4. R4 / R5 / R6 - three transitions; a disputed ending; retraction is not ending\n')
     u_again = utter('Chase took it back over in September.', '2026-09-10T09:00:00')
@@ -270,10 +271,10 @@ def _run(db):
     check('R4: began / ended / began - three claims at three dates; Chase is one party; no "current servicer" is written',
           claims('serves_began', subject_party_id=chase.id).count() == 2 and claims('serves_ended', subject_party_id=chase.id).count() == 1
           and s.get(db.Party, chase.id) is not None and not any(hasattr(db, n) for n in CONSUMER_NAMES))
-    p_ke2 = prop('standin_covered_under_ended', as_of='2026-12-31', subject_party_id=kim_party.id, object_plan_id=P.id)
+    p_ke2 = prop(db.UNDER_PLAN_ENDED, as_of='2026-12-31', subject_party_id=kim_party.id, object_plan_id=P.id)
     evidence(p_ke2, utterance=utter('No - we paid through December; it ended 12/31.', '2026-08-16T09:00:00'))
     check('R5: two claims about the ending - 6/30 by the insurer, 12/31 by the household - both stand; nothing chosen, nothing deleted',
-          claims('standin_covered_under_ended', subject_party_id=kim_party.id, object_plan_id=P.id).count() == 2
+          claims(db.UNDER_PLAN_ENDED, subject_party_id=kim_party.id, object_plan_id=P.id).count() == 2
           and s.get(db.Proposition, p_ke.id) is not None and s.get(db.Proposition, p_ke2.id) is not None)
     n_ended = claims('serves_ended').count()
     r = db.Proposition(kind=db.UTTERANCE_RETRACTION, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_NONE,
@@ -289,10 +290,10 @@ def _run(db):
     P2 = db.Plan(minted_by_id=utter('And the marketplace plan from July.', '2026-07-03T09:00:00').id)
     s.add(P2)
     s.commit()
-    p_kb2 = prop('standin_covered_under_began', as_of='2026-07-01', subject_party_id=kim_party.id, object_plan_id=P2.id)
+    p_kb2 = prop(db.UNDER_PLAN_BEGAN, as_of='2026-07-01', subject_party_id=kim_party.id, object_plan_id=P2.id)
     evidence(p_kb2, utterance=utter('Kim went on the marketplace plan July 1.', '2026-07-03T09:05:00'))
     check('R7: two beginnings for Kim under two plans - both rows accepted; the record shows the state and neither refuses nor resolves it',
-          claims('standin_covered_under_began', subject_party_id=kim_party.id).count() == 2
+          claims(db.UNDER_PLAN_BEGAN, subject_party_id=kim_party.id).count() == 2
           and not any(hasattr(db, n) for n in ('overlap_policy', 'resolve_overlap', 'refuse_overlap')))
     p_orphan = prop('serves_ended', as_of='2025-12-31', subject_party_id=e1.id, object_party_id=household.id)
     evidence(p_orphan, utterance=utter('The lender stopped servicing at the end of last year.', '2026-01-06T09:00:00'))
@@ -317,10 +318,10 @@ def _run(db):
     rd = db.Reading(artefact_id=card.id, reader_process='ocr/2', read_at=datetime(2026, 1, 20))
     s.add(rd)
     s.commit()
-    p_since = prop('standin_covered_under_began', as_of='2026-01-01', subject_party_id=kim_party.id, object_plan_id=P.id)
+    p_since = prop(db.UNDER_PLAN_BEGAN, as_of='2026-01-01', subject_party_id=kim_party.id, object_plan_id=P.id)
     e_since = evidence(p_since, reading=rd)
     check('R11: "Member since 01/01/2026" read from the card is a candidate at most - reading_establishes is False for every boundary kind',
-          not db.RULED_KINDS['standin_covered_under_began']['reading_establishes']
+          not db.RULED_KINDS[db.UNDER_PLAN_BEGAN]['reading_establishes']
           and e_since.reading_id == rd.id and e_since.utterance_id is None
           and db.derived_strength(s, e_since, KNOWING) == db.STRENGTH_UNDETERMINED)
 

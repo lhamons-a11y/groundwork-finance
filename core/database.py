@@ -1943,6 +1943,41 @@ ARTEFACT_CONCERNS = 'artefact_concerns'
 # is relational too). The relational form is a separate ruling, forced by the first consumer.
 UTTERANCE_RETRACTION = 'utterance_retraction'
 
+# ── Item 9 pass 9A: under_plan - the FIRST RULED ROLE KIND, built as accepted ─────────────
+# gw 2.0/RELATION_SEMANTICS.md pass F (s F.8, accepted s F.10) built by gw 2.0/CATALOGUES.md s 9A
+# (2026-09-19) as a substitution proof - the accepted relation and boundary definition, nothing
+# more. `under_plan(P, Q)` means EXACTLY: *the asserting party holds that established party P is
+# under established plan Q at the date the assertion concerns* - the asserted relationship between
+# this party and this plan, independent of what the insurer believes about eligibility or coverage.
+# An EVIDENCE BOUNDARY, not a declaration of eligibility: an assertion that a party is under a plan
+# does not cease to be one because another party asserts the party was ineligible - contest is
+# derived and nothing is chosen (F5). Party subject (structurally a party, so an individual the
+# household names without being a Person can be under a plan - F16), plan object, direction fixed
+# by type, no inverse kind, no cardinality (a party under several plans is two claims and no
+# resolver selects one - F20; a plan for several parties; overlap represented, never resolved - F7),
+# established only by a party's assertion with both endpoints established (the household, or the
+# insurer as a party - F15); a card, a portal, a member ID or an enrollment record yields at most a
+# candidate (reading_establishes False); knowing undetermined (relational_knowing True, no relation
+# - who may assert it and who is knowing are the role catalogue's, 9B, not this build's).
+#
+# RP2's temporal grammar binds to it: `under_plan_began` / `under_plan_ended`, each a proposition
+# with its own provenance and learned-at time, `as_of` the date asserted about, bound by the
+# registry's boundary metadata under the existing structural guard - the metadata's first entries.
+# A beginning implies no ending, an ending implies no beginning and rewrites nothing, retraction is
+# not an ending (F6), a period is never written, "in effect on d" is a derivation (7F).
+#
+# It derives NOTHING about any expense - a party under a plan attributes nothing of theirs to it
+# (F13, E24) and an expense in respect of a plan makes nobody a member (F14) - and nothing about
+# coverage of any service, the subscriber (F10), the premium or the plan's terms:
+#     under_plan != enrolled != eligible != subscriber != covered
+#                != plan_covers_expense != plan_covers_obligation != plan_covers_payment != premium_active
+# Membership is not an attribute of the plan, the party or the expense; a plan with no such claims
+# has no known members, which is not no members (F12). Plan's existence supplied the endpoint;
+# pass F supplied the meaning; the registry entry is not a second semantic source.
+UNDER_PLAN = 'under_plan'
+UNDER_PLAN_BEGAN = 'under_plan_began'
+UNDER_PLAN_ENDED = 'under_plan_ended'
+
 RULED_KINDS = {
     ARTEFACT_ORIGIN:      {'subject': ('subject_artefact_id',), 'object': ('object_party_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': False},
@@ -2001,6 +2036,17 @@ RULED_KINDS = {
     UTTERANCE_RETRACTION: {'subject': ('subject_utterance_id',), 'object': (),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
                            'knowing_relation': KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE},
+    # under_plan (item 9 pass 9A, F as accepted): the first ruled role kind, party -> plan; relational_knowing
+    # True and NO knowing_relation - undetermined by design until the role catalogue (9B) rules it.
+    UNDER_PLAN:           {'subject': ('subject_party_id',), 'object': ('object_plan_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
+    # RP2's boundaries bound to it - the boundary metadata's first shipped entries.
+    UNDER_PLAN_BEGAN:     {'subject': ('subject_party_id',), 'object': ('object_plan_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
+                           'boundary': 'began', 'of': UNDER_PLAN},                # BOUNDARY_BEGAN (defined below)
+    UNDER_PLAN_ENDED:     {'subject': ('subject_party_id',), 'object': ('object_plan_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
+                           'boundary': 'ended', 'of': UNDER_PLAN},                # BOUNDARY_ENDED (defined below)
 }
 
 # ── Item 5: the role period ───────────────────────────────────────────────────

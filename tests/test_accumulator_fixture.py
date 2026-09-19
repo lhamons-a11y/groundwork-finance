@@ -72,16 +72,13 @@ STAND_INS = {
     'standin_insurer':         _role('subject_party_id', 'object_expense_id'),
     'standin_insurer_began':   _boundary('standin_insurer', 'began', 'subject_party_id', 'object_expense_id'),
     'standin_insurer_ended':   _boundary('standin_insurer', 'ended', 'subject_party_id', 'object_expense_id'),
-    'standin_under':           _role('subject_party_id', 'object_plan_id'),
-    'standin_under_began':     _boundary('standin_under', 'began', 'subject_party_id', 'object_plan_id'),
-    'standin_under_ended':     _boundary('standin_under', 'ended', 'subject_party_id', 'object_plan_id'),
     'standin_plan_insurer':    _role('subject_party_id', 'object_plan_id'),
     'standin_plan_insurer_began': _boundary('standin_plan_insurer', 'began', 'subject_party_id', 'object_plan_id'),
     'standin_plan_insurer_ended': _boundary('standin_plan_insurer', 'ended', 'subject_party_id', 'object_plan_id'),
     'standin_x_in_respect_of_plan': _role('subject_expense_id', 'object_plan_id'),     # E's kind, a stand-in until E is built
     'standin_incurred_by':     _role('subject_party_id', 'object_expense_id'),
 }
-CATALOGUE = {'occurred_on': 'occurred_on', 'insurer_of': 'standin_insurer', 'under_plan': 'standin_under', 'plan_insurer': 'standin_plan_insurer',
+CATALOGUE = {'occurred_on': 'occurred_on', 'insurer_of': 'standin_insurer', 'under_plan': 'under_plan', 'plan_insurer': 'standin_plan_insurer',
              'eligibility': 'eligibility', 'deductible': 'deductible', 'individual_deductible': 'individual_deductible', 'plan_year': 'plan_year',
              'deductible_applied': 'deductible_applied', 'expense_in_respect_of_plan': 'standin_x_in_respect_of_plan',
              'applied_to_deductible': 'applied_to_deductible', 'incurred_by': 'standin_incurred_by'}
@@ -316,8 +313,8 @@ def _run(db):
           and _refused(db.accumulator, s, kim_party, '2026-08-01', CATALOGUE, KNOWING) is not None)
 
     print('\n2. Ju1 / Ju2 / Ju3 - plans in effect: overlap a fact; the insurer\'s stances beside; the letter a candidate\n')
-    role_on('standin_under', kim_party, 'object_plan_id', P1, began='2026-01-01')
-    role_on('standin_under', kim_party, 'object_plan_id', P2, began='2026-07-01')
+    role_on(db.UNDER_PLAN, kim_party, 'object_plan_id', P1, began='2026-01-01')
+    role_on(db.UNDER_PLAN, kim_party, 'object_plan_id', P2, began='2026-07-01')
     r1 = pie(kim_party, '2026-08-01')
     check('Ju1 (F20 / R7): Kim under P1 (1/1) and P2 (7/1) -> August: BOTH in effect; overlap = [P1, P2] - a fact; no primary / winner key; G named on each',
           sorted(r1['in_effect']) == sorted([P1.id, P2.id]) and sorted(r1['overlap']) == sorted([P1.id, P2.id])
@@ -329,12 +326,12 @@ def _run(db):
           and sorted(r2['in_effect']) == sorted([P1.id, P2.id]))
     _, rL = held('h-aetna-letter', aetna)
     eligibility(kim_party, P1, aetna, 'terminated retroactively to 6/30', '2026-06-30', reading=rL)
-    claim('standin_under_ended', reading=rL, as_of='2026-06-30', subject_party_id=kim_party.id, object_plan_id=P1.id)   # the letter, read: a candidate ending
+    claim(db.UNDER_PLAN_ENDED, reading=rL, as_of='2026-06-30', subject_party_id=kim_party.id, object_plan_id=P1.id)   # the letter, read: a candidate ending
     r3a = pie(kim_party, '2026-08-01')
     check('Ju3 (Pl12): Aetna\'s letter read -> the eligibility stance a CANDIDATE and the ending a candidate stance; membership UNCHANGED (in effect) - the letter does not silently terminate',
           r3a['plans'][P1.id]['answer'] == db.EFFECT_IN and any(e['state'] == db.CLAIM_CANDIDATE for e in r3a['plans'][P1.id]['eligibility'])
           and any(st['state'] == db.CLAIM_CANDIDATE and st['sort'] == 'ended' for st in r3a['plans'][P1.id]['stances']))
-    claim('standin_under_ended', utterance=utter('ended 6/30'), as_of='2026-06-30', subject_party_id=kim_party.id, object_plan_id=P1.id)   # Rob asserts the ending
+    claim(db.UNDER_PLAN_ENDED, utterance=utter('ended 6/30'), as_of='2026-06-30', subject_party_id=kim_party.id, object_plan_id=P1.id)   # Rob asserts the ending
     r3b = pie(kim_party, '2026-08-01')
     check('Ju3: once the household asserts the ending, P1 is NOT in effect in August (7F); only P2 remains; no overlap',
           r3b['plans'][P1.id]['answer'] == db.EFFECT_NOT and r3b['in_effect'] == [P2.id] and r3b['overlap'] == [])

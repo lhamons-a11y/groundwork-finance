@@ -283,9 +283,11 @@ def run(db):
           not any('plan' in c.name for c in db.Expense.__table__.columns)
           and not any(k in db.RULED_KINDS for k in ('covered_by', 'plan_covers', 'expense_plan', 'adjudicated_under'))
           and not any(hasattr(db, n) for n in ('plan_of_expense', 'plan_covering', 'which_plan', 'coverage_of')))
-    check('membership (item 5) is not built - no kind, no slot on the anchor, no claim of a person under P',
-          not any(k in db.RULED_KINDS for k in ('member_of', 'covered_under', 'membership', 'enrolled_in'))
-          and s.query(db.Proposition).filter_by(object_plan_id=P.id).filter(db.Proposition.subject_party_id.isnot(None)).count() == 0)
+    # Item 9 pass 9A built membership as pass F ruled it - `under_plan`, a party -> plan role claim, no slot on the anchor.
+    check('membership is built as under_plan (9A) - a claim, never a slot on the anchor; no member_of / covered_under / enrolled_in kind; no member is manufactured here',
+          db.UNDER_PLAN in db.RULED_KINDS and not any(k in db.RULED_KINDS for k in ('member_of', 'covered_under', 'membership', 'enrolled_in'))
+          and 'members' not in {c.name for c in db.Plan.__table__.columns}
+          and s.query(db.Proposition).filter_by(kind=db.UNDER_PLAN, object_plan_id=P.id).count() == 0)
 
     print('\n9. Absences; audits; the 1.x rows\n')
     check('no schema beyond the anchor and the additive slots; no accumulator, coverage, status or which-plan consumer',
