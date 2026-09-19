@@ -3617,3 +3617,58 @@ and priority (fenced) · coverage ③ · the tax engine · 1.x `plan_year` · D�
 *The line: the record can tell you who is on which plan and how much the insurer says has been
 applied — and it will tell you two numbers when there are two, and none when there is none,
 before it ever tells you that you are covered or that you have met anything.*
+
+
+### 7J.7 Ruling — Rob, 2026-09-19: 7J RULED as written; no code authorised by this ruling
+
+**1. `plans_in_effect` is a fact report, not a coverage resolver.** The derivation is exactly:
+*which plans are established as in effect for the person on d, under F's membership machinery.*
+Multiple established plans produce multiple plans in effect — an overlap fact; no `primary`, no
+selector, no precedence rule, no attempt to decide which plan "really" covers the person. The
+insurer's `eligible` / `terminated` positions are a separate dated-claim surface: they do not
+override the household's membership position and do not themselves create or remove membership;
+candidate material remains candidate material. **Pl12's retroactive letter cannot silently become
+a termination merely because the insurer asserts it.**
+
+**2. `accumulator` has three deliberately independent axes.** The term is its own proposition —
+numeric → the rule exists with that amount; `none` → the rule does not exist; `unknown` → no
+established claim of the rule exists — three states kept distinct: `none` is not zero and
+`unknown` is not `none`. The stated accumulator is the insurer's established stance, governed and
+named under G / Pl10, **not replaced by the derived calculation**. The derived accumulator is a
+constrained sum: within the governing plan-year window; only the insurer's own established
+`applied_to_deductible` stances; only for expenses the household has asserted in respect of P;
+each plan deriving only its own share; **no membership-to-application inference** — E's stand-in
+relation read as the applicable asserted fact, not reconstructed from the fact that someone
+belongs to a plan.
+
+**3. Exempt and unadjudicated expenses remain visible**, never silently folded into arithmetic:
+an exempt expense is excluded from the sum and listed as exempt; an expense lacking the required
+adjudication is neither treated as zero nor ignored — it makes the derived figure undetermined
+with the expense named — preserving *this expense contributes zero* versus *we cannot establish
+whether this expense contributes*.
+
+**4. `dispute` and `remaining` are consequences, not new determinations.** Where both sides are
+numerically established, `dispute = stated − derived` and `remaining = term − derived`, the latter
+permitted to be negative when the derived amount exceeds the term. Neither becomes a stored fact,
+verdict, eligibility determination or Boolean. **There is no `met` key**; a deductible whose term is
+`unknown` or `none` cannot acquire a fabricated *met* state merely because an arithmetic path
+happens to produce zero.
+
+**5. Concurrent plans stay concurrent.** CC1's rule is the fence: each plan knows its own share.
+7J must not sum multiple plans into a single household accumulator, select one plan, or apportion
+an expense merely because several plans are in effect. Pl2's family / individual distinction
+remains whatever the applicable plan's established term says; 7J invents no household-level
+governing figure.
+
+**6. No Boolean eligibility / coverage verdict.** 7J does not answer *is this person covered? ·
+which plan covers this expense? · is the deductible met? · which insurer governs? · is the
+household's figure correct?* It reports the established positions and derives only the explicitly
+ruled arithmetic from them.
+
+**Boundary.** The two consumers are properly distinct — `plans_in_effect` → established membership
+positions in effect on d, including overlap; `accumulator` → term + stated position + constrained
+derived accumulation, with dispute / remaining as arithmetic consequences. Nothing in 7J resolves
+the overlap F reports; nothing converts insurer eligibility assertions into membership. Ju1–Ju19
+are the right candidate boundary, including the null model and the failure loci. **No additional
+resolver, Boolean, household authority, `met` state or persistence mechanism.** **7J ruled as
+written. No code is authorised by this ruling; stopped until the separate 7J build authorisation.**
