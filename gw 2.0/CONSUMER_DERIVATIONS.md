@@ -2897,3 +2897,55 @@ confirmed value; `at⁻` the calendar day before the change; `unaccounted = afte
 number with its terms and no reading."* Cases Di20–Di23 added. **Ruling sought:** the partition
 (1), one hop (2), the eligibility invariant (3), `at⁻` (4), the arithmetic definition (5), the
 null-model discriminators (6), and the pass as amended.
+
+
+### 7I.8 Ruling — Rob, 2026-09-19: 7I ACCEPTED as amended at `f6bd680`; build authorised
+
+*The correction to the original partition is substantive and the right correction: the after side
+is not disjoint by obligation. A predecessor can legitimately appear on both sides, but only as two
+temporally distinct readings — what preserves B5 without turning the reconstruction into `O1 −
+O1`.* All six accepted: **partition** (P the direct predecessor side, N the direct successor side,
+P-restated contributing to `after` only when its governing P-ack is restated at or after `at`;
+each obligation at most once per side with distinct dates and figures) · **one hop** (Di20 makes
+non-transitivity mechanical; no recursive family traversal) · **eligibility** (the governing
+P-ack's `as_of ≥ at` is the predicate; `confirmed(d)` merely the resulting amount; a carried-forward
+value cannot silently qualify — undetermined naming the context) · **`at⁻`** (7G on the preceding
+calendar day; no new temporal primitive; Di21 pins the boundary) · **pure arithmetic**
+(`unaccounted = after − before`, full stop; removing the sign labels from the reporting vocabulary
+is better than saying they are not dispositions) · **null / zero** (Di22 keeps −100; Di23: $0 is an
+arithmetic result, not a disposition; the write-off shape stays `3,000 → 0 → −3,000 unaccounted`
+with no invented explanation). *The especially important result:* `O1 → O4 — before: O1 @ at⁻;
+after: O4 @ d, and O1 @ d only if O1 was restated* — the second figure exists only because there is
+new evidence for that context. **The boundary accepted as written.** 7I establishes the
+reconstruction consumer without establishing disposition vocabulary or semantics. **Build.** 7H
+remains unopened.
+
+
+#### Built — 2026-09-19 (7I)
+
+`core/database.py`: `reconstruction(session, obligation, at, d, catalogue, knowing)` beside `remaining`,
+with `_day_before` (the calendar day before an ISO date — `at⁻` with no new primitive) and the
+constants `RECON_NOT_RESTATED`, `RECON_NO_POSITION`, `DISPOSITION_NOTE`. A plain dict, computed on
+read, storing nothing: `group` (P and N by the one-hop rule — N the established direct successors
+from `reach(O, obligation_replaces, as_object)`, P = {O} ∪ the established direct predecessors of
+each successor by one `reach` per successor, nothing recursive; every relation listed by claim,
+subject, object, state; candidates and contested apart) · `before` (each p ∈ P's 7G `confirmed`
+at `at⁻` with its governing position) · `after` (each n ∈ N and each p ∈ P at d, `eligible` iff
+the governing P-ack's `as_of ≥ at`; a not-restated context listed with its carried-forward figure
+shown as such and the reason) · `unaccounted` = after − before, or None with the reasons naming
+the contexts · `unresolved_payments` (7G's direction-undetermined payments on the after-side
+reports) · `dispositions` = {read: [], note} · `note`. No sign label, reading or category key
+anywhere. Refuses a non-Obligation and `d < at`. Reads `reach` and `remaining` and nothing else.
+The wiring guard applies over the function and the helper. Fixture
+`tests/test_reconstruction_fixture.py` over Di1–Di23 — 30 checks, the 7G stand-ins reused:
+B4 / B5 / B6 balancing to 0 with the predecessors read after the change; Di4 vs Di3 (not
+restated → undetermined naming O; restated $0 → 0); Di5 vs Di6 (the refinance reconstructs iff
+Harbor's letter is a balance P-ack; the payoff unresolved either way); Di7 (+300); Di8 (−900);
+Di20 anchored at O1 and at O2; Di21 events on `at`; Di22 −100; Di23 the write-off shape −3,000
+with no explanatory word; Di19 the invariants over the corpus. Smoke `s114_reconstruction.py`,
+mutations each an attempt to *explain*: a negative gap is waived · a positive gap is a fee · the
+relation's content supplies scope · a not-restated context carries forward · a replaced predecessor
+reads zero · the payoff's direction inferred from its payee · overdue enters · the chain folds ·
+a consolidation's other predecessors dropped · store — ten, all caught, baseline re-established
+after every undo. No escape in the derivation; no fixture-construction fixes; no absence check
+falsified. No schema, no migration. Gate 1262 → 1285, 0 failed.

@@ -3659,6 +3659,140 @@ def remaining(session, obligation, d, catalogue, knowing):
                      'a payment attached to several obligations is counted in full on each (D\'12 - the double count is 7I\'s)']}
 
 
+# ── Item 7, pass 7I: disposition - the reconstruction, a CONSUMER derivation ───────────────
+# gw 2.0/CONSUMER_DERIVATIONS.md s 7I.6-7I.8, ruled 2026-09-19. THE CHECK, NOT THE VOCABULARY. No
+# disposition kind is ruled (DISPOSITION_VOCABULARY_CASES' blocker: obligation outcome vs the
+# creditor's accounting treatment unresolved - no enum, no category); the invariant (s5: every
+# amount whose treatment changes has an explicit, reconstructable disposition) is TESTED here over
+# amounts the record already establishes, and the gap is reported to the dollar, never explained.
+#
+#   the transition   the household's assertion, one hop: N = the established DIRECT successors of O
+#                    (obligation_replaces, 7F), P = {O} and the established DIRECT predecessors of
+#                    each successor - nothing recursive (B11); no successor -> the B1 arm, P = N = {O}
+#   before           sum over p in P of 7G confirmed_p(at-minus)   at-minus = the calendar day before at
+#   after            sum over n in N of 7G confirmed_n(d)  +  sum over p in P RESTATED of 7G confirmed_p(d)
+#                    ELIGIBILITY: a context enters the after sum iff its governing P-ack S(d) is dated
+#                    >= at; a confirmed(d) value proves nothing about eligibility (7G carries positions
+#                    forward under G) - a context with S dated before at, or no S, is NOT RESTATED:
+#                    listed, its carried-forward figure shown as such, unaccounted undetermined naming it
+#   unaccounted      = after - before, and nothing else: no sign label, no reading, no key for
+#                    appeared / left / originated / waived - a number with its terms
+#
+# Each obligation contributes at most one term per side and its two terms are different figures at
+# different dates (never O1 - O1): a predecessor read after the change is an after-context exactly
+# when restated - to its residual (B5) or to 0 (the evidence that it went to zero) - never dropped,
+# never erased. Events dated exactly `at` are after-side. Undetermined propagates from every 7G term.
+# A negative result is kept as it comes; zero is an arithmetic result, not a disposition.
+# Never: an amount, scope or ending from the relation (B5 / B7 / B15 - its content is not read); an
+# agreement-relative quantity as money (finding 3 - 7G reads none, so neither does this); a third
+# party's payoff or the insurer's payment inferred to have relocated or reduced anything (D'5 /
+# D'.11 - its direction stays undetermined and is listed as unresolved; the new context's own P-ack
+# says where the money is); a category; an anchoring; a chain; a container state.
+RECON_NOT_RESTATED = 'not restated after the transition'
+RECON_NO_POSITION = 'no stated position by the entitled party'
+DISPOSITION_NOTE = ('no disposition kind is ruled (the vocabulary blocker: obligation outcome vs creditor accounting '
+                    'treatment) - the unaccounted amount is what such claims would have to explain')
+
+
+def _day_before(iso):
+    from datetime import date, timedelta
+    return (date.fromisoformat(iso) - timedelta(days=1)).isoformat()
+
+
+def reconstruction(session, obligation, at, d, catalogue, knowing):
+    """The reconstruction for one obligation across the transition the household asserted at `at`, read
+    on date `d`: a plain dict, computed on read, storing nothing.
+
+        {'obligation', 'at', 'd',
+         'group':  {'predecessors': [ids], 'successors': [ids], 'relations': [(claim, subject, object, state)],
+                    'candidates': [(claim, subject, object)], 'contested': [(claim, subject, object)]},
+         'before': {'value'|None, 'reason', 'terms': [{'obligation', 'confirmed', 'stated', 'reason'}]},
+         'after':  {'value'|None, 'reason', 'terms': [{'obligation', 'side': successor|predecessor, 'eligible',
+                                                        'stated', 'confirmed', 'reason'}]},
+         'unaccounted': {'value'|None, 'reason'},          after - before, nothing else
+         'unresolved_payments': [{'obligation', 'payment', 'station', 'reason'}],   direction undetermined (7G)
+         'dispositions': {'read': [], 'note'},
+         'note': [...]}
+    """
+    if type(obligation).__name__ != 'Obligation':
+        raise ValueError(f'reconstruction: takes an Obligation; got {type(obligation).__name__}')
+    at = at.isoformat() if hasattr(at, 'isoformat') else str(at)
+    d = d.isoformat() if hasattr(d, 'isoformat') else str(d)
+    if d < at:
+        raise ValueError(f'reconstruction: d {d} precedes the transition {at}')
+    succ = reach(session, obligation, OBLIGATION_REPLACES, as_object=True)
+    relations, candidates, contested = [], [], []
+    N = []
+    for e in succ['endpoints']:
+        relations.append((e['claim'], e['id'], obligation.id, e['state']))
+        if e['state'] == CLAIM_ESTABLISHED and e['id'] not in N:
+            N.append(e['id'])
+        elif e['state'] == CLAIM_CANDIDATE:
+            candidates.append((e['claim'], e['id'], obligation.id))
+        elif e['state'] == CLAIM_CONTESTED:
+            contested.append((e['claim'], e['id'], obligation.id))
+    P = [obligation.id]
+    for n_id in N:                                            # the other DIRECT predecessors of each direct successor - one hop
+        n = session.get(Obligation, n_id)
+        for e in reach(session, n, OBLIGATION_REPLACES)['endpoints']:
+            if e['state'] == CLAIM_ESTABLISHED and e['id'] not in P:
+                P.append(e['id'])
+    at_minus = _day_before(at)
+    reports = {}
+
+    def rep(o_id, when):
+        key = (o_id, when)
+        if key not in reports:
+            reports[key] = remaining(session, session.get(Obligation, o_id), when, catalogue, knowing)
+        return reports[key]
+
+    before_terms, before_total, before_reasons = [], 0, []
+    for p_id in P:
+        r = rep(p_id, at_minus)
+        v = r['figures']['confirmed']['value']
+        before_terms.append({'obligation': p_id, 'confirmed': v, 'stated': r['stated']['governing'], 'reason': r['figures']['confirmed']['reason']})
+        if v is None:
+            before_reasons.append(f'obligation {p_id}: {r["figures"]["confirmed"]["reason"]}')
+        else:
+            before_total += v
+    after_terms, after_total, after_reasons = [], 0, []
+    for o_id, side in [(n, 'successor') for n in N] + [(p, 'predecessor') for p in P]:
+        r = rep(o_id, d)
+        S = r['stated']['governing']
+        eligible = S is not None and S['as_of'] >= at
+        v = r['figures']['confirmed']['value']
+        if not eligible:
+            reason = RECON_NOT_RESTATED if S is not None else (r['stated']['reason'] or RECON_NO_POSITION)
+            after_terms.append({'obligation': o_id, 'side': side, 'eligible': False, 'stated': S, 'confirmed': v, 'reason': reason})
+            after_reasons.append(f'obligation {o_id}: {reason}')
+            continue
+        after_terms.append({'obligation': o_id, 'side': side, 'eligible': True, 'stated': S, 'confirmed': v, 'reason': r['figures']['confirmed']['reason']})
+        if v is None:
+            after_reasons.append(f'obligation {o_id}: {r["figures"]["confirmed"]["reason"]}')
+        else:
+            after_total += v
+    before = {'value': None if before_reasons else before_total, 'reason': '; '.join(before_reasons) or None, 'terms': before_terms}
+    after = {'value': None if after_reasons else after_total, 'reason': '; '.join(after_reasons) or None, 'terms': after_terms}
+    if before['value'] is not None and after['value'] is not None:
+        unaccounted = {'value': after['value'] - before['value'], 'reason': None}
+    else:
+        unaccounted = {'value': None, 'reason': '; '.join(x for x in (before['reason'], after['reason']) if x)}
+    unresolved = []
+    for (o_id, when), r in sorted(reports.items()):
+        if when != d:
+            continue
+        for pm in r['payments']:
+            if pm['attachment']['state'] == CLAIM_ESTABLISHED and not pm['netted'] and pm['direction']['sign'] is None:
+                unresolved.append({'obligation': o_id, 'payment': pm['payment'], 'station': pm['station'], 'reason': pm['direction']['reason']})
+    return {'obligation': obligation.id, 'at': at, 'd': d,
+            'group': {'predecessors': P, 'successors': N, 'relations': relations, 'candidates': candidates, 'contested': contested},
+            'before': before, 'after': after, 'unaccounted': unaccounted, 'unresolved_payments': unresolved,
+            'dispositions': {'read': [], 'note': DISPOSITION_NOTE},
+            'note': ['one hop: a successor\'s own successors are another transition (B11)',
+                     'the relation\'s content, scope and ending are not read (B5 / B7 / B15)',
+                     'no agreement-relative quantity enters (finding 3)']}
+
+
 for _name in _IMMUTABLE_REFERENCES:
     event.listen(globals()[_name], 'before_update', _refuse_repoint)
 del _name
