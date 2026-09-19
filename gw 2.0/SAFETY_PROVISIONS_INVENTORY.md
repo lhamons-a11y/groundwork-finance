@@ -2,7 +2,9 @@
 
 **What actually stops Groundwork from acting, sending, or reaching beyond the machine — on 1.0, LTS, and 2.0, as the code stands**
 
-> Status: **Measured 2026-09-17. Nothing is proposed here.**
+> Status: **Measured 2026-09-17. Nothing is proposed here.** S9 folded and S10–S12 appended
+> 2026-09-19 on Rob's ruling (§8); the second axis — where the model's words become a record,
+> and whose text reaches the model — measured then.
 >
 > Rob's framing, 2026-09-17: *"we are doing web searching with Travel and we never programmed
 > the agent to go to the bank."* This document tests both halves of that sentence against each
@@ -258,9 +260,14 @@ document is not a health finding.
 lines. Contrast the update path, which refuses any manifest URL off the official prefix — the
 two downloads in the product are held to different standards and nothing says why.
 
-### S9 — the provisions that are by design, and hold on every line
+### S9 — the current containment boundary: what holds by design, on every line
 
-Recorded so the inventory is not only a list of gaps:
+Recorded so the inventory is not only a list of gaps — and, after 2026-09-19, so that it says
+what the model-facing surfaces *are* today rather than merely that certain files make no model
+call. **S9 is a statement about current containment. S10–S12 are separate crossings the
+inventory had not measured; they are not folded here (Rob, 2026-09-19).**
+
+**Egress and credential provisions**
 
 - the session-token guard on `/api/*` (`_check_session_token`);
 - provider defaults to `local`; cloud requires the literal setting;
@@ -271,6 +278,80 @@ Recorded so the inventory is not only a list of gaps:
 - the update check sends nothing but a user-agent string;
 - bind is loopback and never configurable to a public interface.
 
+**The model-facing surfaces — measured 2026-09-19**
+
+- **System-initiated surfaces are deterministic today.** `core/proactive.py`, `core/solution.py`,
+  `core/consequence.py` — every surface that speaks without being asked — contain no model
+  call. The alarm side of `ASSISTANT_SCOPE.md` has no model in it.
+- **PDF extraction has a validation-and-review boundary.** `pdf_statement.py:168`
+  `validate_and_clean` nulls any summary figure, and drops any transaction, whose number is not
+  literally in the source text — the safe direction is always null/drop; then
+  `app.js:5844` `_renderPdfSummaryPanel` puts the figures in front of the user to correct before
+  `pdf-reconcile` overwrites anything. Two gates, both by design, on every line.
+- **Downloads auto-import only queues and offers.** `launch.py` `_queue_import_file` posts to
+  the app's own queue; `app.js:1122` `_offerAutoImport` waits for the user. Nothing is parsed —
+  and so nothing reaches a model — until the user accepts.
+- **The classification and extraction surfaces render rather than persist.**
+  `trip_learn_classify` (`app.js:10370`) and `trip_quote_extract` (`app.js:10559`) hand their
+  parsed JSON to a renderer and nowhere else. No write.
+- **Voice rules constrain the output surface.** `static/voice_rules.json`, loaded verbatim by
+  both the harness and `callAI`'s gate so the two cannot drift: never fabricate a reading, never
+  assign motive, never coach or judge, never present an inference as a finding — "state what
+  happened, why it matters in their numbers, and what options exist." An anti-advice provision
+  as much as an anti-fabrication one.
+
+### S10 — a model's number is persisted as the user's plan, unmarked: **no silent writing**
+
+`generateTripBudget` → `app.js:11115` `POST /api/trip/budget` with `{...d, aiResult: data,
+generatedAt}` → `server.py` `save_trip_budget` → `AppSetting('trip_budget')` holding the whole
+body. Those are S2's prices — produced by a "search" that never ran — written as *the trip
+budget*: no provenance marker, no R8-style check against any source, no review panel between the
+model and the row. On every line.
+
+This is qualitatively different from S1–S8. The violation is not that a model produced bad
+numbers; it is that **model output crosses from transient model output into durable application
+state while being represented as though it were an application-owned fact or plan.** It is the
+only place in the product where a model output becomes a record with neither validation nor a
+human in between. In the 2.0 substrate's terms it is a claim with no recording party — the exact
+thing the substrate refuses to mint — and it is the cousin of the no-silent-learning boundary:
+**no silent writing** is the boundary language and is to be preserved (Rob, 2026-09-19).
+
+Not fixed here. It remains a finding until the relevant 1.x / 2.0 scope decision says what
+happens to the feature.
+
+### S11 — the untrusted-text → model boundary is real, named, and currently contained by S1 alone
+
+Third-party text reaches the model on three concrete surfaces:
+
+- **bank descriptions** — `trip_learn_classify` sends `description[:60]` per transaction;
+- **issuer PDFs** — `pdf-extract` sends the condensed statement text;
+- **pasted quotes** — `trip_quote_extract` sends whatever the user pasted from a third party.
+
+**Current containment, exactly:** today the blast radius is bounded because the model has no
+hands (S1). An injected memo can at worst put words on a screen — and those words pass R8 (PDF),
+a review panel (PDF), or the voice gate (narrative) on the way. The problem is not that prompt
+injection can make the model take an action today. The problem is that the system has an
+identifiable untrusted-text → model boundary whose consequences change the moment tools arrive,
+and that boundary is held by a provision that exists by absence.
+
+**The transition, recorded now so it is not discovered later:** when an Assistant tool is
+introduced, every existing third-party-text → model path becomes an action-adjacent boundary and
+requires its own crossing test. This list is what that pass inherits. No generic "prompt-injection
+defence" is specified here; the three paths are.
+
+Locality is not a defence. The local model (phi3.5) is more injectable than the cloud one, not
+less. **Locality protects data and control boundaries; it does not make untrusted instructions
+trustworthy.**
+
+### S12 — `pull-model` accepts any registry name, so the voice contract is not closed
+
+`server.py:7004` `ai_pull_model` takes `model` from the request body with no allowlist; any
+Ollama registry name can be pulled and will then speak behind the "Analyzed on your machine ·
+*model*" attribution and through a voice gate tuned against phi3.5. Severity small, and kept
+small. The invariant it fails is: **the model behind the Groundwork Assistant's voice is an
+identified, controlled model, not arbitrary registry content.** Same family as S6 — the
+attribution line reports a setting, not a boundary. Inventoried, not solved.
+
 ---
 
 ## 7. What this inventory does not do
@@ -279,10 +360,37 @@ Recorded so the inventory is not only a list of gaps:
   surfaces, redaction in the PDF path, or hash-checking the installer. `HEALTHCARE_FAILURE_SEMANTICS.md`
   §5's rule applies: the inventory exists so that a provision, when one is opened, is designed
   against what is there rather than what was assumed.
-- It does not rank S1–S8. They are listed in the order Rob's sentence raised them.
+- It does not rank S1–S12. S1–S8 are listed in the order Rob's sentence raised them; S10–S12
+  in the order the second axis surfaced them.
+- It does not fix S10 or S12. Both stay findings until a scope decision names what happens to
+  the feature; S11 stays a list until the pass that introduces a tool inherits it.
 - It does not decide which of them, if any, belong to 1.x. S2, S3, S4 and S8 are shipped
   behaviour on `v1.1.0`; whether the LTS line takes a fix is a release question, not a
   measurement one.
 - It is a point-in-time measurement against three named commits. `app.js` line numbers on
   `v1.1.0` differ from the shared `lts/1.x`/`master` numbers and are given where they were
   measured.
+
+---
+
+## 8. The discipline going forward — Rob's ruling, 2026-09-19
+
+Everything settled for the Assistant in `ASSISTANT_SCOPE.md` — no silent learning, no motive, no
+ambient capture, per-account visibility, alarm governance, the standing-grant rule — *is* the
+2.0 AI-safety doctrine, and today it is all doctrine and no measurement, because there is no
+Assistant code yet. That is correct for now. The provision to carry is procedural, and it is the
+analogue of the PARTIAL exit criterion:
+
+> **Every settled Assistant safety rule receives a concrete crossing inventory and an executable
+> violation test when its implementation first exists.**
+
+It avoids two opposite mistakes. **Too early:** inventing elaborate safety machinery for
+hypothetical code that does not exist. **Too late:** a beautiful safety doctrine that nobody has
+ever demonstrated against the actual crossing where it matters — F1 again, an invariant whose
+machinery has no contact with any crossing.
+
+**Item 9A does not inherit any of this.** `UNDER_PLAN`, `_BEGAN`, `_ENDED` are ontology work.
+S9–S12 are the Assistant safety inventory. The concerns may sit adjacent in the record; S10, S11
+and S12 do not enter the 9A build.
+
+Then stop. The safety work stays measured and does not become speculative architecture.
