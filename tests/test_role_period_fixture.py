@@ -6,10 +6,11 @@ the date asserted about. Boundary claims preserve their own provenance and learn
 beginning or ending does not rewrite prior claims, imply the opposite boundary, resolve disputes,
 establish continuous effect, or itself create a role.
 
-NO ROLE KIND IS RULED BY THIS SLICE. Every role kind here is a STAND-IN the fixture registers and
-removes: `serves` / `serves_began` / `serves_ended` (party <-> party), `standin_role_of_obligation`
-and its boundaries (party <-> obligation). The party <-> plan stand-in (`standin_covered_under`) was retired into the
-RULED kind `under_plan` and its boundaries by item 9 pass 9A (CATALOGUES.md, 2026-09-19) - the first ruled role kind;
+NO ROLE KIND IS RULED BY THIS SLICE. The one stand-in left is `serves` / `serves_began` / `serves_ended`
+(party <-> party), which the fixture registers and removes. The party <-> plan stand-in (`standin_covered_under`) was
+retired into the RULED kind `under_plan` and its boundaries by item 9 pass 9A (CATALOGUES.md, 2026-09-19) - the first
+ruled role kind; the party <-> obligation stand-in (`standin_role_of_obligation`) into the RULED kind `entitled_party_of`
+and its boundaries by pass 9B (2026-09-19);
 this fixture now exercises RP2's grammar on it as built. `standin_covered_under` was NOT "covered under" -
 that relation's meaning is a separate ruling, and Plan's existence gives it none.
 
@@ -90,7 +91,7 @@ def _refused(s, obj, exc=ValueError):
 
 def _role(subject, obj):
     return {'subject': (subject,), 'object': (obj,), 'symmetric': False, 'reading_establishes': False,
-            'relational_knowing': True}          # relational_knowing True, NO knowing_relation: undetermined - knowing for roles is not ruled
+            'relational_knowing': True, 'role': True}   # 'role': True classifies the stand-in as a role (9B-F1); NO knowing_relation - the stand-in's knowing is not ruled
 
 
 def _boundary(of, which, subject, obj):
@@ -103,9 +104,6 @@ STAND_INS = {
     'serves':                        _role('subject_party_id', 'object_party_id'),
     'serves_began':                  _boundary('serves', 'began', 'subject_party_id', 'object_party_id'),
     'serves_ended':                  _boundary('serves', 'ended', 'subject_party_id', 'object_party_id'),
-    'standin_role_of_obligation':    _role('subject_party_id', 'object_obligation_id'),
-    'standin_role_of_obligation_began': _boundary('standin_role_of_obligation', 'began', 'subject_party_id', 'object_obligation_id'),
-    'standin_role_of_obligation_ended': _boundary('standin_role_of_obligation', 'ended', 'subject_party_id', 'object_obligation_id'),
 }
 
 
@@ -113,10 +111,14 @@ def run(db):
     shipped = {k: v for k, v in db.RULED_KINDS.items()}
     # Item 9 pass 9A built under_plan and its boundaries as accepted in pass F: the shipped registry now rules exactly ONE
     # role kind and carries exactly its two boundary entries; the rest of the catalogue stays a separate ruling (9B).
-    check('the shipped registry rules exactly one role kind (under_plan, 9A) and carries exactly its two boundary entries - the rest of the catalogue is a separate ruling',
-          {k for k, r in shipped.items() if r.get('boundary')} == {'under_plan_began', 'under_plan_ended'}
-          and {r['of'] for r in shipped.values() if r.get('of')} == {'under_plan'}
-          and not any(n in shipped for n in REAL_ROLE_NAMES))
+    # Item 9 pass 9B ruled the role catalogue: the shipped registry now marks nine role kinds ('role': True - 9B-F1,
+    # classification only) and carries boundary entries for the three that transition; `serves` (party <-> party,
+    # Kn6's link as this fixture named it) is NOT one of them - 9B's servicer_of is party -> obligation - so it
+    # stays a stand-in here, its name carrying no ruling.
+    check('the shipped registry marks exactly the ruled role kinds and carries boundary entries only for under_plan, entitled_party_of and servicer_of; serves and the obligor role are not ruled',
+          {k for k, r in shipped.items() if r.get('role')} == {'under_plan', 'entitled_party_of', 'servicer_of', 'provider_of', 'insurer_of', 'insurer_of_plan', 'incurred_by', 'paid_by', 'paid_to'}
+          and {r['of'] for r in shipped.values() if r.get('of')} == {'under_plan', 'entitled_party_of', 'servicer_of'}
+          and not any(n in shipped for n in ('serves', 'obligor_on', 'obligor', 'covered_under', 'member_of', 'enrolled_in', 'membership', 'payer_of', 'payee_of')))
     for k in STAND_INS:
         assert k not in db.RULED_KINDS, k
     db.RULED_KINDS.update(STAND_INS)
@@ -302,11 +304,11 @@ def _run(db):
 
     print('\n6. R8 / R10 / R11 - two roles on one obligation; the party <-> plan stand-in; reading never establishes\n')
     u_sold = utter('The mortgage was sold May 1.', '2026-05-03T09:00:00')
-    evidence(prop('standin_role_of_obligation_ended', as_of='2026-05-01', subject_party_id=e1.id, object_obligation_id=mortgage.id), utterance=u_sold)
-    evidence(prop('standin_role_of_obligation_began', as_of='2026-05-01', subject_party_id=e2.id, object_obligation_id=mortgage.id), utterance=u_sold)
+    evidence(prop(db.ENTITLED_PARTY_OF_ENDED, as_of='2026-05-01', subject_party_id=e1.id, object_obligation_id=mortgage.id), utterance=u_sold)
+    evidence(prop(db.ENTITLED_PARTY_OF_BEGAN, as_of='2026-05-01', subject_party_id=e2.id, object_obligation_id=mortgage.id), utterance=u_sold)
     check('R8: E1 ended and E2 began on one date, two claims on O; nothing on the obligation anchor; O continues',
-          claims('standin_role_of_obligation_ended', object_obligation_id=mortgage.id).count() == 1
-          and claims('standin_role_of_obligation_began', object_obligation_id=mortgage.id).count() == 1
+          claims(db.ENTITLED_PARTY_OF_ENDED, object_obligation_id=mortgage.id).count() == 1
+          and claims(db.ENTITLED_PARTY_OF_BEGAN, object_obligation_id=mortgage.id).count() == 1
           and {c.name for c in db.Obligation.__table__.columns} == {'id', 'minted_by_id', 'created_at'})
     check('R10: the party <-> plan stand-in has its endpoint and its as_of machinery - and no meaning: it is a stand-in, not a ruled "covered under"',
           p_kb.object_plan_id == P.id and 'covered_under' not in db.RULED_KINDS and 'member_of' not in db.RULED_KINDS

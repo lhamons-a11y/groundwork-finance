@@ -217,7 +217,7 @@ def run(db):
     role('entitled_party', newbank, o3, '2027-01-03', u_o3)
     n_rel = rel().count()
     p_payoff, u_payoff = pay('NewBank sent Chase the payoff - $178,412 on Jan 3.', '2027-01-05T09:01:00')
-    prop('paid_by', object_state=db.PARTICIPANT_NONE, subject_payment_id=p_payoff.id, content='NewBank')
+    evidence(prop(db.PAID_BY, subject_party_id=newbank.id, object_payment_id=p_payoff.id, as_of='2027-01-03'), utterance=u_payoff)   # 9B's ruled role shape (was a content claim named paid_by)
     evidence(prop(db.PAYMENT_IN_RESPECT_OF_OBLIGATION, subject_payment_id=p_payoff.id, object_obligation_id=o1.id), utterance=u_payoff)   # ruled in pass D' (was the toward stand-in)
     check('B3: the payoff is a payment (payer NewBank - Pm9) asserted in respect of O1 (pass D\'s kind; toward rejected); it asserted no obligation-obligation relation',
           rel().count() == n_rel and 'toward' not in db.RULED_KINDS

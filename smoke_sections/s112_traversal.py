@@ -101,12 +101,11 @@ def _mutations(db):
     def infer_plan():
         def post(out, session, thing, kind, as_object):
             if type(thing).__name__ == 'Expense':
-                inc = session.query(db.Proposition).filter_by(kind='incurred_by', subject_expense_id=thing.id).first()
-                if inc is not None:
-                    kim = next((p.party for p in session.query(db.Person).all() if p.display_name == inc.content), None)
-                    if kim is not None:
-                        for m in reach0(session, kim, db.UNDER_PLAN)['endpoints']:
-                            out['endpoints'].append(dict(m, claim=None))
+                inc = session.query(db.Proposition).filter_by(kind=db.INCURRED_BY, object_expense_id=thing.id).first()
+                if inc is not None and inc.subject_party_id is not None:
+                    kim = session.get(db.Party, inc.subject_party_id)
+                    for m in reach0(session, kim, db.UNDER_PLAN)['endpoints']:
+                        out['endpoints'].append(dict(m, claim=None))
             return out
         return _swap_reach(post)
 

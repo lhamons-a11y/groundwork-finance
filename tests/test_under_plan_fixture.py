@@ -151,15 +151,15 @@ def run(db):
 
     print('\n1. The registry - three entries exactly as accepted; the boundary metadata\'s first entries; nothing else\n')
     rule, began, ended = db.RULED_KINDS[db.UNDER_PLAN], db.RULED_KINDS[db.UNDER_PLAN_BEGAN], db.RULED_KINDS[db.UNDER_PLAN_ENDED]
-    check('under_plan is ruled: party subject, plan object, not symmetric, a reading never establishes, relational knowing with NO named relation (undetermined by design - 9B\'s)',
-          rule == {'subject': ('subject_party_id',), 'object': ('object_plan_id',), 'symmetric': False, 'reading_establishes': False, 'relational_knowing': True})
+    check('under_plan is ruled: party subject, plan object, not symmetric, a reading never establishes, relational knowing with NO named relation on under_plan itself (F: undetermined; the 9B roles name theirs); marked a role (9B-F1)',
+          rule == {'subject': ('subject_party_id',), 'object': ('object_plan_id',), 'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True})
     check('under_plan_began / under_plan_ended are bound to under_plan by the boundary metadata - the same slots, boundary began / ended, of under_plan; the registry guard passes',
           began.get('boundary') == db.BOUNDARY_BEGAN and ended.get('boundary') == db.BOUNDARY_ENDED and began.get('of') == ended.get('of') == db.UNDER_PLAN
           and began['subject'] == ended['subject'] == rule['subject'] and began['object'] == ended['object'] == rule['object']
           and db.registry_violations() == [])
-    check('the shipped registry carries exactly these two boundary entries and exactly one role kind bound - nothing else acquired a boundary or a role',
-          {k for k, r in db.RULED_KINDS.items() if r.get('boundary')} == {db.UNDER_PLAN_BEGAN, db.UNDER_PLAN_ENDED}
-          and {r['of'] for r in db.RULED_KINDS.values() if r.get('of')} == {db.UNDER_PLAN})
+    check('under_plan\'s two boundary entries are bound to it and to nothing else; under_plan is marked a role (9B-F1, classification only)',
+          {k for k, r in db.RULED_KINDS.items() if r.get('of') == db.UNDER_PLAN} == {db.UNDER_PLAN_BEGAN, db.UNDER_PLAN_ENDED}
+          and db.RULED_KINDS[db.UNDER_PLAN].get('role') is True)
     check('no coverage / membership / subscriber / eligibility kind was minted beside it; no selector, inverse or period helper exists',
           not any(k in db.RULED_KINDS for k in ABSENT_KINDS) and not any(hasattr(db, n) for n in ABSENT_HELPERS))
     check('no period, members or plan_id column on any anchor',
@@ -271,10 +271,15 @@ def run(db):
                                      subject_party_id=kim_party.id, object_plan_id=P.id))
           and _refused(s, db.Proposition(kind=db.UNDER_PLAN_BEGAN, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_ESTABLISHED,
                                          subject_party_id=kim_party.id, object_obligation_id=1, as_of='2026-01-01')))
-    check('9A established nothing about who may assert under_plan, who is knowing, candidate generation or any 9B role: no knowing relation named, no asserter guard, no matcher, no other role kind in the registry',
+    # HISTORICAL ORACLE UNDER THE LATER STATE. 9B (2026-09-19) has since ruled the role catalogue: the seven 9B roles name
+    # KNOWING_SUBJECT_PARTY. That is a statement about THOSE kinds. under_plan's knowing relation is unnamed because pass F
+    # ruled it undetermined - a fact about under_plan that is still true of the final registry, NOT a claim that the registry
+    # names no knowing relation. The check states both halves so it cannot be read the wrong way.
+    check('under_plan names NO knowing relation (F: undetermined - a fact about under_plan, not about the registry) while the seven 9B roles name KNOWING_SUBJECT_PARTY; 9A itself established nothing about who may assert, candidates or matching',
           db.RULED_KINDS[db.UNDER_PLAN].get('knowing_relation') is None
-          and not any(hasattr(db, n) for n in ('may_assert_under_plan', 'under_plan_candidates', 'match_membership'))
-          and not any(k in db.RULED_KINDS for k in ('entitled_party_of', 'servicer_of', 'provider_of', 'insurer_of', 'incurred_by', 'paid_by', 'paid_to')))
+          and all(db.RULED_KINDS[k].get('knowing_relation') == db.KNOWING_SUBJECT_PARTY
+                  for k, r in db.RULED_KINDS.items() if r.get('role') and k != db.UNDER_PLAN)
+          and not any(hasattr(db, n) for n in ('may_assert_under_plan', 'under_plan_candidates', 'match_membership')))
 
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:

@@ -59,7 +59,7 @@ FORBIDDEN_KEYS = ('met', 'is_met', 'covered', 'eligible', 'primary', 'winner', '
 
 
 def _role(subject, obj):
-    return {'subject': (subject,), 'object': (obj,), 'symmetric': False, 'reading_establishes': False, 'relational_knowing': True}
+    return {'subject': (subject,), 'object': (obj,), 'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True}
 
 
 def _boundary(of, which, subject, obj):
@@ -69,19 +69,14 @@ def _boundary(of, which, subject, obj):
 
 
 STAND_INS = {
-    'standin_insurer':         _role('subject_party_id', 'object_expense_id'),
-    'standin_insurer_began':   _boundary('standin_insurer', 'began', 'subject_party_id', 'object_expense_id'),
-    'standin_insurer_ended':   _boundary('standin_insurer', 'ended', 'subject_party_id', 'object_expense_id'),
-    'standin_plan_insurer':    _role('subject_party_id', 'object_plan_id'),
-    'standin_plan_insurer_began': _boundary('standin_plan_insurer', 'began', 'subject_party_id', 'object_plan_id'),
-    'standin_plan_insurer_ended': _boundary('standin_plan_insurer', 'ended', 'subject_party_id', 'object_plan_id'),
-    'standin_x_in_respect_of_plan': _role('subject_expense_id', 'object_plan_id'),     # E's kind, a stand-in until E is built
-    'standin_incurred_by':     _role('subject_party_id', 'object_expense_id'),
+    # E's relation kind, a stand-in until 9C builds it - a relation, not a role (no 'role' key)
+    'standin_x_in_respect_of_plan': {'subject': ('subject_expense_id',), 'object': ('object_plan_id',), 'symmetric': False,
+                                     'reading_establishes': False, 'relational_knowing': True},
 }
-CATALOGUE = {'occurred_on': 'occurred_on', 'insurer_of': 'standin_insurer', 'under_plan': 'under_plan', 'plan_insurer': 'standin_plan_insurer',
+CATALOGUE = {'occurred_on': 'occurred_on', 'insurer_of': 'insurer_of', 'under_plan': 'under_plan', 'plan_insurer': 'insurer_of_plan',
              'eligibility': 'eligibility', 'deductible': 'deductible', 'individual_deductible': 'individual_deductible', 'plan_year': 'plan_year',
              'deductible_applied': 'deductible_applied', 'expense_in_respect_of_plan': 'standin_x_in_respect_of_plan',
-             'applied_to_deductible': 'applied_to_deductible', 'incurred_by': 'standin_incurred_by'}
+             'applied_to_deductible': 'applied_to_deductible', 'incurred_by': 'incurred_by'}
 
 
 def _fresh():
@@ -197,7 +192,7 @@ def _run(db):
         evidence(r, utterance=utter(text, '2026-12-20T09:00:00'))
 
     def entitled(party, O, began='2026-01-01'):
-        claim('standin_entitled_began', utterance=utter(f'{began} entitled'), as_of=began, subject_party_id=party.id, object_obligation_id=O.id)
+        claim(db.ENTITLED_PARTY_OF_BEGAN, utterance=utter(f'{began} entitled'), as_of=began, subject_party_id=party.id, object_obligation_id=O.id)
 
     def pay(O, amount, on, payer, payee, attach=True, amount_by=None):
         p = mint(db.Payment, f'Paid {amount} on {on}.')
@@ -265,7 +260,9 @@ def _run(db):
         return names
 
     def role_on(kind, party, obj_slot, obj, began='2026-01-01', utterance=None, reading=None):
-        return claim(f'{kind}_began', utterance=utterance if (utterance or reading) else utter(f'{kind} {began}'), reading=reading,
+        # 9B: a beginning where the role has boundaries (under_plan); a holds stance where it is holds-only
+        k = f'{kind}_began' if f'{kind}_began' in db.RULED_KINDS else kind
+        return claim(k, utterance=utterance if (utterance or reading) else utter(f'{kind} {began}'), reading=reading,
                      as_of=began, subject_party_id=party.id, **{obj_slot: obj.id})
 
     def term(P, kind, content, as_of='2026-01-01', by=None):
@@ -281,10 +278,10 @@ def _run(db):
     def expense_under(P, name, on, insurer, incurred=None):
         X = mint(db.Expense, name)
         claim('occurred_on', utterance=utter(on), as_of=on, subject_expense_id=X.id)
-        role_on('standin_insurer', insurer, 'object_expense_id', X)
+        role_on(db.INSURER_OF, insurer, 'object_expense_id', X)
         claim('standin_x_in_respect_of_plan', utterance=utter('on the plan'), subject_expense_id=X.id, object_plan_id=P.id)
         if incurred is not None:
-            claim('standin_incurred_by', utterance=utter('incurred by'), subject_party_id=incurred.id, object_expense_id=X.id)
+            claim(db.INCURRED_BY, utterance=utter('incurred by'), subject_party_id=incurred.id, object_expense_id=X.id)
         return X
 
     def adjudicate(X, by, content, as_of):
@@ -298,8 +295,8 @@ def _run(db):
     cigna = mint(db.Party, 'Cigna.')
     P1 = mint(db.Plan, "Kim's employer plan.")
     P2 = mint(db.Plan, "Rob's marketplace plan.")
-    role_on('standin_plan_insurer', aetna, 'object_plan_id', P1)
-    role_on('standin_plan_insurer', cigna, 'object_plan_id', P2)
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', P1)
+    role_on(db.INSURER_OF_PLAN, cigna, 'object_plan_id', P2)
 
     print('\n1. Absences - no plan_at / primary / eligible / covered / met / cache helper\n')
     check('no plan_at, primary, eligibility, coverage, met, household-accumulator, apportion or cache helper exists on the module',
@@ -336,7 +333,7 @@ def _run(db):
     check('Ju3: once the household asserts the ending, P1 is NOT in effect in August (7F); only P2 remains; no overlap',
           r3b['plans'][P1.id]['answer'] == db.EFFECT_NOT and r3b['in_effect'] == [P2.id] and r3b['overlap'] == [])
     P3 = mint(db.Plan, 'A plan the insurer names, the household never asserted.')
-    role_on('standin_plan_insurer', aetna, 'object_plan_id', P3)
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', P3)
     eligibility(kim_party, P3, aetna, 'enrolled', '2026-03-01')
     r3c = pie(kim_party, '2026-08-01')
     check('Ju3: the insurer\'s "enrolled" on a plan the household never asserted -> listed APART under eligibility_only with no membership answer at all; not among the plans, not in effect - a stance creates no membership and no status',
@@ -345,7 +342,7 @@ def _run(db):
 
     print('\n3. Ju5 / Ju6 / Ju7 / Ju14 / Ju15 - the accumulator: three axes; the term\'s three states; no met\n')
     Q = mint(db.Plan, 'The accumulator plan.')
-    role_on('standin_plan_insurer', aetna, 'object_plan_id', Q)
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', Q)
     plan_year(Q, '2026-01-01', '2026-12-31')
     x1 = expense_under(Q, 'Visit 1', '2026-01-20', aetna, incurred=kim_party)
     x2 = expense_under(Q, 'Visit 2', '2026-02-10', aetna, incurred=kim_party)
@@ -367,7 +364,7 @@ def _run(db):
           r5['term'] == dict(r5['term'], state=db.TERM_AMOUNT, value=D('3000')) and r5['remaining']['value'] == D('1350')
           and 'remaining_from_stated' not in r5 and not any(k in FORBIDDEN_KEYS for k, _ in _walk(r5)))
     H = mint(db.Plan, 'The HMO with no deductible.')
-    role_on('standin_plan_insurer', cigna, 'object_plan_id', H)
+    role_on(db.INSURER_OF_PLAN, cigna, 'object_plan_id', H)
     plan_year(H, '2026-01-01', '2026-12-31')
     term(H, 'deductible', 'none')
     r7 = acc(H, '2026-03-31')
@@ -402,7 +399,7 @@ def _run(db):
     check('Ju10 (the window): the December expense is OUTSIDE the plan year - excluded, listed with its date; derived 3,200 (x6 adjudicated $0 counts as zero, an answer)',
           r10['derived']['outside_window'] == [(x7.id, '2025-12-15')] and r10['derived']['value'] == D('3200'))
     NW = mint(db.Plan, 'No plan-year term.')
-    role_on('standin_plan_insurer', aetna, 'object_plan_id', NW)
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', NW)
     term(NW, 'deductible', '$1,000')
     xw = expense_under(NW, 'Some visit', '2026-02-01', aetna)
     adjudicate(xw, aetna, '$100', '2026-02-10')
@@ -411,8 +408,8 @@ def _run(db):
           r10b['window']['start'] is None and r10b['derived']['value'] is None and 'no plan year term' in r10b['derived']['reason'])
     x8 = mint(db.Expense, "Kim's visit nobody tied to Q.")
     claim('occurred_on', utterance=utter('2026-06-01'), as_of='2026-06-01', subject_expense_id=x8.id)
-    role_on('standin_insurer', aetna, 'object_expense_id', x8)
-    claim('standin_incurred_by', utterance=utter('incurred by Kim'), subject_party_id=kim_party.id, object_expense_id=x8.id)
+    role_on(db.INSURER_OF, aetna, 'object_expense_id', x8)
+    claim(db.INCURRED_BY, utterance=utter('incurred by Kim'), subject_party_id=kim_party.id, object_expense_id=x8.id)
     adjudicate(x8, aetna, '$999', '2026-06-05')
     r4 = acc(Q, '2026-06-30')
     check('Ju4 (E24): Kim is under Q and x8 is Kim\'s, adjudicated by Aetna - but nothing asserts x8 in respect of Q -> x8 is NOT in Q\'s accumulator (derived still 3,200)',
@@ -420,15 +417,15 @@ def _run(db):
 
     print('\n5. Ju11 / Ju12 / Ju13 - concurrency: each plan its own share; priority nowhere; family vs individual\n')
     A, B = mint(db.Plan, 'Plan A (medical).'), mint(db.Plan, 'Plan B (secondary).')
-    role_on('standin_plan_insurer', aetna, 'object_plan_id', A)
-    role_on('standin_plan_insurer', cigna, 'object_plan_id', B)
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', A)
+    role_on(db.INSURER_OF_PLAN, cigna, 'object_plan_id', B)
     for P in (A, B):
         plan_year(P, '2026-01-01', '2026-12-31')
         term(P, 'deductible', '$1,000')
     xc = mint(db.Expense, 'The concurrent visit.')
     claim('occurred_on', utterance=utter('2026-08-05'), as_of='2026-08-05', subject_expense_id=xc.id)
-    role_on('standin_insurer', aetna, 'object_expense_id', xc)
-    role_on('standin_insurer', cigna, 'object_expense_id', xc)
+    role_on(db.INSURER_OF, aetna, 'object_expense_id', xc)
+    role_on(db.INSURER_OF, cigna, 'object_expense_id', xc)
     for P in (A, B):
         claim('standin_x_in_respect_of_plan', utterance=utter('on both'), subject_expense_id=xc.id, object_plan_id=P.id)
     adjudicate(xc, aetna, '$400', '2026-08-20')
@@ -440,7 +437,7 @@ def _run(db):
     check('Ju12 (CC3): nothing about priority appears in either report',
           not any(k == 'priority' or (isinstance(v, str) and 'priority' in v.lower()) for r in (rA, rB) for k, v in _walk(r)))
     F = mint(db.Plan, 'The family plan (Pl2).')
-    role_on('standin_plan_insurer', aetna, 'object_plan_id', F)
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', F)
     plan_year(F, '2026-01-01', '2026-12-31')
     term(F, 'deductible', '$6,000')
     term(F, 'individual_deductible', '$3,000')
@@ -470,7 +467,7 @@ def _run(db):
                       (db.Proposition, db.Party, db.Obligation, db.Payment, db.Expense, db.Plan, db.Artefact, db.Reading, db.Utterance, db.EvidentiaryRelationship)
                       for c in cls.__table__.columns))
     N = mint(db.Plan, 'Null model.')
-    role_on('standin_plan_insurer', aetna, 'object_plan_id', N)
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', N)
     plan_year(N, '2026-01-01', '2026-12-31')
     term(N, 'deductible', '$1,000')
     n1 = expense_under(N, 'n1', '2026-02-01', aetna)

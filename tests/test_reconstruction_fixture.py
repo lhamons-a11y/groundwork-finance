@@ -62,7 +62,7 @@ FORBIDDEN_KEYS = ('disposition', 'waived', 'written_off', 'forgiven', 'discharge
 
 
 def _role(subject, obj):
-    return {'subject': (subject,), 'object': (obj,), 'symmetric': False, 'reading_establishes': False, 'relational_knowing': True}
+    return {'subject': (subject,), 'object': (obj,), 'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True}
 
 
 def _boundary(of, which, subject, obj):
@@ -72,11 +72,8 @@ def _boundary(of, which, subject, obj):
 
 
 STAND_INS = {
-    'standin_entitled':        _role('subject_party_id', 'object_obligation_id'),
-    'standin_entitled_began':  _boundary('standin_entitled', 'began', 'subject_party_id', 'object_obligation_id'),
-    'standin_entitled_ended':  _boundary('standin_entitled', 'ended', 'subject_party_id', 'object_obligation_id'),
 }
-CATALOGUE = {'acknowledgment': 'acknowledged', 'entitled_party': 'standin_entitled', 'balance': 'balance',
+CATALOGUE = {'acknowledgment': 'acknowledged', 'entitled_party': 'entitled_party_of', 'balance': 'balance',
              'payment_amount': 'amount', 'occurred_on': 'occurred_on', 'paid_by': 'paid_by', 'paid_to': 'paid_to'}
 
 
@@ -123,7 +120,7 @@ def run(db):
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
     check('the stand-in role kind is removed; the registry is as shipped; no value or acknowledgment kind was registered',
-          db.RULED_KINDS == shipped and not any(k in shipped for k in ('acknowledged', 'balance', 'amount', 'occurred_on', 'paid_by', 'paid_to')))
+          db.RULED_KINDS == shipped and not any(k in shipped for k in ('acknowledged', 'balance', 'amount', 'occurred_on')))   # paid_by / paid_to: ruled roles since 9B
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -192,7 +189,7 @@ def _run(db):
         evidence(r, utterance=utter(text, '2026-12-20T09:00:00'))
 
     def entitled(party, O, began='2026-01-01'):
-        claim('standin_entitled_began', utterance=utter(f'{began} entitled'), as_of=began, subject_party_id=party.id, object_obligation_id=O.id)
+        claim(db.ENTITLED_PARTY_OF_BEGAN, utterance=utter(f'{began} entitled'), as_of=began, subject_party_id=party.id, object_obligation_id=O.id)
 
     def pay(O, amount, on, payer, payee, attach=True, amount_by=None):
         p = mint(db.Payment, f'Paid {amount} on {on}.')
@@ -356,7 +353,7 @@ def _run(db):
     print('\n5. Di7 / Di8 - the tripwire and the $650\n')
     O7 = mint(db.Obligation, 'The hospital bill sold to an agency.')
     entitled(mercy, O7)
-    claim('standin_entitled_ended', utterance=utter('sold'), as_of='2026-05-01', subject_party_id=mercy.id, object_obligation_id=O7.id)
+    claim(db.ENTITLED_PARTY_OF_ENDED, utterance=utter('sold'), as_of='2026-05-01', subject_party_id=mercy.id, object_obligation_id=O7.id)
     entitled(agency, O7, began='2026-05-01')
     stated(O7, mercy, '$3,000', '2026-04-01')
     stated(O7, agency, '$3,300', '2026-05-15')

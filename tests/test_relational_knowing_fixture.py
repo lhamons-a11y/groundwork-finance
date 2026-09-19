@@ -188,7 +188,9 @@ def run(db):
           set(k for k, r in db.RULED_KINDS.items() if r.get('knowing_relation') == db.KNOWING_MINTER_OF_OBJECT_IDENTITY)
           == {db.ARTEFACT_CONCERNS, db.PROPOSITION_CONCERNS}
           and 'occurred_on' not in db.RULED_KINDS and 'amount' not in db.RULED_KINDS)
-    check('Kn7: the payer relation (paid_by) is unruled, so the mother\'s knowing cannot be derived either - undetermined via the stand-in, not manufactured',
+    # 9B has since ruled paid_by (knowing: the subject party); occurred_on - the event's property - is still 9D's, so
+    # the mother's knowing for it stays undetermined: minting != knowing, and a role claim's knowing is not the event's.
+    check('Kn7: occurred_on (the event\'s property) is unruled, so the mother\'s knowing for it cannot be derived - undetermined via the stand-in, not manufactured from her ruled paid_by role',
           st(evidence(prop('occurred_on', object_state=db.PARTICIPANT_NONE, subject_payment_id=p9.id, as_of='2026-07-01'),
                       utterance=utter('I paid Mercy on July 1.', origin=mother)), {}) == db.STRENGTH_UNDETERMINED)
 
@@ -240,8 +242,9 @@ def run(db):
     check('relation not ruled -> undetermined: an unknown relation name resolves to nothing',
           db._relational_strength(s, r_none, household.id, 'some_relation_nobody_ruled') == db.STRENGTH_UNDETERMINED
           and db._relational_strength(s, r_none, household.id, None) == db.STRENGTH_UNDETERMINED)
-    check('the relations are NAMED and finite - two names, two resolvers, nothing generic',
-          set(db._KNOWING_RELATIONS) == {db.KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE, db.KNOWING_MINTER_OF_OBJECT_IDENTITY}
+    # 9B named a third relation for the role kinds: the subject party of the role claim (KNOWING_SUBJECT_PARTY).
+    check('the relations are NAMED and finite - three names, three resolvers, nothing generic',
+          set(db._KNOWING_RELATIONS) == {db.KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE, db.KNOWING_MINTER_OF_OBJECT_IDENTITY, db.KNOWING_SUBJECT_PARTY}
           and not any(hasattr(db, n) for n in ('find_related_party', 'related_parties', 'reachable_parties', 'knowing_party_for')))
     check('every relational kind either names a relation from that table or none - never a bare traversal hint',
           all(r.get('knowing_relation') in (None, *db._KNOWING_RELATIONS) for r in db.RULED_KINDS.values()))

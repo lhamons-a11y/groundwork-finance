@@ -61,7 +61,7 @@ FORBIDDEN_KEYS = ('matches', 'match', 'reconciled', 'error', 'discrepancy', 'cor
 
 
 def _role(subject, obj):
-    return {'subject': (subject,), 'object': (obj,), 'symmetric': False, 'reading_establishes': False, 'relational_knowing': True}
+    return {'subject': (subject,), 'object': (obj,), 'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True}
 
 
 def _boundary(of, which, subject, obj):
@@ -70,21 +70,11 @@ def _boundary(of, which, subject, obj):
     return r
 
 
-STAND_INS = {
-    'standin_entitled':        _role('subject_party_id', 'object_obligation_id'),
-    'standin_entitled_began':  _boundary('standin_entitled', 'began', 'subject_party_id', 'object_obligation_id'),
-    'standin_entitled_ended':  _boundary('standin_entitled', 'ended', 'subject_party_id', 'object_obligation_id'),
-    'standin_provider':        _role('subject_party_id', 'object_expense_id'),
-    'standin_provider_began':  _boundary('standin_provider', 'began', 'subject_party_id', 'object_expense_id'),
-    'standin_provider_ended':  _boundary('standin_provider', 'ended', 'subject_party_id', 'object_expense_id'),
-    'standin_insurer':         _role('subject_party_id', 'object_expense_id'),
-    'standin_insurer_began':   _boundary('standin_insurer', 'began', 'subject_party_id', 'object_expense_id'),
-    'standin_insurer_ended':   _boundary('standin_insurer', 'ended', 'subject_party_id', 'object_expense_id'),
-}
-CATALOGUE = {'acknowledgment': 'acknowledged', 'entitled_party': 'standin_entitled', 'balance': 'balance',
+STAND_INS = {}                                             # 9B: every role this fixture used is now a ruled kind
+CATALOGUE = {'acknowledgment': 'acknowledged', 'entitled_party': 'entitled_party_of', 'balance': 'balance',
              'payment_amount': 'amount', 'occurred_on': 'occurred_on', 'paid_by': 'paid_by', 'paid_to': 'paid_to',
              'billed': 'billed', 'patient_responsibility': 'patient_responsibility', 'plan_paid': 'plan_paid',
-             'determination': 'determination', 'provider_of': 'standin_provider', 'insurer_of': 'standin_insurer'}
+             'determination': 'determination', 'provider_of': 'provider_of', 'insurer_of': 'insurer_of'}
 
 
 def _fresh():
@@ -130,7 +120,7 @@ def run(db):
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
     check('the stand-in role kinds are removed; the registry is as shipped; no value, determination or acknowledgment kind was registered',
-          db.RULED_KINDS == shipped and not any(k in shipped for k in ('acknowledged', 'balance', 'amount', 'occurred_on', 'paid_by', 'paid_to', 'billed', 'patient_responsibility', 'plan_paid', 'determination')))
+          db.RULED_KINDS == shipped and not any(k in shipped for k in ('acknowledged', 'balance', 'amount', 'occurred_on', 'billed', 'patient_responsibility', 'plan_paid', 'determination')))   # paid_by / paid_to: ruled roles since 9B
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -200,7 +190,7 @@ def _run(db):
         evidence(r, utterance=utter(text, '2026-12-20T09:00:00'))
 
     def entitled(party, O, began='2026-01-01'):
-        claim('standin_entitled_began', utterance=utter(f'{began} entitled'), as_of=began, subject_party_id=party.id, object_obligation_id=O.id)
+        claim(db.ENTITLED_PARTY_OF_BEGAN, utterance=utter(f'{began} entitled'), as_of=began, subject_party_id=party.id, object_obligation_id=O.id)
 
     def pay(O, amount, on, payer, payee, attach=True, amount_by=None):
         p = mint(db.Payment, f'Paid {amount} on {on}.')
@@ -264,7 +254,8 @@ def _run(db):
         return names
 
     def role(kind, party, X, began='2026-01-01'):
-        claim(f'{kind}_began', utterance=utter(f'{kind} {began}'), as_of=began, subject_party_id=party.id, object_expense_id=X.id)
+        # 9B: provider_of and insurer_of are holds-only roles - a holds stance at the date, not a beginning
+        claim(kind, utterance=utter(f'{kind} {began}'), as_of=began, subject_party_id=party.id, object_expense_id=X.id)
 
     def xstance(kind, X, by, amount, as_of, origin=None):
         return claim(kind, utterance=utter(amount, origin=origin or by), as_of=as_of, content=amount, subject_expense_id=X.id)
@@ -285,8 +276,8 @@ def _run(db):
 
     def visit(name, provider, insurer, billed=None, pr=None, billed_on='2026-01-01', pr_on='2026-01-15'):
         X = mint(db.Expense, name)
-        role('standin_provider', provider, X)
-        role('standin_insurer', insurer, X)
+        role(db.PROVIDER_OF, provider, X)
+        role(db.INSURER_OF, insurer, X)
         if billed:
             xstance('billed', X, provider, billed, billed_on)
         if pr:

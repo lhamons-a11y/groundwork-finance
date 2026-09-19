@@ -119,11 +119,12 @@ def run(ctx):
     except Exception as e:                                    # noqa: BLE001
         check(f'core/database.py imports ({type(e).__name__}: {e})', False)
         return
-    # item 9 pass 9A (CATALOGUES.md) built under_plan's two boundary entries as pass F accepted them - the registry's first
-    check("core/database.py carries the boundary vocabulary, the registry guard, and exactly under_plan's two boundary entries (9A) - no other",
+    # item 9 pass 9A (CATALOGUES.md) built under_plan's two boundary entries as pass F accepted them - the registry's first;
+    # pass 9B bound entitled_party_of's and servicer_of's - the three roles that transition, and no other
+    check("core/database.py carries the boundary vocabulary, the registry guard, and boundary entries for exactly under_plan (9A), entitled_party_of and servicer_of (9B) - no other",
           all(hasattr(db, n) for n in ('BOUNDARIES', 'registry_violations', 'boundary_kinds_of', '_boundary_violations'))
           and db.BOUNDARIES == ('began', 'ended') and db.registry_violations() == []
-          and {k for k, r in db.RULED_KINDS.items() if r.get('boundary') or r.get('of')} == {db.UNDER_PLAN_BEGAN, db.UNDER_PLAN_ENDED})
+          and {r['of'] for r in db.RULED_KINDS.values() if r.get('boundary') or r.get('of')} == {db.UNDER_PLAN, db.ENTITLED_PARTY_OF, db.SERVICER_OF})
 
     try:
         fx = _load_fixture(BASE)

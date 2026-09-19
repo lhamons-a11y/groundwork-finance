@@ -117,10 +117,11 @@ def run(ctx):
     except Exception as e:                                    # noqa: BLE001
         check(f'core imports ({type(e).__name__}: {e})', False)
         return
-    check('core/database.py carries under_plan and its two boundaries exactly as accepted - party -> plan, a reading never establishes, knowing undetermined, the only boundary entries - and no selector / eligibility / period helper',
+    # 9B since marked under_plan 'role': True (classification only, 9B-F1) and bound two more roles' boundaries; under_plan's own are still exactly two
+    check('core/database.py carries under_plan and its two boundaries exactly as accepted - party -> plan, a reading never establishes, knowing undetermined, marked a role (9B) - and no selector / eligibility / period helper',
           db.RULED_KINDS[db.UNDER_PLAN] == {'subject': ('subject_party_id',), 'object': ('object_plan_id',), 'symmetric': False,
-                                            'reading_establishes': False, 'relational_knowing': True}
-          and {k for k, r in db.RULED_KINDS.items() if r.get('boundary')} == {db.UNDER_PLAN_BEGAN, db.UNDER_PLAN_ENDED}
+                                            'reading_establishes': False, 'relational_knowing': True, 'role': True}
+          and {k for k, r in db.RULED_KINDS.items() if r.get('of') == db.UNDER_PLAN} == {db.UNDER_PLAN_BEGAN, db.UNDER_PLAN_ENDED}
           and db.registry_violations() == []
           and not any(hasattr(db, n) for n in ('plan_members', 'members_of', 'current_plan_of', 'primary_plan', 'is_eligible', 'is_active')))
 

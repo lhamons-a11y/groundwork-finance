@@ -459,3 +459,95 @@ boundaries, with one negative constraint preserved in the ruling so the dependen
 implementation: **9B does not determine governing PR, and no party-local recency resolver may be
 introduced as part of 9B.** No additional finding; no code beyond the settled semantics; **9B must
 not become a vehicle for solving 7H early** — the one boundary to watch when the build starts.
+
+#### Built — 2026-09-19 (9B)
+
+`core/database.py`: the seven role kinds exactly as §9B.7 ruled — `ENTITLED_PARTY_OF` and `SERVICER_OF`
+(party → obligation) with `_BEGAN` / `_ENDED` boundaries `of` each; `PROVIDER_OF`, `INSURER_OF`,
+`INCURRED_BY` (party → expense), `INSURER_OF_PLAN` (party → plan), `PAID_BY`, `PAID_TO` (party →
+payment), holds-only — no boundary entry. Every role: `symmetric False · reading_establishes False ·
+relational_knowing True`, one knowing relation for all seven, `KNOWING_SUBJECT_PARTY` — the third
+named relation, its resolver the claim's own `subject_party_id` (R2 applied to roles; Kn12 stands: S3
+is knowing and may be lying). `under_plan` names none (F). **RB-b as recommended and as ruled:**
+`'role': True` on the nine role entries (`under_plan` included); the registry guard now refuses a
+boundary `of` a kind the registry does not mark as a role (9B-F1) instead of inferring roleness from
+boundaries; 7F's `in_effect` and the consumers' `_require_role` (7G, 7H, 7I, 7J) read the same key
+and nothing else about it — a holds-only role answers from its holds stance, a relation kind is
+refused by name as *not a role*. The key answers *is this entry a role?* and acquired no consumer
+semantics: no behaviour key exists on any entry beyond the registry's shipped shape. **Nothing
+else** — no governing-PR determination, no party-local recency, no selector, no default payer, no
+inverse kind (9B-F2, the negative constraint kept).
+
+**The oracle:** `tests/test_role_catalogue_fixture.py` over Ro1–Ro18 — 26 checks: the registry
+(nine roles marked, the three points on each, the objects, boundaries bound to exactly the three
+that transition, the guard refusing a boundary of a non-role, the third relation with its own
+resolver); S1–S7 through 7F's `in_effect` on the ruled kinds (entitlement · servicing · payee three
+kinds; the servicer change with autopay still naming the old one; S3 established and knowing and
+never entitled; assignment vs sale, the new servicer nobody's entitled party; payee = E as direction
+not discharge; money to the party that no longer holds it; R8's boundaries); Pm9 / Kn7 (the mother
+knowing for her own `paid_by`, Rob not; no household-default payer); Ex1 (holds-only, `in_effect`
+answering from the holds stance, no `_began` kind); **Ic4 / CC1 — two insurers of one expense, both
+in effect, and NOTHING decided about a governing PR** (no resolver exists, `in_effect`'s source
+names none); Pl3 (two plans one insurer; the plan's insurer establishes nothing about the expense's
+insurers); the party asserting its own role knowing; a reading a candidate and never the claim (the
+letterhead minted no role); a stranger established and not knowing, asserters not ranked;
+retraction not an ending; no inverse and no selector (an obligation-subject claim refused by the
+registry); knowing ≠ true; and 9B-F1 / 9B-F2 as absences with the refusal of a relation kind and of
+an unruled kind.
+
+**The substitution — the decisive test, and what it exposed:** the 7F, 7G, 7I, 7H and 7J fixtures,
+item 5's, 9A's, the payment-identity and relational-knowing fixtures changed by the stand-ins'
+names → the ruled kinds' and the catalogue lines (`'entitled_party': 'entitled_party_of'`,
+`provider_of` / `insurer_of` / `insurer_of_plan` / `incurred_by` / `paid_to`), registrations
+dropped; **41/41 · 40/40 · 30/30 · 32/32 · 31/31 · 28/28 · 27/27 · 38/38 · 23/23, identical counts,
+no consumer changed.** Three things the swap needed beyond names, reported rather than absorbed:
+(1) three fixtures had used a ruled *name* for a different shape — a content claim on the thing
+(`subject_expense_id` / `subject_payment_id`, content `'Kim'`, `'NewBank'`): the 7F corpus's
+`incurred_by`, the payment-counteracts fixture's `paid_to` / `paid_by` (A7) and the
+obligation-replaces fixture's `paid_by` (B3); the registry refuses each now that the names are ruled
+party → thing, and the full gate found the two the touched-fixture runs could not. Each corpus line
+became the ruled role's shape (and `s112`'s *infer the plan from membership* mutation, which
+mirrored the first, reads the ruled shape); the counteracts fixture's foundation map dropped
+`paid_to` — knowing for a ruled role is by relation, not by the map. A fixture borrowing a ruled name
+for an unruled thing is exactly what the catalogue exists to stop. (2)
+The 7H and 7J fixtures' role helpers created `_began` stances for every role; on the five holds-only
+roles no such kind exists, so the helpers create the holds stance — the consumers unchanged, the
+fixtures' way of putting a role in the record corrected to the ruling. (3) 7J's stand-in table keeps
+one non-role relation (`standin_x_in_respect_of_plan`, E's — 9C's) and drops its role key. **Not
+substituted:** item 5's `serves` (party ↔ party, Kn6's link as that fixture named it) — 9B's
+`servicer_of` is party → obligation, a different shape; `serves` stays a stand-in, its name carrying
+no ruling, and the fixture says so.
+
+**The retirements, truthfully:** (1) item 5's `standin_role_of_obligation` and its boundaries into
+`entitled_party_of` and its boundaries; its *exactly one role kind, exactly its two boundary entries*
+→ *the nine ruled role kinds, boundary entries only for under_plan, entitled_party_of and
+servicer_of; serves and the obligor role not ruled* — and the same statement in `s100`; (2) 9A's
+fixture's *no other role kind in the registry* retired; its *no knowing relation* made an executable
+distinction rather than a comment — *under_plan names none (F: undetermined — a fact about under_plan,
+not the registry) while the seven 9B roles name KNOWING_SUBJECT_PARTY* — so the preserved 9A oracle
+cannot be read as asserting the final registry names no knowing relation; `under_plan`'s rule now
+carrying `'role': True`;
+(3) the 7G / 7I / 7H fixtures' *paid_by / paid_to not registered* narrowed to the value kinds that
+are still 9D's; the payment fixture's *paid_by stays a stand-in* → *ruled as a role on the object
+payment slot*; (4) the relational-knowing fixture's *two names, two resolvers* → three, and Kn7's
+wording — the mother's knowing for `occurred_on` (the event's property, 9D's) still undetermined,
+not manufactured from her ruled `paid_by` role; (5) the 7F fixture's closing line and `s117`'s
+opening check — boundary entries of exactly `under_plan`, `entitled_party_of`, `servicer_of`; `s97`'s
+opening check — three named relations.
+
+**Smoke `s118_role_catalogue.py`:** the fixture passes; ten mutations, each an attempt to give a
+role a meaning beyond its three points — payee = entitled · servicer = entitled · a reading
+establishes a role · a household-default payer · the provider from the letterhead · the expense's
+insurer from the plan's · boundaries on a holds-only role (RB-a) · the knowing relation resolving to
+the asserter · a non-role passing `in_effect` (9B-F1) · **a governing-PR resolver appearing (9B-F2)**
+— all caught, baseline re-established after every undo. Four escaped on the first run: minted claims
+carried no evidence, so `in_effect` rightly never saw them (the mutations now evidence what they
+mint); and three fixture gaps the escapes exposed — Ro4 never asked whether the new servicer had
+become entitled, Ro11 never asked whether the plan's insurer had minted anything on the expense,
+Ro13 never asked whether the letterhead had minted a claim — each closed by an assertion the case
+already meant. The derivations untouched.
+
+**Left where it belongs:** 7H's governing PR across two insurers (Ic4 / CC1) — no rule made here,
+per 9B-F2. `serves` and the obligor role unruled. No schema, no migration. Gate 1350 → 1373, 0 failed.
+
+---

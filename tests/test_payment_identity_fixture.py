@@ -344,9 +344,10 @@ def run(db):
     # role-shaped claims used here (paid_by, paid_to) remain stand-ins - unruled by design.
     # ...and item 6 pass D ruled payment_in_respect_of on the payment subject slot (RELATION_SEMANTICS.md D.9)
     # - a payment -> expense relation; pass D' ruled payment_in_respect_of_obligation and rejected toward as a kind.
-    check('payment slots are generic proposition participation - only payment_corresponds, payment_counteracts, payment_in_respect_of and payment_in_respect_of_obligation are ruled on them; paid_by stays a stand-in; toward is rejected, never a kind',
+    # Item 9 pass 9B ruled paid_by / paid_to as role kinds (party -> payment, on the OBJECT payment slot).
+    check('payment SUBJECT slots carry only the four ruled relation kinds; paid_by / paid_to are ruled as roles on the object slot (9B); toward is rejected, never a kind',
           set(k for k, r in db.RULED_KINDS.items() if 'subject_payment_id' in r['subject']) == {db.PAYMENT_CORRESPONDS, db.PAYMENT_COUNTERACTS, db.PAYMENT_IN_RESPECT_OF, db.PAYMENT_IN_RESPECT_OF_OBLIGATION}
-          and 'paid_by' not in db.RULED_KINDS and 'toward' not in db.RULED_KINDS)
+          and db.RULED_KINDS[db.PAID_BY]['object'] == ('object_payment_id',) and db.RULED_KINDS[db.PAID_BY].get('role') is True and 'toward' not in db.RULED_KINDS)
     receipt = held('h-receipt', '2026-03-03', chase, u_chase)
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=receipt.id, object_payment_id=p1.id),
              utterance=utter("That's the receipt for my March payment.", '2026-03-04T09:00:00'))

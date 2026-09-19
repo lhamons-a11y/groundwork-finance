@@ -1978,6 +1978,63 @@ UNDER_PLAN = 'under_plan'
 UNDER_PLAN_BEGAN = 'under_plan_began'
 UNDER_PLAN_ENDED = 'under_plan_ended'
 
+# ── Item 9 pass 9B: THE ROLE CATALOGUE - seven ruled role kinds, three points each ──────────
+# gw 2.0/CATALOGUES.md s 9B.2 / 9B.6, ruled s 9B.7 (2026-09-19). A role is a party's asserted, dated
+# standing toward an identity. Each: party subject (a household person, a minted institution, a
+# non-Person party), an identity object, direction fixed by type, no inverse kind (navigation
+# either way is a query - 7F), no cardinality, ESTABLISHED ONLY BY A PARTY'S ASSERTION with both
+# endpoints established - a document, a bank line, a card, an EOB or a letter yields at most a
+# candidate (reading_establishes False); retraction is a withdrawal, never an ending.
+#
+# Each establishes exactly what its consumers read, and none establishes another:
+#     entitled_party_of  party -> obligation   whose obligation, whose acknowledgment matters (7G's E-test,
+#                                              7H, 7I, 7J; Kn2's designated participant) - began / ended (R8 the
+#                                              sale; S4 / S5: a sale transitions it, an assignment does not)
+#     servicer_of        party -> obligation   servicing context - whom the household pays and why; Kn6 / C3's
+#                                              mediation link, named; NEVER entitlement (S3) - began / ended
+#     provider_of        party -> expense      whose charge (7H's billed; the direction anchor) - holds only
+#     insurer_of         party -> expense      whose adjudication (7H's PR / plan-paid; Kn3's second half);
+#                                              Ic4: two insurers of one X are two claims, each in effect,
+#                                              each knowing for its own stances - holds only
+#     insurer_of_plan    party -> plan         whose plan (7J's stated accumulator; the P-ack for P's terms) - holds
+#     incurred_by        party -> expense      whose expense (relational knowing for nature claims; 7J's
+#                                              individual figure); NEVER plan attribution (E24) - holds only
+#     paid_by / paid_to  party -> payment      who paid, whom (7G / 7H direction; Kn7's first-hand parties);
+#                                              PAYEE != ENTITLED PARTY != DISCHARGE (the servicing ruling,
+#                                              structurally: three kinds) - holds only
+# The entitled party and the servicer begin and end; the other five hold at a date and do not - a
+# correction is a retraction and a new claim, never a boundary (binding a boundary to a role that
+# cannot transition would invite claims that mean nothing).
+#
+# ONE KNOWING RELATION FOR ALL SEVEN - the subject party: the party knowing for a role claim is the
+# party in the role (R2 applied to roles; Kn7 for free - the mother is knowing for paid_by(mother, p),
+# Rob was told; Kn12 stands - S3 is knowing for its own servicing claim and may be lying).
+#
+# 'role': True (9B-F1, ruled) classifies the entry as a role and NOTHING ELSE - it is what 7F's
+# in_effect, the consumers' _require_role and item 5's guard read in place of "a kind some boundary
+# is of", so that a holds-only role answers "in effect on d" from its holds stances (G reads a holds
+# forward; nothing reads back). It says what kind of thing the entry is; it does not say how the
+# role behaves, whether it has an occupant, whether it has a boundary, how recency is resolved,
+# or anything about consumption. It is not a consumer instruction.
+#
+# 9B-F2 (ruled): 9B exposes the roles, their occupants, the knowing relation and the boundaries -
+# and DEFERS GOVERNING DETERMINATION ENTIRELY TO 7H. No party-local recency resolver is introduced
+# here; the governing-PR question under two insurers of one expense (Ic4) is 7H's to resolve in
+# 7H's own terms. Nothing about the stance kinds (9D).
+ENTITLED_PARTY_OF = 'entitled_party_of'
+ENTITLED_PARTY_OF_BEGAN = 'entitled_party_of_began'
+ENTITLED_PARTY_OF_ENDED = 'entitled_party_of_ended'
+SERVICER_OF = 'servicer_of'
+SERVICER_OF_BEGAN = 'servicer_of_began'
+SERVICER_OF_ENDED = 'servicer_of_ended'
+PROVIDER_OF = 'provider_of'
+INSURER_OF = 'insurer_of'
+INSURER_OF_PLAN = 'insurer_of_plan'
+INCURRED_BY = 'incurred_by'
+PAID_BY = 'paid_by'
+PAID_TO = 'paid_to'
+KNOWING_SUBJECT_PARTY = 'the_subject_party_of_the_role_claim'
+
 RULED_KINDS = {
     ARTEFACT_ORIGIN:      {'subject': ('subject_artefact_id',), 'object': ('object_party_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': False},
@@ -2039,7 +2096,7 @@ RULED_KINDS = {
     # under_plan (item 9 pass 9A, F as accepted): the first ruled role kind, party -> plan; relational_knowing
     # True and NO knowing_relation - undetermined by design until the role catalogue (9B) rules it.
     UNDER_PLAN:           {'subject': ('subject_party_id',), 'object': ('object_plan_id',),
-                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True},
     # RP2's boundaries bound to it - the boundary metadata's first shipped entries.
     UNDER_PLAN_BEGAN:     {'subject': ('subject_party_id',), 'object': ('object_plan_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
@@ -2047,6 +2104,43 @@ RULED_KINDS = {
     UNDER_PLAN_ENDED:     {'subject': ('subject_party_id',), 'object': ('object_plan_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
                            'boundary': 'ended', 'of': UNDER_PLAN},                # BOUNDARY_ENDED (defined below)
+    # ── the role catalogue (item 9 pass 9B, ruled s 9B.7) - see the constants' comment block ──
+    ENTITLED_PARTY_OF:    {'subject': ('subject_party_id',), 'object': ('object_obligation_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True,
+                           'knowing_relation': KNOWING_SUBJECT_PARTY},
+    ENTITLED_PARTY_OF_BEGAN: {'subject': ('subject_party_id',), 'object': ('object_obligation_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
+                           'knowing_relation': KNOWING_SUBJECT_PARTY, 'boundary': 'began', 'of': ENTITLED_PARTY_OF},
+    ENTITLED_PARTY_OF_ENDED: {'subject': ('subject_party_id',), 'object': ('object_obligation_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
+                           'knowing_relation': KNOWING_SUBJECT_PARTY, 'boundary': 'ended', 'of': ENTITLED_PARTY_OF},
+    SERVICER_OF:          {'subject': ('subject_party_id',), 'object': ('object_obligation_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True,
+                           'knowing_relation': KNOWING_SUBJECT_PARTY},
+    SERVICER_OF_BEGAN:    {'subject': ('subject_party_id',), 'object': ('object_obligation_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
+                           'knowing_relation': KNOWING_SUBJECT_PARTY, 'boundary': 'began', 'of': SERVICER_OF},
+    SERVICER_OF_ENDED:    {'subject': ('subject_party_id',), 'object': ('object_obligation_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True,
+                           'knowing_relation': KNOWING_SUBJECT_PARTY, 'boundary': 'ended', 'of': SERVICER_OF},
+    PROVIDER_OF:          {'subject': ('subject_party_id',), 'object': ('object_expense_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True,
+                           'knowing_relation': KNOWING_SUBJECT_PARTY},
+    INSURER_OF:           {'subject': ('subject_party_id',), 'object': ('object_expense_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True,
+                           'knowing_relation': KNOWING_SUBJECT_PARTY},
+    INSURER_OF_PLAN:      {'subject': ('subject_party_id',), 'object': ('object_plan_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True,
+                           'knowing_relation': KNOWING_SUBJECT_PARTY},
+    INCURRED_BY:          {'subject': ('subject_party_id',), 'object': ('object_expense_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True,
+                           'knowing_relation': KNOWING_SUBJECT_PARTY},
+    PAID_BY:              {'subject': ('subject_party_id',), 'object': ('object_payment_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True,
+                           'knowing_relation': KNOWING_SUBJECT_PARTY},
+    PAID_TO:              {'subject': ('subject_party_id',), 'object': ('object_payment_id',),
+                           'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True,
+                           'knowing_relation': KNOWING_SUBJECT_PARTY},
 }
 
 # ── Item 5: the role period ───────────────────────────────────────────────────
@@ -2110,6 +2204,8 @@ def registry_violations(registry=None, kinds=None):
             out.append(f'{kind}: bounds {of!r}, which is not a ruled kind')
         elif role.get('boundary') is not None or role.get('of') is not None:
             out.append(f'{kind}: bounds {of!r}, which is itself a boundary kind')
+        elif not role.get('role'):
+            out.append(f'{kind}: bounds {of!r}, which the registry does not mark as a role')   # 9B-F1
         elif (tuple(role['subject']), tuple(role['object'])) != (tuple(rule['subject']), tuple(rule['object'])):
             out.append(f'{kind}: must take exactly the participants of {of!r}')
         if rule.get('symmetric'):
@@ -2923,9 +3019,18 @@ def _designated_minter_of_object_identity(session, prop):
 
 # name -> resolver. Adding a relation means adding a NAMED entry here and naming it on a ruled
 # kind; nothing resolves a relation that is not in this table.
+def _designated_subject_party(session, prop):
+    """The role kinds (9B): the party knowing for a role claim is the party in the role - the claim's
+    own subject party. Designated participant: the subject party; relation: identity. Kn7 and Kn12
+    follow: the mother is knowing for paid_by(mother, p); S3 is knowing for its own servicing claim
+    and may be lying. No other party is knowing by this relation - the household relaying it is not."""
+    return prop.subject_party_id
+
+
 _KNOWING_RELATIONS = {
     KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE: _designated_origin_of_subject_utterance,
     KNOWING_MINTER_OF_OBJECT_IDENTITY: _designated_minter_of_object_identity,
+    KNOWING_SUBJECT_PARTY: _designated_subject_party,
 }
 
 
@@ -3384,9 +3489,10 @@ def in_effect(session, party, role_kind, d):
         raise ValueError(f'in_effect: kind not ruled - {role_kind!r}')
     if rule.get('boundary'):
         raise ValueError(f'in_effect: {role_kind!r} is a boundary kind, not a role; name the role it is of')
+    if not rule.get('role'):                                  # 9B-F1: the registry says what is a role; classification only
+        raise ValueError(f'in_effect: {role_kind!r} is not a role - the registry does not mark it as one; a relation has no "in effect"')
     bounds = {k: r for k, r in RULED_KINDS.items() if r.get('of') == role_kind and r.get('boundary') in (BOUNDARY_BEGAN, BOUNDARY_ENDED)}
-    if not bounds:
-        raise ValueError(f'in_effect: {role_kind!r} is not a role - no boundary kind is bound to it; a relation has no "in effect"')
+    # a holds-only role (no boundary kind bound) answers from its holds stances alone
     if type(party).__name__ != 'Party' or 'subject_party_id' not in rule['subject']:
         raise ValueError(f'in_effect: {role_kind!r} takes a party subject; got {type(party).__name__}')
     d = d.isoformat() if hasattr(d, 'isoformat') else str(d)
@@ -3527,8 +3633,8 @@ def remaining(session, obligation, d, catalogue, knowing):
     if missing:
         raise ValueError(f'remaining: catalogue names no kind for {missing}')
     role_kind = catalogue['entitled_party']
-    if not any(r.get('of') == role_kind and r.get('boundary') for r in RULED_KINDS.values()):
-        raise ValueError(f'remaining: {role_kind!r} is not a ruled role - no boundary kind is bound to it')
+    if not RULED_KINDS.get(role_kind, {}).get('role'):
+        raise ValueError(f'remaining: {role_kind!r} is not a ruled role')
     if type(obligation).__name__ != 'Obligation':
         raise ValueError(f'remaining: takes an Obligation; got {type(obligation).__name__}')
     d = d.isoformat() if hasattr(d, 'isoformat') else str(d)
@@ -3907,8 +4013,8 @@ def reconciliation(session, expense, d, catalogue, knowing):
         raise ValueError(f'reconciliation: catalogue names no kind for {missing}')
     for role_key in ('provider_of', 'insurer_of', 'entitled_party'):
         rk = catalogue[role_key]
-        if not any(r.get('of') == rk and r.get('boundary') for r in RULED_KINDS.values()):
-            raise ValueError(f'reconciliation: {rk!r} is not a ruled role - no boundary kind is bound to it')
+        if not RULED_KINDS.get(rk, {}).get('role'):
+            raise ValueError(f'reconciliation: {rk!r} is not a ruled role')
     if type(expense).__name__ != 'Expense':
         raise ValueError(f'reconciliation: takes an Expense; got {type(expense).__name__}')
     d = d.isoformat() if hasattr(d, 'isoformat') else str(d)
@@ -4137,8 +4243,8 @@ ACCUMULATOR_KINDS = ('under_plan', 'plan_insurer', 'eligibility', 'deductible', 
 
 def _require_role(catalogue, key, who):
     rk = catalogue[key]
-    if not any(r.get('of') == rk and r.get('boundary') for r in RULED_KINDS.values()):
-        raise ValueError(f'{who}: {rk!r} is not a ruled role - no boundary kind is bound to it')
+    if not RULED_KINDS.get(rk, {}).get('role'):                # 9B-F1: the registry's classification, nothing else
+        raise ValueError(f'{who}: {rk!r} is not a ruled role')
 
 
 def plans_in_effect(session, person, d, catalogue, knowing):

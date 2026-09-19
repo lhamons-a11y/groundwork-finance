@@ -57,7 +57,7 @@ FORBIDDEN_KEYS = ('via', 'path', 'through', 'hops', 'primary', 'current', 'prefe
 
 
 def _role(subject, obj):
-    return {'subject': (subject,), 'object': (obj,), 'symmetric': False, 'reading_establishes': False, 'relational_knowing': True}
+    return {'subject': (subject,), 'object': (obj,), 'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True}
 
 
 def _boundary(of, which, subject, obj):
@@ -68,9 +68,6 @@ def _boundary(of, which, subject, obj):
 
 # stand-in role kinds - registered for this fixture and removed; their names carry NO ruling
 STAND_INS = {
-    'standin_entitled':        _role('subject_party_id', 'object_obligation_id'),
-    'standin_entitled_began':  _boundary('standin_entitled', 'began', 'subject_party_id', 'object_obligation_id'),
-    'standin_entitled_ended':  _boundary('standin_entitled', 'ended', 'subject_party_id', 'object_obligation_id'),
 }
 
 
@@ -118,8 +115,9 @@ def run(db):
             db.RULED_KINDS.pop(k, None)
     # 9A (CATALOGUES.md) built under_plan and its boundaries - the shipped registry now carries exactly those two boundary
     # entries; 7F ruled no role, and the substitution of the ruled kind for the stand-in changed nothing else here.
-    check('the stand-in role kinds are removed; the registry is as shipped - 7F ruled no role; the only boundary entries are under_plan\'s (9A)',
-          db.RULED_KINDS == shipped and {k for k, r in shipped.items() if r.get('boundary')} == {db.UNDER_PLAN_BEGAN, db.UNDER_PLAN_ENDED})
+    # 9B ruled the role catalogue: the shipped boundary entries are those of the three roles that transition.
+    check('the stand-in kinds are removed; the registry is as shipped - 7F ruled no role; the boundary entries are those of under_plan (9A), entitled_party_of and servicer_of (9B)',
+          db.RULED_KINDS == shipped and {r['of'] for r in shipped.values() if r.get('boundary')} == {db.UNDER_PLAN, db.ENTITLED_PARTY_OF, db.SERVICER_OF})
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -315,16 +313,16 @@ def _run(db):
           [(e['id'], e['state']) for e in r6['endpoints'] if e['id'] == X.id] == [(X.id, db.CLAIM_CONTESTED)] and ids(r6, db.CLAIM_ESTABLISHED) == [X2.id, X2.id])
     chase_b = mint(db.Party, 'JPMorgan Chase Bank, N.A. (as the letter spells it).')
     KX = mint(db.Obligation, 'The car loan (Tr7).')
-    claim('standin_entitled', utterance=utter('Chase, as the letter spells it, is the entitled party on the car loan.'), as_of='2026-01-15', subject_party_id=chase_b.id, object_obligation_id=KX.id)
-    before7 = db.reach(s, chase, 'standin_entitled')
+    claim(db.ENTITLED_PARTY_OF, utterance=utter('Chase, as the letter spells it, is the entitled party on the car loan.'), as_of='2026-01-15', subject_party_id=chase_b.id, object_obligation_id=KX.id)
+    before7 = db.reach(s, chase, db.ENTITLED_PARTY_OF)
     claim(db.PARTY_CORRESPONDS, utterance=utter('That is our Chase.'), subject_party_id=chase_b.id, object_party_id=chase.id)
-    r7 = db.reach(s, chase, 'standin_entitled')
+    r7 = db.reach(s, chase, db.ENTITLED_PARTY_OF)
     check('Tr7 (X3): the claim names party row B; once B ~ Chase is established, reach(Chase, role) reaches KX through the referent {Chase, B}; before the correspondence it did not; no row merged',
           before7['endpoints'] == [] and ids(r7) == [KX.id] and sorted(r7['referent']) == sorted([chase.id, chase_b.id])
           and s.query(db.Party).filter_by(id=chase_b.id).count() == 1)
 
     print('\n5. Tr8 / Tr9 / Tr21 / Tr22 / Tr23 - nothing inferred; refusals by name\n')
-    fact('incurred_by', 'Kim', utter('The ER visit was Kim\'s.'), subject_expense_id=X.id)
+    claim(db.INCURRED_BY, utterance=utter('The ER visit was Kim\'s.'), subject_party_id=kim_party.id, object_expense_id=X.id)   # 9B: the ruled role's shape
     msg8 = _refused(db.reach, s, X, 'expense_in_respect_of_plan')
     check('Tr8 (E24): Kim under P1, X is Kim\'s, nothing connects X to P1 -> the (unbuilt) kind is REFUSED BY NAME, never a silent empty list; no candidate manufactured',
           msg8 is not None and 'not ruled' in msg8 and 'expense_in_respect_of_plan' in msg8)
@@ -348,41 +346,41 @@ def _run(db):
           all(m is not None for m in m23) and 'own derivation' in m23[0] and 'boundary' in m23[4] and 'does not fill' in m23[5])
 
     print('\n6. Ts1-Ts3 (Rob\'s three tests) / Tr10 / Tr15 - the governing stance is part of the answer\n')
-    stance('standin_entitled', e1, '2026-01-15', object_obligation_id=M.id)                                   # holds
-    t1 = db.in_effect(s, e1, 'standin_entitled', '2026-05-12')
+    stance(db.ENTITLED_PARTY_OF, e1, '2026-01-15', object_obligation_id=M.id)                                   # holds
+    t1 = db.in_effect(s, e1, db.ENTITLED_PARTY_OF, '2026-05-12')
     check('Ts1 (R1, Tr15): holds 1/15, d = 5/12 -> IN EFFECT, governing = [holds 1/15] named in the report, next = []; the extrapolation is visible',
           ans(t1, M.id) == db.EFFECT_IN and gov(t1, M.id) == [('holds', '2026-01-15')] and nxt(t1, M.id) == [] and t1['in_effect'] == [M.id])
     u_end = utter('E1 stopped being the entitled party on 4/01.')
-    st_end = stance('standin_entitled_ended', e1, '2026-04-01', utterance=u_end, object_obligation_id=M.id)
-    t2 = db.in_effect(s, e1, 'standin_entitled', '2026-05-12')
+    st_end = stance(db.ENTITLED_PARTY_OF_ENDED, e1, '2026-04-01', utterance=u_end, object_obligation_id=M.id)
+    t2 = db.in_effect(s, e1, db.ENTITLED_PARTY_OF, '2026-05-12')
     check('Ts2: + ended 4/01 -> NOT IN EFFECT, governing = [ended 4/01]; the holds 1/15 still listed among the stances',
           ans(t2, M.id) == db.EFFECT_NOT and gov(t2, M.id) == [('ended', '2026-04-01')]
           and ('holds', '2026-01-15') in [(st['sort'], st['as_of']) for st in t2['identities'][M.id]['stances']])
     retract(u_end, 'I was wrong about 4/01.')
     S2, rS2 = held('h-letter', e1)
-    stance('standin_entitled_ended', e1, '2026-04-01', reading=rS2, object_obligation_id=M.id)              # a candidate ending
-    t3 = db.in_effect(s, e1, 'standin_entitled', '2026-05-12')
+    stance(db.ENTITLED_PARTY_OF_ENDED, e1, '2026-04-01', reading=rS2, object_obligation_id=M.id)              # a candidate ending
+    t3 = db.in_effect(s, e1, db.ENTITLED_PARTY_OF, '2026-05-12')
     sts3 = t3['identities'][M.id]['stances']
     check('Ts3: the 4/01 ending retracted; a CANDIDATE ending 4/01 read from a letter -> IN EFFECT, governing = [holds 1/15]; the candidate and the contested ending are listed and govern nothing',
           ans(t3, M.id) == db.EFFECT_IN and gov(t3, M.id) == [('holds', '2026-01-15')]
           and {st['state'] for st in sts3 if st['sort'] == 'ended'} == {db.CLAIM_CANDIDATE, db.CLAIM_CONTESTED})
-    stance('standin_entitled_began', e2, '2026-01-01', object_obligation_id=O1.id)
-    t10 = db.in_effect(s, e2, 'standin_entitled', '2026-05-12')
+    stance(db.ENTITLED_PARTY_OF_BEGAN, e2, '2026-01-01', object_obligation_id=O1.id)
+    t10 = db.in_effect(s, e2, db.ENTITLED_PARTY_OF, '2026-05-12')
     check('Tr10 (R9): began 1/1, asked 5/12 -> IN EFFECT, governing [began 1/1]',
           ans(t10, O1.id) == db.EFFECT_IN and gov(t10, O1.id) == [('began', '2026-01-01')])
 
     print('\n7. Ts4-Ts10 - the table; contested exactly; TS-c\n')
     K = mint(db.Obligation, 'A loan for Ts4/Ts5.')
-    stance('standin_entitled', chase, '2026-01-01', object_obligation_id=K.id)
-    stance('standin_entitled', chase, '2026-05-01', object_obligation_id=K.id)
-    t4 = db.in_effect(s, chase, 'standin_entitled', '2026-03-01')
+    stance(db.ENTITLED_PARTY_OF, chase, '2026-01-01', object_obligation_id=K.id)
+    stance(db.ENTITLED_PARTY_OF, chase, '2026-05-01', object_obligation_id=K.id)
+    t4 = db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-03-01')
     check('Ts4 (Rob): holds 1/1 · holds 5/1 · d 3/1 -> IN EFFECT, not contested - a holds reads nothing back; governing [holds 1/1], next [holds 5/1]',
           ans(t4, K.id) == db.EFFECT_IN and gov(t4, K.id) == [('holds', '2026-01-01')] and nxt(t4, K.id) == [('holds', '2026-05-01')])
     K5 = mint(db.Obligation, 'A loan for Ts5.')
-    stance('standin_entitled', chase, '2026-01-01', object_obligation_id=K5.id)
-    stance('standin_entitled_ended', chase, '2026-05-01', object_obligation_id=K5.id)
-    t5 = db.in_effect(s, chase, 'standin_entitled', '2026-03-01')
-    t5b = db.in_effect(s, chase, 'standin_entitled', '2026-05-01')
+    stance(db.ENTITLED_PARTY_OF, chase, '2026-01-01', object_obligation_id=K5.id)
+    stance(db.ENTITLED_PARTY_OF_ENDED, chase, '2026-05-01', object_obligation_id=K5.id)
+    t5 = db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-03-01')
+    t5b = db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-05-01')
     check('Ts5 (Rob): holds 1/1 · ended 5/1 · d 3/1 -> IN EFFECT (the ending reads back in effect, agreeing); at 5/1 the ending is G -> NOT IN EFFECT',
           ans(t5, K5.id) == db.EFFECT_IN and nxt(t5, K5.id) == [('ended', '2026-05-01')] and ans(t5b, K5.id) == db.EFFECT_NOT)
     stance(db.UNDER_PLAN_BEGAN, kim_party, '2026-01-01', object_plan_id=P1.id)
@@ -396,40 +394,40 @@ def _run(db):
           and {st['asserter'] for st in t6['identities'][P1.id]['governing'] + t6['identities'][P1.id]['next']} == {aetna.id, household.id}
           and ans(t6b, P1.id) == db.EFFECT_IN and ans(t6c, P1.id) == db.EFFECT_NOT)
     K7 = mint(db.Obligation, 'A loan for Ts7.')
-    stance('standin_entitled_began', chase, '2026-01-01', object_obligation_id=K7.id)
-    stance('standin_entitled_began', chase, '2026-05-01', object_obligation_id=K7.id)
-    t7 = db.in_effect(s, chase, 'standin_entitled', '2026-03-01')
+    stance(db.ENTITLED_PARTY_OF_BEGAN, chase, '2026-01-01', object_obligation_id=K7.id)
+    stance(db.ENTITLED_PARTY_OF_BEGAN, chase, '2026-05-01', object_obligation_id=K7.id)
+    t7 = db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-03-01')
     check('Ts7: began 1/1 · began 5/1 (no ending between) · d 3/1 -> CONTESTED - the second beginning reads back not in effect against the first',
           ans(t7, K7.id) == db.EFFECT_CONTESTED)
     K8 = mint(db.Obligation, 'A loan for Ts8.')
-    stance('standin_entitled_began', chase, '2026-01-01', object_obligation_id=K8.id)
-    stance('standin_entitled_ended', chase, '2026-03-01', object_obligation_id=K8.id)
-    stance('standin_entitled_began', chase, '2026-05-01', object_obligation_id=K8.id)
+    stance(db.ENTITLED_PARTY_OF_BEGAN, chase, '2026-01-01', object_obligation_id=K8.id)
+    stance(db.ENTITLED_PARTY_OF_ENDED, chase, '2026-03-01', object_obligation_id=K8.id)
+    stance(db.ENTITLED_PARTY_OF_BEGAN, chase, '2026-05-01', object_obligation_id=K8.id)
     check('Ts8 (R4): began 1/1 · ended 3/1 · began 5/1 -> 4/1 NOT IN EFFECT (the next beginning reads back not in effect, agreeing); 6/1 IN EFFECT; nothing written',
-          ans(db.in_effect(s, chase, 'standin_entitled', '2026-04-01'), K8.id) == db.EFFECT_NOT
-          and ans(db.in_effect(s, chase, 'standin_entitled', '2026-06-01'), K8.id) == db.EFFECT_IN)
+          ans(db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-04-01'), K8.id) == db.EFFECT_NOT
+          and ans(db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-06-01'), K8.id) == db.EFFECT_IN)
     K9 = mint(db.Obligation, 'A loan for Ts9.')
-    stance('standin_entitled_began', chase, '2026-05-01', object_obligation_id=K9.id)
-    stance('standin_entitled_ended', chase, '2026-05-01', object_obligation_id=K9.id)
-    t9 = db.in_effect(s, chase, 'standin_entitled', '2026-05-01')
+    stance(db.ENTITLED_PARTY_OF_BEGAN, chase, '2026-05-01', object_obligation_id=K9.id)
+    stance(db.ENTITLED_PARTY_OF_ENDED, chase, '2026-05-01', object_obligation_id=K9.id)
+    t9 = db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-05-01')
     check('Ts9: began 5/1 · ended 5/1 · d 5/1 -> CONTESTED within G (two forward readings)',
           ans(t9, K9.id) == db.EFFECT_CONTESTED and len(t9['identities'][K9.id]['governing']) == 2)
     check('Ts10 (TS-c): began 1/1 · ended 6/30 -> 6/30 NOT IN EFFECT, 6/29 IN EFFECT - the ending\'s date is the first date not in effect',
-          ans(db.in_effect(s, chase, 'standin_entitled', '2026-05-01'), K5.id) == db.EFFECT_NOT
-          and ans(db.in_effect(s, chase, 'standin_entitled', '2026-04-30'), K5.id) == db.EFFECT_IN)
+          ans(db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-05-01'), K5.id) == db.EFFECT_NOT
+          and ans(db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-04-30'), K5.id) == db.EFFECT_IN)
 
     print('\n8. Ts11-Ts14 / Tr11 / Tr13 / Tr16-Tr19 - an ending alone; retraction; overlap; two parties; learned-at; nothing\n')
     K11 = mint(db.Obligation, 'A loan for Ts11.')
-    stance('standin_entitled_ended', chase, '2026-06-30', object_obligation_id=K11.id)
+    stance(db.ENTITLED_PARTY_OF_ENDED, chase, '2026-06-30', object_obligation_id=K11.id)
     check('Ts11 (R12): ended 6/30 only -> 5/1 UNDETERMINED (the ending\'s backward reading supplies no answer where nothing governs - no period by the back door); 7/1 NOT IN EFFECT',
-          ans(db.in_effect(s, chase, 'standin_entitled', '2026-05-01'), K11.id) == db.EFFECT_UNDETERMINED
-          and nxt(db.in_effect(s, chase, 'standin_entitled', '2026-05-01'), K11.id) == [('ended', '2026-06-30')]
-          and ans(db.in_effect(s, chase, 'standin_entitled', '2026-07-01'), K11.id) == db.EFFECT_NOT)
+          ans(db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-05-01'), K11.id) == db.EFFECT_UNDETERMINED
+          and nxt(db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-05-01'), K11.id) == [('ended', '2026-06-30')]
+          and ans(db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-07-01'), K11.id) == db.EFFECT_NOT)
     K12 = mint(db.Obligation, 'A loan for Ts12.')
     u12 = utter('Chase became the entitled party 1/1.')
-    stance('standin_entitled_began', chase, '2026-01-01', utterance=u12, object_obligation_id=K12.id)
+    stance(db.ENTITLED_PARTY_OF_BEGAN, chase, '2026-01-01', utterance=u12, object_obligation_id=K12.id)
     retract(u12, 'Chase never was.')
-    t12 = db.in_effect(s, chase, 'standin_entitled', '2026-05-12')
+    t12 = db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-05-12')
     check('Ts12 (R6): the beginning retracted -> UNDETERMINED, not "ended"; the retracted stance listed as contested; governing []',
           ans(t12, K12.id) == db.EFFECT_UNDETERMINED and gov(t12, K12.id) == []
           and [st['state'] for st in t12['identities'][K12.id]['stances']] == [db.CLAIM_CONTESTED])
@@ -439,43 +437,43 @@ def _run(db):
           ans(t13, P2.id) == db.EFFECT_IN and ans(t13, P1.id) == db.EFFECT_CONTESTED and t13['in_effect'] == [P2.id]
           and not any(k in FORBIDDEN_KEYS for k, _ in _walk(t13)))
     K14 = mint(db.Obligation, 'A loan for Ts14.')
-    stance('standin_entitled', chase, '2026-01-01', utterance=utter('Chase holds it.'), object_obligation_id=K14.id)
-    stance('standin_entitled', chase, '2026-01-01', utterance=utter('Chase holds it.', origin=aetna), object_obligation_id=K14.id)
-    t14 = db.in_effect(s, chase, 'standin_entitled', '2026-03-01')
+    stance(db.ENTITLED_PARTY_OF, chase, '2026-01-01', utterance=utter('Chase holds it.'), object_obligation_id=K14.id)
+    stance(db.ENTITLED_PARTY_OF, chase, '2026-01-01', utterance=utter('Chase holds it.', origin=aetna), object_obligation_id=K14.id)
+    t14 = db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-03-01')
     check('Ts14: holds 1/1 (Rob) · holds 1/1 (Aetna) -> IN EFFECT, both governing stances named, neither ranked',
           ans(t14, K14.id) == db.EFFECT_IN and len(t14['identities'][K14.id]['governing']) == 2
           and {st['asserter'] for st in t14['identities'][K14.id]['governing']} == {household.id, aetna.id})
-    stance('standin_entitled_ended', e1, '2026-05-01', object_obligation_id=O.id)
-    stance('standin_entitled_began', e2, '2026-05-01', object_obligation_id=O.id)
+    stance(db.ENTITLED_PARTY_OF_ENDED, e1, '2026-05-01', object_obligation_id=O.id)
+    stance(db.ENTITLED_PARTY_OF_BEGAN, e2, '2026-05-01', object_obligation_id=O.id)
     check('Tr11 (R8): E1 ended 5/1, E2 began 5/1 -> 5/12: E1 NOT IN EFFECT, E2 IN EFFECT; 4/12: E1 UNDETERMINED (an ending alone), E2 UNDETERMINED (no stance precedes) - never "not in effect" from absence',
-          ans(db.in_effect(s, e1, 'standin_entitled', '2026-05-12'), O.id) == db.EFFECT_NOT
-          and ans(db.in_effect(s, e2, 'standin_entitled', '2026-05-12'), O.id) == db.EFFECT_IN
-          and ans(db.in_effect(s, e1, 'standin_entitled', '2026-04-12'), O.id) == db.EFFECT_UNDETERMINED
-          and ans(db.in_effect(s, e2, 'standin_entitled', '2026-04-12'), O.id) == db.EFFECT_UNDETERMINED)
+          ans(db.in_effect(s, e1, db.ENTITLED_PARTY_OF, '2026-05-12'), O.id) == db.EFFECT_NOT
+          and ans(db.in_effect(s, e2, db.ENTITLED_PARTY_OF, '2026-05-12'), O.id) == db.EFFECT_IN
+          and ans(db.in_effect(s, e1, db.ENTITLED_PARTY_OF, '2026-04-12'), O.id) == db.EFFECT_UNDETERMINED
+          and ans(db.in_effect(s, e2, db.ENTITLED_PARTY_OF, '2026-04-12'), O.id) == db.EFFECT_UNDETERMINED)
     K16 = mint(db.Obligation, 'A loan for Tr16.')
-    stance('standin_entitled_began', chase, '2026-01-01', object_obligation_id=K16.id)
-    late = stance('standin_entitled_ended', chase, '2026-06-30', utterance=utter('Ended June 30.', '2026-08-15T09:00:00'), object_obligation_id=K16.id)
+    stance(db.ENTITLED_PARTY_OF_BEGAN, chase, '2026-01-01', object_obligation_id=K16.id)
+    late = stance(db.ENTITLED_PARTY_OF_ENDED, chase, '2026-06-30', utterance=utter('Ended June 30.', '2026-08-15T09:00:00'), object_obligation_id=K16.id)
     late.created_at = datetime(2026, 8, 15, 9)
     s.commit()
     check('Tr16 (R3): an ending as_of 6/30 recorded 8/15, asked "on 7/1" -> NOT IN EFFECT - effective-at governs; in_effect reads no created_at',
-          ans(db.in_effect(s, chase, 'standin_entitled', '2026-07-01'), K16.id) == db.EFFECT_NOT
+          ans(db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-07-01'), K16.id) == db.EFFECT_NOT
           and 'created_at' not in __import__('inspect').getsource(db.in_effect) and 'created_at' not in __import__('inspect').getsource(db._stance_answer))
     K17 = mint(db.Obligation, 'A loan for Tr17.')
     card, r_card = held('h-card', chase)
-    stance('standin_entitled_began', chase, '2026-01-01', reading=r_card, object_obligation_id=K17.id)
-    t17 = db.in_effect(s, chase, 'standin_entitled', '2026-05-12')
+    stance(db.ENTITLED_PARTY_OF_BEGAN, chase, '2026-01-01', reading=r_card, object_obligation_id=K17.id)
+    t17 = db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-05-12')
     check('Tr17 (R11): the insurer\'s card read "member since 1/1" -> a CANDIDATE stance, listed, grounds nothing -> UNDETERMINED',
           ans(t17, K17.id) == db.EFFECT_UNDETERMINED and [st['state'] for st in t17['identities'][K17.id]['stances']] == [db.CLAIM_CANDIDATE])
     K19 = mint(db.Obligation, 'A loan for Tr19 - no stance at all.')
-    t19 = db.in_effect(s, chase, 'standin_entitled', '2026-05-12')
+    t19 = db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-05-12')
     check('Tr19: no stance at all for (Chase, role, K19) -> the identity is absent from the report, not "not in effect"; a party with no stances anywhere -> note "no stance"',
-          K19.id not in t19['identities'] and db.in_effect(s, mercy, 'standin_entitled', '2026-05-12')['note'] == 'no stance')
+          K19.id not in t19['identities'] and db.in_effect(s, mercy, db.ENTITLED_PARTY_OF, '2026-05-12')['note'] == 'no stance')
 
     print('\n9. Tr20 / Tr25 / Tr26 - surfaced not stored; null models; where the failure appears\n')
     before = snapshot()
     reports = [db.reach(s, O, db.OBLIGATION_IN_RESPECT_OF), db.reach(s, X, db.OBLIGATION_IN_RESPECT_OF, as_object=True),
                db.reach(s, kim_party, db.UNDER_PLAN), db.in_effect(s, kim_party, db.UNDER_PLAN, '2026-08-01'),
-               db.in_effect(s, chase, 'standin_entitled', '2026-03-01'), db.in_effect(s, e1, 'standin_entitled', '2026-05-12')]
+               db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-03-01'), db.in_effect(s, e1, db.ENTITLED_PARTY_OF, '2026-05-12')]
     check('Tr20: six reads wrote nothing - every row identical; no period / interval / status / current column or table exists',
           snapshot() == before
           and not any(any(w in c.name for w in ('period', 'interval', 'in_effect', 'current', 'effective_from', 'effective_to'))
@@ -485,15 +483,15 @@ def _run(db):
     check('Tr25 (null model, reach): the endpoints of reach(O, obligation_in_respect_of) are exactly the direct query of claims by kind and subject - a correctness oracle',
           sorted({(e['id'], e['claim']) for e in reports[0]['endpoints']}) == direct)
     K25 = mint(db.Obligation, 'A loan for Tr25.')
-    stance('standin_entitled_began', mercy, '2026-03-01', object_obligation_id=K25.id)
-    oracle = all(ans(db.in_effect(s, mercy, 'standin_entitled', d), K25.id) == (db.EFFECT_IN if d >= '2026-03-01' else db.EFFECT_UNDETERMINED)
+    stance(db.ENTITLED_PARTY_OF_BEGAN, mercy, '2026-03-01', object_obligation_id=K25.id)
+    oracle = all(ans(db.in_effect(s, mercy, db.ENTITLED_PARTY_OF, d), K25.id) == (db.EFFECT_IN if d >= '2026-03-01' else db.EFFECT_UNDETERMINED)
                  for d in ('2026-01-01', '2026-02-28', '2026-03-01', '2026-03-02', '2026-12-31'))
     check('Tr25 (null model, in_effect): one began, no ended -> IN EFFECT for every d >= the beginning, UNDETERMINED before - exact',
           oracle)
     check('Tr26 (where the failure appears): "in effect" never said with an empty governing set; never said where the next stance reads back against it; no endpoint without a claim; no second hop',
           all(v['governing'] for rep in reports if 'identities' in rep for v in rep['identities'].values() if v['answer'] == db.EFFECT_IN)
           and all(e['claim'] is not None for rep in reports if 'endpoints' in rep for e in rep['endpoints'])
-          and ans(t6, P1.id) == db.EFFECT_CONTESTED and ans(t11 := db.in_effect(s, chase, 'standin_entitled', '2026-05-01'), K11.id) == db.EFFECT_UNDETERMINED)
+          and ans(t6, P1.id) == db.EFFECT_CONTESTED and ans(t11 := db.in_effect(s, chase, db.ENTITLED_PARTY_OF, '2026-05-01'), K11.id) == db.EFFECT_UNDETERMINED)
 
     print('\n10. The dependency direction and the wiring guard\n')
     check('reach and in_effect call referent() for the subject and nothing that composes, projects, scores or resolves - no aboutness / chain_strength / level_consistency / independence / parse_disputes',

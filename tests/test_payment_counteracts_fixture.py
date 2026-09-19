@@ -84,7 +84,7 @@ def run(db):
     s.commit()
     household, kim_party = rob.party, kim.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'amount': {'person', 'institution'},
-               'paid_to': {'person', 'institution'}, 'returned': {'institution'}}
+               'returned': {'institution'}}   # paid_to: a ruled role since 9B - knowing by relation, not by the map
 
     def utter(text, when='2026-06-03T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -206,10 +206,12 @@ def run(db):
           rel(obj=p1).count() == 3)
 
     print('\n7. A7 - the refund lands on Kim\'s card: no payer/payee mirroring\n')
-    about('paid_to', p2, 'Kim (replacement card)', utterance=utter("The chargeback credit went to Kim's new card.", '2026-06-11T09:00:00'))
-    about('paid_by', p1, 'Rob', utterance=u_p1)
-    check('A7: p2\'s payee is Kim and p1\'s payer is Rob - claims on each payment; the relation stands without requiring them to mirror',
-          s.query(db.Proposition).filter_by(kind='paid_to', subject_payment_id=p2.id).count() == 1
+    # 9B ruled paid_to / paid_by as roles (party -> payment); this corpus had used the names for a content claim on the payment
+    evidence(prop(db.PAID_TO, subject_party_id=kim_party.id, object_payment_id=p2.id, as_of='2026-06-11'),
+             utterance=utter("The chargeback credit went to Kim's new card.", '2026-06-11T09:00:00'))
+    evidence(prop(db.PAID_BY, subject_party_id=household.id, object_payment_id=p1.id, as_of='2026-06-03'), utterance=u_p1)
+    check('A7: p2\'s payee is Kim and p1\'s payer is Rob - role claims on each payment (9B\'s kinds); the relation stands without requiring them to mirror',
+          s.query(db.Proposition).filter_by(kind=db.PAID_TO, object_payment_id=p2.id, subject_party_id=kim_party.id).count() == 1
           and rel(p2, p1).count() == 1
           and not any(hasattr(db, n) for n in ('payer_matches_payee', 'mirrored', 'requires_mirroring')))
 
