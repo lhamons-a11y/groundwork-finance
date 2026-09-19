@@ -2949,3 +2949,420 @@ reads zero · the payoff's direction inferred from its payee · overdue enters �
 a consolidation's other predecessors dropped · store — ten, all caught, baseline re-established
 after every undo. No escape in the derivation; no fixture-construction fixes; no absence check
 falsified. No schema, no migration. Gate 1262 → 1285, 0 failed.
+
+
+### 7I.9 Build accepted — Rob, 2026-09-19: 7I ACCEPTED; open 7H
+
+*The fixture is testing the ruling, not merely exercising the implementation.* Di13 preserves the
+B1 null arm and keeps reading-sourced / retracted relation material out of the group; Di15 / Di16
+enforce the distinction between having a confirmed value and being eligible on the after side —
+`created_at` cannot become a temporal shortcut; Di17 catches persistence leakage across the schema,
+not just through the call; Di18 / Di22 / Di23 establish that the arithmetic result may be 0,
+positive or negative without acquiring a label; Di19 is an aggregate discriminator (eligibility,
+undetermined propagation, exact subtraction, numeric representation, forbidden vocabulary
+together); the wiring checks keep 7I a consumer of `reach` and 7G `remaining`, not another
+derivation engine; the AST write guard is appropriate because *reconstruction writes nothing* is
+part of the semantic boundary. **Preserved for the record:** `dispositions: {read: [], note}` **is
+not a disposition vocabulary** — it is an absence / reporting surface proving that 7I neither read
+nor invented dispositions, which is the whole point of performing the check before the vocabulary
+is settled. Di16 is exactly the right temporal trap: *statement dated 3/15 → not restated when
+asked 2/28; restated when asked 3/31* — the after-side rule is genuinely as-of d, not *find the
+eventual statement and project it backward*. The full gate decides the build; no semantic
+reopening unless it exposes a contradiction with §7I.8.
+
+**7I — disposition (the reconstruction): ACCEPTED / BUILT / GREEN.**
+
+---
+
+## Pass 7H — Reconciliation
+
+**The question, applied:** *Lakeview Health's EOB says my share of the ER visit is $412; Riverbend Hospital's statement
+says I owe $450; Riverbend Hospital billed $1,300 — do these agree, and what is the $650 nobody has explained?*
+The obligation-semantics question put the invariant before any of item 6 existed: *an unresolved
+reconciliation balance must never be implicitly classified as paid, unpaid, reimbursed, deductible
+or non-deductible* — the $650 *can be an unpaid balance, a payment the user made that has not been
+recorded, an adjustment the provider wrote off, or a claim still being adjudicated; same number,
+four meanings, three different tax answers.* It named the four determinations (`provider_adjustment
+· user_paid_cash · unpaid · pending_claim`) as *current determinations superseded rather than
+overwritten*, with `unpaid` and `pending_claim` yielding the same figure today and **not being the
+same fact** (ARCHITECTURE_PRINCIPLES). C6 then closed the shortcut from the relation's side: *the
+relation is not a reconciliation operator* — O's amount is not X's billed, allowed or patient
+responsibility, nor a residual of them; *O's balance ≠ X's PR is not an error the substrate sees
+and not a permission to compute a "corresponding obligation amount"; the four determinations are
+item 7.* D10 and D12 said the same from the payment's side: *paid* is not a status the relation
+confers; `unpaid` / `pending_claim` stay uncollapsed; a determination is *a reconciliation stance —
+a consumer's reading over X, its amount claims, p and the relation; representable later as a dated
+claim on X if item 7 rules it.* 7H is that consumer — and §3 named it, with 7J, as *the last place
+a consumer could quietly become a resolver.*
+
+So the pressure question: **what does reconciliation derive, if it may neither equate the two
+sides nor determine anything?** Three things, each already licensed: it puts **the figures of two
+different kinds of thing side by side with their provenance** — the provider's and insurer's
+stances on X, the entitled party's position on O, the funding events in respect of X — through the
+relations the household asserted; it states **the difference between them as a diagnostic**, the
+way 7G states `statement_check` and 7I `unaccounted`; and it states **the unresolved amount** — the
+obligation-semantics question's own arithmetic, *the gap between two different kinds of fact, an
+observation about reconciliation, not an explanation of what happened to the money* — beside the
+**determination the parties have made about it**, as dated stances, the current one named, none
+inferred, none collapsed. And it shapes the determination as a claim, as D12 said item 7 would.
+
+### 7H.1 What is already fixed
+
+| Ruling | Constraint on 7H |
+|---|---|
+| **The two invariants** (OBLIGATION_SEMANTICS_QUESTION) | *an unresolved reconciliation balance must never be implicitly classified as paid, unpaid, reimbursed, deductible or non-deductible*; *no tax calculation may convert an unresolved amount into a classification without an explicit rule* — 7H classifies nothing and feeds no tax rule |
+| **The four determinations** | `provider_adjustment · user_paid_cash · unpaid · pending_claim`; *current determinations superseded, never overwritten*; **`unpaid` ≠ `pending_claim`** (`unpaid` settles the evidentiary question and leaves the obligation open; `pending_claim` settles nothing) — 7H reports them as dated stances by their parties and maps none onto another |
+| **C7 (applicability)** | a denial is none of the four — *forced through either channel it acquires that channel's meaning*; 7H reads no denial kind and says so |
+| **C6 / C5 / C10** | the relation reconciles nothing: no *O = X's billed / allowed / PR / residual*; no allocation across several expenses; O's balance ≠ X's PR is not an error; the EOB mints no O and asserts no relation |
+| **D10 / D12 / D′5** | the payment relation carries no amount and reconciles nothing; a determination is a consumer's stance, not a status the relation confers; the insurer's payment is in respect of X and never *toward* O by convergence |
+| **U6 / 7G** | P-ack is the holder's dated position; the household's figure is testimony (F3); a projection is not evidence; the governing position under G, named; `stated`, `attached`, `confirmed` on O are 7G's — **7H reads them and re-derives nothing** |
+| **7F / 7I** | `reach` in both directions, every claim, every state; a role in effect at a date (the stand-ins); no chain, no inference across a third party |
+| **Expense identity** | *the four determinations — reconciliation stances about amounts of an expense / obligation; claims by their parties; consumers of the identities, item 7*; the classification catalogue, care necessity, tax are separate |
+| **§1** | 1 · 2 (a difference is reported, never a resolution) · 4 (the endpoint's figures read as its own) · 5 (absence is not zero — no PR is not PR = 0; no determination is not `unpaid`) · 7 · 8 · 9 · 11 |
+
+### 7H.2 What reconciliation is — the sides, the comparison, the unresolved amount, the determination
+
+**The sides.** For one expense X on date d:
+
+| side | what | source | governing |
+|---|---|---|---|
+| **X — the provider's stance** | `billed` (the charge) | the provider's dated claim on X (P-ack for X's charge), asserter in effect as *provider of X* at its date (a role kind — a stand-in until ruled) | G: the latest established at or before d, named; two at one date → conflict, none |
+| **X — the insurer's stance** | `patient_responsibility` (the household's share); `plan_paid` (what the plan says it paid) | the insurer's dated claims on X, asserter in effect as *insurer of X* at its date | the same |
+| **O — the entitled party's position** | `stated` S(d), `confirmed(d)` | 7G, for every O the household asserted *in respect of X* (`reach(X, obligation_in_respect_of, as_object)`, every claim, every state) | 7G's |
+| **funding events** | every payment *in respect of X* (`reach(X, payment_in_respect_of, as_object)`), with amount, payer, payee, and any attachment to an O | the household's claims | — |
+
+A claim on X by a party not in effect in the named role (Rob: *"the EOB said $412"* — F3 / K5) is
+listed and does not govern — TG-base's rule on X's side.
+
+**The comparison — one pair, one number, no verdict.** Where X has exactly one established
+obligation in respect of it and that obligation is in respect of no other expense, 7H states
+`difference = S_O(d) − PR_X(d)` with both terms named. Otherwise **undetermined, naming why**: no
+obligation; several obligations (D′3 — no sum); the obligation in respect of several expenses (C5
+— no apportionment); no governing PR; no governing S. The number is a diagnostic — *the two
+positions differ by 38* — never *O should be 412*, never *matches* / *error*, never a corresponding
+amount written anywhere.
+
+**The unresolved amount — the question's own arithmetic, as an observation.**
+
+```text
+unresolved(d) = billed_X(d) − Σ dir·amt over payments in respect of X (relation established,
+                                       amount established, b_billed < occurred_on ≤ d)
+dir = −1 payee in effect as provider of X at the payment's date (a funding event — the insurer's,
+          the household's, the HSA's: any payer);  +1 the provider is the payer (money back);
+      undetermined otherwise → unresolved undetermined naming the payment
+```
+
+Payments dated at or before the governing charge's date are inside it (7G's rule on X's side).
+This is the $650: *gross 1,200 − insurer 250 − user 300 = unresolved 650*. It is a number with its
+terms. **It is classified by nothing 7H does.**
+
+**The determination — a dated claim on X, shaped here as D12 said.** Kind `determination`
+(catalogue), subject X, `as_of`, content one of the four names, asserted by a party under the
+ordinary discipline; reading-sourced → candidate; retracted → contested. 7H reports the history
+and the **current** determination (the latest established at or before d — *superseded, never
+overwritten*; two at one date with different names → a conflict, none current). **It infers none:**
+`unresolved = 0` is not `user_paid_cash`; no determination is not `unpaid`; a denial is not
+`pending_claim`; `unpaid` and `pending_claim` are two names and stay two. The determination's
+amount is the unresolved amount as the party found it — 7H attaches no split, no percentage.
+
+**What it refuses:**
+
+| Not this | Why |
+|---|---|
+| equating — O's balance from X's PR, or PR from O; a *corresponding amount* | C6 |
+| a residual as O's amount — billed − plan-paid, allowed − plan-paid | C6 |
+| a verdict — `matches`, `reconciled`, `error`, `discrepancy: True` | §1.2; the difference is a number |
+| collapsing — `unpaid` ↔ `pending_claim`; a denial as either; `unresolved = 0 → paid` | the determinations ruling; C7; D12 |
+| apportioning — the balance across several expenses, the PR across several obligations | C5, D′3 |
+| classifying — deductible, qualifying, reimbursed, tax anything | the two invariants |
+| inferring the insurer's payment onto O | D′5 |
+| a status on X or O; a stored determination derived by 7H | §1.1 |
+
+### 7H.3 The cases
+
+| # | Case | What 7H must say | What it must never do |
+|---|---|---|---|
+| **Rc1 (C6)** | Riverbend Hospital billed $1,300 (X); Lakeview Health PR $412 (X); Riverbend Hospital's statement $450 (O); O in respect of X (Rob). | all three listed by party and date; **difference = 450 − 412 = 38**; O's figures 7G's, unchanged | set O to 412; call 38 an error; write a corresponding amount |
+| **Rc2 (the $650)** | Billed $1,200; Lakeview Health pays Riverbend Hospital $250 in respect of X; Rob pays $300 in respect of X. | **unresolved = 650** with its terms — an observation | classify it; call it unpaid; call it a write-off |
+| **Rc3 (D12)** | Rob: *user_paid_cash* on X, dated. | current determination `user_paid_cash` by Rob; **unresolved still 650** — the number did not move; the stance is a stance | move the number; treat the stance as a payment |
+| **Rc4 — superseded** | `pending_claim` (3/1, Rob) then `provider_adjustment` (5/1, Rob). | history of two; current the 5/1 one; **the 3/1 one still listed** | overwrite; drop the earlier |
+| **Rc5 — two names** | `unpaid` on X1 (nobody paid; still owed); `pending_claim` on X2 (adjudicating). | each reported as stated; **no key or path from one to the other**; a corpus search finds no mapping | collapse; a shared state |
+| **Rc6 (C7) — a denial** | Lakeview Health: *not a covered service* (a stance of another kind). | 7H reads no denial kind; the note says so; the determination stays whatever the parties said (or none) | force it into `unpaid` or `pending_claim` |
+| **Rc7 (C5)** | One O in respect of X1 and X2; asked about X1. | comparison **undetermined: the obligation is in respect of several expenses**; unresolved for X1 still computed | apportion the balance |
+| **Rc8 (D′3)** | X with O1 (Riverbend Hospital) and O2 (radiologist). | comparison **undetermined: several obligations**; both listed with 7G figures | sum the balances against the PR |
+| **Rc9 — no obligation** | X with an EOB and no O. | comparison undetermined *no obligation in respect of X*; the sides still reported | mint O; PR = 0 |
+| **Rc10 — PR conflict** | Two Lakeview Health PR claims at one date, $412 and $380. | no governing PR; comparison undetermined; both listed | pick |
+| **Rc11 — PR history** | EOB 2/1 PR $500; corrected EOB 3/1 PR $412. | history; governing at d ≥ 3/1 = 412, named | a disagreement |
+| **Rc12 — the household's figure** | Rob: *the EOB said $412* (a PR claim by Rob). | listed; **not governing** (Rob not in effect as insurer) | TG-base violated |
+| **Rc13 — direction on X** | Lakeview Health → Riverbend Hospital $250 (payee the provider); Riverbend Hospital → Rob $50 refund; the HSA → Riverbend Hospital $100. | −250, +50, −100 — any payer to the provider is a funding event; the provider paying is money back | household-only direction; undetermined for the insurer |
+| **Rc14 — candidate relation** | A matcher's *O in respect of X* (reading-sourced). | listed as candidate; not an obligation of X for the comparison | count it |
+| **Rc15 — retracted determination** | Rob retracts *user_paid_cash*. | contested; not current; nothing current if nothing else | read as `unpaid` |
+| **Rc16 — as of d** | A determination dated after d. | not current at d; current later | `created_at` |
+| **Rc17 — surfaced, not stored** | The household reads and asserts a determination. | the next read shows it; 7H wrote nothing; no status column on X or O | store a determination 7H derived |
+| **Rc18 — the null model** | billed = Σ funding events → unresolved 0; remove one → exactly its amount; S_O = PR → difference 0. | exact | a tolerance; `paid` |
+| **Rc19 — zero is not a determination** | unresolved 0, no determination claim. | current: none; **no `user_paid_cash` inferred** | infer |
+| **Rc20 — no classification** | Any corpus. | no key or word deductible / qualifying / reimbursed / taxable anywhere | the tax engine's job leaking in |
+| **Rc21 — where the failure appears** | a determination inferred from arithmetic; a corresponding amount; a collapse; an apportionment; a verdict | measured there | — |
+
+### 7H.4 Testing the readings
+
+**RH0 — the relation as reconciliation** (O's amount derived from X's). Rejected: C6; Rc1.
+
+**RH1 — a verdict** (`matches` / `error`). Rejected: §1.2; Rc1, Rc18.
+
+**RH2 — the determination inferred** (from zero, from a denial, from absence). Rejected: the
+invariants, C7, D12; Rc6, Rc15, Rc19.
+
+**RH3 — collapse** (`unpaid` ≡ `pending_claim`). Rejected: ARCHITECTURE_PRINCIPLES; Rc5.
+
+**RH4 — apportionment or summation** across C5 / D′3. Rejected: Rc7, Rc8.
+
+**RH5 — classification** (tax). Rejected: the second invariant; Rc20.
+
+**RH6 — the candidate: one read-only derivation `reconciliation(session, expense, d, catalogue,
+knowing)`** — `catalogue` naming `billed`, `patient_responsibility`, `plan_paid`, `determination`,
+`provider_of`, `insurer_of` (role kinds with bound boundaries), beside 7G's; returns the three
+sides with governing positions named; the obligations with 7G's figures and their other expenses;
+the funding events with direction; `difference` or its reason; `unresolved` or its reason;
+`determinations` {history, current, conflict}; a note (no denial kind read; no classification).
+**No verdict, no corresponding amount, no collapse, no apportionment, no classification, no
+write.**
+
+### 7H.5 What the derivation is — and is not
+
+| **reads** | X's stance claims under the catalogue with 7F's role answers; `reach` over both in-respect-of kinds; 7G `remaining` per obligation; the determination claims; `derived_strength` as given |
+|---|---|
+| **returns** | the sides · the comparison as a number or its reason · the unresolved amount with terms · the determinations as history with the current one named · a note |
+| **decides** | nothing — no figure preferred, no determination made or inferred, no classification |
+| **is not** | a resolver; the tax engine's input rule; a determination writer; 7G (it reads 7G); 7J (no accumulator) |
+| **failure appears at** | Rc21 — a determination from arithmetic; a corresponding amount; a collapse; an apportionment; a verdict — measured there |
+| **null model** | Rc18 — funding equal to the charge → 0; one event removed → exactly its amount; positions equal → 0 |
+
+### 7H.6 Ruling candidate — pass 7H, for Rob
+
+> **Reconciliation puts figures of different kinds side by side and states their differences;
+> it equates nothing and determines nothing. For one expense and one date the consumer states
+> the provider's charge and the insurer's patient responsibility and plan payment as the dated
+> positions of the parties in effect in those roles, each governing position named; the
+> entitled party's stated and confirmed positions on every obligation the household asserted in
+> respect of the expense, as the discharge consumer gives them; and every payment the household
+> asserted in respect of the expense with its direction relative to the provider. Where exactly
+> one obligation stands in respect of the expense and of no other, it states the difference
+> between the obligation's stated position and the patient responsibility as a number with its
+> terms; otherwise it says why it cannot. It states the unresolved amount — the charge less the
+> funding events since it — as an observation with its terms, and classifies it as nothing. It
+> reports the determinations the parties have made about the expense as dated stances,
+> superseded and never overwritten, the current one named and none inferred: from zero, from
+> absence, from a denial, or from one another — unpaid and pending claim are two facts. It
+> derives no amount for the obligation from the expense's figures or the reverse, sums no
+> balances across obligations, apportions no balance across expenses, renders no verdict, and
+> feeds no tax rule. It writes nothing; its failure can appear only where a determination is
+> inferred, an amount is made to correspond, two determinations collapse, a figure is
+> apportioned, or a verdict is rendered — and it is measured there.**
+
+**If ruled, the build is one read-only function** — `reconciliation(session, expense, d,
+catalogue, knowing)` beside `reconstruction`; a fixture over Rc1–Rc21 with the absences (no
+`matches`, `reconciled`, `corresponding_amount`, `infer_determination`, `mark_paid`, `deductible`;
+no status or determination column) and the AST + row-content wiring guard, the stand-in kinds
+registered and removed; a smoke section whose mutations each try to *settle* (set O's balance to
+the PR; a verdict key; unresolved 0 → `user_paid_cash`; a denial → `unpaid`; `pending_claim` →
+`unpaid`; sum the balances; apportion the PR; the household's figure governs; a `deductible` key;
+store); **no schema, no migration; 7J not opened until it is green.**
+
+**What pass 7H leaves exactly where it found it:** the role catalogue (provider of, insurer of) ·
+the domain value catalogue · a denial kind (C7's problem, named) · the classification catalogue and
+tax · accumulators and eligibility (7J) · D′.11.
+
+*The line: the bill, the share and the balance are three sentences by three parties; the record
+reads them out together, says how far apart they are, and lets the household — not the arithmetic
+— say what the gap was.*
+
+
+### 7H.7 Rob's review of the shape, 2026-09-19 — four things settled in the record before any code
+
+Rob, on the shape alone: *the overall split looks sound — dated positions from specific parties /
+roles; the difference restricted to one-to-one; the unresolved amount without classifying the
+remainder; determinations as claims and history, not inferred states. Four places need ruling
+before implementation, so that code cannot make any of them accidentally canonical.* No build is
+authorised; each is answered here from the record and the cases, with no new machinery.
+
+#### (1) Obligation membership — the exact fence
+
+*"Every O the household asserted in respect of X" must not become "all obligations reachable from
+X" or "all that look related."* The proposition is exactly one: **`obligation_in_respect_of(O, X)`**
+(item 6 pass C — subject the obligation, object the expense), read by `reach(X,
+obligation_in_respect_of, as_object=True)` — every claim, every ground, each with its state — over
+the **established referent of X** (7F's rule: an established `expense_corresponds` folds two
+minted expenses into one referent; a candidate correspondence folds nothing). One hop, this kind
+only: never through a payment, a plan, an artefact, a heading or a party.
+
+```text
+O is a reconciliation context of X   iff   some ground of some obligation_in_respect_of(O, X) is ESTABLISHED
+                                           (utterance-sourced, unretracted)
+candidate only  (reading-sourced grounds)   → listed under candidates; not a context; the side is NOT undetermined
+contested only  (every ground retracted)    → listed under contested;  not a context; the side is NOT undetermined
+established beside a retracted ground       → a context (the claim stands); the retracted ground listed
+```
+
+A candidate never unsettles (7C's rule; a matcher's pairing is a reason to ask); a withdrawn
+assertion is the household's own withdrawal (R6 — it leaves the series, the history survives). The
+**one-to-one condition** counts established contexts only, on both halves: exactly one established
+context for X, and that context in respect of no *other* expense by an established claim
+(`reach(O, obligation_in_respect_of)`, established endpoints ≠ the referent of X). Candidates and
+contested on either half are named in the reason so their presence is visible, and break nothing.
+
+#### (2) Funding-event membership — two predicates, kept apart
+
+*"In respect of X" must not be inferred because a payment happens to go to the provider.* Two
+independent predicates, in this order:
+
+```text
+(a) membership   p is a funding event of X   iff   some ground of some payment_in_respect_of(p, X) is ESTABLISHED
+                 (7F reach over the referent of X; candidate-only / contested-only listed apart, not counted)
+(b) direction    for a member p only, from p's own established paid_by / paid_to claims and 7F's role answer
+                 at p's occurred_on:   payee in the referent of a party in effect as PROVIDER OF X  → −1 (funding)
+                                        payer such a party                                          → +1 (money back)
+                                        otherwise                                                   → undetermined,
+                                                                                                      naming p
+```
+
+A payment to the provider with no established `payment_in_respect_of(p, X)` is **not in the report
+at all** — not a candidate, not a funding event, nothing. *Any payer* is a statement about (b) —
+the insurer's, the household's, the HSA's payment each counts as funding once (a) holds — never a
+provider-account rule. §7H.2's sentence is corrected to read that way.
+
+#### (3) The temporal anchor of the unresolved amount — and a correction to §7H.2
+
+§7H.2 wrote `b_billed < occurred_on ≤ d` — 7G's base rule carried over. **That was wrong for a
+charge.** 7G's base is a *balance*, which absorbs the payments before it; a `billed` position is
+the **gross charge**, which absorbs nothing — a corrected charge re-stated on a later date is still
+gross. So:
+
+```text
+B(d)          = the governing billed position: the latest ESTABLISHED billed claim on X with as_of <= d
+                by a party in effect as provider of X at its as_of (G, named with its date; two at one
+                date with different values → conflict, none; none → no charge)
+unresolved(d) = B(d).value − Σ dir(p)·amt(p)   over every funding event p of X (predicates (a) and (b))
+                                                 with ESTABLISHED amount and occurred_on <= d — no lower bound
+```
+
+The economic date is `occurred_on`, always; no acknowledgment, confirmation or `created_at`
+substitutes for it (7G's discipline). **All established funding events count, irrespective of any
+acknowledgment or discharge** — explicitly: the two sides are different kinds (the household's
+record of money moved, D; the provider's acknowledgment lives on O, 7G) and 7H sets them beside
+each other rather than merging them: `unresolved` is the funding view, and each context's 7G
+`confirmed(d)` beside it is the acknowledged view. Undetermined propagates from B (absent,
+conflicted) and from any member's amount, direction or date.
+
+#### (4) The determination — what makes a claim eligible, and what "current" is
+
+**The claim.** Kind `determination` (catalogue); subject X; `as_of` required — the date the
+determination is about; content **exactly one of the four names** (`provider_adjustment ·
+user_paid_cash · unpaid · pending_claim`); any other content is listed as *unrecognised* and is
+never current (C7's rule: one of these *or not at all* — a denial forced in would acquire a
+channel's meaning). Established = utterance-sourced and unretracted; reading-sourced → candidate
+(a parser determines nothing); retracted → contested.
+
+**Who may make it.** Any party under the ordinary discipline — the household (D12), the provider,
+the insurer. **Whether a party's role constrains its determination is the catalogue's to rule, not
+7H's**: the asserter and 7F's role answers for it (provider of X · insurer of X · a household
+person) are *reported as facts* and constrain nothing; when the catalogue rules who may determine,
+the eligibility predicate gains that test exactly as TG-base gained the entitled-party test, with no
+change of shape.
+
+**"Current" — no new resolver.** The only ordering machinery the record has ruled is **G, per
+series** (TS: a stance stands until the next stance, for one party, one kind, one identity) and
+**conflict at one date → none** (7G). 7H uses those and nothing else:
+
+```text
+for each asserting party A:   current_A(d) = the latest established determination on X by A with as_of <= d
+                              two by A at that date with different names        → A's series conflicted, no current_A
+                              the latest by A retracted                         → it leaves A's series; the previous one is current_A
+                              (R6: the history that it was said survives, listed as contested)
+current(d):   every party's current_A agrees      → that name, with every asserter named
+              the parties' currents differ        → CONFLICT — all listed, none current
+              no party has a current              → none
+```
+
+*Superseded, never overwritten* is therefore **within one party's series** — Rob says
+`pending_claim` in March and `provider_adjustment` in May: the March claim is listed, the May one is
+current_Rob. **A later claim by a different party supersedes nothing**: Riverbend Hospital's `provider_adjustment`
+beside Rob's `user_paid_cash` is a conflict between parties, reported, unresolved — recency across
+parties would be a resolver 7H does not have. Two contemporaneous claims by different parties that
+agree are one current determination with two asserters.
+
+**Nothing infers a determination**, restated with the four items in view: `unresolved = 0` is
+arithmetic; no claim is no determination; a denial is neither name; the two names are two facts.
+
+#### The discriminators Rob asked for, as fixture checks
+
+- **Rc5, mechanical:** one expense with `unpaid`, another with `pending_claim`, otherwise identical
+  corpora → the two reports differ *exactly* in the determination's name and nowhere else; no key,
+  state or mapping shared; and the corpus search for any function or key that reads one as the
+  other finds none.
+- **Rc19, mechanical (zero is not a determination):** `unresolved = 0` with no claim → `current`
+  None; over the whole corpus, no report has a `current` whose `claim` is not an established
+  `determination` proposition on that expense — no determination without a claim behind it.
+
+#### The boundary Rob proposed — recorded as the shape to be ruled
+
+```text
+7H reconciles established positions and funding observations concerning an expense.
+It may compare a single obligation's established position with the expense's
+patient-responsibility position when the one-to-one condition is established.
+It may calculate the expense's unresolved amount from the charge and established funding
+events in the ruled temporal interval.
+It may report an explicitly claimed determination and preserve its history.
+It may not infer a determination from arithmetic, zero, absence, denial, unpaid amount,
+pending claim, or funding remainder.
+It may not apportion one expense across multiple obligations, sum multiple obligations to
+manufacture a correspondence, or infer that a payment concerns the expense merely from its
+direction or provider.
+It must not silently introduce a new resolution, allocation, or disposition vocabulary.
+```
+
+**§7H.2 and §7H.6 are amended by (2) and (3):** *"any payer to the provider is a funding event"*
+→ *"once established as in respect of X, a payment from any payer to the provider is a funding
+event"*; *"the charge less the funding events since it"* → *"the governing charge less every
+established funding event dated at or before d, the charge absorbing nothing"*. **Ruling sought:**
+(1) membership, (2) the two predicates, (3) the anchor and the correction, (4) eligibility and
+*current* by G-per-series with conflict across parties, the discriminators, and the boundary.
+
+
+### 7H.8 Ruling — Rob, 2026-09-19: the 7H opening shape RULED on the four items; no build authorised
+
+**(1) Membership — settled.** The single membership proposition is `obligation_in_respect_of(O,
+X)`, reached through `reach(X, …, as_object)` against X's established referent, one hop, only that
+kind. *O is a context iff at least one ground is established.* Candidate-only and contested-only
+references remain listed but create no context and do not make the side undetermined — 7C and the
+household-withdrawal rule preserved. One-to-one counting is over established contexts, with
+candidate / contested material explanatory, not membership-bearing.
+
+**(2) Funding — settled, with the two-stage fence.** First membership through
+`payment_in_respect_of(p, X)`; only then the directional question: for a member, the payee must be
+the party in effect as provider of X at `occurred_on` for the payment to be funding; the provider
+as payer is money back; anything else undetermined, naming p. *"Any payer" describes the
+directional test after membership has been established.* A payment to the provider lacking the
+membership ground does not enter the report.
+
+**(3) Anchor — the correction stands.** 7G's `b < occurred_on` lower bound must not carry into a
+charge: a governing billed position is gross and absorbs nothing. `unresolved(d) = B(d) − Σ(dir ×
+amount)` over every established funding event with `occurred_on ≤ d`; no lower bound; no
+`created_at`; B(d) the governing billed position under G, named. The two views travel beside one
+another rather than being reconciled into one state: the funding view (all established funding
+events, acknowledgment-independent) and the acknowledged view (each context's 7G `confirmed(d)`).
+
+**(4) Determinations — settled.** The content vocabulary closed to the four names; anything else
+unrecognised and never current; `as_of` mandatory; ordinary established / candidate / contested
+discipline; any party may assert; role imposes no semantic constraint beyond what the catalogue
+itself defines. *Current:* build each party's series under G; take that party's latest established
+claim at or before d; a retracted latest leaves the series, exposing its prior claim; two claims by
+one party at one date conflict within that series; compare the party-currents across parties — all
+agree → current with every asserter named; differ → conflict, nothing current. **No cross-party
+recency resolver.** *Superseded, never overwritten* is a property of an individual party's series.
+
+**Boundary conditions.** Rc5 and Rc19 belong exactly where they are: `unpaid` is not
+`pending_claim`; zero evidence manufactures no current determination; no `current` without an
+underlying claim. **No further resolver, confidence concept, role restriction or reconciliation
+rule is added to 7H.** The opening gives 7H a closed semantic boundary while leaving the machinery
+it borrows from G and 7C intact. **Stop here; the build is not yet authorised.**
