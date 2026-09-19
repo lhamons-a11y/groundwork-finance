@@ -4050,6 +4050,263 @@ def reconciliation(session, expense, d, catalogue, knowing):
             'note': [NO_DENIAL_NOTE, 'the funding view (unresolved) and the acknowledged view (each obligation\'s confirmed) travel beside one another, never merged']}
 
 
+# ── Item 7, pass 7J: accumulators / eligibility / overlap - two CONSUMER derivations, the last ──
+# gw 2.0/CONSUMER_DERIVATIONS.md s 7J.6-7J.7, ruled 2026-09-19; build authorised narrowly. Neither
+# manufactures a household-level answer.
+#
+#   plans_in_effect(person, d)   A FACT REPORT, NOT A COVERAGE RESOLVER: which plans are established as
+#                                in effect for the person on d under F's membership machinery (7F
+#                                in_effect over the membership role - a stand-in until F is built).
+#                                Several in effect = an overlap fact; no primary, selector or precedence.
+#                                The insurer's eligible / terminated positions are a SEPARATE dated-claim
+#                                surface listed beside: they neither override nor create nor remove
+#                                membership (F5); candidate material stays candidate - Pl12's retroactive
+#                                letter never silently becomes a termination.
+#   accumulator(plan, d, person) THREE INDEPENDENT AXES kept apart. The TERM is its own proposition:
+#                                numeric -> the rule exists with that amount; `none` -> the rule does not
+#                                exist; `unknown` -> no established claim of the rule - none is not zero,
+#                                unknown is not none (APPLICABILITY C1 / C2, Pl15). The STATED accumulator
+#                                is the plan's insurer's established stance (Pl10) under G, named, never
+#                                replaced by the derivation. The DERIVED accumulator is a constrained sum:
+#                                within the governing plan-year window (a term, not a calendar
+#                                assumption); only the insurer's own established applied_to_deductible
+#                                stances (in effect as insurer of the expense at the stance's date); only
+#                                expenses the household asserted in respect of P (E's kind, a stand-in) -
+#                                never inferred from membership (E24); each plan its own share (CC1). An
+#                                exempt expense (`none` applied) is excluded and listed; an unadjudicated
+#                                one is neither zero nor ignored - the figure is undetermined naming it.
+#                                dispute = stated - derived and remaining = term - derived are arithmetic
+#                                consequences (remaining may be negative); NO `met` key; a term unknown or
+#                                none acquires no met state because some path produced zero.
+# Neither answers: is this person covered · which plan covers this expense · is the deductible met ·
+# which insurer governs · is the household's figure correct. Nothing stored (Pl10: never a status).
+TERM_AMOUNT = 'amount'
+TERM_NONE = 'none'                                            # the rule does not exist (an answer)
+TERM_UNKNOWN = 'unknown'                                      # no established claim of the rule (a refusal)
+ADJ_EXEMPT = 'exempt'
+ADJ_UNADJUDICATED = 'unadjudicated'
+ACCUMULATOR_KINDS = ('under_plan', 'plan_insurer', 'eligibility', 'deductible', 'individual_deductible', 'plan_year',
+                     'deductible_applied', 'expense_in_respect_of_plan', 'applied_to_deductible', 'incurred_by', 'occurred_on')
+
+
+def _require_role(catalogue, key, who):
+    rk = catalogue[key]
+    if not any(r.get('of') == rk and r.get('boundary') for r in RULED_KINDS.values()):
+        raise ValueError(f'{who}: {rk!r} is not a ruled role - no boundary kind is bound to it')
+
+
+def plans_in_effect(session, person, d, catalogue, knowing):
+    """Which plans are established as in effect for `person` on `d` - 7F's answer over the membership role -
+    with the overlap as a fact and the insurer's eligibility stances beside it. A plain dict, computed on
+    read, storing nothing.
+
+        {'person', 'referent', 'd', 'role',
+         'plans': {plan_id: {'answer', 'governing', 'next', 'stances',                    7F's, verbatim
+                             'eligibility': [{'claim', 'asserter', 'as_of', 'state', 'content', 'plan_insurer'}]}},
+         'eligibility_only': {plan_id: [stances]},   the insurer's stances on plans with no membership stance - no answer
+         'in_effect': [plan ids],  'overlap': [plan ids] when several, else [],
+         'note'}
+    """
+    missing = [k for k in ('under_plan', 'plan_insurer', 'eligibility') if k not in catalogue]
+    if missing:
+        raise ValueError(f'plans_in_effect: catalogue names no kind for {missing}')
+    _require_role(catalogue, 'under_plan', 'plans_in_effect')
+    _require_role(catalogue, 'plan_insurer', 'plans_in_effect')
+    if type(person).__name__ != 'Party':
+        raise ValueError(f'plans_in_effect: takes a Party; got {type(person).__name__}')
+    d = d.isoformat() if hasattr(d, 'isoformat') else str(d)
+    rep = in_effect(session, person, catalogue['under_plan'], d)
+    retracted = _retracted(session)
+    plans = {pid: dict(v, eligibility=[]) for pid, v in rep['identities'].items()}   # 7F's answer, verbatim, per plan with membership stances
+    eligibility_only = {}                                                            # the insurer's stances on plans the household never asserted
+    for claim in (session.query(Proposition).filter(Proposition.kind == catalogue['eligibility'], Proposition.subject_party_id.in_(rep['referent']))
+                  .order_by(Proposition.id).all()):
+        if claim.object_plan_id is None:
+            continue
+        # a separate dated-claim surface (F5): listed beside membership where membership stances exist, and apart
+        # where none do - never a membership answer, never a coverage or eligibility status
+        target = plans[claim.object_plan_id]['eligibility'] if claim.object_plan_id in plans else eligibility_only.setdefault(claim.object_plan_id, [])
+        for state, asserter, ground in _claim_states(session, claim, retracted):
+            target.append({'claim': claim.id, 'asserter': asserter, 'as_of': claim.as_of, 'state': state, 'content': claim.content,
+                           'plan_insurer': _entitled_at(session, asserter, catalogue['plan_insurer'], claim.object_plan_id, claim.as_of)[0]})
+    in_eff = [pid for pid, v in plans.items() if v['answer'] == EFFECT_IN]
+    return {'person': person.id, 'referent': rep['referent'], 'd': d, 'role': catalogue['under_plan'], 'plans': plans,
+            'eligibility_only': eligibility_only,
+            'in_effect': in_eff, 'overlap': in_eff if len(in_eff) > 1 else [],
+            'note': ['membership is the household\'s assertion (F5); the insurer\'s eligibility stances derive nothing and override nothing',
+                     'several plans in effect is an overlap fact - no primary, no selector (F20 / R7)']}
+
+
+def accumulator(session, plan, d, catalogue, knowing, person=None):
+    """The deductible accumulator for `plan` (the family figure) or for `person` under it (the individual
+    figure) on `d`: the term, the insurer's stated accumulator and a constrained derived sum, kept apart. A
+    plain dict, computed on read, storing nothing.
+
+        {'plan', 'person', 'd',
+         'term':      {'state': amount|none|unknown, 'value', 'claim', 'reason', 'claims': [...]},
+         'window':    {'start', 'end', 'claim'} | None  with 'reason',
+         'stated':    {'claims': [...], 'governing': {...} | None, 'conflict': [...], 'reason'},
+         'derived':   {'value'|None, 'basis': [(expense, amount, claim)], 'exempt': [(expense, claim)],
+                       'unadjudicated': [expense], 'outside_window': [(expense, date)], 'undetermined': [...], 'reason'},
+         'dispute':   {'value'|None, 'reason'},                       stated - derived
+         'remaining': {'value'|None, 'reason'},                       term - derived  (negative = exceeded)
+         'note'}
+    """
+    missing = [k for k in ACCUMULATOR_KINDS if k not in catalogue]
+    if missing:
+        raise ValueError(f'accumulator: catalogue names no kind for {missing}')
+    _require_role(catalogue, 'plan_insurer', 'accumulator')
+    if type(plan).__name__ != 'Plan':
+        raise ValueError(f'accumulator: takes a Plan; got {type(plan).__name__}')
+    if person is not None and type(person).__name__ != 'Party':
+        raise ValueError(f'accumulator: person must be a Party; got {type(person).__name__}')
+    d = d.isoformat() if hasattr(d, 'isoformat') else str(d)
+    retracted = _retracted(session)
+    plan_members, _ = _referent_members(session, plan)
+    person_members = _referent_members(session, person)[0] if person is not None else None
+
+    def claims_on_plan(kind, party_slot=None):
+        q = session.query(Proposition).filter(Proposition.kind == kind, Proposition.subject_plan_id.in_(plan_members))
+        if party_slot is None:
+            q = q.filter(Proposition.object_party_id.is_(None))
+        else:
+            q = q.filter(Proposition.object_party_id.in_(party_slot))
+        out = []
+        for claim in q.order_by(Proposition.id).all():
+            for state, asserter, ground in _claim_states(session, claim, retracted):
+                out.append({'claim': claim.id, 'asserter': asserter, 'as_of': claim.as_of, 'state': state, 'content': claim.content,
+                            'value': _money(claim.content), 'ground': ground})
+        return out
+
+    # ── the term: its own proposition on three states - amount / none / unknown ────────────────
+    term_kind = catalogue['individual_deductible'] if person is not None else catalogue['deductible']
+    term_claims = claims_on_plan(term_kind)
+    tq = [c for c in term_claims if c['state'] == CLAIM_ESTABLISHED and c['as_of'] and c['as_of'] <= d]
+    if not tq:
+        term = {'state': TERM_UNKNOWN, 'value': None, 'claim': None, 'reason': 'no established deductible term - we do not have the deductible', 'claims': term_claims}
+    else:
+        b = max(c['as_of'] for c in tq)
+        at = [c for c in tq if c['as_of'] == b]
+        kinds = {(TERM_NONE if (c['content'] or '').strip().lower() == TERM_NONE else c['value']) for c in at}
+        if len(kinds) > 1:
+            term = {'state': TERM_UNKNOWN, 'value': None, 'claim': None, 'reason': f'conflicting deductible terms at {b}', 'claims': term_claims}
+        elif TERM_NONE in kinds:
+            term = {'state': TERM_NONE, 'value': None, 'claim': at[0]['claim'], 'reason': 'the rule does not exist - this plan has no deductible', 'claims': term_claims}
+        elif at[0]['value'] is None:
+            term = {'state': TERM_UNKNOWN, 'value': None, 'claim': at[0]['claim'], 'reason': 'the deductible term does not parse', 'claims': term_claims}
+        else:
+            term = {'state': TERM_AMOUNT, 'value': at[0]['value'], 'claim': at[0]['claim'], 'reason': None, 'claims': term_claims}
+
+    # ── the window: the governing plan-year term containing d ─────────────────────────────────
+    windows = [c for c in claims_on_plan(catalogue['plan_year']) if c['state'] == CLAIM_ESTABLISHED and c['as_of'] and c['content']
+               and c['as_of'] <= d <= c['content'].strip()]
+    if windows:
+        w = max(windows, key=lambda c: c['as_of'])
+        window = {'start': w['as_of'], 'end': w['content'].strip(), 'claim': w['claim'], 'reason': None}
+    else:
+        window = {'start': None, 'end': None, 'claim': None, 'reason': 'no plan year term containing d'}
+
+    # ── the stated accumulator: the plan's insurer's position under G ─────────────────────────
+    st_claims = []
+    for c in claims_on_plan(catalogue['deductible_applied'], person_members):
+        role = _entitled_at(session, c['asserter'], catalogue['plan_insurer'], plan.id, c['as_of'])[0]
+        st_claims.append(dict(c, plan_insurer=role, qualifies=(c['state'] == CLAIM_ESTABLISHED and bool(c['as_of']) and c['as_of'] <= d
+                                                                and role == EFFECT_IN and c['value'] is not None)))
+    sq = [c for c in st_claims if c['qualifies']]
+    if not sq:
+        stated = {'claims': st_claims, 'governing': None, 'conflict': [], 'reason': 'no stated accumulator by the plan\'s insurer'}
+    else:
+        b = max(c['as_of'] for c in sq)
+        at = [c for c in sq if c['as_of'] == b]
+        if len({c['value'] for c in at}) > 1:
+            stated = {'claims': st_claims, 'governing': None, 'conflict': at, 'reason': f'conflicting stated accumulators at {b}'}
+        else:
+            stated = {'claims': st_claims, 'governing': {'claim': at[0]['claim'], 'asserter': at[0]['asserter'], 'as_of': b, 'value': at[0]['value']},
+                      'conflict': [], 'reason': None}
+
+    # ── the derived accumulator: the insurer's own adjudication stances on asserted expenses ──
+    expenses = sorted({e['id'] for e in reach(session, plan, catalogue['expense_in_respect_of_plan'], as_object=True)['endpoints']
+                       if e['state'] == CLAIM_ESTABLISHED})
+    if person is not None:
+        mine = {e['id'] for e in reach(session, person, catalogue['incurred_by'])['endpoints'] if e['state'] == CLAIM_ESTABLISHED}
+        expenses = [x for x in expenses if x in mine]
+    derived = {'value': None, 'basis': [], 'exempt': [], 'unadjudicated': [], 'outside_window': [], 'undetermined': [], 'reason': None}
+    if window['start'] is None:
+        derived['reason'] = window['reason']
+    else:
+        total, reasons = 0, []
+        for x_id in expenses:
+            dates = [dict(e, value=(e['as_of'] or e['content'])) for e in _claim_entries(session, catalogue['occurred_on'], retracted, subject_expense_id=x_id)]
+            when, when_reason = _one_value(dates)
+            if when is None:
+                reasons.append((x_id, 'occurred_on ' + when_reason))
+                continue
+            if not (window['start'] <= when <= window['end']) or when > d:
+                derived['outside_window'].append((x_id, when))            # outside the plan year, or after d (as of d)
+                continue
+            adj = []
+            for e in _claim_entries(session, catalogue['applied_to_deductible'], retracted, subject_expense_id=x_id):
+                # the PLAN's insurer's own stance (s 7J.7 item 2; CC1 - each plan its own share): under
+                # concurrency another plan's insurer also adjudicates this expense, and its stance is that plan's
+                role = _entitled_at(session, e['asserter'], catalogue['plan_insurer'], plan.id, e['as_of'])[0]
+                if e['state'] == CLAIM_ESTABLISHED and e['as_of'] and e['as_of'] <= d and role == EFFECT_IN:
+                    adj.append(e)
+            if not adj:
+                derived['unadjudicated'].append(x_id)
+                reasons.append((x_id, "unadjudicated - no established adjudication by the plan's insurer"))
+                continue
+            b = max(e['as_of'] for e in adj)
+            at = [e for e in adj if e['as_of'] == b]
+            vals = {(ADJ_EXEMPT if (e['content'] or '').strip().lower() == TERM_NONE else e['value']) for e in at}
+            if len(vals) > 1:
+                reasons.append((x_id, f'conflicting adjudications at {b}'))
+                continue
+            v = vals.pop()
+            if v == ADJ_EXEMPT:
+                derived['exempt'].append((x_id, at[0]['claim']))
+                continue
+            if v is None:
+                reasons.append((x_id, 'adjudication does not parse'))
+                continue
+            derived['basis'].append((x_id, v, at[0]['claim']))
+            total += v
+        if reasons:
+            derived['undetermined'] = reasons
+            derived['reason'] = 'undetermined: ' + '; '.join(f'expense {x}: {why}' for x, why in reasons)
+        else:
+            derived['value'] = total
+
+    # ── consequences: dispute and remaining, arithmetic only; no met ──────────────────────────
+    S = stated['governing']
+    if S is not None and derived['value'] is not None:
+        dispute = {'value': S['value'] - derived['value'], 'reason': None}
+    else:
+        dispute = {'value': None, 'reason': stated['reason'] or derived['reason']}
+
+    def remaining_from(figure, name):
+        if term['state'] == TERM_NONE:
+            return {'value': None, 'reason': 'not applicable - the rule does not exist'}
+        if term['state'] == TERM_UNKNOWN:
+            return {'value': None, 'reason': 'undetermined - ' + term['reason']}
+        if figure is None:
+            return {'value': None, 'reason': f'undetermined - no {name} figure'}
+        return {'value': term['value'] - figure, 'reason': None}
+    return {'plan': plan.id, 'person': person.id if person is not None else None, 'd': d,
+            'term': term, 'window': window, 'stated': stated, 'derived': derived, 'dispute': dispute,
+            'remaining': remaining_from(derived['value'], 'derived'),
+            'note': ['the term, the stated accumulator and the derived sum are three propositions kept apart (Pl10); nothing here is "met"',
+                     'expenses enter only by the household\'s asserted expense_in_respect_of_plan - never from membership (E24)']}
+
+
+def _claim_entries(session, kind, retracted, **slot):
+    out = []
+    for claim in session.query(Proposition).filter_by(kind=kind, **slot).order_by(Proposition.id).all():
+        for state, asserter, ground in _claim_states(session, claim, retracted):
+            out.append({'claim': claim.id, 'asserter': asserter, 'state': state, 'ground': ground, 'as_of': claim.as_of,
+                        'content': claim.content, 'value': _money(claim.content)})
+    return out
+
+
 for _name in _IMMUTABLE_REFERENCES:
     event.listen(globals()[_name], 'before_update', _refuse_repoint)
 del _name

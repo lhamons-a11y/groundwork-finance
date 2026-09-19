@@ -222,9 +222,12 @@ def run(db):
 
     print('\n5. Pl4 / Pl13 - renewal: the household decides; plan year decides nothing; mis-individuation is correspondence\n')
     about('deductible', P, '$3,500 individual / $7,000 family', utterance=utter('Deductible went up to 3,500 this year.', '2027-01-08T09:00:00'), as_of='2027-01-01')
-    check('Pl4: same P, a second dated term claim - two deductible claims about one plan, neither overwritten, no "current" chosen',
+    # Item 7 pass 7J (CONSUMER_DERIVATIONS.md s 7J.7) built `plans_in_effect()` - a read-only fact report over the
+    # membership role, choosing no plan; this check once named it as an absence. The absences that still hold are listed.
+    check('Pl4: same P, a second dated term claim - two deductible claims about one plan, neither overwritten, no "current" chosen (item 7 plans_in_effect() exists as a read-only report and chooses none)',
           s.query(db.Proposition).filter_by(kind='deductible', subject_plan_id=P.id).count() == 2
-          and not any(hasattr(db, n) for n in ('current_deductible', 'plan_state', 'active_plan', 'plans_in_effect')))
+          and callable(getattr(db, 'plans_in_effect', None))
+          and not any(hasattr(db, n) for n in ('current_deductible', 'plan_state', 'active_plan', 'current_plan', 'primary_plan', 'plan_at')))
     P_new = mint_plan(utter('New plan year - I\'ll treat it as a new plan.', '2027-01-08T09:05:00'))
     c = prop(db.PLAN_CORRESPONDS, subject_plan_id=P_new.id, object_plan_id=P.id, content='basis: same arrangement, renewed')
     evidence(c, utterance=utter('Actually that is the same plan, just renewed.', '2027-02-01T09:00:00'))

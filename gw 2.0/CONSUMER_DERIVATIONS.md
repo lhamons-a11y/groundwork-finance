@@ -3672,3 +3672,55 @@ the overlap F reports; nothing converts insurer eligibility assertions into memb
 are the right candidate boundary, including the null model and the failure loci. **No additional
 resolver, Boolean, household authority, `met` state or persistence mechanism.** **7J ruled as
 written. No code is authorised by this ruling; stopped until the separate 7J build authorisation.**
+
+
+#### Built — 2026-09-19 (7J) — on Rob's "build 7J"
+
+`core/database.py`: `plans_in_effect(session, person, d, catalogue, knowing)` and `accumulator(session,
+plan, d, catalogue, knowing, person=None)` beside `reconciliation`, with `_require_role` and
+`_claim_entries` (helpers of the read-only kind only) and the constants `TERM_AMOUNT · TERM_NONE ·
+TERM_UNKNOWN`, `ADJ_EXEMPT · ADJ_UNADJUDICATED`, `ACCUMULATOR_KINDS`. Both plain dicts, computed on
+read, storing nothing. **`plans_in_effect`** = 7F's `in_effect` over the membership role verbatim
+per plan (answer, G, N, every stance with its state), `in_effect` and `overlap` (the same list
+when several — a fact), and per plan the insurer's eligibility stances as dated claims with their
+state and the asserter's answer for the plan's insurer role, reported as facts; a plan the insurer
+names that the household never asserted is listed apart under `eligibility_only` with **no
+membership answer at all** — a stance creates no membership and no status. **`accumulator`** = the term on its three states
+(`amount` / `none` — the rule does not exist / `unknown` — no established claim, or a conflict at
+one date), the plan-year window as a term, the stated accumulator by the plan's insurer in effect
+under G (the household's claim listed, not governing), the derived sum over expenses asserted in
+respect of the plan (E's kind as a stand-in; `incurred_by` for the individual figure) with
+`occurred_on` inside the window and ≤ d, from the **plan's insurer's** own `applied_to_deductible`
+stances under G — exempt (`none`) excluded and listed, unadjudicated listed and undetermined
+naming it, outside-window listed — and `dispute` and `remaining` as the two ruled arithmetic
+consequences, with reasons *not applicable* (term none) and *undetermined* (term unknown) kept
+distinct; no `met` key. **Two implementation findings that clarified how the already-ruled boundary
+is realised — not new 7J rules (Rob, at acceptance):** under concurrency (Ju11) the adjudication gate is the plan's insurer (§7J.7 item 2, *the
+insurer's own stances*; CC1, *each plan its own share*) — gating by *insurer of the expense* would
+have let Cigna's later stance govern Lakeview Health's sum under G; and an expense occurring **after d** is
+outside the window as of d, not unadjudicated. Refuses a catalogue missing a kind, a role no
+boundary is bound to, a non-Party / non-Plan. Neither calls another consumer; `created_at` never.
+Fixture `tests/test_accumulator_fixture.py` over Ju1–Ju19 — 31 checks: Ju1 the overlap fact; Ju2
+*never eligible* beside membership in effect; Ju3 in three steps (the letter a candidate ending and
+a candidate stance, membership unchanged; the household's assertion ends it; the insurer's
+*enrolled* on an unasserted plan creates nothing); Ju4 E24; Ju5 the 150 dispute with both figures
+named; Ju6 / Ju7 unknown vs none with distinct reasons; Ju8 exempt; Ju9 unadjudicated; Ju10 the
+window and its absence; Ju11 each plan its own share; Ju12 priority nowhere; Ju13 family 6,000 /
+3,500 / 2,500 beside Kim's 3,000 / 2,000 / 1,000; Ju14 −200; Ju15; Ju16; Ju17; Ju18 the null model
+with a superseding adjudication moving the dispute by exactly 100; Ju19 the invariants over the
+corpus; the wiring guard over both functions and both helpers. Smoke `s116_accumulator.py`,
+mutations each an attempt to *answer for the household*: pick the earlier plan · eligibility from
+the stance · the insurer's candidate ending ends the membership · `met` · zero from no term ·
+exempt reads unknown · zero for an unadjudicated expense · the household's accumulator governs ·
+stated and derived averaged · an expense enters the plan from membership · store — eleven, all
+caught, baseline re-established after every undo. Fixture-construction fixes only (a helper that
+appended `_began` to an ending kind; a placeholder check removed). **Rob's review before acceptance,
+applied:** `remaining_from_stated` — a useful-looking adjacent calculation not in §7J.7's ruled shape — removed
+from the result and the fixture (the fixture now asserts its absence); the *undetermined* path for a plan
+the insurer names but the household never asserted replaced by the separate `eligibility_only` surface with
+no membership answer, so the insurer's assertion neither establishes nor defeats membership and no
+coverage status appears; Ju19 pins `none` vs `unknown` independently (value None under both, distinct
+reasons, no remaining under either); the Pl4 retirement verified as the only version on disk. One absence check retired
+truthfully — the plan-identity fixture's *no `plans_in_effect`* (Pl4), now asserting the read-only
+report exists and no `current_plan` / `primary_plan` / `plan_at` does. No schema, no migration.
+Gate 1308 → 1333, 0 failed. **With 7J green, item 7's inventory — 7A through 7J — is built.**
