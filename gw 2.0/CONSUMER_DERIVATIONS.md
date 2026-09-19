@@ -2262,3 +2262,198 @@ across replacement (7I) · reconciliation with the insurer's share (7H) · accum
 
 *The line: what you paid is one figure, what they credited is another, what they say you owe is
 a third — the record keeps all three by name, and shows you the gap instead of closing it.*
+
+
+### 7G.7 Rob's review, 2026-09-18 — tightened before ruling: the numeric construction, the diagnostic, direction, RG
+
+Rob: *the overall shape is coherent, but not acceptable exactly as written. The biggest issues are
+not the four stations; they are what makes a discharged payment contribute to the numeric
+`confirmed` figure, and a couple of places where the prose quietly smuggles in semantics that
+have not been ruled.* Ten points; four surgical changes required; one invariant to add; RG-a to
+be chosen from the cases, not from preference; **7I stays unopened.** Each point, answered by
+making the open ontology explicit rather than by new machinery.
+
+#### (1) The numeric construction — what "remaining" is, exactly
+
+§7G.2 said *the obligation's asserted amount, less directed amounts* and never defined a term.
+Every term now:
+
+**The base.** U6 ruled the figures into three kinds, and only one of them is a position on the
+obligation by the party that holds it: **P-ack** — *the entitled party's stated position about
+the balance, as of a stated date*. The household's *"I owe $4,000"* is F3's testimony of no kind
+until asked; the bill at issue is P-ack at d₀. So **the base of every projection is a P-ack
+balance claim** — established, dated, by a party whose entitled-party role on O is in effect at
+its date (7F). Which one: **the governing stated position S(d)** — the latest such claim with
+`as_of ≤ d`, TS's G applied to balance claims (*a stated position stands until the next*), **named
+in the report with its date b**. Two established such claims at one `as_of` → **a conflict: no
+S(d), listed**. None at or before d → **no S(d)**. Carrying an earlier statement forward to d is
+a temporal rule and is stated as one: it is G, the same rule 7F ruled, and the report shows b so
+the carry-forward is visible.
+
+*Decision TG-base, put to Rob:* the alternative — a household-asserted `obligation_amount` as the
+base of `attached` (the 1.x `gross`) — is rejected here because it is F3 testimony and because
+F2's diagnostic is defined only against P-ack. **Where no P-ack exists, both projections are
+undetermined: *no stated position by the entitled party*.** The station report still runs.
+
+**The terms.** For a payment p among those 7F's `reach` returns for O:
+
+```text
+amt(p)   the ONE established amount claim on p (catalogue payment_amount); several established
+         and disagreeing → undetermined; candidate / contested never count
+dir(p)   −1 if payer(p) is a household person AND payee(p) is in the referent of a party whose
+            entitled-party role on O is in_effect at p's date          (household → E: reduces)
+         +1 if payer(p) is such a party AND payee(p) is a household person  (E → household: increases)
+         undetermined otherwise — payer or payee not established, or the payee's / payer's role
+            not_in_effect / undetermined / contested at p's date
+when(p)  the payment's date: for `attached`, p's established occurred_on claim (catalogue);
+         for `confirmed`, the qualifying acknowledgment's as_of (E's own date)
+net      p is EXCLUDED from every figure when it is the object of an established
+         payment_counteracts (counteracted) or its subject (the counteraction); a candidate /
+         contested counteracts claim excludes nothing
+```
+
+**The figures, as arithmetic:**
+
+```text
+attached(d)  = S(d).value − Σ dir(p)·amt(p)   over p: attachment established, not netted,
+                                                       b < when_attached(p) ≤ d
+confirmed(d) = S(d).value − Σ dir(p)·amt(p)   over p: DISCHARGED (RG), not netted,
+                                                       b < when_confirmed(p) ≤ d
+remaining(d) = confirmed(d)                    by name — nothing else is called remaining
+```
+
+Payments dated at or before b are presumed inside E's stated position and are not subtracted
+again — that is what taking the statement as base means, and it is the only way the F2
+diagnostic can exist. **A figure is undetermined — with the reason and the payment named —
+whenever S(d) is absent or conflicted, or any payment in its range has no established amount,
+direction or date.** Undetermined propagates; it is never zero and never an exclusion. **A
+negative result is reported as it comes** — E's figures saying E owes the household — with no
+floor, no sign interpretation and no *credit* status; flooring would be a resolver.
+
+So `confirmed` measures exactly: **E's last stated position, moved only by E's own dated
+acknowledgments since that position, at the amounts and directions the household's claims give
+those payments.** It is not a trusted balance; it is that projection, named.
+
+#### (2) The invariant — elevated, as Rob asked
+
+```text
+Only a DISCHARGED payment contributes to confirmed.
+Attachment is necessary for meeting the payment and the acknowledgment on the obligation,
+but attachment alone contributes no amount to confirmed;
+acknowledgment without discharge contributes none;
+direction without discharge contributes none;
+netting without discharge contributes none.
+payment_counteracts establishes no discharge: it changes only the netting of payments
+already directioned; a counteracted payment leaves every figure, discharged or not.
+```
+
+#### (3) The diagnostic — undefined where `stated` is conflicted or missing
+
+Rob: *what is `stated` when two statements conflict at one date? If there is no single figure,
+the diagnostic cannot subtract.* Ruled: **a conflicted stated value remains a conflict; no
+subtraction is produced from it.** And no S(d) → no diagnostic, said in words. The two
+diagnostics, each only when every term exists:
+
+```text
+pending(d)          = attached(d) − confirmed(d)
+                      = Σ dir·amt over payments attached and dated since b but not discharged by d
+                      "attached, unacknowledged since the statement" — the acknowledgment-state
+                      diagnostic (K8), as a number with its payments listed
+statement_check(S)  = S.value − [ S′.value − Σ dir·amt over attached, not netted, b′ < when ≤ b ]
+                      where S′ is the governing stated position immediately before S
+                      "the statement against the computation" — F2 exactly (bill 4,000 at d₀,
+                      attached 350, statement 3,700 at d₂ → 3,700 − 3,650 = 50); none where
+                      S′ is absent or conflicted, or a term in the range is undetermined
+```
+
+Neither is a fifth balance; neither resolves anything; each carries its terms. `stated − confirmed`
+as I first wrote it is withdrawn — `confirmed` is built *from* S(d), so the subtraction measured
+nothing but the discharged sum.
+
+#### (4) Direction — relative to the household and the entitled party, not a cash-flow sign
+
+Rob: *"money out reduces" is dangerous — an unrelated household debit would reduce the obligation
+merely because money left the household.* Ruled, in dir(p) above: **household → the entitled
+party in effect reduces; the entitled party in effect → household increases; anything else is
+undetermined.** The entitled party is 7F's answer at the payment's date, over the payee's (or
+payer's) referent; no content, no relation, no role of any other kind is consulted. S3's payment
+(payee whose role is undetermined) therefore has undetermined direction and makes `attached`
+undetermined, naming it — the household paid someone whose relation to the debt the record does
+not establish, and the figure says so rather than counting or dropping it.
+
+#### (5) Netting strictly downstream — recorded verbatim
+
+*Netting by established `payment_counteracts` only; a reimbursement or refund without one enters
+by its own direction.* And the consequence: **`payment_counteracts` does not establish discharge;
+it only changes the netting of already-directioned payments.** In the invariant above.
+
+#### (6) RG-a without "first-hand"
+
+Rob: *"not first-hand" sounds like a new evidentiary dimension.* Withdrawn. **RG-a: discharge
+requires an established acknowledgment, dated ≤ d, by a party whose entitled-party role on O is
+in effect at that date, with strength = `knowing`. An acknowledgment that does not satisfy the
+strength requirement remains acknowledgment evidence and does not establish discharge.** No new
+category; the listing says `strength: not_knowing` or `undetermined`, which the substrate already
+says.
+
+#### (7) RG-a vs RG-b — decided from the cases, not the prose
+
+Under the substrate as built, an acknowledgment claim of the stand-in kind (`relational_knowing`
+True, no named relation) is graded by the caller's foundation map, and a **reading-sourced**
+claim of a relational kind is a candidate — so a parser's reading of E's held statement yields a
+*candidate* acknowledgment, established only when a party asserts it. The matrix:
+
+| case | acknowledgment evidence | role (7F) | strength | RG-a | RG-b |
+|---|---|---|---|---|---|
+| **Dg2 (K1)** | E's statement recorded as E's own utterance (origin E) | in_effect | knowing | **discharged** | discharged |
+| **Dg2′** | the parser's reading of E's held statement, nothing asserted | in_effect | — (candidate) | no | no |
+| **Dg22 (K5 / S2)** | Rob relays: *"Harbor told me they got it"* (origin Rob) | in_effect | not_knowing | **no** | **discharged** |
+| **Dg4 (K2)** | S's own statement | not_in_effect / undetermined | knowing (foundation) | no | no |
+| **Dg5 (K3 / S3)** | S3's own statement | undetermined | knowing (foundation) | no | no |
+| **Dg21** | E's own utterance, role contested at its date | contested | knowing | no | no |
+
+**One discriminator: Dg22.** RG-b lets the household's report of E's acknowledgment establish
+discharge and move `confirmed` — which is K5 (*the user does not independently know what E
+acknowledges*) and S2 (*the household believes itself on track while E has it overdue*) exactly
+the wrong way. **RG-a is chosen because Dg22 decides it**, not because it is more conservative.
+Dg4 / Dg5 do not discriminate: the role test refuses them under either — which is why the
+foundation stand-in's *knowing* for any institution is harmless today, and why ruling relational
+knowing for the acknowledgment kind later changes 7G's answers only where the ruling means it to.
+
+#### (8) The dependency stated abstractly
+
+*"every attached payment in H2's frozen sequence"* → **every payment 7F's `reach` returns for O
+(every claim, every state), each classified by its attachment state and its qualifying
+acknowledgment.** H2's sequence is the fixture's proof that the classification matches the frozen
+rule, not part of 7G's definition.
+
+#### (9) The signature — `knowing` is a registered stand-in for the ruled threshold
+
+`remaining(session, obligation, d, catalogue, knowing)`: `catalogue` names the stand-in kinds
+(`acknowledgment`, `entitled_party`, `balance`, `payment_amount`, `occurred_on`, `paid_by`,
+`paid_to`) until the domain and role catalogues rule them; `knowing` is the caller's foundation
+map that `derived_strength` needs for kinds whose relational knowing is unruled — **not a
+user-selectable strength policy.** The threshold is RG-a's `knowing`, fixed in the consumer; the
+map only lets the substrate grade the stand-in kind at all. Recorded so no caller reads the
+argument as a knob; the signature stays with the established convention.
+
+#### (10) Attachment alone never enters `confirmed` — in the invariant (2)
+
+#### The cases, amended
+
+Dg2 restated (E's statement as E's utterance → discharged; the parser's reading alone → a
+candidate, Dg2′); Dg7 restated with `statement_check` (bill 4,000 at d₀ · attached 350 ·
+statement 3,700 at d₂ → 50) and `pending`; Dg9 restated (a conflicted S(d) → no figures, no
+diagnostic, the conflict listed); Dg13 now covers *payee's role undetermined* (S3) as well as *no
+payee claim*; Dg14 restated (*no P-ack → no S(d) → both projections undetermined*; the household's
+own amount is not a base — TG-base); Dg15 becomes *two P-ack claims at one date*; **Dg26 — payments
+before the statement**: a payment dated before b is not subtracted from S(d) (presumed inside it),
+and the report says which payments fall inside the base; **Dg27 — negative**: E's acknowledgments
+since b exceed S(d) → a negative `confirmed`, reported as it comes, no floor; **Dg28 — the
+invariant, mechanically**: for every obligation in the corpus, every payment contributing an
+amount to `confirmed` is discharged; no attached-only, acknowledged-only or counteracted payment
+contributes. Everything else in Dg1–Dg25 stands.
+
+**Ruling sought:** the numeric construction (1), TG-base (P-ack base; no P-ack → undetermined),
+the invariant (2), the diagnostic rule (3), the direction rule (4), the netting consequence (5),
+RG-a as restated (6) and chosen by Dg22 (7), and the signature note (9).
