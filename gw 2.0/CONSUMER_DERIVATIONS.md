@@ -1,6 +1,6 @@
 # Consumer derivations — item 7, opened last and protected most aggressively
 
-> Status: **Queue item 7, opened by Rob 2026-09-16 after item 6 closed A–G. This record carries the
+> Status: **ITEM 7 CLOSED — Rob, 2026-09-19. The inventory 7A–7J is ruled, built and accepted; ten consumers, each a read-only report that decides nothing (final: `c3cc575`, gate 1333). Below, the record as it was written.** Queue item 7, opened by Rob 2026-09-16 after item 6 closed A–G. This record carries the
 > governing question, the discipline, the inventory of everything the record has fenced to item 7,
 > the order (ACCEPTED by Rob 2026-09-16, §3), pass 7A — the parse dispute — RULED, built and ACCEPTED (§7A.7, `f0275ec`, gate 1102), pass 7B — independence — RULED, built, tightened and ACCEPTED (§7B.9, `c82c9da`, gate 1129), pass 7C — about-ness — RULED, built and ACCEPTED (§7C.8, `c902461`, gate 1152), and pass 7D — level consistency — RULED as written (§7D.7) with six fixture demonstrations required, and built. Passes follow one at a time, each after the previous ruling and a green build.** The queue's own framing, carried:
 > *the substrate can now represent ambiguity without resolving it; consumer work becomes valuable
@@ -3724,3 +3724,53 @@ reasons, no remaining under either); the Pl4 retirement verified as the only ver
 truthfully — the plan-identity fixture's *no `plans_in_effect`* (Pl4), now asserting the read-only
 report exists and no `current_plan` / `primary_plan` / `plan_at` does. No schema, no migration.
 Gate 1308 → 1333, 0 failed. **With 7J green, item 7's inventory — 7A through 7J — is built.**
+
+
+### 7J.8 Build accepted — Rob, 2026-09-19: 7J ACCEPTED at `c3cc575`, gate 1333; ITEM 7 CLOSED
+
+*That resolves all three concerns cleanly. The important correction is `eligibility_only`: it is
+reported evidence about what the insurer asserts, not a membership fact and not an inferred
+coverage state. `remaining_from_stated` was an adjacent calculation with no ruled consumer
+requirement; its removal keeps 7J closed to the authorised shape. The none / unknown treatment is
+independently pinned. Ju11 and the as-of population correction were implementation findings that
+clarified how the already-ruled boundary is realised, not new 7J rules.* With the corrected gate
+green, the 31-check fixture and all eleven s116 mutations caught, the implementation is within the
+authorised scope. **7J accepted; close item 7.**
+
+**7J — accumulators / eligibility / overlap: ACCEPTED / BUILT / GREEN.**
+
+---
+
+## Item 7 — closed
+
+Ten consumers, opened last and protected most aggressively, each ruled from cases before a line was
+written, each built as a read-only report that decides nothing, each with a fixture that tests the
+ruling and a smoke section whose mutations are the ways the consumer could have become a resolver:
+
+```text
+7A  parse_disputes(session, artefact)                          s107   readings of one artefact disagree - never chosen
+7B  independence(session, proposition, knowing)                s108   origins, three-valued - never a count
+7C  aboutness(session, proposition)                            s109   four paths, candidates never - never resolved
+7D  level_consistency(session, artefact)                       s110   five states - never a Boolean, never a guard
+7E  chain_strength(session, proposition, knowing)              s111   a class on the substrate's lattice - never a number
+7F  reach / in_effect                                          s112   one hop, every endpoint; G and N named - never a selector
+7G  remaining(session, obligation, d, catalogue, knowing)      s113   three figures and a diagnostic - never one number
+7I  reconstruction(session, obligation, at, d, ...)            s114   the check, not the vocabulary - never a disposition
+7H  reconciliation(session, expense, d, catalogue, knowing)    s115   figures side by side - never equated, never determined
+7J  plans_in_effect / accumulator                               s116   membership and the term's three states - never met
+```
+
+**What the record leaves exactly where it found it, for the next item to open:** the builds of E
+(`*_in_respect_of_plan`) and F (`under_plan` + boundaries) — accepted, unbuilt, every stand-in in
+7G–7J becomes the ruled kind the day they are built · the role catalogue (entitled party of ·
+servicer · provider of · insurer of · incurred by) · the domain value catalogue (amounts, dates,
+balances, charges, terms, adjudications) · the acknowledgment kind's participant (§D′.4) · the
+disposition vocabulary and its blocker (outcome vs accounting treatment; the write-off boundary
+test; the reversal question) · a denial / rejection kind (C7, D′10) · correspondence's
+epistemology (Kn4) · the capture-faithfulness link · relational knowing for the stand-in kinds ·
+claim allocation and priority · coverage ③ · the tax engine · the 1.x scope question and
+`payment_plan.py` · RA5 · D′.11 — the open constraint every consumer inherited and none crossed.
+
+*The line: the record can now be read by ten questions, and every answer names what it rests on,
+lists what it could not settle, and stores nothing — the household is told, and nobody is told
+who is right.*
