@@ -2003,3 +2003,262 @@ main block; a payment id compared without its type; a party correspondence that 
 foundations, rewritten on two institutions; one smoke mutation — *pick the household's* — escaped
 until Tr2 gained an institution asserter beside the household's, which the case needed anyway).
 The first full gate failed twice, both in item 5's role-period fixture: its absence checks *no temporal consumer - "in effect on d" is not answered here* now false by ruling - retired truthfully (`in_effect` asserted to exist as the read-only consumer; the absences that still hold - no resolver, period, status, overlap policy - are what the list now names). No schema, no migration. Gate 1208 → 1235, 0 failed.
+
+
+### 7F.9 Build accepted — Rob, 2026-09-18: 7F ACCEPTED at `f51c7e9`; open 7G
+
+*The two gate failures were truthfully diagnosed as stale absence assertions, not semantic
+failures in 7F* — retired and replaced with the actual boundary (`in_effect` exists; no
+resolver / period / status / overlap helper exists), the Pa7 / Pa8 pattern. The final state:
+1208 → 1235 · fixture 41/41 · twelve s112 mutations caught · Ts1–Ts3 exercise the extrapolation
+directly · Ts11 prevents an ending from manufacturing a period · candidate stances cannot govern ·
+G and N exposed · `created_at` not substituted for `as_of` · endpoint selection, party selection,
+composition, projection, inference, overlap resolution and persistence all mutation-guarded ·
+refusals explicit · role kinds tested through temporary registration without expanding the
+shipped ontology. **The boundary:**
+
+```text
+reach:      one relation kind → every established endpoint → every claim/asserter/state → nothing selected → nothing extended
+in_effect:  established stances → G + N → forward/backward readings → contested only on an actual disagreement → named governing stance → report
+```
+
+*Importantly different from a generic traversal engine* — the smoke guards against `traverse`,
+`compose`, selectors, inverses, periods and caches. TS-c closed: an `ended @ t` stance means not
+in effect at t; its backward reading can say it was in effect immediately before, but cannot
+independently establish a prior period. **Acceptance record:** *7F is accepted at `f51c7e9`. The
+traversal consumers remain one-hop, exhaustive, non-selective reports. Temporal effect is derived
+only from established stances using the ruled G/N semantics; the governing and next stances
+remain visible, and no period, status, overlap resolution, inverse, composition, or persistence
+is introduced.*
+
+**7F — traversal: ACCEPTED / BUILT / GREEN.**
+
+---
+
+## Pass 7G — Discharge → remaining
+
+**The question, applied:** *what remains on the Riverbend Hospital bill — I paid $300 in June, the network
+charged it back, I paid again in July, and Riverbend Hospital's August statement says $412?* The record holds
+each of those as a claim by the party who made it, and holds the household's attachments of the
+payments to the obligation; it holds no figure called *remaining*. H2 ruled why: **discharge is
+an acknowledgment fact, not a payee fact** — a payment may evidence discharge and does not
+establish it; until the entitled party acknowledges, the payment is *attached, unacknowledged*;
+*confirmed remaining changes only on discharge* — and the audit found the shipped module
+computing the attached figure under the confirmed name. U6 sorted the figures into three kinds
+that share a word and not a proposition. The acknowledgment ruling made *P-ack for a payment*
+discharge by definition, gave it a date and a strength, and stopped one step short: **what
+strength discharge requires before `remaining` moves belongs to the consuming projection and is
+not established here.** 7G is that projection — and that last decision is its to make, with Rob.
+
+7G is the first economic consumer: it does arithmetic, over amounts that are claims, along a
+relation (D′) that carries no amount and no direction, under a fence (A) that says a refund is
+another payment and netting is asserted, never inferred. It is the pass §3 named for the
+double-count hazard. So the pressure question comes first — **what, of "remaining", is derivable
+from what is ruled?** The attachment is ruled (D′). Everything else 7G needs is a **stand-in
+today**: the acknowledgment kind (§D′.4 — a stand-in from the catalogue, its obligation a hidden
+operand), the entitled-party role (no role kind is ruled), the amount / payer / payee kinds (the
+domain value catalogue is a domain question, DOMAIN_PROPOSITION §6). 7G therefore takes those
+names from the caller — as `derived_strength` takes `knowing` and 7F's role derivation runs on
+registered stand-ins — and **changes shape for none of them when they are ruled.** What it can
+say today, truthfully: **the station of every attached payment in H2's sequence; three figures,
+each named for what it is; and the diagnostic between them — never a fifth number.**
+
+### 7G.1 What is already fixed
+
+| Ruling | Constraint on 7G |
+|---|---|
+| **H2 (frozen)** | `payment attached → attached/unacknowledged → E acknowledges → discharge established → confirmed remaining changes`; a cleared bank payment is no evidence of acknowledgment (K6); the projection over attached payments is not evidence and its discrepancy from P-ack is diagnostic (U6 / F2); *paid · remaining · ahead · overdue* over attached payments assert the acknowledged meaning while computing the attached one — **the name must say what the figure is** |
+| **P-ack (ruled)** | *the entitled party's stated position about a payment or balance, as of a stated date*; **P-ack for a payment = discharge** by definition; one knowing party (E), four channels, weakest-link transfers, the health ranks do not; **every acknowledgment is dated**; payment evidence stays separate from acknowledgment evidence; balance statement ≠ discharge (K8 — *not the same proposition*); **what strength discharge requires before `remaining` moves — the consuming projection's, undecided** |
+| **U6 (ruled)** | three kinds: **P-ack** (dated), **projection** (not evidence; a diagnostic), **testimony** (no kind until asked); P-ack across dates is history, at one date a source conflict; **no fifth number manufactured to reconcile them** |
+| **D′ (built)** | `payment_in_respect_of_obligation` is the household's attachment — *the "attached" station of H2's sequence, which this relation IS*; it derives no discharge, application, credit, acknowledgment, `remaining`, allocation or sum (D′8–D′12, D′17); **it carries no direction of money** (D′11 — a refund is the same kind); **§D′.4: the acknowledgment's obligation is a hidden operand** — reading it as establishing p → O is refused; the attachment is the household's claim, the acknowledgment E's, joined on p only |
+| **A (built)** | a refund is **another payment**; `payment_counteracts` is asserted, never inferred; **netting is a consumer's (Rv7)** — over asserted counteractions only; nothing offsets a reimbursement against anything (D9) |
+| **Payment identity** | payer, payee, amount, date, clearance, acknowledgment and discharge are **claims about p** by the party knowing for each; `paid_by` / `paid_to` are dated role claims; minting ≠ knowing (Kn7) |
+| **7F (built)** | `reach(O, payment_in_respect_of_obligation, as_object)` — every attachment, with state; `in_effect(party, <entitled-party role>, O, d)` — whether the acknowledging party is the entitled party on O at the acknowledgment's date, **G named** — 7G reads both and re-derives neither |
+| **7E (built)** | the acknowledgment's strength class per evidentiary relationship, as given; a servicer's statement is a mediated chain whose link (*S serves E*) is a role kind not ruled — **undetermined until it is, and 7G manufactures nothing** |
+| **§1** | 1 (never writes) · 2 (reports, never resolves — a stated balance and a projection that differ are a diagnostic, not a choice) · 5 (absence is not zero — *no acknowledgment* is not *not discharged*, it is *unacknowledged*; an undetermined direction makes a sum undeterminable, not zero) · 6 (provenance carried) · 7 (no ranking) · 8 (one consumer, one question) · 9 (failure named and measured) · 11 (7F's answers with their provenance) |
+| **The 1.x fence** | *does the frozen discharge rule have 1.x scope?* — unanswered; 7G is a 2.0 consumer over 2.0 identities and touches neither `payment_plan.py` nor `debt_pdf_reconcile` |
+
+### 7G.2 The stations, the figures, the direction, the netting — and the one decision
+
+**The stations.** For every payment the record attaches to O (`reach`, every claim, every state):
+
+```text
+attachment reading-sourced only                                → attached_candidate
+attachment retracted                                            → attached_contested
+attachment established · no qualifying acknowledgment          → attached_unacknowledged
+attachment established · acknowledgment established, dated ≤ d,
+    by a party whose entitled-party role on O is in_effect at
+    the acknowledgment's as_of (7F)                             → discharged   (strength carried)
+```
+
+Every acknowledgment claim on p is listed whatever its state, with its asserter, `as_of`, state,
+the asserter's entitled-party answer from 7F (*in_effect · not_in_effect · undetermined ·
+contested*, governing stance named) and its strength class (7E / `derived_strength`, as given).
+An acknowledgment by a party whose role is *not_in_effect* or *undetermined* qualifies for
+nothing and is **listed as what it is** — the servicer's statement (K2) stays there until the
+role catalogue rules *serves* and the chain becomes evaluable; the never-authorised servicer's
+(K3 / S3) stays there for ever. **Nothing reads the acknowledgment's content for which
+obligation it meant** (§D′.4): the attachment says p → O, the acknowledgment says E's position
+on p; they meet on p.
+
+**The figures — three, each named for what it is (U6):**
+
+| figure | what it is | how 7G states it |
+|---|---|---|
+| **`stated`** | P-ack for the balance: every balance claim on O, dated, by whom, state, strength, the asserter's entitled-party answer at its `as_of` | listed as history; the **governing** stated position for d = the latest established claim at or before d **by a party in effect as E** (TS's G, named); two at one `as_of` → a source conflict, listed, nothing chosen |
+| **`attached`** | Groundwork's projection over the household's record: the obligation's asserted amount, less the directed amounts of every *established* attachment that is not counteracted | **not evidence**; carries its basis (every claim used) and its exclusions (every payment left out and why); `undetermined` — with the reason — where the base amount is absent or disputed, or any counted payment's amount or direction is not established |
+| **`confirmed`** | the same projection over **discharged** payments only, at the strength 7G requires (below) | the only figure that may be called *remaining*; undetermined on the same grounds; **never moved by attachment** |
+| **`diagnostic`** | `stated − confirmed` and `stated − attached`, where both terms exist | an **acknowledgment-state diagnostic** (F2 / K8), reported as numbers with their terms — never a fifth balance, never a resolution |
+
+**Direction (D′11, the double-count hazard).** The relation carries no direction. A payment's
+direction relative to O is read from the household's own `paid_by` / `paid_to` claims and the
+party anchor: **payer a household person → money out, reduces; payee a household person → money
+in, increases**; neither established → **direction undetermined**, and any figure that would
+count that payment is undetermined and says which payment. No role, no E, no content is
+consulted for direction.
+
+**Netting (A, Rv7) — by assertion only.** Where `payment_counteracts(p₂, p₁)` is *established*,
+p₁ is excluded from every figure as counteracted and p₂ is excluded as the counteraction — each
+listed with the claim. A counteracts claim that is a candidate or contested nets nothing. A
+reimbursement, a refund in respect of O with no counteracts claim (D′11), or a second payment
+that merely matches an amount is netted against nothing: a refund without a counteracts claim
+enters the figures by its own direction (money in), which is what the household asserted.
+
+**As of d.** Acknowledgments and stated balances take part only with `as_of ≤ d`; the
+attachment relation is undated and the household's record is read as it stands. 7G never reads
+`created_at`.
+
+**The one decision — what strength discharge requires (the fenced question, now 7G's).**
+Candidates:
+
+- **RG-a — E in effect, strength `knowing`.** A discharge counts toward `confirmed` when the
+  acknowledgment is established, its asserter's entitled-party role is in effect at its date
+  (7F), *and* its strength class is `knowing` (7E — first-hand: E's own statement, or a reading
+  of an artefact whose established origin is E). A discharge at `not_knowing` or `undetermined`
+  (the servicer channel until *serves* is ruled; a relayed report) is listed under the payment
+  as *acknowledged, not first-hand* and does not move `confirmed`.
+- **RG-b — E in effect, any established strength.** The role answer alone; strength carried but
+  not required.
+
+Recommended: **RG-a.** The acknowledgment ruling made strength part of P-ack (*established at
+evidence strength … discharge established at that strength*) precisely so a consumer could
+require one; RG-b throws the class away. And RG-a makes the servicer case honest today: under
+the foundation stand-in a servicer's first-hand-looking statement reads `knowing` by foundation,
+but its role is not E's, so it fails the 7F test — and when the catalogue rules *serves* and
+relational knowing for the acknowledgment kind, the same two tests read the ruled answers with no
+change to 7G. Rob rules.
+
+### 7G.3 The cases
+
+| # | Case | What 7G must say | What it must never do |
+|---|---|---|---|
+| **Dg1 (H2, D′1)** | Rob attaches p ($1,412, paid by Rob to Harbor) to O; no acknowledgment. | station **attached_unacknowledged**; `attached` = amount − 1,412 (basis listed); **`confirmed` unchanged**; no *paid* | move `confirmed` on attachment; call `attached` remaining |
+| **Dg2 (K1)** | Harbor's held statement: *payment received 3/5, $1,412* — read; Rob asserts *that is Harbor acknowledging p*; Harbor's entitled-party role in effect. | the acknowledgment established (Rob's utterance, the artefact's origin Harbor → strength via the reading/origin as given), by a party in effect as E → **discharged**; `confirmed` = amount − 1,412 | derive the acknowledgment from the line (§D′.7: a reading is a candidate) |
+| **Dg3 (K6)** | The bank shows p cleared; nothing from Harbor. | *cleared* is a claim on p, listed if the caller names it — **not an acknowledgment**; station attached_unacknowledged | read clearance as discharge |
+| **Dg4 (K2)** | Servicer S's statement acknowledges p; *S serves Harbor* asserted by Rob (a role kind not ruled). | the acknowledgment listed: asserter S, entitled-party **not_in_effect / undetermined** (S is not E; the *serves* chain is not evaluable) → **attached_unacknowledged**, the acknowledgment shown as what it is | treat S's statement as E's; manufacture the *serves* link from context |
+| **Dg5 (K3 / S3)** | The never-authorised servicer's statement acknowledges p. | the same listing; **never discharged**; `attached` counts p (the household attached it); `confirmed` does not | let the household's attachment stand in for E's credit |
+| **Dg6 (K8)** | p acknowledged by Harbor ($175); Harbor's statement says $1,900 where the projection says $1,501. | station discharged; `stated` 1,900 (Harbor, dated); `confirmed` 1,725; **`diagnostic` = 175 with its terms** | resolve to either; average; call one wrong |
+| **Dg7 (U6 / F2)** | Bill $4,000 (d₀); attached payments $350; statement $3,700 (d₂). | `stated`: two P-ack figures at two dates — **history**; `attached` = 3,650 — a projection, not evidence; `diagnostic` 3,700 − 3,650 = 50 | a fifth number; a disagreement between the bill and the statement |
+| **Dg8 (F3)** | Rob: *I think I owe about $3,500.* | **no figure** — testimony of no kind until asked; not in `stated`, not in the projection | classify it as P-ack or as the base amount |
+| **Dg9 (F4)** | Two Harbor balance claims at one `as_of`, different figures. | governing stated **conflict** — both listed, nothing chosen; `diagnostic` undetermined | pick by channel, recency of recording, or amount |
+| **Dg10 (A1 / Rv7)** | p₁ $300 to Riverbend Hospital; p₂ $300 back (chargeback); Rob: *p₂ counteracts p₁*. | p₁ excluded as counteracted, p₂ as the counteraction — both listed with the claim; neither in any figure | net p₁ without the claim; count p₂ as a payment toward O; count both |
+| **Dg11 (D9)** | The HSA reimbursement $412 to Rob, attached to O by Rob; no counteracts. | direction **money in** (payee a household person) → enters `attached` as +412 — what the household asserted | offset it against a payment; drop it |
+| **Dg12 (D′11)** | Harbor's $210 escrow refund, *on the mortgage*. | money in, +210 in `attached`; if Harbor acknowledges it and is E in effect → discharged, +210 in `confirmed` | subtract it |
+| **Dg13 — direction unknown** | p attached, no `paid_by` / `paid_to` claim. | p listed with **direction undetermined**; every figure that would count p is **undetermined, naming p** | assume money out; treat unknown as zero |
+| **Dg14 — no base** | No amount claim on O. | `attached` and `confirmed` **undetermined: no base amount**; stations still reported | base = the first statement; base = 0 |
+| **Dg15 — disputed base** | Two established amount claims on O (Rob $4,000; Kim $4,200). | **undetermined: base disputed**, both listed | prefer either |
+| **Dg16 — amount disputed on p** | Rob says $300, the bank line reads $330 (a candidate), Kim says $330. | the established amounts conflict → p's amount undetermined → figures counting p undetermined, naming p; the candidate never counts | pick the bank's; pick the majority |
+| **Dg17 (D′12)** | One cheque attached to O₁ and O₂. | on each obligation's report, p counted in full — **no allocation, no split**; the double count across obligations is **not 7G's to prevent and is named in the note** (7I's territory) | allocate by proportion, by order, by content |
+| **Dg18 (D′10)** | Harbor returns p unapplied (a dated claim of another kind). | 7G reads no such kind: the acknowledgment kind means *E's position that p was applied*; a return claim is the catalogue's to rule and the note says 7G did not read it | read content for *unapplied*; treat a return as a retraction |
+| **Dg19 — as of d** | Acknowledgment dated 8/15, statement dated 8/1; asked d = 8/10. | the acknowledgment does not yet count; the statement governs `stated`; asked 8/20 both do | consult `created_at` |
+| **Dg20 — retraction** | Rob retracts the attachment; later re-asserts. | contested → the payment leaves every figure; re-asserted → returns; 7G wrote nothing | a status on p or O |
+| **Dg21 — E's role contested** | Harbor's entitled-party role on O is *contested* at the acknowledgment's date (7F). | the acknowledgment listed with `contested`; **not discharged**; not *not discharged* either — the station stays attached_unacknowledged with the reason | resolve the role to decide discharge |
+| **Dg22 — strength (RG)** | Harbor's acknowledgment reaches the record only as Rob's relayed report (*"Harbor told me they got it"*): established, E in effect, strength `not_knowing`. | under RG-a: listed as *acknowledged, not first-hand*; `confirmed` unmoved; under RG-b: discharged | — (Rob rules) |
+| **Dg23 — one hop** | O in respect of X; p in respect of X (D); no p → O. | p is **not** among O's payments — D′3 stands; 7G reads `payment_in_respect_of_obligation` only | compose p → X → O |
+| **Dg24 — the null model** | A corpus where every attachment is acknowledged by E first-hand: `confirmed` = `attached`; remove one acknowledgment: `confirmed` rises by exactly that payment's directed amount, `attached` unchanged. | exact | a threshold |
+| **Dg25 — where the failure appears** | `confirmed` moved by an attachment, a clearance, a servicer's or a relayed acknowledgment, or a candidate; a figure summed over an undetermined direction, amount or base; a fifth number in `diagnostic`. | measured there | — |
+
+### 7G.4 Testing the readings
+
+**RG0 — the 1.x projection under 2.0 names** (`remaining` = amount − attached). Rejected: H2;
+Dg1, Dg5 — the attached figure exists and is named `attached`.
+
+**RG1 — discharge from the relation, the clearance, the content, or the reading** (D′17, K6,
+§D′.4, §D′.7). Rejected: Dg2–Dg5, Dg18.
+
+**RG2 — a resolver between figures** (stated vs projection → one balance). Rejected: U6, F2, K8;
+Dg6, Dg7, Dg9 — a diagnostic with its terms.
+
+**RG3 — inferred netting or direction** (matching amounts; content; the relation). Rejected: A,
+D′11; Dg10–Dg13.
+
+**RG4 — absence as zero** (no base → 0; unknown direction → out; no acknowledgment → not
+discharged as a *status*). Rejected: §1.5; Dg13–Dg14, Dg21.
+
+**RG5 — allocation across obligations** (D′12). Rejected: Dg17 — 7G counts what the household
+attached and names the hazard for 7I.
+
+**RG6 — the strength requirement: RG-a vs RG-b** (§7G.2). Rob rules; RG-a recommended.
+
+**RG7 — the candidate: one read-only derivation `remaining(session, obligation, d, catalogue,
+knowing)`** — `catalogue` naming the stand-in kinds until the domain catalogue and the role
+catalogue are ruled: `acknowledgment`, `entitled_party` (a role kind with bound boundaries),
+`obligation_amount`, `payment_amount`, `paid_by`, `paid_to`; returns `payments` (every
+attachment from 7F with its station, acknowledgments with 7F's role answer and 7E's strength,
+amount claims, direction, counteraction), `figures` (`stated` with the governing claim named;
+`attached`, `confirmed` each with value-or-undetermined, basis and exclusions; `diagnostic`),
+and a `note` naming what was not read (a return kind; cross-obligation double counting).
+Refuses by name a catalogue kind that is unruled or a role kind without boundaries (7F's
+refusals, inherited). **No status, no allocation, no fifth number, no write.**
+
+### 7G.5 What the derivation is — and is not
+
+| **reads** | 7F `reach` for the attachments and `in_effect` for the acknowledging party's role; the acknowledgment, amount, payer, payee and balance claims under the caller's catalogue, each with state; `derived_strength` on the acknowledgment's grounds (as given); `payment_counteracts` claims among the attached payments |
+|---|---|
+| **returns** | stations · acknowledgments as listed · three named figures with bases and exclusions · a diagnostic with its terms · a note |
+| **decides** | one thing, ruled here: which discharges move `confirmed` (RG); nothing else — no figure preferred, no direction assumed, no netting inferred, no allocation, no status |
+| **is not** | `payment_plan.py` (untouched; 1.x scope unanswered); a resolver of stated-vs-projected; a discharge establisher; a candidate generator; 7H (it compares nothing with the insurer's share); 7I (it follows no amount across replacement); 7J |
+| **failure appears at** | Dg25 — `confirmed` moved by anything but a qualifying discharge; a sum over an undetermined term; a fifth number — measured there |
+| **null model** | Dg24 — every attachment acknowledged first-hand → `confirmed` = `attached`; one acknowledgment removed → exactly that amount moves — a correctness oracle |
+
+### 7G.6 Ruling candidate — pass 7G, for Rob
+
+> **Remaining is three figures and a diagnostic, never one number. For one obligation and one
+> date the consumer reports every payment the household has attached, with the station each
+> holds in the ruled sequence — attached as a candidate, contested, attached and unacknowledged,
+> or discharged — where discharge is an established acknowledgment, dated at or before the date
+> asked, by a party whose entitled-party role on the obligation is in effect at that date, at
+> the strength the consumer requires; every acknowledgment is listed as what it is whether or not
+> it qualifies, and none is read for which obligation it meant. It reports the entitled party's
+> stated positions as dated history with the governing one named, a projection over attached
+> payments named as a projection and not as evidence, a projection over discharged payments that
+> alone may be called remaining, and the differences between them as an acknowledgment-state
+> diagnostic with its terms — never a fifth balance and never a choice. A payment's direction is
+> read from the household's own payer and payee claims and nothing else; netting follows an
+> established counteracts claim and nothing else; a figure whose base, or any counted payment's
+> amount or direction, is not established is undetermined and says why; nothing is allocated
+> across obligations and the double count is named, not prevented. Confirmed remaining is never
+> moved by attachment, clearance, a reading, content, a servicer's or a relayed statement, or a
+> candidate. Testimony of no kind is no figure. The consumer takes the acknowledgment, role,
+> amount, payer and payee kinds from the caller until the catalogues rule them and changes
+> shape for none of them; it writes nothing, resolves nothing, and its failure can appear only
+> where confirmed moves without a qualifying discharge, where a sum is taken over an
+> undetermined term, or where a fifth number appears — and it is measured there.**
+
+**If ruled, the build is one read-only function** — `remaining(session, obligation, d,
+catalogue, knowing)` beside `in_effect`; a fixture over Dg1–Dg25 with the absences (no `paid`,
+`balance`, `is_discharged`, `allocate`, `net`, `reconcile`, `resolve_figures`; no status column)
+and the AST + row-content wiring guard, stand-in kinds registered and removed; a smoke section
+whose mutations each try to *confirm or reconcile* (move `confirmed` on attachment, on clearance,
+on the servicer's statement, on a candidate; read the acknowledgment's content for the
+obligation; infer direction from the relation; net by matching amounts; average stated and
+projected into one balance; treat no base as zero; allocate a cheque across obligations; store);
+**no schema, no migration; 7I not opened until it is green.**
+
+**What pass 7G leaves exactly where it found it:** the acknowledgment kind's ruling (its
+obligation participant or content — §D′.4) · the role catalogue · the domain value catalogue ·
+a return / rejection kind (D′10) · the 1.x scope question · `payment_plan.py` · disposition
+across replacement (7I) · reconciliation with the insurer's share (7H) · accumulators (7J).
+
+*The line: what you paid is one figure, what they credited is another, what they say you owe is
+a third — the record keeps all three by name, and shows you the gap instead of closing it.*
