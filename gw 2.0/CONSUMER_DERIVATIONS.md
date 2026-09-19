@@ -3417,3 +3417,203 @@ caught, baseline re-established after every undo. No escape in the derivation; t
 corrected on the first run (a shape comparison that included claim ids; an expected claim id
 fetched by a misaligned index) — the derivation untouched; no absence check falsified. No schema,
 no migration. Gate 1285 → 1308, 0 failed.
+
+
+### 7H.9 Build accepted — Rob, 2026-09-19: 7H ACCEPTED at `56d1f6c`, gate 1308; open 7J
+
+*The ten mutations test the negative boundary of the consumer, not merely its happy-path output* —
+whether `reconciliation()` turns comparison into determination, substitutes one financial concept
+for another, aggregates or apportions across ontology boundaries, imports household authority,
+admits an ungrounded payment, or acquires persistence. The fixture corrections were in the test
+assertions, properly contained; the absence sweep confirms the implementation did not quietly
+grow an API around the consumer (no `matches`, no determination helpers or maps, no cache). **7H
+accepted as built. Not reopened; no second implementation pass.**
+
+**7H — reconciliation: ACCEPTED / BUILT / GREEN.**
+
+---
+
+## Pass 7J — Accumulators, eligibility, overlap
+
+**The question, applied:** *have we met the deductible? — who is on which plan today? — Kim is
+on the work plan and my marketplace plan, so which one?* The last consumer, and the one §3 put
+last because it is where a household-level answer is most tempting to manufacture from several
+legitimate lower-level facts. Each of its three words already has a ruling that narrows it:
+
+- **Accumulators.** Pl10: *deductible met $1,800 of $3,000 as of 3/1* is **the insurer's dated
+  stance about P** (or about Kim under P); *a consumer may derive the same figure from
+  adjudications; disagreement is a derived dispute, never a stored status.* Pl15: *terms never
+  entered* is the **absence of term claims**, not `deductible = 0`. APPLICABILITY: applicability
+  is a fact about the rule, determinability a fact about our knowledge; **they are orthogonal,
+  and absence must not acquire the semantics of the representation through which it passes** —
+  *your plan has no deductible* versus *we don't have your deductible yet* versus *this visit
+  doesn't count*; and the one sentence that must never be permitted: *you have met your
+  deductible* for a deductible nobody entered.
+- **Eligibility.** §F.2 / F5: *under a plan* is **membership as the household asserts it**, an
+  evidence boundary, not objective eligibility; *eligible · enrolled · terminated* are **the
+  insurer's dated stances** — content, propositions — and *Lakeview Health's "never eligible" leaves the
+  household's "Kim is under P" standing as a claim.* Coverage ③ (whether services are covered) is
+  never derived from membership.
+- **Overlap.** F20 / R7: two plans, two claims, **no selector**, no *primary*; overlap is
+  detectable, never resolved. The concurrent-coverage ruling: *period overlap does not determine
+  applicability; applicability is evaluated for the particular expense; where two plans genuinely
+  govern, concurrency is a determinate multi-valued state, not unresolvedness* — and priority,
+  where unresolved, is an unresolved fact **within** that state. E24: *person → plan + person →
+  expense ⇒ expense → plan* is convergence, refused; which plan an expense is in respect of is
+  the household's asserted relation (E1, unbuilt).
+
+So the pressure question: **what does 7J derive that 7F and E do not already say?** Two things,
+each narrow. *Who is under what on d* is 7F's `in_effect` over the membership role — 7J adds only
+the insurer's stances **beside** it and the overlap **as a fact**; it selects nothing and derives
+no eligibility. *The accumulator* is new arithmetic: the deductible term (rule), the insurer's
+stated accumulator (P-ack about P), and a figure **derived from the insurer's own adjudication
+stances on the expenses the household asserted in respect of P within the plan year** — the two
+kept apart, their difference a derived dispute, the remainder to the term a number, and the two
+axes (rule absent · knowledge absent · expense exempt · not yet adjudicated) each its own reason,
+never zero, never *met*. Everything it reads is a stand-in today (F unbuilt; E unbuilt; the term,
+adjudication and eligibility kinds unruled); 7J changes shape for none of them.
+
+### 7J.1 What is already fixed
+
+| Ruling | Constraint on 7J |
+|---|---|
+| **Pl10** | the accumulator is the insurer's dated stance about P; a consumer may derive the same figure from adjudications; disagreement is a **derived dispute, never a stored status** |
+| **Pl2 / Pl15** | the family deductible and the accumulator are about P (or Kim under P); *terms never entered* is the absence of term claims, not zero |
+| **APPLICABILITY (C1, C2, C6, C7, C8, C9)** | the two axes are orthogonal; rule-absent is an answer (*no deductible*), knowledge-absent is a refusal with the reason; an expense-level negative exists (*this visit does not count*); a denial is neither; `None` has one meaning; **some distinctions cannot be manufactured by the module that needs them** — the caller's kinds say which absence it is |
+| **§F.2 / F5 / F20 / R7** | membership is the household's assertion and an evidence boundary; the insurer's eligibility stances are claims beside it, overriding nothing and derived from nothing; two plans → both, no selector; overlap reported, never resolved |
+| **Concurrent-coverage ruling** | period overlap ≠ applicability; applicability per expense; concurrency (C) determinate and multi-valued, each plan knowing for its own share; priority an unresolved fact within C; the year-level `UNKNOWN` carried three situations — 7J says which |
+| **E (accepted, unbuilt) / E24** | *which plan X is in respect of* is `expense_in_respect_of_plan(X, P)`, asserted; never derived from membership + person + date; a stand-in relation kind until E is built |
+| **7F (built)** | `in_effect(person, under_plan, d)` — the plans in effect with G named; contested; undetermined; `reach` over the asserted relations |
+| **7H (built)** | the insurer in effect as *insurer of X* at a stance's date; the pattern for a stance history under G |
+| **The no-silent-learning boundary** | nothing 7J computes persists; the household is shown the two figures and the dispute |
+| **§1** | 1 · 2 (no selector, no resolution of overlap or dispute) · 5 (absence is not zero — no term ≠ met; no adjudication ≠ nothing applied) · 7 · 8 · 9 · 11 |
+
+### 7J.2 Two derivations — membership beside the insurer's stances; the accumulator on two axes
+
+**`plans_in_effect(session, person, d, catalogue, knowing)`** — *who is under what on d.* 7F's
+`in_effect` over the membership role (F's `under_plan`; a stand-in until built): per plan the
+four-state answer with G and N named; `in_effect: [plans]` — several is an **overlap, a fact**;
+beside each plan the insurer's **eligibility stances** about (person, plan) as dated claims —
+their asserter's answer for the plan's insurer role (`plan_insurer`, a stand-in) reported as a
+fact — listed with state and date, **deriving nothing and overriding nothing** (F5). No `covered`, no `primary`, no `eligible` verdict; no expense's plan.
+
+**`accumulator(session, plan, d, catalogue, knowing, person=None)`** — *how much has been applied
+to P's deductible as of d, by whom, and how far from the term.* Per the plan (family) or per a
+person under it (individual — the expenses `incurred_by` that person, a stand-in role):
+
+| part | what | how |
+|---|---|---|
+| **term** | the deductible: the governing `deductible` term claim on P at d (G, named); content a money amount, or **`none`** — *the rule does not exist* (C2), an answer; no claim → **`unknown`** — *we do not have the deductible* (C1), a refusal with the reason | two reasons, two strings, never zero |
+| **window** | the plan year: the governing `plan_year` term claim on P containing d (`as_of` = start, content = end); none → the derived figure is undetermined *no plan year term* | the accumulator resets per window; the window is a term, not a calendar assumption |
+| **stated** | the insurer's accumulator stance (Pl10): the governing `deductible_applied` claim on P (or on (person, P)) by the plan's insurer at or before d — G, named; conflict at one date → none | P-ack about P |
+| **derived** | Σ over expenses X with an established `expense_in_respect_of_plan(X, P)` (E's kind; never inferred from membership — E24), incurred by the person where asked, dated by `occurred_on` within the window, of the insurer's **adjudication stance** `applied_to_deductible(X)` — a money amount, or `none` (*this visit does not count*, C6 — excluded as **exempt**, listed); an expense in the window with **no** adjudication stance is **unadjudicated**, listed, and makes the derived figure **undetermined naming it** (absence is not zero) | the insurer's own per-expense stances, summed — each plan knowing for its own share (CC1); never the household's figure, never the charge |
+| **dispute** | `stated − derived` where both exist — a derived dispute (Pl10), a number with its terms | never stored, never resolved |
+| **remaining** | `term − derived` (and `term − stated`, each named) — a number; **negative means exceeded**; undetermined where the term is unknown; **not applicable** where the term is `none` | **no `met` key** — a Boolean would be the status Pl10 forbids; the household reads the number |
+
+**What both refuse:**
+
+| Not this | Why |
+|---|---|
+| a selector — `primary`, `current_plan`, the plan for an expense from membership | F20, E24 |
+| eligibility from membership, or membership from the insurer's stance | F5, §F.2 |
+| overlap resolved; priority decided | R7, CC3 |
+| `met: True/False`; `deductible = 0` for an unentered term; *met* from an unentered term | Pl10, Pl15, APPLICABILITY |
+| exempt read as unknown, or unknown as zero; a denial as an adjudication | C6, C7 |
+| the household's figure as the accumulator; the charge as the applied amount | U6; Pl10 |
+| the stated and derived figures merged into one | Pl10 — a derived dispute |
+| a stored accumulator or eligibility status | §1.1; no-silent-learning |
+
+### 7J.3 The cases
+
+| # | Case | What 7J must say | What it must never do |
+|---|---|---|---|
+| **Ju1 (F20 / R7)** | Kim under P₁ (began 1/1) and P₂ (began 7/1), no ending. | August: **both in effect**; `in_effect: [P₁, P₂]`, an overlap, a fact | `primary`; the earlier; the household's |
+| **Ju2 (F5)** | Kim under P (Rob); Lakeview Health's stance *never eligible* (dated). | membership **in effect**; the stance listed beside it with its date and asserter; nothing overridden, nothing derived | eligibility from the stance; membership from the stance |
+| **Ju3 (Pl12)** | Lakeview Health's letter 8/15: *terminated retroactively to 6/30* (a reading); Rob has asserted nothing. | the stance listed as a **candidate**; membership as asserted; when Rob asserts `under_plan_ended 6/30` the membership answer changes (7F) | end the membership from the letter |
+| **Ju4 (E24)** | Kim under P; X is Kim's; nothing ties X to P. | X is **not** in P's accumulator; the derived figure counts only asserted `expense_in_respect_of_plan` | infer X → P from Kim |
+| **Ju5 (Pl10)** | Insurer's portal: applied $1,800 as of 3/1; adjudications on P's expenses sum to $1,650. | `stated` 1,800 (3/1, Lakeview Health) · `derived` 1,650 with basis · **`dispute` 150** — a number with its terms | store; average; prefer the portal |
+| **Ju6 (C1)** | No deductible term on P; adjudications exist. | `term: unknown — no deductible term`; `remaining` **undetermined**; never *met* | `deductible = 0 → met` |
+| **Ju7 (C2)** | The HMO's term claim: deductible `none`. | `term: none — the rule does not exist`; `remaining` **not applicable** — an answer, distinct from Ju6's refusal | unknown; zero |
+| **Ju8 (C6)** | A preventive visit: the insurer's adjudication `none` (does not count). | **exempt** — excluded, listed as exempt; the derived figure determined without it | unknown; zero applied silently |
+| **Ju9 — unadjudicated** | An expense in respect of P in the window with no adjudication stance. | **unadjudicated** — listed; `derived` undetermined naming it; `stated` still reported | zero; drop it |
+| **Ju10 — the window** | Plan year 1/1–12/31; an expense dated the prior December with $300 applied. | outside the window — excluded, listed; no plan-year term → `derived` undetermined *no plan year term* | a calendar-year assumption |
+| **Ju11 (CC1)** | X in respect of P₁ and P₂ (both asserted); P₁'s insurer applied $400, P₂'s $150. | P₁'s accumulator counts 400, P₂'s 150 — **each plan knowing for its own share**; nothing split, nothing summed across plans | apportion; treat as unresolved |
+| **Ju12 (CC3)** | As Ju11 with priority unknown. | nothing about priority appears — 7J's answers are unchanged | decide primary |
+| **Ju13 (Pl2)** | Family $6,000; Kim's individual $3,000; Kim's expenses $2,000 applied, Rob's $1,500. | `accumulator(P)` derived 3,500; `accumulator(P, person=Kim)` derived 2,000 against Kim's term (the individual term a separate claim) | mix the terms |
+| **Ju14 — no Boolean** | Applied $3,200 against a $3,000 term. | `remaining` **−200**, reported as it comes; no `met` key anywhere | `met: True` |
+| **Ju15 — the insurer only** | Rob asserts *applied $2,000* (a household claim on P). | listed; **not governing** (Rob not in effect as the plan's insurer); TG-base on P | the household's accumulator |
+| **Ju16 — as of d** | Adjudication dated after d; a term claim dated after d. | neither counts at d | `created_at` |
+| **Ju17 — surfaced, not stored** | The household reads the dispute and asks the insurer. | nothing written; no accumulator / met / eligible column | store |
+| **Ju18 — the null model** | Every expense adjudicated, stated = derived: dispute 0; one adjudication changed by 100: dispute exactly 100 and remaining exactly 100 nearer or farther | exact | a tolerance |
+| **Ju19 — where the failure appears** | *met* said with no term; zero from absence; a plan chosen; eligibility from membership; a stored figure | measured there | — |
+
+### 7J.4 Testing the readings
+
+**RJ0 — a selector** (`plan_at`, `primary`, the plan for an expense). Rejected: F20, E24, the
+CC ruling's `plan_at() + [0]` hazard; Ju1, Ju4, Ju11.
+
+**RJ1 — eligibility derived** (from membership, or membership from the insurer). Rejected: F5;
+Ju2, Ju3.
+
+**RJ2 — one axis** (absence as zero; unknown as none; exempt as unknown; `met` from nothing).
+Rejected: APPLICABILITY; Ju6–Ju9.
+
+**RJ3 — one accumulator** (stated and derived merged; the household's figure). Rejected: Pl10;
+Ju5, Ju15.
+
+**RJ4 — a Boolean `met`.** Rejected: Pl10 (*never a stored status*); Ju14 — a number, signed.
+
+**RJ5 — the candidate: two read-only derivations**, `plans_in_effect(session, person, d,
+catalogue, knowing)` and `accumulator(session, plan, d, catalogue, knowing, person=None)`;
+`catalogue` naming the stand-ins until F, E and the catalogues are ruled: `under_plan` (a role
+kind with bound boundaries), `plan_insurer` (a role kind, party ↔ plan), `eligibility`, `deductible`,
+`plan_year`, `deductible_applied`, `expense_in_respect_of_plan` (a relation kind, X → P),
+`applied_to_deductible`, `incurred_by` (a relation kind, party → X), beside 7H's. **No selector,
+no verdict, no merged figure, no status, no write.**
+
+### 7J.5 What the derivations are — and are not
+
+| **read** | 7F `in_effect` over the membership role; the insurer's eligibility stances; the term, plan-year, accumulator and adjudication claims under the catalogue with 7F's role answers; `reach` over `expense_in_respect_of_plan` and `incurred_by` |
+|---|---|
+| **return** | the plans in effect with the overlap as a fact and the insurer's stances beside · the term on its axis · the window · stated · derived with basis, exempt and unadjudicated listed · dispute · remaining, signed |
+| **decide** | nothing — no plan, no eligibility, no priority, no *met*, no merge |
+| **are not** | `plan_at`; a coverage determination; the allocation engine; the tax engine's input; 1.x `plan_year` (untouched) |
+| **failure appears at** | Ju19 |
+| **null model** | Ju18 |
+
+### 7J.6 Ruling candidate — pass 7J, for Rob
+
+> **The last consumer answers two questions and manufactures no household-level answer from
+> either. Who is under what on a date is the traversal consumer's answer over the membership
+> role — every plan in effect, several being an overlap reported as a fact — with the insurer's
+> eligibility stances listed beside it as dated claims that derive nothing and override nothing.
+> How much has been applied to a plan's deductible is three things kept apart: the term, as the
+> governing term claim — an amount, or none where the rule does not exist, or unknown where no
+> claim exists, the last two never zero and never each other; the insurer's stated accumulator
+> as its dated position; and a figure derived within the governing plan year from the insurer's
+> own adjudication stances on the expenses the household asserted in respect of the plan —
+> never inferred from membership — each plan knowing for its own share, an exempt expense
+> excluded and listed, an unadjudicated one listed and making the figure undetermined. The
+> difference between stated and derived is a derived dispute, the distance to the term a signed
+> number; neither is a status, neither is stored, and nothing is called met. It selects no plan,
+> decides no priority, resolves no overlap, derives no eligibility, and writes nothing. Its
+> failure can appear only where met is said with no term, where an absence enters as zero,
+> where a plan is chosen, where eligibility follows membership, or where a figure is stored —
+> and it is measured there.**
+
+**If ruled, the build is two read-only functions** beside `reconciliation`; a fixture over
+Ju1–Ju19 with the absences (no `plan_at`, `primary_plan`, `is_eligible`, `deductible_met`,
+`covered`, `accumulator_cache`; no status column) and the wiring guard, the stand-ins registered
+and removed; a smoke section whose mutations each try to *answer for the household* (pick the
+earlier plan; eligibility from the stance; the stance ends the membership; `met: True`; zero
+from no term; unknown for exempt; zero for unadjudicated; the household's accumulator governs;
+stated and derived averaged; X → P from membership; store); **no schema, no migration.** With 7J
+green, **item 7's inventory is complete** and the queue item closes on Rob's word.
+
+**What pass 7J leaves exactly where it found it:** E and F (accepted, unbuilt — the stand-ins
+become the ruled kinds the day they are built) · the role and term catalogues · claim allocation
+and priority (fenced) · coverage ③ · the tax engine · 1.x `plan_year` · D′.11.
+
+*The line: the record can tell you who is on which plan and how much the insurer says has been
+applied — and it will tell you two numbers when there are two, and none when there is none,
+before it ever tells you that you are covered or that you have met anything.*
