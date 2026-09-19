@@ -3793,6 +3793,263 @@ def reconstruction(session, obligation, at, d, catalogue, knowing):
                      'no agreement-relative quantity enters (finding 3)']}
 
 
+# ── Item 7, pass 7H: reconciliation - a CONSUMER derivation, figures side by side ────────────
+# gw 2.0/CONSUMER_DERIVATIONS.md s 7H.6-7H.8, ruled 2026-09-19 (the four items), build authorised
+# narrowly: this function, Rc1-Rc21, s115 - no additional semantics, resolver, confidence layer,
+# role restriction or cross-party recency machinery. RECONCILIATION EQUATES NOTHING AND DETERMINES
+# NOTHING. For one expense X and one date d:
+#
+#   the sides     X: the provider's `billed` (a party in effect as PROVIDER OF X at its as_of) and
+#                 the insurer's `patient_responsibility` / `plan_paid` (in effect as INSURER OF X),
+#                 each a dated position under G - the latest established at or before d, named;
+#                 two at one date with different values -> conflict, none.  O: 7G's stated /
+#                 confirmed for every context.  Funding events: every established
+#                 payment_in_respect_of(p, X) with direction relative to the provider.
+#   membership    (1) O is a context iff some ground of some obligation_in_respect_of(O, X) is
+#                 ESTABLISHED, over X's established referent, one hop, this kind only; candidate-only
+#                 / contested-only listed, no context, the side NOT undetermined.
+#   funding       (2) two predicates in order: membership by an established payment_in_respect_of(p, X)
+#                 ground; THEN direction - payee in effect as provider of X at p's occurred_on -> -1
+#                 (funding, any payer), the provider as payer -> +1 (money back), else undetermined
+#                 naming p. A payment to the provider without the membership ground is not in the report.
+#   comparison    difference = S_O(d) - PR_X(d) ONLY where exactly one established context stands in
+#                 respect of X and of no other expense (established claims); otherwise the reason. A
+#                 number with its terms - never a verdict, never a corresponding amount (C6).
+#   unresolved    (3) B(d) - sum(dir*amt) over every funding event with occurred_on <= d - NO lower
+#                 bound: a billed position is gross and absorbs nothing (7G's base rule does not carry);
+#                 acknowledgment-independent - the funding view, with each context's 7G confirmed(d)
+#                 beside it as the acknowledged view, never merged. Classified by nothing.
+#   determination (4) a dated claim on X, content exactly one of the four names (else unrecognised,
+#                 never current); as_of mandatory; any party; the asserter's role answers REPORTED,
+#                 not enforced (the catalogue's). CURRENT by G per party's series - the party's latest
+#                 established claim at or before d, a retracted latest exposing the prior, two at one
+#                 date within a series -> that series conflicted; across parties: all agree -> current
+#                 with every asserter named, differ -> CONFLICT, none current. No cross-party recency.
+#                 Nothing infers one: not from zero, absence, a denial (no denial kind is read), the
+#                 unresolved amount, or from `unpaid` to `pending_claim` - two names, two facts.
+# Never: apportion (C5), sum balances (D'3), classify (the two invariants), infer the insurer's
+# payment onto O (D'5), a status on X or O, a stored determination. Computed on read; stored nowhere.
+DETERMINATION_NAMES = ('provider_adjustment', 'user_paid_cash', 'unpaid', 'pending_claim')
+DETERMINATION_UNRECOGNISED = 'unrecognised'
+RECONCILIATION_KINDS = ('billed', 'patient_responsibility', 'plan_paid', 'determination', 'provider_of', 'insurer_of')
+NO_DENIAL_NOTE = ('a denial is none of the four determinations and no denial kind is read (C7); '
+                  'nothing here is a tax or eligibility classification')
+
+
+def reconciliation(session, expense, d, catalogue, knowing):
+    """The reconciliation for one expense on date `d`: a plain dict, computed on read, storing nothing.
+
+        {'expense', 'd', 'referent': [ids],
+         'stances': {billed|patient_responsibility|plan_paid:
+                        {'claims': [{'claim', 'asserter', 'as_of', 'state', 'value', 'strength', 'in_role', 'qualifies'}],
+                         'governing': {'claim', 'asserter', 'as_of', 'value'} | None, 'conflict': [...], 'reason'}},
+         'obligations': [{'obligation', 'grounds': [(claim, asserter, state, ground)], 'stated', 'confirmed', 'confirmed_reason',
+                          'other_expenses': [ids]}],                    established contexts only
+         'candidate_obligations': [(claim, obligation)], 'contested_obligations': [(claim, obligation)],
+         'payments': [{'payment', 'grounds': [...], 'amount': {...}, 'occurred_on': {...},
+                       'direction': {'sign', 'reason', 'payers', 'payees'}, 'attached_to': [obligation ids]}],
+         'candidate_payments': [...], 'contested_payments': [...],
+         'comparison': {'obligation'|None, 'stated': S|None, 'patient_responsibility': PR|None, 'difference'|None, 'reason'},
+         'unresolved': {'value'|None, 'charge': B|None, 'terms': [(payment, sign, amount)], 'reason', 'undetermined': [...]},
+         'determinations': {'claims': [{'claim', 'asserter', 'as_of', 'state', 'name', 'recognised', 'roles': {...}}],
+                            'series': {party: {'current': {...}|None, 'conflict': [...]}},
+                            'current': {'name', 'asserters', 'claims'} | None, 'conflict': [...], 'reason'},
+         'note': [...]}
+    """
+    missing = [k for k in CATALOGUE_KINDS + RECONCILIATION_KINDS if k not in catalogue]
+    if missing:
+        raise ValueError(f'reconciliation: catalogue names no kind for {missing}')
+    for role_key in ('provider_of', 'insurer_of', 'entitled_party'):
+        rk = catalogue[role_key]
+        if not any(r.get('of') == rk and r.get('boundary') for r in RULED_KINDS.values()):
+            raise ValueError(f'reconciliation: {rk!r} is not a ruled role - no boundary kind is bound to it')
+    if type(expense).__name__ != 'Expense':
+        raise ValueError(f'reconciliation: takes an Expense; got {type(expense).__name__}')
+    d = d.isoformat() if hasattr(d, 'isoformat') else str(d)
+    retracted = _retracted(session)
+    persons = {p.party.id for p in session.query(Person).all()}
+    members, _ = _referent_members(session, expense)
+    provider_role, insurer_role = catalogue['provider_of'], catalogue['insurer_of']
+
+    def in_role(party_id, role_kind, when):
+        return _entitled_at(session, party_id, role_kind, expense.id, when)[0]
+
+    # ── X's stances: dated positions of parties in effect in the role; governing under G ─────
+    def stance_history(kind, role_kind):
+        claims = []
+        for claim in (session.query(Proposition).filter(Proposition.kind == kind, Proposition.subject_expense_id.in_(members))
+                      .order_by(Proposition.id).all()):
+            for state, asserter, ground in _claim_states(session, claim, retracted):
+                rel = session.get(EvidentiaryRelationship, ground)
+                value = _money(claim.content)
+                role = in_role(asserter, role_kind, claim.as_of)
+                claims.append({'claim': claim.id, 'asserter': asserter, 'as_of': claim.as_of, 'state': state, 'value': value,
+                               'strength': derived_strength(session, rel, knowing), 'in_role': role,
+                               'qualifies': state == CLAIM_ESTABLISHED and bool(claim.as_of) and claim.as_of <= d
+                               and role == EFFECT_IN and value is not None})
+        q = [c for c in claims if c['qualifies']]
+        if not q:
+            return {'claims': claims, 'governing': None, 'conflict': [], 'reason': f'no {kind} position by a party in effect as its asserter'}
+        b = max(c['as_of'] for c in q)
+        at = [c for c in q if c['as_of'] == b]
+        if len({c['value'] for c in at}) > 1:
+            return {'claims': claims, 'governing': None, 'conflict': at, 'reason': f'conflicting {kind} positions at {b}'}
+        return {'claims': claims, 'governing': {'claim': at[0]['claim'], 'asserter': at[0]['asserter'], 'as_of': b, 'value': at[0]['value']},
+                'conflict': [], 'reason': None}
+    stances = {'billed': stance_history(catalogue['billed'], provider_role),
+               'patient_responsibility': stance_history(catalogue['patient_responsibility'], insurer_role),
+               'plan_paid': stance_history(catalogue['plan_paid'], insurer_role)}
+
+    # ── (1) the obligations: contexts iff an established ground; candidates / contested listed ──
+    by_obligation = {}
+    for e in reach(session, expense, OBLIGATION_IN_RESPECT_OF, as_object=True)['endpoints']:
+        by_obligation.setdefault(e['id'], []).append((e['claim'], e['asserter'], e['state'], e['ground']))
+    obligations, cand_obl, cont_obl = [], [], []
+    for o_id, grounds in sorted(by_obligation.items()):
+        states = {st for _, _, st, _ in grounds}
+        if CLAIM_ESTABLISHED in states:
+            o = session.get(Obligation, o_id)
+            r = remaining(session, o, d, catalogue, knowing)
+            others = sorted({x['id'] for x in reach(session, o, OBLIGATION_IN_RESPECT_OF)['endpoints']
+                             if x['state'] == CLAIM_ESTABLISHED and x['id'] not in members})
+            obligations.append({'obligation': o_id, 'grounds': grounds, 'stated': r['stated']['governing'],
+                                'confirmed': r['figures']['confirmed']['value'], 'confirmed_reason': r['figures']['confirmed']['reason'],
+                                'other_expenses': others})
+        elif CLAIM_CONTESTED in states:
+            cont_obl.extend((c, o_id) for c, _, st, _ in grounds if st == CLAIM_CONTESTED)
+        else:
+            cand_obl.extend((c, o_id) for c, _, _, _ in grounds)
+
+    # ── (2) the funding events: membership first, then direction relative to the provider ─────
+    by_payment = {}
+    for e in reach(session, expense, PAYMENT_IN_RESPECT_OF, as_object=True)['endpoints']:
+        by_payment.setdefault(e['id'], []).append((e['claim'], e['asserter'], e['state'], e['ground']))
+
+    def entries(kind, **slot):
+        out = []
+        for claim in session.query(Proposition).filter_by(kind=kind, **slot).order_by(Proposition.id).all():
+            for state, asserter, ground in _claim_states(session, claim, retracted):
+                out.append({'claim': claim.id, 'asserter': asserter, 'state': state, 'ground': ground, 'as_of': claim.as_of,
+                            'content': claim.content, 'value': _money(claim.content), 'party': claim.subject_party_id})
+        return out
+    payments, cand_pay, cont_pay = [], [], []
+    for p_id, grounds in sorted(by_payment.items()):
+        states = {st for _, _, st, _ in grounds}
+        if CLAIM_ESTABLISHED not in states:
+            (cont_pay if CLAIM_CONTESTED in states else cand_pay).extend((c, p_id) for c, _, _, _ in grounds)
+            continue
+        amt, amt_reason = _one_value(entries(catalogue['payment_amount'], subject_payment_id=p_id))
+        when, when_reason = _one_value([dict(e, value=(e['as_of'] or e['content'])) for e in entries(catalogue['occurred_on'], subject_payment_id=p_id)])
+        payers = sorted({e['party'] for e in entries(catalogue['paid_by'], object_payment_id=p_id) if e['state'] == CLAIM_ESTABLISHED})
+        payees = sorted({e['party'] for e in entries(catalogue['paid_to'], object_payment_id=p_id) if e['state'] == CLAIM_ESTABLISHED})
+        sign, reason = None, None
+        if not payers or not payees:
+            reason = 'payer or payee not established'
+        elif when is None:
+            reason = 'no date for the provider test'
+        else:
+            payee_p = [in_role(x, provider_role, when) for x in payees]
+            payer_p = [in_role(x, provider_role, when) for x in payers]
+            if EFFECT_IN in payee_p:
+                sign = -1
+            elif EFFECT_IN in payer_p:
+                sign = 1
+            else:
+                reason = 'neither payee nor payer in effect as provider of the expense: ' + '/'.join(sorted(set(payee_p + payer_p)))
+        attached = sorted({x['id'] for x in reach(session, session.get(Payment, p_id), PAYMENT_IN_RESPECT_OF_OBLIGATION)['endpoints']
+                           if x['state'] == CLAIM_ESTABLISHED})
+        payments.append({'payment': p_id, 'grounds': grounds, 'amount': {'value': amt, 'reason': amt_reason},
+                         'occurred_on': {'value': when, 'reason': when_reason},
+                         'direction': {'sign': sign, 'reason': reason, 'payers': payers, 'payees': payees}, 'attached_to': attached})
+
+    # ── the comparison: one obligation <-> one expense, a number with its terms ─────────────────
+    PR = stances['patient_responsibility']['governing']
+    if len(obligations) != 1:
+        comparison = {'obligation': None, 'stated': None, 'patient_responsibility': PR, 'difference': None,
+                      'reason': ('no obligation in respect of the expense' if not obligations else 'several obligations in respect of the expense - no sum')
+                      + (f' (candidates: {sorted({o for _, o in cand_obl})})' if cand_obl else '') + (f' (contested: {sorted({o for _, o in cont_obl})})' if cont_obl else '')}
+    else:
+        ctx = obligations[0]
+        if ctx['other_expenses']:
+            comparison = {'obligation': ctx['obligation'], 'stated': ctx['stated'], 'patient_responsibility': PR, 'difference': None,
+                          'reason': f'the obligation is in respect of several expenses {ctx["other_expenses"]} - no apportionment'}
+        elif ctx['stated'] is None:
+            comparison = {'obligation': ctx['obligation'], 'stated': None, 'patient_responsibility': PR, 'difference': None,
+                          'reason': 'no stated position by the entitled party on the obligation'}
+        elif PR is None:
+            comparison = {'obligation': ctx['obligation'], 'stated': ctx['stated'], 'patient_responsibility': None, 'difference': None,
+                          'reason': stances['patient_responsibility']['reason']}
+        else:
+            comparison = {'obligation': ctx['obligation'], 'stated': ctx['stated'], 'patient_responsibility': PR,
+                          'difference': ctx['stated']['value'] - PR['value'], 'reason': None}
+
+    # ── (3) the unresolved amount: the gross charge less every funding event dated <= d ────────
+    B = stances['billed']['governing']
+    unresolved = {'value': None, 'charge': B, 'terms': [], 'reason': None, 'undetermined': []}
+    if B is None:
+        unresolved['reason'] = stances['billed']['reason']
+    else:
+        total, reasons = B['value'], []
+        for pm in payments:
+            when = pm['occurred_on']['value']
+            if when is None:
+                reasons.append((pm['payment'], 'occurred_on ' + pm['occurred_on']['reason']))
+                continue
+            if when > d:
+                continue
+            if pm['amount']['value'] is None:
+                reasons.append((pm['payment'], 'amount ' + pm['amount']['reason']))
+                continue
+            if pm['direction']['sign'] is None:
+                reasons.append((pm['payment'], 'direction ' + pm['direction']['reason']))
+                continue
+            unresolved['terms'].append((pm['payment'], pm['direction']['sign'], pm['amount']['value']))
+            total += pm['direction']['sign'] * pm['amount']['value']
+        if reasons:
+            unresolved['reason'] = 'undetermined: ' + '; '.join(f'payment {pid}: {why}' for pid, why in reasons)
+            unresolved['undetermined'] = reasons
+        else:
+            unresolved['value'] = total
+
+    # ── (4) the determinations: dated claims; current by G per party's series; conflict across ──
+    det_claims = []
+    for claim in (session.query(Proposition).filter(Proposition.kind == catalogue['determination'], Proposition.subject_expense_id.in_(members))
+                  .order_by(Proposition.id).all()):
+        for state, asserter, ground in _claim_states(session, claim, retracted):
+            name = (claim.content or '').strip()
+            det_claims.append({'claim': claim.id, 'asserter': asserter, 'as_of': claim.as_of, 'state': state,
+                               'name': name if name in DETERMINATION_NAMES else DETERMINATION_UNRECOGNISED, 'recognised': name in DETERMINATION_NAMES,
+                               'roles': {'provider_of': in_role(asserter, provider_role, claim.as_of), 'insurer_of': in_role(asserter, insurer_role, claim.as_of),
+                                         'household_person': asserter in persons}})
+    series = {}
+    for c in det_claims:
+        if c['state'] == CLAIM_ESTABLISHED and c['recognised'] and c['as_of'] and c['as_of'] <= d and c['asserter'] is not None:
+            series.setdefault(c['asserter'], []).append(c)
+    party_current = {}
+    for party, cs in sorted(series.items()):
+        latest = max(c['as_of'] for c in cs)
+        at = [c for c in cs if c['as_of'] == latest]
+        if len({c['name'] for c in at}) > 1:
+            party_current[party] = {'current': None, 'conflict': at}
+        else:
+            party_current[party] = {'current': at[0], 'conflict': []}
+    currents = [v['current'] for v in party_current.values() if v['current'] is not None]
+    names = {c['name'] for c in currents}
+    if not currents:
+        current, conflict, reason = None, [], ('no determination claimed' if not det_claims else 'no party has a current determination')
+    elif len(names) == 1:
+        current, conflict, reason = {'name': names.pop(), 'asserters': sorted({c['asserter'] for c in currents}), 'claims': sorted(c['claim'] for c in currents)}, [], None
+    else:
+        current, conflict, reason = None, currents, 'the parties\' current determinations differ - nothing current'
+    determinations = {'claims': det_claims, 'series': party_current, 'current': current, 'conflict': conflict, 'reason': reason}
+
+    return {'expense': expense.id, 'd': d, 'referent': members, 'stances': stances,
+            'obligations': obligations, 'candidate_obligations': cand_obl, 'contested_obligations': cont_obl,
+            'payments': payments, 'candidate_payments': cand_pay, 'contested_payments': cont_pay,
+            'comparison': comparison, 'unresolved': unresolved, 'determinations': determinations,
+            'note': [NO_DENIAL_NOTE, 'the funding view (unresolved) and the acknowledged view (each obligation\'s confirmed) travel beside one another, never merged']}
+
+
 for _name in _IMMUTABLE_REFERENCES:
     event.listen(globals()[_name], 'before_update', _refuse_repoint)
 del _name

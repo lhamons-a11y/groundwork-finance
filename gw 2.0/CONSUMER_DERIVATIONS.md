@@ -3377,3 +3377,43 @@ knowing)` · encode Rc1–Rc21 as the fixture boundary · add s115 · run the ga
 result · do not open 7J · **no additional 7H semantics, resolver, confidence layer, role restriction
 or cross-party recency machinery.** *The implementation must realise the ruled machinery, not
 discover new semantics while coding.* **Stopped until the separate 7H build authorisation.**
+
+
+#### Built — 2026-09-19 (7H) — under the scope fixed above, on Rob's "build 7H"
+
+`core/database.py`: `reconciliation(session, expense, d, catalogue, knowing)` beside `reconstruction`,
+with the constants `DETERMINATION_NAMES` (the four, closed), `DETERMINATION_UNRECOGNISED`,
+`RECONCILIATION_KINDS` (the six catalogue names 7H adds to 7G's) and `NO_DENIAL_NOTE`. No new helper:
+it reuses `_claim_states`, `_retracted`, `_referent_members`, `_money`, `_one_value`, `_entitled_at`
+(generic over the role's object slot), `reach`, `remaining` and `derived_strength`. A plain dict,
+computed on read, storing nothing, realising §7H.8 item by item: **(1)** `obligations` = the
+contexts with an established `obligation_in_respect_of` ground over X's referent, each with 7G's
+`stated` / `confirmed` and its other established expenses; `candidate_obligations` and
+`contested_obligations` listed apart, unsettling nothing · **(2)** `payments` = members with an
+established `payment_in_respect_of` ground, then direction against the provider in effect at
+`occurred_on` (payee → −1 for any payer; the provider as payer → +1; else undetermined naming p);
+a payment to the provider without the ground is absent from the report · **(3)** `unresolved` =
+the governing `billed` position (G, named, gross) less every member with established amount and
+direction and `occurred_on ≤ d`, no lower bound, acknowledgment-independent; the acknowledged view
+beside it on each context · **(4)** `determinations` = every claim with its name (one of four, else
+*unrecognised*), state, asserter and the asserter's role answers reported; `series` per party under
+G (a retracted latest exposing the prior; two at one date → that series conflicted); `current`
+where every party's current agrees, with every asserter named; `conflict` where they differ; none
+inferred. `comparison` = `S_O − PR_X` only where exactly one established context stands in respect
+of X and of no other expense, otherwise the reason. Refuses a catalogue missing a kind, a role kind
+no boundary is bound to, a non-Expense. Reads `reach`, `remaining`, `derived_strength`; nothing that
+resolves, scores or allocates; `created_at` never. Fixture `tests/test_reconciliation_fixture.py`
+over Rc1–Rc21 — 32 checks, the 7G stand-ins plus provider-of and insurer-of role stand-ins: Rc1's
+38; Rc2's 650; Rc13's four directions; Rc14's absent stray payment and candidate membership; Rc5
+**mechanical** (two otherwise-identical expenses differ exactly in the name; no mapping helper);
+Rc15 in four steps (retraction exposes the prior; cross-party disagreement → conflict; agreement →
+both asserters; a same-date pair within one party's series → that series conflicted); Rc19 (zero
+→ none; no current without established recognised claims — Rc21 over the corpus); Rc11's history
+with the earlier PR governing when asked earlier. Smoke `s115_reconciliation.py`, mutations each an
+attempt to *settle*: the PR becomes the balance · a verdict · zero is `user_paid_cash` · a denial
+is `unpaid` · `pending_claim` is `unpaid` · the balances summed · the PR apportioned · the
+household's figure governs · a payment to the provider without membership counts · store — ten, all
+caught, baseline re-established after every undo. No escape in the derivation; two fixture checks
+corrected on the first run (a shape comparison that included claim ids; an expected claim id
+fetched by a misaligned index) — the derivation untouched; no absence check falsified. No schema,
+no migration. Gate 1285 → 1308, 0 failed.
