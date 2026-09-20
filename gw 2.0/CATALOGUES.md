@@ -22,7 +22,11 @@
 > F1 `adjudication` / `denial` two kinds or one; F2 two swap classes measured before the build (the
 > EOB line's borrowed name; the role claim missing from corpora that asserted knowing by type);
 > RULED (§9D-ii.7) — F1 two kinds, both F2 classes accepted; built (`cb8ebe4`) and ACCEPTED (Rob,
-> 2026-09-20); 9D-iii unopened.**
+> 2026-09-20). **9D-iii OPENED (§9D-iii) — the insurer's stances and terms on P; two shape questions
+> the registry cannot say as-is (F1 `deductible_applied`'s optional object; F2 `eligibility`'s role on
+> the object — application or re-ruling, Rob's), F3 three "coverage ended" kinds, F4 the terms with
+> 7J's any-party read recorded as 7J's, F5 one name, F6 three swap classes pre-measured; ruling
+> sought; no code.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -1925,5 +1929,164 @@ existing stand-in; the presupposed role claims added and none inferred; the s121
 by a real negative case rather than a count; the 9D-i pin restated to what 9D-i owns. **9D-iii remains
 unopened until Rob opens it; it adds a row for `insurer_of_plan` and settles F4 and F6 — it does not
 re-rule the relation (§9D.9).**
+
+---
+
+## Pass 9D-iii — The insurer's stances and terms on P
+
+*Opened by Rob 2026-09-20 after 9D-ii's acceptance (`2012b2c`). Scope per §9D.9: `deductible_applied`,
+`eligibility`, `coverage_ended`, `authorization`, `deductible`, `individual_deductible`, `plan_year`;
+the role-at-date relation applied — a third row (`insurer_of_plan`) — not re-ruled; F4 and F6
+settled; consumer 7J. No code until cases → candidate → ruling → explicit build authorisation. **What
+this slice adds to the question:** the first stance whose subject is not the thing the role is on,
+and the first whose shape 7J reads two ways.*
+
+### 9D-iii.1 What is fixed
+
+§9D-i.8 / §9D.9: H; `reading_establishes: True` = strength through the established origin, never
+state; the relation ruled once, applied by name → role rows. PLAN_IDENTITY §2 / §7 (PL2): a term is
+*the insurer's dated stance — a term claim about P*; the plan an impoverished anchor, terms claims
+never fields (Pl2: *the family deductible has a subject that is neither Kim nor Lakeview Health*); Pl10 the
+insurer's accumulator stance; Pl11 the authorization *the insurer's stance about P with the service
+as content, never an expense*; Pl12 the insurer's retroactive termination *a dated stance; earlier
+stances stand as history; P remains minted*; Pl15 / APPLICABILITY (`none` = the rule does not exist,
+C2). **F5** (§F.2, 9A): the insurer's *never eligible* is a claim *beside* the household's membership,
+deriving nothing and overriding nothing. **7J §7J.7:** the term — the governing `deductible` /
+`individual_deductible` claim on P at d, content an amount or `none`, no claim → `unknown`, **no role
+gate — any party's established term, latest at or before d**; the window — the governing `plan_year`
+(`as_of` = start, content = end); the stated accumulator — `deductible_applied` on P (the family
+figure) or on (person, P) (the individual figure), **by the plan's insurer** (asserter in effect as
+`insurer_of_plan`); eligibility stances listed with the asserter's `insurer_of_plan` answer **read on
+the object plan**, deriving nothing.
+
+### 9D-iii.2 What 7J reads — two shapes and one object-side role
+
+| kind | subject | object | `as_of` | content | 7J's gate |
+|---|---|---|---|---|---|
+| `deductible_applied` (family figure) | P | **none** | yes | money | asserter in effect as `insurer_of_plan` P |
+| `deductible_applied` (individual figure) | P | **`object_party_id` = the person** | yes | money | the same; selected by `object_party_id ∈ person` |
+| `eligibility` | **the person party** | **P** | yes | text | none (F5 — listed); the asserter's `insurer_of_plan` answer reported **on the object plan** |
+| `coverage_ended` | P | none | yes | a date / text | not read (Pl12; the 9C fixture and plan-identity use it) |
+| `authorization` / `authorized` | P | none | yes | the service | not read (Pl11; two names in two fixtures) |
+| `deductible` · `individual_deductible` | P | none | yes | money or `none` | **no role gate** |
+| `plan_year` | P | none | start | end | no role gate |
+
+**Two things the registry's shape cannot say as-is.** (a) `deductible_applied` has an *optional*
+object: the registry expresses *no object* (`()`, a required absence) or *an established object*
+(`(slot,)`), never *either*. (b) `eligibility`'s role is on its **object**: the relation as stated in
+§9D-i.3 and built reads *the claimant's role on the claim's subject*; for `eligibility` the subject is
+the person and the role is `insurer_of_plan` on the object plan — exactly the role 7J already reads on
+the object.
+
+### 9D-iii.3 Findings — put to Rob
+
+**9D-iii-F1 — `deductible_applied`'s optional object.** Options: **(a) two kinds** —
+`deductible_applied` (subject P, no object: the family figure) and `individual_deductible_applied`
+(subject P, object the person) — the exact parallel of the two term kinds 7J already keeps apart
+(`deductible` / `individual_deductible`); **but 7J reads one catalogue key and filters by the object
+slot** (`claims_on_plan(catalogue['deductible_applied'], person_members)`), so two kinds mean a second
+catalogue key and a changed read — **a 7J consumer change**, of the smallest kind (Tr8's class: a
+consumer's line changing because a kind's status changed), to be authorised explicitly if (a) is
+ruled; (b) one kind with the person **required** — the family figure would have no home; (c) one kind
+with the person as **content** — K8 refuses; (d) a registry key for *optional object* — §2.3's shape
+refuses; (e) leave `deductible_applied` unruled in 9D-iii (a stand-in until 7J is opened) — the
+catalogue then rules six of seven. *Reading:* (a), with the 7J catalogue-key change named as the one
+consumer line it costs; or (e) if Rob will not open 7J for it. **Rob's.**
+
+**9D-iii-F2 — the role on the object.** For `eligibility` the thing the stance is *about* is
+(person, P) and the role that makes the insurer its holder is on P. Options: **(a) the table row
+names the side** — `_ROLE_AT_AS_OF[KNOWING_PLAN_INSURER_AT_AS_OF] = (INSURER_OF_PLAN, 'object')` for
+`eligibility`, `'subject'` for every other row; the resolver reads the named side — *the relation's
+meaning is unchanged: the claimant held role R on the thing the stance is about, at `as_of`; which slot
+that thing sits in is the kind's shape.* This touches `_role_at_as_of`'s dispatch (one parameter),
+which §9D.9 forbids as *re-ruling* and permits as *application* — **Rob decides which this is.** 7J's
+own read (the role on `claim.object_plan_id`) is the evidence it is application; (b) flip
+`eligibility`'s slots (P subject, person object) — the role lands on the subject, but 7J reads
+`subject_party_id` (a consumer change) and F5's deliberate parallel with `under_plan`'s shape is
+lost; (c) `eligibility` takes no relation — undetermined, as `under_plan` — contrary to §9D.9's *the
+insurer's stances take the relation*. *Reading:* (a). **Rob's.**
+
+**9D-iii-F3 (= 9D-F6) — three "coverage ended" claims, three kinds.** The household's boundary claim
+`under_plan_ended` (F — party → plan; *the household says Kim's membership ended*); the insurer's
+`eligibility` stance about (person, P) (F5 — *never eligible*, *eligible from*, *ended 6/30* as content
+about a person's standing under P); the insurer's `coverage_ended` stance about **P** (Pl12 — *the
+arrangement ended, retroactive to 6/30*; adjudications reversed). Different holders (household vs
+insurer), different subjects (party → plan; person → plan; P), different rulings behind them. *Reading:*
+**three kinds; none derives another** — an insurer's `coverage_ended` on P manufactures no
+`under_plan_ended` for anyone and no `eligibility` stance; a household's dispute of the termination
+(plan-identity's *disputed — we paid through December*) is a second `coverage_ended` claim by a party
+not in role — established, not_knowing, beside. **Rob's.**
+
+**9D-iii-F4 (= 9D-F4) — the terms: the insurer's position; 7J reads any party's.** The kind's holder is
+`insurer_of_plan`: the SBC read → candidate, knowing through the origin; the household's *our deductible
+is $3,000* → not_knowing (a relay — O5). 7J's term read (*latest established, any party; strength not
+read*) stays 7J's — **recorded as a 7J question** (the class of 9D-i-F3: *should the term read gate by
+the insurer's role as TG-base gained the entitled-party test?*), not changed here. One consequence
+is a fixture check, foreseen below (F6-iii). `plan_year` the same.
+
+**9D-iii-F5 — `authorization`: one name.** Pl11's kind appears as `authorized` (plan-identity) and
+`authorization` (the 9C fixture). The catalogue names it once — `authorization`, the noun, as `denial`
+and `adjudication` are; subject P, content the service; `insurer_of_plan`; no consumer. Plan-identity's
+name changes by constant.
+
+**9D-iii-F6 — swap classes, measured before the build.** (i) *The borrowed line shape:* plan-identity's
+`line(sbc, r_sbc, 'deductible', …, aetna)` — the SBC line with the insurer as subject — refused under
+the ruled `deductible`; the shape kept under a stand-in (`sbc_line_figure`), no new kind. (ii) *The
+presupposed role:* plan-identity asserts Lakeview Health knowing for the authorization by type with **no
+`insurer_of_plan` claim in its corpus** — the role added, never inferred (9D-ii's class). (iii) *A
+check whose strength clause was the foundation's:* plan-identity's Pl2 asserts the **household's**
+term claim is `knowing` (map `{'person', 'institution'}` — anyone); under the ruled kind the
+household is not the holder → not_knowing. The check's meaning — *a claim, dated, with a party behind
+it, not a field on the anchor* — survives; its strength clause was the type test's and retires to
+*established, a party behind it, not_knowing (the insurer's rule, relayed)* — Tr8's class (an
+assertion made true by the stand-in that the ruling changes), reported for Rob to accept as such.
+
+### 9D-iii.4 Cases
+
+| # | Case | Kind level | 7J |
+|---|---|---|---|
+| **Ps1 (Pl10)** | Lakeview Health: *applied to deductible $700 as of 6/30* on P | `deductible_applied`: knowing (Lakeview Health insurer of P at 6/30) | the stated accumulator, G named |
+| **Ps2 (Pl10 individual)** | Lakeview Health: *Kim: $300 applied* on (Kim, P) | per F1 | the individual figure |
+| **Ps3 (F5)** | Lakeview Health: *Kim was never eligible* — (Kim, P) | `eligibility`: knowing **by the role on the object plan** (F2) | listed beside membership; derives nothing |
+| **Ps4** | Rob: *Kim is eligible, they told me* — (Kim, P) | not_knowing (Rob not the plan's insurer) | listed, `plan_insurer` not in effect |
+| **Ps5 (Pl12)** | Lakeview Health: *coverage ended 6/30, retroactive*, 8/15 — on P | `coverage_ended`: knowing | not read; P remains minted; no `under_plan_ended` manufactured (F3) |
+| **Ps6 (Pl12 disputed)** | Rob: *that is wrong, we paid through December* — `coverage_ended` on P | not_knowing; established; beside | — |
+| **Ps7 (Pl11)** | Lakeview Health: *prior auth, MRI* on P, 2/10 | `authorization`: knowing; minted no expense | not read |
+| **Ps8 (Pl2 / F4)** | Rob: *our deductible is $3,000*; the SBC read; Lakeview Health's own statement | `deductible`: Rob not_knowing · the SBC candidate, knowing · Lakeview Health knowing | 7J reads the latest established, any party — recorded (F4) |
+| **Ps9 (C2)** | Lakeview Health: *deductible: none* on H | knowing; content opaque | 7J: `none` — the rule does not exist |
+| **Ps10 (CC1 on P)** | Cigna states `deductible_applied` on P (Lakeview Health's plan) | not_knowing (Cigna not insurer of P) | not the stated accumulator |
+| **Ps11** | the plan year by the household: `plan_year` 1/1–12/31 | not_knowing | 7J's window still (F4) |
+| **Ps12 (F7)** | an undated term | undetermined | 7J disqualifies |
+| **Ps13 (the 2 × 2 on P)** | origin {Lakeview Health, Rob} × kind {`deductible_applied`, `eligibility`} | (Lakeview Health, ·) knowing · (Rob, ·) not — with `eligibility`'s role read on the object | — |
+| **Ps14 (F6-i)** | the SBC line with the insurer as subject | refused under `deductible`; accepted under the stand-in | — |
+
+### 9D-iii.5 Candidate — pending F1 and F2
+
+```text
+DEDUCTIBLE · INDIVIDUAL_DEDUCTIBLE · PLAN_YEAR · COVERAGE_ENDED · AUTHORIZATION · DEDUCTIBLE_APPLIED
+    subject (subject_plan_id,)  object ()  symmetric False · reading_establishes True · relational_knowing True
+    knowing_relation KNOWING_PLAN_INSURER_AT_AS_OF
+INDIVIDUAL_DEDUCTIBLE_APPLIED   subject (subject_plan_id,)  object (object_party_id,)   — if F1 (a)
+ELIGIBILITY                     subject (subject_party_id,) object (object_plan_id,)    knowing_relation the same name — the role on the OBJECT (F2)
+_ROLE_AT_AS_OF += {KNOWING_PLAN_INSURER_AT_AS_OF: INSURER_OF_PLAN}   (+ the side, if F2 (a))
+```
+
+The swap: 7J's catalogue lines (and one new key if F1 (a)), its map entries for the seven retired;
+the 9A fixture's `eligibility` and the 9C fixture's `coverage_ended` / `authorization` by constant;
+F6's three classes as ruled. Mutations for `s122`: the household's term knowing · the household's
+plan year governing knowing · a `coverage_ended` minting `under_plan_ended` · an `eligibility`
+stance deriving membership (F5 reversed) · the other plan's insurer knowing for the stated
+accumulator · the role read on the wrong side for `eligibility` · the type conferring knowing · a
+reading establishing state · an undated term knowing · the relation re-ruled (a second resolver for
+the plan's insurer).
+
+### 9D-iii.6 Ruling sought
+
+> **(1) 9D-iii-F1:** `deductible_applied` — two kinds with the one 7J catalogue-key change named, or
+> unruled in this slice. **(2) 9D-iii-F2:** the role read on the object for `eligibility` — the table
+> row naming the side (application), a slot flip (consumer change), or no relation. **(3) F3:** three
+> kinds. **(4) F4:** the kind's holder the insurer; 7J's any-party term read recorded as 7J's question.
+> **(5) F5:** `authorization`, one name. **(6) F6:** the three swap classes accepted before the
+> build. Nothing here authorises code.
 
 ---
