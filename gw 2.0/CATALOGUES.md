@@ -2373,7 +2373,7 @@ entitled party knowing for the amount) · the two subject types' sets swapped ·
 
 ---
 
-### 9D-iv.7 Ruling — Rob, 2026-09-20: F1–F5 RULED; F6 left open pending its text; no code by this ruling
+### 9D-iv.7 Ruling — Rob, 2026-09-20: F1–F5 RULED; F6 RULED on its clarified text; no code by this ruling
 
 **F1 — the role-set relation, undated.** A value is a fact about the thing, not a position; the
 relation is *the claimant holds any of a set of roles on the claim's subject*, read on the roles'
@@ -2416,11 +2416,29 @@ can no longer be described as something that *cannot be derived*: under F1 she i
 fact.* The named permanent change accepted: from *the mother's knowing cannot be derived* to the
 formulation the role-set semantics requires.
 
-**F6 — NOT RULED.** Rob: *the opening says F1–F6 but supplies no F6 question or options; leave the
-record at F1–F5 rather than infer what F6 was intended to be.* (§9D-iv.3's F6 paragraph — the three
-swap classes pre-measured — is put back to Rob in its own text for a ruling; nothing about it is
-inferred.)
+**F6 — RULED, on its clarified text: a corpus / build-scope question, not an ontology question.
+All three classes accepted as the permitted corpus corrections.** (1) *The borrowed line shape:* the
+`cleared` line in the two fixtures corrected to `bank_line` — a correction of the fixture's asserted
+shape, not a new ontology rule. (2) *The exact-absence pins:* the `'amount' / 'occurred_on' not
+registered` pins in 7G, 7I, 7H, 7J and Kn7 restated against the now-ruled registration — those values
+are registered kinds, so the old absence assertions retire. (3) *Strength / map:* no value consumer
+asserts strength outside Kn7; 7E / 7B's `date_of_service` and `eob_amount` are explicitly different
+stand-in shapes and remain untouched; map entries for `amount`, `occurred_on` and `cleared` retire
+from the fixtures that carry them. **The scope fence: no presupposed-role additions are authorised by
+F6** — it authorises only the measured corpus corrections and smuggles no role into the ontology.
 
-**No code.** The build awaits its separate authorisation.
+| | Ruling |
+|---|---|
+| **F1** | the role-set relation is undated; reads established holds stances |
+| **F2** | `drawn_on` is the bank role K6 requires and belongs in the payment role-set |
+| **F3** | one `occurred_on` kind with two permitted subjects |
+| **F4** | `cleared` / `bank_returned_item` are bank stances; the bank line a borrowed fixture shape |
+| **F5** | Kn7 accepted; the minter `not_knowing`; the mother's knowing first-hand via `paid_by` |
+| **F6** | three measured corpus-correction classes accepted; no presupposed-role additions |
+
+**The cross-slice finding stands exactly as amended — 9D-iv exposed a role required by an existing
+provenance ruling — and is not retroactively attributed to §9D.9.**
+
+**No code.** The next authorisation is the explicit *build 9D-iv*.
 
 ---
