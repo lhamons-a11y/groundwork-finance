@@ -21,7 +21,7 @@
 > rows); `applied_to_deductible`'s kind-level holder `insurer_of` X with the per-plan selection 7J's;
 > F1 `adjudication` / `denial` two kinds or one; F2 two swap classes measured before the build (the
 > EOB line's borrowed name; the role claim missing from corpora that asserted knowing by type);
-> ruling sought; no code.**
+> RULED (§9D-ii.7) — F1 two kinds, both F2 classes accepted, build AUTHORISED.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -1815,5 +1815,41 @@ insurer) · `exempt` read as zero.
 > expense-identity), as the fact those cases always meant. **(3)** The six entries and two table rows
 > as §9D-ii.5 — the relation applied, not re-ruled; `applied_to_deductible`'s kind-level holder
 > `insurer_of` X with the per-plan selection 7J's. Nothing here authorises code.
+
+---
+
+### 9D-ii.7 Ruling — Rob, 2026-09-19: as presented, F1 (a), both F2 classes accepted; build AUTHORISED
+
+**Application of the already-ruled relation.** The six stances use the role-at-date relation on
+**X**, without creating another relation: `billed` → `provider_of(X)`; `patient_responsibility`,
+`plan_paid` → `insurer_of(X)`; `applied_to_deductible` → `insurer_of(X)`, **7J additionally
+selecting the insurer of the plan being computed**; `denial` and `adjudication` per F1. For
+`applied_to_deductible` the distinction is exactly 9D-i's: *the kind-level relation answers who
+holds the stance on X; 7J's consumer gate answers which insurer's plan is being computed.* **The
+kind cannot acquire P merely because a consumer has P.** The EOB relay case follows directly:
+**origin is not a role claim** — an insurer-origin `billed` statement does not become knowing
+merely because the insurer relayed the provider's charge.
+
+**F1 — two distinct kinds.** `denial` names the denial stance; `adjudication` the adjudicative
+stance, including the reversed result that otherwise has nowhere to live. Their content remains
+opaque; the distinction is in **kind**, not in an interpreted content / verdict field — C7's
+name-based fence preserved without manufacturing a generic interpretation of the proposition text.
+
+**F2 — the two correction classes.** (i) The borrowed `patient_responsibility` line shape: corrected
+to the existing 7E `eob_amount` stand-in — preserve the proposition actually under test rather than
+force it into a ruled stance's subject shape. (ii) Type-only knowing assertions: **add the missing
+role claims.** Not a semantic relaxation: under the frozen relation, *knowing = the asserter held
+the required role on X at `as_of`*; a fixture that intends Lakeview Health knowing for an insurer stance must
+establish Lakeview Health's `insurer_of`, and one that intends Riverbend Hospital knowing for `billed` must establish
+Riverbend Hospital's `provider_of`. **The boundary: the build may add the role evidence the cases already
+presuppose; it may not infer that role from the stance, origin, EOB or type.**
+
+**Frozen:** six stance entries; the existing relation applied on X; two `_ROLE_AT_AS_OF` rows for
+`provider_of` and `insurer_of`; the 7J plan-selection qualification for `applied_to_deductible`;
+distinct `denial` and `adjudication` with opaque content; the borrowed-line corrections; explicit
+role claims where fixtures relied on type-only knowing. No new relation, no interpretation of
+content, no change to 9D-i or the relation.
+
+**Build AUTHORISED — Rob: "Rule F1 as (a), accept both F2 classes, build 9D-ii."**
 
 ---
