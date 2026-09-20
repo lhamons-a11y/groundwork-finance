@@ -120,7 +120,7 @@ def run(db):
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
     check('the stand-in role kinds are removed; the registry is as shipped; no value, determination or acknowledgment kind was registered',
-          db.RULED_KINDS == shipped and 'determination' not in shipped)   # roles 9B; stances 9D-i / 9D-ii; values 9D-iv; determination: 9D-v
+          db.RULED_KINDS == shipped)   # every kind this fixture reads is ruled: roles 9B, stances 9D-i / 9D-ii, values 9D-iv, the determination 9D-v
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -135,7 +135,7 @@ def _run(db):
     s.commit()
     household, kim_party = rob.party, kim.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'},   # amount / occurred_on: ruled values since 9D-iv - knowing by the role-set, not by the map
-               'determination': {'person', 'institution'}}   # billed / PR / plan_paid: ruled stances since 9D-ii - knowing by the role
+               }   # billed / PR / plan_paid: ruled stances since 9D-ii; determination: ruled since 9D-v, knowing undetermined by design - no map entry
     D = Decimal
 
     def utter(text, when='2026-04-02T09:00:00', origin=None):
@@ -270,7 +270,7 @@ def _run(db):
         return p
 
     def determine(X, by, name, as_of, utterance=None, reading=None):
-        return claim('determination', utterance=utterance if (utterance or reading) else utter(name, origin=by), reading=reading,
+        return claim(db.DETERMINATION, utterance=utterance if (utterance or reading) else utter(name, origin=by), reading=reading,
                      as_of=as_of, content=name, subject_expense_id=X.id)
 
     def visit(name, provider, insurer, billed=None, pr=None, billed_on='2026-01-01', pr_on='2026-01-15'):

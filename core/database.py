@@ -2201,6 +2201,22 @@ BANK_RETURNED_ITEM = 'bank_returned_item'
 DRAWN_ON = 'drawn_on'
 KNOWING_ROLE_HOLDER_ON_SUBJECT = 'a_holder_of_any_role_in_the_set_on_the_claim_subject'
 
+# ── Item 9, pass 9D-v: THE DETERMINATION - the last stand-in ─────────────────────────────
+# gw 2.0/CATALOGUES.md s 9D-v.7 (ruled 2026-09-20), on 7H s 7H.7 item 2. A determination is a PARTY'S READING
+# OF THE SITUATION about an expense - subject X, as_of the date it is about (7H requires it), content one of
+# 7H's four names (provider_adjustment / user_paid_cash / unpaid / pending_claim - 7H's vocabulary, OPAQUE
+# to this kind; anything else 7H lists as unrecognised and never current; a denial is `denial`'s kind, C7).
+# ANY PARTY MAY DETERMINE - the household (D12), the provider, the insurer; the kind carries NO ROLE and no
+# asserter constraint (no determiner_of role exists or is invented); 7H reports the asserter's roles as
+# facts and constrains nothing; a role gate, if a consumer ever needs one, is that consumer's own ruling.
+# KNOWING UNDETERMINED BY DESIGN (9D-F5): relational_knowing True with no named relation - a determination
+# is not a position a role-holder has first-hand (the parallel with under_plan). reading_establishes
+# False: a reading never establishes a determination - a parser determines nothing (7H); a reading-sourced
+# determination is a candidate and never current. Current per party's series by date, cross-party
+# conflict -> none, superseded never overwritten, unresolved = 0 is not a determination - all 7H's. Not a
+# source word. With this entry every stand-in of CATALOGUES.md s 1 is a ruled kind.
+DETERMINATION = 'determination'
+
 RULED_KINDS = {
     ARTEFACT_ORIGIN:      {'subject': ('subject_artefact_id',), 'object': ('object_party_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': False},
@@ -2388,6 +2404,9 @@ RULED_KINDS = {
     BANK_RETURNED_ITEM: {'subject': ('subject_payment_id',), 'object': (),
                          'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
                          'knowing_relation': KNOWING_ROLE_HOLDER_ON_SUBJECT},
+    # Item 9 pass 9D-v: the determination (s 9D-v.7) - no relation, no role, no boundary; knowing undetermined by design.
+    DETERMINATION:      {'subject': ('subject_expense_id',), 'object': (),
+                         'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
 }
 
 # ── Item 5: the role period ───────────────────────────────────────────────────

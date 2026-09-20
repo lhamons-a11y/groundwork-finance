@@ -133,8 +133,7 @@ def _run(db):
     s.commit()
     household, kim_party = rob.party, kim.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 
-               'amount': {'person', 'institution'}, 'occurred_on': {'person', 'institution'},
-               'determination': {'person', 'institution'}}   # billed / PR / plan_paid / applied_to_deductible: ruled stances since 9D-ii
+               }   # billed / PR / plan_paid / applied_to_deductible: 9D-ii; amount / occurred_on: 9D-iv; determination: 9D-v - every kind this fixture reads is ruled, no map entry
     D = Decimal
 
     def utter(text, when='2026-04-02T09:00:00', origin=None):

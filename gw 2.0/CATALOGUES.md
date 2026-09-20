@@ -35,7 +35,7 @@
 > F3–F6 as read; built (`86b85d5`) and ACCEPTED (Rob, 2026-09-20). **9D-v OPENED (§9D-v) — the
 > determination: one kind, knowing undetermined by design (9D-F5), no role, `reading_establishes`
 > False (a parser determines nothing), the four names 7H's; the last slice of item 9; **RULED
-> (§9D-v.7) — F1–F3 as read; build awaits authorisation; no code.**
+> (§9D-v.7) — F1–F3 as read; BUILT (awaiting acceptance); the §1 inventory complete on acceptance.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -2661,5 +2661,51 @@ reading_establishes False · relational_knowing True`, no `knowing_relation`, no
 No relation, no table row, no resolver change.
 
 **No code.** The build awaits its separate authorisation.
+
+---
+
+#### Built — 2026-09-20 (9D-v)
+
+`core/database.py`: `DETERMINATION` — one registry entry exactly as §9D-v.7 froze it: the expense the
+subject, no object, `symmetric False · reading_establishes False · relational_knowing True`, **no
+`knowing_relation`, no `'role'`, no boundary** — knowing undetermined by design. No relation, no table
+row, no resolver change; `_KNOWING_RELATIONS` still eight. One comment block states what a
+determination is (a party's reading of the situation about X), that any party may determine with
+no role on the kind and no `determiner_of` invented, that the four names are 7H's and opaque here,
+that a parser determines nothing, and that with this entry **every stand-in of §1 is a ruled kind.**
+**The whole non-comment diff: one constant, one entry.**
+
+**The oracle:** `tests/test_determination_fixture.py` — 14 checks over De1–De11 and the registry, with a
+map carrying no entry for the determination: the entry as frozen; no relation added, no determiner
+role, the four names **not** enforced by the registry (content opaque — *anything at all* accepted);
+De9 (a party- or obligation-subject determination refused); **the inventory check** (every one of §1's
+stand-ins — ten roles, E's three, the stances, the terms, the values, the bank's stances, the
+determination — is in `RULED_KINDS`); De1 (Rob's `user_paid_cash` established, **undetermined**; 7H
+current for his series, his roles reported as facts); De2 (Riverbend Hospital's `provider_adjustment` undetermined
+too — the provider is not first-hand for a reading of the situation); De3 (their currents differ → 7H
+conflict, none current — the kind ranks no party); **De8 — the 2 × 2 collapses**: three asserters ×
+four names, twelve cells, **every one undetermined** (the type test had graded them by institution);
+De4 (*denied* as content accepted by the kind, **unrecognised** by 7H, never current — the denial is
+`denial`'s kind); De5 (the EOB's *pending* read → a candidate, never current); De6 (retraction contests
+the latest, the prior current again); De7 (undated — accepted by the registry, disqualified by 7H);
+De10 (no determination → current None, nothing manufactured from a zero unresolved); De11 (*paid in
+full* accepted by the kind, unrecognised by 7H — the vocabulary is 7H's).
+
+**The substitution — F3's two classes, and nothing else:** every fixture green on the first substrate
+run — 7H 32/32 with its `'determination' not in shipped` pin and its map entry retired and its helper
+by constant; 7J's and the 9D-ii fixture's map entries retired (and 7J's `amount` / `occurred_on`
+entries, missed by 9D-iv's sweep, retired with them). No borrowed shape; no presupposed role; the
+payment-in-respect-of fixture's `not hasattr(db, 'determination')` stands (the constant is uppercase).
+
+**Smoke `s124_determination.py`:** the fixture passes; ten mutations — a knowing relation designated
+(the asserter first-hand) · a reading establishing a determination · a role gate on the kind (only
+the insurer determines) · the four names enforced by the registry · a denial accepted as a
+determination · a determination minted from `unresolved = 0` · the type conferring knowing · an
+undated determination current · a `determiner_of` role appearing · a second resolver — **all ten
+caught on the first run.**
+
+**Left where it belongs:** a role gate on determinations (a consumer's own ruling, if ever) · the
+four-name vocabulary (7H's) · 9D-i-F3 (7G) · D′.11. No schema, no migration. Gate 1501 → 1524,
+0 failed. **With 9D-v's acceptance the §1 inventory is complete; closing item 9 is Rob's word.**
 
 ---
