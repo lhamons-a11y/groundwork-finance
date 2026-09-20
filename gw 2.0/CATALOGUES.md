@@ -10,7 +10,8 @@
 > ACCEPTED (Rob, 2026-09-19). **9D opened (§9D) — the stance and value catalogue; the surface
 > discovered from the consumers' reads (two shapes of P-ack already shipped); nine findings, one of
 > which (9D-F1, the position-holder — participant or hidden operand) governs the rest and is put
-> first with 9D-F2 and 9D-F8; no code.**
+> first with 9D-F2 and 9D-F8; **9D-F1 RULED — the mixed holder shape; 9D-F2 + the servicer clause
+> RULED as one (§9D.7); 9D-F8 at a candidate — five sub-passes i–v (§9D.8), ruling sought; no code.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -1220,5 +1221,80 @@ acknowledgment ruling placed it (*the consumer declaring the P-ack strength it r
 > knowing relation `KNOWING_SUBJECT_PARTY`, and the servicer channel's weakest-link strength a
 > consumer-side read where O is in hand (recommended) — or the alternatives named. **(3) 9D-F8**
 > after (1) and (2). Nothing here authorises code, a registry entry or a consumer edit.
+
+---
+
+### 9D.7 Ruling — Rob, 2026-09-19: 9D-F1 the mixed holder shape; 9D-F2 with the servicer clause; no code
+
+*The test changed F1 materially, and the record has enough to rule it without inventing a consumer
+interpretation. The decisive evidence is not that the catalogue historically contains two
+representations — it is that the two representations answer different semantic questions.*
+
+**9D-F1 — RULED: the stance catalogue has two holder forms.** *Ordinary stance kinds establish
+their position-holder relationally from the asserter's role at `as_of`* — H, as the consumers
+already read them. *`acknowledged` establishes its position-holder as an explicit participant,
+because its ruled discharge semantics require the represented holder to be distinguishable from
+the party who asserted the acknowledgment* — the explicit party is not a redundant copy of the
+asserter's role-derived identity; it is what lets the consumer distinguish *who asserted the
+acknowledgment* from *whose position the acknowledgment represents*. **This mixed shape preserves
+the existing consumer interpretations; uniformising it would require a separate consumer ruling**
+— uniform H would change 7G's treatment of `acknowledged`, including the K2 payment / balance
+behaviour, a consumer-semantic change that cannot be adopted merely for consistency. *A real
+semantic distinction, not an exception created by implementation history.*
+
+**9D-F2 + the servicer clause — RULED as one.** The crucial fence: **the acknowledgment does not
+establish its obligation merely because the servicer is the party asserting it.** The
+acknowledgment has no O; that the servicer serves some O elsewhere does not permit the kind-level
+relation to compose *ack → party → role / servicer → obligation* into the acknowledgment's own
+attachment or evidence strength — that would collide with D′'s non-derivability boundary. So:
+
+- `acknowledged` has **`KNOWING_SUBJECT_PARTY`** at the kind level;
+- its explicit subject party is **the represented holder**;
+- **O remains absent** from the acknowledgment itself;
+- the servicer channel is **evidence about the holder's position at the strength already ruled
+  for that channel** (weakest link);
+- **where a consumer has O independently in hand, that consumer may evaluate the servicer
+  statement against that O**;
+- the acknowledgment kind itself **does not derive or establish O through composition.**
+
+*This preserves the distinction between what the acknowledgment says and what a consumer may know
+when it already has the relevant obligation in hand.*
+
+**9D-F8 — after these are frozen:** it can now ask how the remaining kinds are partitioned without
+solving holder / knowing / attachment semantics simultaneously. **Nothing here authorises code.**
+The semantic distinction is frozen first; any 7G consumer adjustment, if one is ever required, is
+opened explicitly, never smuggled in through 9D. The dependency: *F1 mixed holder semantics →
+F2 / servicer attachment boundary → F8 pass structure → the remaining 9D questions.*
+
+### 9D.8 9D-F8 — candidate partition, on the frozen shape
+
+F1 fixed *what kind of holder* each stance has, so the partition falls out of **which holder
+relation each group needs** — and one new mechanism is shared by three of them: **the
+role-at-date relation** (*knowing iff the asserter held role R on the claim's subject at the
+claim's `as_of`*, read through 7F's `in_effect`; the subject is on the claim, so nothing is
+composed — the O, X or P is in hand). It is 9B's `KNOWING_SUBJECT_PARTY`'s sibling: that one reads
+a slot, this one reads a role and a date. It should be ruled **once**, on the first group, and
+applied — not re-ruled — by the next two.
+
+| sub-pass | kinds | holder relation | what it must rule beyond the shape | consumers whose fixtures swap |
+|---|---|---|---|---|
+| **9D-i — the obligation stances** | `acknowledged` (F1 / F2 as ruled: party slot, `KNOWING_SUBJECT_PARTY`, no O) · `balance` (H: `entitled_party_of` at `as_of`) · `returned` (Dg18 — E's position that p was returned unapplied; the same holder) | one explicit; two role-at-date (`entitled_party_of`) | **the role-at-date relation, once**; 9D-F7 (no `dated` key — the fixture asserts *undated never governs*); the servicer channel as the consumer's read (F2); `returned` ≠ non-acknowledgment | 7G, 7I |
+| **9D-ii — the provider's and insurer's stances on X** | `billed` (`provider_of`) · `patient_responsibility` · `plan_paid` · `applied_to_deductible` · `denial` · `adjudication` (`insurer_of`) | role-at-date, applied | C7 (a denial is its own kind, never a determination or an adjudication amount); `exempt` is 7J's parse of content; nothing else new | 7H, 7J |
+| **9D-iii — the insurer's stances and terms on P** | `deductible_applied` · `eligibility` · `coverage_ended` · `authorization` · `deductible` · `individual_deductible` · `plan_year` (`insurer_of_plan`) | role-at-date, applied | **9D-F4** (the terms: the insurer's position, while 7J reads any party's — ruled here as *what the kind says*, with 7J's read left to 7J); **9D-F6's three "coverage ended" claims** (F's boundary · F5's `eligibility` · Pl12's `coverage_ended`) — two kinds or three; `eligibility`'s subject is the person, not the holder (the holder is the role on the *object* plan) | 7J |
+| **9D-iv — values** | `amount` · `occurred_on` (payment; expense) · `cleared` (the bank's) | **9D-F3**: a role-set (`paid_by` / `paid_to` for a payment; `provider_of` / `incurred_by` for an expense) plus the artefact origin through a reading — or the foundation map as today | the second new relation shape, if a role-set is ruled; K6 (a cleared line is never an acknowledgment); Kn7 (minting ≠ knowing) | 7G, 7H, 7I, 7J |
+| **9D-v — the determination** | `determination` | none — **9D-F5**: undetermined by design (recommended) | who may determine is *any party* (7H); the four names stay 7H's | 7H |
+| *not 9D* | `contribution` (Pl8 — a claim about the employer party, not a stance on a thing) | — | named here so it is not mistaken for a stance; ruled when a consumer needs it | — |
+
+**Order: i → ii → iii → iv → v.** i first because it carries the two shared rulings (the relation;
+F7) and the ruled F1 / F2 shape; ii and iii apply the relation and settle their own questions (C7;
+F4; F6); iv is the only other new relation shape and stands alone; v is smallest and least coupled.
+Each sub-pass: its own cases (the index in §9D.4 assigns them), its own candidate, its own ruling,
+its own build authorisation, its own swap, mutations and gate — 9A–9C's cadence. **Alternative:**
+one pass with five sections — rejected by me only because five build authorisations keep each
+group's consumer swap inspectable on its own (9B's and 9C's gates each found something the
+touched-fixture runs had not).
+
+**Ruling sought — 9D-F8:** the five sub-passes in that order, with the role-at-date relation ruled
+once in 9D-i; or a different cut. Nothing here authorises code; 9D-i opens on Rob's word.
 
 ---
