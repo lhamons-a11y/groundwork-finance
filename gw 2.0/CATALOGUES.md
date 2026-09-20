@@ -4,8 +4,9 @@
 > 7F onward runs on kinds a fixture registers and removes; this item turns them into ruled kinds —
 > F's `under_plan` (accepted, unbuilt), the role catalogue (unruled), E's three plan relations
 > (accepted, unbuilt) and the stance / value catalogue (a domain question the record deferred) —
-> **without changing any consumer's shape.** Four passes in that order (§3). **Pass 9A — F's build —
-> opened and run to a candidate (§9A); no code.**
+> **without changing any consumer's shape.** Four passes in that order (§3). **9A built and accepted
+> (`e8fecdd`); 9B ruled (§9B.7), built (`9c53879`) and ACCEPTED (Rob, 2026-09-19); 9C unopened —
+> it waits for its own semantic questions to be surfaced and ruled.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -549,5 +550,21 @@ already meant. The derivations untouched.
 
 **Left where it belongs:** 7H's governing PR across two insurers (Ic4 / CC1) — no rule made here,
 per 9B-F2. `serves` and the obligor role unruled. No schema, no migration. Gate 1350 → 1373, 0 failed.
+
+#### Accepted — Rob, 2026-09-19 (9B): nothing to reopen
+
+*The evidence is sufficient.* Basis as Rob stated it: gate 1350 → 1373, 0 failed; s118 23/23 catching
+all ten mutations including the four fixture gaps found during the build; s117 17/17 standalone
+against the final fixture closing the 9A-oracle transition; the 9A / 9B distinction executable —
+`under_plan` names no knowing relation while the seven 9B roles name `KNOWING_SUBJECT_PARTY`; the
+seven roles, their knowing relation and their boundaries present **without importing consumer
+behaviour**; the substitutions leaving 7H's governing-PR behaviour exactly on its 7H semantics (Rc10,
+Rc15, Rc16); no alternate-shape compatibility path in the registry; the three borrowed-name
+corrections corpus corrections, not ontology expansion; the four escaped mutations converted into
+observable tests rather than weakened; **the negative constraint held — 9B created no governing-PR
+resolver.** *Most importantly, the build demonstrated the boundary we ruled: 9B exposes the
+role / boundary facts that 7H needs; it does not answer the governing-PR question.* §9B complete;
+the stopping point left exactly here. **9C remains unopened until its own semantic questions are
+surfaced and ruled.**
 
 ---
