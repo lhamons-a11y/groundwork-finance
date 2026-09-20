@@ -1708,9 +1708,9 @@ OBLIGATION_REPLACES = 'obligation_replaces'
 #     obligation_in_respect_of              obligation -> expense     (C,  built)
 #     payment_in_respect_of                 payment    -> expense     (D,  built)
 #     payment_in_respect_of_obligation      payment    -> obligation  (D', built)
-#     expense_in_respect_of_plan            expense    -> plan        (E,  accepted, unbuilt)
-#     obligation_in_respect_of_plan         obligation -> plan        (E,  accepted, unbuilt)
-#     payment_in_respect_of_plan            payment    -> plan        (E,  accepted, unbuilt)
+#     expense_in_respect_of_plan            expense    -> plan        (E,  built 9C)
+#     obligation_in_respect_of_plan         obligation -> plan        (E,  built 9C)
+#     payment_in_respect_of_plan            payment    -> plan        (E,  built 9C)
 #
 # THE FLOOR, once: a member means EXACTLY *the asserting party holds that the subject is in respect
 # of the object* - both participants established (the claim mints neither); direction fixed by
@@ -2035,6 +2035,41 @@ PAID_BY = 'paid_by'
 PAID_TO = 'paid_to'
 KNOWING_SUBJECT_PARTY = 'the_subject_party_of_the_role_claim'
 
+# ── Item 9, pass 9C: THE THREE PLAN RELATIONS - E built exactly as accepted ──────
+# gw 2.0/RELATION_SEMANTICS.md s E.8 (accepted s E.10, 2026-09-15); represented per s G.9; built by
+# gw 2.0/CATALOGUES.md s 9C (authorised s 9C.7, 2026-09-19). Each of the three means EXACTLY: *the
+# asserting party holds that the subject is in respect of the object plan* - nothing about coverage.
+# "Under the plan" is REFUSED as the semantics of any of them: it would assert that the service is
+# covered (the insurer's stance - a denied claim was still under the plan, E8), that the person was a
+# member (F's relation, under_plan - an expense adjudicated under a plan whose coverage the insurer
+# later ended retroactively was still under it, E3), that the plan's terms governed the amounts (a
+# consumer's arithmetic) and that the plan paid (a stance, or a payment identity). Both participants
+# established - the claim mints neither; the plan the object; direction fixed by type and carrying no
+# meaning; NO INVERSE KIND - plan_covers_* is refused as a name because it is the magnet; no
+# cardinality, priority, sum or allocation (E2 / E4: two plans, neither chosen; E13: no total);
+# established only by a party's assertion with both endpoints established - the household, or the
+# insurer as a party (E19: no household party required on a payment); a reading, a group number, a
+# bank label (E21) or an authorization (E7) yields at most a candidate; KNOWING UNDETERMINED
+# (relational_knowing True, no designated relation - these are not roles and carry no 'role' key and
+# no boundary). Each derives NOTHING: no coverage, membership, adjudication, network, applied terms,
+# benefit, cost, premium status, discharge (E20) or direction of money (E14: household owes insurer
+# and insurer owes household are the same kind); no "uninsured" from an absent relation (E5); not
+# withdrawn by the insurer's later stance (E3, E8); no temporal precedence (E22, PERMANENT); and NO
+# COMPOSITION - not from membership and a date (E2 / E3 / E5), not from a shared person (E24: Kim
+# under P + X is Kim's => nothing), not through an expense (E15: X -> P + O -> X =/=> O -> P), not
+# through an obligation (E18: p -> O + O -> P =/=> p -> P), not from a document concerning both (E6),
+# not from the insurer's role. The two E.6 invariants: no in-respect-of relation in E licenses an
+# inverse or a coverage relation merely from its existence; shared person =/= plan attribution.
+# Consumers: 7J's derived accumulator reads expense_in_respect_of_plan to SELECT the expenses whose
+# insurer stances it reads - the relation answers "in respect of P", the insurer's stance answers
+# adjudication and amount (E8 through 7J: listed unadjudicated, not excluded, not zero); that use
+# adds nothing to E's floor (s 9C.7). obligation_in_respect_of_plan and payment_in_respect_of_plan
+# have no consumer. under / on / covered by / through / premium / benefit / claim / in network are
+# content, claims on the subject, or the insurer's stances - never kinds (E23). Not source words.
+EXPENSE_IN_RESPECT_OF_PLAN = 'expense_in_respect_of_plan'
+OBLIGATION_IN_RESPECT_OF_PLAN = 'obligation_in_respect_of_plan'
+PAYMENT_IN_RESPECT_OF_PLAN = 'payment_in_respect_of_plan'
+
 RULED_KINDS = {
     ARTEFACT_ORIGIN:      {'subject': ('subject_artefact_id',), 'object': ('object_party_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': False},
@@ -2141,6 +2176,14 @@ RULED_KINDS = {
     PAID_TO:              {'subject': ('subject_party_id',), 'object': ('object_payment_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True,
                            'knowing_relation': KNOWING_SUBJECT_PARTY},
+    # Item 9 pass 9C: E's three plan relations (s E.8 / s E.10; per pair as s G.9 represents). Not roles: no
+    # 'role' key, no boundary, no knowing relation - knowing undetermined by E's ruling.
+    EXPENSE_IN_RESPECT_OF_PLAN:    {'subject': ('subject_expense_id',), 'object': ('object_plan_id',),
+                                    'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
+    OBLIGATION_IN_RESPECT_OF_PLAN: {'subject': ('subject_obligation_id',), 'object': ('object_plan_id',),
+                                    'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
+    PAYMENT_IN_RESPECT_OF_PLAN:    {'subject': ('subject_payment_id',), 'object': ('object_plan_id',),
+                                    'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
 }
 
 # ── Item 5: the role period ───────────────────────────────────────────────────
@@ -3339,8 +3382,9 @@ def chain_strength(session, proposition, knowing):
 # stance that could contest it: an extrapolation is visible as one. No period is materialised, no
 # overlap resolved (two identities in effect are two), no disputed boundary settled, no retraction
 # read as an ending, no created_at consulted (as-the-record-stood is the audit's question).
-# No role kind is ruled: in_effect runs today on stand-in kinds a fixture registers and removes,
-# and changes shape for none of the kinds accepted and unbuilt (E, F). Computed on read; stored nowhere.
+# Built before any role kind was ruled, on stand-ins a fixture registered and removed; item 9 then ruled
+# the role catalogue (9A under_plan, 9B the seven roles) and E's relations (9C) and in_effect changed shape
+# for none of them - only the identity of the kind supplied changed. Computed on read; stored nowhere.
 EFFECT_IN = 'in_effect'
 EFFECT_NOT = 'not_in_effect'
 EFFECT_UNDETERMINED = 'undetermined'

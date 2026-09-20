@@ -258,10 +258,11 @@ def run(db):
     # so 'settles' / 'supersedes' stay non-kinds by ruling, not by omission; this fixture still asserts
     # nothing about the relation and mints O3 without one (the household need not assert it).
     # ...and pass C ruled obligation_in_respect_of on the same subject slot (RELATION_SEMANTICS.md C.9).
-    check('the relation between O3 and O1 is ruled elsewhere (obligation_replaces) and not asserted here; no source-word kind exists; the obligation-subject kinds are exactly correspondence, replaces and in-respect-of',
+    # Item 9 pass 9C built E's obligation_in_respect_of_plan (2026-09-19) - the fourth obligation-subject kind; no source word among them
+    check('the relation between O3 and O1 is ruled elsewhere (obligation_replaces) and not asserted here; no source-word kind exists; the obligation-subject kinds are exactly correspondence, replaces, in-respect-of and in-respect-of-plan (E, 9C)',
           s.query(db.Proposition).filter(db.Proposition.kind.in_(('settles', 'replaces', 'obligation_supersedes',
                                                                  db.OBLIGATION_REPLACES))).count() == 0
-          and set(k for k in db.RULED_KINDS if k.startswith('obligation_')) == {db.OBLIGATION_CORRESPONDS, db.OBLIGATION_REPLACES, db.OBLIGATION_IN_RESPECT_OF})
+          and set(k for k in db.RULED_KINDS if k.startswith('obligation_')) == {db.OBLIGATION_CORRESPONDS, db.OBLIGATION_REPLACES, db.OBLIGATION_IN_RESPECT_OF, db.OBLIGATION_IN_RESPECT_OF_PLAN})
 
     print('\n7. Ob7 - "my Chase mortgage" (March) and "the 4471 loan" (June): two minted; corresponding; never merged\n')
     u_june = utter('The 4471 loan - about $178k now.', '2026-06-10T09:00:00')

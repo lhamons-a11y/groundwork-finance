@@ -6,8 +6,8 @@
 > (accepted, unbuilt) and the stance / value catalogue (a domain question the record deferred) —
 > **without changing any consumer's shape.** Four passes in that order (§3). **9A built and accepted
 > (`e8fecdd`); 9B ruled (§9B.7), built (`9c53879`) and ACCEPTED (Rob, 2026-09-19); **9C opened
-> (§9C) — E's three plan relations; one finding (9C-F1, Tr8's refusal-by-name) and a build
-> authorisation sought; no code.**
+> (§9C) — E's three plan relations; 9C-F1 ruled a fixture-semantic retirement; build AUTHORISED
+> (§9C.7) and BUILT (awaiting acceptance). 9D unopened.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -763,5 +763,132 @@ undetermined manufactured) · **a temporal guard: p → P refused when p precede
 catalogue (9D — the premium, deduction and adjudication kinds the fixture uses as content or as
 stand-ins named as such) · D′.11 · F beyond 9A · G's one-family-or-six question (answered by G:
 six).
+
+---
+
+### 9C.7 Ruling — Rob, 2026-09-19: 9C-F1 accepted, 9C-F2 a boundary statement, 9C-F3 accepted; build AUTHORISED
+
+*9C's surface is cleanly bounded; 9C-F1 is the only semantic question.*
+
+**9C-F1 — accepted.** Tr8 changes from an absence-of-kind assertion to a ruled-kind behaviour
+assertion. Before E is built the kind is not ruled and `reach(X, kind)` refused by name is the
+correct result; after, the kind exists and is ruled, so `reach` must be allowed to answer — and with
+no qualifying relation asserted the truthful result is an empty endpoints list, which creates no
+candidate, infers no relation and manufactures no empty semantic claim. `reach` itself does not
+change. *The old Pl7 / Pl9 absence class is retired, and its replacement is a positive emptiness
+assertion on the now-ruled kind — a fixture-semantic change, not a new ontology rule.* **The
+important negative: 9C does not change `reach`; it changes only what the fixture is entitled to ask
+of `reach`, because E has changed the status of the named kind.**
+
+**9C-F2 — accepted as a boundary statement,** to remain a statement rather than a finding to solve.
+7J may use `expense_in_respect_of_plan` to select the expenses entering its derived accumulator;
+that does not extend E's semantics. E8 is the executable boundary: *denied + unpaid + cash-paid +
+in respect of P → represented as unadjudicated, not excluded and not reduced to zero.* The relation
+answers whether the expense is in respect of the plan; the insurer's stance answers the
+adjudication / amount question; 7J consumes both without either consumer semantics being
+retroactively attributed to E.
+
+**9C-F3 — accepted.** The obligation and payment relations have no current consumer on this
+substitution surface; their build is registry / fixture construction, not an invitation to
+manufacture consumers.
+
+**Build AUTHORISED exactly as specified.** Scope: three E registry entries · the E1–E24 fixture ·
+no knowing relation · no role classification · no boundary · Tr8 changed from *not ruled / refused*
+to the ruled-kind empty-endpoints assertion · Pl7 / Pl9 retired as §E.8 authorised · `s106`'s
+*accepted and unbuilt* wording retired · G.9's three *unbuilt* statements retired · 7J's existing
+consumption preserved · **no changes to `reach`** · no reopening of E · no reopening of G · D′.11
+untouched. **The central invariant for the build: E supplies the three relation kinds and their
+representation. 9C may expose their existing consumer use, but it may not derive new meaning from
+that use.**
+
+---
+
+#### Built — 2026-09-19 (9C)
+
+`core/database.py`: `EXPENSE_IN_RESPECT_OF_PLAN`, `OBLIGATION_IN_RESPECT_OF_PLAN`,
+`PAYMENT_IN_RESPECT_OF_PLAN` — three registry entries exactly as §E.8 describes, §E.10 accepted and
+§G.9 represents: expense / obligation / payment subject, the plan the object, `symmetric False ·
+reading_establishes False · relational_knowing True`, **no `knowing_relation`, no `'role'`, no
+boundary** — knowing undetermined by E's ruling; the in-respect-of family now six members, one per
+ruled pair. One comment block states E's floor once, the NOT-list, the two §E.6 invariants, and 7J's
+use as §9C.7 bounded it (*the relation selects, the insurer's stance carries the amount; adds nothing
+to E's floor*). The G.9 block's three *(E, accepted, unbuilt)* lines → *(E, built 9C)*. **Nothing
+else** — no inverse, no `which_plan`, no `plan_id`, no resolver, no order guard, no candidate
+generator, no family abstraction; **`reach` untouched** (the diff against `4f98580`: three constants,
+three entries, comments; no function changed).
+
+**The oracle:** `tests/test_plan_relations_fixture.py` — one fixture over E1–E24 as §E.8 specified,
+plus c1–c5 — 33 checks: the registry (three kinds, six family members, E10's refusals by the registry
+of a plan-subject claim and of each kind's wrong subject type, no `plan` column on any anchor); E1 /
+E11; **E2 mandatory** (Kim under both Lakeview Health plans by 9A's ruled kind, a cleaning on 4/2 — no claim
+exists until Rob asserts one; then one, no priority, the medical plan has none); E4 (two plans, both
+reached, no primary / secondary key); E9 (Rob's and Kim's claims side by side; Kim's retraction
+contests hers, Rob's stands); E3 (Lakeview Health's retroactive ending and reversal are stances; the relation
+stands); **E8 mandatory** (denied, plan paid $0, cash-paid — the claim stands established, the
+snapshot unchanged); E5 (never submitted: empty; no *uninsured* kind or helper); E6 / E21 (the EOB
+concerning X6 and P derives nothing; a reading-sourced claim of the kind is a candidate); E7 (the
+authorization tied by `proposition_concerns`; X7 → P not derived); E12 / E13 / E14 (the premium as
+content on O → P; the employer's contribution a claim on the employer; **O′ with the insurer the
+obligor is the same kind — money direction is not relational meaning; no `plan_covers_obligation`**);
+E15 (X → P + O → X ⇒ nothing for O → P); E16 (a plan cannot fill `obligation_replaces`' slots); **E17**
+(p → P with no obligation anywhere, none manufactured); E18 (p → O + O → P ⇒ nothing); E19 (Lakeview Health's
+payment to Riverbend Hospital: p′ → P by Rob, no household party on p′); E20 (no discharge, no status column); **E22
+permanent** (December's premium for the January plan; a January visit on a plan minted in March —
+both accepted, no order guard); E23; **E24 mandatory** (Kim under P in effect on 3/20 + X24 incurred
+by Kim — no proposition of the kind for X24 in any state, from either direction of `reach`, the
+snapshot unchanged); E10 (no inverse; `reach(P, …, as_object=True)` lists every asserted expense in
+every state; no resolver).
+
+**c1–c5 — the consumer paths on the ruled kinds:** c1 (9C-F1) `reach(X24, EXPENSE_IN_RESPECT_OF_PLAN)`
+answers empty and is not refused, while the stand-in's name is still refused *not ruled*; **c2
+(9C-F2, E8 through 7J):** X8 — denied, $0, cash-paid, in respect of P — is *listed* as
+unadjudicated and *named* in the reason, and the derived value is **undetermined**: not excluded,
+not counted, not zero, and not a partial sum either — 7J's own rule (absence is not zero) applied to
+an expense E's relation put in the set; X's $300 in the basis. **A correction on the record:** the
+fixture's first draft expected a partial sum (300) — that was the fixture presuming what 7J does,
+not 7J; corrected to 7J's ruled behaviour, no consumer touched. c3 (E2 / E4 / Ju11): P's basis
+carries Lakeview Health's stances only, P2 derives from Cigna's only — no priority, split or sum. c4 (E5): the
+cash prescription nowhere in the report, no *uninsured* / *not covered* key or value. c5 (F14 from
+9A): no membership derived from the ruled kind.
+
+**The substitution — the decisive test:** `tests/test_accumulator_fixture.py` changed by exactly
+the stand-in's removal (`STAND_INS` is now empty — every relation and role 7J reads is ruled), the
+catalogue line, and the two `claim(...)` sites' names — **31/31, no other change.** 9A's fixture F14
+by name (27/27); `s117`'s two membership mutations by name (17/17). `obligation_in_respect_of_plan`
+and `payment_in_respect_of_plan` have no consumer; the swap is vacuous for them (9C-F3), and their
+proof is the E fixture alone.
+
+**The retirements, truthfully:** (1) **Tr8, per 9C-F1's ruling** — *the unbuilt kind is REFUSED BY
+NAME, never a silent empty list* → *on the RULED kind reach answers EMPTY: no endpoint, no candidate,
+no claim; an unruled name is still refused by name* — the fixture's entitlement to ask changed,
+`reach` did not (41/41); (2) the plan fixture's **Pl7 / Pl9**, as §E.8 pre-authorised — *no kind, slot
+or claim ties the premium to P* → *the only kind that can is E's `obligation_in_respect_of_plan`, by
+assertion; none asserted here*; *no plan ↔ expense kind* → *the one is E's, asserted never derived, no
+inverse* — `plan_id`, `which_plan`, `plan_covers` still absent (35/35); (3) `s106`'s *E's three
+accepted and unbuilt by instruction; 3 ≤ built ≤ 6* → *all six ruled pairs, E's three built by 9C* —
+its slot / flag / no-`knowing_relation` checks now run over six real members (14/14); (4) the
+registry comment; (5) three docstring lines (7F's, 7J's NOT-BUILT lists) and one 7F comment that
+had been stale since 9A (*no role kind is ruled*) — words only; (6) **found by the full gate, not the
+touched-fixture runs** (9B's lesson, again): three older fixtures pinned the exact set of ruled kinds
+on a subject slot — obligation-replaces and obligation-identity (*the obligation-subject kinds are
+exactly correspondence, replaces and in-respect-of*) and payment-identity (*payment subject slots
+carry only the four ruled relation kinds*) — and E's `obligation_in_respect_of_plan` /
+`payment_in_respect_of_plan` now sit on those slots; each set restated with the E kind named and
+its own absences kept (no source word; no `terms` / `balance` / `toward`). Same class as 9B's
+borrowed names: a fixture asserting the registry's shape as of its own pass, which a later ruled
+kind legitimately changes. The first gate ran 1379 / 4 on these; the second is the count below.
+
+**Smoke `s119_plan_relations.py`:** the fixture passes; ten mutations, each an attempt to give a
+plan relation a meaning above its floor — which-plan from membership and date · X → P from a shared
+person (E24) · O → P through X (E15) · p → P through O (E18) · an inverse `plan_covers_expense` ·
+the relation withdrawn on the insurer's denial (E8 reversed) · a typed-slot `in_respect_of_plan`
+merge (PE8 / G.9) · a `which_plan` resolver · a knowing relation designated · a temporal guard on
+p → P (E22) — **all ten caught on the first run**, baseline re-established after every undo.
+
+**Left where it belongs:** who is knowing for a plan relation (undetermined) · candidate
+generation · the stance / value kinds the fixture names as 9D's (`adjudication`, `plan_paid`,
+`coverage_ended`, `authorization`, `contribution`, `occurred_on`, `plan_year`, `deductible`,
+`applied_to_deductible`) · D′.11 · every consumer. No schema, no migration. Gate 1373 → 1396,
+0 failed.
 
 ---

@@ -123,8 +123,9 @@ def run(ctx):
           'in_respect_of' not in db.PAYMENT_COUNTERACTS and 'in_respect_of' not in db.OBLIGATION_REPLACES
           and len([k for k in db.RULED_KINDS if k.endswith('_corresponds')]) == 7
           and all(db.RULED_KINDS[k]['symmetric'] for k in db.RULED_KINDS if k.endswith('_corresponds')))
-    check(f'built members today: {built} - a subset of the six ruled; E\'s three are accepted and unbuilt by instruction',
-          3 <= len(built) <= 6)
+    # E's three were built by item 9 pass 9C (2026-09-19); the family is complete - six members, one per ruled pair
+    check(f'built members today: {built} - all six ruled pairs; E\'s three built by 9C exactly as accepted',
+          len(built) == 6 and set(built) == set(RULED_PAIRS))
     check('the section asserts nothing about composition - no composition helper exists and none is checked for presence',
           not any(hasattr(db, n) for n in ('compose', 'compose_relations', 'chain', 'traverse_family', 'transitive_closure')))
 

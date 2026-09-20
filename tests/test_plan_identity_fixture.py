@@ -17,8 +17,8 @@ What this slice can and cannot exercise
     Pl4  renewal: same P with a new dated term, or a new P; plan year decides nothing  EXERCISED
     Pl4/Pl13 mis-individuation is plan_corresponds; both rows remain            EXERCISED
     Pl5/Pl12 termination, retroactive or not, is a dated claim; P remains       EXERCISED
-    Pl7  the premium: an obligation; nothing ties it to P                       EXERCISED (absence)
-    Pl9  no plan_id on the expense; which-plan is not built                     EXERCISED (absence)
+    Pl7  the premium: an obligation; ties to P only by a party's asserted obligation_in_respect_of_plan (E, 9C)   EXERCISED
+    Pl9  no plan_id on the expense; which-plan not built; the one ruled kind is asserted, never derived (E, 9C)   EXERCISED
     Pl11 authorization: the insurer's dated stance about P; no expense exists   EXERCISED
     Pl16 the group number is correspondence evidence, never establishment       EXERCISED
     membership (item 5), plan <-> expense / obligation / payment (item 6)        NOT BUILT (asserted absent)
@@ -275,13 +275,17 @@ def run(db):
     prem = db.Obligation(minted_by_id=utter('We owe the $412 premium each month.').id)
     s.add(prem)
     s.commit()
-    check('Pl7: the premium is an obligation; no kind, slot or claim ties it to P',
+    # Item 9 pass 9C built E's three plan relations (s E.8 pre-authorised these two retirements: the relations now exist;
+    # plan_id, which_plan and plan_covers still do not). The absences that hold are what these checks now assert.
+    check('Pl7: the premium is an obligation; the only kind that can tie it to P is E\'s obligation_in_respect_of_plan, by a party\'s assertion - none asserted here, so nothing ties it; no premium_for / pays_for kind, no slot',
           s.get(db.Obligation, prem.id) is not None
+          and db.OBLIGATION_IN_RESPECT_OF_PLAN in db.RULED_KINDS
           and not any(k in db.RULED_KINDS for k in ('premium_for', 'obligation_for_plan', 'plan_obligation', 'pays_for'))
           and s.query(db.Proposition).filter_by(object_plan_id=P.id).filter(db.Proposition.subject_obligation_id.isnot(None)).count() == 0)
-    check('Pl9: the expense carries no plan_id; no plan <-> expense kind; no which-plan accessor',
+    check('Pl9: the expense carries no plan_id; the one plan <-> expense kind is E\'s expense_in_respect_of_plan (asserted, never derived; no inverse); no covered_by / plan_covers kind; no which-plan accessor',
           not any('plan' in c.name for c in db.Expense.__table__.columns)
-          and not any(k in db.RULED_KINDS for k in ('covered_by', 'plan_covers', 'expense_plan', 'adjudicated_under'))
+          and db.EXPENSE_IN_RESPECT_OF_PLAN in db.RULED_KINDS and db.RULED_KINDS[db.EXPENSE_IN_RESPECT_OF_PLAN]['object'] == ('object_plan_id',)
+          and not any(k in db.RULED_KINDS for k in ('covered_by', 'plan_covers', 'expense_plan', 'adjudicated_under', 'plan_covers_expense'))
           and not any(hasattr(db, n) for n in ('plan_of_expense', 'plan_covering', 'which_plan', 'coverage_of')))
     # Item 9 pass 9A built membership as pass F ruled it - `under_plan`, a party -> plan role claim, no slot on the anchor.
     check('membership is built as under_plan (9A) - a claim, never a slot on the anchor; no member_of / covered_under / enrolled_in kind; no member is manufactured here',

@@ -30,7 +30,7 @@ What this slice can and cannot exercise
     Ju18 the null model                                                                                    EXERCISED
     Ju19 where the failure appears                                                                         EXERCISED
     the wiring guard: AST (session receivers) + a full row-content snapshot                               EXERCISED
-    E / F (accepted, unbuilt), the term / adjudication / eligibility catalogues, allocation, priority     NOT BUILT
+    the term / adjudication / eligibility catalogues (9D), allocation, priority (E and F built: 9C, 9A)     NOT BUILT
 
 Run:  python tests/test_accumulator_fixture.py
 """
@@ -68,14 +68,10 @@ def _boundary(of, which, subject, obj):
     return r
 
 
-STAND_INS = {
-    # E's relation kind, a stand-in until 9C builds it - a relation, not a role (no 'role' key)
-    'standin_x_in_respect_of_plan': {'subject': ('subject_expense_id',), 'object': ('object_plan_id',), 'symmetric': False,
-                                     'reading_establishes': False, 'relational_knowing': True},
-}
+STAND_INS = {}   # empty since item 9 pass 9C built E's expense_in_respect_of_plan: every relation and role this fixture reads is ruled
 CATALOGUE = {'occurred_on': 'occurred_on', 'insurer_of': 'insurer_of', 'under_plan': 'under_plan', 'plan_insurer': 'insurer_of_plan',
              'eligibility': 'eligibility', 'deductible': 'deductible', 'individual_deductible': 'individual_deductible', 'plan_year': 'plan_year',
-             'deductible_applied': 'deductible_applied', 'expense_in_respect_of_plan': 'standin_x_in_respect_of_plan',
+             'deductible_applied': 'deductible_applied', 'expense_in_respect_of_plan': 'expense_in_respect_of_plan',
              'applied_to_deductible': 'applied_to_deductible', 'incurred_by': 'incurred_by'}
 
 
@@ -279,7 +275,7 @@ def _run(db):
         X = mint(db.Expense, name)
         claim('occurred_on', utterance=utter(on), as_of=on, subject_expense_id=X.id)
         role_on(db.INSURER_OF, insurer, 'object_expense_id', X)
-        claim('standin_x_in_respect_of_plan', utterance=utter('on the plan'), subject_expense_id=X.id, object_plan_id=P.id)
+        claim(db.EXPENSE_IN_RESPECT_OF_PLAN, utterance=utter('on the plan'), subject_expense_id=X.id, object_plan_id=P.id)
         if incurred is not None:
             claim(db.INCURRED_BY, utterance=utter('incurred by'), subject_party_id=incurred.id, object_expense_id=X.id)
         return X
@@ -427,7 +423,7 @@ def _run(db):
     role_on(db.INSURER_OF, aetna, 'object_expense_id', xc)
     role_on(db.INSURER_OF, cigna, 'object_expense_id', xc)
     for P in (A, B):
-        claim('standin_x_in_respect_of_plan', utterance=utter('on both'), subject_expense_id=xc.id, object_plan_id=P.id)
+        claim(db.EXPENSE_IN_RESPECT_OF_PLAN, utterance=utter('on both'), subject_expense_id=xc.id, object_plan_id=P.id)
     adjudicate(xc, aetna, '$400', '2026-08-20')
     adjudicate(xc, cigna, '$150', '2026-08-25')
     rA, rB = acc(A, '2026-08-31'), acc(B, '2026-08-31')

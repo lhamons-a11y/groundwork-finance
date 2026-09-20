@@ -251,7 +251,7 @@ def run(db):
           s.query(db.Proposition).filter(db.Proposition.subject_expense_id == X.id, db.Proposition.object_plan_id.isnot(None)).count() == 0
           and not any(hasattr(db, n) for n in ('plan_for_expense', 'which_plan', 'plan_of_expense', 'coverage_of')))
     Y = mint(db.Expense, "A visit somebody said was on P2.")
-    claim('expense_in_respect_of_plan_standin', utterance=utter('that visit was on P2'), subject_expense_id=Y.id, object_plan_id=P2.id)
+    claim(db.EXPENSE_IN_RESPECT_OF_PLAN, utterance=utter('that visit was on P2'), subject_expense_id=Y.id, object_plan_id=P2.id)
     stranger = mint(db.Party, 'Somebody nobody has said is under any plan.')
     claim('incurred_by', utterance=utter('incurred by the stranger'), subject_party_id=stranger.id, object_expense_id=Y.id)
     check('F14 (the reverse): an expense asserted in respect of P2, incurred by a party nobody said is under P2 -> NO membership derived; no under_plan claim for that party exists or is manufactured',

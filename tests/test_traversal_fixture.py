@@ -16,7 +16,7 @@ What this slice can and cannot exercise
     Tr5  a reading-sourced claim: candidate, listed                                                EXERCISED
     Tr6  a retracted claim: contested, listed, not erased                                          EXERCISED
     Tr7  a party referent: the correspondent's claim reached, the claim named as its own           EXERCISED
-    Tr8  E24: nothing connects X to P -> nothing; the unbuilt kind refused by name                  EXERCISED
+    Tr8  E24: nothing connects X to P -> empty on the ruled kind (9C); an unruled name refused     EXERCISED
     Tr9  E2 / F20: two plans, both, no primary                                                     EXERCISED
     Tr10-Tr19 the dated question: R9, R8, R5, R7, R6, R1, R3, R11, R12, nothing                   EXERCISED
     Tr20 surfaced not stored; no period / status column                                            EXERCISED
@@ -28,7 +28,7 @@ What this slice can and cannot exercise
     Tr26 where the failure appears                                                                 EXERCISED
     Ts1-Ts14 TS: the stance table, G / N, contested exactly, TS-c, Rob's three tests               EXERCISED
     the wiring guard: AST (session receivers) + a full row-content snapshot                        EXERCISED
-    E / F kinds (accepted, unbuilt), the role catalogue, 7G discharge                              NOT BUILT
+    7G discharge; the stance / value kinds (9D) - E, F and the role catalogue built by item 9    NOT BUILT
 
 Run:  python tests/test_traversal_fixture.py
 """
@@ -323,9 +323,15 @@ def _run(db):
 
     print('\n5. Tr8 / Tr9 / Tr21 / Tr22 / Tr23 - nothing inferred; refusals by name\n')
     claim(db.INCURRED_BY, utterance=utter('The ER visit was Kim\'s.'), subject_party_id=kim_party.id, object_expense_id=X.id)   # 9B: the ruled role's shape
-    msg8 = _refused(db.reach, s, X, 'expense_in_respect_of_plan')
-    check('Tr8 (E24): Kim under P1, X is Kim\'s, nothing connects X to P1 -> the (unbuilt) kind is REFUSED BY NAME, never a silent empty list; no candidate manufactured',
-          msg8 is not None and 'not ruled' in msg8 and 'expense_in_respect_of_plan' in msg8)
+    # Item 9 pass 9C built E's expense_in_respect_of_plan (s 9C.7, 9C-F1). While the kind was unbuilt this check asserted
+    # that reach REFUSED it by name - never a silent empty list. The kind is ruled now, so reach must be allowed to answer,
+    # and with nothing asserted the truthful answer is an empty endpoints list: no candidate, no relation inferred, no
+    # empty semantic claim manufactured. reach itself is unchanged; what changed is what this fixture may ask of it.
+    r8 = db.reach(s, X, db.EXPENSE_IN_RESPECT_OF_PLAN)
+    check('Tr8 (E24): Kim under P1, X is Kim\'s, nothing connects X to P1 -> on the RULED kind reach answers EMPTY: no endpoint, no candidate, no claim of the kind exists; an unruled name is still refused by name',
+          r8['kind'] == db.EXPENSE_IN_RESPECT_OF_PLAN and r8['endpoints'] == [] and r8['direction'] == db.DIRECTION_SUBJECT
+          and s.query(db.Proposition).filter_by(kind=db.EXPENSE_IN_RESPECT_OF_PLAN, subject_expense_id=X.id).count() == 0
+          and 'not ruled' in (_refused(db.reach, s, X, 'expense_in_respect_of_plan_standin') or ''))
     claim(db.UNDER_PLAN, utterance=utter('Kim is on her employer plan.'), as_of='2026-01-15', subject_party_id=kim_party.id, object_plan_id=P1.id)
     claim(db.UNDER_PLAN, utterance=utter('Kim is on my marketplace plan too.'), as_of='2026-01-15', subject_party_id=kim_party.id, object_plan_id=P2.id)
     r9 = db.reach(s, kim_party, db.UNDER_PLAN)

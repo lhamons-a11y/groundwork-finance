@@ -61,11 +61,11 @@ def _mutations(db):
         def mint_member(mapper, connection, target):
             P = db.Proposition.__table__
             pairs = []
-            if target.kind == 'expense_in_respect_of_plan_standin' and target.object_plan_id is not None:
+            if target.kind == db.EXPENSE_IN_RESPECT_OF_PLAN and target.object_plan_id is not None:
                 for inc in connection.execute(P.select().where(P.c.kind == 'incurred_by', P.c.object_expense_id == target.subject_expense_id)).fetchall():
                     pairs.append((inc.subject_party_id, target.object_plan_id))
             if target.kind == 'incurred_by' and target.object_expense_id is not None:
-                for xp in connection.execute(P.select().where(P.c.kind == 'expense_in_respect_of_plan_standin', P.c.subject_expense_id == target.object_expense_id)).fetchall():
+                for xp in connection.execute(P.select().where(P.c.kind == db.EXPENSE_IN_RESPECT_OF_PLAN, P.c.subject_expense_id == target.object_expense_id)).fetchall():
                     pairs.append((target.subject_party_id, xp.object_plan_id))
             for party_id, plan_id in pairs:
                 if party_id is not None and plan_id is not None:
@@ -82,7 +82,7 @@ def _mutations(db):
                 P = db.Proposition.__table__
                 under = connection.execute(P.select().where(P.c.kind == db.UNDER_PLAN, P.c.subject_party_id == target.subject_party_id)).fetchone()
                 if under is not None:
-                    connection.execute(P.insert().values(kind='expense_in_respect_of_plan_standin', subject_state=db.PARTICIPANT_ESTABLISHED,
+                    connection.execute(P.insert().values(kind=db.EXPENSE_IN_RESPECT_OF_PLAN, subject_state=db.PARTICIPANT_ESTABLISHED,
                                                          object_state=db.PARTICIPANT_ESTABLISHED, subject_expense_id=target.object_expense_id,
                                                          object_plan_id=under.object_plan_id))
         event.listen(db.Proposition, 'after_insert', attribute)

@@ -344,9 +344,10 @@ def run(db):
     # role-shaped claims used here (paid_by, paid_to) remain stand-ins - unruled by design.
     # ...and item 6 pass D ruled payment_in_respect_of on the payment subject slot (RELATION_SEMANTICS.md D.9)
     # - a payment -> expense relation; pass D' ruled payment_in_respect_of_obligation and rejected toward as a kind.
-    # Item 9 pass 9B ruled paid_by / paid_to as role kinds (party -> payment, on the OBJECT payment slot).
-    check('payment SUBJECT slots carry only the four ruled relation kinds; paid_by / paid_to are ruled as roles on the object slot (9B); toward is rejected, never a kind',
-          set(k for k, r in db.RULED_KINDS.items() if 'subject_payment_id' in r['subject']) == {db.PAYMENT_CORRESPONDS, db.PAYMENT_COUNTERACTS, db.PAYMENT_IN_RESPECT_OF, db.PAYMENT_IN_RESPECT_OF_OBLIGATION}
+    # Item 9 pass 9B ruled paid_by / paid_to as role kinds (party -> payment, on the OBJECT payment slot); pass 9C built E's
+    # payment_in_respect_of_plan (payment -> plan) on the subject slot.
+    check('payment SUBJECT slots carry only the five ruled relation kinds (E\'s payment_in_respect_of_plan since 9C); paid_by / paid_to are ruled as roles on the object slot (9B); toward is rejected, never a kind',
+          set(k for k, r in db.RULED_KINDS.items() if 'subject_payment_id' in r['subject']) == {db.PAYMENT_CORRESPONDS, db.PAYMENT_COUNTERACTS, db.PAYMENT_IN_RESPECT_OF, db.PAYMENT_IN_RESPECT_OF_OBLIGATION, db.PAYMENT_IN_RESPECT_OF_PLAN}
           and db.RULED_KINDS[db.PAID_BY]['object'] == ('object_payment_id',) and db.RULED_KINDS[db.PAID_BY].get('role') is True and 'toward' not in db.RULED_KINDS)
     receipt = held('h-receipt', '2026-03-03', chase, u_chase)
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=receipt.id, object_payment_id=p1.id),
