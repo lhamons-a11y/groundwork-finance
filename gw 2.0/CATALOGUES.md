@@ -32,7 +32,7 @@
 > role-set relation (undated, F1); the bank holds no ruled role (F2 — a `drawn_on` role in 9B's form,
 > not_knowing, or deferred); `occurred_on` one kind with two subjects (F3); Kn7's third clause under
 > the ruled kind (F5); **RULED (§9D-iv.7) — F1 as read, F2 (a) a `drawn_on` role in 9B's form,
-> F3–F6 as read; BUILT (awaiting acceptance); 9D-v unopened.**
+> F3–F6 as read; built (`86b85d5`) and ACCEPTED (Rob, 2026-09-20); 9D-v unopened.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -2519,5 +2519,17 @@ Harbor entitled) put in its place.
 
 **Left where it belongs:** the determination (9D-v) · candidate generation (the bank line's own
 kind, when it has one) · 9D-i-F3 (7G). No schema, no migration. Gate 1478 → 1501, 0 failed.
+
+#### Accepted — Rob, 2026-09-20 (9D-iv)
+
+Accepted on the gate's evidence (1501 / 0, s123 23/23) and the build's fidelity to §9D-iv.7: the
+role-set relation undated and separate from the role-at-date resolver; `drawn_on` in 9B's established
+role form, no special 9D representation; F6's corrections mechanical and within scope; the exact-set
+sweep by role names with both enumerations carrying the tenth role; Kn7 and Va1 recorded as
+intentionally different fixtures — Kn7's `not_knowing` the correct answer for the record it holds, Va1
+the proof that an established `paid_by` makes the value knowing — and the warning against "fixing"
+Kn7; the bank line an evidence shape, never a role or a knowing source; the two mutation-plumbing
+fixes (s94, s97) not an expansion of the ontology. **9D-v — the determination — remains unopened until
+Rob opens it; it is the last slice of 9D and of item 9.**
 
 ---
