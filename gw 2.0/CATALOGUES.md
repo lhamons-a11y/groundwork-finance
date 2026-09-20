@@ -28,7 +28,10 @@
 > 7J's any-party read recorded as 7J's, F5 one name, F6 three swap classes pre-measured; **RULED
 > (§9D-iii.7) — F1 two kinds, F2 the role read on the object as APPLICATION (the one item reaching
 > the resolver dispatch), F3 three kinds, F4–F6 as read; built (`fe15f5f`) and ACCEPTED (Rob,
-> 2026-09-20), the resolver type guard accepted with it; 9D-iv unopened.**
+> 2026-09-20), the resolver type guard accepted with it. **9D-iv OPENED (§9D-iv) — values; the
+> role-set relation (undated, F1); the bank holds no ruled role (F2 — a `drawn_on` role in 9B's form,
+> not_knowing, or deferred); `occurred_on` one kind with two subjects (F3); Kn7's third clause under
+> the ruled kind (F5); ruling sought; no code.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -2225,5 +2228,146 @@ assertion at `not_knowing`. **The resolver type guard, reported beyond the rulin
 the build** — a guard against a latent id-collision defect, not a change of the relation's meaning.
 **9D-iv remains unopened until Rob opens it; it introduces the remaining new relation shape (F3's
 role-set) and does not re-rule the role-at-date relation.**
+
+---
+
+## Pass 9D-iv — Values: `amount`, `occurred_on`, `cleared`
+
+*Opened by Rob 2026-09-20 after 9D-iii's acceptance (`0b96733`). Scope per §9D.9: `amount` (on a
+payment), `occurred_on` (on a payment; on an expense), `cleared` (the bank's stance on a payment);
+**the remaining new relation shape — F3's role-set**; consumers 7G, 7H, 7I, 7J; the role-at-date
+relation not re-ruled. No code until cases → candidate → ruling → explicit build authorisation. The
+crux this slice exposes: **the one party the record says can know a value — the bank (K6) — holds no
+ruled role.***
+
+### 9D-iv.1 What is fixed
+
+PAYMENT_IDENTITY: a payment's amount, date, payer and payee are *dated relations* on the minted
+identity, never fields; Pm9 (the mother paid); Pm12 (a bank line about nothing paid mints nothing);
+Pm10 / Pm13 (autopay lines are candidates). **Kn7 — mandatory, permanent:** *minting is not knowing*
+— Rob mints his mother's payment; his claim that it occurred is not knowing; no named relation maps a
+minter to an event's properties (only the about-ness kinds designate the minter). **K6:** the bank's
+clearance is not acknowledgment — *the bank can know the household's money left; it cannot thereby
+establish what E recorded*. O5: relaying does not launder. 9B: `paid_by` / `paid_to` (party →
+payment), `provider_of` / `incurred_by` (party → expense) — holds-only roles, `KNOWING_SUBJECT_PARTY`.
+**The consumers:** 7G / 7H / 7I read a payment's `amount` and `occurred_on` and 7J an expense's
+`occurred_on` through `_one_value` — *one established value, or undetermined (none / unparsed /
+disputed)* — **reading no strength for any value**; the date is `as_of` or content. So no consumer
+gate exists for a value, and no consumer changes whatever 9D-iv rules about knowing.
+
+### 9D-iv.2 What the fixtures hold — shapes
+
+| kind | subject | `as_of` | content | who asserts it in the corpora | strength asserted? |
+|---|---|---|---|---|---|
+| `amount` | payment | **none, everywhere** | money | the household; the mother (Pm9); the bank's line by reading | no |
+| `occurred_on` | payment **or** expense | the date itself (or content) | — | the household; the bank's line; the provider's bill | **Kn7 only** (Rob not_knowing; the mother undetermined) |
+| `cleared` | payment (the ruled shape); **or the bank party with the thing a candidate** — the bank *line* (payment-identity, proposition-concerns) | the date | the line | the bank by reading; the bank by utterance (7G Dg3) | no |
+| `bank_returned_item` (9D-i's rename) | payment | the date | the line | the bank | no |
+| `date_of_service` (7E, 7B stand-in) | expense | — | a date | the household | (7E's chains) |
+
+### 9D-iv.3 Findings — put to Rob
+
+**9D-iv-F1 — the role-set relation, and whether a value is dated.** A value is *a fact about the
+thing*, not a position as of a date: an amount does not change with time (a correction is a second
+claim; `_one_value` says *disputed*), and `occurred_on`'s `as_of` **is** the value. Every `amount`
+claim in every corpus is undated. So the relation for values cannot be the role-at-date relation
+(undated → undetermined would make every amount undetermined — harmless to the consumers, but the
+wrong answer): **the role-set relation** — *the claimant holds any of a set of roles on the claim's
+subject* — read on the roles' **holds stances as established** (9B's roles are holds-only; a holds
+stance stands from its `as_of`), not at a date the value does not carry. The set per subject type:
+a payment → {`paid_by`, `paid_to`}; an expense → {`provider_of`, `incurred_by`}. **This is the
+second new relation shape §9D.8 foresaw** — a set, undated — and it is *not* a re-ruling of the
+role-at-date relation, which stays for positions. *Reading:* rule it so. **Rob's.**
+
+**9D-iv-F2 — the bank holds no role.** K6 says the bank can know the household's money left; the
+bank's statement line is where a payment's amount and date come from in practice; under the
+role-set the bank is knowing only where it happens to be the payee (the mortgage to Harbor) and
+**not_knowing** for a payment from the household's account to Riverbend Hospital — the party whose ledger it
+is. Options: **(a) a role for the bank, ruled here in 9B's form** — `drawn_on` (party → payment: *the
+payment was drawn on an account the party holds for the payer*; who may assert: the household or the
+bank; what it establishes: only that; knowing: `KNOWING_SUBJECT_PARTY`) — added to the payment
+role-set, and the holder of `cleared` / `bank_returned_item`; **(b) the bank not_knowing for values** —
+K6's positive half unrepresentable, the bank's line a candidate at not_knowing strength until the
+household asserts the figure (then knowing by `paid_by`); **(c)** defer `cleared`, `bank_returned_item`
+and the bank clause to a later slice, ruling `amount` / `occurred_on` now with the role-set of 9B's
+four roles. *Reading:* (a) is the only option that says what K6 says; it is a 9B-class ruling inside
+9D-iv (a role, three points), which §9D.9 did not foresee — so it needs your word as such, or (c).
+**Rob's.**
+
+**9D-iv-F3 — `occurred_on`: one kind with two permitted subjects, or two kinds.** The consumers read
+one catalogue key for both a payment's and an expense's date. The registry permits several subject
+slots on one kind (`'subject': (payment, expense)`); G's refusal of the typed-slot merge was about a
+cross product of *pairs* (three refused by accident); a value with no object rules exactly two uses.
+The role-set differs by subject type, so the relation's table is keyed by (name, subject type).
+Two kinds would need two catalogue keys — a consumer change in all four consumers. *Reading:* one
+kind, two permitted subjects, the role-set per subject type. **Rob's.**
+
+**9D-iv-F4 — `cleared` and `bank_returned_item` are the bank's stances** on a payment (subject the
+payment; content the line / date; `as_of` the date): positions of the bank about a money movement,
+never acknowledgment (K6 — 7G reads neither, Dg3). Their holder is F2's answer. The *line* shape
+(`cleared` with the bank as subject and the thing a candidate — payment-identity's Pm10 / Pm12 /
+Pm13, proposition-concerns) is the borrowed-name class again: refused under the ruled kind, kept
+under a stand-in (`bank_line`), no new kind.
+
+**9D-iv-F5 — Kn7, mandatory and permanent, under the ruled kind.** Its first check — *Rob minted the
+payment; his claim that it occurred is not knowing* — holds under the role-set (Rob holds no role on
+p9: not_knowing — the same answer, now by the relation instead of the foundation). Its second pins
+*`occurred_on` not in `RULED_KINDS`* — the exact-absence class, retired. Its third (9B's rewording)
+asserts *the mother's knowing for `occurred_on` cannot be derived — undetermined, not manufactured
+from her `paid_by` role*; under F1 the mother **is** knowing, by `paid_by` — the payer is first-hand
+for the payment's date. That is not manufacturing: it is the ruled relation answering. **A permanent
+case's third clause changes; put to Rob by name.** Kn7's meaning — minting ≠ knowing — is untouched.
+
+**9D-iv-F6 — swap classes, pre-measured.** (i) the `cleared` line shape in two fixtures → `bank_line`;
+(ii) the `'amount' / 'occurred_on' not registered` pins in 7G, 7I, 7H, 7J and Kn7's; (iii) **no strength
+assertion on any value outside Kn7** — the 7E / 7B `date_of_service` and `eob_amount` are stand-ins
+of other shapes (a chain case; a line) and stay; map entries for `amount` / `occurred_on` / `cleared`
+retire from every fixture that carries them (7G, 7I, 7H, 7J, payment-identity, D, D′, the 9D fixtures).
+No presupposed-role additions foreseen: no case asserts a value knowing by type.
+
+### 9D-iv.4 Cases
+
+| # | Case | Kind level (F1 / F2 as read) | Consumer |
+|---|---|---|---|
+| **Va1 (Pm9 / Kn7)** | the mother: *$300 on July 1* — `paid_by` the mother | knowing (payer); Rob's same claim not_knowing (no role) | `_one_value`: the value; strength unread |
+| **Va2** | Rob: *$1,412 on 3/5* on his own payment — `paid_by` Rob | knowing | the same |
+| **Va3 (K6 / F2)** | the bank's line *HARBOR MTG 3/5 −1,412.00*, read — payee Harbor, the account at Bank B | Harbor (payee) knowing for amount / date via the reading only if Harbor is the origin — it is not; **Bank B knowing under F2(a) (`drawn_on`), not_knowing under (b)** | candidate; never acknowledgment |
+| **Va4** | Rob's spreadsheet line, read (O5) | origin Rob, no role → not_knowing | candidate |
+| **Va5** | Riverbend Hospital states the visit's date; Kim incurred it; Rob says a different date | Riverbend Hospital (provider) knowing; Kim (`incurred_by`) knowing; Rob not; `_one_value` → *disputed* | undetermined |
+| **Va6 (Pm12)** | a bank line about nothing paid | mints nothing; no value on nothing | — |
+| **Va7** | two amounts by the payer at different times | both knowing; `_one_value` → disputed | undetermined (7G: *amount disputed*) |
+| **Va8 (F1)** | an `amount` with no `as_of` (every corpus) | knowing by the role-set — undated is the value's normal state | the value |
+| **Va9 (F3)** | `occurred_on` on an expense vs on a payment | one kind, two subjects; the set by subject type | one catalogue key |
+| **Va10 (F4)** | `cleared` by the bank's utterance (Dg3); by reading | the bank's stance; holder per F2; **7G unchanged: station unmoved** | not read |
+| **Va11 (F6-i)** | the bank line with the bank as subject | refused under `cleared`; accepted under `bank_line` | — |
+| **Va12 (the 2 × 2 on p)** | origin {the payer, a stranger} × kind {`amount`, `occurred_on`} | (payer, ·) knowing · (stranger, ·) not | — |
+
+### 9D-iv.5 Candidate — pending F1–F3
+
+```text
+AMOUNT        subject (subject_payment_id,)                       object ()   knowing_relation KNOWING_ROLE_HOLDER_ON_SUBJECT
+OCCURRED_ON   subject (subject_payment_id, subject_expense_id)     object ()   the same                                   (F3)
+CLEARED · BANK_RETURNED_ITEM   subject (subject_payment_id,)        object ()   the same, the set {drawn_on}  (F2 a) — or deferred (F2 c)
+DRAWN_ON      party -> payment, holds-only, 'role': True, KNOWING_SUBJECT_PARTY                                       (F2 a)
+_ROLE_SET = {(KNOWING_ROLE_HOLDER_ON_SUBJECT, 'payment'): (PAID_BY, PAID_TO[, DRAWN_ON]), (…, 'expense'): (PROVIDER_OF, INCURRED_BY)}
+    the resolver: knowing iff the claimant has an established holds stance of any role in the set on the claim's subject;
+    reading path as 9D-i pinned it; no as_of read (F1); all reading_establishes True
+```
+
+Mutations for `s123`: the minter knowing (Kn7 reversed) · the type conferring knowing · the
+role-set read at a date (an undated amount undetermined) · a stranger knowing · the bank knowing
+without the role (F2 b reversed) / the bank not_knowing with it (a) · `cleared` moving 7G's station
+(K6 reversed) · a reading establishing state · the relation composed through the attachment (the
+entitled party knowing for the amount) · the two subject types' sets swapped · a second resolver.
+
+### 9D-iv.6 Ruling sought
+
+> **(1) F1:** the role-set relation, undated, read on the roles' established holds stances — the
+> second and last new relation shape. **(2) F2:** the bank — a `drawn_on` role ruled here in 9B's
+> form and added to the payment set (a), not_knowing (b), or the bank's kinds deferred (c). **(3)
+> F3:** `occurred_on` one kind with two permitted subjects. **(4) F4:** `cleared` / `bank_returned_item`
+> the bank's stances, the line shape renamed. **(5) F5:** Kn7's third clause — the mother knowing by
+> `paid_by` — accepted as the ruled relation's answer, the permanent case's meaning intact. **(6) F6:**
+> the swap classes. Nothing here authorises code.
 
 ---
