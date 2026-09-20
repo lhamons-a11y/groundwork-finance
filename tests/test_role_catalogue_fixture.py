@@ -159,11 +159,12 @@ def run(db):
 
     print('\n1. The registry - the catalogue exactly as ruled; the role key; the boundaries; the knowing relation\n')
     roles = {k: r for k, r in db.RULED_KINDS.items() if r.get('role')}
-    check('nine role kinds are marked - under_plan (9A) and the seven of 9B (paid_by / paid_to counted as the payer and payee roles); no other kind is',
-          set(roles) == {db.UNDER_PLAN, db.ENTITLED_PARTY_OF, db.SERVICER_OF, db.PROVIDER_OF, db.INSURER_OF, db.INSURER_OF_PLAN, db.INCURRED_BY, db.PAID_BY, db.PAID_TO})
+    # 9D-iv ruled a tenth role, drawn_on (the bank's, required by K6) - in 9B's form, on 9B's three points
+    check('ten role kinds are marked - under_plan (9A), the seven of 9B (paid_by / paid_to counted as the payer and payee roles) and drawn_on (9D-iv); no other kind is',
+          set(roles) == {db.UNDER_PLAN, db.ENTITLED_PARTY_OF, db.SERVICER_OF, db.PROVIDER_OF, db.INSURER_OF, db.INSURER_OF_PLAN, db.INCURRED_BY, db.PAID_BY, db.PAID_TO, db.DRAWN_ON})
     check('every role: party subject, an identity object, not symmetric, a reading never establishes, relational knowing; the seven of 9B name KNOWING_SUBJECT_PARTY; under_plan names none (F)',
           all(r['subject'] == ('subject_party_id',) and len(r['object']) == 1 and not r['symmetric'] and not r['reading_establishes'] and r['relational_knowing'] for r in roles.values())
-          and all(db.RULED_KINDS[k].get('knowing_relation') == db.KNOWING_SUBJECT_PARTY for k in (db.ENTITLED_PARTY_OF, db.SERVICER_OF, db.PROVIDER_OF, db.INSURER_OF, db.INSURER_OF_PLAN, db.INCURRED_BY, db.PAID_BY, db.PAID_TO))
+          and all(db.RULED_KINDS[k].get('knowing_relation') == db.KNOWING_SUBJECT_PARTY for k in (db.ENTITLED_PARTY_OF, db.SERVICER_OF, db.PROVIDER_OF, db.INSURER_OF, db.INSURER_OF_PLAN, db.INCURRED_BY, db.PAID_BY, db.PAID_TO, db.DRAWN_ON))
           and db.RULED_KINDS[db.UNDER_PLAN].get('knowing_relation') is None)
     check('the objects: entitled_party_of and servicer_of -> obligation; provider_of, insurer_of, incurred_by -> expense; insurer_of_plan -> plan; paid_by / paid_to -> payment',
           all(db.RULED_KINDS[k]['object'] == (o,) for k, o in ((db.ENTITLED_PARTY_OF, 'object_obligation_id'), (db.SERVICER_OF, 'object_obligation_id'),
@@ -175,8 +176,8 @@ def run(db):
           and bool(db.registry_violations(registry=dict(db.RULED_KINDS, bad={'subject': ('subject_obligation_id',), 'object': ('object_expense_id',), 'symmetric': False,
                                                                                     'reading_establishes': False, 'relational_knowing': True, 'boundary': 'began', 'of': db.OBLIGATION_IN_RESPECT_OF}), kinds=('bad',))))
     # 9D-i added the fourth named relation (the role-at-date relation); the roles' own is unchanged
-    check('KNOWING_SUBJECT_PARTY is the third named relation with its own resolver - the claim\'s subject party; seven named relations since 9D-iii (the role-at-date names share one resolver); nothing generic',
-          db._KNOWING_RELATIONS[db.KNOWING_SUBJECT_PARTY] is db._designated_subject_party and len(db._KNOWING_RELATIONS) == 7
+    check('KNOWING_SUBJECT_PARTY is the third named relation with its own resolver - the claim\'s subject party; eight named relations since 9D-iv (the role-at-date names share one resolver; the role-set its own); nothing generic',
+          db._KNOWING_RELATIONS[db.KNOWING_SUBJECT_PARTY] is db._designated_subject_party and len(db._KNOWING_RELATIONS) == 8
           and not any(hasattr(db, n) for n in ABSENT_HELPERS))
 
     print('\n2. Ro1 / Ro2 / Ro3 / Ro4 - entitlement, servicing and payee are three kinds; assignment vs sale; S3\n')

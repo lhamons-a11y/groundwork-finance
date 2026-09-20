@@ -120,7 +120,7 @@ def run(db):
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
     check('the stand-in role kinds are removed; the registry is as shipped; no value, determination or acknowledgment kind was registered',
-          db.RULED_KINDS == shipped and not any(k in shipped for k in ('amount', 'occurred_on', 'determination')))   # paid_by / paid_to: ruled roles since 9B; acknowledged / balance: 9D-i; billed / PR / plan_paid: ruled stances since 9D-ii; determination: 9D-v
+          db.RULED_KINDS == shipped and 'determination' not in shipped)   # roles 9B; stances 9D-i / 9D-ii; values 9D-iv; determination: 9D-v
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -134,8 +134,7 @@ def _run(db):
     s.add_all([rob, kim])
     s.commit()
     household, kim_party = rob.party, kim.party
-    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 
-               'amount': {'person', 'institution'}, 'occurred_on': {'person', 'institution'},
+    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'},   # amount / occurred_on: ruled values since 9D-iv - knowing by the role-set, not by the map
                'determination': {'person', 'institution'}}   # billed / PR / plan_paid: ruled stances since 9D-ii - knowing by the role
     D = Decimal
 
@@ -194,8 +193,8 @@ def _run(db):
 
     def pay(O, amount, on, payer, payee, attach=True, amount_by=None):
         p = mint(db.Payment, f'Paid {amount} on {on}.')
-        claim('amount', utterance=utter(amount, origin=amount_by), content=amount, subject_payment_id=p.id)
-        claim('occurred_on', utterance=utter(on), as_of=on, subject_payment_id=p.id)
+        claim(db.AMOUNT, utterance=utter(amount, origin=amount_by), content=amount, subject_payment_id=p.id)
+        claim(db.OCCURRED_ON, utterance=utter(on), as_of=on, subject_payment_id=p.id)
         if payer is not None:
             claim('paid_by', utterance=utter('paid by'), as_of=on, subject_party_id=payer.id, object_payment_id=p.id)
         if payee is not None:

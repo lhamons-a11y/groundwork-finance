@@ -125,7 +125,7 @@ def run(db):
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
     check('the stand-in role kind is removed; the registry is as shipped; no value or acknowledgment kind was registered',
-          db.RULED_KINDS == shipped and not any(k in shipped for k in ('amount', 'occurred_on', 'cleared')))   # paid_by / paid_to: ruled roles since 9B; acknowledged / balance / returned: ruled stances since 9D-i
+          db.RULED_KINDS == shipped)   # every kind this fixture reads is ruled: roles 9B, stances 9D-i, values and the bank's stances 9D-iv
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -139,7 +139,7 @@ def _run(db):
     s.add_all([rob, kim])
     s.commit()
     household, kim_party = rob.party, kim.party
-    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 
+    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'},   # amount / occurred_on: ruled values since 9D-iv - knowing by the role-set, not by the map
                'amount': {'person', 'institution'}, 'occurred_on': {'person', 'institution'}}
     D = Decimal
 
@@ -198,8 +198,8 @@ def _run(db):
 
     def pay(O, amount, on, payer, payee, attach=True, amount_by=None):
         p = mint(db.Payment, f'Paid {amount} on {on}.')
-        claim('amount', utterance=utter(amount, origin=amount_by), content=amount, subject_payment_id=p.id)
-        claim('occurred_on', utterance=utter(on), as_of=on, subject_payment_id=p.id)
+        claim(db.AMOUNT, utterance=utter(amount, origin=amount_by), content=amount, subject_payment_id=p.id)
+        claim(db.OCCURRED_ON, utterance=utter(on), as_of=on, subject_payment_id=p.id)
         if payer is not None:
             claim('paid_by', utterance=utter('paid by'), as_of=on, subject_party_id=payer.id, object_payment_id=p.id)
         if payee is not None:
@@ -294,7 +294,7 @@ def _run(db):
           and r1['figures']['attached']['basis'] == [(p1.id, -1, D('1412'))] and r1['figures']['confirmed']['basis'] == [])
     check('Dg1: pending = attached - confirmed = -1,412, naming p1 - the acknowledgment-state number, not a balance',
           r1['diagnostic']['pending'] == {'value': D('-1412'), 'reason': None, 'payments': [p1.id]})
-    claim('cleared', utterance=utter('cleared 3/6', origin=bank), as_of='2026-03-06', subject_payment_id=p1.id)
+    claim(db.CLEARED, utterance=utter('cleared 3/6', origin=bank), as_of='2026-03-06', subject_payment_id=p1.id)
     check('Dg3 (K6): the bank\'s clearance is not an acknowledgment and is not read - the station is unchanged',
           pm(rem(O1, '2026-03-31'), p1)['station'] == db.STATION_ATTACHED_UNACKNOWLEDGED)
     a1 = ack(chase, p1, '2026-03-10')
@@ -454,7 +454,7 @@ def _run(db):
     entitled(chase, O16)
     stated(O16, chase, '$1,000', '2026-05-01')
     q16 = pay(O16, '$300', '2026-06-01', household, chase)
-    claim('amount', utterance=utter('$330', origin=kim_party), content='$330', subject_payment_id=q16.id)
+    claim(db.AMOUNT, utterance=utter('$330', origin=kim_party), content='$330', subject_payment_id=q16.id)
     _, rBank = held('h-bank-line', bank)
     claim('amount', reading=rBank, content='$330', subject_payment_id=q16.id)
     r16 = rem(O16, '2026-06-30')

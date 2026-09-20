@@ -2169,6 +2169,38 @@ COVERAGE_ENDED = 'coverage_ended'
 AUTHORIZATION = 'authorization'
 KNOWING_PLAN_INSURER_AT_AS_OF = 'the_insurer_of_the_plan_the_stance_is_about_in_effect_at_as_of'
 
+# ── Item 9, pass 9D-iv: VALUES - amount, occurred_on; the bank's stances; the drawn_on role ──────
+# gw 2.0/CATALOGUES.md s 9D-iv.7 (ruled 2026-09-20). A VALUE is a fact about the thing, not a position as of
+# a date: a payment's amount, a payment's or an expense's occurred_on (whose as_of IS the value). Every
+# consumer reads a value through _one_value - one established value, or undetermined (none / unparsed /
+# disputed) - and reads NO strength for it; nothing here changes a consumer. Knowing for a value is THE
+# ROLE-SET RELATION (KNOWING_ROLE_HOLDER_ON_SUBJECT - the second and last new relation shape): the claimant
+# holds ANY of a set of roles on the claim's subject, read on the roles' ESTABLISHED HOLDS STANCES - undated,
+# because the value carries no date to place a role against (an amount does not change with time; a
+# correction is a second claim, and _one_value says disputed). The set by the subject's type: a payment ->
+# {paid_by, paid_to, drawn_on}; an expense -> {provider_of, incurred_by}. The minter is not in any set
+# (Kn7, PERMANENT: minting is not knowing); a relay is not (O5). This is a distinct shape from the
+# role-at-date relation, which is for positions and is untouched.
+# drawn_on - THE BANK'S ROLE, ruled here in 9B's form because 9D-iv exposed a role an existing provenance
+# ruling requires (K6: the bank CAN KNOW that the household's money left) - a cross-slice dependency,
+# recorded, not anticipated by s 9D.9. Party -> payment, holds-only, a role: who may assert - the
+# household, or the bank as a party (a statement line read -> a candidate); what it establishes - ONLY that
+# the payment was drawn on an account the party holds for the payer - not the amount, not the date, not
+# clearance, not acknowledgment; who is knowing - the subject party (KNOWING_SUBJECT_PARTY; Kn12 stands).
+# cleared and bank_returned_item are THE BANK'S STANCES on a payment (subject the payment; content the
+# line; as_of the date), holder drawn_on - never acknowledgment (K6: 7G reads neither, Dg3 / Dg18). The
+# bank LINE (the bank as subject, the thing a candidate) is a fixture's borrowed shape, not a kind here.
+# occurred_on is ONE kind with two permitted subjects (a payment; an expense) - the registry permits it,
+# the consumers read one key, the role-set keyed by the subject's type. reading_establishes True as 9D-i
+# pinned it: a bank line read -> candidate in state, strength through the artefact's origin if that origin
+# holds a role in the set. Not source words.
+AMOUNT = 'amount'
+OCCURRED_ON = 'occurred_on'
+CLEARED = 'cleared'
+BANK_RETURNED_ITEM = 'bank_returned_item'
+DRAWN_ON = 'drawn_on'
+KNOWING_ROLE_HOLDER_ON_SUBJECT = 'a_holder_of_any_role_in_the_set_on_the_claim_subject'
+
 RULED_KINDS = {
     ARTEFACT_ORIGIN:      {'subject': ('subject_artefact_id',), 'object': ('object_party_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': False},
@@ -2340,6 +2372,22 @@ RULED_KINDS = {
     ELIGIBILITY:                   {'subject': ('subject_party_id',), 'object': ('object_plan_id',),
                                     'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
                                     'knowing_relation': KNOWING_PLAN_INSURER_AT_AS_OF},
+    # Item 9 pass 9D-iv: the bank's role (K6's cross-slice dependency) and the value kinds (s 9D-iv.7).
+    DRAWN_ON:           {'subject': ('subject_party_id',), 'object': ('object_payment_id',),
+                         'symmetric': False, 'reading_establishes': False, 'relational_knowing': True, 'role': True,
+                         'knowing_relation': KNOWING_SUBJECT_PARTY},
+    AMOUNT:             {'subject': ('subject_payment_id',), 'object': (),
+                         'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                         'knowing_relation': KNOWING_ROLE_HOLDER_ON_SUBJECT},
+    OCCURRED_ON:        {'subject': ('subject_payment_id', 'subject_expense_id'), 'object': (),
+                         'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                         'knowing_relation': KNOWING_ROLE_HOLDER_ON_SUBJECT},
+    CLEARED:            {'subject': ('subject_payment_id',), 'object': (),
+                         'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                         'knowing_relation': KNOWING_ROLE_HOLDER_ON_SUBJECT},
+    BANK_RETURNED_ITEM: {'subject': ('subject_payment_id',), 'object': (),
+                         'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                         'knowing_relation': KNOWING_ROLE_HOLDER_ON_SUBJECT},
 }
 
 # ── Item 5: the role period ───────────────────────────────────────────────────
@@ -3270,6 +3318,42 @@ def _role_at_as_of(session, prop, claimant_party_id, role_kind, side='subject'):
     return STRENGTH_KNOWING if answer['answer'] == EFFECT_IN else STRENGTH_UNDETERMINED
 
 
+# 9D-iv: THE ROLE-SET RELATION (s 9D-iv.7, F1) - the claimant holds ANY of a set of roles on the claim's
+# established subject, read on the roles' ESTABLISHED HOLDS STANCES, undated (a value carries no date to
+# place a role against). The set by the subject's identity type. Three-valued like the role-at-date
+# relation and, like it, not a designated-participant resolver; unlike it, it reads no date and no
+# in_effect - a holds stance that is established (an unretracted utterance behind it) is the role held.
+# Not composed: the roles are on the claim's own subject. The one entry for the cleared / returned
+# stances is the same set (the bank holds drawn_on). Written once.
+_ROLE_SET = {
+    'payment': (PAID_BY, PAID_TO, DRAWN_ON),
+    'expense': (PROVIDER_OF, INCURRED_BY),
+}
+
+
+def _role_holder_on_subject(session, prop, claimant_party_id):
+    if claimant_party_id is None:
+        return STRENGTH_UNDETERMINED
+    rule = RULED_KINDS.get(prop.kind) or {}
+    slot = next((c for c in rule.get('subject', ()) if getattr(prop, c) is not None), None)
+    if slot is None or _slot_type(slot) not in _ROLE_SET:
+        return STRENGTH_UNDETERMINED
+    subject, roles = getattr(prop, slot), _ROLE_SET[_slot_type(slot)]
+    party = session.get(Party, claimant_party_id)
+    if party is None:
+        return STRENGTH_UNDETERMINED
+    members, _ = _referent_members(session, party)
+    retracted = _retracted(session)
+    for claim in (session.query(Proposition).filter(Proposition.kind.in_(roles), Proposition.subject_party_id.in_(members))
+                  .order_by(Proposition.id).all()):
+        obj_slot = RULED_KINDS[claim.kind]['object'][0]
+        if getattr(claim, obj_slot) != subject:
+            continue
+        if any(state == CLAIM_ESTABLISHED for state, _, _ in _claim_states(session, claim, retracted)):
+            return STRENGTH_KNOWING
+    return STRENGTH_NOT_KNOWING
+
+
 _KNOWING_RELATIONS = {
     KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE: _designated_origin_of_subject_utterance,
     KNOWING_MINTER_OF_OBJECT_IDENTITY: _designated_minter_of_object_identity,
@@ -3278,6 +3362,7 @@ _KNOWING_RELATIONS = {
     KNOWING_PROVIDER_AT_AS_OF: _role_at_as_of,                       # 9D-ii: the same resolver, the role from the table
     KNOWING_INSURER_AT_AS_OF: _role_at_as_of,                        # 9D-ii
     KNOWING_PLAN_INSURER_AT_AS_OF: _role_at_as_of,                   # 9D-iii
+    KNOWING_ROLE_HOLDER_ON_SUBJECT: _role_holder_on_subject,         # 9D-iv: the role-set relation, dispatched with the claimant
 }
 
 
@@ -3289,6 +3374,8 @@ def _relational_strength(session, prop, claimant_party_id, relation_name):
     if relation_name in _ROLE_AT_AS_OF:                    # 9D-i: the role-at-date relation classifies the claimant
         side = _ROLE_AT_AS_OF_SIDE.get(prop.kind)         # 9D-iii: the side the role is read on, per stance kind
         return resolver(session, prop, claimant_party_id, _ROLE_AT_AS_OF[relation_name], **({'side': side} if side else {}))
+    if relation_name == KNOWING_ROLE_HOLDER_ON_SUBJECT:    # 9D-iv: the role-set relation classifies the claimant, undated
+        return resolver(session, prop, claimant_party_id)
     designated = resolver(session, prop)
     if designated is None or claimant_party_id is None:
         return STRENGTH_UNDETERMINED                       # designated participant not established

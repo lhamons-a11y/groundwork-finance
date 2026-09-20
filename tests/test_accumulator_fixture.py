@@ -118,7 +118,7 @@ def run(db):
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
     check('the stand-in role and relation kinds are removed; the registry is as shipped; no term, adjudication or eligibility kind was registered',
-          db.RULED_KINDS == shipped and not any(k in shipped for k in ('occurred_on',)))   # the term / stance / adjudication kinds: ruled since 9D-ii / 9D-iii; occurred_on: 9D-iv)
+          db.RULED_KINDS == shipped and True)   # every kind this fixture reads is ruled: roles 9B, E's relation 9C, stances and terms 9D-ii / 9D-iii, values 9D-iv)
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -192,8 +192,8 @@ def _run(db):
 
     def pay(O, amount, on, payer, payee, attach=True, amount_by=None):
         p = mint(db.Payment, f'Paid {amount} on {on}.')
-        claim('amount', utterance=utter(amount, origin=amount_by), content=amount, subject_payment_id=p.id)
-        claim('occurred_on', utterance=utter(on), as_of=on, subject_payment_id=p.id)
+        claim(db.AMOUNT, utterance=utter(amount, origin=amount_by), content=amount, subject_payment_id=p.id)
+        claim(db.OCCURRED_ON, utterance=utter(on), as_of=on, subject_payment_id=p.id)
         if payer is not None:
             claim('paid_by', utterance=utter('paid by'), as_of=on, subject_party_id=payer.id, object_payment_id=p.id)
         if payee is not None:
@@ -274,7 +274,7 @@ def _run(db):
 
     def expense_under(P, name, on, insurer, incurred=None):
         X = mint(db.Expense, name)
-        claim('occurred_on', utterance=utter(on), as_of=on, subject_expense_id=X.id)
+        claim(db.OCCURRED_ON, utterance=utter(on), as_of=on, subject_expense_id=X.id)
         role_on(db.INSURER_OF, insurer, 'object_expense_id', X)
         claim(db.EXPENSE_IN_RESPECT_OF_PLAN, utterance=utter('on the plan'), subject_expense_id=X.id, object_plan_id=P.id)
         if incurred is not None:
@@ -404,7 +404,7 @@ def _run(db):
     check('Ju10: no plan-year term -> derived UNDETERMINED "no plan year term containing d" - no calendar assumption',
           r10b['window']['start'] is None and r10b['derived']['value'] is None and 'no plan year term' in r10b['derived']['reason'])
     x8 = mint(db.Expense, "Kim's visit nobody tied to Q.")
-    claim('occurred_on', utterance=utter('2026-06-01'), as_of='2026-06-01', subject_expense_id=x8.id)
+    claim(db.OCCURRED_ON, utterance=utter('2026-06-01'), as_of='2026-06-01', subject_expense_id=x8.id)
     role_on(db.INSURER_OF, aetna, 'object_expense_id', x8)
     claim(db.INCURRED_BY, utterance=utter('incurred by Kim'), subject_party_id=kim_party.id, object_expense_id=x8.id)
     adjudicate(x8, aetna, '$999', '2026-06-05')
@@ -420,7 +420,7 @@ def _run(db):
         plan_year(P, '2026-01-01', '2026-12-31')
         term(P, 'deductible', '$1,000')
     xc = mint(db.Expense, 'The concurrent visit.')
-    claim('occurred_on', utterance=utter('2026-08-05'), as_of='2026-08-05', subject_expense_id=xc.id)
+    claim(db.OCCURRED_ON, utterance=utter('2026-08-05'), as_of='2026-08-05', subject_expense_id=xc.id)
     role_on(db.INSURER_OF, aetna, 'object_expense_id', xc)
     role_on(db.INSURER_OF, cigna, 'object_expense_id', xc)
     for P in (A, B):

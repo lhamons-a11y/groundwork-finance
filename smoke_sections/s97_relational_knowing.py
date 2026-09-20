@@ -76,9 +76,10 @@ def _mutations(db):
         return _swap(db, '_relational_strength', traversal)
 
     def minting_confers_knowing():
-        db.RULED_KINDS['occurred_on'] = {'subject': ('subject_payment_id',), 'object': (), 'symmetric': False,
-                                         'reading_establishes': False, 'relational_knowing': True,
-                                         'knowing_relation': 'minter_of_subject_payment'}
+        # 9D-iv ruled occurred_on (the role-set relation); the mutation REPLACES its relation with a minter relation and
+        # restores the ruled entry - it no longer pops a stand-in
+        saved_kind = db.RULED_KINDS['occurred_on']
+        db.RULED_KINDS['occurred_on'] = dict(saved_kind, knowing_relation='minter_of_subject_payment')
         orig = dict(db._KNOWING_RELATIONS)
 
         def minter_of_subject(session, prop):
@@ -90,7 +91,7 @@ def _mutations(db):
         db._KNOWING_RELATIONS['minter_of_subject_payment'] = minter_of_subject
 
         def restore():
-            db.RULED_KINDS.pop('occurred_on', None)
+            db.RULED_KINDS['occurred_on'] = saved_kind
             db._KNOWING_RELATIONS.clear()
             db._KNOWING_RELATIONS.update(orig)
         return restore
@@ -162,7 +163,8 @@ def run(ctx):
     check('core/database.py carries named knowing relations, a finite resolver table, and no generic resolver',
           hasattr(db, '_KNOWING_RELATIONS') and hasattr(db, '_relational_strength')
           and set(db._KNOWING_RELATIONS) == {db.KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE, db.KNOWING_MINTER_OF_OBJECT_IDENTITY, db.KNOWING_SUBJECT_PARTY,
-                                             db.KNOWING_ENTITLED_PARTY_AT_AS_OF, db.KNOWING_PROVIDER_AT_AS_OF, db.KNOWING_INSURER_AT_AS_OF, db.KNOWING_PLAN_INSURER_AT_AS_OF}   # 9B's third; the role-at-date names (9D-i, applied by 9D-ii / 9D-iii) on one resolver
+                                             db.KNOWING_ENTITLED_PARTY_AT_AS_OF, db.KNOWING_PROVIDER_AT_AS_OF, db.KNOWING_INSURER_AT_AS_OF, db.KNOWING_PLAN_INSURER_AT_AS_OF,
+                                             db.KNOWING_ROLE_HOLDER_ON_SUBJECT}   # 9B's third; the role-at-date names (9D-i, applied by 9D-ii / 9D-iii) on one resolver; the role-set (9D-iv)
           and db.RULED_KINDS[db.PROPOSITION_CORRESPONDS].get('knowing_relation') is None
           and not any(hasattr(db, n) for n in ('find_related_party', 'knowing_party_for')))
 

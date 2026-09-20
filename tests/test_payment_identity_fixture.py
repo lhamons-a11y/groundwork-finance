@@ -106,7 +106,7 @@ def run(db):
     s.commit()
     household = rob.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, db.PAYMENT_CORRESPONDS: {'person', 'institution'},
-               'cleared': {'institution'}, 'acknowledged': {'institution'}, 'amount': {'person', 'institution'}}
+               'bank_line': {'institution'}}   # cleared / acknowledged / amount: ruled kinds since 9D-i / 9D-iv - knowing by the role, not by the map
 
     def utter(text, when='2026-03-10T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -223,7 +223,7 @@ def run(db):
     stmt = held('h-bank-mar', '2026-03-31', bank, u_bank)
     r_stmt = read(stmt)
     n_before = s.query(db.Payment).count()
-    p_line = prop('cleared', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id,
+    p_line = prop('bank_line', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id,   # 9D-iv F6: the bank line (subject the bank), not the ruled cleared stance
                   content='CHASE MTG 3/3 -1,412.00', as_of='2026-03-03')
     e_line = evidence(p_line, reading=r_stmt)
     check('Pm2: a bank line mints nothing; the read claim names no payment referent (candidates, empty)',
@@ -250,9 +250,9 @@ def run(db):
                                            'is_paid', 'paid', 'payment_status', 'cleared', 'is_discharged')))
     u_direct = utter('I paid Chase $400 directly at the branch on June 2.', '2026-06-03T09:00:00')
     p4 = mint_payment(u_direct)
-    about('cleared', p4, 'debited 6/2', reading=r_stmt, as_of='2026-06-02')
+    about(db.CLEARED, p4, 'debited 6/2', reading=r_stmt, as_of='2026-06-02')
     check('Pm4 (S6): the bank\'s claim stands and E\'s acknowledgment is absent - representable, nothing chosen',
-          s.query(db.Proposition).filter_by(kind='cleared', subject_payment_id=p4.id).count() == 1
+          s.query(db.Proposition).filter_by(kind=db.CLEARED, subject_payment_id=p4.id).count() == 1
           and s.query(db.Proposition).filter_by(kind='acknowledged', object_payment_id=p4.id).count() == 0
           and s.get(db.Payment, p4.id) is not None)
     s3, _ = mint_party('S3 Servicing.')
@@ -317,16 +317,16 @@ def run(db):
     p11 = mint_payment(u_cash)
     check('Pm11: a payment with no transaction - no bank line will ever correspond; it is a payment',
           s.get(db.Payment, p11.id) is not None
-          and s.query(db.Proposition).filter_by(kind='cleared', subject_payment_id=p11.id).count() == 0)
+          and s.query(db.Proposition).filter_by(kind=db.CLEARED, subject_payment_id=p11.id).count() == 0)
     n_pay = s.query(db.Payment).count()
-    p_xfer = prop('cleared', object_state=db.PARTICIPANT_NONE, subject_party_id=bank.id,
+    p_xfer = prop('bank_line', object_state=db.PARTICIPANT_NONE, subject_party_id=bank.id,   # 9D-iv F6: the bank line
                   content='TRANSFER TO SAVINGS -2,000.00', as_of='2026-08-15')
     evidence(p_xfer, reading=r_stmt)
     check('Pm12: a transaction with no payment - a bank line about nothing paid toward anything mints nothing',
           s.query(db.Payment).count() == n_pay and p_xfer.object_state == db.PARTICIPANT_NONE)
 
     print('\n8. Pm10 / Pm13 - autopay lines are candidates; retraction does not unmint\n')
-    lines = [prop('cleared', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id,
+    lines = [prop('bank_line', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id,   # 9D-iv F6: the bank line (subject the bank), not the ruled cleared stance
                   content=f'CHASE MTG {m}/3 -1,412.00', as_of=f'2026-{m:02d}-03') for m in (4, 5, 6)]
     for ln in lines:
         evidence(ln, reading=r_stmt)
@@ -346,8 +346,10 @@ def run(db):
     # - a payment -> expense relation; pass D' ruled payment_in_respect_of_obligation and rejected toward as a kind.
     # Item 9 pass 9B ruled paid_by / paid_to as role kinds (party -> payment, on the OBJECT payment slot); pass 9C built E's
     # payment_in_respect_of_plan (payment -> plan) on the subject slot.
-    check('payment SUBJECT slots carry only the five ruled relation kinds (E\'s payment_in_respect_of_plan since 9C); paid_by / paid_to are ruled as roles on the object slot (9B); toward is rejected, never a kind',
-          set(k for k, r in db.RULED_KINDS.items() if 'subject_payment_id' in r['subject']) == {db.PAYMENT_CORRESPONDS, db.PAYMENT_COUNTERACTS, db.PAYMENT_IN_RESPECT_OF, db.PAYMENT_IN_RESPECT_OF_OBLIGATION, db.PAYMENT_IN_RESPECT_OF_PLAN}
+    # 9D-iv put the value kinds (amount, occurred_on) and the bank's stances (cleared, bank_returned_item) on the payment subject slot too
+    check('payment SUBJECT slots carry the five ruled relation kinds (E\'s since 9C) and, since 9D-iv, the two value kinds and the bank\'s two stances; paid_by / paid_to / drawn_on are ruled as roles on the object slot; toward is rejected, never a kind',
+          set(k for k, r in db.RULED_KINDS.items() if 'subject_payment_id' in r['subject']) == {db.PAYMENT_CORRESPONDS, db.PAYMENT_COUNTERACTS, db.PAYMENT_IN_RESPECT_OF, db.PAYMENT_IN_RESPECT_OF_OBLIGATION, db.PAYMENT_IN_RESPECT_OF_PLAN,
+                                                                                                  db.AMOUNT, db.OCCURRED_ON, db.CLEARED, db.BANK_RETURNED_ITEM}
           and db.RULED_KINDS[db.PAID_BY]['object'] == ('object_payment_id',) and db.RULED_KINDS[db.PAID_BY].get('role') is True and 'toward' not in db.RULED_KINDS)
     receipt = held('h-receipt', '2026-03-03', chase, u_chase)
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=receipt.id, object_payment_id=p1.id),

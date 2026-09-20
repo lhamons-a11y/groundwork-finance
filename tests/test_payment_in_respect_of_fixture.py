@@ -100,7 +100,7 @@ def run(db):
     household, kim_party = rob.party, kim.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'amount': {'person', 'institution'},
                'patient_responsibility': {'institution'}, 'billed': {'institution'}, 'plan_paid': {'institution'},
-               'paid_by': {'person', 'institution'}, 'paid_to': {'person', 'institution'}, 'cleared': {'institution'}}
+               'paid_by': {'person', 'institution'}, 'paid_to': {'person', 'institution'}}   # cleared: ruled since 9D-iv
 
     def utter(text, when='2026-03-03T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -378,9 +378,9 @@ def run(db):
           not any(w in c.name for w in ('funder', 'mode', 'cleared', 'attached', 'confirmed', 'duplicate', 'source') for c in db.Proposition.__table__.columns)
           and 'expense_funding_allocations' in db.Base.metadata.tables
           and not any(hasattr(db, n) for n in ('decompose_allocation', 'allocation_to_payment')))
-    about_p('cleared', q2, 'cleared 4/11', reading=r_feed, as_of='2026-04-11')
+    about_p(db.CLEARED, q2, 'cleared 4/11', reading=r_feed, as_of='2026-04-11')
     check('D11: what the row fused is now separate claims - cleared is the bank\'s claim on the payment, not a station on the relation',
-          stances('cleared', 'subject_payment_id', q2).count() == 1)
+          stances(db.CLEARED, 'subject_payment_id', q2).count() == 1)
     check('D12: the determinations are neither this kind nor derived from it - no user_paid_cash / unpaid / pending_claim kind or helper',
           not any(k in db.RULED_KINDS for k in ('user_paid_cash', 'unpaid', 'pending_claim', 'provider_adjustment'))
           and s.query(db.Proposition).filter(db.Proposition.kind.in_(('user_paid_cash', 'unpaid', 'pending_claim', 'provider_adjustment'))).count() == 0

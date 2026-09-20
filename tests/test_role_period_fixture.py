@@ -116,7 +116,7 @@ def run(db):
     # Kn6's link as this fixture named it) is NOT one of them - 9B's servicer_of is party -> obligation - so it
     # stays a stand-in here, its name carrying no ruling.
     check('the shipped registry marks exactly the ruled role kinds and carries boundary entries only for under_plan, entitled_party_of and servicer_of; serves and the obligor role are not ruled',
-          {k for k, r in shipped.items() if r.get('role')} == {'under_plan', 'entitled_party_of', 'servicer_of', 'provider_of', 'insurer_of', 'insurer_of_plan', 'incurred_by', 'paid_by', 'paid_to'}
+          {k for k, r in shipped.items() if r.get('role')} == {'under_plan', 'entitled_party_of', 'servicer_of', 'provider_of', 'insurer_of', 'insurer_of_plan', 'incurred_by', 'paid_by', 'paid_to', 'drawn_on'}   # drawn_on: 9D-iv
           and {r['of'] for r in shipped.values() if r.get('of')} == {'under_plan', 'entitled_party_of', 'servicer_of'}
           and not any(n in shipped for n in ('serves', 'obligor_on', 'obligor', 'covered_under', 'member_of', 'enrolled_in', 'membership', 'payer_of', 'payee_of')))
     for k in STAND_INS:

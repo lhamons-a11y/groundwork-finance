@@ -32,7 +32,7 @@
 > role-set relation (undated, F1); the bank holds no ruled role (F2 — a `drawn_on` role in 9B's form,
 > not_knowing, or deferred); `occurred_on` one kind with two subjects (F3); Kn7's third clause under
 > the ruled kind (F5); **RULED (§9D-iv.7) — F1 as read, F2 (a) a `drawn_on` role in 9B's form,
-> F3–F6 as read; build awaits authorisation; no code.**
+> F3–F6 as read; BUILT (awaiting acceptance); 9D-v unopened.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -2440,5 +2440,84 @@ F6** — it authorises only the measured corpus corrections and smuggles no role
 provenance ruling — and is not retroactively attributed to §9D.9.**
 
 **No code.** The next authorisation is the explicit *build 9D-iv*.
+
+---
+
+#### Built — 2026-09-20 (9D-iv)
+
+`core/database.py`: five registry entries — `AMOUNT` (a payment), **`OCCURRED_ON` with two permitted
+subjects** (a payment, an expense — F3), `CLEARED`, `BANK_RETURNED_ITEM` (the bank's stances on a
+payment), all `KNOWING_ROLE_HOLDER_ON_SUBJECT`, `reading_establishes True`; and **`DRAWN_ON`**, the bank's
+role in 9B's exact shape (party → payment, holds-only, `'role': True`, `KNOWING_SUBJECT_PARTY`) — the
+tenth role, the cross-slice dependency K6 required. **The role-set relation, written once:**
+`_ROLE_SET = {'payment': (paid_by, paid_to, drawn_on), 'expense': (provider_of, incurred_by)}` keyed by
+the subject's identity type; `_role_holder_on_subject(session, prop, claimant)` — knowing iff the
+claimant (or its referent) holds an **established holds stance** of any role in the set on the claim's
+own subject; not_knowing otherwise; undetermined with no claimant or no subject; **undated — no
+`as_of` read, no `in_effect`** (a value is a fact about the thing); the eighth entry in
+`_KNOWING_RELATIONS`, its own dispatch line. The role-at-date relation untouched. **The whole
+non-comment diff:** six constants, five entries, the table, the resolver, one dispatch line.
+`_one_value`, every consumer, `reach`, `_claim_states`: untouched.
+
+**The oracle:** `tests/test_value_kinds_fixture.py` — 18 checks over Va1–Va12, the registry, and
+`drawn_on` on 9B's three points, with a map carrying no entry for any 9D-iv kind: **who may assert**
+(the household — established, not knowing, the subject party is the bank; the bank — knowing for its
+own role; the statement line read — a candidate, a reading never establishes a role); **what it
+establishes** (only that — no amount, date, clearance or acknowledgment claim exists or is minted by
+it; the snapshot unchanged); **who is knowing** (the subject party); the registry's refusals (a
+payment-subject `drawn_on`; no `drawn_on_began` / `_ended`). **Va2 / Va8** (Rob's own payment —
+knowing by `paid_by` for an amount that is **undated, the value's normal state**); **Va3 (K6 / F2)**
+(the bank's statement line read: amount, date and cleared **candidates in state, knowing in
+strength** — the origin holds `drawn_on`; 7G's value Rob's established one, the reading listed as a
+candidate, the station unmoved); Va4 (Rob's spreadsheet read → knowing — Rob is the payer; a
+stranger's document → not_knowing); **Va12 the 2 × 2 on p** (the payer knowing for both, a stranger
+for neither — the type test had called an institution knowing and a person not); Va7 (two amounts by
+the payer → both knowing; `_one_value` → *disputed*; 7G's amount undetermined with the reason — the
+relation grades who may know, the consumer never chooses); **the composition fence** (Harbor knowing
+for p's amount as payee; on a payment paid to the servicer and *attached to O where Harbor is entitled*,
+Harbor not_knowing — the entitled-party role is not in the set and is not reached through the
+attachment); **Va1 (Kn7)** (Rob the minter not_knowing; the mother not_knowing until her `paid_by` is
+in the record, then knowing — the relation answers why, manufactures nothing); Va5 / Va9 (the
+expense's date: Riverbend Hospital and Kim knowing by their roles, Rob not; the same kind as a payment's date, the
+set by subject type; Rob's different date → disputed); Va9 (`occurred_on` refuses an obligation
+subject); **Va10** (the bank knowing through `drawn_on`; Rob's *it cleared* knowing through
+`paid_by` — **the bank line is an evidence shape, never a role or a knowing source**; **7G's station
+unmoved**); Va6 (a line about nothing paid: no subject, refused); Va11
+(the bank line with the bank as subject refused under `cleared` / `amount`, accepted under `bank_line`).
+
+**The substitution — F6's three classes, confirmed by the substrate run before the fixture was
+written, and one interaction:** 7G 40/40, 7I 30/30, 7H 32/32, 7J 31/31 with their map entries for
+`amount` / `occurred_on` / `cleared` retired, helpers by constant, the *no value kind registered*
+absences retired (7G's and 7J's fixtures now say every kind they read is ruled); D and D′'s `cleared`
+by constant; the three 9D stance fixtures' map entries retired. **F6(1):** the bank line under `cleared`
+in payment-identity (three sites) and Ab7 → `bank_line`, no new kind; `s94`'s *bank line mints a
+payment* mutation follows the rename. **F6(2):** the exact pins — 7G / 7I / 7H / 7J's absences; Kn7's
+*`occurred_on` not in the registry*; the relational-knowing and role-catalogue counts (seven → eight
+names); **the role-set pins** in the 9B fixture, item 5's and `s118` (*exactly nine roles* → ten, `s118`
+restated to 9B's own nine as a subset); payment-identity's subject-slot set (the value kinds and the
+bank's stances now sit on it). **F6(3):** no strength assertion on a value outside Kn7; `date_of_service`
+and `eob_amount` untouched. **Kn7 and Va1 are intentionally different fixtures — F5's distinction made
+executable, not a contradiction:** **Kn7 retains its no-presupposed-role corpus** — the mother asserts
+the date, no `paid_by` claim for her exists there, and F6 authorises no presupposed-role additions —
+**and therefore remains `not_knowing`**; **Va1 separately proves that an explicitly established
+`paid_by` relation makes the mother's value knowing** (not_knowing before the role claim, knowing
+after it). The relation answers *why* she is first-hand and manufactures nothing from her utterance.
+**Kn7 must not later be "fixed" by adding `paid_by` merely to make an assertion pass** — its
+not_knowing is the correct answer for the record it holds. Both rulings kept; the interaction
+recorded, not resolved by adding the role. `s97`'s Kn7 mutation, which had registered a stand-in `occurred_on`
+and popped it on restore, now replaces the ruled entry's relation and restores it — mutation plumbing.
+
+**Smoke `s123_value_kinds.py`:** the fixture passes; ten mutations — the minter knowing (Kn7
+reversed) · the type conferring knowing · the role-set read at a date (an undated amount undetermined)
+· a stranger knowing · **the bank without its role** (`drawn_on` dropped from the set — F2 reversed) ·
+`cleared` moving 7G's station (K6 reversed) · a reading establishing state · **the attachment
+composing** (the entitled party in the set) · the two subject types' sets swapped · a second resolver —
+all caught; two on the second run, after two fixture gaps closed: Va3 had asserted the reading's
+strength but not its **state** (7G's value was the same either way), and the composition fence had
+used a payment attached to nothing — a real negative case (attached to O, paid to the servicer,
+Harbor entitled) put in its place.
+
+**Left where it belongs:** the determination (9D-v) · candidate generation (the bank line's own
+kind, when it has one) · 9D-i-F3 (7G). No schema, no migration. Gate 1478 → 1501, 0 failed.
 
 ---

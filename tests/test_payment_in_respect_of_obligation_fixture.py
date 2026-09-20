@@ -346,7 +346,7 @@ def run(db):
           and s.query(db.Proposition).filter_by(kind='acknowledged', object_payment_id=p5.id).count() == 0
           and s.query(db.Proposition).filter_by(kind='entitled_party', subject_party_id=s3.id).count() == 0)
     p6, u_p6 = pay('I paid Chase directly in June; they never credited it.', '2026-06-03T09:00:00')
-    about_p('cleared', p6, 'cleared 6/4', reading=r_chase, as_of='2026-06-04')
+    about_p(db.CLEARED, p6, 'cleared 6/4', reading=r_chase, as_of='2026-06-04')
     p_o(p6, o1, utterance=u_p6)
     check("D'9 (S6): bank says cleared, E says nothing - the relation stands beside both; nothing chosen; remaining not moved",
           rel(p=p6, o=o1).count() == 1 and s.query(db.Proposition).filter_by(kind='acknowledged', object_payment_id=p6.id).count() == 0

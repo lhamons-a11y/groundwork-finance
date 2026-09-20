@@ -45,7 +45,7 @@ def _mutations(db):
 
     def bank_line_mints():
         def on_candidate(mapper, connection, target):
-            if target.object_state == db.PARTICIPANT_CANDIDATES and target.kind == 'cleared':
+            if target.object_state == db.PARTICIPANT_CANDIDATES and target.kind == 'bank_line':   # 9D-iv: the fixture's bank line is bank_line; cleared is the ruled stance
                 u = connection.execute(db.Utterance.__table__.select().limit(1)).first()
                 if u is not None:
                     connection.execute(PM.insert().values(minted_by_id=u.id))

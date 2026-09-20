@@ -83,7 +83,7 @@ def run(db):
     s.commit()
     household = rob.party
     # the foundation map carries NO entry for the three ruled kinds: their knowing is the registry's
-    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'amount': {'person', 'institution'}, 'occurred_on': {'person', 'institution'}}
+    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}}   # amount / occurred_on: ruled values since 9D-iv
 
     def utter(text, when='2026-03-03T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)

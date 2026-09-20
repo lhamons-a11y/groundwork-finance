@@ -157,8 +157,8 @@ def run(ctx):
         check(f'core imports ({type(e).__name__}: {e})', False)
         return
     roles = {k for k, r in db.RULED_KINDS.items() if r.get('role')}
-    check('core/database.py carries the role catalogue exactly as ruled - nine role kinds marked, the seven of 9B knowing by the subject party, boundaries bound to the three that transition only, the guard passing - and no selector, default or governing resolver',
-          roles == {db.UNDER_PLAN, db.ENTITLED_PARTY_OF, db.SERVICER_OF, db.PROVIDER_OF, db.INSURER_OF, db.INSURER_OF_PLAN, db.INCURRED_BY, db.PAID_BY, db.PAID_TO}
+    check('core/database.py carries the role catalogue exactly as ruled - the nine role kinds of 9A / 9B marked (a tenth, drawn_on, ruled later by 9D-iv), the seven of 9B knowing by the subject party, boundaries bound to the three that transition only, the guard passing - and no selector, default or governing resolver',
+          roles >= {db.UNDER_PLAN, db.ENTITLED_PARTY_OF, db.SERVICER_OF, db.PROVIDER_OF, db.INSURER_OF, db.INSURER_OF_PLAN, db.INCURRED_BY, db.PAID_BY, db.PAID_TO}   # 9B's nine; 9D-iv added drawn_on in 9B's form - this section pins 9B's own
           and all(db.RULED_KINDS[k].get('knowing_relation') == db.KNOWING_SUBJECT_PARTY for k in roles - {db.UNDER_PLAN})
           and {r['of'] for r in db.RULED_KINDS.values() if r.get('boundary')} == {db.UNDER_PLAN, db.ENTITLED_PARTY_OF, db.SERVICER_OF}
           and db.registry_violations() == []

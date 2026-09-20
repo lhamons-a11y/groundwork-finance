@@ -120,7 +120,7 @@ def run(db):
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
     check('the stand-in role kind is removed; the registry is as shipped; no value or acknowledgment kind was registered',
-          db.RULED_KINDS == shipped and not any(k in shipped for k in ('amount', 'occurred_on')))   # paid_by / paid_to: ruled roles since 9B; acknowledged / balance: ruled stances since 9D-i
+          db.RULED_KINDS == shipped)   # every kind this fixture reads is ruled: roles 9B, stances 9D-i, values 9D-iv
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -134,7 +134,7 @@ def _run(db):
     s.add_all([rob, kim])
     s.commit()
     household, kim_party = rob.party, kim.party
-    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 
+    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'},   # amount / occurred_on: ruled values since 9D-iv - knowing by the role-set, not by the map
                'amount': {'person', 'institution'}, 'occurred_on': {'person', 'institution'}}
     D = Decimal
 
@@ -193,8 +193,8 @@ def _run(db):
 
     def pay(O, amount, on, payer, payee, attach=True, amount_by=None):
         p = mint(db.Payment, f'Paid {amount} on {on}.')
-        claim('amount', utterance=utter(amount, origin=amount_by), content=amount, subject_payment_id=p.id)
-        claim('occurred_on', utterance=utter(on), as_of=on, subject_payment_id=p.id)
+        claim(db.AMOUNT, utterance=utter(amount, origin=amount_by), content=amount, subject_payment_id=p.id)
+        claim(db.OCCURRED_ON, utterance=utter(on), as_of=on, subject_payment_id=p.id)
         if payer is not None:
             claim('paid_by', utterance=utter('paid by'), as_of=on, subject_party_id=payer.id, object_payment_id=p.id)
         if payee is not None:

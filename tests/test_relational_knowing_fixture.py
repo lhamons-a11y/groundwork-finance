@@ -182,17 +182,19 @@ def run(db):
     s.commit()
     e_occ = evidence(prop('occurred_on', object_state=db.PARTICIPANT_NONE, subject_payment_id=p9.id, as_of='2026-07-01'),
                      utterance=u_mom)
-    check('Kn7: Rob minted the payment; his claim that it occurred is NOT knowing - the caller stand-in says nobody by foundation, and no ruled relation confers it',
+    check('Kn7: Rob minted the payment; his claim that it occurred is NOT knowing - by the ruled role-set relation now (9D-iv): the minter holds no role on the payment',
           st(e_occ) == db.STRENGTH_NOT_KNOWING and p9.minted_by_id == u_mom.id)
     check('Kn7: no named knowing relation maps a minter to knowledge of an event\'s properties - only the about-ness kinds designate the minter',
           set(k for k, r in db.RULED_KINDS.items() if r.get('knowing_relation') == db.KNOWING_MINTER_OF_OBJECT_IDENTITY)
           == {db.ARTEFACT_CONCERNS, db.PROPOSITION_CONCERNS}
-          and 'occurred_on' not in db.RULED_KINDS and 'amount' not in db.RULED_KINDS)
-    # 9B has since ruled paid_by (knowing: the subject party); occurred_on - the event's property - is still 9D's, so
-    # the mother's knowing for it stays undetermined: minting != knowing, and a role claim's knowing is not the event's.
-    check('Kn7: occurred_on (the event\'s property) is unruled, so the mother\'s knowing for it cannot be derived - undetermined via the stand-in, not manufactured from her ruled paid_by role',
-          st(evidence(prop('occurred_on', object_state=db.PARTICIPANT_NONE, subject_payment_id=p9.id, as_of='2026-07-01'),
-                      utterance=utter('I paid Mercy on July 1.', origin=mother)), {}) == db.STRENGTH_UNDETERMINED)
+          and 'minter' not in db.RULED_KINDS[db.OCCURRED_ON]['knowing_relation'] and 'minter' not in db.RULED_KINDS[db.AMOUNT]['knowing_relation'])   # 9D-iv: the values are ruled; their relation is the role-set, which names no minter
+    # 9D-iv (F5, accepted as a change to this permanent case): the mother IS first-hand for the payment's date - by paid_by, when that
+    # role is in the record. THIS corpus records no paid_by claim for her, and 9D-iv's F6 fence forbids adding a presupposed role
+    # here - so the relation answers NOT_KNOWING for her claim as the record stands: nothing manufactured, nothing inferred from
+    # the utterance. The 9D-iv fixture's Va1 shows her knowing where the role is asserted.
+    check('Kn7: the mother\'s own claim that she paid on July 1 - with NO paid_by claim for her in this record - is NOT knowing by the role-set relation; the relation answers why she would be first-hand (paid_by) and manufactures nothing from her utterance',
+          st(evidence(prop(db.OCCURRED_ON, object_state=db.PARTICIPANT_NONE, subject_payment_id=p9.id, as_of='2026-07-01'),
+                      utterance=utter('I paid Mercy on July 1.', origin=mother)), {}) == db.STRENGTH_NOT_KNOWING)
 
     print('\n4. Kn5 / Kn8 / Kn10 - origin of an utterance or artefact is not knowing for what it relays\n')
     e_relay = evidence(prop('eob_amount', object_state=db.PARTICIPANT_NONE, subject_artefact_id=A.id, content='$412'),
@@ -245,9 +247,11 @@ def run(db):
     # 9B named a third relation for the role kinds (KNOWING_SUBJECT_PARTY); 9D-i a fourth, the role-at-date relation
     # (KNOWING_ENTITLED_PARTY_AT_AS_OF) - three designated-participant resolvers and one that classifies the claimant by role at as_of.
     # 9D-ii applied the role-at-date relation to the provider and the insurer - two more names on the one resolver
-    check('the relations are NAMED and finite - seven names (three designated-participant, four role-at-date on one resolver), nothing generic',
+    # 9D-iv added the role-set relation (one resolver) - the eighth and last name
+    check('the relations are NAMED and finite - eight names (three designated-participant, four role-at-date on one resolver, one role-set), nothing generic',
           set(db._KNOWING_RELATIONS) == {db.KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE, db.KNOWING_MINTER_OF_OBJECT_IDENTITY, db.KNOWING_SUBJECT_PARTY,
-                                         db.KNOWING_ENTITLED_PARTY_AT_AS_OF, db.KNOWING_PROVIDER_AT_AS_OF, db.KNOWING_INSURER_AT_AS_OF, db.KNOWING_PLAN_INSURER_AT_AS_OF}
+                                         db.KNOWING_ENTITLED_PARTY_AT_AS_OF, db.KNOWING_PROVIDER_AT_AS_OF, db.KNOWING_INSURER_AT_AS_OF, db.KNOWING_PLAN_INSURER_AT_AS_OF,
+                                         db.KNOWING_ROLE_HOLDER_ON_SUBJECT}
           and not any(hasattr(db, n) for n in ('find_related_party', 'related_parties', 'reachable_parties', 'knowing_party_for')))
     check('every relational kind either names a relation from that table or none - never a bare traversal hint',
           all(r.get('knowing_relation') in (None, *db._KNOWING_RELATIONS) for r in db.RULED_KINDS.values()))
