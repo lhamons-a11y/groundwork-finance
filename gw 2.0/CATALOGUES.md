@@ -25,8 +25,9 @@
 > 2026-09-20). **9D-iii OPENED (§9D-iii) — the insurer's stances and terms on P; two shape questions
 > the registry cannot say as-is (F1 `deductible_applied`'s optional object; F2 `eligibility`'s role on
 > the object — application or re-ruling, Rob's), F3 three "coverage ended" kinds, F4 the terms with
-> 7J's any-party read recorded as 7J's, F5 one name, F6 three swap classes pre-measured; ruling
-> sought; no code.**
+> 7J's any-party read recorded as 7J's, F5 one name, F6 three swap classes pre-measured; **RULED
+> (§9D-iii.7) — F1 two kinds, F2 the role read on the object as APPLICATION (the one item reaching
+> the resolver dispatch), F3 three kinds, F4–F6 as read; build awaits authorisation; no code.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -2088,5 +2089,56 @@ the plan's insurer).
 > kinds. **(4) F4:** the kind's holder the insurer; 7J's any-party term read recorded as 7J's question.
 > **(5) F5:** `authorization`, one name. **(6) F6:** the three swap classes accepted before the
 > build. Nothing here authorises code.
+
+---
+
+### 9D-iii.7 Ruling — Rob, 2026-09-20: F1–F6 RULED; no code authorised by this ruling
+
+**F1 — `deductible_applied`: two kinds, parallel to `deductible` / `individual_deductible`.** The
+distinction is not whether an object happens to be present but **semantic shape**: the family figure
+on P has no individual object; the individual figure is on (person, P). An optional-object registry
+key would collapse the two shapes into one kind and make the registry encode a distinction it does
+not otherwise encode; the person as opaque content would lose the distinction 7J actually consumes.
+**The person-required form is explicitly named as the consumer line.** This touches 7J's catalogue
+only in the already-established two-shape classification; implementation is not authorised here.
+
+**F2 — `eligibility`: the relation applied, not reinterpreted.** The semantic fact stands: *the
+claimant held role R on the thing the stance is about, at `as_of`.* For this kind the thing the stance
+is about is the **plan** while the stance's subject is the **person**; the resolver therefore needs
+to know that the role is tested on the object's side. **A dispatch / application question, not a
+new meaning for `insurer_of_plan`.** 7J is particularly strong evidence — it already performs the
+object-plan reading — so the relation is neither flipped nor removed to preserve a simpler resolver
+shape. **Ruling: retain the relation semantics; authorise the application shape in which the resolver
+can specify that the role is read on the object.** *Explicitly marked: the one F item that reaches
+the resolver dispatch, as §9D.9 anticipates — an application of the already-ruled relation to an
+unusual stance shape, not permission to redefine what the relation means. 9D-iii does not reopen the
+ontology because this is the first slice where the stance subject and the role-bearing thing
+diverge.*
+
+**F3 — coverage ended: three independent kinds, no derivation.** They differ in who / what the claim
+is about and what boundary ended: the household's coverage boundary; the insurer's eligibility about
+(person, P); the insurer's termination about P. A shared colloquial description does not make one
+derivable from another.
+
+**F4 — the insurer holds the terms.** *Our deductible is $3,000* is evidence relaying the insurer's
+term; it does not make the household the holder. 7J's any-party term reading remains **7J's
+question**, not silently settled here.
+
+**F5 — `authorization`: one kind.** No shape distinction warrants multiplying it.
+
+**F6 — the three swap classes retained** — borrowing the SBC line's shape; omitting the
+`insurer_of_plan` role from plan-identity; treating the household's relayed term as knowing. **The
+household-term case must resolve to `not_knowing`**, never a manufactured positive knowing.
+
+| | Ruling |
+|---|---|
+| **F1** | two `deductible_applied` kinds, parallel to 7J's two deductible kinds; the person-required form the consumer line |
+| **F2** | relation retained; the role read on the object for this shape; the resolver dispatch may carry that application distinction |
+| **F3** | three independent coverage-ended kinds; no derivation |
+| **F4** | the insurer holds the terms; the household's statement is relay evidence; 7J owns any-party term semantics |
+| **F5** | one `authorization` kind |
+| **F6** | three swap classes retained; the household-term knowing assertion retires to `not_knowing` |
+
+**No code.** The build awaits its separate authorisation.
 
 ---
