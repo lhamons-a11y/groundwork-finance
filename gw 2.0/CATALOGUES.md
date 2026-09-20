@@ -34,8 +34,8 @@
 > the ruled kind (F5); **RULED (§9D-iv.7) — F1 as read, F2 (a) a `drawn_on` role in 9B's form,
 > F3–F6 as read; built (`86b85d5`) and ACCEPTED (Rob, 2026-09-20). **9D-v OPENED (§9D-v) — the
 > determination: one kind, knowing undetermined by design (9D-F5), no role, `reading_establishes`
-> False (a parser determines nothing), the four names 7H's; the last slice of item 9; ruling sought;
-> no code.**
+> False (a parser determines nothing), the four names 7H's; the last slice of item 9; **RULED
+> (§9D-v.7) — F1–F3 as read; build awaits authorisation; no code.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -2637,5 +2637,29 @@ resolver.
 > two corpus classes accepted. Nothing here authorises code. **After 9D-v's build and acceptance the
 > inventory of §1 is complete — every stand-in a ruled kind — and item 9 can close; closing it is
 > Rob's word, not this slice's.**
+
+---
+
+### 9D-v.7 Ruling — Rob, 2026-09-20: F1–F3 RULED as read; no code by this ruling
+
+**F1 — `reading_establishes False`.** A reading never establishes a determination — a parser
+determines nothing (7H). With no knowing relation the flag is inert for strength; it is ruled to say
+what 7H says.
+
+**F2 — no role on the kind, no asserter constraint.** Any party may determine; 7H reports the
+asserter's roles as facts and constrains nothing; no `determiner_of` role is invented; the
+determination's knowing is undetermined by design — a party's reading of the situation, not a
+first-hand position (the parallel with `under_plan`). A role gate, if a consumer ever needs one, is
+that consumer's own ruling, never the kind's.
+
+**F3 — the two corpus classes accepted:** 7H's `'determination' not in shipped` pin and map entry;
+7J's and the 9D-ii fixture's map entries. No borrowed shape; no presupposed-role addition (there is
+no role).
+
+**The entry:** `DETERMINATION` — subject `(subject_expense_id,)`, object `()`, `symmetric False ·
+reading_establishes False · relational_knowing True`, no `knowing_relation`, no `role`, no boundary.
+No relation, no table row, no resolver change.
+
+**No code.** The build awaits its separate authorisation.
 
 ---
