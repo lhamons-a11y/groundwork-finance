@@ -3981,3 +3981,16 @@ statement, read and accepted — now discharges, as §7G.3 always said it should
 moved. Gate 1524 → 1532, 0 failed.
 
 ---
+
+#### Accepted and closed — Rob, 2026-09-20 (7G-F3)
+
+Accepted as built and ruled: `48d37e9`, 1532 / 0, s113 35/35. The implementation matches the
+ruling — one loop in `remaining`; grouping by claim; state aggregated; strength from the strongest
+origin; every origin retained; `qualifies` per claim; one report entry per claim; 7I inheriting the
+same shape; no additional relation, derivation or ontology machinery. The validation as wanted: 7G
+40/40 and 7I 30/30 unchanged under the null model; six ruled cases → 46/46; Di19 explicit → 31/31;
+all four s113 mutations caught first run; s114 and s120 checked as consumers; Ob3 corrected to the
+ruled answer. **The provenance point preserved: multiple relationships attached to one claim do not
+become multiple acknowledgments, while their distinct origins are not collapsed.** **7G-F3 closed.**
+
+---
