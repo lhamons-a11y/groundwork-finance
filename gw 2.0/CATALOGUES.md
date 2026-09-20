@@ -11,7 +11,8 @@
 > discovered from the consumers' reads (two shapes of P-ack already shipped); nine findings, one of
 > which (9D-F1, the position-holder — participant or hidden operand) governs the rest and is put
 > first with 9D-F2 and 9D-F8; **9D-F1 RULED — the mixed holder shape; 9D-F2 + the servicer clause
-> RULED as one (§9D.7); 9D-F8 at a candidate — five sub-passes i–v (§9D.8), ruling sought; no code.**
+> RULED as one (§9D.7); 9D-F8 RULED (§9D.9) — five sub-passes i → v, the role-at-date relation
+> ruled once in 9D-i and applied thereafter; 9D-i the next slice, unopened; no code.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -1296,5 +1297,40 @@ touched-fixture runs had not).
 
 **Ruling sought — 9D-F8:** the five sub-passes in that order, with the role-at-date relation ruled
 once in 9D-i; or a different cut. Nothing here authorises code; 9D-i opens on Rob's word.
+
+---
+
+### 9D.9 Ruling — Rob, 2026-09-19: 9D-F8 ACCEPTED as proposed; 9D-i the next semantic slice; no code
+
+*Not merely a topical partition: each group has a distinct semantic dependency, and the order
+prevents a later group from silently changing an earlier group's holder rule.*
+
+**9D is five separately inspectable swaps, in this order:**
+
+1. **9D-i — obligation stances:** `acknowledged`, `balance`, `returned`. Uses the ruled
+   role-at-date holder relation. Carries F7 (no `dated` registry key). Carries the ruled
+   servicer-channel reading from F2. Consumers: 7G, 7I.
+2. **9D-ii — provider / insurer stances on X:** `billed`, `patient_responsibility`, `plan_paid`,
+   `applied_to_deductible`, `denial`, `adjudication`. Applies the same role-at-date relation.
+   Settles the relevant C7 question. Consumers: 7H, 7J.
+3. **9D-iii — insurer stances and terms on P:** `deductible_applied`, `eligibility`,
+   `coverage_ended`, `authorization`, the three terms. Applies the already-ruled relation rather
+   than introducing another holder mechanism. Settles F4 and F6. Consumer: 7J.
+4. **9D-iv — values:** `amount`, `occurred_on`, `cleared`. Introduces the remaining new relation
+   shape — the role-set F3 requires. Consumers: all four.
+5. **9D-v — determination:** F5 only; the determination remains undetermined. Consumer: 7H.
+
+`contribution` remains explicitly outside 9D — it is not a stance.
+
+*The five-way split is preferable to one large 9D because each swap gets its own cases → ruling →
+authorisation → consumer substitution → mutation tests → full gate; 9B and 9C are direct evidence
+that touched fixtures do not exhaustively expose later registry-shape assumptions.*
+
+**One further constraint follows from the partition: the role-at-date relation is ruled once, in
+9D-i, and subsequently applied — not semantically re-ruled in ii or iii.** Those groups may test
+their application and their consumer consequences; they cannot alter what the relation means.
+
+**9D-i is the next semantic slice. No code until its cases and ruling are complete.** It opens on
+Rob's word.
 
 ---
