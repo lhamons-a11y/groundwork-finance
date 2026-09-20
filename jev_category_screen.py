@@ -35,6 +35,20 @@ WHAT LEAVES THIS MACHINE
   is never written anywhere. home_install_import_rules.json and the database are
   never read - they are somebody's real merchants.
 
+WIRE FORMAT
+  Verified 2026-09-20 against typesafe-ai/typesafe-sdk-python (MIT): POST
+  /v1/systemone, Bearer auth, body {state, model, questions}, a choice answer
+  {type, choice, confidence, probabilities}. Only `jev-latest` under early
+  access is unconfirmed.
+
+THE LOCAL COMPARISON THIS SCREEN IS BUILT TO TAKE NEXT
+  typesafe-ai/system-one-adapter-python is TypeSafe's own drop-in replacement
+  for their client, backed by any OpenAI-compatible endpoint - Ollama serves
+  one at localhost:11434/v1. The same corpus, question and disqualifiers can
+  therefore be run against phi3.5 in-process. That is the measurement that
+  answers the hosting question: if the local model clears this screen, Jev
+  buys nothing Groundwork cannot already have on-device.
+
 DISQUALIFIERS (any one ends the screen regardless of the rest)
   * a category outside the option list (the API promises this cannot happen -
     verify it, do not trust it)
