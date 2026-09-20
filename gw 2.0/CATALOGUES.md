@@ -1148,3 +1148,77 @@ anywhere in the consumer fixtures gone.
 (K7: required, not designed) · D′.11 · G.
 
 ---
+
+### 9D.3a Rob's reframing of 9D-F1, and the H test — 2026-09-19
+
+**The ruling question, as Rob framed it:** *is the holder of these stance kinds established
+relationally by the asserter's role at the stance's `as_of`, or is the holder an explicit
+participant of the stance?* The distinction is not storage shape but **where the ontology says the
+position-holder exists.** H keeps the consumers' existing semantics — *stance → asserter → party in
+role R at `as_of`* — and makes the role / date lookup part of the meaning of the stance, not an
+implementation convenience; P would require every consumer to stop asking who asserted the position
+and consume a stored party instead — a semantic change §2.4 cannot smuggle in as representation.
+Rob's instruction: **test the candidate against whether the record can rule H without introducing a
+new consumer interpretation**; F2 stays behind F1; F8 after both; no code, no registry additions, no
+consumer edits.
+
+**The test, run per consumer gate.** H coincides with the gate for 7H's three X-stances and 7J's
+two accumulator stances (asserter in role at `as_of` — exactly H's relation); introduces nothing for
+the ungated kinds (terms, `eligibility`, `determination` — F4 / F5 stay open); and coincides for
+7G's `balance` (asserter entitled in effect) — **with one consequence stated plainly: the
+servicer's balance statement (K2 covers "a payment *or balance*") can never enter E's series under
+H, because `balance` has no slot that names E apart from the asserter.** And it **fails for the
+acknowledgment**:
+
+> 7G's gate reads **the party slot** (`e['party']` = `subject_party_id`) for the entitled-party test
+> and **the utterance origin** for strength. H would read the origin for both. The slot is not
+> legacy — it is load-bearing. §7G.7 committed: *the servicer's statement stays listed until the
+> role catalogue rules `serves` and relational knowing for the acknowledgment kind, **and the same
+> two tests read the ruled answers with no change to 7G.*** That promise is coherent only if the
+> acknowledgment names its holder apart from its asserter — `acknowledged(E, p)` asserted by S:
+> party E passes the entitled test, origin S is knowing at weakest link through `servicer_of`. **7G
+> already treats the acknowledgment as P-shaped, by anticipation.**
+
+So the record as built is **mixed**: the acknowledgment's holder is an explicit participant; every
+other stance's holder is relational. H cannot be ruled uniformly without a 7G change (retire the
+slot, and make 7G's entitled test read a holder *derived* from the servicer clause); P cannot be
+ruled uniformly without changing every consumer; **the mixed catalogue is the only shape that
+introduces no new consumer interpretation** — and it needs a reason that is semantic, not
+historical. One is available: *P-ack for a payment is discharge* (the acknowledgment ruling) — the
+acknowledgment is the one stance whose holder must be nameable by a party who is not the holder,
+because its ruled channels include a non-holder's held statement counting as E's position; the
+other stances' channels were ruled the same way (K2 says *or balance*), but no consumer was built
+to read them so, and 7G's `balance` was ruled on the asserter. Whether that reason is accepted, or
+the balance is brought into line with the acknowledgment (a party slot on `balance`; 7G's stated
+series reads the holder — a 7G change), is Rob's.
+
+**A second entanglement the test exposed — F2 and the servicer clause are one question.** The
+servicer clause needs the O that S serves; the acknowledgment carries no O (§D′.4). 7G has O as its
+argument and could evaluate the clause; a *kind-level* knowing relation (what `derived_strength`
+reads with no consumer in sight) would have to reach O through p's established
+`payment_in_respect_of_obligation` claims — reading the attachment to derive a strength. That does
+not establish the attachment (D′'s refusal stands) but it composes three links (the ack, the
+attachment, the servicing) into one strength, and D′.11's open question is composition across
+kinds. So the servicer clause cannot be ruled as a kind-level relation before F2 is, and F2's
+options are now three: **O absent** (the servicer clause lives only where O is known — in 7G,
+which already evaluates roles against its O; the kind's knowing relation is `KNOWING_SUBJECT_PARTY`
+alone, and the servicer channel's strength is 7G's to read — a consumer-side clause, which RG-a's
+wording *the asserter's entitled-party role* already half-describes); **O as content** (K8 refuses);
+**O as a participant** (two objects — a new registry shape, and the ack would then establish p → O
+by naming it, which D′ refused). *Reading:* O absent, and the servicer clause is not a kind-level
+relation at all but the consumer's weakest-link read where O is in hand — which is where the
+acknowledgment ruling placed it (*the consumer declaring the P-ack strength it requires*).
+
+### 9D.6a Ruling sought — restated after the test
+
+> **(1) 9D-F1, in Rob's form:** the holder of a stance is established relationally by the
+> asserter's role at `as_of` (H) for `balance`, the provider's and insurer's stances on X and P,
+> and the terms; **and the acknowledgment's holder is an explicit participant** (its party slot
+> stays, as 7G's tests already require) — the mixed catalogue, on the semantic reason above — **or**
+> Rob names the uniform shape and the consumer change it costs. **(2) 9D-F2 with the servicer
+> clause, as one question:** O absent from the acknowledgment, the acknowledgment's kind-level
+> knowing relation `KNOWING_SUBJECT_PARTY`, and the servicer channel's weakest-link strength a
+> consumer-side read where O is in hand (recommended) — or the alternatives named. **(3) 9D-F8**
+> after (1) and (2). Nothing here authorises code, a registry entry or a consumer edit.
+
+---
