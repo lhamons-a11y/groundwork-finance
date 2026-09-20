@@ -2373,7 +2373,7 @@ entitled party knowing for the amount) · the two subject types' sets swapped ·
 
 ---
 
-### 9D-iv.7 Ruling — Rob, 2026-09-20: F1 as read, F2 (a), F3–F6 as read; no code by this ruling
+### 9D-iv.7 Ruling — Rob, 2026-09-20: F1–F5 RULED; F6 left open pending its text; no code by this ruling
 
 **F1 — the role-set relation, undated.** A value is a fact about the thing, not a position; the
 relation is *the claimant holds any of a set of roles on the claim's subject*, read on the roles'
@@ -2381,13 +2381,25 @@ relation is *the claimant holds any of a set of roles on the claim's subject*, r
 payment → {`paid_by`, `paid_to`, `drawn_on`}; an expense → {`provider_of`, `incurred_by`}. The
 second and last new relation shape; the role-at-date relation untouched.
 
-**F2 (a) — `drawn_on`, a role ruled here in 9B's form.** Party → payment, holds-only, `'role': True`;
+**F2 (a) — `drawn_on`, a role ruled here in 9B's form.** *K6 does not merely say a bank statement
+happens to contain useful information; it says the bank can know that the household's money left.
+If the role-set is the mechanism for establishing first-handness, the ontology needs a role that
+actually expresses that bank / payment relation.* **`drawn_on` is a role held by the bank in respect
+of the payment, and belongs in the payment role-set.** Party → payment, holds-only, `'role': True`;
 on 9B's three points — **who may assert:** the household, or the bank as a party (a statement line
 read → a candidate); **what it establishes:** only that the payment was drawn on an account the
 party holds for the payer — not the amount, not the date, not clearance, not acknowledgment (K6);
-**who is knowing:** the subject party, `KNOWING_SUBJECT_PARTY` (Kn12 stands). Added to the payment
-role-set; **the holder of `cleared` and `bank_returned_item`.** A 9B-class ruling inside 9D-iv,
-taken on Rob's word as such.
+**who is knowing:** the subject party, `KNOWING_SUBJECT_PARTY` (Kn12 stands). **The holder of
+`cleared` and `bank_returned_item`.** *This does not silently reinterpret the role-set relation; it
+establishes the missing role K6's stated knowing case needs.* Not (b): the bank `not_knowing` would
+leave K6's positive first-hand assertion unexplained. Not (c): `cleared` is not deferred merely to
+avoid settling the role that accounts for the bank's knowledge.
+
+> **A cross-slice dependency, recorded explicitly rather than pretended anticipated:** §9D.9 did not
+> foresee a 9B-class role ruling inside 9D-iv. That it is necessary here is itself part of the record —
+> **9D-iv has exposed a role required by an existing provenance ruling (K6).** The value provenance
+> model requires `drawn_on` to account for the bank's knowledge; that is an explicit dependency of
+> 9D-iv on a role, not something hidden inside its implementation.
 
 **F3 — `occurred_on` one kind with two permitted subjects** (payment, expense); the role-set keyed by
 the subject's type; one catalogue key, no consumer changes.
@@ -2397,12 +2409,17 @@ content the line / date; `as_of` the date), holder `drawn_on`; never acknowledgm
 neither). The bank-line shape (the bank as subject, the thing a candidate) refused under the ruled
 names and kept under a stand-in — the borrowed-name class.
 
-**F5 — Kn7, permanent, under the ruled kind:** the minter not_knowing — by the relation now; the
-exact-absence pin retired; **the third clause accepted as the ruled relation's answer — the mother is
-knowing for the payment's date by `paid_by`, the payer being first-hand** — the case's meaning,
-*minting ≠ knowing*, intact.
+**F5 — Kn7, permanent, accepted including the changed third clause.** The minter remains
+`not_knowing` — now because the relation does not give the minter that status. The mother's knowing
+can no longer be described as something that *cannot be derived*: under F1 she is first-hand through
+`paid_by`. *The relation answers why the mother is first-hand; it does not manufacture a knowing
+fact.* The named permanent change accepted: from *the mother's knowing cannot be derived* to the
+formulation the role-set semantics requires.
 
-**F6 — the swap classes as pre-measured.**
+**F6 — NOT RULED.** Rob: *the opening says F1–F6 but supplies no F6 question or options; leave the
+record at F1–F5 rather than infer what F6 was intended to be.* (§9D-iv.3's F6 paragraph — the three
+swap classes pre-measured — is put back to Rob in its own text for a ruling; nothing about it is
+inferred.)
 
 **No code.** The build awaits its separate authorisation.
 
