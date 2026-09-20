@@ -2108,6 +2108,36 @@ BALANCE = 'balance'
 RETURNED = 'returned'
 KNOWING_ENTITLED_PARTY_AT_AS_OF = 'the_entitled_party_of_the_subject_obligation_in_effect_at_as_of'
 
+# ── Item 9, pass 9D-ii: THE PROVIDER'S AND INSURER'S STANCES ON X ───────────────────────
+# gw 2.0/CATALOGUES.md s 9D-ii.7 (ruled 2026-09-19). The role-at-date relation APPLIED on X - two rows in
+# _ROLE_AT_AS_OF, no new relation, nothing re-ruled: billed is the provider's dated position on X's
+# charge (holder = the asserter in effect as provider_of X at as_of - 7H's P-ack for the charge);
+# patient_responsibility, plan_paid, applied_to_deductible, denial and adjudication are the insurer's
+# dated positions on X (holder = the asserter in effect as insurer_of X at as_of; 4b: adjudication is an
+# institutional dated stance about X, and the insurer's claim has no Groundwork identity). Each kind its
+# own entry - recurrence of the P-ack shape establishes no family (4b). Content OPAQUE: a money amount,
+# `none` (7J's exempt - C6: the rule exists and this falls outside it), `reversed`, `not covered` - what a
+# consumer parses it parses. denial and adjudication are TWO KINDS by name (C7 / Rc6): a denial is never
+# read as a determination or as an adjudication amount, and the fence is the kind, not an interpreted
+# verdict field; adjudication is the insurer's adjudicative stance incl. a reversal (E3). The one consumer
+# gate not on X: 7J reads applied_to_deductible per PLAN - the asserter must be the insurer of the plan
+# being computed (CC1: two insurers adjudicate one X, each stance is its plan's) - that is 7J's consumer
+# gate; the kind-level holder is insurer_of X (both knowing for their own stance) and THE KIND CANNOT
+# ACQUIRE P BECAUSE A CONSUMER HAS P (9D-i's ack / 7G split again). The EOB relay: origin is not a role
+# claim - the insurer's `billed` column is the insurer relaying the provider's charge, and an
+# insurer-origin billed is not_knowing (O5: relaying does not launder). reading_establishes True as
+# 9D-i pinned it: the EOB or bill read -> candidate in state, strength through the artefact's
+# established origin in role; never state. A party's claim outside its role is reported, never
+# governing (F3 / K5). Not source words.
+BILLED = 'billed'
+PATIENT_RESPONSIBILITY = 'patient_responsibility'
+PLAN_PAID = 'plan_paid'
+APPLIED_TO_DEDUCTIBLE = 'applied_to_deductible'
+DENIAL = 'denial'
+ADJUDICATION = 'adjudication'
+KNOWING_PROVIDER_AT_AS_OF = 'the_provider_of_the_subject_expense_in_effect_at_as_of'
+KNOWING_INSURER_AT_AS_OF = 'the_insurer_of_the_subject_expense_in_effect_at_as_of'
+
 RULED_KINDS = {
     ARTEFACT_ORIGIN:      {'subject': ('subject_artefact_id',), 'object': ('object_party_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': False},
@@ -2234,6 +2264,25 @@ RULED_KINDS = {
     BALANCE:      {'subject': ('subject_obligation_id',), 'object': (),
                    'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
                    'knowing_relation': KNOWING_ENTITLED_PARTY_AT_AS_OF},
+    # Item 9 pass 9D-ii: the provider's and insurer's stances on X (s 9D-ii.7) - the relation applied on X.
+    BILLED:                 {'subject': ('subject_expense_id',), 'object': (),
+                             'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                             'knowing_relation': KNOWING_PROVIDER_AT_AS_OF},
+    PATIENT_RESPONSIBILITY: {'subject': ('subject_expense_id',), 'object': (),
+                             'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                             'knowing_relation': KNOWING_INSURER_AT_AS_OF},
+    PLAN_PAID:              {'subject': ('subject_expense_id',), 'object': (),
+                             'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                             'knowing_relation': KNOWING_INSURER_AT_AS_OF},
+    APPLIED_TO_DEDUCTIBLE:  {'subject': ('subject_expense_id',), 'object': (),
+                             'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                             'knowing_relation': KNOWING_INSURER_AT_AS_OF},
+    DENIAL:                 {'subject': ('subject_expense_id',), 'object': (),
+                             'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                             'knowing_relation': KNOWING_INSURER_AT_AS_OF},
+    ADJUDICATION:           {'subject': ('subject_expense_id',), 'object': (),
+                             'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                             'knowing_relation': KNOWING_INSURER_AT_AS_OF},
 }
 
 # ── Item 5: the role period ───────────────────────────────────────────────────
@@ -3129,6 +3178,8 @@ def _designated_subject_party(session, prop):
 # name - 9D-ii / 9D-iii add their names and roles to the table and change nothing else.
 _ROLE_AT_AS_OF = {
     KNOWING_ENTITLED_PARTY_AT_AS_OF: ENTITLED_PARTY_OF,
+    KNOWING_PROVIDER_AT_AS_OF: PROVIDER_OF,                      # 9D-ii: applied, not re-ruled
+    KNOWING_INSURER_AT_AS_OF: INSURER_OF,                        # 9D-ii
 }
 
 
@@ -3151,6 +3202,8 @@ _KNOWING_RELATIONS = {
     KNOWING_MINTER_OF_OBJECT_IDENTITY: _designated_minter_of_object_identity,
     KNOWING_SUBJECT_PARTY: _designated_subject_party,
     KNOWING_ENTITLED_PARTY_AT_AS_OF: _role_at_as_of,                 # 9D-i: dispatched with the claimant and the role
+    KNOWING_PROVIDER_AT_AS_OF: _role_at_as_of,                       # 9D-ii: the same resolver, the role from the table
+    KNOWING_INSURER_AT_AS_OF: _role_at_as_of,                        # 9D-ii
 }
 
 

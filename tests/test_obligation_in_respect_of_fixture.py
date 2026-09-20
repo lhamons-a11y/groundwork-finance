@@ -339,7 +339,7 @@ def run(db):
     print("\n9. C10 / C11 - the EOB's PR line and the bill concerning both: candidates at most; nothing derived\n")
     n_obl = s.query(db.Obligation).count()
     n_rel = rel().count()
-    p_line = prop('patient_responsibility', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=aetna.id, content='$412 | claim #A77', as_of='2026-03-10')
+    p_line = prop('eob_amount', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=aetna.id, content='$412 | claim #A77', as_of='2026-03-10')   # 9D-ii F2(i): the EOB line figure, not the ruled stance
     evidence(p_line, reading=r_eob)
     concerns(eob, utter("Aetna's EOB for the ER visit.", '2026-03-11T09:00:00'), x=X)
     check('C10: the EOB\'s PR line is the insurer\'s stance with X as a candidates participant; the EOB concerns X; no obligation minted, no relation asserted',

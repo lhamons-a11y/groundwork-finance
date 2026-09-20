@@ -175,9 +175,10 @@ def run(db):
                                              'relational_knowing': True, 'knowing_relation': db.KNOWING_ENTITLED_PARTY_AT_AS_OF}
           and not any(db.RULED_KINDS[k].get('role') or db.RULED_KINDS[k].get('boundary') for k in (db.ACKNOWLEDGED, db.BALANCE, db.RETURNED))
           and db.registry_violations() == [])
-    check('the role-at-date relation is the fourth named relation, its role taken from a table keyed by the name (entitled_party_of); no dated key exists on any entry; no generic resolver, no holder helper, no discharge helper',
-          set(db._KNOWING_RELATIONS) == {db.KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE, db.KNOWING_MINTER_OF_OBJECT_IDENTITY, db.KNOWING_SUBJECT_PARTY, db.KNOWING_ENTITLED_PARTY_AT_AS_OF}
-          and db._ROLE_AT_AS_OF == {db.KNOWING_ENTITLED_PARTY_AT_AS_OF: db.ENTITLED_PARTY_OF}
+    # 9D-ii applied the relation to the provider and the insurer: two more rows in the table, the same resolver
+    check('the role-at-date relation is named per role, its role taken from a table keyed by the name (entitled_party_of here; provider_of / insurer_of since 9D-ii), one resolver; no dated key exists on any entry; no generic resolver, no holder helper, no discharge helper',
+          db.KNOWING_ENTITLED_PARTY_AT_AS_OF in db._KNOWING_RELATIONS and db._ROLE_AT_AS_OF[db.KNOWING_ENTITLED_PARTY_AT_AS_OF] == db.ENTITLED_PARTY_OF
+          and len({db._KNOWING_RELATIONS[n] for n in db._ROLE_AT_AS_OF}) == 1
           and not any('dated' in r or 'as_of_required' in r for r in db.RULED_KINDS.values())
           and not any(hasattr(db, n) for n in ABSENT))
     check('O is absent from the acknowledgment: no obligation slot on the kind; an acknowledgment carrying an obligation is refused by the registry; the balance refuses a party subject and any object',

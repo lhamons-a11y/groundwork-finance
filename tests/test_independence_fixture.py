@@ -184,6 +184,15 @@ def run(db):
     X = db.Expense(minted_by_id=utter('We took Kim to the ER on Feb 14.', '2026-02-15T09:00:00').id)
     s.add(X)
     s.commit()
+    # 9D-ii F2(ii): these cases always meant "Aetna is knowing for an insurer's figure"; under the ruled role-at-date
+    # relation that is a fact the record must hold - Aetna's insurer_of role on X - not a party type. Added, not inferred.
+    def insurer_of(party, x, text):
+        pr = db.Proposition(kind=db.INSURER_OF, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_ESTABLISHED,
+                            subject_party_id=party.id, object_expense_id=x.id, as_of='2026-01-01')
+        s.add(pr)
+        s.commit()
+        evidence(pr, utterance=utter(text, '2026-02-15T09:01:00'))
+    insurer_of(aetna, X, 'Aetna is the insurer for the ER visit.')
 
     print('\n1. Absences - not a score, not stored, not a relation, not a default\n')
     check('no score, count, rank, default, cache, stored-relation or establishing helper exists on the module',
@@ -308,6 +317,7 @@ def run(db):
     check('In7(a): two artefacts established as one - one artefact, ONE origin, multiplicity 2; no pair',
           len(seven_a['origins']) == 1 and seven_a['origins'][0]['origin'] == aetna.id and seven_a['origins'][0]['multiplicity'] == 2)
     aetna2, u_aetna2 = mint_party('Aetna Health Inc.')
+    insurer_of(aetna2, X, 'Aetna Health Inc. is the insurer for the ER visit.')   # 9D-ii F2(ii): the second party's role, as the case presupposes
     letter = held('h-aetna-letter', '2026-04-02', aetna2, u_aetna2)
     r_letter = read(letter, process='parser/5', when=datetime(2026, 4, 3))
     pr7b = world('patient_responsibility', '$412', subject_expense=X)
@@ -323,6 +333,8 @@ def run(db):
     # In7(d): the same candidate encountered in the OPPOSITE direction, on a fresh pair of parties
     cig1, u_c1 = mint_party('Cigna.')
     cig2, u_c2 = mint_party('Cigna Healthcare Inc.')
+    insurer_of(cig1, X, 'Cigna is the insurer for the ER visit.')                   # 9D-ii F2(ii): the roles the case presupposes
+    insurer_of(cig2, X, 'Cigna Healthcare Inc. is the insurer for the ER visit.')
     l1 = held('h-cigna-1', '2026-04-05', cig1, u_c1)
     l2 = held('h-cigna-2', '2026-04-06', cig2, u_c2)
     rl1, rl2 = read(l1, process='parser/5'), read(l2, process='parser/5')

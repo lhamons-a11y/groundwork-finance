@@ -93,7 +93,7 @@ def run(db):
     s.commit()
     household, kim_party = rob.party, kim.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'nature_health': {'person'},
-               'patient_responsibility': {'institution'}, 'billed': {'institution'}}
+               'eob_amount': {'institution'}}   # patient_responsibility / billed: ruled stances since 9D-ii - knowing by the role, not by the map
 
     def utter(text, when='2026-02-15T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -181,12 +181,18 @@ def run(db):
 
     print('\n2. Identity authority is not epistemic authority: other parties claim, they do not mint\n')
     u_from_mercy = utter('Service rendered 2/14 to Kim.', '2026-02-20T09:00:00', origin=mercy)
+    # 9D-ii F2(ii): "the provider ... with its own authority" presupposes Mercy's provider_of role on X - added, not inferred
+    prov = db.Proposition(kind=db.PROVIDER_OF, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_ESTABLISHED,
+                          subject_party_id=mercy.id, object_expense_id=X.id, as_of='2026-02-14')
+    s.add(prov)
+    s.commit()
+    evidence(prov, utterance=utter('Mercy treated her.', '2026-02-15T09:01:00'))
     check('the provider\'s utterance cannot mint an expense',
           _refused(s, db.Expense(minted_by_id=u_from_mercy.id)))
     check('nor the insurer\'s, nor the bank\'s',
           _refused(s, db.Expense(minted_by_id=utter('Claim adjudicated.', origin=aetna).id))
           and _refused(s, db.Expense(minted_by_id=utter('Debit posted.', origin=bank).id)))
-    e_mercy_says, _ = about('billed', X, '$1,300', utterance=u_from_mercy)
+    e_mercy_says, _ = about(db.BILLED, X, '$1,300', utterance=u_from_mercy, as_of='2026-02-20')   # 9D-ii: a stance is dated (P-ack frozen); the utterance's date
     check('but the provider may assert a claim ABOUT X (billed $1,300), with its own authority',
           e_mercy_says.utterance.origin_party_id == mercy.id and db.derived_strength(s, e_mercy_says, KNOWING) == db.STRENGTH_KNOWING)
     check('an expense without a minting utterance, or under a nonexistent one, is refused',
@@ -216,7 +222,7 @@ def run(db):
     print('\n4. Ex3 / Ex4 - the EOB and the bill concern X; the obligation is separate; O <-> X is not built\n')
     eob = held('h-eob', '2026-03-10', aetna, u_aetna)
     r_eob = read(eob)
-    p_pr, e_pr = line(eob, r_eob, 'patient_responsibility', '$412 | claim #A77', aetna)
+    p_pr, e_pr = line(eob, r_eob, 'eob_amount', '$412 | claim #A77', aetna)   # 9D-ii F2(i): the EOB line figure (subject the insurer), not the ruled stance
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=eob.id, object_expense_id=X.id), utterance=utter("Aetna's EOB for the ER visit."))
     check('Ex3: the EOB concerns X; claim #A77 is content of a read line - never an identity or a slot',
           s.query(db.Proposition).filter_by(kind=db.ARTEFACT_CONCERNS, object_expense_id=X.id).count() == 1

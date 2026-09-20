@@ -118,7 +118,7 @@ def run(db):
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
     check('the stand-in role and relation kinds are removed; the registry is as shipped; no term, adjudication or eligibility kind was registered',
-          db.RULED_KINDS == shipped and not any(k in shipped for k in ('eligibility', 'deductible', 'individual_deductible', 'plan_year', 'deductible_applied', 'applied_to_deductible', 'occurred_on')))
+          db.RULED_KINDS == shipped and not any(k in shipped for k in ('eligibility', 'deductible', 'individual_deductible', 'plan_year', 'deductible_applied', 'occurred_on')))   # applied_to_deductible: ruled since 9D-ii)
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -134,7 +134,7 @@ def _run(db):
     household, kim_party = rob.party, kim.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 
                'amount': {'person', 'institution'}, 'occurred_on': {'person', 'institution'},
-               'billed': {'institution'}, 'patient_responsibility': {'institution'}, 'plan_paid': {'institution'}, 'determination': {'person', 'institution'}}
+               'determination': {'person', 'institution'}}   # billed / PR / plan_paid / applied_to_deductible: ruled stances since 9D-ii
     D = Decimal
 
     def utter(text, when='2026-04-02T09:00:00', origin=None):
@@ -281,7 +281,7 @@ def _run(db):
         return X
 
     def adjudicate(X, by, content, as_of):
-        return claim('applied_to_deductible', utterance=utter(content, origin=by), as_of=as_of, content=content, subject_expense_id=X.id)
+        return claim(db.APPLIED_TO_DEDUCTIBLE, utterance=utter(content, origin=by), as_of=as_of, content=content, subject_expense_id=X.id)
 
     def eligibility(person, P, by, content, as_of, reading=None):
         return claim('eligibility', utterance=None if reading else utter(content, origin=by), reading=reading, as_of=as_of, content=content,

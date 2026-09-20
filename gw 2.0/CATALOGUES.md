@@ -21,7 +21,8 @@
 > rows); `applied_to_deductible`'s kind-level holder `insurer_of` X with the per-plan selection 7J's;
 > F1 `adjudication` / `denial` two kinds or one; F2 two swap classes measured before the build (the
 > EOB line's borrowed name; the role claim missing from corpora that asserted knowing by type);
-> RULED (§9D-ii.7) — F1 two kinds, both F2 classes accepted, build AUTHORISED.**
+> RULED (§9D-ii.7) — F1 two kinds, both F2 classes accepted; BUILT (awaiting acceptance); 9D-iii
+> unopened.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -1851,5 +1852,68 @@ role claims where fixtures relied on type-only knowing. No new relation, no inte
 content, no change to 9D-i or the relation.
 
 **Build AUTHORISED — Rob: "Rule F1 as (a), accept both F2 classes, build 9D-ii."**
+
+---
+
+#### Built — 2026-09-20 (9D-ii)
+
+`core/database.py`: `BILLED`, `PATIENT_RESPONSIBILITY`, `PLAN_PAID`, `APPLIED_TO_DEDUCTIBLE`, `DENIAL`,
+`ADJUDICATION` — six registry entries, the expense the subject, no object, `reading_establishes True ·
+relational_knowing True`; `billed` with `KNOWING_PROVIDER_AT_AS_OF`, the five with
+`KNOWING_INSURER_AT_AS_OF`; **two rows in `_ROLE_AT_AS_OF`** (`provider_of`, `insurer_of`) and two names
+on **the one resolver** — `_role_at_as_of` untouched, the relation applied, not re-ruled. `denial` and
+`adjudication` two entries, no verdict key. The comment block states the application, the plan gate as
+7J's (*the kind cannot acquire P because a consumer has P*), the relay (*origin is not a role claim*)
+and C7's fence by kind. **The whole non-comment diff:** eight constants, six entries, two table rows,
+two `_KNOWING_RELATIONS` lines. No consumer, no `reach`, no `_claim_states`, no resolver change.
+
+**The oracle:** `tests/test_expense_stances_fixture.py` — 18 checks over Xs1–Xs14 and the registry,
+with a foundation map carrying no entry for the six: Xs1 (Riverbend Hospital's `billed` knowing; its bill read →
+candidate, knowing); Xs2 (Rob's *the EOB said $400* → not_knowing, reported never governing); **Xs3
+(the EOB's own *billed* column → not_knowing — the insurer relays the provider's charge; its
+`plan_paid` and PR knowing)**; Xs9 (Riverbend Hospital's *plan paid* → not_knowing); **Xs10 the 2 × 2 on X** (the
+type test called all four knowing); Xs4 (two Lakeview Health PR stances at one date → both knowing; 7H conflict
+→ none); **Xs5 (CC1: Lakeview Health and Cigna each `applied` on one X → both knowing at the kind level; 7J A
+from Lakeview Health's only, B from Cigna's only)** and **Xs5′ — the ruling's sentence made executable**: Cigna
+holds `insurer_of` X6 but insures no plan X6 is in respect of → knowing at the kind level, absent from
+A's basis (added after the first s121 run: the plan-gate mutation escaped because no case had an
+insurer outside every plan; a fixture gap, closed); Xs6 (`none` → knowing, 7J exempt, not zero);
+**Xs7 (the denial its own kind, knowing, no determination current, 7H's note names it, the content
+unparsed)**; Xs8 (*reversed* an `adjudication`, knowing for Lakeview Health, not for Riverbend Hospital, not a denial by
+kind); Xs11 (the insurer's holds claim retracted → 7F undetermined → the relation undetermined —
+**my first draft asserted `contested`; a lone retracted holds stance is *undetermined* in 7F, the
+substrate was right**); Xs12 (undated → undetermined); Xs13 (the EOB line with the insurer as subject
+refused under the ruled name, accepted under `eob_amount`); **Xs14 (Humana, an institution with no
+`insurer_of` claim → not_knowing; the role added to the record → knowing; the role never inferred)**.
+
+**The substitution — and the two classes measured before the build, confirmed by the substrate run
+before any fixture was written:** 7H 32/32 and 7J 31/31 with their map entries for the six retired
+and the helpers naming the ruled constants; the 9C fixture's three names by constant (33/33). **F2(i):**
+the EOB line under `patient_responsibility` in exactly the three fixtures foreseen (expense-identity,
+plan-identity, obligation-in-respect-of) → `eob_amount`, no new kind. **F2(ii):** the role claims
+added where knowing had been asserted by type — 7B's In12 / In17 (Lakeview Health's `insurer_of` X), In7 b–d
+(**both** Lakeview Health parties, and both Cigna parties — the cases mean *two knowing origins*, so each holds
+the role), expense-identity (Riverbend Hospital's `provider_of` X) — **five role claims in two fixtures**, each
+added as a claim with its own utterance, none inferred; and one further addition reported as its
+own class: expense-identity's `billed` stance was **undated**, and under the frozen rule (every
+P-ack dated) an undated stance's relation is undetermined — the utterance's own date supplied
+(`as_of='2026-02-20'`). **Pins:** the relational-knowing and role-catalogue fixtures (four names →
+six), `s97`, and 9D-i's own `s120` opening check, which had pinned the exact table `== {one row}`
+— restated to the 9D-i row it owns (the class 9C's pins taught, reproduced by me a day later).
+
+**Smoke `s121_expense_stances.py`:** the fixture passes; ten mutations — the insurer's relay of the
+charge knowing for `billed` · the provider's *plan paid* knowing · a denial read as a determination ·
+a denial read as an adjudication amount · **the plan gate at the kind level (P reached from X)** ·
+the type conferring knowing · a reading establishing state · an undated stance knowing · the
+relation re-ruled (a second resolver for the insurer) · exempt read as zero — all caught; the
+plan-gate one on the second run, after Xs5′ (above).
+
+**Left where it belongs:** 7J's plan selection (the consumer's) · the determination (9D-v) · the
+insurer's stances and terms on P (9D-iii — `KNOWING_PLAN_INSURER_AT_AS_OF` is a third row, not a
+third resolver) · values and the bank's stances (9D-iv). No schema, no migration. Gate 1419 →
+1442, 0 failed. **A gate-time observation, not a finding:** the gate's silent stretch in `s109`
+(aboutness, twenty fixture runs) grew from ~10 to ~25 minutes — `derived_strength` on a ruled stance now
+runs 7F's `in_effect` per read; a cost of the ruled relation, recorded so a later slice does not mistake it
+for a hang.
 
 ---

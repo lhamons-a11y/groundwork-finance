@@ -175,8 +175,8 @@ def run(db):
           and bool(db.registry_violations(registry=dict(db.RULED_KINDS, bad={'subject': ('subject_obligation_id',), 'object': ('object_expense_id',), 'symmetric': False,
                                                                                     'reading_establishes': False, 'relational_knowing': True, 'boundary': 'began', 'of': db.OBLIGATION_IN_RESPECT_OF}), kinds=('bad',))))
     # 9D-i added the fourth named relation (the role-at-date relation); the roles' own is unchanged
-    check('KNOWING_SUBJECT_PARTY is the third named relation with its own resolver - the claim\'s subject party; four named relations since 9D-i; nothing generic',
-          db._KNOWING_RELATIONS[db.KNOWING_SUBJECT_PARTY] is db._designated_subject_party and len(db._KNOWING_RELATIONS) == 4
+    check('KNOWING_SUBJECT_PARTY is the third named relation with its own resolver - the claim\'s subject party; six named relations since 9D-ii (the role-at-date names share one resolver); nothing generic',
+          db._KNOWING_RELATIONS[db.KNOWING_SUBJECT_PARTY] is db._designated_subject_party and len(db._KNOWING_RELATIONS) == 6
           and not any(hasattr(db, n) for n in ABSENT_HELPERS))
 
     print('\n2. Ro1 / Ro2 / Ro3 / Ro4 - entitlement, servicing and payee are three kinds; assignment vs sale; S3\n')

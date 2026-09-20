@@ -202,11 +202,11 @@ def run(ctx):
     except Exception as e:                                    # noqa: BLE001
         check(f'core imports ({type(e).__name__}: {e})', False)
         return
-    check('core/database.py carries the three obligation stances exactly as ruled - two holder forms, reading_establishes True on all three, the role-at-date relation the fourth named relation with its role in a table, no dated key - and no discharge / holder / servicer helper',
+    check('core/database.py carries the three obligation stances exactly as ruled - two holder forms, reading_establishes True on all three, the role-at-date relation named with its role in a table (the 9D-i row; later slices add theirs), no dated key - and no discharge / holder / servicer helper',
           db.RULED_KINDS[db.ACKNOWLEDGED]['knowing_relation'] == db.RULED_KINDS[db.RETURNED]['knowing_relation'] == db.KNOWING_SUBJECT_PARTY
           and db.RULED_KINDS[db.BALANCE]['knowing_relation'] == db.KNOWING_ENTITLED_PARTY_AT_AS_OF
           and all(db.RULED_KINDS[k]['reading_establishes'] for k in (db.ACKNOWLEDGED, db.BALANCE, db.RETURNED))
-          and db._ROLE_AT_AS_OF == {db.KNOWING_ENTITLED_PARTY_AT_AS_OF: db.ENTITLED_PARTY_OF} and len(db._KNOWING_RELATIONS) == 4
+          and db._ROLE_AT_AS_OF[db.KNOWING_ENTITLED_PARTY_AT_AS_OF] == db.ENTITLED_PARTY_OF and db._KNOWING_RELATIONS[db.KNOWING_ENTITLED_PARTY_AT_AS_OF] is db._role_at_as_of   # 9D-ii added its rows; 9D-i's is unchanged
           and db.registry_violations() == []
           and not any(hasattr(db, n) for n in ('discharge', 'is_discharged', 'holder_of', 'position_of', 'servicer_knowing', 'compose_knowing')))
 

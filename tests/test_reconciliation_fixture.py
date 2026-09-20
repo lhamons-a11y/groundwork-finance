@@ -120,7 +120,7 @@ def run(db):
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
     check('the stand-in role kinds are removed; the registry is as shipped; no value, determination or acknowledgment kind was registered',
-          db.RULED_KINDS == shipped and not any(k in shipped for k in ('amount', 'occurred_on', 'billed', 'patient_responsibility', 'plan_paid', 'determination')))   # paid_by / paid_to: ruled roles since 9B; acknowledged / balance: ruled stances since 9D-i
+          db.RULED_KINDS == shipped and not any(k in shipped for k in ('amount', 'occurred_on', 'determination')))   # paid_by / paid_to: ruled roles since 9B; acknowledged / balance: 9D-i; billed / PR / plan_paid: ruled stances since 9D-ii; determination: 9D-v
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -136,7 +136,7 @@ def _run(db):
     household, kim_party = rob.party, kim.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 
                'amount': {'person', 'institution'}, 'occurred_on': {'person', 'institution'},
-               'billed': {'institution'}, 'patient_responsibility': {'institution'}, 'plan_paid': {'institution'}, 'determination': {'person', 'institution'}}
+               'determination': {'person', 'institution'}}   # billed / PR / plan_paid: ruled stances since 9D-ii - knowing by the role
     D = Decimal
 
     def utter(text, when='2026-04-02T09:00:00', origin=None):
@@ -387,7 +387,7 @@ def _run(db):
           and _shape(ru) == _shape(rp) and ru['unresolved']['value'] == rp['unresolved']['value']
           and not any(hasattr(db, n) for n in ('unpaid_is_pending', 'pending_is_unpaid', 'collapse_determinations', 'DETERMINATION_MAP')))
     X6 = visit('Denied.', mercy, aetna, billed='$500', pr='$0')
-    claim('denial', utterance=utter('not a covered service', origin=aetna), as_of='2026-02-01', content='not covered', subject_expense_id=X6.id)
+    claim(db.DENIAL, utterance=utter('not a covered service', origin=aetna), as_of='2026-02-01', content='not covered', subject_expense_id=X6.id)
     determine(X6, aetna, 'not_covered', '2026-02-01')
     r6 = rc(X6, '2026-03-31')
     check('Rc6 (C7): Aetna\'s denial (a kind of its own) is not read; a determination claim whose content is not one of the four is UNRECOGNISED and never current; the note says no denial kind is read',
