@@ -354,6 +354,26 @@ small. The invariant it fails is: **the model behind the Groundwork Assistant's 
 identified, controlled model, not arbitrary registry content.** Same family as S6 — the
 attribution line reports a setting, not a boundary. Inventoried, not solved.
 
+**Observed live, 2026-09-20 (`STREAMING.md` T5):** with onboarding skipped, `_resolve_local_model`'s
+auto-detect order (`qwen → llama → phi → mistral → gemma`) chose `qwen3:4b` over the installed, ruled
+`phi3.5`; the attribution line read "Analyzed on your machine · qwen3:4b"; `think: False` did not take and
+every budget was spent on reasoning, 3 of 3 rejected by the gate. The high onboarding tier pins
+`qwen2.5:7b`, the size class measured at 70 % inference-smuggling. Both are decided-not-built.
+
+### S13 — the gate checks that a figure is present, not what it is attached to
+
+`STREAMING.md` T9, folded here on Rob's instruction 2026-09-20. The report-card follow-up surface
+sends only the prior assistant bubble and the user's question — no findings — and its answer read
+`$1,078.32` (the amount *paid down* on the Harbor Visa) as the *remaining balance*, then advised
+focusing on that debt. R5 catches the advice. **Nothing catches a figure that is in the findings
+but attached to the wrong noun**: R8's provenance check is presence in the findings text, not the
+relation the sentence asserts. On every line; on every gated surface, not only the follow-up.
+
+Class: a gap in the output-surface containment S9 records (voice rules constrain the output surface)
+— the containment is real for tone, motive and invented numbers, and does not reach *misattributed*
+numbers. A crossing the same size as a wrong balance on screen. Inventoried, not solved; not a
+streaming finding and not to be solved inside item 10.
+
 ---
 
 ## 7. What this inventory does not do
@@ -362,8 +382,8 @@ attribution line reports a setting, not a boundary. Inventoried, not solved.
   surfaces, redaction in the PDF path, or hash-checking the installer. `HEALTHCARE_FAILURE_SEMANTICS.md`
   §5's rule applies: the inventory exists so that a provision, when one is opened, is designed
   against what is there rather than what was assumed.
-- It does not rank S1–S12. S1–S8 are listed in the order Rob's sentence raised them; S10–S12
-  in the order the second axis surfaced them.
+- It does not rank S1–S13. S1–S8 are listed in the order Rob's sentence raised them; S10–S12
+  in the order the second axis surfaced them; S13 arrived from item 10's measurement.
 - It does not fix S10 or S12. Both stay findings until a scope decision names what happens to
   the feature; S11 stays a list until the pass that introduces a tool inherits it.
 - It does not decide which of them, if any, belong to 1.x. S2, S3, S4 and S8 are shipped
