@@ -3906,3 +3906,28 @@ acceptance's date as the discharge's date.
 > fixtures.
 
 ---
+
+### 7G-F3.8 Ruling — Rob, 2026-09-20: Reading P; F1 any establishing party; F2–F4 as read; no code by this ruling
+
+**Reading P — per claim.** The discharge test is applied to the claim: *established* from any of its
+evidentiary relationships (slice 1's many utterances; 7G's own attachment rule), *knowing* from the
+claim's knowing origin — the strongest class among its relationships, by `derived_strength`'s
+parallel-evidence precedent and 7B's report — with the holder in effect at the acknowledgment's date
+and the date ≤ d. Dg2 as §7G.3 wrote it; Dg2′ still refused (no established relationship); Dg22 still
+refused (no knowing origin); **a knowing origin lifts nothing else** — the establishing utterance's
+own class is reported as it is.
+
+**F1 — any establishing party.** The state axis asks only whether a party asserted the claim; the
+strength axis asks whether a first-hand origin stands behind it. S3's *that's Harbor acknowledging p*
+beside a reading of Harbor's own statement discharges: the discharge rests on Harbor's statement (K1),
+and S3's say-so adds nothing and subtracts nothing. No household-only constraint.
+
+**F2** — the claim's strength is the strongest class among its relationships, **every origin
+listed**, never a merge and never a number. **F3** — a retracted acceptance makes the claim
+contested by the existing state rule → not discharged. **F4** — one 7G loop grouped by claim; 7I
+inherits; the 7G / 7I fixtures gain Dc3 and the cases as ruled; 9D-i's Ob3 restated to the ruled
+answer; no kind, relation or substrate change; nothing else in 7G reopened.
+
+**No code.** The build awaits its separate authorisation.
+
+---
