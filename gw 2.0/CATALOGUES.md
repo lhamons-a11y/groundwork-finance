@@ -6,8 +6,8 @@
 > (accepted, unbuilt) and the stance / value catalogue (a domain question the record deferred) —
 > **without changing any consumer's shape.** Four passes in that order (§3). **9A built and accepted
 > (`e8fecdd`); 9B ruled (§9B.7), built (`9c53879`) and ACCEPTED (Rob, 2026-09-19); **9C opened
-> (§9C) — E's three plan relations; 9C-F1 ruled a fixture-semantic retirement; build AUTHORISED
-> (§9C.7) and BUILT (awaiting acceptance). 9D unopened.**
+> (§9C) — E's three plan relations; 9C-F1 ruled a fixture-semantic retirement; built (`cdb7cda`) and
+> ACCEPTED (Rob, 2026-09-19). 9D unopened.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -890,5 +890,24 @@ generation · the stance / value kinds the fixture names as 9D's (`adjudication`
 `coverage_ended`, `authorization`, `contribution`, `occurred_on`, `plan_year`, `deductible`,
 `applied_to_deductible`) · D′.11 · every consumer. No schema, no migration. Gate 1373 → 1396,
 0 failed.
+
+#### Accepted — Rob, 2026-09-19 (9C)
+
+Accepted on the record before the second gate landed, with the acceptance commit held until it was
+green as he instructed; the gate then ran 1396 / 0 and produced nothing that would change the
+basis. Rob's pre-acceptance checks, all clean: the Tr8 change exactly the ruled transition (the ruled
+kind answers `endpoints == []` with a proposition-count assertion showing absence of a claim, not an
+inferred empty one; the stand-in's name still refused); 7J at 31/31 with only the catalogue line and
+two claim sites the consumer-boundary evidence, and c2's correction (an unadjudicated expense
+leaving the derived value undetermined is 7J's rule, not E's decision); the `database.py` diff
+exactly three constants and three entries with `reach` untouched — *9C supplies representation, not
+new traversal behaviour, directly inspectable*; E's three pairs distinct, no consumer for the latter
+two; the F14-style reverse case refusing `under_plan` from `in_respect_of`; the surviving *unbuilt*
+references intentional or unrelated; production scope confined to `core/database.py`. On the gate's
+four first-run failures: *not four new semantic problems* — three stale exact-slot-set absences with
+one structural cause (E's kinds legitimately inhabit those subject slots now), corrected in the
+fixtures rather than by weakening the registry, and `evidence_tie` a deliberately retained finding
+fixture, not 9C's; the s104 one-off not promoted to a finding without evidence. **No reopening of E,
+G or D′.11.** 9D remains unopened until its own semantic questions are surfaced and ruled.
 
 ---
