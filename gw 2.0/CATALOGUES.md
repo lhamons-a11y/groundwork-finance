@@ -21,8 +21,8 @@
 > rows); `applied_to_deductible`'s kind-level holder `insurer_of` X with the per-plan selection 7J's;
 > F1 `adjudication` / `denial` two kinds or one; F2 two swap classes measured before the build (the
 > EOB line's borrowed name; the role claim missing from corpora that asserted knowing by type);
-> RULED (§9D-ii.7) — F1 two kinds, both F2 classes accepted; BUILT (awaiting acceptance); 9D-iii
-> unopened.**
+> RULED (§9D-ii.7) — F1 two kinds, both F2 classes accepted; built (`cb8ebe4`) and ACCEPTED (Rob,
+> 2026-09-20); 9D-iii unopened.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -1915,5 +1915,15 @@ third resolver) · values and the bank's stances (9D-iv). No schema, no migratio
 (aboutness, twenty fixture runs) grew from ~10 to ~25 minutes — `derived_strength` on a ruled stance now
 runs 7F's `in_effect` per read; a cost of the ruled relation, recorded so a later slice does not mistake it
 for a hang.
+
+#### Accepted — Rob, 2026-09-20 (9D-ii)
+
+Accepted on the gate's evidence (1442 / 0, s121 23/23) and the build's fidelity to §9D-ii.7: the
+relation applied on X through two table rows with the resolver untouched; the plan gate left 7J's;
+`denial` and `adjudication` two kinds with opaque content; the borrowed EOB lines renamed to the
+existing stand-in; the presupposed role claims added and none inferred; the s121 plan-gate gap closed
+by a real negative case rather than a count; the 9D-i pin restated to what 9D-i owns. **9D-iii remains
+unopened until Rob opens it; it adds a row for `insurer_of_plan` and settles F4 and F6 — it does not
+re-rule the relation (§9D.9).**
 
 ---
