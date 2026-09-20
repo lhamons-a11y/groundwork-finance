@@ -31,7 +31,8 @@
 > 2026-09-20), the resolver type guard accepted with it. **9D-iv OPENED (§9D-iv) — values; the
 > role-set relation (undated, F1); the bank holds no ruled role (F2 — a `drawn_on` role in 9B's form,
 > not_knowing, or deferred); `occurred_on` one kind with two subjects (F3); Kn7's third clause under
-> the ruled kind (F5); ruling sought; no code.**
+> the ruled kind (F5); **RULED (§9D-iv.7) — F1 as read, F2 (a) a `drawn_on` role in 9B's form,
+> F3–F6 as read; build awaits authorisation; no code.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -2369,5 +2370,40 @@ entitled party knowing for the amount) · the two subject types' sets swapped ·
 > the bank's stances, the line shape renamed. **(5) F5:** Kn7's third clause — the mother knowing by
 > `paid_by` — accepted as the ruled relation's answer, the permanent case's meaning intact. **(6) F6:**
 > the swap classes. Nothing here authorises code.
+
+---
+
+### 9D-iv.7 Ruling — Rob, 2026-09-20: F1 as read, F2 (a), F3–F6 as read; no code by this ruling
+
+**F1 — the role-set relation, undated.** A value is a fact about the thing, not a position; the
+relation is *the claimant holds any of a set of roles on the claim's subject*, read on the roles'
+**established holds stances**, not at a date the value does not carry. The set per subject type: a
+payment → {`paid_by`, `paid_to`, `drawn_on`}; an expense → {`provider_of`, `incurred_by`}. The
+second and last new relation shape; the role-at-date relation untouched.
+
+**F2 (a) — `drawn_on`, a role ruled here in 9B's form.** Party → payment, holds-only, `'role': True`;
+on 9B's three points — **who may assert:** the household, or the bank as a party (a statement line
+read → a candidate); **what it establishes:** only that the payment was drawn on an account the
+party holds for the payer — not the amount, not the date, not clearance, not acknowledgment (K6);
+**who is knowing:** the subject party, `KNOWING_SUBJECT_PARTY` (Kn12 stands). Added to the payment
+role-set; **the holder of `cleared` and `bank_returned_item`.** A 9B-class ruling inside 9D-iv,
+taken on Rob's word as such.
+
+**F3 — `occurred_on` one kind with two permitted subjects** (payment, expense); the role-set keyed by
+the subject's type; one catalogue key, no consumer changes.
+
+**F4 — `cleared` and `bank_returned_item` are the bank's stances** on a payment (subject the payment;
+content the line / date; `as_of` the date), holder `drawn_on`; never acknowledgment (K6 — 7G reads
+neither). The bank-line shape (the bank as subject, the thing a candidate) refused under the ruled
+names and kept under a stand-in — the borrowed-name class.
+
+**F5 — Kn7, permanent, under the ruled kind:** the minter not_knowing — by the relation now; the
+exact-absence pin retired; **the third clause accepted as the ruled relation's answer — the mother is
+knowing for the payment's date by `paid_by`, the payer being first-hand** — the case's meaning,
+*minting ≠ knowing*, intact.
+
+**F6 — the swap classes as pre-measured.**
+
+**No code.** The build awaits its separate authorisation.
 
 ---
