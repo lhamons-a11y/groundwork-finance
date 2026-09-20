@@ -7,7 +7,10 @@
 > **without changing any consumer's shape.** Four passes in that order (§3). **9A built and accepted
 > (`e8fecdd`); 9B ruled (§9B.7), built (`9c53879`) and ACCEPTED (Rob, 2026-09-19); **9C opened
 > (§9C) — E's three plan relations; 9C-F1 ruled a fixture-semantic retirement; built (`cdb7cda`) and
-> ACCEPTED (Rob, 2026-09-19). 9D unopened.**
+> ACCEPTED (Rob, 2026-09-19). **9D opened (§9D) — the stance and value catalogue; the surface
+> discovered from the consumers' reads (two shapes of P-ack already shipped); nine findings, one of
+> which (9D-F1, the position-holder — participant or hidden operand) governs the rest and is put
+> first with 9D-F2 and 9D-F8; no code.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -909,5 +912,239 @@ one structural cause (E's kinds legitimately inhabit those subject slots now), c
 fixtures rather than by weakening the registry, and `evidence_tie` a deliberately retained finding
 fixture, not 9C's; the s104 one-off not promoted to a finding without evidence. **No reopening of E,
 G or D′.11.** 9D remains unopened until its own semantic questions are surfaced and ruled.
+
+---
+
+## Pass 9D — The stance and value catalogue
+
+*Opened by Rob 2026-09-19 after 9C's acceptance (`c1c52e9`). The widest and least-ruled pass, last
+so that every kind in it can name the role its knowing relation designates (§3). Run as the others:
+semantic surface → cases / findings → ruling → build authorisation. **9D's surface is discovered
+from what the consumers read today and from the rulings that already fix these kinds' meaning; the
+consumer paths are evidence of what the kinds must carry, never a source of semantics.** No code by
+this opening. One question governs the rest and is put first (§9D.3, 9D-F1).*
+
+### 9D.1 What is already fixed — per group
+
+| Group | Kinds (stand-in names) | Fixed by | What is fixed |
+|---|---|---|---|
+| **(i) the acknowledgment** | `acknowledged` | ACKNOWLEDGMENT_EVIDENCE_CASES ruling (Rob, 2026-09-12); D4; **§D′.4** (a finding); 7G RG-a | **P-ack: the entitled party's stated position about a payment, as of a stated date**; *P-ack for a payment = discharge of that payment* by definition, never inferred; **one knowing party — E**; four channels (E's held statement · E's servicer of record's held statement *bounded by the household's evidence that S serves E* · E's / S's live system, dated · the user's testimony reporting one of those); *the user is not a knowing party for P-ack* (K5); weakest-link strength; **every acknowledgment is dated — frozen**; a cleared payment does not establish acknowledgment (K6); acknowledgment of a payment and statement of a balance are two propositions (K8); the return of a payment is another kind (Dg18). **§D′.4:** *which obligation E applied p to* is a hidden operand of `acknowledged(E, p)` — the catalogue must decide whether O is a participant or content; acknowledgment evidences a candidate for *p in respect of O* and never establishes it |
+| **(ii) the P-ack stances** | `balance` (on O) · `billed` (on X, the provider's) · `patient_responsibility` · `plan_paid` · `applied_to_deductible` (on X, the insurer's) · `deductible_applied` (on P or (person, P), the insurer's) · `eligibility` (on (person, P), the insurer's) | the same ruling (balance); 7G TS-base / TG-base; 7H §7H.2 (*P-ack for X's charge; asserter in effect as provider of X*; *the insurer's dated claims on X, asserter in effect as insurer of X*; *a claim on X by a party not in effect in the named role is reported, never governing* — F3 / K5); 7J (Pl10 the insurer's accumulator stance; F5 the insurer's *never eligible* beside membership, deriving nothing); TS (a stance stands until the next, per party · kind · identity; conflict at one date → none); C6 / C7 | each is **the party-in-the-role's dated position** about the subject — a position, not the world; dated (frozen); governing by G per the party's series; conflict → none; never stored; the household's figure is never the position (U6, K5); *exempt* ≠ unknown ≠ zero (C6); a denial is not an adjudication (C7) |
+| **(iii) value kinds** | `amount` (on a payment) · `occurred_on` (on a payment; on an expense) | PAYMENT_IDENTITY (*dated relations*, not fields); Kn7 (the mother paid — minting ≠ knowing; her knowing for `occurred_on` undetermined via the stand-in); K6 (the bank can know the household's money left); 7G / 7H / 7I (one established value or undetermined — `_one_value`; conflict → undetermined; the date read from `as_of` or content) | a value is a claim on the subject with content the figure or date; **who is first-hand for it is unruled** — the payer, the payee, the bank as artefact origin, the provider, the person who incurred it are the candidates the record names |
+| **(iv) term kinds** | `deductible` · `individual_deductible` · `plan_year` (on P) | PLAN_IDENTITY §2 (*whether a service is covered = the insurer's dated stance — a term claim about P*); 7J (the governing term at d, G named; content a money amount or **`none`** — *the rule does not exist*, an answer; no claim → `unknown`; the plan year `as_of` = start, content = end; **no `met`**); Pl15; APPLICABILITY | a term is **the insurer's stance about P's rule** as of a date; the SBC read is a candidate; the household's *our deductible is $1,000* is testimony; `none` is content 7J parses, not a kind |
+| **(v) the determination** | `determination` (on X) | 7H §7H.7 item 2, ruled: content **exactly one of four names** (`provider_adjustment · user_paid_cash · unpaid · pending_claim`), any other *unrecognised* and never current; `as_of` required; **any party may make it** (D12 the household; the provider; the insurer); *whether a party's role constrains its determination is the catalogue's to rule, not 7H's* — 7H reports the asserter's roles as facts and constrains nothing; superseded never overwritten; `unresolved = 0` is not `user_paid_cash`; a denial is not `pending_claim` | the kind is fixed; **who may determine, and who is knowing for a determination, is 9D's** |
+| **(vi) the kinds the consumers do not read** | `cleared` · `returned` (on a payment — the bank's / E's) · `denial` (on X — the insurer's; C7) · and the names other fixtures have used as stances: `adjudication`, `coverage_ended` (Pl12 — the insurer's retroactive ending, a stance about P beside F's `under_plan_ended`), `authorization` (Pl11 — a stance about P with the service as content), `contribution` (Pl8 — a claim about the employer party) | Dg3 / Dg18 (7G reads no cleared / returned kind); Rc6 (7H reads no denial); Pl11 / Pl12 / Pl8; F5 | named so the catalogue rules them and the consumers cannot read one as another: **a return is not a non-acknowledgment; a denial is not a determination; a cleared line is not discharge; the insurer's termination stance is not the household's boundary claim** |
+
+**Fixed across all six (§2.3, §2.6):** a kind is slots + the registry's existing keys; content stays
+opaque — what a consumer parses from it (money, a date, `none`, one of four names) it parses as it
+does today; no consumer changes; registry only; **relational knowing follows the role** — the kinds
+that wait on 9B's designated participants gain a `knowing_relation`, and `derived_strength` reads
+the ruled class where it read the foundation stand-in.
+
+### 9D.2 What the consumers read today — the discovered shape
+
+The stand-ins are not one shape. Read from the code, not assumed:
+
+| kind | subject slot | party slot? | `as_of` | content | who the consumer takes as the position-holder | the consumer's gate |
+|---|---|---|---|---|---|---|
+| `acknowledged` | — | **`subject_party_id` = E** · object the payment | yes | — | **the subject party** (`e['party']`) for the entitled test; **the utterance origin** for strength | 7G: established · dated ≤ d · *party* entitled in effect at `as_of` · strength KNOWING (foundation `{'institution'}`) |
+| `balance` | obligation | **none** | yes | money | **the utterance origin** (`asserter`) | 7G: asserter entitled in effect at `as_of` → governing series; else reported |
+| `billed` · `patient_responsibility` · `plan_paid` | expense | none | yes | money | the utterance origin | 7H: asserter in effect as provider / insurer of X at `as_of` |
+| `applied_to_deductible` | expense | none | yes | money or `none` | the utterance origin | 7J: asserter in effect as insurer of the plan at `as_of` |
+| `deductible_applied` | plan (+ `object_party_id` the person, optionally) | none | yes | money | the utterance origin | 7J: asserter in effect as insurer of P |
+| `eligibility` | **party** (the person) · object the plan | (the subject IS a party — but the person, not the holder) | yes | text | the utterance origin | 7J: listed with state and date; **no gate** (F5: deriving nothing) |
+| `deductible` · `individual_deductible` · `plan_year` | plan | none | yes | money / `none` / a date | the utterance origin | 7J: **no role gate** — the latest established at or before d, any party |
+| `amount` · `occurred_on` | payment / expense | none | `occurred_on`: the date in `as_of` or content | money / date | the utterance origin | `_one_value`: one established value or undetermined; **no knowing test** |
+| `determination` | expense | none | yes (required) | one of four names | the utterance origin; **roles reported as facts** | 7H: established · dated · recognised; **no role gate** |
+
+Two things this table shows that no ruling has said in one place: **(a)** the P-ack kinds already
+come in two shapes — the acknowledgment carries its position-holder as a participant (`subject_party_id`
+= E) while every other stance leaves the position-holder implicit in *who asserted it* and *which
+role that party held at the date*; **(b)** knowing for every one of them is today the foundation
+stand-in (`{'institution'}` ≈ *E*; `{'person', 'institution'}` ≈ *anyone*), which the consumers
+then correct with their own role gates. The role gates are the consumers' rulings (RG-a, TG-base,
+7H's, 7J's) and stay theirs; **what 9D must rule is what the kind itself says about its holder and
+its knowing.**
+
+### 9D.3 Findings — put to Rob, not resolved here
+
+**9D-F1 — the position-holder of a stance: participant, or hidden operand? (§D′.4 generalised;
+governs every other finding).** The acknowledgment ruling names the proposition *E's stated
+position*; K5 says the user is not knowing for it; K8 says a balance statement is a second
+proposition. So *whose position* is part of what the claim is. Today that party is (a) a slot on the
+acknowledgment and (b) nowhere on any other stance — it is the asserter, gated later by a role the
+consumer reads through 7F. Under K8 (a proposition's operand must be a participant or content, never
+implied) the second shape carries a hidden operand exactly as §D′.4 found for O. Two shapes are
+possible for the catalogue, and they differ in consumer impact:
+
+- **Shape H (holder implied — the shipped shape for (ii)–(v)).** The stance's subject is the thing
+  (O, X, P); the holder is *the asserting party*; the kind's `knowing_relation` designates **the
+  party in role R on the subject at `as_of`** — `entitled_party_of` for `balance` and the
+  acknowledgment, `provider_of` for `billed`, `insurer_of` for the insurer's X-stances,
+  `insurer_of_plan` for the P-stances and terms — so that *knowing* = *the asserter held the role
+  when the position was stated*, read through 7F's `in_effect` at the claim's date. **This is a new
+  shape of knowing relation:** 9B's `KNOWING_SUBJECT_PARTY` reads a slot; this one reads a role, a
+  date and (for the servicer channel, below) a second claim's strength. **No consumer changes** —
+  the consumers already make this exact test; the kind's knowing would coincide with their gate.
+  K5 falls out: Rob's *Harbor says $1,900* with no artefact is Rob's utterance, Rob holds no role,
+  not knowing, reported and never governing — the ruled outcome. The acknowledgment's existing
+  party slot becomes redundant with the asserter (or is retired for consistency — a consumer change
+  to 7G's `e['party']` read, which §2.4 forbids without a ruling).
+- **Shape P (holder as participant).** Every stance gains a `subject_party_id` = the holder, the
+  thing in an object slot (`balance(Harbor, O)`, `billed(Riverbend Hospital, X)`, `deductible_applied(Lakeview Health, P)`);
+  `knowing_relation` = `KNOWING_SUBJECT_PARTY` as 9B ruled for roles (*a party is first-hand for its
+  own position* — R2), uniform and slot-read; Rob asserting *Harbor's position is $1,900* is
+  testimony about Harbor's position (holder Harbor, origin Rob → not knowing) — K5 exactly, and
+  representable without an artefact. **But every consumer read changes shape:** 7G's `balance`, 7H's
+  three, 7J's four read the thing on the subject slot and take the asserter from the utterance; the
+  role gates would move from *asserter* to *holder*. That is a consumer change on every consumer
+  and a schema-free but shape-changing swap — §2.4 refuses it unless Rob rules the shape.
+
+The servicer channel bears on both: *E's servicer of record's held statement is E's acknowledgment
+at weakest-link strength, bounded by the household's evidence that S serves E.* Under H the knowing
+relation must admit *the asserter holds `servicer_of` on O at `as_of`* at the strength of that
+`servicer_of` claim (weakest link — the first knowing relation to compose a strength); under P the
+holder is E and the asserter S, and the same weakest-link rule applies between them. **Either way
+the servicer channel is a second clause of the relation, and 9D must say so or leave it
+undetermined (S3 then knowing only for its own position, never for E's — Kn12 holds).**
+
+*My reading, for Rob to reject:* H is the shape the record has been building (7G–7J were ruled on
+it; §2.6's *the acknowledgment kind's entitled party of the obligation* is H's phrasing), K8's
+objection is answered by naming the relation rather than adding a slot, and P is the better
+ontology only if testimony-without-artefact must be representable — which K5 and ARTEFACT_ORIGIN's
+channel model say it need not be. **H, with the acknowledgment's party slot retired into the
+asserter as a truthful retirement, is the recommendation — but the retirement touches a 7G read
+and is Rob's to authorise.**
+
+**9D-F2 — the acknowledgment's O (§D′.4).** Under H the acknowledgment has no O; 7G supplies O from
+its own argument and asks whether the asserter was E *of that O* at `as_of` — so one ack by Harbor on
+p discharges p on every obligation Harbor is entitled to that p is attached to (D′3's two
+obligations). Is O content, a participant (`object_obligation_id` beside the payment — the registry
+has one object slot per kind today; two objects is a new shape), or absent with 7G's test as the
+answer? *Reading:* absent — the acknowledgment is E's position about p; which O it discharges is
+the attachment (D′'s `payment_in_respect_of_obligation`, asserted) joined with E's role, both
+already in the record; naming O in the ack would let the ack establish the attachment, which D′
+refused. Rob's.
+
+**9D-F3 — value kinds: who is first-hand for a payment's amount and date, an expense's date?** The
+candidates the record names: the payer and the payee (9B's `paid_by` / `paid_to` holders) for a
+payment; the bank as the origin of the held line (K6 — a reading, through `artefact_origin`,
+already knowing-capable); the provider (`provider_of`) and the person who incurred it
+(`incurred_by`) for an expense's date; **the household as minter — never** (Kn7). A value's knowing
+relation would designate *a holder of any of a set of roles on the subject* — a second new shape
+(a role-set). Or: values stay foundation-mapped `{'person', 'institution'}` as today (anyone
+knowing — which is what the fixtures assert now and what Kn7 called undetermined). Rob's; the
+consumers read no strength for values, so either answer changes no consumer.
+
+**9D-F4 — terms: the insurer's position, and 7J reads any party's.** If 9D rules the term kinds'
+holder is `insurer_of_plan`, 7J's read (latest established, any party) is unchanged — it reports;
+but the household's own *our deductible is $1,000* becomes not-knowing and still governs 7J's term.
+Is that the intended reading (7J: *we do not have the deductible* is about absence, not strength),
+or does 7J's term gain the role test *exactly as TG-base gained the entitled-party test* (7H's
+phrase for determinations)? That is a consumer change 9D may not make; it is recorded as the
+question 7J's ruling left open.
+
+**9D-F5 — the determination: any party may make it; who is knowing?** Under H there is no role to
+designate (D12: the household determines `user_paid_cash`; Riverbend Hospital `provider_adjustment`). Options:
+knowing undetermined by design (no relation named, as `under_plan`); or *the asserter is first-hand
+for its own determination* — which is Shape P's relation applied without a slot, and would make
+every determination knowing, which says nothing. *Reading:* undetermined — a determination is a
+party's reading of the situation, not a position it holds first-hand; 7H's *current* rule never
+reads strength. And **the four-name vocabulary stays 7H's** (§2.3: content is opaque to the
+catalogue) — 9D rules the kind, 7H recognises the names.
+
+**9D-F6 — the unread kinds are stances with holders too.** `cleared` / `returned` on a payment: the
+bank's position (holder: the artefact origin — a reading channel, not a role) or E's (`returned` as
+Dg18 — E returned p unapplied: E's position, `entitled_party_of`); `denial` / `adjudication` on X:
+the insurer's (`insurer_of`); `coverage_ended` on P (or on (person, P)): the insurer's
+(`insurer_of_plan`) — **and its relation to `eligibility` and to F's `under_plan_ended` must be
+stated**: three things that could each be read as *coverage ended* — the household's boundary claim
+(F), the insurer's eligibility stance (F5), the insurer's termination stance (Pl12) — are three
+kinds or two. `authorization` on P (Pl11) the insurer's; `contribution` on the employer party — not a
+stance on a thing, a claim about a party, possibly not 9D's at all. 9D must at least **name** these
+so no consumer reads one as another; whether it rules each fully is 9D-F8.
+
+**9D-F7 — `as_of` required: a registry key, or the fixture's assertion?** Every P-ack is dated
+(frozen). The registry has no *dated* flag; boundaries require `as_of` via their guard; the consumers
+disqualify undated stances themselves. A `dated: True` key would be 9B-F1's move again
+(classification, no consumer instruction). *Reading:* not needed — the consumers already refuse, and
+a kind's fixture can assert *an undated stance never governs* without a key; keep the registry's
+shape. Rob's.
+
+**9D-F8 — one pass or several.** 9B ran seven roles in one pass because one knowing relation served
+all seven. 9D's six groups have **four** different holder relations (a role-in-effect; a role-set;
+the asserter; none) plus the servicer clause. *Proposed:* rule 9D-F1 and 9D-F2 first — they fix the
+shape of every stance — then run the groups as 9D-i (the acknowledgment and `balance`, with the
+servicer clause), 9D-ii (the provider's and insurer's stances on X and P, `eligibility`, terms),
+9D-iii (values), 9D-iv (the determination), 9D-v (the unread kinds), each with its own cases and
+build, in that order; or run one pass with six sections. Rob's.
+
+**9D-F9 — the foundation map's remainder.** When 9D's kinds carry relations, `derived_strength`
+reads the ruled class and the callers' `knowing` map serves only `artefact_origin` (ARTEFACT_ORIGIN
+§4, ruled) and any kind 9D leaves unruled. The argument stays (the convention); the map entries for
+ruled kinds retire from the fixtures truthfully. A statement, not a question — recorded so the
+build does not appear to remove a mechanism.
+
+### 9D.4 Cases — an index, by group; new cases only where 9D adds a question
+
+The rulings' cases are the fixture's body and are not rewritten here: **K1–K8** (the acknowledgment
+and balance — E's own statement; the servicer's; S3's; the portal; the user's report; the cleared
+payment; conflicting sources by date then channel; ack ≠ balance), **D4, D′7, Dg3, Dg18** (the ack's
+shape; the return), **Rc9, Rc6, Rc15, Rc16, F3 / K5** (the provider's and insurer's stances; the
+denial; the household's *the EOB said*), **Pl10, Pl15, Ju3–Ju11, F5, C6, C7** (terms, the
+accumulator stances, eligibility, exempt / unknown / zero), **D12, Rc5, Rc19** (determinations),
+**Kn7, K6, Pm9** (values), **Pl11, Pl12, Pl8** (authorization, termination, contribution). 9D's own
+cases are the position-holder cases:
+
+| # | Case | Under H | Under P |
+|---|---|---|---|
+| **St1 (K1)** | Harbor's held statement: *balance $1,900 as of 3/31* — reading, origin Harbor | claim by reading → candidate; strength via `artefact_origin` = Harbor, Harbor entitled in effect 3/31 → **knowing** (C1–C3 weakest link) | the same, holder Harbor |
+| **St2 (K5)** | Rob types *Harbor says the balance is $1,900*; no artefact | Rob's utterance; Rob holds no role on O → **not knowing**; reported, never governing | holder Harbor, origin Rob → not knowing; representable as testimony about Harbor's position |
+| **St3 (K2)** | BillCo's statement, BillCo servicer of O by the household's `servicer_of` claim | BillCo not entitled → the **servicer clause**: knowing at the weakest link of BillCo's `servicer_of` claim (established by Rob → not_knowing? Rob asserted the servicing; is the household knowing for *S serves E*? — Kn6's question, now answerable through 9B: the household is not the subject party of `servicer_of`, so the servicing claim is not_knowing and the ack's strength is not_knowing) | the same clause between holder E and asserter S |
+| **St4 (K3 / S3)** | S3's own statement of *your balance*, never authorised | S3 holds no role → not knowing (its own `servicer_of` claim is knowing for the role, Kn12 — but the balance is E's position, not S3's) | holder E asserted by S3 → not knowing |
+| **St5 (7H Rc9)** | Riverbend Hospital's bill: *billed $1,200* by reading of the bill | candidate; origin Riverbend Hospital, Riverbend Hospital provider of X → knowing | the same |
+| **St6 (the insurer's stance on the wrong plan — CC1)** | Cigna states *applied $150* on X, in respect of A and B; Cigna insures B only | knowing for B's series, not a holder for A — 7J's per-plan read unchanged | holder Cigna; the plan gate stays 7J's |
+| **St7 (Pl12 vs F5 vs F)** | Lakeview Health: *coverage ended 6/30, as of 8/15*; the household: `under_plan_ended` 6/30; Lakeview Health: *never eligible* | three claims, three kinds (9D-F6) — none derives another; 7J lists the two stances beside membership | the same |
+| **St8 (D12 vs Riverbend Hospital)** | Rob determines `user_paid_cash`; Riverbend Hospital determines `provider_adjustment` at one date | two determinations, knowing undetermined for both (9D-F5); 7H: cross-party conflict → none | holder = asserter in both; the same |
+| **St9 (Kn7)** | the mother paid; she says *$300 on 3/3*; Rob says *3/4* | `amount` / `occurred_on` claims: knowing per 9D-F3's answer — the mother `paid_by` holder → knowing if the role-set includes the payer; Rob not | the same |
+| **St10 (K6)** | the bank line `HARBOR 1412.00 03/05` — a reading | `amount` / `occurred_on` candidates; origin the bank → knowing for the value if the bank is in the role-set as artefact origin; **never** an acknowledgment | the same |
+
+### 9D.5 Candidate — pending 9D-F1; two variants, the registry entries only
+
+**Under H** (the recommendation): every stance kind keeps its shipped slots; `symmetric False ·
+reading_establishes False · relational_knowing True`; `knowing_relation` a **new named relation
+per holder role** — `KNOWING_HOLDER_OF_ROLE(entitled_party_of)` for `acknowledged` (subject party
+retired) and `balance`; `(provider_of)` for `billed`; `(insurer_of)` for `patient_responsibility`,
+`plan_paid`, `applied_to_deductible`, `denial` / `adjudication`; `(insurer_of_plan)` for
+`deductible_applied`, `eligibility`, the three terms, `coverage_ended`, `authorization`; the
+servicer clause on the two obligation stances; values per 9D-F3 (a role-set or the map);
+`determination` with no relation; `cleared` / `returned` per 9D-F6. The resolver is one function
+parameterised by the role — it reads 7F's `in_effect` at the claim's `as_of` and, for the servicer
+clause, the `servicer_of` claim's `derived_strength` (weakest link). **`derived_strength` gains
+that resolver in `_KNOWING_RELATIONS` and nothing else changes.**
+
+**Under P:** every stance kind gains `subject_party_id` and moves the thing to its object slot;
+`knowing_relation = KNOWING_SUBJECT_PARTY` throughout; **every consumer's read of every stance
+changes** — refused by §2.4 unless Rob rules the shape and re-opens the consumers' reads.
+
+**Under either:** no `dated` key (9D-F7, pending); content opaque; the four determination names
+7H's; `none` / `exempt` 7J's parses; no consumer changes beyond what Rob rules under F1; the fixture
+per group over the cases indexed in §9D.4; the swap as §2.4 — the 7G, 7H, 7I, 7J fixtures re-run
+with the catalogue lines changed and the map entries for ruled kinds retired; the last stand-ins
+anywhere in the consumer fixtures gone.
+
+### 9D.6 Ruling sought — 9D-F1 first; nothing else can be ruled before it
+
+> **(1) Rule 9D-F1** — the position-holder of a stance is implied (H: the asserter, knowing by a
+> role in effect at the date) or a participant (P) — and with it **9D-F2** (the acknowledgment's O:
+> absent, content, or a participant) and **the servicer clause** (a second clause of the knowing
+> relation at weakest link, or undetermined). **(2) Rule 9D-F8** — one pass or five, and the order.
+> Then the groups run to their own candidates on the ruled shape, each with cases, and each build
+> is authorised separately. **Nothing in (1) or (2) authorises code.**
+
+**What 9D leaves exactly where it found it:** every consumer's gates and figures (RG-a, TS, TG-base,
+7H's current, 7J's three term states) · the four determination names (7H's) · `none` / `exempt`
+(7J's) · candidate generation · the disposition vocabulary · U6 · the reading-level resolver
+(K7: required, not designed) · D′.11 · G.
 
 ---
