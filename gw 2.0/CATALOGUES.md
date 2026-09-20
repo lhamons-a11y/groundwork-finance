@@ -27,8 +27,8 @@
 > the object — application or re-ruling, Rob's), F3 three "coverage ended" kinds, F4 the terms with
 > 7J's any-party read recorded as 7J's, F5 one name, F6 three swap classes pre-measured; **RULED
 > (§9D-iii.7) — F1 two kinds, F2 the role read on the object as APPLICATION (the one item reaching
-> the resolver dispatch), F3 three kinds, F4–F6 as read; BUILT (awaiting acceptance); 9D-iv
-> unopened.**
+> the resolver dispatch), F3 three kinds, F4–F6 as read; built (`fe15f5f`) and ACCEPTED (Rob,
+> 2026-09-20), the resolver type guard accepted with it; 9D-iv unopened.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -2213,5 +2213,17 @@ collapsed (F1 reversed)** — all ten caught on the first run.
 **Left where it belongs:** 7J's any-party term read (recorded twice, Ps8 and Ps11 — 7J's question) ·
 the determination (9D-v) · values and the bank's stances (9D-iv) · 9D-i-F3 (7G). No schema, no
 migration. Gate 1442 → 1478, 0 failed.
+
+#### Accepted — Rob, 2026-09-20 (9D-iii)
+
+Accepted on the gate's evidence (1478 / 0, s122 23/23) and the build's fidelity to §9D-iii.7: the
+two applied kinds by shape with the one named 7J line; F2 as application — the side carried by a
+table keyed by the stance kind, the relation's statement unchanged; three coverage-ended kinds with
+nothing derived between them; the insurer the holder of the terms, the household's statement a relay,
+7J's any-party read left 7J's; one `authorization`; F6's three classes as ruled, the household-term
+assertion at `not_knowing`. **The resolver type guard, reported beyond the ruling, is accepted with
+the build** — a guard against a latent id-collision defect, not a change of the relation's meaning.
+**9D-iv remains unopened until Rob opens it; it introduces the remaining new relation shape (F3's
+role-set) and does not re-rule the role-at-date relation.**
 
 ---
