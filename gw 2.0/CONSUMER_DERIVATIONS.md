@@ -4123,3 +4123,30 @@ a later relay overriding the insurer.
 > authorises code.
 
 ---
+
+### 7J-F4.8 Ruling — Rob, 2026-09-20: Reading H; F1–F3 accepted; no code by this ruling
+
+**Reading H.** *The term / window is not merely asking who has said something; it is asking for the
+governing term of the holder's series. That makes knowing provenance part of the **admissibility** of
+a claim, rather than a strength ranking among competing claims.* **A** ruled out by Te4 — it permits
+the household's bare relay to govern the insurer's term. **K** ruled out — a strength preference /
+fallback hierarchy (knowing first, relay second) turns provenance into a ranking mechanism rather
+than an eligibility condition. **H** preserves the distinction: a governing claim must have a knowing
+origin; a bare relay remains corpus evidence without becoming the governing term.
+
+**F1 — accepted as stated.** The holder test in the term / window gates is the same semantic issue
+exposed in 7G's balance series, 7H's three X-stance series and 7J's stated accumulator; **this pass
+identifies that family for a follow-on ruling / build** rather than changing those consumers here.
+**The sibling gates are opened as the explicitly named follow-on pass, not repaired
+opportunistically in this build.**
+
+**F2 — accepted.** If the only claim is the household's bare statement, the answer is `unknown`; it
+does not become the governing term merely because nobody with a knowing origin has spoken. *`unknown`
+is not a weaker determination; it is the honest absence of a qualifying determination.*
+
+**F3 — accepted.** The household's `none` has the same problem as its numeric relay: not a governing
+claim without the required knowing origin.
+
+**No code.** The build awaits its separate authorisation.
+
+---
