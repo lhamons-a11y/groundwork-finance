@@ -73,7 +73,7 @@ def _boundary(of, which, subject, obj):
 
 STAND_INS = {
 }
-CATALOGUE = {'acknowledgment': 'acknowledged', 'entitled_party': 'entitled_party_of', 'balance': 'balance',
+CATALOGUE = {'acknowledgment': 'acknowledged', 'entitled_party': 'entitled_party_of', 'balance': 'balance',   # acknowledged / balance: ruled (9D-i)
              'payment_amount': 'amount', 'occurred_on': 'occurred_on', 'paid_by': 'paid_by', 'paid_to': 'paid_to'}
 
 
@@ -120,7 +120,7 @@ def run(db):
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
     check('the stand-in role kind is removed; the registry is as shipped; no value or acknowledgment kind was registered',
-          db.RULED_KINDS == shipped and not any(k in shipped for k in ('acknowledged', 'balance', 'amount', 'occurred_on')))   # paid_by / paid_to: ruled roles since 9B
+          db.RULED_KINDS == shipped and not any(k in shipped for k in ('amount', 'occurred_on')))   # paid_by / paid_to: ruled roles since 9B; acknowledged / balance: ruled stances since 9D-i
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -134,7 +134,7 @@ def _run(db):
     s.add_all([rob, kim])
     s.commit()
     household, kim_party = rob.party, kim.party
-    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'acknowledged': {'institution'}, 'balance': {'institution'},
+    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 
                'amount': {'person', 'institution'}, 'occurred_on': {'person', 'institution'}}
     D = Decimal
 
@@ -204,11 +204,11 @@ def _run(db):
         return p
 
     def ack(by, p, as_of, origin=None, reading=None):
-        return claim('acknowledged', utterance=None if reading else utter(f'ack {as_of}', origin=origin or by), reading=reading,
+        return claim(db.ACKNOWLEDGED, utterance=None if reading else utter(f'ack {as_of}', origin=origin or by), reading=reading,
                      as_of=as_of, subject_party_id=by.id, object_payment_id=p.id)
 
     def stated(O, by, amount, as_of, origin=None):
-        return claim('balance', utterance=utter(amount, origin=origin or by), as_of=as_of, content=amount, subject_obligation_id=O.id)
+        return claim(db.BALANCE, utterance=utter(amount, origin=origin or by), as_of=as_of, content=amount, subject_obligation_id=O.id)
 
 
     def rec(O, at, d):

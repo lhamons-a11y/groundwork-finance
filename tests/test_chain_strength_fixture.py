@@ -98,7 +98,7 @@ def run(db):
     s.add_all([rob, kim])
     s.commit()
     household, kim_party = rob.party, kim.party
-    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'balance': {'institution'}, 'eob_amount': {'institution'},
+    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'statement_figure': {'institution'}, 'balance': {'institution'}, 'eob_amount': {'institution'},
                'date_of_service': {'person', 'institution'}, 'movement': {'institution'}}
     # 'acknowledgment' deliberately absent: its relation (the entitled party) is unruled -> undetermined
 
@@ -276,7 +276,7 @@ def run(db):
     A = held('h-chase', '2026-03-31', chase, u_chase)
     a_concerns(A, utterance=utter("That's my mortgage statement."), object_obligation_id=o1.id)
     rA = read(A)
-    L1 = line(rA, 'balance', '$1,925', chase)
+    L1 = line(rA, 'statement_figure', '$1,925', chase)
     rep1 = cs(L1)
     ch1 = chains(rep1, o1.id, provenance=db.ABOUT_DERIVED, path=db.ABOUT_PATH_ARTEFACT)
     check('Ms1: Chase value (L0 knowing) + Rob\'s concerns claim (knowing, the minter of O1) -> ONE chain [evidence knowing, artefact_concerns knowing] -> KNOWING; slice 8 s5\'s combination',
@@ -285,7 +285,7 @@ def run(db):
           and ch1[0]['class'] == db.STRENGTH_KNOWING and ch1[0]['trace'] == [('reading', rA.id), ('artefact', A.id)])
     A2 = held('h-chase-2', '2026-04-30', chase, u_chase)
     a_concerns(A2, utterance=utter("That's the mortgage.", origin=kim_party), object_obligation_id=o1.id)
-    L2 = line(read(A2), 'balance', '$1,900', chase)
+    L2 = line(read(A2), 'statement_figure', '$1,900', chase)
     rep2 = cs(L2)
     ch2 = chains(rep2, o1.id, provenance=db.ABOUT_DERIVED, path=db.ABOUT_PATH_ARTEFACT)
     check('Ms2: the association is Kim\'s (not the minter): chain [knowing, not_knowing] -> NOT_KNOWING - and L0 is reported UNCHANGED as knowing; the value keeps Chase\'s authority (Ab7)',
@@ -319,9 +319,9 @@ def run(db):
     print('\n3. Ms6 / Ms7 / Ms18 - correspondence: established about-ness, undetermined strength; a candidate is no chain; the lattice\n')
     B = held('h-chase-B', '2026-05-31', chase, u_chase)                # no artefact-level claim
     rB = read(B)
-    P3 = line(rB, 'balance', '$9,100', chase)
+    P3 = line(rB, 'statement_figure', '$9,100', chase)
     p_concerns(P3, utterance=utter('P3 is the HELOC.'), object_obligation_id=o2.id)
-    P3b = line(rB, 'balance', '$9,100', chase)
+    P3b = line(rB, 'statement_figure', '$9,100', chase)
     u_corr = utter('P3 and P3b are one line.')
     corr(P3, P3b, utterance=u_corr)
     rep6 = cs(P3b)
@@ -331,18 +331,18 @@ def run(db):
           and classes(ch6) == [db.STRENGTH_UNDETERMINED]
           and links(ch6[0]) == [(db.CHAIN_LINK_EVIDENCE, db.STRENGTH_KNOWING), (db.PROPOSITION_CORRESPONDS, db.STRENGTH_UNDETERMINED),
                                 (db.PROPOSITION_CONCERNS, db.STRENGTH_KNOWING)])
-    P7 = line(rB, 'balance', '$500', chase)
+    P7 = line(rB, 'statement_figure', '$500', chase)
     p_concerns(P7, utterance=utter('P7 is the mortgage.'), object_obligation_id=o1.id)
-    P7b = line(rB, 'balance', '$500', chase)
+    P7b = line(rB, 'statement_figure', '$500', chase)
     corr(P7, P7b, reading=rB)                                          # a position match: a candidate
     rep7 = cs(P7b)
     check('Ms7 (Rob\'s boundary): a CANDIDATE correspondence between two strong ends -> NO chain and NO class for "P7b about O1" - unchained with 7C\'s reason; L0 alone is not reported as the strength of an about-ness that is not established',
           entries(rep7, o1.id) == [] and rep7['unchained'] == [('obligation', o1.id, db.ABOUT_CANDIDATE, 'candidate correspondence')]
           and rep7['evidence'][0]['class'] == db.STRENGTH_KNOWING and rep7['note'] == 'no about-ness established'
           and not any(v in ORDER for k, v in _walk(rep7['unchained'])))
-    P18 = line(rB, 'balance', '$7', chase)
+    P18 = line(rB, 'statement_figure', '$7', chase)
     p_concerns(P18, utterance=utter('P18 is the HELOC.', origin=kim_party), object_obligation_id=o2.id)
-    P18b = line(rB, 'balance', '$7', chase)
+    P18b = line(rB, 'statement_figure', '$7', chase)
     corr(P18, P18b, utterance=utter('P18 and P18b are one line.'))
     ch18 = chains(cs(P18b), o2.id, provenance=db.ABOUT_DERIVED, path=db.ABOUT_PATH_CORRESPONDENCE)
     check('Ms18 (the lattice): links knowing / undetermined / not_knowing -> UNDETERMINED - undetermined absorbs, by the substrate\'s _weakest; 7E reorders nothing',
@@ -354,9 +354,9 @@ def run(db):
     C = held('h-three-weak', '2026-06-30', chase, u_chase)
     a_concerns(C, utterance=utter('C is the car loan.'), object_obligation_id=o3.id)      # Rob is not O3's minter -> not_knowing
     rC = read(C)
-    W = line(rC, 'balance', '$14,000', chase)
+    W = line(rC, 'statement_figure', '$14,000', chase)
     p_concerns(W, utterance=utter('W is the car loan.'), object_obligation_id=o3.id)          # not_knowing
-    Wb = line(rC, 'balance', '$14,000', chase)
+    Wb = line(rC, 'statement_figure', '$14,000', chase)
     p_concerns(Wb, utterance=utter('Wb is the car loan.'), object_obligation_id=o3.id)
     corr(W, Wb, utterance=utter('W and Wb are one line.'))
     rep8 = cs(W)
@@ -368,7 +368,7 @@ def run(db):
     N9 = held('h-strong', '2026-07-31', chase, u_chase)
     a_concerns(N9, utterance=utter('N9 is the mortgage.'), object_obligation_id=o1.id)
     rN9a, rN9b = read(N9, 'parser/5'), read(N9, 'parser/6', datetime(2026, 8, 1))
-    S9 = line(rN9a, 'balance', '$1,800', chase)
+    S9 = line(rN9a, 'statement_figure', '$1,800', chase)
     evidence(S9, reading=rN9b)
     p_concerns(S9, utterance=utter('S9 is the mortgage.'), object_obligation_id=o1.id)
     rep9 = cs(S9)
@@ -379,8 +379,8 @@ def run(db):
     B10 = held('h-mixed', '2026-08-31', chase, u_chase)
     a_concerns(B10, utterance=utter('B10 is the HELOC.'), object_obligation_id=o2.id)
     rB10 = read(B10)
-    M = line(rB10, 'balance', '$9,000', chase)
-    Mb = line(rB10, 'balance', '$9,000', chase)
+    M = line(rB10, 'statement_figure', '$9,000', chase)
+    Mb = line(rB10, 'statement_figure', '$9,000', chase)
     p_concerns(Mb, utterance=utter('Mb is the HELOC.'), object_obligation_id=o2.id)
     corr(M, Mb, utterance=utter('M and Mb are one line.'))
     rep10 = cs(M)
@@ -389,7 +389,7 @@ def run(db):
           [(a['path'], classes(a['chains'])) for a in e10] == [(db.ABOUT_PATH_ARTEFACT, [db.STRENGTH_KNOWING]), (db.ABOUT_PATH_CORRESPONDENCE, [db.STRENGTH_UNDETERMINED])]
           and not any('class' in a for a in e10))
     T = held('h-two-grounds', '2026-09-30', chase, u_chase)
-    Tl = line(read(T), 'balance', '$3', chase)
+    Tl = line(read(T), 'statement_figure', '$3', chase)
     _, tclaim = p_concerns(Tl, utterance=utter('Tl is the mortgage.'), object_obligation_id=o1.id)
     evidence(tclaim, utterance=utter('Yes, the mortgage.', origin=kim_party))
     rep23 = cs(Tl)
@@ -403,7 +403,7 @@ def run(db):
     D = held('h-conflict', '2026-10-31', chase, u_chase)
     a_concerns(D, utterance=utter('D is the mortgage.'), object_obligation_id=o1.id)
     rD = read(D)
-    Q = line(rD, 'balance', '$1,700', chase)
+    Q = line(rD, 'statement_figure', '$1,700', chase)
     p_concerns(Q, utterance=utter('Q is the HELOC.', origin=kim_party), object_obligation_id=o2.id)
     rep11 = cs(Q)
     ab11 = db.aboutness(s, Q)
@@ -417,8 +417,8 @@ def run(db):
           and not ({'level_consistency', 'independence', 'parse_disputes'} & calls_in(db.chain_strength)))
     F = held('h-dispute', '2026-11-30', chase, u_chase)
     rF1, rF2 = read(F, 'parser/5'), read(F, 'parser/6', datetime(2026, 12, 1))
-    Y1 = line(rF1, 'balance', '$100', chase)
-    Y2 = line(rF2, 'balance', '$1OO', chase)
+    Y1 = line(rF1, 'statement_figure', '$100', chase)
+    Y2 = line(rF2, 'statement_figure', '$1OO', chase)
     corr(Y1, Y2, utterance=utter('Y1 and Y2 are one line.'))
     check('Ms13 (7A): two readings of one artefact disagree on the figure - IDENTICAL L0 by construction (one artefact, one origin, one kind); strength cannot choose a reading',
           cs(Y1)['evidence'][0]['class'] == cs(Y2)['evidence'][0]['class'] == db.STRENGTH_KNOWING
@@ -489,7 +489,7 @@ def run(db):
     NM = held('h-null', '2026-12-31', chase, u_chase)
     a_concerns(NM, utterance=utter('NM is the mortgage.'), object_obligation_id=o1.id)
     rNM = read(NM)
-    nl = [line(rNM, 'balance', f'${i}', chase) for i in range(3)]
+    nl = [line(rNM, 'statement_figure', f'${i}', chase) for i in range(3)]
     _, flip_claim = p_concerns(nl[0], utterance=utter('n0 is the mortgage.'), object_obligation_id=o1.id)
     p_concerns(nl[1], utterance=utter('n1 is the mortgage.'), object_obligation_id=o1.id)
     reps_before = [cs(p) for p in nl]
@@ -512,7 +512,7 @@ def run(db):
     print("\n8b. Ms27 - what a chain IS: its sequence of grounds; equal sequences one chain; simple routes\n")
     I = held('h-identity', '2027-01-31', chase, u_chase)
     rI = read(I)
-    J, Jb = line(rI, 'balance', '$5', chase), line(rI, 'balance', '$5', chase)
+    J, Jb = line(rI, 'statement_figure', '$5', chase), line(rI, 'statement_figure', '$5', chase)
     _, jclaim = p_concerns(Jb, utterance=utter('Jb is the mortgage.'), object_obligation_id=o1.id)
     evidence(jclaim, utterance=utter('Yes, the mortgage.', origin=kim_party))
     corr(J, Jb, utterance=utter('J and Jb are one line.'))
@@ -527,7 +527,7 @@ def run(db):
     check('Ms27: a SECOND correspondence claim between the same pair is a different claim on record -> two routes, FOUR chains, all distinct ground sequences; nothing merged that differs, nothing counted',
           len(ch27b) == 4 and len({tuple(l['ground'] for l in c['links']) for c in ch27b}) == 4
           and not any(k in NUMERIC_KEYS for k, _ in _walk(cs(J))))
-    Jc = line(rI, 'balance', '$5', chase)
+    Jc = line(rI, 'statement_figure', '$5', chase)
     corr(Jb, Jc, utterance=utter('Jb and Jc are one line.'))
     corr(Jc, J, utterance=utter('Jc and J are one line.'))                            # a cycle J ~ Jb ~ Jc ~ J
     rep27c = cs(J)

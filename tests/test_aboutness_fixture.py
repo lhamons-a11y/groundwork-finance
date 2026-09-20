@@ -240,7 +240,7 @@ def run(db):
     a_concerns(A, utterance=utter('That is my credit-union statement - mortgage and HELOC.'), object_obligation_id=o1.id)
     a_concerns(A, utterance=utter('(both)'), object_obligation_id=o2.id)
     r1 = read(A)
-    P3 = line(r1, 'balance', '$44,000', cu)
+    P3 = line(r1, 'statement_figure', '$44,000', cu)
     c3 = p_concerns(P3, utterance=utter('Line 3 is the HELOC.'), object_obligation_id=o2.id)
     ab = db.aboutness(s, P3)
     check('Ac1: an established line-level assertion - about O2, ASSERTED, with the claim and Rob as asserter; the artefact-level pair {O1, O2} is not a choice',
@@ -298,7 +298,7 @@ def run(db):
     a_concerns(S2, utterance=utter('...and it lists the cleaning.'), object_expense_id=E1.id)
     a_concerns(S2, utterance=utter('...and that payment.'), object_payment_id=p1.id)
     r2m = read(S2)
-    Q5 = line(r2m, 'balance', '$43,900', cu)
+    Q5 = line(r2m, 'statement_figure', '$43,900', cu)
     ab21 = db.aboutness(s, Q5)
     check('Ac21: "exactly one" is scoped to the requested type - O1 for obligations, E1 for expenses, p for payments, each derived; identities of other types are neither multiplicity nor conflict',
           set(derived_ids(ab21, 'obligation')) == {o1.id} and set(derived_ids(ab21, 'expense')) == {E1.id}
@@ -307,7 +307,7 @@ def run(db):
     a_concerns(S3, utterance=utter('That one is the mortgage.'), object_obligation_id=o1.id)
     r3 = read(S3)
     a_concerns(S3, reading=r3, object_obligation_id=o2.id)          # the parser's heading match: a CANDIDATE artefact claim
-    Q6 = line(r3, 'balance', '$43,800', cu)
+    Q6 = line(r3, 'statement_figure', '$43,800', cu)
     ab22 = db.aboutness(s, Q6)
     check('Ac22: "nothing contradicts" defined - one established concern (O1) beside a CANDIDATE concern (O2): derived O1; O2 listed as a candidate; not undetermined, not conflict; the candidate is not resolved',
           set(derived_ids(ab22)) == {o1.id} and cand_ids(ab22) == {o2.id} and ab22['undetermined'] == [] and ab22['conflicts'] == []
@@ -322,7 +322,7 @@ def run(db):
 
     print('\n5. Ac6 / Ac7 / Ac8 / Ac16 / Ac18 / Ac23 / Ac24 / Ac25 - correspondence: established carries, candidate stops, contested halts\n')
     r1b = read(A, process='parser/6', when=datetime(2026, 5, 1))
-    P3b = line(r1b, 'balance', '$4,400', cu)
+    P3b = line(r1b, 'statement_figure', '$4,400', cu)
     ab16 = db.aboutness(s, P3b)
     check('Ac16: a re-reading with no correspondence claim - NO about-ness; nothing inherited from position; the artefact level offers only candidates {O1, O2}',
           ab16['asserted'] == [] and not derived_ids(ab16) and cand_ids(ab16) == {o1.id, o2.id})
@@ -340,7 +340,7 @@ def run(db):
           and s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS, subject_proposition_id=P3b.id).count() == 0
           and P3b.object_state == db.PARTICIPANT_CANDIDATES and ab6['asserted'] == [])
     r1c = read(A, process='parser/7', when=datetime(2026, 6, 1))
-    P3c = line(r1c, 'balance', '$44,000', cu)
+    P3c = line(r1c, 'statement_figure', '$44,000', cu)
     corr(P3b, P3c, utterance=utter('And the June parse is the same line.', '2026-06-02T09:00:00'))
     ab18 = db.aboutness(s, P3c)
     check('Ac18: transitivity through established links - P3c reaches O2 through the component; the correspondence and the concerns claim are listed as links',
@@ -352,7 +352,7 @@ def run(db):
     # Ac23 - the mixed chain: P ~ Q established, Q ~ R candidate, R concerns X
     M = held('h-mixed', '2026-06-30', cu, u_cu)
     rM = read(M)
-    Pm, Qm, Rm = line(rM, 'balance', '$1', cu), line(rM, 'balance', '$2', cu), line(rM, 'balance', '$3', cu)
+    Pm, Qm, Rm = line(rM, 'statement_figure', '$1', cu), line(rM, 'statement_figure', '$2', cu), line(rM, 'statement_figure', '$3', cu)
     corr(Pm, Qm, utterance=utter('P and Q are one line.', '2026-07-01T09:00:00'))
     corr(Qm, Rm, reading=rM)                                         # candidate
     p_concerns(Rm, utterance=utter('R is the car loan.', '2026-07-01T09:01:00'), object_obligation_id=o3.id)
@@ -365,7 +365,7 @@ def run(db):
     a_concerns(N1, utterance=utter('N1 is the car loan statement.'), object_obligation_id=o3.id)
     a_concerns(N2, utterance=utter('N2 is the car loan statement too.'), object_obligation_id=o3.id)
     rN1, rN2 = read(N1), read(N2)
-    Pn, Qn = line(rN1, 'balance', '$9,900', cu), line(rN2, 'balance', '$9,900', cu)
+    Pn, Qn = line(rN1, 'statement_figure', '$9,900', cu), line(rN2, 'statement_figure', '$9,900', cu)
     corr(Pn, Qn, utterance=utter('Same line on both copies.', '2026-08-01T09:00:00'))
     p_concerns(Qn, utterance=utter('Q is the car loan line.', '2026-08-01T09:01:00'), object_obligation_id=o3.id)
     ab25 = db.aboutness(s, Pn)
@@ -408,7 +408,7 @@ def run(db):
     ab13 = db.aboutness(s, Q2)
     check("Ac13: the artefact's origin party (the credit union) is E of O3 as well - Q2's about-ness is still only O1 (derived via S1); the origin party's roles transmit nothing",
           set(derived_ids(ab13)) == {o1.id} and o3.id not in cand_ids(ab13))
-    P3x = line(r1, 'balance', '$12,000', cu)                          # from the two-obligation statement A
+    P3x = line(r1, 'statement_figure', '$12,000', cu)                          # from the two-obligation statement A
     p_concerns(P3x, utterance=utter('That line is the car loan.'), object_obligation_id=o3.id)
     ab14 = db.aboutness(s, P3x)
     check('Ac14: asserted O3 beside an artefact level {O1, O2} - about O3 ASSERTED; the artefact candidates listed; the CONFLICT reported with its sources and NOT resolved',
@@ -426,7 +426,7 @@ def run(db):
     # Ac26 - established and candidate coexisting
     C1 = held('h-coexist', '2026-08-31', cu, u_cu)
     rC = read(C1)
-    Pc, Qc = line(rC, 'balance', '$5', cu), line(rC, 'balance', '$6', cu)
+    Pc, Qc = line(rC, 'statement_figure', '$5', cu), line(rC, 'statement_figure', '$6', cu)
     p_concerns(Pc, utterance=utter('P is the mortgage.', '2026-09-01T09:00:00'), object_obligation_id=o1.id)
     p_concerns(Qc, utterance=utter('Q is the HELOC.', '2026-09-01T09:01:00'), object_obligation_id=o2.id)
     corr(Pc, Qc, reading=rC)                                          # candidate
@@ -441,14 +441,14 @@ def run(db):
           and not any(hasattr(db, n) for n in ('aboutness_strength', 'aboutness_knowing')))
     Z = held('h-nothing', '2026-09-30', cu, u_cu)                    # no artefact concerns, no line claims
     rZ = read(Z)
-    Pz = line(rZ, 'balance', '$0', cu)
+    Pz = line(rZ, 'statement_figure', '$0', cu)
     ab19 = db.aboutness(s, Pz)
     check("Ac19: no path at all - 'no about-ness established' (distinct from 'candidates only'); no default to the artefact's origin",
           ab19['note'] == 'no about-ness established' and ab19['structural'] == [] and ab19['asserted'] == []
           and ab19['derived'] == [] and ab19['candidates'] == [] and ab19['undetermined'] == [])
     NM = held('h-null', '2026-10-31', cu, u_cu)
     rNM = read(NM)
-    nl = [line(rNM, 'balance', f'${i}', cu) for i in range(4)]
+    nl = [line(rNM, 'statement_figure', f'${i}', cu) for i in range(4)]
     for i, ln in enumerate(nl[:3]):
         p_concerns(ln, utterance=utter(f'null line {i}', '2026-11-01T09:00:00'), object_obligation_id=(o1, o2, o3)[i].id)
     nm = [db.aboutness(s, ln) for ln in nl]

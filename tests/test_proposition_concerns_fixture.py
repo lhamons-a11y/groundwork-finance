@@ -83,7 +83,7 @@ def run(db):
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'},
                db.PROPOSITION_CONCERNS: {'person', 'institution'},    # supplied - and must not score
                db.ARTEFACT_CONCERNS: {'person', 'institution'},
-               'balance': {'institution'}, 'cleared': {'institution'}}
+               'statement_figure': {'institution'}, 'balance': {'institution'}, 'cleared': {'institution'}}
 
     def utter(text, when='2026-03-10T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -165,7 +165,7 @@ def run(db):
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=A.id, object_obligation_id=o1.id), utterance=utter('My CU statement - both loans.'))
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=A.id, object_obligation_id=o2.id), utterance=utter('My CU statement - both loans.'))
     rA = read(A)
-    lines = [line(A, rA, 'balance', c, cu) for c in ('$181,200', 'rate 6.1%', '$44,000', 'rate 8.9%')]
+    lines = [line(A, rA, 'statement_figure', c, cu) for c in ('$181,200', 'rate 6.1%', '$44,000', 'rate 8.9%')]
     P3, e3 = lines[2]
     before = [fingerprint(p) for p, _ in lines]
     strength_before = [db.derived_strength(s, e, KNOWING) for _, e in lines]
@@ -238,7 +238,7 @@ def run(db):
     check('Pa4: P3 is byte-identical - the credit union still says $44,000; its history is its own',
           fingerprint(P3) == before[2] and db.derived_strength(s, e3, KNOWING) == strength_before[2])
     rA2 = read(A, 'pdf-parser/6', datetime(2026, 4, 11))
-    P3b, _ = line(A, rA2, 'balance', '$4,400', cu)
+    P3b, _ = line(A, rA2, 'statement_figure', '$4,400', cu)
     check('Pa5: a re-reading yields P3\' with NO about-ness of its own - nothing carried across by position or content',
           s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS, subject_proposition_id=P3b.id).count() == 0
           and P3b.object_state == db.PARTICIPANT_CANDIDATES)
@@ -266,7 +266,7 @@ def run(db):
     S1 = held('h-single', '2026-03-31', cu, u_cu)
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=S1.id, object_obligation_id=o1.id), utterance=utter('My mortgage statement.'))
     rS = read(S1)
-    Ps, _ = line(S1, rS, 'balance', '$181,000', cu)
+    Ps, _ = line(S1, rS, 'statement_figure', '$181,000', cu)
     check('Pa8: a single-identity statement needs no line-level claim; none exists and the line still names nothing itself',
           s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS, subject_proposition_id=Ps.id).count() == 0
           and Ps.object_state == db.PARTICIPANT_CANDIDATES)

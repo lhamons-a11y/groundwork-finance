@@ -242,9 +242,10 @@ def run(db):
     check('relation not ruled -> undetermined: an unknown relation name resolves to nothing',
           db._relational_strength(s, r_none, household.id, 'some_relation_nobody_ruled') == db.STRENGTH_UNDETERMINED
           and db._relational_strength(s, r_none, household.id, None) == db.STRENGTH_UNDETERMINED)
-    # 9B named a third relation for the role kinds: the subject party of the role claim (KNOWING_SUBJECT_PARTY).
-    check('the relations are NAMED and finite - three names, three resolvers, nothing generic',
-          set(db._KNOWING_RELATIONS) == {db.KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE, db.KNOWING_MINTER_OF_OBJECT_IDENTITY, db.KNOWING_SUBJECT_PARTY}
+    # 9B named a third relation for the role kinds (KNOWING_SUBJECT_PARTY); 9D-i a fourth, the role-at-date relation
+    # (KNOWING_ENTITLED_PARTY_AT_AS_OF) - three designated-participant resolvers and one that classifies the claimant by role at as_of.
+    check('the relations are NAMED and finite - four names, four resolvers, nothing generic',
+          set(db._KNOWING_RELATIONS) == {db.KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE, db.KNOWING_MINTER_OF_OBJECT_IDENTITY, db.KNOWING_SUBJECT_PARTY, db.KNOWING_ENTITLED_PARTY_AT_AS_OF}
           and not any(hasattr(db, n) for n in ('find_related_party', 'related_parties', 'reachable_parties', 'knowing_party_for')))
     check('every relational kind either names a relation from that table or none - never a bare traversal hint',
           all(r.get('knowing_relation') in (None, *db._KNOWING_RELATIONS) for r in db.RULED_KINDS.values()))

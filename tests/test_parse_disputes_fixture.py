@@ -145,14 +145,14 @@ def run(db):
     print('\n2. Pd13 / Pd1 / Pd2 - one reading; a candidate dispute; an established dispute\n')
     stmt = held('h-march', '2026-03-31', chase, u_chase)
     r1 = read(stmt, process='parser/4', when=datetime(2026, 4, 2))
-    p3 = line(r1, 'balance', '$44,000', chase)
+    p3 = line(r1, 'statement_figure', '$44,000', chase)
     p_pay = line(r1, 'payment_due', '$1,412', chase)
     one = db.parse_disputes(s, stmt)
     check('Pd13: one reading - "single_reading", one observation, one source; no group, no omission, never "agreed"',
           one['observations'] == 1 and one['classification'] == [db.PARSE_SINGLE_READING] and one['groups'] == []
           and one['omissions'] == [] and one['sources'] == 1)
     r2 = read(stmt, process='parser/5', when=datetime(2026, 5, 1))
-    p3b = line(r2, 'balance', '$4,400', chase)
+    p3b = line(r2, 'statement_figure', '$4,400', chase)
     p_payb = line(r2, 'payment_due', '$1,412', chase)
     c_cand = corresponds(p3b, p3, reading=r2)                   # the matcher's position match - a candidate
     c_cand2 = corresponds(p_payb, p_pay, reading=r2)
@@ -184,7 +184,7 @@ def run(db):
           len(g) == 1 and g[0]['classification'] == [db.PARSE_AGREED_ONE_SOURCE] and g[0]['contents'] == ['$1,412']
           and est['sources'] == 1 and 'corroborated' not in g[0] and 'strength' not in g[0])
     r3 = read(stmt, process='parser/6', when=datetime(2026, 6, 1))
-    p3c = line(r3, 'balance', '$44,000', chase)
+    p3c = line(r3, 'statement_figure', '$44,000', chase)
     corresponds(p3c, p3, utterance=utter('And the June re-parse is the same line again.', '2026-06-02T09:00:00'))
     three = db.parse_disputes(s, stmt)
     g = groups_for(three, p3.id, p3b.id, p3c.id)
@@ -195,13 +195,13 @@ def run(db):
           and not any(k in g[0] for k in ('majority', 'votes', 'consensus')))
 
     print('\n4. Pd4 / Pd5 - a kind dispute; an omission is not a dispute and not zero\n')
-    p_k1 = line(r1, 'balance', '$2,100', chase)
+    p_k1 = line(r1, 'statement_figure', '$2,100', chase)
     p_k2 = line(r2, 'payment_due', '$2,100', chase)
     corresponds(p_k1, p_k2, utterance=utter('Line 5 - same line, both readings.', '2026-05-03T09:00:00'))
     kd = db.parse_disputes(s, stmt)
     g = groups_for(kd, p_k1.id, p_k2.id)
-    check('Pd4: the readings disagree about KIND (balance vs payment_due) with the same content - a kind dispute, distinct from a content dispute',
-          len(g) == 1 and g[0]['classification'] == [db.PARSE_KIND_DISPUTE] and g[0]['kinds'] == ['balance', 'payment_due']
+    check('Pd4: the readings disagree about KIND (statement_figure vs payment_due) with the same content - a kind dispute, distinct from a content dispute',
+          len(g) == 1 and g[0]['classification'] == [db.PARSE_KIND_DISPUTE] and g[0]['kinds'] == sorted(['statement_figure', 'payment_due'])
           and g[0]['contents'] == ['$2,100'])
     p_footer = line(r1, 'footer_note', 'Payments received after 3/28 are not reflected.', chase)
     om = db.parse_disputes(s, stmt)
@@ -213,7 +213,7 @@ def run(db):
     print('\n5. Pd6 / Pd7 - two artefacts are not a parse dispute; testimony is not a reading\n')
     stmt_apr = held('h-april', '2026-04-30', chase, u_chase)
     r_apr = read(stmt_apr, process='parser/5', when=datetime(2026, 5, 3))
-    p_apr = line(r_apr, 'balance', '$43,100', chase)
+    p_apr = line(r_apr, 'statement_figure', '$43,100', chase)
     corresponds(p_apr, p3, utterance=utter('(a wrong but assertable claim: the April balance line IS the March one)', '2026-05-04T09:00:00'))
     six = db.parse_disputes(s, stmt)
     g = groups_for(six, p3.id, p3b.id)
@@ -223,7 +223,7 @@ def run(db):
     apr = db.parse_disputes(s, stmt_apr)
     check("Pd6: from the April statement's side the same - its one observation, the March members beyond it; no cross-artefact dispute manufactured",
           apr['classification'] == [db.PARSE_SINGLE_READING] and apr['groups'] == [])
-    t = db.Proposition(kind='balance', subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_NONE,
+    t = db.Proposition(kind='statement_figure', subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_NONE,   # 9D-i F2: the party-subject figure, not the ruled balance
                        subject_party_id=chase.id, content='$44,000', as_of='2026-03-31')
     s.add(t)
     s.commit()
@@ -236,7 +236,7 @@ def run(db):
 
     print("\n6. Pd9 / Pd10 - a person's transcription is a reading; a retracted correspondence is contested and stops\n")
     r_rob = read(stmt, party=household, when=datetime(2026, 6, 5))
-    p_rob = line(r_rob, 'balance', '$44,000', chase)
+    p_rob = line(r_rob, 'statement_figure', '$44,000', chase)
     corresponds(p_rob, p3, utterance=utter("My own transcription of that line.", '2026-06-05T09:05:00'))
     nine = db.parse_disputes(s, stmt)
     g = groups_for(nine, p3.id, p_rob.id)
@@ -265,8 +265,8 @@ def run(db):
     null_stmt = held('h-null', '2026-02-28', chase, u_chase)
     ra = read(null_stmt, process='parser/5', when=datetime(2026, 3, 2))
     rb = read(null_stmt, process='parser/5', when=datetime(2026, 3, 9))
-    lines_a = [line(ra, k, c, chase) for k, c in (('balance', '$9,910'), ('payment_due', '$300'), ('minimum', '$35'))]
-    lines_b = [line(rb, k, c, chase) for k, c in (('balance', '$9,910'), ('payment_due', '$300'), ('minimum', '$35'))]
+    lines_a = [line(ra, k, c, chase) for k, c in (('statement_figure', '$9,910'), ('payment_due', '$300'), ('minimum', '$35'))]
+    lines_b = [line(rb, k, c, chase) for k, c in (('statement_figure', '$9,910'), ('payment_due', '$300'), ('minimum', '$35'))]
     u_lines = utter('Same three lines, both parses.', '2026-03-10T09:00:00')
     for a, b in zip(lines_a, lines_b):
         corresponds(a, b, utterance=u_lines)
@@ -275,14 +275,14 @@ def run(db):
           len(zero['groups']) == 3 and all(g['classification'] == [db.PARSE_AGREED_ONE_SOURCE] for g in zero['groups'])
           and zero['omissions'] == [] and zero['sources'] == 1)
     rc = read(null_stmt, process='parser/6', when=datetime(2026, 3, 16))
-    lines_c = [line(rc, k, c, chase) for k, c in (('balance', '$9,190'), ('payment_due', '$300'), ('minimum', '$35'))]
+    lines_c = [line(rc, k, c, chase) for k, c in (('statement_figure', '$9,190'), ('payment_due', '$300'), ('minimum', '$35'))]
     u_lines2 = utter('And the same three lines in the third parse.', '2026-03-17T09:00:00')
     for a, c in zip(lines_a, lines_c):
         corresponds(a, c, utterance=u_lines2)
     one_changed = db.parse_disputes(s, null_stmt)
     disputes = [g for g in one_changed['groups'] if db.PARSE_CONTENT_DISPUTE in g['classification']]
     check('Pd14 (null model): one changed figure yields exactly ONE dispute, on the balance line, with both contents - structural, no threshold consulted',
-          len(disputes) == 1 and disputes[0]['kinds'] == ['balance'] and disputes[0]['contents'] == ['$9,190', '$9,910']
+          len(disputes) == 1 and disputes[0]['kinds'] == ['statement_figure'] and disputes[0]['contents'] == ['$9,190', '$9,910']
           and len([g for g in one_changed['groups'] if g['classification'] == [db.PARSE_AGREED_ONE_SOURCE]]) == 2)
     check("Pd14: '$9,190' vs '$9,910' - a difference a similarity threshold would swallow - is a dispute because the contents differ, full stop",
           disputes[0]['contents'] != [disputes[0]['contents'][0]])

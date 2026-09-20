@@ -181,10 +181,10 @@ def run(db):
           not any(k in db.RULED_KINDS for k in SOURCE_KINDS))
     # Pass C added obligation_in_respect_of on the obligation subject slot (RELATION_SEMANTICS.md C.9) - an
     # obligation -> expense relation, not an obligation -> obligation one; recorded here truthfully.
-    # Item 9 pass 9C built E's obligation_in_respect_of_plan on this slot (2026-09-19); the stance kinds used here are still 9D's stand-ins
-    check('the only ruled kinds on the obligation-subject slot are obligation_corresponds, obligation_replaces, obligation_in_respect_of and obligation_in_respect_of_plan (E, 9C) - the stance kinds used here stay stand-ins',
-          set(k for k, r in db.RULED_KINDS.items() if 'subject_obligation_id' in r['subject']) == {db.OBLIGATION_CORRESPONDS, db.OBLIGATION_REPLACES, db.OBLIGATION_IN_RESPECT_OF, db.OBLIGATION_IN_RESPECT_OF_PLAN}
-          and not any(k in db.RULED_KINDS for k in ('terms', 'entitled_party', 'balance', 'closed', 'toward')))
+    # 9C built E's obligation_in_respect_of_plan on this slot; 9D-i built the balance stance (subject the obligation, no object)
+    check('the only ruled kinds on the obligation-subject slot are obligation_corresponds, obligation_replaces, obligation_in_respect_of, obligation_in_respect_of_plan (E, 9C) and balance (9D-i) - the other stance kinds used here stay stand-ins',
+          set(k for k, r in db.RULED_KINDS.items() if 'subject_obligation_id' in r['subject']) == {db.OBLIGATION_CORRESPONDS, db.OBLIGATION_REPLACES, db.OBLIGATION_IN_RESPECT_OF, db.OBLIGATION_IN_RESPECT_OF_PLAN, db.BALANCE}
+          and not any(k in db.RULED_KINDS for k in ('terms', 'entitled_party', 'closed', 'toward')))
 
     print('\n2. B1 - modification: same mortgage, new terms; no O3, no relation\n')
     o1, u_o1 = owe('I have a mortgage with Chase - account ending 4471, about $180k.', '2019-06-01T09:00:00')

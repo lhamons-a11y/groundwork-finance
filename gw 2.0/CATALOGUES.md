@@ -16,8 +16,8 @@
 > candidate, the reading path the one specification the cases add (9D-i-F1), 7E's `balance` a
 > different proposition under a borrowed name (F2), Dg2-as-ruled vs built 7G recorded for 7G (F3),
 > `returned` the acknowledgment's shape (F4); **RULED (§9D-i.8) — F5, F1, F2 with the precision
-> that no new kind is invented for 7E's line, F4; F3 recorded for 7G; build awaits authorisation;
-> no code.**
+> that no new kind is invented for 7E's line, F4; F3 recorded for 7G; BUILT (awaiting acceptance);
+> 9D-ii unopened.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -1570,5 +1570,92 @@ with the borrowed-name implication removed; (4) `returned` on the explicit-holde
 follows these rulings.** The build, when authorised, is narrow: registry representation; the
 consumer substitutions these frozen meanings require; mutation coverage for the reading / holder
 distinctions; the full gate.
+
+---
+
+#### Built — 2026-09-19 (9D-i)
+
+`core/database.py`: `ACKNOWLEDGED`, `BALANCE`, `RETURNED` — three registry entries exactly as §9D-i.8
+froze them. **The mixed holder shape:** the acknowledgment and the return with `subject_party_id` = E
+and the payment as object, `knowing_relation` **`KNOWING_SUBJECT_PARTY`** (9B's, unchanged); the
+balance with the obligation as subject and **no object** (`'object': ()` — the registry's required
+absence, as `utterance_retraction`), `knowing_relation` **`KNOWING_ENTITLED_PARTY_AT_AS_OF`**. All
+three `reading_establishes: True`; none a role, none bounded; no `dated` key. **The role-at-date
+relation, written once:** `_role_at_as_of(session, prop, claimant, role_kind)` — the claimant's
+`in_effect` answer for the role on the claim's established subject at the claim's `as_of`: in effect →
+knowing; not in effect, or no stance at all → not_knowing; undetermined / contested → undetermined;
+no `as_of` or no subject → undetermined; nothing composed. It is three-valued and classifies the
+claimant, so it is not a designated-participant resolver (those name one party and compare); it is
+the fourth entry in `_KNOWING_RELATIONS`, dispatched by `_relational_strength` through
+**`_ROLE_AT_AS_OF`, the table keyed by the relation's name** — 9D-ii / 9D-iii add their names and
+roles there and change nothing else. **The reading path (F1):** the relational branch of
+`derived_strength` now routes a reading-sourced claim of a kind with `reading_establishes: True`
+through the artefact's **established origin** as the asserting party, weakest-linked with the origin
+claim (C1–C3) — `_reading_origin`, factored out of the foundation path it already served, derives
+nothing new; a kind with `False` still returns undetermined; **`_claim_states` untouched — a reading
+is a candidate in state regardless.** The one comment block states P-ack, the two holder forms and
+their reason, O's absence and the composition fence, the servicer channel as the consumer's read,
+the flag's exact meaning (*reading → origin → relation → strength; never reading → discharge*), and
+`returned` as the acknowledgment's twin. **Nothing else** — `reach` and every consumer untouched; no
+discharge, holder or servicer helper.
+
+**The oracle:** `tests/test_obligation_stances_fixture.py` — 22 checks over Ob1–Ob15 and the
+registry, run with a foundation map that carries **no entry** for the three kinds: Ob1 (E's own
+acknowledgment knowing, discharged); **Ob2** (the parser's reading of E's held statement — candidate
+in state, **knowing** in strength through the origin; listed, not discharged); **Ob3, recorded not
+solved** (Rob's acceptance added to the same claim — two relationships, (candidate, knowing) and
+(established, not_knowing); built 7G qualifies per relationship → not discharged; 9D-i-F3 stays
+7G's); **Ob4** (the servicer's acknowledgment naming E as holder — origin ≠ holder → not_knowing;
+holder in effect, strength not knowing → listed, not discharged; the kind composes nothing through
+BillCo's `servicer_of` or p's attachment); Ob5 (S3 knowing for its own, never entitled); Ob6 (Rob
+relays → not_knowing); **Ob12 — the 2 × 2** ((E, E) knowing · (E, S) not_knowing · (S, S) knowing ·
+(S, E) not_knowing — the foundation's type test called all four knowing); the balance on every
+path — Ob1 (Harbor in role → knowing, governing), Ob8 (the servicer's balance → not_knowing, not in
+E's series — K2's balance half recorded as a consumer question), Ob9 (E's held statement line →
+candidate, knowing), Ob9′ (O5: Rob's spreadsheet with the same figure → not_knowing; relaying does not
+launder), Ob11 (two positions by date, G per series 7G's), **Ob7** (the role contested at `as_of` →
+undetermined, nothing manufactured), Ob13 (undated → undetermined; disqualified by 7G), a party with
+no stance at all → not_knowing; Ob14 (`returned` — E's shape, knowing, station unchanged, nothing
+written; its reading the same machinery); Ob15 (the party-subject line refused under `balance`,
+accepted under its own stand-in name); O's absence and the balance's refusals by the registry.
+
+**The substitution — the decisive test, and what it exposed:** the 7G, 7I and 7H fixtures changed by
+their catalogue lines' meaning only (the names were already the ruled names), the two helpers naming
+the ruled constants, and **their foundation-map entries for `acknowledged` / `balance` retired** —
+**40/40 · 30/30 · 32/32, identical counts, no consumer changed**; 7J's helpers and map likewise
+(31/31). Beyond names, three things reported rather than absorbed: **(1) `balance` as a
+party-subject line (9D-i-F2, ruled)** — not one fixture but **nine** used the name for the
+reading-line figure whose subject is the party and whose thing is a candidate (7A, 7C, 7D, 7E, Ab7,
+proposition-correspondence, artefact-concerns, independence, obligation-identity; the shape is the
+point of their cases); the ruled kind's guard refuses it (both participants established); per the
+ruling the shape is kept and the borrowed name removed — one stand-in name, `statement_figure`,
+across all nine, with their map entries following, **no new kind**; 7A's kind-dispute case now reads
+`statement_figure` vs `payment_due`, the same dispute. Their obligation-subject `balance` claims (the
+household's testimony about O) match the ruled shape and keep the name. **(2) `returned` had two
+shapes:** 7G's Dg18 line was E's return with `subject_payment_id` and no holder — corrected to the
+ruled shape (holder Harbor, the payment); the payment-counteracts fixture's *RETURNED ITEM 3/5* is
+**the bank's** returned-item line — a bank stance of 9D-iv's class under E's name — renamed
+`bank_returned_item`, its map entry following. **(3) three exact-set pins,** the class 9C found:
+obligation-replaces (the obligation-subject kinds now include `balance`), the relational-knowing
+fixture and the role-catalogue fixture (*three names, three resolvers* → four; *the third named
+relation* kept, the count updated), `s97`'s opening check likewise. The three consumer fixtures'
+*no acknowledgment / balance kind registered* narrowed to the value kinds still 9D-iv's.
+
+**Smoke `s120_obligation_stances.py`:** the fixture passes; ten mutations, each a collapse of the
+reading / holder distinction — the servicer's acknowledgment discharging (`KNOWING_SUBJECT_PARTY`
+granting the servicer E's position) · the origin's type conferring knowing (the foundation restored)
+· a reading establishing state (Dg2′ reversed) · a reading discharging (7G accepting a knowing
+candidate) · the flag establishing state · a non-entitled balance knowing (the role ignored) · the
+acknowledgment composing through the attachment (O reached from p; the servicer's role read) · an
+undated stance knowing · a second relation on the acknowledgment (F1 uniformised) · `returned` read
+as a non-acknowledgment — **all ten caught on the first run**, baseline re-established after every
+undo.
+
+**Left where it belongs:** 9D-i-F3 (does discharge read state and strength across a claim's
+relationships, or per relationship — §7G.3's Dg2 text vs built 7G) — 7G's, to be opened
+explicitly · K2's balance half (a consumer with O in hand reading the servicer's balance) · the
+portal observed without an artefact · 9D-ii's and 9D-iii's roles (their names and roles go in
+`_ROLE_AT_AS_OF`; the relation is not re-ruled) · values, `cleared`, the bank's stances (9D-iv) · the
+determination (9D-v). No schema, no migration. Gate 1396 → 1419, 0 failed.
 
 ---

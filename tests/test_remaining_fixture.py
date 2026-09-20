@@ -78,7 +78,7 @@ def _boundary(of, which, subject, obj):
 
 STAND_INS = {
 }
-CATALOGUE = {'acknowledgment': 'acknowledged', 'entitled_party': 'entitled_party_of', 'balance': 'balance',
+CATALOGUE = {'acknowledgment': 'acknowledged', 'entitled_party': 'entitled_party_of', 'balance': 'balance',   # acknowledged / balance: ruled (9D-i)
              'payment_amount': 'amount', 'occurred_on': 'occurred_on', 'paid_by': 'paid_by', 'paid_to': 'paid_to'}
 
 
@@ -125,7 +125,7 @@ def run(db):
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
     check('the stand-in role kind is removed; the registry is as shipped; no value or acknowledgment kind was registered',
-          db.RULED_KINDS == shipped and not any(k in shipped for k in ('acknowledged', 'balance', 'amount', 'occurred_on')))   # paid_by / paid_to: ruled roles since 9B
+          db.RULED_KINDS == shipped and not any(k in shipped for k in ('amount', 'occurred_on', 'cleared')))   # paid_by / paid_to: ruled roles since 9B; acknowledged / balance / returned: ruled stances since 9D-i
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -139,7 +139,7 @@ def _run(db):
     s.add_all([rob, kim])
     s.commit()
     household, kim_party = rob.party, kim.party
-    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'acknowledged': {'institution'}, 'balance': {'institution'},
+    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 
                'amount': {'person', 'institution'}, 'occurred_on': {'person', 'institution'}}
     D = Decimal
 
@@ -209,11 +209,11 @@ def _run(db):
         return p
 
     def ack(by, p, as_of, origin=None, reading=None):
-        return claim('acknowledged', utterance=None if reading else utter(f'ack {as_of}', origin=origin or by), reading=reading,
+        return claim(db.ACKNOWLEDGED, utterance=None if reading else utter(f'ack {as_of}', origin=origin or by), reading=reading,
                      as_of=as_of, subject_party_id=by.id, object_payment_id=p.id)
 
     def stated(O, by, amount, as_of, origin=None):
-        return claim('balance', utterance=utter(amount, origin=origin or by), as_of=as_of, content=amount, subject_obligation_id=O.id)
+        return claim(db.BALANCE, utterance=utter(amount, origin=origin or by), as_of=as_of, content=amount, subject_obligation_id=O.id)
 
     def rem(O, d):
         return db.remaining(s, O, d, CATALOGUE, KNOWING)
@@ -475,7 +475,7 @@ def _run(db):
     check("Dg17 (D'12): one cheque attached to two obligations -> counted IN FULL on each (300 and 500); no allocation, no split; the note names the double count for 7I",
           fig(ra, 'attached') == D('300') and fig(rb, 'attached') == D('500')
           and any("D'12" in n for n in ra['note']) and not any(k in ('allocation', 'share', 'split') for k, _ in _walk(ra)))
-    claim('returned', utterance=utter('returned unapplied', origin=chase), as_of='2026-03-12', subject_payment_id=p1.id)
+    claim(db.RETURNED, utterance=utter('returned unapplied', origin=chase), as_of='2026-03-12', subject_party_id=chase.id, object_payment_id=p1.id)   # 9D-i: E's return, the acknowledgment's shape
     check("Dg18 (D'10): Chase's 'returned unapplied' claim on p1 is a kind 7G does not read -> p1 stays discharged; the note says the return kind is not read",
           pm(rem(O1, '2026-03-31'), p1)['station'] == db.STATION_DISCHARGED and any("D'10" in n for n in r1['note']))
     O19 = mint(db.Obligation, 'As of d.')

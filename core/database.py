@@ -2070,6 +2070,44 @@ EXPENSE_IN_RESPECT_OF_PLAN = 'expense_in_respect_of_plan'
 OBLIGATION_IN_RESPECT_OF_PLAN = 'obligation_in_respect_of_plan'
 PAYMENT_IN_RESPECT_OF_PLAN = 'payment_in_respect_of_plan'
 
+# ── Item 9, pass 9D-i: THE OBLIGATION STANCES - acknowledged, balance, returned ──────────
+# gw 2.0/CATALOGUES.md s 9D.7 / s 9D-i.8 (ruled 2026-09-19), on ACKNOWLEDGMENT_EVIDENCE_CASES.md (Rob,
+# 2026-09-12): P-ack is THE ENTITLED PARTY'S STATED POSITION about a payment or a balance, as of a stated
+# date - a position, never the balance itself and never the world; one knowing party (E); every
+# acknowledgment dated. The catalogue has TWO HOLDER FORMS (9D-F1, the mixed shape - a semantic
+# distinction, not implementation history):
+#   acknowledged / returned  the holder is an EXPLICIT PARTICIPANT (subject_party_id = E; object the
+#                            payment) because the ruled discharge channels let a statement by a
+#                            different party (E's servicer, K2) stand as E's position - so who ASSERTED
+#                            must be distinguishable from WHOSE POSITION it represents. Knowing at the
+#                            kind level: KNOWING_SUBJECT_PARTY (the asserter is the holder). O is ABSENT
+#                            (s D'.4 / 9D-F2): the acknowledgment says E's position on p and nothing about
+#                            which obligation; the attachment (payment_in_respect_of_obligation) says
+#                            p -> O; they meet on p in the consumer. The kind derives no O through the
+#                            servicer's roles - that composition is refused (D'). The servicer channel's
+#                            weakest-link strength is evaluated by a consumer that has O in hand (7G's
+#                            RG-a tests the HOLDER's entitled-party role against its own O - a consumer
+#                            gate, not a second kind-level relation).
+#   balance                  the holder is IMPLIED: the asserting party, knowing iff it held
+#                            entitled_party_of on the subject obligation IN EFFECT AT THE CLAIM'S as_of
+#                            (KNOWING_ENTITLED_PARTY_AT_AS_OF - the role-at-date relation, ruled once here
+#                            and APPLIED by 9D-ii / 9D-iii for their roles, never re-ruled). Nothing is
+#                            composed: the obligation is on the claim. A servicer's balance statement is
+#                            not_knowing at the kind level (K2's balance half is a consumer's to read).
+# reading_establishes True on all three means EXACTLY: the kind's relational strength may be evaluated
+# through the artefact's ESTABLISHED ORIGIN, weakest-linked with the origin claim (C1-C3: the reading
+# conveys the artefact's origin's knowledge, never the reader's - K1, E's held statement is the primary
+# channel); it establishes NO state - a reading-sourced claim stays a candidate (_claim_states is by
+# evidence type; Dg2'), and never discharge. reading -> origin -> relation -> strength; never
+# reading -> discharge. Roles and relations keep False (Ro13: the letterhead's knowledge is nobody's).
+# returned is the acknowledgment's negative twin (Dg18: E returned p unapplied) - the same shape, no
+# consumer reads it, a return is not a non-acknowledgment. The user's report is not knowing (K5); the
+# bank's clearance is not acknowledgment (K6, 9D-iv's kind); ack != balance (K8). Not source words.
+ACKNOWLEDGED = 'acknowledged'
+BALANCE = 'balance'
+RETURNED = 'returned'
+KNOWING_ENTITLED_PARTY_AT_AS_OF = 'the_entitled_party_of_the_subject_obligation_in_effect_at_as_of'
+
 RULED_KINDS = {
     ARTEFACT_ORIGIN:      {'subject': ('subject_artefact_id',), 'object': ('object_party_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': False},
@@ -2184,6 +2222,18 @@ RULED_KINDS = {
                                     'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
     PAYMENT_IN_RESPECT_OF_PLAN:    {'subject': ('subject_payment_id',), 'object': ('object_plan_id',),
                                     'symmetric': False, 'reading_establishes': False, 'relational_knowing': True},
+    # Item 9 pass 9D-i: the obligation stances (s 9D-i.8). The mixed holder shape: the acknowledgment and the
+    # return carry their holder as a participant; the balance's holder is the asserter in role at as_of.
+    # reading_establishes True = strength through the artefact's established origin, never state.
+    ACKNOWLEDGED: {'subject': ('subject_party_id',), 'object': ('object_payment_id',),
+                   'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                   'knowing_relation': KNOWING_SUBJECT_PARTY},
+    RETURNED:     {'subject': ('subject_party_id',), 'object': ('object_payment_id',),
+                   'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                   'knowing_relation': KNOWING_SUBJECT_PARTY},
+    BALANCE:      {'subject': ('subject_obligation_id',), 'object': (),
+                   'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                   'knowing_relation': KNOWING_ENTITLED_PARTY_AT_AS_OF},
 }
 
 # ── Item 5: the role period ───────────────────────────────────────────────────
@@ -3070,10 +3120,37 @@ def _designated_subject_party(session, prop):
     return prop.subject_party_id
 
 
+# 9D-i: THE ROLE-AT-DATE RELATION (s 9D-i.3, ruled s 9D-i.8) - the claimant held role R on the claim's
+# established subject, IN EFFECT at the claim's as_of (7F in_effect, G named). Three-valued, so it is
+# not a designated-participant resolver (those name one party and the claimant is compared to it): it
+# classifies the claimant directly. in_effect -> knowing; not_in_effect (or no stance at all) ->
+# not_knowing; undetermined / contested -> undetermined; no as_of, or no established subject ->
+# undetermined. Nothing composed. Written once; the role comes from the table keyed by the relation's
+# name - 9D-ii / 9D-iii add their names and roles to the table and change nothing else.
+_ROLE_AT_AS_OF = {
+    KNOWING_ENTITLED_PARTY_AT_AS_OF: ENTITLED_PARTY_OF,
+}
+
+
+def _role_at_as_of(session, prop, claimant_party_id, role_kind):
+    if claimant_party_id is None or not prop.as_of:
+        return STRENGTH_UNDETERMINED
+    rule = RULED_KINDS.get(prop.kind) or {}
+    subject = next((getattr(prop, c) for c in rule.get('subject', ()) if getattr(prop, c) is not None), None)
+    party = session.get(Party, claimant_party_id)
+    if subject is None or party is None:
+        return STRENGTH_UNDETERMINED
+    answer = in_effect(session, party, role_kind, prop.as_of)['identities'].get(subject)
+    if answer is None or answer['answer'] == EFFECT_NOT:
+        return STRENGTH_NOT_KNOWING
+    return STRENGTH_KNOWING if answer['answer'] == EFFECT_IN else STRENGTH_UNDETERMINED
+
+
 _KNOWING_RELATIONS = {
     KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE: _designated_origin_of_subject_utterance,
     KNOWING_MINTER_OF_OBJECT_IDENTITY: _designated_minter_of_object_identity,
     KNOWING_SUBJECT_PARTY: _designated_subject_party,
+    KNOWING_ENTITLED_PARTY_AT_AS_OF: _role_at_as_of,                 # 9D-i: dispatched with the claimant and the role
 }
 
 
@@ -3082,6 +3159,8 @@ def _relational_strength(session, prop, claimant_party_id, relation_name):
     resolver = _KNOWING_RELATIONS.get(relation_name)
     if resolver is None:
         return STRENGTH_UNDETERMINED                       # relation not ruled
+    if relation_name in _ROLE_AT_AS_OF:                    # 9D-i: the role-at-date relation classifies the claimant
+        return resolver(session, prop, claimant_party_id, _ROLE_AT_AS_OF[relation_name])
     designated = resolver(session, prop)
     if designated is None or claimant_party_id is None:
         return STRENGTH_UNDETERMINED                       # designated participant not established
@@ -3097,13 +3176,33 @@ def _utterance_strength(session, utt, kind, knowing):
     return STRENGTH_KNOWING if party_foundation(party) in knowing[kind] else STRENGTH_NOT_KNOWING
 
 
+def _reading_origin(session, relation, knowing):
+    """The artefact's ESTABLISHED origin party behind a reading-sourced relationship, and the strongest
+    strength among the origin claims naming it (C3's second link) - or (None, undetermined) when the
+    origin is not a single established party. Shared by the foundation path and, since 9D-i, the
+    relational path for stance kinds; it derives nothing new."""
+    rd = relation.reading if relation.reading is not None else session.get(Reading, relation.reading_id)
+    art = rd.artefact if rd.artefact is not None else session.get(Artefact, rd.artefact_id)
+    state, parties = artefact_origin(session, art)
+    if state != ORIGIN_ESTABLISHED:
+        return None, STRENGTH_UNDETERMINED
+    origin = session.get(Party, parties[0])
+    claim_strengths = [_utterance_strength(session, c.utterance, ARTEFACT_ORIGIN, knowing)
+                       for c in _origin_claims(session, art, origin.id)]
+    best = (STRENGTH_KNOWING if STRENGTH_KNOWING in claim_strengths
+            else STRENGTH_NOT_KNOWING if STRENGTH_NOT_KNOWING in claim_strengths
+            else STRENGTH_UNDETERMINED)
+    return origin, best
+
+
 def derived_strength(session, relation, knowing):
     """Strength, computed on read and never stored.
 
     `knowing` is the knowing relation for proposition kinds - `{kind: {origin_kind, ...}}` -
     supplied by the caller because the kind catalogue is not settled (the health kinds' relation
-    lives in `core.classification.KNOWING_SOURCES` today; P-ack's is "the entitled party only";
-    P-world's is nobody). `origin_kind` is 'person' for a household-anchored party and
+    lives in `core.classification.KNOWING_SOURCES` today; P-ack's - "the entitled party only" -
+    is RULED since 9D-i for acknowledged / balance / returned and read from the registry, the map
+    entry for those kinds unused; P-world's is nobody). `origin_kind` is 'person' for a household-anchored party and
     'institution' for a minted one - which foundation, by a join to the anchor, never a kind
     column (the party-shape ruling). The one ruled entry (`ARTEFACT_ORIGIN.md` s4): for
     `artefact_origin` the recipient household and the origin party itself are knowing
@@ -3139,7 +3238,15 @@ def derived_strength(session, relation, knowing):
         # claim is classified by the kind's NAMED designated relation, if it has one; a relational
         # kind with no named relation stays undetermined - nothing is manufactured for a flag.
         if relation.reading_id is not None or relation.reading is not None:
-            return STRENGTH_UNDETERMINED
+            if not rule.get('reading_establishes'):
+                return STRENGTH_UNDETERMINED
+            # 9D-i (s 9D-i.8): for a stance kind the reading is the ruled primary channel - the artefact's
+            # ESTABLISHED origin is the asserting party for the kind's relation, weakest-linked with the
+            # origin claim (C1-C3). Strength only: the claim's STATE is a candidate regardless (Dg2').
+            origin, best = _reading_origin(session, relation, knowing)
+            if origin is None:
+                return STRENGTH_UNDETERMINED
+            return _weakest(_relational_strength(session, prop, origin.id, rule.get('knowing_relation')), best)
         utt = relation.utterance if relation.utterance is not None else session.get(Utterance, relation.utterance_id)
         if utt is None:
             return STRENGTH_UNDETERMINED
@@ -3150,18 +3257,12 @@ def derived_strength(session, relation, knowing):
             # letterhead says Aetna" is nobody's - routing it through the artefact's origin
             # would score it by accident (CORRESPONDENCE.md s3).
             return STRENGTH_UNDETERMINED
-        rd = relation.reading if relation.reading is not None else session.get(Reading, relation.reading_id)
-        art = rd.artefact if rd.artefact is not None else session.get(Artefact, rd.artefact_id)
-        state, parties = artefact_origin(session, art)
-        if state != ORIGIN_ESTABLISHED or prop.kind not in knowing:
+        if prop.kind not in knowing:
             return STRENGTH_UNDETERMINED
-        origin = session.get(Party, parties[0])
+        origin, best = _reading_origin(session, relation, knowing)
+        if origin is None:
+            return STRENGTH_UNDETERMINED
         link = STRENGTH_KNOWING if party_foundation(origin) in knowing[prop.kind] else STRENGTH_NOT_KNOWING
-        claim_strengths = [_utterance_strength(session, c.utterance, ARTEFACT_ORIGIN, knowing)
-                           for c in _origin_claims(session, art, origin.id)]
-        best = (STRENGTH_KNOWING if STRENGTH_KNOWING in claim_strengths
-                else STRENGTH_NOT_KNOWING if STRENGTH_NOT_KNOWING in claim_strengths
-                else STRENGTH_UNDETERMINED)
         return _weakest(link, best)
     utt = relation.utterance
     if utt is None:

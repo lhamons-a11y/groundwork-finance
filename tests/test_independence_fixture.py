@@ -85,7 +85,7 @@ def run(db):
     household, kim_party = rob.party, kim.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'},
                'patient_responsibility': {'institution'}, 'date_of_service': {'person', 'institution'},
-               'copay_paid': {'person'}, 'nature': {'person'}, 'balance': {'institution'}}
+               'copay_paid': {'person'}, 'nature': {'person'}, 'statement_figure': {'institution'}, 'balance': {'institution'}}
 
     def utter(text, when='2026-03-06T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -346,7 +346,7 @@ def run(db):
     chase, u_chase = mint_party('Chase.')
     chase_stmt = held('h-chase', '2026-05-01', chase, u_chase)
     r_chase = read(chase_stmt, process='parser/5', when=datetime(2026, 5, 2))
-    bal = world('balance', '$1,900', subject_party=chase)
+    bal = world('statement_figure', '$1,900', subject_party=chase)
     evidence(bal, reading=r_chase)
     evidence(bal, reading=r_newco)
     nine = db.independence(s, bal, KNOWING)

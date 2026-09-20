@@ -86,7 +86,7 @@ def run(db):
     household = rob.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'},
                db.ARTEFACT_CONCERNS: {'person', 'institution'},     # supplied - and must not score
-               'balance': {'institution'}, 'payment_due': {'institution'}, 'services': {'institution'}}
+               'statement_figure': {'institution'}, 'balance': {'institution'}, 'payment_due': {'institution'}, 'services': {'institution'}}
 
     def utter(text, when='2026-03-10T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -157,8 +157,8 @@ def run(db):
     A = held('h-stmt', '2026-02-28', chase, u_chase)
     rA = read(A)
     values = [read_value(A, rA, k, c, chase) for k, c in
-              (('balance', '$1,925'), ('payment_due', '$1,412'), ('balance', 'escrow $312'),
-               ('payment_due', 'rate 6.1%'), ('balance', 'last payment $1,412'))]
+              (('statement_figure', '$1,925'), ('payment_due', '$1,412'), ('statement_figure', 'escrow $312'),
+               ('payment_due', 'rate 6.1%'), ('statement_figure', 'last payment $1,412'))]
     before = [fingerprint(p) for p, _ in values]
     strength_before = [db.derived_strength(s, e, KNOWING) for _, e in values]
     check('before any crossing the read values carry the obligation as not-established-with-candidates',
@@ -204,7 +204,7 @@ def run(db):
     mercy, u_mercy = mint_party('Mercy Hospital.')
     bill = held('h-bill', '2026-02-20', mercy, u_mercy)
     r_bill = read(bill)
-    p_due, _ = read_value(bill, r_bill, 'balance', '$1,200 due', mercy)
+    p_due, _ = read_value(bill, r_bill, 'statement_figure', '$1,200 due', mercy)
     n_obl = s.query(db.Obligation).count()
     u_er = utter("That's the ER visit - I owe Mercy for it.", '2026-03-13T09:00:00')
     o2 = mint_obligation(u_er)
@@ -223,7 +223,7 @@ def run(db):
     print('\n4. Ab3 - the parser notices "4471" in both: a candidate for the concerns claim, and for nothing else\n')
     A2 = held('h-stmt-2', '2026-03-31', chase, u_chase)
     rA2 = read(A2)
-    p_bal2, e_bal2 = read_value(A2, rA2, 'balance', '$1,900', chase)
+    p_bal2, e_bal2 = read_value(A2, rA2, 'statement_figure', '$1,900', chase)
     c_match = concerns(A2, o1, 'basis: 4471 appears in A2 and in the minting utterance')
     e_match = evidence(c_match, reading=rA2)
     check('the match is a reading-sourced concerns claim - a candidate with no party behind it',
@@ -252,9 +252,9 @@ def run(db):
           [fingerprint(p) for p, _ in values] == before
           and [db.derived_strength(s, e, KNOWING) for _, e in values] == strength_before)
     rA_again = read(A, 'pdf-parser/6', datetime(2026, 4, 11))
-    read_value(A, rA_again, 'balance', '$1,295', chase)
+    read_value(A, rA_again, 'statement_figure', '$1,295', chase)
     check('Ab5: a parse dispute inside A ($1,925 vs $1,295) is two read propositions; the concerns claims are untouched',
-          s.query(db.Proposition).filter_by(kind='balance', subject_party_id=chase.id, as_of=A.as_of).count() == 4
+          s.query(db.Proposition).filter_by(kind='statement_figure', subject_party_id=chase.id, as_of=A.as_of).count() == 4
           and s.query(db.Proposition).filter_by(kind=db.ARTEFACT_CONCERNS, subject_artefact_id=A.id).count() == 2)
 
     print('\n6. Ab6 - "the mortgage balance is about $178k": testimony, a different proposition, not the crossing\n')
@@ -277,7 +277,7 @@ def run(db):
     evidence(concerns(combo, o1), utterance=u_combo)
     evidence(concerns(combo, o_heloc), utterance=u_combo)
     r_combo = read(combo)
-    p_which, _ = read_value(combo, r_combo, 'balance', '$44,000', cu)
+    p_which, _ = read_value(combo, r_combo, 'statement_figure', '$44,000', cu)
     check('Ab7: an artefact may concern two identities - two claims, both asserted',
           s.query(db.Proposition).filter_by(kind=db.ARTEFACT_CONCERNS, subject_artefact_id=combo.id).count() == 2)
     # Ab7 retired the absence in place: proposition_concerns now exists (tests/test_proposition_

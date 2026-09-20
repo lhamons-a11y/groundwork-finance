@@ -82,7 +82,7 @@ def run(db):
     household = rob.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'},
                db.PROPOSITION_CORRESPONDS: {'person', 'institution'},   # supplied - and must not score
-               'balance': {'institution'}, 'payment_due': {'institution'}}
+               'statement_figure': {'institution'}, 'balance': {'institution'}, 'payment_due': {'institution'}}
 
     def utter(text, when='2026-03-10T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -152,8 +152,8 @@ def run(db):
     r2 = read(A, 'pdf-parser/6', datetime(2026, 4, 11))
 
     print('\n1. Pc1 - two readings of one line, two contents: a candidate, then established; the dispute stays\n')
-    P3, e3 = line(A, r1, 'balance', '$44,000', cu)
-    P3b, e3b = line(A, r2, 'balance', '$4,400', cu)
+    P3, e3 = line(A, r1, 'statement_figure', '$44,000', cu)
+    P3b, e3b = line(A, r2, 'statement_figure', '$4,400', cu)
     fp_before = (fingerprint(P3), fingerprint(P3b))
     st_before = (db.derived_strength(s, e3, KNOWING), db.derived_strength(s, e3b, KNOWING))
     check('before any claim the two propositions are separate referents',
@@ -181,7 +181,7 @@ def run(db):
 
     print('\n2. Pc2 / Pc9 - read twice, agreed; a third reading; the component\n')
     r3 = read(A, 'pdf-parser/7', datetime(2026, 5, 11))
-    P3c, _ = line(A, r3, 'balance', '$44,000', cu)
+    P3c, _ = line(A, r3, 'statement_figure', '$44,000', cu)
     evidence(corr(P3c, P3b), utterance=utter('Third parse, same line.', '2026-05-12T09:00:00'))
     check('Pc2: agreeing contents corresponding is representable - and nothing marks it "corroborated"',
           P3c.content == P3.content and not any(hasattr(db, n) for n in ('corroborated', 'independent_sources', 'source_count')))
@@ -270,8 +270,8 @@ def run(db):
     B = held('h-bank', '2026-03-31', mint_party('My bank.')[0], u_cu)
     rb1 = read(B, 'feed-import/1', datetime(2026, 4, 1))
     rb2 = read(B, 'feed-import/1', datetime(2026, 5, 1))
-    L1, _ = line(B, rb1, 'balance', 'CHASE MTG -1,412.00', cu)
-    L2, _ = line(B, rb2, 'balance', 'CHASE MTG -1,412.00', cu)
+    L1, _ = line(B, rb1, 'statement_figure', 'CHASE MTG -1,412.00', cu)
+    L2, _ = line(B, rb2, 'statement_figure', 'CHASE MTG -1,412.00', cu)
     evidence(corr(L2, L1, content='basis: same position, same content, monthly re-parse'), reading=rb2)
     check('Pc10: a monthly re-parse may emit candidates; none is established; nothing carried',
           db.referent(s, L1) == (db.REFERENT_CANDIDATES, [L1.id], [L2.id])

@@ -196,7 +196,7 @@ def run(db):
     r_bill = db.Reading(artefact_id=bill.id, reader_process='pdf-parser/5', read_at=datetime(2026, 3, 1))
     s.add(r_bill)
     s.commit()
-    p_read = prop('balance', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=mercy.id,
+    p_read = prop('statement_figure', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=mercy.id,
                   content='$1,200 due', as_of='2026-02-20')
     evidence(p_read, reading=r_bill)
     check('encountering a bill mints no obligation',

@@ -84,7 +84,7 @@ def run(db):
     s.commit()
     household, kim_party = rob.party, kim.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'amount': {'person', 'institution'},
-               'returned': {'institution'}}   # paid_to: a ruled role since 9B - knowing by relation, not by the map
+               'bank_returned_item': {'institution'}}   # returned: E's kind since 9D-i - the bank's returned-item line is the bank's own stance (9D-iv); paid_to: a ruled role since 9B - knowing by relation, not by the map
 
     def utter(text, when='2026-06-03T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -254,10 +254,10 @@ def run(db):
 
     print('\n10. A12 / A13 - no second payment, no relation; direction is asserted\n')
     p9, u_p9 = pay('I paid Chase $1,412 on 3/3.', '2026-03-03T09:00:00')
-    about('returned', p9, 'RETURNED ITEM 3/5', utterance=utter('The bank says the 3/3 payment was returned on 3/5.', '2026-03-06T09:00:00', origin=bank), as_of='2026-03-05')
+    about('bank_returned_item', p9, 'RETURNED ITEM 3/5', utterance=utter('The bank says the 3/3 payment was returned on 3/5.', '2026-03-06T09:00:00', origin=bank), as_of='2026-03-05')
     check('A12: the bounced ACH is one payment with a dated claim about it - no second payment, no relation',
           rel(obj=p9).count() == 0 and rel(p9).count() == 0
-          and s.query(db.Proposition).filter_by(kind='returned', subject_payment_id=p9.id).count() == 1)
+          and s.query(db.Proposition).filter_by(kind='bank_returned_item', subject_payment_id=p9.id).count() == 1)
     check('A13: the relation is not symmetric - asserting p1 counteracts p2 is a different claim, and it is not derived from p2 counteracts p1',
           not db.RULED_KINDS[db.PAYMENT_COUNTERACTS]['symmetric'] and rel(p1, p2).count() == 0)
     check('A13: reflexive and cross-type are refused; both participants must be established payments',

@@ -216,7 +216,7 @@ def run(db):
     S1 = held('h-single', '2026-03-31', cu, u_cu)
     a_concerns(S1, utterance=utter('That is my mortgage statement.'), object_obligation_id=o1.id)
     rS = read(S1)
-    L1 = line(rS, 'balance', '$44,000', cu)
+    L1 = line(rS, 'statement_figure', '$44,000', cu)
     L2 = line(rS, 'payment_due', '$1,412', cu)
     p_concerns(L1, utterance=utter('Line 1 is the mortgage.'), object_obligation_id=o1.id)
     p_concerns(L2, utterance=utter('Line 2 is the HELOC.'), object_obligation_id=o2.id)
@@ -240,7 +240,7 @@ def run(db):
     a_concerns(A, utterance=utter('That is my credit-union statement - mortgage and HELOC.'), object_obligation_id=o1.id)
     a_concerns(A, utterance=utter('(both)'), object_obligation_id=o2.id)
     rA = read(A)
-    M1, M2, M3 = line(rA, 'balance', '$44,000', cu), line(rA, 'balance', '$9,100', cu), line(rA, 'balance', '$12,000', cu)
+    M1, M2, M3 = line(rA, 'statement_figure', '$44,000', cu), line(rA, 'statement_figure', '$9,100', cu), line(rA, 'statement_figure', '$12,000', cu)
     p_concerns(M1, utterance=utter('Line 1 is the mortgage.'), object_obligation_id=o1.id)
     p_concerns(M2, utterance=utter('Line 2 is the HELOC.'), object_obligation_id=o2.id)
     p_concerns(M3, utterance=utter('Line 3 is the car loan.', origin=kim_party), object_obligation_id=o3.id)
@@ -259,7 +259,7 @@ def run(db):
     C = held('h-candidates', '2026-04-30', cu, u_cu)
     rC = read(C)
     a_concerns(C, reading=rC, object_obligation_id=o1.id)             # the parser's heading match - a candidate
-    K1 = line(rC, 'balance', '$5', cu)
+    K1 = line(rC, 'statement_figure', '$5', cu)
     p_concerns(K1, utterance=utter('That line is the HELOC.'), object_obligation_id=o2.id)
     repC = db.level_consistency(s, C)
     check('Ld5: a candidate artefact concern only -> artefact state candidates_only; the asserted-O2 line is NO_LEVEL_BASIS, not inconsistent; the candidate is listed',
@@ -270,7 +270,7 @@ def run(db):
     u_d2 = utter('...and it covers the HELOC.')
     a_concerns(D, utterance=u_d2, object_obligation_id=o2.id)
     rD = read(D)
-    P1, Q2, R3 = line(rD, 'balance', '$1', cu), line(rD, 'balance', '$2', cu), line(rD, 'balance', '$3', cu)
+    P1, Q2, R3 = line(rD, 'statement_figure', '$1', cu), line(rD, 'statement_figure', '$2', cu), line(rD, 'statement_figure', '$3', cu)
     p_concerns(P1, utterance=utter('P is the mortgage.'), object_obligation_id=o1.id)
     p_concerns(Q2, utterance=utter('Q is the HELOC.'), object_obligation_id=o2.id)
     p_concerns(R3, utterance=utter('R is the car loan.'), object_obligation_id=o3.id)
@@ -292,7 +292,7 @@ def run(db):
     check('Ld7: L2b has O2 only by derivation through the established correspondence to L2 - INCONSISTENT with source derived:correspondence, against [O1]',
           cls_of(rep7, L2b) == db.LEVEL_INCONSISTENT and entry_of(rep7, L2b)['identities'] == [(o2.id, db.ABOUT_DERIVED + ':' + db.ABOUT_PATH_CORRESPONDENCE)]
           and entry_of(rep7, L2b)['against'] == [o1.id])
-    X1, X2 = line(rA, 'balance', '$7', cu), line(rA, 'balance', '$8', cu)
+    X1, X2 = line(rA, 'statement_figure', '$7', cu), line(rA, 'statement_figure', '$8', cu)
     p_concerns(X1, utterance=utter('X1 is the mortgage.'), object_obligation_id=o1.id)
     p_concerns(X2, utterance=utter('X2 is the HELOC.'), object_obligation_id=o2.id)
     corr(X1, X2, utterance=utter('X1 and X2 are one line.'))
@@ -319,7 +319,7 @@ def run(db):
     a_concerns(Tm, utterance=utter('...it lists the cleaning.'), object_expense_id=e1.id)
     a_concerns(Tm, utterance=utter('...and that payment.'), object_payment_id=p1.id)
     rTm = read(Tm)
-    Y1 = line(rTm, 'balance', '$43,900', cu)
+    Y1 = line(rTm, 'statement_figure', '$43,900', cu)
     p_concerns(Y1, utterance=utter('Y1 is the mortgage.'), object_obligation_id=o1.id)
     Y2 = line(rTm, 'charge', '$150', cu)
     p_concerns(Y2, utterance=utter('Y2 is the cleaning.'), object_expense_id=e1.id)
@@ -335,7 +335,7 @@ def run(db):
     Z = held('h-three', '2026-07-31', cu, u_cu)
     a_concerns(Z, utterance=utter('Z is the mortgage statement.'), object_obligation_id=o1.id)
     rZ = read(Z)
-    zl = [line(rZ, 'balance', f'${i}', cu) for i in range(5)]
+    zl = [line(rZ, 'statement_figure', f'${i}', cu) for i in range(5)]
     p_concerns(zl[0], utterance=utter('z0 is the mortgage.', '2026-08-01T09:00:00'), object_obligation_id=o1.id)
     for i in (1, 2, 3):
         p_concerns(zl[i], utterance=utter(f'z{i} is the HELOC.', f'2026-08-0{i + 1}T09:00:00'), object_obligation_id=o2.id)
@@ -367,7 +367,7 @@ def run(db):
           and not any(hasattr(db, n) for n in ('recommend_retraction', 'suggest_retraction')))
     E = held('h-empty', '2026-08-31', cu, u_cu)                       # no artefact claim, no line claims
     rE = read(E)
-    E1 = line(rE, 'balance', '$0', cu)
+    E1 = line(rE, 'statement_figure', '$0', cu)
     repE = db.level_consistency(s, E)
     check('Ld16: nothing on either level - artefact state none and the line NO_LINE_BASIS; never "consistent"; no inconsistency',
           repE['types']['obligation']['artefact_state'] == db.ARTEFACT_SIDE_NONE and cls_of(repE, E1) == db.LEVEL_NO_LINE_BASIS
@@ -375,13 +375,13 @@ def run(db):
     N = held('h-null', '2026-09-30', cu, u_cu)
     a_concerns(N, utterance=utter('N is the mortgage statement.'), object_obligation_id=o1.id)
     rN = read(N)
-    nl = [line(rN, 'balance', f'${i}', cu) for i in range(4)]
+    nl = [line(rN, 'statement_figure', f'${i}', cu) for i in range(4)]
     for ln in nl:
         p_concerns(ln, utterance=utter('within the set', '2026-10-01T09:00:00'), object_obligation_id=o1.id)
     repN = db.level_consistency(s, N)
     check('Ld17 (null model): a within-set corpus -> ZERO inconsistencies; counts {consistent: 4}',
           repN['types']['obligation']['inconsistencies'] == [] and repN['types']['obligation']['counts'] == {db.LEVEL_CONSISTENT: 4})
-    outlier = line(rN, 'balance', '$99', cu)
+    outlier = line(rN, 'statement_figure', '$99', cu)
     p_concerns(outlier, utterance=utter('the outlier', '2026-10-02T09:00:00'), object_obligation_id=o3.id)
     repN2 = db.level_consistency(s, N)
     check('Ld17 (null model): one line asserted outside -> exactly ONE inconsistency, on that line; a correctness oracle, no threshold',
