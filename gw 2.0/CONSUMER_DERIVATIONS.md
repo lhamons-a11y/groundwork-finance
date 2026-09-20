@@ -3994,3 +3994,132 @@ ruled answer. **The provenance point preserved: multiple relationships attached 
 become multiple acknowledgments, while their distinct origins are not collapsed.** **7G-F3 closed.**
 
 ---
+
+## Pass 7J-F4 — The any-party term read (reopened 2026-09-20 from 9D-iii F4)
+
+*Opened by Rob 2026-09-20 from item 9's carried-forward list. 7J is closed and accepted; this pass
+reopens one question 9D-iii ruled belonged to 7J: **the term kinds' holder is the insurer, and 7J
+reads the latest established term by any party and reads no strength — should 7J's term read gate by
+the holder, as TG-base gained the entitled-party test?** No code until cases → candidate → ruling →
+explicit build authorisation.*
+
+### 7J-F4.1 What is fixed
+
+**9D-iii F4 (ruled):** *the insurer holds the terms; a household statement such as "our deductible
+is $3,000" is evidence relaying the insurer's term and does not make the household the holder; the
+broader question of 7J's any-party term reading remains owned by 7J.* `deductible`,
+`individual_deductible`, `plan_year` carry `KNOWING_PLAN_INSURER_AT_AS_OF`; the SBC read → a candidate,
+knowing through its origin; the household's own statement → established, not_knowing (Ps8, Ps11).
+**7J §7J.7 (ruled):** the term — *the governing `deductible` term claim on P at d (G, named)*; content an
+amount or `none`; no claim → `unknown` (*we do not have the deductible*); the window — the governing
+`plan_year` containing d; the stated accumulator — the governing `deductible_applied` **by the plan's
+insurer**; *no `met`*; the household's figure is never the accumulator (U6). **K5:** the user is not a
+knowing party for the insurer's position. **K7:** conflicts resolve by date, then channel — never by
+count, never by ranking. **7G-F3 (ruled, built):** a claim's state is aggregated across its
+relationships and its strength is its knowing origin — a document read and accepted by the household
+is *established with a knowing origin*; the holder's series can admit it.
+
+### 7J-F4.2 What 7J does — three reads, two gates
+
+| read | admits | gate on the holder | strength read |
+|---|---|---|---|
+| the term (`deductible` / `individual_deductible`) | every established claim dated ≤ d, **any party**; the latest; conflict at one date → unknown | **none** | no |
+| the window (`plan_year`) | every established claim whose range contains d, any party; the latest | **none** | no |
+| the stated accumulator (`deductible_applied`) | established, dated ≤ d, **the asserter in effect as the plan's insurer at `as_of`** | yes — on the utterance's origin, **per relationship** | no |
+
+So the term and the window take the household's relay as the rule, and a later household statement
+overrides the insurer's own by date (Te4 below); the stated accumulator does gate — but on the
+relationship's utterance origin, so an accepted statement reading (Rob's utterance establishing, the
+insurer's document the knowing origin) is excluded there exactly as it was excluded from 7G's
+discharge before 7G-F3.
+
+### 7J-F4.3 The question, and the three readings
+
+> **Is the governing term the latest established term claim by any party, or the latest by the
+> holder — the insurer, by role at the claim's date — with the household's relay listed and never
+> governing?**
+
+**Reading A (any party, as built).** The household's relay is the rule until the insurer says
+otherwise; usable with no document; but Te4 — the household's later statement overrides the
+insurer's — is what 9D-iii F4 said the household cannot do, and the term read contradicts the stated
+accumulator's own discipline in the same consumer.
+
+**Reading H (the holder's series).** The governing term is the latest claim **with a knowing origin**
+— the insurer's own statement, or the SBC read and accepted (7G-F3's claim-level shape: state from
+any relationship, strength from the knowing origin) — conflict at one date → unknown; the
+household's bare relay listed as *stated by the household, not the insurer's*, never governing; **no
+knowing claim → `unknown`, honestly** (*we do not have the insurer's deductible*), not the
+household's figure. The P-ack analogue: the term is the insurer's position; K5. The window the same.
+**The consumer change:** the term and window reads gain the claim-level holder test the stated
+accumulator already has in per-relationship form — *as TG-base gained the entitled-party test* —
+and all three reads take 7G-F3's claim-level shape (state aggregated, strength the knowing origin).
+
+**Reading K (knowing preferred, relay as fallback).** The insurer's claims govern when present, else
+the household's. **Refused on sight:** a ranking by strength is a resolver (K7: never by ranking;
+§1.1 no scoring); the household's relay would govern *by absence of the insurer's* — the pattern
+every consumer refused.
+
+*Reading, for Rob to reject:* **H**, with `unknown` as the honest answer when only the household has
+spoken — the same posture as *no established deductible term*; the household's figure is shown, not
+silently promoted. The cost is the term and window reads changing shape (one consumer, two reads),
+and — **F1** — whether the stated accumulator's per-relationship gate is brought to the claim level in
+the same build, since it is the same defect 7G-F3 fixed.
+
+### 7J-F4.4 Findings
+
+**7J-F4-F1 — scope: the term read only, or every holder gate that still tests per relationship.**
+7G-F3 fixed the acknowledgment loop; the same per-relationship holder test remains in **7G's stated
+(balance) series**, **7H's three X-stance series**, and **7J's stated accumulator** — each admits a
+claim only if *its utterance's origin* is in role, so an accepted document reading never enters the
+holder's series anywhere but discharge. This pass is named for the term read; the sibling gates are
+the same question with the same answer available (7G-F3's shape). *Reading:* rule the term and window
+here **and name the sibling gates as one follow-on pass** (7G's balance, 7H's stances, 7J's stated) —
+not silently fixed in this build. **Rob's.**
+
+**7J-F4-F2 — `unknown` when only the household has spoken.** Under H the accumulator reports
+`unknown` with a reason naming the household's statement as *stated, not the insurer's* — the term is
+neither zero nor the relay. 7J already tolerates `unknown` (no claim); this extends it to *no knowing
+claim*. The household's figure stays in `claims`, listed with its strength. Is that the intended
+posture, or is the household's relay to govern with its strength shown (a softer H that is still a
+ranking)? *Reading:* `unknown`; the alternative is K by another name. **Rob's.**
+
+**7J-F4-F3 — `none` by the household.** *Our plan has no deductible* by the household → not_knowing
+→ under H not governing; `unknown`. The rule's non-existence is the insurer's to state, as its
+existence is. No new rule.
+
+### 7J-F4.5 Cases
+
+| # | Case | A (as built) | H |
+|---|---|---|---|
+| **Te1** | Lakeview Health states *$3,000* 1/1 | 3,000 | 3,000 (knowing) |
+| **Te2** | Rob alone: *our deductible is $3,000* | 3,000 | **unknown** — *stated by the household, not the insurer's*; the claim listed not_knowing |
+| **Te3** | Rob *$3,000* 1/1; Lakeview Health *$3,500* 1/2 | 3,500 (by date) | 3,500 (the only knowing claim) |
+| **Te4 — the failure A admits** | Lakeview Health *$3,000* 1/2; Rob *$3,500* 1/3 | **3,500 — the relay overrides the insurer by date** | 3,000 |
+| **Te5 (the document path)** | the SBC read (candidate, knowing) + Rob's acceptance (established) on one claim, 1/1 | 3,000 (Rob's utterance) | 3,000 — established with a knowing origin (7G-F3's shape) |
+| **Te6** | two Lakeview Health terms at one date | unknown (conflict) | unknown |
+| **Te7 (F3)** | Rob: *none*; Lakeview Health silent | `none` — the rule does not exist, on Rob's word | unknown |
+| **Te8** | Lakeview Health: *none* | `none` | `none` |
+| **Te9 (the window)** | the plan year by Rob only; by Lakeview Health | Rob's governs | Lakeview Health's; Rob's alone → no window → the derived figure undetermined *no plan year term* |
+| **Te10 (the individual term)** | the same for `individual_deductible` | as A | as H |
+| **Te11 (F1 sibling)** | Lakeview Health's `deductible_applied` on the statement, read and accepted | not the stated accumulator (the asserter is Rob) | in the insurer's series — **only if F1 brings the stated gate to the claim level** |
+| **Te12 (the null model)** | every term the insurer's own utterance | A = H exactly | — |
+
+### 7J-F4.6 Candidate — pending the ruling
+
+7J's term and window reads: claims grouped by claim (7G-F3's shape: state aggregated, strength the
+knowing origin, origins listed); admitted iff established ∧ dated ≤ d (∧ containing d, for the window)
+∧ **strength knowing** — the holder's series; the latest; conflict at one date → unknown; none →
+unknown with the reason *no term by the plan's insurer — the household's statement is listed, not
+the insurer's*. The stated accumulator per F1. Fixture additions: Te2, Te4, Te5, Te7, Te9 (mandatory:
+Te4 and Te5). Mutations for `s116`: the household's relay governing (A restored) · the relay
+preferred by absence (K) · a knowing candidate alone governing · the household's `none` governing ·
+a later relay overriding the insurer.
+
+### 7J-F4.7 Ruling sought
+
+> **(1)** Reading A, H or K. **(2) F1:** the term and window only, with the sibling gates (7G's
+> balance, 7H's stances, 7J's stated accumulator) named as one follow-on pass — or all in this
+> build. **(3) F2:** `unknown` when only the household has spoken. **(4) F3** as read. Nothing here
+> authorises code.
+
+---
