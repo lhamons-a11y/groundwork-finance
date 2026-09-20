@@ -16,8 +16,8 @@
 > candidate, the reading path the one specification the cases add (9D-i-F1), 7E's `balance` a
 > different proposition under a borrowed name (F2), Dg2-as-ruled vs built 7G recorded for 7G (F3),
 > `returned` the acknowledgment's shape (F4); **RULED (§9D-i.8) — F5, F1, F2 with the precision
-> that no new kind is invented for 7E's line, F4; F3 recorded for 7G; BUILT (awaiting acceptance);
-> 9D-ii unopened.**
+> that no new kind is invented for 7E's line, F4; F3 recorded for 7G; built (`d793472`) and ACCEPTED
+> (Rob, 2026-09-19); 9D-ii unopened.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -1657,5 +1657,17 @@ explicitly · K2's balance half (a consumer with O in hand reading the servicer'
 portal observed without an artefact · 9D-ii's and 9D-iii's roles (their names and roles go in
 `_ROLE_AT_AS_OF`; the relation is not re-ruled) · values, `cleared`, the bank's stances (9D-iv) · the
 determination (9D-v). No schema, no migration. Gate 1396 → 1419, 0 failed.
+
+#### Accepted — Rob, 2026-09-19 (9D-i)
+
+Accepted on the gate's evidence (1419 / 0, s120 23/23) and the build's fidelity to §9D-i.8: the
+mixed holder representation preserved; `reading_establishes: True` as strength-through-established-
+origin only, never state or discharge; the role-at-date relation added beside the three existing
+resolvers rather than folded into their contract, and applied to the balance only; the 7E
+party-subject line kept and renamed as corpus correction (extended to the nine fixtures sharing that
+proposition, no new kind); `returned` on the explicit-holder shape and not a 7G consumer; the
+pre-9D-i registry pins retired as legitimate catalogue transitions; 9D-i-F3 left recorded for 7G;
+no consumer, `reach` or `_claim_states` change. **9D-ii remains unopened until Rob opens it; it
+applies the relation and does not re-rule it (§9D.9).**
 
 ---
