@@ -11,7 +11,7 @@ What this slice can and cannot exercise
     the registry: three kinds, two holder forms, one new relation, the flag's meaning                        EXERCISED
     Ob1  K1 / Dg2: E's own acknowledgment -> knowing; 7G discharged                                              EXERCISED
     Ob2  K1 held / Dg2': the parser's reading of E's statement -> candidate in state, KNOWING in strength         EXERCISED
-    Ob3  K1 accepted: the reading + Rob's utterance on one claim -> built 7G does not discharge (9D-i-F3)          EXERCISED (recorded)
+    Ob3  K1 accepted: the reading + Rob's utterance on one claim -> DISCHARGED on the claim (7G-F3 ruled)          EXERCISED
     Ob4  K2 / Dg4: the servicer's acknowledgment naming E as holder -> not_knowing; not discharged                EXERCISED
     Ob5  K3 / Dg5: S3's own -> knowing for its own, never entitled                                                EXERCISED
     Ob6  K5 / Dg22: Rob relays -> not_knowing                                                                     EXERCISED
@@ -207,10 +207,12 @@ def run(db):
     e3 = evidence(a2, utterance=utter("That's Chase acknowledging the April payment."))
     r3 = rem(O, '2026-04-30')
     acks3 = pm(r3, p2)['acknowledgments']
-    check('Ob3 (K1 accepted - 9D-i-F3, RECORDED not solved): Rob\'s acceptance added to the same claim -> two relationships, (candidate, knowing) and (established, not_knowing); built 7G qualifies per relationship, so NOT discharged - the 7G question stays 7G\'s; this fixture asserts what 7G does today',
-          st(e3) == db.STRENGTH_NOT_KNOWING
-          and sorted((a['state'], a['strength']) for a in acks3) == sorted([(db.CLAIM_CANDIDATE, db.STRENGTH_KNOWING), (db.CLAIM_ESTABLISHED, db.STRENGTH_NOT_KNOWING)])
-          and pm(r3, p2)['station'] == db.STATION_ATTACHED_UNACKNOWLEDGED)
+    # 7G-F3 (s 7G-F3.8, ruled 2026-09-20) settled the question this check had recorded: the discharge test is applied to the
+    # CLAIM - state from any established relationship, strength the claim's knowing origin - so K1-with-acceptance discharges.
+    check('Ob3 (K1 accepted - 9D-i-F3, now RULED by 7G-F3): Rob\'s acceptance added to the same claim -> two relationships, (candidate, knowing) and (established, not_knowing); the claim is ESTABLISHED with a KNOWING origin (Chase\'s statement) -> DISCHARGED; every origin listed, Rob\'s own relationship still not_knowing',
+          st(e3) == db.STRENGTH_NOT_KNOWING and len(acks3) == 1 and acks3[0]['state'] == db.CLAIM_ESTABLISHED and acks3[0]['strength'] == db.STRENGTH_KNOWING
+          and sorted((o['state'], o['strength']) for o in acks3[0]['origins']) == sorted([(db.CLAIM_CANDIDATE, db.STRENGTH_KNOWING), (db.CLAIM_ESTABLISHED, db.STRENGTH_NOT_KNOWING)])
+          and pm(r3, p2)['station'] == db.STATION_DISCHARGED and pm(r3, p2)['discharge']['claim'] == a2.id)
 
     print('\n3. Ob4 / Ob5 / Ob6 / Ob12 - who asserted vs whose position: the 2 x 2 the relation exists to make\n')
     p4 = pay(O, '$1,412', '2026-05-05')

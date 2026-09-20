@@ -499,6 +499,19 @@ def _run(db):
           and all(r['unaccounted']['value'] == r['after']['value'] - r['before']['value'] for r in corpus if r['unaccounted']['value'] is not None)
           and not any(isinstance(v, float) for r in corpus for _, v in _walk(r)) and not any(k in FORBIDDEN_KEYS for r in corpus for k, _ in _walk(r)))
 
+    print('\n7b. 7G-F3 inherited (Dc11): the acceptance\'s date is not the discharge\'s date\n')
+    Oc = mint(db.Obligation, 'A loan acknowledged by document, accepted later.')
+    entitled(chase, Oc)
+    stated(Oc, chase, '$2,000', '2026-01-01')
+    pc = pay(Oc, '$500', '2026-01-10', household, chase)
+    _, rC = held('h-chase-jan-statement', chase)
+    a_c = ack(chase, pc, '2026-01-15', reading=rC)                                                     # the reading: candidate, knowing
+    evidence(a_c, utterance=utter('That line is Chase acknowledging the January payment.', '2026-03-05T09:00:00'))   # accepted in March
+    stated(Oc, chase, '$1,500', '2026-02-05')                                                           # the February statement: the after side's P-ack (Di19)
+    r_c = rec(Oc, '2026-02-01', '2026-02-28')
+    check('Dc11 (7G-F3 inherited): the reading of Chase\'s statement + Rob\'s acceptance (uttered in March) on one claim dated 1/15 -> 7I reads 7G at two dates: discharged at the ACKNOWLEDGMENT\'s date (1/15), so the January payment is confirmed on both sides of `at` = 2/1 - the acceptance\'s utterance date is never the discharge\'s date; unaccounted 0',
+          after_term(r_c, Oc)['confirmed'] == D('1500') and r_c['before']['terms'][0]['confirmed'] == D('1500') and un(r_c) == D('0'))
+
     print('\n8. The dependency direction and the wiring guard\n')
     check('reconstruction reads reach (obligation_replaces, both directions) and remaining (7G) and nothing else that resolves, scores or allocates',
           {'reach', 'remaining'} <= calls_in(db.reconstruction)

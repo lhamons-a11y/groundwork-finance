@@ -220,7 +220,65 @@ def _mutations(db):
         db.remaining_cache = {}
         return lambda: delattr(db, 'remaining_cache')
 
+    # ── 7G-F3 (s 7G-F3.8): the discharge test on the CLAIM - the four ways it could have collapsed ──
+    def any_knowing_origin_alone():
+        # a knowing candidate alone discharges (Dc2 reversed): the claim need not be established
+        def post(out, *_):
+            for pm in out['payments']:
+                if pm['attachment']['state'] == db.CLAIM_ESTABLISHED and any(
+                        a['strength'] == db.STRENGTH_KNOWING and a['entitled'] == db.EFFECT_IN and a['as_of'] and a['as_of'] <= out['d'] for a in pm['acknowledgments']):
+                    pm['station'] = db.STATION_DISCHARGED
+            _recompute(out, lambda pm: pm['station'] == db.STATION_DISCHARGED)
+            return out
+        return _swap(post)
+
+    def acceptance_lifted():
+        # an establishing utterance is lifted to knowing by sitting beside any second relationship (Dc4 reversed)
+        def post(out, *_):
+            for pm in out['payments']:
+                for a in pm['acknowledgments']:
+                    if len(a['origins']) >= 2 and a['state'] == db.CLAIM_ESTABLISHED:
+                        a['strength'] = db.STRENGTH_KNOWING
+                        if a['entitled'] == db.EFFECT_IN and a['as_of'] and a['as_of'] <= out['d'] and pm['attachment']['state'] == db.CLAIM_ESTABLISHED:
+                            pm['station'] = db.STATION_DISCHARGED
+            _recompute(out, lambda pm: pm['station'] == db.STATION_DISCHARGED)
+            return out
+        return _swap(post)
+
+    def servicer_reading_knowing():
+        # a reading of the servicer's statement counts as E's knowing origin (Dc7 reversed)
+        def post(out, *_):
+            for pm in out['payments']:
+                for a in pm['acknowledgments']:
+                    if a['state'] == db.CLAIM_ESTABLISHED and any(o['ground'] and session_reading_origin(out, o) for o in a['origins']):
+                        a['strength'] = db.STRENGTH_KNOWING
+                        if a['entitled'] == db.EFFECT_IN and a['as_of'] and a['as_of'] <= out['d'] and pm['attachment']['state'] == db.CLAIM_ESTABLISHED:
+                            pm['station'] = db.STATION_DISCHARGED
+            _recompute(out, lambda pm: pm['station'] == db.STATION_DISCHARGED)
+            return out
+
+        def session_reading_origin(out, o):
+            return o['asserter'] is None            # a reading-sourced relationship, whoever the origin is
+        return _swap(post)
+
+    def retracted_acceptance_discharges():
+        # a retracted acceptance still discharges (Dc6 reversed): contested read as established
+        def post(out, *_):
+            for pm in out['payments']:
+                for a in pm['acknowledgments']:
+                    if a['state'] == db.CLAIM_CONTESTED and a['strength'] == db.STRENGTH_KNOWING and a['entitled'] == db.EFFECT_IN and a['as_of'] and a['as_of'] <= out['d']:
+                        a['state'] = db.CLAIM_ESTABLISHED
+                        if pm['attachment']['state'] == db.CLAIM_ESTABLISHED:
+                            pm['station'] = db.STATION_DISCHARGED
+            _recompute(out, lambda pm: pm['station'] == db.STATION_DISCHARGED)
+            return out
+        return _swap(post)
+
     return [
+        ('a knowing candidate alone discharges (7G-F3, Dc2 reversed)', any_knowing_origin_alone),
+        ('an establishing utterance lifted to knowing by a second relationship (7G-F3, Dc4 reversed)', acceptance_lifted),
+        ("a reading of the servicer's statement counts as E's knowing origin (7G-F3, Dc7 reversed)", servicer_reading_knowing),
+        ('a retracted acceptance still discharges (7G-F3, Dc6 reversed)', retracted_acceptance_discharges),
         ('attachment moves confirmed', attachment_moves_confirmed),
         ('clearance is discharge', clearance_is_discharge),
         ("the servicer's word is E's (role test dropped)", servicer_is_e),

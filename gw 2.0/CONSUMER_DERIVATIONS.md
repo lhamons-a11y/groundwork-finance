@@ -3931,3 +3931,53 @@ answer; no kind, relation or substrate change; nothing else in 7G reopened.
 **No code.** The build awaits its separate authorisation.
 
 ---
+
+#### Built — 2026-09-20 (7G-F3)
+
+`core/database.py`, **one loop in `remaining`:** the acknowledgment entries are grouped by claim
+before the test. Per claim: `state` = the aggregate the attachment already used (established if any
+relationship is, else contested if any, else candidate); `strength` = the strongest class among the
+claim's relationships (knowing > not_knowing > undetermined — `derived_strength`'s parallel-evidence
+precedent); **`origins`** = every relationship listed with its ground, asserter, state and class;
+`entitled` / `governing` from the claim's holder at the claim's date; `qualifies` = established ∧ dated
+≤ d ∧ in effect ∧ knowing — **on the claim**. Discharge = the first qualifying claim by date, as
+before. **The report's shape:** one entry per claim (it was one per relationship) with `origins`
+inside; the docstring says so. No kind, no relation, no substrate change; 7I inherits through
+`remaining` and changed nothing. **The whole non-comment diff is that loop.** **What the grouping
+does and does not do, stated for the acceptance record:** grouping by claim, aggregating state and
+strength, retaining every origin, and evaluating `qualifies` per claim means the implementation
+**neither treats a claim's several relationships as several acknowledgments** (one claim, one entry,
+one discharge) **nor collapses their provenance** (each origin keeps its own state and class in
+`origins`; the claim's strength is the strongest one, never a merge). Two claims on one payment stay
+two entries; the first qualifying one by date discharges, as before.
+
+**The oracle — the ruled cases in the 7G fixture (40 → 46):** **Dc3, mandatory** — the reading of
+Harbor's statement alone leaves the payment *attached_unacknowledged*; Rob's acceptance added to the
+same claim makes it **discharged at the acknowledgment's date**, one entry, both origins listed
+(candidate-knowing; established-not_knowing), `confirmed` moved by exactly the payment; **Dc4 (no
+laundering)** — Rob's acceptance beside a reading of *Rob's* spreadsheet: established, no knowing
+origin, not discharged; **Dc5 (F1)** — S3's utterance establishes beside a reading of Harbor's own
+statement: discharged on Harbor's statement, the establishing origin listed not_knowing; **Dc6 (F3)** —
+Rob retracts his acceptance: contested by the existing rule, the discharge gone; **Dc7 (K2)** — Rob's
+acceptance beside a reading of the *servicer's* statement: the origin is S, not the holder →
+not_knowing → not discharged (the channel stays the consumer's, as 9D-i left it); **Dc8 (Ms15)** — two
+readings of Harbor's statement plus the acceptance: discharged once, three origins listed, the
+knowing one twice, no count and no lift. **Dc11 in the 7I fixture (30 → 31):** the reading dated 1/15
+accepted in March — 7I reads 7G at two dates and finds the payment confirmed on both sides of `at` =
+2/1: the acceptance's utterance date is never the discharge's date. **Dc12, the null model, held
+without a line written:** 7G 40/40 and 7I 30/30 were unchanged by the loop before any case was added
+— every existing claim has one relationship, where P = R exactly. **9D-i's Ob3** restated from *built
+7G does not discharge* to the ruled answer (22/22).
+
+**Smoke `s113_remaining.py` (27 → 35):** four mutations added for the four ways the claim-level test
+could have collapsed — a knowing candidate alone discharging (Dc2 reversed) · an establishing
+utterance lifted to knowing by a second relationship (Dc4 reversed) · a reading of the servicer's
+statement counting as E's knowing origin (Dc7 reversed) · a retracted acceptance still discharging
+(Dc6 reversed) — all caught on the first run; the twelve existing mutations still caught. `s114` and
+`s120` unchanged and green.
+
+**What this changes for the household:** the acknowledgment ruling's primary channel — E's held
+statement, read and accepted — now discharges, as §7G.3 always said it should; nothing else in 7G
+moved. Gate 1524 → 1532, 0 failed.
+
+---

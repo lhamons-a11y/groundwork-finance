@@ -3995,7 +3995,8 @@ def remaining(session, obligation, d, catalogue, knowing):
         {'obligation', 'd', 'role': entitled-party kind,
          'payments':  [{'payment', 'attachment': {'state', 'claims': [(claim, asserter, state, ground)]},
                         'station': attached_candidate|attached_contested|attached_unacknowledged|discharged,
-                        'acknowledgments': [{'claim', 'asserter', 'as_of', 'state', 'strength', 'entitled', 'governing', 'qualifies'}],
+                        'acknowledgments': [{'claim', 'asserter', 'as_of', 'state', 'strength', 'origins': [{'ground', 'asserter', 'state', 'strength'}],
+                                             'entitled', 'governing', 'qualifies'}],      # one per CLAIM (7G-F3): state and strength across its relationships
                         'discharge': {'as_of', 'claim'} | None,
                         'amount': {'value'|None, 'reason', 'claims'}, 'occurred_on': {'value'|None, 'reason', 'claims'},
                         'direction': {'sign': -1|1|None, 'reason', 'payers', 'payees'},
@@ -4049,15 +4050,33 @@ def remaining(session, obligation, d, catalogue, knowing):
         amt, amt_reason = _one_value(amount_entries)
         date_entries = [dict(e, value=(e['as_of'] or e['content'])) for e in entries(catalogue['occurred_on'], subject_payment_id=pid)]
         when, when_reason = _one_value(date_entries)
-        acks = []
+        # 7G-F3 (s 7G-F3.8, ruled 2026-09-20): THE DISCHARGE TEST IS APPLIED TO THE CLAIM, not to one evidentiary
+        # relationship. A claim may carry several relationships (slice 1: same proposition, many utterances - the
+        # reading of E's statement AND the household's acceptance of it). Its STATE is the aggregate the attachment
+        # already uses (established if any relationship is); its STRENGTH is its knowing origin - the strongest class
+        # among its relationships (derived_strength's parallel-evidence precedent; 7B's origins), with EVERY origin
+        # listed, never merged and never a number; a knowing origin lifts nothing else. Dg2 as s 7G.3 wrote it: the
+        # reading (candidate, knowing) + Rob's acceptance (established, not_knowing) -> discharged on E's statement.
+        # Dg2' (a reading alone: no established relationship) and Dg22 (a relay alone: no knowing origin) still refused.
+        # Any establishing party (F1): the state axis asks who asserted, the strength axis who knows.
+        by_claim = {}
         for e in entries(catalogue['acknowledgment'], object_payment_id=pid):
             rel = session.get(EvidentiaryRelationship, e['ground'])
             strength = derived_strength(session, rel, knowing)
-            entitled, governing = _entitled_at(session, e['party'], role_kind, obligation.id, e['as_of'])
-            qualifies = (e['state'] == CLAIM_ESTABLISHED and bool(e['as_of']) and e['as_of'] <= d
+            by_claim.setdefault(e['claim'], {'party': e['party'], 'as_of': e['as_of'], 'origins': []})['origins'].append(
+                {'ground': e['ground'], 'asserter': e['asserter'], 'state': e['state'], 'strength': strength})
+        acks = []
+        for claim_id, c in sorted(by_claim.items()):
+            states = {o['state'] for o in c['origins']}
+            state = (CLAIM_ESTABLISHED if CLAIM_ESTABLISHED in states else CLAIM_CONTESTED if CLAIM_CONTESTED in states else CLAIM_CANDIDATE)
+            strengths = {o['strength'] for o in c['origins']}
+            strength = (STRENGTH_KNOWING if STRENGTH_KNOWING in strengths else STRENGTH_NOT_KNOWING if STRENGTH_NOT_KNOWING in strengths
+                        else STRENGTH_UNDETERMINED)
+            entitled, governing = _entitled_at(session, c['party'], role_kind, obligation.id, c['as_of'])
+            qualifies = (state == CLAIM_ESTABLISHED and bool(c['as_of']) and c['as_of'] <= d
                          and entitled == EFFECT_IN and strength == STRENGTH_KNOWING)
-            acks.append({'claim': e['claim'], 'asserter': e['party'], 'as_of': e['as_of'], 'state': e['state'],
-                         'strength': strength, 'entitled': entitled, 'governing': governing, 'qualifies': qualifies})
+            acks.append({'claim': claim_id, 'asserter': c['party'], 'as_of': c['as_of'], 'state': state,
+                         'strength': strength, 'origins': c['origins'], 'entitled': entitled, 'governing': governing, 'qualifies': qualifies})
         discharge = None
         if a_state == CLAIM_ESTABLISHED:
             q = [a for a in acks if a['qualifies']]

@@ -559,6 +559,63 @@ def _run(db):
           and all((a['state'] == db.CLAIM_ESTABLISHED and a['entitled'] == db.EFFECT_IN and a['strength'] == db.STRENGTH_KNOWING and a['as_of'] <= rep['d'])
                   for rep in corpus for p_ in rep['payments'] for a in p_['acknowledgments'] if a['qualifies']))
 
+    print('\n7b. 7G-F3 (s 7G-F3.8) - the discharge test is applied to the CLAIM: state from any relationship, strength the claim\'s knowing origin\n')
+    Of = mint(db.Obligation, 'A loan whose acknowledgments come by document.')
+    entitled(chase, Of)
+    stated(Of, chase, '$5,000', '2026-03-01')
+    pf = pay(Of, '$500', '2026-03-05', household, chase)
+    _, rF = held('h-chase-march-statement', chase)
+    a_f = ack(chase, pf, '2026-03-10', reading=rF)                                                      # the reading: candidate, knowing
+    before = pm(rem(Of, '2026-03-31'), pf)
+    u_accept = utter("That line is Chase acknowledging the March payment.", '2026-04-01T09:00:00')
+    evidence(a_f, utterance=u_accept)                                                                 # Rob's acceptance: established, not_knowing
+    r_f = rem(Of, '2026-03-31')
+    a_rep = next(a for a in pm(r_f, pf)['acknowledgments'] if a['claim'] == a_f.id)
+    check('Dc3 (K1 with acceptance - Dg2 as s 7G.3 wrote it): the reading of Chase\'s statement alone -> a candidate, NOT discharged; Rob\'s acceptance added to the SAME claim -> the claim ESTABLISHED with a KNOWING origin -> DISCHARGED at the acknowledgment\'s date; one entry per claim, both origins listed, Rob\'s own not_knowing',
+          before['station'] == db.STATION_ATTACHED_UNACKNOWLEDGED
+          and pm(r_f, pf)['station'] == db.STATION_DISCHARGED and pm(r_f, pf)['discharge'] == {'as_of': '2026-03-10', 'claim': a_f.id}
+          and a_rep['state'] == db.CLAIM_ESTABLISHED and a_rep['strength'] == db.STRENGTH_KNOWING
+          and sorted((o['state'], o['strength']) for o in a_rep['origins']) == sorted([(db.CLAIM_CANDIDATE, db.STRENGTH_KNOWING), (db.CLAIM_ESTABLISHED, db.STRENGTH_NOT_KNOWING)])
+          and fig(r_f, 'confirmed') == D('4500'))
+    pf4 = pay(Of, '$500', '2026-04-05', household, chase)
+    _, rSheet = held('h-rob-sheet', household)
+    a_f4 = ack(chase, pf4, '2026-04-10', reading=rSheet)
+    evidence(a_f4, utterance=utter('My sheet says Chase got the April payment.', '2026-04-12T09:00:00'))
+    r_f4 = rem(Of, '2026-04-30')
+    check('Dc4 (no laundering): Rob\'s acceptance + a reading of ROB\'s spreadsheet -> established, but no knowing origin (both origins Rob) -> NOT discharged; a knowing origin is required, a second not-knowing one lifts nothing',
+          pm(r_f4, pf4)['station'] == db.STATION_ATTACHED_UNACKNOWLEDGED
+          and next(a for a in pm(r_f4, pf4)['acknowledgments'] if a['claim'] == a_f4.id)['strength'] == db.STRENGTH_NOT_KNOWING)
+    pf5 = pay(Of, '$500', '2026-05-05', household, chase)
+    a_f5 = ack(chase, pf5, '2026-05-10', reading=rF)
+    evidence(a_f5, utterance=utter("Chase's statement shows the May payment received.", '2026-05-12T09:00:00', origin=s3))
+    r_f5 = rem(Of, '2026-05-31')
+    check('Dc5 (F1 - any establishing party): S3\'s utterance establishes the claim beside the reading of CHASE\'s statement -> DISCHARGED on Chase\'s statement (the knowing origin); S3\'s say-so adds nothing and subtracts nothing - the origins list shows which is which',
+          pm(r_f5, pf5)['station'] == db.STATION_DISCHARGED
+          and [o['strength'] for o in next(a for a in pm(r_f5, pf5)['acknowledgments'] if a['claim'] == a_f5.id)['origins'] if o['state'] == db.CLAIM_ESTABLISHED] == [db.STRENGTH_NOT_KNOWING])
+    retract(u_accept, 'I was wrong about that line.')
+    r_f6 = rem(Of, '2026-03-31')
+    check('Dc6 (F3): Rob retracts his acceptance -> the claim is CONTESTED by the existing state rule (the reading still a candidate) -> NOT discharged; nothing new decided',
+          pm(r_f6, pf)['station'] != db.STATION_DISCHARGED and pm(r_f6, pf)['discharge'] is None
+          and next(a for a in pm(r_f6, pf)['acknowledgments'] if a['claim'] == a_f.id)['state'] == db.CLAIM_CONTESTED)
+    pf7 = pay(Of, '$500', '2026-06-05', household, chase)
+    _, rS = held('h-servicer-statement', servicer)
+    a_f7 = ack(chase, pf7, '2026-06-10', reading=rS)
+    evidence(a_f7, utterance=utter("The servicer's statement shows June received.", '2026-06-12T09:00:00'))
+    r_f7 = rem(Of, '2026-06-30')
+    check('Dc7 (K2): Rob\'s acceptance + a reading of THE SERVICER\'s statement -> the origin is S, not the holder E -> not_knowing -> NOT discharged; K2\'s channel stays the consumer\'s question, as 9D-i left it',
+          pm(r_f7, pf7)['station'] == db.STATION_ATTACHED_UNACKNOWLEDGED
+          and next(a for a in pm(r_f7, pf7)['acknowledgments'] if a['claim'] == a_f7.id)['strength'] == db.STRENGTH_NOT_KNOWING)
+    pf8 = pay(Of, '$500', '2026-07-05', household, chase)
+    _, rF2 = held('h-chase-july-statement', chase)
+    a_f8 = ack(chase, pf8, '2026-07-10', reading=rF2)
+    evidence(a_f8, reading=rF2)                                                                        # the same statement read twice
+    evidence(a_f8, utterance=utter('Yes, that is the July payment.', '2026-07-12T09:00:00'))
+    r_f8 = rem(Of, '2026-07-31')
+    a8 = next(a for a in pm(r_f8, pf8)['acknowledgments'] if a['claim'] == a_f8.id)
+    check('Dc8 (Ms15 - multiplicity is not strength): two readings of Chase\'s statement + Rob\'s acceptance -> discharged once; three origins listed, one knowing origin twice, no count and no lift',
+          pm(r_f8, pf8)['station'] == db.STATION_DISCHARGED and len(a8['origins']) == 3
+          and [o['strength'] for o in a8['origins']].count(db.STRENGTH_KNOWING) == 2 and a8['strength'] == db.STRENGTH_KNOWING)
+
     print('\n8. The dependency direction and the wiring guard\n')
     check('remaining reads 7F (reach, in_effect) and derived_strength and nothing that resolves, scores or allocates - no level_consistency / chain_strength / aboutness / independence; payment_plan untouched',
           {'reach', 'in_effect', 'derived_strength'} <= (calls_in(db.remaining) | calls_in(db._entitled_at))
