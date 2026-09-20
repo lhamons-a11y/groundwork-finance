@@ -1,41 +1,6 @@
 # From stand-ins to ruled kinds — item 9
 
-> Status: **Queue item 9, opened by Rob 2026-09-19 after item 7 closed 7A–7J.** Every consumer from
-> 7F onward runs on kinds a fixture registers and removes; this item turns them into ruled kinds —
-> F's `under_plan` (accepted, unbuilt), the role catalogue (unruled), E's three plan relations
-> (accepted, unbuilt) and the stance / value catalogue (a domain question the record deferred) —
-> **without changing any consumer's shape.** Four passes in that order (§3). **9A built and accepted
-> (`e8fecdd`); 9B ruled (§9B.7), built (`9c53879`) and ACCEPTED (Rob, 2026-09-19); **9C opened
-> (§9C) — E's three plan relations; 9C-F1 ruled a fixture-semantic retirement; built (`cdb7cda`) and
-> ACCEPTED (Rob, 2026-09-19). **9D opened (§9D) — the stance and value catalogue; the surface
-> discovered from the consumers' reads (two shapes of P-ack already shipped); nine findings, one of
-> which (9D-F1, the position-holder — participant or hidden operand) governs the rest and is put
-> first with 9D-F2 and 9D-F8; **9D-F1 RULED — the mixed holder shape; 9D-F2 + the servicer clause
-> RULED as one (§9D.7); 9D-F8 RULED (§9D.9) — five sub-passes i → v, the role-at-date relation
-> ruled once in 9D-i and applied thereafter; **9D-i OPENED (§9D-i) — the relation stated once as a
-> candidate, the reading path the one specification the cases add (9D-i-F1), 7E's `balance` a
-> different proposition under a borrowed name (F2), Dg2-as-ruled vs built 7G recorded for 7G (F3),
-> `returned` the acknowledgment's shape (F4); **RULED (§9D-i.8) — F5, F1, F2 with the precision
-> that no new kind is invented for 7E's line, F4; F3 recorded for 7G; built (`d793472`) and ACCEPTED
-> (Rob, 2026-09-19). **9D-ii OPENED (§9D-ii) — six stances on X, the relation applied (two table
-> rows); `applied_to_deductible`'s kind-level holder `insurer_of` X with the per-plan selection 7J's;
-> F1 `adjudication` / `denial` two kinds or one; F2 two swap classes measured before the build (the
-> EOB line's borrowed name; the role claim missing from corpora that asserted knowing by type);
-> RULED (§9D-ii.7) — F1 two kinds, both F2 classes accepted; built (`cb8ebe4`) and ACCEPTED (Rob,
-> 2026-09-20). **9D-iii OPENED (§9D-iii) — the insurer's stances and terms on P; two shape questions
-> the registry cannot say as-is (F1 `deductible_applied`'s optional object; F2 `eligibility`'s role on
-> the object — application or re-ruling, Rob's), F3 three "coverage ended" kinds, F4 the terms with
-> 7J's any-party read recorded as 7J's, F5 one name, F6 three swap classes pre-measured; **RULED
-> (§9D-iii.7) — F1 two kinds, F2 the role read on the object as APPLICATION (the one item reaching
-> the resolver dispatch), F3 three kinds, F4–F6 as read; built (`fe15f5f`) and ACCEPTED (Rob,
-> 2026-09-20), the resolver type guard accepted with it. **9D-iv OPENED (§9D-iv) — values; the
-> role-set relation (undated, F1); the bank holds no ruled role (F2 — a `drawn_on` role in 9B's form,
-> not_knowing, or deferred); `occurred_on` one kind with two subjects (F3); Kn7's third clause under
-> the ruled kind (F5); **RULED (§9D-iv.7) — F1 as read, F2 (a) a `drawn_on` role in 9B's form,
-> F3–F6 as read; built (`86b85d5`) and ACCEPTED (Rob, 2026-09-20). **9D-v OPENED (§9D-v) — the
-> determination: one kind, knowing undetermined by design (9D-F5), no role, `reading_establishes`
-> False (a parser determines nothing), the four names 7H's; the last slice of item 9; **RULED
-> (§9D-v.7) — F1–F3 as read; BUILT (awaiting acceptance); the §1 inventory complete on acceptance.**
+> Status: **ITEM 9 CLOSED — Rob, 2026-09-20. The §1 inventory is complete: every stand-in a ruled kind — 9A `e8fecdd` · 9B `9c53879` · 9C `cdb7cda` · 9D-i `d793472` · 9D-ii `cb8ebe4` · 9D-iii `fe15f5f` · 9D-iv `86b85d5` · 9D-v `1e646fb`; gate 1350 → 1524. What stays open is carried forward by name in *Item 9 — closed* (9D-i-F3, 7J's term read, K2's balance half, the bank line's own kind, D′.11). Below, the record as it was written.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -2708,4 +2673,62 @@ caught on the first run.**
 four-name vocabulary (7H's) · 9D-i-F3 (7G) · D′.11. No schema, no migration. Gate 1501 → 1524,
 0 failed. **With 9D-v's acceptance the §1 inventory is complete; closing item 9 is Rob's word.**
 
+#### Accepted — Rob, 2026-09-20 (9D-v)
+
+Accepted as built and ruled: `1e646fb`, 1524 / 0, the 23 new checks and all ten mutation checks in
+s124. The implementation matches the ruling exactly — one constant, one entry; no relation, no role,
+no boundary, no resolver change; `_KNOWING_RELATIONS` still eight; all twelve cells of the 2 × 2
+collapse to undetermined; every §1 stand-in represented in `RULED_KINDS`. **The §1 inventory is
+complete: every stand-in has been converted from an implementation candidate into a ruled kind.**
+
 ---
+
+## Item 9 — closed
+
+**Rob, 2026-09-20.** Four passes and five slices, each opened to a semantic surface before a line
+was written, each ruled from cases, each built to exactly its ruling, each proved by the same
+executable test — *the consumer fixtures re-run with the ruled kind in place of the stand-in and no
+other change* — and each accepted on a green gate:
+
+```text
+9A     under_plan + began / ended                                           e8fecdd   F built as accepted
+9B     entitled_party_of · servicer_of (+ bounds) · provider_of · insurer_of ·
+       insurer_of_plan · incurred_by · paid_by · paid_to                    9c53879   the role catalogue; KNOWING_SUBJECT_PARTY; 'role': True
+9C     expense / obligation / payment _in_respect_of_plan                    cdb7cda   E built as accepted, per G.9
+9D-i   acknowledged · balance · returned                                    d793472   the mixed holder shape; the role-at-date relation, ruled once;
+                                                                                      reading_establishes = strength through the origin, never state
+9D-ii  billed · patient_responsibility · plan_paid · applied_to_deductible ·
+       denial · adjudication                                                cb8ebe4   the relation applied on X; two kinds by name (C7)
+9D-iii deductible · individual_deductible · plan_year · deductible_applied ·
+       individual_deductible_applied · eligibility · coverage_ended ·
+       authorization                                                        fe15f5f   applied on P; the side read on the object (application, not re-ruling)
+9D-iv  amount · occurred_on · cleared · bank_returned_item · drawn_on       86b85d5   the role-set relation, undated; the bank's role K6 required
+9D-v   determination                                                        1e646fb   undetermined by design; no role; the four names 7H's
+```
+
+Thirty-five ruled kinds where there were stand-ins; ten roles; eight named knowing relations —
+three designated-participant, four role-at-date on one resolver, one role-set — and no generic
+resolver; no consumer changed shape (the two consumer lines the record names — Tr8's assertion and
+7J's second catalogue key — were each ruled before they were written). Every fixture's foundation map
+now carries only what is still unruled by relation: `artefact_origin`'s own entry. Gate 1350 → 1524.
+
+**What this closure does not close — carried forward explicitly, not resolved by the inventory's
+completion:**
+
+- **9D-i-F3** — 7G's *per-relationship* discharge (state and strength tested on one evidentiary
+  relationship) versus §7G.3's Dg2 wording (*Rob asserts that is Harbor acknowledging p; established,
+  strength via the reading → discharged*); K1-with-acceptance does not discharge in built 7G. **7G's,
+  to be opened explicitly.**
+- **7J's any-party term read** (9D-iii F4) — the kind's holder is the insurer; 7J reads the latest
+  established term by any party and reads no strength. **7J's.**
+- **K2's balance half in 7G** (9D-i) — the servicer's balance statement cannot enter E's series;
+  a consumer with O in hand may evaluate it. **7G's.**
+- **The bank line's own kind** — a reading-line proposition whose subject is the party and whose
+  thing is a candidate (`statement_figure`, `eob_amount`, `sbc_line_figure`, `bank_line` stay
+  fixture stand-ins); **candidate generation remains open** (the matcher, the importer contract).
+- **D′.11** — composition across relation kinds — **unsettled**; every slice added evidence and
+  refused a composition (the acknowledgment's O; the value's role-set; the plan gate) without a
+  doctrine.
+
+*Closing item 9 closes the inventory / ruling exercise; the questions above are carried forward by
+name, not by silence.*
