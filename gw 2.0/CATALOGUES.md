@@ -15,7 +15,9 @@
 > ruled once in 9D-i and applied thereafter; **9D-i OPENED (§9D-i) — the relation stated once as a
 > candidate, the reading path the one specification the cases add (9D-i-F1), 7E's `balance` a
 > different proposition under a borrowed name (F2), Dg2-as-ruled vs built 7G recorded for 7G (F3),
-> `returned` the acknowledgment's shape (F4); ruling sought; no code.**
+> `returned` the acknowledgment's shape (F4); **RULED (§9D-i.8) — F5, F1, F2 with the precision
+> that no new kind is invented for 7E's line, F4; F3 recorded for 7G; build awaits authorisation;
+> no code.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -1518,5 +1520,55 @@ flag made to establish state.
 > **(3) 9D-i-F2:** 7E's line keeps its shape and loses the borrowed name. **(4) 9D-i-F4:** `returned`
 > takes the acknowledgment's shape. **9D-i-F3 is recorded for 7G and not ruled here.** Nothing here
 > authorises code.
+
+---
+
+### 9D-i.8 Ruling — Rob, 2026-09-19: F5, F1, F2 (with one precision), F4 RULED; no code by this ruling
+
+*The cases expose a clean ruling boundary.*
+
+**F5 — the relation.** The three kinds do not share one kind-level holder representation:
+`acknowledged` → explicit holder via `KNOWING_SUBJECT_PARTY`; `returned` → explicit holder via
+`KNOWING_SUBJECT_PARTY`; `balance` → the role-at-date relation. *That does not contradict F8: the
+role-at-date relation is one ruled relation; it is simply not the holder mechanism of every kind in
+the group.* 7G's acknowledgment check against the obligation's holder is **a consumer gate, not a
+second kind-level knowing relation** — it does not reopen F1.
+
+**F1 — the reading path, frozen exactly at the boundary identified.** `reading_establishes: True`
+means **the kind's relational strength may be evaluated through the artefact's established origin,
+weakest-linked; it does not establish payment state, discharge, or any other state.**
+
+```text
+reading → established origin → kind's relation → strength        YES
+reading → discharge                                               NEVER
+```
+
+Dg2′ preserved; `reading_establishes` a property of the stance kind, not a special branch invented
+inside the resolver. *This is also why the existing relational branch's `undetermined` for
+reading-sourced claims cannot simply be reused unchanged: these kinds explicitly rule that the
+reading's established origin is a valid evidentiary path.*
+
+**F2 — 7E's party-subject shape: keep the fixture shape.** The case intentionally tests a
+proposition whose subject is the party, not the obligation; changing its subject to O merely to
+resemble 7G would destroy what the fixture demonstrates. But the borrowed `balance` name must not
+imply the fixture exercises 9D-i's ruled obligation-balance kind — **a corpus / name correction, not
+an ontology correction:** preserve the party-subject proposition and its aboutness chain; remove
+the borrowed-name implication. **The precision:** the replacement name is whatever the fixture's
+actual proposition warrants; **no new semantic kind is invented to accommodate the test.**
+
+**F4 — `returned`** follows the explicit-holder shape established by F1: explicit
+`KNOWING_SUBJECT_PARTY`; no role-at-date relation substituted for it; reading behaviour the same
+already-ruled machinery; **no new discharge semantics implied by the reading path.**
+
+**Ob12's 2 × 2** belongs in the implementation cases — exactly the distinction the new relation is
+supposed to prevent; it creates no further ruling.
+
+**Frozen by this ruling:** (1) the mixed holder representation; (2) `reading_establishes: True` as
+strength-through-established-origin only; (3) the intentional 7E party-subject fixture preserved
+with the borrowed-name implication removed; (4) `returned` on the explicit-holder shape.
+**9D-i-F3 stays recorded for 7G.** **No code yet beyond the explicit build authorisation that
+follows these rulings.** The build, when authorised, is narrow: registry representation; the
+consumer substitutions these frozen meanings require; mutation coverage for the reading / holder
+distinctions; the full gate.
 
 ---
