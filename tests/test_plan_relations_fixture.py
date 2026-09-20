@@ -66,7 +66,7 @@ ABSENT_HELPERS = ('plan_of_expense', 'plan_covering', 'which_plan', 'coverage_of
 # the 7J catalogue as the accumulator fixture names it - the value / stance kinds are 9D's, read here by name only
 CATALOGUE = {'occurred_on': 'occurred_on', 'insurer_of': 'insurer_of', 'under_plan': 'under_plan', 'plan_insurer': 'insurer_of_plan',
              'eligibility': 'eligibility', 'deductible': 'deductible', 'individual_deductible': 'individual_deductible', 'plan_year': 'plan_year',
-             'deductible_applied': 'deductible_applied', 'expense_in_respect_of_plan': 'expense_in_respect_of_plan',
+             'deductible_applied': 'deductible_applied', 'individual_deductible_applied': 'individual_deductible_applied', 'expense_in_respect_of_plan': 'expense_in_respect_of_plan',
              'applied_to_deductible': 'applied_to_deductible', 'incurred_by': 'incurred_by'}
 
 
@@ -239,7 +239,7 @@ def run(db):
           and {e['id']: e['state'] for e in after9['endpoints']} == {P.id: db.CLAIM_ESTABLISHED, P2.id: db.CLAIM_CONTESTED})
 
     print('\n3. E3 / E8 / E5 - the floor is weaker than coverage; the lower boundary\n')
-    claim('coverage_ended', utterance=utter('Coverage ended 6/30, retroactively.', '2026-08-15T09:00:00', origin=aetna), as_of='2026-08-15', content='2026-06-30', subject_plan_id=P.id)
+    claim(db.COVERAGE_ENDED, utterance=utter('Coverage ended 6/30, retroactively.', '2026-08-15T09:00:00', origin=aetna), as_of='2026-08-15', content='2026-06-30', subject_plan_id=P.id)
     claim(db.ADJUDICATION, utterance=utter('Reversed.', '2026-08-15T09:00:00', origin=aetna), as_of='2026-08-15', content='reversed', subject_expense_id=X.id)
     check('E3 (Pl12): Aetna\'s retroactive ending is a stance about P and the reversal a stance about X; X in respect of P STANDS - the relation is not withdrawn by the insurer\'s later stance; "covered" was never in it',
           rel(db.EXPENSE_IN_RESPECT_OF_PLAN, subject_expense_id=X.id, object_plan_id=P.id).count() == 1 and st(e1) == db.STRENGTH_UNDETERMINED
@@ -275,7 +275,7 @@ def run(db):
           st(e6r) == db.STRENGTH_UNDETERMINED
           and [e['state'] for e in db.reach(s, X6, db.EXPENSE_IN_RESPECT_OF_PLAN)['endpoints']] == [db.CLAIM_CANDIDATE]
           and all(not db.RULED_KINDS[k]['reading_establishes'] for k in three))
-    _, auth = claim('authorization', utterance=utter('Prior auth for an MRI, 2/10.', '2026-02-10T09:00:00', origin=aetna), as_of='2026-02-10', content='MRI', subject_plan_id=P.id)
+    _, auth = claim(db.AUTHORIZATION, utterance=utter('Prior auth for an MRI, 2/10.', '2026-02-10T09:00:00', origin=aetna), as_of='2026-02-10', content='MRI', subject_plan_id=P.id)
     X7 = mint(db.Expense, 'The MRI, 3/1.')
     claim(db.PROPOSITION_CONCERNS, utterance=utter('That authorization was for this MRI.'), subject_proposition_id=auth.id, object_expense_id=X7.id)
     check('E7 (Pl11): the authorization is a stance about P with the MRI as content; a party ties it to X7 by proposition_concerns; X7 -> P is Rob\'s to assert and is NOT derived from the authorization',
@@ -386,8 +386,8 @@ def run(db):
     check('c1: the stand-in\'s name is not ruled and reach refuses it by name, as it refused E\'s name before 9C', unruled)
     # 7J needs the plan's insurer role, a plan year, a deductible term and an occurred_on on each expense
     claim(db.INSURER_OF_PLAN, utterance=utter('Aetna insures P.'), as_of='2026-01-01', subject_party_id=aetna.id, object_plan_id=P.id)
-    claim('plan_year', utterance=utter('2026'), as_of='2026-01-01', content='2026-12-31', subject_plan_id=P.id)
-    claim('deductible', utterance=utter('$1,000', origin=aetna), as_of='2026-01-01', content='$1,000', subject_plan_id=P.id)
+    claim(db.PLAN_YEAR, utterance=utter('2026'), as_of='2026-01-01', content='2026-12-31', subject_plan_id=P.id)
+    claim(db.DEDUCTIBLE, utterance=utter('$1,000', origin=aetna), as_of='2026-01-01', content='$1,000', subject_plan_id=P.id)
     for x, on in ((X, '2026-03-01'), (X8, '2026-03-15'), (Xc, '2026-03-10'), (X6, '2026-03-12'), (X_late, '2027-01-10')):
         claim('occurred_on', utterance=utter(on), as_of=on, subject_expense_id=x.id)
     claim(db.APPLIED_TO_DEDUCTIBLE, utterance=utter('$300 applied', origin=aetna), as_of='2026-03-20', content='$300', subject_expense_id=X.id)
@@ -400,8 +400,8 @@ def run(db):
           and (X.id, D('300')) in [(b[0], b[1]) for b in a['derived']['basis']]
           and snapshot() == snap_c)
     claim(db.INSURER_OF_PLAN, utterance=utter('Cigna insures P2.'), as_of='2026-01-01', subject_party_id=cigna.id, object_plan_id=P2.id)
-    claim('plan_year', utterance=utter('2026'), as_of='2026-01-01', content='2026-12-31', subject_plan_id=P2.id)
-    claim('deductible', utterance=utter('$500', origin=cigna), as_of='2026-01-01', content='$500', subject_plan_id=P2.id)
+    claim(db.PLAN_YEAR, utterance=utter('2026'), as_of='2026-01-01', content='2026-12-31', subject_plan_id=P2.id)
+    claim(db.DEDUCTIBLE, utterance=utter('$500', origin=cigna), as_of='2026-01-01', content='$500', subject_plan_id=P2.id)
     claim(db.APPLIED_TO_DEDUCTIBLE, utterance=utter('$400 applied', origin=aetna), as_of='2026-03-25', content='$400', subject_expense_id=Xc.id)
     claim(db.APPLIED_TO_DEDUCTIBLE, utterance=utter('$150 applied', origin=cigna), as_of='2026-03-26', content='$150', subject_expense_id=Xc.id)
     aP, aP2 = db.accumulator(s, P, '2026-04-30', CATALOGUE, KNOWING), db.accumulator(s, P2, '2026-04-30', CATALOGUE, KNOWING)

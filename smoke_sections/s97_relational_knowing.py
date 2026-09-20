@@ -162,7 +162,7 @@ def run(ctx):
     check('core/database.py carries named knowing relations, a finite resolver table, and no generic resolver',
           hasattr(db, '_KNOWING_RELATIONS') and hasattr(db, '_relational_strength')
           and set(db._KNOWING_RELATIONS) == {db.KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE, db.KNOWING_MINTER_OF_OBJECT_IDENTITY, db.KNOWING_SUBJECT_PARTY,
-                                             db.KNOWING_ENTITLED_PARTY_AT_AS_OF, db.KNOWING_PROVIDER_AT_AS_OF, db.KNOWING_INSURER_AT_AS_OF}   # 9B's third; the role-at-date names (9D-i, applied by 9D-ii) on one resolver
+                                             db.KNOWING_ENTITLED_PARTY_AT_AS_OF, db.KNOWING_PROVIDER_AT_AS_OF, db.KNOWING_INSURER_AT_AS_OF, db.KNOWING_PLAN_INSURER_AT_AS_OF}   # 9B's third; the role-at-date names (9D-i, applied by 9D-ii / 9D-iii) on one resolver
           and db.RULED_KINDS[db.PROPOSITION_CORRESPONDS].get('knowing_relation') is None
           and not any(hasattr(db, n) for n in ('find_related_party', 'knowing_party_for')))
 

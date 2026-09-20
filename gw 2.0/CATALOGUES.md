@@ -27,7 +27,8 @@
 > the object — application or re-ruling, Rob's), F3 three "coverage ended" kinds, F4 the terms with
 > 7J's any-party read recorded as 7J's, F5 one name, F6 three swap classes pre-measured; **RULED
 > (§9D-iii.7) — F1 two kinds, F2 the role read on the object as APPLICATION (the one item reaching
-> the resolver dispatch), F3 three kinds, F4–F6 as read; build awaits authorisation; no code.**
+> the resolver dispatch), F3 three kinds, F4–F6 as read; BUILT (awaiting acceptance); 9D-iv
+> unopened.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -2140,5 +2141,77 @@ household-term case must resolve to `not_knowing`**, never a manufactured positi
 | **F6** | three swap classes retained; the household-term knowing assertion retires to `not_knowing` |
 
 **No code.** The build awaits its separate authorisation.
+
+---
+
+#### Built — 2026-09-20 (9D-iii)
+
+`core/database.py`: eight registry entries — `DEDUCTIBLE`, `INDIVIDUAL_DEDUCTIBLE`, `PLAN_YEAR`,
+`DEDUCTIBLE_APPLIED`, `COVERAGE_ENDED`, `AUTHORIZATION` (the plan the subject, no object);
+**`INDIVIDUAL_DEDUCTIBLE_APPLIED`** (the plan the subject, the person the object — F1's second kind);
+**`ELIGIBILITY`** (the person the subject, the plan the object — F5's shape kept); all
+`KNOWING_PLAN_INSURER_AT_AS_OF`, `reading_establishes True`. **A third row** in `_ROLE_AT_AS_OF`
+(`insurer_of_plan`), the name on the one resolver. **F2's application shape:** a second table,
+`_ROLE_AT_AS_OF_SIDE = {ELIGIBILITY: 'object'}` — keyed by the **stance kind**, not the relation name
+(the same relation serves `deductible_applied` on its subject); `_role_at_as_of` gains a `side`
+parameter defaulting to `'subject'`, and `_relational_strength` passes it only when the table names
+one. The relation's statement is unchanged — *the claimant held role R on the thing the stance is
+about, at `as_of`* — the one thing the dispatch now carries is which slot that thing sits in. **The
+one consumer line F1 named:** 7J's stated accumulator reads the individual figure by its own kind
+(`applied_kind = catalogue['individual_deductible_applied'] if person is not None else …`), exactly
+as it already reads the individual term; `ACCUMULATOR_KINDS` gains the key. **One thing beyond the
+ruling, reported for Rob to accept or strike:** while writing F2's negative case (the same
+`eligibility` claim read on its *subject* side must answer not_knowing) the wrong-side read came back
+**knowing by id collision** — the resolver looked a *person* id up among *plan* ids and Kim's party
+id matched a plan's. The resolver as built never checked that the slot's identity type matches the
+role's object type; every ruled use so far matched, so nothing caught it. **A one-line type guard
+added** (`_slot_type(slot) != _slot_type(role's object slot) → not_knowing`): a plan role is no role on
+a person. A guard against a latent defect, not a change of meaning; every earlier stance fixture
+unchanged by it (22 / 18 / 40 / 32 / 31).
+
+**The oracle:** `tests/test_plan_stances_fixture.py` — 20 checks over Ps1–Ps14, the registry and F2's
+negative, with a map carrying no entry for the eight: the registry's refusals (a `deductible_applied`
+with a person — that is the individual kind; an individual one without; a plan-subject
+`eligibility`; a party-subject term); **Ps8** (Rob's *our deductible is $3,000* → not_knowing, a relay;
+the SBC read → candidate, knowing through its origin; Lakeview Health's own → knowing) and **Ps8 through 7J,
+recorded** (the latest established term governs by date, any party — 7J's open question, read here
+as it is); Ps9 (`none` → knowing; 7J: the rule does not exist); Ps11 (the household's plan year →
+not_knowing; 7J's window still takes it — recorded); Ps12 (undated → undetermined; 7J disqualifies);
+**Ps1 / Ps2** (the family figure and the individual figure, two kinds, each 7J's on its own axis);
+Ps10 (Cigna's figure on Lakeview Health's plan → not_knowing; not the stated accumulator); **Ps3** (Lakeview Health's
+*never eligible* about (Kim, P) → knowing **by the role on the object plan**; 7J lists it beside
+membership, `plan_insurer` in effect, membership unchanged); Ps4 (Rob's → not_knowing); **F2's
+negative** (the same claim read on its subject side → not_knowing; on its object side → knowing — the
+side is the kind's); Ps3′ (the reading path on the object-read stance); **Ps5** (Lakeview Health's
+`coverage_ended` on P → knowing; P remains; **no `under_plan_ended` and no `eligibility` manufactured**;
+Kim still in effect by the household's claim — three kinds, none derives another); Ps6 (Rob's dispute
+a second `coverage_ended`, not_knowing, beside); Ps7 (the authorization one kind; no expense minted);
+**Ps13 the 2 × 2 on P**; Ps14 (the SBC line refused under `deductible`, accepted under its stand-in).
+
+**The substitution — and F6's three classes, confirmed by the substrate run before the fixture
+was written:** 7J 31/31 with the new catalogue key (F1's line), its helper minting the individual
+figure by its own kind, its map entries for the seven retired, its *no term / eligibility kind
+registered* absence narrowed to `occurred_on`; the 9A fixture's `eligibility` and the 9C fixture's
+`coverage_ended` / `authorization` / `plan_year` / `deductible` by constant; the 9D-ii fixture's
+catalogue key. **F6(i):** plan-identity's SBC line → `sbc_line_figure`, no new kind. **F6(ii):** Lakeview Health's
+`insurer_of_plan` role added to plan-identity's corpus — placed **before Pl11**, not before Pl15
+(*no claim of any kind touches P* is the decisive case, and my first placement broke it; the role
+belongs where the case that presupposes it lives). **F6(iii):** Pl2's check — *the term is a claim,
+dated, with a party behind it* — kept, its strength clause retired from `knowing` to **`not_knowing`**
+as ruled: the household relays the insurer's rule. `authorized` → `AUTHORIZATION` by constant.
+**Pins:** the relational-knowing and role-catalogue fixtures (six → seven names); `s97`; and two of
+my own — the 9D-ii fixture had pinned the plan insurer's relation name *absent*, and `s121` the
+total relation count — the exact-pin class, restated to what each slice owns.
+
+**Smoke `s122_plan_stances.py`:** the fixture passes; ten mutations — the household's term knowing
+(the relay as holder) · the household's plan year knowing · `coverage_ended` minting
+`under_plan_ended` (F3) · `eligibility` deriving membership (F5 reversed) · the other plan's insurer
+knowing · **the role read on the wrong side (the side table emptied — F2 dropped)** · the type
+conferring knowing · a reading establishing state · an undated term knowing · **the two applied shapes
+collapsed (F1 reversed)** — all ten caught on the first run.
+
+**Left where it belongs:** 7J's any-party term read (recorded twice, Ps8 and Ps11 — 7J's question) ·
+the determination (9D-v) · values and the bank's stances (9D-iv) · 9D-i-F3 (7G). No schema, no
+migration. Gate 1442 → 1478, 0 failed.
 
 ---

@@ -202,7 +202,7 @@ def run(ctx):
           and db.RULED_KINDS[db.BILLED]['knowing_relation'] == db.KNOWING_PROVIDER_AT_AS_OF
           and all(db.RULED_KINDS[k]['knowing_relation'] == db.KNOWING_INSURER_AT_AS_OF for k in six[1:])
           and db._ROLE_AT_AS_OF[db.KNOWING_PROVIDER_AT_AS_OF] == db.PROVIDER_OF and db._ROLE_AT_AS_OF[db.KNOWING_INSURER_AT_AS_OF] == db.INSURER_OF
-          and len({db._KNOWING_RELATIONS[n] for n in db._ROLE_AT_AS_OF}) == 1 and len(db._KNOWING_RELATIONS) == 6
+          and len({db._KNOWING_RELATIONS[n] for n in db._ROLE_AT_AS_OF}) == 1   # (the total count was pinned here until 9D-iii added its name - the exact-pin class, retired)
           and db.registry_violations() == []
           and not any(hasattr(db, n) for n in ('verdict', 'is_denied', 'adjudicate', 'interpret_content', 'plan_of_stance', 'relay_knowing')))
 

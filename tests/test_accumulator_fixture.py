@@ -71,7 +71,7 @@ def _boundary(of, which, subject, obj):
 STAND_INS = {}   # empty since item 9 pass 9C built E's expense_in_respect_of_plan: every relation and role this fixture reads is ruled
 CATALOGUE = {'occurred_on': 'occurred_on', 'insurer_of': 'insurer_of', 'under_plan': 'under_plan', 'plan_insurer': 'insurer_of_plan',
              'eligibility': 'eligibility', 'deductible': 'deductible', 'individual_deductible': 'individual_deductible', 'plan_year': 'plan_year',
-             'deductible_applied': 'deductible_applied', 'expense_in_respect_of_plan': 'expense_in_respect_of_plan',
+             'deductible_applied': 'deductible_applied', 'individual_deductible_applied': 'individual_deductible_applied', 'expense_in_respect_of_plan': 'expense_in_respect_of_plan',   # 9D-iii F1: two kinds by shape
              'applied_to_deductible': 'applied_to_deductible', 'incurred_by': 'incurred_by'}
 
 
@@ -118,7 +118,7 @@ def run(db):
         for k in STAND_INS:
             db.RULED_KINDS.pop(k, None)
     check('the stand-in role and relation kinds are removed; the registry is as shipped; no term, adjudication or eligibility kind was registered',
-          db.RULED_KINDS == shipped and not any(k in shipped for k in ('eligibility', 'deductible', 'individual_deductible', 'plan_year', 'deductible_applied', 'occurred_on')))   # applied_to_deductible: ruled since 9D-ii)
+          db.RULED_KINDS == shipped and not any(k in shipped for k in ('occurred_on',)))   # the term / stance / adjudication kinds: ruled since 9D-ii / 9D-iii; occurred_on: 9D-iv)
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:
         print('  FAILED: ' + f)
@@ -265,11 +265,12 @@ def _run(db):
         return claim(kind, utterance=utter(content, origin=by), as_of=as_of, content=content, subject_plan_id=P.id)
 
     def plan_year(P, start, end):
-        return claim('plan_year', utterance=utter('plan year'), as_of=start, content=end, subject_plan_id=P.id)
+        return claim(db.PLAN_YEAR, utterance=utter('plan year'), as_of=start, content=end, subject_plan_id=P.id)
 
     def applied_stance(P, by, amount, as_of, person=None):
-        return claim('deductible_applied', utterance=utter(amount, origin=by), as_of=as_of, content=amount, subject_plan_id=P.id,
-                     **({'object_party_id': person.id} if person is not None else {}))
+        # 9D-iii F1: the individual figure is its own kind (person, P), the family figure has no object
+        return claim(db.INDIVIDUAL_DEDUCTIBLE_APPLIED if person is not None else db.DEDUCTIBLE_APPLIED, utterance=utter(amount, origin=by), as_of=as_of,
+                     content=amount, subject_plan_id=P.id, **({'object_party_id': person.id} if person is not None else {}))
 
     def expense_under(P, name, on, insurer, incurred=None):
         X = mint(db.Expense, name)
@@ -284,7 +285,7 @@ def _run(db):
         return claim(db.APPLIED_TO_DEDUCTIBLE, utterance=utter(content, origin=by), as_of=as_of, content=content, subject_expense_id=X.id)
 
     def eligibility(person, P, by, content, as_of, reading=None):
-        return claim('eligibility', utterance=None if reading else utter(content, origin=by), reading=reading, as_of=as_of, content=content,
+        return claim(db.ELIGIBILITY, utterance=None if reading else utter(content, origin=by), reading=reading, as_of=as_of, content=content,
                      subject_party_id=person.id, object_plan_id=P.id)
 
     aetna = mint(db.Party, 'Aetna.')

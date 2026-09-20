@@ -82,8 +82,7 @@ def run(db):
     s.add_all([rob, kim])
     s.commit()
     household, kim_party = rob.party, kim.party
-    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'deductible': {'person', 'institution'},
-               'authorized': {'institution'}, 'coverage_ended': {'institution'}}
+    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'sbc_line_figure': {'institution'}}   # deductible / authorization / coverage_ended: ruled stances since 9D-iii - knowing by the plan's insurer's role
 
     def utter(text, when='2026-01-05T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -190,15 +189,17 @@ def run(db):
                                   KNOWING) == db.STRENGTH_KNOWING)
     sbc = held('h-sbc', '2026-01-01', aetna, u_aetna)
     r_sbc = read(sbc)
-    p_ded_line, e_ded_line = line(sbc, r_sbc, 'deductible', '$3,000 individual / $6,000 family', aetna)
+    p_ded_line, e_ded_line = line(sbc, r_sbc, 'sbc_line_figure', '$3,000 individual / $6,000 family', aetna)   # 9D-iii F6(i): the SBC line figure (subject the insurer), not the ruled term
     check('Pl2: the SBC line is a P-subject claim - the insurer\'s statement, P a candidates participant, never established by the reading',
           p_ded_line.object_state == db.PARTICIPANT_CANDIDATES and p_ded_line.subject_plan_id is None
           and e_ded_line.reading_id == r_sbc.id)
-    e_ded, p_ded = about('deductible', P, '$3,000 individual / $6,000 family', utterance=utter('Our deductible is 3,000, 6,000 for the family.'), as_of='2026-01-01')
+    e_ded, p_ded = about(db.DEDUCTIBLE, P, '$3,000 individual / $6,000 family', utterance=utter('Our deductible is 3,000, 6,000 for the family.'), as_of='2026-01-01')
     check('Pl2: the P-world term takes P as its subject - the family deductible has a subject that is neither Kim nor Aetna',
           p_ded.subject_plan_id == P.id and p_ded.subject_party_id is None and p_ded.as_of == '2026-01-01')
-    check('the term is a claim, dated, with a party behind it; it is not on the anchor and there is no accessor for it',
-          db.derived_strength(s, e_ded, KNOWING) == db.STRENGTH_KNOWING
+    # 9D-iii F4 / F6(iii): the household's "our deductible is 3,000" RELAYS the insurer's term - the household is not the holder,
+    # so the type test's `knowing` retires to NOT_KNOWING; the check's meaning (a claim, dated, a party behind it, not a field) stands
+    check('the term is a claim, dated, with a party behind it - the household relaying the insurer\'s rule, established and NOT knowing; it is not on the anchor and there is no accessor for it',
+          db.derived_strength(s, e_ded, KNOWING) == db.STRENGTH_NOT_KNOWING
           and not any(hasattr(db, n) for n in ('deductible_of', 'plan_terms', 'current_terms', 'terms_of')))
     eob = held('h-eob', '2026-03-10', aetna, u_aetna)
     r_eob = read(eob)
@@ -215,17 +216,17 @@ def run(db):
     check('Pl3: two plans, one insurer, overlapping periods - individuated by two assertions; nothing on either row tells them apart',
           D.id != P.id and s.get(db.Plan, D.id) is not None
           and {c.name for c in db.Plan.__table__.columns} == {'id', 'minted_by_id', 'created_at'})
-    about('deductible', D, '$50', utterance=utter('Dental deductible is 50.'), as_of='2026-01-01')
+    about(db.DEDUCTIBLE, D, '$50', utterance=utter('Dental deductible is 50.'), as_of='2026-01-01')
     check('Pl3: each plan carries its own term claims; the terms describe, they do not individuate',
-          s.query(db.Proposition).filter_by(kind='deductible', subject_plan_id=P.id).count() == 1
-          and s.query(db.Proposition).filter_by(kind='deductible', subject_plan_id=D.id).count() == 1)
+          s.query(db.Proposition).filter_by(kind=db.DEDUCTIBLE, subject_plan_id=P.id).count() == 1
+          and s.query(db.Proposition).filter_by(kind=db.DEDUCTIBLE, subject_plan_id=D.id).count() == 1)
 
     print('\n5. Pl4 / Pl13 - renewal: the household decides; plan year decides nothing; mis-individuation is correspondence\n')
-    about('deductible', P, '$3,500 individual / $7,000 family', utterance=utter('Deductible went up to 3,500 this year.', '2027-01-08T09:00:00'), as_of='2027-01-01')
+    about(db.DEDUCTIBLE, P, '$3,500 individual / $7,000 family', utterance=utter('Deductible went up to 3,500 this year.', '2027-01-08T09:00:00'), as_of='2027-01-01')
     # Item 7 pass 7J (CONSUMER_DERIVATIONS.md s 7J.7) built `plans_in_effect()` - a read-only fact report over the
     # membership role, choosing no plan; this check once named it as an absence. The absences that still hold are listed.
     check('Pl4: same P, a second dated term claim - two deductible claims about one plan, neither overwritten, no "current" chosen (item 7 plans_in_effect() exists as a read-only report and chooses none)',
-          s.query(db.Proposition).filter_by(kind='deductible', subject_plan_id=P.id).count() == 2
+          s.query(db.Proposition).filter_by(kind=db.DEDUCTIBLE, subject_plan_id=P.id).count() == 2
           and callable(getattr(db, 'plans_in_effect', None))
           and not any(hasattr(db, n) for n in ('current_deductible', 'plan_state', 'active_plan', 'current_plan', 'primary_plan', 'plan_at')))
     P_new = mint_plan(utter('New plan year - I\'ll treat it as a new plan.', '2027-01-08T09:05:00'))
@@ -244,13 +245,13 @@ def run(db):
           and s.get(db.Plan, P_new.id).minted_by_id != u_have.id)
 
     print('\n6. Pl5 / Pl12 - termination is a dated claim; the identity remains\n')
-    e_end, p_end = about('coverage_ended', P, '2026-06-30', utterance=utter('Coverage terminated retroactive to 6/30.', '2026-08-15T09:00:00', origin=aetna), as_of='2026-08-15')
+    e_end, p_end = about(db.COVERAGE_ENDED, P, '2026-06-30', utterance=utter('Coverage terminated retroactive to 6/30.', '2026-08-15T09:00:00', origin=aetna), as_of='2026-08-15')
     check('Pl12: the insurer\'s retroactive termination is its dated stance about P (as of 8/15, content 6/30); P is still minted',
           p_end.as_of == '2026-08-15' and '06-30' in p_end.content and e_end.utterance.origin_party_id == aetna.id
           and s.get(db.Plan, P.id) is not None)
-    about('coverage_ended', P, 'disputed - we paid through December', utterance=utter('That is wrong, we paid every month.', '2026-08-16T09:00:00'))
+    about(db.COVERAGE_ENDED, P, 'disputed - we paid through December', utterance=utter('That is wrong, we paid every month.', '2026-08-16T09:00:00'))
     check('Pl12: the household\'s contrary stance is a second claim; nothing chosen, nothing deleted - identity is not truth or currency',
-          s.query(db.Proposition).filter_by(kind='coverage_ended', subject_plan_id=P.id).count() == 2
+          s.query(db.Proposition).filter_by(kind=db.COVERAGE_ENDED, subject_plan_id=P.id).count() == 2
           and not any(hasattr(db, n) for n in ('is_active', 'coverage_status', 'plan_status')))
     Q = mint_plan(utter('Switched to Cigna for 2028.', '2027-11-20T09:00:00'))
     check('Pl5: the new plan is a new identity; the old one persists; nothing links them unless a party corresponds them',
@@ -258,8 +259,15 @@ def run(db):
           and s.query(db.Proposition).filter_by(kind=db.PLAN_CORRESPONDS, subject_plan_id=Q.id).count() == 0)
 
     print('\n7. Pl11 - authorization: the insurer\'s dated stance about P; no expense exists\n')
+    # 9D-iii F6(ii): Pl11 always meant "Aetna, the plan's insurer, is knowing for its authorization"; under the ruled
+    # role-at-date relation that is Aetna's insurer_of_plan role on P in the record - added, never inferred
+    prov = db.Proposition(kind=db.INSURER_OF_PLAN, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_ESTABLISHED,
+                          subject_party_id=aetna.id, object_plan_id=P.id, as_of='2026-01-01')
+    s.add(prov)
+    s.commit()
+    evidence(prov, utterance=utter('Aetna is the insurer for our plan.', '2026-01-02T09:01:00'))
     n_x = s.query(db.Expense).count()
-    e_auth, p_auth = about('authorized', P, 'MRI, lumbar - approved', utterance=utter('Prior auth approved for the MRI.', '2026-02-10T09:00:00', origin=aetna), as_of='2026-02-10')
+    e_auth, p_auth = about(db.AUTHORIZATION, P, 'MRI, lumbar - approved', utterance=utter('Prior auth approved for the MRI.', '2026-02-10T09:00:00', origin=aetna), as_of='2026-02-10')
     check('Pl11: the authorization is a claim about P by the insurer, dated; it minted no expense - nothing was incurred',
           p_auth.subject_plan_id == P.id and s.query(db.Expense).count() == n_x
           and db.derived_strength(s, e_auth, KNOWING) == db.STRENGTH_KNOWING)

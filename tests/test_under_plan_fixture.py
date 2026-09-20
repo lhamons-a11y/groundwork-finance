@@ -189,7 +189,7 @@ def run(db):
     f4 = under(kim_party, P, '2026-12-31', utterance=utter('It ran through December.'), kind=db.UNDER_PLAN_ENDED)
     check('F4 (R5): Aetna\'s ending 6/30 and Rob\'s ending 12/31 - two claims, two parties, both stand; nothing chosen, no "current membership" accessor',
           claims(db.UNDER_PLAN_ENDED, subject_party_id=kim_party.id, object_plan_id=P.id).count() == 2 and not hasattr(db, 'current_membership'))
-    never = claim('eligibility', utterance=utter('Kim was never eligible.', origin=aetna), as_of='2026-09-01', content='never eligible',
+    never = claim(db.ELIGIBILITY, utterance=utter('Kim was never eligible.', origin=aetna), as_of='2026-09-01', content='never eligible',
                   subject_party_id=kim_party.id, object_plan_id=P.id)
     check('F5 (the evidence boundary): Aetna\'s "never eligible" is its own stance beside Rob\'s under_plan claims; the under_plan claims still stand unchanged - contest derived, nothing erased, nothing overridden',
           s.get(db.Proposition, f1.id) is not None and s.get(db.Proposition, f2.id) is not None and never.kind != db.UNDER_PLAN

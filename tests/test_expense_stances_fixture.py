@@ -49,10 +49,10 @@ CATALOGUE = {'acknowledgment': 'acknowledged', 'entitled_party': 'entitled_party
              'determination': 'determination', 'provider_of': 'provider_of', 'insurer_of': 'insurer_of'}
 ACC = {'occurred_on': 'occurred_on', 'insurer_of': 'insurer_of', 'under_plan': 'under_plan', 'plan_insurer': 'insurer_of_plan',
        'eligibility': 'eligibility', 'deductible': 'deductible', 'individual_deductible': 'individual_deductible', 'plan_year': 'plan_year',
-       'deductible_applied': 'deductible_applied', 'expense_in_respect_of_plan': 'expense_in_respect_of_plan',
+       'deductible_applied': 'deductible_applied', 'individual_deductible_applied': 'individual_deductible_applied', 'expense_in_respect_of_plan': 'expense_in_respect_of_plan',
        'applied_to_deductible': 'applied_to_deductible', 'incurred_by': 'incurred_by'}
 ABSENT = ('verdict', 'is_denied', 'denied', 'adjudicate', 'interpret_content', 'parse_verdict', 'plan_of_stance', 'stance_plan',
-          'KNOWING_PLAN_INSURER_AT_AS_OF', 'relay_knowing')
+          'relay_knowing')   # (the plan insurer's relation name was pinned absent here until 9D-iii applied it - the exact-pin class, retired)
 
 
 def _fresh():
@@ -155,7 +155,7 @@ def run(db):
           all(db.RULED_KINDS[k] == {'subject': ('subject_expense_id',), 'object': (), 'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
                                     'knowing_relation': (db.KNOWING_PROVIDER_AT_AS_OF if k == db.BILLED else db.KNOWING_INSURER_AT_AS_OF)} for k in six)
           and db.registry_violations() == [])
-    check('the relation APPLIED, not re-ruled: two rows in the table (provider_of, insurer_of) beside 9D-i\'s, all three names on the ONE resolver; no verdict / content interpreter, no plan-of-stance helper',
+    check('the relation APPLIED, not re-ruled: 9D-ii\'s two rows (provider_of, insurer_of) beside 9D-i\'s, every role-at-date name on the ONE resolver; no verdict / content interpreter, no plan-of-stance helper',
           db._ROLE_AT_AS_OF[db.KNOWING_PROVIDER_AT_AS_OF] == db.PROVIDER_OF and db._ROLE_AT_AS_OF[db.KNOWING_INSURER_AT_AS_OF] == db.INSURER_OF
           and db._ROLE_AT_AS_OF[db.KNOWING_ENTITLED_PARTY_AT_AS_OF] == db.ENTITLED_PARTY_OF
           and len({db._KNOWING_RELATIONS[n] for n in db._ROLE_AT_AS_OF}) == 1 and db._KNOWING_RELATIONS[db.KNOWING_INSURER_AT_AS_OF] is db._role_at_as_of

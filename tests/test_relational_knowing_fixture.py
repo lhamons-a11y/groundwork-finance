@@ -245,9 +245,9 @@ def run(db):
     # 9B named a third relation for the role kinds (KNOWING_SUBJECT_PARTY); 9D-i a fourth, the role-at-date relation
     # (KNOWING_ENTITLED_PARTY_AT_AS_OF) - three designated-participant resolvers and one that classifies the claimant by role at as_of.
     # 9D-ii applied the role-at-date relation to the provider and the insurer - two more names on the one resolver
-    check('the relations are NAMED and finite - six names (three designated-participant, three role-at-date on one resolver), nothing generic',
+    check('the relations are NAMED and finite - seven names (three designated-participant, four role-at-date on one resolver), nothing generic',
           set(db._KNOWING_RELATIONS) == {db.KNOWING_ORIGIN_OF_SUBJECT_UTTERANCE, db.KNOWING_MINTER_OF_OBJECT_IDENTITY, db.KNOWING_SUBJECT_PARTY,
-                                         db.KNOWING_ENTITLED_PARTY_AT_AS_OF, db.KNOWING_PROVIDER_AT_AS_OF, db.KNOWING_INSURER_AT_AS_OF}
+                                         db.KNOWING_ENTITLED_PARTY_AT_AS_OF, db.KNOWING_PROVIDER_AT_AS_OF, db.KNOWING_INSURER_AT_AS_OF, db.KNOWING_PLAN_INSURER_AT_AS_OF}
           and not any(hasattr(db, n) for n in ('find_related_party', 'related_parties', 'reachable_parties', 'knowing_party_for')))
     check('every relational kind either names a relation from that table or none - never a bare traversal hint',
           all(r.get('knowing_relation') in (None, *db._KNOWING_RELATIONS) for r in db.RULED_KINDS.values()))

@@ -2138,6 +2138,37 @@ ADJUDICATION = 'adjudication'
 KNOWING_PROVIDER_AT_AS_OF = 'the_provider_of_the_subject_expense_in_effect_at_as_of'
 KNOWING_INSURER_AT_AS_OF = 'the_insurer_of_the_subject_expense_in_effect_at_as_of'
 
+# ── Item 9, pass 9D-iii: THE INSURER'S STANCES AND TERMS ON P ─────────────────────────────
+# gw 2.0/CATALOGUES.md s 9D-iii.7 (ruled 2026-09-20). The role-at-date relation APPLIED for the plan's
+# insurer (insurer_of_plan) - a third row; the relation not re-ruled. The terms - deductible,
+# individual_deductible, plan_year (as_of the start, content the end) - are THE INSURER'S dated stances
+# about P's rule (PL2: a term is a claim about P, never a field on the anchor; C2: content `none` = the
+# rule does not exist); the household's "our deductible is $3,000" is evidence RELAYING the insurer's
+# term - it does not make the household the holder (not_knowing; O5). 7J's any-party term read is 7J's
+# own question, not settled here. deductible_applied is TWO KINDS by shape, parallel to the two term
+# kinds (F1): the family figure on P (no object) and individual_deductible_applied on (person, P) - an
+# optional object would make the registry encode a distinction it does not otherwise encode.
+# eligibility is the insurer's stance about (person, P) - subject the person, object the plan, F5's
+# shape beside under_plan - and THE ROLE IS READ ON THE OBJECT (F2): the claimant held insurer_of_plan on
+# the thing the stance is about, which for this shape sits in the object slot; the relation's meaning is
+# unchanged, and the one thing 9D-iii adds to the dispatch is the side the role is read on
+# (_ROLE_AT_AS_OF_SIDE) - an application of the ruled relation to an unusual stance shape, explicitly
+# not a redefinition of insurer_of_plan (s 9D.9 anticipated it). "Coverage ended" is THREE KINDS (F3):
+# the household's under_plan_ended (F, party -> plan), the insurer's eligibility about (person, P), and
+# the insurer's coverage_ended about P (Pl12: the arrangement ended, retroactively; P remains minted) -
+# none derives another. authorization is one kind (Pl11: the insurer's stance about P with the service
+# as content; never an expense). Content opaque throughout; reading_establishes True as 9D-i pinned
+# it (the SBC read -> candidate, knowing through its origin). Not source words.
+DEDUCTIBLE = 'deductible'
+INDIVIDUAL_DEDUCTIBLE = 'individual_deductible'
+PLAN_YEAR = 'plan_year'
+DEDUCTIBLE_APPLIED = 'deductible_applied'
+INDIVIDUAL_DEDUCTIBLE_APPLIED = 'individual_deductible_applied'
+ELIGIBILITY = 'eligibility'
+COVERAGE_ENDED = 'coverage_ended'
+AUTHORIZATION = 'authorization'
+KNOWING_PLAN_INSURER_AT_AS_OF = 'the_insurer_of_the_plan_the_stance_is_about_in_effect_at_as_of'
+
 RULED_KINDS = {
     ARTEFACT_ORIGIN:      {'subject': ('subject_artefact_id',), 'object': ('object_party_id',),
                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': False},
@@ -2283,6 +2314,32 @@ RULED_KINDS = {
     ADJUDICATION:           {'subject': ('subject_expense_id',), 'object': (),
                              'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
                              'knowing_relation': KNOWING_INSURER_AT_AS_OF},
+    # Item 9 pass 9D-iii: the insurer's stances and terms on P (s 9D-iii.7) - the relation applied for the plan's
+    # insurer. Two deductible_applied kinds by shape (F1); eligibility's role read on its OBJECT plan (F2).
+    DEDUCTIBLE:                    {'subject': ('subject_plan_id',), 'object': (),
+                                    'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                                    'knowing_relation': KNOWING_PLAN_INSURER_AT_AS_OF},
+    INDIVIDUAL_DEDUCTIBLE:         {'subject': ('subject_plan_id',), 'object': (),
+                                    'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                                    'knowing_relation': KNOWING_PLAN_INSURER_AT_AS_OF},
+    PLAN_YEAR:                     {'subject': ('subject_plan_id',), 'object': (),
+                                    'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                                    'knowing_relation': KNOWING_PLAN_INSURER_AT_AS_OF},
+    DEDUCTIBLE_APPLIED:            {'subject': ('subject_plan_id',), 'object': (),
+                                    'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                                    'knowing_relation': KNOWING_PLAN_INSURER_AT_AS_OF},
+    INDIVIDUAL_DEDUCTIBLE_APPLIED: {'subject': ('subject_plan_id',), 'object': ('object_party_id',),
+                                    'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                                    'knowing_relation': KNOWING_PLAN_INSURER_AT_AS_OF},
+    COVERAGE_ENDED:                {'subject': ('subject_plan_id',), 'object': (),
+                                    'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                                    'knowing_relation': KNOWING_PLAN_INSURER_AT_AS_OF},
+    AUTHORIZATION:                 {'subject': ('subject_plan_id',), 'object': (),
+                                    'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                                    'knowing_relation': KNOWING_PLAN_INSURER_AT_AS_OF},
+    ELIGIBILITY:                   {'subject': ('subject_party_id',), 'object': ('object_plan_id',),
+                                    'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                                    'knowing_relation': KNOWING_PLAN_INSURER_AT_AS_OF},
 }
 
 # ── Item 5: the role period ───────────────────────────────────────────────────
@@ -3180,17 +3237,33 @@ _ROLE_AT_AS_OF = {
     KNOWING_ENTITLED_PARTY_AT_AS_OF: ENTITLED_PARTY_OF,
     KNOWING_PROVIDER_AT_AS_OF: PROVIDER_OF,                      # 9D-ii: applied, not re-ruled
     KNOWING_INSURER_AT_AS_OF: INSURER_OF,                        # 9D-ii
+    KNOWING_PLAN_INSURER_AT_AS_OF: INSURER_OF_PLAN,              # 9D-iii
+}
+# 9D-iii (s 9D-iii.7, F2): THE SIDE THE ROLE IS READ ON - the one application distinction the dispatch
+# carries. The relation reads the role on the thing the stance is about; for every kind but one that
+# thing is the claim's subject. eligibility (subject the person, object the plan) is about (person, P)
+# and the plan's insurer's role is on P, so for THAT KIND the role is read on the object. Keyed by the
+# stance kind, not the relation name (the same relation serves deductible_applied on its subject).
+# An application, not a redefinition of any role.
+_ROLE_AT_AS_OF_SIDE = {
+    ELIGIBILITY: 'object',
 }
 
 
-def _role_at_as_of(session, prop, claimant_party_id, role_kind):
+def _role_at_as_of(session, prop, claimant_party_id, role_kind, side='subject'):
     if claimant_party_id is None or not prop.as_of:
         return STRENGTH_UNDETERMINED
     rule = RULED_KINDS.get(prop.kind) or {}
-    subject = next((getattr(prop, c) for c in rule.get('subject', ()) if getattr(prop, c) is not None), None)
+    slot = next((c for c in rule.get(side, ()) if getattr(prop, c) is not None), None)
+    subject = getattr(prop, slot) if slot else None
     party = session.get(Party, claimant_party_id)
     if subject is None or party is None:
         return STRENGTH_UNDETERMINED
+    # 9D-iii: the thing the role is read on must be of the role's own object type - a plan role is no role on a
+    # person; without this an id of one type would be looked up among identities of another (found while writing
+    # the F2 negative: the wrong side answered knowing by id collision). A guard, not a change of meaning.
+    if _slot_type(slot) != _slot_type(RULED_KINDS[role_kind]['object'][0]):
+        return STRENGTH_NOT_KNOWING
     answer = in_effect(session, party, role_kind, prop.as_of)['identities'].get(subject)
     if answer is None or answer['answer'] == EFFECT_NOT:
         return STRENGTH_NOT_KNOWING
@@ -3204,6 +3277,7 @@ _KNOWING_RELATIONS = {
     KNOWING_ENTITLED_PARTY_AT_AS_OF: _role_at_as_of,                 # 9D-i: dispatched with the claimant and the role
     KNOWING_PROVIDER_AT_AS_OF: _role_at_as_of,                       # 9D-ii: the same resolver, the role from the table
     KNOWING_INSURER_AT_AS_OF: _role_at_as_of,                        # 9D-ii
+    KNOWING_PLAN_INSURER_AT_AS_OF: _role_at_as_of,                   # 9D-iii
 }
 
 
@@ -3213,7 +3287,8 @@ def _relational_strength(session, prop, claimant_party_id, relation_name):
     if resolver is None:
         return STRENGTH_UNDETERMINED                       # relation not ruled
     if relation_name in _ROLE_AT_AS_OF:                    # 9D-i: the role-at-date relation classifies the claimant
-        return resolver(session, prop, claimant_party_id, _ROLE_AT_AS_OF[relation_name])
+        side = _ROLE_AT_AS_OF_SIDE.get(prop.kind)         # 9D-iii: the side the role is read on, per stance kind
+        return resolver(session, prop, claimant_party_id, _ROLE_AT_AS_OF[relation_name], **({'side': side} if side else {}))
     designated = resolver(session, prop)
     if designated is None or claimant_party_id is None:
         return STRENGTH_UNDETERMINED                       # designated participant not established
@@ -4436,7 +4511,8 @@ TERM_UNKNOWN = 'unknown'                                      # no established c
 ADJ_EXEMPT = 'exempt'
 ADJ_UNADJUDICATED = 'unadjudicated'
 ACCUMULATOR_KINDS = ('under_plan', 'plan_insurer', 'eligibility', 'deductible', 'individual_deductible', 'plan_year',
-                     'deductible_applied', 'expense_in_respect_of_plan', 'applied_to_deductible', 'incurred_by', 'occurred_on')
+                     'deductible_applied', 'individual_deductible_applied',      # 9D-iii F1: the individual figure its own kind
+                     'expense_in_respect_of_plan', 'applied_to_deductible', 'incurred_by', 'occurred_on')
 
 
 def _require_role(catalogue, key, who):
@@ -4558,7 +4634,9 @@ def accumulator(session, plan, d, catalogue, knowing, person=None):
 
     # ── the stated accumulator: the plan's insurer's position under G ─────────────────────────
     st_claims = []
-    for c in claims_on_plan(catalogue['deductible_applied'], person_members):
+    # 9D-iii F1 - the consumer line the ruling named: the individual figure is its own kind, as the individual term is
+    applied_kind = catalogue['individual_deductible_applied'] if person is not None else catalogue['deductible_applied']
+    for c in claims_on_plan(applied_kind, person_members):
         role = _entitled_at(session, c['asserter'], catalogue['plan_insurer'], plan.id, c['as_of'])[0]
         st_claims.append(dict(c, plan_insurer=role, qualifies=(c['state'] == CLAIM_ESTABLISHED and bool(c['as_of']) and c['as_of'] <= d
                                                                 and role == EFFECT_IN and c['value'] is not None)))
