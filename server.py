@@ -6757,10 +6757,21 @@ def _ai_chat_local(body: dict):
             result = json.loads(r.read().decode('utf-8'))
         text = (result.get('message') or {}).get('content', '')
         text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+        # Item 12 (BUILD_QUEUE, STREAMING.md T7): carry Ollama's stop reason through in
+        # the Anthropic vocabulary the cloud path already returns verbatim, so the
+        # frontend gate can see that an answer was cut at num_predict rather than
+        # finished. Ollama: done_reason 'length' = hit the cap, 'stop' = finished.
+        # Anything else (older Ollama without the field) is reported as unknown, never
+        # as complete - a missing field must not read as 'finished'.
+        done_reason = result.get('done_reason')
+        stop_reason = ('max_tokens' if done_reason == 'length'
+                       else 'end_turn' if done_reason == 'stop'
+                       else 'unknown')
         return jsonify({
-            'content':  [{'type': 'text', 'text': text}],
-            'model':    model,
-            'provider': 'local',
+            'content':     [{'type': 'text', 'text': text}],
+            'model':       model,
+            'provider':    'local',
+            'stop_reason': stop_reason,
         })
     except urllib.error.URLError as e:
         # Ollama not running / unreachable — degrade to the frontend fallbacks

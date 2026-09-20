@@ -123,7 +123,8 @@ first.
 Left to run as shipped, the first report card took **71 s + 49 s + 45 s = 165 s** — three full
 generations in series, every one rejected by the voice gate, then the honest fallback ("Written
 analysis unavailable"). The user waits two and three-quarter minutes to be told there is no
-analysis. `callAI` documents one retry; the report-card path issued a third attempt.
+analysis. `callAI`'s loop is two corrective retries — three attempts — before the fallback; the
+third generation is that loop, not the report-card path.
 
 On `phi3.5` in replay the same three prompts cost 23 + 13 + 12 = 48 s; the live run was slower
 because it ran on `qwen3:4b` (T5) — but the shape is the model-independent finding: **the wait is
