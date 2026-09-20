@@ -17,7 +17,11 @@
 > different proposition under a borrowed name (F2), Dg2-as-ruled vs built 7G recorded for 7G (F3),
 > `returned` the acknowledgment's shape (F4); **RULED (§9D-i.8) — F5, F1, F2 with the precision
 > that no new kind is invented for 7E's line, F4; F3 recorded for 7G; built (`d793472`) and ACCEPTED
-> (Rob, 2026-09-19); 9D-ii unopened.**
+> (Rob, 2026-09-19). **9D-ii OPENED (§9D-ii) — six stances on X, the relation applied (two table
+> rows); `applied_to_deductible`'s kind-level holder `insurer_of` X with the per-plan selection 7J's;
+> F1 `adjudication` / `denial` two kinds or one; F2 two swap classes measured before the build (the
+> EOB line's borrowed name; the role claim missing from corpora that asserted knowing by type);
+> ruling sought; no code.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -1669,5 +1673,147 @@ proposition, no new kind); `returned` on the explicit-holder shape and not a 7G 
 pre-9D-i registry pins retired as legitimate catalogue transitions; 9D-i-F3 left recorded for 7G;
 no consumer, `reach` or `_claim_states` change. **9D-ii remains unopened until Rob opens it; it
 applies the relation and does not re-rule it (§9D.9).**
+
+---
+
+## Pass 9D-ii — The provider's and insurer's stances on X
+
+*Opened by Rob 2026-09-19 after 9D-i's acceptance (`2511ef7`). Scope per §9D.9: `billed`,
+`patient_responsibility`, `plan_paid`, `applied_to_deductible`, `denial`, `adjudication`; the
+role-at-date relation **applied, not re-ruled** — two names and two roles added to `_ROLE_AT_AS_OF`
+and nothing else; C7 settled; consumers 7H and 7J. No code until cases → candidate → ruling → explicit
+build authorisation. The slice's question is narrower than 9D-i's: **which role on the claim's
+subject (X) is each stance's holder, and does every consumer gate coincide with that** — with one
+case (CC1) where the consumer selects by a role on a *different* thing.*
+
+### 9D-ii.1 What is fixed
+
+§9D-i.8 / §9D.9: H for every ordinary stance — the holder is the asserter, knowing iff it held role R
+on the claim's subject in effect at `as_of`; `reading_establishes: True` = strength through the
+artefact's established origin, never state; no `dated` key; the relation ruled once. **4b
+(INSURER_CLAIM_IDENTITY §7):** adjudication is *an institutional proposition, a dated stance* about X;
+patient responsibility a proposition about X; the insurer's claim has no Groundwork identity;
+**recurrence of the P-ack shape establishes no common kind, resolver or family** — each kind its
+own entry; *insurer of X needs its own ruling before it can become an epistemic relation* — 9B ruled
+it; 9D-ii makes it the relation. **7H §7H.2 / §7H.7:** `billed` is *P-ack for X's charge, asserter in
+effect as provider of X at its date*; `patient_responsibility` and `plan_paid` *the insurer's dated
+claims on X, asserter in effect as insurer of X*; a claim by a party not in the role is reported,
+never governing (F3 / K5: Rob's *the EOB said $412*); G per party's series; conflict at one date →
+none (Rc10); **Rc6 / C7: a denial is a stance of another kind — 7H reads no denial; forced through
+`unpaid` or `pending_claim` it would acquire that channel's meaning**. **7J §7J.7:**
+`applied_to_deductible` — the plan's insurer's own adjudication stance on X; **CC1: under concurrency
+another plan's insurer also adjudicates X, and its stance is that plan's** — each plan derives from
+its insurer's stances only; content a money amount or `none` (*exempt* — C6: the rule exists and this
+falls outside it, an answer, not zero and not unknown). Every consumer read is a stance on
+`subject_expense_id`, asserter the utterance origin, content parsed by the consumer.
+
+### 9D-ii.2 What the consumers read — and the one gate that is not on X
+
+| kind | subject | `as_of` | content | 7H's gate | 7J's gate |
+|---|---|---|---|---|---|
+| `billed` | X | yes | money | asserter in effect as **`provider_of` X** | — |
+| `patient_responsibility` · `plan_paid` | X | yes | money | asserter in effect as **`insurer_of` X** | — |
+| `applied_to_deductible` | X | yes | money or `none` | — | asserter in effect as **`insurer_of_plan` P** — *the plan being computed*, not X |
+| `denial` | X | yes | text | **not read** (Rc6); named in the note | — |
+| `adjudication` | X | yes | text (*reversed*, *denied — not covered*) | not read | not read (the 9C fixture used the name; 9D-i's opening listed it) |
+
+The kind-level relation reads a role **on the claim's own subject** — that is what makes it
+composition-free (9D-i). For five of the six that is exactly the consumer's gate. For
+`applied_to_deductible` the consumer's gate is on P: 7J asks *is the asserter the insurer of the plan
+I am computing*, which under CC1 is how two insurers' stances on one X are kept to their own plans.
+The kind cannot ask that — it has no P. So at the kind level `applied_to_deductible`'s holder is
+**`insurer_of` X** (Lakeview Health and Cigna are both knowing for their own stance on X), and the per-plan
+selection is **7J's consumer gate** — the same split 9D-i ruled for the acknowledgment (the kind's
+relation vs 7G's holder test against its own O). No new relation; stated so it is not mistaken for
+one.
+
+### 9D-ii.3 Findings — put to Rob
+
+**9D-ii-F1 — `adjudication` and `denial`: two kinds, one, or is one not 9D-ii's?** 4b calls
+adjudication *the insurer's dated stance about X*; C7 / Rc6 name the denial as *a stance of another
+kind* than the determination; the 9C fixture used `adjudication` with contents *reversed* and
+*denied — not covered*, and 7H's fixture used `denial` with content *not covered*. Options: (a) **two
+kinds** — `adjudication` the insurer's stance on the claim's outcome (content opaque: *paid*,
+*reversed*, *denied*…) and `denial` its own kind, so that a consumer can refuse to read a denial as a
+determination *by name* (C7's point is that a denial must not be forced into a channel; a kind of
+its own is the fence); (b) **one kind** `adjudication`, a denial being its content — then C7's fence
+is content-reading, which §2.3 keeps out of the catalogue and which 7H would have to parse; (c)
+`denial` only, `adjudication` dropped as a name (the 9C fixture's two uses become `denial` and
+`plan_paid $0` / a reversal is an `applied_to_deductible` or `plan_paid` restatement). *Reading:* (a)
+— it is what Rc6 already assumes (*a denial kind*), it keeps content opaque, and `adjudication`
+gives the insurer's *reversed* (E3) a home that is neither an amount nor a denial. Both `insurer_of`.
+Rob's.
+
+**9D-ii-F2 — foreseen swap findings, two classes, measured before the build.** (i) *The borrowed
+line shape again* (F2's class): `patient_responsibility` as an EOB **line** — subject the insurer
+party, the thing a candidate — in the expense-identity, plan-identity and obligation-in-respect-of
+fixtures (`line(eob, r_eob, 'patient_responsibility', '$412 | claim #A77', aetna)`); refused under
+the ruled kind; the shape kept, the borrowed name removed — a stand-in name for the EOB line figure
+(7E already has `eob_amount` for exactly this proposition; reuse it — no new kind). (ii) *The
+foundation's assumption made explicit* — new in this slice: 7B's In12 asserts *Lakeview Health (via the EOB)
+is knowing for PR $412* and expense-identity asserts *Riverbend Hospital is knowing for `billed`* — both today
+by **type** (`{'institution'}`), with **no `insurer_of` / `provider_of` claim anywhere in those
+corpora**. Under the ruled relation Lakeview Health is knowing iff it held `insurer_of` X at the claim's
+`as_of`; with no role in the record the answer is *not_knowing*, and In12's meaning (*an insurer's
+figure is the insurer's to know*) can only be restored by putting the role in the corpus — the fact
+the type test had assumed. That is a corpus correction of a new shape: not a rename, an **addition**
+of the role claim the case always meant. Two fixtures (7B, expense-identity), measured; the build
+reports the count. *Put to Rob as a class before the build, as 9C's pins were after.*
+
+**9D-ii-F3 — none for the relation.** Applying `_ROLE_AT_AS_OF[KNOWING_PROVIDER_AT_AS_OF] =
+PROVIDER_OF` and `[KNOWING_INSURER_AT_AS_OF] = INSURER_OF` changes nothing about what the relation
+means; every 7H gate coincides with it (5 of 6 kinds); 7J's differs by design (§9D-ii.2) and is the
+consumer's. The reading path is 9D-i's: the EOB read → candidate in state, knowing in strength when
+its established origin is the insurer in role; Riverbend Hospital's bill read → the provider's `billed`; **the
+EOB's own *billed* column → the insurer's relay of the provider's charge → `billed` by origin Lakeview Health is
+not_knowing** (O5: relaying does not launder; the provider's charge is the provider's to know).
+
+### 9D-ii.4 Cases
+
+| # | Case | Kind level | Consumer |
+|---|---|---|---|
+| **Xs1 (Rc9)** | Riverbend Hospital's bill *$1,300*, read; Riverbend Hospital provider of X | `billed`: candidate, **knowing** (origin Riverbend Hospital in role) | 7H: candidate never governs; Riverbend Hospital's utterance governs |
+| **Xs2 (F3 / K5)** | Rob: *the EOB said $400* — a PR claim by the household | not_knowing (Rob holds no role) | 7H: reported, never governing (Rc12) |
+| **Xs3 — the EOB's billed column** | Lakeview Health's EOB, read: *billed $1,300 · plan paid $568 · PR $412* | `plan_paid`, `patient_responsibility`: knowing (Lakeview Health insurer of X); **`billed`: NOT_KNOWING** — the insurer relays the provider's charge | 7H: Lakeview Health's *billed* is not in the provider's series |
+| **Xs4 (Rc10)** | two Lakeview Health PR stances at one date | both knowing | 7H: conflict → none (TS) |
+| **Xs5 (CC1 / Ju11)** | Lakeview Health *applied $400*, Cigna *applied $150*, on one X in respect of A and B | **both knowing** — each holds `insurer_of` X | 7J: A from Lakeview Health's only, B from Cigna's only — the plan gate is 7J's |
+| **Xs6 (C6)** | Lakeview Health *applied: none* | knowing; content opaque | 7J: exempt — not zero, not unknown |
+| **Xs7 (C7 / Rc6)** | Lakeview Health: *not a covered service* | `denial`: knowing; **not a determination** — a different kind by name | 7H: not read; the determination stays whatever the parties said; the note names it |
+| **Xs8 (E3)** | Lakeview Health: *reversed*, 8/15 | `adjudication` (F1): knowing | no consumer |
+| **Xs9 — the provider is not the insurer** | Riverbend Hospital states *plan paid $568* | `plan_paid` by Riverbend Hospital: **not_knowing** (Riverbend Hospital is provider, not insurer) | 7H: reported, not in the insurer's series |
+| **Xs10 — the 2 × 2 on X** | origin ∈ {Riverbend Hospital, Lakeview Health} × kind ∈ {`billed`, `patient_responsibility`} | (Riverbend Hospital, billed) knowing · (Lakeview Health, billed) not · (Riverbend Hospital, PR) not · (Lakeview Health, PR) knowing — the type test called all four knowing | — |
+| **Xs11 (Dg21's analogue)** | Lakeview Health's `insurer_of` X contested at the stance's date | undetermined | 7H: the role answer reported; not governing |
+| **Xs12 (F7)** | an undated PR stance | undetermined | 7H: disqualified |
+| **Xs13 (F2-i)** | the EOB line with the insurer as subject | refused under the ruled name; accepted under `eob_amount` | — |
+| **Xs14 (F2-ii)** | In12's corpus with no `insurer_of` claim | Lakeview Health not_knowing until the role is in the record | 7B: In12 restored by the role claim, not by the type |
+
+### 9D-ii.5 Candidate — six entries; two rows in the table; nothing else
+
+```text
+BILLED · PATIENT_RESPONSIBILITY · PLAN_PAID · APPLIED_TO_DEDUCTIBLE · DENIAL · ADJUDICATION
+    subject (subject_expense_id,)  object ()  symmetric False · reading_establishes True · relational_knowing True
+    BILLED                       knowing_relation KNOWING_PROVIDER_AT_AS_OF
+    the other five               knowing_relation KNOWING_INSURER_AT_AS_OF
+_ROLE_AT_AS_OF += {KNOWING_PROVIDER_AT_AS_OF: PROVIDER_OF, KNOWING_INSURER_AT_AS_OF: INSURER_OF}
+```
+
+The resolver untouched. The swap: 7H's and 7J's catalogue lines (already the ruled names), their map
+entries for the six retired, the 9C fixture's `adjudication` / `plan_paid` / `applied_to_deductible`
+by constant; the two F2 classes as ruled; the consumer fixtures' *no billed / PR / plan_paid /
+determination kind registered* narrowed to `determination` (9D-v). Mutations for `s121`: the
+insurer's relay of the charge knowing for `billed` · the provider's *plan paid* knowing · a denial
+read as a determination · a denial read as an adjudication amount · the plan gate at the kind level
+(a stance not_knowing for the other plan's insurer) · the type conferring knowing · a reading
+establishing state · an undated stance knowing · the relation re-ruled (a second resolver for the
+insurer) · `exempt` read as zero.
+
+### 9D-ii.6 Ruling sought
+
+> **(1) 9D-ii-F1:** `adjudication` and `denial` two kinds (a), or (b) / (c). **(2) 9D-ii-F2:** the two
+> swap classes accepted before the build — the EOB line renamed to the existing `eob_amount`
+> stand-in; **the role claim added to the corpora that asserted knowing by type** (7B In12,
+> expense-identity), as the fact those cases always meant. **(3)** The six entries and two table rows
+> as §9D-ii.5 — the relation applied, not re-ruled; `applied_to_deductible`'s kind-level holder
+> `insurer_of` X with the per-plan selection 7J's. Nothing here authorises code.
 
 ---
