@@ -32,7 +32,10 @@
 > role-set relation (undated, F1); the bank holds no ruled role (F2 — a `drawn_on` role in 9B's form,
 > not_knowing, or deferred); `occurred_on` one kind with two subjects (F3); Kn7's third clause under
 > the ruled kind (F5); **RULED (§9D-iv.7) — F1 as read, F2 (a) a `drawn_on` role in 9B's form,
-> F3–F6 as read; built (`86b85d5`) and ACCEPTED (Rob, 2026-09-20); 9D-v unopened.**
+> F3–F6 as read; built (`86b85d5`) and ACCEPTED (Rob, 2026-09-20). **9D-v OPENED (§9D-v) — the
+> determination: one kind, knowing undetermined by design (9D-F5), no role, `reading_establishes`
+> False (a parser determines nothing), the four names 7H's; the last slice of item 9; ruling sought;
+> no code.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -2531,5 +2534,108 @@ the proof that an established `paid_by` makes the value knowing — and the warn
 Kn7; the bank line an evidence shape, never a role or a knowing source; the two mutation-plumbing
 fixes (s94, s97) not an expansion of the ontology. **9D-v — the determination — remains unopened until
 Rob opens it; it is the last slice of 9D and of item 9.**
+
+---
+
+## Pass 9D-v — The determination
+
+*Opened by Rob 2026-09-20 after 9D-iv's acceptance (`21142c1`). Scope per §9D.9: `determination` —
+F5 only; the determination remains undetermined; consumer 7H. The last slice of 9D and of item 9. No
+code until cases → candidate → ruling → explicit build authorisation. The smallest slice: one kind, one
+consumer, and its knowing already ruled — what remains is the shape, the reading path, and whether
+anything the record says about who may determine belongs on the kind.*
+
+### 9D-v.1 What is fixed
+
+**7H §7H.7 item 2 (ruled):** kind `determination`; subject X; `as_of` **required** — the date the
+determination is about; content **exactly one of four names** (`provider_adjustment · user_paid_cash ·
+unpaid · pending_claim`), any other *unrecognised* and never current (C7: *one of these or not at all*);
+**established = utterance-sourced and unretracted; reading-sourced → candidate (a parser determines
+nothing); retracted → contested**; **who may make it: any party** under the ordinary discipline — the
+household (D12), the provider, the insurer; *whether a party's role constrains its determination is
+the catalogue's to rule* — 7H reports the asserter's roles as facts and constrains nothing; *current*
+by G per party's series, cross-party conflict → none, superseded never overwritten; `unresolved = 0` is
+not `user_paid_cash`; no determination is not `unpaid`; a denial is not `pending_claim` (Rc6 — `denial`
+its own kind since 9D-ii). **9D-F5 (ruled §9D.9 / §9D-ii.7's context):** the determination's knowing is
+**undetermined by design** — no relation named; a determination is a party's reading of the
+situation, not a position it holds first-hand; *the asserter is first-hand for its own
+determination* was rejected as saying nothing. **The four names stay 7H's** (§2.3: content is opaque
+to the catalogue).
+
+### 9D-v.2 What 7H reads
+
+`_claim_entries(catalogue['determination'], subject_expense_id ∈ members)`; per relationship: state
+by evidence type; `name` = content if in `DETERMINATION_NAMES` else *unrecognised*; the asserter's
+`provider_of` / `insurer_of` answers on X **reported as facts**; qualifies iff established ∧ recognised
+∧ dated ≤ d ∧ an asserter; current per party's series by latest `as_of`; two parties' currents differ
+→ conflict, none current. **Strength is never read.** The shape in the 7H fixture: subject X,
+content the name, `as_of`, by utterance (any party) or by reading (a candidate). No borrowed shape
+anywhere; no other fixture asserts a determination.
+
+### 9D-v.3 Findings — put to Rob
+
+**9D-v-F1 — `reading_establishes`: False.** 7H ruled *a parser determines nothing* — a reading-sourced
+determination is a candidate and never current. Under 9D-i's pin the flag governs only
+strength-through-origin, and with **no knowing relation** the strength is undetermined on every path
+regardless — so the flag is inert for this kind's strength. It is ruled `False` to say what 7H says
+(*a reading never establishes a determination*) rather than `True` to say nothing. The state axis is
+unchanged either way (`_claim_states`). *Reading:* False. **Rob's.**
+
+**9D-v-F2 — no role on the kind; nothing about who may determine.** 7H left *whether a party's role
+constrains its determination* to the catalogue. 9D-v's answer: **the kind carries no role and no
+asserter constraint** — any party may determine (D12 the household; the provider; the insurer); the
+roles are 7H's to report as facts. This is not an omission: a determination is not a position a
+role-holder has first-hand (there is no *determiner_of* role and none is invented), which is exactly
+why its knowing is undetermined by design — the parallel with `under_plan` (F: undetermined). If a
+later consumer needs a role gate on determinations, that is its own ruling, not the kind's. *Reading:*
+so. **Rob's.**
+
+**9D-v-F3 — swap classes, pre-measured.** (i) 7H's fixture: the catalogue line already names the ruled
+name; its `'determination' not in shipped` pin retires; its map entry retires. (ii) 7J's and the 9D-ii
+fixture's map entries for `determination` retire. (iii) The payment-in-respect-of fixture pins
+`not hasattr(db, 'determination')` — a **module-attribute** absence (no *helper* named determination);
+the constant is `DETERMINATION`, so the pin stands and still says what it meant. (iv) `s115`'s
+mutations name the kind by string — the same name. No borrowed shape; no presupposed-role addition
+(there is no role). **The build's corpus touches are (i) and (ii) only.**
+
+### 9D-v.4 Cases
+
+| # | Case | Kind level | 7H |
+|---|---|---|---|
+| **De1 (D12)** | Rob: *user_paid_cash* on X, 3/20 | established; **knowing undetermined** | current for Rob's series |
+| **De2** | Riverbend Hospital: *provider_adjustment* on X, 3/15 | established; undetermined | current for Riverbend Hospital's series |
+| **De3 (Rc15)** | Rob and Riverbend Hospital current, different names | both undetermined | cross-party conflict → none current, both listed |
+| **De4 (Rc6 / C7)** | Lakeview Health: *denied* as a determination's content | established; undetermined | **unrecognised**, never current; the denial is `denial`'s kind, not this one |
+| **De5** | the EOB's *pending* read | **candidate**; undetermined (reading_establishes False) | never current |
+| **De6 (Rc15)** | Rob retracts his latest; the prior stands | contested; the prior established | the prior current again |
+| **De7 (F7 / 7H)** | an undated determination | accepted by the registry; undetermined | disqualified — `as_of` required by 7H |
+| **De8 — the 2 × 2 collapses** | origin {Rob, Riverbend Hospital, Lakeview Health} × content {four names} | **every cell undetermined** — no relation, no role; the asserter's roles reported, constraining nothing | the series are per party |
+| **De9** | a party-subject or an obligation-subject determination | refused by the registry (subject X only) | — |
+| **De10 (Rc19)** | `unresolved = 0` with no determination | no claim → nothing | current None — zero is not a determination |
+| **De11 (§2.3)** | content *paid in full* — not one of the four | the kind accepts any content (opaque) | unrecognised; the vocabulary is 7H's |
+
+### 9D-v.5 Candidate
+
+```text
+DETERMINATION   subject (subject_expense_id,)  object ()
+                symmetric False · reading_establishes False · relational_knowing True · no knowing_relation · no role · no boundary
+```
+
+One entry; no relation, no table row, no resolver change; `_KNOWING_RELATIONS` unchanged (eight).
+The swap: 7H's pin and map entry; 7J's and 9D-ii's map entries; the 7H fixture's helper by constant;
+31/31 · 32/32 unchanged otherwise. Mutations for `s124`: a knowing relation designated for the
+determination (the asserter first-hand) · a reading establishing a determination · a role gate on the
+kind (only the insurer may determine) · the four names enforced by the registry (content parsed) · a
+denial accepted as a determination · a determination minted from `unresolved = 0` · the type
+conferring knowing · an undated determination current · a `determiner_of` role appearing · a second
+resolver.
+
+### 9D-v.6 Ruling sought
+
+> **(1) F1:** `reading_establishes False` — a reading never establishes a determination. **(2) F2:**
+> no role on the kind, no asserter constraint; knowing undetermined by design, as ruled. **(3) F3:** the
+> two corpus classes accepted. Nothing here authorises code. **After 9D-v's build and acceptance the
+> inventory of §1 is complete — every stand-in a ruled kind — and item 9 can close; closing it is
+> Rob's word, not this slice's.**
 
 ---
