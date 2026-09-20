@@ -12,7 +12,10 @@
 > which (9D-F1, the position-holder — participant or hidden operand) governs the rest and is put
 > first with 9D-F2 and 9D-F8; **9D-F1 RULED — the mixed holder shape; 9D-F2 + the servicer clause
 > RULED as one (§9D.7); 9D-F8 RULED (§9D.9) — five sub-passes i → v, the role-at-date relation
-> ruled once in 9D-i and applied thereafter; 9D-i the next slice, unopened; no code.**
+> ruled once in 9D-i and applied thereafter; **9D-i OPENED (§9D-i) — the relation stated once as a
+> candidate, the reading path the one specification the cases add (9D-i-F1), 7E's `balance` a
+> different proposition under a borrowed name (F2), Dg2-as-ruled vs built 7G recorded for 7G (F3),
+> `returned` the acknowledgment's shape (F4); ruling sought; no code.**
 
 **The governing question:** *ten consumers exist and nothing production can call them, because
 `remaining()` cannot find the entitled party, `reconciliation()` cannot find the insurer, and
@@ -1332,5 +1335,188 @@ their application and their consumer consequences; they cannot alter what the re
 
 **9D-i is the next semantic slice. No code until its cases and ruling are complete.** It opens on
 Rob's word.
+
+---
+
+## Pass 9D-i — The obligation stances: `acknowledged` · `balance` · `returned`
+
+*Opened by Rob 2026-09-19 with its scope fixed: the three kinds; consumers 7G and 7I; the holder
+relation the already-ruled role-at-date relation from F1 / F8 — no new holder relation, no re-ruling
+of F1 / F2, no `dated` registry key, the servicer channel the already-ruled consumer reading; no code
+until cases → candidate → ruling → explicit build authorisation. **The slice's question, Rob's:** do
+the three obligation stances actually satisfy the same role-at-date holder relation in every
+consumer case, including the exceptional explicit-holder shape of `acknowledged`, without requiring
+any additional semantic distinction? If the cases expose a difference it belongs here; if not, the
+relation is frozen once and applied by 9D-ii / 9D-iii.*
+
+### 9D-i.1 What is fixed
+
+§9D.7: `acknowledged` — explicit holder (`subject_party_id` = E), `KNOWING_SUBJECT_PARTY` at the
+kind level, O absent, the servicer channel evidence at its ruled strength evaluated only by a
+consumer with O in hand. `balance` — H: the holder is the asserter, knowing by `entitled_party_of`
+in effect on the subject obligation at the claim's `as_of`. The acknowledgment ruling (2026-09-12):
+P-ack is E's stated position about a payment or balance, dated; one knowing party; K1 E's held
+statement · K2 the servicer's held statement bounded by *S serves E* · K3 S3 · K4 the portal · K5
+the user's report is not knowing · K6 the bank's clearance is not acknowledgment · K7 conflicts by
+date then channel · K8 ack ≠ balance. 7G RG-a / TS-base / TG-base as ruled and built; Dg2 / Dg2′ /
+Dg4 / Dg5 / Dg18 / Dg21 / Dg22; 7I inherits 7G at two dates. §9D.9: the role-at-date relation is
+ruled once here.
+
+### 9D-i.2 What the consumers read — three shapes under two names
+
+| kind, as used | subject | party | object | `as_of` | content | who reads it, and how |
+|---|---|---|---|---|---|---|
+| `acknowledged` (7G, 7I) | — | **`subject_party_id` = E** (the holder) | the payment | yes | — | 7G: `e['party']` entitled in effect at `as_of` (7F); strength from the **utterance origin** via `derived_strength` with the foundation map `{'institution'}`; qualifies iff established ∧ dated ≤ d ∧ in effect ∧ knowing |
+| `balance` (7G, 7I) | **the obligation** | none | — | yes | money | 7G: the **utterance origin** entitled in effect at `as_of` → the governing series (TG-base); strength not read |
+| `balance` (7E) | **the party** (Harbor) | (the subject) | **candidates** — no obligation | yes | money | 7E: the claim's L0 class via `derived_strength` (a **reading** of Harbor's held statement → foundation `{'institution'}` → **knowing**) chained through `artefact_concerns` / `proposition_concerns` to O1 — the tie is the separate claim those cases test (Ab7) |
+| `returned` | — | — | — | — | — | nobody: Dg18 — 7G reads no such kind |
+
+**What this shows.** (a) The acknowledgment's two axes are read from two places — the *holder* from
+the slot, the *strength* from the origin — exactly the split F1 ruled. (b) `balance` in 7G is H;
+`balance` in 7E is a **reading-line figure whose subject is the party who states it** and whose
+thing is not yet a participant — a different proposition wearing the same name (9B's borrowed-name
+class; the shape is deliberate there, not stale). (c) Every strength today comes from the
+foundation map: *institution ⇒ knowing* — which is how a **reading** of E's statement is knowing
+(K1, Ms1) and also how an acknowledgment recorded with `party = Harbor` but *asserted by a servicer*
+would today read knowing and **discharge** (the stand-in over-grants; no fixture exercises it —
+Ob12 below).
+
+### 9D-i.3 The role-at-date relation — stated once, as a candidate
+
+> **`KNOWING_ENTITLED_PARTY_AT_AS_OF` — the asserting party held `entitled_party_of` on the claim's
+> subject obligation, in effect at the claim's `as_of` (7F `in_effect`, G named).** `in_effect` →
+> knowing; `not_in_effect` → not_knowing; `undetermined` or `contested` → undetermined; no `as_of` →
+> undetermined (an undated position cannot be placed against a role — F7's meaning without a key).
+> Nothing composed: the subject is on the claim. The servicer is **not** a clause of this relation
+> (§9D.7): a servicer's balance statement is not_knowing at the kind level; a consumer with O in hand
+> may read it against O — 7G does not today, and that is 7G's to open (K2's *or balance* half).
+
+**On each evidence path** — the part 9D-i must state, because it is where the shipped strength and
+the ruled relation differ (9D-i-F1): *utterance-sourced* — the origin party is the asserter; the
+relation as above. *Reading-sourced* — the relational branch as built returns **undetermined for
+every reading** (ruled for roles and relations: *the letterhead says Lakeview Health* is nobody's knowledge —
+Ro13, CORRESPONDENCE §3). For a P-ack stance the reading **is the ruled primary channel** (K1: E's
+held statement; ARTEFACT_READING_SLICE C1: *the reading conveys the artefact's origin's knowledge,
+never the reader's*). So for stance kinds the relation must be evaluated on **the artefact's
+established origin** as the asserting party, weakest-linked with the origin claim's strength (C3) —
+the shipped foundation path's structure with the relation in place of the type test; the **state**
+stays *candidate* (`_claim_states` is by evidence type; Dg2′ stands: a reading alone never
+discharges). **This is one specification of the relation, not a second relation** — but it needs a
+registry expression, and the one that exists is `reading_establishes`: today it gates the
+strength-through-origin path (a kind with `False` short-circuits to undetermined) and does not
+touch state. *Candidate:* stance kinds carry `reading_establishes: True`, meaning exactly *a reading
+of this kind carries the artefact origin's knowledge for strength; it establishes no state* — and
+the flag's comment is pinned to say so. Roles and relations keep `False`. **Rob rules** whether the
+flag carries that meaning or a stance needs its own expression.
+
+**Naming, for ii / iii to apply without re-ruling:** one resolver, one name per role
+(`KNOWING_ENTITLED_PARTY_AT_AS_OF` here; `…PROVIDER…`, `…INSURER…`, `…PLAN_INSURER…` later) keeps
+`knowing_relation` a name, as the registry's shape is; a parameterised value would be a new value
+shape. The resolver is written once and takes the role from a table keyed by the name.
+
+### 9D-i.4 Findings — put to Rob
+
+**9D-i-F1 — the reading path (above).** The relation's behaviour on a reading-sourced stance is not
+fixed by F1 / F8 and is where the swap would otherwise change a reported strength: 7E's Ms1 / Ms2
+assert *knowing* for Harbor's held-statement line, 7G's Dg2 text describes E's held statement as the
+knowing channel. Without the reading path stated, the ruled `balance` would report *undetermined*
+for exactly the channel the acknowledgment ruling made primary. **Applies to all three kinds** —
+including `acknowledged` under `KNOWING_SUBJECT_PARTY`, whose resolver 9B ruled with the reading →
+undetermined behaviour for *roles* (Ro13). So the reading-path behaviour must be a property of the
+**kind** (the flag), not of the resolver — which keeps 9B's relation unchanged and lets the
+acknowledgment reuse it. *This is the one additional specification the cases expose, and it is not a
+new holder distinction — it is which party the holder test is applied to on each path.*
+
+**9D-i-F2 — `balance` in 7E is a different proposition.** 7E's line has the party as subject and no
+obligation; the ruled `balance` has the obligation as subject. The registry will refuse 7E's shape
+under the ruled name, and *correcting the corpus to the ruled shape* would put O1 on the claim and
+dissolve the aboutness chain Ms1 / Ms2 exist to measure. So the truthful move is the **reverse** of
+9C's: 7E's stand-in keeps its shape and **loses the borrowed name** (a fixture-registered
+`statement_line_figure` or similar, foundation-mapped as today) — 7E consumes strength classes and
+aboutness, not the balance kind's semantics, and its use of the name predates the catalogue. A
+reading-level proposition whose thing is a candidate is the candidate-generation fence's, not 9D's.
+**A swap beyond names, reported before the build; Rob rules the rename.**
+
+**9D-i-F3 — Dg2 as ruled vs 7G as built.** §7G.3's Dg2 reads *Harbor's held statement, read; Rob
+asserts that is Harbor acknowledging p; established (Rob's utterance) with strength via the
+reading / origin → discharged*. Built 7G tests state and strength **per evidentiary relationship**
+(`qualifies` on one relationship), and 7E's doctrine is per-relationship chains (*multiplicity is
+not strength*). A claim with Rob's utterance (established, not_knowing) and the reading (candidate,
+knowing) has no relationship that is both — **K1-with-acceptance does not discharge in built 7G**;
+the fixture's Dg2 uses Harbor's own utterance instead. Not 9D-i's to solve — a 7G question (does
+discharge read state and strength across a claim's relationships, or per relationship?) to be
+opened explicitly. Recorded because 9D-i's fixture must not paper over it: Ob3 asserts what built 7G
+does today.
+
+**9D-i-F4 — `returned` takes the acknowledgment's shape.** Dg18: *E returns p unapplied* — E's
+position about p, the acknowledgment's negative twin, with the same channels (a servicer may state
+it). F1's reason for the explicit holder applies verbatim; so `returned`: `subject_party_id` = E,
+object the payment, `KNOWING_SUBJECT_PARTY`, O absent, `reading_establishes: True` per F1. No
+consumer reads it; 7G's Dg18 (station unchanged) is the swap's only test. *A return is not a
+non-acknowledgment* (a later acknowledgment stands on its own series; TS per kind).
+
+**9D-i-F5 — the answer to the slice's question.** **No — and the difference is exactly F1's, not a
+new one:** `acknowledged` and `returned` carry the explicit holder and `KNOWING_SUBJECT_PARTY`;
+`balance` carries the role-at-date relation. The one specification 9D-i adds (F1: the reading
+path, by the kind's flag) applies to all three identically. 7G applies the role-at-date **test** to
+the acknowledgment too — on the holder, against 7G's own O — and that is the consumer's gate (RG-a),
+not the kind's relation; the two coincide for `balance` and are deliberately split for
+`acknowledged`. **The relation can be frozen once.**
+
+### 9D-i.5 Cases
+
+| # | Case | Ruled outcome (kind level → 7G) | Today (foundation) |
+|---|---|---|---|
+| **Ob1 (K1 / Dg2)** | Harbor's own utterance: *received 3/5* (party Harbor, origin Harbor); Harbor entitled in effect | `KNOWING_SUBJECT_PARTY` → knowing; 7G: in effect ∧ knowing → **discharged** | the same |
+| **Ob2 (K1 held / Dg2′)** | the parser's reading of Harbor's held statement | state candidate; strength **knowing** (F1: origin Harbor = party) → 7G: listed candidate, **not discharged** | state candidate; strength knowing |
+| **Ob3 (K1 accepted — F3)** | the reading + Rob's utterance *that's Harbor acknowledging p* on one claim | two relationships: (candidate, knowing) and (established, not_knowing) → built 7G: **not discharged**; §7G.3 text says discharged — **7G's question** | the same |
+| **Ob4 (K2 / Dg4)** | BillCo's utterance acknowledges p, **party = Harbor**, BillCo `servicer_of` O by Rob | origin BillCo ≠ Harbor → **not_knowing**; 7G: in effect (Harbor) ∧ not knowing → listed *acknowledged, not first-hand*, **not discharged** — the servicer channel is 7G's to evaluate with O in hand, and 7G does not today | **origin BillCo is an institution → knowing → DISCHARGED — the stand-in over-grants** |
+| **Ob5 (K3 / Dg5)** | S3's utterance, party = S3 | knowing for its own (Kn12); 7G: S3 not entitled → never discharged | the same |
+| **Ob6 (K5 / Dg22)** | Rob relays: party Harbor, origin Rob | not_knowing; 7G: listed, not discharged | the same |
+| **Ob7 (Dg21)** | Harbor's role contested at `as_of` | `balance`: undetermined; `acknowledged`: knowing (the holder test is 7G's: contested → not discharged) | the same |
+| **Ob8 (K2 balance)** | BillCo's utterance: *balance $1,900 as of 3/31* on O | role-at-date: BillCo not entitled → **not_knowing**; 7G: not in E's series (K2's balance half unreachable — recorded) | not in E's series (knowing by type, ignored by role) |
+| **Ob9 (K1 balance held / Ms1)** | Harbor's held statement line *balance $1,925*, read | state candidate; strength **knowing** via the origin (F1); 7G: candidate, never governing | knowing |
+| **Ob10 (K4)** | the portal figure, observed, dated; a screenshot later | a reading of a held capture → as Ob9; an observation with no artefact → nothing in the record (not 9D's) | — |
+| **Ob11 (K7)** | Harbor 3/31 *$1,900*; Harbor 4/30 *$1,610* | two knowing positions; G by date (TS) — 7G's | the same |
+| **Ob12 — the 2 × 2** | party ∈ {Harbor, S} × origin ∈ {Harbor, S} | (Harbor, Harbor) knowing; (Harbor, S) **not_knowing** [Ob4]; (S, S) knowing, not entitled; (S, Harbor) not_knowing (Harbor asserting S's position — testimony) | (Harbor, S) knowing; (S, Harbor) knowing — the type test cannot tell the two apart |
+| **Ob13 (F7)** | an undated balance; an undated acknowledgment | undetermined; 7G disqualifies both | the same |
+| **Ob14 (Dg18)** | Harbor: *returned p unapplied* (`returned`, party Harbor) | knowing; 7G reads it not at all — station unchanged; a later acknowledgment stands on its own | — |
+| **Ob15 (F2)** | 7E's `balance` line with the party as subject | **refused by the registry** under the ruled name; the line keeps its shape under its own stand-in name | accepted |
+
+### 9D-i.6 Candidate — three registry entries; one relation; one flag meaning pinned
+
+```text
+ACKNOWLEDGED = 'acknowledged'   subject (subject_party_id,)       object (object_payment_id,)
+                                 symmetric False · reading_establishes True · relational_knowing True
+                                 knowing_relation KNOWING_SUBJECT_PARTY · no role · no boundary
+RETURNED     = 'returned'        the same slots and flags (9D-i-F4)
+BALANCE      = 'balance'         subject (subject_obligation_id,)  object ()
+                                 symmetric False · reading_establishes True · relational_knowing True
+                                 knowing_relation KNOWING_ENTITLED_PARTY_AT_AS_OF
+KNOWING_ENTITLED_PARTY_AT_AS_OF — the resolver above, in _KNOWING_RELATIONS; the reading path per
+                                 reading_establishes for stance kinds (the relational branch routes a
+                                 reading through the artefact's established origin when the kind's
+                                 flag is True; state untouched)
+```
+
+No consumer changes. The swap: 7G's and 7I's catalogue lines; their `KNOWING` map entries for the
+three kinds retired; the acknowledgment's shape unchanged (F1); **7E's line renamed** per F2 (Rob's
+call); s113 / s114 / s111 by name. Mutations for `s120`: the servicer's acknowledgment discharging
+(Ob4 reversed) · a reading acknowledging (state established from a reading) · the origin's type
+conferring knowing (the foundation restored) · a balance by a non-entitled party governing · the
+relation composing through the attachment (O reached from p) · an undated stance knowing ·
+`returned` read as a non-acknowledgment · a second relation shape for the acknowledgment · the
+flag made to establish state.
+
+### 9D-i.7 Ruling sought
+
+> **(1) 9D-i-F5:** the three kinds are as F1 assigned them — `acknowledged` and `returned` explicit
+> holder + `KNOWING_SUBJECT_PARTY`; `balance` the role-at-date relation — no additional holder
+> distinction; **the relation frozen as §9D-i.3 states it. (2) 9D-i-F1:** the reading path for
+> stance kinds — evaluated on the artefact's established origin, weakest-linked, state untouched —
+> expressed by `reading_establishes: True` with its meaning pinned (or by an expression Rob names).
+> **(3) 9D-i-F2:** 7E's line keeps its shape and loses the borrowed name. **(4) 9D-i-F4:** `returned`
+> takes the acknowledgment's shape. **9D-i-F3 is recorded for 7G and not ruled here.** Nothing here
+> authorises code.
 
 ---
