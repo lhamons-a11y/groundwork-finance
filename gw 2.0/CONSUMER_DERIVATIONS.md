@@ -3774,3 +3774,135 @@ claim allocation and priority · coverage ③ · the tax engine · the 1.x scope
 *The line: the record can now be read by ten questions, and every answer names what it rests on,
 lists what it could not settle, and stores nothing — the household is told, and nobody is told
 who is right.*
+
+## Pass 7G-F3 — Discharge across a claim's evidentiary relationships (reopened 2026-09-20 from 9D-i-F3)
+
+*Opened by Rob 2026-09-20 from item 9's carried-forward list. 7G is closed and accepted; this pass
+reopens exactly one question 9D-i exposed and left to 7G, on the record before any code: **does
+discharge read state and strength across a claim's evidentiary relationships, or on one
+relationship?** No code until cases → candidate → ruling → explicit build authorisation.*
+
+### 7G-F3.1 What is fixed
+
+**RG-a (§7G.8, ruled):** a discharge counts when the acknowledgment is *established*, its holder's
+entitled-party role is *in effect* at its date (7F), and its strength class is *knowing* (7E —
+first-hand: E's own statement, **or a reading of an artefact whose established origin is E**); a
+discharge at not_knowing or undetermined is listed, never counted. **§7G.3 Dg2, as written:** *Harbor's
+held statement — read; Rob asserts "that is Harbor acknowledging p"; Harbor in effect → the
+acknowledgment established (Rob's utterance), strength via the reading / origin as given, by a party
+in effect as E → discharged.* **Dg2′:** the parser's reading alone → a candidate, not discharge.
+**Dg22 (RG):** Rob's relayed report alone → established, not_knowing → not discharged. **The
+acknowledgment ruling:** channel 1 is E's held statement; the user reporting an artefact is a
+channel of E's knowledge (*testimony about an artefact*), not knowing in itself (K5). **Slice 1:**
+*same proposition, many utterances* — one proposition may carry several evidentiary relationships;
+reaffirmation is a second utterance evidencing the same proposition. **7B:** a proposition's origins
+are read across its relationships, each classified — In12: *Lakeview Health via the EOB is knowing, Rob's
+utterance is an origin not knowing: one knowing origin.* **`derived_strength`'s parallel-evidence
+precedent:** for the origin claims naming one party, *the strongest of the agreeing claims — parallel
+evidence for one referent is not a choice among referents.* **9D-i (ruled):** `reading_establishes:
+True` = strength through the established origin, never state; *reading → origin → relation →
+strength; never reading → discharge*; Ob3 records built 7G's answer without endorsing it. **7E:**
+multiplicity is not strength; a class per chain, never aggregated into a number.
+
+### 7G-F3.2 What built 7G does — two aggregations in one consumer
+
+| | the attachment (`payment_in_respect_of_obligation`) | the acknowledgment |
+|---|---|---|
+| state | **per claim** — established if *any* relationship is established, else contested if any, else candidate | per relationship |
+| strength | not read | **per relationship** — `derived_strength` of that one relationship |
+| the test | `a_state == established` | `qualifies` = established ∧ dated ≤ d ∧ holder in effect ∧ **knowing — all on the same relationship** |
+
+So for one acknowledgment claim with two relationships — the reading of Harbor's statement
+(candidate, **knowing**) and Rob's acceptance *that is Harbor acknowledging p* (established,
+**not_knowing**) — no relationship is both, and **K1-with-acceptance never discharges in built 7G**,
+although §7G.3's Dg2 says it does and the 7G fixture's Dg2 reached *discharged* only by giving Harbor
+its own utterance. The two aggregations were not chosen against each other; the acknowledgment's
+was written before any stance was ruled, when the only knowing origin a relationship could have was
+its utterance's.
+
+### 7G-F3.3 The question, and the two readings
+
+> **Is a claim's discharge test applied to the claim — state from any established relationship,
+> strength from the claim's knowing origin — or to one relationship?**
+
+**Reading P (per claim).** *Established* is a property of the claim (someone asserted it — slice 1's
+many utterances, 7G's own attachment rule); *knowing* is a property of an origin (7B: each origin
+classified; a claim has *one knowing origin* when its reading's established origin is E). Discharge
+counts when the claim is established, dated, the holder in effect, **and the claim has a knowing
+origin** — the strongest class among its relationships, by the parallel-evidence precedent. Dg2 as
+written; K1's channel usable; Dg2′ still refused (no established relationship); Dg22 still refused
+(no knowing origin). *The negative it must keep:* a knowing origin **lifts nothing else** — Rob's
+acceptance does not become knowing; the claim's strength is reported as its best origin's, and the
+origins are listed (7B's shape).
+
+**Reading R (per relationship, as built).** Both axes on one relationship. Consistent with 7E's
+*a class per chain*; but it makes the acknowledgment ruling's primary channel unable to discharge
+without an utterance whose origin *is* E — and Groundwork's utterances are the household's; an
+institution "uttering" is the fixtures' convention, not the product's path. Under R, §7G.3's Dg2 was
+wrong as written and must be restated.
+
+*Reading, for Rob to reject:* **P** — it is what 7G's own attachment already does, what 7B already
+reports, what `derived_strength` already does for parallel origin claims, and what §7G.3 wrote. The
+cost is one consumer change in 7G (the acknowledgment loop grouped by claim), inherited by 7I.
+
+### 7G-F3.4 Findings
+
+**7G-F3-F1 — the decisive case is who may establish.** Under P, *any* establishing utterance plus a
+knowing origin discharges — including **S3's** *that's Harbor acknowledging p* beside a reading of
+Harbor's own statement (Dc5). The state axis asks only *did a party assert it*; the strength axis
+asks *does a first-hand origin stand behind it* — and Harbor's document does. Is that acceptable, or
+must the establishing utterance be the household's (the recorder's) for discharge — a constraint no
+ruling has stated? *Reading:* acceptable — S3 asserting what Harbor's own document says adds nothing
+and subtracts nothing; the discharge rests on Harbor's statement, which is exactly K1. **Rob's.**
+
+**7G-F3-F2 — what "the claim's strength" reports.** Not a number and not a merge: the strongest class
+among the claim's relationships, **with every origin listed** (7B's report) — so *acknowledged
+(knowing via the reading of Harbor's 3/31 statement; established by Rob's acceptance)* is what the
+consumer says. The weakest-link rule is for chains (7E); the strongest-of-parallel rule is for
+origins of one proposition (`derived_strength`); this is the latter.
+
+**7G-F3-F3 — the retraction of an acceptance.** Rob retracts *that is Harbor acknowledging p*: the
+utterance relationship becomes contested; the reading relationship stays a candidate; the claim's
+state — by the attachment's own rule — is contested, not established → not discharged (Dc6). No new
+rule; the existing state aggregation applied.
+
+**7G-F3-F4 — scope.** One consumer loop (7G's acknowledgments, grouped by claim); 7I inherits; the
+7G and 7I fixtures gain the K1-with-acceptance case and keep every existing one; 9D-i's Ob3 is
+restated from *built 7G does not discharge* to the ruled answer. No kind, no relation, no substrate
+change. Nothing else in 7G reopened.
+
+### 7G-F3.5 Cases
+
+| # | Case | P (per claim) | R (as built) |
+|---|---|---|---|
+| **Dc1 (Dg2 as built)** | Harbor's own utterance acknowledges p | discharged | discharged |
+| **Dc2 (Dg2′)** | the reading of Harbor's statement alone | candidate — **not** discharged | not discharged |
+| **Dc3 (Dg2 as written — K1 with acceptance)** | the reading (knowing) + Rob's *that is Harbor acknowledging p* (established, not_knowing) on one claim | **discharged**; strength reported as knowing via the reading's origin; Rob's origin listed not_knowing | not discharged |
+| **Dc4 (no laundering)** | Rob's utterance + a reading of **Rob's** spreadsheet | established; no knowing origin → not discharged | not discharged |
+| **Dc5 (F1)** | **S3's** utterance *that's Harbor acknowledging* + the reading of Harbor's statement | discharged (any establishing party; the knowing origin is Harbor) — **Rob's** | not discharged |
+| **Dc6 (F3)** | Dc3, then Rob retracts his acceptance | contested → not discharged | not discharged |
+| **Dc7 (K2)** | Rob's acceptance + a reading of **the servicer's** statement | origin S ≠ holder E → not_knowing → not discharged (K2's channel stays the consumer's, as 9D-i left it) | not discharged |
+| **Dc8 (Ms15)** | two readings of Harbor's statement + Rob's acceptance | discharged; multiplicity is not strength — one knowing origin, listed twice | not discharged |
+| **Dc9 (Dg22)** | Rob's relayed report alone | not discharged | not discharged |
+| **Dc10 (Dg21)** | Dc3 with Harbor's role contested at the date | not discharged (the holder test) | not discharged |
+| **Dc11 (7I)** | Dc3 reconstructed before and after the acceptance | before: unacknowledged; after: discharged — the acceptance's date is not the discharge's date (the ack's `as_of` is) | — |
+| **Dc12 (the null model)** | every acknowledgment E's own utterance | P = R exactly — the change is invisible where every claim has one relationship | — |
+
+### 7G-F3.6 Candidate — pending the ruling
+
+7G's acknowledgment loop grouped by claim: `state` = the claim's aggregate (as the attachment's);
+`strength` = the strongest class among the claim's relationships; `origins` = each relationship's
+class, listed; `qualifies` = established ∧ dated ≤ d ∧ holder in effect ∧ strength knowing — **per
+claim**. Everything else in 7G unchanged; 7I inherits. Fixture additions: Dc3 (mandatory), Dc4, Dc5
+(as ruled), Dc6, Dc7, Dc8, Dc11; Ob3 restated. Mutations for `s113`: a knowing candidate alone
+discharging (Dc2 reversed) · a not-knowing establishing utterance lifted to knowing · the
+servicer's reading knowing for E (Dc7 reversed) · a retracted acceptance still discharging · the
+acceptance's date as the discharge's date.
+
+### 7G-F3.7 Ruling sought
+
+> **(1)** Reading P or R. **(2) F1:** under P, any establishing party, or the household only. **(3)**
+> F2–F4 as read. Nothing here authorises code; the build, if authorised, is one 7G loop and its
+> fixtures.
+
+---
