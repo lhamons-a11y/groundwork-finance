@@ -3740,6 +3740,57 @@ def _slot_type(col):
     return col.split('_', 1)[1].rsplit('_', 1)[0]
 
 
+def _relationship_origin(session, rel, knowing):
+    """The party whose knowledge a relationship conveys: the utterance's origin, or the artefact's
+    ESTABLISHED origin behind a reading (None when that origin is not a single established party)."""
+    if rel.utterance_id is not None or rel.utterance is not None:
+        utt = rel.utterance if rel.utterance is not None else session.get(Utterance, rel.utterance_id)
+        return utt.origin_party_id if utt is not None else None
+    origin, _ = _reading_origin(session, rel, knowing)
+    return origin.id if origin is not None else None
+
+
+def _holder_series(session, entries, knowing, role_of, d, role_key):
+    """7J-F4-F1 (s 7J-F4-F1.8, ruled 2026-09-21): a holder's stated series read at the CLAIM level - the
+    shape 7G-F3 gave the discharge and 7J-F4 the term. `entries` are per-relationship claim entries
+    (`_claim_states` shape); `role_of(party_id, as_of)` -> (answer, governing) is the surface's own
+    role-at-date test, reported per origin. Per claim: the state aggregated across its relationships
+    (established if any is); the strength the strongest class among its origins - which IS the ruled
+    role-at-date relation on the origin party at the claim's as_of, for an utterance and for an artefact
+    alike (derived_strength); every origin listed with its ground, asserter, state, class and role answer;
+    `asserter` the party of the knowing origin - the holder whose position it is (F6) - never the party
+    that merely established it; `qualifies` = established AND dated <= d AND strength knowing AND a value.
+    The qualifying knowing origin is the ADMISSIBILITY condition, not a ranking: the holder's own
+    document, read (a candidate with a knowing origin) and accepted by another party (established,
+    not_knowing), is one claim with two origins and is in the series; the household's relay alone is
+    not (as before - the gate already excluded it); a reading alone is a candidate (as before); a
+    retracted acceptance is contested and out. The servicer's document stays out (origin S != the
+    holder -> not_knowing): K2's balance half is untouched here."""
+    grouped = {}
+    for e in entries:
+        rel = session.get(EvidentiaryRelationship, e['ground'])
+        party = _relationship_origin(session, rel, knowing)
+        answer, governing = role_of(party, e['as_of'])
+        grouped.setdefault(e['claim'], {'claim': e['claim'], 'as_of': e['as_of'], 'value': e['value'], 'origins': []})['origins'].append(
+            {'ground': e['ground'], 'asserter': e['asserter'], 'party': party, 'state': e['state'],
+             'strength': derived_strength(session, rel, knowing), role_key: answer, 'governing': governing})
+    out = []
+    for c in sorted(grouped.values(), key=lambda c: c['claim']):
+        states = {o['state'] for o in c['origins']}
+        strengths = {o['strength'] for o in c['origins']}
+        c['state'] = (CLAIM_ESTABLISHED if CLAIM_ESTABLISHED in states else CLAIM_CONTESTED if CLAIM_CONTESTED in states else CLAIM_CANDIDATE)
+        c['strength'] = (STRENGTH_KNOWING if STRENGTH_KNOWING in strengths else STRENGTH_NOT_KNOWING if STRENGTH_NOT_KNOWING in strengths
+                         else STRENGTH_UNDETERMINED)
+        lead = next((o for o in c['origins'] if o['strength'] == c['strength']), c['origins'][0])
+        c['asserter'] = lead['party']
+        c[role_key] = lead[role_key]
+        c['governing'] = lead['governing']
+        c['qualifies'] = (c['state'] == CLAIM_ESTABLISHED and bool(c['as_of']) and c['as_of'] <= d
+                          and c['strength'] == STRENGTH_KNOWING and c['value'] is not None)
+        out.append(c)
+    return out
+
+
 def _claim_states(session, claim, retracted):
     """One (state, asserter, relationship_id) per evidentiary relationship of a claim."""
     out = []
@@ -4110,17 +4161,12 @@ def remaining(session, obligation, d, catalogue, knowing):
                          'netted': netted.get(pid)})
 
     # ── stated: P-ack history; the governing position S(d) and the previous S' ─────────────────
-    stated_entries = []
-    for e in entries(catalogue['balance'], subject_obligation_id=obligation.id):
-        rel = session.get(EvidentiaryRelationship, e['ground'])
-        utt = rel.utterance
-        asserter = utt.origin_party_id if utt is not None else None
-        entitled, governing = _entitled_at(session, asserter, role_kind, obligation.id, e['as_of'])
-        stated_entries.append({'claim': e['claim'], 'asserter': asserter, 'as_of': e['as_of'], 'state': e['state'],
-                               'value': e['value'], 'strength': derived_strength(session, rel, knowing),
-                               'entitled': entitled, 'governing': governing,
-                               'qualifies': e['state'] == CLAIM_ESTABLISHED and bool(e['as_of']) and e['as_of'] <= d
-                               and entitled == EFFECT_IN and e['value'] is not None})
+    # 7J-F4-F1 (ruled C for the balance): the series at the claim level - E's statement line, read and
+    # accepted, is E's position dated by the statement (never by the acceptance - Dc11); the role-at-date
+    # holder relation preserved on the origin; the household's relay excluded as before; K2's balance half
+    # (the servicer's statement) untouched. The three reasons unchanged (F1).
+    stated_entries = _holder_series(session, entries(catalogue['balance'], subject_obligation_id=obligation.id), knowing,
+                                    lambda party, as_of: _entitled_at(session, party, role_kind, obligation.id, as_of), d, 'entitled')
 
     def governing_at(limit):
         q = [x for x in stated_entries if x['qualifies'] and x['as_of'] <= limit]
@@ -4425,18 +4471,18 @@ def reconciliation(session, expense, d, catalogue, knowing):
         return _entitled_at(session, party_id, role_kind, expense.id, when)[0]
 
     # ── X's stances: dated positions of parties in effect in the role; governing under G ─────
+    # 7J-F4-F1 (ruled C on each of the three - billed; patient_responsibility; plan_paid): the series at the
+    # claim level - the bill / the EOB read and accepted is the provider's / the insurer's position; one
+    # function, three rulings; the EOB's two figures two claims, each in its own series.
     def stance_history(kind, role_kind):
-        claims = []
+        entries = []
         for claim in (session.query(Proposition).filter(Proposition.kind == kind, Proposition.subject_expense_id.in_(members))
                       .order_by(Proposition.id).all()):
             for state, asserter, ground in _claim_states(session, claim, retracted):
-                rel = session.get(EvidentiaryRelationship, ground)
-                value = _money(claim.content)
-                role = in_role(asserter, role_kind, claim.as_of)
-                claims.append({'claim': claim.id, 'asserter': asserter, 'as_of': claim.as_of, 'state': state, 'value': value,
-                               'strength': derived_strength(session, rel, knowing), 'in_role': role,
-                               'qualifies': state == CLAIM_ESTABLISHED and bool(claim.as_of) and claim.as_of <= d
-                               and role == EFFECT_IN and value is not None})
+                entries.append({'claim': claim.id, 'asserter': asserter, 'state': state, 'ground': ground,
+                                'as_of': claim.as_of, 'value': _money(claim.content)})
+        claims = _holder_series(session, entries, knowing,
+                                lambda party, as_of: _entitled_at(session, party, role_kind, expense.id, as_of), d, 'in_role')
         q = [c for c in claims if c['qualifies']]
         if not q:
             return {'claims': claims, 'governing': None, 'conflict': [], 'reason': f'no {kind} position by a party in effect as its asserter'}
@@ -4737,9 +4783,8 @@ def accumulator(session, plan, d, catalogue, knowing, person=None):
     # every origin listed). The household's bare relay is listed and never governs; with no qualifying claim
     # the answer is `unknown` - the honest absence of a qualifying determination, not a weaker one, and not
     # the household's figure. Never knowing-first-then-relay (a fallback hierarchy is a ranking - refused).
-    # The household's `none` is no more governing than its number. The stated accumulator below still tests
-    # the holder per relationship on the utterance's origin - the sibling gate named for its own pass (F1),
-    # not repaired here.
+    # The household's `none` is no more governing than its number. The stated accumulator below reads the
+    # same claim-level shape since 7J-F4-F1 (its sibling gate, ruled on its own cases).
     def by_claim(entries):
         grouped = {}
         for e in entries:
@@ -4792,13 +4837,12 @@ def accumulator(session, plan, d, catalogue, knowing, person=None):
                              else 'no plan year term containing d')}
 
     # ── the stated accumulator: the plan's insurer's position under G ─────────────────────────
-    st_claims = []
     # 9D-iii F1 - the consumer line the ruling named: the individual figure is its own kind, as the individual term is
+    # 7J-F4-F1 (ruled C, family and individual each): the series at the claim level - Aetna's figure on the EOB,
+    # read and accepted, is the insurer's stated accumulator; the household's figure excluded as before (U6).
     applied_kind = catalogue['individual_deductible_applied'] if person is not None else catalogue['deductible_applied']
-    for c in claims_on_plan(applied_kind, person_members):
-        role = _entitled_at(session, c['asserter'], catalogue['plan_insurer'], plan.id, c['as_of'])[0]
-        st_claims.append(dict(c, plan_insurer=role, qualifies=(c['state'] == CLAIM_ESTABLISHED and bool(c['as_of']) and c['as_of'] <= d
-                                                                and role == EFFECT_IN and c['value'] is not None)))
+    st_claims = _holder_series(session, claims_on_plan(applied_kind, person_members), knowing,
+                               lambda party, as_of: _entitled_at(session, party, catalogue['plan_insurer'], plan.id, as_of), d, 'plan_insurer')
     sq = [c for c in st_claims if c['qualifies']]
     if not sq:
         stated = {'claims': st_claims, 'governing': None, 'conflict': [], 'reason': 'no stated accumulator by the plan\'s insurer'}

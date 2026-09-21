@@ -274,7 +274,88 @@ def _mutations(db):
             return out
         return _swap(post)
 
-    return [
+    # ── 7J-F4-F1 (s 7J-F4-F1.8): the holder's series at the claim level - the ways it could collapse ──
+    # The mutation site is the shared helper `_holder_series` (7G's balance, 7H's three stances, 7J's stated
+    # accumulator all read through it); each mutation post-processes the per-claim entries it returns.
+    _series_original = db._holder_series
+
+    def _swap_series(post):
+        def mutated(session, entries, knowing, role_of, d, role_key):
+            out = _series_original(session, entries, knowing, role_of, d, role_key)
+            for c in out:
+                post(c, session, knowing, role_of, d, role_key)
+            return out
+        db._holder_series = mutated
+        return lambda: setattr(db, '_holder_series', _series_original)
+
+    def _requalify(c, d):
+        c['qualifies'] = c['state'] == db.CLAIM_ESTABLISHED and bool(c['as_of']) and c['as_of'] <= d and c['strength'] == db.STRENGTH_KNOWING and c['value'] is not None
+
+    def series_candidate_alone_governs():
+        # a knowing candidate (the document read, unaccepted) qualifies without an established relationship
+        def post(c, session, knowing, role_of, d, role_key):
+            if c['strength'] == db.STRENGTH_KNOWING and bool(c['as_of']) and c['as_of'] <= d and c['value'] is not None:
+                c['qualifies'] = True
+        return _swap_series(post)
+
+    def series_multiplicity_lifts():
+        # an established claim with two origins qualifies whatever their class (Rob's spreadsheet, read and accepted)
+        def post(c, session, knowing, role_of, d, role_key):
+            if c['state'] == db.CLAIM_ESTABLISHED and len(c['origins']) >= 2 and bool(c['as_of']) and c['as_of'] <= d and c['value'] is not None:
+                c['qualifies'] = True
+        return _swap_series(post)
+
+    def series_institution_document_governs():
+        # any institution's document, read and accepted, enters the holder's series (K2 by the back door)
+        def post(c, session, knowing, role_of, d, role_key):
+            for o in c['origins']:
+                rel = session.get(db.EvidentiaryRelationship, o['ground'])
+                if rel.reading_id is not None and o['party'] is not None and db.party_foundation(session.get(db.Party, o['party'])) == 'institution':
+                    c['strength'] = db.STRENGTH_KNOWING
+                    _requalify(c, d)
+        return _swap_series(post)
+
+    def series_dated_by_acceptance():
+        # the position takes the establishing utterance's date, not the claim's as_of
+        def post(c, session, knowing, role_of, d, role_key):
+            dates = []
+            for o in c['origins']:
+                rel = session.get(db.EvidentiaryRelationship, o['ground'])
+                if rel.utterance is not None and rel.utterance.asserted_at:
+                    dates.append(rel.utterance.asserted_at[:10])
+            if dates and any(session.get(db.EvidentiaryRelationship, o['ground']).reading_id is not None for o in c['origins']):
+                c['as_of'] = max(dates)
+                _requalify(c, d)
+        return _swap_series(post)
+
+    def series_role_at_d():
+        # role-at-date collapsed: the origin's role read at d instead of at the claim's as_of
+        def post(c, session, knowing, role_of, d, role_key):
+            if c['asserter'] is not None and c['as_of']:
+                answer, _ = role_of(c['asserter'], d)
+                c[role_key] = answer
+                c['strength'] = (db.STRENGTH_KNOWING if answer == db.EFFECT_IN else db.STRENGTH_NOT_KNOWING if answer == db.EFFECT_NOT else db.STRENGTH_UNDETERMINED)
+                _requalify(c, d)
+        return _swap_series(post)
+
+    def series_establishing_party_asserts():
+        # the governing entry's asserter is the party that established the claim, not the knowing origin (F6 reversed)
+        def post(c, session, knowing, role_of, d, role_key):
+            est = [o for o in c['origins'] if o['state'] == db.CLAIM_ESTABLISHED and o['asserter'] is not None]
+            if est and c['asserter'] != est[0]['asserter']:
+                c['asserter'] = est[0]['asserter']
+        return _swap_series(post)
+
+    _series_mutations = [
+        ('a knowing candidate alone governs the series (7J-F4-F1)', series_candidate_alone_governs),
+        ('multiplicity lifts the relay into the series (7J-F4-F1, Sb10 reversed)', series_multiplicity_lifts),
+        ("an institution's document enters by the back door (7J-F4-F1, K2 - Sb8 reversed)", series_institution_document_governs),
+        ("the position dated by the acceptance (7J-F4-F1, Sb11 reversed)", series_dated_by_acceptance),
+        ('the role read at d, not at as_of (7J-F4-F1, role-at-date collapsed)', series_role_at_d),
+        ('the establishing party reported as the governing asserter (7J-F4-F1, F6 reversed)', series_establishing_party_asserts),
+    ]
+
+    return _series_mutations + [
         ('a knowing candidate alone discharges (7G-F3, Dc2 reversed)', any_knowing_origin_alone),
         ('an establishing utterance lifted to knowing by a second relationship (7G-F3, Dc4 reversed)', acceptance_lifted),
         ("a reading of the servicer's statement counts as E's knowing origin (7G-F3, Dc7 reversed)", servicer_reading_knowing),

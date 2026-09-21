@@ -542,6 +542,45 @@ def _run(db):
     check('Te12 (the null model): every term the insurer\'s own utterance -> the holder\'s series and the any-party read agree exactly; one claim, one knowing origin',
           acc(T12, '2026-03-31')['term']['value'] == D('1000') and all(c['strength'] == db.STRENGTH_KNOWING for c in acc(T12, '2026-03-31')['term']['claims']))
 
+    print('\n6c. 7J-F4-F1 (s 7J-F4-F1.8, ruled C, family and individual) - the stated accumulator at the CLAIM level: Aetna\'s figure on the EOB, read and accepted\n')
+    J = mint(db.Plan, 'A plan whose accumulator arrives on the EOB.')
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', J)
+    plan_year(J, '2026-01-01', '2026-12-31', by=aetna)
+    term(J, 'deductible', '$3,000', by=aetna)
+    xj = expense_under(J, 'The EOB visit', '2026-02-10', aetna, incurred=kim_party)
+    adjudicate(xj, aetna, '$500', '2026-02-20')
+    applied_stance(J, household, '$700', '2026-03-01')                                                  # Sj4: Rob's figure
+    a_j4 = acc(J, '2026-03-31')
+    check('Sj4 (Ps10 holds, unchanged): Rob alone says $700 applied -> no stated accumulator, the existing reason; dispute undetermined',
+          a_j4['stated']['governing'] is None and a_j4['stated']['reason'] == 'no stated accumulator by the plan\'s insurer' and a_j4['dispute']['value'] is None)
+    _, r_j = held('h-aetna-eob-accumulator', aetna)
+    s_j2 = claim(db.DEDUCTIBLE_APPLIED, reading=r_j, as_of='2026-03-01', content='$700', subject_plan_id=J.id)
+    a_j5 = acc(J, '2026-03-31')
+    check('Sj5: the EOB read alone -> a candidate, knowing; still no stated accumulator',
+          a_j5['stated']['governing'] is None and [(c['state'], c['strength']) for c in a_j5['stated']['claims'] if c['claim'] == s_j2.id] == [(db.CLAIM_CANDIDATE, db.STRENGTH_KNOWING)])
+    evidence(s_j2, utterance=utter('That is the deductible applied on the EOB.', '2026-04-10T09:00:00'))
+    a_j2 = acc(J, '2026-03-31')
+    c_j2 = next(c for c in a_j2['stated']['claims'] if c['claim'] == s_j2.id)
+    check('Sj2 (MANDATORY - Te11): Aetna\'s deductible_applied on the EOB read + Rob\'s acceptance -> the stated accumulator GOVERNS at 700, asserter Aetna (F6), both origins listed; DISPUTE = 700 - 500 = 200 now computable',
+          a_j2['stated']['governing'] == {'claim': s_j2.id, 'asserter': aetna.id, 'as_of': '2026-03-01', 'value': D('700')}
+          and len(c_j2['origins']) == 2 and c_j2['plan_insurer'] == db.EFFECT_IN and a_j2['dispute']['value'] == D('200'))
+    s_j3 = claim(db.INDIVIDUAL_DEDUCTIBLE_APPLIED, reading=r_j, as_of='2026-03-01', content='$500', subject_plan_id=J.id, object_party_id=kim_party.id)
+    evidence(s_j3, utterance=utter("And that is Kim's individual figure.", '2026-04-10T09:01:00'))
+    term(J, 'individual_deductible', '$1,500', by=aetna)
+    a_j3 = acc(J, '2026-03-31', person=kim_party)
+    check('Sj3 (F5 - the individual figure intact): Kim\'s individual_deductible_applied on the same EOB, read + accepted -> governs for Kim at 500; the family figure stays its own claim (700)',
+          a_j3['stated']['governing'] == {'claim': s_j3.id, 'asserter': aetna.id, 'as_of': '2026-03-01', 'value': D('500')}
+          and acc(J, '2026-03-31')['stated']['governing']['claim'] == s_j2.id)
+    J6 = mint(db.Plan, 'A plan Aetna began insuring on 2/1.')
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', J6, began='2026-02-01')
+    plan_year(J6, '2026-01-01', '2026-12-31', by=aetna)
+    _, r_j6 = held('h-aetna-early-eob', aetna)
+    s_j6 = claim(db.DEDUCTIBLE_APPLIED, reading=r_j6, as_of='2026-01-15', content='$100', subject_plan_id=J6.id)
+    evidence(s_j6, utterance=utter('An early figure.', '2026-04-10T09:02:00'))
+    c_j6 = next(c for c in acc(J6, '2026-03-31')['stated']['claims'] if c['claim'] == s_j6.id)
+    check('Sj6 (role at date): a figure dated 1/15, before Aetna\'s insurer_of_plan began 2/1, read + accepted -> the origin not in effect at the claim\'s date -> not_knowing -> not in the series',
+          c_j6['state'] == db.CLAIM_ESTABLISHED and c_j6['strength'] == db.STRENGTH_NOT_KNOWING and not c_j6['qualifies'])
+
     print('\n7. The dependency direction and the wiring guard\n')
     check('plans_in_effect reads in_effect (7F) and the eligibility claims; accumulator reads reach and the claims under the catalogue; neither calls another consumer',
           'in_effect' in calls_in(db.plans_in_effect) and 'reach' in calls_in(db.accumulator)

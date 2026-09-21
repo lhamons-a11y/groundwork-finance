@@ -4479,3 +4479,69 @@ for the surface where the holder gate was absent. The pass has not opened K2, th
 kind, or D′.11. **The build awaits its separate authorisation.**
 
 ---
+
+#### Built — 2026-09-21 (7J-F4-F1)
+
+`core/database.py` — **one shape at three sites, through one shared helper.** `_holder_series(session,
+entries, knowing, role_of, d, role_key)`: per-relationship claim entries grouped by claim; per claim the
+state aggregated (established if any relationship is), the strength the strongest class among its
+origins — which *is* the ruled role-at-date relation on the origin party at the claim's `as_of`, for
+an utterance and for an artefact alike — every origin listed with its ground, asserter, origin
+party, state, class and the surface's own role answer; `asserter` the knowing origin's party (F6);
+`qualifies` = established ∧ dated ≤ d ∧ strength knowing ∧ a value. Beside it
+`_relationship_origin`: the utterance's origin, or the artefact's established origin behind a
+reading. **The three sites** — 7G's stated loop (`role_of` = `_entitled_at` on O), 7H's
+`stance_history` (`_entitled_at` on X with the series' role), 7J's stated loop (`_entitled_at` on P
+with `plan_insurer`) — each now one call, the surface's role test passed in and reported per origin
+under its own key (`entitled` / `in_role` / `plan_insurer`), the three reasons untouched (F1), the
+governing / previous / conflict logic untouched. Discharge, the attachment, `derived`, the term and
+window, the servicer clause: untouched. No kind, no relation; the one substrate addition is the
+helper the three consumers share.
+
+**The null model first (F7):** every consumer and 9D fixture run against the changed substrate
+before a case was written — 7G 46/46, 7H 31/32, 7J 37/37, 7I 31/31, 9D-i 22/22, 9D-ii 18/18,
+9D-iii 20/20, 9D-iv 18/18, 9D-v 14/14, 9C 33/33, 9A 27/27, 9B 26/26 — **zero semantic change**; the
+one failure structural: 7H's wiring guard pinned `derived_strength` as a direct call inside
+`reconciliation`, and the strength read now goes through the shared helper — restated to name the
+helper, as 7G's guard already names `_entitled_at`. *Implementation neutrality, as ruled — not
+evidence of equivalence.*
+
+**The oracle — per surface, as ruled.** *7G (46 → 57):* **Sb3, mandatory** — Harbor's statement line
+read + Rob's acceptance on one claim → governs at 2,588 dated 3/31, asserter Harbor, both origins
+listed, one entry; Sb2 the relay alone unchanged (the existing reason); Sb4 the reading alone a
+candidate (Ob9 holds); **Sb11** the position dated by the statement, never by the acceptance
+(uttered 4/15; governs on 3/31); **Sb5 (F2)** two statements read + accepted, a payment between → S
+and S′ both from documents, the `statement_check` runs and returns 0; **Sb7 (K7)** Harbor's utterance
+2,500 and Harbor's statement 2,588 at one date → conflict, none — the utterance not preferred; Sb6 a
+retracted acceptance → contested, out, S falling to the earlier statement; **Sb8 (K2, out of
+scope)** the servicer's statement read + accepted → not_knowing, out; Sb10 (O5) Rob's spreadsheet
+read + accepted → both origins Rob, out; **Sb9 / Sb9′** role at date preserved both ways (after
+the role ended; before it began, with d inside it). *7I (31 → 32):* Sb11 inherited — the after side
+reads S = 1,500 dated 2/5 from the February statement once accepted in March. *7H (32 → 40):*
+**Sh2, mandatory** — the bill read + accepted → `billed` governs, asserter Riverbend Hospital; **Sh3, mandatory**
+— the EOB read + each line accepted → *two claims from one reading*, PR 400 and plan_paid 900 each
+governing its own series with its own two origins, Rob's relay still not governing; Sh4 / Sh5
+unchanged (Xs1, Xs2 hold; the existing reason); **Sh7 (F4)** S from Riverbend Hospital's statement and PR from
+the EOB → the difference 50 computed on the household's real path; Sh8 the PR acceptance retracted
+→ PR out, plan_paid unaffected; Sh6 / Sh6′ role at date both ways. *7J (37 → 42):* **Sj2, mandatory
+(Te11)** — Lakeview Health's `deductible_applied` on the EOB read + accepted → governs at 700, asserter Lakeview Health,
+`dispute` = 200 now computable; **Sj3 (F5)** Kim's individual figure on the same EOB governs for Kim,
+the family figure its own claim; Sj4 / Sj5 unchanged (Ps10 holds); Sj6 role at date.
+
+**Smoke `s113` / `s115` / `s116` — six mutations each, at the shared helper:** a knowing candidate
+alone governing · multiplicity lifting the relay (Sb10 reversed) · an institution's document entering
+by the back door (K2 — Sb8 reversed) · the position dated by the acceptance (Sb11 reversed) · the role
+read at d, not at `as_of` (role-at-date collapsed — caught by Sb9′ / Sh6′ / Sj6) · the establishing
+party reported as the governing asserter (F6 reversed) — **all eighteen caught on the first run**;
+s115 23 → 35, s116 37 → 49, s113 35 → 47. `s114`, `s120`, `s121`, `s122` green as readers of the
+same shape.
+
+**What this changes for the household:** a balance on the statement, a charge on the bill, the
+figures on the EOB and the deductible applied on it — read and accepted — are now the holder's
+positions, dated by the document; the confirmed figure, the comparison, the unresolved amount and
+the dispute are computable from the documents the household actually receives, with nothing typed
+as if the institution had said it. **Carried forward, by name, untouched:** K2's balance half (the
+servicer's statement — Sb8 pins it out); the bank line's own kind; D′.11. Gate 1544 → 1580,
+0 failed.
+
+---

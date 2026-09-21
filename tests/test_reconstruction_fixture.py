@@ -512,6 +512,21 @@ def _run(db):
     check('Dc11 (7G-F3 inherited): the reading of Chase\'s statement + Rob\'s acceptance (uttered in March) on one claim dated 1/15 -> 7I reads 7G at two dates: discharged at the ACKNOWLEDGMENT\'s date (1/15), so the January payment is confirmed on both sides of `at` = 2/1 - the acceptance\'s utterance date is never the discharge\'s date; unaccounted 0',
           after_term(r_c, Oc)['confirmed'] == D('1500') and r_c['before']['terms'][0]['confirmed'] == D('1500') and un(r_c) == D('0'))
 
+    print('\n7c. 7J-F4-F1 inherited (Sb11): the after side reads a P-ack that came by statement\n')
+    Od = mint(db.Obligation, 'A loan whose February statement was read and accepted.')
+    entitled(chase, Od)
+    stated(Od, chase, '$2,000', '2026-01-01')
+    pd_ = pay(Od, '$500', '2026-01-10', household, chase)
+    ack(chase, pd_, '2026-01-15')
+    _, rD = held('h-chase-feb-statement-read', chase)
+    b_d = claim(db.BALANCE, reading=rD, as_of='2026-02-05', content='$1,500', subject_obligation_id=Od.id)
+    r_d0 = rec(Od, '2026-02-01', '2026-02-28')
+    evidence(b_d, utterance=utter('That is the February statement balance.', '2026-03-20T09:00:00'))    # accepted in March
+    r_d = rec(Od, '2026-02-01', '2026-02-28')
+    check('Sb11 (7I inherits): the February statement read alone -> the after side has no restated position; read + accepted (in March) -> the after side reads S = 1,500 dated 2/5 - the statement\'s date, never the acceptance\'s; unaccounted 0',
+          after_term(r_d0, Od)['eligible'] is False and after_term(r_d, Od)['eligible'] is True
+          and after_term(r_d, Od)['stated']['as_of'] == '2026-02-05' and after_term(r_d, Od)['confirmed'] == D('1500') and un(r_d) == D('0'))
+
     print('\n8. The dependency direction and the wiring guard\n')
     check('reconstruction reads reach (obligation_replaces, both directions) and remaining (7G) and nothing else that resolves, scores or allocates',
           {'reach', 'remaining'} <= calls_in(db.reconstruction)

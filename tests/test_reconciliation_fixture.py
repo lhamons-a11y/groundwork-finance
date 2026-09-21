@@ -488,9 +488,74 @@ def _run(db):
           and all(r['unresolved']['value'] == r['unresolved']['charge']['value'] + sum(sg * a for _, sg, a in r['unresolved']['terms']) for r in corpus if r['unresolved']['value'] is not None)
           and all(any(st == db.CLAIM_ESTABLISHED for _, _, st, _ in pm['grounds']) for r in corpus for pm in r['payments']))
 
+    print('\n6b. 7J-F4-F1 (s 7J-F4-F1.8, ruled C on each of the three) - the X-stance series at the CLAIM level: the bill and the EOB, read and accepted\n')
+    Xs = visit('The visit whose figures arrive by document.', mercy, aetna)
+    _, r_bill = held('h-mercy-bill-doc', mercy)
+    b_sh2 = claim('billed', reading=r_bill, as_of='2026-01-05', content='$1,300', subject_expense_id=Xs.id)
+    r_sh4 = rc(Xs, '2026-03-31')
+    check('Sh4 (Xs1 holds): the bill read alone -> a candidate, knowing; billed has no governing position',
+          r_sh4['stances']['billed']['governing'] is None
+          and [(c['state'], c['strength']) for c in r_sh4['stances']['billed']['claims'] if c['claim'] == b_sh2.id] == [(db.CLAIM_CANDIDATE, db.STRENGTH_KNOWING)])
+    evidence(b_sh2, utterance=utter('That is the bill.', '2026-04-10T09:00:00'))
+    r_sh2 = rc(Xs, '2026-03-31')
+    c_sh2 = next(c for c in r_sh2['stances']['billed']['claims'] if c['claim'] == b_sh2.id)
+    check('Sh2 (MANDATORY): Mercy\'s bill read + Rob\'s acceptance -> billed GOVERNS at 1,300 dated 1/5, asserter Mercy (F6), both origins listed; unresolved = 1,300',
+          r_sh2['stances']['billed']['governing'] == {'claim': b_sh2.id, 'asserter': mercy.id, 'as_of': '2026-01-05', 'value': D('1300')}
+          and len(c_sh2['origins']) == 2 and c_sh2['in_role'] == db.EFFECT_IN and r_sh2['unresolved']['value'] == D('1300'))
+    _, r_eob = held('h-aetna-eob-doc', aetna)
+    p_sh3 = claim('patient_responsibility', reading=r_eob, as_of='2026-01-20', content='$400', subject_expense_id=Xs.id)
+    q_sh3 = claim('plan_paid', reading=r_eob, as_of='2026-01-20', content='$900', subject_expense_id=Xs.id)
+    xstance('patient_responsibility', Xs, household, '$400', '2026-01-21')                              # Sh5: Rob's relay, its own claim
+    r_sh5 = rc(Xs, '2026-03-31')
+    check('Sh5 (Xs2 holds, unchanged): the EOB read alone (two candidates) and Rob\'s "the EOB said $400" -> neither series governs; the existing reason',
+          r_sh5['stances']['patient_responsibility']['governing'] is None and r_sh5['stances']['plan_paid']['governing'] is None
+          and r_sh5['stances']['patient_responsibility']['reason'] == 'no patient_responsibility position by a party in effect as its asserter')
+    u_pr = utter('That is my share on the EOB.', '2026-04-10T09:01:00')
+    evidence(p_sh3, utterance=u_pr)
+    evidence(q_sh3, utterance=utter('And that is what the plan paid.', '2026-04-10T09:02:00'))
+    r_sh3 = rc(Xs, '2026-03-31')
+    check('Sh3 (MANDATORY): the EOB read + Rob\'s acceptance of each line -> TWO claims from ONE reading, each governing its own series (PR 400, plan_paid 900), each asserter Aetna, each with its own two origins; Rob\'s relay still not governing',
+          r_sh3['stances']['patient_responsibility']['governing'] == {'claim': p_sh3.id, 'asserter': aetna.id, 'as_of': '2026-01-20', 'value': D('400')}
+          and r_sh3['stances']['plan_paid']['governing'] == {'claim': q_sh3.id, 'asserter': aetna.id, 'as_of': '2026-01-20', 'value': D('900')}
+          and all(len(next(c for c in r_sh3['stances'][k]['claims'] if c['claim'] == i)['origins']) == 2
+                  for k, i in (('patient_responsibility', p_sh3.id), ('plan_paid', q_sh3.id)))
+          and [c['qualifies'] for c in r_sh3['stances']['patient_responsibility']['claims'] if c['asserter'] == household.id] == [False])
+    Osh = mint(db.Obligation, 'The bill for the document visit.')
+    entitled(mercy, Osh)
+    _, r_stmt = held('h-mercy-statement-doc', mercy)
+    b_sh7 = claim(db.BALANCE, reading=r_stmt, as_of='2026-02-01', content='$450', subject_obligation_id=Osh.id)
+    evidence(b_sh7, utterance=utter('That is the statement balance.', '2026-04-10T09:03:00'))
+    in_respect(Osh, Xs)
+    r_sh7 = rc(Xs, '2026-03-31')
+    check('Sh7 (F4 - the consequence 7H exists for): S = 450 from Mercy\'s statement (7G, read + accepted) and PR = 400 from the EOB -> the DIFFERENCE 50 computed on the household\'s real path, no figure typed as an utterance',
+          r_sh7['comparison']['difference'] == D('50') and r_sh7['comparison']['stated']['value'] == D('450') and r_sh7['comparison']['patient_responsibility']['value'] == D('400'))
+    retract(u_pr, 'That was the wrong line.')
+    r_sh8 = rc(Xs, '2026-03-31')
+    check('Sh8: Rob retracts his acceptance of the PR line -> PR CONTESTED, out; plan_paid unaffected (its own claim); the comparison loses its PR term',
+          next(c for c in r_sh8['stances']['patient_responsibility']['claims'] if c['claim'] == p_sh3.id)['state'] == db.CLAIM_CONTESTED
+          and r_sh8['stances']['patient_responsibility']['governing'] is None and r_sh8['stances']['plan_paid']['governing']['value'] == D('900')
+          and r_sh8['comparison']['difference'] is None)
+    _, r_ref = held('h-radiology-bill-doc', radiology)
+    b_sh6 = claim('billed', reading=r_ref, as_of='2026-01-06', content='$250', subject_expense_id=Xs.id)
+    evidence(b_sh6, utterance=utter('The radiologist billed too.', '2026-04-10T09:04:00'))
+    c_sh6 = next(c for c in rc(Xs, '2026-03-31')['stances']['billed']['claims'] if c['claim'] == b_sh6.id)
+    check('Sh6 (role at date): the radiologist\'s bill read + accepted, no provider_of X -> the origin not in role -> not_knowing -> not in the billed series; Mercy\'s 1,300 still governs',
+          c_sh6['state'] == db.CLAIM_ESTABLISHED and c_sh6['strength'] == db.STRENGTH_NOT_KNOWING and not c_sh6['qualifies']
+          and rc(Xs, '2026-03-31')['stances']['billed']['governing']['claim'] == b_sh2.id)
+
+    Xs6 = mint(db.Expense, 'A visit whose provider role is held from 2/1.')
+    role(db.PROVIDER_OF, mercy, Xs6, began='2026-02-01')
+    role(db.INSURER_OF, aetna, Xs6)
+    _, r_early = held('h-mercy-early-bill', mercy)
+    b_sh6b = claim('billed', reading=r_early, as_of='2026-01-05', content='$300', subject_expense_id=Xs6.id)
+    evidence(b_sh6b, utterance=utter('An early bill.', '2026-04-10T09:05:00'))
+    c_sh6b = next(c for c in rc(Xs6, '2026-03-31')['stances']['billed']['claims'] if c['claim'] == b_sh6b.id)
+    check('Sh6\' (role at date, the other direction): Mercy\'s bill dated 1/5, before Mercy\'s provider_of holds from 2/1, read + accepted; d = 3/31 when Mercy IS in role -> the role is read at the claim\'s date -> not_knowing, not in the series',
+          c_sh6b['strength'] == db.STRENGTH_NOT_KNOWING and not c_sh6b['qualifies'] and rc(Xs6, '2026-03-31')['stances']['billed']['governing'] is None)
+
     print('\n7. The dependency direction and the wiring guard\n')
     check('reconciliation reads reach (both in-respect-of kinds), remaining (7G), derived_strength and the role answers, and nothing that resolves, scores or allocates',
-          {'reach', 'remaining', 'derived_strength'} <= calls_in(db.reconciliation)
+          {'reach', 'remaining'} <= calls_in(db.reconciliation) and 'derived_strength' in calls_in(db._holder_series)   # 7J-F4-F1: the strength read in the shared holder-series helper
           and not ({'level_consistency', 'chain_strength', 'aboutness', 'independence', 'parse_disputes', 'reconstruction'} & calls_in(db.reconciliation)))
     check('the 7H wiring guard is executable (AST): reconciliation calls no session write method and constructs no mapped class',
           writes_in(db.reconciliation) == [])

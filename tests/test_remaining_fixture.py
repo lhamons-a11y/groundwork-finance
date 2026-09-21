@@ -616,6 +616,84 @@ def _run(db):
           pm(r_f8, pf8)['station'] == db.STATION_DISCHARGED and len(a8['origins']) == 3
           and [o['strength'] for o in a8['origins']].count(db.STRENGTH_KNOWING) == 2 and a8['strength'] == db.STRENGTH_KNOWING)
 
+    print('\n7c. 7J-F4-F1 (s 7J-F4-F1.8, ruled C for the balance) - the stated series at the CLAIM level: E\'s statement line, read and accepted, is E\'s position\n')
+    Os = mint(db.Obligation, 'A loan whose balance arrives only by statement.')
+    entitled(chase, Os)
+    stated(Os, chase, '$2,588', '2026-03-31', origin=household)                                        # Sb2: Rob's relay, its own claim
+    r_s2 = rem(Os, '2026-03-31')
+    check('Sb2 (unchanged): Rob alone states the balance -> NO stated position, the existing reason; the relay listed not_knowing - the gate already excluded it; nothing newly manufactured',
+          r_s2['stated']['governing'] is None and r_s2['stated']['reason'] == 'no stated position by the entitled party'
+          and [c['strength'] for c in r_s2['stated']['claims']] == [db.STRENGTH_NOT_KNOWING])
+    _, rS1 = held('h-chase-0331-statement', chase)
+    b_s3 = claim(db.BALANCE, reading=rS1, as_of='2026-03-31', content='$2,588', subject_obligation_id=Os.id)   # the line read: candidate, knowing
+    r_s4 = rem(Os, '2026-03-31')
+    c_s4 = next(c for c in r_s4['stated']['claims'] if c['claim'] == b_s3.id)
+    check('Sb4 (Ob9 holds): the statement line read alone -> a candidate with a knowing origin, never governing',
+          r_s4['stated']['governing'] is None and c_s4['state'] == db.CLAIM_CANDIDATE and c_s4['strength'] == db.STRENGTH_KNOWING)
+    u_s3 = utter('That is the balance on the March statement.', '2026-04-15T09:00:00')
+    evidence(b_s3, utterance=u_s3)                                                                     # Rob's acceptance: established, not_knowing
+    r_s3 = rem(Os, '2026-03-31')
+    c_s3 = next(c for c in r_s3['stated']['claims'] if c['claim'] == b_s3.id)
+    check('Sb3 (MANDATORY - the document path): Rob\'s acceptance on the SAME claim -> established with a knowing origin -> GOVERNS at 2,588 dated 3/31; asserter Chase (the knowing origin\'s party - F6), both origins listed with their own state and class; one entry for the claim',
+          r_s3['stated']['governing'] == {'claim': b_s3.id, 'asserter': chase.id, 'as_of': '2026-03-31', 'value': D('2588')}
+          and sorted((o['state'], o['strength']) for o in c_s3['origins']) == sorted([(db.CLAIM_CANDIDATE, db.STRENGTH_KNOWING), (db.CLAIM_ESTABLISHED, db.STRENGTH_NOT_KNOWING)])
+          and c_s3['entitled'] == db.EFFECT_IN and [c['claim'] for c in r_s3['stated']['claims']].count(b_s3.id) == 1)
+    check('Sb11 (Dc11\'s rule, per surface): the acceptance was uttered 4/15; the position is dated by the STATEMENT (3/31) and governs on 3/31 - never by the acceptance',
+          r_s3['stated']['governing']['as_of'] == '2026-03-31' and r_s3['figures']['confirmed']['value'] == D('2588'))
+    _, rS0 = held('h-chase-0228-statement', chase)
+    b_s5 = claim(db.BALANCE, reading=rS0, as_of='2026-02-28', content='$2,788', subject_obligation_id=Os.id)
+    evidence(b_s5, utterance=utter('And that is the February balance.', '2026-04-15T09:01:00'))
+    p_s5 = pay(Os, '$200', '2026-03-10', household, chase)
+    r_s5 = rem(Os, '2026-03-31')
+    check('Sb5 (F2): the February statement read + accepted too, a $200 payment between -> S = 3/31 (2,588), S\' = 2/28 (2,788) both from documents; the statement_check RUNS across the payment: 2,588 - (2,788 - 200) = 0',
+          r_s5['stated']['governing']['claim'] == b_s3.id and r_s5['stated']['previous']['claim'] == b_s5.id
+          and r_s5['diagnostic']['statement_check']['value'] == D('0') and r_s5['diagnostic']['statement_check']['terms']['computed'] == D('2588'))
+    u_s7 = utter('$2,500', origin=chase)
+    b_s7 = claim(db.BALANCE, utterance=u_s7, as_of='2026-03-31', content='$2,500', subject_obligation_id=Os.id)   # Chase's own utterance, the same date, another figure
+    r_s7 = rem(Os, '2026-03-31')
+    check('Sb7 (K7): Chase\'s utterance 2,500 and Chase\'s statement read + accepted 2,588, both 3/31 -> two knowing positions at one date -> CONFLICT, none governs; the utterance is not preferred over the document',
+          r_s7['stated']['governing'] is None and r_s7['stated']['reason'] == 'conflicting stated positions at 2026-03-31'
+          and sorted(c['claim'] for c in r_s7['stated']['conflict']) == sorted([b_s3.id, b_s7.id]))
+    retract(u_s7, 'Chase withdraws the 2,500.')                                                          # the conflict cleared
+    retract(u_s3, 'I misread the statement.')
+    r_s6 = rem(Os, '2026-03-31')
+    c_s6 = next(c for c in r_s6['stated']['claims'] if c['claim'] == b_s3.id)
+    check('Sb6 (7G-F3 F3\'s rule, per surface): Rob retracts his acceptance -> the claim CONTESTED (the reading still a candidate) -> out of the series; S falls back to the February statement',
+          c_s6['state'] == db.CLAIM_CONTESTED and r_s6['stated']['governing']['claim'] == b_s5.id)
+    _, rSv = held('h-servicer-0331-statement', servicer)
+    b_s8 = claim(db.BALANCE, reading=rSv, as_of='2026-03-31', content='$2,588', subject_obligation_id=Os.id)
+    evidence(b_s8, utterance=utter("The servicer's statement shows the same balance.", '2026-04-16T09:00:00'))
+    r_s8 = rem(Os, '2026-03-31')
+    c_s8 = next(c for c in r_s8['stated']['claims'] if c['claim'] == b_s8.id)
+    check('Sb8 (K2 - out of scope, stated so the build cannot drift): the SERVICER\'s statement read + Rob\'s acceptance -> origin S is not the holder -> not_knowing -> NOT in E\'s series; K2\'s balance half untouched',
+          c_s8['state'] == db.CLAIM_ESTABLISHED and c_s8['strength'] == db.STRENGTH_NOT_KNOWING and not c_s8['qualifies']
+          and r_s8['stated']['governing']['claim'] == b_s5.id)
+    _, rRb = held('h-rob-balance-sheet', household)
+    b_s10 = claim(db.BALANCE, reading=rRb, as_of='2026-03-31', content='$2,588', subject_obligation_id=Os.id)
+    evidence(b_s10, utterance=utter('My spreadsheet says the same.', '2026-04-16T09:01:00'))
+    c_s10 = next(c for c in rem(Os, '2026-03-31')['stated']['claims'] if c['claim'] == b_s10.id)
+    check('Sb10 (O5): Rob\'s spreadsheet read + Rob\'s acceptance -> both origins Rob -> established, NOT_KNOWING, not in the series; relaying does not launder',
+          c_s10['state'] == db.CLAIM_ESTABLISHED and c_s10['strength'] == db.STRENGTH_NOT_KNOWING and not c_s10['qualifies'])
+    Os9 = mint(db.Obligation, 'A loan Chase sold on 3/1.')
+    entitled(chase, Os9)
+    claim(db.ENTITLED_PARTY_OF_ENDED, utterance=utter('Chase sold it 3/1.', origin=chase), as_of='2026-03-01', subject_party_id=chase.id, object_obligation_id=Os9.id)
+    _, rS9 = held('h-chase-post-sale-statement', chase)
+    b_s9 = claim(db.BALANCE, reading=rS9, as_of='2026-03-31', content='$1,000', subject_obligation_id=Os9.id)
+    evidence(b_s9, utterance=utter('That is the March figure.', '2026-04-16T09:02:00'))
+    c_s9 = next(c for c in rem(Os9, '2026-03-31')['stated']['claims'] if c['claim'] == b_s9.id)
+    check('Sb9 (role at date, preserved): Chase\'s statement dated 3/31, after Chase\'s entitled role ended 3/1, read + accepted -> the origin NOT in effect at the claim\'s date -> not_knowing -> not in the series; the claim level does not replace role-at-date',
+          c_s9['state'] == db.CLAIM_ESTABLISHED and c_s9['strength'] == db.STRENGTH_NOT_KNOWING and c_s9['entitled'] == db.EFFECT_NOT and not c_s9['qualifies'])
+
+    Os9b = mint(db.Obligation, 'A loan Chase acquired on 4/1.')
+    entitled(chase, Os9b, began='2026-04-01')
+    _, rS9b = held('h-chase-pre-acquisition-statement', chase)
+    b_s9b = claim(db.BALANCE, reading=rS9b, as_of='2026-03-31', content='$1,000', subject_obligation_id=Os9b.id)
+    evidence(b_s9b, utterance=utter('That is the March figure on the new loan.', '2026-04-16T09:03:00'))
+    r_s9b = rem(Os9b, '2026-04-30')
+    c_s9b = next(c for c in r_s9b['stated']['claims'] if c['claim'] == b_s9b.id)
+    check('Sb9\' (role at date, the other direction): Chase\'s statement dated 3/31, before Chase\'s entitled role began 4/1, read + accepted; d = 4/30 when Chase IS in effect -> the role is read at the claim\'s date, not at d -> not_knowing, not in the series',
+          c_s9b['strength'] == db.STRENGTH_NOT_KNOWING and not c_s9b['qualifies'] and r_s9b['stated']['governing'] is None)
+
     print('\n8. The dependency direction and the wiring guard\n')
     check('remaining reads 7F (reach, in_effect) and derived_strength and nothing that resolves, scores or allocates - no level_consistency / chain_strength / aboutness / independence; payment_plan untouched',
           {'reach', 'in_effect', 'derived_strength'} <= (calls_in(db.remaining) | calls_in(db._entitled_at))
