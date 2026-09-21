@@ -4439,3 +4439,43 @@ reported as the governing asserter.
 > as read. Nothing here authorises code.
 
 ---
+
+### 7J-F4-F1.8 Ruling — Rob, 2026-09-21: Reading C on each of the five surfaces; F1–F7 accepted; no code by this ruling
+
+*The important discovery: the sibling surfaces are not repeating 7J-F4's original defect — their
+existing role gate already excludes the household relay. The remaining semantic question is
+specifically the document-origin case.*
+
+**Reading C — claim-level, ruled per surface, for all five:** 7G `balance` → C · 7H `billed` → C ·
+7H `patient_responsibility` + `plan_paid` → C · 7J stated, family → C · 7J stated, individual → C.
+*The reason is narrow: the holder test is fundamentally about whether the claim's qualifying knowing
+origin is the holder at the relevant date. On an utterance, that is directly visible as the
+utterance origin. On the accepted document path, there can be two origins for the same claim, and
+the document artefact itself has no party to pass through the existing per-relationship gate.
+Claim-level treatment is therefore needed to preserve the qualifying knowing origin rather than
+making the document path inadmissible merely because its evidence entered through an artefact.
+That does not turn this into a strength ranking. The qualifying origin is the admissibility
+condition.*
+
+**F1 — accepted.** The three existing reasons remain unchanged. The holder / role-at-date
+relationship is preserved; the claim-level treatment does not introduce a new holder rule.
+**F2 — accepted.** The document-origin consequence propagates through the named downstream
+consumers, with each surface retaining its own date rule. Dc11 is not silently generalised beyond
+the surfaces actually tested. **F3 — accepted as scope.** K2's balance half remains untouched. The
+servicer statement stays out; this pass does not rule K2. **F4 — accepted.** 7H's three series are
+ruled individually despite sharing `stance_history`. The EOB's two claims remain distinct.
+**F5 — accepted.** 7J stated receives the same claim-level treatment, while its family / individual
+distinction remains intact. **F6 — accepted.** The governing entry's `asserter` is the knowing
+origin's party. The alternative that reports Rob as the asserter of Harbor's position is
+semantically wrong. **F7 — accepted.** The present fixtures do not distinguish R from C, so the
+substrate run must remain a zero-change null model. *That is a test of implementation neutrality,
+not evidence that R and C are semantically equivalent.*
+
+**Boundary.** This rules C, but it does not authorise code. The ruling is specifically: *the five
+sibling holder surfaces read the governing position at claim level, preserving the qualifying
+knowing origin and its role-at-date holder relation.* The household-only case remains excluded by
+the existing gate, so `unknown` is not newly manufactured here; 7J-F4's `unknown` remains a finding
+for the surface where the holder gate was absent. The pass has not opened K2, the bank line's own
+kind, or D′.11. **The build awaits its separate authorisation.**
+
+---
