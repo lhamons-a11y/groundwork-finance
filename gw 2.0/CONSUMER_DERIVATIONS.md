@@ -4545,3 +4545,16 @@ servicer's statement — Sb8 pins it out); the bank line's own kind; D′.11. Ga
 0 failed.
 
 ---
+
+#### Accepted and closed — Rob, 2026-09-21 (7J-F4-F1)
+
+Accepted as built and ruled: `f215c30`, 1580 / 0, all 36 mutation lines present. The evidence is
+internally consistent: the null model preceded the case additions and showed zero semantic change;
+the shared substrate matches the ruled C shape — `_holder_series` with `_relationship_origin`; the
+three reasons untouched; the governing `asserter` the knowing origin's party; the per-surface case
+counts and the mandatory cases green; Sb8 preserves the ruled exclusion of the servicer's statement;
+mutation coverage complete across the three helper sites; nothing outside the authorised
+sibling-gates build moved. **7J-F4-F1 — RULED C → BUILT → ACCEPTED / CLOSED.** The boundary remains
+clean: K2's balance half, the bank line's own kind and D′.11 remain named but unopened.
+
+---
