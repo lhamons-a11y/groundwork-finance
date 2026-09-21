@@ -4216,3 +4216,226 @@ holder gates — 7G's balance series, 7H's three X-stance series, 7J's stated ac
 follow-on pass; K2's balance half in 7G; the bank line's own kind; D′.11.
 
 ---
+
+## Pass 7J-F4-F1 — The sibling holder gates: 7G's balance series, 7H's three X-stance series, 7J's stated accumulator (opened 2026-09-21 from 7J-F4 F1)
+
+*Opened by Rob 2026-09-21 as the explicitly named follow-on pass from 7J-F4 F1. 7J-F4 is closed and
+accepted; **it supplies the family rule, not the sibling semantics** (Rob, 2026-09-21): knowing
+provenance is an admissibility condition, not a fallback ranking. Each of the three surfaces below
+earns its answer on its own cases — including Te5's document path and the household-only `unknown`,
+which are tested per surface and never propagated. No code until cases → candidate → ruling →
+explicit build authorisation.*
+
+### 7J-F4-F1.1 What is fixed
+
+**7J-F4 (ruled, built, closed `ac2c912`):** the family rule — a governing claim in the holder's
+series must have a *knowing origin*; a claim is in the series or it is not; never
+knowing-first-then-relay (a fallback hierarchy is a ranking); no qualifying claim → `unknown`, the
+honest absence of a qualifying determination. **7G-F3 (ruled, built, closed):** the claim-level
+shape — one entry per claim; state aggregated across the claim's evidentiary relationships
+(established if any is); strength the strongest class among its origins, never merged, never a
+number; every origin listed with its own state and class; a knowing origin lifts nothing else; a
+retracted acceptance → contested → out; the position's date is the claim's `as_of`, never the
+acceptance's utterance date (Dc11). **9D-i (ruled):** `balance` carries
+`KNOWING_ENTITLED_PARTY_AT_AS_OF` — the asserting party entitled *in effect at the claim's `as_of`*;
+the holder is the asserter (shape H); on the reading path *reading → origin → relation → strength;
+never reading → state*; **the servicer is not a clause of the relation — K2's balance half is 7G's
+to open, and it is not this pass** (Ob8). Ob9: a reading of E's held statement line alone → candidate,
+knowing, never governing. **9D-ii (ruled):** `billed` reads `provider_of` at `as_of`;
+`patient_responsibility` and `plan_paid` read `insurer_of` at `as_of`; Xs1: the bill read alone never
+governs; Xs2 / K5: the household's *"the EOB said $400"* is not_knowing and never governs.
+**9D-iii (ruled):** `deductible_applied` / `individual_deductible_applied` read `insurer_of_plan` at
+`as_of`; Ps10 / U6: the household's figure is never the accumulator. **K7:** conflicts resolve by
+date, then channel — never by count, never by ranking. **9D-i's promise for 7G:** *the same two
+tests read the ruled answers with no change to 7G* — the acknowledgment's slot is load-bearing; the
+balance has no party slot and its holder is the asserter.
+
+### 7J-F4-F1.2 What the three gates do today — one shape, three sites, five series
+
+| surface | series | the holder test, **per relationship** | on a reading relationship | strength |
+|---|---|---|---|---|
+| 7G `remaining` — `stated` | `balance` on O | `rel.utterance.origin_party_id` entitled in effect at `as_of` (`_entitled_at`) | no utterance → asserter `None` → **undetermined → never qualifies** | computed, **listed, not gated** |
+| 7H `reconciliation` — `stance_history` | `billed` (provider) · `patient_responsibility` · `plan_paid` (insurer) | the relationship's asserter (`_claim_states`) in role at `as_of` (`in_role`) | asserter `None` → undetermined → never qualifies | listed, not gated |
+| 7J `accumulator` — `stated` | `deductible_applied` · `individual_deductible_applied` on P (· person) | the relationship's asserter in effect as `insurer_of_plan` at `as_of` | asserter `None` → never qualifies | listed, not gated |
+
+**The observation the surface forces.** On every *utterance* relationship the gate's role test and
+the strength's ruled relation are **the same call** — `in_effect(party, role, as_of)['identities'][subject]`
+on the same party at the same date (`_entitled_at` and `_role_at_as_of` differ only in the latter's
+type guard). So `role == in_effect ⇔ strength == knowing` on the utterance path, on all five series.
+The two tests part **only on the reading path**, where the role test has no party to ask about and the
+strength has the artefact's established origin (weakest-linked with the origin claim). The
+per-relationship gate is therefore a duplicate of the strength test that happens to be blind to the
+document path. Two consequences, stated before the readings:
+
+1. **The household-only case is already excluded on every series** — Ob8 / Xs2 / Ps10 — with the
+   reason already naming the holder (*no stated position by the entitled party* · *no billed position
+   by a party in effect as its asserter* · *no stated accumulator by the plan's insurer*). 7J-F4's F2
+   (`unknown`, honestly) is **already the behaviour here**; it is not propagated, it is found. What
+   7J-F4 changed for the term reads — a gate where there was none — does not arise.
+2. **The only admission that changes on any series is the document path**: the holder's own
+   artefact, read (a candidate with a knowing origin) and accepted by another party (established,
+   not_knowing) — one claim, two origins — which today enters *no* stated series anywhere but the
+   discharge (7G-F3). For a Harbor loan whose only channel is the monthly statement, S(d) is never
+   available; for an expense whose figures arrive on the EOB, none of 7H's three stances ever
+   governs; the accumulator's stated figure, which arrives on the same EOB, is never stated. Every
+   downstream figure (`confirmed`, the comparison, `unresolved`, `dispute`) reads *no position* on
+   the household's real path, and is computable only when the institution's position was typed as
+   its utterance — which is the fixtures' path, not the household's.
+
+### 7J-F4-F1.3 The question, and the readings
+
+> **Does each holder's series admit a claim by the claim-level test — established from any
+> relationship ∧ a knowing origin (the role-at-date relation on the origin, utterance or artefact) ∧
+> dated ≤ d — so that the holder's document, read and accepted, is in the series; or by the
+> per-relationship test on the utterance's origin, as built, so that it never is?**
+
+**Reading R (per relationship, as built).** The holder's position enters its series only as the
+holder's own utterance. The document path is excluded on all five series — not by a ruling that
+says so, but by a test that cannot see the artefact's origin. Consistent, and never wrong about
+who is knowing; but it contradicts 7G-F3 inside 7G itself (the same statement line discharges a
+payment and cannot state a balance) and 7J-F4 inside 7J (the SBC read and accepted governs the term;
+the EOB read and accepted cannot state the accumulator).
+
+**Reading C (the claim level — 7G-F3's shape, 7J-F4's rule).** Per series, claims grouped by claim;
+state aggregated; strength the strongest origin — which *is* the role-at-date test on the origin
+party at the claim's `as_of`, for an utterance and for an artefact alike; `qualifies` = established ∧
+dated ≤ d ∧ strength knowing ∧ a value; the latest governs; conflict at one date → none (K7, the
+existing rule); one entry per claim, every origin listed with its state, class and role answer. The
+household-only case: unchanged (excluded, the existing reason). A reading alone: a candidate,
+unchanged (Ob9, Xs1 hold). A retracted acceptance: contested, out (7G-F3 F3's rule, applied per
+surface — a case each). The role-at-date semantics of 7G and 7H are **preserved, not replaced**:
+strength knowing on a reading origin means *the artefact's origin was in the role at the claim's
+date* — a statement dated after the holder sold the loan is not_knowing and out (Sb9 below).
+
+**No third reading.** A fallback (the household's relay when the holder is silent) does not arise —
+the series already refuse it, and 7J-F4 refused K on sight. A per-relationship reading that admits
+the document path would need the *other* relationship's state to qualify the reading's — that is C
+described relationship by relationship.
+
+*Reading, for Rob to reject:* **C on each surface, ruled per surface.** The cost is one shape at
+three sites (7G's stated loop, 7H's `stance_history`, 7J's stated loop) and the report gaining
+`origins` per claim on five series; no kind, no relation, no substrate change.
+
+### 7J-F4-F1.4 Findings — per surface, as the opening constraint requires
+
+**7J-F4-F1-F1 — the reasons when only the household has spoken.** 7J-F4's term read names the
+household's statement in its `unknown` reason (*listed, not the insurer's*) because the term read
+had no gate and the household's figure had governed. The siblings' reasons already name the holder
+and never governed on the household's word. *Reading:* leave the three reasons as they are — the
+`claims` list shows the household's statement with its class; nothing was promoted, so nothing
+needs un-promoting in the text. **Rob's.**
+
+**7J-F4-F1-F2 — 7G's balance: what the document path carries downstream.** Under C the statement
+line supplies S(d) — and S′ (the previous position), so the `statement_check` diagnostic runs
+between two statements read and accepted; the `confirmed` and `attached` figures project from a
+document-sourced S; 7I's before / after terms read `stated.governing` and inherit; 7H's obligations
+read `remaining` and inherit. The position's date is the statement's balance date (the claim's
+`as_of`), never the acceptance's date (Dc11's rule, restated per surface — Sb11). *Reading:* the
+same rule, no new machinery; a case each for S′, 7I and 7H's inheritance. **Rob's.**
+
+**7J-F4-F1-F3 — 7G's balance: K2's balance half is not this pass.** A reading of the *servicer's*
+statement, accepted by Rob, has origin S ≠ E → not_knowing → excluded under C exactly as under R
+(Dc7's shape on the balance — Sb8). The servicer clause on the balance stays a carried-forward
+question, named, untouched. **Stated so the build cannot drift into it.**
+
+**7J-F4-F1-F4 — 7H's three series: two roles, one function, three answers.** `stance_history` is one
+function with three callers, so C lands in one place — but each series is ruled on its own case:
+the provider's bill read and accepted (`billed`, `provider_of` at the bill's date — Sh2); the EOB read
+and accepted (`patient_responsibility` and `plan_paid` — *two* claims from *one* reading, each in its
+own series, each with its own two origins — Sh3). Role-at-date: a second provider's bill (a referral;
+not `provider_of` X at its date) is not_knowing and out (Sh6). The consequence 7H exists for: with S
+from the statement (7G) and PR from the EOB, the comparison and `unresolved` become computable on the
+household's real path (Sh7). *Reading:* C on each of the three; the comparison inherits. **Rob's.**
+
+**7J-F4-F1-F5 — 7J's stated accumulator: structurally different, same answer sought.** The stated
+gate is the one sibling that already sits beside a claim-level read in the same consumer (the term
+and window, since 7J-F4); `by_claim` is already local to `accumulator`. Te11 (7J-F4's deferred case):
+Lakeview Health's `deductible_applied` on the EOB read and accepted → the stated accumulator (Sj2); the
+individual figure keyed on the person slot from the same EOB (Sj3); `dispute` = stated − derived
+becomes computable (Sj2). The household's figure alone: excluded, unchanged (Ps10 — Sj4). *Reading:*
+C; the same helper, not a second one. **Rob's.**
+
+**7J-F4-F1-F6 — the governing entry's `asserter`.** Today the governing dict on all five series
+reports `asserter` = the utterance's origin. Under C a governing claim may have a knowing origin
+that is an artefact's origin and an establishing origin that is the household. *Reading:* the
+governing entry's `asserter` is **the party of the knowing origin** — the holder whose position it
+is; each origin's own asserter (`None` for a reading) stays listed under `origins`. The alternative —
+the establishing utterance's party — would report Rob as the asserter of Harbor's position, O5's
+laundering in the report. **Rob's.**
+
+**7J-F4-F1-F7 — the null model.** No fixture case today puts a reading *and* an acceptance on the
+same claim of any of the five series (checked: the 7G / 7H / 7I / 7J fixtures and the 9D-i / ii / iii
+fixtures — Ob9 and Xs1 are readings alone). So C = R on every existing case, and the substrate run
+before any new case must show **zero change**; the 9D pins that record *a reading alone never
+governing* stay true and are not restated.
+
+### 7J-F4-F1.5 Cases — per surface
+
+**7G — the balance series**
+
+| # | Case | R (as built) | C |
+|---|---|---|---|
+| **Sb1** | Harbor states *$2,588* as of 3/31 | governs | governs (the null model) |
+| **Sb2** | Rob alone: *the balance is $2,588* | none — *no stated position by the entitled party* | the same, unchanged |
+| **Sb3 — mandatory** | Harbor's statement line *$2,588 as of 3/31* read (candidate, knowing) + Rob's acceptance (established, not_knowing), one claim | **none** | **governs at 2,588, dated 3/31, both origins listed, asserter Harbor** |
+| **Sb4** | the statement read alone | none | none — a candidate (Ob9 holds) |
+| **Sb5** | the 2/28 and 3/31 statements both read and accepted; a payment between | S from 3/31 only if typed; no check | S = 3/31, S′ = 2/28; `statement_check` runs across the payment |
+| **Sb6** | Rob retracts his acceptance of the 3/31 line | none | contested → none |
+| **Sb7** | Harbor's utterance *$1,900* and Harbor's statement read + accepted *$1,925*, both 3/31 | 1,900 | **conflict at 3/31 → none** (K7 — two knowing positions at one date; not the utterance preferred) |
+| **Sb8 (K2 — out of scope)** | the *servicer's* statement read + Rob's acceptance | none | none — origin S ≠ E → not_knowing; the servicer clause untouched |
+| **Sb9 (role at date)** | Harbor sold O on 3/1; Harbor's statement dated 3/31 read + accepted | none | none — origin Harbor not in effect at 3/31 → not_knowing |
+| **Sb10 (O5)** | Rob's spreadsheet read + Rob's acceptance | none | none — both origins Rob |
+| **Sb11 (Dc11's rule)** | the 3/31 line accepted by Rob on 4/15 | — | the position's date is 3/31, never 4/15; 7I's after side reads it so |
+| **Sb12** | the null model | R = C on every existing 7G / 7I case | — |
+
+**7H — the three X-stance series**
+
+| # | Case | R | C |
+|---|---|---|---|
+| **Sh1** | Riverbend Hospital states billed *$1,300* | governs | governs |
+| **Sh2 — mandatory** | Riverbend Hospital's bill read + Rob's acceptance | none | `billed` governs at 1,300, asserter Riverbend Hospital |
+| **Sh3 — mandatory** | Lakeview Health's EOB read (PR *$400*, plan paid *$900*) + Rob's acceptance of each | none, none | **two claims from one reading, each governing its own series**, each with its two origins |
+| **Sh4** | the EOB read alone | none | none — candidates (Xs1 holds) |
+| **Sh5** | Rob: *the EOB said $400* | none | none, the existing reason (Xs2 holds) |
+| **Sh6 (role at date)** | a referral provider's bill read + accepted, no `provider_of` X | none | none — not_knowing |
+| **Sh7** | Sb3 + Sh3 on one expense | comparison: no position | S = 2,588 from the statement, PR = 400 from the EOB → the difference computed; `unresolved` from the charge |
+| **Sh8** | Rob retracts his acceptance of the EOB's PR line | — | PR contested → none; plan_paid unaffected (its own claim) |
+| **Sh9** | the null model | R = C on every existing 7H case | — |
+
+**7J — the stated accumulator**
+
+| # | Case | R | C |
+|---|---|---|---|
+| **Sj1** | Lakeview Health states *$700 applied* | governs | governs |
+| **Sj2 — mandatory (Te11)** | Lakeview Health's `deductible_applied` on the EOB read + Rob's acceptance | none; `dispute` undetermined | governs at 700; `dispute` = 700 − derived |
+| **Sj3** | the individual figure on the same EOB (person slot) | none | governs for the person; the family figure its own claim |
+| **Sj4** | Rob: *we've met $700* | none — *no stated accumulator by the plan's insurer* | the same, unchanged (Ps10 holds) |
+| **Sj5** | the EOB read alone | none | none — a candidate |
+| **Sj6 (role at date)** | a figure dated before Lakeview Health's `insurer_of_plan` began | none | none — not_knowing |
+| **Sj7** | the null model | R = C on every existing 7J case | — |
+
+### 7J-F4-F1.6 Candidate — pending the ruling
+
+One shape at three sites — 7G's stated loop, 7H's `stance_history`, 7J's stated loop: claims grouped
+by claim (7G-F3 / 7J-F4's shape); per claim the state aggregated, the strength the strongest origin,
+every origin listed with its ground, asserter, state, class and role answer; `qualifies` =
+established ∧ dated ≤ d ∧ strength knowing ∧ a value; the latest governs, conflict at one date →
+none; the governing entry's `asserter` the knowing origin's party (F6); the three reasons unchanged
+(F1). Discharge, the attachment, `derived`, the term and window, the servicer clause: untouched.
+Fixture additions: Sb3, Sb5, Sb6, Sb7, Sb8, Sb9, Sb10, Sb11 (mandatory: Sb3); Sh2, Sh3, Sh6, Sh7, Sh8
+(mandatory: Sh2, Sh3); Sj2, Sj3, Sj6 (mandatory: Sj2); the null model on each before any is added.
+Mutations for `s113` / `s115` / `s116`, each series: a knowing candidate alone governing · the
+relay lifted by a second relationship (an accepted reading of Rob's spreadsheet governing) · the
+servicer's document entering (K2 by the back door) · the acceptance's date used as the position's
+date · the role read at d instead of at `as_of` (role-at-date collapsed) · the establishing party
+reported as the governing asserter.
+
+### 7J-F4-F1.7 Ruling sought
+
+> **(1)** R or C — **ruled per surface**: 7G's balance series; 7H's `billed`; 7H's
+> `patient_responsibility` and `plan_paid`; 7J's stated accumulator (family and individual).
+> **(2) F1:** the three reasons unchanged. **(3) F3:** K2's balance half named and untouched.
+> **(4) F6:** the governing entry's `asserter` the knowing origin's party. **(5) F2, F4, F5, F7**
+> as read. Nothing here authorises code.
+
+---
