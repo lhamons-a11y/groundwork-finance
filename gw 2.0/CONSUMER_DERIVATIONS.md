@@ -4199,3 +4199,20 @@ the sibling per-relationship holder gates — 7G's balance series, 7H's three X-
 stated accumulator — one follow-on pass. Gate 1532 → 1544, 0 failed.
 
 ---
+
+#### Accepted and closed — Rob, 2026-09-21 (7J-F4)
+
+Accepted as built and ruled: `6627335`, 1544 / 0, s116 37/37. The implementation matches the
+ruling — Reading H in the term and window reads only; claims grouped by claim (7G-F3's shape);
+admitted iff established with a knowing origin; the household's relay listed, never governing;
+`unknown` the honest absence of a qualifying determination, its reason naming the household's
+statement; the household's `none` no more governing than its number; no ranking anywhere; the
+stated accumulator untouched, F1's sibling gates carried by name. The validation as wanted: the
+substrate run before any case failed exactly and only the household-stated terms in the corpora —
+one class, corrected by naming the insurer at each site, no role added; Te2 / Te4 / Te5 / Te7 / Te9 /
+Te12 → 37/37; Ps8 / Ps11 restated to the ruled answer; six s116 mutations caught first run;
+s119 / s121 / s122 checked as callers. **7J-F4 closed.** Open, by name: the sibling per-relationship
+holder gates — 7G's balance series, 7H's three X-stance series, 7J's stated accumulator — as one
+follow-on pass; K2's balance half in 7G; the bank line's own kind; D′.11.
+
+---
