@@ -206,9 +206,9 @@ def run(db):
     P_A, P_B = mint(db.Plan, 'Plan A (Aetna).'), mint(db.Plan, 'Plan B (Cigna).')
     claim(db.INSURER_OF_PLAN, utterance=utter('Aetna insures A.'), as_of='2026-01-01', subject_party_id=aetna.id, object_plan_id=P_A.id)
     claim(db.INSURER_OF_PLAN, utterance=utter('Cigna insures B.'), as_of='2026-01-01', subject_party_id=cigna.id, object_plan_id=P_B.id)
-    for P in (P_A, P_B):
-        claim('plan_year', utterance=utter('2026'), as_of='2026-01-01', content='2026-12-31', subject_plan_id=P.id)
-        claim('deductible', utterance=utter('$1,000'), as_of='2026-01-01', content='$1,000', subject_plan_id=P.id)
+    for P, ins in ((P_A, aetna), (P_B, cigna)):
+        claim('plan_year', utterance=utter('2026', origin=ins), as_of='2026-01-01', content='2026-12-31', subject_plan_id=P.id)      # 7J-F4: the insurer's terms
+        claim('deductible', utterance=utter('$1,000', origin=ins), as_of='2026-01-01', content='$1,000', subject_plan_id=P.id)
     Xc = mint(db.Expense, 'The concurrent visit.')
     claim('occurred_on', utterance=utter('2026-03-05'), as_of='2026-03-05', subject_expense_id=Xc.id)
     role(db.INSURER_OF, aetna, Xc)

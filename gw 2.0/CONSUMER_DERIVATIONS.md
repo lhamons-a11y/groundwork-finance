@@ -4150,3 +4150,52 @@ claim without the required knowing origin.
 **No code.** The build awaits its separate authorisation.
 
 ---
+
+#### Built — 2026-09-20 (7J-F4)
+
+`core/database.py`, **two reads in `accumulator` — the term and the window:** claims grouped by claim
+(7G-F3's shape: state aggregated across the claim's relationships, strength the strongest origin,
+every origin listed), and a claim **admitted to the holder's series iff established with a knowing
+origin** — the insurer's own statement, or the SBC read and accepted; the latest governs; conflict at
+one date → unknown; **no qualifying claim → `unknown`**, with the reason naming the household's
+statement as *listed, not the insurer's* when only the household has spoken. **The stated
+accumulator is untouched** — it still tests the holder per relationship on the utterance's origin,
+the sibling gate named for its own pass (F1) and not repaired here; `derived`, `dispute`, `remaining`
+untouched. **The whole non-comment diff:** the grouping helper, the two admissibility tests, the two
+reasons. No kind, no relation, no substrate change; no ranking anywhere — a claim is in the series
+or it is not.
+
+**The oracle — the ruled cases in the 7J fixture (31 → 37):** **Te2** (only the household has stated
+the deductible → `unknown`, the claim listed not_knowing, the reason naming it); **Te4, mandatory —
+the failure the any-party read admitted** (Lakeview Health $3,000 on 1/2, the household $3,500 on 1/3 → the
+insurer's governs; the later relay does not override the holder by date); **Te5, mandatory — the
+document path** (the SBC read alone → `unknown`; the household's acceptance on the same claim →
+established with a knowing origin → the term governs at $2,500, both origins listed); **Te7** (the
+household's `none` → `unknown`, not `TERM_NONE`; remaining undetermined, not *not applicable*);
+**Te9** (the plan year only the household stated → no window, the derived figure undetermined, the
+insurer's term itself standing); **Te12** (the null model: every term the insurer's own utterance —
+the holder's series and the any-party read agree exactly). 9D-iii's Ps8 and Ps11, which had
+recorded the any-party read as 7J's open question, restated to the ruled answer (20/20).
+
+**The substitution — one corpus class, everywhere the accumulator is set up:** every term and plan
+year in the 7J fixture had been stated **by the household** (the helpers' default origin) — the cases
+always meant the insurer's terms, and the any-party read never made the corpus say so; **each site
+now names the plan's insurer** (`by=aetna` / `by=cigna`; every plan already had its `insurer_of_plan`
+role) — no role added, the origin the case presupposed stated. The same in the 9D-ii and 9C
+fixtures' accumulator setups. The substrate run before any case was written failed exactly and only
+those (7J 16/31, 9D-iii 19/20, 9D-ii 16/18, 9C 31/33); after the corrections every fixture green
+before the new cases were added.
+
+**Smoke `s116_accumulator.py` (25 → 37):** six mutations added — the any-party read restored (A) ·
+the relay governing by absence (K) · a knowing candidate alone governing · the household's `none`
+ending the rule · a later relay overriding the insurer's term (Te4 reversed) · the household's plan
+year opening the window (Te9 reversed) — **all caught on the first run**; the eleven existing
+mutations still caught. `s119`, `s121`, `s122` (whose fixtures call the accumulator) green.
+
+**What this changes for the household:** the deductible and plan year the accumulator reasons from
+are the insurer's — stated by the insurer, or read from the SBC and accepted; a figure the household
+typed is shown as the household's and never silently becomes the rule. **Carried forward, by name:**
+the sibling per-relationship holder gates — 7G's balance series, 7H's three X-stance series, 7J's
+stated accumulator — one follow-on pass. Gate 1532 → 1544, 0 failed.
+
+---

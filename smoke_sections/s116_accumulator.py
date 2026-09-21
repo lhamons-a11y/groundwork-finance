@@ -182,7 +182,83 @@ def _mutations(db):
         db.accumulator_cache = {}
         return lambda: delattr(db, 'accumulator_cache')
 
+    # ── 7J-F4 (s 7J-F4.8): the holder's series - the ways it could collapse back ──
+    def _relay_governs(out, latest_only=False):
+        est = [c for c in out['term']['claims'] if c['state'] == db.CLAIM_ESTABLISHED and c['as_of'] and c['as_of'] <= out['d']]
+        if not est:
+            return out
+        b = max(c['as_of'] for c in est)
+        at = [c for c in est if c['as_of'] == b]
+        if len({c['value'] for c in at}) == 1 and at[0]['value'] is not None:
+            out['term'] = dict(out['term'], state=db.TERM_AMOUNT, value=at[0]['value'], claim=at[0]['claim'], reason=None)
+            _consequences(out)
+        return out
+
+    def any_party_governs():
+        # the any-party read restored (Reading A): the latest established term, whoever said it
+        def post(out, *_):
+            return _relay_governs(out)
+        return _swap_acc(post)
+
+    def relay_by_absence():
+        # knowing first, the relay as fallback (Reading K): the household governs when the insurer is silent
+        def post(out, *_):
+            if out['term']['state'] == db.TERM_UNKNOWN:
+                return _relay_governs(out)
+            return out
+        return _swap_acc(post)
+
+    def candidate_alone_governs():
+        # a knowing candidate (the SBC read, unaccepted) governs without an established relationship
+        def post(out, *_):
+            cand = [c for c in out['term']['claims'] if c['state'] == db.CLAIM_CANDIDATE and c['strength'] == db.STRENGTH_KNOWING and c['value'] is not None]
+            if out['term']['state'] == db.TERM_UNKNOWN and cand:
+                out['term'] = dict(out['term'], state=db.TERM_AMOUNT, value=cand[-1]['value'], claim=cand[-1]['claim'], reason=None)
+                _consequences(out)
+            return out
+        return _swap_acc(post)
+
+    def household_none_governs():
+        # the household's "none" ends the rule
+        def post(out, *_):
+            if out['term']['state'] == db.TERM_UNKNOWN and any((c['content'] or '').strip().lower() == db.TERM_NONE and c['state'] == db.CLAIM_ESTABLISHED
+                                                              for c in out['term']['claims']):
+                out['term'] = dict(out['term'], state=db.TERM_NONE, value=None, reason='the rule does not exist - on the household\'s word')
+                out['remaining'] = {'value': None, 'reason': 'not applicable'}
+            return out
+        return _swap_acc(post)
+
+    def later_relay_overrides():
+        # a later household statement overrides the insurer's own by date (Te4 reversed)
+        def post(out, *_):
+            est = [c for c in out['term']['claims'] if c['state'] == db.CLAIM_ESTABLISHED and c['as_of'] and c['as_of'] <= out['d']]
+            if out['term']['state'] == db.TERM_AMOUNT and est:
+                latest = max(est, key=lambda c: c['as_of'])
+                if latest['claim'] != out['term']['claim'] and latest['value'] is not None:
+                    out['term'] = dict(out['term'], value=latest['value'], claim=latest['claim'])
+                    _consequences(out)
+            return out
+        return _swap_acc(post)
+
+    def household_window_governs():
+        # the household's plan year opens the window (Te9 reversed)
+        def post(out, session, plan, d, catalogue, knowing, person):
+            if out['window']['start'] is None:
+                rows = session.query(db.Proposition).filter_by(kind=db.PLAN_YEAR, subject_plan_id=plan.id).all()
+                for r in rows:
+                    if r.as_of and r.content and r.as_of <= d <= r.content.strip():
+                        out['window'] = {'start': r.as_of, 'end': r.content.strip(), 'claim': r.id, 'reason': None}
+                        out['derived'] = dict(out['derived'], reason='window from the household')
+            return out
+        return _swap_acc(post)
+
     return [
+        ('the any-party read restored (7J-F4, Reading A)', any_party_governs),
+        ('the relay governs by absence (7J-F4, Reading K)', relay_by_absence),
+        ('a knowing candidate alone governs (7J-F4)', candidate_alone_governs),
+        ("the household's none ends the rule (7J-F4, F3)", household_none_governs),
+        ("a later relay overrides the insurer's term (7J-F4, Te4 reversed)", later_relay_overrides),
+        ("the household's plan year opens the window (7J-F4, Te9 reversed)", household_window_governs),
         ('pick the earlier plan (a primary)', pick_earlier),
         ('eligibility from the insurer\'s stance', eligibility_from_stance),
         ('the insurer\'s candidate ending ends the membership', stance_ends_membership),

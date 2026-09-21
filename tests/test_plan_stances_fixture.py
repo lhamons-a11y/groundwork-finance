@@ -180,8 +180,10 @@ def run(db):
           st(e_rob) == db.STRENGTH_NOT_KNOWING and st(e_sbc) == db.STRENGTH_KNOWING and st(e_aet) == db.STRENGTH_KNOWING)
     on_plan(db.PLAN_YEAR, P, '2026-12-31', '2026-01-01', origin=aetna)
     a8 = acc(P, '2026-03-31')
-    check('Ps8 (7J, recorded): 7J\'s term is the latest established at or before d, any party - Aetna\'s 1/2 statement governs here by date, not by role; the role gate on terms is 7J\'s open question, not read here',
-          a8['term']['state'] == db.TERM_AMOUNT and a8['term']['value'] == D('3000') and a8['term']['claim'] == t_aet.id)
+    # 7J-F4 (s 7J-F4.8) ruled the question this check had recorded: the governing term is the holder's - a claim with a knowing origin
+    check('Ps8 (7J-F4 ruled): the governing term is the latest claim WITH A KNOWING ORIGIN - Aetna\'s own 1/2 statement; Rob\'s relay is listed, not_knowing, and does not govern',
+          a8['term']['state'] == db.TERM_AMOUNT and a8['term']['value'] == D('3000') and a8['term']['claim'] == t_aet.id
+          and [c['strength'] for c in a8['term']['claims'] if c['claim'] == t_rob.id] == [db.STRENGTH_NOT_KNOWING])
     H = mint(db.Plan, 'The HSA plan with no deductible.')
     claim(db.INSURER_OF_PLAN, utterance=utter('Aetna insures H.'), as_of='2026-01-01', subject_party_id=aetna.id, object_plan_id=H.id)
     on_plan(db.PLAN_YEAR, H, '2026-12-31', '2026-01-01', origin=aetna)
@@ -193,8 +195,8 @@ def run(db):
     e11, _ = on_plan(db.PLAN_YEAR, N, '2026-12-31', '2026-01-01', origin=household)
     on_plan(db.DEDUCTIBLE, N, '$500', '2026-01-01', origin=cigna)
     a11 = acc(N, '2026-03-31')
-    check('Ps11 (F4, recorded): the plan year stated by the household -> NOT_KNOWING; 7J\'s window still takes it (any party\'s established term) - 7J\'s question',
-          st(e11) == db.STRENGTH_NOT_KNOWING and a11['window']['start'] == '2026-01-01')
+    check('Ps11 (7J-F4 ruled): the plan year stated by the household -> NOT_KNOWING; 7J\'s window does NOT take it - no window, the derived figure undetermined, the reason naming the household\'s statement as listed and not the insurer\'s',
+          st(e11) == db.STRENGTH_NOT_KNOWING and a11['window']['start'] is None and 'household' in a11['window']['reason'] and a11['derived']['value'] is None)
     e12, t12 = on_plan(db.INDIVIDUAL_DEDUCTIBLE, P, '$1,500', None, origin=aetna)
     check('Ps12 (F7): an undated individual deductible term -> UNDETERMINED; 7J disqualifies it (no as_of)',
           st(e12) == db.STRENGTH_UNDETERMINED and acc(P, '2026-03-31', person=kim_party)['term']['claim'] != t12.id)

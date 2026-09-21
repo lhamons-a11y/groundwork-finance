@@ -260,11 +260,13 @@ def _run(db):
         return claim(k, utterance=utterance if (utterance or reading) else utter(f'{kind} {began}'), reading=reading,
                      as_of=began, subject_party_id=party.id, **{obj_slot: obj.id})
 
+    # 7J-F4 (s 7J-F4.8): the governing term is the plan's INSURER's - these cases always meant the insurer's terms, and the
+    # any-party read never made the corpus say so; every term and plan year now names its insurer as the origin (by=...)
     def term(P, kind, content, as_of='2026-01-01', by=None):
         return claim(kind, utterance=utter(content, origin=by), as_of=as_of, content=content, subject_plan_id=P.id)
 
-    def plan_year(P, start, end):
-        return claim(db.PLAN_YEAR, utterance=utter('plan year'), as_of=start, content=end, subject_plan_id=P.id)
+    def plan_year(P, start, end, by=None):
+        return claim(db.PLAN_YEAR, utterance=utter('plan year', origin=by), as_of=start, content=end, subject_plan_id=P.id)
 
     def applied_stance(P, by, amount, as_of, person=None):
         # 9D-iii F1: the individual figure is its own kind (person, P), the family figure has no object
@@ -339,7 +341,7 @@ def _run(db):
     print('\n3. Ju5 / Ju6 / Ju7 / Ju14 / Ju15 - the accumulator: three axes; the term\'s three states; no met\n')
     Q = mint(db.Plan, 'The accumulator plan.')
     role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', Q)
-    plan_year(Q, '2026-01-01', '2026-12-31')
+    plan_year(Q, '2026-01-01', '2026-12-31', by=aetna)
     x1 = expense_under(Q, 'Visit 1', '2026-01-20', aetna, incurred=kim_party)
     x2 = expense_under(Q, 'Visit 2', '2026-02-10', aetna, incurred=kim_party)
     x3 = expense_under(Q, 'Visit 3', '2026-03-05', aetna, incurred=household)
@@ -350,7 +352,7 @@ def _run(db):
     check('Ju6 (C1): no deductible term -> term UNKNOWN ("we do not have the deductible"); derived 1,650 with its basis; REMAINING UNDETERMINED with the reason; never met; no met key',
           r6['term']['state'] == db.TERM_UNKNOWN and r6['derived']['value'] == D('1650') and r6['remaining']['value'] is None
           and 'no established deductible term' in r6['remaining']['reason'] and not any(k in FORBIDDEN_KEYS for k, _ in _walk(r6)))
-    term(Q, 'deductible', '$3,000')
+    term(Q, 'deductible', '$3,000', by=aetna)
     applied_stance(Q, aetna, '$1,800', '2026-03-01')
     r5 = acc(Q, '2026-03-31')
     check('Ju5 (Pl10): the insurer\'s portal says 1,800 applied (3/1); the adjudications sum to 1,650 -> STATED 1,800 (Aetna, named), DERIVED 1,650 (basis x1, x2, x3), DISPUTE 150 - a number with its terms; neither replaces the other',
@@ -361,8 +363,8 @@ def _run(db):
           and 'remaining_from_stated' not in r5 and not any(k in FORBIDDEN_KEYS for k, _ in _walk(r5)))
     H = mint(db.Plan, 'The HMO with no deductible.')
     role_on(db.INSURER_OF_PLAN, cigna, 'object_plan_id', H)
-    plan_year(H, '2026-01-01', '2026-12-31')
-    term(H, 'deductible', 'none')
+    plan_year(H, '2026-01-01', '2026-12-31', by=cigna)
+    term(H, 'deductible', 'none', by=cigna)
     r7 = acc(H, '2026-03-31')
     check('Ju7 (C2): the term says none -> term NONE ("the rule does not exist"); remaining NOT APPLICABLE - an answer, distinct from Ju6\'s refusal; derived 0 over no expenses is arithmetic, not met',
           r7['term']['state'] == db.TERM_NONE and 'not applicable' in r7['remaining']['reason'] and r7['remaining']['value'] is None
@@ -396,7 +398,7 @@ def _run(db):
           r10['derived']['outside_window'] == [(x7.id, '2025-12-15')] and r10['derived']['value'] == D('3200'))
     NW = mint(db.Plan, 'No plan-year term.')
     role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', NW)
-    term(NW, 'deductible', '$1,000')
+    term(NW, 'deductible', '$1,000', by=aetna)
     xw = expense_under(NW, 'Some visit', '2026-02-01', aetna)
     adjudicate(xw, aetna, '$100', '2026-02-10')
     r10b = acc(NW, '2026-03-31')
@@ -416,8 +418,8 @@ def _run(db):
     role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', A)
     role_on(db.INSURER_OF_PLAN, cigna, 'object_plan_id', B)
     for P in (A, B):
-        plan_year(P, '2026-01-01', '2026-12-31')
-        term(P, 'deductible', '$1,000')
+        plan_year(P, '2026-01-01', '2026-12-31', by=(aetna if P is A else cigna))
+        term(P, 'deductible', '$1,000', by=(aetna if P is A else cigna))
     xc = mint(db.Expense, 'The concurrent visit.')
     claim(db.OCCURRED_ON, utterance=utter('2026-08-05'), as_of='2026-08-05', subject_expense_id=xc.id)
     role_on(db.INSURER_OF, aetna, 'object_expense_id', xc)
@@ -434,9 +436,9 @@ def _run(db):
           not any(k == 'priority' or (isinstance(v, str) and 'priority' in v.lower()) for r in (rA, rB) for k, v in _walk(r)))
     F = mint(db.Plan, 'The family plan (Pl2).')
     role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', F)
-    plan_year(F, '2026-01-01', '2026-12-31')
-    term(F, 'deductible', '$6,000')
-    term(F, 'individual_deductible', '$3,000')
+    plan_year(F, '2026-01-01', '2026-12-31', by=aetna)
+    term(F, 'deductible', '$6,000', by=aetna)
+    term(F, 'individual_deductible', '$3,000', by=aetna)
     fk = expense_under(F, "Kim's", '2026-03-01', aetna, incurred=kim_party)
     fr = expense_under(F, "Rob's", '2026-03-02', aetna, incurred=household)
     adjudicate(fk, aetna, '$2,000', '2026-03-10')
@@ -464,8 +466,8 @@ def _run(db):
                       for c in cls.__table__.columns))
     N = mint(db.Plan, 'Null model.')
     role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', N)
-    plan_year(N, '2026-01-01', '2026-12-31')
-    term(N, 'deductible', '$1,000')
+    plan_year(N, '2026-01-01', '2026-12-31', by=aetna)
+    term(N, 'deductible', '$1,000', by=aetna)
     n1 = expense_under(N, 'n1', '2026-02-01', aetna)
     n2 = expense_under(N, 'n2', '2026-02-02', aetna)
     adjudicate(n1, aetna, '$300', '2026-02-10')
@@ -488,6 +490,57 @@ def _run(db):
           and all(not r['derived']['unadjudicated'] and r['window']['start'] is not None for r in corpus if r['derived']['value'] is not None)
           and all(r['remaining']['value'] == r['term']['value'] - r['derived']['value'] for r in corpus if r['remaining']['value'] is not None)
           and not any(isinstance(v, float) for r in corpus for _, v in _walk(r)) and not any(k in FORBIDDEN_KEYS for r in corpus for k, _ in _walk(r)))
+
+    print('\n6b. 7J-F4 (s 7J-F4.8) - the holder\'s series: the governing term must have a KNOWING origin; the household\'s relay never governs\n')
+    T2 = mint(db.Plan, 'A plan whose deductible only the household has stated.')
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', T2)
+    plan_year(T2, '2026-01-01', '2026-12-31', by=aetna)
+    term(T2, 'deductible', '$3,000')                                                                  # by=None: the household's relay
+    a_t2 = acc(T2, '2026-03-31')
+    check('Te2: only the household has stated the deductible -> the term is UNKNOWN - not the relay, not zero - with the reason naming the household\'s statement as listed and not the insurer\'s; the claim listed not_knowing',
+          a_t2['term']['state'] == db.TERM_UNKNOWN and a_t2['term']['value'] is None and 'household' in a_t2['term']['reason']
+          and [c['strength'] for c in a_t2['term']['claims']] == [db.STRENGTH_NOT_KNOWING])
+    T4 = mint(db.Plan, 'A plan where the household spoke after the insurer.')
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', T4)
+    plan_year(T4, '2026-01-01', '2026-12-31', by=aetna)
+    t4_ins = term(T4, 'deductible', '$3,000', as_of='2026-01-02', by=aetna)
+    term(T4, 'deductible', '$3,500', as_of='2026-01-03')                                            # the household, later
+    a_t4 = acc(T4, '2026-03-31')
+    check('Te4 (MANDATORY - the failure the any-party read admitted): Aetna $3,000 on 1/2, the household $3,500 on 1/3 -> the INSURER\'s governs; the later relay does not override the holder by date; provenance is admissibility, not a ranking',
+          a_t4['term']['value'] == D('3000') and a_t4['term']['claim'] == t4_ins.id)
+    T5 = mint(db.Plan, 'A plan whose deductible comes from the SBC, read and accepted.')
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', T5)
+    plan_year(T5, '2026-01-01', '2026-12-31', by=aetna)
+    _, r_sbc = held('h-sbc', aetna)
+    t5 = claim('deductible', reading=r_sbc, as_of='2026-01-01', content='$2,500', subject_plan_id=T5.id)   # the reading: candidate, knowing
+    a_t5_before = acc(T5, '2026-03-31')
+    evidence(t5, utterance=utter('That is our deductible per the SBC.'))                               # the household's acceptance: established, not_knowing
+    a_t5 = acc(T5, '2026-03-31')
+    check('Te5 (MANDATORY - the document path, 7G-F3\'s shape): the SBC read alone -> a candidate, the term unknown; the household\'s acceptance on the SAME claim -> established with a knowing origin (Aetna, the SBC\'s origin) -> the term GOVERNS at 2,500; both origins listed',
+          a_t5_before['term']['state'] == db.TERM_UNKNOWN and a_t5['term']['value'] == D('2500') and a_t5['term']['claim'] == t5.id
+          and sorted((o['state'], o['strength']) for o in next(c for c in a_t5['term']['claims'] if c['claim'] == t5.id)['origins'])
+          == sorted([(db.CLAIM_CANDIDATE, db.STRENGTH_KNOWING), (db.CLAIM_ESTABLISHED, db.STRENGTH_NOT_KNOWING)]))
+    T7 = mint(db.Plan, 'A plan the household says has no deductible.')
+    role_on(db.INSURER_OF_PLAN, cigna, 'object_plan_id', T7)
+    plan_year(T7, '2026-01-01', '2026-12-31', by=cigna)
+    term(T7, 'deductible', 'none')                                                                    # the household's none
+    a_t7 = acc(T7, '2026-03-31')
+    check('Te7 (F3): the household says "none" -> not the rule\'s non-existence on the household\'s word: the term UNKNOWN, not TERM_NONE; remaining undetermined, not "not applicable"',
+          a_t7['term']['state'] == db.TERM_UNKNOWN and a_t7['remaining']['value'] is None)
+    T9 = mint(db.Plan, 'A plan whose year only the household has stated.')
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', T9)
+    plan_year(T9, '2026-01-01', '2026-12-31')                                                         # the household's plan year
+    term(T9, 'deductible', '$1,000', by=aetna)
+    a_t9 = acc(T9, '2026-03-31')
+    check('Te9 (the window): the plan year stated only by the household -> NO window; the derived figure undetermined with the reason naming the household\'s statement; the insurer\'s term itself stands',
+          a_t9['window']['start'] is None and 'household' in a_t9['window']['reason'] and a_t9['derived']['value'] is None
+          and a_t9['term']['value'] == D('1000'))
+    T12 = mint(db.Plan, 'The null model: every term the insurer\'s own utterance.')
+    role_on(db.INSURER_OF_PLAN, aetna, 'object_plan_id', T12)
+    plan_year(T12, '2026-01-01', '2026-12-31', by=aetna)
+    term(T12, 'deductible', '$1,000', by=aetna)
+    check('Te12 (the null model): every term the insurer\'s own utterance -> the holder\'s series and the any-party read agree exactly; one claim, one knowing origin',
+          acc(T12, '2026-03-31')['term']['value'] == D('1000') and all(c['strength'] == db.STRENGTH_KNOWING for c in acc(T12, '2026-03-31')['term']['claims']))
 
     print('\n7. The dependency direction and the wiring guard\n')
     check('plans_in_effect reads in_effect (7F) and the eligibility claims; accumulator reads reach and the claims under the catalogue; neither calls another consumer',

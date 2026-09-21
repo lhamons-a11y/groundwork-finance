@@ -4729,12 +4729,43 @@ def accumulator(session, plan, d, catalogue, knowing, person=None):
                             'value': _money(claim.content), 'ground': ground})
         return out
 
+    # ── 7J-F4 (s 7J-F4.8, ruled 2026-09-20): THE HOLDER'S SERIES. The term and the window ask for the governing
+    # term of the PLAN'S INSURER (9D-iii F4: the insurer holds the terms; the household's "our deductible is
+    # $3,000" relays it). Knowing provenance is part of a claim's ADMISSIBILITY, not a ranking: a governing
+    # claim must have a KNOWING ORIGIN - the insurer's own statement, or the SBC read and accepted (7G-F3's
+    # claim-level shape: state aggregated across the claim's relationships, strength its strongest origin,
+    # every origin listed). The household's bare relay is listed and never governs; with no qualifying claim
+    # the answer is `unknown` - the honest absence of a qualifying determination, not a weaker one, and not
+    # the household's figure. Never knowing-first-then-relay (a fallback hierarchy is a ranking - refused).
+    # The household's `none` is no more governing than its number. The stated accumulator below still tests
+    # the holder per relationship on the utterance's origin - the sibling gate named for its own pass (F1),
+    # not repaired here.
+    def by_claim(entries):
+        grouped = {}
+        for e in entries:
+            rel = session.get(EvidentiaryRelationship, e['ground'])
+            grouped.setdefault(e['claim'], {'claim': e['claim'], 'as_of': e['as_of'], 'content': e['content'], 'value': e['value'], 'origins': []})['origins'].append(
+                {'ground': e['ground'], 'asserter': e['asserter'], 'state': e['state'], 'strength': derived_strength(session, rel, knowing)})
+        out = []
+        for c in sorted(grouped.values(), key=lambda c: c['claim']):
+            states = {o['state'] for o in c['origins']}
+            strengths = {o['strength'] for o in c['origins']}
+            c['state'] = (CLAIM_ESTABLISHED if CLAIM_ESTABLISHED in states else CLAIM_CONTESTED if CLAIM_CONTESTED in states else CLAIM_CANDIDATE)
+            c['strength'] = (STRENGTH_KNOWING if STRENGTH_KNOWING in strengths else STRENGTH_NOT_KNOWING if STRENGTH_NOT_KNOWING in strengths
+                             else STRENGTH_UNDETERMINED)
+            c['qualifies'] = c['state'] == CLAIM_ESTABLISHED and c['strength'] == STRENGTH_KNOWING
+            out.append(c)
+        return out
+
     # ── the term: its own proposition on three states - amount / none / unknown ────────────────
     term_kind = catalogue['individual_deductible'] if person is not None else catalogue['deductible']
-    term_claims = claims_on_plan(term_kind)
-    tq = [c for c in term_claims if c['state'] == CLAIM_ESTABLISHED and c['as_of'] and c['as_of'] <= d]
+    term_claims = by_claim(claims_on_plan(term_kind))
+    tq = [c for c in term_claims if c['qualifies'] and c['as_of'] and c['as_of'] <= d]
     if not tq:
-        term = {'state': TERM_UNKNOWN, 'value': None, 'claim': None, 'reason': 'no established deductible term - we do not have the deductible', 'claims': term_claims}
+        stated_only = [c for c in term_claims if c['state'] == CLAIM_ESTABLISHED and c['as_of'] and c['as_of'] <= d]
+        term = {'state': TERM_UNKNOWN, 'value': None, 'claim': None,
+                'reason': ('no deductible term by the plan\'s insurer - the household\'s statement is listed, not the insurer\'s' if stated_only
+                           else 'no established deductible term - we do not have the deductible'), 'claims': term_claims}
     else:
         b = max(c['as_of'] for c in tq)
         at = [c for c in tq if c['as_of'] == b]
@@ -4749,13 +4780,16 @@ def accumulator(session, plan, d, catalogue, knowing, person=None):
             term = {'state': TERM_AMOUNT, 'value': at[0]['value'], 'claim': at[0]['claim'], 'reason': None, 'claims': term_claims}
 
     # ── the window: the governing plan-year term containing d ─────────────────────────────────
-    windows = [c for c in claims_on_plan(catalogue['plan_year']) if c['state'] == CLAIM_ESTABLISHED and c['as_of'] and c['content']
-               and c['as_of'] <= d <= c['content'].strip()]
+    year_claims = by_claim(claims_on_plan(catalogue['plan_year']))
+    windows = [c for c in year_claims if c['qualifies'] and c['as_of'] and c['content'] and c['as_of'] <= d <= c['content'].strip()]
     if windows:
         w = max(windows, key=lambda c: c['as_of'])
         window = {'start': w['as_of'], 'end': w['content'].strip(), 'claim': w['claim'], 'reason': None}
     else:
-        window = {'start': None, 'end': None, 'claim': None, 'reason': 'no plan year term containing d'}
+        stated_only = [c for c in year_claims if c['state'] == CLAIM_ESTABLISHED and c['as_of'] and c['content'] and c['as_of'] <= d <= c['content'].strip()]
+        window = {'start': None, 'end': None, 'claim': None,
+                  'reason': ('no plan year term by the plan\'s insurer containing d - the household\'s statement is listed, not the insurer\'s' if stated_only
+                             else 'no plan year term containing d')}
 
     # ── the stated accumulator: the plan's insurer's position under G ─────────────────────────
     st_claims = []

@@ -386,7 +386,7 @@ def run(db):
     check('c1: the stand-in\'s name is not ruled and reach refuses it by name, as it refused E\'s name before 9C', unruled)
     # 7J needs the plan's insurer role, a plan year, a deductible term and an occurred_on on each expense
     claim(db.INSURER_OF_PLAN, utterance=utter('Aetna insures P.'), as_of='2026-01-01', subject_party_id=aetna.id, object_plan_id=P.id)
-    claim(db.PLAN_YEAR, utterance=utter('2026'), as_of='2026-01-01', content='2026-12-31', subject_plan_id=P.id)
+    claim(db.PLAN_YEAR, utterance=utter('2026', origin=aetna), as_of='2026-01-01', content='2026-12-31', subject_plan_id=P.id)   # 7J-F4: the insurer's
     claim(db.DEDUCTIBLE, utterance=utter('$1,000', origin=aetna), as_of='2026-01-01', content='$1,000', subject_plan_id=P.id)
     for x, on in ((X, '2026-03-01'), (X8, '2026-03-15'), (Xc, '2026-03-10'), (X6, '2026-03-12'), (X_late, '2027-01-10')):
         claim(db.OCCURRED_ON, utterance=utter(on), as_of=on, subject_expense_id=x.id)
@@ -400,7 +400,7 @@ def run(db):
           and (X.id, D('300')) in [(b[0], b[1]) for b in a['derived']['basis']]
           and snapshot() == snap_c)
     claim(db.INSURER_OF_PLAN, utterance=utter('Cigna insures P2.'), as_of='2026-01-01', subject_party_id=cigna.id, object_plan_id=P2.id)
-    claim(db.PLAN_YEAR, utterance=utter('2026'), as_of='2026-01-01', content='2026-12-31', subject_plan_id=P2.id)
+    claim(db.PLAN_YEAR, utterance=utter('2026', origin=cigna), as_of='2026-01-01', content='2026-12-31', subject_plan_id=P2.id)   # 7J-F4: the insurer's
     claim(db.DEDUCTIBLE, utterance=utter('$500', origin=cigna), as_of='2026-01-01', content='$500', subject_plan_id=P2.id)
     claim(db.APPLIED_TO_DEDUCTIBLE, utterance=utter('$400 applied', origin=aetna), as_of='2026-03-25', content='$400', subject_expense_id=Xc.id)
     claim(db.APPLIED_TO_DEDUCTIBLE, utterance=utter('$150 applied', origin=cigna), as_of='2026-03-26', content='$150', subject_expense_id=Xc.id)
