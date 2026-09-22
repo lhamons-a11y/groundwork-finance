@@ -4794,3 +4794,27 @@ added; 7E is untouched, as it was).
 own question.
 
 ---
+
+### 7G-K2.9 Closed — Rob, 2026-09-21: the balance half accepted and closed as a boundary statement; **no build**; F7 remains open
+
+*L does not create a new executable semantic surface.* It says, in effect: **the existing listed
+balance remains listed, and we deliberately do not admit it into the governing-statement
+machinery.** *Building refusal fixtures for every rejected interpretation would turn a boundary
+ruling into a new tested consumer contract that the ruling itself does not require.* So:
+
+- **No build** for Sv2 / Sv4 / Sv5 / Sv8 / Sv12.
+- **No new `s113` mutations.**
+- **Those readings remain documented refusals in the ruling record, not executable behaviour.**
+- **K2's balance half — ACCEPTED and CLOSED**, with no code, at this record.
+
+**F7 is different, and stays open.** *Should 7G report the origin's `servicer_of` answer beside the
+entitled answer, so that the listed figure is intelligibly identified as the user's servicer's
+figure?* That is **not a semantic admission** of the servicer's balance; it is a presentation /
+reporting addition, and **if we want it, it deserves its own finding / candidate / ruling before any
+build.**
+
+**The boundary, exactly:** *K2 balance semantics — closed under L. F7 — open, as the next narrow
+question. No code authorisation.* The acknowledgment / discharge half (Dg4 / Dg5) remains its own
+question, named and unopened.
+
+---
