@@ -282,3 +282,19 @@ s110 27/27 standalone. The corpus: **fifteen sites, one shape.**
 (`statement_figure`, `eob_amount`, `sbc_line_figure`, ~60 sites) — *a stance before its subject is
 tied*, the named sibling question; the matcher / the importer contract (fenced); K2's balance half;
 D′.11. Gate 1580 → 1504 / 10 (the inventory error) → 1590, 0 failed.
+
+---
+
+## 9. Accepted and closed — Rob, 2026-09-21
+
+Accepted as built and ruled: `51094d4`, 1590 / 0 on the second full gate. *The evidence is complete
+and internally consistent:* the fifteen bank-line-shape sites are accounted for, with no remaining
+`bank_line` or unruled `'movement'` test / section strings; the seven substitutions stayed within the
+existing authorisation — no new semantic case or pass was introduced; **the first-gate failure set
+established the cause before the swap**, and §8 records that discovery / handling order; standalone
+coverage remains green, including `s123` 33/33 and `s94` 9/9; the tree is clean; the explicitly
+protected neighbouring semantics remain untouched — the sibling stand-ins, the matcher,
+`cleared`, `bank_returned_item`, K2's balance half and D′.11; the required workflow was followed:
+note → queue (item 14 BUILT) → commit → push. *So this is not merely a green gate after a convenient
+substitution; the inventory correction is now evidenced, bounded, recorded, and independently
+green.* **The bank line's own kind: built, accepted, closed.**
