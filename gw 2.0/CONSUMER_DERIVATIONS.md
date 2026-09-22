@@ -4765,3 +4765,32 @@ untouched; the fixture gains Sv2–Sv8 and the mutations reverse each ruled boun
 > restated explicitly if anything but L. **(6) F2, F6, F7** as read. Nothing here authorises code.
 
 ---
+
+### 7G-K2.8 Ruling — Rob, 2026-09-21: **L** for the balance half; the K8 separation agreed; no build authorised
+
+**Balance half: L — listed, as built, as a boundary statement.** *The balance half remains listed as
+built, not admitted as a governing / stated source.* In particular:
+
+- **`servicer_of` remains the dated role it already is; it is not promoted into a strength merely to
+  make the balance reachable.**
+- **The household's attachment is not excluded by inventing a strength requirement the record does
+  not support.** (F3 answered by refusing the premise: no strength gate is introduced at all.)
+- **No channel ranking** is introduced.
+- **No *E silent → servicer* fallback** is introduced.
+- **Sv8's consequence is accepted:** in the servicing-only world the governing statement can remain
+  `None`, and downstream consumers that depend on a governing statement can therefore remain
+  undetermined. **We do not solve that consequence by manufacturing a statement.**
+
+**The K8 separation — agreed.** *The discharge question is a distinct proposition. The fact that the
+acknowledgment / discharge side may be unreachable does not authorise us to alter the balance
+ruling.* So F1 as read: the acknowledgment half (Dg4 / Dg5) is its own question, brought forward
+separately and never ruled by implication from this one.
+
+**Consequently** — under L, F4 and F5 do not arise (no admission, so no conflict between channels and
+no restatement of 7J-F4-F1's Sb8, which stands as accepted), and F2 / F6 are moot (no clause is
+added; 7E is untouched, as it was).
+
+**No build is authorised.** The next step is this record, and then the acknowledgment half as its
+own question.
+
+---
