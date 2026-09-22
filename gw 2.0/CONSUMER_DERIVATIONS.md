@@ -4558,3 +4558,210 @@ sibling-gates build moved. **7J-F4-F1 — RULED C → BUILT → ACCEPTED / CLOSE
 clean: K2's balance half, the bank line's own kind and D′.11 remain named but unopened.
 
 ---
+
+## Pass 7G-K2 — The servicer's balance: K2's *or balance* half (opened 2026-09-21 from item 9's carried-forward list)
+
+*Opened by Rob 2026-09-21. 7G is closed and accepted; this pass reopens the one question 9D-i ruled
+belonged to 7G: **the servicer's balance statement is not_knowing at the kind level and cannot enter
+E's series — may a consumer with O in hand read it against O, and if so how?** The acknowledgment
+half (Dg4 / Dg5 — discharge) is a different proposition (K8) and is named in F1, not ruled here.
+Cases → findings → candidate → ruling → a separate build authorisation. **No code.**
+
+### 7G-K2.1 What is fixed
+
+**The acknowledgment ruling (2026-09-12), its own findings 2, 3, 7, 8:** *the servicer of record's
+statement is E's acknowledgment, at weakest-link strength — the held statement × the household's
+assertion that S serves E (K2); refusing this makes discharge unreachable in the servicing-only
+world.* *Servicer acknowledgment rests on a claim Groundwork cannot verify, and the record must say
+so — corrected by conflict with E's own statement (K7), never by a better rank (K3).* *Conflicts
+resolve by date, then by channel — never by count or position.* *Acknowledgment of a payment and
+statement of a balance are two propositions; discharge rests on the first (K8).* The ruling's own
+fence: *what the cases do not establish — servicing history: "servicer of record" is used as the
+household's current attachment.*
+
+**9D-i (ruled, built):** `balance` is shape H — the holder is the asserter; `KNOWING_ENTITLED_PARTY_AT_AS_OF`
+— *the asserting party held `entitled_party_of` on the claim's subject obligation, in effect at the
+claim's `as_of`*; **the servicer is not a clause of this relation: a servicer's balance statement is
+not_knowing at the kind level; a consumer with O in hand may read it against O — 7G does not today,
+and that is 7G's to open (K2's "or balance" half).** Ob8 pins it: BillCo's balance → not_knowing →
+not in E's series. 9D-i also recorded the alternative and left it to Rob: *whether the balance is
+brought into line with the acknowledgment (a party slot on `balance`; 7G's stated series reads the
+holder — a 7G change)* — and stated the consequence of H plainly: *the servicer's balance statement
+can never enter E's series under H, because `balance` has no slot that names E apart from the asserter.*
+
+**§9D.7 (ruled):** the acknowledgment's kind-level fence — no O, no composition *ack → party → role →
+obligation* — **and**: *the servicer channel is evidence about the holder's position at the strength
+already ruled for that channel (weakest link); **where a consumer has O independently in hand, that
+consumer may evaluate the servicer statement against that O.*** The permission exists; whether 7G
+takes it is this pass.
+
+**9B (ruled, built):** `servicer_of` is a role — party subject, obligation object, holds-only with
+`began` / `ended` boundaries, `KNOWING_SUBJECT_PARTY`, `reading_establishes False`. **So the party
+knowing for *S serves O* is S itself** (Kn12: S3 is knowing for its own servicing claim *and may be
+lying*); the household asserting it is **not_knowing** (St3 worked this out: *the household is not
+the subject party of `servicer_of`, so the servicing claim is not_knowing*).
+
+**7J-F4-F1 (ruled, built, closed):** the stated series reads at the claim level — established from
+any relationship ∧ **a knowing origin** ∧ dated ≤ d; *the qualifying knowing origin is the
+admissibility condition, not a ranking*; no fallback hierarchy (7J-F4 refused Reading K on sight).
+**Sb8 pins the servicer's document out** of the claim-level series and was accepted as *K2's balance
+half untouched*. **7G §7G.7 / Dg4 / Dg5:** the servicer's statement *is listed as what it is* and
+qualifies for nothing; the never-authorised servicer's stays listed *for ever*. **U6:** three
+figures, each named for what it is — a fourth number needs its own reason.
+
+### 7G-K2.2 What 7G does today — and what the servicing-only world gets
+
+`remaining`'s `stated` series (post 7J-F4-F1) reads every `balance` claim on O, groups by claim, and
+admits one iff established ∧ dated ≤ d ∧ **strength knowing** — strength being
+`KNOWING_ENTITLED_PARTY_AT_AS_OF` on the claim's origin. Each entry reports `entitled` (the origin's
+entitled-party answer at the claim's date) and its origins. The servicer's balance is therefore
+**listed with `entitled = not_in_effect` and `strength = not_knowing`, and never governs** — Ob8,
+Sv2 below. `servicer_of` **is read by no consumer at all** (one grep: the registry and the
+fixtures). The role exists, is dated, and answers `in_effect` through the same `_entitled_at` the
+entitled-party test uses — *no new machinery would be needed to read it*.
+
+**What that costs, stated plainly (Sv8).** In the servicing-only world — E never writes to the
+household; every statement arrives on the servicer's letterhead — `stated.governing` is `None` for
+ever. So `figures.attached`, `figures.confirmed`, `figures.remaining`, the `statement_check`
+diagnostic, 7I's before / after terms and 7H's comparison are **undetermined for ever**, on the one
+obligation shape the case files say is the common one. The acknowledgment ruling's own warning
+applies to this half too: *a doctrine that can never be satisfied from where Groundwork stands will
+be satisfied by manufacture.*
+
+### 7G-K2.3 The question, and the readings
+
+> **May the servicer's balance claim about O enter E's stated series — 7G having O in hand and
+> `servicer_of` being a ruled, dated role — and if so, on what condition and at what strength?**
+
+**Reading L (as built: listed, never governing).** The channel stays corpus evidence with its
+provenance shown; nothing changes; the question closes as a boundary statement. Honest and already
+consistent with every settled rule. The cost is Sv8, for ever.
+
+**Reading C (the consumer-side clause, as §9D.7 permits).** 7G, having O, admits a `balance` claim
+whose origin held `servicer_of` **on that O**, in effect at the claim's `as_of` — the servicer's
+statement *as E's position*, at weakest-link strength. **Two collisions the record forces into
+view:**
+
+- *The link's own strength.* The chain is *S states the balance* × *S serves O*. By 9B the only
+  knowing asserter of the second is **S itself** — so a strength gate on the link **admits
+  self-assertion** (K3: S3 says it services, then states your balance) and **excludes the
+  household's attachment**, the only source the household actually has. The record already answers
+  the first half: finding 3 says self-assertion *is* the ruled situation and the correction arrives
+  *by conflict, never by rank.* So C is buildable only if the link is read as **established
+  (state)**, not as knowing (strength) — with the unverifiability reported, not scored.
+- *The conflict.* Once admitted, E's own statement and the servicer's are two admitted claims. At
+  one date with different values 7G's existing rule yields **conflict → none** — so the servicer's
+  figure can *destroy* E's own governing figure (Sv6). K7's *date, then channel* would fix it, but a
+  channel preference among admitted claims is exactly the **ranking** 7J-F4-F1 refused, and
+  "admit the servicer's only when E is silent" is exactly the **fallback hierarchy** 7J-F4 refused
+  on sight. **C cannot be completed with the settled rules unless the conflict rule is re-ruled.**
+
+**Reading S (a series of its own).** The servicer's balance is neither admitted nor merely listed:
+7G reports it as a **named second series with its own governing figure** — *what the servicer's
+statements imply* — beside E's, never merged, nothing ranked, the household seeing both with their
+provenance. No ranking, no fallback, no conflict between channels (they are two series). The cost
+is a **fourth figure** in a consumer whose discipline is *three figures, each named for what it is*
+(U6), and a report-shape change every downstream consumer (7I, 7H) must decide whether to read.
+
+**Reading R (the represented holder — the substrate alternative 9D-i named).** `balance` gains a
+party slot: *S states E's balance*, the holder explicit as in `acknowledged`. Then 7G's stated test
+reads the **holder** from the slot and the strength from the origin — the mixed shape made uniform
+for the two stances that need it. **A registry change to a ruled kind, a corpus change at every
+`balance` site, and a 7G consumer change**; and it does not by itself answer either collision above
+— the origin S is still not the holder, so a servicer clause is still required somewhere. Named for
+completeness; the largest option by far.
+
+*Reading, for Rob to reject:* **L for the balance half**, with Sv8's cost recorded in the pass, *and
+the acknowledgment half opened separately* — because the acknowledgment ruling's finding 2 (discharge
+unreachable) binds **discharge**, not the balance (K8: two propositions), and because C as analysed
+collides with two settled refusals while S buys reachability with a fourth figure. If reachability
+for the balance is wanted anyway, **S** is the only reading that does not require re-ruling a
+refusal. **Rob's, entirely.**
+
+### 7G-K2.4 Findings
+
+**7G-K2-F1 — scope: the balance half only.** K2 covers *a payment or balance*; this pass is the
+balance. Dg4 / Dg5 (the servicer's acknowledgment → discharge) is the other half, where the
+*discharge unreachable* argument actually lives. *Reading:* rule the balance here; **name the
+acknowledgment half as its own pass**, not ruled by implication. **Rob's.**
+
+**7G-K2-F2 — where the clause would live.** §9D.7 permits a consumer with O in hand to evaluate the
+servicer statement; it forbids the kind-level composition. So any admission is **7G's own read of
+`servicer_of` on its own subject obligation** — no registry change, no new relation, no new
+machinery (`_entitled_at` already takes the role kind). *Reading:* if anything is admitted, it is
+consumer-side and by constant (`SERVICER_OF`), **not** a new `CATALOGUE_KINDS` key — a catalogue key
+would change the contract of every caller of `remaining` / `reconstruction` / `reconciliation`.
+**Rob's.**
+
+**7G-K2-F3 — the servicing link: established, or knowing?** The crux. Under 9B the knowing asserter
+of `servicer_of` is S itself; the household's attachment is not_knowing. A strength gate therefore
+admits exactly the self-asserted case (K3) and excludes the household's own attachment; a state gate
+admits both and reports the unverifiability. *Reading:* if C or S is ruled, the link is read as
+**established and in effect at the claim's date**, never as a strength — and the report says whose
+claim establishes it. **This is the finding that decides whether C is buildable at all. Rob's.**
+
+**7G-K2-F4 — the conflict, if the servicer's claim is admitted.** Same date, different values, E and
+S both admitted → the existing rule gives **none**, and the household loses E's own figure. The
+alternatives are a channel rank (refused by 7J-F4-F1's family rule), a fallback (refused by 7J-F4),
+or re-ruling 7G's conflict rule (a consumer-semantic change of its own). *Reading:* this is why C is
+not recommended; under **S** the question does not arise, and under **L** it never arises. **Rob's.**
+
+**7G-K2-F5 — the interaction with 7J-F4-F1's Sb8.** Sb8 — *the servicer's statement read and accepted
+→ not_knowing → not in E's series* — was accepted with K2's balance half explicitly untouched. **Any
+reading but L restates Sb8**, and the build must do it explicitly, never silently. *Reading:* record
+it now so the build cannot drift. **Rob's.**
+
+**7G-K2-F6 — what a "consumer with O in hand" is.** 7G has O as its subject; 7I and 7H inherit
+through `remaining`; 7E has no O and its chain (Kn6 / In13: the servicer link) stays **undetermined**
+whatever is ruled here. *Reading:* the clause, if any, is 7G's alone; 7E is untouched; 7I / 7H
+inherit whatever 7G reports. **Rob's.**
+
+**7G-K2-F7 — the report, under any reading.** Today an entry shows `entitled` and its origins, so the
+household sees *not the entitled party* but not *who this party is*. Under every reading including L,
+7G could report the origin's `servicer_of` answer beside the entitled one — a fact already in the
+record, no semantics added, and the difference between *a stranger's figure* and *your servicer's
+figure* becomes visible. *Reading:* worth doing under L; mandatory under C or S. **Rob's.**
+
+### 7G-K2.5 Cases
+
+O, Harbor entitled from 1/1. BillCo attached by the household as servicer of O from 1/1. S3 never
+authorised by anyone but itself. d = 3/31 unless stated.
+
+| # | Case | L (as built) | C | S |
+|---|---|---|---|---|
+| **Sv1** | Harbor states *balance $2,588 as of 3/31* | governs | governs | governs E's series |
+| **Sv2 (Ob8)** | BillCo states *$1,900 as of 3/31*; the servicing claim is Rob's | listed, `entitled` not_in_effect, not_knowing, never governing | admitted (link established, in effect) → governs where E is silent | governs the servicer series only |
+| **Sv3 (the self-asserted link)** | BillCo asserts its own `servicer_of` and states the balance | the same — the link's strength is irrelevant | admitted; **under a strength gate this is the only admitted case** (F3) | the same as Sv2 |
+| **Sv4 (K3 / S3 / Dg5's analogue)** | S3 asserts its own servicing and states *your balance $1,925* | listed for ever, never governing | **governs until E conflicts** — which finding 3 says is the ruled behaviour, not a defect | its own series, labelled |
+| **Sv5 (role at date)** | BillCo serviced O 1/1–6/30; its statement is dated 8/31 | listed | **out** — the role not in effect at the claim's date (the same `in_effect` test) | out of the servicer series |
+| **Sv6 — the conflict (F4)** | Harbor *$2,588* and BillCo *$2,500*, both 3/31 | Harbor governs; the servicer's is listed | **conflict → none: the household loses E's own figure** | E's series Harbor; the servicer series 2,500 |
+| **Sv7 (7J-F4-F1 Sb8)** | BillCo's statement **read** + Rob's acceptance | not in E's series (Sb8 as accepted) | admitted — **Sb8 restated** (F5) | in the servicer series — Sb8 restated |
+| **Sv8 — the servicing-only world** | E never writes; every balance is BillCo's | **`stated.governing` None for ever; confirmed, the diagnostic, 7I and 7H undetermined for ever** | reachable | reachable, in a series named as the servicer's |
+| **Sv9 (K5)** | Rob: *BillCo says the balance is $1,900* | listed, not_knowing | unchanged — Rob is neither E nor the servicer | unchanged |
+| **Sv10 (F6)** | 7E reads the same statement as a chain (In13 / Kn6) | undetermined | undetermined — untouched | undetermined |
+| **Sv11 (F1 — the other half)** | the same BillCo statement acknowledges p | attached_unacknowledged (Dg4) | **unchanged here** — the acknowledgment half is its own pass | unchanged |
+| **Sv12 (the null model)** | no `servicer_of` claim anywhere in the corpus | every existing outcome identical | identical | identical |
+
+### 7G-K2.6 Candidate — pending the ruling
+
+**Under L:** no consumer change; the pass closes as a boundary statement — *the servicer's balance is
+evidence about E's position and is reported as such; it does not enter E's series, because `balance`
+names no holder apart from its asserter and admitting it would require either a ranking or a
+fallback, both refused* — plus F7's report addition (the origin's `servicer_of` answer beside the
+entitled one), and Sv8's cost recorded in the pass as the known consequence. Fixture additions: Sv2
+(restated to name the servicer answer), Sv4, Sv5, Sv8, Sv12; a mutation per refusal in `s113` (the
+servicer's balance governing; the servicer's governing only where E is silent — the fallback; the
+self-asserted link lifting the strength).
+
+**Under C or S:** 7G reads `SERVICER_OF` by constant on its own subject obligation via `_entitled_at`;
+admission (C) or a second series (S) exactly as F3 / F4 rule; Sb8 restated; 7I / 7H inherit; 7E
+untouched; the fixture gains Sv2–Sv8 and the mutations reverse each ruled boundary.
+
+### 7G-K2.7 Ruling sought
+
+> **(1)** L, C, S or R. **(2) F1:** the balance half only, the acknowledgment half named as its own
+> pass. **(3) F3:** if anything is admitted, the servicing link read as *established and in effect*,
+> never as a strength. **(4) F4:** the conflict rule — as it stands, or re-ruled. **(5) F5:** Sb8
+> restated explicitly if anything but L. **(6) F2, F6, F7** as read. Nothing here authorises code.
+
+---
