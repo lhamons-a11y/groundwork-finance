@@ -183,3 +183,36 @@ to a payment by the reader (the match manufacturing the tie) · the line's `as_o
 > foundation map. **(4) F4:** the object a required absence. **(5) F5:** `as_of` the movement's
 > date as stated. **(6) F6** as stated — the matcher not opened. **(7) F7** as read. Nothing here
 > authorises code.
+
+---
+
+## 7. Ruling — Rob, 2026-09-21. F2's candidate ruled; F1–F7 accepted; the matcher boundary explicit; no code
+
+*The correction materially sharpens the pass: `bank_returned_item` is already ruled and is not part
+of this question. The only stand-in under examination is `bank_line`.*
+
+**F2 — ruled as the candidate: one ruled kind — the party's statement that a movement occurred,
+with the party as subject.** The working name `movement` if that is the record's chosen vocabulary;
+*the semantics matter more than the label.*
+
+**F1 — accepted:** the bank line only; the sibling question (*a stance before its subject is tied*)
+named, not ruled. **F3 — accepted.** `KNOWING_SUBJECT_PARTY` is the appropriate strength source: the
+bank is knowing for its own ledger statement; a foundation-map inference here would recreate the
+mechanism 9D retired; K6's alternative (undetermined by design) remains refused. **F4 — accepted.**
+The absent object / tie is genuinely absent; the reader does not manufacture an *about nothing paid*
+state; the movement's eventual relation to a payment is a separate determination. **F5 — accepted.**
+`as_of` is the movement date stated by the bank line — T2's loose *capture's `as_of`* corrected
+without changing the underlying temporal fact. **F6 — accepted.** The bank line is not the domain
+proposition `cleared(p1)`; it supplies evidence that a movement occurred; a separate proposition
+establishes what happened to a particular payment. *The matcher therefore remains fenced and cannot
+be smuggled into candidate generation.* **F7 — accepted as scope.** The eight `bank_line` sites are
+the corpus; the roughly sixty sibling sites remain untouched.
+
+**The key semantic distinction, recorded.** The bank line has a different status from the other
+line shapes despite their representational similarity: **`bank_line` mints evidence about an
+occurrence, not a stance about an already-identified domain object.** The movement itself need not
+be minted as an identity merely to represent the bank's statement. The line establishes the bank's
+proposition about an occurrence; later reasoning may establish whether that occurrence corresponds
+to a payment, return, fee, etc. *That later tie cannot be manufactured by the line-kind rule.*
+
+**No code is authorised by this ruling.** The build awaits its separate authorisation.
