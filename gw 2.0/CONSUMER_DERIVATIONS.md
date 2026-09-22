@@ -4818,3 +4818,145 @@ question. No code authorisation.* The acknowledgment / discharge half (Dg4 / Dg5
 question, named and unopened.
 
 ---
+
+## Pass 7G-K2-F7 — Reporting the servicer answer (opened 2026-09-21 from 7G-K2's F7)
+
+*Opened by Rob 2026-09-21 as the one question K2's closure left open. **A presentation question, not
+a semantic admission:** should 7G report the origin's `servicer_of` answer beside the entitled one,
+so that a listed figure is intelligibly *the household's servicer's* figure rather than a stranger's?
+The balance half is closed under L and is not reopened here: nothing in this pass admits, ranks or
+qualifies anything. Cases → findings → candidate → ruling → a separate build authorisation. **No code.**
+
+### 7G-K2-F7.1 What is fixed
+
+**7G-K2.8 / .9 (ruled, closed):** the servicer's balance stays **listed as built**, never admitted;
+`servicer_of` is **not promoted into a strength**; no ranking, no fallback; Sv8's consequence
+accepted. The refusals are documented, not executable. **Whatever this pass rules, `qualifies`,
+`governing` and every figure must be unchanged** — that is the boundary the closure set.
+**7J-F4-F1 (built):** the stated series reads at the claim level through `_holder_series`, which
+already computes, per origin, *the origin party* and *its role answer at the claim's `as_of`* under a
+`role_key` the caller names (`entitled` for 7G, `in_role` for 7H, `plan_insurer` for 7J), with the
+governing role stances beside it; the claim-level answer is the knowing origin's. **9B:**
+`servicer_of` is a dated, holds-with-boundaries role, `KNOWING_SUBJECT_PARTY` — **S itself is the
+knowing asserter of its own servicing claim, and may be lying (Kn12, K3)**; the household's
+attachment is `not_knowing` and is *the household's own decision about whom it pays*. **7F:**
+`in_effect` answers *in_effect · not_in_effect · undetermined · contested*, with the governing
+stances named. **Absence is not zero:** no servicing claim at all must not read as *not your
+servicer*. **The exact-absence pins on the word "servicer"** are about the `Obligation` table's
+columns and module-level helper names (obligation identity's `DESCRIPTORS`, the role catalogue's
+`ABSENT_HELPERS`) — a report key collides with neither, but **no module-level helper may be named
+`servicer` / `current_servicer`.**
+
+### 7G-K2-F7.2 What the report says today
+
+A stated entry carries `claim`, `as_of`, `value`, `state`, `strength`, `asserter`, **`entitled`**,
+`governing`, `qualifies`, and `origins` (each with its ground, asserter, origin party, state,
+strength and the same `entitled` / `governing` pair). So today the household's servicer's figure and
+a stranger's figure are reported **identically**: `entitled = not_in_effect`, `strength =
+not_knowing`, `qualifies = False`. The record holds the fact that distinguishes them — the
+household's `servicer_of` attachment, dated — and **no consumer reads it** (one grep: the registry
+and the fixtures only). *That is the whole of F7: a fact already in the record, absent from the
+report that lists the claim it explains.*
+
+### 7G-K2-F7.3 The question, and the readings
+
+> **Should a stated entry carry the origin's `servicer_of` answer on 7G's own subject obligation, at
+> the claim's `as_of`, beside the entitled answer — and nothing else?**
+
+**Reading N (no change).** The listing is complete as evidence; the household can ask what BillCo is
+elsewhere. Nothing is added that a later change could misuse. But the one consumer that lists the
+claim is the one place the distinction matters, and *the record holds the answer*.
+
+**Reading A (the answer, beside the entitled one).** Each entry and each origin gains `servicer` —
+the same four-valued answer with its governing stances, read with the same call. Inert by
+construction: it enters no gate, no figure, no ordering. **The cost is that a reported field is a
+field a later change can start reading** — which is exactly why this pass, and not K2's closure,
+carries the crossing test (F7-Fd).
+
+**Reading B (a derived label).** *"your servicer" / "a stranger"* as a name. **Refused on sight:** a
+label is a judgement — it collapses *not_in_effect*, *contested* and *undetermined* into one word and
+makes an absence read as a negative, the failure *absence is not zero* names.
+
+*Reading, for Rob to reject:* **A**, scoped to 7G's stated series, with the crossing test built.
+
+### 7G-K2-F7.4 Findings
+
+**F7-Fa — scope: which listings.** The stated (balance) series is where the K2 case lives. The
+**acknowledgment** listing has the same gap (Dg4: the servicer's acknowledgment is listed with
+`entitled = not_in_effect` exactly like a stranger's) — but the acknowledgment / discharge half is an
+**unopened question**, and giving its listing a new field now would front-run the presentation of
+the pass that will rule it. *Reading:* the **stated series only**; the acknowledgment listing is
+named for that pass. **Rob's.**
+
+**F7-Fb — where the answer comes from.** `servicer_of` on **7G's own subject obligation** — the O the
+consumer already has, §9D.7's *consumer with O in hand* — at **the claim's `as_of`** (not at `d`),
+for **the origin party** (the same party the strength is computed on), through the existing
+`_entitled_at`, which is generic in the role kind. Per origin, with the claim-level value the
+knowing origin's — mirroring `entitled` exactly. *Reading:* as stated; no new machinery, no relation,
+no registry change. **Rob's.**
+
+**F7-Fc — the vocabulary, and the absence.** `servicer`, four-valued (`in_effect` · `not_in_effect` ·
+`undetermined` · `contested`) with the governing stances beside it — never a boolean, never a label
+(Reading B). **No servicing claim at all → `undetermined`**, which reads as *we hold nothing about
+this party's servicing*, not as *not your servicer*. *Reading:* as stated. **Rob's.**
+
+**F7-Fd — the crossing test.** K2's closure ruled that a boundary statement earns no fixtures. **F7
+is different: it is the first code in which that boundary can be crossed** — the moment the answer is
+in the report, a later change can gate on it. *Reading:* the build carries (i) a fixture case that
+`qualifies`, `governing`, the three figures and the diagnostic are **identical with the field
+present**, and (ii) `s113` mutations for each crossing — *the servicer answer qualifies a claim* (L
+crossed) · *the servicer answer substituted for the entitled one* · *a label instead of the answer*.
+Three mutations, one case; nothing else. **Rob's.**
+
+**F7-Fe — the catalogue and the shared helper.** By constant (`SERVICER_OF`), **not** a
+`CATALOGUE_KINDS` key — a key would change the contract of every caller of `remaining` /
+`reconstruction` / `reconciliation`. And the read belongs **in 7G, over the entries `_holder_series`
+returns**, not inside the shared helper: 7H's and 7J's series read expenses and plans, where an
+obligation role is meaningless. *Reading:* as stated — 7H, 7J, 7E and the registry untouched.
+**Rob's.**
+
+**F7-Ff — what downstream sees.** 7I and 7H read `stated.governing` and the figures, none of which
+changes; the entries gain a key. **`governing` itself gains nothing** — only a knowing entitled
+origin can govern, so a servicer key there would be dead weight with one value. *Reading:* entries
+and origins only. **Rob's.**
+
+**F7-Fg — the self-asserted servicing claim (Kn12 / K3).** S3 asserting *I service your loan* makes
+`servicer = in_effect` on its own say-so. The report does not hide this: the governing stances are
+listed beside the answer, so the household can see **whose** claim establishes the servicing — its
+own attachment or the party's own assertion. *Reading:* the answer plus its stances is the honest
+report; **no second field ranking the source** (that would be the strength gate L refused). **Rob's.**
+
+### 7G-K2-F7.5 Cases
+
+O, Harbor entitled from 1/1; BillCo attached by the household as servicer of O from 1/1; S3 attached
+by nobody. d = 3/31.
+
+| # | Case | today | under A |
+|---|---|---|---|
+| **Fv1** | Harbor's own balance, 3/31 | `entitled` in_effect → governs | unchanged; `servicer` **undetermined** (nothing claims Harbor services O) |
+| **Fv2** | BillCo's balance, the household's attachment | listed: not_in_effect / not_knowing / not qualifying | the same, plus `servicer` **in_effect**, its governing stance the household's attachment — *the household's servicer's figure* |
+| **Fv3 — the case that earns the pass** | S3's balance, no servicing claim anywhere | **indistinguishable from Fv2** | `servicer` **undetermined** — a stranger's figure, now distinguishable |
+| **Fv4 (Kn12 / K3)** | S3 asserts its own `servicer_of`, then states the balance | listed | `servicer` **in_effect**, the governing stance **S3's own claim** — visible as self-asserted, not ranked (F7-Fg) |
+| **Fv5 (role at date)** | BillCo serviced 1/1–6/30; its balance is dated 8/31 | listed | `servicer` **not_in_effect** — read at the claim's date, never at `d` |
+| **Fv6 (K5)** | Rob: *BillCo says $1,900* | listed, not_knowing | `servicer` **undetermined** (Rob services nothing) |
+| **Fv7 — the crossing test (F7-Fd)** | the whole 7G fixture, field present | — | `qualifies`, `governing`, `attached`, `confirmed`, `remaining`, the diagnostic **identical** — the field is inert |
+| **Fv8 (the null model)** | no `servicer_of` claim in the corpus | — | every report identical but for the key, `undetermined` everywhere |
+
+### 7G-K2-F7.6 Candidate — pending the ruling
+
+In `remaining`, after the stated series is built: for each entry and each of its origins, the
+origin's `servicer_of` answer on the obligation at the claim's `as_of` (`_entitled_at` with
+`SERVICER_OF`), reported as `servicer` beside `entitled` with its governing stances; the
+claim-level value the knowing origin's, exactly as `entitled`. **Nothing reads it**: `qualifies`,
+`governing`, the figures, the diagnostic, 7I and 7H unchanged; `_holder_series`, 7H, 7J, 7E and the
+registry untouched; no catalogue key; no module-level helper named `servicer`. Fixture: Fv2, Fv3,
+Fv4, Fv5, Fv7 (the inertness case), Fv8. `s113`: three mutations — the servicer answer qualifying a
+claim · substituted for the entitled answer · reported as a label.
+
+### 7G-K2-F7.7 Ruling sought
+
+> **(1)** N, A or B. **(2) Fa:** the stated series only, the acknowledgment listing named for its own
+> pass. **(3) Fc:** four-valued, absence → `undetermined`. **(4) Fd:** the crossing test as
+> described — one case, three mutations. **(5) Fb, Fe, Ff, Fg** as read. Nothing here authorises code.
+
+---
