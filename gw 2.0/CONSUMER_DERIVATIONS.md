@@ -4960,3 +4960,29 @@ claim · substituted for the entitled answer · reported as a label.
 > described — one case, three mutations. **(5) Fb, Fe, Ff, Fg** as read. Nothing here authorises code.
 
 ---
+
+### 7G-K2-F7.8 Ruling — Rob, 2026-09-21: **A**, scoped to the stated series, with the crossing test; no build authorised
+
+**Reading A, scoped to the stated series, with the crossing test.** Specifically:
+
+- **Add the servicer-origin answer beside the entitled answer; it does not replace or reinterpret it.**
+- **Compute it through the existing dated `servicer_of` semantics via `_entitled_at`, at the claim's
+  `as_of`.**
+- **Preserve the four-valued answer. Absence means `undetermined`; it must never manufacture *not
+  your servicer*.**
+- **Keep the field inert: it cannot qualify a claim, become governing, substitute for the entitled
+  answer, or establish a ranking.**
+- **Scope the change to 7G's stated series. Do not extend it to the acknowledgment listing or shared
+  helpers.**
+- **`governing` gains nothing from this addition.**
+- **The self-asserted servicing claim is displayed through its existing stances; it is not ranked or
+  strengthened.**
+
+**Fd's crossing test accepted as part of the ruling:** *because this is executable report output, the
+build must include the inertness fixture and the three `s113` mutations* — the servicer answer
+qualifying a claim, substituted for the entitled answer, reported as a label. **Those mutations test
+that the new field cannot silently become semantic input.**
+
+**This is the ruling only. Build is not yet authorised.**
+
+---
