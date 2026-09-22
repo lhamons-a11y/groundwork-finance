@@ -105,8 +105,7 @@ def run(db):
     s.add(rob)
     s.commit()
     household = rob.party
-    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, db.PAYMENT_CORRESPONDS: {'person', 'institution'},
-               'bank_line': {'institution'}}   # cleared / acknowledged / amount: ruled kinds since 9D-i / 9D-iv - knowing by the role, not by the map
+    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, db.PAYMENT_CORRESPONDS: {'person', 'institution'}}   # cleared / acknowledged / amount / movement: ruled kinds - knowing by the relation, not by the map
 
     def utter(text, when='2026-03-10T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -223,12 +222,12 @@ def run(db):
     stmt = held('h-bank-mar', '2026-03-31', bank, u_bank)
     r_stmt = read(stmt)
     n_before = s.query(db.Payment).count()
-    p_line = prop('bank_line', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id,   # 9D-iv F6: the bank line (subject the bank), not the ruled cleared stance
+    p_line = prop(db.MOVEMENT, object_state=db.PARTICIPANT_NONE, subject_party_id=bank.id,   # the bank line's own kind: the bank's statement that a movement occurred; no object (F4)
                   content='CHASE MTG 3/3 -1,412.00', as_of='2026-03-03')
     e_line = evidence(p_line, reading=r_stmt)
-    check('Pm2: a bank line mints nothing; the read claim names no payment referent (candidates, empty)',
+    check('Pm2: a bank line mints nothing; the read claim names no payment referent - the object a required absence, what it concerns Ab7\'s claim or nothing',
           s.query(db.Payment).count() == n_before and p_line.object_payment_id is None
-          and p_line.object_state == db.PARTICIPANT_CANDIDATES)
+          and p_line.object_state == db.PARTICIPANT_NONE and db.RULED_KINDS[db.MOVEMENT]['object'] == ())
     # Ab7 retired the absence in place: the line -> p tie is proposition_concerns (tests/
     # test_proposition_concerns_fixture.py). Here none is asserted; the bank line names nothing.
     check('Pm2: the line -> p tie is a separate claim (Ab7), none asserted here - the line names nothing',
@@ -319,14 +318,14 @@ def run(db):
           s.get(db.Payment, p11.id) is not None
           and s.query(db.Proposition).filter_by(kind=db.CLEARED, subject_payment_id=p11.id).count() == 0)
     n_pay = s.query(db.Payment).count()
-    p_xfer = prop('bank_line', object_state=db.PARTICIPANT_NONE, subject_party_id=bank.id,   # 9D-iv F6: the bank line
+    p_xfer = prop(db.MOVEMENT, object_state=db.PARTICIPANT_NONE, subject_party_id=bank.id,   # the bank line's own kind
                   content='TRANSFER TO SAVINGS -2,000.00', as_of='2026-08-15')
     evidence(p_xfer, reading=r_stmt)
     check('Pm12: a transaction with no payment - a bank line about nothing paid toward anything mints nothing',
           s.query(db.Payment).count() == n_pay and p_xfer.object_state == db.PARTICIPANT_NONE)
 
     print('\n8. Pm10 / Pm13 - autopay lines are candidates; retraction does not unmint\n')
-    lines = [prop('bank_line', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id,   # 9D-iv F6: the bank line (subject the bank), not the ruled cleared stance
+    lines = [prop(db.MOVEMENT, object_state=db.PARTICIPANT_NONE, subject_party_id=bank.id,   # the bank line's own kind; the object absent - the tie is Ab7's, or nothing
                   content=f'CHASE MTG {m}/3 -1,412.00', as_of=f'2026-{m:02d}-03') for m in (4, 5, 6)]
     for ln in lines:
         evidence(ln, reading=r_stmt)

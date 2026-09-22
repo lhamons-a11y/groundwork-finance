@@ -99,7 +99,7 @@ def run(db):
     s.commit()
     household, kim_party = rob.party, kim.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'statement_figure': {'institution'}, 'balance': {'institution'}, 'eob_amount': {'institution'},
-               'date_of_service': {'person', 'institution'}, 'movement': {'institution'}}
+               'date_of_service': {'person', 'institution'}}   # movement: the ruled kind (BANK_LINE_KIND.md) - knowing by the relation, not by the map
     # 'acknowledgment' deliberately absent: its relation (the entitled party) is unruled -> undetermined
 
     def utter(text, when='2026-04-02T09:00:00', origin=None):

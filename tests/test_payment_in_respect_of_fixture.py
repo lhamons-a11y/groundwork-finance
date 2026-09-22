@@ -241,7 +241,7 @@ def run(db):
     feed = held('h-feed', '2026-03-31', bank, u_bank)
     r_feed = read(feed)
     n_pay, n_exp, n_rel = s.query(db.Payment).count(), s.query(db.Expense).count(), rel().count()
-    line = prop('movement', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id, content='CVS PHARMACY 24.99 | Medical', as_of='2026-03-02')
+    line = prop(db.MOVEMENT, object_state=db.PARTICIPANT_NONE, subject_party_id=bank.id, content='CVS PHARMACY 24.99 | Medical', as_of='2026-03-02')   # the ruled kind (BANK_LINE_KIND.md): no object
     evidence(line, reading=r_feed)
     check('D2: the feed line is the bank\'s proposition about a movement with candidates - it minted no payment, no expense, and asserted no relation; "Medical" proves no purpose',
           s.query(db.Payment).count() == n_pay and s.query(db.Expense).count() == n_exp and rel().count() == n_rel)

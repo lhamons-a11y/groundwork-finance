@@ -44,7 +44,7 @@ def _mutations(db):
 
     def category_mints():
         def on_line(mapper, connection, target):
-            if target.kind == 'movement' and target.content and 'category' in target.content:
+            if target.kind == db.MOVEMENT and target.content and 'category' in target.content:
                 u = connection.execute(db.Utterance.__table__.select().limit(1)).first()
                 if u is not None:
                     connection.execute(X.insert().values(minted_by_id=u.id))

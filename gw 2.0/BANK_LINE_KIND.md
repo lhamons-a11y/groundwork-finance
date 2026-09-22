@@ -216,3 +216,69 @@ proposition about an occurrence; later reasoning may establish whether that occu
 to a payment, return, fee, etc. *That later tie cannot be manufactured by the line-kind rule.*
 
 **No code is authorised by this ruling.** The build awaits its separate authorisation.
+
+---
+
+## 8. Built — 2026-09-21
+
+`core/database.py`: **`MOVEMENT = 'movement'`** and one registry entry — `subject ('subject_party_id',)`,
+`object ()`, `reading_establishes True`, `relational_knowing True`, `knowing_relation
+KNOWING_SUBJECT_PARTY`; not a role; a comment block carrying the ruling (the occurrence / stance
+distinction, the object's absence, `as_of` the movement's date, the matcher fenced). **No resolver, no
+relation, no consumer, no migration:** the existing designated-subject-party resolver answers, and no
+consumer reads the kind (7A / 7C / 7D / 7E read whatever kinds the readings yield).
+
+**The null model, twice.** The registration alone against the unchanged corpus: 9D-iv 18/18,
+payment identity 38/38, Ab7 32/32, 9B 26/26, relational knowing 23/23, 9D-i 22/22, 9C 33/33 — zero
+change. Then **the corpus swap at the eight `bank_line` sites (F7)** — `bank_line` → `MOVEMENT`; the
+object `CANDIDATES` → `NONE` at Pm2 / Pm10 / Ab7 (Pm12 already `NONE`) — the required absence (F4);
+the two `KNOWING` map entries retired (F3); Pm2's object-state pin restated to the absence; Va11's
+*`bank_line` not in `RULED_KINDS`* pin (the exact-absence class) restated to *the ruled kind refuses a
+candidates object too*; `s94`'s mutation follows the name — 18/18, 38/38, 32/32 again: **every
+bank-line outcome unchanged** (mints nothing, names nothing, refused under the stances; Ab7's P7
+tie and its knowing strength unchanged — now by the relation, not the map). No `bank_line` remains.
+
+**The oracle — the 9D-iv fixture (18 → 26), §7:** **Bl1** the registry as ruled, and line 7 read → a
+movement claim, subject the bank, `as_of` 3/3 (the movement's date, not the capture's 3/31), a
+candidate in state, **knowing** in strength because the artefact's origin *is* the subject party;
+no payment minted; nothing named. **Bl2 (F6)** Rob's tie is Ab7's claim, established by his
+utterance; the movement claim byte-identical; `cleared(p)` the bank's separate stance — none added
+by the tie, none with the line as subject. **Bl3 (F4 / Pm12)** the transfer to savings the same shape
+as the mortgage line; *about nothing paid* the absence of any tie. **Bl5 (K5)** Rob relaying the
+bank's line as an utterance → not_knowing, by the relation. **Bl6 (O5)** a row of Rob's own
+spreadsheet → knowing for *Rob's* statement of a movement, and nothing about clearing — `cleared`
+stays the bank's by `drawn_on`. **Bl10 (Va11 holds)** a movement with a payment object, or a
+candidates object, refused; `bank_returned_item` keeps the payment as subject. **Bl11 (the null
+model, F6)** across every line no payment minted and the one tie in the record is Rob's utterance —
+no reader, match or rule manufactured one.
+
+**Smoke `s123` (23 → 33), five mutations, all caught first run:** the line becomes the stance
+(movement admits a payment object) · the bank knowing by foundation (the map restored) · the relay
+knowing (K5 reversed) · **the reader manufactures the tie** (a reading-sourced concerns claim inserted
+from the line — the matcher smuggled in) · `as_of` the capture's. **`s94` (9/9):** *a bank line mints
+a payment* renamed to the kind, still caught.
+
+**F7 corrected — an inventory finding, not a semantic expansion (Rob, 2026-09-21).** The first
+full gate returned 1504 / 10: five sections (s101, s104, s109, s110, s98), each its *fixture passes in
+full* plus its baseline, nothing else. The cause: the record's fixtures had **already been using the
+name `movement`** as a fifth stand-in for the bank-line shape — party subject, `CANDIDATES` object,
+bank-line content, the subject already the artefact's origin — at seven sites the opening's grep
+never searched (payment-counteracts A8 `REFUND MERCY 300.00`; payment-in-respect-of D2 `CVS PHARMACY
+24.99`; expense identity ×2 `MERCY HOSPITAL 412.00 | bank category`, `CVS PHARMACY 38.20`; aboutness
+P7 and level-consistency L7 `HARBOR MTG -1,412.00`; plus a chain-strength map entry and `s98`'s
+mutation keyed on the name). The ruled kind's required absence refused their candidates object.
+**Ruled:** *the corpus is the bank-line SHAPE, not the four names*; the seven sites are in; the kind
+name stands (a different name would solve an inventory error by changing the ontology); no sibling
+stand-in is pulled in by resemblance; the map entry and the mutation are auxiliary occurrences
+updated with the transition, not new semantic cases. **Done, after the failure set was complete:**
+the object → `NONE` at the seven sites (two `line()` helpers gained an `object_state` parameter
+defaulting to the sibling stand-ins' shape; the sibling calls unchanged); the map entry retired; the
+mutation keyed on the constant; one pin restated (expense identity's *still names nothing*: the
+absence). Fixture counts unchanged — 25 / 45 / 34 / 27 / 32 / 37 — **every outcome preserved**, the
+strength identical because the subject was already the origin; s98 9/9, s101 9/9, s104 23/23,
+s110 27/27 standalone. The corpus: **fifteen sites, one shape.**
+
+**Untouched, by name:** `cleared` / `bank_returned_item` (9D-iv); the three sibling line stand-ins
+(`statement_figure`, `eob_amount`, `sbc_line_figure`, ~60 sites) — *a stance before its subject is
+tied*, the named sibling question; the matcher / the importer contract (fenced); K2's balance half;
+D′.11. Gate 1580 → 1504 / 10 (the inventory error) → 1590, 0 failed.

@@ -120,8 +120,8 @@ def run(db):
         s.commit()
         return r
 
-    def line(reading, kind, content, party):
-        pr = db.Proposition(kind=kind, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES,
+    def line(reading, kind, content, party, object_state=db.PARTICIPANT_CANDIDATES):
+        pr = db.Proposition(kind=kind, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=object_state,
                             subject_party_id=party.id, content=content, as_of='2026-03-31')
         s.add(pr)
         s.commit()
@@ -228,7 +228,7 @@ def run(db):
           and entry_of(rep, L2)['identities'] == [(o2.id, db.ABOUT_ASSERTED)] and len(rep['types']['obligation']['inconsistencies']) == 1)
     B = held('h-bank', '2026-03-31', chase, u_chase)                # no artefact-level claim
     rB = read(B)
-    L7 = line(rB, 'movement', 'CHASE MTG -1,412.00', chase)
+    L7 = line(rB, db.MOVEMENT, 'CHASE MTG -1,412.00', chase, object_state=db.PARTICIPANT_NONE)   # the ruled kind (BANK_LINE_KIND.md): no object; the tie Ab7's
     p_concerns(L7, utterance=utter('Line 7 is the mortgage.'), object_obligation_id=o1.id)
     repB = db.level_consistency(s, B)
     check('Ld4: {} / line asserted O1 -> NO_LEVEL_BASIS - never "consistent"; the artefact state is none',

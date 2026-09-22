@@ -149,8 +149,8 @@ def run(db):
         s.commit()
         return r
 
-    def line(a, reading, kind, content, party):
-        p = prop(kind, object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=party.id, content=content, as_of=a.as_of)
+    def line(a, reading, kind, content, party, object_state=db.PARTICIPANT_CANDIDATES):
+        p = prop(kind, object_state=object_state, subject_party_id=party.id, content=content, as_of=a.as_of)
         return p, evidence(p, reading=reading)
 
     mercy, u_mercy = mint_party('Mercy Hospital.')
@@ -204,7 +204,7 @@ def run(db):
     stmt = held('h-card', '2026-02-28', bank, u_bank)
     r_stmt = read(stmt, 'feed-import/1')
     n_before = s.query(db.Expense).count()
-    p_line, e_line = line(stmt, r_stmt, 'movement', 'MERCY HOSPITAL 412.00 | bank category: Medical', bank)
+    p_line, e_line = line(stmt, r_stmt, db.MOVEMENT, 'MERCY HOSPITAL 412.00 | bank category: Medical', bank, object_state=db.PARTICIPANT_NONE)   # the ruled kind: no object
     check('the categorised line mints no expense',
           s.query(db.Expense).count() == n_before)
     check('the bank\'s category is content of the bank\'s statement - no expense or nature claim was created from it',
@@ -216,7 +216,7 @@ def run(db):
           and s.query(db.EvidentiaryRelationship).filter_by(proposition_id=c_line.id).one().utterance_id is None)
     evidence(c_line, utterance=utter("That's the ER charge.", '2026-03-02T09:00:00'))
     check('Rob\'s answer ties the line to X; the line itself is unchanged and still names nothing',
-          s.get(db.Proposition, p_line.id).object_state == db.PARTICIPANT_CANDIDATES
+          s.get(db.Proposition, p_line.id).object_state == db.PARTICIPANT_NONE   # the ruled kind: the object a required absence; the tie Ab7's
           and s.get(db.Proposition, p_line.id).object_expense_id is None)
 
     print('\n4. Ex3 / Ex4 - the EOB and the bill concern X; the obligation is separate; O <-> X is not built\n')
@@ -275,7 +275,7 @@ def run(db):
 
     print('\n6. Ex8 / Ex9 / Ex10 - the prescription; the classifier\'s proposal; two stances\n')
     Rx = mint_expense(utter("Kim's prescription at CVS on 3/3."))
-    p_cvs, _ = line(stmt, r_stmt, 'movement', 'CVS PHARMACY 38.20 | MCC 5912', bank)
+    p_cvs, _ = line(stmt, r_stmt, db.MOVEMENT, 'CVS PHARMACY 38.20 | MCC 5912', bank, object_state=db.PARTICIPANT_NONE)   # the ruled kind: no object
     evidence(prop(db.PROPOSITION_CONCERNS, subject_proposition_id=p_cvs.id, object_expense_id=Rx.id), utterance=utter("That's the prescription."))
     check('Ex8: the prescription is an expense Rob minted; the card line concerns it',
           s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS, object_expense_id=Rx.id).count() == 1)

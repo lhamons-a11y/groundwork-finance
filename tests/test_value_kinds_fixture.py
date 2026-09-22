@@ -23,7 +23,8 @@ What this slice can and cannot exercise
     Va11 F6: the bank line with the bank as subject refused under the ruled names                                           EXERCISED
     Va12 the 2 x 2 on p: origin {the payer, a stranger} x kind {amount, occurred_on}                                         EXERCISED
     the composition fence: no role reached through the attachment; the entitled party is not in the set                     EXERCISED
-    the determination (9D-v); candidate generation; the bank line's own kind                                                NOT BUILT
+    Bl1-Bl11 BANK_LINE_KIND.md: the movement - the bank's statement that a movement occurred; no object; KNOWING_SUBJECT_PARTY  EXERCISED
+    the determination (9D-v); candidate generation (the matcher, fenced); the sibling line stand-ins                       NOT BUILT
 
 Run:  python tests/test_value_kinds_fixture.py
 """
@@ -269,11 +270,52 @@ def run(db):
     check('Va6 (Pm12): a bank line about nothing paid mints no payment; a value on nothing has no subject and is refused',
           s.query(db.Payment).count() == n_pay
           and _refused(s, db.Proposition(kind=db.CLEARED, subject_state=db.PARTICIPANT_NONE, object_state=db.PARTICIPANT_NONE, content='TRANSFER TO SAVINGS', as_of='2026-08-15')))
-    check('Va11 (F6): the bank LINE - the bank as subject, the thing a candidate - is REFUSED under cleared / amount; it keeps its shape under the bank_line stand-in (payment-identity and Ab7 renamed theirs)',
+    check('Va11 (F6, then BANK_LINE_KIND.md): the bank LINE - the bank as subject, the thing a candidate - is REFUSED under cleared / amount; it is the ruled MOVEMENT kind with NO object (the required absence) - the line with a candidates object refused under it too',
           _refused(s, db.Proposition(kind=db.CLEARED, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id, content='CHASE MTG 3/5 -1,412.00', as_of='2026-03-05'))
           and _refused(s, db.Proposition(kind=db.AMOUNT, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id, content='-1,412.00', as_of='2026-03-05'))
-          and not _refused(s, db.Proposition(kind='bank_line', subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id, content='CHASE MTG 3/5 -1,412.00', as_of='2026-03-05'))
-          and 'bank_line' not in db.RULED_KINDS)
+          and not _refused(s, db.Proposition(kind=db.MOVEMENT, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_NONE, subject_party_id=bank.id, content='CHASE MTG 3/5 -1,412.00', as_of='2026-03-05'))
+          and _refused(s, db.Proposition(kind=db.MOVEMENT, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id, content='CHASE MTG 3/5 -1,412.00', as_of='2026-03-05'))
+          and db.RULED_KINDS[db.MOVEMENT]['object'] == ())
+
+    print('\n7. BANK_LINE_KIND.md (s7, ruled 2026-09-21) - the movement: the bank\'s statement that a movement occurred; evidence about an OCCURRENCE, never a stance on a payment\n')
+    check('Bl1 (F2 / F3 / F4 / F5 - the registry): movement is a RULED kind - subject the party, NO object (the required absence), reading_establishes True, KNOWING_SUBJECT_PARTY; not a role; no foundation-map entry anywhere in this fixture',
+          db.RULED_KINDS[db.MOVEMENT] == {'subject': ('subject_party_id',), 'object': (), 'symmetric': False, 'reading_establishes': True,
+                                          'relational_knowing': True, 'knowing_relation': db.KNOWING_SUBJECT_PARTY}
+          and not db.RULED_KINDS[db.MOVEMENT].get('role') and db.MOVEMENT not in KNOWING and db.registry_violations() == [])
+    B, rB = held('h-bank-march-statement', bank)
+    n_pay_bl = s.query(db.Payment).count()
+    e_bl1, m1 = claim(db.MOVEMENT, reading=rB, as_of='2026-03-03', content='CHASE MTG 3/3 -1,412.00', subject_party_id=bank.id)
+    check('Bl1: line 7 of the bank\'s statement, read -> a movement claim, subject the bank, as_of the movement\'s date as stated (3/3, not the capture\'s 3/31), a CANDIDATE in state, KNOWING in strength (the artefact\'s origin IS the subject party); no payment minted; nothing named',
+          st(e_bl1) == db.STRENGTH_KNOWING and m1.as_of == '2026-03-03' and m1.object_state == db.PARTICIPANT_NONE and m1.object_payment_id is None
+          and s.query(db.Payment).count() == n_pay_bl
+          and [state for state, _, _ in db._claim_states(s, m1, db._retracted(s))] == [db.CLAIM_CANDIDATE])
+    n_cleared = s.query(db.Proposition).filter_by(kind=db.CLEARED, subject_payment_id=p.id).count()
+    e_tie, tie = claim(db.PROPOSITION_CONCERNS, utterance=utter('Line 7 is my March mortgage payment.'), subject_proposition_id=m1.id, object_payment_id=p.id)
+    check('Bl2 (F6): Rob ties the line to p - Ab7\'s proposition_concerns, established by Rob\'s utterance; the movement claim is byte-identical (no object gained); cleared(p) is the bank\'s SEPARATE stance on the payment (Va10), the line never becomes it',
+          tie.object_payment_id == p.id and s.get(db.Proposition, m1.id).object_payment_id is None and s.get(db.Proposition, m1.id).object_state == db.PARTICIPANT_NONE
+          and s.query(db.Proposition).filter_by(kind=db.CLEARED, subject_payment_id=p.id).count() == n_cleared
+          and not any(x.subject_proposition_id == m1.id for x in s.query(db.Proposition).filter_by(kind=db.CLEARED).all()))
+    e_bl3, m3 = claim(db.MOVEMENT, reading=rB, as_of='2026-03-15', content='TRANSFER TO SAVINGS -2,000.00', subject_party_id=bank.id)
+    check('Bl3 (F4 / Pm12): the transfer to savings, read -> the SAME shape as the mortgage line (no object; nothing chosen); "about nothing paid" is the ABSENCE of any tie - no state the reader sets, no payment minted',
+          m3.object_state == m1.object_state == db.PARTICIPANT_NONE and st(e_bl3) == db.STRENGTH_KNOWING
+          and s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS, subject_proposition_id=m3.id).count() == 0
+          and s.query(db.Payment).count() == n_pay_bl)
+    e_bl5, _ = claim(db.MOVEMENT, utterance=utter('My bank shows -1,412 on 3/3.'), as_of='2026-03-03', content='-1,412.00 3/3', subject_party_id=bank.id)
+    check('Bl5 (K5): Rob relaying the bank\'s line as an utterance - subject the bank, the asserter Rob -> NOT_KNOWING; the relation, not a foundation, answers',
+          st(e_bl5) == db.STRENGTH_NOT_KNOWING)
+    sheet, r_sheet = held('h-rob-ledger', household)
+    e_bl6, m6 = claim(db.MOVEMENT, reading=r_sheet, as_of='2026-03-03', content='CHASE MTG 3/3 -1,412.00', subject_party_id=household.id)
+    check('Bl6 (O5): a row of Rob\'s own spreadsheet, read - subject Rob, origin Rob -> KNOWING for ROB\'s statement that he moved money; and NOTHING about clearing: cleared(p) stays the bank\'s by drawn_on - relaying launders nothing because the line is never the stance',
+          st(e_bl6) == db.STRENGTH_KNOWING and m6.object_payment_id is None
+          and all(x.subject_payment_id == p.id for x in s.query(db.Proposition).filter_by(kind=db.CLEARED).all()))
+    check('Bl10 (Va11 holds): the line is never cleared / amount / bank_returned_item - a movement claim with a payment object, or with a candidates object, is refused; the stance kinds on a payment keep the payment as subject',
+          _refused(s, db.Proposition(kind=db.MOVEMENT, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_ESTABLISHED, subject_party_id=bank.id, object_payment_id=p.id, content='x', as_of='2026-03-03'))
+          and _refused(s, db.Proposition(kind=db.MOVEMENT, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id, content='x', as_of='2026-03-03'))
+          and _refused(s, db.Proposition(kind=db.BANK_RETURNED_ITEM, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_NONE, subject_party_id=bank.id, content='RETURNED ITEM', as_of='2026-03-08')))
+    check('Bl11 (the null model, F6): across every line above no payment was minted and the ONE tie in the record is Rob\'s utterance - no reader, no match, no rule manufactured a tie',
+          s.query(db.Payment).count() == n_pay_bl
+          and [e.utterance_id is not None for e in s.query(db.EvidentiaryRelationship).join(db.Proposition, db.Proposition.id == db.EvidentiaryRelationship.proposition_id)
+               .filter(db.Proposition.kind == db.PROPOSITION_CONCERNS).all()] == [True])
 
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:

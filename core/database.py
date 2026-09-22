@@ -2201,6 +2201,23 @@ BANK_RETURNED_ITEM = 'bank_returned_item'
 DRAWN_ON = 'drawn_on'
 KNOWING_ROLE_HOLDER_ON_SUBJECT = 'a_holder_of_any_role_in_the_set_on_the_claim_subject'
 
+# ── The bank line's own kind (gw 2.0/BANK_LINE_KIND.md s7, ruled 2026-09-21): THE MOVEMENT ────────
+# A PARTY'S STATEMENT THAT A MOVEMENT OF MONEY OCCURRED on its account - what a reading of a bank
+# statement or feed capture yields, line by line (the transaction referent's T2, its kind now named).
+# Subject the party whose statement it is (the bank; Rob, for a row of his own spreadsheet); NO object -
+# the movement is never minted as an identity and the line names nothing: what it concerns is Ab7's
+# proposition_concerns claim, asserted by a party or a candidate from a match, and "about nothing paid"
+# is the ABSENCE of a tie, never a state the reader sets (F4). Content the line as read - amount,
+# description, identifiers: content and correspondence evidence, never identity. as_of the movement's
+# date as the party states it (F5; the capture's time is the artefact's). Knowing by KNOWING_SUBJECT_PARTY
+# (F3): the artefact's established origin on the reading path, the utterance's origin otherwise, knowing
+# iff it is the subject party - the bank for its own ledger; Rob relaying the bank's line not_knowing (K5);
+# NO foundation map (9D's retired mechanism). THE LINE MINTS EVIDENCE ABOUT AN OCCURRENCE, NOT A STANCE
+# ABOUT AN IDENTIFIED DOMAIN OBJECT: it is never cleared / bank_returned_item (the bank's stances on a
+# PAYMENT, holder drawn_on - Va11 stands), never a role, never a knowing source for one; the later tie
+# cannot be manufactured by this rule; the matcher stays fenced (F6). It mints no identity (Pm2).
+MOVEMENT = 'movement'
+
 # ── Item 9, pass 9D-v: THE DETERMINATION - the last stand-in ─────────────────────────────
 # gw 2.0/CATALOGUES.md s 9D-v.7 (ruled 2026-09-20), on 7H s 7H.7 item 2. A determination is a PARTY'S READING
 # OF THE SITUATION about an expense - subject X, as_of the date it is about (7H requires it), content one of
@@ -2338,6 +2355,10 @@ RULED_KINDS = {
                    'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
                    'knowing_relation': KNOWING_SUBJECT_PARTY},
     RETURNED:     {'subject': ('subject_party_id',), 'object': ('object_payment_id',),
+                   'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                   'knowing_relation': KNOWING_SUBJECT_PARTY},
+    # The bank line's own kind (BANK_LINE_KIND.md s7): the party's statement that a movement occurred; no object.
+    MOVEMENT:     {'subject': ('subject_party_id',), 'object': (),
                    'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
                    'knowing_relation': KNOWING_SUBJECT_PARTY},
     BALANCE:      {'subject': ('subject_obligation_id',), 'object': (),

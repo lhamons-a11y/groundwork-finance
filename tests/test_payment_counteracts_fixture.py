@@ -224,7 +224,7 @@ def run(db):
     s.add(rd)
     s.commit()
     n_pay = s.query(db.Payment).count()
-    p_line = prop('movement', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=bank.id, content='REFUND MERCY 300.00', as_of='2026-06-09')
+    p_line = prop(db.MOVEMENT, object_state=db.PARTICIPANT_NONE, subject_party_id=bank.id, content='REFUND MERCY 300.00', as_of='2026-06-09')   # the ruled kind (BANK_LINE_KIND.md): no object
     evidence(p_line, reading=rd)
     check('A8: the REFUND line is a proposition from a capture - it minted no payment and asserted no relation',
           s.query(db.Payment).count() == n_pay

@@ -83,7 +83,7 @@ def run(db):
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'},
                db.PROPOSITION_CONCERNS: {'person', 'institution'},    # supplied - and must not score
                db.ARTEFACT_CONCERNS: {'person', 'institution'},
-               'statement_figure': {'institution'}, 'bank_line': {'institution'}}   # balance / cleared: ruled since 9D-i / 9D-iv
+               'statement_figure': {'institution'}}   # balance / cleared / movement: ruled - knowing by the relation, not by the map
 
     def utter(text, when='2026-03-10T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -196,7 +196,8 @@ def run(db):
     p1 = mint_payment('I paid the mortgage on March 3.')
     B = held('h-bank', '2026-03-31', bank, u_bank)
     rB = read(B, 'feed-import/1')
-    P7, e7 = line(B, rB, 'bank_line', 'CHASE MTG 3/3 -1,412.00', bank)   # 9D-iv F6: the bank line, not the ruled cleared stance
+    P7 = prop(db.MOVEMENT, object_state=db.PARTICIPANT_NONE, subject_party_id=bank.id, content='CHASE MTG 3/3 -1,412.00', as_of='2026-03-03')   # the bank line's own kind: no object; the tie below is Ab7's
+    e7 = evidence(P7, reading=rB)
     check('no artefact_concerns claim exists for the bank statement - a bank account is not a ruled identity',
           s.query(db.Proposition).filter_by(kind=db.ARTEFACT_CONCERNS, subject_artefact_id=B.id).count() == 0)
     c7 = pconcerns(P7, payment=p1)

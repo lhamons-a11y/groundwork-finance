@@ -16,6 +16,14 @@ the substrate ten ways:
     the two subject types' sets swapped   a payment read with the expense's roles and vice versa
     a second resolver                     the role-set relation re-ruled (any claimant knowing)
 
+and, since BANK_LINE_KIND.md (ruled 2026-09-21), the movement - the bank line's own kind - five ways:
+
+    the line becomes the stance           movement admits a payment object (the line as cleared)
+    the bank knowing by foundation        movement's relation dropped, the institution map restored
+    the relay knowing                     any asserter knowing for a movement claim (K5 reversed)
+    the reader manufactures the tie       a movement line inserted gains a reading-sourced concerns claim
+    as_of the capture's                   a movement's as_of overwritten with the artefact's
+
 Same shape as s117-s122: fixture passes, every mutation is caught, the baseline is re-established after every undo,
 the module is left as found.
 """
@@ -159,7 +167,69 @@ def _mutations(db):
         db._KNOWING_RELATIONS[db.KNOWING_ROLE_HOLDER_ON_SUBJECT] = lambda session, prop, claimant: db.STRENGTH_KNOWING if claimant else db.STRENGTH_UNDETERMINED
         return lambda: db._KNOWING_RELATIONS.__setitem__(db.KNOWING_ROLE_HOLDER_ON_SUBJECT, real)
 
+    # ── BANK_LINE_KIND.md (s7): the movement - the ways the line-kind rule could collapse ──
+    def line_becomes_stance():
+        saved = db.RULED_KINDS[db.MOVEMENT]
+        db.RULED_KINDS[db.MOVEMENT] = dict(saved, object=('object_payment_id',))
+        return lambda: db.RULED_KINDS.__setitem__(db.MOVEMENT, saved)
+
+    def movement_by_foundation():
+        saved = db.RULED_KINDS[db.MOVEMENT]
+        db.RULED_KINDS[db.MOVEMENT] = dict(saved, relational_knowing=False, knowing_relation=None)
+        real = db.derived_strength
+
+        def with_map(session, relation, knowing):
+            return real(session, relation, dict(knowing, **{db.MOVEMENT: {'institution'}}))
+        db.derived_strength = with_map
+
+        def undo():
+            db.RULED_KINDS[db.MOVEMENT] = saved
+            db.derived_strength = real
+        return undo
+
+    def relay_knowing():
+        real = db._relational_strength
+
+        def anyone(session, prop, claimant, relation_name):
+            if prop.kind == db.MOVEMENT and claimant is not None:
+                return db.STRENGTH_KNOWING
+            return real(session, prop, claimant, relation_name)
+        db._relational_strength = anyone
+        return lambda: setattr(db, '_relational_strength', real)
+
+    def reader_manufactures_tie():
+        from sqlalchemy import event
+        P, E = db.Proposition.__table__, db.EvidentiaryRelationship.__table__
+
+        def on_line(mapper, connection, target):
+            if target.kind != db.MOVEMENT:
+                return
+            pay = connection.execute(db.Payment.__table__.select().limit(1)).first()
+            rd = connection.execute(db.Reading.__table__.select().limit(1)).first()
+            if pay is None or rd is None:
+                return
+            res = connection.execute(P.insert().values(kind=db.PROPOSITION_CONCERNS, subject_state=db.PARTICIPANT_ESTABLISHED,
+                                                       object_state=db.PARTICIPANT_ESTABLISHED, subject_proposition_id=target.id,
+                                                       object_payment_id=pay.id))
+            connection.execute(E.insert().values(proposition_id=res.inserted_primary_key[0], reading_id=rd.id))
+        event.listen(db.Proposition, 'after_insert', on_line)
+        return lambda: event.remove(db.Proposition, 'after_insert', on_line)
+
+    def as_of_the_captures():
+        from sqlalchemy import event
+
+        def on_line(mapper, connection, target):
+            if target.kind == db.MOVEMENT:
+                target.as_of = '2026-03-31'                      # the artefact's as_of, not the movement's
+        event.listen(db.Proposition, 'before_insert', on_line)
+        return lambda: event.remove(db.Proposition, 'before_insert', on_line)
+
     return [
+        ('the line becomes the stance (movement with a payment object)', line_becomes_stance),
+        ('the bank knowing by foundation (the map restored for movement)', movement_by_foundation),
+        ('the relay knowing (K5 reversed on movement)', relay_knowing),
+        ('the reader manufactures the tie (a concerns claim from the line)', reader_manufactures_tie),
+        ("as_of the capture's, not the movement's", as_of_the_captures),
         ('the minter knowing (Kn7 reversed)', minter_knowing),
         ('the origin\'s type confers knowing (the foundation restored)', type_confers_knowing),
         ('the role-set read at a date (an undated amount undetermined)', dated_role_set),

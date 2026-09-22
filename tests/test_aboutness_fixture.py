@@ -139,8 +139,8 @@ def run(db):
         s.commit()
         return r
 
-    def line(reading, kind, content, party):
-        pr = db.Proposition(kind=kind, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES,
+    def line(reading, kind, content, party, object_state=db.PARTICIPANT_CANDIDATES):
+        pr = db.Proposition(kind=kind, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=object_state,
                             subject_party_id=party.id, content=content, as_of='2026-03-31')
         s.add(pr)
         s.commit()
@@ -250,7 +250,7 @@ def run(db):
           P3.object_state == db.PARTICIPANT_CANDIDATES and ab['structural'] == [] and P3.object_obligation_id is None)
     B = held('h-bank', '2026-03-31', chase, u_chase)                # no artefact-level concerns claim at all
     rB = read(B)
-    P7 = line(rB, 'movement', 'CHASE MTG -1,412.00', chase)
+    P7 = line(rB, db.MOVEMENT, 'CHASE MTG -1,412.00', chase, object_state=db.PARTICIPANT_NONE)   # the ruled kind (BANK_LINE_KIND.md): no object; the tie Ab7's
     p1 = db.Payment(minted_by_id=utter("That's my March payment.").id)
     s.add(p1)
     s.commit()
