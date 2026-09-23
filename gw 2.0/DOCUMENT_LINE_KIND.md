@@ -238,3 +238,69 @@ different question** — composition across relation kinds — and remains named
 ruling touches the document line only.
 
 ---
+
+## 9. Ruling — Rob, 2026-09-21: F2, F5, F6; the artefact-subject class named; F4 and F7 still open; no build
+
+*Surfacing the second shape first is the right move. The new corpus shape changes the build scope,
+but it does not change the §8 ruling about what a document line is.*
+
+### F2 — one kind
+
+**Rule one document-line kind.** *The figure's sort remains uninterpreted by the ontology. I would
+not introduce a family keyed by figure sort, and I would not add a sort slot merely to preserve the
+distinction that the reader would then have to interpret.* That means the existing distinction is
+**deliberately lost at the kind level**:
+
+- same document-line kind → same kind;
+- differing descriptions of what the line means → **`content` disagreement**;
+- the figure itself remains uninterpreted.
+
+***That is a real semantic reduction, and it is acceptable only because F5 explicitly handles the
+consequence. It does not become an accidental loss hidden inside the migration.***
+
+### F5 — (b)
+
+**Rule (b).** Pd4 remains a **kind-dispute** classification, but after the one-kind ruling it can
+only occur when the comparison is between **a document line and a non-line kind**. **Two document
+lines cannot produce a kind disagreement merely because their opaque `content` differs.** (c) is
+refused — *reopening the parse-dispute consumer would be using the migration to manufacture a new
+semantic question*; (a) is refused — it would accept the degradation without specifying how 7A's
+existing classification changes. **So F5 records the exact consequence of F2 rather than reopening
+interpretation.**
+
+### F6 — staged migration, the 21 artefact-subject sites a named correction class
+
+**The stages, each with its own gate:**
+
+1. **SBC** — 4 sites / 2 files.
+2. **EOB** — 37 ordinary sites **plus the 21 artefact-subject sites, explicitly tracked as the EOB
+   artefact-subject correction class**.
+3. **The statement family** — ~117 sites: `statement_figure` · `payment_due` · `minimum` · `rate` ·
+   `escrow` — and their named consumers.
+4. **`services` / `applied` / `disbursement`** — a separate fourth stage **only if ruled to be figure
+   lines**; otherwise **explicitly excluded** from the figure-line migration.
+
+**The 21 artefact-subject sites — not a second kind.** *§8 already says the line is its own kind; it
+does not say that every existing representation currently calling itself an `eob_amount` is correctly
+shaped for that kind.* They are a **corpus correction class**: *the artefact-subject shape is not the
+ruled document-line shape, because it lacks the subject party the ruled line representation
+requires.* They **cannot remain silently as-is if F4 moves consumers to `KNOWING_SUBJECT_PARTY`** —
+and they **must not be bulk-rewritten before the cases are preserved.** Kn8 is valuable precisely
+because it establishes *Rob's sheet establishes that the thing was health, but does not establish
+that Rob knows the insurer's figure*. So the corrected representation makes the party subject
+explicit **while preserving the provenance distinction**:
+
+> **subject = Lakeview Health; origin = Rob's sheet → `not_knowing`** — rather than letting the migration turn
+> the old `not_knowing` into an accidental `undetermined`.
+
+**A representation correction within F6, not a new ontology kind.**
+
+### Scope consequence
+
+F2 one kind · F5 Pd4's surviving (b) behaviour · F6 staged migration with the 21 EOB
+artefact-subject sites explicitly corrected rather than ignored. **F4 is still independently
+unruled:** these rulings do not silently settle `KNOWING_SUBJECT_PARTY`; they establish **what F4's
+migration will have to account for**. **F4 and F7 must be ruled before the build scope is closed.
+No build is authorised.**
+
+---
