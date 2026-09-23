@@ -304,3 +304,67 @@ migration will have to account for**. **F4 and F7 must be ruled before the build
 No build is authorised.**
 
 ---
+
+## 10. Ruling — Rob, 2026-09-21: F4 and F7; the 21 → 15 correction; no build
+
+*I agree with the shape of both. There are two places where I would make the ruling especially
+explicit so the migration cannot silently erase behaviour.*
+
+### F4 — retire the foundation map for the migrated kind; `KNOWING_SUBJECT_PARTY` replaces it
+
+**(1) The migrated kind no longer consults the foundation map.** Derived strength uses
+**`KNOWING_SUBJECT_PARTY` + the origin claim's own strength**. The map is retired for that migrated
+kind **stage by stage**, and **remains operative for genuinely unruled kinds**. The registry entry
+**must carry `reading_establishes: True`** — *otherwise the new subject-party rule would be correct
+but 9D-i would still make reading-sourced lines undetermined: an accidental interaction between two
+independent rulings.*
+
+**(2) The 15 artefact-subject sites are a required correction, not an acceptable `undetermined`.**
+They must be **restated so the ruled line has its required party subject**, and Kn8 must continue to
+produce **subject = Lakeview Health; origin = Rob's sheet → `not_knowing`**. ***The migration may not use the
+absence of a party subject as the new semantic answer.*** **F4's gate must demonstrate both:**
+
+- the corrected artefact-subject cases **preserve their evidence-based `not_knowing`**; and
+- a genuinely missing party subject elsewhere **still means `undetermined`**, rather than being
+  papered over.
+
+**(3) The three mechanism probes move to a neutral unruled kind.** *They aren't line fixtures; their
+purpose is to test the map mechanism itself. Once the kind is ruled, leaving those probes attached to
+it would falsely make the migration look like it preserved coverage while actually making the tested
+branch unreachable.* They move, **assertions unchanged** — *preserving the test's semantic purpose
+rather than its old spelling.*
+
+### F7 — the seven fences, and `PARTICIPANT_CANDIDATES` retained
+
+**Ruled as proposed.** The migration must not alter: **(1)** Ab7's tie semantics or
+`PARTICIPANT_CANDIDATES`; **(2)** ruled stance subjects and dated role relations; **(3)** the matcher /
+importer boundary; **(4)** 7E's reading → origin → weakest-link chain; **(5)** Kn8's
+evidence-supported `not_knowing`; **(6)** F5(b) — Pd4 remains line-vs-non-line only; **(7)**
+`movement` remains its own kind and is never absorbed by the line kind.
+
+**The candidate-state question, ruled explicitly.** The ruled line kind has **`object: ()`**, so the
+**94 party-subject line constructions that currently populate `CANDIDATES` move to `NONE`**, exactly
+as the bank-line migration demonstrated. **But that does not retire `PARTICIPANT_CANDIDATES`:** its
+ruled meaning remains intact; the migration merely removes the document-line construction sites that
+no longer have permission to use it. **Each F6 stage must report the remaining legitimate
+`PARTICIPANT_CANDIDATES` users.** If the count approaches zero, *that fact is recorded as a
+consequence of the migration rather than quietly converted into a retirement.* ***An empty or nearly
+empty current user set is not evidence that the state itself is obsolete. Retirement would require
+its own semantic question.***
+
+### The count, corrected in the record rather than carried forward
+
+The **21** artefact-subject figure in §9 was a **shape overcount**. The document-line correction class
+is **15 = 14 `eob_amount` + 1 `statement_figure`**; the other six `subject_artefact_id` sites are
+**non-line constructions and must not be counted as F6 line migrations.** §9's stage 2 reads with
+this correction.
+
+### Result
+
+**F2** one line kind · **F4** subject-party strength replaces the foundation map for that kind ·
+**F5** Pd4 survives only line-vs-non-line · **F6** staged migration with **15** artefact-subject line
+corrections · **F7** seven semantic fences, `PARTICIPANT_CANDIDATES` retained and not silently
+retired. **No build authorisation.** The next step is a **build-scope decision, not an automatic
+build authorisation.**
+
+---
