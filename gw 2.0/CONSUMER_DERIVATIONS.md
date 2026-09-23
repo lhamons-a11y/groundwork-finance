@@ -5038,3 +5038,23 @@ loan — with the claim that establishes the servicing shown beside it. It still
 governing figure: K2's balance half stays closed under L. Gate 1590 → 1596, 0 failed.
 
 ---
+
+#### Accepted and closed — Rob, 2026-09-21 (7G-K2-F7)
+
+Accepted as built and ruled: `gate_f7.log` 1596 / 0, build commit `135eba9`, pushed, tree clean,
+queue item 16 BUILT. *The implementation matches the ruling: the servicer answer **beside**, never
+replacing, the entitled answer; dated through `_entitled_at`; four-valued; inert; the stated series
+only. Null-model checks were performed before cases were added and remained unchanged. The three
+prohibited crossings were caught by `s113`. No shared helper, acknowledgment listing, 7I / 7H
+consumer, `_holder_series`, registry or other out-of-scope surface moved. The `undetermined`
+correction is explicitly recorded rather than silently normalised.*
+
+**The key semantic property is preserved: F7 exposes provenance / reporting information without
+creating a new source of financial truth or a ranking mechanism.**
+
+**7G-K2-F7: OPENED → RULED → BUILT → ACCEPTED — closed.** No further code is authorised by this
+acceptance. With it, **Pass 7G-K2 is complete**: the balance half closed under L as a boundary
+statement, F7 built and accepted. The acknowledgment / discharge half (Dg4 / Dg5) remains its own
+named, unopened question.
+
+---
