@@ -5058,3 +5058,193 @@ statement, F7 built and accepted. The acknowledgment / discharge half (Dg4 / Dg5
 named, unopened question.
 
 ---
+
+## Pass 7G-K2-Ack — The servicer's acknowledgment: K2's discharge half (opened 2026-09-21)
+
+*Opened by Rob 2026-09-21, the other half of K2 and the one K8 kept separate: **the servicer's
+statement acknowledges a payment on E's behalf — may 7G, with O in hand, count it as a discharge?**
+The balance half is closed under L and is not reopened; nothing here reads or revisits it. Cases →
+findings → candidate → ruling → a separate build authorisation. **No code.**
+
+### 7G-K2-Ack.1 What is fixed
+
+**The acknowledgment ruling (2026-09-12), finding 2 — the strongest pull in the record toward
+admitting:** *the servicer of record's statement **is** E's acknowledgment, at weakest-link strength —
+the held statement × the household's assertion that S serves E (K2); **refusing this makes discharge
+unreachable** in the servicing-only world, the M-LED failure arriving one layer down.* **Finding 3:**
+*servicer acknowledgment rests on a claim Groundwork cannot verify, and the record must say so —
+corrected by conflict with E's own statement (K7), never by a better rank (K3).* **Finding 8 (K8):**
+*acknowledgment of a payment and statement of a balance are two propositions; **discharge rests on
+the first***. **§7G.8 RG-a (ruled, built):** a discharge counts when the acknowledgment is
+established, its **holder's** entitled-party role is in effect at its date, and its **strength class
+is knowing**.
+
+**9D-F1 (ruled):** `acknowledged` establishes its holder as an **explicit participant**, *because its
+ruled discharge semantics require the represented holder to be distinguishable from the party who
+asserted it* — *what lets the consumer distinguish who asserted the acknowledgment from whose
+position it represents.* **§9D.7 F2 + the servicer clause (ruled as one):** `acknowledged` has
+`KNOWING_SUBJECT_PARTY`; **O remains absent**; the kind derives no O through composition; *the
+servicer channel is evidence about the holder's position at the strength already ruled for that
+channel (weakest link)*; **where a consumer has O independently in hand, that consumer may evaluate
+the servicer statement against that O.** ***This pass is the consumer §9D.7 was pointing at.***
+
+**9B (ruled):** `servicer_of` — party → obligation, dated, `KNOWING_SUBJECT_PARTY`: the knowing
+asserter of *S serves O* is **S itself** (Kn12, and it may be lying); the household's attachment is
+**established and not_knowing**. **7G-F3 (ruled, built):** discharge is tested at the claim level —
+state from any relationship, strength the strongest origin; Dc7: Rob's acceptance beside a reading of
+**the servicer's** statement → origin S ≠ holder E → not_knowing → **not discharged**, *K2's channel
+stays the consumer's question*. **7G-K2.8 / .9 (ruled, closed):** the **balance** half is L —
+listed, never admitted; no strength promotion of `servicer_of`; no ranking; no fallback; *Sv8's
+consequence accepted, and not solved by manufacturing a statement*. **7G-K2-F7 (built):** the
+servicer answer is reported beside the entitled one, **inert**.
+
+### 7G-K2-Ack.2 What 7G does today — and where the discharge actually fails
+
+The acknowledgment's two axes come from two places (9D-i): the **holder** from the party slot, the
+**strength** from the origin through `KNOWING_SUBJECT_PARTY`. `qualifies` = established ∧ dated ≤ d ∧
+**holder entitled in effect** ∧ **strength knowing**. Ob12's 2 × 2, as built:
+
+| holder (slot) | origin (who asserted) | strength | 7G |
+|---|---|---|---|
+| **E** | **E** | knowing | **discharged** (K1 / Dg2) |
+| **E** | **S**, the servicer | **not_knowing** | listed — *the holder is right, the asserter is not first-hand* → **not discharged** (Ob4) |
+| **S** | **S** | knowing (its own position) | holder not entitled → **not discharged** (Dg4 / Ob5) |
+| **E** | the household | not_knowing | **not discharged** (Dg22 / Ob6) |
+
+**The structural difference from the balance half, and the reason this is its own question.** For the
+balance the servicer's statement failed the **holder** test — `balance` names no holder apart from
+its asserter, so the servicer's figure is a *different party's position* and was never E's to begin
+with. For the acknowledgment it fails the **strength** test alone: the claim **already says it is
+E's position** — that is the slot 9D-F1 ruled exists precisely to carry it — and the only thing
+missing is that the party who asserted it is not E. *This is the one place in the record where a
+consumer holds a claim about E's position, knows it is about E's position, and has O in hand.*
+
+**What it costs today.** In the **servicing-only** world every acknowledgment is row 2, so no payment
+is ever discharged: every station reads `attached_unacknowledged` for ever. In the **mixed** world —
+E issues statements, the servicer processes and acknowledges payments — the base exists, so
+`confirmed` is computed **with no payment credited against it**: the household is shown a confirmed
+figure that ignores every payment its own servicer acknowledged, and the gap surfaces only as the
+`statement_check` diagnostic when E's next statement arrives. **One honest correction to the
+M-LED argument, now that the balance half is closed under L:** in the *pure* servicing-only world
+admitting the discharge **does not restore a figure** — `stated.governing` is `None` (7G-K2's L), so
+`attached` / `confirmed` / `remaining` stay undetermined whatever the stations say. Admission buys
+**correct stations and the `pending` diagnostic** there, and buys **a correct `confirmed`** only in
+the mixed world. The stakes are real but smaller than *discharge is unreachable* suggests.
+
+### 7G-K2-Ack.3 The question, and the readings
+
+> **May 7G, holding O, count a discharge when the acknowledgment names E as its holder and its
+> origin holds `servicer_of` on that same O at the acknowledgment's date — and if so, does that make
+> the acknowledgment *knowing*, or merely *admissible*?**
+
+**Reading L′ (as built).** Listed, never discharged; the servicer channel stays a documented
+refusal. Consistent with everything, including the balance half's *we do not solve unreachability by
+manufacture*. The cost is the mixed world's silent under-credit above — visible only in the
+diagnostic.
+
+**Reading A′ (an admissibility route in 7G's discharge test, not a strength).** 7G counts a discharge
+when: the acknowledgment is established ∧ dated ≤ d ∧ its **holder** is entitled in effect at its
+date ∧ (**its strength is knowing** *or* **its origin holds `servicer_of` on this obligation,
+established and in effect at the acknowledgment's date**). The strength stays `not_knowing` and is
+still reported as such — *nothing in the kind's semantics moves*, RG-a's *knowing* clause gains a
+named second route, and §9D.7's permission is exercised exactly where it was granted. **What it
+admits with it:** S3. Nothing Groundwork holds distinguishes the authorised servicer from the
+never-authorised one (finding 3), and for a **discharge** the correction finding 3 relies on — conflict
+with E's own statement — *does not arrive*: a discharge is not a competing figure, it is a payment
+silently credited. That asymmetry is F-c below.
+
+**Reading K′ (make it knowing — the servicer clause as a strength).** Refused: §9D.7 fenced the
+kind-level composition, and it would make *knowing* stop meaning first-hand — the axis 9D-i built
+the 2 × 2 to protect.
+
+**Reading H′ (require the household's own attachment, not the servicer's self-assertion).** A
+provenance condition on the link rather than a ranking. **It does not discriminate:** in K3 the
+household *had* attached S3 when the first letter came. It narrows nothing the record can check.
+
+*Reading, for Rob to reject:* **L′**, on the balance half's own reasoning — *the unverifiable link
+may not produce a **silent** credit*, and the one figure it would fix in the servicing-only world is
+undetermined anyway. **But A′ is the reading the record's own finding 2 asks for, and it is the
+mixed world it fixes.** The choice is Rob's, and it is genuinely a choice between two things the
+record says: *discharge must be reachable* (finding 2) and *an unverifiable claim corrects by
+conflict, never by rank* (finding 3) — where, for discharge, no conflict comes.
+
+### 7G-K2-Ack.4 Findings
+
+**Ack-F1 — what the servicer channel would change: the strength, or the admissibility.** *Reading:*
+**admissibility only** — the acknowledgment stays `not_knowing` in the report and in 7E, and 7G's
+discharge test names a second route. Anything else re-rules a kind-level relation §9D.7 fenced.
+**Rob's.**
+
+**Ack-F2 — the link's own test.** The origin holds `servicer_of` **on 7G's own subject obligation**
+(never reached from p — the composition fence), **established** (not knowing — 9B makes only S
+knowing for it), **in effect at the acknowledgment's date** (7F, the same `_entitled_at`). *Reading:*
+as stated; the same shape F7 already reports. **Rob's.**
+
+**Ack-F3 — the crux: a silent credit from an unverifiable link.** The balance's error mode is a wrong
+number that E's own statement contradicts. The discharge's error mode is **a payment counted as
+confirmed that nothing ever contradicts** — S3's acknowledgments would discharge, and finding 3's
+correction-by-conflict has nothing to bite on. *Reading:* this, not reachability, is what decides
+between L′ and A′. **Rob's.**
+
+**Ack-F4 — what the report would say.** Under A′ the entry would carry the discharge, its strength
+`not_knowing`, and (since F7's shape) the origin's servicer answer with the stance that establishes
+it — so the household can see *this payment is confirmed on your servicer's word, not the
+creditor's*. *Reading:* if A′, the station and the discharge entry must name the route; a discharge
+that reads identically to E's own would hide the distinction. **Rob's.**
+
+**Ack-F5 — Dc7 and the document path.** 7G-F3's Dc7 — Rob's acceptance beside a reading of the
+**servicer's** statement → not discharged — is the same class. Under A′ it flips **when the servicer
+holds `servicer_of` on that O**; under L′ it stands. *Reading:* restate Dc7 explicitly in any build,
+never silently. **Rob's.**
+
+**Ack-F6 — `returned`, and the rest of the surface.** Dg18: 7G reads no `returned` kind; 9D-iv's
+`cleared` / `bank_returned_item` are the bank's, never acknowledgment (K6). Nothing here touches
+them, the balance series, `_holder_series`, 7E, 7H or the registry; 7I inherits whatever 7G counts.
+*Reading:* as stated. **Rob's.**
+
+**Ack-F7 — scope of any build.** One consumer, one test: 7G's `discharge` condition. No kind, no
+relation, no catalogue key (the role by constant, as F7 reads it). *Reading:* as stated. **Rob's.**
+
+### 7G-K2-Ack.5 Cases
+
+O, Harbor entitled from 1/1; BillCo attached by the household as servicer of O from 1/1; S3 attached
+by nobody; p attached to O, dated 3/5.
+
+| # | Case | L′ (as built) | A′ |
+|---|---|---|---|
+| **Ak1 (K1 / Dg2)** | Harbor's own acknowledgment | discharged | discharged (unchanged) |
+| **Ak2 (Ob4) — the case** | the acknowledgment names **Harbor**, asserted by **BillCo** | listed, not discharged | **discharged**, strength still `not_knowing`, the route named |
+| **Ak3 (Dg4 / Ob5)** | BillCo acknowledges **as itself** (holder BillCo) | not discharged — the holder is not entitled | **not discharged** — the holder test is untouched; A′ adds nothing here |
+| **Ak4 (K3 / Dg5)** | **S3** asserts an acknowledgment naming Harbor; no servicing claim anywhere | not discharged | **not discharged** — no `servicer_of` on this O |
+| **Ak5 (K3, the real one — F3)** | S3 asserts **its own** `servicer_of` on O, then acknowledges naming Harbor | not discharged | **discharged on S3's own say-so**, and nothing ever contradicts it |
+| **Ak6 (K5 / Dg22)** | Rob relays *Harbor told me they got it* | not discharged | **not discharged** — Rob holds no servicing role |
+| **Ak7 (role at date)** | BillCo serviced O to 6/30; its acknowledgment is dated 8/31 | not discharged | **not discharged** — the link is not in effect at the acknowledgment's date |
+| **Ak8 (Dc7 / F5)** | a **reading** of BillCo's statement + Rob's acceptance, naming Harbor | not discharged | **discharged** — the origin is BillCo, which services O (Dc7 restated) |
+| **Ak9 (the mixed world)** | Harbor states the balance; BillCo acknowledges every payment | `confirmed` = the base, **no payment credited**; the gap only in `statement_check` | `confirmed` credits the payments |
+| **Ak10 (the servicing-only world)** | no statement from Harbor at all | every station `attached_unacknowledged`; every figure undetermined | stations correct; **every figure still undetermined** (the base is missing — 7G-K2's L) |
+| **Ak11 (7I)** | the same at two dates | inherits | inherits |
+| **Ak12 (the null model)** | no `servicer_of` claim in the corpus | every outcome identical | identical |
+
+### 7G-K2-Ack.6 Candidate — pending the ruling
+
+**Under L′:** no consumer change; the pass closes as a boundary statement — *the servicer's
+acknowledgment is evidence about E's position, listed with its holder, its strength and (since F7)
+its servicer answer; it does not discharge, because the link that would make it E's word is one
+Groundwork cannot verify and a discharge admits no correction by conflict* — with Ak9's cost
+recorded. No fixtures (7G-K2's precedent: a boundary ruling is not a new tested contract).
+
+**Under A′:** one condition in 7G's discharge test — `qualifies` gains *or the origin holds
+`servicer_of` on this obligation, established and in effect at the acknowledgment's date*; the
+strength unchanged and still reported; the discharge entry names the route (F4); Dc7 restated; 7I
+inherits. Fixture: Ak2, Ak5, Ak7, Ak8, Ak9, Ak12 (the null model first). `s113`: the route ignoring
+the link's date · the route reached from p rather than O (the composition fence) · the route lifting
+the **strength** to knowing · a discharge whose route is not named.
+
+### 7G-K2-Ack.7 Ruling sought
+
+> **(1)** L′, A′, K′ or H′. **(2) Ack-F1:** admissibility, never strength, if anything is admitted.
+> **(3) Ack-F3:** whether an unverifiable link may produce a silent credit — the question that decides
+> it. **(4) Ack-F4:** if A′, the route named in the report. **(5) Ack-F5:** Dc7 restated explicitly.
+> **(6) F2, F6, F7** as read. Nothing here authorises code.
+
+---
