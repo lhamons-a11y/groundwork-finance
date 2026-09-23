@@ -1,6 +1,6 @@
 # The bank window — downloading from the institution inside Groundwork
 
-> Status: **OPENED 2026-09-23, revised the same day after Rob's review, no code.** Rob's question:
+> Status: **RULED 2026-09-23 (Rob), §7. No code. Sequenced: F12 first, as its own change; W's build follows F12's accepted gate.** Opened and revised the same day. Rob's question:
 >
 > > **May Groundwork open the user's bank or card site in a window of its own, so the user
 > > downloads transactions and statements there and the file lands in the existing review —
@@ -381,3 +381,76 @@ list · any Assistant action · changing the offer's 60 s expiry.
 5. **F6**: the shared folder resolver, and Bw9 as acceptance?
 6. **F13**: the pinned backend with MSHTML refused, no version floor beyond that, and Bw18 as
    acceptance?
+
+---
+
+## 7. Ruling — Rob, 2026-09-23
+
+**W stands, and is not reopened.** The code findings sharpen its implementation boundary. Only
+F12 is **sequenced before** W; everything else is part of W's build and acceptance evidence.
+
+| finding | ruling |
+|---|---|
+| **F12** server Host / token | **first.** F12 fix → its gate verified → then build W. It stays a separate task: a prerequisite, not an expansion of W |
+| **F1** separate bank process | **accepted**, and made an **invariant**, not an implementation detail |
+| **F3** unlinking a card | **the card's `portal_url` becomes empty** |
+| **F4** URL limits | **adopted**: `https` only, no custom ports, no raw IP addresses, no claim about destination identity |
+| **F6** downloads folder | **one OS-resolved folder for both the dialog and the watcher, plus a real test on all three OSes** |
+| **F13** runtime | **one supported engine per OS; known legacy fallbacks refused; no Groundwork engine or update system** |
+
+**F1: the bank process's shape, as an invariant.**
+
+```text
+URL in → bank WebView → user interaction → user-selected download → filesystem
+```
+
+and never *URL + server + database + Groundwork session + API bridge*. The bank process has:
+no Groundwork server · no database · no session token · no `js_api` · no Groundwork API
+endpoint · no financial-data payload. The second engine start and the macOS Dock icon are
+accepted costs of the boundary.
+
+**F3: the link's owner.**
+
+- a linked card shares the Account's one URL;
+- a standalone card owns its own URL;
+- **unlinking empties the card's URL.** Nothing is copied, so the old relationship leaves no
+  plausible-looking destination without a semantic owner;
+- relinking does not resurrect an old URL;
+- two existing links that disagree when linked: the user is asked; Groundwork never picks.
+
+> **A portal URL belongs to the currently represented account relationship, not to historical
+> linkage.**
+
+**F4: validation is syntactic.** Groundwork says, in effect: *I will open the HTTPS address you
+supplied. I do not verify that it belongs to your financial institution.* It **does not resolve
+the host** to make a security determination about where it points. Groundwork is not an
+institution-identity verifier.
+
+**F6: acceptance.** The dialog's start folder and the watched folder derive from the **same
+OS-level source**, never two independently computed concepts. *On Windows, macOS and Linux, a
+bank download saved to the system's default Downloads location is observed by the existing
+review pipeline*, **including a moved / non-default Downloads location where the platform
+permits one.** **Until that real-backend test passes, W is not complete.**
+
+**F13: "no minimum version" does not mean "any version is acceptable."** The requirement is to use
+the supported platform runtime and never silently fall back to a legacy engine Groundwork has
+determined is unacceptable. On Windows, **WebView2 is accepted and IE11 / `mshtml` refused**.
+On macOS and Linux, the platform's native WebKit. No Groundwork-specific minimum browser
+version: that would make Groundwork a browser-compatibility authority it cannot maintain.
+Runtime unavailable → **refuse embedded mode → offer Open in my browser.** The runtime test
+must exercise the **actual installer behaviour**, especially on Windows:
+
+- WebView2 present → the bank window uses WebView2;
+- WebView2 absent → **no IE11 fallback**;
+- no browser-engine download by Groundwork;
+- no alternate engine silently substituted;
+- the browser escape hatch still available.
+
+**Preserved in the record, verbatim:**
+
+> **Groundwork does not promise that a bank will work with the embedded engine; it promises only
+> that it will not silently substitute an unsupported/legacy engine, and it always provides the
+> user's normal browser as the escape path.**
+
+**Next:** the F12 server fix, as its own task, to its own accepted gate. **W's build is not started
+until then.**
