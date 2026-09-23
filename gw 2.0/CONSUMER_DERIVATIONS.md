@@ -5248,3 +5248,40 @@ the **strength** to knowing · a discharge whose route is not named.
 > **(6) F2, F6, F7** as read. Nothing here authorises code.
 
 ---
+
+### 7G-K2-Ack.8 Ruling — Rob, 2026-09-21: **L′ — as built**; a boundary statement, no admission; no build
+
+*The distinction from the balance half does matter, but it does not overcome the discharge-specific
+failure mode.* **The decisive point is Ack-F3:** *an admitted servicer acknowledgment can create a
+discharge that has no contradictory claim capable of correcting it. That is materially different
+from the balance case, where E's own figure could expose a conflicting number. Here, admitting the
+servicer's self-asserted discharge would permit an unverifiable payment credit to become operative.*
+
+So:
+
+- **The servicer acknowledgment remains listed as built, not admitted into the discharge consumer.**
+- **We do not turn `servicer_of` into a strength.**
+- **We do not exercise §9D.7's permission through A′.**
+- **We do not require household attachment as H′**; as the opening notes, K3 shows that does not
+  discriminate.
+- **We accept the consequence that the mixed-world `confirmed` gap remains unresolved through this
+  channel.**
+- **In the servicing-only world, the fact that admission would not restore a governing figure does
+  not justify admission; the absence of a figure does not make a silent discharge safe.**
+- **The acknowledgment's `not_knowing` status remains a reported stance rather than being promoted
+  into an admissibility mechanism.**
+
+*In short: the balance's L ruling does not automatically settle acknowledgment, but the
+acknowledgment's one-sided error mode independently requires the same boundary treatment.*
+
+**K2 acknowledgment / discharge: L′ — a boundary statement, no admission.** As with the balance
+half, a boundary ruling is not a new tested consumer contract: **no build, no fixture cases, no
+mutations** — Ak2 / Ak5 / Ak7 / Ak8 / Ak9 and the rest stand as **documented refusals in this
+record, not executable behaviour**. Dg4, Dg5, Dc7 and Ob4 / Ob5 / Ob6 / Ob12 stand exactly as built
+and accepted. **No build is authorised.**
+
+**With this, K2 is complete on both halves** — the balance (L, §7G-K2.8 / .9, with F7 built and
+accepted) and the acknowledgment / discharge (L′, here). Named and unopened elsewhere: D′.11, the
+7J-F4-F1 sibling question; the matcher / importer contract stays fenced.
+
+---
