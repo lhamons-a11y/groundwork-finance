@@ -355,7 +355,56 @@ def _mutations(db):
         ('the establishing party reported as the governing asserter (7J-F4-F1, F6 reversed)', series_establishing_party_asserts),
     ]
 
+    # ── 7G-K2-F7 (s 7G-K2-F7.8): THE CROSSING TEST. K2's balance half is closed under L - the servicer's
+    # balance is listed and never admitted - and F7 adds the servicer answer to the report only. These three
+    # mutations are the ways that reported field could silently become semantic input.
+    def servicer_qualifies():
+        # L crossed: the servicer answer qualifies a claim, so the servicer's balance governs
+        def post(out, *_):
+            for c in out['stated']['claims']:
+                if not c['qualifies'] and c.get('servicer') == db.EFFECT_IN and c['as_of'] and c['as_of'] <= out['d'] and c['value'] is not None:
+                    c['qualifies'] = True
+            q = [c for c in out['stated']['claims'] if c['qualifies'] and c['as_of'] <= out['d']]
+            if q:
+                b = max(c['as_of'] for c in q)
+                at = [c for c in q if c['as_of'] == b]
+                if len({c['value'] for c in at}) == 1:
+                    out['stated'] = dict(out['stated'], governing={'claim': at[0]['claim'], 'asserter': at[0]['asserter'], 'as_of': b, 'value': at[0]['value']}, reason=None)
+                    for name, disch in (('attached', False), ('confirmed', True)):
+                        f, total = out['figures'][name], at[0]['value']
+                        for pm in out['payments']:
+                            if pm['attachment']['state'] == db.CLAIM_ESTABLISHED and not pm['netted'] and (not disch or pm['station'] == db.STATION_DISCHARGED)                                     and pm['amount']['value'] is not None and pm['direction']['sign'] is not None and pm['occurred_on']['value'] and pm['occurred_on']['value'] > b:
+                                total += pm['direction']['sign'] * pm['amount']['value']
+                        f['value'], f['reason'] = total, None
+                    out['figures']['remaining']['value'] = out['figures']['confirmed']['value']
+            return out
+        return _swap(post)
+
+    def servicer_substituted():
+        # the servicer answer substituted for the entitled one
+        def post(out, *_):
+            for c in out['stated']['claims']:
+                if c.get('servicer') is not None:
+                    c['entitled'] = c['servicer']
+                for o in c['origins']:
+                    if o.get('servicer') is not None:
+                        o['entitled'] = o['servicer']
+            return out
+        return _swap(post)
+
+    def servicer_as_label():
+        # a label instead of the four-valued answer: an absence reads as a negative
+        def post(out, *_):
+            for c in out['stated']['claims']:
+                if 'servicer' in c:
+                    c['servicer'] = 'your servicer' if c['servicer'] == db.EFFECT_IN else 'a stranger'
+            return out
+        return _swap(post)
+
     return _series_mutations + [
+        ('the servicer answer qualifies a claim (7G-K2-F7, L crossed)', servicer_qualifies),
+        ('the servicer answer substituted for the entitled one (7G-K2-F7)', servicer_substituted),
+        ('the servicer answer reported as a label (7G-K2-F7, Reading B)', servicer_as_label),
         ('a knowing candidate alone discharges (7G-F3, Dc2 reversed)', any_knowing_origin_alone),
         ('an establishing utterance lifted to knowing by a second relationship (7G-F3, Dc4 reversed)', acceptance_lifted),
         ("a reading of the servicer's statement counts as E's knowing origin (7G-F3, Dc7 reversed)", servicer_reading_knowing),

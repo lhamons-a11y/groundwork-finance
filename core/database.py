@@ -4073,7 +4073,8 @@ def remaining(session, obligation, d, catalogue, knowing):
                         'amount': {'value'|None, 'reason', 'claims'}, 'occurred_on': {'value'|None, 'reason', 'claims'},
                         'direction': {'sign': -1|1|None, 'reason', 'payers', 'payees'},
                         'netted': None | {'as': counteracted|counteraction, 'claim'}}],
-         'stated':    {'claims': [...], 'governing': {'claim', 'asserter', 'as_of', 'value'} | None, 'previous': ... | None,
+         'stated':    {'claims': [...],      # per claim and per origin: 'entitled' and, beside it, 'servicer' - report only (7G-K2-F7)
+                       'governing': {'claim', 'asserter', 'as_of', 'value'} | None, 'previous': ... | None,
                        'conflict': [claims at the governing date] , 'reason'},
          'figures':   {'attached':  {'value'|None, 'basis': [(payment, sign, amount)], 'inside_base': [payments], 'excluded': [(payment, why)], 'reason'},
                        'confirmed': {... the same ...},
@@ -4188,6 +4189,26 @@ def remaining(session, obligation, d, catalogue, knowing):
     # (the servicer's statement) untouched. The three reasons unchanged (F1).
     stated_entries = _holder_series(session, entries(catalogue['balance'], subject_obligation_id=obligation.id), knowing,
                                     lambda party, as_of: _entitled_at(session, party, role_kind, obligation.id, as_of), d, 'entitled')
+    # 7G-K2-F7 (s 7G-K2-F7.8, ruled 2026-09-21): THE SERVICER ANSWER, BESIDE THE ENTITLED ONE - REPORT ONLY.
+    # 7G-K2 closed the balance half under L: the servicer's balance stays listed and is never admitted. But the
+    # listing said nothing about WHO the listed party is, so the household's own servicer's figure and a
+    # stranger's read identically (not_in_effect / not_knowing / not qualifying) while the record holds the dated
+    # servicer_of attachment that tells them apart. So each entry and each origin carries the origin party's
+    # servicer_of answer on THIS obligation at THE CLAIM'S as_of (never at d), four-valued with its governing
+    # stances beside it - no servicing claim at all is `undetermined`, which says we hold nothing about this
+    # party's servicing, NEVER "not your servicer" (absence is not zero); a self-asserted servicing claim
+    # (Kn12 / K3) shows as in_effect with its own claim as the stance that establishes it - displayed, never
+    # ranked or strengthened. THE FIELD IS INERT: nothing reads it. It does not qualify a claim, does not
+    # become governing, never substitutes for the entitled answer and establishes no ranking (qualifies,
+    # governing, the three figures and the diagnostic are computed exactly as before). The acknowledgment
+    # listing is untouched - that half is its own unopened question - as are _holder_series (7H's and 7J's
+    # series read expenses and plans, where an obligation role is meaningless), 7E, and the catalogue: the
+    # role is read by constant, so no caller's contract changes.
+    for _e in stated_entries:
+        for _o in _e['origins']:
+            _o['servicer'], _o['servicer_governing'] = _entitled_at(session, _o['party'], SERVICER_OF, obligation.id, _e['as_of'])
+        _lead = next((o for o in _e['origins'] if o['strength'] == _e['strength']), _e['origins'][0])
+        _e['servicer'], _e['servicer_governing'] = _lead['servicer'], _lead['servicer_governing']
 
     def governing_at(limit):
         q = [x for x in stated_entries if x['qualifies'] and x['as_of'] <= limit]

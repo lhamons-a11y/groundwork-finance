@@ -694,6 +694,56 @@ def _run(db):
     check('Sb9\' (role at date, the other direction): Chase\'s statement dated 3/31, before Chase\'s entitled role began 4/1, read + accepted; d = 4/30 when Chase IS in effect -> the role is read at the claim\'s date, not at d -> not_knowing, not in the series',
           c_s9b['strength'] == db.STRENGTH_NOT_KNOWING and not c_s9b['qualifies'] and r_s9b['stated']['governing'] is None)
 
+    print('\n7d. 7G-K2-F7 (s 7G-K2-F7.8) - the servicer answer beside the entitled one: report only, and inert\n')
+    Ok2 = mint(db.Obligation, 'A loan serviced by BillCo for Chase.')
+    entitled(chase, Ok2)
+    billco = mint(db.Party, 'BillCo, the servicer the household pays.')
+    claim(db.SERVICER_OF, utterance=utter('BillCo services it - that is who I pay.'), as_of='2026-01-01',
+          subject_party_id=billco.id, object_obligation_id=Ok2.id)                                   # the household's attachment
+    b_f1 = stated(Ok2, chase, '$5,000', '2026-03-31')
+    b_f2 = stated(Ok2, billco, '$4,900', '2026-03-31')
+    b_f3 = stated(Ok2, s3, '$4,800', '2026-03-31')                                                   # a party nothing in the record services with
+    r_f7 = rem(Ok2, '2026-03-31')
+    ent = {c['claim']: (c['entitled'], c['servicer'], c['qualifies']) for c in r_f7['stated']['claims']}
+    check('Fv1 / Fv2 / Fv3 (the case that earns the pass): Chase\'s own figure entitled IN EFFECT, servicer undetermined; BillCo\'s and S3\'s BOTH entitled UNDETERMINED - 7F\'s answer for a party with no entitled-party claim at all (the opening said not_in_effect; the true answer makes the point sharper) - so identical in the report until now, and the servicer answer alone tells them apart: BillCo IN EFFECT, the household\'s servicer\'s figure; S3 UNDETERMINED, a stranger\'s; none of the three changes what qualifies',
+          ent[b_f1.id] == (db.EFFECT_IN, db.EFFECT_UNDETERMINED, True)
+          and ent[b_f2.id] == (db.EFFECT_UNDETERMINED, db.EFFECT_IN, False)
+          and ent[b_f3.id] == (db.EFFECT_UNDETERMINED, db.EFFECT_UNDETERMINED, False)
+          and ent[b_f2.id][0] == ent[b_f3.id][0])
+    check('Fv2 (the stances, not a rank): the servicer answer carries the governing servicing stances beside it, so the household sees WHOSE claim establishes the servicing; no strength, no ordering, no second field ranking the source',
+          next(c for c in r_f7['stated']['claims'] if c['claim'] == b_f2.id)['servicer_governing']
+          and all('servicer_strength' not in c and 'servicer_rank' not in c for c in r_f7['stated']['claims']))
+    s3_self = mint(db.Obligation, 'A loan S3 says it services.')
+    entitled(chase, s3_self)
+    claim(db.SERVICER_OF, utterance=utter('We service your loan.', origin=s3), as_of='2026-01-01',
+          subject_party_id=s3.id, object_obligation_id=s3_self.id)                                   # Kn12 / K3: S3's own say-so
+    b_f4 = stated(s3_self, s3, '$1,000', '2026-03-31')
+    c_f4 = next(c for c in rem(s3_self, '2026-03-31')['stated']['claims'] if c['claim'] == b_f4.id)
+    check('Fv4 (Kn12 / K3): S3 asserts its OWN servicing, then states the balance -> servicer IN EFFECT on its own say-so, with S3\'s own claim listed as the stance that establishes it - displayed, never ranked or strengthened; still not qualifying',
+          c_f4['servicer'] == db.EFFECT_IN and c_f4['servicer_governing'] and not c_f4['qualifies'])
+    claim(db.SERVICER_OF_ENDED, utterance=utter('BillCo stopped servicing it 6/30.'), as_of='2026-06-30',
+          subject_party_id=billco.id, object_obligation_id=Ok2.id)
+    b_f5 = stated(Ok2, billco, '$4,000', '2026-08-31')
+    r_f5 = rem(Ok2, '2026-09-30')
+    check('Fv5 (role at date): BillCo serviced O to 6/30; its 8/31 figure -> servicer NOT_IN_EFFECT, read at THE CLAIM\'s date and never at d; its 3/31 figure still in_effect at 3/31',
+          next(c for c in r_f5['stated']['claims'] if c['claim'] == b_f5.id)['servicer'] == db.EFFECT_NOT
+          and next(c for c in r_f5['stated']['claims'] if c['claim'] == b_f2.id)['servicer'] == db.EFFECT_IN)
+    _, rBc = held('h-billco-statement', billco)
+    b_f6 = claim(db.BALANCE, reading=rBc, as_of='2026-03-31', content='$4,900', subject_obligation_id=Ok2.id)
+    evidence(b_f6, utterance=utter('That is the figure on BillCo\'s statement.', '2026-04-15T09:00:00'))
+    c_f6 = next(c for c in rem(Ok2, '2026-03-31')['stated']['claims'] if c['claim'] == b_f6.id)
+    check('Fv6 (the document path, Sb8 unchanged): BillCo\'s statement read + Rob\'s acceptance -> the servicer answer is reported PER ORIGIN (BillCo in_effect, Rob undetermined) and the claim\'s is the knowing origin\'s; the claim is still not in E\'s series - K2\'s balance half stays closed',
+          sorted(o['servicer'] for o in c_f6['origins']) == sorted([db.EFFECT_IN, db.EFFECT_UNDETERMINED])
+          and c_f6['servicer'] == db.EFFECT_IN and not c_f6['qualifies'] and rem(Ok2, '2026-03-31')['stated']['governing']['claim'] == b_f1.id)
+    check('Fv7 (THE CROSSING TEST - the field is inert): with the servicer answer present, the governing position, the three figures and the diagnostic on this obligation are exactly what the entitled test alone gives - Chase\'s 5,000 governs, the servicer\'s and the stranger\'s figures move nothing; and no figure or reason mentions the servicer',
+          r_f7['stated']['governing']['claim'] == b_f1.id and r_f7['stated']['governing']['value'] == D('5000')
+          and r_f7['figures']['confirmed']['value'] == D('5000') and r_f7['figures']['attached']['value'] == D('5000')
+          and r_f7['diagnostic']['statement_check']['value'] is None
+          and 'servicer' not in str(r_f7['figures']) + str(r_f7['diagnostic']))
+    check('Fv8 (the null model): on an obligation with no servicing claim anywhere, every stated entry reports servicer UNDETERMINED and the report is otherwise identical - the absence says we hold nothing, never "not your servicer"',
+          all(c['servicer'] == db.EFFECT_UNDETERMINED for c in rem(O1, '2026-03-31')['stated']['claims'])
+          and [c['entitled'] for c in rem(O1, '2026-03-31')['stated']['claims']] == [db.EFFECT_IN])
+
     print('\n8. The dependency direction and the wiring guard\n')
     check('remaining reads 7F (reach, in_effect) and derived_strength and nothing that resolves, scores or allocates - no level_consistency / chain_strength / aboutness / independence; payment_plan untouched',
           {'reach', 'in_effect', 'derived_strength'} <= (calls_in(db.remaining) | calls_in(db._entitled_at))

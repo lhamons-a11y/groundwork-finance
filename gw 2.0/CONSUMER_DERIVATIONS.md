@@ -4986,3 +4986,55 @@ that the new field cannot silently become semantic input.**
 **This is the ruling only. Build is not yet authorised.**
 
 ---
+
+#### Built — 2026-09-21 (7G-K2-F7)
+
+`core/database.py`, **five lines in `remaining`, after the stated series is built** (plus the
+docstring's line and a comment block carrying the ruling): for each stated entry, each origin gains
+the origin party's `servicer_of` answer on **this** obligation at **the claim's `as_of`** — the
+existing `_entitled_at`, called with the `SERVICER_OF` constant — reported as `servicer` with its
+governing stances as `servicer_governing`; the claim-level value is the knowing origin's, exactly as
+`entitled`. **Nothing reads it.** `qualifies`, `governing`, the three figures, the diagnostic, 7I,
+7H, `_holder_series`, 7E, the acknowledgment listing, the registry and every caller's catalogue are
+untouched — the role is read by constant, so no contract changed. No module-level helper was added
+(the `servicer` / `current_servicer` absence pins stand).
+
+**The null model, before any case:** 7G 57/57, 7I 32/32, 7H 40/40, 9D-i 22/22 — **zero change**; the
+field is present in every stated entry and moves nothing.
+
+**The oracle — the 7G fixture (57 → 64):** **Fv1 / Fv2 / Fv3**, the case that earns the pass — Harbor's
+own figure `entitled in_effect`, servicer undetermined, governing; **BillCo's and S3's figures both
+`entitled undetermined`**, identical in the report until now, and **the servicer answer alone tells
+them apart** — BillCo `in_effect` (the household's attachment), S3 `undetermined` (a stranger);
+neither qualifies. **Fv2** the governing servicing stances are listed beside the answer, and no
+`servicer_strength` / `servicer_rank` key exists. **Fv4 (Kn12 / K3)** S3 asserting its *own*
+servicing then stating the balance → `in_effect` on its own say-so, with S3's own claim as the stance
+that establishes it — displayed, never ranked or strengthened; still not qualifying. **Fv5** the
+servicing ended 6/30: the 8/31 figure reads `not_in_effect` and the 3/31 figure still `in_effect` —
+**the claim's date, never `d`**. **Fv6** the document path: per origin — BillCo `in_effect`, Rob
+`undetermined` — the claim's the knowing origin's, and the claim is **still not in E's series**
+(7J-F4-F1's Sb8 and K2's closure both stand). **Fv7, the crossing test** — with the field present the
+governing position, `attached`, `confirmed`, `remaining` and the diagnostic are exactly what the
+entitled test alone gives, and no figure or reason mentions the servicer. **Fv8** the null model: an
+obligation with no servicing claim reports `undetermined` everywhere — *we hold nothing about this
+party's servicing*, never *not your servicer*.
+
+**One correction to the opening, recorded rather than quietly fixed.** §7G-K2-F7.2 and the Fv2 / Fv3
+columns described the servicer's listing as `entitled = not_in_effect`. **7F answers `undetermined`**
+for a party with no entitled-party claim at all; `not_in_effect` is the answer when a role existed
+and ended (Fv5's shape). The distinction F7 adds is unchanged — it is *sharper*: before this build
+the household's servicer and a stranger were identical on **every** reported axis, `undetermined` on
+both.
+
+**Smoke `s113` (47 → 53), the three ruled mutations, all caught on the first run:** the servicer
+answer **qualifying** a claim (L crossed — the servicer's balance governs and the figures move) · the
+servicer answer **substituted** for the entitled one · the answer **reported as a label** (Reading B —
+an absence reads as *a stranger*). They test what the ruling required: **the new field cannot
+silently become semantic input.** `s114`, `s115`, `s120` green as readers of the same report.
+
+**What this changes for the household:** a balance the household's own servicer sent is now
+distinguishable, in the listing, from a figure sent by a party nothing in the record connects to the
+loan — with the claim that establishes the servicing shown beside it. It still does not become the
+governing figure: K2's balance half stays closed under L. Gate 1590 → 1596, 0 failed.
+
+---
