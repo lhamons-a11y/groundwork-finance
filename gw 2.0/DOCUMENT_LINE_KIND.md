@@ -198,3 +198,43 @@ ruled, and item 9's inventory is explicitly *not* complete.
 > shortcuts to correct. **(4) F2:** one kind, the figure's sort uninterpreted. **(5) F5:** the kind
 > dispute survives as a content dispute. **(6) F6:** staged by document family, the first stage named.
 > **(7) F4, F7** as read. Nothing here authorises code.
+
+---
+
+## 8. Ruling — Rob, 2026-09-21: **L1 with F3(a)**; F1 answered first — proceed now; no build
+
+**L1: the line is its own kind.** *It is not the `balance(O)` stance merely because both
+representations can carry the same underlying figure.* That means:
+
+- **The line has its own identity and semantics.**
+- **The stance remains the separate `balance(O)` representation.**
+- **The tie between them remains a separate claim; this ruling does not mint, infer, or repair that
+  tie.**
+- **Candidate generation remains fenced. L1 does not authorise the matcher or any
+  candidate-generation machinery.**
+- **The four document-path corpora stand as already accepted** (F3(a)): *their fixtures are evidence
+  that the relevant subject / tie is present in those cases, not permission to reinterpret the
+  acceptance as a shortcut.*
+- **L2 is rejected** — it would require the substrate change 9D already refused.
+- **L3 is rejected** — a chooser would violate the one-source boundary.
+- **L0 is rejected** — it would leave the semantic question unresolved despite the shape inventory
+  establishing that these are occurrences of the same structural question.
+
+**F1 — answered first, and answered *proceed now*.** *The important ordering is: first rule what the
+line is; separately, and later, determine how a line gets tied to a stance / subject. That preserves
+the matcher boundary rather than smuggling matcher semantics into the line kind.*
+
+**No code is authorised by this ruling.** The next step is the usual separate decision about whether
+this ruling actually warrants a build.
+
+**Still unruled, and needed before any build can be scoped** (named here so the build decision is
+made with them in view, not around them): **F2** — one kind, with the figure's sort uninterpreted ·
+**F4** — the foundation map's last users retire to `KNOWING_SUBJECT_PARTY` · **F5** — 7A's kind
+dispute (Pd4) must survive as a dispute about the line's content · **F6** — the ~200-site corpus
+staged by document family, the first stage named · **F7** — what must not change.
+
+**One boundary note.** The ruling was recorded as *"D′.11 / document-line kind"*; **D′.11 is a
+different question** — composition across relation kinds — and remains named and unopened. This
+ruling touches the document line only.
+
+---
