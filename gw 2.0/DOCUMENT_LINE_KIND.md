@@ -368,3 +368,65 @@ retired. **No build authorisation.** The next step is a **build-scope decision, 
 build authorisation.**
 
 ---
+
+## 11. Stage 1 (SBC) — scope ruled and build authorised — Rob, 2026-09-21
+
+**The four-site boundary is correct.** The build may touch exactly `core/database.py`,
+`tests/test_plan_identity_fixture.py`, `tests/test_plan_stances_fixture.py`,
+`smoke_sections/s99_plan_identity.py` — **and nothing else.** *In particular `plan_identity:206`
+remains untouched despite sharing the helper; the defaulted helper parameter is permitted precisely
+because it leaves that sibling call unchanged.*
+
+**The name: `document_line`**, not `line_figure`. *That follows F2: the kind names the
+representation, not the sort of figure carried by its content; `line_figure` invites the exact
+interpretation F2 rejected.* The ruled entry: `subject_party_id` · `object: ()` ·
+`reading_establishes: True` · `relational_knowing: True` · `knowing_relation:
+KNOWING_SUBJECT_PARTY` · non-symmetric · not a role · **semantically distinct from `MOVEMENT`**, and
+that distinction is added as a **permanent semantic guard** — *structural identity is not semantic
+identity under F7.7.*
+
+**The F4 precision — accepted.** *For a ruled kind, absence of the required subject is not an
+`undetermined` knowledge result; it is rejected at the representation boundary.* So Stage 1 must
+prove **missing party subject → refusal**, not *→ `undetermined`*. **The second half of F4's
+two-sided proof moves to the genuinely unruled mechanism-probe path in Stage 2, where `undetermined`
+is actually reachable.** *That does not weaken F4; it prevents the test from asserting an impossible
+state.*
+
+**The six cases accepted** — particularly Sb-3 (an empty foundation map still yields `knowing`),
+Sb-4 (Rob-originating evidence yields `not_knowing`), Sb-6 (a missing subject is refused) and Sb-5
+(`movement`, the deductible semantics and the candidate-object refusal stay fenced). Sb-1's explicit
+distinction from `MOVEMENT` is **retained as a permanent semantic guard**.
+
+**`PARTICIPANT_CANDIDATES`: report, do not pin.** Record **55 mentions before → 53 after**, the two
+removed identified as the SBC construction and its assertion. ***Do not turn that inventory number
+into a semantic invariant.***
+
+**The four `s99` mutations** are the right crossing points: the ruled line used as a different kind ·
+the tie manufactured from `artefact_concerns` · the foundation map restored for the ruled kind · a
+candidate object permitted despite `object: ()`. **`s122` remains untouched** except for the
+explicitly authorised Ps14 restatement.
+
+**The gate sequence approved exactly as proposed:** registry null → four-site swap → Stage-1 cases →
+standalone mutations → full gate → build note. *The registry-only null model should demonstrate that
+merely introducing `document_line` has no collateral semantic effect before the corpus starts using
+it.*
+
+**Stages 2–4.** The inheritance split is accepted. **Stage 2:** mechanical inheritance allowed, but
+the 15 EOB corrections remain **case-by-case semantic restatements**, and the three mechanism probes
+move there — **not part of Stage 1**; `unruled_probe_kind` is **not authorised in Stage 1**, and when
+Stage 2 opens the name is to be evaluated against the existing ontology and the requirement that it
+remain permanently unruled. **Stage 3:** inherits the mechanics, but Pd4's F5(b) consumer restatement
+and the one `statement_figure` artefact-subject correction happen **there**, not silently in Stage 1.
+**Stage 4: not authorised or semantically ruled.** The corpus reading is useful but is not a ruling —
+`services` **excluded** from the figure-line migration, its relationship-statement semantics needing
+their own question; `applied` and `disbursement` **candidate** figure lines, whose entry into Stage 4
+remains for that stage's semantic opening.
+
+**Stage 1 is authorised to build exactly the four SBC sites and their necessary registry / fixture /
+mutation changes.** It is **not** authorised to touch: `eob_amount` · the 15 EOB artefact-subject
+sites · `statement_figure` / the statement family · the mechanism probes · consumers · `MOVEMENT` ·
+the ruled stances · `PARTICIPANT_CANDIDATES` semantics · `services` / `applied` / `disbursement` ·
+any matcher or tie behaviour. **The authorisation is conditional on the gate sequence and build-note
+evidence specified. Nothing beyond Stage 1 is authorised.**
+
+---
