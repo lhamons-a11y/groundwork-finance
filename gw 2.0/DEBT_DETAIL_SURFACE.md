@@ -407,6 +407,42 @@ ledger's Reconcile panel is.
 - Test 15 is answered by this ruling; test 9 (explain each card without deciding which to use)
   now has its pass condition.
 
+**G5 language — Rob, 2026-09-24.** The boundary is semantic, not a list of forbidden adjectives:
+
+| Statement | Kind | Status |
+|---|---|---|
+| *"This card has an APR of 18.9%."* | fact | permitted |
+| *"This card's APR is 6 points lower than the other card's."* | factual comparison | permitted |
+| *"This card has the lowest APR."* | factual superlative | **OPEN** — proposed prohibition |
+| *"This card is the better choice."* | decision | **prohibited** |
+
+**Prohibited — all remain prohibited, in any wording:**
+
+- *"Card A is the better option."*
+- *"Given your situation, Card A makes more sense."*
+- *"I'd go with Card A."*
+- *"The numbers strongly favor Card A."*
+- *"Card A is the obvious choice."*
+- *"You'd be better off using Card A."*
+- *"If I were you, I'd use Card A."*
+- *"Based on these factors, Card A appears preferable."*
+- *"The financially optimal choice is Card A."*
+- Showing a "recommended" or "preferred" path without explicitly saying so.
+- Sorting, highlighting, scoring, or otherwise visually designating one option as the choice.
+- **Indirect recommendation:** the model must not turn factual comparisons into a choice through
+  implication — by selection, emphasis, ordering or framing — even when every sentence it says is
+  individually true.
+
+**Factual superlatives — OPEN.** Whether statements such as *"Harbor Freedom has the lowest APR
+among these options"* are permissible remains OPEN. The current proposed rule is to prohibit
+factual superlatives that single out one option, because the same information can be presented
+independently for each option without directing the user's choice. (If every option already
+shows its APR, *"lowest APR"* adds little information while directing attention to one option.)
+
+*Applied on the concept layout:* the HELOC board's closing sentence (*"The line has the lowest rate
+here, and paying only its minimum costs less than either card's…"*) used two superlatives and was
+reworded to per-option facts.
+
 ### R6 — the cost of a financed purchase is a scenario, not a number
 
 Added to the rules at Rob's direction, because the layout's example exposed it: **when financing
