@@ -116,6 +116,15 @@ across N cards with limits. **Target: under 15%.**"* and colours the figure embe
 thresholds encoded as judgement colours. It is also a claim-backing calculation living in a render
 function, which `CALCULATION_PLACEMENT.md` already says it should not be.
 
+> **FIXED on 1.x, 2026-09-24 (Rob: "fix V1 and V5 in 1.x"), `f7a93bb` + `e81d6db` on `lts/1.x`,
+> merged into master.** This entry named one site and there were three: the combined line above,
+> a per-card utilization bar coloured at the same 30% / 15% thresholds, and a per-card line
+> reading *"— aim for under 30%"*, *"— aim for under 15%"* or *"— good"*. The first sweep searched
+> for "utiliz" and the two siblings only say `utilPct`; `e81d6db` fixed them after the master
+> merge's own check found them. All three now show the percentage alone, in one neutral colour.
+> **What V1 does not close:** the calculation still lives client-side in render code — G1's
+> second half (a named, tested contract per `CALCULATION_PLACEMENT.md`) stays open.
+
 ### V2 — the current APR loses its source (R2)
 
 `debt_pdf_reconcile` ([`server.py` ~3275](../server.py)) writes the statement's APR over
@@ -173,6 +182,15 @@ unknown, and the record says they are zero. That is absence written as zero, int
 authoritative debt table, from a UI flow — a second, weaker debt model created outside the one the
 concept says must stay authoritative. A debt view opened on that record would teach *"0% APR,
 $0 balance"* from nothing.
+
+> **FIXED on 1.x, 2026-09-24, `f7a93bb` on `lts/1.x`, merged into master.** Worse than recorded
+> here: the credit-purchase path already asked for an APR and discarded it. 1.x cannot store
+> "unknown" (the server turns a missing figure into 0), so Rob ruled **require them**: the vehicle
+> loan path now asks for the amount financed, APR and an optional term; the credit-purchase path
+> adds the amount financed; Commit stays disabled with a stated reason until both figures are
+> entered, and a blocked commit writes nothing, history included. 0% is accepted when typed. A
+> **lease** is unchanged — no balance and no APR by design; the rate is in the payment (Rob). Rows
+> already written at $0 / 0% by earlier installs are not touched (§9 question 5 stays open).
 
 *Also found, bearing on test 8 / 14:* `simulate_payoff`'s `one_time_cost` is documented as
 **money that will not reach the debt** — cash from the same surplus the extra payment came from,
