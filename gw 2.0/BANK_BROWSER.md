@@ -531,7 +531,7 @@ decision; passing the combined gate does not accept it.
 
 ---
 
-## 9. W built (2026-09-24), awaiting acceptance — and NOT complete under §7
+## 9. W built (2026-09-24) — ACCEPTED as built (Rob, 2026-09-24); NOT yet complete under §7
 
 Built under the §7 ruling in its own worktree (`bank-window`), F12 accepted first. **§7 says W is
 not complete until Bw9 passes on all three OSes.** This build passes it on Windows only (below),
@@ -651,3 +651,17 @@ V5 fixes merged from `lts/1.x` changed `app.js` and `index.html` beneath it. So 
 rebased onto `5be2147` (one conflict, in `BUILD_QUEUE.md`: row 18 kept as upstream wrote it,
 row 19 this build's), the merged `app.js` syntax-checked, and the full gate rerun on the rebased
 tree: **1699 / 0**. Later upstream commits before push touched only `DEBT_DETAIL_SURFACE.md`.
+
+**W ACCEPTED as built — Rob, 2026-09-24**, at `337d336`, gate 1699 / 0 on the rebased tree. The
+acceptance covers the build as recorded above, including the decisions surfaced in "Decisions made
+while building", which stand as built. **§7's completion condition is not discharged by it.** W
+stays open until these are measured, each by name:
+
+1. Bw9 on macOS and Linux, and a moved or localised Downloads folder live
+2. Bw17: WebView2 truly absent, through the real installer
+3. Bw18: a platform runtime update, then reopening, with no Groundwork rebuild
+4. the frozen build: `--bank-window` from the PyInstaller bundle and installer, including the status line from a windowed executable
+5. the foreground fix in the real app
+
+The observation against Rob's criterion (the import offer can sit behind the bank window) is
+recorded, not ruled.
