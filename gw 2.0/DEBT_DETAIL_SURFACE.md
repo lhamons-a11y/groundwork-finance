@@ -1,7 +1,8 @@
 # The debt as a navigable object — concept, violations, semantic tests, gates
 
 > Status: **Concept + case set, 2026-09-24. No code. Not in the build queue — its number, if
-> any, is Rob's. G4 and G5 RULED (Rob, 2026-09-24), §11; every other gate open.** Concept
+> any, is Rob's. G4 and G5 RULED (Rob, 2026-09-24), §11; the §12 teaching principle AGREED (Rob, 2026-09-24);
+> every other gate open, G7 included.** Concept
 > layout: the *Debt Detail Concept Layout* canvas (claude.ai artifact, private). Written from Rob's concept note of the same day and his review of the first
 > read against the code. The review's instruction: *not "here is the feature," but the concept,
 > the discovered violations, the semantic tests, and the gates that must pass before
@@ -9,7 +10,8 @@
 > stable.
 >
 > **The concept exposed existing violations.** Reading it against 1.x found five places where
-> the shipped debt surfaces already break the rules the concept depends on (§4). A debt view built
+> the shipped debt surfaces already break the rules the concept depends on (§4); a sixth, V6, was
+> found investigating the fifth. V1 and V5 are fixed on 1.x; V2–V4 and V6 are open. A debt view built
 > on today's code would carry every one of them into a new surface and give them a teaching voice.
 > **Do not build the view yet** (Rob, 2026-09-24).
 
@@ -198,6 +200,32 @@ the stated optimistic reading. "$300 **on Card A**" is the opposite: it adds to 
 balance. The engine has no input that means that today. Before You Buy's current card-purchase
 consequence is therefore the cash reading, whatever the user intends to pay with.
 
+### V6 — the Debt page collapses a blank into zero (R2) — OPEN
+
+*Found 2026-09-24 while investigating question 5 (V5's legacy rows); recorded at Rob's direction.*
+
+**The Debt page currently collapses blank APR, balance, and minimum-payment inputs into numeric
+zero, and the database does not preserve whether zero was entered or produced by a blank input.
+Because zero is a legitimate value for at least APR and balance, the stored value cannot
+subsequently distinguish known zero from unknown.**
+
+- **Where:** `_syncDebtToDb` sends `parseFloat(card.rate) || 0`, and the same for
+  `begin_balance` and `minimum_payment`, on every create **and every edit**; `create_debt` in
+  `server.py` independently turns a missing field into `0`. This is the main entry point for debts,
+  not a legacy path — the zero is being written today.
+- **Why it cannot be repaired after the fact:** 0% is a real rate (promotional financing) and $0
+  a real balance (a debt paid off), so zero is sometimes a value and sometimes a placeholder, and
+  nothing in the row records which. On load, `restoreFromBootstrap` hands the stored `0` back as a
+  real 0%, so every calculation and display downstream treats it as known.
+- **What already distinguishes:** `credit_limit` is nullable and blank is stored as null — in the
+  one database measured, 17 of 17 rows null and none at 0. `DebtLedgerEntry.source` is the other
+  debt record that carries its origin. V6 is the gap between those and the three core figures.
+- **Relation to the rest:** the same failure as V2 (a number without its source) at the most-used
+  entry point, and the representational half of G2. It is a data-semantics gap, not an urgent
+  defect: nothing is miscalculated that the user did not leave blank.
+
+**Status:** OPEN. No code and no migration authorised (Rob, 2026-09-24).
+
 ---
 
 ## 5. The semantic tests
@@ -290,6 +318,7 @@ provenance a figure needs and what a payoff depends on both follow from what the
 | **G3 — Payoff is scenario-scoped** | the view shows any payoff figure | A per-debt payoff figure exists only as *"under [strategy] and [$X/month], this debt is projected to clear in [month]"*; changing inputs visibly changes the scenario, never the debt. Consistent with whatever `RESERVE_PAYOFF_QUESTION.md` rules. | 13 |
 | **G4 — The engine capability — RULED, authorised (§11)** | Before You Buy uses the debt | "A proposed charge to this specific debt" is either authorised as a named engine capability, with its own contract and tests, or refused — in which case Before You Buy states the cash reading it actually computes. V5 resolved either way: a committed decision never writes unknown principal or rate as zero. | 8, 14 |
 | **G5 — Comparison — RULED, permitted as information (§11)** | any surface shows two debts' outcomes for one decision | Whether side-by-side outcomes may be shown at all, and if so in what form, ruled before anything renders them. | 9, 15 |
+| **G7 — Payment-method terms (§12) — OPEN** | Before You Buy uses rewards or promotional financing | Whether a proposed purchase may carry payment-method terms (rewards, 0% APR, deferred interest) into the engine, stored as sourced facts or as unknown — never as zero; its own gate, not an extension of G4, which was ruled narrowly. | 8, 14, 15 |
 | **G6 — The teaching contract** | the teaching layer speaks | The seven inputs as the only permitted inputs; §6's disagreement sentence; §7's silence condition as an asserted test. | 11, 12 |
 
 **Not a gate, but a dependency:** tests 1 and 10 were not measured and should be, against the
@@ -311,7 +340,15 @@ Listed, not defaulted. Any of them may be reframed.
 4. ~~**G5.**~~ *Answered, §11: yes, as information, never ranked.*
 5. **V5.** The committed-purchase debt with invented zeros is live data in any install that has
    used it. Does correcting it forward suffice, or do existing zero rows need a marked "unknown"
-   state?
+   state? — **STILL OPEN.** *Investigated 2026-09-24, read-only, counts only, on the one database
+   available (installs cannot be counted — Groundwork does not call home):*
+   - **Before You Buy legacy zeros: no migration population found in that database** (0 committed
+     vehicle / purchase decisions, 0 rows matching the fingerprint — same name as a committed item,
+     0 / 0 / 0%, minimum equal to its monthly cost). The V5 fix prevents new occurrences. The
+     fingerprint makes such rows identifiable in any install that has them.
+   - **Not settled by that:** of 17 debts, 5 carry 0%; 4 are closed at $0; **1 is active, unpaid,
+     not a lease, at 0%**, and the database cannot establish whether that is a legitimate rate or
+     a blank collapsed to zero (V6). The question stays open pending that record's meaning.
 
 ---
 
@@ -396,3 +433,90 @@ Two consequences, both from R4:
 G0, G1, G2, G3, G6 remain open, as do §9 questions 1, 2 and 5. The minimum-payment rule the
 layout estimates (1% of balance plus interest, $25 floor) is an **unknown** per card; how
 Groundwork obtains or labels it is part of G2, not decided by G4. No code.
+
+---
+
+## 12. Teach the question, not just the answer — the payment-terms investigation
+
+> Status: **The principle AGREED (Rob, 2026-09-24). Everything else in this section is an open
+> design question. G7 opened, not ruled. No code.**
+
+Opened from a Before You Buy extension: payment methods carry terms (cash back, points,
+promotional financing) that change what a purchase does, and a store's "90 days same as cash"
+is not the same thing as a 0% APR.
+
+### The principle (agreed)
+
+**When a term is unknown, the unknown is the teaching moment, not a dead end.** A first read
+treated a missing term as *"cannot be calculated — enter it"*. Rob's correction: the teaching
+model should teach what the term is, how it can go wrong, and **what the user should ask before
+signing** — so that next time they ask it without Groundwork.
+
+**The goal, in Rob's words: users not needing Groundwork to make good financial decisions.** The
+success test for any teaching here: *would the user ask this question next time without the app?*
+A lesson only reachable by opening Groundwork has recorded a decision, not taught one.
+
+**The line it keeps (also agreed): the mechanism is taught conditionally, never asserted about
+this offer.**
+
+- *"**If** this is deferred interest, a missed deadline can mean interest on the full original
+  $869.99 from the purchase date"* — teaching.
+- *"This offer will charge you interest on $869.99"* — an assertion Groundwork cannot make until
+  the user has confirmed the terms. Unknowns stay unknown.
+
+And it stays teaching rather than advice: *"deferred interest works like this; here is what to
+check"* is in scope; *"avoid deferred-interest offers"* is a verdict and is not. The user can
+learn all of it, ask, and still take the deal.
+
+### What the user learns to ask — the "90 days same as cash" example
+
+1. **Is this "no interest if paid in full" (deferred interest), or a true 0% APR?** They sound
+   alike and are not.
+2. **If it is not paid in full in time, is interest charged back to the purchase date on the
+   full original amount** — even if most of it has been paid?
+3. **What APR applies after the promotion?** Store cards often run near 30%.
+4. **What exactly is financed?** Sales tax, delivery and installation may or may not be included.
+5. **When exactly does it end?** A statement date, not "90 days from today".
+6. **Will the minimum payment clear it in time?** Usually not.
+
+Groundwork's arithmetic serves the teaching: *"if this is deferred interest, clearing it in time
+takes about $290 a month; your plan's extra is $313"* — and what the rest of the plan does while
+that is diverted. That connection to the existing payoff plan is the most valuable single piece.
+
+### Open design questions (not ruled)
+
+- **Framing.** *"How could you pay for this?"*, never *"Which card should I use?"* — the second
+  makes Groundwork the chooser before the page renders.
+- **Terms as sourced facts.** A reward, a promotional APR, a deferred-interest period are stored
+  as *user-entered* (with *"verify the offer terms"* shown back) or as **unknown** — never as `0`.
+  V6 is the reason: a zero written for "don't know" cannot later be told apart from a real zero.
+- **Proposed rule — a reward is never shown alone.** Cash back is the lever issuers use to move
+  purchases onto high-APR cards, so a bare *"$40 cash back"* beside *"$15"* leans without ranking.
+  Proposed: a reward always appears against the interest cost in the same scenario (on minimums,
+  $40 back against ≈ $2,075 interest; under the plan, against ≈ $287). G5 permits comparison; this
+  closes a way to make comparison lean while keeping G5's letter.
+- **Two promotions, never collapsed.** A true 0% promotional APR and deferred interest have
+  different consequences when the balance is not cleared.
+- **Deferred interest needs more than a duration:** the post-promotion APR; whether the promotion
+  sits on its own account or on a card with other balances (payment allocation across balances
+  decides whether the promotional balance clears — a first version may model only a stand-alone
+  promotion, and say so); billing cycles rather than months, so the required payment is "about".
+- **Reward scope:** all purchases / this merchant / this category covers most; caps and rotating
+  categories go to "Other" with the user's note shown back, rather than modelled.
+- **Reward timing:** a reward is not subtracted from the balance at purchase; it applies as and
+  when the user says it posts (statement credit, deposit, points).
+
+### Cases, each with what the user should learn to ask
+
+| Case | What Groundwork shows | What the user learns to ask |
+|---|---|---|
+| Reward, terms known | the reward against the interest cost, in each scenario | Does the reward outlast the interest if I carry this balance? |
+| True 0% promotion | cost inside the promotion; the rate and balance after it | What rate applies after, and on what balance? |
+| Deferred interest, cleared in time | the required monthly amount, against the plan's extra | What must I pay each month to clear it, and what does that take from my plan? |
+| Deferred interest, missed | the conditional consequence, labelled *if* | Is interest charged from the purchase date on the full amount? |
+| Term unknown | the mechanism taught conditionally; no number invented | Which kind of offer is this, and where is it written down? |
+| Financed amount unclear | the price as entered; the question raised | Are tax, delivery and installation in the financed amount? |
+
+### Not decided here
+
+G7 is open. No field, no schema, no engine input, no copy beyond the examples above.
