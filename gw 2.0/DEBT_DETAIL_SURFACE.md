@@ -384,6 +384,16 @@ layout can evolve; the permissions are now clear.* Every other gate stays open.
 - V5 is untouched by this ruling: a committed decision still may not write an unknown principal
   or rate as zero (§8, G4's second half, still open).
 
+**Clarified — Rob, 2026-09-24: Before You Buy appears only on revolving credit.** Credit cards,
+store cards and **home equity lines of credit** carry it: a purchase can be charged or drawn on
+them. A HELOC is different from a mortgage because it is a line of credit, using the home as
+collateral. Before You Buy does **not** appear on the page of an instalment loan or a mortgage:
+nothing can be charged to either. The loan clause above therefore describes how a loan figures in
+a Before You Buy opened from elsewhere (its payment unchanged, the expense landing on a card, a
+line or cash), not a section on the loan's own page. On the concept layout, Before You Buy sits
+behind its own button on each revolving-credit page, closed until the user selects it, as the
+ledger's Reconcile panel is.
+
 ### G5 — debt comparison: PERMITTED AS INFORMATION
 
 > **Before You Buy may present the calculated consequences of the same expense under multiple
