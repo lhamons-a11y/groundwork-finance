@@ -6,7 +6,7 @@
 > > downloads transactions and statements there and the file lands in the existing review —
 > > and what may that window never do?**
 >
-> Queue item 18. Rob's review (2026-09-23) accepted W in principle and asked for twelve
+> Queue item **19** (renumbered from 18 on 2026-09-23, Rob: the document-line pass, `DOCUMENT_LINE_KIND.md`, keeps 18). Rob's review (2026-09-23) accepted W in principle and asked for twelve
 > tightenings before build; each is answered below and tagged **[R1]–[R12]**. His follow-up the
 > same day added runtime currency, **[R13]**, answered as **F13**. Three findings
 > are new from reading pywebview 6.2.1's source during the revision: **F1** (per-window
@@ -454,3 +454,69 @@ must exercise the **actual installer behaviour**, especially on Windows:
 
 **Next:** the F12 server fix, as its own task, to its own accepted gate. **W's build is not started
 until then.**
+
+---
+
+## 8. F12 built — the request-host guard (2026-09-23), awaiting acceptance
+
+**What changed, and only this.** `server.py`: `_LOCAL_HOSTNAMES = ('127.0.0.1', 'localhost')` and
+`_request_host_refusal(environ, path)` at module level, called by a new `before_request`,
+`_check_request_host`, **registered before** `_check_session_token` so it covers `/` and
+`/api/health`, which the token check exempts. It refuses:
+
+- any request whose `Host` names anything but the two loopback names, **or** names them on a port
+  other than the one the request arrived on (`SERVER_PORT`);
+- any `/api/*` request that carries an `Origin` other than `http://127.0.0.1:<port>` /
+  `http://localhost:<port>`, including `null`.
+
+The response is a 403 JSON body with no token. Nothing of the bank window was touched.
+
+**One deliberate departure from the brief, stated rather than hidden.** The brief said *exactly*
+`127.0.0.1:8765` / `localhost:8765`. The guard binds to **the port the request arrived on**
+instead of a hard-coded 8765, because two legitimate callers are not on 8765: `dev_server.py`
+serves on **8766**, and Flask's test client, which every gate section uses, sends a bare
+`Host: localhost` on the implicit port 80. The security property is unchanged. A rebinding page's
+Host is always **its own hostname**, which is never a loopback name, and a browser's Host always
+matches the port it connected to. The check that stops the attack is the name. The port check
+refuses the one remaining oddity, a loopback name on a port this server is not on.
+
+**Rob's sequence, as run.**
+
+1. **Exercised before commit**: the test client, then the real stack.
+2. **The main window**, measured on the real stack: waitress on 8765, a throwaway data dir, a
+   real pywebview window running app.js through a cold boot. The renderer was `edgechromium`
+   (WebView2). All **33** requests arrived as `Host: 127.0.0.1:8765`. **32** had no Origin; **1**
+   (a POST) carried `Origin: http://127.0.0.1:8765`. **0 refused**, every status 2xx/3xx, and the
+   page held its token.
+3. **Groundwork's own requests**, on the same real stack: `launch._wait_for_flask()` returned
+   True; `launch._queue_import_file()` on a real CSV POSTed to `/api/auto-import/queue` and got
+   200 (`Python-urllib/3.12`, no Origin). A grep for `127.0.0.1:8765` / `localhost:8765` / `8765`
+   across the tree found no other caller; the frontend uses relative URLs only.
+   **The attack half over a real socket**, waitress on 8765 **and** 8766, raw headers: a
+   rebinding Host on `/`, `/api/*` and `/api/health` → 403, no token; a foreign Origin, another
+   local port's Origin, a wrong port in Host → 403; `127.0.0.1` and `localhost` with no Origin or
+   their own → 200, the token only on `/`.
+4. **The gate**: `smoke_sections/s125_request_host.py`, 22 checks. Refused: the seven attack
+   shapes. Admitted: the nine legitimate shapes, including the WebView POST shape, dev_server's
+   port, `_wait_for_flask`'s health check, the watcher's exact POST and the test client's bare
+   localhost. **Three mutations, each caught:** the Host check removed, the Origin check removed,
+   the allowed host widened. The guard is left as found. Standalone 22 / 0. **Full gate: 1618 / 0** in a clean scratch worktree at `021b161` with only
+   `server.py` and `s125` overlaid (1596 + s125's 22), **and 1622 / 0** at `83c5577` (the
+   document-line stage 1 build, committed meanwhile by another session) plus the same two files.
+
+   **The gate record, including the run that does not count.** The first full run was taken in
+   the shared tree and came back **1352 / 18**. All 18 were `AttributeError: core.database has no
+   attribute 'DOCUMENT_LINE'`: another session began the document-line stage 1 build in that
+   same tree at 19:43, mid-run, and the gate read its half-written fixtures. **That run is not
+   evidence of anything about F12** and is recorded only so its number is never mistaken for one.
+   Both reruns were taken in an isolated worktree. The other session did the same in reverse
+   (its `83c5577` gated 1596 → 1600 with this change's uncommitted files set aside), so each
+   change was measured without the other before the combined run measured them together.
+
+**Test URL for W's acceptance, supplied by Rob 2026-09-23:** `https://www.superiorcu.com/`. It
+passes F4 as written (https, no port, a DNS name, no userinfo). It is for Bw9 / Bw18 once W is
+built; nothing opened it here.
+
+**Not measured:** WKWebView and WebKitGTK's Host / Origin behaviour, since only Windows was
+available. They are standard browser engines and send the page's own host and origin, but this
+note does not claim that as measured. It belongs with W's three-OS acceptance.

@@ -32,6 +32,35 @@ GW_VERSION     = '20260826-d24'  # must match app.js GW_VERSION constant
 # cannot read or write Groundwork data without the token.
 _GW_TOKEN = secrets.token_hex(32)
 
+# The only names a request may address this server by. It binds 127.0.0.1 and
+# nothing else, so any other Host means a name that was made to resolve here -
+# a DNS-rebinding page. Enforced by _check_request_host in create_app.
+_LOCAL_HOSTNAMES = ('127.0.0.1', 'localhost')
+
+
+def _request_host_refusal(environ, path):
+    """Why this request must be refused, or None if it may proceed.
+
+    Module-level, and looked up by the before_request at call time, so the
+    smoke section (s125) can break it and prove the break is caught.
+    """
+    port = str(environ.get('SERVER_PORT', ''))
+    host = environ.get('HTTP_HOST', '')
+    name, sep, host_port = host.rpartition(':')
+    if not sep:
+        name, host_port = host, '80'
+    if name not in _LOCAL_HOSTNAMES or host_port != port:
+        return 'Unauthorized host'
+
+    origin = environ.get('HTTP_ORIGIN')
+    if origin is not None and path.startswith('/api/'):
+        allowed = {f'http://{n}:{port}' for n in _LOCAL_HOSTNAMES}
+        if port == '80':
+            allowed |= {f'http://{n}' for n in _LOCAL_HOSTNAMES}
+        if origin not in allowed:
+            return 'Unauthorized origin'
+    return None
+
 from sqlalchemy import func, desc, text
 
 # Add parent to path
@@ -289,6 +318,31 @@ def create_app(static_folder: str = None) -> Flask:
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma']        = 'no-cache'
         return response
+
+    @app.before_request
+    def _check_request_host():
+        """Refuse any request not addressed to this server by its loopback name.
+
+        The token check below stops a process that does not have the token. It
+        cannot stop a web page that gets it, and `/` hands the token to any
+        request that asks. A DNS-rebinding page does ask: its hostname is made
+        to resolve to 127.0.0.1, so it is same-origin with this server, reads
+        the token out of index.html, and has every /api/* route. What gives it
+        away is the Host header - the browser always sends the page's own
+        hostname, and ours is never anyone else's. (BANK_BROWSER.md F12.)
+
+        So: the Host must name 127.0.0.1 or localhost, on the port this request
+        actually arrived on - 8765 in the app, 8766 under dev_server.py, the
+        implicit 80 of Flask's test client. And an /api/* request that carries
+        an Origin must come from that same server.
+
+        Registered before _check_session_token on purpose: it has to run for
+        `/` and /api/health, which the token check exempts.
+        """
+        refusal = _request_host_refusal(request.environ, request.path)
+        if refusal:
+            return jsonify({'error': refusal, 'code': 403}), 403
+        return None  # allow through
 
     @app.before_request
     def _check_session_token():
