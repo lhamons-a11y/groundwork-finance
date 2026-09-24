@@ -2218,6 +2218,26 @@ KNOWING_ROLE_HOLDER_ON_SUBJECT = 'a_holder_of_any_role_in_the_set_on_the_claim_s
 # cannot be manufactured by this rule; the matcher stays fenced (F6). It mints no identity (Pm2).
 MOVEMENT = 'movement'
 
+# ── The document line's own kind (gw 2.0/DOCUMENT_LINE_KIND.md s8-s11, ruled 2026-09-21): THE DOCUMENT LINE ─
+# A PARTY'S STATEMENT OF A FIGURE ON ITS OWN DOCUMENT - what a reading of a creditor's, insurer's or
+# provider's document yields, line by line, BEFORE anyone has tied it to an obligation, an expense or a
+# plan. Subject the party whose statement it is; NO object - the identity the line is about is never
+# established by the reading, and what the line concerns is Ab7's proposition_concerns claim, asserted by a
+# party or a candidate from a match. Content the line as read: THE SORT OF FIGURE IS NOT INTERPRETED (F2 -
+# a balance, an amount due, a rate, a deductible are one kind; a disagreement about what the line means is
+# a disagreement about CONTENT, and after F5(b) two document lines can never produce a KIND dispute).
+# as_of the date the line states. Knowing by KNOWING_SUBJECT_PARTY (F4): the artefact's established origin
+# on the reading path, the utterance's origin otherwise, knowing iff it is the subject party - so an
+# insurer's own SBC line is knowing and the same figure read from the household's spreadsheet is not (O5);
+# NO foundation map, which stays operative only for genuinely unruled kinds. reading_establishes True, or
+# the subject-party rule would be right while 9D-i still made every reading-sourced line undetermined.
+# THE LINE IS NOT THE STANCE: balance(O) / billed(X) / deductible(P) keep the identity as subject and are
+# untouched; this kind never becomes one of them, and the tie between them is a separate claim this kind
+# does not mint, infer or repair - the matcher stays fenced. STRUCTURALLY IDENTICAL TO `movement` AND
+# SEMANTICALLY DISTINCT FROM IT (F7.7, a permanent guard): a movement is an occurrence that is never an
+# identity; a document line is a position about an identity that exists or will. The two are never merged.
+DOCUMENT_LINE = 'document_line'
+
 # ── Item 9, pass 9D-v: THE DETERMINATION - the last stand-in ─────────────────────────────
 # gw 2.0/CATALOGUES.md s 9D-v.7 (ruled 2026-09-20), on 7H s 7H.7 item 2. A determination is a PARTY'S READING
 # OF THE SITUATION about an expense - subject X, as_of the date it is about (7H requires it), content one of
@@ -2359,6 +2379,11 @@ RULED_KINDS = {
                    'knowing_relation': KNOWING_SUBJECT_PARTY},
     # The bank line's own kind (BANK_LINE_KIND.md s7): the party's statement that a movement occurred; no object.
     MOVEMENT:     {'subject': ('subject_party_id',), 'object': (),
+                   'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
+                   'knowing_relation': KNOWING_SUBJECT_PARTY},
+    # The document line's own kind (DOCUMENT_LINE_KIND.md s11): the party's statement of a figure on its
+    # document; no object; the same shape as MOVEMENT and a different kind - never merged (F7.7).
+    DOCUMENT_LINE: {'subject': ('subject_party_id',), 'object': (),
                    'symmetric': False, 'reading_establishes': True, 'relational_knowing': True,
                    'knowing_relation': KNOWING_SUBJECT_PARTY},
     BALANCE:      {'subject': ('subject_obligation_id',), 'object': (),

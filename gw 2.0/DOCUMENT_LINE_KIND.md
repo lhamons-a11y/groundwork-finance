@@ -430,3 +430,58 @@ any matcher or tie behaviour. **The authorisation is conditional on the gate seq
 evidence specified. Nothing beyond Stage 1 is authorised.**
 
 ---
+
+## 12. Stage 1 (SBC) — built — 2026-09-23
+
+`core/database.py`: **`DOCUMENT_LINE = 'document_line'`** and one registry entry — `subject
+('subject_party_id',)`, `object ()`, `reading_establishes True`, `relational_knowing True`,
+`knowing_relation KNOWING_SUBJECT_PARTY`, not a role — plus a comment block carrying L1 / F2 / F4 /
+F7 and the permanent `MOVEMENT` distinction. **Three non-comment lines of substrate.** The four
+authorised sites and nothing else: the map entry retired, the `line()` helper's defaulted
+`object_state` (so `plan_identity:206`'s EOB call is untouched), the SBC construction, Pl2's
+assertion, and Ps14's two clauses.
+
+**The gate sequence, as ruled.** **(1) Registry-only null model** — the kind introduced, corpus
+untouched: plan identity 35/35, plan stances 20/20, 9D-iv 26/26, payment identity 38/38, 9B 26/26,
+under_plan 27/27, plan relations 33/33, artefact origin 43/43, artefact reading 43/43, relational
+knowing 23/23, 9D-ii 18/18, 9D-i 22/22 — **zero collateral effect**. **(2) The four-site swap** —
+both fixtures green, no `sbc_line_figure` anywhere, `eob_amount` at `:206` untouched. **(3) The six
+cases** — plan identity 35 → **41**. **(4) Mutations** — `s99` 9 → **13**, all four caught first run;
+`s122` 23/23. **(5) The full gate, in a clean scratch worktree at `021b161`** (a second session held
+uncommitted `server.py`, `BANK_BROWSER.md` and an untracked `s125_request_host.py` in the shared
+tree; the shared-tree run was stopped and is not evidence): **1596 → 1600, 0 failed**, no foreign
+section present.
+
+**The oracle.** **Sb-1** the registry as ruled — *and the permanent guard:* the entry is **identical
+to `MOVEMENT`'s and a different kind** (an occurrence that is never an identity vs a position about
+an identity that exists or will); never merged. **Sb-2** the insurer's own SBC line, read → subject
+Lakeview Health, **no object**, a candidate in state, **knowing** because the artefact's established origin *is*
+the subject party — **and, F7.3 made executable, the reading yields the line and nothing else: no
+`proposition_concerns` claim is manufactured for it, and the artefact's own concerns claim about P
+does not become the line's.** **Sb-4** the same figure read from Rob's sheet, still Lakeview Health's line →
+**not_knowing**: the laundering guard arrives through the relation, with no foundation type
+consulted. **Sb-5** the ruled term keeps the plan as its subject; the line still refused under
+`deductible`; a candidates object refused under `document_line`; `movement` untouched. **Sb-6** a
+line with **no party subject is refused at the representation boundary** — the F4 precision.
+
+**Sb-3, and a correction found by building it.** The case as first written asserted that an **empty**
+foundation map leaves the line knowing. It does not: with the map empty the line reads
+**undetermined** — not because the kind consults it, but because **C3's second link** (how well the
+artefact's origin is established) reads **`ARTEFACT_ORIGIN`'s own map entry**, which is separately
+ruled (`ARTEFACT_ORIGIN.md` s4) and untouched by F4. So the case now states F4 exactly: a **hostile**
+entry for `document_line` changes nothing (the relation answers), dropping `ARTEFACT_ORIGIN`'s entry
+makes it undetermined **by the origin link, never by the kind**, and `ARTEFACT_ORIGIN`'s entry alone
+suffices. *F4 retires the migrated kind's own map membership — not the chain's second link.*
+
+**`PARTICIPANT_CANDIDATES`, reported and not pinned, in the two measures the ruling distinguishes:**
+**raw textual mentions 55 → 56** (stage 1's own refusal probes — Sb-5, Sb-6, Ps14 — each name the
+state in order to prove it is refused); **legitimate construction sites: one removed**, the SBC line,
+which no longer has permission to use it. *The raw count rising while the construction count falls is
+why the ruling said report both and pin neither.* The state's ruled meaning is untouched.
+
+**Untouched, by name:** `eob_amount` — including `plan_identity:206` in the same file — the 15
+artefact-subject sites, `statement_figure` and the statement family, the mechanism probes,
+`unruled_probe_kind`, every consumer, `MOVEMENT`, the ruled stances, `services` / `applied` /
+`disbursement`, and any matcher or tie behaviour. **Stages 2–4 remain unauthorised.**
+
+---

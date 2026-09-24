@@ -82,7 +82,7 @@ def run(db):
     s.add_all([rob, kim])
     s.commit()
     household, kim_party = rob.party, kim.party
-    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'sbc_line_figure': {'institution'}}   # deductible / authorization / coverage_ended: ruled stances since 9D-iii - knowing by the plan's insurer's role
+    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}}   # document_line: ruled since DOCUMENT_LINE_KIND.md - knowing by the relation, never the map (F4).  # deductible / authorization / coverage_ended: ruled stances since 9D-iii - knowing by the plan's insurer's role
 
     def utter(text, when='2026-01-05T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -134,8 +134,9 @@ def run(db):
         s.commit()
         return r
 
-    def line(a, reading, kind, content, party):
-        p = prop(kind, object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=party.id, content=content, as_of=a.as_of)
+    def line(a, reading, kind, content, party, object_state=db.PARTICIPANT_CANDIDATES):
+        # the default keeps every stand-in call unchanged; the ruled document_line passes NONE (its object is a required absence)
+        p = prop(kind, object_state=object_state, subject_party_id=party.id, content=content, as_of=a.as_of)
         return p, evidence(p, reading=reading)
 
     aetna, u_aetna = mint_party('Aetna, our insurer.')
@@ -189,9 +190,10 @@ def run(db):
                                   KNOWING) == db.STRENGTH_KNOWING)
     sbc = held('h-sbc', '2026-01-01', aetna, u_aetna)
     r_sbc = read(sbc)
-    p_ded_line, e_ded_line = line(sbc, r_sbc, 'sbc_line_figure', '$3,000 individual / $6,000 family', aetna)   # 9D-iii F6(i): the SBC line figure (subject the insurer), not the ruled term
-    check('Pl2: the SBC line is a P-subject claim - the insurer\'s statement, P a candidates participant, never established by the reading',
-          p_ded_line.object_state == db.PARTICIPANT_CANDIDATES and p_ded_line.subject_plan_id is None
+    p_ded_line, e_ded_line = line(sbc, r_sbc, db.DOCUMENT_LINE, '$3,000 individual / $6,000 family', aetna, object_state=db.PARTICIPANT_NONE)   # the ruled document line (subject the insurer), not the ruled term
+    check('Pl2 (DOCUMENT_LINE_KIND.md s11): the SBC line is a P-subject claim - the insurer\'s statement of a figure, the plan NEVER established by the reading and no object at all (the required absence); what it concerns is Ab7\'s claim',
+          p_ded_line.object_state == db.PARTICIPANT_NONE and db.RULED_KINDS[db.DOCUMENT_LINE]['object'] == ()
+          and p_ded_line.subject_plan_id is None and p_ded_line.subject_party_id == aetna.id
           and e_ded_line.reading_id == r_sbc.id)
     e_ded, p_ded = about(db.DEDUCTIBLE, P, '$3,000 individual / $6,000 family', utterance=utter('Our deductible is 3,000, 6,000 for the family.'), as_of='2026-01-01')
     check('Pl2: the P-world term takes P as its subject - the family deductible has a subject that is neither Kim nor Aetna',
@@ -320,6 +322,42 @@ def run(db):
     check('the insurer\'s claim still has no identity, slot or kind - by ruling (4b)',
           not any(n in db.Base.metadata.tables for n in ('claims', 'insurance_claims'))
           and not any('claim' in c.name for c in db.Proposition.__table__.columns))
+
+    print('\n9. DOCUMENT_LINE_KIND.md (s11, stage 1 - the SBC): the document line is its own kind, and it is not the stance\n')
+    check('Sb-1 (the registry, and a PERMANENT semantic guard): document_line is ruled - subject the party, NO object, reading_establishes True, KNOWING_SUBJECT_PARTY, not a role; STRUCTURALLY IDENTICAL TO MOVEMENT AND A DIFFERENT KIND - a movement is an occurrence that is never an identity, a document line a position about an identity that exists or will; the two are never merged',
+          db.RULED_KINDS[db.DOCUMENT_LINE] == {'subject': ('subject_party_id',), 'object': (), 'symmetric': False,
+                                               'reading_establishes': True, 'relational_knowing': True,
+                                               'knowing_relation': db.KNOWING_SUBJECT_PARTY}
+          and db.RULED_KINDS[db.DOCUMENT_LINE] == db.RULED_KINDS[db.MOVEMENT] and db.DOCUMENT_LINE != db.MOVEMENT
+          and not db.RULED_KINDS[db.DOCUMENT_LINE].get('role') and db.registry_violations() == [])
+    check('Sb-2 (the SBC line read): the insurer\'s own SBC, read -> subject Aetna, no object, a CANDIDATE in state (a reading never establishes), KNOWING in strength because the artefact\'s established origin IS the subject party',
+          db.derived_strength(s, e_ded_line, KNOWING) == db.STRENGTH_KNOWING
+          and [st for st, _, _ in db._claim_states(s, p_ded_line, db._retracted(s))] == [db.CLAIM_CANDIDATE]
+          # F7.3, executable: the reading yields the line and NOTHING else - no tie is manufactured for it, and
+          # the artefact's own concerns claim about P does not become the line's (Ab7: the tie is a party's assertion)
+          and s.query(db.Proposition).filter_by(kind=db.PROPOSITION_CONCERNS, subject_proposition_id=p_ded_line.id).count() == 0
+          and s.query(db.Proposition).filter_by(kind=db.ARTEFACT_CONCERNS, object_plan_id=P.id).count() == 1)
+    check('Sb-3 (F4 - the map is retired for THIS KIND, and only for it): a hostile map entry for document_line (institutions not knowing, persons knowing) changes nothing - the relation answers; what the chain still reads from the map is ARTEFACT_ORIGIN\'s own entry, C3\'s second link (how well the origin is established), which is separately ruled and untouched - drop that and the line is UNDETERMINED, by the origin link, never by the kind',
+          db.derived_strength(s, e_ded_line, {**KNOWING, db.DOCUMENT_LINE: {'person'}}) == db.STRENGTH_KNOWING
+          and db.derived_strength(s, e_ded_line, {db.DOCUMENT_LINE: {'person', 'institution'}}) == db.STRENGTH_UNDETERMINED
+          and db.derived_strength(s, e_ded_line, {db.ARTEFACT_ORIGIN: {'person', 'institution'}}) == db.STRENGTH_KNOWING)
+    rob_sheet = held('h-rob-plan-notes', '2026-01-01', household, utter('My notes on the plan.'))
+    p_relay, e_relay = line(rob_sheet, read(rob_sheet), db.DOCUMENT_LINE, '$3,000 individual / $6,000 family', aetna, object_state=db.PARTICIPANT_NONE)
+    check('Sb-4 (O5 - the laundering guard, through the relation): the SAME figure read from ROB\'s sheet, still Aetna\'s line -> the origin is the household, not the subject party -> NOT_KNOWING; relaying does not launder, and no foundation type was consulted',
+          db.derived_strength(s, e_relay, KNOWING) == db.STRENGTH_NOT_KNOWING
+          and db.derived_strength(s, e_relay, {**KNOWING, db.DOCUMENT_LINE: {'person', 'institution'}}) == db.STRENGTH_NOT_KNOWING)
+    check('Sb-5 (F7 - the fences): the ruled TERM keeps the plan as its subject and is untouched; the line is still refused under deductible; a candidates object is refused under document_line; movement is untouched and distinct',
+          p_ded.subject_plan_id == P.id and db.RULED_KINDS[db.DEDUCTIBLE]['subject'] == ('subject_plan_id',)
+          and _refused(s, db.Proposition(kind=db.DEDUCTIBLE, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES,
+                                         subject_party_id=aetna.id, content='x', as_of='2026-01-01'))
+          and _refused(s, db.Proposition(kind=db.DOCUMENT_LINE, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES,
+                                         subject_party_id=aetna.id, content='x', as_of='2026-01-01'))
+          and db.RULED_KINDS[db.MOVEMENT]['subject'] == ('subject_party_id',))
+    check('Sb-6 (the F4 precision): a document line with NO party subject is REFUSED at the representation boundary - for a ruled kind the absence of the required subject is not an undetermined knowledge result; the undetermined branch belongs to kinds that are genuinely unruled (stage 2)',
+          _refused(s, db.Proposition(kind=db.DOCUMENT_LINE, subject_state=db.PARTICIPANT_NONE, object_state=db.PARTICIPANT_NONE,
+                                     content='$3,000 individual / $6,000 family', as_of='2026-01-01'))
+          and _refused(s, db.Proposition(kind=db.DOCUMENT_LINE, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_NONE,
+                                         subject_artefact_id=sbc.id, content='$3,000 individual / $6,000 family', as_of='2026-01-01')))
 
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:

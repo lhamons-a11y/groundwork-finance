@@ -259,12 +259,14 @@ def run(db):
     check('Ps13 (the 2 x 2 on P): (Aetna, applied) knowing · (Rob, applied) not · (Aetna, eligibility) knowing - by the role on the object · (Rob, eligibility) not; the type test called the two Aetna cells knowing and could not distinguish the shapes',
           grid == {('Aetna', 'applied'): db.STRENGTH_KNOWING, ('Rob', 'applied'): db.STRENGTH_NOT_KNOWING,
                    ('Aetna', 'eligibility'): db.STRENGTH_KNOWING, ('Rob', 'eligibility'): db.STRENGTH_NOT_KNOWING})
-    check('Ps14 (F6-i): an SBC line figure whose subject is the INSURER and whose thing is a candidate is REFUSED under the ruled term; it keeps its shape under its stand-in (plan-identity renamed its line)',
+    check('Ps14 (F6-i, then DOCUMENT_LINE_KIND.md s11): an SBC line figure whose subject is the INSURER is REFUSED under the ruled term - and it is now the ruled DOCUMENT_LINE, whose object is a required absence, so the candidates shape is refused under it too; the term keeps the plan as its subject',
           _refused(s, db.Proposition(kind=db.DEDUCTIBLE, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES,
                                      subject_party_id=aetna.id, content='$3,000 individual / $6,000 family', as_of='2026-01-01'))
-          and not _refused(s, db.Proposition(kind='sbc_line_figure', subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES,
+          and not _refused(s, db.Proposition(kind=db.DOCUMENT_LINE, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_NONE,
                                              subject_party_id=aetna.id, content='$3,000 individual / $6,000 family', as_of='2026-01-01'))
-          and 'sbc_line_figure' not in db.RULED_KINDS)
+          and _refused(s, db.Proposition(kind=db.DOCUMENT_LINE, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES,
+                                         subject_party_id=aetna.id, content='$3,000 individual / $6,000 family', as_of='2026-01-01'))
+          and db.RULED_KINDS[db.DOCUMENT_LINE]['subject'] == ('subject_party_id',))
 
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     for f in FAIL:

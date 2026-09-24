@@ -90,7 +90,64 @@ def _mutations(db):
                                            'symmetric': False, 'reading_establishes': False, 'relational_knowing': True}
         return lambda: db.RULED_KINDS.pop('covered_under', None)
 
+    # ── DOCUMENT_LINE_KIND.md s11 (stage 1, the SBC): the four crossings the ruled line kind opens ──
+    def line_becomes_the_term():
+        # the L1 crossing: a document line read from the insurer's own SBC mints the ruled term on the plan
+        def on_line(mapper, connection, target):
+            if target.kind != db.DOCUMENT_LINE:
+                return
+            pl = connection.execute(PL.select().limit(1)).first()
+            if pl is None:
+                return
+            connection.execute(P.insert().values(kind=db.DEDUCTIBLE, subject_state=db.PARTICIPANT_ESTABLISHED,
+                                                 object_state=db.PARTICIPANT_NONE, subject_plan_id=pl.id,
+                                                 content=target.content, as_of=target.as_of))
+        event.listen(db.Proposition, 'after_insert', on_line)
+        return lambda: event.remove(db.Proposition, 'after_insert', on_line)
+
+    def tie_from_artefact_concerns():
+        # the matcher smuggled in: the line gains a concerns claim from the artefact's own concerns
+        def on_ev(mapper, connection, target):
+            if target.reading_id is None:
+                return
+            p = connection.execute(P.select().where(P.c.id == target.proposition_id)).first()
+            if p is None or p.kind != db.DOCUMENT_LINE:
+                return
+            ac = connection.execute(P.select().where(P.c.kind == db.ARTEFACT_CONCERNS)).first()
+            if ac is None or ac.object_plan_id is None:
+                return
+            connection.execute(P.insert().values(kind=db.PROPOSITION_CONCERNS, subject_state=db.PARTICIPANT_ESTABLISHED,
+                                                 object_state=db.PARTICIPANT_ESTABLISHED, subject_proposition_id=p.id,
+                                                 object_plan_id=ac.object_plan_id))
+        event.listen(db.EvidentiaryRelationship, 'after_insert', on_ev)
+        return lambda: event.remove(db.EvidentiaryRelationship, 'after_insert', on_ev)
+
+    def map_restored_for_the_kind():
+        # F4 reversed: the kind reads the foundation map again, so an institution's type confers knowing
+        saved = db.RULED_KINDS[db.DOCUMENT_LINE]
+        db.RULED_KINDS[db.DOCUMENT_LINE] = dict(saved, relational_knowing=False, knowing_relation=None)
+        real = db.derived_strength
+
+        def with_map(session, relation, knowing):
+            return real(session, relation, dict(knowing, **{db.DOCUMENT_LINE: {'institution'}}))
+        db.derived_strength = with_map
+
+        def undo():
+            db.RULED_KINDS[db.DOCUMENT_LINE] = saved
+            db.derived_strength = real
+        return undo
+
+    def candidates_object_permitted():
+        # F7 reversed: the required absence relaxed, so the line may name a candidate plan again
+        saved = db.RULED_KINDS[db.DOCUMENT_LINE]
+        db.RULED_KINDS[db.DOCUMENT_LINE] = dict(saved, object=('object_plan_id',))
+        return lambda: db.RULED_KINDS.__setitem__(db.DOCUMENT_LINE, saved)
+
     return [
+        ('a document line mints the ruled term (DOCUMENT_LINE_KIND s11, L1 crossed)', line_becomes_the_term),
+        ("the line's tie manufactured from the artefact's concerns (the matcher smuggled in)", tie_from_artefact_concerns),
+        ('the foundation map restored for the ruled line kind (F4 reversed)', map_restored_for_the_kind),
+        ('a candidates object permitted on the ruled line kind (F7 reversed)', candidates_object_permitted),
         ('the insurer\'s enrollment line mints a plan', product_mints),
         ('terms become anchor structure', terms_become_structure),
         ('an institution-origin utterance mints a plan', insurer_mints),
