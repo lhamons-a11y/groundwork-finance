@@ -527,3 +527,127 @@ contaminated 1352 / 18 correctly excluded and documented, `4767fbc` exactly the 
 files, the queue change limited to the bank-window row (18 → 19). **W's build is now started**,
 under the §7 ruling, in its own worktree. The document-line stage 1 is a separate acceptance
 decision; passing the combined gate does not accept it.
+
+
+---
+
+## 9. W built (2026-09-24), awaiting acceptance — and NOT complete under §7
+
+Built under the §7 ruling in its own worktree (`bank-window`), F12 accepted first. **§7 says W is
+not complete until Bw9 passes on all three OSes.** This build passes it on Windows only (below),
+so what is offered for acceptance is **the build**, not a finished W.
+
+### What was built
+
+| file | what |
+|---|---|
+| `bank_window.py` (new) | the F4 check (`portal_url_problem`, `normalise_portal_url`); the F6 resolver (`downloads_dir`: the Windows known folder, `NSDownloadsDirectory`, `XDG_DOWNLOAD_DIR`); the **bank process** (`child_main`); the parent's launcher (`open_bank_window` / `close_bank_window` / `close_all_bank_windows` / `open_in_browser`). Standard library only at module level |
+| `launch.py` | `--bank-window` dispatched **first** in `main()`, before logging, Flask, the watcher or Ollama; the watcher on `downloads_dir()`; `.pdf` noticed **by name** (`kind: statement`, bytes never read), everything else outside the five structured types ignored; every bank window closed at exit |
+| `core/database.py`, `migrate.py` | nullable `portal_url` on `Account` and `DebtAccount`; **`SCHEMA_VERSION` → `20260924-bank-window`** (see "found while building") |
+| `server.py` | the link's **only** readers and writers: `GET`/`PUT /api/accounts/<id>/portal`, `GET`/`PUT /api/debt/<id>/portal`, `POST …/portal/open`; F3 in `update_debt` (`_relink_card_portal`); the serializers carry **`has_portal`, a boolean, never the address**; archive / delete close the window; the auto-import queue takes a statement item with no content; `POST /api/auto-import/statement` serves bytes **only for a path offered this session**, inside Downloads, `.pdf`; the delete route uses the shared resolver |
+| `static/js/app.js` | *Open bank* / *Open in my browser* on accounts with a link and in the card bloom; the **Bank website** field with the §7 disclaimer (the address fetched into the field only, never into app state); the linked card shows its account's link read-only; the conflict prompt; the engine-unavailable dialog offering the browser; the F6 guidance shown **in Groundwork's own window after opening**, never in the bank page; statements join the offer (*"Statement downloaded: X.pdf. Open it to review?"*), read only after yes, into the same import flow as a manual upload |
+| `smoke_sections/s126_bank_window.py` (new) | 77 checks, below |
+
+### Decisions made while building — each surfaced for Rob, none silent
+
+1. **F5 by construction, not by filtering.** The address never enters a general serializer: only
+   `has_portal`. So it cannot reach the snapshot, a prompt, a finding or an export, because
+   nothing that builds those can see it. s126 pins it three ways: a sentinel sweep of every GET
+   route with the network blocked; an AST check that `portal_url` is touched in `server.py` only by
+   the eleven named functions; and `portal_url` absent from `app.js`.
+2. **F3, the one-link case.** Linking a card that has its own link to an account that has **none**
+   carries the card's link to the account. There is only one link, so nothing is chosen. Two
+   *different* links still ask. Rob may rule otherwise, e.g. ask even here.
+3. **The conflict prompt shows full addresses, not hosts.** Measured in the UI: two links on one
+   bank's site shared a host and differed only by path, and the first version showed two identical
+   buttons. The addresses reach the page only inside that prompt.
+4. **A status channel from the bank process, fixed and inert.** The child writes exactly one of
+   four literal words to its stdout (`ready` / `refused-url` / `refused-engine`), and the parent
+   reads one line and accepts only those. Nothing from the page, the URL or the disk can pass.
+   It is a crossing, so it is pinned: s126's "the page reports back through the status channel"
+   mutation.
+5. **The offer is checked every 3 s for 30 minutes after a bank window opens** (45 s otherwise).
+   This answers Rob's 2026-09-24 criterion that the user must never leave Groundwork: after
+   *Save*, the offer must come without the user going looking.
+6. **The bank window is allowed to come forward** (`AllowSetForegroundWindow` on Windows).
+   Measured: started from a process that was not foreground, the window opened **behind**
+   everything. Its effect in the real app is **not yet measured** (below).
+7. **An empty address clears the link.** It is not an F4 refusal.
+
+### Found while building
+
+**Every existing database would have crashed on start.** `migrate.py` skips all steps while the
+stored `schema_version` equals `SCHEMA_VERSION`, so the new columns were never added to an
+existing database, and bootstrap failed on its first query (`no such column:
+debt_accounts.portal_url`). The gate could never show this, because its databases are always
+fresh. It appeared on the dev server's older database. Fixed by the version bump. It is now an
+s126 case at the place it fails: a database at the previous version with the columns dropped
+regains them on start. Its mutation, the columns added with the version left unbumped, is caught.
+Measured again on the real older database: `Migration: added accounts.portal_url`,
+`Migration: added debt_accounts.portal_url`.
+
+### Measured, on Windows (WebView2)
+
+- **The real bank process on Rob's test URL** `https://www.superiorcu.com/`: opened in 1.2 s,
+  titled *Bank website - www.superiorcu.com*, rendering the institution's page (screenshot taken;
+  its cookie banner left untouched). A second open of the same account returned `already_open`.
+  Closing it closed it. `PYWEBVIEW_GUI=mshtml` in the environment changed nothing (the backend is
+  pinned). Handed `http://127.0.0.1:8765/` directly, the child refused it itself (`refused-url`,
+  exit 2).
+- **Bw9, default folder: PASSED.** A real `https` CSV download in the real bank process was saved
+  through the WebView2 dialog into the known-folder Downloads. The real watcher (`on_moved`) saw
+  it, and the real queue offered it with its content. **Stated plainly: the Save click was not
+  mine.** The dialog was gone and the file saved (13:32) before my first screenshot, so either
+  someone at the machine clicked it or the dialog did not block. The test file `addresses.csv`
+  (328 bytes of sample addresses) was left in Downloads for the user to remove.
+- **The UI**, in the browser pane against the worktree's dev server: the account list shows the
+  two buttons only where a link is set; the edit form loads the address; a refused address
+  (`https://user:pw@…`) keeps the form open with its reason, and the stored link is unchanged (the
+  first version buried the refusal under *Account updated*, now fixed); the card bloom for an
+  unlinked card has its own field; the conflict prompt with full addresses; *Keep the card's*
+  applied, with the card storing no link and the account holding the one link; *Open bank* from
+  the UI started the real bank process with the F6 guidance shown. **App state never contained
+  the address at any step** (`JSON.stringify(S)`).
+
+### Not measured — what acceptance still needs
+
+1. **Bw9 on macOS and Linux**, and **a moved or localised Downloads folder** live. The resolver is
+   tested against a fake XDG config and against this machine's registry value. The registry was
+   not changed, since that is a system setting.
+2. **Bw18**: a runtime update by the platform's own mechanism, then reopening.
+3. **Bw17 with WebView2 truly absent.** The parent's handling is tested with a stand-in child that
+   reports `refused-engine`. The pinned-renderer check itself ran only where WebView2 is present.
+4. **The frozen build.** The bank process as `Groundwork.exe --bank-window` from the PyInstaller
+   bundle and the installer, including whether a windowed executable's stdout carries the status
+   line. Only the source run was measured.
+5. **The foreground fix in the real app** (decision 6).
+6. **An observation against Rob's criterion, not fixed:** the import offer appears in
+   Groundwork's main window, which may sit behind the bank window after *Save*. Both are
+   Groundwork's windows, so the user does not leave Groundwork, but they do switch windows. Rob's
+   call whether that meets the bar.
+
+### Gate
+
+s126 standalone **77 / 0**, 19 mutations each caught: 13 on `bank_window.py`'s source (`js_api`,
+`evaluate_js`, cookies, DOM, an automation thread, importing the server, account data to the
+child, content handed to the page, a download delivered by POST, a persistent session, MSHTML
+accepted, an alternate engine, the page through the status channel); downloads enabled in the main
+process; the address in the serializer (F5); unlinking copying the link (F3); `http` admitted (F4);
+any statement served whether offered or not (F7); and the version left unbumped. s50 9 / 0 (the
+new routes swept); s125 22 / 0. Full gate, in this worktree:
+**1699 / 0** (1622 + s126's 77). The first full run came back **1698 / 1**: the ghost-ID tripwire
+flagged `acctFormPortal`. The element existed, but its ID was generated from a template variable
+the tripwire cannot read. Rather than allowlist it (that list is for known remnants), the account
+form now writes the input with a literal `id`, and the field was re-checked in the browser pane.
+
+**What each piece of evidence means.** The gate says **nothing regressed** and every ruled
+mutation is caught. It does **not** show real-platform behaviour. That comes only from the
+Windows measurements above (the real bank process, Bw9's real download, the real upgrade of an
+older database), and the open items in "Not measured" (other OSes, the frozen build, the
+foreground fix, Bw17 / Bw18) remain open whatever the gate says.
+
+**The gate of record is the rebased tree.** Master took code while the build was gated: the V1 /
+V5 fixes merged from `lts/1.x` changed `app.js` and `index.html` beneath it. So the build was
+rebased onto `5be2147` (one conflict, in `BUILD_QUEUE.md`: row 18 kept as upstream wrote it,
+row 19 this build's), the merged `app.js` syntax-checked, and the full gate rerun on the rebased
+tree: **1699 / 0**. Later upstream commits before push touched only `DEBT_DETAIL_SURFACE.md`.

@@ -64,6 +64,10 @@ class Account(Base):
     is_active       = Column(Boolean, default=True)
     created_at      = Column(DateTime, default=datetime.utcnow)
     minimum_balance = Column(Float, default=0.0)
+    # The bank website this account's statements are downloaded from
+    # (BANK_BROWSER.md F3/F4/F5). Launch configuration, not evidence and never
+    # model context: read and written only by the /portal routes in server.py.
+    portal_url      = Column(String(2048), nullable=True)
     transactions    = relationship('Transaction', back_populates='account', lazy='dynamic')
 
 
@@ -146,6 +150,10 @@ class DebtAccount(Base):
     credit_limit      = Column(Float, nullable=True)
     debt_type         = Column(String(20), default='credit')
     end_date          = Column(Date, nullable=True)
+    # A card's own bank website - only while it is NOT linked to an Account.
+    # A linked card stores NULL and opens its Account's link: one source of
+    # truth, enforced at write in server.py (BANK_BROWSER.md F3).
+    portal_url        = Column(String(2048), nullable=True)
 
 
 class DebtBalanceHistory(Base):

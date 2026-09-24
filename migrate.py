@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260914-plan-identity'
+SCHEMA_VERSION = '20260924-bank-window'   # accounts.portal_url, debt_accounts.portal_url
 
 
 def _stored_schema_version():
@@ -51,11 +51,15 @@ _NEW_DEBT_COLUMNS = [
     # columns in this list. Model lines required in core/database.py:
     # debt_type = Column(String(20), default='credit'); end_date = Column(Date, nullable=True)
     ('debt_type',         "VARCHAR(20) DEFAULT 'credit'"),
+    # BANK_BROWSER.md F3: an unlinked card's own bank website; NULL when linked.
+    ('portal_url',        "VARCHAR(2048)"),
     ('end_date',          "DATE"),
 ]
 
 _NEW_ACCOUNT_COLUMNS = [
     ('minimum_balance', "FLOAT DEFAULT 0"),
+    # BANK_BROWSER.md F3: the bank website, nullable, no default.
+    ('portal_url',      "VARCHAR(2048)"),
 ]
 
 _NEW_CATEGORY_COLUMNS = [

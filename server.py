@@ -18,7 +18,7 @@ from pathlib import Path
 from functools import wraps
 from typing import Any
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, send_file
 
 # Session ID — changes on every server start so client can detect restarts
 _GW_SESSION_ID = str(_uuid.uuid4())[:8]
@@ -620,7 +620,18 @@ def serialize_debt_account(d: DebtAccount, session=None) -> dict:
         'credit_limit':         credit_limit,
         'is_active':            d.is_active,
         'paid_off_at':          paid_off_at.isoformat() if paid_off_at else None,
+        # A boolean only; the address stays behind the /portal routes (F5).
+        'has_portal':           _debt_portal_url(session, d) is not None,
     }
+
+
+def _debt_portal_url(session, d):
+    """The link a card opens: its Account's when linked, its own when not (F3)."""
+    linked = getattr(d, 'linked_account_id', None)
+    if linked:
+        acct = session.get(Account, linked) if session is not None else None
+        return (getattr(acct, 'portal_url', None) or None) if acct else None
+    return getattr(d, 'portal_url', None) or None
 
 
 # ── Transactions ──────────────────────────────────────────────────────────────
@@ -860,6 +871,7 @@ def list_accounts():
         return ok([{
             'id': a.id, 'name': a.name, 'type': a.type,
             'institution': a.institution, 'currency': a.currency,
+            'has_portal': bool(getattr(a, 'portal_url', None)),
         } for a in accounts])
 
 
@@ -929,7 +941,77 @@ def archive_account(account_id):
         txn_count = session.query(Transaction).filter_by(account_id=account_id).count()
         acct.is_active = False
         session.commit()
-        return ok({'archived': account_id, 'transactions_preserved': txn_count})
+    # An archived account's bank window closes (F2).
+    import bank_window
+    bank_window.close_bank_window(('account', account_id))
+    return ok({'archived': account_id, 'transactions_preserved': txn_count})
+
+
+# ── The bank window's link (gw 2.0/BANK_BROWSER.md) ───────────────────────────
+# These routes are the ONLY readers and writers of portal_url. The link is
+# launch configuration for a webpage, not financial evidence or model context:
+# the serializers carry has_portal (a boolean) and nothing else, so the address
+# cannot reach the snapshot, a prompt, a finding or an export (F5; s126 pins it).
+# Groundwork does not verify that the address belongs to the institution (F4).
+
+def _portal_body_url(body):
+    """(url or None, problem or None) from a PUT body. Empty clears the link."""
+    import bank_window
+    raw = (body.get('url') or '').strip() if isinstance(body, dict) else ''
+    if not raw:
+        return None, None
+    problem = bank_window.portal_url_problem(raw)
+    if problem:
+        return None, problem
+    return bank_window.normalise_portal_url(raw), None
+
+
+def _portal_open(key, url, mode):
+    import bank_window
+    if not url:
+        return err('No bank website is set for this account.', 404)
+    if mode == 'browser':
+        result = bank_window.open_in_browser(url)
+    else:
+        result = bank_window.open_bank_window(key, url)
+    if result == 'refused_url':
+        return err('This address can no longer be opened. Check it in the account settings.', 400)
+    return ok({'result': result})
+
+
+@accounts_bp.route('/<int:account_id>/portal', methods=['GET'])
+def get_account_portal(account_id):
+    with db_session() as session:
+        acct = session.get(Account, account_id)
+        if not acct:
+            return err('Account not found', 404)
+        return ok({'url': acct.portal_url or ''})
+
+
+@accounts_bp.route('/<int:account_id>/portal', methods=['PUT'])
+@require_json
+def put_account_portal(account_id):
+    url, problem = _portal_body_url(request.json)
+    if problem:
+        return err(problem, 400)
+    with db_session() as session:
+        acct = session.get(Account, account_id)
+        if not acct:
+            return err('Account not found', 404)
+        acct.portal_url = url
+        session.commit()
+        return ok({'url': url or ''})
+
+
+@accounts_bp.route('/<int:account_id>/portal/open', methods=['POST'])
+def open_account_portal(account_id):
+    mode = (request.get_json(silent=True) or {}).get('mode', 'window')
+    with db_session() as session:
+        acct = session.get(Account, account_id)
+        if not acct:
+            return err('Account not found', 404)
+        url = acct.portal_url
+    return _portal_open(('account', account_id), url, mode)
 
 
 @accounts_bp.route('/<int:account_id>/summary', methods=['GET'])
@@ -1197,6 +1279,10 @@ def _serialize_account(a: Account, session=None) -> dict:
         # minimum_balance was added in d94 — use getattr with default 0.0
         # so existing DBs that haven't migrated yet don't crash here.
         'minimum_balance': getattr(a, 'minimum_balance', None) or 0.0,
+        # Whether a bank website is set - never the address itself. The link
+        # is launch configuration, read only by the /portal routes, so it can
+        # never reach the snapshot, a model prompt or an export (F5).
+        'has_portal':      bool(getattr(a, 'portal_url', None)),
     }
 
 
@@ -2937,6 +3023,16 @@ def update_debt(debt_id):
         debt = session.get(DebtAccount, debt_id)
         if not debt:
             return err('Not found', 404)
+        if 'portal_url' in body:
+            # Written only through PUT /api/debt/<id>/portal, which enforces F3.
+            return err('Set the bank website through the portal route.', 400)
+        if 'linked_account_id' in body and body['linked_account_id'] != debt.linked_account_id:
+            conflict = _relink_card_portal(session, debt, body['linked_account_id'],
+                                           body.get('portal_keep'))
+            if conflict:
+                return jsonify({'ok': False,
+                                'error': 'The card and the account have different bank websites.',
+                                'portal_conflict': conflict}), 409
         for field in ['name', 'current_balance', 'interest_rate',
                       'minimum_payment', 'due_day', 'linked_account_id',
                       'credit_limit', 'debt_type']:
@@ -2971,7 +3067,89 @@ def delete_debt(debt_id):
             return err('Not found', 404)
         debt.is_active = False
         session.commit()
-        return ok({'deleted': debt_id})
+    import bank_window
+    bank_window.close_bank_window(('card', debt_id))
+    return ok({'deleted': debt_id})
+
+
+def _relink_card_portal(session, debt, new_account_id, keep=None):
+    """Keep one source of truth for a card's bank website across a link change (F3, s7).
+
+    Unlinking empties the card's link - nothing is copied from the Account, so
+    the old relationship leaves no destination behind. Linking stores NULL on
+    the card and the Account's link governs. If the card had its own link and
+    the Account has none, the card's is carried to the Account (there is only
+    one link, so nothing is chosen). If both have links and they differ, the
+    user is asked: returns the conflict until `keep` says 'card' or 'account'.
+    """
+    if not new_account_id:
+        debt.portal_url = None
+        return None
+    acct = session.get(Account, new_account_id)
+    card_url = getattr(debt, 'portal_url', None) or None
+    acct_url = (getattr(acct, 'portal_url', None) or None) if acct else None
+    if acct is not None and card_url and acct_url and card_url != acct_url:
+        if keep == 'card':
+            acct.portal_url = card_url
+        elif keep != 'account':
+            import bank_window
+            # The full addresses, not just hosts: two links on one bank's site
+            # often share a host and differ only in path. Shown once, in the
+            # prompt that asks the user; never kept in app state.
+            return {'card_host': bank_window.portal_host(card_url),
+                    'account_host': bank_window.portal_host(acct_url),
+                    'card_url': card_url, 'account_url': acct_url,
+                    'account_name': acct.name}
+    elif acct is not None and card_url and not acct_url:
+        acct.portal_url = card_url
+    debt.portal_url = None
+    return None
+
+
+@debt_bp.route('/<int:debt_id>/portal', methods=['GET'])
+def get_debt_portal(debt_id):
+    with db_session() as session:
+        debt = session.get(DebtAccount, debt_id)
+        if not debt:
+            return err('Not found', 404)
+        linked = debt.linked_account_id
+        acct = session.get(Account, linked) if linked else None
+        return ok({
+            'url':          _debt_portal_url(session, debt) or '',
+            'owner':        'account' if linked else 'card',
+            'account_id':   linked,
+            'account_name': acct.name if acct else None,
+        })
+
+
+@debt_bp.route('/<int:debt_id>/portal', methods=['PUT'])
+@require_json
+def put_debt_portal(debt_id):
+    url, problem = _portal_body_url(request.json)
+    if problem:
+        return err(problem, 400)
+    with db_session() as session:
+        debt = session.get(DebtAccount, debt_id)
+        if not debt:
+            return err('Not found', 404)
+        if debt.linked_account_id:
+            # A linked card has no link of its own (F3): the Account's governs.
+            return err("This card uses its account's bank website. Change it in the account settings.", 409)
+        debt.portal_url = url
+        session.commit()
+        return ok({'url': url or ''})
+
+
+@debt_bp.route('/<int:debt_id>/portal/open', methods=['POST'])
+def open_debt_portal(debt_id):
+    mode = (request.get_json(silent=True) or {}).get('mode', 'window')
+    with db_session() as session:
+        debt = session.get(DebtAccount, debt_id)
+        if not debt:
+            return err('Not found', 404)
+        url = _debt_portal_url(session, debt)
+        key = ('account', debt.linked_account_id) if debt.linked_account_id else ('card', debt_id)
+    return _portal_open(key, url, mode)
 
 
 @debt_bp.route('/history', methods=['POST'])
@@ -7283,6 +7461,23 @@ def ai_miss_log_summary():
 
 _auto_import_queue = []   # list of {filename, content} dicts — cleared on read
 
+# Statements (PDFs) are queued by NAME only - the watcher never reads their
+# bytes, and nothing here does until the user says yes to the offer (F7). The
+# bytes route below serves only a path that was actually offered this session,
+# inside the Downloads folder, ending .pdf: it is not a general file reader.
+_offered_statements = set()
+
+
+def _in_downloads(file_path):
+    """The resolved path if it lies inside the Downloads folder, else None (F6)."""
+    from bank_window import downloads_dir
+    try:
+        target = Path(file_path).resolve()
+        target.relative_to(downloads_dir().resolve())
+        return target
+    except (ValueError, OSError):
+        return None
+
 auto_import_bp = Blueprint('auto_import', __name__)
 
 
@@ -7293,6 +7488,15 @@ def auto_import_queue():
     filename = (body.get('filename') or '').strip()
     content  = body.get('content', '')
     path     = (body.get('path') or '').strip()
+    if body.get('kind') == 'statement':
+        target = _in_downloads(path) if path else None
+        if not filename or target is None or target.suffix.lower() != '.pdf':
+            return ok({'queued': False})
+        _offered_statements.add(str(target))
+        _auto_import_queue.append({'filename': filename, 'path': str(target), 'kind': 'statement'})
+        while len(_auto_import_queue) > 5:
+            _auto_import_queue.pop(0)
+        return ok({'queued': True, 'filename': filename})
     if not filename or not content:
         return ok({'queued': False})
     _auto_import_queue.append({'filename': filename, 'content': content, 'path': path})
@@ -7312,12 +7516,8 @@ def auto_import_delete_file():
     if not file_path:
         return err('No path provided', 400)
 
-    from pathlib import Path as P
-    try:
-        target    = P(file_path).resolve()
-        downloads = P.home() / 'Downloads'
-        target.relative_to(downloads)
-    except (ValueError, OSError):
+    target = _in_downloads(file_path)
+    if target is None:
         return err('File path is not within the Downloads folder', 403)
 
     if not target.exists():
@@ -7338,6 +7538,23 @@ def auto_import_pending():
         return ok(None)
     item = _auto_import_queue.pop(0)
     return ok(item)
+
+
+@auto_import_bp.route('/statement', methods=['POST'])
+def auto_import_statement_bytes():
+    """The bytes of an offered statement - called only after the user says yes (F7).
+
+    Returns the file and nothing else: no extraction, no model call. The page
+    hands it to the same import flow a manual upload takes.
+    """
+    body   = request.get_json(silent=True) or {}
+    target = _in_downloads((body.get('path') or '').strip())
+    if target is None or str(target) not in _offered_statements or target.suffix.lower() != '.pdf':
+        return err('That statement was not offered', 403)
+    if not target.is_file():
+        return err('The statement is no longer in Downloads', 404)
+    return send_file(str(target), mimetype='application/pdf', as_attachment=False,
+                     download_name=target.name)
 
 
 # ── Backup ────────────────────────────────────────────────────────────────────

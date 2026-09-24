@@ -167,29 +167,43 @@ class GroundworkAPI:
 
 
 # ── Downloads folder watcher (auto-import) ────────────────────────────────────
-# Watches ~/Downloads for bank files (.qfx/.ofx/.qbo/.qif/.csv) and posts them
-# to Flask's /api/auto-import/queue; the frontend polls /pending and offers to
-# import. We watch RENAME (moved) events, not create: browsers download to a
+# Watches the Downloads folder for bank files (.qfx/.ofx/.qbo/.qif/.csv) and
+# statements (.pdf) and posts them to Flask's /api/auto-import/queue; the
+# frontend polls /pending and OFFERS each one - nothing is previewed, parsed,
+# extracted or sent to a model until the user says yes (BANK_BROWSER.md F7):
+#   noticed -> offered -> chosen -> staged (the existing review) -> committed.
+# A PDF is noticed by name only: its bytes are not read here at all.
+# "The Downloads folder" is bank_window.downloads_dir(), the folder the bank
+# window's Save dialog starts in (F6) - not Path.home()/'Downloads', which is a
+# different folder when the user has moved it or runs a localised desktop. We watch RENAME (moved) events, not create: browsers download to a
 # temp name (.crdownload/.part) and rename on completion, so the moved event
 # fires exactly once, when the file is whole. Files Groundwork itself writes
 # to Downloads (groundwork_export_*) are skipped.
 
 _IMPORT_EXTENSIONS = {'.qfx', '.ofx', '.qbo', '.qif', '.csv'}
+_STATEMENT_EXTENSIONS = {'.pdf'}
 _MAX_IMPORT_BYTES  = 5 * 1024 * 1024  # 5MB — bank files are far smaller
+_MAX_STATEMENT_BYTES = 25 * 1024 * 1024
 
 
 def _queue_import_file(path: Path, seen: dict):
     name = path.name
     if name.lower().startswith('groundwork'):
         return  # our own export/backup — not a bank download
-    if path.suffix.lower() not in _IMPORT_EXTENSIONS:
-        return
+    suffix = path.suffix.lower()
+    if suffix not in _IMPORT_EXTENSIONS and suffix not in _STATEMENT_EXTENSIONS:
+        return  # everything else is ignored, never offered
     try:
         stat = path.stat()
     except OSError:
         return
     if seen.get(name) == stat.st_mtime_ns:
         return  # already queued this exact file version
+    if suffix in _STATEMENT_EXTENSIONS:
+        if 0 < stat.st_size <= _MAX_STATEMENT_BYTES:
+            _post_queue_item({'filename': name, 'path': str(path), 'kind': 'statement'})
+            seen[name] = stat.st_mtime_ns
+        return
     if stat.st_size > _MAX_IMPORT_BYTES or stat.st_size == 0:
         return
     try:
@@ -211,17 +225,20 @@ def _queue_import_file(path: Path, seen: dict):
             content = raw.decode('utf-8', errors='replace')
             logging.warning('auto-import: %s has an unrecognized encoding — some characters may be corrupted', name)
 
+    if _post_queue_item({'filename': name, 'content': content, 'path': str(path)}):
+        seen[name] = stat.st_mtime_ns
+
+
+def _post_queue_item(item):
+    """POST one noticed file to the queue. True if it was accepted."""
+    name = item.get('filename', '')
     try:
         import json as _json
         import urllib.request
         import server as _server  # same process — share the session token
         req = urllib.request.Request(
             'http://127.0.0.1:8765/api/auto-import/queue',
-            data=_json.dumps({
-                'filename': name,
-                'content':  content,
-                'path':     str(path),
-            }).encode('utf-8'),
+            data=_json.dumps(item).encode('utf-8'),
             headers={
                 'Content-Type': 'application/json',
                 'X-GW-Token':   _server._GW_TOKEN,
@@ -229,10 +246,11 @@ def _queue_import_file(path: Path, seen: dict):
             method='POST',
         )
         urllib.request.urlopen(req, timeout=5)
-        seen[name] = stat.st_mtime_ns
         logging.info('auto-import: queued %s', name)
+        return True
     except Exception as e:
         logging.warning('auto-import: queue failed for %s: %s', name, e)
+        return False
 
 
 def _start_downloads_watcher():
@@ -244,7 +262,8 @@ def _start_downloads_watcher():
         logging.info('auto-import: watchdog not installed — watcher disabled')
         return None
 
-    downloads = Path.home() / 'Downloads'
+    from bank_window import downloads_dir
+    downloads = downloads_dir()
     if not downloads.is_dir():
         logging.info('auto-import: no Downloads folder found — watcher disabled')
         return None
@@ -358,6 +377,14 @@ def _start_server(base_dir: Path):
 
 
 def main():
+    # The bank window (BANK_BROWSER.md F1) is this same executable started with
+    # --bank-window. It is dispatched before ANYTHING else - no Flask, no
+    # watcher, no Ollama, no database, no token - so a bank process can never
+    # become a second Groundwork. It takes the URL on stdin and nothing else.
+    if '--bank-window' in sys.argv[1:]:
+        from bank_window import child_main
+        sys.exit(child_main())
+
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(levelname)s %(name)s: %(message)s',
@@ -421,6 +448,11 @@ def main():
         height=820,
         min_size=(900, 600),
     )
+
+    # Groundwork exiting closes every bank window it opened (F2).
+    import atexit
+    from bank_window import close_all_bank_windows
+    atexit.register(close_all_bank_windows)
 
     webview.start(debug=False)
 

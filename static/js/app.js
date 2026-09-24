@@ -1111,18 +1111,26 @@ function showGwErrors() {
 // a file while the user is mid-import on another.
 let _autoImportPollTimer = null;
 let _autoImportCtx = null;
+let _autoImportFastUntil = 0;   // while a bank window is in use, check every few seconds
 
 function _startAutoImportPolling() {
   if (_autoImportPollTimer) return;
+  let last = 0;
   const poll = async () => {
     try {
       if (!g('importModal')?.classList.contains('hidden')) return; // busy
       if (document.getElementById('autoImportPrompt')) return;     // already offering
       const item = await API.get('/api/auto-import/pending');
-      if (item && item.filename && item.content) _offerAutoImport(item);
+      if (item && item.filename && (item.content || item.kind === 'statement')) _offerAutoImport(item);
     } catch (e) { /* transient — next tick */ }
   };
-  _autoImportPollTimer = setInterval(poll, 45000);
+  // One 3 s tick: poll every tick while a bank window was opened in the last
+  // half hour (the user is downloading and waiting for Groundwork to notice -
+  // they should never have to go looking), every 45 s otherwise.
+  _autoImportPollTimer = setInterval(() => {
+    const now = Date.now();
+    if (now < _autoImportFastUntil || now - last >= 45000) { last = now; poll(); }
+  }, 3000);
   setTimeout(poll, 3000); // first check shortly after boot
 }
 
@@ -1140,15 +1148,17 @@ function _offerAutoImport(item) {
     animation:slideUp .18s ease;`;
   el.innerHTML = `
     <div style="font-size:13px;color:var(--ink);line-height:1.5">
-      📥 <b style="font-weight:600">${esc(item.filename)}</b> just finished downloading.
-      Import it into Groundwork?
+      ${item.kind === 'statement'
+        ? `📄 Statement downloaded: <b style="font-weight:600">${esc(item.filename)}</b>. Open it to review?`
+        : `📥 <b style="font-weight:600">${esc(item.filename)}</b> just finished downloading.
+      Import it into Groundwork?`}
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button onclick="_acceptAutoImport()"
         style="font-size:12px;font-family:inherit;background:var(--sky);color:#fff;
                border:none;border-radius:var(--r-md);padding:6px 14px;cursor:pointer;
                font-weight:500">
-        Import now
+        ${item.kind === 'statement' ? 'Open statement' : 'Import now'}
       </button>
       <button onclick="document.getElementById('autoImportPrompt')?.remove()"
         style="font-size:12px;font-family:inherit;background:none;
@@ -1165,10 +1175,28 @@ function _offerAutoImport(item) {
   }, 60000);
 }
 
-function _acceptAutoImport() {
+async function _acceptAutoImport() {
   document.getElementById('autoImportPrompt')?.remove();
   const item = _autoImportCtx;
   if (!item) return;
+  if (item.kind === 'statement') {
+    // Only now - after the user said yes - are the statement's bytes read, and
+    // they go to the same import flow a manual upload takes (F7).
+    try {
+      const r = await _gwFetch('/api/auto-import/statement', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: item.path }),
+      });
+      if (!r.ok) throw new Error(r.status === 404 ? 'It is no longer in your Downloads folder.' : 'It could not be read.');
+      const blob = await r.blob();
+      const pdf  = new File([blob], item.filename, { type: 'application/pdf' });
+      showImportModal();
+      handleImportFile({ target: { files: [pdf] } });
+    } catch(e) {
+      showToast('Could not open the statement', e.message || '', 'warning');
+    }
+    return;
+  }
   const file = new File([item.content], item.filename, { type: 'text/plain' });
   showImportModal();
   handleImportFile({ target: { files: [file] } });
@@ -9013,6 +9041,141 @@ function _budgetRenderDebtSummary(activeDebts) {
 }
 
 
+// ── The bank window (gw 2.0/BANK_BROWSER.md) ─────────────────────────────────
+// The bank's page opens in its own window - its own process - with nothing
+// but the address. Groundwork never reads, fills or watches it. Whatever the
+// user downloads there reaches Groundwork only through the Downloads folder
+// and the usual offer -> review -> import. Groundwork does not check that an
+// address belongs to the bank; the field says so.
+
+const _PORTAL_INPUT_ATTRS = `type="url" placeholder="https://www.yourbank.com" aria-label="Bank website"
+          style="font-size:12px;padding:5px 7px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);font-family:var(--font-mono)"`;
+
+// The caller writes its own <input> with a literal id, so the ghost-ID
+// tripwire in smoke_test.py sees the element every lookup refers to.
+function _portalFieldHTML(inputHTML) {
+  return `
+      <div style="display:flex;flex-direction:column;gap:4px;padding:6px 4px">
+        <span style="font-size:11px;color:var(--slate)">Bank website</span>
+        ${inputHTML}
+        <span style="font-size:11px;color:var(--slate-2);line-height:1.5">This is the address Groundwork will open. Groundwork doesn't check that it belongs to your bank. Make sure it does.</span>
+      </div>`;
+}
+
+function _portalButtonsHTML(kind, id) {
+  const btn = `font-size:11px;font-family:inherit;border-radius:var(--r-md);padding:4px 9px;cursor:pointer;white-space:nowrap`;
+  return `
+      <button onclick="_openBankPortal('${kind}', ${id}, 'window')" title="Open your bank's website in its own window"
+        style="${btn};background:var(--sky);color:#fff;border:none">Open bank</button>
+      <button onclick="_openBankPortal('${kind}', ${id}, 'browser')" title="Open your bank's website in your usual browser"
+        style="${btn};background:none;border:1px solid var(--steel-2);color:var(--ink)">Open in my browser</button>`;
+}
+
+async function _openBankPortal(kind, id, mode) {
+  const base = kind === 'account' ? `/api/accounts/${id}` : `/api/debt/${id}`;
+  try {
+    const res = await API.post(`${base}/portal/open`, { mode });
+    const result = res?.result;
+    if (result === 'opened' || result === 'already_open') _autoImportFastUntil = Date.now() + 30 * 60 * 1000;
+    if (result === 'engine_unavailable') {
+      confirmAction(
+        "Groundwork can't open your bank here on this computer",
+        `<div style="line-height:1.7;font-size:13px;color:var(--slate)">This computer's built-in web engine isn't available to Groundwork, so the bank can't open in its own window. Your usual browser works the same way: download your transactions or statement there and Groundwork will offer to import them.</div>`,
+        () => _openBankPortal(kind, id, 'browser'),
+        'Open in my browser',
+        false
+      );
+    } else if (result === 'already_open') {
+      showToast('Your bank is already open', 'Look for its window.', 'success');
+    } else {
+      showToast(mode === 'browser' ? 'Opened in your browser' : 'Bank website opened',
+        'Save your download to your Downloads folder and Groundwork will offer to import it. Saved somewhere else? Use Import file.',
+        'success');
+    }
+  } catch(e) {
+    showToast('Could not open your bank', e.message || '', 'error');
+  }
+}
+
+async function _debtLinkPortalConflict(dbId, acctId, portalKeep) {
+  // Try the link change as-is. If it would put two different bank websites on
+  // one card the server refuses it with a 409 carrying the conflict; if not,
+  // it has simply been applied, and the caller's own PATCH repeats it harmlessly.
+  if (portalKeep) return null;
+  const r = await _gwFetch(`/api/debt/${dbId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ linked_account_id: acctId }),
+  });
+  if (r.status !== 409) return null;
+  const j = await r.json().catch(() => ({}));
+  return j.portal_conflict || null;
+}
+
+function _askPortalConflict(conflict, done) {
+  document.getElementById('portalConflictPrompt')?.remove();
+  const el = document.createElement('div');
+  el.id = 'portalConflictPrompt';
+  el.style.cssText = `
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--paper);border:1px solid var(--steel);border-left:3px solid var(--sky);
+    border-radius:var(--r-lg);box-shadow:var(--shadow-md);padding:14px 18px;
+    max-width:480px;width:calc(100vw - 48px);z-index:200;display:flex;flex-direction:column;gap:10px;`;
+  const b = `font-size:12px;font-family:inherit;border-radius:var(--r-md);padding:6px 12px;cursor:pointer`;
+  el.innerHTML = `
+    <div style="font-size:13px;color:var(--ink);line-height:1.5">
+      This card opens <b style="font-weight:600;word-break:break-all">${esc(conflict.card_url)}</b>, and
+      <b style="font-weight:600">${esc(conflict.account_name)}</b> opens <b style="font-weight:600;word-break:break-all">${esc(conflict.account_url)}</b>.
+      A linked card uses one bank website. Which one?
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button data-keep="card" style="${b};background:var(--sky);color:#fff;border:none">Keep the card's</button>
+      <button data-keep="account" style="${b};background:var(--sky);color:#fff;border:none">Keep ${esc(conflict.account_name)}'s</button>
+      <button data-keep="" style="${b};background:none;border:1px solid var(--steel-2);color:var(--ink)">Don't link</button>
+    </div>`;
+  el.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+    el.remove();
+    done(btn.dataset.keep || null);
+  }));
+  document.body.appendChild(el);
+}
+
+async function _bloomLoadPortal(el) {
+  const dbId = parseInt(el?.dataset.dbId);
+  if (!dbId) return;
+  let d;
+  try { d = await API.get(`/api/debt/${dbId}/portal`); } catch(e) { return; }
+  const box = `padding:10px 12px;background:var(--mist);border-radius:var(--r-sm)`;
+  if (d.owner === 'account') {
+    el.innerHTML = `<div style="${box}">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);margin-bottom:6px">Bank website</div>
+      ${d.url
+        ? `<div style="font-size:12px;color:var(--ink);margin-bottom:8px">Uses <b style="font-weight:600">${esc(d.account_name || 'its account')}</b>'s bank website. Change it in Settings → Accounts.</div>
+           <div style="display:flex;gap:6px;flex-wrap:wrap">${_portalButtonsHTML('card', dbId)}</div>`
+        : `<div style="font-size:12px;color:var(--slate-2)">No bank website yet. Add one to <b style="font-weight:600">${esc(d.account_name || 'its account')}</b> in Settings → Accounts.</div>`}
+    </div>`;
+    return;
+  }
+  el.innerHTML = `<div style="${box}">
+    ${_portalFieldHTML(`<input id="bloomPortal${dbId}" value="${esc(d.url || '')}" ${_PORTAL_INPUT_ATTRS}>`)}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;padding:0 4px">
+      <button onclick="_bloomSavePortal(${dbId})" class="btn btn-primary btn-sm">Save website</button>
+      ${d.url ? _portalButtonsHTML('card', dbId) : ''}
+    </div>
+  </div>`;
+}
+
+async function _bloomSavePortal(dbId) {
+  const input = g(`bloomPortal${dbId}`);
+  if (!input) return;
+  try {
+    await API.put(`/api/debt/${dbId}/portal`, { url: input.value.trim() });
+    showToast('Bank website saved', '', 'success');
+    _bloomLoadPortal(input.closest('.bloom-portal'));
+  } catch(e) {
+    showToast('Bank website not saved', e.message || '', 'warning');
+  }
+}
+
 function _budgetOpenDebtBloom(row, card) {
   _budgetCloseAllBlooms();
   const bloom = _budgetBuildDebtBloom(card);
@@ -9126,7 +9289,8 @@ function _budgetBuildDebtBloom(card) {
       ${card.linkedAccountId
         ? `<div style="font-size:11px;color:var(--pine);margin-top:5px">● Importing this account updates this card's balance automatically.</div>`
         : `<div style="font-size:11px;color:var(--slate-2);margin-top:5px">Import a statement from a linked account to keep this balance current.</div>`}
-    </div>`;
+    </div>
+    ${card._dbId ? `<div class="bloom-portal" data-db-id="${card._dbId}" style="margin-bottom:14px"></div>` : ''}`;
 
   // Balance cross-check: if calculated balance from imports differs from entered
   const calcBal = card.calculatedBalance;
@@ -9205,6 +9369,7 @@ function _budgetBuildDebtBloom(card) {
       <button class="btn btn-sm btn-ghost" style="margin-left:auto;color:var(--slate)" onclick="showView('debt')">Full payoff plan →</button>
     </div>
   `;
+  bloom.querySelectorAll('.bloom-portal').forEach(_bloomLoadPortal);
   return bloom;
 }
 
@@ -9272,19 +9437,33 @@ function _budgetCrossCheckUse(btn, value) {
 }
 
 // B2: Handle account link change in debt bloom
-async function _budgetBloomLinkAccount(select) {
+async function _budgetBloomLinkAccount(select, portalKeep) {
   const bloom  = select.closest('.budget-bloom');
   const cardId = parseInt(bloom?.dataset.debtId);
   const card   = S.debtCards.find(c => c.id === cardId);
   if (!card) return;
 
   const acctId = select.value ? parseInt(select.value) : null;
+  const prevAcctId = card.linkedAccountId;
+
+  // A card and an account that each have a different bank website: the user
+  // chooses which one the linked card uses. Groundwork never picks (F3).
+  if (card._dbId) {
+    const conflict = await _debtLinkPortalConflict(card._dbId, acctId, portalKeep);
+    if (conflict) {
+      _askPortalConflict(conflict, keep => {
+        if (keep) _budgetBloomLinkAccount(select, keep);
+        else select.value = prevAcctId ?? '';
+      });
+      return;
+    }
+  }
   card.linkedAccountId = acctId;
 
   // Persist immediately — don't wait for Save
   if (card._dbId) {
     try {
-      const res = await API.patch(`/api/debt/${card._dbId}`, { linked_account_id: acctId });
+      const res = await API.patch(`/api/debt/${card._dbId}`, { linked_account_id: acctId, portal_keep: portalKeep || null });
       // Server returns fresh calculated_balance after link change
       if (res?.calculated_balance !== undefined) {
         card.calculatedBalance = res.calculated_balance;
@@ -20716,6 +20895,7 @@ function _accountRowHTML(a) {
       <div style="font-family:var(--font-mono);font-size:13px;color:${a.balance>=0?'var(--pine)':'var(--ember)'};text-align:right;flex-shrink:0">
         ${fmt(a.balance)}
       </div>
+      ${a.has_portal ? _portalButtonsHTML('account', a.id) : ''}
       <button class="row-del" onclick="editAccount(${a.id})" title="Edit" style="font-size:13px">✎</button>
       <button class="row-del" onclick="archiveAccount(${a.id})" title="Archive">×</button>
     </div>`;
@@ -20743,6 +20923,7 @@ function _accountFormHTML(a) {
           style="width:110px;font-family:var(--font-mono);font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper)">
         <span style="font-size:11px;color:var(--slate-2)">Amount your bank requires you to keep. Subtracted from spendable balance in the Budget.</span>
       </div>
+      ${_portalFieldHTML(`<input id="acctFormPortal" value="" data-original="" ${_PORTAL_INPUT_ATTRS}>`)}
       ${isEdit ? `
       <div style="padding:10px 4px 4px;border-top:1px solid var(--mist-2)">
         <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--slate);margin-bottom:8px">Reconcile running balance</div>
@@ -20846,6 +21027,12 @@ function editAccount(id) {
   const row = document.querySelector(`.account-row[data-id="${id}"]`);
   if (row) row.outerHTML = _accountFormHTML(acct);
   g('acctFormName')?.focus();
+  // The address is fetched only here, into the field, and never kept in app
+  // state - it is launch configuration, not something the snapshot may carry.
+  API.get(`/api/accounts/${id}/portal`).then(d => {
+    const input = g('acctFormPortal');
+    if (input) { input.value = d?.url || ''; input.dataset.original = d?.url || ''; }
+  }).catch(_gwErr('editAccount.portal'));
 }
 
 async function saveAccountForm(id) {
@@ -20855,13 +21042,36 @@ async function saveAccountForm(id) {
   const minimumBalance = parseFloat(g('acctFormMinBalance')?.value || '0') || 0;
   if (!name) { showToast('Account name is required', '', 'warning'); return; }
 
+  const portalInput = g('acctFormPortal');
+  const portal      = portalInput?.value?.trim() || '';
+  const portalDirty = portalInput && portal !== (portalInput.dataset.original || '');
   try {
+    // The bank website is saved first when editing, so a refused address keeps
+    // the form open with its reason instead of being buried under "updated".
+    if (id && portalDirty) {
+      try {
+        await API.put(`/api/accounts/${id}/portal`, { url: portal });
+      } catch(e) {
+        showToast('Bank website not saved', e.message || '', 'warning');
+        portalInput.focus();
+        return;
+      }
+    }
     if (id) {
       await API.patch(`/api/accounts/${id}`, { name, type, institution, minimum_balance: minimumBalance });
       await _refreshTransactionsFromServer();
       renderLedger(); updateLedgerStats(); renderDashboard();
     } else {
-      await API.post('/api/accounts', { name, type, institution, minimum_balance: minimumBalance });
+      const created = await API.post('/api/accounts', { name, type, institution, minimum_balance: minimumBalance });
+      if (portalDirty && created?.id) {
+        try {
+          await API.put(`/api/accounts/${created.id}/portal`, { url: portal });
+        } catch(e) {
+          showToast('Account added — bank website not saved', e.message || '', 'warning');
+          await renderAccountManager();
+          return;
+        }
+      }
     }
     showToast(id ? 'Account updated' : 'Account added', '', 'success');
     await renderAccountManager();
