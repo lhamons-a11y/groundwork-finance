@@ -527,6 +527,63 @@ that is diverted. That connection to the existing payoff plan is the most valuab
 | Term unknown | the mechanism taught conditionally; no number invented | Which kind of offer is this, and where is it written down? |
 | Financed amount unclear | the price as entered; the question raised | Are tax, delivery and installation in the financed amount? |
 
+### Case: a store's own offer — discount, financing, or both (recorded 2026-09-24)
+
+Raised by Rob: some stores offer a discount on their card (e.g. 5% off), a promotional financing
+period (e.g. "90 days same as cash"), or a choice between the two. The store's offer is one more
+way to pay, so it is asked about like any other — the store is never known to Groundwork by name,
+and its terms are user-entered facts or unknown (store terms change). **Recorded as a case, not a
+surface: nothing is added to the Before You Buy board until the semantics below are settled.**
+
+**Five distinctions, kept apart:**
+
+1. **Store discount** — e.g. 5% off. A benefit, so never shown without its cost in the same
+   scenario (the §12 pairing rule).
+2. **Store financing** — deferred interest ("same as cash", "no interest if paid in full") or a
+   true 0% APR; never collapsed, as above.
+3. **Both available** — Groundwork **asks whether they can actually be combined** rather than
+   assuming. At many stores it is one or the other, chosen at checkout.
+4. **Credit application involved** — if the offer requires opening the store account, that is
+   surfaced **as a fact**: taking it means applying for credit and opening a new account.
+5. **Terms unknown** — teach the user what to ask rather than calculating from assumptions.
+
+**What the user learns to ask:**
+
+- Is it the discount *or* the financing, or can I have both?
+- Does taking it mean opening a new store card?
+- What is the card's rate if the balance is not paid in full?
+- Does the discount apply to delivery, installation and tax?
+- If it is financing: every question in the "90 days same as cash" list above.
+
+**The "suggestion" is a set of conditional paths — consequence teaching, no path selected.**
+On the concept figures (a $869.99 dishwasher; a store-card rate of 29.99% and an estimated
+minimum rule, both standing in for user-entered terms):
+
+- *If you take the 5% discount, the purchase is **$826.49**.*
+- *If you then pay it in full by the first due date, the purchase costs **$826.49**.*
+- *If you instead make only minimum payments, the modelled total is approximately **$1,821**
+  under these terms* — about $994 of interest over about 6½ years.
+- *If you take a 6-month deferred-interest period instead, about **$145.00** a month clears it
+  in time; if the deadline is missed, interest back-dated to the purchase could be **up to about
+  $150** under these terms.*
+
+Groundwork states each path; it does not say which to take.
+
+**Cash reserves — dependent on `RESERVE_PAYOFF_QUESTION.md`.** Until that question is ruled,
+Groundwork **may identify available reserves and show the consequence of using them** (*"paying
+this from savings leaves the emergency fund $826.49 lower"*), but **must not establish that
+reserves are available for this purpose.** Teaching the question stays in scope either way: *if
+you use the reserve, what is left for the next emergency?*
+
+**The budget action belongs later, and only as an explicit confirmation.** The eventual behaviour
+can be *"Add $826.49 to next month's budget?"* — showing what it adds and where, acting only on
+the user's yes — never a silent change to the budget because a store offer was selected (the
+no-silent-writing rule).
+
+**Sequence (Rob, 2026-09-24):** this §12 documentation → resolve reserve semantics
+(`RESERVE_PAYOFF_QUESTION.md`) → resolve store-offer semantics → design the Before You Buy surface
+→ then consider whether and what G7 authorises. No board changes until then.
+
 ### Not decided here
 
 G7 is open. No field, no schema, no engine input, no copy beyond the examples above.
