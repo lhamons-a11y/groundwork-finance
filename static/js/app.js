@@ -15492,7 +15492,13 @@ function setCardField(id, field, value) {
 }
 
 function confirmRemoveCard(id) {
-  confirmAction('Remove this card?', 'This cannot be undone.', () => removeCard(id));
+  // Say what actually happens: delete_debt only sets is_active = False. The card
+  // leaves the list and nothing in the app restores it, but its balance history
+  // is kept and still counts wherever past debt is summed (the debt-cycle
+  // comparison, trophies). "This cannot be undone" implied it was erased.
+  confirmAction('Remove this card?',
+    'It will leave your Debt page, and Groundwork has no way to bring it back. Its past balances are kept and still count in your debt history.',
+    () => removeCard(id));
 }
 
 function removeCard(id) {
