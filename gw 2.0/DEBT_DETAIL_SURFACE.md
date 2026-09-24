@@ -610,9 +610,19 @@ shouldn't, but the actual truth of this card."*
   kept and simply hidden. So the closed-accounts history this section asks for already exists in
   every install's data; what is missing is the reason, the distinction between endings, and a way
   to look back.
-- **V7 — a false statement to the user (recorded, not fixed).** The confirmation says *"This
-  cannot be undone."* The data is kept; the sentence is not true. A small 1.x wording fix, logged
-  here rather than opened now.
+- **V7 — the Remove dialog implied erasure. FIXED on 1.x, 2026-09-24 (`5eae28e` on `lts/1.x`,
+  merged into master).** *Corrected from the first record,* which called *"This cannot be
+  undone"* false: measured, 1.x has no way to bring a removed debt back (bootstrap loads only
+  active debts and nothing sets one active again), so from the user's side it could not be
+  undone. What misled was the implication that the card was gone: its balance history is kept
+  and still counts wherever past debt is summed — `revolving_series` (the *"You have been here
+  before"* comparison) and the trophies read every debt's history, active or not. The dialog now
+  reads: *"It will leave your Debt page, and Groundwork has no way to bring it back. Its past
+  balances are kept and still count in your debt history."*
+- **V8 — a card added by mistake keeps counting after removal (recorded, not fixed).** Because
+  removed debts still feed those sums, a duplicate or mistyped card, once removed, still adds its
+  past balances to the debt-cycle comparison and the trophies. That is the *added by mistake*
+  ending below, which needs real deletion; it is a data-semantics question, not a wording fix.
 
 ### Three different endings, never one button
 
@@ -699,4 +709,4 @@ It never says the user should or shouldn't take the card.
 
 No schema for endings or reasons, no Settings page, no upload path, no reader for offer documents,
 no change to `removeCard` or `delete_debt`, and no change to the concept layout's boards. V7 is
-recorded, not fixed.
+fixed on 1.x (wording only); V8 is recorded, not fixed.
