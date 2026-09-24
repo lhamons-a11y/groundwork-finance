@@ -587,3 +587,116 @@ no-silent-writing rule).
 ### Not decided here
 
 G7 is open. No field, no schema, no engine input, no copy beyond the examples above.
+
+---
+
+## 13. Closing a card, and the closed-accounts history
+
+> Status: **Design case, recorded 2026-09-24 at Rob's direction. Nothing ruled beyond what is
+> marked as Rob's. No code, no surface change, no migration.**
+
+Rob: instead of *removing* a debt or a card, the user **closes** it. Closing asks why. Closed
+accounts stay browsable — with their credit limits, terms, history and the user's own reasons —
+so that *"I had that card before; I don't remember why I closed it"* has an answer. And when the
+card comes back as an offer, the teaching model helps the user see what the card is actually
+offering, **in the words of the document the issuer sent** — *"not stating that they should or
+shouldn't, but the actual truth of this card."*
+
+### What 1.x does today (measured 2026-09-24)
+
+- **"Remove this card?"** (`confirmRemoveCard`) and **"Archive"** on a paid-off card both call
+  `removeCard`, which calls `DELETE /api/debt/<id>`. The server's `delete_debt` **does not
+  delete**: it sets `is_active = False`. The record — balance history, rate, limit, ledger — is
+  kept and simply hidden. So the closed-accounts history this section asks for already exists in
+  every install's data; what is missing is the reason, the distinction between endings, and a way
+  to look back.
+- **V7 — a false statement to the user (recorded, not fixed).** The confirmation says *"This
+  cannot be undone."* The data is kept; the sentence is not true. A small 1.x wording fix, logged
+  here rather than opened now.
+
+### Three different endings, never one button
+
+| Ending | What it means | What happens to the record |
+|---|---|---|
+| **Closed** | the account itself ended — by the user or the issuer | kept; moves to Closed accounts with its history and the user's reasons |
+| **Paid off** | the balance is $0 and the account is **still open** | stays an open account; its limit still counts toward available credit |
+| **Added by mistake** | a duplicate or a typo — the account never existed as entered | real deletion is right, with a confirmation that says so truthfully |
+
+*Correction to the concept layout:* its closed Discover board shows *"Paid off Mar 2025"* under
+*Closed* — the conflation this table exists to prevent. Paid off and closed are separate facts
+with separate dates.
+
+### Closing asks why — optional, and never inferred
+
+At the moment of closing — the only moment the answer can be recorded honestly — Groundwork asks,
+for example:
+
+- Why are you closing it? *(annual fee · rate too high · don't use it · too tempting to use ·
+  switching to another card · the issuer closed it · other · prefer not to say)*
+- Anything you'd want to remember about it? *(free text)*
+
+Every answer is optional; **"prefer not to say" is a complete answer**. Answers are stored as
+**what the user said, on that date** — provenance like any user-entered figure. Groundwork never
+works a reason out for itself from behaviour (the no-silent-learning rule).
+
+**The consequences of closing are taught as questions, not warnings.** Conditionally and with the
+arithmetic, e.g. *"closing this removes a $5,000 limit; your remaining cards' utilization would
+go from 22% to 34%"* — and what a closed account can mean for the age of the user's credit
+history, taught as something to ask about rather than asserted. Groundwork never says *"don't
+close it."*
+
+### Closed accounts — a page in Settings (Rob)
+
+- A **Closed accounts** page in **Settings**, reached by its own button there.
+- Each closed account is listed with its name, type, when it closed, its last credit limit and
+  rate, and — **if Groundwork has them** — the user's recorded reasons.
+- **Each name is a link to that account's history page** — the same kind of page as the open debt
+  detail (the concept layout's closed-debt board is the model): the limit, the rates and their
+  changes, the balance history, what it cost in recorded interest, missing months shown as
+  *unknown, not zero*, and the user's own words about why it closed.
+- Whether the Debt page keeps a small link to it as well is **not decided here**.
+
+### When the card comes back — the offer, in the issuer's words
+
+The user can **upload the document the card company sent** — an offer, or the cardholder
+agreement. Card offers must carry a standard rates-and-fees table, so there is a real source to
+quote. The teaching model then tells the user **what the document actually says**:
+
+- every statement **cites where it is in the document**; anything the document does not state is
+  shown as **not stated** — never filled in from what cards usually do;
+- **set beside the user's own record**, e.g. *"You closed this card in March 2025 and said:
+  'annual fee.' This offer's rates-and-fees table lists an annual fee of $95."* — the truth of the
+  card, with nobody choosing for the user;
+- the teaching asks what a teacher would: *what makes you want this card again? what are you being
+  promised, and where in the document is it?* — and separates the promise in the marketing from
+  the term in the agreement.
+
+It never says the user should or shouldn't take the card.
+
+**Two constraints on that:**
+
+1. **Grounded in the document or it does not happen.** Summarising a long legal document with a
+   small local model is the real risk. The existing statement reader checks every figure against
+   the source text before use (R8-style provenance); an offer reader needs the same — and
+   `SAFETY_PROVISIONS_INVENTORY.md` S13 applies: a check that a figure is *present* is not a check
+   of what it is *attached to*.
+2. **A reopened card is usually a new account**, not the old one back. Linking an offer or a new
+   account to the closed record is an identity question (the kind `OBLIGATION_IDENTITY.md`
+   handles); the link is **the user's to confirm**, never made silently.
+
+### Test 10, extended
+
+| # | Case | Question |
+|---|---|---|
+| 10a | Paid off, still open | Does Groundwork keep a $0 card as an open account, not a closed one? |
+| 10b | Closed with a reason | Is the reason shown later as the user's words, dated, and nothing more? |
+| 10c | Closed, no reason given | Does the history show no reason, rather than an inferred one? |
+| 10d | Added by mistake | Does deletion say truthfully what it does, distinct from closing? |
+| 10e | Offer uploaded | Is every claim about the offer cited to the document, and every gap shown as *not stated*? |
+| 10f | Offer vs. closing reason | Does Groundwork set the two side by side without recommending? |
+
+### Not decided here
+
+No schema for endings or reasons, no Settings page, no upload path, no reader for offer documents,
+no change to `removeCard` or `delete_debt`, and no change to the concept layout's boards. V7 is
+recorded, not fixed.
