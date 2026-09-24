@@ -457,7 +457,7 @@ until then.**
 
 ---
 
-## 8. F12 built — the request-host guard (2026-09-23), awaiting acceptance
+## 8. F12 built — the request-host guard (2026-09-23) — ACCEPTED (Rob, 2026-09-24)
 
 **What changed, and only this.** `server.py`: `_LOCAL_HOSTNAMES = ('127.0.0.1', 'localhost')` and
 `_request_host_refusal(environ, path)` at module level, called by a new `before_request`,
@@ -520,3 +520,10 @@ built; nothing opened it here.
 **Not measured:** WKWebView and WebKitGTK's Host / Origin behaviour, since only Windows was
 available. They are standard browser engines and send the page's own host and origin, but this
 note does not claim that as measured. It belongs with W's three-OS acceptance.
+
+**F12 ACCEPTED — Rob, 2026-09-24.** As built and gated: 1618 / 0 the authoritative isolated
+result, 1622 / 0 confirming coexistence with the document-line stage 1 at `83c5577`, the
+contaminated 1352 / 18 correctly excluded and documented, `4767fbc` exactly the four intended
+files, the queue change limited to the bank-window row (18 → 19). **W's build is now started**,
+under the §7 ruling, in its own worktree. The document-line stage 1 is a separate acceptance
+decision; passing the combined gate does not accept it.
