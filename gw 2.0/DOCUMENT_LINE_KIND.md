@@ -485,3 +485,28 @@ artefact-subject sites, `statement_figure` and the statement family, the mechani
 `disbursement`, and any matcher or tie behaviour. **Stages 2–4 remain unauthorised.**
 
 ---
+
+## 13. Stage 1 (SBC) — accepted — Rob, 2026-09-24
+
+**Accepted as built and ruled: `83c5577`, clean-worktree gate 1600 / 0.**
+
+**Sb-6 stands; refusal is correct.** *The committed Stage 1 ruling at `021b161` is the controlling
+scope:* a ruled `document_line` with a missing required subject is a **representation refusal**; *it
+does not become `undetermined`*; the genuinely-missing-subject → `undetermined` proof **belongs to
+the unruled mechanism-probe path in Stage 2**; **Stage 1 therefore has six cases, with Sb-6
+asserting refusal.** A parallel session's copy of the scope review, which read *"five cases /
+absent subject → undetermined"*, **is stale — it is to be corrected before that session's acceptance
+record is finalised, and never used to alter this implementation.**
+
+**The gate numbers, as treated.** **1600 / 0 is the verified Stage 1-only gate and remains the
+authoritative Stage 1 evidence** (a scratch worktree at `021b161` carrying only the four authorised
+files). **1622 / 0 is a reported combined gate** — this session has not independently verified it,
+and it is not Stage 1 evidence. **Nothing about the F12 / bank-window acceptance changes the Stage 1
+semantic ruling.**
+
+**Stage 1 (SBC): OPENED → RULED → BUILT → ACCEPTED.** **Stage 2 remains unopened and
+unauthorised**, and with it the 15 EOB artefact-subject corrections, the three mechanism probes and
+their neutral kind, Stage 3's statement family with Pd4's F5(b) restatement, and Stage 4's
+undecided `services` / `applied` / `disbursement` question.
+
+---
