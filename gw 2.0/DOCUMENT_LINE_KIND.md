@@ -699,3 +699,32 @@ classified.
 decision.
 
 ---
+
+## 16. Stage 2 — G classified — Rob, 2026-09-24: **G1 → B, G2 → C**; no code
+
+The two retraction sites, read semantically against §15's discriminator rather than by shape.
+
+**G1 (`test_utterance_retraction_fixture.py:216`) → B — the artefact is the provenance carrier.**
+The claim is `eob_amount` on the EOB with content *$412*, evidenced by a reading; the case is *a
+reading of the EOB derives undetermined — the origin is multiple, and the retraction did not pick
+Riverbend Hospital*. Its subject matter is **the artefact's origin being ambiguous after a retraction**, and the
+strength walks *relationship → reading → artefact → origin*, **a path that never consults the claim's
+subject slot**. Under a party subject the case still says exactly what it says: multiple origins →
+`undetermined`. **Corrected to party-subject with its assertion unchanged, like Kn5 / Kn8.**
+
+**G2 (`…:278–281`) → C — the artefact is the subject matter.** `p_neg` is `eob_amount` on the EOB
+with content *not $412*, uttered as *"that is false"*; the case is *"that is false" is a domain
+proposition with negative content — not `contradiction(U)`*, and it pins `subject_artefact_id ==
+eob.id`. It sits beside the `$412` claim on **the same kind and the same artefact subject, with
+opposing content** — precisely C's structure, the one `artefact_reading` states as *the parse dispute
+is computable by structure: same kind + subject, differing content*. **The stated point would survive
+a party subject; the structure would not** — it would stop being a competing content for one
+artefact-subject proposition, and the fixture section would carry two conventions side by side.
+**Moves to the neutral kind `'x'` with its assertions unchanged, like the rest of C.**
+
+**Stage 2's populations are now fully classified:** **A (7)** migrate · **B (3 + G1 = 4)** correct to
+party-subject · **C (12 + G2 = 13)** and **D (3)** move to `'x'` · **E (7)** map entries retire ·
+**F (1)** absence pin retires, replaced by `'x'`'s permanent one. **Nothing here authorises code; the
+Stage 2 build-scope decision is its own step.**
+
+---
