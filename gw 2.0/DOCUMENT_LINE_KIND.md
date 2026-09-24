@@ -728,3 +728,36 @@ party-subject · **C (12 + G2 = 13)** and **D (3)** move to `'x'` · **E (7)** m
 Stage 2 build-scope decision is its own step.**
 
 ---
+
+## 17. Stage 2 — scope ruled and build authorised — Rob, 2026-09-24
+
+**The count correction is part of the ruling record: A = 8; C = 12.** `expense_identity:225` uses the
+`line()` helper, which sets `subject_party_id`, so it is population **A**, not C. *Nothing else
+changes.*
+
+**(1) The E split — accepted.** *The map follows the kind being exercised.* C / D moving to `'x'`
+means **those map entries are renamed / preserved**; A / B moving to `document_line` means **their
+entries retire**. `utterance_retraction:88` is correctly the **mixed** case.
+
+**(2) The permanent `'x'` pin — option (i) accepted.** The single permanent pin goes in
+`test_evidence_substrate_fixture.py`, **where the `'x'` convention is defined**. *The using fixtures
+should exercise it, not own the convention's permanence.*
+
+**(3) The mutation sections — accepted as proposed.** **`s97`**: the B / Kn8 `undetermined` mutation,
+and the migrated-line-as-ruled-stance mutation. **`s87`**: ruling `'x'`, and restoring the
+`document_line` map. *These are the right homes because each mutation tests an existing mechanism
+rather than creating a Stage-2-specific testing abstraction.*
+
+**Stage 2 is authorised, on exactly this boundary:** the ten listed fixture files ·
+`test_evidence_substrate_fixture.py` for the single permanent `'x'` pin · the specified additions to
+`s97` and `s87` · the staged gate sequence (C/D rename → A migration → B correction → cases →
+mutations → full gate) · the build-note measurements · **the full gate in the worktree after
+establishing its baseline.**
+
+**Nothing outside that boundary is authorised. In particular: no `core/database.py`; no statement
+family / `statement_figure`; no Pd4 / 7A; no `services` / `applied` / `disbursement`; no `MOVEMENT`;
+no ruled stances; no matcher changes; no change to `PARTICIPANT_CANDIDATES` semantics; no
+bank-window files whatsoever.** **Stage 3 remains inheritance plus its three identified new
+decisions, and is not authorised by this ruling.**
+
+---
