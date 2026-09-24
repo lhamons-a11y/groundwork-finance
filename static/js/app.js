@@ -8614,9 +8614,10 @@ function _budgetRenderDebtRow(card) {
   let utilBar = '';
   if (limit && limit > 0 && bal > 0) {
     const utilPct = Math.min(150, Math.round((bal / limit) * 100));
-    const utilClr = utilPct >= 30 ? 'var(--ember)' : utilPct >= 15 ? 'var(--gold)' : 'var(--pine)';
+    // One neutral colour: the bar shows how much of the limit is in use, not
+    // whether that amount is good or bad (the same rule as the utilization lines).
     utilBar = `<div style="margin-top:5px;height:4px;background:var(--steel);border-radius:2px;overflow:hidden">
-      <div style="width:${Math.min(100,utilPct)}%;height:100%;background:${utilClr};border-radius:2px"></div>
+      <div style="width:${Math.min(100,utilPct)}%;height:100%;background:var(--slate);border-radius:2px"></div>
     </div>`;
   }
 
@@ -9233,10 +9234,10 @@ function _budgetDebtBloomCalc(bloom) {
   }
   if (lim > 0 && bal > 0) {
     const utilPct = Math.round((bal / lim) * 100);
-    const utilClr = utilPct >= 30 ? 'var(--ember)' : utilPct >= 15 ? 'var(--gold)' : 'var(--pine)';
+    // The figure only — no "aim for", no "good", no threshold colour.
     rows.push(`<div style="display:flex;justify-content:space-between;align-items:center">
       <span style="color:var(--slate)">Utilization</span>
-      <span style="font-family:var(--font-mono);color:${utilClr}">${utilPct}% ${utilPct >= 30 ? '— aim for under 30%' : utilPct >= 15 ? '— aim for under 15%' : '— good'}</span>
+      <span style="font-family:var(--font-mono)">${utilPct}%</span>
     </div>`);
   }
 
