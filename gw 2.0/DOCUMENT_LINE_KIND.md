@@ -647,3 +647,55 @@ Kn8 guard made executable) · the migrated line admitted as a ruled stance · th
 > **(5)** whether **G**'s two sites are B or C. Nothing here authorises code.
 
 ---
+
+## 15. Stage 2 — ruling on S2-F1, S2-F2, S2-F3–F5 — Rob, 2026-09-24; G left open; no code
+
+*The inventory materially changes the stage, and the key correction is the one it identified:
+**subject shape is not the classification criterion.*** The previous *"15 artefact-subject sites"*
+grouping *was doing exactly what the methodology is designed to prevent: using a representational
+similarity to manufacture a semantic family.*
+
+**S2-F1 — the three-way split, ruled.** The 37 sites separate into semantic populations: **A (7)**
+ordinary party-subject lines · **B (3)** artefact-subject **only incidentally**, the actual semantics
+being knowledge / provenance · **C (12)** genuinely artefact-subject semantics · **D / E (10)**
+map / probe material *rather than another semantic population* · **F (1)** the absence pin ·
+**G (2)** genuinely open. **On C in particular:** *those twelve are not merely artefacts appearing in
+the subject column. **The artefact-subject is constitutive of what the assertion means.** Changing it
+to a party doesn't normalise the data; it changes the proposition being evidenced.* So **B is
+corrected** as ruled, and **C (with D) moves to the neutral kind, assertions unchanged.**
+
+**S2-F2 — `'x'`, with the permanent absence pin, ruled.** The existing neutral convention is
+surfaced rather than another invented: **`unruled_probe_kind` does not become another invented escape
+hatch.** *The important part is the permanent absence pin — otherwise `'x'` risks becoming a
+general-purpose garbage drawer for things we haven't semantically classified yet.* The commitment,
+recorded as such:
+
+> **`'x'` means deliberately neutral / unruled *for this purpose*; it does not mean "we haven't
+> bothered to determine what this is."** *That is a semantic commitment, not merely a convenient
+> placeholder.*
+
+**S2-F3 — F4 recorded in three parts, ruled.** *Demonstrating `ruled kind + missing party subject →
+undetermined` on `document_line` would be asking the fixture to demonstrate behaviour the ruled
+semantics explicitly prohibit.* So: **the ruled-kind case is satisfied by the existing refusal
+boundary (Sb-6)**; **the neutral-kind case is satisfied by the existing unruled cases, which already
+demonstrate the `undetermined` behaviour**; **therefore no artificial `document_line` case is
+required.** *Much cleaner than weakening Sb-6 just to make F4 mechanically testable in one location.*
+
+**S2-F4 and S2-F5 — as read.** Populations A, E and F are mechanical **provided the null model shows
+the strength unchanged first**, 7E's two chain cases included; Stage 2 touches nothing belonging to
+Stage 3 (the statement family, Pd4 / 7A), Stage 4 (`services` / `applied` / `disbursement`, unruled),
+`MOVEMENT`, the ruled stances, the matcher, `PARTICIPANT_CANDIDATES`' meaning, or the bank-window
+session's files; the build runs in this session's own worktree and commits by explicit path.
+
+**G — left genuinely open, and not to be classified by shape.** The question for each of the two
+retraction sites is: *in this retraction, is **the artefact itself the subject matter** of the
+proposition being retracted, as in C — with the retraction concerning competing contents for that
+artefact-subject proposition — or is the artefact **merely the provenance / evidence carrier** for a
+party-subject proposition, as in B?* ***The fact that both are `eob_amount` retraction sites tells us
+almost nothing by itself.*** The two are to be **read semantically** and brought back before they are
+classified.
+
+**Nothing here authorises code.** The next move is G's reading, then the Stage 2 build-scope
+decision.
+
+---
