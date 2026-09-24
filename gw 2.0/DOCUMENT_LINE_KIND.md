@@ -510,3 +510,140 @@ their neutral kind, Stage 3's statement family with Pd4's F5(b) restatement, and
 undecided `services` / `applied` / `disbursement` question.
 
 ---
+
+## 14. Stage 2 (the EOB) — opened 2026-09-24; no code
+
+*Opened by Rob. Stage 1 is accepted and closed (§13). Stage 2 is F6's second stage: `eob_amount`'s
+ordinary sites, **the artefact-subject correction class**, and **the three map-mechanism probes'
+neutral kind**. The inventory comes first, as item 14's lesson and F6 require — and it does not
+match the description Stage 1 carried forward.*
+
+### 14.1 What is fixed
+
+**§11 / §13 (ruled, built, accepted):** `document_line` — subject the party, `object ()`,
+`reading_establishes True`, `KNOWING_SUBJECT_PARTY`, distinct from `MOVEMENT`; **a ruled kind's
+missing required subject is a representation refusal, never `undetermined`** (Sb-6). **F4:** the map
+retires **for the migrated kind only** and stays operative for genuinely unruled kinds;
+**F4's gate is two-sided** — the corrected cases keep their evidence-based `not_knowing` (Kn8), *and*
+a genuinely missing party subject still means `undetermined`. **F6:** stage 2 is the EOB's ordinary
+sites **plus the artefact-subject class**, each stage its own gate; **the artefact-subject sites are a
+corpus correction, not a second kind**, and *must not be bulk-rewritten before the cases are
+preserved*. **The probes:** they move to a neutral unruled kind, **the name not invented but
+evaluated against the existing ontology**, and it must remain permanently unruled. **F7:** the seven
+fences; `PARTICIPANT_CANDIDATES` reported per stage, never pinned. **Sb-3's finding:** F4 retires the
+kind's own map membership — **not C3's second link through `ARTEFACT_ORIGIN`**.
+
+### 14.2 The inventory, by shape — and what it shows
+
+All 37 `eob_amount` sites, classified by what they construct:
+
+| population | sites | files |
+|---|---|---|
+| **A — ordinary party-subject lines** (mechanical) | **7** | chain strength ×2, expense stances (a refusal probe), obligation-in-respect-of, plan identity, relational knowing ×2 |
+| **B — provenance cases, artefact-subject** (Rob's Kn8 class: correct to party-subject) | **3** | relational knowing Kn5 / Kn8, correspondence's *said* |
+| **C — slice-3 mechanism cases, artefact-subject** | **12** | artefact reading ×7, artefact origin ×5 |
+| **D — the map probes** | **3** | artefact origin ×2, artefact reading ×1 (two of these are inside C's files) |
+| **E — map entries** | **7** | seven fixtures' `KNOWING` dicts |
+| **F — the absence pin** | **1** | expense stances: *`eob_amount` not in `RULED_KINDS`* |
+| **G — the retraction pair** | **2** | utterance retraction |
+
+**The finding that matters: the "15 artefact-subject sites" are not one class.** Stage 1 carried them
+forward as a single corpus correction. By shape they are **three** populations with three different
+right answers:
+
+- **B (3 sites) — Rob's ruled class.** Kn5 (*Rob says the EOB says $412*), Kn8 (*one sheet, two kinds*),
+  correspondence's *said*. Here the artefact-subject shape is **incidental**; the case is about **who
+  knows what**, and the ruled correction — *subject Lakeview Health, origin Rob's sheet → `not_knowing`* —
+  preserves it exactly.
+- **C (12 sites) — where the artefact-subject shape IS the case.** `artefact_reading` asserts *a
+  reading evidences a proposition **whose subject is the artefact***, and *the parse dispute is
+  computable by structure: **same kind + subject**, two contents*; `artefact_origin` walks the
+  origin → strength chain on artefact-subject claims. **Correcting these to a party subject deletes
+  their subject matter** — the same failure mode as leaving the probes attached to a ruled kind, in
+  the other direction. *Reading: they belong with the probes in the neutral unruled kind, not in the
+  correction class.*
+- **G (2 sites) — the retraction pair.** *"That is false" is a domain proposition with negative
+  content, not a `contradiction` kind*, plus *a reading whose origin is multiple → undetermined*. The
+  first is a borderline B; the second is **the only live demonstration in the corpus of the
+  `undetermined` branch on a reading path**, and F4's second half depends on something of its shape.
+
+**So the neutral-kind population is not 3 but ~14–17**, and the correction class is not 15 but **3
+(+2 borderline)**. The name question becomes correspondingly more load-bearing.
+
+### 14.3 The neutral kind — surfaced, not invented
+
+**A neutral unruled kind already exists in the record's practice, in two conventions:**
+
+- **`'x'`** — `evidence_substrate`'s kind for *a proposition with no semantics*, used to exercise the
+  participant-state discipline (≈8 sites). Obviously never a domain kind; nobody would rule it.
+- **`'some_future_kind'`** — `correspondence`'s kind for *a kind the record has not ruled yet* (1
+  site), used to show the substrate does not require a ruling to represent something.
+
+*Reading: adopt `'x'`* — it already means *unruled, on purpose*, it is the older convention, and the
+probes are substrate tests exactly as `evidence_substrate`'s are. `'some_future_kind'` reads as *a
+kind that will be ruled*, which is the opposite of the requirement. **Either way the name is not
+invented, and `unruled_probe_kind` is withdrawn.** A **permanent** absence pin (*this kind is never
+in `RULED_KINDS`*) should accompany it — the one absence pin the record means to keep. **Rob's.**
+
+### 14.4 Findings
+
+**S2-F1 — the class splits three ways (14.2).** *Reading:* **B (3) corrected** as Rob ruled; **C (12)
+and D (3) moved to the neutral unruled kind**, assertions unchanged; **G (2) ruled individually**.
+**This is the finding that decides Stage 2's size and must be ruled before any code. Rob's.**
+
+**S2-F2 — the neutral kind's name (14.3).** *Reading:* `'x'`, with a permanent absence pin. **Rob's.**
+
+**S2-F3 — F4's second demonstration may be unreachable as stated.** Stage 1 established that for a
+**ruled** kind a missing subject is **refused**, so *a genuinely missing party subject → `undetermined`*
+cannot be shown on `document_line` at all. On the **unruled** path the `undetermined` branch is
+reachable and already demonstrated twice — `artefact_origin:160` (the kind has no map rule) and
+`utterance_retraction:216` (the artefact's origin is multiple). *Reading:* F4's second half is
+**satisfied by the unruled path's existing demonstrations, carried into the neutral kind**, and the
+record should say so rather than leave an untestable clause standing. **Rob's.**
+
+**S2-F4 — populations A, E, F are mechanical** — 7 constructions (`CANDIDATES` → `NONE`), 7 map
+entries retired, 1 absence pin retired — *provided* the strength is unchanged, which the null model
+must show before any case is added. Two of A's sites are **7E's chain cases** (`L3`, the capture `V`),
+where the strength is the whole point. *Reading:* as stated. **Rob's.**
+
+**S2-F5 — what Stage 2 must not touch.** `statement_figure` and the statement family (stage 3),
+Pd4 / 7A (stage 3), `services` / `applied` / `disbursement` (stage 4, unruled), `MOVEMENT`, the ruled
+stances, the matcher, `PARTICIPANT_CANDIDATES`' meaning, and every file the bank-window session owns
+(`server.py`, `launch.py`, `migrate.py`, `static/js/app.js`, `bank_window.py`, `s125`, `s126`,
+`BANK_BROWSER.md`). *Reading:* as stated; the build runs in this session's own worktree and commits
+by explicit path. **Rob's.**
+
+### 14.5 Cases
+
+| # | Case | today | under the reading |
+|---|---|---|---|
+| **Eo1 (A)** | the EOB line on the insurer's own EOB, read | `eob_amount`, party subject, candidates object, knowing by map | `document_line`, no object, knowing by the relation — unchanged in substance |
+| **Eo2 (B / Kn8)** | the insurer's figure on **Rob's sheet**, read | not_knowing by map (person ∉ institution) | **subject Lakeview Health, origin Rob → not_knowing by the relation** — the ruled correction, evidence-based |
+| **Eo3 (B / Kn5)** | Rob's utterance *the EOB says $412* | not_knowing | subject Lakeview Health, origin Rob → not_knowing |
+| **Eo4 (C)** | *a reading evidences a proposition whose subject is the artefact* | the case | **unchanged, under the neutral kind** — migrating it would delete it |
+| **Eo5 (C)** | the parse dispute by structure: same kind + subject, two contents | the case | unchanged, under the neutral kind |
+| **Eo6 (D)** | the map's own branches: no rule → undetermined; a hostile entry → not_knowing | the case | unchanged, under the neutral kind — **and this is F4's second half** (S2-F3) |
+| **Eo7 (G)** | a reading whose artefact origin is **multiple** → undetermined | the case | unchanged; the `undetermined` branch stays live |
+| **Eo8 (G)** | *"that is false"* is a domain proposition, not `contradiction` | the case | ruled individually (B or C) |
+| **Eo9 (7E)** | the chain cases `L3` and the capture `V` | strength through origin, weakest link | **identical** — the null model's requirement |
+| **Eo10 (the null model)** | every existing outcome | — | identical before any case is added |
+
+### 14.6 Candidate — pending the ruling
+
+No registry change (`document_line` exists). Population **A** migrated (7 constructions, `CANDIDATES`
+→ `NONE`), **E**'s 7 map entries and **F**'s absence pin retired, **B**'s 3 corrected to party-subject
+with their assertions unchanged, **C**'s 12 and **D**'s 3 renamed to the neutral kind with their
+assertions unchanged, **G**'s 2 per ruling. Fixture cases: Eo1–Eo3 and Eo9 in the migrated files; the
+neutral kind's permanent absence pin. Mutations (`s97` / the relevant sections): the neutral kind
+ruled into the registry · a corrected B site reading `undetermined` instead of `not_knowing` (the
+Kn8 guard made executable) · the migrated line admitted as a ruled stance · the map restored for
+`document_line`. `PARTICIPANT_CANDIDATES` reported before / after in both measures.
+
+### 14.7 Ruling sought
+
+> **(1) S2-F1:** the three-way split, or the single correction class as first described. **(2) S2-F2:**
+> `'x'`, `'some_future_kind'`, or another name — with the permanent absence pin. **(3) S2-F3:** F4's
+> second half satisfied by the unruled path's existing demonstrations. **(4) S2-F4, S2-F5** as read.
+> **(5)** whether **G**'s two sites are B or C. Nothing here authorises code.
+
+---
