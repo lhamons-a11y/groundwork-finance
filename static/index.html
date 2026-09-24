@@ -2896,6 +2896,22 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <button id="bybSubLease" class="byb-sub-btn active" onclick="_bybSelectSubtype('lease')">Lease</button>
             <button id="bybSubLoan"  class="byb-sub-btn"        onclick="_bybSelectSubtype('loan')">Loan</button>
           </div>
+          <div id="bybLoanFields" style="display:none;margin-bottom:12px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+              <div class="field" style="margin:0">
+                <label>Amount financed ($)</label>
+                <input type="number" id="bybLoanAmount" class="field-input" placeholder="0.00" min="0" step="0.01" oninput="_bybRefreshCommitGate()">
+              </div>
+              <div class="field" style="margin:0">
+                <label>APR (%)</label>
+                <input type="number" id="bybLoanAPR" class="field-input" placeholder="0.00" min="0" step=".01" oninput="_bybRefreshCommitGate()">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Term (months)</label>
+                <input type="number" id="bybLoanTerm" class="field-input" placeholder="60" min="1" step="1">
+              </div>
+            </div>
+          </div>
           <div class="field" style="margin-bottom:0">
             <label style="margin-bottom:6px;display:block">Replacing an existing vehicle?</label>
             <select id="bybReplaceCard" class="field-input" onchange="_bybLiveUpdate()">
@@ -2904,7 +2920,11 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           </div>
         </div>
         <div id="bybCreditFields" style="display:none;margin-bottom:16px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            <div class="field" style="margin:0">
+              <label>Amount financed ($)</label>
+              <input type="number" id="bybCreditAmount" class="field-input" placeholder="0.00" min="0" step="0.01" oninput="_bybComputeCreditPayment()">
+            </div>
             <div class="field" style="margin:0">
               <label>APR (%)</label>
               <input type="number" id="bybCreditAPR" class="field-input" placeholder="0.00" step=".01" oninput="_bybComputeCreditPayment()">
@@ -2979,7 +2999,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <button class="btn btn-secondary" onclick="_bybGoStep(2)" style="flex:1">← Adjust</button>
         </div>
         <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
-          <button class="btn btn-primary" onclick="_bybCommit('commit')" style="width:100%">Commit — update my budget</button>
+          <div id="bybCommitNeeds" style="display:none;font-size:12px;color:var(--ember);line-height:1.5"></div>
+          <button class="btn btn-primary" id="bybCommitBtn" onclick="_bybCommit('commit')" style="width:100%">Commit — update my budget</button>
           <button class="btn btn-secondary" onclick="_bybCommit('track')" style="width:100%">Track it — add to history only</button>
           <button onclick="_bybCommit('walkaway')" style="width:100%;background:none;border:none;font-size:12px;color:var(--slate);cursor:pointer;padding:8px">Walk away — not buying it</button>
         </div>

@@ -8633,9 +8633,10 @@ function _budgetRenderDebtRow(card) {
   let utilBar = '';
   if (limit && limit > 0 && bal > 0) {
     const utilPct = Math.min(150, Math.round((bal / limit) * 100));
-    const utilClr = utilPct >= 30 ? 'var(--ember)' : utilPct >= 15 ? 'var(--gold)' : 'var(--pine)';
+    // One neutral colour: the bar shows how much of the limit is in use, not
+    // whether that amount is good or bad (the same rule as the utilization lines).
     utilBar = `<div style="margin-top:5px;height:4px;background:var(--steel);border-radius:2px;overflow:hidden">
-      <div style="width:${Math.min(100,utilPct)}%;height:100%;background:${utilClr};border-radius:2px"></div>
+      <div style="width:${Math.min(100,utilPct)}%;height:100%;background:var(--slate);border-radius:2px"></div>
     </div>`;
   }
 
@@ -8994,8 +8995,10 @@ function _budgetRenderDebtSummary(activeDebts) {
     const totalBal   = cardsWithLimits.reduce((s,c) => s + (_cardBal(c)), 0);
     const totalLimit = cardsWithLimits.reduce((s,c) => s + parseFloat(c.creditLimit), 0);
     const utilPct    = Math.round((totalBal / totalLimit) * 100);
-    const utilClr    = utilPct >= 30 ? 'var(--ember)' : utilPct >= 15 ? 'var(--gold)' : 'var(--pine)';
-    lines.push(`<div style="font-size:12px;color:${utilClr};margin-top:6px">Combined credit utilization: ${utilPct}% across ${cardsWithLimits.length} card${cardsWithLimits.length!==1?'s':''} with limits. Target: under 15%.</div>`);
+    // A metric, not a prescription: the figure is shown plainly — no target
+    // sentence, and no threshold colours that would say the same thing
+    // without words. What a "good" utilization is was never Groundwork's to set.
+    lines.push(`<div style="font-size:12px;color:var(--slate);margin-top:6px">Combined credit utilization: ${utilPct}% across ${cardsWithLimits.length} card${cardsWithLimits.length!==1?'s':''} with limits.</div>`);
   }
 
   if (lines.length) {
@@ -9250,10 +9253,10 @@ function _budgetDebtBloomCalc(bloom) {
   }
   if (lim > 0 && bal > 0) {
     const utilPct = Math.round((bal / lim) * 100);
-    const utilClr = utilPct >= 30 ? 'var(--ember)' : utilPct >= 15 ? 'var(--gold)' : 'var(--pine)';
+    // The figure only — no "aim for", no "good", no threshold colour.
     rows.push(`<div style="display:flex;justify-content:space-between;align-items:center">
       <span style="color:var(--slate)">Utilization</span>
-      <span style="font-family:var(--font-mono);color:${utilClr}">${utilPct}% ${utilPct >= 30 ? '— aim for under 30%' : utilPct >= 15 ? '— aim for under 15%' : '— good'}</span>
+      <span style="font-family:var(--font-mono)">${utilPct}%</span>
     </div>`);
   }
 
@@ -19768,6 +19771,10 @@ function openBYBWizard() {
   // Reset inputs
   if (g('bybItemName'))      g('bybItemName').value      = '';
   if (g('bybMonthlyAmount')) g('bybMonthlyAmount').value = '';
+  ['bybLoanAmount', 'bybLoanAPR', 'bybLoanTerm',
+   'bybCreditAmount', 'bybCreditAPR', 'bybCreditTerm'].forEach(id => { if (g(id)) g(id).value = ''; });
+  if (g('bybCreditPaymentPreview')) g('bybCreditPaymentPreview').textContent = '';
+  _bybSelectSubtype('lease');
 
   // Capture current baseline for comparison later
   _byb.origWhatsLeft = _bybCurrentWhatsLeft();
@@ -19813,7 +19820,7 @@ function _bybGoStep(n, force = false) {
   });
 
   if (n === 2) _bybBuildSandbox();
-  if (n === 3) { _bybBuildComparison(); _maybeLoadBYBImpact(); }
+  if (n === 3) { _bybBuildComparison(); _maybeLoadBYBImpact(); _bybRefreshCommitGate(); }
 }
 
 // ── Type / subtype selectors ──────────────────────────────────────────────────
@@ -19831,6 +19838,7 @@ function _bybSelectType(type, btn) {
   if (vf) vf.style.display = isVehicle  ? '' : 'none';
   if (cf) cf.style.display = isPurchase ? '' : 'none';
   _bybLiveUpdate();
+  _bybRefreshCommitGate();
 }
 
 function _bybSelectSubtype(sub) {
@@ -19838,21 +19846,63 @@ function _bybSelectSubtype(sub) {
   const lease = g('bybSubLease'), loan = g('bybSubLoan');
   if (lease) { lease.classList.toggle('active', sub === 'lease'); }
   if (loan)  { loan.classList.toggle('active',  sub === 'loan');  }
+  const lf = g('bybLoanFields');
+  if (lf) lf.style.display = sub === 'loan' ? '' : 'none';
+  _bybRefreshCommitGate();
+}
+
+// ── Financing figures (vehicle loans and credit purchases) ───────────────────
+// Committing one of these creates a real debt, so its balance and APR have to
+// be real. Before You Buy never asked for them: it wrote $0 and 0% (and threw
+// away the APR the credit-purchase path did ask for), and the Debt page then
+// showed both as facts. The server turns a missing figure into 0, so 1.x has
+// no honest way to store "unknown" — the commit waits until both are entered
+// instead. A lease carries no balance or APR by design and is unaffected.
+function _bybFinancing() {
+  const isLoan     = _byb.type === 'vehicle' && _byb.subtype === 'loan';
+  const isPurchase = _byb.type === 'purchase';
+  if (!isLoan && !isPurchase) return { needed: false, missing: [] };
+  const p   = isLoan ? 'bybLoan' : 'bybCredit';
+  const num = id => { const v = g(id)?.value; return (v === '' || v == null) ? null : parseFloat(v); };
+  const amount = num(`${p}Amount`), apr = num(`${p}APR`), term = num(`${p}Term`);
+  const missing = [];
+  if (!(amount > 0)) missing.push('the amount financed');
+  // 0% is a real rate (promotional financing) when the user enters it; blank is not.
+  // (null >= 0 is true in JS, so blank is tested for explicitly.)
+  if (apr === null || !(apr >= 0)) missing.push('the APR');
+  return { needed: true, amount, apr, term: term > 0 ? Math.round(term) : null, missing };
+}
+
+function _bybRefreshCommitGate() {
+  const f   = _bybFinancing();
+  const btn = g('bybCommitBtn'), msg = g('bybCommitNeeds');
+  const blocked = f.needed && f.missing.length > 0;
+  if (btn) { btn.disabled = blocked; btn.style.opacity = blocked ? '0.5' : ''; }
+  if (msg) {
+    msg.style.display = blocked ? '' : 'none';
+    msg.textContent = blocked
+      ? `To add this to your debts, go back to the first step and enter ${f.missing.join(' and ')}. Groundwork won't record a balance or rate it doesn't have.`
+      : '';
+  }
 }
 
 // ── Credit purchase payment calculator ───────────────────────────────────────
 
 function _bybComputeCreditPayment() {
+  _bybRefreshCommitGate();
+  const amt  = parseFloat(g('bybCreditAmount')?.value) || 0;
   const apr  = parseFloat(g('bybCreditAPR')?.value)  || 0;
   const term = parseFloat(g('bybCreditTerm')?.value) || 0;
   const prev = g('bybCreditPaymentPreview');
   if (!prev) return;
-  // Use monthly amount field if already filled
+  // Only a hint while the monthly payment is still blank — the lender's own
+  // figure, once entered, is the one Groundwork uses.
   const existingAmt = parseFloat(g('bybMonthlyAmount')?.value) || 0;
-  if (existingAmt > 0 || !apr || !term) { prev.textContent = ''; return; }
-  // Amortization: P = (totalCost * r) / (1 - (1+r)^-n)
-  // We don't have total cost here — just show APR+term note
-  prev.textContent = `Enter price in the monthly payment field — or ${fmt(0)}/mo at ${apr}% for ${term}mo`;
+  if (existingAmt > 0 || !amt || !term) { prev.textContent = ''; return; }
+  // Amortization: P = (amount * r) / (1 - (1+r)^-n)
+  const r   = apr / 1200;
+  const pmt = r ? amt * r / (1 - Math.pow(1 + r, -term)) : amt / term;
+  prev.textContent = `About ${fmt(pmt)}/mo at ${apr}% over ${term} months. Enter the lender's figure in Monthly payment.`;
 }
 
 // ── Live preview update (step 1) ──────────────────────────────────────────────
@@ -20321,6 +20371,10 @@ function _bybCompCell(label, value, color, prefix = '') {
 // ── Commit decision ───────────────────────────────────────────────────────────
 
 async function _bybCommit(decision) {
+  if (decision === 'commit') {
+    const f = _bybFinancing();
+    if (f.needed && f.missing.length) { _bybRefreshCommitGate(); return; }
+  }
   _byb.decision = decision;
   const { whatsLeft, dti, payoff } = _bybSandboxCalc();
 
@@ -20379,18 +20433,31 @@ async function _bybCommit(decision) {
 
     // Add new debt card if vehicle/purchase
     if (_byb.type === 'vehicle' || _byb.type === 'purchase') {
+      // A lease has no balance or APR (0 / 0 is its representation). A loan or
+      // credit purchase uses the figures the commit gate made sure were entered.
+      const f = _bybFinancing();
       const newCard = {
         name:            _byb.name,
-        begin_balance:   0,
-        current_balance: 0,
-        interest_rate:   0,
+        begin_balance:   f.needed ? f.amount : 0,
+        current_balance: f.needed ? f.amount : 0,
+        interest_rate:   f.needed ? f.apr    : 0,
         minimum_payment: _byb.monthly,
         debt_type:       _byb.type === 'vehicle' ? _byb.subtype : 'loan',
       };
+      if (f.needed) {
+        const start = new Date();
+        newCard.start_date = start.toISOString().slice(0, 10);
+        if (f.term) {
+          const end = new Date(start);
+          end.setMonth(end.getMonth() + f.term);
+          newCard.end_date = end.toISOString().slice(0, 10);
+        }
+      }
       API.post('/api/debt', newCard).then(res => {
         const d = res.data || res;
-        addCard(d.name, 0, null, 0, _byb.monthly, 0, null, d.id,
-          false, '', newCard.debt_type, null, null, null, '', null);
+        addCard(d.name, newCard.begin_balance, newCard.start_date || null, newCard.interest_rate,
+          _byb.monthly, newCard.current_balance, null, d.id,
+          false, '', newCard.debt_type, null, null, null, newCard.end_date || '', null);
         calculate();
         _refreshBudgetIfActive();
         renderDashboard();
