@@ -11,7 +11,7 @@
 >
 > **The concept exposed existing violations.** Reading it against 1.x found five places where
 > the shipped debt surfaces already break the rules the concept depends on (§4); a sixth, V6, was
-> found investigating the fifth. V1 and V5 are fixed on 1.x; V2–V4 and V6 are open. A debt view built
+> found investigating the fifth. V1, V5 and V6 are fixed on 1.x; V2–V4 are open. A debt view built
 > on today's code would carry every one of them into a new surface and give them a teaching voice.
 > **Do not build the view yet** (Rob, 2026-09-24).
 
@@ -200,7 +200,7 @@ the stated optimistic reading. "$300 **on Card A**" is the opposite: it adds to 
 balance. The engine has no input that means that today. Before You Buy's current card-purchase
 consequence is therefore the cash reading, whatever the user intends to pay with.
 
-### V6 — the Debt page collapses a blank into zero (R2) — OPEN
+### V6 — the Debt page collapses a blank into zero (R2) — FIXED on 1.x
 
 *Found 2026-09-24 while investigating question 5 (V5's legacy rows); recorded at Rob's direction.*
 
@@ -224,7 +224,18 @@ subsequently distinguish known zero from unknown.**
   entry point, and the representational half of G2. It is a data-semantics gap, not an urgent
   defect: nothing is miscalculated that the user did not leave blank.
 
-**Status:** OPEN. No code and no migration authorised (Rob, 2026-09-24).
+**Status:** FIXED on 1.x, 2026-09-25 (`457d6d2` on `lts/1.x`, merged into master) — Rob chose
+*store and show unknown*. A blank APR, balance or minimum is stored as NULL; a typed 0 stays 0; a
+caller that sends no figures keeps the old default of 0. The client sends blanks as null and the
+startup load keeps a stored null blank, so a re-save cannot collapse it again. An unknown balance
+plus a ledger entry stays unknown; a bank-reported balance fills one in. The monthly history
+snapshot records an unknown APR as unknown. **Calculations are unchanged** — a missing APR is
+still simulated as 0% and a missing minimum estimated — **but every projection that used one
+says so**: the collapsed debt row (*"0% APR assumed"*, *"APR not entered"*), the Debt page
+summary, the dashboard's debt-free date, and the AI payoff narration. The columns default to
+0.0 and SQLAlchemy applies that default even to an explicit None at insert, so create sets
+blanks back to NULL after the insert. Gate section `s49` (12 checks, a mutation caught).
+**No migration:** zeros stored before the fix stay ambiguous, so §9 question 5 stays open.
 
 ---
 
