@@ -3152,6 +3152,68 @@ def open_debt_portal(debt_id):
     return _portal_open(key, url, mode)
 
 
+@debt_bp.route('/<int:debt_id>/permanent', methods=['DELETE'])
+def delete_debt_added_by_mistake(debt_id):
+    """Delete a debt that was added by mistake, and its history with it.
+
+    DELETE /api/debt/<id> only hides a debt, and a hidden debt's balance
+    history still counts wherever past debt is summed (revolving_series, the
+    trophies) - right for a card that really existed and closed, wrong for a
+    duplicate or a typo, which kept adding to those sums after removal (V8).
+
+    Real deletion, so it takes a full database backup first, server-side as
+    DELETE /api/transactions does; if the backup fails nothing is deleted. The
+    existence check comes before the backup, so an id nothing owns is a 404
+    with no backup written.
+
+    Deleted: the debt, its balance history, its ledger entries and their
+    checking-transaction links, and its recurring payments. Kept: historian
+    entries, unlinked (SQLite reuses the highest id, so a dangling id could
+    attach them to the next debt created), and the companion account and its
+    imported transactions, which are bank data, not debt data.
+    """
+    import shutil
+    from core.database import DB_PATH
+
+    with db_session() as session:
+        if not session.get(DebtAccount, debt_id):
+            return err('Not found', 404)
+
+    try:
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_name = f'groundwork_backup_pre-delete-debt-{debt_id}_{ts}.db'
+        shutil.copy2(DB_PATH, _backups_dir() / backup_name)
+    except Exception as e:
+        return err(f'Could not create a safety backup, aborting (nothing was deleted): {e}', 500)
+
+    with db_session() as session:
+        debt = session.get(DebtAccount, debt_id)
+        if not debt:
+            return err('Not found', 404)
+        entry_ids = [eid for (eid,) in session.query(DebtLedgerEntry.id)
+                     .filter_by(debt_account_id=debt_id).all()]
+        links = 0
+        if entry_ids:
+            links = session.query(CheckingTransactionLink).filter(
+                CheckingTransactionLink.debt_ledger_entry_id.in_(entry_ids)
+            ).delete(synchronize_session=False)
+        entries = session.query(DebtLedgerEntry).filter_by(
+            debt_account_id=debt_id).delete(synchronize_session=False)
+        history = session.query(DebtBalanceHistory).filter_by(
+            debt_id=debt_id).delete(synchronize_session=False)
+        recurring = session.query(RecurringDebtPayment).filter_by(
+            debt_account_id=debt_id).delete(synchronize_session=False)
+        unlinked = session.query(HistorianEntry).filter_by(
+            debt_account_id=debt_id).update({'debt_account_id': None},
+                                            synchronize_session=False)
+        session.delete(debt)
+        session.commit()
+        return ok({'deleted': debt_id, 'backup': backup_name,
+                   'balance_history': history, 'ledger_entries': entries,
+                   'checking_links': links, 'recurring_payments': recurring,
+                   'historian_unlinked': unlinked})
+
+
 @debt_bp.route('/history', methods=['POST'])
 def save_debt_history():
     """
