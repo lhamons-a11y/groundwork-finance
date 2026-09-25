@@ -1607,11 +1607,11 @@ function _restoreFromSnapshot(d) {
   debtRows.forEach(c => {
     addCard(
       c.name,
-      c.beginBal   ?? c.begin_balance   ?? 0,
+      c.beginBal   ?? c.begin_balance   ?? '',   // V6: unknown stays blank, not 0
       c.startDate  ?? c.start_date      ?? '',
-      c.rate       ?? c.interest_rate   ?? 0,
-      c.minimum    ?? c.minimum_payment ?? 0,
-      c.currentBal ?? c.current_balance ?? c.begin_balance ?? 0,
+      c.rate       ?? c.interest_rate   ?? '',
+      c.minimum    ?? c.minimum_payment ?? '',
+      c.currentBal ?? c.current_balance ?? c.begin_balance ?? '',
       c.dueDay     ?? c.due_day         ?? null,
       c._dbId      ?? c.id,
       c.paidInFull ?? !!c.paid_off_at,
@@ -2457,7 +2457,9 @@ function _renderDashHeroCard(totalDebt) {
       <div style="font-family:var(--font-mono);font-size:32px;font-weight:600;color:var(--ember);line-height:1">${fmt(totalDebt)}</div>
       <div style="font-size:13px;color:var(--slate);margin:4px 0 12px">total debt remaining</div>`}
       <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--slate);margin-bottom:12px">
-        ${_debtTrusted && payoffDate ? `<span><span style="color:var(--slate-2)">Debt-free:</span> <span style="font-family:var(--font-mono)">${payoffDate}</span></span>` : ''}
+        ${_debtTrusted && payoffDate ? `<span><span style="color:var(--slate-2)">Debt-free:</span> <span style="font-family:var(--font-mono)">${payoffDate}</span>${
+          S.debtCards.some(c => _debtUnknowns(c).length)
+            ? ` <span style="color:var(--gold)" title="${_debtAssumptionNote(S.debtCards)}">· assumes figures not entered</span>` : ''}</span>` : ''}
         ${_debtTrusted && dailyInterest > 0.01 ? `<span><span style="color:var(--slate-2)">Interest:</span> <span style="font-family:var(--font-mono);color:var(--ember)">${fmt(dailyInterest,2)}/day</span></span>` : ''}
         ${_debtTrusted ? paceNote : ''}
         ${pd.monthsOfHistory > 0 ? `<span style="color:var(--slate-2)">${pd.monthsOfHistory} months tracked</span>` : ''}
@@ -6694,15 +6696,49 @@ async function _syncBudgetItemsToDb(type, items) {
   }
 }
 
+// ── Unknown debt figures (V6) ───────────────────────────────────────────────
+function _isBlank(v) {
+  return v === null || v === undefined || (typeof v === 'string' && v.trim() === '')
+      || (typeof v === 'number' && isNaN(v));
+}
+function _numOrNull(v) {
+  if (_isBlank(v)) return null;
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+// What an active debt is missing. A lease has no balance or APR by design, so
+// only its payment can be missing.
+function _debtUnknowns(c) {
+  if (!c || c.paidInFull) return [];
+  const lease = (c.debtType || 'credit') === 'lease';
+  const out = [];
+  if (!lease && _isBlank(c.rate)) out.push('APR');
+  if (!lease && _isBlank(c.currentBal) && _isBlank(c.beginBal)) out.push('balance');
+  if (_isBlank(c.minimum)) out.push(lease ? 'payment' : 'minimum payment');
+  return out;
+}
+// One sentence for any projection that used a missing figure: which figures,
+// and what the projection did in their place. '' when nothing is missing.
+function _debtAssumptionNote(cards) {
+  const missing = (cards || []).map(c => [c, _debtUnknowns(c)]).filter(([, u]) => u.length);
+  if (!missing.length) return '';
+  const list = missing.map(([c, u]) => `${esc(c.name || 'a card')}'s ${u.join(' and ')}`).join('; ');
+  return `Not entered: ${list}. Projections treat a missing APR as 0% and a missing minimum as an estimate, and leave out a missing balance.`;
+}
+
 async function _syncDebtToDb(card) {
   // Upsert a single debt card to the DB.
   try {
     const payload = {
       name:               card.name,
-      begin_balance:      parseFloat(card.beginBal)    || 0,
-      current_balance:    _cardBal(card),   // 0 is a real balance — never fall back to beginBal
-      interest_rate:      parseFloat(card.rate)        || 0,
-      minimum_payment:    parseFloat(card.minimum)     || 0,
+      // V6: a field left blank is sent as null (unknown), never as 0 — 0% and
+      // $0 are real values, and a zero written for "not entered" can't be told
+      // apart from one afterwards.
+      begin_balance:      _numOrNull(card.beginBal),
+      current_balance:    (_isBlank(card.currentBal) && _isBlank(card.beginBal))
+                            ? null : _cardBal(card),   // 0 is a real balance — never fall back to beginBal
+      interest_rate:      _numOrNull(card.rate),
+      minimum_payment:    _numOrNull(card.minimum),
       due_day:            card.dueDay ? parseInt(card.dueDay) : null,
       start_date:         card.startDate || null,
       end_date:           card.endDate   || null,
@@ -8362,7 +8398,9 @@ async function _budgetSaveDebtSnapshot(month) {
     const apr  = parseFloat(card.rate) || 0;
     const pmt  = parseFloat(card.minimum) || 0;
     const min  = _calcMinPayment(bal, apr);
-    return { debt_id: card._dbId, balance: bal, payment: pmt, min_payment: min, apr };
+    // V6: history records an APR nobody entered as unknown, not as 0%.
+    return { debt_id: card._dbId, balance: bal, payment: pmt, min_payment: min,
+             apr: _isBlank(card.rate) ? null : apr };
   });
   await API.post('/api/debt/history', { month, snapshots }).catch(_gwErr('_budgetSaveDebtSnapshot'));
 }
@@ -8981,6 +9019,10 @@ function _budgetRenderDebtSummary(activeDebts) {
     // without words. What a "good" utilization is was never Groundwork's to set.
     lines.push(`<div style="font-size:12px;color:var(--slate);margin-top:6px">Combined credit utilization: ${utilPct}% across ${cardsWithLimits.length} card${cardsWithLimits.length!==1?'s':''} with limits.</div>`);
   }
+
+  // V6: say what the projections above assumed for figures that weren't entered.
+  const _assumed = _debtAssumptionNote(activeDebts);
+  if (_assumed) lines.push(`<div style="font-size:12px;color:var(--gold);margin-top:6px;line-height:1.5">${_assumed}</div>`);
 
   if (lines.length) {
     summaryEl.innerHTML = lines.join('');
@@ -13819,7 +13861,14 @@ function _debtCardRowHTML(c, opts={}) {
         const d2 = new Date(); d2.setMonth(d2.getMonth() + payoffMo);
         const label = d2.toLocaleDateString('en-US',{month:'short',year:'numeric'});
         const color = isTarget ? 'var(--gold)' : 'var(--slate-2)';
-        return `<span style="font-size:10px;font-family:var(--font-mono);color:${color};flex-shrink:0" title="Estimated payoff">~${label}</span>`;
+        // V6: a date built on a missing figure says so.
+        const _u = _debtUnknowns(c);
+        const assumed = _u.includes('APR') ? ' · 0% APR assumed' : _u.includes('minimum payment') ? ' · minimum estimated' : '';
+        return `<span style="font-size:10px;font-family:var(--font-mono);color:${color};flex-shrink:0" title="Estimated payoff${assumed}">~${label}${assumed}</span>`;
+      })()}
+      ${(() => {
+        const _u = _debtUnknowns(c);
+        return _u.length ? `<span style="font-size:10px;color:var(--gold);flex-shrink:0;white-space:nowrap">${_u.join(', ')} not entered</span>` : '';
       })()}
       ${flagged ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:var(--pine-bg);color:#3B6D11;border:0.5px solid #C0DD97;flex-shrink:0;white-space:nowrap">🎓 ${esc(programLabel.split(' ')[0])}</span>` : ''}
       ${_debtCardSparkline(c, 60, 20)}
@@ -15165,7 +15214,7 @@ async function _debtLaunchAdvisorAI() {
 
     const sorted = [...data].sort((a,b) => (parseFloat(b.rate)||0) - (parseFloat(a.rate)||0));
     const cardLines = sorted.map(c =>
-      `${c.name||'Card'}: ${fmt(c.balance)}, ${c.rate||0}% APR, min ${fmt(c.minimum)}`
+      `${c.name||'Card'}: ${fmt(c.balance)}, ${_isBlank(c.rate) ? 'APR not entered' : `${c.rate}% APR`}, ${_isBlank(c.minimum) ? 'minimum not entered' : `min ${fmt(c.minimum)}`}`
     );
 
     const dataLines = [

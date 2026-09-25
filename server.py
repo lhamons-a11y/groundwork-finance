@@ -2817,6 +2817,26 @@ def list_debt():
         return ok([serialize_debt_account(d, session) for d in debts])
 
 
+def _debt_figure(body, key):
+    """A debt's balance / rate / minimum from a request body (V6).
+
+    An explicit blank - None or '' - is unknown and stored as NULL, because 0 is
+    a real APR (promotional) and a real balance (paid off), and a zero written
+    for "not entered" can never be told apart from one afterwards. A key that
+    is absent keeps the old default of 0, so callers that never send it (Before
+    You Buy's lease, older clients) behave as before.
+    """
+    if key not in body:
+        return 0.0
+    raw = body[key]
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
 @debt_bp.route('', methods=['POST'])
 @require_json
 def create_debt():
@@ -2840,10 +2860,10 @@ def create_debt():
 
         debt = DebtAccount(
             name=body['name'],
-            begin_balance=float(body.get('begin_balance', 0)),
-            current_balance=float(body.get('current_balance', 0)),
-            interest_rate=float(body.get('interest_rate', 0)),
-            minimum_payment=float(body.get('minimum_payment', 0)),
+            begin_balance=_debt_figure(body, 'begin_balance'),
+            current_balance=_debt_figure(body, 'current_balance'),
+            interest_rate=_debt_figure(body, 'interest_rate'),
+            minimum_payment=_debt_figure(body, 'minimum_payment'),
             due_day=body.get('due_day'),
             start_date=start_date,
             end_date=end_date,
@@ -2851,6 +2871,12 @@ def create_debt():
         )
         session.add(debt)
         session.flush()  # get debt.id
+        # The columns default to 0.0, and SQLAlchemy applies a column default
+        # even when None is passed at insert - so a blank has to be set back to
+        # unknown after the insert, where an explicit None does persist (V6).
+        for _f in ('begin_balance', 'current_balance', 'interest_rate', 'minimum_payment'):
+            if _debt_figure(body, _f) is None:
+                setattr(debt, _f, None)
 
         # Auto-create a companion Account so the user can import transactions
         # against this debt card immediately. The account uses the same name
@@ -2887,7 +2913,10 @@ def update_debt(debt_id):
                       'minimum_payment', 'due_day', 'linked_account_id',
                       'credit_limit', 'debt_type']:
             if field in body:
-                setattr(debt, field, body[field])
+                if field in ('current_balance', 'interest_rate', 'minimum_payment'):
+                    setattr(debt, field, _debt_figure(body, field))   # blank = unknown (V6)
+                else:
+                    setattr(debt, field, body[field])
         # Date fields need explicit parsing. paid_off_at (d21): the serializer
         # already emitted it defensively via getattr, but nothing ever accepted
         # or stored it — the paid flag lived only in client memory and died on
@@ -3439,6 +3468,10 @@ def _apply_ledger_balance_effect(debt: DebtAccount, entry: DebtLedgerEntry, sign
     the entire point of "reconciliation" is that this number is real.
     """
     delta = entry.amount if entry.entry_type in ('charge', 'interest', 'fee') else -entry.amount
+    # An unknown balance plus a charge is still unknown (V6): no figure is
+    # invented by adding a change to a number nobody entered.
+    if debt.current_balance is None:
+        return
     debt.current_balance = round(debt.current_balance + sign * delta, 2)
 
 
@@ -8315,7 +8348,8 @@ def bank_import_commit():
                     if abs(delta) > 0.01:
                         new_bal = round((old_bal or 0) + delta, 2)
 
-                if new_bal is not None and abs(old_bal - new_bal) > 0.01:
+                # A balance the bank reports fills an unknown one (V6).
+                if new_bal is not None and (old_bal is None or abs(old_bal - new_bal) > 0.01):
                     debt.current_balance = new_bal
                     balance_updates.append({
                         'debt_id':   debt.id,
