@@ -1,7 +1,7 @@
 # Source-document custody — what Groundwork keeps, and what it promises about it
 
-> Status: **OPENED 2026-09-25, revised the same day after Rob's semantic review, no code.** Rob's
-> question:
+> Status: **RULED 2026-09-25 (Rob, §8). No code. The source store's build is NOT authorised; H1 and
+> H2 are authorised as SEPARATE builds.** Opened and revised the same day. Rob's question:
 >
 > > **Should Groundwork have a managed document store for financial source files, and if so,
 > > what does Groundwork promise about those files?**
@@ -286,3 +286,40 @@ H2 is exactly the Downloads-tidiness half of D2 **without** retention, and Rob's
    reading ↔ artefact provenance and its display deferred by name.
 7. **Encryption at rest:** its own question.
 8. **H1 and H2 (§4):** buildable now under either custody answer?
+
+---
+
+## 8. Ruling — Rob, 2026-09-25
+
+| item | ruling |
+|---|---|
+| **1. Managed source custody** | **Yes: M.** Explicit retention only. No default, no silent retention, no inference that an imported file must be kept |
+| **2. Keep vs. remove from Downloads** | **Separate decisions.** Groundwork's removals go to the Recycle Bin, and the retained copy must exist before the Downloads original is removed |
+| **3. Custody ending** | **Ends current custody, preserves the custody history, and is never retraction** |
+| **4. User retention policy** | **Permitted, and user-authorised only.** *User-authorised policy: yes. Groundwork-invented cleanup policy: no.* The sole-provenance principle stays a **future provenance constraint**, not a requirement of this pass |
+| **5. Backup** | **(a): retained source documents are part of the backup / restore state.** A size warning before backup is appropriate; the backup-store architecture belongs to the storage pass |
+| **6. Provenance** | **Import → artefact only:** *this import consumed this source artefact.* `transaction → reading → artefact` is deferred |
+| **7. Encryption** | **A separate future question** (storage, backup format, keys, restore, portability) |
+| **8. H1 / H2** | **Build now, as SEPARATE authorisations** |
+
+**The combinations under ruling 2.** Once a store exists: *keep in Groundwork + remove from
+Downloads*, *keep in Groundwork + leave Downloads alone*, *don't keep + leave Downloads alone*.
+The fourth, *don't keep + remove from Downloads*, is **H2**, authorised on its own terms under
+ruling 8. Until the store is built, H2's prompt is the only one a user sees.
+
+**Preserved, as Rob asked: the semantics are ruled; the field representation isn't.** D3's two
+facts (the custody history and current custody) are ruled. Whether `Artefact.held` stays a
+mint-time fact beside a custody-ended event, or is split, is **unresolved**, and no build may
+settle it by default by making the old boolean carry both meanings.
+
+**H1 and H2 are separate build authorisations, not the custody implementation.** Building them
+is no evidence that the source store is authorised. **H2's *Always* is a Downloads-cleanup
+policy, never a retention policy:** *"always remove from Downloads" does not mean "always retain
+in Groundwork"*, and no build may let it become that.
+
+**Not authorised:** the source store, its location and layout (D11), the `held` representation,
+encryption, record-level provenance and its display.
+
+**Next:** build H1, then H2, each gated on its own. The source store waits for its own storage
+pass.
+
