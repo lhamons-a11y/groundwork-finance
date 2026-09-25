@@ -142,6 +142,12 @@ class DebtAccount(Base):
     linked_account_id = Column(Integer, ForeignKey('accounts.id'), nullable=True)
     linked_account    = relationship('Account')
     credit_limit      = Column(Float, nullable=True)
+    # V2: where the current APR / minimum came from - 'user' (typed),
+    # 'statement' (read from a reconciled statement) or 'calculated' (the
+    # implied-APR alert, the APR estimator). Null = not recorded: rows from
+    # before this column existed, and figures that are unknown.
+    interest_rate_source   = Column(String(12), nullable=True)
+    minimum_payment_source = Column(String(12), nullable=True)
     debt_type         = Column(String(20), default='credit')
     end_date          = Column(Date, nullable=True)
 

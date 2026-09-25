@@ -566,7 +566,22 @@ def serialize_debt_account(d: DebtAccount, session=None) -> dict:
         'credit_limit':         credit_limit,
         'is_active':            d.is_active,
         'paid_off_at':          paid_off_at.isoformat() if paid_off_at else None,
+        # V2
+        'interest_rate_source':   getattr(d, 'interest_rate_source', None),
+        'minimum_payment_source': getattr(d, 'minimum_payment_source', None),
+        'statement_as_of':        _latest_statement_date(session, d.id),
     }
+
+
+def _latest_statement_date(session, debt_id):
+    """The latest reconciled statement's closing date for a debt, or None (V2)."""
+    if session is None:
+        return None
+    row = (session.query(DebtBalanceHistory.statement_period_end)
+           .filter(DebtBalanceHistory.debt_id == debt_id,
+                   DebtBalanceHistory.statement_period_end != None)   # noqa: E711
+           .order_by(DebtBalanceHistory.statement_period_end.desc()).first())
+    return row[0] if row else None
 
 
 # ── Transactions ──────────────────────────────────────────────────────────────
@@ -2817,6 +2832,17 @@ def list_debt():
         return ok([serialize_debt_account(d, session) for d in debts])
 
 
+# V2: the sources a client may claim. 'statement' is only ever set by the
+# statement reconcile, never taken from a request body.
+_CLIENT_FIGURE_SOURCES = ('user', 'calculated')
+
+
+def _figure_changed(old, new):
+    if old is None or new is None:
+        return (old is None) != (new is None)
+    return abs(float(old) - float(new)) > 1e-9
+
+
 def _debt_figure(body, key):
     """A debt's balance / rate / minimum from a request body (V6).
 
@@ -2877,6 +2903,12 @@ def create_debt():
         for _f in ('begin_balance', 'current_balance', 'interest_rate', 'minimum_payment'):
             if _debt_figure(body, _f) is None:
                 setattr(debt, _f, None)
+        # V2: a figure the caller gave is the user's; an absent or blank one has no source.
+        for _f in ('interest_rate', 'minimum_payment'):
+            given = _f in body and _debt_figure(body, _f) is not None
+            src = body.get(f'{_f}_source')
+            setattr(debt, f'{_f}_source',
+                    (src if src in _CLIENT_FIGURE_SOURCES else 'user') if given else None)
 
         # Auto-create a companion Account so the user can import transactions
         # against this debt card immediately. The account uses the same name
@@ -2914,7 +2946,17 @@ def update_debt(debt_id):
                       'credit_limit', 'debt_type']:
             if field in body:
                 if field in ('current_balance', 'interest_rate', 'minimum_payment'):
-                    setattr(debt, field, _debt_figure(body, field))   # blank = unknown (V6)
+                    old = getattr(debt, field)
+                    new = _debt_figure(body, field)   # blank = unknown (V6)
+                    setattr(debt, field, new)
+                    # V2: the Debt page resends every field on every edit, so the
+                    # source moves only when the value actually changes - editing
+                    # the due day must not relabel a statement APR as typed.
+                    if field != 'current_balance' and _figure_changed(old, new):
+                        src = body.get(f'{field}_source')
+                        setattr(debt, f'{field}_source',
+                                None if new is None
+                                else (src if src in _CLIENT_FIGURE_SOURCES else 'user'))
                 else:
                     setattr(debt, field, body[field])
         # Date fields need explicit parsing. paid_off_at (d21): the serializer
@@ -3309,10 +3351,14 @@ def debt_pdf_reconcile():
         # our own transaction arithmetic — that's the entire point of this
         # feature (Blueprint §6): a verified figure, not an inference.
         debt.current_balance = new_balance
+        previous_apr, previous_min = debt.interest_rate, debt.minimum_payment
+        previous_apr_source, previous_min_source = debt.interest_rate_source, debt.minimum_payment_source
         if apr is not None:
             debt.interest_rate = float(apr)
+            debt.interest_rate_source = 'statement'   # V2
         if min_payment is not None:
             debt.minimum_payment = round(float(min_payment), 2)
+            debt.minimum_payment_source = 'statement'
 
         session.commit()
 
@@ -3326,6 +3372,13 @@ def debt_pdf_reconcile():
             'debt_id': debt.id, 'debt_name': debt.name,
             'new_balance': debt.current_balance, 'month': month,
             'balance_check': balance_check,
+            # V2: the figures the page must take up (so a later save cannot
+            # send the old ones back), and what they replaced, for the toast.
+            'interest_rate': debt.interest_rate, 'minimum_payment': debt.minimum_payment,
+            'previous_interest_rate': previous_apr, 'previous_minimum_payment': previous_min,
+            'previous_interest_rate_source': previous_apr_source,
+            'previous_minimum_payment_source': previous_min_source,
+            'statement_period_end': str(period),
         }
 
     return ok(result)
@@ -4772,6 +4825,9 @@ def bootstrap():
                     'start_date':       None,
                     'end_date':         None,
                     'credit_limit':     None,
+                    'interest_rate_source':   getattr(d, 'interest_rate_source', None),
+                    'minimum_payment_source': getattr(d, 'minimum_payment_source', None),
+                    'statement_as_of':        None,
                     'paid_off_at':      None,
                 } for d in debt_accounts]
 

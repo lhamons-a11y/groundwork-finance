@@ -52,6 +52,11 @@ _NEW_DEBT_COLUMNS = [
     # debt_type = Column(String(20), default='credit'); end_date = Column(Date, nullable=True)
     ('debt_type',         "VARCHAR(20) DEFAULT 'credit'"),
     ('end_date',          "DATE"),
+    # V2: the source of the current APR and minimum ('user' / 'statement' /
+    # 'calculated'). Nullable with no default: existing rows show no source
+    # rather than a guessed one.
+    ('interest_rate_source',   "VARCHAR(12)"),
+    ('minimum_payment_source', "VARCHAR(12)"),
 ]
 
 _NEW_ACCOUNT_COLUMNS = [

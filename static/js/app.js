@@ -1443,6 +1443,9 @@ function restoreFromBootstrap(data) {
             d.end_date             || '',
             d.linked_txn_count     ?? null);
     S.debtCards[S.debtCards.length - 1].paidOffAt = d.paid_off_at || null;
+    Object.assign(S.debtCards[S.debtCards.length - 1], {   // V2
+      rateSource: d.interest_rate_source || null, minSource: d.minimum_payment_source || null,
+      statementAsOf: d.statement_as_of || null });
   });
 
   // ── Achievements ──────────────────────────────────────────────────────
@@ -1624,6 +1627,10 @@ function _restoreFromSnapshot(d) {
       c.linkedTxnCount ?? c.linked_txn_count ?? null
     );
     S.debtCards[S.debtCards.length - 1].paidOffAt = c.paidOffAt ?? c.paid_off_at ?? null;
+    Object.assign(S.debtCards[S.debtCards.length - 1], {   // V2
+      rateSource: c.rateSource ?? c.interest_rate_source ?? null,
+      minSource: c.minSource ?? c.minimum_payment_source ?? null,
+      statementAsOf: c.statementAsOf ?? c.statement_as_of ?? null });
   });
   if (d.savingsPct    && g('settingsSavingsPct'))    g('settingsSavingsPct').value    = d.savingsPct;
   // HARDENING (July 8): the legacy path wrote the DOM fields but never set
@@ -6160,11 +6167,19 @@ async function confirmImport() {
           const check = rec.balance_check || {};
           linkedCard.currentBal = String(rec.new_balance);
           linkedCard.calculatedBalance = rec.new_balance;
+          // V2: take up the statement's APR and minimum too. The card used to keep
+          // its old ones in memory, and the next edit to it sent them back over
+          // the statement's.
+          if (rec.interest_rate != null)   { linkedCard.rate    = String(rec.interest_rate);   linkedCard.rateSource = 'statement'; }
+          if (rec.minimum_payment != null) { linkedCard.minimum = String(rec.minimum_payment); linkedCard.minSource  = 'statement'; }
+          linkedCard.statementAsOf = rec.statement_period_end || linkedCard.statementAsOf;
+          const _changes = _statementFigureChanges(rec);
           showToast(
             `${linkedCard.name || 'Debt card'} balance verified from statement`,
-            check.matches === false
+            (check.matches === false
               ? `Differs ${fmtD(Math.abs(check.diff||0))} from your imported transactions — using the statement's stated balance`
-              : 'Matches your imported transactions'
+              : 'Matches your imported transactions')
+            + (_changes ? `. ${_changes}` : '')
           );
           await _budgetLoadDebtHistory().catch(_gwErr('confirmImport'));
           calculate();
@@ -6696,6 +6711,29 @@ async function _syncBudgetItemsToDb(type, items) {
   }
 }
 
+// ── Where a debt figure came from (V2) ──────────────────────────────────────
+function _figureSourceLabel(source, statementAsOf) {
+  if (source === 'statement') {
+    const d = statementAsOf ? new Date(statementAsOf + 'T00:00:00') : null;
+    return d && !isNaN(d) ? `from your ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} statement` : 'from your statement';
+  }
+  if (source === 'user')       return 'you entered';
+  if (source === 'calculated') return 'calculated by Groundwork';
+  return '';
+}
+// "APR 22.9% (you entered) → 24.9% from this statement" — only for figures that changed.
+function _statementFigureChanges(rec) {
+  const was = s => s === 'user' ? ' (you entered)' : s === 'calculated' ? ' (calculated)' : '';
+  const parts = [];
+  if (rec.interest_rate != null && rec.previous_interest_rate != null
+      && Math.abs(rec.interest_rate - rec.previous_interest_rate) > 1e-9)
+    parts.push(`APR ${rec.previous_interest_rate}%${was(rec.previous_interest_rate_source)} → ${rec.interest_rate}%`);
+  if (rec.minimum_payment != null && rec.previous_minimum_payment != null
+      && Math.abs(rec.minimum_payment - rec.previous_minimum_payment) > 1e-9)
+    parts.push(`minimum ${fmt(rec.previous_minimum_payment)}${was(rec.previous_minimum_payment_source)} → ${fmt(rec.minimum_payment)}`);
+  return parts.length ? `From this statement: ${parts.join('; ')}` : '';
+}
+
 // ── Unknown debt figures (V6) ───────────────────────────────────────────────
 function _isBlank(v) {
   return v === null || v === undefined || (typeof v === 'string' && v.trim() === '')
@@ -6739,6 +6777,9 @@ async function _syncDebtToDb(card) {
                             ? null : _cardBal(card),   // 0 is a real balance — never fall back to beginBal
       interest_rate:      _numOrNull(card.rate),
       minimum_payment:    _numOrNull(card.minimum),
+      // V2: the server records these only when the value actually changes.
+      interest_rate_source:   card.rateSource === 'calculated' ? 'calculated' : 'user',
+      minimum_payment_source: card.minSource  === 'calculated' ? 'calculated' : 'user',
       due_day:            card.dueDay ? parseInt(card.dueDay) : null,
       start_date:         card.startDate || null,
       end_date:           card.endDate   || null,
@@ -9099,8 +9140,9 @@ async function _budgetApplyAprUpdate(cardId, dbId, newApr) {
   const card = S.debtCards.find(c => c.id === cardId);
   if (!card) return;
   card.rate = newApr;
+  card.rateSource = 'calculated';   // V2: worked out from the interest charged
   if (dbId) {
-    await API.patch(`/api/debt/${dbId}`, { interest_rate: newApr }).catch(_gwErr('_budgetApplyAprUpdate'));
+    await API.patch(`/api/debt/${dbId}`, { interest_rate: newApr, interest_rate_source: 'calculated' }).catch(_gwErr('_budgetApplyAprUpdate'));
     // Write a history snapshot with the new APR
     _budgetSaveDebtSnapshot(_budgetMonthKey);
   }
@@ -13712,6 +13754,7 @@ function _debtBloomFields(c, debtType, _dds) {
         <label>Monthly payment</label>
         <input type="number" value="${c.minimum ?? ''}" min="0" step="0.01"
           oninput="setCardField(${c.id},'minimum',this.value)">
+        <div style="font-size:10px;color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.minSource, c.statementAsOf)}</div>
       </div>
       <div class="field" style="margin:0">
         <label>Due day${dueLabelExtra}</label>
@@ -13746,11 +13789,13 @@ function _debtBloomFields(c, debtType, _dds) {
         <label>APR %${helpIcon('apr')}</label>
         <input type="number" id="dcRate-${c.id}" value="${c.rate ?? ''}" min="0" step="0.1"
           oninput="setCardField(${c.id},'rate',this.value)">
+        <div style="font-size:10px;color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.rateSource, c.statementAsOf)}</div>
       </div>
       <div class="field" style="margin:0">
         <label>Payment</label>
         <input type="number" value="${c.minimum ?? ''}" min="0" step="0.01"
           oninput="setCardField(${c.id},'minimum',this.value)">
+        <div style="font-size:10px;color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.minSource, c.statementAsOf)}</div>
       </div>
       <div class="field" style="margin:0">
         <label>Due day${dueLabelExtra}</label>
@@ -13784,11 +13829,13 @@ function _debtBloomFields(c, debtType, _dds) {
         <label>APR %${helpIcon('apr')}</label>
         <input type="number" id="dcRate-${c.id}" value="${c.rate ?? ''}" min="0" step="0.1"
           oninput="setCardField(${c.id},'rate',this.value)">
+        <div style="font-size:10px;color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.rateSource, c.statementAsOf)}</div>
       </div>
       <div class="field" style="margin:0">
         <label>Min</label>
         <input type="number" value="${c.minimum ?? ''}" min="0" step="0.01"
           oninput="setCardField(${c.id},'minimum',this.value)">
+        <div style="font-size:10px;color:var(--slate-2);margin-top:3px;min-height:12px">${_figureSourceLabel(c.minSource, c.statementAsOf)}</div>
       </div>
       <div class="field" style="margin:0">
         <label>Due day${dueLabelExtra}</label>
@@ -15518,10 +15565,13 @@ function runWhatIf(extra) {
   if (intEl) intEl.style.color = saved > 100 ? 'var(--pine)' : 'inherit';
 }
 
-function setCardField(id, field, value) {
+function setCardField(id, field, value, source) {
   const card = S.debtCards.find(c => c.id === id);
   if (!card) return;
   card[field] = value;
+  // V2: a figure typed here is the user's, unless the caller says otherwise.
+  if (field === 'rate')    card.rateSource = source || 'user';
+  if (field === 'minimum') card.minSource  = source || 'user';
   clearTimeout(setCardField._t);
   setCardField._t = setTimeout(() => {
     _syncDebtToDb(card).catch(_gwErr('setCardField'));
@@ -15734,7 +15784,7 @@ function applyAprEstimate(id) {
   const applyResult = (apr) => {
     res.style.color = 'var(--pine)';
     res.textContent = `Estimated APR: ${apr.toFixed(1)}%`;
-    setCardField(id, 'rate', apr.toFixed(2));
+    setCardField(id, 'rate', apr.toFixed(2), 'calculated');
     const input = g(`dcRate-${id}`);
     if (input) input.value = apr.toFixed(2);
   };
@@ -15774,7 +15824,7 @@ function applyAprEstimate(id) {
     res.style.color = 'var(--pine)';
     const apr = monthlyRate * 12 * 100;
     res.textContent = `Estimated APR: ${apr.toFixed(1)}% (approx.)`;
-    setCardField(id, 'rate', apr.toFixed(2));
+    setCardField(id, 'rate', apr.toFixed(2), 'calculated');
     const input = g(`dcRate-${id}`);
     if (input) input.value = apr.toFixed(2);
     return;
