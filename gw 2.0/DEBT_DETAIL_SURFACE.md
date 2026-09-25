@@ -655,10 +655,19 @@ shouldn't, but the actual truth of this card."*
   before"* comparison) and the trophies read every debt's history, active or not. The dialog now
   reads: *"It will leave your Debt page, and Groundwork has no way to bring it back. Its past
   balances are kept and still count in your debt history."*
-- **V8 — a card added by mistake keeps counting after removal (recorded, not fixed).** Because
-  removed debts still feed those sums, a duplicate or mistyped card, once removed, still adds its
-  past balances to the debt-cycle comparison and the trophies. That is the *added by mistake*
-  ending below, which needs real deletion; it is a data-semantics question, not a wording fix.
+- **V8 — a card added by mistake keeps counting after removal. FIXED on 1.x, 2026-09-25
+  (`aaa05b3` on `lts/1.x`, merged into master).** Removed debts still feed those sums — right for
+  a card that existed (the debt-cycle comparison needs archived cards' past peaks), wrong for a
+  duplicate or a typo. 1.x cannot tell the two apart, so **the user says which** (Rob chose real
+  deletion): the Remove dialog carries a checkbox, *"It was added by mistake. Delete it and its
+  history instead, so it stops counting. A backup of your data is saved first."* Unticked,
+  removal is unchanged. Ticked, `DELETE /api/debt/<id>/permanent` checks the debt exists, takes a
+  full backup server-side (nothing is deleted if that fails), then deletes the debt, its balance
+  history, ledger entries and their checking links, and recurring payments; historian entries are
+  kept and unlinked (SQLite reuses the highest id); the companion account and its bank
+  transactions are left alone. Gate section `s48` (13 checks, a mutation caught). This is the
+  *added by mistake* ending below, built early for 1.x; *closed* versus *paid off* is still
+  undistinguished there.
 
 ### Three different endings, never one button
 
@@ -745,4 +754,4 @@ It never says the user should or shouldn't take the card.
 
 No schema for endings or reasons, no Settings page, no upload path, no reader for offer documents,
 no change to `removeCard` or `delete_debt`, and no change to the concept layout's boards. V7 is
-fixed on 1.x (wording only); V8 is recorded, not fixed.
+fixed on 1.x (wording only); V8 is fixed on 1.x (the *added by mistake* delete).
