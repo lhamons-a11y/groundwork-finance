@@ -708,3 +708,21 @@ upgraded. The installed Groundwork was closed throughout, since both use port 87
 **W's remaining open items after this:** Bw9 on macOS and Linux and a moved Downloads folder; Bw17
 (WebView2 absent through the real installer); Bw18 (a runtime update); and the installer path for
 item 4.
+
+## 10. The Ledger's Bank button (2026-09-25), under the §7 ruling
+
+Rob asked for the bank to be openable from the Ledger too. A **🏦 Bank** button sits beside
+**↑ Import**. Filtered to one account that has a bank website, it opens that account's bank
+window directly. Otherwise it opens a menu of every account and every **unlinked** card with
+one, each with *Open* and *Browser*, and the F6 reminder beneath. A linked card is listed once,
+under its account, because it opens the account's link (F3).
+
+The menu is rebuilt on every click from `GET /api/accounts` and `GET /api/debt`, reading only
+`has_portal`. The addresses stay behind the /portal routes and never enter app state (F5,
+checked in the browser: `JSON.stringify(S)` contains no address). No new route, no new
+crossing: it calls the same `_openBankPortal` as Settings and the card bloom. Found in the
+browser pane: at narrow widths the toolbar wraps and the right-anchored menu slid under the
+sidebar, so it now flips when it would start left of the Ledger's content.
+
+Gate: 1699 / 0 on its base. Master's `app.js` then took the V8 fix, so the button was rebased and gated again: **1712 / 0** on the rebased tree, the tree pushed (the extra 13 checks are V8's own). One run in between was cut off mid-run by a session restart, with no failures before the cut. It is not a result and is recorded only so it is never read as one.
+

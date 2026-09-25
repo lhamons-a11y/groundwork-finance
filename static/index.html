@@ -1384,6 +1384,10 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <button class="tb-btn" id="ledgerUnclearedBtn" onclick="toggleUnclearedFilter()" title="Show only uncleared transactions">Uncleared</button>
             <button class="tb-btn" onclick="openReconcilePanel()" title="Reconcile against your bank statement">Reconcile</button>
             <button class="tb-btn" onclick="_runDedupBot()" title="Scan for and remove duplicate transactions">Dedup</button>
+            <div class="acct-switcher-wrap">
+              <button class="tb-btn" id="ledgerBankBtn" onclick="openLedgerBank(event)" title="Open your bank or card website to download transactions">🏦 Bank</button>
+              <div class="acct-switcher-menu" id="ledgerBankMenu"></div>
+            </div>
             <button class="tb-btn" onclick="showImportModal()">↑ Import</button>
             <button class="tb-btn primary" onclick="openAddModal()">+ Add</button>
           </div>

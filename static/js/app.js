@@ -3246,6 +3246,64 @@ function toggleAcctSwitcher(ev) {
   }
 }
 
+// ── The Ledger's Bank button (gw 2.0/BANK_BROWSER.md) ─────────────────────
+// Filtered to one account with a bank website: opens it. Otherwise: a menu of
+// every account and unlinked card that has one. The list is fetched on each
+// click and only has_portal is read - the addresses stay behind the /portal
+// routes and never enter app state (F5). A linked card opens its account's
+// website, so it is listed once, under the account.
+async function openLedgerBank(ev) {
+  ev?.stopPropagation();
+  const menu = g('ledgerBankMenu');
+  if (!menu) return;
+  if (menu.classList.contains('open')) { menu.classList.remove('open'); return; }
+
+  let accounts = [], cards = [];
+  try {
+    [accounts, cards] = await Promise.all([API.get('/api/accounts'), API.get('/api/debt')]);
+  } catch(e) {
+    showToast('Could not load your accounts', e.message || '', 'error');
+    return;
+  }
+  const withSite = [
+    ...(accounts || []).filter(a => a.has_portal).map(a => ({ kind: 'account', id: a.id, name: a.name })),
+    ...(cards || []).filter(d => d.has_portal && !d.linked_account_id).map(d => ({ kind: 'card', id: d.id, name: d.name })),
+  ];
+
+  const current = g('ledgerAccountFilter')?.value || '';
+  const match = current && withSite.find(x => x.kind === 'account' && x.name === current);
+  if (match) { _openBankPortal(match.kind, match.id, 'window'); return; }
+
+  const rows = withSite.map(x => `
+    <div class="acct-switcher-item" style="gap:6px">
+      <span class="acct-item-name">${esc(x.name)}</span>
+      <button class="tb-btn" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();g('ledgerBankMenu').classList.remove('open');_openBankPortal('${x.kind}', ${x.id}, 'window')">Open</button>
+      <button class="tb-btn" style="padding:3px 8px;font-size:11px" title="Open in your usual browser" onclick="event.stopPropagation();g('ledgerBankMenu').classList.remove('open');_openBankPortal('${x.kind}', ${x.id}, 'browser')">Browser</button>
+    </div>`);
+  menu.innerHTML = (rows.length ? rows.join('') : `
+    <div style="padding:10px;font-size:12px;color:var(--slate);line-height:1.5">
+      No bank websites yet. Add one to an account in Settings → Accounts, or to a card in its budget panel.
+    </div>`) + `
+    <div style="padding:6px 10px 8px;font-size:11px;color:var(--slate-2);border-top:1px solid var(--mist-2);margin-top:4px;line-height:1.5">
+      Save your download to your Downloads folder and Groundwork will offer to import it.
+    </div>`;
+  menu.style.left = ''; menu.style.right = '';
+  menu.classList.add('open');
+  // The toolbar wraps on narrow windows and can leave the button at the left
+  // edge, where a right-anchored menu runs under the sidebar. Flip it when it
+  // would start left of the Ledger's own content.
+  const minLeft = (g('view-ledger')?.getBoundingClientRect().left || 0) + 8;
+  if (menu.getBoundingClientRect().left < minLeft) { menu.style.left = '0'; menu.style.right = 'auto'; }
+  setTimeout(() => {
+    const close = (e) => {
+      if (menu.contains(e.target) || g('ledgerBankBtn')?.contains(e.target)) return;
+      menu.classList.remove('open');
+      document.removeEventListener('mousedown', close);
+    };
+    document.addEventListener('mousedown', close);
+  }, 0);
+}
+
 function pickLedgerAccount(name) {
   const sel = g('ledgerAccountFilter');
   if (sel) sel.value = name;
