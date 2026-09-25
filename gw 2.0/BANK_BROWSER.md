@@ -660,8 +660,51 @@ stays open until these are measured, each by name:
 1. Bw9 on macOS and Linux, and a moved or localised Downloads folder live
 2. Bw17: WebView2 truly absent, through the real installer
 3. Bw18: a platform runtime update, then reopening, with no Groundwork rebuild
-4. the frozen build: `--bank-window` from the PyInstaller bundle and installer, including the status line from a windowed executable
-5. the foreground fix in the real app
+4. ~~the frozen build~~ **MEASURED 2026-09-25, see below** (the installer path itself not run)
+5. ~~the foreground fix in the real app~~ **MEASURED 2026-09-25, see below**
 
 The observation against Rob's criterion (the import offer can sit behind the bank window) is
 recorded, not ruled.
+
+### Items 4 and 5 measured — 2026-09-25, Windows, the packaged app
+
+A PyInstaller bundle was built from `ebf3a4b` (`groundwork.spec`, `GW_PRODUCT=teaching`; the
+bundle only, so no installer was built or run and the installed Groundwork was not touched). It
+ran directly with `GROUNDWORK_DATA_DIR` on a throwaway folder, so no real database was opened or
+upgraded. The installed Groundwork was closed throughout, since both use port 8765.
+`bank_window` was confirmed in the bundle's import graph.
+
+- **Item 4, the frozen build: PASSED (bundle, not installer).** First at the process level:
+  the real launcher code started the bundle's `Groundwork.exe --bank-window` with Rob's URL.
+  The status line came back through a **windowed** executable (`opened` in 1.6 s; the open
+  question was whether a GUI-subsystem exe could write it at all). Then `already_open`, then a
+  clean close. The frozen child refused `http://127.0.0.1:8765/` itself (`refused-url`, exit 2),
+  and a forced `PYWEBVIEW_GUI=mshtml` was ignored (`ready`). Then end to end: the packaged main
+  app, clicked in its own UI, started its own bank process (`--bank-window`, a child of the main
+  process) showing superiorcu.com. Closing the packaged main window closed the bank window, with
+  no `Groundwork.exe` left running. **Not covered:** the Inno Setup installer and an installed
+  copy.
+- **Item 5, the foreground fix: PASSED.** Clicking *Open bank* in the packaged app's Settings →
+  Accounts put the bank window **in front**. Measured objectively, not by eye:
+  `GetForegroundWindow` returned the bank process's window, *Bank website - www.superiorcu.com*.
+  The click was synthesized input from a desktop-automation tool, which Windows treats as user
+  input for its focus rules. A click by hand is the same case.
+- **To get there, stated plainly:** Rob authorised accepting the EULA in the throwaway copy
+  (2026-09-25), and it was accepted there only. Onboarding's AI-model step was skipped by setting
+  `onboarding_complete` on the throwaway database, not by choosing a model, because either button
+  could start a multi-gigabyte model download. The test account and its link were created
+  through the test copy's local API. The bank page's login form and cookie banner were not
+  touched.
+- **A one-off, not a result:** the bundle's very first launch showed a blank white window. Its
+  WebView2 was running and connected to the server, and every later launch rendered normally
+  (the licence screen, then the app). The first launch coincided with the window being forcibly
+  raised by handle while WebView2 was still starting. It did not recur.
+- **A privacy slip during testing, recorded:** a desktop screenshot taken before the installed app
+  was closed captured the user's real Groundwork (the Accounts screen). The screenshot allowlist
+  entry named "Groundwork" resolved to the installed app, not the test bundle. Nothing from it was
+  recorded or used; screenshots stopped until the installed app was closed and access was
+  re-granted for the bundle's own path only.
+
+**W's remaining open items after this:** Bw9 on macOS and Linux and a moved Downloads folder; Bw17
+(WebView2 absent through the real installer); Bw18 (a runtime update); and the installer path for
+item 4.
