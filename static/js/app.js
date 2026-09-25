@@ -15496,9 +15496,31 @@ function confirmRemoveCard(id) {
   // leaves the list and nothing in the app restores it, but its balance history
   // is kept and still counts wherever past debt is summed (the debt-cycle
   // comparison, trophies). "This cannot be undone" implied it was erased.
+  // The choice is the user's: Groundwork cannot tell a duplicate from a card
+  // that really existed, and it does not guess (V8).
   confirmAction('Remove this card?',
-    'It will leave your Debt page, and Groundwork has no way to bring it back. Its past balances are kept and still count in your debt history.',
-    () => removeCard(id));
+    'It will leave your Debt page, and Groundwork has no way to bring it back. Its past balances are kept and still count in your debt history.'
+    + '<label style="display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:13px;line-height:1.5;cursor:pointer">'
+    + '<input type="checkbox" id="removeCardMistake" style="margin-top:3px">'
+    + '<span>It was added by mistake. Delete it and its history instead, so it stops counting. A backup of your data is saved first.</span></label>',
+    () => (g('removeCardMistake')?.checked ? deleteCardAddedByMistake(id) : removeCard(id)));
+}
+
+async function deleteCardAddedByMistake(id) {
+  const card = S.debtCards.find(c => c.id === id);
+  if (card?._dbId) {
+    // If the server refuses (the backup failed, say), nothing was deleted there,
+    // so the card stays on the page rather than vanishing from view only.
+    const res = await API.delete(`/api/debt/${card._dbId}/permanent`).catch(e => {
+      showToast('Nothing was deleted', e.message || 'The card is unchanged.', 'error');
+      return null;
+    });
+    if (!res) return;
+  }
+  S.debtCards = S.debtCards.filter(c => c.id !== id);
+  g(`dc-${id}`)?.remove();
+  calculate();
+  showToast('Card deleted', 'It and its history are gone. A backup was saved first.');
 }
 
 function removeCard(id) {
