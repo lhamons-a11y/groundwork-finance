@@ -11,7 +11,7 @@
 >
 > **The concept exposed existing violations.** Reading it against 1.x found five places where
 > the shipped debt surfaces already break the rules the concept depends on (§4); a sixth, V6, was
-> found investigating the fifth. V1, V2, V5 and V6 are fixed on 1.x; V3 and V4 are open. A debt view built
+> found investigating the fifth. V1, V2, V3, V5 and V6 are fixed on 1.x; V4 and V9 are open. A debt view built
 > on today's code would carry every one of them into a new surface and give them a teaching voice.
 > **Do not build the view yet** (Rob, 2026-09-24).
 
@@ -162,6 +162,18 @@ is the one debt record that already carries its origin.
 > credit limit and each balance-history row carry no source (the history's `statement_period_end`
 > remains the only trace), and a statement that *disagrees* with a typed APR still replaces it
 > rather than presenting both (§6's disagreement state, G2).
+>
+> **Correction, 2026-09-26: V2 as first pushed was a release blocker.** `1b7abb9` added the two
+> source columns to `migrate.py`'s column list but did not bump `SCHEMA_VERSION`, and
+> `run_migration_if_needed` skips every step when a database already stores the current version —
+> which every 1.1 install does. On an upgraded database the columns were never added and
+> `/api/settings/bootstrap` returned 500 (*"no such column: debt_accounts.interest_rate_source"*).
+> Fresh databases were unaffected, and no release tag contains V2. `s47` missed it because it
+> called the column helper directly, past the version gate. Found and fixed by the bank-window
+> session (`125b020` on `lts/1.x`, merged into master): `SCHEMA_VERSION` bumped on each line, a
+> `SCHEMA_SPEC_SHA256` fingerprint pinned beside it, and gate section `s51_schema_version_pin`,
+> which fails any change to `migrate.py` until the version is bumped and the pin updated;
+> measured, a v1.1.0 database boots 500 before the fix and 200 after.
 
 ### V3 — debt type is read only for leases (R3)
 
@@ -183,6 +195,22 @@ arithmetic:
 
 So the engine can produce numbers for a mortgage; it cannot know which of its outputs mean
 anything for one.
+
+> **FIXED on 1.x, 2026-09-26 (`95a6907` on `lts/1.x`, merged into master) — Rob chose a Mortgage
+> type with calculated principal & interest.** Measured first: 1.x had **no mortgage debt type**
+> (a mortgage lived in Net Worth as a balance, in the budget as *Rent / Mortgage*, and in the
+> extra-payment tool), so V3 applied only to a mortgage added as a *Loan*; and the extra-payment
+> tool had already decided **not to ask for escrow** — it calculates principal & interest from
+> balance, APR and months remaining (exact for a fixed-rate, fully amortizing loan). The fix
+> follows it: *Mortgage* joins the types, with a balance, APR and maturity date its principal &
+> interest is calculated, every payoff projection uses that, and **the payoff budget leaves out
+> each mortgage's escrow share** (left in, the engine would hand it to other debts as "extra").
+> Budgets and debt-to-income keep the whole payment. The row explains the split (*"about
+> $1,073.21 is principal & interest ... the other $162.19 likely covers escrow, PMI or fees; it
+> doesn't reduce what you owe"*); without a maturity date the whole payment is used and the page
+> says so. Gate section `s46` (14 checks — a 25-year mortgage at its calculated P&I pays off at
+> its maturity date where the whole payment projected it years early; a mutation caught).
+> **Not changed:** the Budget page's live estimator (typed values, no stored card).
 
 ### V4 — per-debt payoff dates exist without their scenario (R4)
 
@@ -217,6 +245,14 @@ $0 balance"* from nothing.
 the stated optimistic reading. "$300 **on Card A**" is the opposite: it adds to one specific
 balance. The engine has no input that means that today. Before You Buy's current card-purchase
 consequence is therefore the cash reading, whatever the user intends to pay with.
+
+### V9 — Net Worth can count a mortgage twice — OPEN
+
+*Found 2026-09-26 while fixing V3; recorded, not fixed.* Net Worth's liabilities are
+`nw.mortgage + totalDebt`: the mortgage balance typed on the Net Worth page, plus every debt on
+the Debt page. A mortgage entered in both places is counted twice. V3 makes that more likely,
+since *Mortgage* is now a debt type. Which record should hold the mortgage — or how the two
+should be reconciled — is a question for Rob, not a guess.
 
 ### V6 — the Debt page collapses a blank into zero (R2) — FIXED on 1.x
 
