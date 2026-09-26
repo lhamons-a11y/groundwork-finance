@@ -11,7 +11,7 @@
 >
 > **The concept exposed existing violations.** Reading it against 1.x found five places where
 > the shipped debt surfaces already break the rules the concept depends on (§4); a sixth, V6, was
-> found investigating the fifth. V1, V2, V3, V5 and V6 are fixed on 1.x; V4 and V9 are open. A debt view built
+> found investigating the fifth. V1–V8 are fixed on 1.x; V9 and V10 are open. A debt view built
 > on today's code would carry every one of them into a new surface and give them a teaching voice.
 > **Do not build the view yet** (Rob, 2026-09-24).
 
@@ -220,6 +220,29 @@ budget. The client's avalanche sequence
 that household run. A single debt's month is a function of every other debt, the strategy, and
 where extra money flows. Displayed on the debt alone it becomes a naked *"Payoff: March 2028"* —
 and it would change when the user adds a different card, with nothing on the screen explaining why.
+
+> **FIXED on 1.x, 2026-09-26 (`f78cbd3` on `lts/1.x`, merged into master) — Rob chose plan months
+> and naming the plan.** Measured first: the collapsed debt row projected each card *on its own*,
+> at its payment plus "a share of extra" if it was the target, so it **ignored rollover** — every
+> debt but the first target showed a later month than the plan (in the test, Oct 2031 against the
+> plan's Sep 2027). The engine already returned each debt's month under the plan (`cleared_at`) and
+> the page already kept it; the row never used it. Now the row shows the plan's own month (same
+> engine run as the debt-free date, so the two agree), its tooltip names the plan, and the Debt
+> page says once *"Payoff dates are from your avalanche plan: $500.00/mo across 2 debts. Change the
+> plan and they change."* The dashboard's debt-free date names the plan; projections of one debt
+> at its own payment say so (the payoff report, the Budget editor). Two debts sharing a name get no
+> date rather than each other's (the engine keys `cleared_at` by name). Gate section `s44`.
+> **Master-side remainder, not changed:** four 2.0 teaching surfaces on master
+> (`teaching/budget.js`, `debt.js`, `networth.js`, `paths.js`) show the plan's debt-free date or
+> *"X clears in N months"* without naming the plan.
+
+### V10 — the Budget page's payoff forecast is always avalanche — OPEN
+
+*Found 2026-09-26 while fixing V4; labelled, not fixed.* The Budget page computes its own payoff
+sequence (`_budgetAvalancheSequence`), which is avalanche whatever plan the user chose — so a
+snowball user sees an avalanche forecast there and a snowball date on the Debt page. V4 made it
+visible (its lines now read *"avalanche, $X/mo"*); whether it should follow the chosen plan, or be
+retired in favour of the engine's run, is Rob's call.
 
 ### V5 — Before You Buy commits a financed purchase as a debt with invented zeros (R2, R3, R5)
 
@@ -820,3 +843,83 @@ It never says the user should or shouldn't take the card.
 No schema for endings or reasons, no Settings page, no upload path, no reader for offer documents,
 no change to `removeCard` or `delete_debt`, and no change to the concept layout's boards. V7 is
 fixed on 1.x (wording only); V8 is fixed on 1.x (the *added by mistake* delete).
+
+---
+
+## 14. The loan schedule — principal, interest and what's left
+
+> Status: **Design case, recorded 2026-09-26 at Rob's direction. No code, no field, no surface.**
+
+Rob: for car loans and mortgages, the detail page could show — as a bar graph — how much of each
+payment goes to interest and how much to principal, and an estimated amount left on the loan.
+*"This is helpful when a user is thinking about refinancing or trading in a vehicle or selling a
+home."*
+
+### The principle (Rob, 2026-09-26)
+
+> *"The determination is the user['s], but the data is truth, and if we offer the user true data
+> they can make a better informed decision — even if the user picks the wrong one."*
+
+Groundwork's job is that the choice is made with true information in front of the user; which
+choice is theirs, including one the numbers would call worse. Withholding a comparison, or
+steering toward the "right" answer, would manage the user instead of teaching them. What keeps
+*"the data is truth"* true is **labelling**: a statement balance is a fact, a calculated schedule
+is a calculation under stated assumptions, an unknown stays unknown. An estimate that looks like a
+fact leads to a decision made on false information.
+
+### What 1.x captures for a loan today (measured)
+
+| Field | Captured |
+|---|---|
+| Current balance | yes — the "Balance" field |
+| APR | yes |
+| Scheduled payment | yes |
+| Loan start date | yes |
+| Term (months) | yes — and it fills the maturity date |
+| Payoff / maturity date | yes |
+| **Original loan amount** | **no field** |
+
+`begin_balance` exists but holds the balance when the debt was **first entered into Groundwork**,
+not the amount borrowed at origination — for a five-year-old car loan added today, very different.
+
+### What the page could show
+
+For a fixed-rate loan, start date + term + APR + scheduled payment determine the original amount
+exactly (the same amortization V3 uses for the mortgage split), so the whole schedule follows:
+
+- **each payment's interest and principal**, as a bar graph over the life of the loan;
+- **interest paid so far, and interest still to come** under the schedule;
+- **an estimated balance for today**, shown **beside the statement balance**. The gap is itself
+  information: lower than the schedule means extra payments; higher means missed payments, fees, a
+  variable rate, or a figure entered wrongly — taught, not hidden.
+
+All of it **calculated**, labelled with its assumptions — *fixed rate, payments on time, no extra
+payments* — as prominently as the numbers (R2, R6). A variable-rate loan or a HELOC gets no
+schedule. For a mortgage, the schedule is principal & interest only (V3's split); escrow is not in
+it.
+
+### Refinancing, trading in, selling — the questions to teach (§12)
+
+The balance is not the **payoff amount**: a payoff quote adds interest accrued since the last
+payment and sometimes fees. The page teaches the questions; the decision stays the user's (G5):
+
+- **Everyone:** ask the lender for a 10-day payoff quote. Is there a prepayment penalty?
+- **Trading in a vehicle:** is the trade-in value above or below the payoff? Negative equity rolled
+  into a new loan carries the old loan's debt into the new one.
+- **Selling a home:** what is left after the payoff and the costs of selling?
+- **Refinancing:** what do the closing costs do to the break-even point — how many months of the
+  lower payment before they are paid back?
+
+### Open questions
+
+1. **The original amount:** calculate it from start, term, APR and payment (no new field; wrong if
+   any of those is wrong), or ask for it (a new field; the user may not know it)? Or both, with the
+   disagreement shown when they differ?
+2. **Loans already partly paid when entered:** the schedule is exact only if the payment has been
+   the scheduled one throughout — how is a history of extra payments represented, if at all?
+3. **Where the balance history exists** (statement reconciles, V2's sources), should the chart
+   plot the recorded balances alongside the schedule?
+
+### Not decided here
+
+No field, no schema, no chart, no calculation in code. The questions above are Rob's.
