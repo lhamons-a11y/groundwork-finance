@@ -11,7 +11,7 @@
 >
 > **The concept exposed existing violations.** Reading it against 1.x found five places where
 > the shipped debt surfaces already break the rules the concept depends on (§4); a sixth, V6, was
-> found investigating the fifth. V1–V8 are fixed on 1.x; V9 and V10 are open. A debt view built
+> found investigating the fifth. V1–V9 are fixed on 1.x; V10 is open. A debt view built
 > on today's code would carry every one of them into a new surface and give them a teaching voice.
 > **Do not build the view yet** (Rob, 2026-09-24).
 
@@ -269,7 +269,16 @@ the stated optimistic reading. "$300 **on Card A**" is the opposite: it adds to 
 balance. The engine has no input that means that today. Before You Buy's current card-purchase
 consequence is therefore the cash reading, whatever the user intends to pay with.
 
-### V9 — Net Worth can count a mortgage twice — OPEN
+### V9 — Net Worth can count a mortgage twice — FIXED on 1.x
+
+> **FIXED on 1.x, 2026-09-26 (`839e7c4` on `lts/1.x`, merged into master).** Measured, the worse
+> double count was *inside* Net Worth: assets held home equity while liabilities added the
+> mortgage again, so anyone who entered both was understated by the whole mortgage ($300,000 home,
+> $187,000 mortgage: -$74,000 instead of +$113,000). Rob chose a standard balance sheet (home value
+> as the asset, the mortgage once, equity as an information line) and "Debt page wins" (a
+> Mortgage-type debt replaces the Net Worth field, which shows it read-only; the typed value is
+> kept). Snapshot history can't be recalculated (totals only), so affected trends step on the day
+> of the fix. Gate section `s43`.
 
 *Found 2026-09-26 while fixing V3; recorded, not fixed.* Net Worth's liabilities are
 `nw.mortgage + totalDebt`: the mortgage balance typed on the Net Worth page, plus every debt on
