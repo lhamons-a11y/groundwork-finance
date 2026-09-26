@@ -2464,7 +2464,7 @@ function _renderDashHeroCard(totalDebt) {
       <div style="font-family:var(--font-mono);font-size:32px;font-weight:600;color:var(--ember);line-height:1">${fmt(totalDebt)}</div>
       <div style="font-size:13px;color:var(--slate);margin:4px 0 12px">total debt remaining</div>`}
       <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--slate);margin-bottom:12px">
-        ${_debtTrusted && payoffDate ? `<span><span style="color:var(--slate-2)">Debt-free:</span> <span style="font-family:var(--font-mono)">${payoffDate}</span>${
+        ${_debtTrusted && payoffDate ? `<span><span style="color:var(--slate-2)">Debt-free:</span> <span style="font-family:var(--font-mono)">${payoffDate}</span> <span style="color:var(--slate-2)">(${_planName()}, ${fmt(_getMonthlyBudget())}/mo)</span>${
           S.debtCards.some(c => _debtUnknowns(c).length)
             ? ` <span style="color:var(--gold)" title="${_debtAssumptionNote(S.debtCards)}">· assumes figures not entered</span>` : ''}</span>` : ''}
         ${_debtTrusted && dailyInterest > 0.01 ? `<span><span style="color:var(--slate-2)">Interest:</span> <span style="font-family:var(--font-mono);color:var(--ember)">${fmt(dailyInterest,2)}/day</span></span>` : ''}
@@ -6734,6 +6734,28 @@ function _statementFigureChanges(rec) {
   return parts.length ? `From this statement: ${parts.join('; ')}` : '';
 }
 
+// ── Which plan a payoff month belongs to (V4) ───────────────────────────────
+// A debt's payoff month depends on every other debt, the strategy and the payoff
+// budget - it belongs to a scenario, not to the debt. The row's date comes from
+// the same engine run as the debt-free date (rollover included), and wherever
+// a month is shown the scenario is named with it.
+function _planName() { return S.debtMethod === 'snowball' ? 'snowball' : 'avalanche'; }
+function _planScenario() {
+  const n = S.debtCards.filter(c => !c.paidInFull && _cardBal(c) > 0).length;
+  return `your ${_planName()} plan: ${fmt(_getMonthlyBudget())}/mo across ${n} debt${n === 1 ? '' : 's'}`;
+}
+// The month (from now) this debt clears in the plan, or null. The engine keys its
+// per-debt results by name, so two debts sharing a name get no date rather than
+// possibly each other's.
+function _planClearedMonth(c, plan) {
+  if (!plan || !plan.clearedAt) return null;
+  const name = c.name || 'Card';
+  const same = S.debtCards.filter(d => !d.paidInFull && _cardBal(d) > 0 && (d.name || 'Card') === name);
+  if (same.length !== 1) return null;
+  const hit = plan.clearedAt[name];
+  return hit && hit.month > 0 ? hit.month : null;
+}
+
 // ── Mortgage payments: principal & interest vs the rest (V3) ────────────────
 // A mortgage payment usually includes escrow (property tax, insurance), PMI or
 // fees, which leave the account but never reduce what's owed. With a balance,
@@ -9065,7 +9087,7 @@ function _budgetTwoScenarioComparison(activeDebts) {
                        border-top:1px solid var(--steel);margin-top:8px;font-size:11px;
                        color:var(--slate)">
     <span>At minimums only: <span style="font-family:var(--font-mono);${minStyle}">${minDate}</span></span>
-    <span>At your payments: <span style="font-family:var(--font-mono);color:var(--pine)">${currentDate}</span></span>
+    <span>Avalanche at ${fmt(parseFloat(S.monthlyBudget) || 0)}/mo: <span style="font-family:var(--font-mono);color:var(--pine)">${currentDate}</span></span>
   </div>`;
 }
 
@@ -9081,7 +9103,7 @@ function _budgetRenderDebtSummary(activeDebts) {
   const lines = [];
 
   if (avalanche) {
-    let summaryText = `Payoff forecast: ${avalanche.payoffLabel}`;
+    let summaryText = `Payoff forecast (avalanche, ${fmt(parseFloat(S.monthlyBudget) || 0)}/mo): ${avalanche.payoffLabel}`;   // V4
     if (avalanche.savesInterest > 0) {
       summaryText += ` · Saves ${fmt(avalanche.savesInterest)} vs. minimums only`;
     }
@@ -9354,7 +9376,7 @@ function _budgetDebtBloomCalc(bloom) {
 
   const rows = [];
   rows.push(`<div style="display:flex;justify-content:space-between">
-    <span style="color:var(--slate)">Payoff date</span>
+    <span style="color:var(--slate)">Payoff date at this payment alone</span>
     <span style="font-family:var(--font-mono);color:var(--ink);font-weight:500">${_payoffDateLabel(snaps.length)}</span>
   </div>`);
   rows.push(`<div style="display:flex;justify-content:space-between">
@@ -13764,7 +13786,12 @@ function _debtCardTrendStats(card) {
 function _renderCardList() {
   const cont = g('cardList');
   if (!cont) return;
-  cont.innerHTML = S.debtCards
+  // V4: the rows' payoff dates belong to a plan; say which, once.
+  const _plan = _simulatePayoff(0);
+  const _planNote = _plan
+    ? `<div class="debt-plan-note" style="font-size:12px;color:var(--slate);padding:4px 16px 8px;line-height:1.5">Payoff dates are from ${_planScenario()}. Change the plan and they change.</div>`
+    : '';
+  cont.innerHTML = _planNote + S.debtCards
     .filter(c => !_pslfIsFlagged(c._dbId || c.id))
     .map(c => _debtCardRowHTML(c)).join('');
 
@@ -13949,22 +13976,21 @@ function _debtCardRowHTML(c, opts={}) {
         const bal = _cardBal(c);
         const budget = _getMonthlyBudget();
         if (bal <= 0 || budget <= 0) return '';
-        const result = _simulatePayoff ? _simulatePayoff(0) : null;
-        // Find this card's payoff month from the last full simulation
-        // Approximate: project this card solo at its minimum + share of extra
-        const totalMin = S.debtCards.filter(d=>!d.paidInFull).reduce((s,d)=>s+(parseFloat(d.minimum)||0),0);
-        const extra = Math.max(0, budget - totalMin);
+        // V4: this debt's month in the plan - the same engine run as the debt-free
+        // date, rollover included. It used to project this card on its own at its
+        // payment plus "a share of extra", which ignored rollover and put every
+        // debt but the first target later than the plan does.
+        const plan = _simulatePayoff(0);
+        if (plan === undefined) return '';   // the engine's answer is on its way; the page redraws when it lands
         const isTarget = S.debtCards.filter(d=>!d.paidInFull)
           .sort((a,b)=> S.debtMethod==='avalanche' ? (parseFloat(b.rate)||0)-(parseFloat(a.rate)||0) : (_cardBal(a))-(_cardBal(b)))
           [0]?.id === c.id;
-        const pmt = Math.min(bal, (_payoffPayment(c)||25) + (isTarget ? extra : 0));   // V3
-        const snaps = _projectPayoff(bal, parseFloat(c.rate)||0, pmt);
-        if (!snaps.length) return '';
-        // Check if minimum never covers interest
-        if (snaps[0].noPayoff) {
-          return `<span style="font-size:10px;font-family:var(--font-mono);color:var(--ember);flex-shrink:0" title="Minimum payment does not cover interest">min too low</span>`;
-        }
-        const payoffMo = snaps.length;
+        // A fact about this debt's own payment, whatever the plan does with it.
+        const lowChip = (_payoffPayment(c) || 0) <= bal * (parseFloat(c.rate) || 0) / 1200
+          ? `<span style="font-size:10px;font-family:var(--font-mono);color:var(--ember);flex-shrink:0" title="Minimum payment does not cover interest">min too low</span>`
+          : '';
+        const payoffMo = _planClearedMonth(c, plan);
+        if (payoffMo == null) return lowChip;
         const d2 = new Date(); d2.setMonth(d2.getMonth() + payoffMo);
         const label = d2.toLocaleDateString('en-US',{month:'short',year:'numeric'});
         const color = isTarget ? 'var(--gold)' : 'var(--slate-2)';
@@ -13972,7 +13998,7 @@ function _debtCardRowHTML(c, opts={}) {
         const _u = _debtUnknowns(c);
         const assumed = _u.includes('APR') ? ' · 0% APR assumed' : _u.includes('minimum payment') ? ' · minimum estimated'
                       : _u.includes('maturity date') ? ' · whole payment assumed' : '';
-        return `<span style="font-size:10px;font-family:var(--font-mono);color:${color};flex-shrink:0" title="Estimated payoff${assumed}">~${label}${assumed}</span>`;
+        return lowChip + `<span style="font-size:10px;font-family:var(--font-mono);color:${color};flex-shrink:0" title="Under ${_planScenario()}${assumed}">~${label}${assumed}</span>`;
       })()}
       ${(() => {
         const _u = _debtUnknowns(c);
@@ -25843,7 +25869,7 @@ async function _rcRenderDebtPayoff() {
       }
     }
     return { card, bal, apr, pmt, calcMin, payoffMos: snaps.length,
-             payoffLabel: _payoffDateLabel(snaps.length), totalInt, minTotalInt,
+             payoffLabel: `${_payoffDateLabel(snaps.length)} at its own payment`, totalInt, minTotalInt,   // V4: not the plan
              intSaved, mosSooner, aprHistory, linked: !!card.linkedAccountId };
   });
 
