@@ -6866,6 +6866,55 @@ function _statementFigureChanges(rec) {
   return parts.length ? `From this statement: ${parts.join('; ')}` : '';
 }
 
+// ── Mortgage payments: principal & interest vs the rest (V3) ────────────────
+// A mortgage payment usually includes escrow (property tax, insurance), PMI or
+// fees, which leave the account but never reduce what's owed. With a balance,
+// APR and maturity date, principal & interest is calculated the way the
+// extra-payment tool already does it (exact for a fixed-rate, fully amortizing
+// loan); projections use that. Without them, the whole payment is used, as
+// before, and the page says so. Budgets and debt-to-income keep the whole
+// payment - it's what actually leaves the account. Mirrors _mortgage_split in
+// server.py.
+function _monthsUntil(endDate) {
+  if (!endDate) return 0;
+  const e = new Date(endDate + 'T00:00:00');
+  if (isNaN(e)) return 0;
+  const t = new Date();
+  return (e.getFullYear() - t.getFullYear()) * 12 + (e.getMonth() - t.getMonth());
+}
+function _mortgageSplit(c) {
+  if (!c || (c.debtType || 'credit') !== 'mortgage') return null;
+  const pay = _numOrNull(c.minimum), apr = _numOrNull(c.rate), bal = _cardBal(c);
+  const months = _monthsUntil(c.endDate);
+  if (pay === null) return { known: false };
+  if (!(bal > 0) || apr === null || months < 1) return { known: false, payment: pay };
+  const pi = _mortgageAmortMonthly(bal, apr, months);
+  if (!(pi > 0) || pi >= pay) return { known: true, payment: pay, pi: pay, other: 0 };
+  return { known: true, payment: pay, pi: Math.round(pi * 100) / 100,
+           other: Math.round((pay - pi) * 100) / 100 };
+}
+// The part of a debt's payment that goes to principal & interest.
+function _payoffPayment(c) {
+  const s = _mortgageSplit(c);
+  return s && s.known ? s.pi : (parseFloat(c && c.minimum) || 0);
+}
+function _nonPrincipalPart(c) {
+  const s = _mortgageSplit(c);
+  return s && s.known ? s.other : 0;
+}
+function _mortgageSplitHTML(c) {
+  const s = _mortgageSplit(c);
+  if (!s) return '';
+  const box = t => `<div style="grid-column:1/-1;font-size:12px;line-height:1.55;color:var(--slate);margin-top:4px">${t}</div>`;
+  if (!s.known) {
+    return box(`Add the balance, APR and payoff / maturity date so Groundwork can separate principal &amp; interest from escrow. Until then, projections assume the whole payment reduces what you owe, which projects payoff early if part of it is escrow.`);
+  }
+  if (!(s.other > 0)) {
+    return box(`Going by the balance, APR and maturity date, all of your ${fmt(s.payment)} payment goes to principal &amp; interest.`);
+  }
+  return box(`Of your ${fmt(s.payment)} payment, about <strong style="font-family:var(--font-mono);font-weight:500">${fmt(s.pi)}</strong> is principal &amp; interest, worked out from the balance, APR and maturity date as for a fixed-rate loan. The other <strong style="font-family:var(--font-mono);font-weight:500">${fmt(s.other)}</strong> likely covers escrow (property tax, insurance), PMI or fees; it doesn't reduce what you owe. Payoff projections use ${fmt(s.pi)}.`);
+}
+
 // ── Unknown debt figures (V6) ───────────────────────────────────────────────
 function _isBlank(v) {
   return v === null || v === undefined || (typeof v === 'string' && v.trim() === '')
@@ -6884,6 +6933,7 @@ function _debtUnknowns(c) {
   const out = [];
   if (!lease && _isBlank(c.rate)) out.push('APR');
   if (!lease && _isBlank(c.currentBal) && _isBlank(c.beginBal)) out.push('balance');
+  if ((c.debtType || 'credit') === 'mortgage' && _isBlank(c.endDate)) out.push('maturity date');   // V3
   if (_isBlank(c.minimum)) out.push(lease ? 'payment' : 'minimum payment');
   return out;
 }
@@ -6893,7 +6943,8 @@ function _debtAssumptionNote(cards) {
   const missing = (cards || []).map(c => [c, _debtUnknowns(c)]).filter(([, u]) => u.length);
   if (!missing.length) return '';
   const list = missing.map(([c, u]) => `${esc(c.name || 'a card')}'s ${u.join(' and ')}`).join('; ');
-  return `Not entered: ${list}. Projections treat a missing APR as 0% and a missing minimum as an estimate, and leave out a missing balance.`;
+  return `Not entered: ${list}. Projections treat a missing APR as 0% and a missing minimum as an estimate, and leave out a missing balance${
+    missing.some(([, u]) => u.includes('maturity date')) ? '; a mortgage without a maturity date is assumed to put its whole payment toward what you owe' : ''}.`;
 }
 
 async function _syncDebtToDb(card) {
@@ -8493,7 +8544,7 @@ function _budgetConsequenceSentence() {
   if (!activeDebts.length) return '';
   const topDebt = [...activeDebts].sort((a,b) => parseFloat(b.rate) - parseFloat(a.rate))[0];
   const bal     = _cardBal(topDebt);
-  const pmt     = parseFloat(topDebt.minimum) || 0;
+  const pmt     = _payoffPayment(topDebt) || 0;   // V3
   const apr     = parseFloat(topDebt.rate) || 0;
   if (!bal || !pmt || !apr) return '';
 
@@ -9088,7 +9139,7 @@ function _budgetTwoScenarioComparison(activeDebts) {
       id:      c.id || c._dbId,
       balance: Math.max(0, _cardBal(c)),
       rate:    Math.max(0, parseFloat(c.rate) || 0),
-      minimum: Math.max(1, parseFloat(c.minimum) || 25),
+      minimum: Math.max(1, _payoffPayment(c) || 25),   // V3
     }))
     .filter(c => c.balance > 0 && c.minimum > 0);
 
@@ -11808,8 +11859,8 @@ const HELP_TOPICS = {
     body:  'For each debt: the minimum (capped so it never exceeds the remaining balance), plus any "extra" from your monthly budget. Extra goes to one debt at a time — the highest APR under Avalanche, or the smallest balance under Snowball — skipping any loan flagged for income-driven forgiveness. If that debt\'s balance is smaller than the extra available, it gets paid off and the leftover cascades to the next debt in line, which is what the "next month" note describes. If your budget is below the combined minimums, only minimums are shown (capped at balance) with a warning, since there\'s nothing left to allocate as extra.',
   },
   debt_type: {
-    title: 'Credit Card vs. Loan',
-    body:  'Controls two things. First, the APR estimator: Credit Card uses a revolving-credit model (interest charged, or an approximation from minimum payment); Loan uses fixed-payment amortization (balance, payment, months remaining) — the right model for a fixed-term installment loan. Second, the income-driven forgiveness flag (PSLF/IBR/SAVE) only appears for Loan, since that\'s never available on credit cards. Switching a flagged loan to Credit Card clears the flag and moves it back to your regular card list.',
+    title: 'Credit Card vs. Loan vs. Mortgage',
+    body:  'Controls two things. First, the APR estimator: Credit Card uses a revolving-credit model (interest charged, or an approximation from minimum payment); Loan uses fixed-payment amortization (balance, payment, months remaining) — the right model for a fixed-term installment loan. Second, the income-driven forgiveness flag (PSLF/IBR/SAVE) only appears for Loan, since that\'s never available on credit cards. Switching a flagged loan to Credit Card clears the flag and moves it back to your regular card list. Mortgage works like Loan, and uses the balance, APR and maturity date to separate principal & interest from escrow, PMI and fees, which never reduce what you owe.',
   },
   payoff_date: {
     title: 'Debt-free date',
@@ -12801,7 +12852,8 @@ function _simCards() {
       name:     c.name || 'Card',
       balance:  Math.max(0, _cardBal(c)),
       rate:     Math.max(0, parseFloat(c.rate) || 0),
-      minimum:  Math.max(1, parseFloat(c.minimum) || 25),
+      minimum:  Math.max(1, _payoffPayment(c) || 25),   // V3: a mortgage's escrow never reduces the balance
+      non_principal: _nonPrincipalPart(c),   // V3: taken out of the budget in _simAsk
       is_lease: (c.debtType || 'credit') === 'lease',
       end_month: c.endDate ? c.endDate.slice(0, 7) : null,
     }))
@@ -12820,6 +12872,11 @@ function _simKey(cards, budget, extra, strategy) {
 function _simAsk(cards, budget, extra, strategy, key) {
   if (_engineSimsInFlight[key]) return;
   _engineSimsInFlight[key] = true;
+  // V3: the payoff budget includes each mortgage's whole payment; its escrow
+  // share goes to taxes and insurance, and left in, the engine would hand it
+  // to other debts as "extra".
+  // Only for the cards actually being simulated (a scenario may leave the mortgage out).
+  budget = budget - (cards || []).reduce((s, c) => s + (c.non_principal || 0), 0);
   API.post('/api/debt/simulate', { cards, budget, extra, strategy })
     .then(r => {
       const res = r.result;
@@ -12895,7 +12952,8 @@ function _simulatePayoffStrategy(cardList, budget, strategy) {
       name:     c.name || 'Card',
       balance:  Math.max(0, _cardBal(c)),
       rate:     Math.max(0, parseFloat(c.rate) || 0),
-      minimum:  Math.max(1, parseFloat(c.minimum) || 25),
+      minimum:  Math.max(1, _payoffPayment(c) || 25),   // V3: a mortgage's escrow never reduces the balance
+      non_principal: _nonPrincipalPart(c),   // V3: taken out of the budget in _simAsk
       is_lease: (c.debtType || 'credit') === 'lease',
       end_month: c.endDate ? c.endDate.slice(0, 7) : null,
     }))
@@ -13795,7 +13853,8 @@ function _thisMonthPaymentPlan() {
       name:     c.name || 'Card',
       balance:  Math.max(0, _cardBal(c)),
       rate:     Math.max(0, parseFloat(c.rate) || 0),
-      minimum:  Math.max(1, parseFloat(c.minimum) || 25),
+      minimum:  Math.max(1, _payoffPayment(c) || 25),   // V3: a mortgage's escrow never reduces the balance
+      non_principal: _nonPrincipalPart(c),   // V3: taken out of the budget in _simAsk
       pslf:     _pslfIsFlagged(c._dbId || c.id),
       isLease:  (c.debtType || 'credit') === 'lease',
     }))
@@ -14067,8 +14126,9 @@ function _debtBloomFields(c, debtType, _dds) {
       </div>`;
   }
 
-  if (debtType === 'loan') {
-    // Loan: balance + APR + fixed payment + due + start + term + maturity date
+  if (debtType === 'loan' || debtType === 'mortgage') {
+    // Loan / mortgage: balance + APR + fixed payment + due + start + term + maturity date
+    // (a mortgage adds the principal & interest split below - V3)
     return `${_debtBalanceField(c)}
       <div class="field" style="margin:0">
         <label>APR %${helpIcon('apr')}</label>
@@ -14105,7 +14165,7 @@ function _debtBloomFields(c, debtType, _dds) {
         <input type="date" value="${c.endDate || ''}"
           id="bend-${c.id}"
           oninput="setCardField(${c.id},'endDate',this.value);_debtCalcTermFromEnd(${c.id})">
-      </div>`;
+      </div>${debtType === 'mortgage' ? _mortgageSplitHTML(c) : ''}`;
   }
 
   // Credit card (default): balance + APR + min + due day only
@@ -14182,7 +14242,7 @@ function _debtCardRowHTML(c, opts={}) {
         const isTarget = S.debtCards.filter(d=>!d.paidInFull)
           .sort((a,b)=> S.debtMethod==='avalanche' ? (parseFloat(b.rate)||0)-(parseFloat(a.rate)||0) : (_cardBal(a))-(_cardBal(b)))
           [0]?.id === c.id;
-        const pmt = Math.min(bal, (parseFloat(c.minimum)||25) + (isTarget ? extra : 0));
+        const pmt = Math.min(bal, (_payoffPayment(c)||25) + (isTarget ? extra : 0));   // V3
         const snaps = _projectPayoff(bal, parseFloat(c.rate)||0, pmt);
         if (!snaps.length) return '';
         // Check if minimum never covers interest
@@ -14195,7 +14255,8 @@ function _debtCardRowHTML(c, opts={}) {
         const color = isTarget ? 'var(--gold)' : 'var(--slate-2)';
         // V6: a date built on a missing figure says so.
         const _u = _debtUnknowns(c);
-        const assumed = _u.includes('APR') ? ' · 0% APR assumed' : _u.includes('minimum payment') ? ' · minimum estimated' : '';
+        const assumed = _u.includes('APR') ? ' · 0% APR assumed' : _u.includes('minimum payment') ? ' · minimum estimated'
+                      : _u.includes('maturity date') ? ' · whole payment assumed' : '';
         return `<span style="font-size:10px;font-family:var(--font-mono);color:${color};flex-shrink:0" title="Estimated payoff${assumed}">~${label}${assumed}</span>`;
       })()}
       ${(() => {
@@ -14227,6 +14288,7 @@ function _debtCardRowHTML(c, opts={}) {
           <div class="method-toggle">
             <button type="button" class="method-btn ${debtType==='credit'?'active':''}" style="padding:4px 12px;font-size:11px" data-settype="${c.id}" data-type="credit">Credit Card</button>
             <button type="button" class="method-btn ${debtType==='loan'?'active':''}" style="padding:4px 12px;font-size:11px" data-settype="${c.id}" data-type="loan">Loan</button>
+            <button type="button" class="method-btn ${debtType==='mortgage'?'active':''}" style="padding:4px 12px;font-size:11px" data-settype="${c.id}" data-type="mortgage">Mortgage</button>
             <button type="button" class="method-btn ${debtType==='lease'?'active':''}" style="padding:4px 12px;font-size:11px" data-settype="${c.id}" data-type="lease">Lease</button>
           </div>${helpIcon('debt_type')}
         </div>
@@ -15136,7 +15198,7 @@ function getCardData() {
     balance:  _cardBal(c),
     beginBal: parseFloat(c.beginBal)||0,
     rate:     parseFloat(c.rate)||0,
-    minimum:  Math.max(1, parseFloat(c.minimum)||25),
+    minimum:  Math.max(1, _payoffPayment(c)||25),   // V3
     dueDay:   parseInt(c.dueDay)||null,
     endDate:  c.endDate || null,
     debtType: c.debtType || 'credit',
@@ -24690,7 +24752,7 @@ function _dtComputeDistance() {
     const thenInterest = thenPath.reduce((s,x) => s + (x.interest || 0), 0);
     let remaining = 0;
     if (!d.card.paidInFull && d.nowBal > 0) {
-      const pmt = parseFloat(d.card.minimum) || 0;
+      const pmt = _payoffPayment(d.card) || 0;   // V3
       if (!(pmt > 0)) return;
       const nowPath = _projectPayoff(d.nowBal, parseFloat(d.card.rate) || 0, pmt);
       if (!nowPath.length || nowPath[nowPath.length-1].noPayoff) return;
@@ -25904,7 +25966,7 @@ async function _rcRenderDebtProgress() {
         const begin = parseFloat(card.beginBal)||bal;
         const pct   = begin>0?Math.min(100,Math.round(((begin-bal)/begin)*100)):0;
         const apr   = parseFloat(card.rate)||0;
-        const min   = parseFloat(card.minimum)||0;
+        const min   = _payoffPayment(card)||0;   // V3
         const snaps = bal>0&&apr>0&&min>0?_projectPayoff(bal,apr,min):[];
         const barClr = pct>=75?'var(--pine)':pct>=40?'var(--gold)':'var(--ember)';
         const history = (_debtHistoryCache[String(card._dbId)]||[]).slice().reverse();
@@ -26197,7 +26259,7 @@ async function _rcRenderDebtPayoff() {
   const cardData = activeDebts.map(card => {
     const bal   = _cardBal(card);
     const apr   = parseFloat(card.rate)||0;
-    const pmt   = parseFloat(card.minimum)||0;
+    const pmt   = _payoffPayment(card)||0;   // V3
     const calcMin = bal > 0 && apr > 0 ? _calcMinPayment(bal, apr) : pmt;
     const snaps   = bal > 0 && pmt > 0 ? _projectPayoff(bal, apr, pmt) : [];
     const minSnaps = bal > 0 && calcMin > 0 ? _projectPayoff(bal, apr, calcMin) : [];

@@ -12,7 +12,13 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260924-bank-window'   # accounts.portal_url, debt_accounts.portal_url
+SCHEMA_VERSION = '20260926-debt-figure-sources'   # accounts / debt_accounts.portal_url, V2's debt figure sources
+# Distinct from every value an existing database can hold - master's '20260924-bank-window', and 1.x's
+# '20260725-byb' / '20260926-lts-debt-figure-sources' - so each of them migrates on reaching this code.
+# The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
+# migration does and s51 fails until BOTH lines above and below are updated - the version first, then
+# the fingerprint s51 prints. A change without a bump is skipped on every existing database.
+SCHEMA_SPEC_SHA256 = 'ce34b870ac11873fe40b02202bfe8178592b189b41feb9d85794a8a390088278'
 
 
 def _stored_schema_version():
