@@ -2119,7 +2119,7 @@ def main():
     # debt_balance_history rows because of it, so the "minimum payment is
     # dropping" trend indicator (_budgetMinDecay) could never appear for a
     # card managed the normal way.
-    set_card_field_fn = app_src[app_src.index('function setCardField(id, field, value)'):]
+    set_card_field_fn = app_src[app_src.index('function setCardField('):]   # the name, not the signature: V2 added a parameter
     set_card_field_fn = set_card_field_fn[:set_card_field_fn.index('\nfunction confirmRemoveCard')]
     check('setCardField() writes a debt balance-history snapshot on every edit '
           '(regression: Debt Payoff page edits never populated history)',

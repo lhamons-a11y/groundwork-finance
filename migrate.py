@@ -54,6 +54,11 @@ _NEW_DEBT_COLUMNS = [
     # BANK_BROWSER.md F3: an unlinked card's own bank website; NULL when linked.
     ('portal_url',        "VARCHAR(2048)"),
     ('end_date',          "DATE"),
+    # V2: the source of the current APR and minimum ('user' / 'statement' /
+    # 'calculated'). Nullable with no default: existing rows show no source
+    # rather than a guessed one.
+    ('interest_rate_source',   "VARCHAR(12)"),
+    ('minimum_payment_source', "VARCHAR(12)"),
 ]
 
 _NEW_ACCOUNT_COLUMNS = [
