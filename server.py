@@ -1712,6 +1712,47 @@ def _pslf_terms(raw, today=None):
     return True, max(0, int(total) - int(made)), True
 
 
+def _mortgage_split(d, today=None):
+    """How much of a mortgage payment is principal & interest (V3).
+
+    None for anything that is not a mortgage. For a mortgage with a balance, an
+    APR and a maturity date, principal & interest is calculated the way the
+    extra-payment tool already does it - exact for a fixed-rate, fully
+    amortizing loan - and the rest of the payment (escrow, PMI, fees) is
+    'other': it leaves the account but never reduces what is owed. Without
+    those figures the split is unknown and callers use the whole payment, as
+    before, and the page says so.
+    """
+    if (getattr(d, 'debt_type', None) or 'credit') != 'mortgage':
+        return None
+    pay = d.minimum_payment
+    bal = d.current_balance if d.current_balance is not None else d.begin_balance
+    apr = d.interest_rate
+    if pay is None:
+        return {'known': False}
+    if not bal or bal <= 0 or apr is None or not d.end_date:
+        return {'known': False, 'payment': float(pay)}
+    today = today or date.today()
+    months = (d.end_date.year - today.year) * 12 + (d.end_date.month - today.month)
+    if months < 1:
+        return {'known': False, 'payment': float(pay)}
+    r = float(apr) / 1200
+    pi = float(bal) / months if r == 0 else float(bal) * r / (1 - (1 + r) ** -months)
+    if pi <= 0 or pi >= float(pay):
+        # The payment is at or below what amortizes by the maturity date: all of it is P&I.
+        return {'known': True, 'payment': float(pay), 'pi': float(pay), 'other': 0.0}
+    return {'known': True, 'payment': float(pay), 'pi': round(pi, 2),
+            'other': round(float(pay) - pi, 2)}
+
+
+def _payoff_minimum(d):
+    """The part of a debt's payment that goes to principal & interest (V3)."""
+    split = _mortgage_split(d)
+    if split and split.get('known'):
+        return split['pi']
+    return float(d.minimum_payment or 0)
+
+
 def _consequence_inputs(session):
     """Build consequence-engine inputs from persisted state, matching app.js.
 
@@ -1752,7 +1793,7 @@ def _consequence_inputs(session):
         cards.append(Card(
             balance=float(bal or 0),
             rate=float(d.interest_rate or 0),
-            minimum=float(d.minimum_payment or 0),
+            minimum=_payoff_minimum(d),   # V3: a mortgage's escrow never reduces the balance
             name=d.name or 'Card',
             is_lease=(d.debt_type or 'credit') == 'lease',
             end_month=d.end_date.strftime('%Y-%m') if d.end_date else None,
@@ -1761,6 +1802,11 @@ def _consequence_inputs(session):
         ))
 
     budget = float(setting('monthly_budget', 1500) or 1500)
+    # V3: the payoff budget includes each mortgage's whole payment, but its
+    # escrow share goes to taxes and insurance, not to debt - left in, the
+    # engine would hand it to other debts as "extra".
+    budget -= sum((_mortgage_split(d) or {}).get('other', 0.0)
+                  for d in session.query(DebtAccount).filter_by(is_active=True).all())
     strategy = setting('debt_method', 'avalanche') or 'avalanche'
     return cards, budget, strategy, undated
 
@@ -2071,7 +2117,7 @@ def list_trophies():
         # Payments landing above the minimums, by month — the receipt
         # `above_minimum` needs and the setting it currently fires on does not
         # have. A number someone typed is not money that moved.
-        minimum_total = sum(float(d.minimum_payment or 0) for d in actives)
+        minimum_total = sum(_payoff_minimum(d) for d in actives)   # V3: matches the cards
         paid_by_month = {}
         for e in session.query(DebtLedgerEntry).filter_by(entry_type='payment').all():
             if not e.entry_date:
