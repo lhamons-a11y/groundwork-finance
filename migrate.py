@@ -12,7 +12,11 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260725-byb'
+SCHEMA_VERSION = '20260926-lts-debt-figure-sources'   # V2: debt_accounts.interest_rate_source, minimum_payment_source
+# The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
+# migration does and s51 fails until BOTH lines above and below are updated - the version first, then
+# the fingerprint s51 prints. A change without a bump is skipped on every existing database.
+SCHEMA_SPEC_SHA256 = 'd8b942b995a24d41dff00367edf596c351a33aa5b8b07488bf573c56f4f35a82'
 
 
 def _stored_schema_version():
