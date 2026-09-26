@@ -225,7 +225,11 @@ def _queue_import_file(path: Path, seen: dict):
             content = raw.decode('utf-8', errors='replace')
             logging.warning('auto-import: %s has an unrecognized encoding — some characters may be corrupted', name)
 
-    if _post_queue_item({'filename': name, 'content': content, 'path': str(path)}):
+    import hashlib
+    # The hash of the RAW bytes on disk (H1), not of the decoded text the page
+    # rebuilds a File from - only the raw bytes identify what was downloaded.
+    sha256 = hashlib.sha256(raw).hexdigest()
+    if _post_queue_item({'filename': name, 'content': content, 'path': str(path), 'sha256': sha256}):
         seen[name] = stat.st_mtime_ns
 
 

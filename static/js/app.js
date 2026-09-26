@@ -1190,6 +1190,7 @@ async function _acceptAutoImport() {
       if (!r.ok) throw new Error(r.status === 404 ? 'It is no longer in your Downloads folder.' : 'It could not be read.');
       const blob = await r.blob();
       const pdf  = new File([blob], item.filename, { type: 'application/pdf' });
+      _importOriginPending = { path: item.path, sha256: await _sha256Hex(blob) };
       showImportModal();
       handleImportFile({ target: { files: [pdf] } });
     } catch(e) {
@@ -1198,6 +1199,9 @@ async function _acceptAutoImport() {
     return;
   }
   const file = new File([item.content], item.filename, { type: 'text/plain' });
+  // The page's File is rebuilt from decoded text; the watcher's hash is of the
+  // raw bytes on disk, which is what identifies the download.
+  _importOriginPending = { path: item.path, sha256: item.sha256 || null };
   showImportModal();
   handleImportFile({ target: { files: [file] } });
 }
@@ -5796,9 +5800,31 @@ function _onboardingDismiss() {
   showView('dashboard');
 }
 
+// H1: where the file being imported came from. Set by an accepted Downloads
+// offer just before it hands the file to handleImportFile; a file picked by
+// hand arrives with none, and is hashed from its own bytes at commit.
+let _importOrigin = null, _importOriginPending = null;
+
+async function _sha256Hex(blob) {
+  try {
+    const buf = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (e) { return null; }   // no hash is recorded as unknown, never guessed
+}
+
+async function _importSourceFile() {
+  if (!_importFile) return null;
+  return {
+    name:   _importFile.name,
+    sha256: _importOrigin?.sha256 || await _sha256Hex(_importFile),
+    origin: _importOrigin ? 'watcher' : 'manual',
+  };
+}
+
 async function handleImportFile(evt) {
   const file = evt.target.files[0];
   if (!file) return;
+  _importOrigin = _importOriginPending; _importOriginPending = null;
   _importFile = file;
   _importIsPdf = false;
   _importPdfSummary = null;
@@ -6168,6 +6194,7 @@ async function confirmImport() {
       records:      _importRecords,
       account_id:   accountId,
       account_name: accountName,
+      source_file:  await _importSourceFile(),
     });
 
     closeImportModal();

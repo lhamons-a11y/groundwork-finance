@@ -7561,7 +7561,9 @@ def auto_import_queue():
         return ok({'queued': True, 'filename': filename})
     if not filename or not content:
         return ok({'queued': False})
-    _auto_import_queue.append({'filename': filename, 'content': content, 'path': path})
+    sha = (body.get('sha256') or '').strip().lower()
+    _auto_import_queue.append({'filename': filename, 'content': content, 'path': path,
+                               'sha256': sha if _SHA256_HEX.match(sha) else None})
     while len(_auto_import_queue) > 5:
         _auto_import_queue.pop(0)
     return ok({'queued': True, 'filename': filename})
@@ -8391,6 +8393,48 @@ def _descriptions_match_fuzzy(a: str, b: str) -> bool:
     return len(shorter) >= 20 and longer.startswith(shorter)
 
 
+_SHA256_HEX = re.compile(r'^[0-9a-f]{64}$')
+
+
+def _import_source_file(raw):
+    """The file an import came from, as the page reports it: name, content hash, origin.
+
+    The hash is CORRESPONDENCE evidence (the artefact ruling), never identity, and is kept only
+    when it is a well-formed SHA-256; anything else is recorded as unknown rather than guessed.
+    """
+    raw = raw if isinstance(raw, dict) else {}
+    name = raw.get('name') if isinstance(raw.get('name'), str) else ''
+    sha = raw.get('sha256') if isinstance(raw.get('sha256'), str) else ''
+    origin = raw.get('origin') if raw.get('origin') in ('watcher', 'manual') else None
+    return {
+        'file_name': name.strip()[:255] or None,
+        'content_sha256': sha.lower() if _SHA256_HEX.match(sha.lower()) else None,
+        'origin': origin,
+    }
+
+
+def _log_import_committed(session, source, account_id, account_name, records,
+                          created, duplicates, errors):
+    """H1: one 'import_committed' Historian event per commit. The context is a fixed set of
+    keys - what was imported, from which file, into which account - and never the file's
+    content. Read by nothing that builds a model prompt (s127 pins it)."""
+    dates = sorted(r['date'] for r in records
+                   if isinstance(r, dict) and isinstance(r.get('date'), str) and len(r['date']) == 10)
+    log_historian_event(session, 'import_committed', context={
+        'file_name':      source['file_name'],
+        'content_sha256': source['content_sha256'],
+        'origin':         source['origin'],
+        'account_id':     account_id,
+        'account_name':   account_name,
+        'records':        len(records),
+        'created':        created,
+        'duplicates':     duplicates,
+        'errors':         errors,
+        'first_date':     dates[0] if dates else None,
+        'last_date':      dates[-1] if dates else None,
+    })
+
+
 @bank_import_bp.route('/commit', methods=['POST'])
 @require_json
 def bank_import_commit():
@@ -8407,6 +8451,7 @@ def bank_import_commit():
     records    = body.get('records', [])
     account_id = body.get('account_id')
     acct_name  = body.get('account_name', 'Imported').strip()
+    source     = _import_source_file(body.get('source_file'))
 
     # Nothing to import is not an import. Without this, a commit carrying no
     # records still falls through to the account resolution below, finds no
@@ -8547,6 +8592,12 @@ def bank_import_commit():
                 errors += 1
                 logging.warning('Row error: %s', e)
 
+        # H1 (SOURCE_DOCUMENT_CUSTODY.md s4, s8): the import itself is a
+        # historical event, recorded whether or not its source is ever kept.
+        # Inside this transaction, so it exists exactly when the import does.
+        # A fact ABOUT the file - never its bytes, never an Artefact (C3).
+        _log_import_committed(session, source, account_id, acct_name, records,
+                              created, duplicates, errors)
         session.commit()
 
     # B3.5: Auto-update linked debt card current_balance from the most recent

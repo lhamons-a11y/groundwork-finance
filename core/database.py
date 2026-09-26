@@ -312,6 +312,11 @@ class HistorianEntry(Base):
       'proactive_dismissed'               — the user dismissed one. An instruction, not a signal to
                                              model: it sets a 60-day cooldown, and two in a category
                                              drops that category to passive for good (A.4).
+      'import_committed'                  — an import was committed (SOURCE_DOCUMENT_CUSTODY.md H1):
+                                             the file's name and content hash as correspondence, origin,
+                                             account, counts, date range. A fact about the file, never
+                                             its bytes; the import is recorded whether or not its source
+                                             is ever retained.
       'byb_purchase_decision'             — Before You Buy: a commit/walkaway decision (immediate or
                                              a later-resolved 'track' item). expected/actual only set
                                              when a real cost comparison exists (a resolved 'track' item

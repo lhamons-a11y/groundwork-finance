@@ -323,3 +323,40 @@ encryption, record-level provenance and its display.
 **Next:** build H1, then H2, each gated on its own. The source store waits for its own storage
 pass.
 
+---
+
+## 9. H1 built — every import recorded in the Historian (2026-09-25), awaiting acceptance
+
+A separate build under ruling 8, **not** the custody implementation: nothing here retains a source.
+
+- **`server.py`:** the import commit writes one `import_committed` Historian event **inside the
+  commit's own transaction**, so the record exists exactly when the import does. The context is a
+  fixed set of keys: file name, `content_sha256` (correspondence evidence, never identity; kept
+  only when well-formed, otherwise recorded as unknown), origin (`watcher` / `manual`), account,
+  records, created, duplicates, errors, first and last date. **Never the file's content, and never
+  an `Artefact`.** An empty commit is not an import and records nothing. A commit of all
+  duplicates is an import, and is recorded.
+- **`launch.py`:** the watcher hashes the **raw bytes on disk**, which it already reads. The page
+  cannot, because it rebuilds a `File` from decoded text, which hashes differently. A statement's
+  bytes stay unread by the watcher, as the bank window's F7 ruled; the page hashes a statement
+  only after the user says yes.
+- **`app.js`:** the commit carries `source_file` (name, hash, origin). A watcher-offered file brings
+  the watcher's raw-bytes hash; a hand-picked file is hashed from its own bytes.
+- **`core/database.py`:** `import_committed` added to the Historian's category registry.
+
+**The privacy pin.** Filenames can carry account digits. `import_committed` is touched in
+`server.py` by its writer alone, so the event reaches no prompt-building function. s127 fails if
+any other function reads it.
+
+**Measured in the real page** (the worktree's dev server): a hand-picked CSV recorded origin
+*manual* with the browser's SHA-256, which matched Python's over the same bytes. A watcher-offered
+file recorded origin *watcher* with the watcher's hash carried through, not re-derived from the
+decoded text.
+
+**Gate:** s127 17 / 0 standalone, three mutations each caught (the file's content put into the
+event; an Artefact minted by the commit; the event read by a prompt-building function). Full gate
+**1729 / 0** (1712 + 17).
+
+**The sequence this leaves:** *import → Historian record → the user's Downloads decision (H2) →
+optional, separate source retention (not built)*. H1 is not a back door to custody.
+
