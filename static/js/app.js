@@ -2417,7 +2417,7 @@ function _renderDashHeroCard(totalDebt) {
   const pd         = S.profile?.debt || {};
   const nw         = S.netWorth || {};
   const assets     = (nw.savings||0)+(nw.investments||0)+(nw.cash||0)+(nw.homeValue||0);
-  const liab       = (nw.mortgage||0)+totalDebt;
+  const liab       = _nwMortgageInfo().counted + totalDebt;   // V9
   const netWorthVal= assets - liab;
   const dti        = calcDTI();
 
@@ -6734,6 +6734,26 @@ function _statementFigureChanges(rec) {
   return parts.length ? `From this statement: ${parts.join('; ')}` : '';
 }
 
+// ── The mortgage Net Worth counts, and where it lives (V9) ──────────────────
+// Net Worth used to count a mortgage twice: assets held home *equity* (value
+// minus mortgage) while liabilities added the mortgage again - so a $300,000
+// home with a $187,000 mortgage came out at -$74,000 instead of +$113,000. And
+// since V3 a mortgage can also be a debt on the Debt page, which Net Worth adds
+// to its own mortgage field. Now assets hold the full home value, liabilities
+// hold the mortgage once, and a Mortgage-type debt wins: while one exists, Net
+// Worth uses its balance and the Net Worth field is not counted again. A
+// mortgage entered as a plain Loan can't be recognised, so the field says so.
+function _nwMortgageInfo(typedMortgage) {
+  const typed = typedMortgage != null ? (parseFloat(typedMortgage) || 0) : (parseFloat(S.netWorth?.mortgage) || 0);
+  const onDebtPage = S.debtCards.filter(c => !c.paidInFull && (c.debtType || 'credit') === 'mortgage' && _cardBal(c) > 0);
+  if (onDebtPage.length) {
+    return { amount: onDebtPage.reduce((s, c) => s + _cardBal(c), 0), fromDebtPage: true,
+             counted: 0,   // already inside the Debt page's total
+             names: onDebtPage.map(c => c.name || 'Mortgage') };
+  }
+  return { amount: typed, fromDebtPage: false, counted: typed, names: [] };
+}
+
 // ── Which plan a payoff month belongs to (V4) ───────────────────────────────
 // A debt's payoff month depends on every other debt, the strategy and the payoff
 // budget - it belongs to a scenario, not to the debt. The row's date comes from
@@ -9794,7 +9814,7 @@ function _buildStageContext() {
   const monthly   = daily * 30;
   const nw        = S.netWorth;
   const netWorth  = (nw.savings||0)+(nw.investments||0)+(nw.cash||0)+(nw.homeValue||0)
-                   -(nw.mortgage||0)-totalDebt;
+                   -_nwMortgageInfo().counted-totalDebt;   // V9
 
   // ── Variable income detection ─────────────────────────────────────────────
   // If the user's actual monthly income varies significantly (freelancers,
@@ -16784,7 +16804,10 @@ function updateNetWorth() {
   const retirementIRA  = retirementIRAEl  ? (parseFloat(retirementIRAEl.value)||0)  : (nwPrev.retirementIRA||0);
   const cash           = cashEl           ? (parseFloat(cashEl.value)||0)           : (nwPrev.cash||0);
   const homeValue      = homeValueEl      ? (parseFloat(homeValueEl.value)||0)      : (nwPrev.homeValue||0);
-  const mortgage       = mortgageEl       ? (parseFloat(mortgageEl.value)||0)       : (nwPrev.mortgage||0);
+  // V9: while the field shows the Debt page's mortgage (read-only), what's kept is what
+  // the user typed, so removing that debt later doesn't leave its balance behind here.
+  const mortgage       = mortgageEl       ? (parseFloat(mortgageEl.readOnly ? mortgageEl.dataset.typed : mortgageEl.value)||0)
+                                           : (nwPrev.mortgage||0);
   const debtBals       = _activeDebtCards()
                           .reduce((s,c)=>s+(_cardBal(c)),0);
 
@@ -16794,10 +16817,15 @@ function updateNetWorth() {
 
   const totalRetirement  = retirement401k + retirementIRA;
   const totalInvestments = investments + totalRetirement;
-  const homeEquity       = Math.max(0, homeValue - mortgage);
-  const totalAssets      = savings + totalInvestments + cash + homeEquity + pensionTotal;
-  const totalLiab        = debtBals + mortgage;
+  // V9: assets hold the full home value and liabilities the mortgage, once. Equity
+  // is shown as its own line; it used to be the asset while the mortgage was
+  // also a liability, which took the mortgage off net worth twice.
+  const _m               = _nwMortgageInfo(mortgage);
+  const homeEquity       = Math.max(0, homeValue - _m.amount);
+  const totalAssets      = savings + totalInvestments + cash + homeValue + pensionTotal;
+  const totalLiab        = debtBals + _m.counted;
   const netWorth         = totalAssets - totalLiab;
+  _nwMortgageFieldState(_m);
 
   S.netWorth = { savings, investments: totalInvestments, cash, homeValue, mortgage,
                  retirement401k, retirementIRA, pensionTotal,
@@ -16807,7 +16835,7 @@ function updateNetWorth() {
   if (nwEl) { nwEl.textContent = fmt(netWorth); nwEl.className = `nw-value ${netWorth>=0?'positive':'negative'}`; }
   setText('nwTotalAssets',      fmt(totalAssets));
   setText('nwTotalLiabilities', fmt(totalLiab));
-  setText('nwDebtFromCards', fmt(debtBals));
+  setText('nwDebtFromCards', fmt(debtBals - (_m.fromDebtPage ? _m.amount : 0)));   // V9: the mortgage is listed as the mortgage
 
   const assetEl = g('nwAssetRows');
   if (assetEl) {
@@ -16818,19 +16846,25 @@ function updateNetWorth() {
       ['IRA / Roth IRA',           retirementIRA],
       ['Pension (est. value)',      pensionTotal],
       ['Cash',                     cash],
-      ['Home equity',              homeEquity],
+      ['Home value',               homeValue],
     ].filter(([,v]) => v > 0);
     assetEl.innerHTML = rows.map(([label,val]) => `
       <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--steel);font-size:13px">
         <span>${label}</span><span style="font-family:var(--font-mono);color:var(--pine)">${fmt(val)}</span>
-      </div>`).join('');
+      </div>`).join('')
+      // V9: equity is information, not a second asset - the value and the mortgage are already counted.
+      + (homeValue > 0 ? `
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:12px;color:var(--slate)">
+        <span>Home equity (home value minus mortgage)</span><span style="font-family:var(--font-mono)">${fmt(homeEquity)}</span>
+      </div>` : '');
   }
 
   const liabEl = g('nwLiabilityRows');
   if (liabEl) {
+    // V9: a Debt-page mortgage is shown as the mortgage, not inside "card / loan debt".
     const rows = [
-      ['Credit card / loan debt', debtBals],
-      ['Mortgage', mortgage],
+      ['Credit card / loan debt', debtBals - (_m.fromDebtPage ? _m.amount : 0)],
+      [_m.fromDebtPage ? 'Mortgage (from your Debt page)' : 'Mortgage', _m.amount],
     ].filter(([,v]) => v > 0);
     liabEl.innerHTML = rows.map(([label,val]) => `
       <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--steel);font-size:13px">
@@ -16865,6 +16899,33 @@ function updateNetWorth() {
 // rendered yet at boot time) directly from S.netWorth/S.debtCards/pensions,
 // mirroring the same formula as updateNetWorth(). The server-side dedup
 // (skip unless force=true) makes this safe to call on every boot.
+// V9: while a Mortgage-type debt exists, the Net Worth field shows its balance and
+// is not counted again; otherwise it is the user's to type. A plain Loan can't be
+// recognised as a mortgage, so when there is one the field says what to do.
+function _nwMortgageFieldState(m) {
+  const el = g('nwMortgage');
+  if (!el) return;
+  let note = g('nwMortgageNote');
+  if (!note) {
+    note = document.createElement('div');
+    note.id = 'nwMortgageNote';
+    note.style.cssText = 'font-size:11px;color:var(--slate);margin-top:4px;line-height:1.5';
+    el.insertAdjacentElement('afterend', note);
+  }
+  if (m.fromDebtPage) {
+    if (!el.readOnly) el.dataset.typed = el.value;
+    el.readOnly = true;
+    el.value = Math.round(m.amount * 100) / 100;
+    note.textContent = `From your Debt page (${m.names.join(', ')}), counted once. Change it there.`;
+  } else {
+    if (el.readOnly) { el.readOnly = false; el.value = el.dataset.typed || S.netWorth?.mortgage || ''; }
+    const loans = S.debtCards.some(c => !c.paidInFull && (c.debtType || 'credit') === 'loan');
+    note.textContent = (loans && m.amount > 0)
+      ? 'If one of your Loans on the Debt page is this mortgage, set its type to Mortgage there so it is counted once.'
+      : '';
+  }
+}
+
 async function autoSnapshotNetWorthIfDue() {
   try {
     const nw              = S.netWorth || {};
@@ -16881,9 +16942,10 @@ async function autoSnapshotNetWorthIfDue() {
                              .reduce((s,p) => s + _estimatePensionPV(p), 0);
 
     const totalInvestments = investments + retirement401k + retirementIRA;
-    const homeEquity        = Math.max(0, homeValue - mortgage);
-    const totalAssets       = savings + totalInvestments + cash + homeEquity + pensionTotal;
-    const totalLiab         = debtBals + mortgage;
+    // V9: home value as the asset, the mortgage once as a liability.
+    const _m                = _nwMortgageInfo(mortgage);
+    const totalAssets       = savings + totalInvestments + cash + homeValue + pensionTotal;
+    const totalLiab         = debtBals + _m.counted;
 
     // Nothing entered yet (new user) — don't record a meaningless $0 snapshot.
     if (totalAssets === 0 && totalLiab === 0) return;
@@ -19066,7 +19128,7 @@ function _mortgageInvestComparison(balance, apr, monthsRemaining, extra, assumed
 function _mortgageToolEligible() {
   const nonMortgageDebt = _activeDebtCards().reduce((s,c) => s + (_cardBal(c)), 0);
   const hasBuffer       = calcHasEmergencyBuffer();
-  const mortgageBal     = parseFloat(S.netWorth?.mortgage) || 0;
+  const mortgageBal     = _nwMortgageInfo().amount;   // V9: a Debt-page mortgage when there is one
   const income          = S.incomes.reduce((s,i) => s+i.amount, 0);
 
   let dtiOk = true;
@@ -19145,7 +19207,7 @@ async function saveMortgageToolInputs() {
   const assumedReturn = parseFloat(g('mortgageAssumedReturn')?.value) || 7;
   if (!apr || !months) { showToast('Enter both rate and months remaining', '', 'warning'); return; }
 
-  const calculatedPI = _mortgageAmortMonthly(parseFloat(S.netWorth?.mortgage) || 0, apr, months);
+  const calculatedPI = _mortgageAmortMonthly(_nwMortgageInfo().amount, apr, months);
   if (fullPayment > 0 && fullPayment < calculatedPI - 1) {
     // Full payment can't be less than the calculated P&I on a standard
     // amortizing loan — this usually means the rate, balance, or months
@@ -19177,7 +19239,7 @@ function _renderMortgageComparison() {
   const content = g('mortgagePayoffContent');
   if (!content) return;
 
-  const balance = parseFloat(S.netWorth?.mortgage) || 0;
+  const balance = _nwMortgageInfo().amount;   // V9
   const apr     = _mortgageAPRCache;
   const months  = _mortgageMonthsCache;
   if (!balance || !apr || !months) return;
@@ -19212,7 +19274,7 @@ function _mortgageOnSliderChange(val) {
   _mortgageWhatIfExtra = parseFloat(val) || 0;
   setText('mortgageExtraVal', fmt(_mortgageWhatIfExtra));
 
-  const balance = parseFloat(S.netWorth?.mortgage) || 0;
+  const balance = _nwMortgageInfo().amount;   // V9
   const apr     = _mortgageAPRCache;
   const months  = _mortgageMonthsCache;
   const result  = g('mortgageComparisonResult');
@@ -19415,7 +19477,7 @@ function _nwCurrentTotal() {
   const nw = S.netWorth || {};
   if (nw._totalAssets != null && nw._totalLiab != null) return nw._totalAssets - nw._totalLiab;
   const assets = (nw.savings||0)+(nw.investments||0)+(nw.cash||0)+(nw.homeValue||0);
-  const liab   = (nw.mortgage||0)+_activeDebtCards().reduce((s,c)=>s+(_cardBal(c)),0);
+  const liab   = _nwMortgageInfo().counted+_activeDebtCards().reduce((s,c)=>s+(_cardBal(c)),0);   // V9
   return assets - liab;
 }
 
