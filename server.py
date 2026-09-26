@@ -7730,6 +7730,59 @@ def auto_import_delete_file():
         return err(f'Could not delete file: {e}', 500)
 
 
+# H2 (SOURCE_DOCUMENT_CUSTODY.md s4, s8): the user's Downloads copy, removed at
+# the user's word after a successful import - to the Recycle Bin, never deleted.
+# A Downloads-tidiness act on the USER's file; it retains nothing and ends no
+# Groundwork custody (Groundwork never had the file). Each guard is a case in s128.
+_REMOVABLE_KINDS = {'.qfx': 'transactions', '.ofx': 'transactions', '.qbo': 'transactions',
+                    '.qif': 'transactions', '.csv': 'transactions', '.pdf': 'statements'}
+
+
+@auto_import_bp.route('/remove-download', methods=['POST'])
+def auto_import_remove_download():
+    body     = request.get_json(silent=True) or {}
+    target   = _in_downloads((body.get('path') or '').strip())
+    sha      = (body.get('sha256') or '').strip().lower()
+    standing = body.get('standing') is True
+    if target is None:
+        return err('That file is not in your Downloads folder', 403)
+    if target.suffix.lower() not in _REMOVABLE_KINDS:
+        return err('Only bank files and statements can be removed this way', 400)
+    if not _SHA256_HEX.match(sha):
+        return err('The file could not be identified', 400)
+    import hashlib
+    import recycle_bin
+    with db_session() as session:
+        # Only a file that was actually imported: an import_committed event
+        # (H1) from the watcher, for exactly these bytes.
+        imported = session.query(HistorianEntry).filter(
+            HistorianEntry.event_category == 'import_committed',
+            HistorianEntry.context_json.contains(f'"content_sha256": "{sha}"'),
+        ).all()
+        if not any(json.loads(e.context_json or '{}').get('origin') == 'watcher' for e in imported):
+            return err('That file has not been imported', 409)
+        if not target.is_file():
+            return ok({'removed': False, 'reason': 'gone'})
+        # Exactly the file imported: a newer download under the same name is
+        # a different file, and is left alone.
+        if hashlib.sha256(target.read_bytes()).hexdigest() != sha:
+            return ok({'removed': False, 'reason': 'changed'})
+        removed, reason = recycle_bin.send_to_recycle_bin(target)
+        if not removed:
+            return ok({'removed': False, 'reason': reason})
+        _log_download_removed(session, target.name, sha, standing)
+        session.commit()
+    return ok({'removed': True})
+
+
+def _log_download_removed(session, file_name, sha, standing):
+    """H2's Historian record: the user's Downloads copy went to the Recycle Bin, one-off or by
+    the user's standing choice. Touched by this writer alone - it reaches no prompt (s128)."""
+    log_historian_event(session, 'download_removed', context={
+        'file_name': file_name, 'content_sha256': sha, 'standing': standing,
+    })
+
+
 @auto_import_bp.route('/pending', methods=['GET'])
 def auto_import_pending():
     """Return and clear the next queued file for the frontend to process."""

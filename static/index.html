@@ -2669,6 +2669,19 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               </select>
             </div>
           </div>
+          <!-- H2: the user's standing Downloads choice, visible and reversible -->
+          <div class="card">
+            <div class="card-label" style="margin-bottom:2px">After importing from Downloads</div>
+            <div style="font-size:11px;color:var(--slate);margin-bottom:12px;line-height:1.5">Remove the downloaded file automatically once it's imported. It goes to the Recycle Bin, and your transactions stay in Groundwork. Off means Groundwork asks each time.</div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px;cursor:pointer">
+              <input type="checkbox" id="settingsCleanupTransactions" onchange="_setDownloadsCleanup('transactions', this.checked)">
+              Bank files (CSV, QFX, OFX, QIF)
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="settingsCleanupStatements" onchange="_setDownloadsCleanup('statements', this.checked)">
+              Statements (PDF)
+            </label>
+          </div>
         </div><!-- end smart features grid -->
         </div><!-- end settingsPanel-automation -->
 

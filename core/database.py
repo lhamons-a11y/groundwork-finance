@@ -323,6 +323,9 @@ class HistorianEntry(Base):
                                              account, counts, date range. A fact about the file, never
                                              its bytes; the import is recorded whether or not its source
                                              is ever retained.
+      'download_removed'                  — the user's Downloads copy of an imported file sent to the
+                                             Recycle Bin (SOURCE_DOCUMENT_CUSTODY.md H2), one-off or by the
+                                             user's standing choice. The user's file, not Groundwork custody.
       'byb_purchase_decision'             — Before You Buy: a commit/walkaway decision (immediate or
                                              a later-resolved 'track' item). expected/actual only set
                                              when a real cost comparison exists (a resolved 'track' item

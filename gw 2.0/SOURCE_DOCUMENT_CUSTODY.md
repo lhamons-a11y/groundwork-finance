@@ -360,3 +360,58 @@ event; an Artefact minted by the commit; the event read by a prompt-building fun
 **The sequence this leaves:** *import → Historian record → the user's Downloads decision (H2) →
 optional, separate source retention (not built)*. H1 is not a back door to custody.
 
+---
+
+## 10. H2 built — the user's Downloads copy, removed at the user's word (2026-09-26) — ACCEPTED (Rob, 2026-09-26)
+
+A separate build under ruling 8, **not** the custody implementation: nothing is retained, and no
+Groundwork custody exists to end (Groundwork never had the file). *"Always remove from Downloads"*
+is a Downloads-tidiness policy, never a retention policy.
+
+- **`recycle_bin.py` (new):** sends one file to the OS Recycle Bin / Trash through a library each
+  build already ships: `SHFileOperationW` with `FOF_ALLOWUNDO` (Windows, `ctypes`),
+  `NSFileManager.trashItemAtURL` (macOS, PyObjC), `Gio.File.trash` (Linux, PyGObject). **No new
+  dependency, and no permanent-delete call anywhere in the module.** If the bin is unavailable,
+  the file is left exactly where it was.
+- **`POST /api/auto-import/remove-download`:** refuses anything outside Downloads, anything but a
+  bank file or statement, and a malformed hash. It accepts **only a file that was imported**: an H1
+  `import_committed` event from the watcher for exactly these bytes. A hand-picked import does not
+  authorise it. **A file changed since import** (a newer download under the same name) is left
+  alone; *gone* is reported, not an error. Each removal writes a `download_removed` Historian event
+  (file, hash, whether it was the standing choice), touched by its writer alone.
+- **The page:** after a **successful** commit of a watcher-offered file only: *"Remove X from your
+  Downloads? Your transactions stay in Groundwork."* **Remove / Keep / Always remove bank files**
+  (or *statements*). *Always* is **per kind** (bank files and statements separately), shows as two
+  checkboxes in Settings → Automation (*After importing from Downloads*), and is written **only**
+  by that button and those checkboxes, never inferred from repeated removals.
+
+**Measured, on Windows:**
+- `recycle_bin` put a probe file in the real Recycle Bin.
+- In the real page, three test files of this session's own went through end to end: *Remove*
+  (the file left Downloads and appeared in the Recycle Bin, with the notice); *Always remove bank
+  files* (the setting became bank files only, statements untouched, and the file was removed); the
+  next import removed **without asking**, with the notice; the Settings checkboxes showed the
+  choice, and unticking it cleared it (*"Groundwork will ask each time"*).
+- **Found while testing:** the dev database crashed on start because V2 had added two columns
+  without a `SCHEMA_VERSION` bump, the same crash any upgraded 1.1 user would have hit. Fixed on both
+  branches before H2 continued (`125b020`, `e60e726`, with the new s51 pin). The dev database's
+  later upgrade was one more real proof.
+
+**Gate:** s128 21 / 0 standalone, five mutations each caught (the import check skipped; the hash
+check skipped; a permanent-delete fallback; the event read by a prompt builder; *Always* inferred
+from repeated removals). **The first full gate came back 1790 / 6, all in these sections, none a
+behaviour fault:** H1's privacy pin surfaced H2's route as a new reader of `import_committed` (it
+reads it only to confirm an import; now named in the pin with its reason, so any other reader still
+fails); an H1 check matched code text H2 reworded; and an H2 check assumed zero Artefacts in the
+whole database, true standalone but not after other sections mint theirs (now a before / after
+count). Rerun: **1796 / 0**. Then rebased over V4 (`app.js`) and gated again: **1806 / 0**, the tree pushed.
+
+**Not covered:** macOS and Linux trash, which are written against their platform APIs but not run
+here, and statements through H2 end to end in the page (the route and the per-kind choice are
+covered by s128).
+
+**H2 ACCEPTED — Rob, 2026-09-26**, as built and gated (1806 / 0 on the tree pushed). The
+acceptance covers H2 only. It authorises nothing of the source store, and *"Always remove"*
+remains a Downloads policy, never retention. Still open, by name: macOS and Linux trash on real
+machines, and a statement through H2 end to end in the page.
+

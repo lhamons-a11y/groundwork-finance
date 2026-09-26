@@ -118,9 +118,11 @@ def run(ctx):
         check(f's127 {name}', ok)
     baseline = all(results.values())
 
+    # Its writer, and H2's removal route, which reads it only to confirm a Downloads file really was imported
+    # (provenance, never a prompt). Any other reader fails here - that is how H2's arrival was surfaced.
     readers = _readers(ctx.server_src)
-    check("s127 'import_committed' is touched in server.py by its writer alone - it reaches no prompt",
-          readers == {'_log_import_committed'})
+    check("s127 'import_committed' is touched in server.py by its writer and H2's import check alone - it reaches no prompt",
+          readers == {'_log_import_committed', 'auto_import_remove_download'})
 
     # The watcher: the raw-bytes hash for a transaction file; a statement's bytes unread.
     tmp = Path(tempfile.mkdtemp(prefix='s127_'))
@@ -148,7 +150,8 @@ def run(ctx):
     item = c.get('/api/auto-import/pending', headers=ctx.H).get_json().get('data') or {}
     check('s127 the queue keeps only a well-formed hash', r.status_code == 200 and item.get('sha256') is None)
     check('s127 the page sends name, hash and origin with the commit, and a picked file is hashed from its own bytes',
-          'source_file:  await _importSourceFile()' in ctx.app_src and 'await _sha256Hex(_importFile)' in ctx.app_src)
+          'const sourceFile = await _importSourceFile();' in ctx.app_src
+          and 'source_file:  sourceFile,' in ctx.app_src and 'await _sha256Hex(_importFile)' in ctx.app_src)
 
     # Mutations
     real_log = server._log_import_committed
@@ -181,6 +184,6 @@ def run(ctx):
 
     reader_src = ctx.server_src + "\n\ndef _narrator_context(session):\n    return session.query(1).filter_by(event_category='import_committed')\n"
     check('s127 mutation caught: the event read by a prompt-building function',
-          _readers(reader_src) != {'_log_import_committed'})
+          _readers(reader_src) != {'_log_import_committed', 'auto_import_remove_download'})
 
     check('s127 the writer is left as found', server._log_import_committed is real_log and all(_cases(c, HJ, dbs).values()))

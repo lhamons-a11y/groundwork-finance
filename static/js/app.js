@@ -6169,6 +6169,80 @@ function updateImportCategory(sel) {
   if (_importRecords[idx]) _importRecords[idx].category = sel.value;
 }
 
+// ── H2: the user's Downloads copy, after a successful import ─────────────
+// SOURCE_DOCUMENT_CUSTODY.md s4 / s8. Only for a file the Downloads watcher
+// offered (a hand-picked file has no path, and is where the user put it).
+// "Always" is the user's standing choice PER KIND, written only by that button
+// or the Settings checkbox - never inferred from repeated Remove clicks. It is a
+// Downloads-tidiness policy, never a retention policy: nothing is kept.
+const _CLEANUP_KEYS = { transactions: 'downloads_cleanup_transactions', statements: 'downloads_cleanup_statements' };
+
+function _downloadKind(name) { return /\.pdf$/i.test(name || '') ? 'statements' : 'transactions'; }
+
+async function _setDownloadsCleanup(kind, on) {
+  try {
+    await API.patch('/api/settings', { [_CLEANUP_KEYS[kind]]: on ? 'always' : '' });
+    showToast(on ? 'Groundwork will remove these after importing' : 'Groundwork will ask each time',
+      on ? 'They go to the Recycle Bin. Change this in Settings → Automation.' : '', 'success');
+  } catch(e) { showToast('Could not save that setting', e.message || '', 'error'); }
+}
+
+async function _loadDownloadsCleanupToggles() {
+  try {
+    const s = await API.get('/api/settings');
+    const t = g('settingsCleanupTransactions'), st = g('settingsCleanupStatements');
+    if (t)  t.checked  = s[_CLEANUP_KEYS.transactions] === 'always';
+    if (st) st.checked = s[_CLEANUP_KEYS.statements]   === 'always';
+  } catch(e) { _gwErr('_loadDownloadsCleanupToggles')(e); }
+}
+
+async function _removeDownload(file, standing) {
+  try {
+    const res = await API.post('/api/auto-import/remove-download', { path: file.path, sha256: file.sha256, standing });
+    if (res?.removed) {
+      showToast(`Removed ${file.name} from Downloads`, "It's in the Recycle Bin. Your transactions stay in Groundwork.", 'success');
+    } else if (res?.reason === 'changed') {
+      showToast(`Left ${file.name} in Downloads`, 'It changed after it was imported, so it may be a different file.', 'warning');
+    } else if (res?.reason === 'recycle_unavailable') {
+      showToast(`Left ${file.name} in Downloads`, "Groundwork couldn't reach the Recycle Bin, so it left the file alone.", 'warning');
+    }
+  } catch(e) { showToast(`Left ${file.name} in Downloads`, e.message || '', 'warning'); }
+}
+
+async function _afterImportDownloadsChoice(file) {
+  if (!file?.path || !file?.sha256) return;
+  const kind = _downloadKind(file.name);
+  let settings = {};
+  try { settings = await API.get('/api/settings'); } catch(e) { return; }
+  if (settings[_CLEANUP_KEYS[kind]] === 'always') { await _removeDownload(file, true); return; }
+
+  document.getElementById('downloadsChoicePrompt')?.remove();
+  const el = document.createElement('div');
+  el.id = 'downloadsChoicePrompt';
+  el.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--paper);border:1px solid var(--steel);border-left:3px solid var(--sky);
+    border-radius:var(--r-lg);box-shadow:var(--shadow-md);padding:14px 18px;max-width:480px;
+    width:calc(100vw - 48px);z-index:200;display:flex;flex-direction:column;gap:10px;`;
+  const b = 'font-size:12px;font-family:inherit;border-radius:var(--r-md);padding:6px 12px;cursor:pointer';
+  const what = kind === 'statements' ? 'statements' : 'bank files';
+  el.innerHTML = `
+    <div style="font-size:13px;color:var(--ink);line-height:1.5">
+      Remove <b style="font-weight:600">${esc(file.name)}</b> from your Downloads? Your transactions stay in Groundwork.
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button data-a="remove" style="${b};background:var(--sky);color:#fff;border:none">Remove</button>
+      <button data-a="keep" style="${b};background:none;border:1px solid var(--steel-2);color:var(--ink)">Keep</button>
+      <button data-a="always" style="${b};background:none;border:1px solid var(--steel-2);color:var(--ink)" title="Remove ${what} after every import. Change it in Settings → Automation.">Always remove ${what}</button>
+    </div>`;
+  el.querySelectorAll('button').forEach(btn => btn.addEventListener('click', async () => {
+    el.remove();
+    const a = btn.dataset.a;
+    if (a === 'always') { await _setDownloadsCleanup(kind, true); await _removeDownload(file, true); }
+    else if (a === 'remove') { await _removeDownload(file, false); }
+  }));
+  document.body.appendChild(el);
+}
+
 async function confirmImport() {
   if (!_importRecords.length) { showToast('No data to import','','warning'); return; }
 
@@ -6199,14 +6273,20 @@ async function confirmImport() {
     const accountId = await _resolveAccountId(accountName);
 
     // Try server-side commit first
+    const sourceFile = await _importSourceFile();
     const data = await API.post('/api/import/commit', {
       records:      _importRecords,
       account_id:   accountId,
       account_name: accountName,
-      source_file:  await _importSourceFile(),
+      source_file:  sourceFile,
     });
+    // H2 - only after the commit above succeeded; a cancelled, failed or closed
+    // review never reaches this line, so it never offers a removal.
+    const downloadsFile = (_importOrigin?.path && sourceFile?.sha256)
+      ? { name: sourceFile.name, path: _importOrigin.path, sha256: sourceFile.sha256 } : null;
 
     closeImportModal();
+    if (downloadsFile) _afterImportDownloadsChoice(downloadsFile);
     // Re-pull the full transaction list from the server instead of locally
     // synthesizing ids for the imported rows — the commit endpoint only
     // returns counts, not the created rows, and a client-guessed id never
@@ -22089,6 +22169,8 @@ function _settingsShowTab(tab) {
 
   // §12's dial reflects the stored setting whenever settings are opened.
   _renderProactiveDial();
+  // H2: the standing Downloads choices show as they are stored.
+  if (tab === 'automation') _loadDownloadsCleanupToggles();
 }
 
 function renderSettings() {
