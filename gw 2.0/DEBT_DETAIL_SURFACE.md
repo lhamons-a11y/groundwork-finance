@@ -11,7 +11,7 @@
 >
 > **The concept exposed existing violations.** Reading it against 1.x found five places where
 > the shipped debt surfaces already break the rules the concept depends on (§4); a sixth, V6, was
-> found investigating the fifth. V1, V5 and V6 are fixed on 1.x; V2–V4 are open. A debt view built
+> found investigating the fifth. V1, V2, V5 and V6 are fixed on 1.x; V3 and V4 are open. A debt view built
 > on today's code would carry every one of them into a new surface and give them a teaching voice.
 > **Do not build the view yet** (Rob, 2026-09-24).
 
@@ -144,6 +144,24 @@ the same collapse happens.
 statement path fills and the manual path does not — an inference from a side effect, not
 provenance. `DebtLedgerEntry.source` (`manual` / `imported` / `inferred` / `draft` / `skipped`)
 is the one debt record that already carries its origin.
+
+> **FIXED on 1.x, 2026-09-25 (`1b7abb9` on `lts/1.x`, merged into master) — Rob chose all three
+> layers.** Measured first: the reconcile screen does show the statement's APR before the import
+> is confirmed, so the replacement was not silent at that moment; but (1) **a real defect** — after
+> a reconcile the page updated the card's balance in memory and not its APR or minimum, and the
+> Debt page save resends every field on every edit, so the next edit to that card wrote the old
+> figures back over the statement's until a reload; (2) the toast never said what was replaced;
+> (3) no source was recorded — four writers (typed, statement, the implied-APR alert, the
+> estimator) shared one column. Now the page takes up the statement's figures; the toast says
+> *"From this statement: APR 22.9% (you entered) → 24.9%; minimum $99.18 (you entered) →
+> $117.00"*; and new nullable `interest_rate_source` / `minimum_payment_source` columns record
+> `user` / `statement` / `calculated`, shown under the fields (*"from your Aug 28, 2026
+> statement"*). The source moves only when the value changes, a client cannot claim `statement`,
+> and existing rows show no source rather than a guessed one. Gate section `s47` (14 checks,
+> the migration exercised against an old-shaped table, a mutation caught). **Still open:** the
+> credit limit and each balance-history row carry no source (the history's `statement_period_end`
+> remains the only trace), and a statement that *disagrees* with a typed APR still replaces it
+> rather than presenting both (§6's disagreement state, G2).
 
 ### V3 — debt type is read only for leases (R3)
 
