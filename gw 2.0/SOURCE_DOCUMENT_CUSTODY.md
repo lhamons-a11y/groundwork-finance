@@ -325,7 +325,7 @@ pass.
 
 ---
 
-## 9. H1 built — every import recorded in the Historian (2026-09-25), awaiting acceptance
+## 9. H1 built — every import recorded in the Historian (2026-09-25) — ACCEPTED (Rob, 2026-09-26)
 
 A separate build under ruling 8, **not** the custody implementation: nothing here retains a source.
 
@@ -356,6 +356,9 @@ decoded text.
 **Gate:** s127 17 / 0 standalone, three mutations each caught (the file's content put into the
 event; an Artefact minted by the commit; the event read by a prompt-building function). Full gate
 **1729 / 0** (1712 + 17).
+
+**H1 ACCEPTED — Rob, 2026-09-26**, as built at `ca14f82` (gate 1729 / 0), with the privacy pin as later
+widened by H2 to name its import check (§10). It authorises nothing of the source store.
 
 **The sequence this leaves:** *import → Historian record → the user's Downloads decision (H2) →
 optional, separate source retention (not built)*. H1 is not a back door to custody.
