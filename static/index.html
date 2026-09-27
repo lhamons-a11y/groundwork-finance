@@ -2513,14 +2513,6 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               </label>
             </div>
 
-            <div class="field mb-4">
-              <label>Provider</label>
-              <div class="method-toggle mb-2">
-                <button type="button" class="method-btn" id="aiProviderLocalBtn" onclick="setAiProvider('local')">Local (free)</button>
-                <button type="button" class="method-btn" id="aiProviderCloudBtn" onclick="setAiProvider('cloud')">Cloud (Anthropic)</button>
-              </div>
-            </div>
-
             <div id="aiLocalPanel">
               <div id="aiLocalStatus" style="font-size:12px;margin-bottom:12px">Checking…</div>
               <div id="aiOllamaSetup" style="display:none;margin-bottom:12px"></div>
@@ -2535,7 +2527,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
                 <span id="aiTestResult" style="font-size:11px"></span>
               </div>
               <details style="margin-top:12px">
-                <summary style="font-size:11px;color:var(--slate-2);cursor:pointer">Advanced: endpoint override</summary>
+                <summary style="font-size:11px;color:var(--slate-2);cursor:pointer">Advanced: endpoint override (this computer only)</summary>
                 <div class="field mt-2 mb-0">
                   <input type="text" class="field-input" id="aiLocalEndpoint" placeholder="http://localhost:11434">
                   <button class="btn btn-secondary btn-sm mt-2" onclick="saveLocalEndpoint()">Save endpoint</button>
@@ -2544,20 +2536,6 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div class="text-xs text-muted mt-4">Nothing leaves your machine. Needs <a href="https://ollama.com" target="_blank" rel="noopener" onclick="openExternal('https://ollama.com');return false;" style="color:var(--sky)">Ollama</a> running locally — free, no account needed.</div>
             </div>
 
-            <div id="aiCloudPanel" style="display:none">
-              <div class="field mb-4">
-                <label>Anthropic API key</label>
-                <input type="password" class="field-input" id="settingsApiKey"
-                  placeholder="sk-ant-…" autocomplete="off">
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between">
-                <div id="settingsApiKeyStatus" style="font-size:11px;color:var(--slate-2)">
-                  No API key — AI features will be disabled.
-                </div>
-                <button class="btn btn-secondary btn-sm" onclick="saveApiKey()">Save key</button>
-              </div>
-              <div class="text-xs text-muted mt-4">Free key at <a href="https://console.anthropic.com" target="_blank" rel="noopener" onclick="openExternal('https://console.anthropic.com');return false;" style="color:var(--sky)">console.anthropic.com</a>. Stays on your computer.</div>
-            </div>
           </div>
           <!-- Phase H2 Feature 6: LLM gate health — surfaces Phase H1's
                get_llm_miss_log() so gate flags can actually be reviewed. -->

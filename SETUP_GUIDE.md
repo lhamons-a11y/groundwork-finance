@@ -131,23 +131,19 @@ That's it. The file finds the app.
 
 ## Step 6 — AI features (optional)
 
-Groundwork includes an AI monthly report that writes a plain-English summary of your finances — not just numbers, but what they mean. This feature requires an API key from Anthropic (the company that makes Claude).
+Groundwork includes an AI monthly report that writes a plain-English summary of your finances — not just numbers, but what they mean. It runs **only on your own computer**, using a free local model through [Ollama](https://ollama.com). There is no cloud AI, no account and no API key.
 
 **The AI features are optional.** Everything else in the app works without them.
 
-**To enable AI features:**
-1. Go to https://console.anthropic.com and create a free account
-2. Under API Keys, create a new key
-3. Copy the key (it starts with `sk-ant-`)
-4. In Groundwork, go to **Settings → AI features** and paste the key
+**To enable AI features:** in Groundwork, go to **Settings → AI features** and follow **Set up Local AI**. Groundwork installs Ollama and a small language model (a few GB of disk space).
 
-You'll be charged a small amount per report by Anthropic — typically a few cents per month for a household. Groundwork itself will always be free.
+If your computer doesn't have enough free memory to run a local model well, AI features stay off, and everything else works exactly the same. Reading PDF statements also needs the local model; without it, import your bank's CSV or QFX download instead.
 
 ---
 
 ## Your data
 
-Everything Groundwork stores lives on your computer. Your financial data is never sent to any server, never sold, never used for advertising. The only time any data leaves your machine is when you use an AI feature — at that moment, a summary of your finances is sent to Anthropic to generate the report.
+Everything Groundwork stores lives on your computer. Your financial data is never sent to any server, never sold, never used for advertising. The AI features run on your computer too, so they never send your data anywhere.
 
 Your database is stored at:
 ```
@@ -166,7 +162,7 @@ To back up your data: go to **Settings → Data & Backup → Create backup now**
 
 **Import isn't working:** Make sure you're downloading CSV or OFX format from your bank, not PDF.
 
-**The AI report isn't working:** Check that your API key is entered correctly in Settings. It should start with `sk-ant-`.
+**The AI report isn't working:** Open **Settings → AI features** and click **Test connection**. If the local model isn't reachable, follow **Set up Local AI**, or check that Ollama is running.
 
 ---
 

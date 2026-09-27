@@ -338,7 +338,7 @@ def main():
     a = c.get('/api/ai/status', headers=H)
     ad = (a.get_json() or {}).get('data') or {}
     check('/api/ai/status responds 200', a.status_code == 200)
-    check('ai/status reports a valid provider', ad.get('provider') in ('local', 'cloud'))
+    check('ai/status reports the only provider there is - local', ad.get('provider') == 'local')
     check('ai/status reachability is a real boolean', isinstance(ad.get('reachable'), bool))
     check('ai/status never claims a model when unreachable',
           ad.get('reachable') or not ad.get('active_model'))

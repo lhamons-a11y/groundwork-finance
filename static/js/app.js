@@ -118,7 +118,6 @@ function openExternal(url) {
 
 // ─── Global flags (set during boot from bootstrap data) ───────────────────────
 let _aiEnabled     = true;   // updated by restoreFromBootstrap
-let _apiKeyPresent = false;  // updated by restoreFromBootstrap
 let _saveTimer     = null;   // debounce timer for scheduleSave()
 
 // ── Global error handler — catches ALL uncaught JS errors and promise rejections
@@ -1522,11 +1521,8 @@ function restoreFromBootstrap(data) {
     _aiEnabled     = data.settings['ai_enabled'] !== 'false';
     S.prefs        = S.prefs || {};
     S.prefs.aiEnabled = _aiEnabled;
-    _apiKeyPresent = data.settings['api_key_configured'] === 'true';
-    S.apiKeyConfigured = _apiKeyPresent;
-    // Provider — mirrors server.py's _ai_provider() default ('local' when
-    // unset). Local mode needs no cloud key at all; see aiEnabled().
-    S.aiProvider = data.settings['ai_provider'] === 'cloud' ? 'cloud' : 'local';
+    // AI is local-only (CLOUD_AI_REMOVAL.md): no provider, no key.
+    _cloudAiRemovedNotice(data.settings['cloud_ai_removed_notice']);
     S.localModel    = data.settings['local_model']    || '';
     S.localEndpoint = data.settings['local_endpoint'] || '';
     S.homeState     = data.settings['home_state']     || '';
@@ -11216,9 +11212,7 @@ function _tripBudgetFallbackHTML(d) {
     <div class="trip-budget-row"><span class="trip-budget-cat">Total</span><span class="trip-budget-amt">${fmt(d.total)}</span></div>
     <div style="margin-top:12px;padding:10px 14px;border-radius:var(--r-md);border:0.5px solid ${withinBudget?'var(--pine)':'var(--gold)'};background:${withinBudget?'var(--pine-bg)':'var(--gold-bg)'};font-size:12px">
       ${withinBudget ? '✓ This trip fits within your budget.' : '⚠ Consider saving for this trip over 2–3 months.'}
-      ${S.aiProvider === 'cloud' && !S.apiKeyConfigured
-        ? 'Add your Anthropic API key in Settings for AI-powered live price estimates, or switch to local AI (free, no key needed).'
-        : 'Turn on AI in Settings for AI-powered live price estimates.'}
+      Turn on AI in Settings for AI-powered live price estimates.
     </div>`;
 }
 
@@ -11783,7 +11777,7 @@ const HELP_FAQ = [
   },
   {
     q: 'Is my financial data sent to AI servers?',
-    a: 'By default, no — Groundwork runs AI locally on your own machine (via Ollama), and nothing ever leaves your computer. If you switch to cloud mode in Settings, a financial summary is sent to Anthropic\'s API only when you explicitly use an AI feature; your raw transactions and account details still never leave your computer. Turn AI off in Settings to disable it entirely.',
+    a: 'No. Groundwork\'s AI runs only on your own computer (via Ollama), and nothing is ever sent to an AI service. There is no cloud mode. If your computer can\'t run a local model, AI features are simply off, and everything else works the same.',
   },
 
   { h: 'Tools' },
@@ -11943,6 +11937,36 @@ function closeHelpOverlay() {
 // Also add help icon helper to renderDashboard elements
 // Wire helpIcon() into key spots at render time
 
+
+// ─── Cloud AI removed: the one-time notice (CLOUD_AI_REMOVAL.md ruling 3) ───
+// The upgrade's migration step records what it did - whether cloud AI was the
+// user's provider, and whether their Anthropic key was deleted. Shown once,
+// only to a user it affected; displaying it records 'shown'. A user who had cloud
+// selected gets local AI if this machine runs it, otherwise AI off - and is
+// told which, here, never left to find a silent failure.
+async function _cloudAiRemovedNotice(raw) {
+  if (!raw || raw === 'shown') return;
+  let rec = {};
+  try { rec = JSON.parse(raw); } catch (e) { return; }
+  let localReady = false;
+  try { localReady = !!(await API.get('/api/ai/status'))?.reachable; } catch (e) { /* treated as not ready */ }
+  if (rec.was_cloud && !localReady) {
+    await API.patch('/api/settings', { ai_enabled: 'false' }).catch(_gwErr('_cloudAiRemovedNotice'));
+    if (S.prefs) S.prefs.aiEnabled = false;
+    updateAIFeatureVisibility();
+  }
+  const lines = ['Groundwork no longer uses cloud AI. AI now runs only on your own computer — nothing is ever sent to an AI service.'];
+  if (rec.was_cloud) lines.push(localReady
+    ? 'Your AI features now use the local model on this computer.'
+    : "This computer isn't running a local AI model, so AI features are off. Everything else works exactly as before.");
+  if (rec.key_removed) lines.push('Your Anthropic API key has been deleted from Groundwork.');
+  // Recorded as shown the moment it is displayed - OK, Cancel and the close
+  // button all just dismiss it, and none of them can bring it back.
+  API.patch('/api/settings', { cloud_ai_removed_notice: 'shown' }).catch(_gwErr('_cloudAiRemovedNotice'));
+  confirmAction('Cloud AI has been removed',
+    `<div style="line-height:1.7;font-size:13px;color:var(--slate)">${lines.map(l => `<p style="margin-bottom:8px">${esc(l)}</p>`).join('')}</div>`,
+    null, 'OK', false);
+}
 
 // ─── Terms of Use / EULA acceptance ──────────────────────────────────────────
 // An affirmative-acceptance gate (shown on first run, and to any existing user
@@ -12105,7 +12129,7 @@ async function _obCheckAICapability() {
   } else if (tier === 'mid') {
     statusEl.innerHTML = `<strong>${free_gb}GB free</strong> — this machine can run Groundwork's local AI fully offline. Free and private: nothing ever leaves your computer.`;
   } else {
-    statusEl.innerHTML = `<strong>${free_gb}GB free</strong> — not quite enough to run local AI well right now. Every core feature of Groundwork works fully without it — budgets, debt payoff, reports, all of it. You can add a free-tier cloud API key anytime in Settings for AI-powered insights instead.`;
+    statusEl.innerHTML = `<strong>${free_gb}GB free</strong> — not quite enough to run local AI well right now. Every core feature of Groundwork works fully without it — budgets, debt payoff, reports, all of it. AI in Groundwork only ever runs on your own computer, so on this one AI features stay off.`;
   }
   _obRenderCapabilityContinue(tier);
 }
@@ -12129,16 +12153,16 @@ async function _obApplyAITier(tier) {
   let targetModel = '';
   if (tier === 'high') {
     targetModel = 'qwen2.5:7b';
-    S.aiProvider = 'local'; S.localModel = targetModel;
-    API.patch('/api/settings', { ai_provider: 'local', local_model: targetModel }).catch(_gwErr('_obApplyAITier'));
+    S.localModel = targetModel;
+    API.patch('/api/settings', { local_model: targetModel }).catch(_gwErr('_obApplyAITier'));
   } else if (tier === 'mid') {
     targetModel = 'phi3.5';
-    S.aiProvider = 'local'; S.localModel = targetModel;
-    API.patch('/api/settings', { ai_provider: 'local', local_model: targetModel }).catch(_gwErr('_obApplyAITier'));
+    S.localModel = targetModel;
+    API.patch('/api/settings', { local_model: targetModel }).catch(_gwErr('_obApplyAITier'));
   } else if (tier === 'low') {
     // Honest default for underpowered hardware: the fully-structured
     // experience, not a slow/degraded local model. One toggle in Settings
-    // turns AI back on (local or cloud) whenever they want it.
+    // turns local AI back on whenever this machine can run it.
     S.prefs = S.prefs || {}; S.prefs.aiEnabled = false;
     API.patch('/api/settings', { ai_enabled: 'false' }).catch(_gwErr('_obApplyAITier'));
   }
@@ -21746,24 +21770,8 @@ function saveSettings() {
   calculate();
 }
 
-function saveApiKey() {
-  const key = g('settingsApiKey')?.value?.trim();
-  if (!key) return;
-  API.post('/api/settings/api-key', { key }).then(() => {
-    _apiKeyPresent = true;
-    S.apiKeyConfigured = true;
-    g('settingsApiKey').value = '';
-    showToast('API key saved', 'AI features enabled', 'success');
-    updateAIFeatureVisibility();
-  }).catch(e => {
-    showToast('Could not save key', e?.message || '', 'error');
-  });
-}
-
 function updateAIFeatureVisibility() {
   const toggled  = S.prefs?.aiEnabled !== false;
-  const hasKey   = !!S.apiKeyConfigured;
-  const isCloud  = S.aiProvider === 'cloud';
   const enabled  = aiEnabled();   // single source of truth — see aiEnabled()
 
   document.querySelectorAll('.ai-feature').forEach(el => {
@@ -21774,7 +21782,7 @@ function updateAIFeatureVisibility() {
   const status = g('aiStatus');
   if (status) {
     status.textContent = enabled
-      ? (isCloud ? '✦ AI enabled' : '✦ AI enabled · on your machine')
+      ? '✦ AI enabled · on your machine'
       : 'AI off';
     status.style.color = enabled ? 'var(--sky)' : 'var(--slate-2)';
   }
@@ -21787,40 +21795,15 @@ function updateAIFeatureVisibility() {
   if (track)  track.style.background= toggled ? 'var(--sky)' : 'var(--steel)';
   if (knob)   knob.style.transform  = toggled ? 'translateX(18px)' : '';
 
-  // Update key status message — provider-aware. Local mode never needs a
-  // cloud key, so it never shows "add your API key" copy.
-  const keyStatus = g('settingsApiKeyStatus');
-  if (keyStatus) {
-    if (!toggled) {
-      keyStatus.textContent = 'AI features are off.';
-      keyStatus.style.color = 'var(--slate-2)';
-    } else if (!isCloud) {
-      keyStatus.textContent = enabled ? '✓ Local AI active — nothing leaves your machine.' : 'Local AI is on.';
-      keyStatus.style.color = 'var(--pine)';
-    } else if (hasKey) {
-      keyStatus.textContent = '✓ AI features active.';
-      keyStatus.style.color = 'var(--pine)';
-    } else {
-      keyStatus.textContent = 'Toggle is on — add your Anthropic API key below to activate, or switch to local AI (free, no key needed).';
-      keyStatus.style.color = 'var(--gold)';
-    }
-  }
 }
 
 // ── Phase 2A: Settings → AI provider pane ─────────────────────────────────────
-// Local (free, default) vs Cloud (Anthropic key). Fed by /api/ai/status so a
-// tester can see "local reachable · phi3.5" and switch providers without
-// editing settings by hand.
+// Local AI only (CLOUD_AI_REMOVAL.md). Fed by /api/ai/status so a tester can
+// see "local reachable · phi3.5" without editing settings by hand.
 
 function renderAISettings() {
-  const isCloud = S.aiProvider === 'cloud';
-  g('aiProviderLocalBtn')?.classList.toggle('active', !isCloud);
-  g('aiProviderCloudBtn')?.classList.toggle('active', isCloud);
-  if (g('aiLocalPanel')) g('aiLocalPanel').style.display = isCloud ? 'none' : '';
-  if (g('aiCloudPanel')) g('aiCloudPanel').style.display = isCloud ? '' : 'none';
   if (g('aiLocalEndpoint') && !g('aiLocalEndpoint').value) g('aiLocalEndpoint').value = S.localEndpoint || '';
-
-  if (!isCloud) _loadAiLocalStatus();
+  _loadAiLocalStatus();
   _loadGateHealth();
 }
 
@@ -21958,16 +21941,6 @@ function _copyOllamaCommand(cmd) {
     .catch(() => showToast('Could not copy — select and copy manually', '', 'warning'));
 }
 
-async function setAiProvider(provider) {
-  if (provider !== 'local' && provider !== 'cloud') return;
-  S.aiProvider = provider;
-  renderAISettings();
-  updateAIFeatureVisibility();
-  API.patch('/api/settings', { ai_provider: provider }).catch(_gwErr('setAiProvider'));
-  showToast(provider === 'local' ? 'Switched to local AI' : 'Switched to cloud AI',
-    provider === 'local' ? 'Free — nothing leaves your machine' : '', 'success');
-}
-
 async function saveLocalModel(model) {
   S.localModel = model || '';
   await API.patch('/api/settings', { local_model: S.localModel }).catch(_gwErr('saveLocalModel'));
@@ -21977,8 +21950,14 @@ async function saveLocalModel(model) {
 
 async function saveLocalEndpoint() {
   const val = g('aiLocalEndpoint')?.value?.trim() || '';
+  try {
+    await API.patch('/api/settings', { local_endpoint: val });
+  } catch (e) {
+    // The server refuses any address off this computer (S6).
+    showToast('Endpoint not saved', e.message || '', 'warning');
+    return;
+  }
   S.localEndpoint = val;
-  await API.patch('/api/settings', { local_endpoint: val }).catch(_gwErr('saveLocalEndpoint'));
   showToast('Endpoint saved', '', 'success');
   _loadAiLocalStatus();
 }
@@ -22012,13 +21991,10 @@ async function testAiConnection(btn) {
 }
 
 function aiEnabled() {
-  // The user's AI toggle always gates first. Beyond that, local mode (the
-  // free default) needs nothing else — no cloud key exists to check, and an
-  // unreachable Ollama or missing model is handled gracefully downstream by
-  // callAI()'s existing ok:false -> fallback path, not gated here. Cloud
-  // mode still requires a configured key, same as before.
+  // The user's AI toggle is the only gate. AI is local-only, so there is no
+  // key to check; an unreachable Ollama or missing model is handled
+  // downstream by callAI()'s ok:false -> fallback path, not gated here.
   if (S.prefs?.aiEnabled === false) return false;
-  if (S.aiProvider === 'cloud') return !!S.apiKeyConfigured;
   return true;
 }
 
@@ -22552,11 +22528,8 @@ async function callAI(payload) {
       const data = res.data || res;
       if (data.ai_available === false) return { ok:false, text:'', unavailable:true, message:data.message||'' };
       const text = (data.content||[]).map(b=>b.text||'').filter(Boolean).join('\n');
-      // 'provider' comes verbatim from _ai_chat_local()'s response ('local')
-      // — the cloud path proxies Anthropic's raw response, which has no such
-      // field, so this is undefined for cloud. That's the whole point: it's
-      // how attribution tells "ran on your machine" from "ran in the cloud"
-      // apart, since both paths also return a 'model' string.
+      // 'provider' comes verbatim from _ai_chat_local()'s response ('local');
+      // it is the only provider there is.
       return { ok:true, text, model:data.model||'', provider:data.provider||'' };
     } catch(e) {
       return { ok:false, text:'' };
@@ -22719,7 +22692,7 @@ const _rcAIThread = {};
 // Per-report AI response cache (session only). Shape: { [reportId]: string }
 const _rcAICache  = {};
 // Which model actually produced each cached response, for attribution
-// ("Analyzed on your machine · phi3.5" vs "Powered by Claude") — kept
+// ("Analyzed on your machine · phi3.5") — kept
 // separate from _rcAICache so that cache's string contract never changes.
 const _rcAIModelCache = {};
 
@@ -22796,50 +22769,14 @@ async function _rcAnalyzeWithAI(reportId, dataLines, buildPrompt, container) {
   _rcAIThread[`${reportId}__dataLines`]   = dataLines;
   _rcAIThread[`${reportId}__container`]   = target;
 
-  // Local AI is free and never leaves the machine, so the "here's what
-  // will be sent, click to confirm" gate only exists to protect cloud
-  // users from an unexpected charge — for local, skip straight to
-  // generating instead of making every report a two-click action.
-  if (S.aiProvider !== 'cloud') {
-    const loading = document.createElement('div');
-    loading.id = `rcAILoading-${reportId}`;
-    loading.style.cssText = 'margin-top:24px;padding:16px 20px;display:flex;align-items:center;gap:12px;color:var(--slate);font-size:13px';
-    loading.innerHTML = `<div class="spinner" style="width:16px;height:16px;border-width:2px;flex-shrink:0"></div>Analyzing on your machine…`;
-    target.appendChild(loading);
-    await _rcSendAI(reportId);
-    return;
-  }
-
-  const dataBlock = dataLines.map(l => `  ${l}`).join('\n');
-  const panel = document.createElement('div');
-  panel.id = `rcAIPreview-${reportId}`;
-  panel.style.cssText = 'margin-top:32px;border:1px solid var(--steel);border-radius:var(--r-md);overflow:hidden';
-  panel.innerHTML = `
-    <div style="padding:14px 20px;border-bottom:1px solid var(--steel);display:flex;align-items:center;gap:10px">
-      <span style="font-size:15px">✦</span>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's analysis</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:1px">AI-assisted — you control what's shared</div>
-      </div>
-    </div>
-    <div style="padding:16px 20px">
-      <div style="font-size:12px;color:var(--slate);margin-bottom:10px;line-height:1.6">
-        Here's what Groundwork will send to Anthropic's API. Your raw transactions and account numbers stay on your computer.
-      </div>
-      <pre style="font-size:11px;font-family:var(--font-mono);color:var(--ink);background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-sm);padding:12px;overflow-x:auto;white-space:pre-wrap;line-height:1.7;max-height:200px;overflow-y:auto">${esc(dataBlock)}</pre>
-      <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
-        <button onclick="this.closest('[id^=rcAIPreview]').remove()"
-          style="font-size:12px;padding:6px 16px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--slate);cursor:pointer">
-          Cancel
-        </button>
-        <button onclick="_rcSendAI('${reportId}')"
-          style="font-size:12px;padding:6px 16px;border:none;border-radius:var(--r-sm);background:var(--pine);color:#fff;cursor:pointer;font-weight:500">
-          Generate analysis
-        </button>
-      </div>
-    </div>`;
-
-  target.appendChild(panel);
+  // AI runs only on this machine, so there is nothing to preview before
+  // sending: generate straight away.
+  const loading = document.createElement('div');
+  loading.id = `rcAILoading-${reportId}`;
+  loading.style.cssText = 'margin-top:24px;padding:16px 20px;display:flex;align-items:center;gap:12px;color:var(--slate);font-size:13px';
+  loading.innerHTML = `<div class="spinner" style="width:16px;height:16px;border-width:2px;flex-shrink:0"></div>Analyzing on your machine…`;
+  target.appendChild(loading);
+  await _rcSendAI(reportId);
 }
 
 async function _rcSendAI(reportId) {
@@ -22930,14 +22867,12 @@ function _rcRenderAIFallback(reportId, dataLines, target) {
   target.appendChild(errPanel);
 }
 
-// Footer attribution line — "Analyzed on your machine · phi3.5" for local,
-// "Powered by Claude" for cloud. Falls back to the current provider setting
-// when no per-report record exists yet (e.g. an older cached response).
+// Footer attribution line — "Analyzed on your machine · phi3.5". Every
+// analysis runs on this machine; the model name comes from the per-report
+// record when there is one.
 function _rcAttributionText(reportId) {
   const rec = _rcAIModelCache[reportId];
-  const provider = rec ? rec.provider : S.aiProvider;
-  const model    = rec ? rec.model    : '';
-  if (provider === 'cloud') return 'Powered by Claude';
+  const model = rec ? rec.model : '';
   return model ? `Analyzed on your machine · ${model}` : 'Analyzed on your machine';
 }
 
@@ -22954,7 +22889,7 @@ function _rcAttributionText(reportId) {
 //   payload        — the callAI payload; appends the "what was sent" disclosure
 //   replace        — clear the target container before appending
 //   model, provider — from callAI()'s result; drive the attribution line
-//                     ("Analyzed on your machine · phi3.5" / "Powered by Claude")
+//                     ("Analyzed on your machine · phi3.5")
 function _rcRenderAIPanel(reportId, responseText, target, dataLines, buildPrompt, opts = {}) {
   g(`rcAIResponse-${reportId}`)?.remove();
   if (opts.replace && target) target.innerHTML = '';
@@ -23304,12 +23239,8 @@ function _rcRenderCatalog(cont) {
 
       <div style="margin-top:16px;padding:14px 16px;background:var(--mist);border-radius:var(--r-sm);
                   font-size:12px;color:var(--slate);line-height:1.6">
-        ${S.aiProvider === 'cloud'
-          ? `✦ <strong>Groundwork's analysis</strong> — when you choose to generate an analysis,
-             a financial summary is sent to Anthropic's API. Your raw transactions and account details
-             stay on your computer. You'll see exactly what's being shared before it's sent.`
-          : `✦ <strong>Groundwork's analysis</strong> — runs on your own machine. Nothing is sent
-             anywhere; you'll see exactly what's being analyzed before it runs.`}
+        ✦ <strong>Groundwork's analysis</strong> — runs on your own machine. Nothing is sent
+             anywhere; you'll see exactly what's being analyzed before it runs.
       </div>
     </div>
   `;
@@ -23410,7 +23341,7 @@ function _rcRenderMonthlyReport() {
           style="width:100%;padding:6px 10px;border:1px solid var(--steel);border-radius:var(--r-sm);font-size:13px;background:var(--paper);color:var(--ink)">
       </div>
       <button id="rcMonthlyGenBtn" onclick="_rcMonthlyGenerate()"
-        style="padding:8px 18px;background:var(--pine);color:#fff;border:none;border-radius:var(--r-sm);font-size:13px;cursor:pointer;white-space:nowrap;${S.aiProvider === 'cloud' ? '' : 'display:none'}">✦ Generate analysis</button>
+        style="padding:8px 18px;background:var(--pine);color:#fff;border:none;border-radius:var(--r-sm);font-size:13px;cursor:pointer;white-space:nowrap;display:none">✦ Generate analysis</button>
     </div>
     <div id="rcMonthlyStats" style="margin-bottom:24px"></div>
     <div id="rcMonthlyTeaching" style="margin-bottom:24px"></div>
@@ -23424,11 +23355,9 @@ function _rcRenderMonthlyReport() {
 // Local mode has no "Generate" button to click after adding a note (see
 // _rcRenderMonthlyReport) — regenerate automatically instead, debounced so
 // it fires once after the user stops typing rather than per keystroke.
-// Cloud users still see the button and must click it themselves; typing
-// here never triggers a paid call on its own.
 let _rcMonthlyAnnotationTimer = null;
 function _rcMonthlyAnnotationInput() {
-  if (S.aiProvider === 'cloud' || !aiEnabled()) return;
+  if (!aiEnabled()) return;
   clearTimeout(_rcMonthlyAnnotationTimer);
   _rcMonthlyAnnotationTimer = setTimeout(_rcMonthlyGenerate, 900);
 }
@@ -23467,12 +23396,10 @@ function _rcMonthlyRefreshPreview() {
     ${topCats.map(([cat,amt])=>{const pct=spent>0?(amt/spent*100):0;const cs=_categoryStyle(cat);return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--steel-2)"><div style="flex:1;font-size:13px;color:var(--ink)">${esc(cat)}</div><div style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(amt)}</div><div style="width:40px;text-align:right;font-size:11px;color:var(--slate-2)">${pct.toFixed(0)}%</div></div>`;}).join('')}
     </div>`:''}`;
 
-  // Cloud costs money per call, so generating stays an explicit click (the
-  // button next to the month picker). Local is free and never leaves the
-  // machine, so there's no reason to make the user ask for it — generate
-  // immediately whenever there's a month with data to analyze, including
-  // right after the user switches months.
-  if (S.aiProvider !== 'cloud' && aiEnabled()) _rcMonthlyGenerate();
+  // AI is local, free and never leaves the machine, so there's no reason to
+  // make the user ask for it — generate immediately whenever there's a month
+  // with data to analyze, including right after the user switches months.
+  if (aiEnabled()) _rcMonthlyGenerate();
 }
 
 async function _rcMonthlyLoadPastReports() {
@@ -25110,10 +25037,8 @@ function _renderFinancialSnapshot(container) {
       // the cloud-key case when the real gap is just the toggle being off
       // (the default local-mode state needs no key at all).
       const toggledOff = S.prefs?.aiEnabled === false;
-      const msg = toggledOff
-        ? 'Everything above is computed on your own machine. Groundwork can also add a written read of what it means — turn AI on in Settings to add this (free, runs locally by default).'
-        : 'Everything above is computed on your own machine. Groundwork can also add a written read of what it means — that part uses Anthropic\'s cloud AI and needs a key, which you can add anytime, or switch to local AI instead (free, no key needed).';
-      const btnLabel = toggledOff ? 'Turn on AI' : 'Add a key to turn this on';
+      const msg = 'Everything above is computed on your own machine. Groundwork can also add a written read of what it means — turn AI on in Settings to add this (free, and it runs on your own computer).';
+      const btnLabel = 'Turn on AI';
       aiSlot.innerHTML = `
         <div style="margin-top:4px;padding:12px 14px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-sm)">
           <div style="font-size:12px;color:var(--ink);line-height:1.7">${msg}</div>
@@ -25151,7 +25076,7 @@ function _snapshotOpenAISetup() {
   API.patch('/api/settings', { onboarding_complete: 'true' }).catch(_gwErr('_snapshotOpenAISetup'));
   showView('settings');
   showToast(
-    S.prefs?.aiEnabled === false ? 'Turn AI on here' : 'Add your Anthropic API key here (or switch to local AI, free)',
+    'Turn AI on here',
     'Then reopen any report for the written analysis', 'info'
   );
 }
@@ -25913,9 +25838,7 @@ async function _rcRenderDebtPayoff() {
       <div id="rcDebtPayoffAIContent">
         ${aiEnabled()
           ? `<button onclick="_rcRunDebtPayoffAI()" class="btn btn-primary" style="font-size:13px">Generate analysis</button>
-             <div style="font-size:11px;color:var(--slate-2);margin-top:8px">${S.aiProvider === 'cloud'
-                ? 'Shares debt balances, APRs, payoff sequence, and interest data with Claude. No transactions or account numbers included.'
-                : 'Runs on your own machine — debt balances, APRs, payoff sequence, and interest data never leave your computer.'}</div>`
+             <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Runs on your own machine — debt balances, APRs, payoff sequence, and interest data never leave your computer.</div>`
           : `<div style="font-size:13px;color:var(--slate)">${S.prefs?.aiEnabled === false
                 ? 'Turn AI on in Settings to enable Groundwork\'s analysis.'
                 : 'Add an API key in Settings to enable Groundwork\'s analysis, or switch to local AI (free, no key needed).'}</div>`}

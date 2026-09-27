@@ -59,6 +59,6 @@ with your error log and system info pre-filled.
 ## Notes
 
 - The app runs entirely on your machine. No account needed, no subscription.
-- Your Anthropic API key (for AI reports) is stored in Settings → AI.
+- AI reports run only on your own computer (via Ollama). There is no cloud AI and no API key.
 - Backups: Settings → Data & Backup → Back up now.
 - The server runs on port 8765 and only accepts connections from this machine.

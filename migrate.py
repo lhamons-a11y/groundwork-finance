@@ -12,11 +12,11 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260926-lts-debt-figure-sources'   # V2: debt_accounts.interest_rate_source, minimum_payment_source
+SCHEMA_VERSION = '20260927-lts-cloud-ai-removed'   # cloud AI removed: ai_provider gone, ANTHROPIC_API_KEY deleted from config.json
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = 'd8b942b995a24d41dff00367edf596c351a33aa5b8b07488bf573c56f4f35a82'
+SCHEMA_SPEC_SHA256 = '24c20454d9e430d885918b5f183e7d3b7fc3a0c6c18fdbf99efda4f7c9b105f4'
 
 
 def _stored_schema_version():
@@ -238,6 +238,58 @@ def _ensure_indexes():
         conn.commit()
 
 
+def _remove_cloud_ai(session):
+    """CLOUD_AI_REMOVAL.md ruling 3: the one-time crossover for a user who had cloud AI.
+
+    Cloud AI no longer exists, so its two traces go: the `ai_provider` setting (nothing reads it)
+    and the stored Anthropic key - ONLY `ANTHROPIC_API_KEY`, only in Groundwork's own
+    config.json (the EIA and SerpApi keys beside it stay exactly as they were). A key in the
+    environment belongs to the user and is not touched; nothing reads it any more. A config.json
+    Groundwork cannot parse is left alone rather than rewritten.
+
+    What was done is recorded for the page's one-time notice - only when it affected this user:
+    they had cloud selected, or a key was deleted. The notice itself decides local-or-off.
+    Flagged, so it runs once.
+    """
+    import json
+    import os
+    from pathlib import Path
+    from core.database import AppSetting, DATA_DIR
+
+    flag = 'migration_cloud_ai_removed_20260927'
+    if _migration_done(session, flag):
+        return
+    row = session.query(AppSetting).filter_by(key='ai_provider').first()
+    was_cloud = bool(row and (row.value or '').strip().lower() == 'cloud')
+    if row is not None:
+        session.delete(row)
+
+    key_removed = False
+    cfg = Path(DATA_DIR) / 'config.json'
+    if cfg.exists():
+        try:
+            data = json.loads(cfg.read_text(encoding='utf-8'))
+        except (ValueError, OSError) as e:
+            logger.warning('Cloud AI removal: config.json not readable, left untouched: %s', e)
+            data = None
+        if isinstance(data, dict) and 'ANTHROPIC_API_KEY' in data:
+            del data['ANTHROPIC_API_KEY']
+            tmp = cfg.with_name('config.json.tmp')
+            tmp.write_text(json.dumps(data, indent=2), encoding='utf-8')
+            os.replace(tmp, cfg)                  # all or nothing - never a half-written file
+            key_removed = True
+
+    if was_cloud or key_removed:
+        notice = session.query(AppSetting).filter_by(key='cloud_ai_removed_notice').first()
+        value = json.dumps({'was_cloud': was_cloud, 'key_removed': key_removed})
+        if notice is None:
+            session.add(AppSetting(key='cloud_ai_removed_notice', value=value))
+        else:
+            notice.value = value
+    logger.info('Cloud AI removal: was_cloud=%s key_removed=%s', was_cloud, key_removed)
+    _mark_migration_done(session, flag)
+
+
 def run_migration_if_needed():
     # Schema version gate — skip everything when this DB is already current.
     if _stored_schema_version() == SCHEMA_VERSION:
@@ -298,6 +350,9 @@ def run_migration_if_needed():
                 if not session.query(Category).filter_by(name=name).first():
                     session.add(Category(name=name, type=ctype, color=color,
                                         is_system=True, sort_order=99))
+            # Inside the same try: if the crossover fails it is retried next
+            # boot, because the version below is recorded only after a clean run.
+            _remove_cloud_ai(session)
             session.commit()
             _seed_ok = True
         except Exception as e:

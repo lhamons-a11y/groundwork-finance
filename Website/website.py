@@ -996,7 +996,7 @@ python3 launch.py</pre>
         <li><strong>Net Worth Timeline</strong> — your net worth over time, assets vs. liabilities, payoff milestones</li>
         <li><strong>Import Audit</strong> — transaction counts, categorization rate, duplicates, and what landed in Other</li>
       </ul>
-      <p>Every report has a Print button. The narrative reports (such as the Monthly Spending Summary and Distance Traveled) are written by AI — locally on your machine by default, or by Anthropic's Claude if you've switched to cloud mode. See <a href="#ai">AI features</a>.</p>
+      <p>Every report has a Print button. The narrative reports (such as the Monthly Spending Summary and Distance Traveled) are written by AI, on your own machine. See <a href="#ai">AI features</a>.</p>
     </div>
 
     <div class="kb-article" id="byb">
@@ -1026,13 +1026,11 @@ python3 launch.py</pre>
 
     <div class="kb-article" id="ai">
       <h2>AI features</h2>
-      <p>Groundwork can write a plain-English monthly report and other narrative insights. AI is completely optional, and it runs one of two ways — <strong>local by default</strong>.</p>
-      <h3>Local AI — the default (free, fully private)</h3>
+      <p>Groundwork can write a plain-English monthly report and other narrative insights. AI is completely optional, and it runs <strong>only on your own machine</strong>.</p>
+      <h3>Local AI (free, fully private)</h3>
       <p>Out of the box, Groundwork runs AI <strong>on your own machine</strong> using <a href="https://ollama.com" target="_blank">Ollama</a>. Nothing ever leaves your computer, there's no API key, and there's no cost. In <strong>Settings → AI</strong>, click <strong>Set up Local AI</strong> and Groundwork installs Ollama and a small language model for you (a few GB of disk space). Every other feature of Groundwork works fully whether or not you set this up.</p>
-      <h3>Cloud AI — optional (Anthropic)</h3>
-      <p>If you'd rather use Anthropic's Claude API — for example on a machine that can't comfortably run a local model — switch to cloud mode in <strong>Settings → AI</strong> and paste your own Anthropic API key from <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.</p>
-      <h3>What gets sent — and when</h3>
-      <p>In <strong>local mode, nothing is sent anywhere</strong>. In cloud mode, only when you explicitly generate an AI report, Groundwork sends aggregated numbers — income total, spending total, top categories, and a debt summary. No account numbers, no transaction descriptions, no names.</p>
+      <h3>No cloud AI</h3>
+      <p>Groundwork has no cloud AI option. <strong>Nothing is sent to an AI service, ever.</strong> If a computer can't comfortably run a local model, AI features simply stay off; budgets, debt payoff and reports all work the same. Reading PDF statements needs the local model too; without it, import your bank's CSV or QFX download instead.</p>
     </div>
 
     <div class="kb-article" id="privacy">
@@ -1131,13 +1129,9 @@ def privacy():
   </p>
   <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">AI features</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:20px">
-    Groundwork's AI features are optional and run <strong>locally by default</strong>: the app
-    uses a language model on your own machine (via Ollama), so nothing leaves your computer and
-    no API key is needed. If you choose to switch to cloud mode, Groundwork sends aggregated
-    financial data (income totals, spending totals, category summaries) to Anthropic's API only
-    when you explicitly generate a report — no account numbers, transaction descriptions, or
-    personally identifying information is ever included. Cloud mode requires your own Anthropic
-    API key and is entirely opt-in.
+    Groundwork's AI features are optional and run <strong>only on your own machine</strong>: the
+    app uses a language model on your computer (via Ollama), so nothing is sent to an AI service
+    and no API key exists. There is no cloud AI option.
   </p>
   <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">Contact</h2>
   <p style="color:var(--slate);line-height:1.9">
@@ -1308,7 +1302,7 @@ def features():
       <div class="feature-card"><div class="feature-icon">🛒</div><h3>Before You Buy</h3>
         <p>Evaluate a big purchase before committing. See exactly what it does to your budget and debt-free date.</p></div>
       <div class="feature-card"><div class="feature-icon">✦</div><h3>AI Analysis</h3>
-        <p>Optional AI monthly report — runs locally on your machine by default (no key, nothing sent out), or via Claude if you prefer cloud. Plain English, one concrete suggestion per month.</p></div>
+        <p>Optional AI monthly report — runs on your own machine (no key, nothing sent out). Plain English, one concrete suggestion per month.</p></div>
       <div class="feature-card"><div class="feature-icon">🔒</div><h3>Private by design</h3>
         <p>Runs on your machine. No account. No cloud. No subscription. Your data is yours.</p></div>
       <div class="feature-card"><div class="feature-icon">💾</div><h3>Import from Quicken</h3>
