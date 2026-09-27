@@ -2,10 +2,11 @@
 
 **The Teaching Platform**
 
-> Status: **Information-gathering / vision capture.** Nothing here is scheduled or being built.
-> This document is the north star for 2.0, written against the real 1.0 codebase so the ideas
-> stay honest about what exists and what's new.
-> Created 2026-08-03.
+> Status: **Partly built — corrected 2026-09-27.** Created 2026-08-03 as information-gathering /
+> vision capture, written against the real 1.0 codebase so the ideas stay honest about what exists
+> and what's new. Most of the engines have been built since (3–6 September 2026; the build status
+> is under **Status** in the Executive Summary). The line that stood here until 2026-09-27 —
+> *"Nothing here is scheduled or being built"* — stopped being true on 2026-09-03.
 >
 > **Updated 2026-08-30 — first measured constraints (Appendix H).** The narrator is no longer
 > vision-only: model, runtime and delivery were settled by experiment, and the results bind three
@@ -58,8 +59,20 @@ honest *projection*: deterministic outcomes conditioned on demonstrated behavior
 (where a small willing change matters most), bounded by an honest horizon, re-derived as behavior
 shifts.
 
-**Status.** A vision artifact, not a spec — nothing is built. It is deliberately a philosophy scaffold,
-not a full scope. Most design questions are worked through (Appendices A–G); the open surface is sorted
+**Status (corrected 2026-09-27, measured against the code).** Written as a vision artifact, not a
+spec, and still a philosophy scaffold rather than a full scope — but **most of the engines are built**,
+in the 2.0 build only (the LTS bundle does not contain the teaching layer). Built, 3–6 September 2026:
+**Pillar 1** the consequence engine (`core/consequence.py`); **Pillar 3** the solution engine — the
+sanctioned levers with their costs, the honest no with the nearest true path, the banned levers
+unproducible by construction (`core/solution.py`); **Pillar 4** green-light (`solution.green_light`, on
+Before You Buy); **Pillar 5** the record read back on Before You Buy (`teaching/byb.js`); **Appendix A**
+the proactive threshold (`core/proactive.py`); **B.3** the Trophy Room's proof standard
+(`core/trophies.py`); **Appendix G** debt cycles (`core/cycles.py`); and **§8's teaching on eleven
+surfaces** (`static/js/teaching/`). **Not built:** the **Willingness Layer** — the spine; the solution
+engine deliberately omits every lever that would need it — the **break-detector**, **streamed
+narration** (BUILD_QUEUE item 10, decided 2026-08-30), learning Layer 4, and the evidence substrate
+the proof layer rests on as the thing the teaching surfaces actually read (most of BUILD_QUEUE items
+1–21 are ruled and built as substrate, not yet as the surfaces' source). Most design questions are worked through (Appendices A–G); the open surface is sorted
 into two kinds (§12): **Open** — now empty; F.3, the clarification budget and drama-safety all
 closed 2026-09-03 — and **Gated** (standard exists, pin per case before build): Trophy Room's
 proof-source and Appendix G's cycle thresholds. Remaining open design work is Layer 5's stakes

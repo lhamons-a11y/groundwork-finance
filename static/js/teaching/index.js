@@ -22,9 +22,14 @@
  * smoke_test.py enforces that rule by grepping app.js. It is a real check, not
  * a comment.
  *
- * This file is the seam itself, not the teaching layer. None of the blueprint's
- * mechanisms - Willingness Layer, Solution Engine, honest-no, break-detector -
- * are built. See gw 2.0/GW_2.0_TEACHING_PLATFORM_BLUEPRINT.md.
+ * This file is the seam itself, not the teaching layer. The modules beside it
+ * are the teaching layer (corrected 2026-09-27 - this note said "none of the
+ * blueprint's mechanisms are built" when it was written, 2026-09-02, and was
+ * true then). Built since: the Solution Engine and honest-no (core/solution.py,
+ * paths.js), green-light, the proactive threshold, the Trophy Room's proof
+ * standard, and §8's teaching on eleven surfaces. Still not built: the
+ * Willingness Layer and the break-detector. The blueprint's Status section
+ * keeps the current list: gw 2.0/GW_2.0_TEACHING_PLATFORM_BLUEPRINT.md.
  */
 (function () {
   'use strict';
