@@ -8573,117 +8573,22 @@ function _budgetMinDecay(card) {
   return { delta, freed: -delta };          // freed > 0 means minimum dropped
 }
 
-// ── Avalanche engine ──────────────────────────────────────────────────────────
-// Blueprint §7. Pure arithmetic. Returns payoff sequence for all active debts.
-function _budgetAvalancheSequence(cards, totalBudget) {
-  const today  = new Date().toISOString().slice(0, 10);
-  const active = cards
-    .filter(c => !c.paidInFull && !(c.endDate && c.endDate < today))
-    .map(c => ({
-      id:      c.id,
-      dbId:    c._dbId,
-      name:    c.name,
-      balance: _cardBal(c),
-      apr:     parseFloat(c.rate) || 0,
-      payment: parseFloat(c.minimum) || 0,
-      isLease: (c.debtType || 'credit') === 'lease',
-    }))
-    .filter(c => c.balance > 0 && c.payment > 0);
-
-  if (!active.length) return null;
-
-  // Leases and PSLF are minimum-only — exclude from avalanche extra routing
-  const payableWithExtra = active.filter(c => !c.isLease && !_pslfIsFlagged(c.id));
-  const ordered = [...payableWithExtra].sort((a, b) => b.apr - a.apr);
-
-  // Total committed monthly payment — all active cards (leases included at min)
-  const totalMinPmt = active.reduce((s, c) => s + c.payment, 0);
-  // BUG FIX (July 6): totalPmt was always exactly the sum of minimums —
-  // this function never accepted or used the user's real monthly debt
-  // budget at all. That meant the "route extra to avalanche target" logic
-  // just below was fully built but functionally dead: after paying every
-  // card's minimum, there was never anything left over to route, because
-  // nothing extra was ever added to totalPmt in the first place. This is
-  // what caused the Debt Payoff Report to show a different (later, worse)
-  // payoff date than the Debt Payoff page itself — the page correctly
-  // used the real budget via _simulatePayoff, the report silently
-  // computed a minimums-only scenario instead. Confirmed in the field.
-  // Fixed by accepting the real budget and using whichever is larger.
-  const totalPmt = Math.max(totalMinPmt, parseFloat(totalBudget) || 0);
-
-  // Run month-by-month simulation
-  // balances/interest track ALL active (leases stay at minimum-only, never receive extra)
-  const balances  = Object.fromEntries(active.map(c => [c.id, c.balance]));
-  const sequence  = [];
-  const interest  = Object.fromEntries(active.map(c => [c.id, 0]));
-  let month = 0;
-
-  while (active.some(c => balances[c.id] > 0.01) && month < 360) {
-    month++;
-    let remaining = totalPmt;
-
-    // Pay minimums on ALL cards (including leases) — matches _simulatePayoff pattern
-    for (const c of active) {
-      if (balances[c.id] <= 0.01) continue;
-      const ic  = balances[c.id] * (c.apr / 100 / 12);
-      balances[c.id] += ic;
-      interest[c.id] += ic;
-      const pay = Math.min(c.payment, balances[c.id]);
-      balances[c.id]  = Math.max(0, balances[c.id] - pay);
-      remaining       -= pay;
-    }
-
-    // Route extra to avalanche target — non-lease, non-PSLF only
-    for (const c of ordered) {
-      if (remaining <= 0.01) break;
-      if (balances[c.id] <= 0.01) continue;
-      const extra = Math.min(remaining, balances[c.id]);
-      balances[c.id]  = Math.max(0, balances[c.id] - extra);
-      remaining       -= extra;
-    }
-
-    // Record payoffs — all active cards
-    for (const c of active) {
-      if (balances[c.id] <= 0.01 && !sequence.find(s => s.id === c.id)) {
-        sequence.push({ id: c.id, name: c.name, payoffMonth: month });
-      }
-    }
-  }
-
-  const totalInterest = Math.round(Object.values(interest).reduce((a,b)=>a+b,0) * 100) / 100;
-  const lastPayoff    = sequence.length ? Math.max(...sequence.map(s => s.payoffMonth)) : month;
-
-  // Minimums-only comparison
-  let minInterest = 0;
-  let minMonth    = 0;
-  {
-    const minBals = Object.fromEntries(active.map(c => [c.id, c.balance]));
-    let m = 0;
-    while (active.some(c => minBals[c.id] > 0.01) && m < 360) {
-      m++;
-      for (const c of active) {
-        if (minBals[c.id] <= 0.01) continue;
-        const r   = c.apr / 100 / 12;
-        const int = minBals[c.id] * r;
-        const min = c.payment || Math.max(25, minBals[c.id] * 0.01 + int);
-        minBals[c.id] += int;
-        minInterest   += int;
-        minBals[c.id]  = Math.max(0, minBals[c.id] - Math.min(min, minBals[c.id]));
-      }
-    }
-    minMonth    = m;
-    minInterest = Math.round(minInterest * 100) / 100;
-  }
-
-  return {
-    sequence,
-    totalInterest,
-    minInterest,
-    savesInterest: Math.round((minInterest - totalInterest) * 100) / 100,
-    savesMonths:   minMonth - lastPayoff,
-    lastPayoffMonth: lastPayoff,
-    payoffLabel:   _payoffDateLabel(lastPayoff),
-  };
+// ── The Budget page's payoff forecast is the plan (V10) ─────────────────────
+// The Budget page, its two-scenario line and the Debt Payoff report ran their own
+// payoff maths: always avalanche, whatever plan the user chose, and with a
+// mortgage's whole payment (escrow too) taken as principal - so a snowball user
+// saw one date here and another on the Debt page, and a mortgage cleared years
+// early. They now show the Debt page's own engine run, and "minimums only" is the
+// same engine asked for a budget equal to the minimums (freed minimums roll on).
+function _minimumsBudget(cards) {
+  // _simAsk takes each mortgage's escrow share back out; the minimums are P&I.
+  return cards.reduce((s, c) => s + c.minimum + (c.non_principal || 0), 0);
+}
+function _budgetPlanForecast() {
+  const cards = _simCards();
+  if (!cards.length) return { plan: null, mins: null };
+  return { plan: _simulatePayoff(0),   // the Debt page's run: same cards, budget and plan
+           mins: _simulatePayoffStrategy(S.debtCards, _minimumsBudget(cards), _planName()) };
 }
 
 // ── Freed minimums this year ──────────────────────────────────────────────────
@@ -9034,80 +8939,28 @@ function _budgetAdjustScheduler(cardId, suggestedAmt) {
 // B0d: Two-scenario comparison for What's Left card
 function _budgetTwoScenarioComparison(activeDebts) {
   if (!activeDebts.length) return '';
-  const avSeq = _budgetAvalancheSequence(activeDebts, S.monthlyBudget);
-  if (!avSeq) return '';
+  // V10: both lines from the engine - the plan the Debt page shows, and the same
+  // engine at a budget equal to the minimums. Pending or not covering the
+  // minimums says nothing here; the page redraws when the answers land.
+  const { plan, mins } = _budgetPlanForecast();
+  if (!plan || !mins) return '';
+  const currentDate = _payoffDateLabel(plan.months);
+  // A minimum at or below its month's interest never pays the debt down - a fact,
+  // not a projection. Otherwise the engine's 30-year horizon is the limit.
+  const neverCovers = _simCards().some(c => c.rate > 0 && c.minimum <= c.balance * (c.rate / 100 / 12));
+  const minNever = neverCovers || mins.months >= 360;
+  const minDate = neverCovers ? 'never at minimum payments'
+                : minNever    ? 'not within 30 years'
+                : _payoffDateLabel(mins.months);
+  if (!minNever && currentDate === minDate) return '';
 
-  // Current strategy payoff date from the avalanche sequence
-  const currentDate = _payoffDateLabel(avSeq.lastPayoffMonth);
-
-  // Minimums-only scenario — proper cascading simulation.
-  // When a card pays off its freed minimum cascades to remaining cards,
-  // exactly as in real life. Running each card independently (old approach)
-  // ignores this and overestimates the minimums-only payoff date.
-  const minCards = activeDebts
-    .map(c => ({
-      id:      c.id || c._dbId,
-      balance: Math.max(0, _cardBal(c)),
-      rate:    Math.max(0, parseFloat(c.rate) || 0),
-      minimum: Math.max(1, _payoffPayment(c) || 25),   // V3
-    }))
-    .filter(c => c.balance > 0 && c.minimum > 0);
-
-  if (!minCards.length) return '';
-
-  const minBudget = minCards.reduce((s, c) => s + c.minimum, 0);
-  const minBals   = Object.fromEntries(minCards.map(c => [c.id, c.balance]));
-  let minMonth = 0;
-  let minNeverPayoff = false; // true if any card's minimum never covers interest
-
-  // Pre-check: if any card's stored minimum < monthly interest, flag it
-  for (const c of minCards) {
-    const monthlyInterest = c.balance * (c.rate / 100 / 12);
-    if (c.rate > 0 && c.minimum <= monthlyInterest) {
-      minNeverPayoff = true;
-      break;
-    }
-  }
-
-  if (!minNeverPayoff) {
-    while (minMonth < 360 && minCards.some(c => minBals[c.id] > 0.01)) {
-      minMonth++;
-      let remaining = minBudget;
-
-      for (const c of minCards) {
-        if (minBals[c.id] <= 0.01) continue;
-        const ic  = minBals[c.id] * (c.rate / 100 / 12);
-        minBals[c.id] += ic;
-        const pay = Math.min(c.minimum, minBals[c.id], remaining);
-        minBals[c.id] = Math.max(0, minBals[c.id] - pay);
-        remaining    -= pay;
-      }
-
-      if (remaining > 0.01) {
-        const stillOwed = minCards
-          .filter(c => minBals[c.id] > 0.01)
-          .sort((a, b) => b.rate - a.rate);
-        for (const c of stillOwed) {
-          if (remaining <= 0.01) break;
-          const extra = Math.min(remaining, minBals[c.id]);
-          minBals[c.id] = Math.max(0, minBals[c.id] - extra);
-          remaining    -= extra;
-        }
-      }
-    }
-    if (minMonth >= 360) minNeverPayoff = true;
-  }
-
-  const minDate = minNeverPayoff ? 'never at minimum payments' : _payoffDateLabel(minMonth);
-  if (!minNeverPayoff && currentDate === minDate) return '';
-
-  const minStyle = minNeverPayoff ? 'color:var(--ember)' : '';
+  const minStyle = minNever ? 'color:var(--ember)' : '';
 
   return `<div style="display:flex;justify-content:space-between;padding-top:8px;
                        border-top:1px solid var(--steel);margin-top:8px;font-size:11px;
                        color:var(--slate)">
     <span>At minimums only: <span style="font-family:var(--font-mono);${minStyle}">${minDate}</span></span>
-    <span>Avalanche at ${fmt(parseFloat(S.monthlyBudget) || 0)}/mo: <span style="font-family:var(--font-mono);color:var(--pine)">${currentDate}</span></span>
+    <span>Your ${_planName()} plan at ${fmt(_getMonthlyBudget())}/mo: <span style="font-family:var(--font-mono);color:var(--pine)">${currentDate}</span></span>
   </div>`;
 }
 
@@ -9116,17 +8969,19 @@ function _budgetRenderDebtSummary(activeDebts) {
   const waterfallEl = g('budgetDebtWaterfall');
   if (!summaryEl || !activeDebts.length) return;
 
-  const avalanche = _budgetAvalancheSequence(activeDebts, S.monthlyBudget);
+  const { plan, mins } = _budgetPlanForecast();   // V10: the Debt page's plan, not a Budget-page avalanche
   const freed     = _budgetFreedMinimumsThisYear(activeDebts);
 
   // ── Level 2 summary line ──
   const lines = [];
 
-  if (avalanche) {
-    let summaryText = `Payoff forecast (avalanche, ${fmt(parseFloat(S.monthlyBudget) || 0)}/mo): ${avalanche.payoffLabel}`;   // V4
-    if (avalanche.savesInterest > 0) {
-      summaryText += ` · Saves ${fmt(avalanche.savesInterest)} vs. minimums only`;
-    }
+  if (plan === undefined) {
+    lines.push(`<div style="font-size:12px;color:var(--slate);line-height:1.6">Payoff forecast: working it out…</div>`);
+  } else if (plan) {
+    let summaryText = `Payoff forecast (your ${_planName()} plan, ${fmt(_getMonthlyBudget())}/mo): ${_payoffDateLabel(plan.months)}`;   // V4, V10
+    // Only against a minimums run that finishes: a 30-year cut-off would understate it.
+    const saves = mins && mins.months < 360 ? mins.totalInterest - plan.totalInterest : 0;
+    if (saves > 0) summaryText += ` · Saves ${fmt(saves)} vs. minimums only`;
     lines.push(`<div style="font-size:12px;color:var(--slate);line-height:1.6">${summaryText}</div>`);
   }
 
@@ -9138,7 +8993,7 @@ function _budgetRenderDebtSummary(activeDebts) {
     lines.push(`<div style="font-size:12px;color:var(--pine);margin-top:3px">Freed minimums${sinceLabel}: +${fmt(freed)}/month</div>`);
   }
 
-  if (avalanche) {
+  if (plan) {
     lines.push(`<button onclick="showView('reports');setTimeout(()=>_rcOpenReport('debt_payoff'),80)" style="background:none;border:none;padding:0;font-size:12px;color:var(--pine);cursor:pointer;margin-top:6px;text-decoration:underline;text-underline-offset:2px;font-weight:500">See full payoff plan →</button>`);
   }
 
@@ -9161,11 +9016,6 @@ function _budgetRenderDebtSummary(activeDebts) {
   if (lines.length) {
     summaryEl.innerHTML = lines.join('');
     summaryEl.style.display = 'block';
-  }
-
-  // Waterfall container (hidden until toggled)
-  if (waterfallEl && avalanche) {
-    waterfallEl._avalanche = avalanche;
   }
 }
 
@@ -12627,14 +12477,14 @@ function _simKey(cards, budget, extra, strategy) {
 }
 
 function _simAsk(cards, budget, extra, strategy, key) {
-  if (_engineSimsInFlight[key]) return;
+  if (_engineSimsInFlight[key]) return _engineSimsInFlight[key];   // V10: awaitable
   _engineSimsInFlight[key] = true;
   // V3: the payoff budget includes each mortgage's whole payment; its escrow
   // share goes to taxes and insurance, and left in, the engine would hand it
   // to other debts as "extra".
   // Only for the cards actually being simulated (a scenario may leave the mortgage out).
   budget = budget - (cards || []).reduce((s, c) => s + (c.non_principal || 0), 0);
-  API.post('/api/debt/simulate', { cards, budget, extra, strategy })
+  const asked = API.post('/api/debt/simulate', { cards, budget, extra, strategy })
     .then(r => {
       const res = r.result;
       _engineSims[key] = res ? {
@@ -12659,6 +12509,19 @@ function _simAsk(cards, budget, extra, strategy, key) {
       delete _engineSimsInFlight[key];
       _rerenderAfterEngine();
     });
+  _engineSimsInFlight[key] = asked;
+  return asked;
+}
+
+// V10: the plan's run, waited for - for a page drawn once (the Debt Payoff report).
+// The same cards, budget and key as _simulatePayoff, so it is the Debt page's answer.
+async function _planAwait() {
+  const cards = _simCards();
+  if (!cards.length) return null;
+  const budget = _getMonthlyBudget(), strategy = _planName();
+  const key = _simKey(cards, budget, 0, strategy);
+  if (!(key in _engineSims)) await _simAsk(cards, budget, 0, strategy, key);
+  return (key in _engineSims) ? _engineSims[key] : null;
 }
 
 // One coalesced re-render when answers land. Without it a cached miss would
@@ -25935,19 +25798,24 @@ async function _rcRenderDebtPayoff() {
              intSaved, mosSooner, aprHistory, linked: !!card.linkedAccountId };
   });
 
-  const avalanche     = _budgetAvalancheSequence(activeDebts, S.monthlyBudget);
+  // V10: the plan's own engine run (the Debt page's), not an avalanche of the report's own.
+  const plan          = await _planAwait();
   const sortedByApr   = [...cardData].sort((a,b)=>(parseFloat(b.card.rate)||0)-(parseFloat(a.card.rate)||0));
-  const targetData    = sortedByApr[0];
+  // The plan's first debt, as the Debt page marks it: highest APR, or smallest balance for snowball.
+  const targetData    = (_planName() === 'snowball' ? [...cardData].sort((a,b)=>a.bal-b.bal) : sortedByApr)[0];
+  // Each debt's month in the plan, in the order the plan clears them.
+  const planSeq       = cardData.map(d => ({ d, month: _planClearedMonth(d.card, plan) }))
+                                .filter(x => x.month).sort((a,b) => a.month - b.month);
   const totalDebt     = activeDebts.reduce((s,c)=>s+(_cardBal(c)),0);
   const beginDebt     = S.debtCards.reduce((s,c)=>s+(parseFloat(c.beginBal)||0),0);
   const eliminated    = Math.max(0, beginDebt - totalDebt);
   const pctElim       = beginDebt > 0 ? Math.round((eliminated/beginDebt)*100) : 0;
   const totalRemInt   = cardData.reduce((s,d)=>s+d.totalInt,0);
   const totalIntSaved = cardData.reduce((s,d)=>s+d.intSaved,0);
-  const debtFreeDate  = avalanche?.lastPayoffMonth ? _payoffDateLabel(avalanche.lastPayoffMonth) : '—';
+  const debtFreeDate  = plan?.months ? _payoffDateLabel(plan.months) : '—';
   const freed         = _budgetFreedMinimumsThisYear(activeDebts);
 
-  // Payoff impact scenarios on avalanche target
+  // Payoff impact scenarios on the plan's first debt
   let scenario50 = null, scenario100 = null;
   if (targetData) {
     const { bal:tBal, apr:tApr, pmt:tPmt } = targetData;
@@ -25976,7 +25844,7 @@ async function _rcRenderDebtPayoff() {
       <div class="card" style="padding:14px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Debt-free date</div>
         <div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine)">${debtFreeDate}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">at current payments</div>
+        <div style="font-size:11px;color:var(--slate);margin-top:2px">your ${_planName()} plan, ${fmt(_getMonthlyBudget())}/mo</div>
       </div>
       <div class="card" style="padding:14px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Remaining interest</div>
@@ -25997,7 +25865,7 @@ async function _rcRenderDebtPayoff() {
             <div style="flex:1;min-width:0">
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <span style="font-size:13px;font-weight:600;color:var(--ink)">${esc(d.card.name||'Card')}</span>
-                ${isTarget?`<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--gold-bg);color:#92400e;border:1px solid var(--gold-border)">avalanche target</span>`:''}
+                ${isTarget?`<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--gold-bg);color:#92400e;border:1px solid var(--gold-border)">${_planName()} target</span>`:''}
                 ${d.linked?`<span style="font-size:10px;color:var(--pine)">from imports</span>`:`<span style="font-size:10px;color:var(--slate-2)">manual</span>`}
               </div>
               <div style="font-size:11px;color:var(--slate);margin-top:2px">${d.apr>0?`${d.apr}% APR · `:''}${fmt(d.pmt)}/mo${d.calcMin>0&&Math.abs(d.pmt-d.calcMin)>1?` (min ${fmt(d.calcMin)})`:''}</div>
@@ -26016,13 +25884,13 @@ async function _rcRenderDebtPayoff() {
       }).join('')}
     </div>
 
-    ${avalanche ? `<div class="card" style="margin-bottom:20px;padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Payoff sequence — avalanche order</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:12px">Highest APR first. Each payoff rolls its minimum to the next card.</div>
-      ${sortedByApr.filter(d=>d.apr>0).map((d,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--steel)">
+    ${planSeq.length ? `<div class="card" style="margin-bottom:20px;padding:16px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Payoff sequence — your ${_planName()} plan</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:12px">${_planName() === 'snowball' ? 'Smallest balance first' : 'Highest APR first'}, ${fmt(_getMonthlyBudget())}/mo. Each payoff rolls its payment to the next debt.</div>
+      ${planSeq.map(({d, month},i)=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--steel)">
         <div style="width:20px;height:20px;border-radius:50%;background:${i===0?'var(--gold)':'var(--steel)'};color:${i===0?'#92400e':'var(--slate)'};font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
         <div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(d.card.name||'Card')}</div><div style="font-size:11px;color:var(--slate)">${d.apr}% APR · ${fmt(d.bal)}</div></div>
-        <div style="font-family:var(--font-mono);font-size:12px;color:var(--slate)">${d.payoffLabel}</div>
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--slate)">${_payoffDateLabel(month)}</div>
       </div>`).join('')}
     </div>` : ''}
 
@@ -26056,7 +25924,7 @@ async function _rcRenderDebtPayoff() {
   `;
 
   const aiCard = g('rcDebtPayoffAICard');
-  if (aiCard) aiCard._debtData = { cardData, sortedByApr, avalanche, totalDebt, beginDebt,
+  if (aiCard) aiCard._debtData = { cardData, sortedByApr, planSeq, totalDebt, beginDebt,
     eliminated, pctElim, totalRemInt, totalIntSaved, freed, debtFreeDate,
     scenario50, scenario100, targetData };
 }
@@ -26071,8 +25939,8 @@ async function _rcRunDebtPayoffAI() {
     (cd.aprHistory.length ? `, APR changed: ${cd.aprHistory.map(h=>`${h.from}%→${h.to}% in ${h.month}`).join(', ')}` : '')
   );
 
-  const seqLines = d.sortedByApr.filter(cd => cd.apr > 0)
-    .map((cd,i) => `  ${i+1}. ${cd.card.name||'Card'} (${cd.apr}% APR) — payoff ${cd.payoffLabel}`);
+  const seqLines = d.planSeq
+    .map(({d: cd, month},i) => `  ${i+1}. ${cd.card.name||'Card'} (${cd.apr}% APR) — payoff ${_payoffDateLabel(month)}`);   // V10
 
   const dataLines = [
     `Total remaining: ${fmt(d.totalDebt)}`,
@@ -26084,7 +25952,7 @@ async function _rcRunDebtPayoffAI() {
     '---',
     'Per-card:', ...cardLines,
     '---',
-    'Avalanche sequence:', ...seqLines,
+    `Payoff sequence (${_planName()} plan):`, ...seqLines,
     ...(d.scenario50 ? [
       '---',
       `What if you paid more? (on ${d.targetData?.card.name||'highest-APR card'})`,
