@@ -1,7 +1,7 @@
 GROUNDWORK — END USER LICENSE AGREEMENT AND TERMS OF USE
 
-Version 1.0
-Effective date: July 30, 2026
+Version 1.1
+Effective date: September 27, 2026
 
 PLEASE READ THIS AGREEMENT CAREFULLY. By installing, accessing, or using
 Groundwork (the "Software"), you agree to be bound by this End User License
@@ -83,11 +83,11 @@ certain limitations, so some of the above may not apply to you.
 
 7. AI FEATURES
 
-The Software's AI features are optional. By default they run locally on your own
-machine, and no financial data leaves your computer. If you choose to enable
-cloud mode, aggregated figures are sent to a third-party AI provider only when
-you explicitly request an AI report, subject to that provider's terms. AI
-outputs may be inaccurate or incomplete and are subject to Sections 3 and 4.
+The Software's AI features are optional. They run only on your own computer,
+using a local model. The Software does not send your data to any AI service,
+and it has no option to do so. If your computer cannot run a local model, the
+AI features are unavailable and the rest of the Software works as described.
+AI outputs may be inaccurate or incomplete and are subject to Sections 3 and 4.
 
 
 8. PRIVACY

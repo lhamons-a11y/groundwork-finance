@@ -1154,7 +1154,7 @@ def terms():
     content = """
 <div class="container" style="max-width:760px;padding:60px 24px">
   <h1 style="font-size:36px;font-weight:800;margin-bottom:4px">Terms of Use &amp; License</h1>
-  <p style="color:var(--slate);margin-bottom:8px">End User License Agreement · Version 1.0 · Effective July 30, 2026</p>
+  <p style="color:var(--slate);margin-bottom:8px">End User License Agreement · Version 1.1 · Effective September 27, 2026</p>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:32px">
     By installing, accessing, or using Groundwork (the "Software"), you agree to this
     End User License Agreement and Terms of Use (the "Agreement"). If you do not agree,
@@ -1226,10 +1226,11 @@ def terms():
 
   <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">7. AI features</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
-    The Software's AI features are optional and run locally on your own machine by default, so no
-    financial data leaves your computer. If you enable cloud mode, aggregated figures are sent to a
-    third-party AI provider only when you explicitly request an AI report, subject to that
-    provider's terms. AI outputs may be inaccurate and are subject to Sections 3 and 4.
+    The Software's AI features are optional. They run only on your own computer, using a local
+    model. The Software does not send your data to any AI service, and it has no option to do so.
+    If your computer cannot run a local model, the AI features are unavailable and the rest of the
+    Software works as described. AI outputs may be inaccurate or incomplete and are subject to
+    Sections 3 and 4.
   </p>
 
   <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">8. Privacy</h2>

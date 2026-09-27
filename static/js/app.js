@@ -11973,7 +11973,9 @@ async function _cloudAiRemovedNotice(raw) {
 // who has not accepted the current version) plus a read-only viewer reachable
 // from Settings → About. Mirrors EULA.txt and the website /terms page — keep
 // all three in sync when the terms change.
-const GW_TERMS_VERSION = '1.0';
+// 1.1 (2026-09-27): section 7 rewritten when cloud AI was removed (CLOUD_AI_REMOVAL.md). A changed
+// version shows the terms again to every user whose stored terms_accepted differs.
+const GW_TERMS_VERSION = '1.1';
 
 const _TERMS_HTML = `
   <p style="margin-bottom:14px"><strong>In short:</strong> Groundwork is a planning aid, not your bank.
@@ -12008,9 +12010,8 @@ const _TERMS_HTML = `
   of — or any financial decision made in reliance on — the Software. As it is provided free of
   charge, total aggregate liability shall not exceed US $0.</p>
   <h4 style="margin:16px 0 4px;color:var(--ink)">7. AI, privacy &amp; more</h4>
-  <p>AI features are optional and run locally by default, so no financial data leaves your computer;
-  cloud mode sends aggregated figures to a third-party provider only when you request a report. Your
-  data is stored locally. This agreement is governed by the laws of the State of Ohio, USA, and may
+  <p>AI features are optional and run only on your own computer, using a local model; Groundwork
+  does not send your data to any AI service and has no option to. Your data is stored locally. This agreement is governed by the laws of the State of Ohio, USA, and may
   be updated for future versions. The full terms are at
   <span style="white-space:nowrap">groundworkfinance.app/terms</span>.</p>`;
 
