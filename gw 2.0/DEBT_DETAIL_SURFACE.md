@@ -11,7 +11,7 @@
 >
 > **The concept exposed existing violations.** Reading it against 1.x found five places where
 > the shipped debt surfaces already break the rules the concept depends on (§4); a sixth, V6, was
-> found investigating the fifth. V1–V10 are fixed on 1.x. A debt view built
+> found investigating the fifth. V1–V10 are fixed on 1.x; V11 is open. A debt view built
 > on today's code would carry every one of them into a new surface and give them a teaching voice.
 > **Do not build the view yet** (Rob, 2026-09-24).
 
@@ -256,7 +256,49 @@ retired in favour of the engine's run, is Rob's call.
 > months and marks the plan's first debt. `_budgetAvalancheSequence` is retired. Gate section `s42`.
 > **Noticed, not changed:** the report's per-card rows are still each debt at its own payment
 > (labelled so under V4), and its "Saved vs minimums" card says *"your strategy is working"* — a
-> verdict, for a G5 reading.
+> verdict, for a G5 reading. Measured the next day: recorded as **V11**.
+
+### V11 — the report's "Saved vs minimums" hides losses and claims what it does not measure — OPEN
+
+*Found 2026-09-27 after V10; recorded at Rob's direction — "that result should count as a
+failure." No code yet.* The Debt Payoff report's card reads *"Saved vs minimums — $X — your
+strategy is working."* What it computes: for each debt **on its own**, the interest at the debt's
+current payment against the interest at a **calculated** minimum (1% of balance + one month's
+interest, at least $25, held fixed for the life of the debt) — then it keeps only the debts where
+the payment comes out ahead. A debt paid **below** that minimum costs more interest, and is clamped
+to zero (`Math.max(0, …)`) and dropped from the sum.
+
+Measured on the three cards used for V10, through the shipped code:
+
+| Debt | Payment | Calculated minimum | Interest at payment | At minimum | Difference |
+|---|---|---|---|---|---|
+| A | $200 | $240 | $7,182 | $4,624 | −$2,558 |
+| B | $50 | $30 | $254 | $590 | +$259 |
+| C | $100 | $100 | $1,875 | $1,875 | $0 |
+| **Card shows** | | | | | **$297.52 saved** |
+| **True net** | | | | | **−$2,642** |
+
+Three failures, not one:
+
+1. **The figure is false by omission** (R2 — "the data is truth", §14). Each part is correct
+   arithmetic; dropping the losses turns a net loss into a saving.
+2. **The sentence asserts what the figure never measured** (G5). "Your strategy" is the plan; the
+   figure knows nothing of the plan, its order or its extra. And even where the net is truly
+   positive, *"working"* is a verdict laid over a fact that G5 already permits on its own
+   (*"your payments cost $X less interest than the calculated minimum on each debt"*).
+3. **Two answers to one question** (the V10 class). For the same debts the Budget page — on the
+   engine since V10 — says the plan saves **$5,592** against minimums only; the report says
+   **$297.52**.
+
+The unlabelled estimate matters too (§14): the "minimum" is Groundwork's calculation, not the
+issuer's figure, and it is held fixed where a real minimum falls with the balance.
+
+**Not a failure, recorded for contrast:** the per-card rows' *"July 2033 at its own payment"* is
+true and says what it is (V4). Whether a plan month serves better there is a design choice.
+
+**The fix is Rob's call.** Options on the table: show the net figure with its definition and drop
+the sentence; or take the figure from the engine (the plan against minimums only, as the Budget
+page now does), which also ends the two answers.
 
 ### V5 — Before You Buy commits a financed purchase as a debt with invented zeros (R2, R3, R5)
 
