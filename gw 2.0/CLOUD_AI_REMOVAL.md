@@ -252,3 +252,20 @@ ships this removal while those three still say cloud mode exists. Re-acceptance 
 **Not covered:** macOS / Linux; a frozen build. s52's source scan lists the shipped modules by
 name, so a new top-level module must be added to it.
 
+**Rob, 2026-09-27, on the two open points:**
+
+1. ***"Local" as a boundary* — ACCEPTED.** `local_endpoint` stays loopback-only; S6 is closed, and
+   Ollama on a second machine is knowingly given up.
+2. ***"Fix EULA"* — DONE, and the release dependency is CLEARED.** §7 now reads: *AI features are
+   optional and run only on your own computer, using a local model; the Software does not send
+   your data to any AI service and has no option to; without a local model they are unavailable
+   and the rest works as described; outputs subject to §§3–4.* It is changed identically in
+   `EULA.txt` (**Version 1.1**, effective September 27, 2026, which the three installers also
+   show), `_TERMS_HTML`'s AI sentence, and the website /terms page. §7 was the only clause
+   describing cloud AI. **Re-acceptance** (ruling 5, since the clause materially changes the data
+   handling agreed to): `GW_TERMS_VERSION` is `'1.1'`, so every 1.0 user sees the terms again.
+   Measured in the real page: a 1.0 user got the gate with Version 1.1 and the new §7, and
+   *cloud mode* appeared nowhere. s52 gains two pins so the three texts cannot drift: one version
+   everywhere, and no terms text describing a cloud mode or a third-party AI provider.
+   `lts/1.x` `a465a70`, gate **809 / 0**; merged to master below.
+

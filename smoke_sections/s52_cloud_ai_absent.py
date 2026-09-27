@@ -239,6 +239,21 @@ def run(ctx):
     check('s52 a PDF without a local model gets the honest message, pointing to CSV / QFX',
           "Reading a PDF statement needs a local AI model" in ctx.server_src)
 
+    # The terms, in all three places they live, describe what the software does (ruling 5): no cloud
+    # mode, and one version everywhere - so a user re-accepts exactly the text the app and the site show.
+    eula = ctx.BASE.joinpath('EULA.txt').read_text(encoding='utf-8')
+    site = ctx.BASE.joinpath('Website/website.py').read_text(encoding='utf-8')
+    app_version = re.search(r"const GW_TERMS_VERSION = '([^']+)'", app).group(1)
+    eula_version = re.search(r'^Version (\S+)', eula, re.M).group(1)
+    site_version = re.search(r'End User License Agreement · Version (\S+) ·', site).group(1)
+    terms_html = app.split('const _TERMS_HTML', 1)[1].split('`;', 1)[0]
+    site_terms = site.split("@app.route('/terms')", 1)[1]
+    check('s52 the three terms texts carry one version (EULA.txt, the app, the website)',
+          app_version == eula_version == site_version)
+    check('s52 no terms text still describes a cloud mode or a third-party AI provider',
+          not any(re.search(r'cloud mode|third-party AI provider|third-party provider', t, re.I)
+                  for t in (eula, terms_html, site_terms)))
+
     # Mutations
     back = dict(texts, **{'server.py': texts['server.py'] + "\nURL = 'https://api.anthropic.com/v1/messages'\n"})
     check('s52 mutation caught: the Anthropic endpoint put back in server.py', bool(_scan(back)))
