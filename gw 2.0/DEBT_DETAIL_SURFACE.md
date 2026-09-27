@@ -11,7 +11,7 @@
 >
 > **The concept exposed existing violations.** Reading it against 1.x found five places where
 > the shipped debt surfaces already break the rules the concept depends on (§4); a sixth, V6, was
-> found investigating the fifth. V1–V9 are fixed on 1.x; V10 is open. A debt view built
+> found investigating the fifth. V1–V10 are fixed on 1.x. A debt view built
 > on today's code would carry every one of them into a new surface and give them a teaching voice.
 > **Do not build the view yet** (Rob, 2026-09-24).
 
@@ -236,13 +236,27 @@ and it would change when the user adds a different card, with nothing on the scr
 > (`teaching/budget.js`, `debt.js`, `networth.js`, `paths.js`) show the plan's debt-free date or
 > *"X clears in N months"* without naming the plan.
 
-### V10 — the Budget page's payoff forecast is always avalanche — OPEN
+### V10 — the Budget page's payoff forecast is always avalanche
 
 *Found 2026-09-26 while fixing V4; labelled, not fixed.* The Budget page computes its own payoff
 sequence (`_budgetAvalancheSequence`), which is avalanche whatever plan the user chose — so a
 snowball user sees an avalanche forecast there and a snowball date on the Debt page. V4 made it
 visible (its lines now read *"avalanche, $X/mo"*); whether it should follow the chosen plan, or be
 retired in favour of the engine's run, is Rob's call.
+
+> **FIXED on 1.x, 2026-09-27 (`8ed5357` on `lts/1.x`, merged into master) — Rob chose the
+> engine.** Measured first: on three cards the Budget page's avalanche matched the engine's
+> avalanche exactly (29 months), so a snowball user saw a date one month early and $529 of interest
+> off; and it had missed V3 — it took a mortgage's whole payment, escrow too, as principal, so a
+> $180,000 mortgage and a card cleared in 130 months there against the engine's 194. The Budget
+> page's summary, its two-scenario line and the Debt Payoff report now show the Debt page's own
+> engine run (same cards, budget, plan and cache key), each naming the plan; "minimums only" is the
+> same engine at a budget equal to the minimums, and says *"never at minimum payments"* or *"not
+> within 30 years"* rather than a date it cannot give. The report orders its sequence by the plan's
+> months and marks the plan's first debt. `_budgetAvalancheSequence` is retired. Gate section `s42`.
+> **Noticed, not changed:** the report's per-card rows are still each debt at its own payment
+> (labelled so under V4), and its "Saved vs minimums" card says *"your strategy is working"* — a
+> verdict, for a G5 reading.
 
 ### V5 — Before You Buy commits a financed purchase as a debt with invented zeros (R2, R3, R5)
 
