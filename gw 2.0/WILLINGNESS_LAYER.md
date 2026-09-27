@@ -1,6 +1,7 @@
 # The Willingness Layer: the build pass
 
-> Status: **OPENED 2026-09-27. No code.** Queue item 23. Rob, 2026-09-27: *"lets build the
+> Status: **RULED 2026-09-27 (Rob, §6): all eight recommendations accepted. No code; the build is
+> not yet authorised.** Opened the same day. Queue item 23. Rob, 2026-09-27: *"lets build the
 > teaching layer"*, then *"the unbuilt teaching pieces"*, then *"I feel we need that before the
 > dashboard"*. So this pass comes before the dashboard build (item 22, ruled, not authorised).
 >
@@ -209,3 +210,35 @@ A structural test pins the allowed set, as H1's reader pin did. A new source is 
 6. **W6:** the read boundary as listed, including **dismissals are not willingness**?
 7. **W8, scope:** master only, engine and surface; 1.x unchanged?
 8. **Then:** the break-detector as the next pass, and the dashboard build after this layer?
+
+---
+
+## 6. Ruling: Rob, 2026-09-27
+
+**All eight accepted as stated.** The distinction the ruling draws, recorded:
+
+> Groundwork can be an active financial coach **without learning the user's behaviour from the
+> Historian.** The Willingness Layer's coaching signal is what the user has actually said they are
+> willing to do, and what their record shows, never what their clicks suggest.
+>
+> **Financial evidence** tells Groundwork what is happening. **The user's stated willingness** tells
+> it what kinds of solutions it may responsibly present. **The coaching layer** explains the
+> connection. **The user** still makes the decision.
+
+| # | ruling |
+|---|---|
+| **1** | **Build order as W1:** record evidence (W-A), the user's statements (W-B), the solution engine's use of them (W-C) and the home first; the contradiction-check (W-D) after; strategy inference (W-E) last, earning its place by test |
+| **2** | **Derived readings are recalculated, never persisted.** Only what the user said is stored |
+| **3** | **H-a: the home is built now,** its empty state genuinely empty until Groundwork has something it can substantiate. It gives the coaching layer somewhere to exist **without prematurely inventing a conversational assistant**: the conversation pane is not part of this build |
+| **4** | **W4's kill condition:** if the strategy labels collapse into near-universal labels on trend-free data, they are not earning their existence, and W-E is not built |
+| **5** | **Storage: the user's statements get their own history.** A changed mind is a new statement, never a rewrite. The schema bump and s51 pin follow |
+| **6** | **The layer never reads usage, dismissals included:** *a dismissal says "I dismissed this", not "I am unwilling to do this"* |
+| **7** | **2.0 only;** 1.x is not disturbed |
+| **8** | **The break-detector is the next pass; the dashboard build follows,** on a foundation that presents actual coaching situations |
+
+**Separated out, not part of this ruling:** the `engaged / occasional / passive` label
+(`app.js:934`) becomes its own semantic question, opened later and not here: *what does Groundwork
+actually know when it labels someone "engaged", "occasional" or "passive", and is that label useful
+enough to exist?* A sparse record can mean many things, and "passive" is not one Groundwork can see.
+
+**Not authorised yet:** the build itself.
