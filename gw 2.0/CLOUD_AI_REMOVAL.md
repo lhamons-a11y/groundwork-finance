@@ -1,6 +1,6 @@
 # Cloud AI removal — all local, or no AI at all
 
-> Status: **RULED 2026-09-27 (Rob, §7); BUILT on both lines the same day (§8), awaiting acceptance. The build goes `lts/1.x` first. The EULA wording and
+> Status: **RULED, BUILT and ACCEPTED 2026-09-27 (Rob, §7 / §8), with EULA 1.1. CLOSED. The build goes `lts/1.x` first. The EULA wording and
 > version are a separate legal-text decision.** Opened 2026-09-26. The decision is Rob's, already made (2026-09-25):
 >
 > > *"With LTS and 2.0, cloud is going away. It has to be all local or no AI at all. I think that
@@ -199,7 +199,7 @@ three in sync).
 
 ---
 
-## 8. Built — both lines (2026-09-27), awaiting acceptance
+## 8. Built — both lines (2026-09-27) — ACCEPTED (Rob, 2026-09-27)
 
 **`lts/1.x` first (`765ec58`), then merged to `master`**, as ruling 6 set.
 
@@ -268,4 +268,10 @@ name, so a new top-level module must be added to it.
    *cloud mode* appeared nowhere. s52 gains two pins so the three texts cannot drift: one version
    everywhere, and no terms text describing a cloud mode or a third-party AI provider.
    `lts/1.x` `a465a70`, gate **809 / 0**; merged to master below.
+
+**ACCEPTED AS A WHOLE — Rob, 2026-09-27.** The removal on both lines (`lts/1.x` `765ec58`, master
+`6756e52`), the crossover and its notice, the honest PDF message, *"local" as a boundary*, the
+s52 crossing tests, and EULA 1.1 with re-acceptance (`a465a70` / `b6a353e`). Item 21 is closed.
+**Still open, by name, and not part of the acceptance:** macOS / Linux and a frozen build are not
+measured, and s52's source scan must be told about any new top-level module.
 
