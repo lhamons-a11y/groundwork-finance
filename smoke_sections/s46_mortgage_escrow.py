@@ -78,7 +78,8 @@ def run(ctx):
 
     app_js = (Path(__file__).resolve().parent.parent / 'static' / 'js' / 'app.js').read_text(encoding='utf-8')
     check('the client builds engine cards from principal & interest',
-          app_js.count('_payoffPayment(c) || 25') >= 4 and 'minimum:  Math.max(1, parseFloat(c.minimum) || 25),' not in app_js)
+          # 3 since V10 retired the Budget page's own minimums loop (it asks the engine via _simCards)
+          app_js.count('_payoffPayment(c) || 25') >= 3 and 'minimum:  Math.max(1, parseFloat(c.minimum) || 25),' not in app_js)
     check('and takes the escrow share of the cards it simulates out of the budget',
           'budget = budget - (cards || []).reduce((s, c) => s + (c.non_principal || 0), 0);' in app_js)
     check('Mortgage is a type the user can choose, and its row shows the split',

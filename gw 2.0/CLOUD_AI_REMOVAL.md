@@ -1,6 +1,6 @@
 # Cloud AI removal — all local, or no AI at all
 
-> Status: **RULED 2026-09-27 (Rob, §7). No code yet. The build goes `lts/1.x` first. The EULA wording and
+> Status: **RULED 2026-09-27 (Rob, §7); BUILT on both lines the same day (§8), awaiting acceptance. The build goes `lts/1.x` first. The EULA wording and
 > version are a separate legal-text decision.** Opened 2026-09-26. The decision is Rob's, already made (2026-09-25):
 >
 > > *"With LTS and 2.0, cloud is going away. It has to be all local or no AI at all. I think that
@@ -196,4 +196,59 @@ three in sync).
   three places. The build note will record that dependency, not settle it;
 - the unconditional privacy line (C7) goes live in copy only when the code is gone **and** the terms
   match.
+
+---
+
+## 8. Built — both lines (2026-09-27), awaiting acceptance
+
+**`lts/1.x` first (`765ec58`), then merged to `master`**, as ruling 6 set.
+
+**Removed:** `_ai_chat_cloud` (the only request to `api.anthropic.com`); the provider switch in
+`ai_chat` and in `_ai_complete_text` (PDF extraction's caller); `POST /api/settings/api-key`;
+`_get_api_key` and `api_key_configured`. `ai/status` names local as the only provider, and the
+settings PATCH ignores `ai_provider` and `api_key`. **In the page:** the Local / Cloud (Anthropic)
+switch, the `sk-ant` field, the one cloud preview-before-send, *"Powered by Claude"*, the
+cloud-only *Generate* button, every `aiProvider` branch, and onboarding's offer of a cloud key.
+**Kept:** the internal Anthropic-shaped response format (ruling 2). On master, item 12's comments
+now describe it as that internal format, and s26's *"the cloud path proxies stop_reason"* check is
+retired: its replacement asserts no cloud path remains.
+
+**Beyond the pass's inventory, flagged for Rob:** *"local" is now a boundary.* `local_endpoint`
+must be a loopback address. It is refused on save, and a planted non-loopback value is ignored at
+the moment of use. This closes S6, because ruling 1's *"no path"* could not hold while "local"
+could point anywhere. **Its cost:** Ollama run on a second machine is no longer reachable.
+
+**The crossover (ruling 3):** a flagged one-time `_remove_cloud_ai` step in `migrate.py`. It
+removes `ai_provider`. It deletes **only** `ANTHROPIC_API_KEY` from Groundwork's own
+`config.json`, by atomic replace; the EIA and SerpApi keys stay, an unreadable file is left
+alone, and an environment key is simply unused. It records a one-time notice **only for a user it
+affected**. `SCHEMA_VERSION` is `20260927-lts-cloud-ai-removed` on 1.x and
+`20260927-cloud-ai-removed` on master (distinct, so each line's databases migrate), each with its
+own s51 pin. **The notice is recorded as shown the moment it is displayed.** The first version
+recorded it only on OK, so Cancel or × would have brought it back on every start; that was found
+in the browser. Local AI if this machine runs it; otherwise AI turned off and the user told so.
+**PDF without a model:** an honest message pointing to CSV / QFX (ruling 4).
+
+**Measured:**
+- a **v1.1.0** cloud user with a saved key and an EIA key, opened by 1.x and by master:
+  bootstrap 200, `ai_provider` gone, the Anthropic key gone, the EIA key kept, the notice
+  recorded. The same for a **pre-merge master** cloud user;
+- in the real page (1.x): the notice with local AI ready; the notice with local AI unreachable,
+  where AI was turned off and the topbar said *AI off*; the notice never returning after
+  dismissal; the Settings AI panel local-only, the override labelled *(this computer only)*;
+- **s52**: 22 / 0. The source scan found no hosted-model endpoint in any shipped file. The runtime
+  crossing test refused every connection with 'cloud', an env key and a remote endpoint planted:
+  every AI route answered and none reached beyond this computer. Plus the crossover, and five
+  mutations each caught.
+
+**Gates:** 1.x **794 / 0**, then over V10 **807 / 0**; master merge **1852 / 0**.
+
+**Not done here, by ruling 5: the EULA.** §7 in `EULA.txt`, `_TERMS_HTML` in `app.js` and the
+website's /terms page still describe cloud mode. The wording, the version, and whether users
+re-accept are Rob's separate legal-text decision. **This is a release dependency:** no release
+ships this removal while those three still say cloud mode exists. Re-acceptance is one bump of
+`GW_TERMS_VERSION`.
+
+**Not covered:** macOS / Linux; a frozen build. s52's source scan lists the shipped modules by
+name, so a new top-level module must be added to it.
 

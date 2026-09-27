@@ -54,9 +54,9 @@ def run(ctx):
           'Payoff dates are from ${_planScenario()}. Change the plan and they change.' in app_js)
     check('the dashboard\'s debt-free date names the plan',
           '(${_planName()}, ${fmt(_getMonthlyBudget())}/mo)' in app_js)
-    check('the Budget page\'s forecast says it is avalanche, whatever the chosen plan',
-          'Payoff forecast (avalanche, ${fmt(parseFloat(S.monthlyBudget) || 0)}/mo)' in app_js
-          and 'Avalanche at ${fmt(parseFloat(S.monthlyBudget) || 0)}/mo:' in app_js)
+    check('the Budget page\'s forecast names the plan it belongs to (V10: it is the plan)',
+          'Payoff forecast (your ${_planName()} plan, ${fmt(_getMonthlyBudget())}/mo)' in app_js
+          and 'Your ${_planName()} plan at ${fmt(_getMonthlyBudget())}/mo:' in app_js)
     check('projections of one debt at its own payment say so, in the report and the Budget editor',
           '${_payoffDateLabel(snaps.length)} at its own payment' in app_js
           and 'Payoff date at this payment alone' in app_js)

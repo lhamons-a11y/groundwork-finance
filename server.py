@@ -3448,7 +3448,7 @@ def _ai_complete_text(system: str, user: str, max_tokens: int = 4000):
         return None
     body = {'system': system, 'messages': [{'role': 'user', 'content': user}],
             'max_tokens': max_tokens}
-    resp = _ai_chat_cloud(body) if _ai_provider() == 'cloud' else _ai_chat_local(body)
+    resp = _ai_chat_local(body)
     resp_obj = resp[0] if isinstance(resp, tuple) else resp
     try:
         data = resp_obj.get_json()
@@ -3509,7 +3509,9 @@ def debt_pdf_extract():
     ai_text = _ai_complete_text(ps.PDF_STATEMENT_SYSTEM_PROMPT, ps.build_user_prompt(prompt_text))
     if not ai_text:
         return ok({'ai_available': False, 'reason': 'no_model',
-                    'message': 'AI extraction is unavailable — check your AI settings and try again.'})
+                    'message': ("Reading a PDF statement needs a local AI model, and this computer isn't "
+                                "running one. Download your transactions from your bank as a CSV or QFX "
+                                "file instead - those import without AI.")})
 
     try:
         raw = ps.parse_json_response(ai_text)
@@ -4980,16 +4982,9 @@ settings_bp = Blueprint('settings', __name__)
 def get_settings():
     """
     Return all app settings as a flat key-value dict.
-    Also includes derived flags: api_key_configured (bool as string).
-    Never returns the actual API key value — only whether one is set.
     """
     with db_session() as session:
         settings = {s.key: s.value for s in session.query(AppSetting).all()}
-
-    # Add derived flags (never expose the raw key)
-    api_key = _get_api_key()
-    settings['api_key_configured'] = 'true' if api_key else 'false'
-    settings.pop('api_key', None)   # never send the key value to the frontend
 
     # Default ai_enabled to 'true' if not yet set
     if 'ai_enabled' not in settings:
@@ -5001,10 +4996,16 @@ def get_settings():
 @settings_bp.route('', methods=['PATCH'])
 @require_json
 def update_settings():
-    """Update one or more app settings. Never accepts api_key directly."""
+    """Update one or more app settings."""
     body = request.json
-    # Security: API key must go through /api/settings/api-key, not here
+    # Cloud AI is gone (CLOUD_AI_REMOVAL.md): there is no provider to choose and
+    # no key to store, so neither setting is ever written.
     body.pop('api_key', None)
+    body.pop('ai_provider', None)
+    # The local model's address must be this computer - a "local" call that
+    # reaches another host would carry the user's data off the device.
+    if 'local_endpoint' in body and body['local_endpoint'] and not _is_loopback_endpoint(body['local_endpoint']):
+        return err('The local AI address must be on this computer (localhost, 127.0.0.1 or ::1).', 400)
 
     with db_session() as session:
         for key, value in body.items():
@@ -5015,37 +5016,6 @@ def update_settings():
                 session.add(AppSetting(key=key, value=str(value)))
         session.commit()
         return ok({'updated': list(body.keys())})
-
-
-@settings_bp.route('/api-key', methods=['POST'])
-@require_json
-def save_api_key():
-    """
-    Securely save the Anthropic API key to config.json on disk.
-    Never stored in the database — stays in the filesystem config only.
-    Returns only a success flag, never echoes the key back.
-    """
-    key = (request.json.get('key') or '').strip()
-    if not key:
-        return err('key is required')
-    if not key.startswith('sk-ant-'):
-        return err('Invalid key format — Anthropic keys start with sk-ant-')
-
-    # Write to config.json in the app data directory
-    config_path = DATA_DIR / 'config.json'
-    try:
-        cfg = {}
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                cfg = json.load(f)
-        cfg['ANTHROPIC_API_KEY'] = key
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(config_path, 'w', encoding='utf-8') as f:
-            json.dump(cfg, f, indent=2)
-        return ok({'saved': True, 'configured': True})
-    except Exception as e:
-        logging.error('Failed to save API key: %s', e)
-        return err(f'Could not save key: {e}', 500)
 
 
 @settings_bp.route('/bootstrap', methods=['GET'])
@@ -5063,9 +5033,6 @@ def bootstrap():
         with db_session() as session:
             # ── Settings & preferences ─────────────────────────────────────────
             settings = {s.key: s.value for s in session.query(AppSetting).all()}
-            api_key  = _get_api_key()
-            settings['api_key_configured'] = 'true' if api_key else 'false'
-            settings.pop('api_key', None)
             if 'ai_enabled' not in settings:
                 settings['ai_enabled'] = 'true'
 
@@ -7033,13 +7000,12 @@ ai_bp = Blueprint('ai', __name__)
 @require_json
 def ai_chat():
     """
-    AI proxy with a pluggable provider. Routes to a LOCAL LLM (Ollama) by
-    default so Groundwork is free out of the box, and falls back to the
-    Anthropic cloud API when ai_provider == 'cloud'.
-
-    Both paths return the Anthropic response shape
-    ({content:[{type:'text', text:...}]}) so the frontend callAI() contract
-    is byte-identical regardless of provider — no app.js changes required.
+    AI proxy to the LOCAL model (Ollama, on this computer) - the only AI
+    Groundwork has. Cloud AI was removed on purpose (CLOUD_AI_REMOVAL.md): no
+    path sends a user's data to an off-device model, and s52 fails if one
+    returns. The response keeps its internal shape
+    ({content:[{type:'text', text:...}]}), an application-internal contract
+    with callAI(), not a network format (ruling 2).
     """
     # Respect the user's AI toggle — return a friendly message, not an error code
     if not _ai_is_enabled():
@@ -7050,33 +7016,45 @@ def ai_chat():
         })
 
     body = request.json or {}
-    if _ai_provider() == 'cloud':
-        return _ai_chat_cloud(body)
     return _ai_chat_local(body)
-
-
-def _ai_provider() -> str:
-    """Active AI provider: 'local' (default, free) or 'cloud' (Anthropic)."""
-    try:
-        with db_session() as session:
-            row = _get_setting(session, 'ai_provider')
-            val = (row.value if row else '').strip().lower()
-            return 'cloud' if val == 'cloud' else 'local'
-    except Exception:
-        return 'local'
 
 
 # ── Local LLM (Ollama) ────────────────────────────────────────────────────────
 DEFAULT_OLLAMA_ENDPOINT = 'http://localhost:11434'
 
 
+def _is_loopback_endpoint(url) -> bool:
+    """True only for an http(s) address on THIS computer: localhost, 127.0.0.0/8 or ::1."""
+    from urllib.parse import urlsplit
+    import ipaddress
+    try:
+        parts = urlsplit(str(url).strip())
+        host = (parts.hostname or '').lower()
+    except ValueError:
+        return False
+    if parts.scheme not in ('http', 'https') or not host:
+        return False
+    if host == 'localhost':
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def _local_endpoint() -> str:
-    """Ollama base URL. Overridable via the local_endpoint setting."""
+    """Ollama base URL - always on this computer.
+
+    Overridable via the local_endpoint setting, but only to another loopback
+    address: "local" is a boundary, not a label (SAFETY_PROVISIONS_INVENTORY
+    S6). A stored non-loopback value - planted, or left from before the rule -
+    is ignored here, at the moment of use, not merely refused on save.
+    """
     try:
         with db_session() as session:
             row = _get_setting(session, 'local_endpoint')
             val = (row.value if row else '').strip()
-            return val or DEFAULT_OLLAMA_ENDPOINT
+            return val if val and _is_loopback_endpoint(val) else DEFAULT_OLLAMA_ENDPOINT
     except Exception:
         return DEFAULT_OLLAMA_ENDPOINT
 
@@ -7187,7 +7165,7 @@ def _ai_chat_local(body: dict):
         text = (result.get('message') or {}).get('content', '')
         text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
         # Item 12 (BUILD_QUEUE, STREAMING.md T7): carry Ollama's stop reason through in
-        # the Anthropic vocabulary the cloud path already returns verbatim, so the
+        # the internal response format's vocabulary (CLOUD_AI_REMOVAL.md ruling 2), so the
         # frontend gate can see that an answer was cut at num_predict rather than
         # finished. Ollama: done_reason 'length' = hit the cap, 'stop' = finished.
         # Anything else (older Ollama without the field) is reported as unknown, never
@@ -7214,57 +7192,6 @@ def _ai_chat_local(body: dict):
         return err(f'Local AI request failed: {e}', 500)
 
 
-def _ai_chat_cloud(body: dict):
-    """Proxy to the Anthropic API (opt-in cloud provider)."""
-    import urllib.request
-    import urllib.error
-
-    api_key = _get_api_key()
-    if not api_key:
-        return ok({
-            'ai_available': False,
-            'reason':       'no_key',
-            'message':      ('Cloud AI is selected but no Anthropic key is configured. '
-                             'Add one in Settings → AI features, or switch to the local provider.'),
-        })
-
-    payload = {
-        'model': 'claude-haiku-4-5-20251001',
-        'max_tokens': body.get('max_tokens', 1000),
-        'messages': body.get('messages', []),
-    }
-    if body.get('system'):
-        payload['system'] = body['system']
-
-    try:
-        data = json.dumps(payload).encode('utf-8')
-        req = urllib.request.Request(
-            'https://api.anthropic.com/v1/messages',
-            data=data, method='POST'
-        )
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('x-api-key', api_key)
-        req.add_header('anthropic-version', '2023-06-01')
-
-        with urllib.request.urlopen(req, timeout=60) as r:
-            result = json.loads(r.read().decode('utf-8'))
-            # Explicit marker (not just the absence of one) so the frontend's
-            # attribution line ("Analyzed on your machine" vs "Powered by
-            # Claude") never has to infer provider from a missing field.
-            result['provider'] = 'cloud'
-            return jsonify(result)
-
-    except urllib.error.HTTPError as e:
-        body_txt = e.read().decode('utf-8')
-        try:
-            msg = json.loads(body_txt).get('error', {}).get('message', body_txt)
-        except Exception:
-            msg = body_txt[:200]
-        return err(f'AI API error: {msg}', 502)
-    except Exception as e:
-        return err(f'AI request failed: {e}', 500)
-
-
 def _get_config_value(name: str) -> str:
     """
     Locate a secret/config value by name. Checks in order:
@@ -7273,7 +7200,7 @@ def _get_config_value(name: str) -> str:
       3. config.json next to server.py
       4. config.json in the user's home directory
     Never reads from the database — keys stay on the filesystem only.
-    Shared by every external API key this app uses (Anthropic, EIA, ...) —
+    Shared by every external API key this app uses (EIA, SerpApi) —
     one lookup convention, not a copy per key.
     """
     val = os.environ.get(name, '').strip()
@@ -7293,17 +7220,12 @@ def _get_config_value(name: str) -> str:
     return ''
 
 
-def _get_api_key() -> str:
-    """The Anthropic API key — see _get_config_value for the lookup order."""
-    return _get_config_value('ANTHROPIC_API_KEY')
-
-
 def _get_eia_api_key() -> str:
     """
     The EIA (U.S. Energy Information Administration) open-data API key, for
     Phase 5A's real national-average gas price. Free, self-service key at
     https://www.eia.gov/opendata/register.php — same config.json/env lookup
-    convention as the Anthropic key. Trip planning degrades to an honest
+    convention as the other keys. Trip planning degrades to an honest
     estimate (gas_price.FALLBACK_PRICE) when this isn't configured, never
     a crash or a silently wrong "live" number.
     """
@@ -7340,28 +7262,22 @@ def ai_status():
     model resolves. Powers a 'Test connection' button and lets beta testers
     confirm the local LLM is wired without touching a terminal.
     """
-    provider = _ai_provider()
-    out = {'enabled': _ai_is_enabled(), 'provider': provider}
-
-    if provider == 'local':
-        endpoint = _local_endpoint()
-        out['endpoint'] = endpoint
-        try:
-            import urllib.request
-            req = urllib.request.Request(f'{endpoint}/api/tags', method='GET')
-            with urllib.request.urlopen(req, timeout=5) as r:
-                tags = json.loads(r.read().decode('utf-8')).get('models', [])
-            out['reachable']        = True
-            out['installed_models'] = [m.get('name') for m in tags if m.get('name')]
-            out['active_model']     = _resolve_local_model(endpoint)
-        except Exception as e:
-            out['reachable']        = False
-            out['installed_models'] = []
-            out['active_model']     = ''
-            out['error']            = str(e)
-    else:
-        out['reachable']    = bool(_get_api_key())
-        out['active_model'] = 'claude-haiku-4-5-20251001'
+    out = {'enabled': _ai_is_enabled(), 'provider': 'local'}
+    endpoint = _local_endpoint()
+    out['endpoint'] = endpoint
+    try:
+        import urllib.request
+        req = urllib.request.Request(f'{endpoint}/api/tags', method='GET')
+        with urllib.request.urlopen(req, timeout=5) as r:
+            tags = json.loads(r.read().decode('utf-8')).get('models', [])
+        out['reachable']        = True
+        out['installed_models'] = [m.get('name') for m in tags if m.get('name')]
+        out['active_model']     = _resolve_local_model(endpoint)
+    except Exception as e:
+        out['reachable']        = False
+        out['installed_models'] = []
+        out['active_model']     = ''
+        out['error']            = str(e)
 
     return ok(out)
 
@@ -7375,7 +7291,7 @@ def ai_system_ram():
     framed as a downgrade or a failure to meet a spec.
       16GB+ free -> 'high' (qwen2.5:7b, ~5GB, sharper analysis)
       8-16GB free -> 'mid'  (phi3.5, ~2.2GB, the default)
-      <8GB free  -> 'low'  (cloud key or fully structured, no local model)
+      <8GB free  -> 'low'  (the fully structured experience, no local model)
     Uses available (not total) memory — total installed RAM overstates what
     a machine can actually spare for a model alongside everything else
     already running.

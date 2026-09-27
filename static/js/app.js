@@ -118,7 +118,6 @@ function openExternal(url) {
 
 // ─── Global flags (set during boot from bootstrap data) ───────────────────────
 let _aiEnabled     = true;   // updated by restoreFromBootstrap
-let _apiKeyPresent = false;  // updated by restoreFromBootstrap
 let _saveTimer     = null;   // debounce timer for scheduleSave()
 
 // ── Global error handler — catches ALL uncaught JS errors and promise rejections
@@ -1573,11 +1572,8 @@ function restoreFromBootstrap(data) {
     _aiEnabled     = data.settings['ai_enabled'] !== 'false';
     S.prefs        = S.prefs || {};
     S.prefs.aiEnabled = _aiEnabled;
-    _apiKeyPresent = data.settings['api_key_configured'] === 'true';
-    S.apiKeyConfigured = _apiKeyPresent;
-    // Provider — mirrors server.py's _ai_provider() default ('local' when
-    // unset). Local mode needs no cloud key at all; see aiEnabled().
-    S.aiProvider = data.settings['ai_provider'] === 'cloud' ? 'cloud' : 'local';
+    // AI is local-only (CLOUD_AI_REMOVAL.md): no provider, no key.
+    _cloudAiRemovedNotice(data.settings['cloud_ai_removed_notice']);
     S.localModel    = data.settings['local_model']    || '';
     S.localEndpoint = data.settings['local_endpoint'] || '';
     S.homeState     = data.settings['home_state']     || '';
@@ -8785,117 +8781,22 @@ function _budgetMinDecay(card) {
   return { delta, freed: -delta };          // freed > 0 means minimum dropped
 }
 
-// ── Avalanche engine ──────────────────────────────────────────────────────────
-// Blueprint §7. Pure arithmetic. Returns payoff sequence for all active debts.
-function _budgetAvalancheSequence(cards, totalBudget) {
-  const today  = new Date().toISOString().slice(0, 10);
-  const active = cards
-    .filter(c => !c.paidInFull && !(c.endDate && c.endDate < today))
-    .map(c => ({
-      id:      c.id,
-      dbId:    c._dbId,
-      name:    c.name,
-      balance: _cardBal(c),
-      apr:     parseFloat(c.rate) || 0,
-      payment: parseFloat(c.minimum) || 0,
-      isLease: (c.debtType || 'credit') === 'lease',
-    }))
-    .filter(c => c.balance > 0 && c.payment > 0);
-
-  if (!active.length) return null;
-
-  // Leases and PSLF are minimum-only — exclude from avalanche extra routing
-  const payableWithExtra = active.filter(c => !c.isLease && !_pslfIsFlagged(c.id));
-  const ordered = [...payableWithExtra].sort((a, b) => b.apr - a.apr);
-
-  // Total committed monthly payment — all active cards (leases included at min)
-  const totalMinPmt = active.reduce((s, c) => s + c.payment, 0);
-  // BUG FIX (July 6): totalPmt was always exactly the sum of minimums —
-  // this function never accepted or used the user's real monthly debt
-  // budget at all. That meant the "route extra to avalanche target" logic
-  // just below was fully built but functionally dead: after paying every
-  // card's minimum, there was never anything left over to route, because
-  // nothing extra was ever added to totalPmt in the first place. This is
-  // what caused the Debt Payoff Report to show a different (later, worse)
-  // payoff date than the Debt Payoff page itself — the page correctly
-  // used the real budget via _simulatePayoff, the report silently
-  // computed a minimums-only scenario instead. Confirmed in the field.
-  // Fixed by accepting the real budget and using whichever is larger.
-  const totalPmt = Math.max(totalMinPmt, parseFloat(totalBudget) || 0);
-
-  // Run month-by-month simulation
-  // balances/interest track ALL active (leases stay at minimum-only, never receive extra)
-  const balances  = Object.fromEntries(active.map(c => [c.id, c.balance]));
-  const sequence  = [];
-  const interest  = Object.fromEntries(active.map(c => [c.id, 0]));
-  let month = 0;
-
-  while (active.some(c => balances[c.id] > 0.01) && month < 360) {
-    month++;
-    let remaining = totalPmt;
-
-    // Pay minimums on ALL cards (including leases) — matches _simulatePayoff pattern
-    for (const c of active) {
-      if (balances[c.id] <= 0.01) continue;
-      const ic  = balances[c.id] * (c.apr / 100 / 12);
-      balances[c.id] += ic;
-      interest[c.id] += ic;
-      const pay = Math.min(c.payment, balances[c.id]);
-      balances[c.id]  = Math.max(0, balances[c.id] - pay);
-      remaining       -= pay;
-    }
-
-    // Route extra to avalanche target — non-lease, non-PSLF only
-    for (const c of ordered) {
-      if (remaining <= 0.01) break;
-      if (balances[c.id] <= 0.01) continue;
-      const extra = Math.min(remaining, balances[c.id]);
-      balances[c.id]  = Math.max(0, balances[c.id] - extra);
-      remaining       -= extra;
-    }
-
-    // Record payoffs — all active cards
-    for (const c of active) {
-      if (balances[c.id] <= 0.01 && !sequence.find(s => s.id === c.id)) {
-        sequence.push({ id: c.id, name: c.name, payoffMonth: month });
-      }
-    }
-  }
-
-  const totalInterest = Math.round(Object.values(interest).reduce((a,b)=>a+b,0) * 100) / 100;
-  const lastPayoff    = sequence.length ? Math.max(...sequence.map(s => s.payoffMonth)) : month;
-
-  // Minimums-only comparison
-  let minInterest = 0;
-  let minMonth    = 0;
-  {
-    const minBals = Object.fromEntries(active.map(c => [c.id, c.balance]));
-    let m = 0;
-    while (active.some(c => minBals[c.id] > 0.01) && m < 360) {
-      m++;
-      for (const c of active) {
-        if (minBals[c.id] <= 0.01) continue;
-        const r   = c.apr / 100 / 12;
-        const int = minBals[c.id] * r;
-        const min = c.payment || Math.max(25, minBals[c.id] * 0.01 + int);
-        minBals[c.id] += int;
-        minInterest   += int;
-        minBals[c.id]  = Math.max(0, minBals[c.id] - Math.min(min, minBals[c.id]));
-      }
-    }
-    minMonth    = m;
-    minInterest = Math.round(minInterest * 100) / 100;
-  }
-
-  return {
-    sequence,
-    totalInterest,
-    minInterest,
-    savesInterest: Math.round((minInterest - totalInterest) * 100) / 100,
-    savesMonths:   minMonth - lastPayoff,
-    lastPayoffMonth: lastPayoff,
-    payoffLabel:   _payoffDateLabel(lastPayoff),
-  };
+// ── The Budget page's payoff forecast is the plan (V10) ─────────────────────
+// The Budget page, its two-scenario line and the Debt Payoff report ran their own
+// payoff maths: always avalanche, whatever plan the user chose, and with a
+// mortgage's whole payment (escrow too) taken as principal - so a snowball user
+// saw one date here and another on the Debt page, and a mortgage cleared years
+// early. They now show the Debt page's own engine run, and "minimums only" is the
+// same engine asked for a budget equal to the minimums (freed minimums roll on).
+function _minimumsBudget(cards) {
+  // _simAsk takes each mortgage's escrow share back out; the minimums are P&I.
+  return cards.reduce((s, c) => s + c.minimum + (c.non_principal || 0), 0);
+}
+function _budgetPlanForecast() {
+  const cards = _simCards();
+  if (!cards.length) return { plan: null, mins: null };
+  return { plan: _simulatePayoff(0),   // the Debt page's run: same cards, budget and plan
+           mins: _simulatePayoffStrategy(S.debtCards, _minimumsBudget(cards), _planName()) };
 }
 
 // ── Freed minimums this year ──────────────────────────────────────────────────
@@ -9246,80 +9147,28 @@ function _budgetAdjustScheduler(cardId, suggestedAmt) {
 // B0d: Two-scenario comparison for What's Left card
 function _budgetTwoScenarioComparison(activeDebts) {
   if (!activeDebts.length) return '';
-  const avSeq = _budgetAvalancheSequence(activeDebts, S.monthlyBudget);
-  if (!avSeq) return '';
+  // V10: both lines from the engine - the plan the Debt page shows, and the same
+  // engine at a budget equal to the minimums. Pending or not covering the
+  // minimums says nothing here; the page redraws when the answers land.
+  const { plan, mins } = _budgetPlanForecast();
+  if (!plan || !mins) return '';
+  const currentDate = _payoffDateLabel(plan.months);
+  // A minimum at or below its month's interest never pays the debt down - a fact,
+  // not a projection. Otherwise the engine's 30-year horizon is the limit.
+  const neverCovers = _simCards().some(c => c.rate > 0 && c.minimum <= c.balance * (c.rate / 100 / 12));
+  const minNever = neverCovers || mins.months >= 360;
+  const minDate = neverCovers ? 'never at minimum payments'
+                : minNever    ? 'not within 30 years'
+                : _payoffDateLabel(mins.months);
+  if (!minNever && currentDate === minDate) return '';
 
-  // Current strategy payoff date from the avalanche sequence
-  const currentDate = _payoffDateLabel(avSeq.lastPayoffMonth);
-
-  // Minimums-only scenario — proper cascading simulation.
-  // When a card pays off its freed minimum cascades to remaining cards,
-  // exactly as in real life. Running each card independently (old approach)
-  // ignores this and overestimates the minimums-only payoff date.
-  const minCards = activeDebts
-    .map(c => ({
-      id:      c.id || c._dbId,
-      balance: Math.max(0, _cardBal(c)),
-      rate:    Math.max(0, parseFloat(c.rate) || 0),
-      minimum: Math.max(1, _payoffPayment(c) || 25),   // V3
-    }))
-    .filter(c => c.balance > 0 && c.minimum > 0);
-
-  if (!minCards.length) return '';
-
-  const minBudget = minCards.reduce((s, c) => s + c.minimum, 0);
-  const minBals   = Object.fromEntries(minCards.map(c => [c.id, c.balance]));
-  let minMonth = 0;
-  let minNeverPayoff = false; // true if any card's minimum never covers interest
-
-  // Pre-check: if any card's stored minimum < monthly interest, flag it
-  for (const c of minCards) {
-    const monthlyInterest = c.balance * (c.rate / 100 / 12);
-    if (c.rate > 0 && c.minimum <= monthlyInterest) {
-      minNeverPayoff = true;
-      break;
-    }
-  }
-
-  if (!minNeverPayoff) {
-    while (minMonth < 360 && minCards.some(c => minBals[c.id] > 0.01)) {
-      minMonth++;
-      let remaining = minBudget;
-
-      for (const c of minCards) {
-        if (minBals[c.id] <= 0.01) continue;
-        const ic  = minBals[c.id] * (c.rate / 100 / 12);
-        minBals[c.id] += ic;
-        const pay = Math.min(c.minimum, minBals[c.id], remaining);
-        minBals[c.id] = Math.max(0, minBals[c.id] - pay);
-        remaining    -= pay;
-      }
-
-      if (remaining > 0.01) {
-        const stillOwed = minCards
-          .filter(c => minBals[c.id] > 0.01)
-          .sort((a, b) => b.rate - a.rate);
-        for (const c of stillOwed) {
-          if (remaining <= 0.01) break;
-          const extra = Math.min(remaining, minBals[c.id]);
-          minBals[c.id] = Math.max(0, minBals[c.id] - extra);
-          remaining    -= extra;
-        }
-      }
-    }
-    if (minMonth >= 360) minNeverPayoff = true;
-  }
-
-  const minDate = minNeverPayoff ? 'never at minimum payments' : _payoffDateLabel(minMonth);
-  if (!minNeverPayoff && currentDate === minDate) return '';
-
-  const minStyle = minNeverPayoff ? 'color:var(--ember)' : '';
+  const minStyle = minNever ? 'color:var(--ember)' : '';
 
   return `<div style="display:flex;justify-content:space-between;padding-top:8px;
                        border-top:1px solid var(--steel);margin-top:8px;font-size:11px;
                        color:var(--slate)">
     <span>At minimums only: <span style="font-family:var(--font-mono);${minStyle}">${minDate}</span></span>
-    <span>Avalanche at ${fmt(parseFloat(S.monthlyBudget) || 0)}/mo: <span style="font-family:var(--font-mono);color:var(--pine)">${currentDate}</span></span>
+    <span>Your ${_planName()} plan at ${fmt(_getMonthlyBudget())}/mo: <span style="font-family:var(--font-mono);color:var(--pine)">${currentDate}</span></span>
   </div>`;
 }
 
@@ -9328,17 +9177,19 @@ function _budgetRenderDebtSummary(activeDebts) {
   const waterfallEl = g('budgetDebtWaterfall');
   if (!summaryEl || !activeDebts.length) return;
 
-  const avalanche = _budgetAvalancheSequence(activeDebts, S.monthlyBudget);
+  const { plan, mins } = _budgetPlanForecast();   // V10: the Debt page's plan, not a Budget-page avalanche
   const freed     = _budgetFreedMinimumsThisYear(activeDebts);
 
   // ── Level 2 summary line ──
   const lines = [];
 
-  if (avalanche) {
-    let summaryText = `Payoff forecast (avalanche, ${fmt(parseFloat(S.monthlyBudget) || 0)}/mo): ${avalanche.payoffLabel}`;   // V4
-    if (avalanche.savesInterest > 0) {
-      summaryText += ` · Saves ${fmt(avalanche.savesInterest)} vs. minimums only`;
-    }
+  if (plan === undefined) {
+    lines.push(`<div style="font-size:12px;color:var(--slate);line-height:1.6">Payoff forecast: working it out…</div>`);
+  } else if (plan) {
+    let summaryText = `Payoff forecast (your ${_planName()} plan, ${fmt(_getMonthlyBudget())}/mo): ${_payoffDateLabel(plan.months)}`;   // V4, V10
+    // Only against a minimums run that finishes: a 30-year cut-off would understate it.
+    const saves = mins && mins.months < 360 ? mins.totalInterest - plan.totalInterest : 0;
+    if (saves > 0) summaryText += ` · Saves ${fmt(saves)} vs. minimums only`;
     lines.push(`<div style="font-size:12px;color:var(--slate);line-height:1.6">${summaryText}</div>`);
   }
 
@@ -9350,7 +9201,7 @@ function _budgetRenderDebtSummary(activeDebts) {
     lines.push(`<div style="font-size:12px;color:var(--pine);margin-top:3px">Freed minimums${sinceLabel}: +${fmt(freed)}/month</div>`);
   }
 
-  if (avalanche) {
+  if (plan) {
     lines.push(`<button onclick="showView('reports');setTimeout(()=>_rcOpenReport('debt_payoff'),80)" style="background:none;border:none;padding:0;font-size:12px;color:var(--pine);cursor:pointer;margin-top:6px;text-decoration:underline;text-underline-offset:2px;font-weight:500">See full payoff plan →</button>`);
   }
 
@@ -9373,11 +9224,6 @@ function _budgetRenderDebtSummary(activeDebts) {
   if (lines.length) {
     summaryEl.innerHTML = lines.join('');
     summaryEl.style.display = 'block';
-  }
-
-  // Waterfall container (hidden until toggled)
-  if (waterfallEl && avalanche) {
-    waterfallEl._avalanche = avalanche;
   }
 }
 
@@ -11730,9 +11576,7 @@ function _tripBudgetFallbackHTML(d) {
     <div class="trip-budget-row"><span class="trip-budget-cat">Total</span><span class="trip-budget-amt">${fmt(d.total)}</span></div>
     <div style="margin-top:12px;padding:10px 14px;border-radius:var(--r-md);border:0.5px solid ${withinBudget?'var(--pine)':'var(--gold)'};background:${withinBudget?'var(--pine-bg)':'var(--gold-bg)'};font-size:12px">
       ${withinBudget ? '✓ This trip fits within your budget.' : '⚠ Consider saving for this trip over 2–3 months.'}
-      ${S.aiProvider === 'cloud' && !S.apiKeyConfigured
-        ? 'Add your Anthropic API key in Settings for AI-powered live price estimates, or switch to local AI (free, no key needed).'
-        : 'Turn on AI in Settings for AI-powered live price estimates.'}
+      Turn on AI in Settings for AI-powered live price estimates.
     </div>`;
 }
 
@@ -12298,7 +12142,7 @@ const HELP_FAQ = [
   },
   {
     q: 'Is my financial data sent to AI servers?',
-    a: 'By default, no — Groundwork runs AI locally on your own machine (via Ollama), and nothing ever leaves your computer. If you switch to cloud mode in Settings, a financial summary is sent to Anthropic\'s API only when you explicitly use an AI feature; your raw transactions and account details still never leave your computer. Turn AI off in Settings to disable it entirely.',
+    a: 'No. Groundwork\'s AI runs only on your own computer (via Ollama), and nothing is ever sent to an AI service. There is no cloud mode. If your computer can\'t run a local model, AI features are simply off, and everything else works the same.',
   },
 
   { h: 'Tools' },
@@ -12458,6 +12302,36 @@ function closeHelpOverlay() {
 // Also add help icon helper to renderDashboard elements
 // Wire helpIcon() into key spots at render time
 
+
+// ─── Cloud AI removed: the one-time notice (CLOUD_AI_REMOVAL.md ruling 3) ───
+// The upgrade's migration step records what it did - whether cloud AI was the
+// user's provider, and whether their Anthropic key was deleted. Shown once,
+// only to a user it affected; displaying it records 'shown'. A user who had cloud
+// selected gets local AI if this machine runs it, otherwise AI off - and is
+// told which, here, never left to find a silent failure.
+async function _cloudAiRemovedNotice(raw) {
+  if (!raw || raw === 'shown') return;
+  let rec = {};
+  try { rec = JSON.parse(raw); } catch (e) { return; }
+  let localReady = false;
+  try { localReady = !!(await API.get('/api/ai/status'))?.reachable; } catch (e) { /* treated as not ready */ }
+  if (rec.was_cloud && !localReady) {
+    await API.patch('/api/settings', { ai_enabled: 'false' }).catch(_gwErr('_cloudAiRemovedNotice'));
+    if (S.prefs) S.prefs.aiEnabled = false;
+    updateAIFeatureVisibility();
+  }
+  const lines = ['Groundwork no longer uses cloud AI. AI now runs only on your own computer — nothing is ever sent to an AI service.'];
+  if (rec.was_cloud) lines.push(localReady
+    ? 'Your AI features now use the local model on this computer.'
+    : "This computer isn't running a local AI model, so AI features are off. Everything else works exactly as before.");
+  if (rec.key_removed) lines.push('Your Anthropic API key has been deleted from Groundwork.');
+  // Recorded as shown the moment it is displayed - OK, Cancel and the close
+  // button all just dismiss it, and none of them can bring it back.
+  API.patch('/api/settings', { cloud_ai_removed_notice: 'shown' }).catch(_gwErr('_cloudAiRemovedNotice'));
+  confirmAction('Cloud AI has been removed',
+    `<div style="line-height:1.7;font-size:13px;color:var(--slate)">${lines.map(l => `<p style="margin-bottom:8px">${esc(l)}</p>`).join('')}</div>`,
+    null, 'OK', false);
+}
 
 // ─── Terms of Use / EULA acceptance ──────────────────────────────────────────
 // An affirmative-acceptance gate (shown on first run, and to any existing user
@@ -12620,7 +12494,7 @@ async function _obCheckAICapability() {
   } else if (tier === 'mid') {
     statusEl.innerHTML = `<strong>${free_gb}GB free</strong> — this machine can run Groundwork's local AI fully offline. Free and private: nothing ever leaves your computer.`;
   } else {
-    statusEl.innerHTML = `<strong>${free_gb}GB free</strong> — not quite enough to run local AI well right now. Every core feature of Groundwork works fully without it — budgets, debt payoff, reports, all of it. You can add a free-tier cloud API key anytime in Settings for AI-powered insights instead.`;
+    statusEl.innerHTML = `<strong>${free_gb}GB free</strong> — not quite enough to run local AI well right now. Every core feature of Groundwork works fully without it — budgets, debt payoff, reports, all of it. AI in Groundwork only ever runs on your own computer, so on this one AI features stay off.`;
   }
   _obRenderCapabilityContinue(tier);
 }
@@ -12644,16 +12518,16 @@ async function _obApplyAITier(tier) {
   let targetModel = '';
   if (tier === 'high') {
     targetModel = 'qwen2.5:7b';
-    S.aiProvider = 'local'; S.localModel = targetModel;
-    API.patch('/api/settings', { ai_provider: 'local', local_model: targetModel }).catch(_gwErr('_obApplyAITier'));
+    S.localModel = targetModel;
+    API.patch('/api/settings', { local_model: targetModel }).catch(_gwErr('_obApplyAITier'));
   } else if (tier === 'mid') {
     targetModel = 'phi3.5';
-    S.aiProvider = 'local'; S.localModel = targetModel;
-    API.patch('/api/settings', { ai_provider: 'local', local_model: targetModel }).catch(_gwErr('_obApplyAITier'));
+    S.localModel = targetModel;
+    API.patch('/api/settings', { local_model: targetModel }).catch(_gwErr('_obApplyAITier'));
   } else if (tier === 'low') {
     // Honest default for underpowered hardware: the fully-structured
     // experience, not a slow/degraded local model. One toggle in Settings
-    // turns AI back on (local or cloud) whenever they want it.
+    // turns local AI back on whenever this machine can run it.
     S.prefs = S.prefs || {}; S.prefs.aiEnabled = false;
     API.patch('/api/settings', { ai_enabled: 'false' }).catch(_gwErr('_obApplyAITier'));
   }
@@ -12992,14 +12866,14 @@ function _simKey(cards, budget, extra, strategy) {
 }
 
 function _simAsk(cards, budget, extra, strategy, key) {
-  if (_engineSimsInFlight[key]) return;
+  if (_engineSimsInFlight[key]) return _engineSimsInFlight[key];   // V10: awaitable
   _engineSimsInFlight[key] = true;
   // V3: the payoff budget includes each mortgage's whole payment; its escrow
   // share goes to taxes and insurance, and left in, the engine would hand it
   // to other debts as "extra".
   // Only for the cards actually being simulated (a scenario may leave the mortgage out).
   budget = budget - (cards || []).reduce((s, c) => s + (c.non_principal || 0), 0);
-  API.post('/api/debt/simulate', { cards, budget, extra, strategy })
+  const asked = API.post('/api/debt/simulate', { cards, budget, extra, strategy })
     .then(r => {
       const res = r.result;
       _engineSims[key] = res ? {
@@ -13024,6 +12898,19 @@ function _simAsk(cards, budget, extra, strategy, key) {
       delete _engineSimsInFlight[key];
       _rerenderAfterEngine();
     });
+  _engineSimsInFlight[key] = asked;
+  return asked;
+}
+
+// V10: the plan's run, waited for - for a page drawn once (the Debt Payoff report).
+// The same cards, budget and key as _simulatePayoff, so it is the Debt page's answer.
+async function _planAwait() {
+  const cards = _simCards();
+  if (!cards.length) return null;
+  const budget = _getMonthlyBudget(), strategy = _planName();
+  const key = _simKey(cards, budget, 0, strategy);
+  if (!(key in _engineSims)) await _simAsk(cards, budget, 0, strategy, key);
+  return (key in _engineSims) ? _engineSims[key] : null;
 }
 
 // One coalesced re-render when answers land. Without it a cached miss would
@@ -22281,24 +22168,8 @@ function saveSettings() {
   calculate();
 }
 
-function saveApiKey() {
-  const key = g('settingsApiKey')?.value?.trim();
-  if (!key) return;
-  API.post('/api/settings/api-key', { key }).then(() => {
-    _apiKeyPresent = true;
-    S.apiKeyConfigured = true;
-    g('settingsApiKey').value = '';
-    showToast('API key saved', 'AI features enabled', 'success');
-    updateAIFeatureVisibility();
-  }).catch(e => {
-    showToast('Could not save key', e?.message || '', 'error');
-  });
-}
-
 function updateAIFeatureVisibility() {
   const toggled  = S.prefs?.aiEnabled !== false;
-  const hasKey   = !!S.apiKeyConfigured;
-  const isCloud  = S.aiProvider === 'cloud';
   const enabled  = aiEnabled();   // single source of truth — see aiEnabled()
 
   document.querySelectorAll('.ai-feature').forEach(el => {
@@ -22309,7 +22180,7 @@ function updateAIFeatureVisibility() {
   const status = g('aiStatus');
   if (status) {
     status.textContent = enabled
-      ? (isCloud ? '✦ AI enabled' : '✦ AI enabled · on your machine')
+      ? '✦ AI enabled · on your machine'
       : 'AI off';
     status.style.color = enabled ? 'var(--sky)' : 'var(--slate-2)';
   }
@@ -22322,40 +22193,15 @@ function updateAIFeatureVisibility() {
   if (track)  track.style.background= toggled ? 'var(--sky)' : 'var(--steel)';
   if (knob)   knob.style.transform  = toggled ? 'translateX(18px)' : '';
 
-  // Update key status message — provider-aware. Local mode never needs a
-  // cloud key, so it never shows "add your API key" copy.
-  const keyStatus = g('settingsApiKeyStatus');
-  if (keyStatus) {
-    if (!toggled) {
-      keyStatus.textContent = 'AI features are off.';
-      keyStatus.style.color = 'var(--slate-2)';
-    } else if (!isCloud) {
-      keyStatus.textContent = enabled ? '✓ Local AI active — nothing leaves your machine.' : 'Local AI is on.';
-      keyStatus.style.color = 'var(--pine)';
-    } else if (hasKey) {
-      keyStatus.textContent = '✓ AI features active.';
-      keyStatus.style.color = 'var(--pine)';
-    } else {
-      keyStatus.textContent = 'Toggle is on — add your Anthropic API key below to activate, or switch to local AI (free, no key needed).';
-      keyStatus.style.color = 'var(--gold)';
-    }
-  }
 }
 
 // ── Phase 2A: Settings → AI provider pane ─────────────────────────────────────
-// Local (free, default) vs Cloud (Anthropic key). Fed by /api/ai/status so a
-// tester can see "local reachable · phi3.5" and switch providers without
-// editing settings by hand.
+// Local AI only (CLOUD_AI_REMOVAL.md). Fed by /api/ai/status so a tester can
+// see "local reachable · phi3.5" without editing settings by hand.
 
 function renderAISettings() {
-  const isCloud = S.aiProvider === 'cloud';
-  g('aiProviderLocalBtn')?.classList.toggle('active', !isCloud);
-  g('aiProviderCloudBtn')?.classList.toggle('active', isCloud);
-  if (g('aiLocalPanel')) g('aiLocalPanel').style.display = isCloud ? 'none' : '';
-  if (g('aiCloudPanel')) g('aiCloudPanel').style.display = isCloud ? '' : 'none';
   if (g('aiLocalEndpoint') && !g('aiLocalEndpoint').value) g('aiLocalEndpoint').value = S.localEndpoint || '';
-
-  if (!isCloud) _loadAiLocalStatus();
+  _loadAiLocalStatus();
   _loadGateHealth();
 }
 
@@ -22493,16 +22339,6 @@ function _copyOllamaCommand(cmd) {
     .catch(() => showToast('Could not copy — select and copy manually', '', 'warning'));
 }
 
-async function setAiProvider(provider) {
-  if (provider !== 'local' && provider !== 'cloud') return;
-  S.aiProvider = provider;
-  renderAISettings();
-  updateAIFeatureVisibility();
-  API.patch('/api/settings', { ai_provider: provider }).catch(_gwErr('setAiProvider'));
-  showToast(provider === 'local' ? 'Switched to local AI' : 'Switched to cloud AI',
-    provider === 'local' ? 'Free — nothing leaves your machine' : '', 'success');
-}
-
 async function saveLocalModel(model) {
   S.localModel = model || '';
   await API.patch('/api/settings', { local_model: S.localModel }).catch(_gwErr('saveLocalModel'));
@@ -22512,8 +22348,14 @@ async function saveLocalModel(model) {
 
 async function saveLocalEndpoint() {
   const val = g('aiLocalEndpoint')?.value?.trim() || '';
+  try {
+    await API.patch('/api/settings', { local_endpoint: val });
+  } catch (e) {
+    // The server refuses any address off this computer (S6).
+    showToast('Endpoint not saved', e.message || '', 'warning');
+    return;
+  }
   S.localEndpoint = val;
-  await API.patch('/api/settings', { local_endpoint: val }).catch(_gwErr('saveLocalEndpoint'));
   showToast('Endpoint saved', '', 'success');
   _loadAiLocalStatus();
 }
@@ -22547,13 +22389,10 @@ async function testAiConnection(btn) {
 }
 
 function aiEnabled() {
-  // The user's AI toggle always gates first. Beyond that, local mode (the
-  // free default) needs nothing else — no cloud key exists to check, and an
-  // unreachable Ollama or missing model is handled gracefully downstream by
-  // callAI()'s existing ok:false -> fallback path, not gated here. Cloud
-  // mode still requires a configured key, same as before.
+  // The user's AI toggle is the only gate. AI is local-only, so there is no
+  // key to check; an unreachable Ollama or missing model is handled
+  // downstream by callAI()'s ok:false -> fallback path, not gated here.
   if (S.prefs?.aiEnabled === false) return false;
-  if (S.aiProvider === 'cloud') return !!S.apiKeyConfigured;
   return true;
 }
 
@@ -23051,8 +22890,8 @@ function _voiceGateCheck(text, findings, truncated = false) {
   // R10 (item 12, STREAMING.md T7): an answer the model did not finish is not
   // an answer. Before this rule a report cut mid-sentence at max_tokens passed
   // every check above - all its numbers present, nothing forbidden - and was
-  // shown as complete. The stop reason comes from the provider (Ollama's
-  // done_reason, Anthropic's stop_reason), carried through by the server; the
+  // shown as complete. The stop reason comes from the local model (Ollama's
+  // done_reason, mapped by the server onto the internal stop_reason); the
   // text alone cannot show it. Not a wordlist rule, so the harness cannot score
   // it from text - it is enforced here, where the stop reason exists.
   record('R10_answer_complete',
@@ -23193,13 +23032,10 @@ async function callAI(payload) {
       if (data.ai_available === false) return { ok:false, text:'', unavailable:true, message:data.message||'' };
       const text = (data.content||[]).map(b=>b.text||'').filter(Boolean).join('\n');
       // 'max_tokens' is the one stop reason that means the answer was cut; the
-      // server maps Ollama's 'length' onto it so both providers read the same.
+      // server maps Ollama's 'length' onto it (the internal format, ruling 2).
       const truncated = data.stop_reason === 'max_tokens';
-      // 'provider' comes verbatim from _ai_chat_local()'s response ('local')
-      // — the cloud path proxies Anthropic's raw response, which has no such
-      // field, so this is undefined for cloud. That's the whole point: it's
-      // how attribution tells "ran on your machine" from "ran in the cloud"
-      // apart, since both paths also return a 'model' string.
+      // 'provider' comes verbatim from _ai_chat_local()'s response ('local');
+      // it is the only provider there is.
       return { ok:true, text, model:data.model||'', provider:data.provider||'', truncated };
     } catch(e) {
       return { ok:false, text:'' };
@@ -23362,7 +23198,7 @@ const _rcAIThread = {};
 // Per-report AI response cache (session only). Shape: { [reportId]: string }
 const _rcAICache  = {};
 // Which model actually produced each cached response, for attribution
-// ("Analyzed on your machine · phi3.5" vs "Powered by Claude") — kept
+// ("Analyzed on your machine · phi3.5") — kept
 // separate from _rcAICache so that cache's string contract never changes.
 const _rcAIModelCache = {};
 
@@ -23439,50 +23275,14 @@ async function _rcAnalyzeWithAI(reportId, dataLines, buildPrompt, container) {
   _rcAIThread[`${reportId}__dataLines`]   = dataLines;
   _rcAIThread[`${reportId}__container`]   = target;
 
-  // Local AI is free and never leaves the machine, so the "here's what
-  // will be sent, click to confirm" gate only exists to protect cloud
-  // users from an unexpected charge — for local, skip straight to
-  // generating instead of making every report a two-click action.
-  if (S.aiProvider !== 'cloud') {
-    const loading = document.createElement('div');
-    loading.id = `rcAILoading-${reportId}`;
-    loading.style.cssText = 'margin-top:24px;padding:16px 20px;display:flex;align-items:center;gap:12px;color:var(--slate);font-size:13px';
-    loading.innerHTML = `<div class="spinner" style="width:16px;height:16px;border-width:2px;flex-shrink:0"></div>Analyzing on your machine…`;
-    target.appendChild(loading);
-    await _rcSendAI(reportId);
-    return;
-  }
-
-  const dataBlock = dataLines.map(l => `  ${l}`).join('\n');
-  const panel = document.createElement('div');
-  panel.id = `rcAIPreview-${reportId}`;
-  panel.style.cssText = 'margin-top:32px;border:1px solid var(--steel);border-radius:var(--r-md);overflow:hidden';
-  panel.innerHTML = `
-    <div style="padding:14px 20px;border-bottom:1px solid var(--steel);display:flex;align-items:center;gap:10px">
-      <span style="font-size:15px">✦</span>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's analysis</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:1px">AI-assisted — you control what's shared</div>
-      </div>
-    </div>
-    <div style="padding:16px 20px">
-      <div style="font-size:12px;color:var(--slate);margin-bottom:10px;line-height:1.6">
-        Here's what Groundwork will send to Anthropic's API. Your raw transactions and account numbers stay on your computer.
-      </div>
-      <pre style="font-size:11px;font-family:var(--font-mono);color:var(--ink);background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-sm);padding:12px;overflow-x:auto;white-space:pre-wrap;line-height:1.7;max-height:200px;overflow-y:auto">${esc(dataBlock)}</pre>
-      <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
-        <button onclick="this.closest('[id^=rcAIPreview]').remove()"
-          style="font-size:12px;padding:6px 16px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--slate);cursor:pointer">
-          Cancel
-        </button>
-        <button onclick="_rcSendAI('${reportId}')"
-          style="font-size:12px;padding:6px 16px;border:none;border-radius:var(--r-sm);background:var(--pine);color:#fff;cursor:pointer;font-weight:500">
-          Generate analysis
-        </button>
-      </div>
-    </div>`;
-
-  target.appendChild(panel);
+  // AI runs only on this machine, so there is nothing to preview before
+  // sending: generate straight away.
+  const loading = document.createElement('div');
+  loading.id = `rcAILoading-${reportId}`;
+  loading.style.cssText = 'margin-top:24px;padding:16px 20px;display:flex;align-items:center;gap:12px;color:var(--slate);font-size:13px';
+  loading.innerHTML = `<div class="spinner" style="width:16px;height:16px;border-width:2px;flex-shrink:0"></div>Analyzing on your machine…`;
+  target.appendChild(loading);
+  await _rcSendAI(reportId);
 }
 
 async function _rcSendAI(reportId) {
@@ -23574,14 +23374,12 @@ function _rcRenderAIFallback(reportId, dataLines, target) {
   target.appendChild(errPanel);
 }
 
-// Footer attribution line — "Analyzed on your machine · phi3.5" for local,
-// "Powered by Claude" for cloud. Falls back to the current provider setting
-// when no per-report record exists yet (e.g. an older cached response).
+// Footer attribution line — "Analyzed on your machine · phi3.5". Every
+// analysis runs on this machine; the model name comes from the per-report
+// record when there is one.
 function _rcAttributionText(reportId) {
   const rec = _rcAIModelCache[reportId];
-  const provider = rec ? rec.provider : S.aiProvider;
-  const model    = rec ? rec.model    : '';
-  if (provider === 'cloud') return 'Powered by Claude';
+  const model = rec ? rec.model : '';
   return model ? `Analyzed on your machine · ${model}` : 'Analyzed on your machine';
 }
 
@@ -23598,7 +23396,7 @@ function _rcAttributionText(reportId) {
 //   payload        — the callAI payload; appends the "what was sent" disclosure
 //   replace        — clear the target container before appending
 //   model, provider — from callAI()'s result; drive the attribution line
-//                     ("Analyzed on your machine · phi3.5" / "Powered by Claude")
+//                     ("Analyzed on your machine · phi3.5")
 function _rcRenderAIPanel(reportId, responseText, target, dataLines, buildPrompt, opts = {}) {
   g(`rcAIResponse-${reportId}`)?.remove();
   if (opts.replace && target) target.innerHTML = '';
@@ -23949,12 +23747,8 @@ function _rcRenderCatalog(cont) {
 
       <div style="margin-top:16px;padding:14px 16px;background:var(--mist);border-radius:var(--r-sm);
                   font-size:12px;color:var(--slate);line-height:1.6">
-        ${S.aiProvider === 'cloud'
-          ? `✦ <strong>Groundwork's analysis</strong> — when you choose to generate an analysis,
-             a financial summary is sent to Anthropic's API. Your raw transactions and account details
-             stay on your computer. You'll see exactly what's being shared before it's sent.`
-          : `✦ <strong>Groundwork's analysis</strong> — runs on your own machine. Nothing is sent
-             anywhere; you'll see exactly what's being analyzed before it runs.`}
+        ✦ <strong>Groundwork's analysis</strong> — runs on your own machine. Nothing is sent
+             anywhere; you'll see exactly what's being analyzed before it runs.
       </div>
     </div>
   `;
@@ -24055,7 +23849,7 @@ function _rcRenderMonthlyReport() {
           style="width:100%;padding:6px 10px;border:1px solid var(--steel);border-radius:var(--r-sm);font-size:13px;background:var(--paper);color:var(--ink)">
       </div>
       <button id="rcMonthlyGenBtn" onclick="_rcMonthlyGenerate()"
-        style="padding:8px 18px;background:var(--pine);color:#fff;border:none;border-radius:var(--r-sm);font-size:13px;cursor:pointer;white-space:nowrap;${S.aiProvider === 'cloud' ? '' : 'display:none'}">✦ Generate analysis</button>
+        style="padding:8px 18px;background:var(--pine);color:#fff;border:none;border-radius:var(--r-sm);font-size:13px;cursor:pointer;white-space:nowrap;display:none">✦ Generate analysis</button>
     </div>
     <div id="rcMonthlyStats" style="margin-bottom:24px"></div>
     <div id="rcMonthlyTeaching" style="margin-bottom:24px"></div>
@@ -24069,11 +23863,9 @@ function _rcRenderMonthlyReport() {
 // Local mode has no "Generate" button to click after adding a note (see
 // _rcRenderMonthlyReport) — regenerate automatically instead, debounced so
 // it fires once after the user stops typing rather than per keystroke.
-// Cloud users still see the button and must click it themselves; typing
-// here never triggers a paid call on its own.
 let _rcMonthlyAnnotationTimer = null;
 function _rcMonthlyAnnotationInput() {
-  if (S.aiProvider === 'cloud' || !aiEnabled()) return;
+  if (!aiEnabled()) return;
   clearTimeout(_rcMonthlyAnnotationTimer);
   _rcMonthlyAnnotationTimer = setTimeout(_rcMonthlyGenerate, 900);
 }
@@ -24112,12 +23904,10 @@ function _rcMonthlyRefreshPreview() {
     ${topCats.map(([cat,amt])=>{const pct=spent>0?(amt/spent*100):0;const cs=_categoryStyle(cat);return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--steel-2)"><div style="flex:1;font-size:13px;color:var(--ink)">${esc(cat)}</div><div style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(amt)}</div><div style="width:40px;text-align:right;font-size:11px;color:var(--slate-2)">${pct.toFixed(0)}%</div></div>`;}).join('')}
     </div>`:''}`;
 
-  // Cloud costs money per call, so generating stays an explicit click (the
-  // button next to the month picker). Local is free and never leaves the
-  // machine, so there's no reason to make the user ask for it — generate
-  // immediately whenever there's a month with data to analyze, including
-  // right after the user switches months.
-  if (S.aiProvider !== 'cloud' && aiEnabled()) _rcMonthlyGenerate();
+  // AI is local, free and never leaves the machine, so there's no reason to
+  // make the user ask for it — generate immediately whenever there's a month
+  // with data to analyze, including right after the user switches months.
+  if (aiEnabled()) _rcMonthlyGenerate();
 }
 
 async function _rcMonthlyLoadPastReports() {
@@ -25762,10 +25552,8 @@ function _renderFinancialSnapshot(container) {
       // the cloud-key case when the real gap is just the toggle being off
       // (the default local-mode state needs no key at all).
       const toggledOff = S.prefs?.aiEnabled === false;
-      const msg = toggledOff
-        ? 'Everything above is computed on your own machine. Groundwork can also add a written read of what it means — turn AI on in Settings to add this (free, runs locally by default).'
-        : 'Everything above is computed on your own machine. Groundwork can also add a written read of what it means — that part uses Anthropic\'s cloud AI and needs a key, which you can add anytime, or switch to local AI instead (free, no key needed).';
-      const btnLabel = toggledOff ? 'Turn on AI' : 'Add a key to turn this on';
+      const msg = 'Everything above is computed on your own machine. Groundwork can also add a written read of what it means — turn AI on in Settings to add this (free, and it runs on your own computer).';
+      const btnLabel = 'Turn on AI';
       aiSlot.innerHTML = `
         <div style="margin-top:4px;padding:12px 14px;background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-sm)">
           <div style="font-size:12px;color:var(--ink);line-height:1.7">${msg}</div>
@@ -25803,7 +25591,7 @@ function _snapshotOpenAISetup() {
   API.patch('/api/settings', { onboarding_complete: 'true' }).catch(_gwErr('_snapshotOpenAISetup'));
   showView('settings');
   showToast(
-    S.prefs?.aiEnabled === false ? 'Turn AI on here' : 'Add your Anthropic API key here (or switch to local AI, free)',
+    'Turn AI on here',
     'Then reopen any report for the written analysis', 'info'
   );
 }
@@ -26450,19 +26238,24 @@ async function _rcRenderDebtPayoff() {
              intSaved, mosSooner, aprHistory, linked: !!card.linkedAccountId };
   });
 
-  const avalanche     = _budgetAvalancheSequence(activeDebts, S.monthlyBudget);
+  // V10: the plan's own engine run (the Debt page's), not an avalanche of the report's own.
+  const plan          = await _planAwait();
   const sortedByApr   = [...cardData].sort((a,b)=>(parseFloat(b.card.rate)||0)-(parseFloat(a.card.rate)||0));
-  const targetData    = sortedByApr[0];
+  // The plan's first debt, as the Debt page marks it: highest APR, or smallest balance for snowball.
+  const targetData    = (_planName() === 'snowball' ? [...cardData].sort((a,b)=>a.bal-b.bal) : sortedByApr)[0];
+  // Each debt's month in the plan, in the order the plan clears them.
+  const planSeq       = cardData.map(d => ({ d, month: _planClearedMonth(d.card, plan) }))
+                                .filter(x => x.month).sort((a,b) => a.month - b.month);
   const totalDebt     = activeDebts.reduce((s,c)=>s+(_cardBal(c)),0);
   const beginDebt     = S.debtCards.reduce((s,c)=>s+(parseFloat(c.beginBal)||0),0);
   const eliminated    = Math.max(0, beginDebt - totalDebt);
   const pctElim       = beginDebt > 0 ? Math.round((eliminated/beginDebt)*100) : 0;
   const totalRemInt   = cardData.reduce((s,d)=>s+d.totalInt,0);
   const totalIntSaved = cardData.reduce((s,d)=>s+d.intSaved,0);
-  const debtFreeDate  = avalanche?.lastPayoffMonth ? _payoffDateLabel(avalanche.lastPayoffMonth) : '—';
+  const debtFreeDate  = plan?.months ? _payoffDateLabel(plan.months) : '—';
   const freed         = _budgetFreedMinimumsThisYear(activeDebts);
 
-  // Payoff impact scenarios on avalanche target
+  // Payoff impact scenarios on the plan's first debt
   let scenario50 = null, scenario100 = null;
   if (targetData) {
     const { bal:tBal, apr:tApr, pmt:tPmt } = targetData;
@@ -26491,7 +26284,7 @@ async function _rcRenderDebtPayoff() {
       <div class="card" style="padding:14px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Debt-free date</div>
         <div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine)">${debtFreeDate}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">at current payments</div>
+        <div style="font-size:11px;color:var(--slate);margin-top:2px">your ${_planName()} plan, ${fmt(_getMonthlyBudget())}/mo</div>
       </div>
       <div class="card" style="padding:14px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Remaining interest</div>
@@ -26512,7 +26305,7 @@ async function _rcRenderDebtPayoff() {
             <div style="flex:1;min-width:0">
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <span style="font-size:13px;font-weight:600;color:var(--ink)">${esc(d.card.name||'Card')}</span>
-                ${isTarget?`<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--gold-bg);color:#92400e;border:1px solid var(--gold-border)">avalanche target</span>`:''}
+                ${isTarget?`<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:var(--gold-bg);color:#92400e;border:1px solid var(--gold-border)">${_planName()} target</span>`:''}
                 ${d.linked?`<span style="font-size:10px;color:var(--pine)">from imports</span>`:`<span style="font-size:10px;color:var(--slate-2)">manual</span>`}
               </div>
               <div style="font-size:11px;color:var(--slate);margin-top:2px">${d.apr>0?`${d.apr}% APR · `:''}${fmt(d.pmt)}/mo${d.calcMin>0&&Math.abs(d.pmt-d.calcMin)>1?` (min ${fmt(d.calcMin)})`:''}</div>
@@ -26531,13 +26324,13 @@ async function _rcRenderDebtPayoff() {
       }).join('')}
     </div>
 
-    ${avalanche ? `<div class="card" style="margin-bottom:20px;padding:16px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Payoff sequence — avalanche order</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:12px">Highest APR first. Each payoff rolls its minimum to the next card.</div>
-      ${sortedByApr.filter(d=>d.apr>0).map((d,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--steel)">
+    ${planSeq.length ? `<div class="card" style="margin-bottom:20px;padding:16px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Payoff sequence — your ${_planName()} plan</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:12px">${_planName() === 'snowball' ? 'Smallest balance first' : 'Highest APR first'}, ${fmt(_getMonthlyBudget())}/mo. Each payoff rolls its payment to the next debt.</div>
+      ${planSeq.map(({d, month},i)=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--steel)">
         <div style="width:20px;height:20px;border-radius:50%;background:${i===0?'var(--gold)':'var(--steel)'};color:${i===0?'#92400e':'var(--slate)'};font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
         <div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(d.card.name||'Card')}</div><div style="font-size:11px;color:var(--slate)">${d.apr}% APR · ${fmt(d.bal)}</div></div>
-        <div style="font-family:var(--font-mono);font-size:12px;color:var(--slate)">${d.payoffLabel}</div>
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--slate)">${_payoffDateLabel(month)}</div>
       </div>`).join('')}
     </div>` : ''}
 
@@ -26560,9 +26353,7 @@ async function _rcRenderDebtPayoff() {
       <div id="rcDebtPayoffAIContent">
         ${aiEnabled()
           ? `<button onclick="_rcRunDebtPayoffAI()" class="btn btn-primary" style="font-size:13px">Generate analysis</button>
-             <div style="font-size:11px;color:var(--slate-2);margin-top:8px">${S.aiProvider === 'cloud'
-                ? 'Shares debt balances, APRs, payoff sequence, and interest data with Claude. No transactions or account numbers included.'
-                : 'Runs on your own machine — debt balances, APRs, payoff sequence, and interest data never leave your computer.'}</div>`
+             <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Runs on your own machine — debt balances, APRs, payoff sequence, and interest data never leave your computer.</div>`
           : `<div style="font-size:13px;color:var(--slate)">${S.prefs?.aiEnabled === false
                 ? 'Turn AI on in Settings to enable Groundwork\'s analysis.'
                 : 'Add an API key in Settings to enable Groundwork\'s analysis, or switch to local AI (free, no key needed).'}</div>`}
@@ -26571,7 +26362,7 @@ async function _rcRenderDebtPayoff() {
   `;
 
   const aiCard = g('rcDebtPayoffAICard');
-  if (aiCard) aiCard._debtData = { cardData, sortedByApr, avalanche, totalDebt, beginDebt,
+  if (aiCard) aiCard._debtData = { cardData, sortedByApr, planSeq, totalDebt, beginDebt,
     eliminated, pctElim, totalRemInt, totalIntSaved, freed, debtFreeDate,
     scenario50, scenario100, targetData };
 }
@@ -26586,8 +26377,8 @@ async function _rcRunDebtPayoffAI() {
     (cd.aprHistory.length ? `, APR changed: ${cd.aprHistory.map(h=>`${h.from}%→${h.to}% in ${h.month}`).join(', ')}` : '')
   );
 
-  const seqLines = d.sortedByApr.filter(cd => cd.apr > 0)
-    .map((cd,i) => `  ${i+1}. ${cd.card.name||'Card'} (${cd.apr}% APR) — payoff ${cd.payoffLabel}`);
+  const seqLines = d.planSeq
+    .map(({d: cd, month},i) => `  ${i+1}. ${cd.card.name||'Card'} (${cd.apr}% APR) — payoff ${_payoffDateLabel(month)}`);   // V10
 
   const dataLines = [
     `Total remaining: ${fmt(d.totalDebt)}`,
@@ -26599,7 +26390,7 @@ async function _rcRunDebtPayoffAI() {
     '---',
     'Per-card:', ...cardLines,
     '---',
-    'Avalanche sequence:', ...seqLines,
+    `Payoff sequence (${_planName()} plan):`, ...seqLines,
     ...(d.scenario50 ? [
       '---',
       `What if you paid more? (on ${d.targetData?.card.name||'highest-APR card'})`,

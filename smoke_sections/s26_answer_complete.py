@@ -4,8 +4,9 @@ Before this, every narrative surface handed the model a hard token cap and nothi
 told the gate the answer had hit it - a report cut mid-sentence passed R1-R9 (all
 its numbers present, nothing forbidden) and was shown as complete. The stop reason
 exists at the provider and nowhere else, so the fix is a carry: the server maps
-Ollama's done_reason onto the Anthropic vocabulary the cloud path already returns
-verbatim, and callAI feeds it to the gate as rule R10.
+Ollama's done_reason onto the internal response format's stop_reason (the only
+provider since the cloud path was removed - CLOUD_AI_REMOVAL.md), and callAI feeds
+it to the gate as rule R10.
 
 Measured where the failure can appear, not at the source text:
   1. the /api/ai/chat route itself, with a fake Ollama answering done_reason
@@ -136,5 +137,7 @@ def run(ctx):
           and '_voiceGateCheck(result.text, findings)' not in body)
     check('skipGate callers receive the flag too (JSON surfaces can act on it later)',
           'truncated:result.truncated' in body)
-    check('the cloud path still proxies Anthropic\'s stop_reason verbatim (no mapping needed there)',
-          "result['provider'] = 'cloud'" in server_src and 'return jsonify(result)' in server_src)
+    # Retired with the cloud path (CLOUD_AI_REMOVAL.md): there is no second provider
+    # passing a stop reason through unmapped - the local mapping above is the only source.
+    check('the local mapping is the only source of stop_reason - no cloud path remains to pass one through',
+          "result['provider'] = 'cloud'" not in server_src and '_ai_chat_cloud' not in server_src)
