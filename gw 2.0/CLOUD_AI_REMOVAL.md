@@ -1,6 +1,7 @@
 # Cloud AI removal — all local, or no AI at all
 
-> Status: **OPENED 2026-09-26, no code.** The decision is Rob's, already made (2026-09-25):
+> Status: **RULED 2026-09-27 (Rob, §7). No code yet. The build goes `lts/1.x` first. The EULA wording and
+> version are a separate legal-text decision.** Opened 2026-09-26. The decision is Rob's, already made (2026-09-25):
 >
 > > *"With LTS and 2.0, cloud is going away. It has to be all local or no AI at all. I think that
 > > is fair to the users and would clear up any confusion."*
@@ -163,3 +164,36 @@ providers; the developer scripts (not shipped); the non-AI outbound calls (fixed
    extraction named as its own pass?
 5. **C7**: the EULA §7 rewrite: a version bump, and re-acceptance or not?
 6. **C8**: `lts/1.x` first, then merge to `master`?
+
+---
+
+## 7. Ruling — Rob, 2026-09-27
+
+| # | ruling |
+|---|---|
+| **1** | **R: remove cloud AI outright on both lines, with both crossing tests.** The invariant is stronger than *"the option is unavailable"*: Groundwork has **no path** that sends user data to an off-device AI model |
+| **2** | **Keep the internal message format.** It is an application-internal contract and implies no network transport |
+| **3** | **Delete the stored key automatically on upgrade, with a one-time notice.** No remaining feature can use it, so keeping it is obsolete sensitive configuration. **Only `ANTHROPIC_API_KEY`**; the rest of `config.json` is preserved. A key in the environment simply becomes unused and is never mutated |
+| **4** | **An honest PDF message now; PDF import without a model is a separate pass.** Import semantics do not change silently, and nothing pretends local AI can handle a PDF when it can't. CSV / QFX / OFX / QIF are unaffected |
+| **5** | **EULA:** when §7 is rewritten, the version number changes, and **acceptance is required again if the revised clause materially changes the user's agreement about data handling.** The exact wording and version are **a separate legal-text decision**, not inferred from this engineering pass |
+| **6** | **`lts/1.x` first, then merge to `master`**, the same controlled progression as the schema work |
+
+**Measured for ruling 5, so the legal decision knows what it controls:** re-acceptance already
+exists. `app.js` holds `GW_TERMS_VERSION = '1.0'`, and the gate shows the terms to **any user
+whose stored `terms_accepted` differs from it**. So *"acceptance required again"* is one version
+bump, no new code. The terms text lives in **three places that must match**: `EULA.txt`,
+`_TERMS_HTML` in `app.js`, and the website's /terms page (`app.js`'s own comment says to keep all
+three in sync).
+
+**What this means for the build, and what it doesn't:**
+
+- the engineering build removes the code, crosses users over (ruling 3), adds the honest PDF
+  message (ruling 4) and both crossing tests (ruling 1), on `lts/1.x` first;
+- it does **not** write the new EULA §7, nor choose its version or whether users re-accept.
+  Those come from the legal-text decision;
+- **but** once the code is gone, today's §7 describes a cloud mode that no longer exists. So **the
+  EULA text is a release dependency**: no release ships the removal with the old §7 still in the
+  three places. The build note will record that dependency, not settle it;
+- the unconditional privacy line (C7) goes live in copy only when the code is gone **and** the terms
+  match.
+
