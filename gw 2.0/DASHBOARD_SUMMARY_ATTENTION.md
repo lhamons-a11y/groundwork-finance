@@ -1,6 +1,6 @@
 # The dashboard — your summary, and what needs attention
 
-> Status: **OPENED 2026-09-27, no code.** Rob's question:
+> Status: **RULED 2026-09-27 (Rob, §6). No code; the build is not yet authorised.** Opened the same day. Rob's question:
 >
 > > **Should the dashboard become more dynamic: showing the summary items the user normally looks
 > > at, and the items Groundwork sees as needing the user's attention?**
@@ -136,3 +136,31 @@ is a ranked verdict, not a fact, so it belongs in neither area as it stands (§5
 5. **`Current priority`:** keep it as its own verdict card, fold it into *Your summary*, or retire it
    in favour of attention facts plus the proactive voice?
 6. **Scope:** 2.0 only (the teaching seam), or both lines? The dashboard is shared code today.
+
+---
+
+## 6. Ruling — Rob, 2026-09-27
+
+**The overarching rule, recorded exactly:**
+
+> **Usage never creates, ranks, or implies an attention item. An attention item requires evidence
+> about the user's finances.**
+
+**The 17 August no-silent-learning rule is not reopened.** The dashboard is dynamic from the
+user's **financial state**, never from their navigation.
+
+| # | ruling |
+|---|---|
+| **1** | **User-controlled pin / hide / reorder.** Usage is **not counted, not stored, and not used** to rearrange the dashboard. Initial contents may be derived from **current financial records**, never from behavioural history |
+| **2** | **Attention facts are separate from *Speaking up*.** A due payment stays visible when advice is silenced: **fact visibility ≠ unsolicited advice**. Recommendations stay under Appendix A's caps and the dial |
+| **3** | **A dismissal persists until the underlying fact changes.** The dismissal is a user action and may be stored; **no arbitrary timeout and no engagement-based resurfacing** |
+| **4** | **Exactly three to start:** an unpaid payment due within **7 days**; an account not imported for **3 weeks**; a conclusion **blocked by missing data**. Statement mismatches and waiting downloads are **deferred** until their completeness semantics are separately established |
+| **5** | **`Current priority` retired as a separate ranked card.** Its factual content belongs in *Needs attention*; any recommendation drawn from those facts stays under the speaking-up rules |
+| **6** | **2.0 only, through the teaching seam.** The 1.x dashboard is unchanged |
+
+**What the build would have to show, by construction and by test:** no usage signal is read,
+stored or computed anywhere on the dashboard's path. Every attention item is one of the three
+ruled kinds, with its source and the fact its dismissal is tied to. Completeness is tested
+before any item appears (absence is not zero). The LTS bundle carries none of it (the seam's
+existing check). **Not authorised yet:** the build itself.
+
