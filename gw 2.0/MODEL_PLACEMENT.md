@@ -11,6 +11,10 @@
 > *model* lives. **Supersedes part of `GROUNDWORK_LLM_BUILD_PLAN.md`** — see "What this changes"
 > at the bottom. **The 2.0 consequences are folded into the blueprint as Appendix H** (§5, §11,
 > §12 and B.2a were amended); this note holds the evidence, that appendix holds what it binds.
+>
+> **Rulings of 2026-09-27 (Rob) — see "Rulings — 2026-09-27" below: Ollama leaves BOTH lines; the
+> tested quantized model ships inside Groundwork; loaded at launch, freed on exit; the 8 GB line is
+> the original design (Q4 floor, no small-model tier, LTS for machines that cannot run it).**
 
 ---
 
@@ -468,6 +472,67 @@ suits the argument — and two agreeing runs are not replication until you know 
   bundle. In-process bundling raises the same question, possibly unchanged. Re-check, do not assume.
 
 ---
+
+## Rulings — 2026-09-27
+
+> Status: **RULED by Rob, 2026-09-27. Recorded, not built, not queued** — a ruling is not a build
+> authorisation. Reached after the launch warm-up for Ollama (`STREAMING.md` T2 / T4) raised the
+> question *"so could we actually get away from ollama completely?"*
+
+Rob's reasons, in his words: memory that holds *"items that pertain to Groundwork and groundwork
+only"*, no Ollama extras taking RAM, and the Microsoft Store and Mac App Store. And the premise that
+makes an in-process engine enough: *"We are not asking the llm to go research or get any
+information we are simply reading what the data shows for the user and their finances."* The model
+never needs the network; in-process it has none — not even the loopback port (11434) that any
+program on the machine can reach today.
+
+1. **Ollama is gone — from both lines.** *"Ollama is gone it should not be in either one."* The
+   built-in engine replaces it on **lts/1.x and 2.0**. Supersedes "Ollama remains the development
+   runtime until the spike lands" (below) and the assumption that LTS keeps Ollama. The install,
+   pull, tags and auto-detect paths (`/api/ai/install-ollama`, `/api/ai/pull-model`,
+   `_resolve_local_model`, `_local_endpoint`) go with it.
+2. **One engine; hardware acceleration where available, never required.** The measured gap (warm
+   6.6–9.3 s CPU-only in-process against 5.4–6.3 s for Ollama on a 4 GB GPU) does not justify a
+   second engine. A GPU build is an optimisation to measure, not a prerequisite for running.
+3. **The tested model ships inside Groundwork.** No first-run download — supersedes the "pull the
+   GGUF on first run" lean under Open. The file is the quantized one the evidence ran against
+   (`vendor/phi3.5_model/`, 2.18 GB Q4), not Microsoft's full-precision release. Works offline,
+   present immediately, no model host, and the user receives exactly the model that was tested.
+4. **Loaded at launch, kept warm, freed on exit.** Lazy loading was considered and dropped (*"forget
+   lazy load then"*): the model loads when Groundwork opens with AI on, stays resident while it is
+   open, and is released when it closes — no 30-minute residency after exit, which is what Ollama's
+   `keep_alive` does today. Whether to wait for the model or turn AI off stays the user's call.
+5. **Licence: not a blocker; a release gate.** phi3.5-mini-instruct is MIT, as are llama.cpp and
+   `llama-cpp-python`. Before release: pin the exact artifact, keep its LICENSE / NOTICE, verify the
+   licence against the **quantized file actually shipped** (ours came from Ollama's registry), and
+   record the check in the release documentation.
+6. **8 GB: the original design stands.** *"I agree with this lets keep it to the original design."*
+   Q4 is the floor (measured 2026-09-02) and there is no small-model tier (≤2 GB models fabricated
+   figures in 13–40 % of calls). A machine that cannot run the narrator honestly gets **LTS**, not a
+   weaker model — the 2026-08-30 product split. The 8 GB tier is still unmeasured; the test that
+   decides it must show more than "the model loads":
+   - Groundwork launches normally, and the model loads;
+   - Groundwork stays responsive, and ledger / database work stays usable while the model is loaded;
+   - AI produces the required response;
+   - no pathological swapping or thrashing, and the machine stays usable;
+   - closing Groundwork releases the model's memory, and a second launch works normally.
+
+### What these rulings leave open
+
+- **LTS on a machine that cannot run the model.** With Ollama gone from LTS too, LTS's narration
+  runs on the same built-in engine. A machine that fails the 8 GB test on LTS has no other engine to
+  fall back to — whether LTS then ships with AI off and the structured fallback (Phase 1D's floor)
+  is not ruled.
+- **Which runtime** — `llama-cpp-python` is the working assumption (one code path, GGUF, Metal on
+  Mac, 7.1 MB CPU wheel); ONNX Runtime GenAI remains the alternative on Windows.
+- **Which GPU build**, if any (CUDA is large; Vulkan is vendor-neutral), and what it adds to the
+  installer.
+- **The Ollama launch warm-up** (`2c26404` on a local lts branch, never pushed) was built for the
+  engine these rulings remove. Its prompt order (the voice block first, so the prefix cache serves
+  every surface) carries to any engine; its Ollama call does not — under ruling 4 the in-process
+  engine simply loads at launch.
+- **The existing users' crossover** — an installed Ollama and its downloaded models are the user's
+  software; what Groundwork says or does about them on upgrade is unruled.
 
 ## What this changes in `GROUNDWORK_LLM_BUILD_PLAN.md`
 
