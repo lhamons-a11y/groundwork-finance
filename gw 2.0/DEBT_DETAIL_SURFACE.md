@@ -2,7 +2,7 @@
 
 > Status: **Concept + case set, 2026-09-24. No code. Not in the build queue — its number, if
 > any, is Rob's. G4 and G5 RULED (Rob, 2026-09-24), §11; the §12 teaching principle AGREED (Rob, 2026-09-24);
-> every other gate open, G7 included.** Concept
+> **G0, G1, G2, G3, G6 RULED and G7 ruled in principle (Rob, 2026-09-28), §15; V12 opened.** Concept
 > layout: the *Debt Detail Concept Layout* canvas (claude.ai artifact, private). Written from Rob's concept note of the same day and his review of the first
 > read against the code. The review's instruction: *not "here is the feature," but the concept,
 > the discovered violations, the semantic tests, and the gates that must pass before
@@ -11,7 +11,7 @@
 >
 > **The concept exposed existing violations.** Reading it against 1.x found five places where
 > the shipped debt surfaces already break the rules the concept depends on (§4); a sixth, V6, was
-> found investigating the fifth. V1–V11 are fixed on 1.x. A debt view built
+> found investigating the fifth. V1–V11 are fixed on 1.x; V12 is open (§15, G2). A debt view built
 > on today's code would carry every one of them into a new surface and give them a teaching voice.
 > **Do not build the view yet** (Rob, 2026-09-24).
 
@@ -319,6 +319,29 @@ page now does), which also ends the two answers.
 > the Debt page hero now hides its figure then too. The report's AI data carried the false $297.52;
 > it now carries the true figure with its definition. Gate section `s41`.
 
+### V12 — a disagreeing statement destroys the figure the user typed (G2) — OPEN
+
+*Recorded 2026-09-28 at Rob's direction, from the G pass (§15, G2 #8). No code yet.* When a
+statement reports an APR (or minimum) that differs from the one the user typed, the reconcile
+**replaces** the typed value. V2 made the replacement visible — a toast names the figure replaced,
+and the source column moves to *statement* — but the typed value is gone, and the later arrival
+won by write order. That is the failure shape `VALUE_DISAGREEMENT_CASES.md` names (*resolved by
+position*), and it violates the ruling:
+
+- the typed value survives; the statement's value survives;
+- each keeps its provenance;
+- a later arrival is not a resolution; the engine does not choose silently;
+- when a resolution exists, the surface says which value downstream calculations use (*"projections
+  below use 24.9%, the statement's figure"*); resolution is the user's choice unless a separately
+  ruled deterministic rule covers that fact; until then a dependent calculation is blocked or names
+  the value it used under a documented rule.
+
+Rob: V2's note *"documents that something was replaced, but it doesn't preserve the disputed
+evidence."* **Fixed on 1.x as well as 2.0** — wherever the replacing behaviour exists — unless the
+implementation architecture makes it 2.0-only; *"LTS note is good enough"* is not an exception.
+It likely needs a schema change (a second value per figure, or a claims table), so the
+SCHEMA_VERSION rule applies.
+
 ### V5 — Before You Buy commits a financed purchase as a debt with invented zeros (R2, R3, R5)
 
 On `commit` of a vehicle or purchase decision, Before You Buy **creates a real `DebtAccount`**
@@ -503,11 +526,8 @@ must *keep*, and both are cheaper to measure than to argue.
 
 Listed, not defaulted. Any of them may be reframed.
 
-1. **G0.** Is "the debt" here the ruled obligation identity, or a 1.x surface over `DebtAccount`
-   that 2.0 later re-points? The concept's own language (*obligation*, *terms*, *documented
-   changes*) reads like the former; the code it would ship on is the latter.
-2. **G1's timing.** V1 is a shipped prescription on the 1.x line. Fix it as its own small 1.x
-   change now, or hold it for this pass?
+1. ~~**G0.**~~ *Answered, §15: the 2.0 obligation identity; the view is 2.0-only.*
+2. ~~**G1's timing.**~~ *Answered: V1 fixed on 1.x (2026-09-24); §15 adds the calculation contract.*
 3. ~~**G4.**~~ *Answered, §11: authorised, narrowly.*
 4. ~~**G5.**~~ *Answered, §11: yes, as information, never ranked.*
 5. **V5.** The committed-purchase debt with invented zeros is live data in any install that has
@@ -1028,6 +1048,125 @@ payment and sometimes fees. The page teaches the questions; the decision stays t
 3. **Where the balance history exists** (statement reconciles, V2's sources), should the chart
    plot the recorded balances alongside the schedule?
 
+*Leanings offered during the G pass (2026-09-28), recorded as leanings — **not ruled**:* calculate the
+original amount only where the record supports it, otherwise ask; for a loan partly paid when
+entered, represent the observed state rather than reconstruct an invented original; plotted
+recorded balances are descriptive history, not prediction.
+
 ### Not decided here
 
 No field, no schema, no chart, no calculation in code. The questions above are Rob's.
+
+---
+
+## 15. Rulings — Rob, 2026-09-28. The G pass.
+
+> Status: **RULED — G0, G1, G2, G3, G6; G7 ruled in principle, not authorised. Recorded, not built,
+> not queued** — a ruling is not a build authorisation. Answered in one pass from the question set
+> of the same day, then amended on five points after they were checked against the record and the
+> code. V12 opened (§4) because a ruling here describes semantics the stored data still violates.
+
+**The principle running through all of them:** *Groundwork can explain what the record establishes,
+what it calculates, what conflicts, and what remains unknown. It cannot turn an absence of evidence
+into a fact merely because the UI wants a number.*
+
+### G0 — what the debt is: RULED
+
+1. **The debt view opens the 2.0 obligation identity** (`OBLIGATION_IDENTITY.md`), not a 1.x
+   `DebtAccount` with a later mapping. `DebtAccount` may remain a storage concern; it does not define
+   what "the debt" means to the 2.0 surface. **The view is 2.0-only:** lts/1.x keeps today's Debt
+   page, and the obligation identity is not retrofitted into 1.x to make the surfaces match —
+   consistent with the teaching layer being 2.0-exclusive (August).
+2. **Types are semantic, not a category checklist.** The four types stay: **`credit`, `loan`,
+   `lease`, `mortgage`.** A type is an obligation kind whose terms determine its behaviour; common
+   real-world labels (store card, student loan, medical, personal) are not manufactured into types.
+   **A HELOC is `credit`**, carrying HELOC terms (draw period, repayment period where applicable,
+   variable rate, credit limit, available credit, payment rules); *revolving* is a characteristic
+   of terms, so `credit` is not renamed. **PSLF is a term on a `loan`**, not a type — the existing
+   1.x treatment (minimums only, then forgiveness by the loan's terms) already works that way.
+3. **Fields are type-conditional:** meaningful and calculated · meaningful and user-supplied ·
+   meaningful but unknown · explicitly not applicable. Unknown stays unknown and never becomes zero
+   because a column is empty (V6). For example:
+
+   | Field | Credit card | Car loan | Mortgage |
+   |---|---|---|---|
+   | Balance, APR, payment, balance history | meaningful | meaningful | meaningful |
+   | Credit limit, utilization | meaningful | not applicable | not applicable |
+   | Original amount | generally not applicable | meaningful, possibly unknown | meaningful, possibly unknown |
+   | Scheduled term | usually not applicable | meaningful | meaningful |
+
+4. **A closed or paid-off debt is the same obligation with its lifecycle ended** (§13), not a
+   different debt; its history stays its own.
+
+### G1 — metric, not prescription: RULED
+
+5. **The view consumes a named, tested utilization contract** (`CALCULATION_PLACEMENT.md`); it does
+   not implement utilization itself. V1 fixed the surface; the gate closes against the architecture.
+   *Build work.*
+
+### G2 — a source on every figure: RULED
+
+6. **Credit limit carries a source** from the same vocabulary (you · statement · calculated) — and a
+   limit is not calculated, so *calculated* is not manufactured to fill the column; unknown stays
+   unknown. *Build work.*
+7. **Each history row carries its own source** — the source belongs on the observation, not the
+   collection; one month's figure may come from a statement and the next from the user. *Build work.*
+8. **A disagreement preserves both claims and their provenance; arrival order is not resolution.**
+   The engine does not silently choose. Resolution is the **user's choice**, unless a separately
+   ruled deterministic rule covers that fact; no universal "statement wins". Until resolved, a
+   dependent calculation is blocked, or names the value it used under a documented rule. Shipped 1.x
+   violates this → **V12**, fixed on both lines.
+9. **The resolution is visible wherever the figure is used** — *"projections below use 24.9%, the
+   statement's figure."*
+
+### G3 — payoff belongs to a plan: RULED
+
+10. **Naming the plan closes G3** — V4, V10 and V11 establish it. `RESERVE_PAYOFF_QUESTION.md` (may
+    reserves take part in payoff) is a separate question and does not hold G3.
+11. **Changing the plan or budget on the detail view is a what-if** — it never alters the user's
+    actual plan; that changes only by the separate, explicit action that changes it.
+
+### G6 — the teaching contract: RULED
+
+12. **The seven inputs are complete:** observed facts · what the user told Groundwork · Groundwork's
+    calculations · documented terms · known history · explicit assumptions · explicit unknowns. Not
+    added: inferred intent, behavioural interpretation, hidden model conclusions.
+13. **§6's disagreement shape applies to every material disagreement**, not APR only: what one
+    source says, what the other says, that Groundwork has not resolved them, and what that means
+    downstream.
+14. **Silence is accepted (§7):** nothing changed → show the facts, no teaching paragraph.
+15. **The reference point is data-side** — the last relevant statement or change to the record —
+    never the user opening the view (the no-silent-learning boundary). Opening a page ten times
+    creates nothing.
+16. **The proof rule (§11, report statements) applies in full to teaching prose** — fact-worded,
+    calculation claims proven by the calculation, otherwise blocked or explicitly unknown. **The
+    shapes differ:** a *report* is summary → detail → close; a *teaching paragraph* is summary
+    sentence → supporting detail → what to ask next, where applicable. *"What to ask next"* names the
+    missing information or the question that would resolve the uncertainty — never a decision made
+    for the user.
+
+### G7 — payment-method terms: RULED IN PRINCIPLE, NOT AUTHORISED
+
+17. **Payment-method terms may enter a proposed purchase's calculations** — rewards, true
+    promotional 0%, deferred interest, store discounts — **as terms and evidence, never as
+    assumptions** about what will happen.
+18. **Sourced facts when evidenced, otherwise unknown; never zero.** Documented 3% cash back or a
+    documented 0% promotional APR are sourced facts; *"this card probably has rewards"* or
+    unsupplied deferred-interest terms are unknown. The issuer's wording is preserved or cited well
+    enough to explain what the term means.
+19. **The sequence stands:** §12 docs → reserve question → store-offer meaning → Before You Buy → G7.
+    G7 stays closed until the reserve question is resolved.
+
+### Not gates — disposition
+
+- **§9 question 5** (the active 0% debt): still open — a 0 is not read as one meaning until known.
+- **§14:** leanings recorded there, not ruled.
+- **The account trend** (cards, auto loans; not mortgages): its own semantic pass, not folded into G0.
+- **Tests 1 and 10:** measurement, not ruling questions — to be measured on today's Debt page.
+
+### What this leaves
+
+Every gate is now ruled except G7's authorisation, which waits on the reserve question. **Build
+work the rulings create:** the utilization contract (G1), sources on credit limit and history rows
+(G2), and V12 on both lines. Rob's standing instruction — *do not build the view yet* — is not lifted
+by these rulings; lifting it, and a queue number, are his.
