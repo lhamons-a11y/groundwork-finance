@@ -1,8 +1,8 @@
 # The Willingness Layer: the build pass
 
 > Status: **RULED 2026-09-27 (Rob, §6): all eight recommendations accepted. First build AUTHORISED
-> 2026-09-28 (Rob: *"Run it when the gate is available"*) and BUILT (§7); awaiting the gate and Rob's
-> acceptance.** Gate: **1911 / 0** at `4626bf7`, 2026-09-28. Opened the same day. Queue item 23. Rob, 2026-09-27: *"lets build the
+> 2026-09-28 and BUILT (§7), gate 1911 / 0 at `4626bf7`; ACCEPTED as it stands (Rob, 2026-09-28, §8).
+> Not built, each needing its own go-ahead: W-D, the contradiction-check; W-E, strategy inference.** Opened the same day. Queue item 23. Rob, 2026-09-27: *"lets build the
 > teaching layer"*, then *"the unbuilt teaching pieces"*, then *"I feel we need that before the
 > dashboard"*. So this pass comes before the dashboard build (item 22, ruled, not authorised).
 >
@@ -304,3 +304,30 @@ database):
 **Found while building, for Rob:**
 - **s51's blind spot has a second shape.** A new **model table** needs a SCHEMA_VERSION bump just as a new column does, because `create_all` runs only when the stored version differs. But it changes no migrate.py code, so the fingerprint cannot catch a forgotten bump. This build bumped and proved the upgrade in s129. The general guard, fingerprinting the models' table set in s51 on both lines, is a separate change and is not made here.
 - **Readings attach an edit to the budget item's category as it stands now,** because budget items key category by name. Renaming a category re-files its past edits under the new name. That is honest for a rename; a split or merge is not modelled.
+
+---
+
+## 8. Acceptance: Rob, 2026-09-28
+
+**The first build is accepted as it stands:** master `4626bf7`, full gate 1911 / 0, s129 45 / 45. The
+solution-engine, schema-pin and seam sections are green.
+
+Rob's grounds, as recorded:
+- The read boundary is tested: budget edits only, and no page visit or dismissal can become willingness evidence.
+- Declarations are append-only and user-originated.
+- The solution engine consumes both the recorded evidence and the user's statements.
+- Protected categories are respected, including the housing / food floor.
+- The empty state has no controls.
+- The in-context declaration works.
+- The browser run showed no console errors.
+- 1.x is untouched.
+
+**The two findings stay open, each where Rob put it:**
+
+| finding | disposition |
+|---|---|
+| **The schema-version pin cannot see a new table** (a model table changes no migrate.py code) | a **separate infrastructure pass**, queue item 24. The explicit bump in this build is correct; the gap is a limitation of the pin, not a defect here |
+| **Category split / merge** | **left open exactly as reported.** Rename behaviour is defined; split and merge semantics are not, and are **not to be invented inside this layer** |
+
+**Sequencing, agreed:** Willingness Layer accepted, then the break-detector, then the dashboard. Neither
+finding is folded into the break-detector unless that pass actually touches their semantics.
