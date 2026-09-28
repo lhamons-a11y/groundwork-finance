@@ -2,7 +2,7 @@
 
 > Status: **RULED 2026-09-27 (Rob, §6): all eight recommendations accepted. First build AUTHORISED
 > 2026-09-28 (Rob: *"Run it when the gate is available"*) and BUILT (§7); awaiting the gate and Rob's
-> acceptance.** Opened the same day. Queue item 23. Rob, 2026-09-27: *"lets build the
+> acceptance.** Gate: **1911 / 0** at `4626bf7`, 2026-09-28. Opened the same day. Queue item 23. Rob, 2026-09-27: *"lets build the
 > teaching layer"*, then *"the unbuilt teaching pieces"*, then *"I feel we need that before the
 > dashboard"*. So this pass comes before the dashboard build (item 22, ruled, not authorised).
 >
@@ -280,7 +280,7 @@ master only (ruling 7); 1.x untouched.
 - **The seam:** app.js and index.html know nothing of the layer.
 - **Wl12:** a database stored at the previous version gains the table on start.
 
-Standalone: 45 / 0. The neighbouring sections standalone: s45 solution engine 288 / 0, s51 pin 6 / 0, s30 seam
+**Full gate: 1911 / 0** (master `4626bf7`, nothing moved on master during the run). Standalone: 45 / 0. The neighbouring sections standalone: s45 solution engine 288 / 0, s51 pin 6 / 0, s30 seam
 12 / 0.
 
 **Seen in the page** on a throwaway database, seeded (built-in browser, `localhost` dev server, never the real
