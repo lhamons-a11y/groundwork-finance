@@ -33,7 +33,7 @@ def run(ctx):
     app_js = (Path(__file__).resolve().parent.parent / 'static' / 'js' / 'app.js').read_text(encoding='utf-8')
 
     harness = '\n'.join([
-        _extract(app_js, '_minimumsBudget'),
+        _extract(app_js, '_minimumsOnly'),
         _extract(app_js, '_budgetPlanForecast'),
         _extract(app_js, '_budgetTwoScenarioComparison'),
         """
@@ -44,20 +44,24 @@ let method = 'snowball', cards = [], plan, mins, asked = [];
 function _planName() { return method; }
 function _simCards() { return cards; }
 function _simulatePayoff(extra) { return plan; }
-function _simulatePayoffStrategy(list, budget, strategy) { asked.push([budget, strategy]); return mins; }
+let data = [];
+function getCardData() { return data; }
 global.S = { debtCards: [] };
 const card = { id: 1, balance: 5000, rate: 22, minimum: 150, non_principal: 0 };
 const home = { id: 2, balance: 180000, rate: 6.5, minimum: 1200, non_principal: 450 };
 const out = {};
-cards = [card, home]; plan = { months: 30, totalInterest: 900 }; mins = { months: 60, totalInterest: 2400 };
-out.snow = _budgetTwoScenarioComparison([1]); out.askedSnow = asked.slice(); asked = [];
+cards = [card, home]; plan = { months: 30, totalInterest: 900 };
+data = [{ balance: 5000, rate: 22, minimum: 150, debtType: 'credit' }];
+out.minsOnly = _minimumsOnly(data);
+out.snow = _budgetTwoScenarioComparison([1]);
 method = 'avalanche';
 out.aval = _budgetTwoScenarioComparison([1]);
 plan = undefined; out.pending = _budgetTwoScenarioComparison([1]);
 plan = null;      out.uncovered = _budgetTwoScenarioComparison([1]);
-plan = { months: 30, totalInterest: 900 }; mins = { months: 360, totalInterest: 99999 };
+plan = { months: 30, totalInterest: 900 };
+data = [{ balance: 400000, rate: 9, minimum: 3050, debtType: 'loan' }];   // a loan that runs past 30 years
 out.capped = _budgetTwoScenarioComparison([1]);
-cards = [{ id: 3, balance: 5000, rate: 24, minimum: 100, non_principal: 0 }]; mins = { months: 360 };
+data = [{ balance: 5000, rate: 24, minimum: 90, debtType: 'loan' }];      // cannot amortize: no honest baseline
 out.never = _budgetTwoScenarioComparison([1]);
 cards = []; out.none = _budgetPlanForecast();
 console.log(JSON.stringify(out));
@@ -74,18 +78,17 @@ console.log(JSON.stringify(out));
     snow = res.get('snow') or ''
     check('V10: the Budget page\'s two-scenario line names the chosen plan (snowball) and shows its date',
           'Your snowball plan at $600.00/mo' in snow and '>M30<' in snow and 'Avalanche' not in snow)
-    check('and the minimums-only line is the engine\'s, not the Budget page\'s own loop',
-          '>M60<' in snow)
-    check('minimums only is the engine at a budget equal to the minimums, escrow added back for _simAsk to take out',
-          res.get('askedSnow') == [[150 + 1200 + 450, 'snowball']])
+    mo = (res.get('minsOnly') or {}).get('months')
+    check('V11: the minimums-only line is the one shared meaning (_minimumsOnly: issuer-style falling minimum, nothing rolled over)',
+          bool(mo) and f'>M{mo}<' in snow and (res.get('minsOnly') or {}).get('capped') is False)
     check('an avalanche plan is named as avalanche',
           'Your avalanche plan at' in (res.get('aval') or ''))
     check('while the engine is working, or the payments do not cover the minimums, it says nothing rather than a guess',
           res.get('pending') == '' and res.get('uncovered') == '')
     check('a minimums run that reaches the 30-year horizon says so, not a date',
           'not within 30 years' in (res.get('capped') or ''))
-    check('a minimum at or below its month\'s interest is "never", a fact rather than a projection',
-          'never at minimum payments' in (res.get('never') or ''))
+    check('a loan whose payment cannot amortize has no honest baseline, so nothing is claimed',
+          res.get('never') == '')
     check('with no debts there is no plan and no minimums run',
           res.get('none') == {'plan': None, 'mins': None})
 

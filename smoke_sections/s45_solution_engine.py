@@ -1482,7 +1482,9 @@ def run(ctx):
     # beside it: the min-only baseline recalculates each month's minimum the way
     # issuers do, which the engine cannot yet do. This pins the count at one, so
     # a second one cannot appear quietly.
-    portfolio_loops = sim_code.count('bals.some(b=>b>0.01)')
+    # Counted by the loop header: since V11 the same function also asks, after the
+    # loop, whether a balance was left at 30 years - that is not a second loop.
+    portfolio_loops = sim_code.count('while(m<360&&bals.some(b=>b>0.01))')
     check('the client simulates a portfolio in exactly one remaining place',
           portfolio_loops == 1
           and 'THE LAST PORTFOLIO LOOP IN THIS FILE' in view)
