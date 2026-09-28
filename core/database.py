@@ -131,6 +131,29 @@ class BudgetItem(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class WillingnessDeclaration(Base):
+    """What the user said about a budgeted category - the Willingness Layer's declared channel.
+
+    `gw 2.0/WILLINGNESS_LAYER.md` (ruled 2026-09-27): only what the user said is stored, never what
+    Groundwork derived (readings are recomputed on every read). Append-only: a changed mind is a NEW row,
+    and a release is a row too, so the history of what the user said stays readable ("you set Dining
+    protected on 3 March") and no statement is ever rewritten or deleted - there is no route that could.
+
+    stance        'protect' | 'flexible' | 'release'
+    category      the category NAME, as budget items key it (no FK - budget items carry names too)
+    answer_kind   what the statement answered: 'claim' (a reading or an earlier statement shown in the
+                  working picture) or 'proposal' (a path offered on a decision screen) - F.3's two channels
+    answer_text   that claim or proposal, as the user saw it
+    """
+    __tablename__ = 'willingness_declarations'
+    id          = Column(Integer, primary_key=True)
+    category    = Column(String(80), nullable=False)
+    stance      = Column(String(10), nullable=False)
+    answer_kind = Column(String(10), nullable=False)
+    answer_text = Column(Text, default='')
+    said_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class DebtAccount(Base):
     __tablename__ = 'debt_accounts'
     id              = Column(Integer, primary_key=True)

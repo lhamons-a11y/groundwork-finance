@@ -1,7 +1,8 @@
 # The Willingness Layer: the build pass
 
-> Status: **RULED 2026-09-27 (Rob, §6): all eight recommendations accepted. No code; the build is
-> not yet authorised.** Opened the same day. Queue item 23. Rob, 2026-09-27: *"lets build the
+> Status: **RULED 2026-09-27 (Rob, §6): all eight recommendations accepted. First build AUTHORISED
+> 2026-09-28 (Rob: *"Run it when the gate is available"*) and BUILT (§7); awaiting the gate and Rob's
+> acceptance.** Opened the same day. Queue item 23. Rob, 2026-09-27: *"lets build the
 > teaching layer"*, then *"the unbuilt teaching pieces"*, then *"I feel we need that before the
 > dashboard"*. So this pass comes before the dashboard build (item 22, ruled, not authorised).
 >
@@ -241,4 +242,65 @@ A structural test pins the allowed set, as H1's reader pin did. A new source is 
 actually know when it labels someone "engaged", "occasional" or "passive", and is that label useful
 enough to exist?* A sparse record can mean many things, and "passive" is not one Groundwork can see.
 
-**Not authorised yet:** the build itself.
+**Not authorised yet:** the build itself. *(Authorised 2026-09-28: §7.)*
+
+---
+
+## 7. The first build: W-A, W-B, W-C and the home (2026-09-28)
+
+Rob, 2026-09-28: *"Run it when the gate is available"*. That authorised the first build ruled in §6.1. Built on
+master only (ruling 7); 1.x untouched.
+
+| piece | where | what it does |
+|---|---|---|
+| **W-A** observed | `core/willingness.py` `observed_readings` | E.2's readings per budgeted category, each a citation: **a cut that held** three recorded months (flexible); **a cut later restored** to at least its old amount (sacred); **kept through two tight months**, where spending passed recorded income (sacred until shown otherwise). E.2a: a cut beside a ≥10% income move is `unclassified` with the move shown as a fact (`probation`); income not on record around the cut is `income_unrecorded`, never level. Also `too_soon`, `did_not_hold` and `no_evidence`, which conclude nothing. The necessity floor gets no reading. Pure: no database access, no cache |
+| **W-B** declared | `WillingnessDeclaration` (`willingness_declarations`), `POST /api/willingness/declarations` | protect / flexible / release, with what it answered. **Append-only**: no route edits or deletes; a changed mind and a release are new rows. F.3 enforced by the server: a statement answers **a claim** (a concluding reading, or the user's own earlier statement) or **a proposal whose text names the category**, and anything else is refused |
+| **W-C** consumed | `server.reallocation_candidates` / `trim_candidates` → `willingness.annotate`; `core/solution.py` `_willing_key`, `_flexible_named` | the user's word beats every reading. A protected category is **never a candidate** (lever 1 or lever 4). **E.3 rule 2**: flexible candidates are offered first, then unclassified, then what the record says is kept, and size within each. With no willingness the order is exactly as before. The generic monthly lever names a category **only** when it is flexible, and says whether that came from the record or the user's word. The floor holds against a *flexible* statement. Rules 4 and 5 stay absent: they need W-E |
+| **the home** (H-a) | `static/js/teaching/willingness.js` | a view of its own, **Assistant → Working picture**, plus the Settings pointer, both created from the teaching layer (app.js and index.html untouched). **The empty state has no controls.** Each claim shows its receipt with one control that disputes it. Each statement shows its date, what it answered, and *Release* / change. There is a full history, oldest first. The page says it never learns from pages opened or suggestions dismissed |
+| in context | `static/js/teaching/paths.js` | a reallocation or trim path that names a category carries **"never X"**, which answers that proposal where it stands. A flexible candidate's path says *"your record shows X has moved before"* or *"you marked X flexible"* |
+| schema | `migrate.py` `SCHEMA_VERSION = '20260928-willingness-declarations'` | the bump creates the table on upgraded databases (via `init_db`'s `create_all`). **The bump carries no migrate.py code, so the s51 fingerprint cannot see it**, and s129 proves the upgrade instead (below) |
+
+**Tests: `smoke_sections/s129_willingness.py`, 45 checks.**
+- **Engine cases** Wl1–Wl5, Wl7 and Wl10, each E.2 / E.2a reading, and the ordering.
+- **Route cases, end to end on the real database:**
+  - the gatherer reads the edit and complete months only;
+  - an unclaimed category is refused (409);
+  - a proposal must name the category;
+  - "never X" is stored with what it answered;
+  - the protected category leaves the solution engine's candidates;
+  - a changed mind and a release are new rows;
+  - no PUT / PATCH / DELETE route exists.
+- **The W6 read boundary, pinned structurally:**
+  - the gatherer reads exactly one event kind, `budget_adjusted`;
+  - no usage name appears on the layer's path;
+  - the engine imports no storage.
+  - Mutations are caught: a dismissal read as willingness, a page visit counted, a second event kind, and the engine given database access.
+- **F.4 over what the user reads,** with a scolding-line mutation.
+- **The empty state offers no controls.**
+- **The seam:** app.js and index.html know nothing of the layer.
+- **Wl12:** a database stored at the previous version gains the table on start.
+
+Standalone: 45 / 0. The neighbouring sections standalone: s45 solution engine 288 / 0, s51 pin 6 / 0, s30 seam
+12 / 0.
+
+**Seen in the page** on a throwaway database, seeded (built-in browser, `localhost` dev server, never the real
+database):
+- A seeded Dining cut (450 → 350, held four recorded months, income level) showed as flexible with its
+  receipt and one control, *Protect it*.
+- Protecting it moved it under *What you have told Groundwork*, with the reading quoted once.
+- *"never Hobbies"* on a path phrase stored a proposal-answer for a category with no reading.
+- *Release* added a row, and the history reads oldest-to-newest in reverse.
+- No console errors.
+- On an empty database the page showed *"Groundwork has not drawn any conclusions about you yet"* with
+  **zero controls**.
+
+**Named, not built here:**
+- W-D, the contradiction-check (second, per ruling 1).
+- W-E, strategy inference (last, gated on the null model, ruling 4).
+- F.2's explicit *"not changing anything right now"* statement. Wl11's behaviour already holds by default: with nothing said, no path is ranked as the user's.
+- The conversation pane (ruling 3).
+- The break-detector: the next pass (ruling 8).
+
+**Found while building, for Rob:**
+- **s51's blind spot has a second shape.** A new **model table** needs a SCHEMA_VERSION bump just as a new column does, because `create_all` runs only when the stored version differs. But it changes no migrate.py code, so the fingerprint cannot catch a forgotten bump. This build bumped and proved the upgrade in s129. The general guard, fingerprinting the models' table set in s51 on both lines, is a separate change and is not made here.
+- **Readings attach an edit to the budget item's category as it stands now,** because budget items key category by name. Renaming a category re-files its past edits under the new name. That is honest for a rename; a split or merge is not modelled.

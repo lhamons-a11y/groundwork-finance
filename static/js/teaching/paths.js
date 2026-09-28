@@ -24,6 +24,30 @@
   //
   // Two at most. E.4 says show the top paths with their costs and let the user
   // choose; it does not say show all of them, and this page is already busy.
+  // The Willingness Layer's two contributions to a path (WILLINGNESS_LAYER.md
+  // W-B / W-C). Where a candidate is flexible by the user's record or their own
+  // word, the path says which; and every category a path names can be answered
+  // where it stands - "never Dining" - which is F.3's in-context channel. Both
+  // come from willingness.js; without it (it is a sibling module, not a
+  // dependency) the phrase is exactly what it was.
+  function _flexibleNote(items) {
+    const flex = (items || []).filter(i => i.willingness && i.willingness.stance === 'flexible');
+    if (!flex.length) return '';
+    const said  = flex.filter(i => i.willingness.source === 'declared').map(i => i.name);
+    const shown = flex.filter(i => i.willingness.source !== 'declared').map(i => i.name);
+    const parts = [];
+    if (shown.length) parts.push(`your record shows ${esc(_joinNames(shown.map(n => ({ name: n }))))} has moved before`);
+    if (said.length)  parts.push(`you marked ${esc(_joinNames(said.map(n => ({ name: n }))))} flexible`);
+    return ` (${parts.join('; ')})`;
+  }
+
+  function _answerable(categories, proposal) {
+    if (typeof window._gwDeclareInline !== 'function') return '';
+    const seen = {};
+    return categories.filter(c => c && !seen[c.toLowerCase()] && (seen[c.toLowerCase()] = true))
+      .map(c => window._gwDeclareInline(c, proposal)).join('');
+  }
+
   function _tripPathPhrases(paths, gap, unit = '') {
     // Take the top two by rank — but never drop the only path that actually
     // closes the gap. Ranking puts no-cut paths first (E.3 rule 1), and a closing
@@ -69,16 +93,19 @@
         const items = p.items || [];
         const seen  = items.map(i => i.months_observed).filter(m => m > 0);
         const proof = seen.length ? ` — budgeted, not spent, in ${Math.min(...seen)} recorded months —` : '';
-        const lead  = `shifting ${fmt(p.frees_monthly)}/mo from ${esc(_joinNames(items))}${proof}`;
-        return p.closes ? `${lead} holds the date` : `${lead} ${part}`;
+        const lead  = `shifting ${fmt(p.frees_monthly)}/mo from ${esc(_joinNames(items))}${_flexibleNote(items)}${proof}`;
+        const said  = `shifting ${fmt(p.frees_monthly)}/mo from ${_joinNames(items)}`;
+        return (p.closes ? `${lead} holds the date` : `${lead} ${part}`)
+          + _answerable(items.map(i => i.name), said);
       }
       if (p.kind === 'trim') {
         const items = p.items || [];
         const cost  = items.length > 1
           ? `${fmt(p.frees_monthly)}/mo between them`
           : `${fmt(p.frees_monthly)}/mo`;
-        const lead  = `cutting ${esc(_joinNames(items))} (${cost})`;
-        return p.closes ? `${lead} holds the date` : `${lead} ${part}`;
+        const lead  = `cutting ${esc(_joinNames(items))} (${cost})${_flexibleNote(items.map(i => ({ ...i, name: i.category })))}`;
+        return (p.closes ? `${lead} holds the date` : `${lead} ${part}`)
+          + items.map(i => _answerable([i.category], `cutting ${i.name}, in ${i.category}`)).join('');
       }
       if (p.kind === 'substitution') {
         // The price of the same decision, against what it costs in time. The

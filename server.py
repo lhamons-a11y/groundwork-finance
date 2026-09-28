@@ -73,7 +73,7 @@ from core.database import ( db_session, DATA_DIR,
     InvestmentTransaction, InvestmentLot, PriceCache,
     DebtBalanceHistory, PdfExtractCache,
     DebtLedgerEntry, RecurringDebtPayment, CheckingTransactionLink,
-    HistorianEntry, TripHistory,
+    HistorianEntry, TripHistory, WillingnessDeclaration,
 )
 from core.consequence import simulate_payoff
 from core.solution import MIN_MONTHS_OBSERVED
@@ -209,6 +209,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(college_funds_bp,  url_prefix='/api/college-funds')
     app.register_blueprint(gift_bp,           url_prefix='/api/gift')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
+    app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
 
     # System routes
     @app.route('/api/ping')
@@ -1513,7 +1514,10 @@ def reallocation_candidates(session, months: int = 6) -> list:
             'min_observed': min(monthly),
             'months_observed': len(seen),
         })
-    return out
+    # W-C: the user's word and their record's readings travel with each candidate, and a category the
+    # user protected is not a candidate at all (WILLINGNESS_LAYER.md).
+    from core.willingness import annotate
+    return annotate(out, willingness_state(session)['effective'])
 
 
 def trim_candidates(session, months: int = 6, limit: int = 12) -> list:
@@ -1561,7 +1565,148 @@ def trim_candidates(session, months: int = 6, limit: int = 12) -> list:
             'monthly': round(sum(float(r[1] or 0) for r in rows) / span, 2),
             'category': max(set(names), key=names.count) if names else None,
         })
-    return out
+    # W-C: a recurring item in a category the user protected is not a candidate (WILLINGNESS_LAYER.md).
+    from core.willingness import annotate
+    return annotate(out, willingness_state(session)['effective'], field='category')
+
+# ── The Willingness Layer (blueprint Appendix F; gw 2.0/WILLINGNESS_LAYER.md, ruled 2026-09-27) ─────────────
+#
+# THE READ BOUNDARY (W6). What the layer may read is the user's financial record and their own statements:
+# budget items, the 'budget_adjusted' edits, transactions, categories, and willingness_declarations. It never
+# reads usage - app opens and closes, page visits ('budget_reviewed'), or whether a suggestion was shown or
+# dismissed ('proactive_shown' / 'proactive_dismissed'): a dismissal says "I dismissed this", not "I am
+# unwilling to do this" (Rob, 2026-09-27). s129 pins this function's reads structurally.
+
+def _willingness_inputs(session, months: int = 12) -> dict:
+    """Gather what core.willingness reads - the record and the user's word, nothing else."""
+    today = date.today()
+    month_start = today.replace(day=1)
+    cutoff = month_start - timedelta(days=30 * months)
+
+    items = session.query(BudgetItem).all()
+    by_id = {i.id: i for i in items}
+    categories = sorted({i.category for i in items if i.is_active and i.type == 'expense' and i.category})
+
+    # The user's own budget edits. The category is the item's category as it stands now: budget items key
+    # category by name, and an edit made to "Dining" is about whatever that item is today.
+    edits = []
+    for e in session.query(HistorianEntry).filter(
+            HistorianEntry.event_category == 'budget_adjusted').order_by(HistorianEntry.created_at, HistorianEntry.id):
+        c = json.loads(e.context_json or '{}')
+        item = by_id.get(c.get('budget_item_id'))
+        if (not item or not item.category or c.get('item_type', 'expense') != 'expense'
+                or e.expected_value is None or e.actual_value is None or e.created_at is None):
+            continue
+        edits.append({'id': e.id, 'date': e.created_at.strftime('%Y-%m-%d'), 'category': item.category,
+                      'old': float(e.expected_value), 'new': float(e.actual_value)})
+
+    # Spending by category and month, over complete months only - the current month is half-recorded by
+    # definition. Transfers are money moving between the user's own accounts, not spending.
+    rows = session.query(
+        Category.name, Category.type, func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)
+    ).outerjoin(Category, Transaction.category_id == Category.id).filter(
+        Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.date < month_start
+    ).group_by(Category.name, Category.type, func.strftime('%Y-%m', Transaction.date)).all()
+    spend, debits, ledger_months = {}, {}, set()
+    for name, ctype, m, total in rows:
+        if not m:
+            continue
+        ledger_months.add(m)
+        if (ctype or '').lower() == 'transfer':
+            continue
+        debits[m] = debits.get(m, 0.0) + float(total or 0)
+        if name:
+            spend[(name, m)] = spend.get((name, m), 0.0) + float(total or 0)
+
+    # Income by month - only months with income on record appear, so a month with none is unknown rather
+    # than zero (absence is not zero).
+    income = {}
+    for m, total in session.query(
+            func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)
+    ).join(Category, Transaction.category_id == Category.id).filter(
+        Transaction.type == 'credit', func.lower(Category.name) == 'income',
+        Transaction.date >= cutoff, Transaction.date < month_start
+    ).group_by(func.strftime('%Y-%m', Transaction.date)).all():
+        if m and total and float(total) > 0:
+            income[m] = float(total)
+
+    declarations = [{'id': d.id, 'category': d.category, 'stance': d.stance, 'answer_kind': d.answer_kind,
+                     'answer_text': d.answer_text or '', 'said_at': d.said_at.isoformat()}
+                    for d in session.query(WillingnessDeclaration).order_by(
+                        WillingnessDeclaration.said_at, WillingnessDeclaration.id)]
+    return {'categories': categories, 'edits': edits, 'spend': spend, 'ledger_months': ledger_months,
+            'income': income, 'debits': debits, 'declarations': declarations}
+
+
+def willingness_state(session) -> dict:
+    """The working picture's content, recomputed on every call - nothing derived is stored (ruling 2)."""
+    from core.willingness import observed_readings, current_declarations, effective
+    from core.solution import is_protected
+    i = _willingness_inputs(session)
+    readings = observed_readings(i['categories'], i['edits'], i['spend'], i['ledger_months'],
+                                 i['income'], i['debits'])
+    current = current_declarations(i['declarations'])
+    return {
+        'readings': readings,
+        'declarations': i['declarations'],
+        'current': [{**d, 'on_floor': is_protected(d['category'])} for d in current.values()],
+        'effective': effective(readings, i['declarations']),
+    }
+
+
+willingness_bp = Blueprint('willingness', __name__)
+
+
+@willingness_bp.route('', methods=['GET'])
+def willingness_picture():
+    """The working picture: what Groundwork has concluded, with receipts, and what the user has said."""
+    with db_session() as session:
+        s = willingness_state(session)
+        s.pop('effective')
+        return ok(s)
+
+
+@willingness_bp.route('/declarations', methods=['POST'])
+@require_json
+def willingness_declare():
+    """Record what the user said. Append-only: there is no route that edits or deletes a statement.
+
+    F.3: a statement answers something Groundwork showed - a claim in the working picture (a reading, or
+    the user's own earlier statement) or a path on a decision screen that names the category. There is no
+    preference to set about something Groundwork has never claimed or offered.
+    """
+    from core.willingness import STANCES, claim_for
+    body = request.json or {}
+    category = (body.get('category') or '').strip()
+    stance = (body.get('stance') or '').strip()
+    answer = body.get('answer') if isinstance(body.get('answer'), dict) else {}
+    kind = (answer.get('kind') or '').strip()
+    said_to = (answer.get('text') or '').strip()[:500]
+    if stance not in STANCES:
+        return err('stance must be protect, flexible or release')
+    if not category or len(category) > 80:
+        return err('a category is required')
+    with db_session() as session:
+        state = willingness_state(session)
+        current = {d['category'].strip().lower() for d in state['current']}
+        if kind == 'claim':
+            if not claim_for(category, state['readings'], state['declarations']):
+                return err('Groundwork has not claimed anything about this category to answer', 409)
+        elif kind == 'proposal':
+            if stance == 'release':
+                return err('a release answers an earlier statement, not a proposal')
+            if category.lower() not in said_to.lower():
+                return err('the proposal answered must name the category')
+        else:
+            return err('a statement answers a claim or a proposal')
+        if stance == 'release' and category.lower() not in current:
+            return err('there is no statement about this category to release', 409)
+        session.add(WillingnessDeclaration(category=category, stance=stance, answer_kind=kind,
+                                           answer_text=said_to))
+        session.commit()
+        s = willingness_state(session)
+        s.pop('effective')
+        return ok(s)
 
 
 @budget_bp.route('/detect-recurring', methods=['GET'])

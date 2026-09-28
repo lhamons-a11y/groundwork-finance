@@ -138,6 +138,49 @@ MIN_MATERIAL_MONTHLY = 5.0
 # for another, and no path says a word about what would be missed least.
 
 
+# E.3 rule 2 (flexible-by-proof), within a lever's candidates. The Willingness
+# Layer (core/willingness.py, WILLINGNESS_LAYER.md) hands each candidate the
+# stance the user's record or their own word gives it; a category the user
+# protected never arrives here at all. Flexible first, then what nobody has
+# classified, then what the record says the user keeps - and within each, size,
+# as before. With no willingness on a candidate this is exactly the old order.
+_WILLINGNESS_ORDER = {'flexible': 0, 'unclassified': 1, 'sacred': 2}
+
+
+def _willing_key(c):
+    w = c.get('willingness') or {}
+    return (_WILLINGNESS_ORDER.get(w.get('stance'), 1), -c['monthly'])
+
+
+def _carry(c):
+    """The willingness a candidate arrived with, kept on it so the path can cite it."""
+    return {'willingness': c['willingness']} if c.get('willingness') else {}
+
+
+def _flexible_named(categories):
+    """Categories the user has shown or said are flexible, with how - the only ones a generic lever may name."""
+    out = []
+    for c in categories or []:
+        w = (c or {}).get('willingness') or {}
+        if w.get('stance') == 'flexible' and c.get('name') and not is_protected(c['name']):
+            out.append({'name': c['name'], 'source': w.get('source')})
+    return out
+
+
+def _named_by_willingness(flex):
+    """The clause the generic lever adds when it may name where the money comes from."""
+    if not flex:
+        return ''
+    said = [f['name'] for f in flex if f['source'] == 'declared']
+    shown = [f['name'] for f in flex if f['source'] != 'declared']
+    parts = []
+    if shown:
+        parts.append(f"your record shows {_join(shown)} {'has' if len(shown) == 1 else 'have'} moved before")
+    if said:
+        parts.append(f"you marked {_join(said)} flexible")
+    return '; ' + ' and '.join(parts)
+
+
 def _headroom(categories):
     """Lever 1's candidates: budgeted money the record shows was never needed.
 
@@ -171,8 +214,8 @@ def _headroom(categories):
             continue
         out.append({'kind': 'reallocation', 'name': name, 'monthly': round(room, 2),
                     'budgeted': float(budgeted), 'worst': float(worst),
-                    'months_observed': int(c['months_observed'])})
-    out.sort(key=lambda c: -c['monthly'])
+                    'months_observed': int(c['months_observed']), **_carry(c)})
+    out.sort(key=_willing_key)
     return out
 
 
@@ -198,8 +241,8 @@ def _trims(recurring):
         if monthly is None or float(monthly) < MIN_MATERIAL_MONTHLY:
             continue
         out.append({'kind': 'trim', 'name': name, 'monthly': round(float(monthly), 2),
-                    'category': category})
-    out.sort(key=lambda c: -c['monthly'])
+                    'category': category, **_carry(r)})
+    out.sort(key=_willing_key)
     return out
 
 
@@ -476,16 +519,19 @@ def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
     # would cost instead — and that lives in `save_first_plan` below, which the
     # funding panel asks for by name rather than receiving here unasked.
 
-    # ── The generic monthly lever (Pillar 2). A cut is implied but no category
-    # is named — which envelope it comes from is the user's to choose, and
-    # naming one needs willingness this engine does not have.
+    # ── The generic monthly lever (Pillar 2). A cut is implied, and a category
+    # is named only where the user's record or their own word says it is
+    # flexible (WILLINGNESS_LAYER.md W-C) - with which of the two it was. With
+    # neither, which envelope it comes from stays the user's to choose.
     lever = offsetting_monthly_delta(cards, budget, one_time_cost, **kw)
     if lever:
+        flex = _flexible_named(categories)
         paths.append(_path(
             'monthly',
             'put more toward debt',
-            f"${lever:.0f}/mo more holds the date where it is",
-            closes=True, cost_months=0, requires_cut=True, reversible=True))
+            f"${lever:.0f}/mo more holds the date where it is{_named_by_willingness(flex)}",
+            closes=True, cost_months=0, requires_cut=True, reversible=True,
+            items=flex))
 
     paths.sort(key=_rank_key)
 
@@ -546,9 +592,12 @@ def _rank_key(p):
     3. Smaller and reversible over large and permanent.
     Then, among equals, the one that closes the gap and closes it soonest.
 
-    Rules 2, 4 and 5 (flexible-by-proof, demonstrated tolerance, spread vs
-    concentrate) are absent deliberately: each needs willingness, and F.6b keeps
-    that `unclassified` for most people. Adding them here on a guess would be
+    Rule 2 (flexible-by-proof) is applied where it can be proven: among a named
+    lever's candidates (`_willing_key`), from the Willingness Layer's observed
+    readings and the user's own word. Rules 4 and 5 (demonstrated tolerance,
+    spread vs concentrate) are still absent deliberately: each needs the
+    inferred channel - F.6b's strategy - which is not built, and keeps that
+    `unclassified` for most people. Adding them here on a guess would be
     exactly the assumption E.2 forbids.
     """
     return (
@@ -930,10 +979,12 @@ def solve_monthly_cost(cards, budget, monthly_cost, replaces_monthly=0.0,
     # it IS the net cost — and it is worth saying anyway when something is being
     # replaced, because the figure that matters is the difference rather than
     # the price on the sticker.
+    flex = _flexible_named(categories)
     paths.append(_path(
         'monthly', 'put more toward debt',
-        f"${net:.0f}/mo more holds the date where it is",
-        closes=True, cost_months=0, requires_cut=True, reversible=True))
+        f"${net:.0f}/mo more holds the date where it is{_named_by_willingness(flex)}",
+        closes=True, cost_months=0, requires_cut=True, reversible=True,
+        items=flex))
 
     paths.sort(key=_rank_key)
     # No honest no here, and the omission is structural rather than an

@@ -68,8 +68,10 @@ unproducible by construction (`core/solution.py`); **Pillar 4** green-light (`so
 Before You Buy); **Pillar 5** the record read back on Before You Buy (`teaching/byb.js`); **Appendix A**
 the proactive threshold (`core/proactive.py`); **B.3** the Trophy Room's proof standard
 (`core/trophies.py`); **Appendix G** debt cycles (`core/cycles.py`); and **§8's teaching on eleven
-surfaces** (`static/js/teaching/`). **Not built:** the **Willingness Layer** — the spine; the solution
-engine deliberately omits every lever that would need it — the **break-detector**, **streamed
+surfaces** (`static/js/teaching/`). **Partly built (2026-09-28): the Willingness Layer**, the spine. Its
+observed and declared channels and the solution engine's use of them are built, along with the working
+picture's home (`WILLINGNESS_LAYER.md` §7). The inferred channel (F.6b) and the contradiction-check are
+not. **Not built:** the **break-detector**, **streamed
 narration** (BUILD_QUEUE item 10, decided 2026-08-30), learning Layer 4, and the evidence substrate
 the proof layer rests on as the thing the teaching surfaces actually read (most of BUILD_QUEUE items
 1–21 are ruled and built as substrate, not yet as the surfaces' source). Most design questions are worked through (Appendices A–G); the open surface is sorted
@@ -1122,7 +1124,10 @@ feature, not a gap.
 ## Appendix F — The Willingness Layer (the interaction model)
 
 *Status: the interaction model is **named and now placed** (F.3, settled 2026-09-03). What it is, how each
-source proves itself, what may persist and where it lives are decided; **none of it is built**.*
+source proves itself, what may persist and where it lives are decided. **First build 2026-09-28**
+(`WILLINGNESS_LAYER.md` §7): the observed and declared channels (F.6a), E.2 / E.2a / E.2b's override, the
+solution engine reading them, and the working picture's home. **Not built:** the inferred channel (F.6b),
+the contradiction-check, and the conversation pane.*
 
 The deepest expression of "recorder → teacher": a teacher implies a **relationship**, not a broadcast.
 This is not a feature — it's the **interaction model** the rest of the blueprint serves.

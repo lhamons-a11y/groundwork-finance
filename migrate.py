@@ -12,7 +12,11 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260927-cloud-ai-removed'   # cloud AI removed: ai_provider gone, ANTHROPIC_API_KEY deleted from config.json
+SCHEMA_VERSION = '20260928-willingness-declarations'   # the willingness_declarations table (WILLINGNESS_LAYER.md); init_db creates it
+# The previous version, '20260927-cloud-ai-removed', removed cloud AI. This bump carries no migrate.py code: a
+# new MODEL table is created by init_db's create_all, which runs only when the stored version differs - so a new
+# table needs a bump exactly as a new column does, and s51's fingerprint of this file cannot see it (s129 proves
+# the upgrade instead).
 # Distinct from every value an existing database can hold - master's '20260926-debt-figure-sources' and
 # earlier, and 1.x's '20260725-byb' / '20260926-lts-debt-figure-sources' / '20260927-lts-cloud-ai-removed' -
 # so each of them migrates on reaching this code.
