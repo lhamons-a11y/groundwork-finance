@@ -11,7 +11,7 @@
 >
 > **The concept exposed existing violations.** Reading it against 1.x found five places where
 > the shipped debt surfaces already break the rules the concept depends on (§4); a sixth, V6, was
-> found investigating the fifth. V1–V10 are fixed on 1.x; V11 is open. A debt view built
+> found investigating the fifth. V1–V11 are fixed on 1.x. A debt view built
 > on today's code would carry every one of them into a new surface and give them a teaching voice.
 > **Do not build the view yet** (Rob, 2026-09-24).
 
@@ -258,7 +258,7 @@ retired in favour of the engine's run, is Rob's call.
 > (labelled so under V4), and its "Saved vs minimums" card says *"your strategy is working"* — a
 > verdict, for a G5 reading. Measured the next day: recorded as **V11**.
 
-### V11 — the report's "Saved vs minimums" hides losses and claims what it does not measure — OPEN
+### V11 — the report's "Saved vs minimums" hides losses and claims what it does not measure
 
 *Found 2026-09-27 after V10; recorded at Rob's direction — "that result should count as a
 failure." No code yet.* The Debt Payoff report's card reads *"Saved vs minimums — $X — your
@@ -299,6 +299,25 @@ true and says what it is (V4). Whether a plan month serves better there is a des
 **The fix is Rob's call.** Options on the table: show the net figure with its definition and drop
 the sentence; or take the figure from the engine (the plan against minimums only, as the Budget
 page now does), which also ends the two answers.
+
+> **FIXED on 1.x, 2026-09-28 (`55f30f7` and `138018d` on `lts/1.x`, merged into master) — Rob chose
+> "one true meaning".** Building the engine option found that *"minimums only"* meant **four**
+> things: the report's (each debt at today's calculated minimum, frozen for life, losses dropped);
+> the Budget page's and onboarding's (the engine at today's minimum total with each paid-off payment
+> rolled into the next debt — a plan, not minimums); the server's $1,000-trophy proof (the same
+> engine run); and the Debt page's (each minimum as issuers calculate it, falling with the balance,
+> nothing rolled over). On the test cards under snowball: $297.52, $5,592 and $16,472 "saved".
+> **V10's "At minimums only" line was therefore untrue as shipped** — it labelled the rolled-over
+> plan as minimums; corrected here. Now the Debt page's loop, moved unchanged, is `_minimumsOnly`
+> in app.js and `minimums_only` in `core/consequence.py` (its twin, checked to agree across
+> processes), and every figure uses it: the Debt page, dashboard and trophy, the Budget forecast,
+> the report's total and per-debt rows, the Budget editor estimate and onboarding. The report card
+> reads *"Less interest than minimums only — $16,472 — your snowball plan at $600.00/mo, against
+> paying only each minimum as issuers calculate it"*; *"your strategy is working"* is gone, there and
+> in the Daily interest help. Under Rob's rule (§11, report statements) every savings figure shows
+> only when both runs finish and the plan is ahead — a run cut off at 30 years proves no saving, and
+> the Debt page hero now hides its figure then too. The report's AI data carried the false $297.52;
+> it now carries the true figure with its definition. Gate section `s41`.
 
 ### V5 — Before You Buy commits a financed purchase as a debt with invented zeros (R2, R3, R5)
 
@@ -626,6 +645,30 @@ Two consequences, both from R4:
    cost by about $500; under the payoff plan, by about $60. That difference is why the section
    sits near the top of the debt surface: it connects an ordinary spending decision to the debt
    mechanics the user is already looking at, and it matters most to the user paying minimums.
+
+### Report statements — RULED, Rob 2026-09-27 (after V11)
+
+> *"When a report says something that is not worded as judgements and if the math shows that
+> statement to be true then its allowed. If the math doesn't show it then it has to be blocked."*
+
+Two tests for every sentence a report or surface shows, and failing either blocks it:
+
+1. **Wording** — fact or factual comparison, never judgement (*"working"*, *"good"*, *"on track"*).
+2. **Proof** — the claim is computed and checked in the same run as the figures it speaks about,
+   and the sentence renders only when that check passes; never fixed text beside a number. Absent
+   or unverifiable → not shown, not softened. A figure that omits the parts that would reverse it
+   fails the proof (V11: true in each part, false in sum).
+
+Rob on the factual form: of *"your payments cost $X less interest than paying the calculated
+minimum on each debt"* he would *"accept that as a user that what I am doing is successful in my
+overall mission"* — the user draws the conclusion, so a verdict adds nothing. Length is not a
+cost he minds.
+
+**Report shape (Rob, 2026-09-27):** a report opens with a **two-paragraph summary**, then the
+**gritty detail**, then **closing remarks** — more text is welcome. Every sentence, the close
+included, still passes the two tests above: a close restates what the numbers show and what the
+user might ask next (§12), never *"you're doing great"*. Today's Debt Payoff report opens straight
+into figures; the shape applies when it is next reworked. Not built.
 
 ### Not ruled here
 
