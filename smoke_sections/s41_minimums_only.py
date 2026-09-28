@@ -98,3 +98,16 @@ def run(ctx):
           '_minimumsOnly(rows.map(' in ob and '_simAsk(' not in ob)
     check('the Budget page no longer asks the engine for a "minimums" budget rolled over',
           'function _minimumsBudget' not in app_js)
+
+    # The server's side of the same words: the trophy proof. Its twin must agree
+    # with the page's function across processes, and the proof must use it.
+    from core.consequence import minimums_only
+    srv = [minimums_only([{**d, 'debt_type': d['debtType']} for d in x]) for x in (three, loan, stuck)]
+    srv = [None if r is None else {'months': r['months'], 'totalInterest': r['total_interest'],
+                                   'capped': r['capped']} for r in srv]
+    check('the server\'s minimums_only (trophy proof) gives the page\'s answer on the same debts',
+          srv == js)
+    server_src = (Path(__file__).resolve().parent.parent / 'server.py').read_text(encoding='utf-8')
+    check('the $1,000 interest trophy is proven against minimums only, not the engine rolled over',
+          'floor = minimums_only([' in server_src and 'floor = _sim(cards, minimum_total' not in server_src
+          and "if plan and floor and not floor['capped']:" in server_src)

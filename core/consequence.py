@@ -391,3 +391,38 @@ def offsetting_monthly_delta(cards, budget, one_time_cost, strategy='avalanche',
         if hi - lo < 0.5:
             break
     return round(hi, 2)
+
+
+def minimums_only(debts):
+    """Paying only the minimums - the one meaning Groundwork gives the words (V11).
+
+    The Python twin of app.js's _minimumsOnly, line for line: each revolving
+    minimum recalculated every month the way issuers do (max($25, 1% of balance +
+    interest)), so it falls with the balance, and nothing freed by a paid-off debt
+    is rolled into another - rolling it over is a plan, not "minimums only". This
+    is deliberately NOT simulate_payoff at a budget equal to today's minimums:
+    that pays fixed minimums and rolls them over, which is how the trophy proof
+    once meant something different from every page.
+
+    `debts` is a list of dicts: balance, rate (APR percent), minimum (the payment
+    a fixed-payment debt keeps), debt_type. Returns None when a fixed payment
+    cannot amortize - no honest baseline, claim nothing - and otherwise months,
+    total_interest and `capped`: True when 360 months end with a balance left, so
+    the interest is short of the truth and no saving may be claimed from it.
+    """
+    bals = [float(d.get('balance') or 0) for d in debts]
+    m, ti = 0, 0.0
+    while m < 360 and any(b > 0.01 for b in bals):
+        m += 1
+        for i, d in enumerate(debts):
+            if bals[i] <= 0:
+                continue
+            ic = bals[i] * (float(d.get('rate') or 0) / 100 / 12)
+            revolving = (d.get('debt_type') or 'credit') == 'credit'
+            pay = max(25, bals[i] * 0.01 + ic) if revolving else float(d.get('minimum') or 0)
+            if not revolving and pay <= ic:
+                return None
+            bals[i] += ic
+            ti += ic
+            bals[i] = max(0.0, bals[i] - min(pay, bals[i]))
+    return {'months': m, 'total_interest': round(ti), 'capped': any(b > 0.01 for b in bals)}
