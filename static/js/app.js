@@ -8787,16 +8787,13 @@ function _budgetMinDecay(card) {
 // mortgage's whole payment (escrow too) taken as principal - so a snowball user
 // saw one date here and another on the Debt page, and a mortgage cleared years
 // early. They now show the Debt page's own engine run, and "minimums only" is the
-// same engine asked for a budget equal to the minimums (freed minimums roll on).
-function _minimumsBudget(cards) {
-  // _simAsk takes each mortgage's escrow share back out; the minimums are P&I.
-  return cards.reduce((s, c) => s + c.minimum + (c.non_principal || 0), 0);
-}
+// shared "minimums only" (_minimumsOnly, V11) - the same pair the Debt page shows.
 function _budgetPlanForecast() {
   const cards = _simCards();
   if (!cards.length) return { plan: null, mins: null };
+  const data = getCardData();
   return { plan: _simulatePayoff(0),   // the Debt page's run: same cards, budget and plan
-           mins: _simulatePayoffStrategy(S.debtCards, _minimumsBudget(cards), _planName()) };
+           mins: data.length ? _minimumsOnly(data) : null };
 }
 
 // ── Freed minimums this year ──────────────────────────────────────────────────
@@ -9147,19 +9144,14 @@ function _budgetAdjustScheduler(cardId, suggestedAmt) {
 // B0d: Two-scenario comparison for What's Left card
 function _budgetTwoScenarioComparison(activeDebts) {
   if (!activeDebts.length) return '';
-  // V10: both lines from the engine - the plan the Debt page shows, and the same
-  // engine at a budget equal to the minimums. Pending or not covering the
-  // minimums says nothing here; the page redraws when the answers land.
+  // V10: the plan the Debt page shows. V11: "minimums only" as the Debt page means
+  // it (_minimumsOnly). Pending, not covering the minimums, or a loan that cannot
+  // amortize says nothing here; the page redraws when the plan's answer lands.
   const { plan, mins } = _budgetPlanForecast();
   if (!plan || !mins) return '';
   const currentDate = _payoffDateLabel(plan.months);
-  // A minimum at or below its month's interest never pays the debt down - a fact,
-  // not a projection. Otherwise the engine's 30-year horizon is the limit.
-  const neverCovers = _simCards().some(c => c.rate > 0 && c.minimum <= c.balance * (c.rate / 100 / 12));
-  const minNever = neverCovers || mins.months >= 360;
-  const minDate = neverCovers ? 'never at minimum payments'
-                : minNever    ? 'not within 30 years'
-                : _payoffDateLabel(mins.months);
+  const minNever = mins.capped;
+  const minDate = minNever ? 'not within 30 years' : _payoffDateLabel(mins.months);
   if (!minNever && currentDate === minDate) return '';
 
   const minStyle = minNever ? 'color:var(--ember)' : '';
@@ -9188,7 +9180,7 @@ function _budgetRenderDebtSummary(activeDebts) {
   } else if (plan) {
     let summaryText = `Payoff forecast (your ${_planName()} plan, ${fmt(_getMonthlyBudget())}/mo): ${_payoffDateLabel(plan.months)}`;   // V4, V10
     // Only against a minimums run that finishes: a 30-year cut-off would understate it.
-    const saves = mins && mins.months < 360 ? mins.totalInterest - plan.totalInterest : 0;
+    const saves = mins && !mins.capped ? mins.totalInterest - plan.totalInterest : 0;
     if (saves > 0) summaryText += ` · Saves ${fmt(saves)} vs. minimums only`;
     lines.push(`<div style="font-size:12px;color:var(--slate);line-height:1.6">${summaryText}</div>`);
   }
@@ -9580,14 +9572,16 @@ function _budgetDebtBloomCalc(bloom) {
 
   const effectivePmt = pmt > 0 ? pmt : calcMin;
   const snaps        = _projectPayoff(bal, apr, effectivePmt);
-  const minSnaps     = _projectPayoff(bal, apr, calcMin);
+  // V11: minimums only as everywhere else - the minimum falling with the balance,
+  // not today's frozen for the life of the debt. Compared only when both finish.
+  const minOnly      = _minimumsOnly([{ balance: bal, rate: apr, minimum: calcMin, debtType: 'credit' }]);
 
   if (!snaps.length) { estBox.style.display = 'none'; return; }
 
+  const provable    = minOnly && !minOnly.capped && !snaps[snaps.length - 1].noPayoff;
   const totalInt    = Math.round(snaps.reduce((s, r) => s + r.interest, 0) * 100) / 100;
-  const minTotalInt = Math.round(minSnaps.reduce((s, r) => s + r.interest, 0) * 100) / 100;
-  const savesInt    = Math.round((minTotalInt - totalInt) * 100) / 100;
-  const savesMo     = minSnaps.length - snaps.length;
+  const savesInt    = provable ? Math.round((minOnly.totalInterest - totalInt) * 100) / 100 : 0;
+  const savesMo     = provable ? minOnly.months - snaps.length : 0;
 
   const rows = [];
   rows.push(`<div style="display:flex;justify-content:space-between">
@@ -9600,8 +9594,8 @@ function _budgetDebtBloomCalc(bloom) {
   </div>`);
   if (savesInt > 0 || savesMo > 0) {
     rows.push(`<div style="display:flex;justify-content:space-between">
-      <span style="color:var(--slate)">vs. minimum only</span>
-      <span style="font-family:var(--font-mono);color:var(--pine)">${savesInt > 0 ? `Saves ${fmt(savesInt)}` : ''}${savesInt > 0 && savesMo > 0 ? ' · ' : ''}${savesMo > 0 ? `${savesMo} month${savesMo!==1?'s':''} sooner` : ''}</span>
+      <span style="color:var(--slate)">vs. minimums only</span>
+      <span style="font-family:var(--font-mono);color:var(--pine)">${savesInt > 0 ? `${fmt(savesInt)} less interest` : ''}${savesInt > 0 && savesMo > 0 ? ' · ' : ''}${savesMo > 0 ? `${savesMo} month${savesMo!==1?'s':''} sooner` : ''}</span>
     </div>`);
   }
   if (lim > 0 && bal > 0) {
@@ -11802,7 +11796,7 @@ const HELP_TOPICS = {
   },
   daily_interest: {
     title: 'Interest burning today',
-    body:  'How much interest accrues on your total debt balance every single day at your current APRs. This money is gone permanently. Watching it drop as your balances fall is the clearest sign your strategy is working.',
+    body:  'How much interest accrues on your total debt balance every single day at your current APRs. This money is gone permanently. It falls as your balances fall.',
   },
   apr: {
     title: 'Annual Percentage Rate (APR)',
@@ -13015,33 +13009,25 @@ function obCalcDebt() {
   const totalDebt = rows.reduce((s,r) => s+r.balance, 0);
   const totalMin  = rows.reduce((s,r) => s+r.minimum, 0);
 
-  // The fourth implementation of this maths, and the last. It ran minimums-only
-  // over the rows being typed into the onboarding form — its own loop, its own
-  // rounding, its own answer. The engine does minimums-only by being asked for
-  // a budget equal to the minimums, and it does it once.
-  const engineRows = rows.map((r, i) => ({
-    id: `ob-${i}`, name: r.name, balance: r.balance,
-    rate: r.rate, minimum: r.minimum || 25,
-  }));
-  const minKey = _simKey(engineRows, totalMin, 0, 'avalanche');
-  const minSim = (minKey in _engineSims) ? _engineSims[minKey] : undefined;
-  if (minSim === undefined) _simAsk(engineRows, totalMin, 0, 'avalanche', minKey);
+  // V11: "minimums only" means one thing everywhere (_minimumsOnly) - each card's
+  // minimum as issuers calculate it, falling with the balance. It was the engine
+  // at a budget equal to the typed minimums, rolled over: a plan, not minimums.
+  const minSim = _minimumsOnly(rows.map(r => ({ balance: r.balance, rate: r.rate,
+                                                minimum: r.minimum || 25, debtType: 'credit' })));
 
   if (summary) {
     summary.style.display = '';
     setText('obTotalDebt',   fmt(totalDebt));
-    // Pending is not zero and not "never". Until the engine answers, these say
-    // nothing rather than something convenient.
-    setText('obMinInterest', minSim ? fmt(minSim.totalInterest) : '—');
-    if (!minSim) {
-      setText('obMinDebtFree', minSim === null
-        ? 'At minimums: these payments do not cover the interest.'
-        : 'At minimums: working it out…');
+    // Cut off at 30 years, the interest is short of the truth: say so, not a figure.
+    setText('obMinInterest', minSim && !minSim.capped ? fmt(minSim.totalInterest) : '—');
+    if (!minSim || minSim.capped) {
+      setText('obMinDebtFree', 'At minimums: not paid off within 30 years.');
     } else {
       const month = minSim.months;
       const yr = Math.floor(month / 12), mo = month % 12;
+      const d = new Date(); d.setMonth(d.getMonth() + month);
       setText('obMinDebtFree',
-        `At minimums: debt-free in ${yr>0?yr+'y ':''}${mo}mo · ${minSim.freeDate}`);
+        `At minimums: debt-free in ${yr>0?yr+'y ':''}${mo}mo · ${d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`);
     }
   }
 }
@@ -15653,6 +15639,47 @@ async function _debtLaunchAdvisorAI() {
   }
 }
 
+// ── "Minimums only" — one meaning, everywhere (V11) ──────────────────────────
+// Paying only the minimums: each revolving minimum recalculated every month the
+// way issuers do (blueprint §7: max($25, 1% of balance + interest)), so it falls
+// with the balance, and nothing freed by a paid-off debt is rolled into another -
+// rolling it over is a plan, not "minimums only". Fixed-payment debts (loan /
+// lease / mortgage) keep their real payment; one that cannot amortize means no
+// honest baseline exists, and null is returned - claim nothing.
+//
+// A frozen minimum at or below monthly interest compounds the balance
+// exponentially and produced multi-million-dollar "interest avoided" claims in
+// the field ($3.7M on an $8.6k/mo household - d21 fix); this never freezes it.
+//
+// It used to live inside calculate() as the Debt page's own loop, while the Budget
+// page (V10: the engine at a budget equal to today's minimums, rolled over), the
+// Debt Payoff report (each debt at today's calculated minimum, frozen, losses
+// dropped - V11) and onboarding (the engine again) each meant something else by
+// the same words. On one set of test cards that was $297.52, $5,592 and $16,472
+// "saved".
+//
+// THE LAST PORTFOLIO LOOP IN THIS FILE, and it stays for now on purpose. It is
+// not a duplicate of core/consequence.py: the engine pays a FIXED minimum per card. Retiring this means teaching the engine a declining-minimum
+// mode - a real capability with a known-dangerous failure mode - not a swap.
+// `capped` is true when 360 months end with a balance left: the interest is then
+// short of the truth, so no saving is claimed from it.
+function _minimumsOnly(data) {
+  let bals=data.map(c=>c.balance), m=0, ti=0;
+  while(m<360&&bals.some(b=>b>0.01)){
+    m++;
+    for(let i=0;i<data.length;i++){
+      if(bals[i]<=0)continue;
+      const ic=bals[i]*(data[i].rate/100/12);
+      const revolving=(data[i].debtType||'credit')==='credit';
+      const pay=revolving ? Math.max(25, bals[i]*0.01 + ic) : data[i].minimum;
+      if(!revolving && pay<=ic) return null;   // non-amortizing loan data — no valid baseline
+      bals[i]+=ic; ti+=ic;
+      bals[i]=Math.max(0,bals[i]-Math.min(pay,bals[i]));
+    }
+  }
+  return {months:m, totalInterest:Math.round(ti), capped: bals.some(b=>b>0.01)};
+}
+
 // showView('tracker') redirect for backward compat
 // (called from any stored nav state referencing the old tracker view)
 
@@ -15683,40 +15710,11 @@ function calculate() {
     return;
   }
 
-  // Interest saved vs min-only. The baseline recalculates the minimum every
-  // month for revolving debt (blueprint §7: max($25, 1% of balance + interest))
-  // exactly as real issuers do — NOT freezing today's minimum for 360 months.
-  // A frozen minimum at or below monthly interest compounds the balance
-  // exponentially and produced multi-million-dollar "interest avoided" claims
-  // in the field ($3.7M on an $8.6k/mo household — d21 fix). Fixed-payment
-  // debts (loan/lease) keep their real payment; if that payment can't
-  // amortize, no honest baseline exists and we claim nothing.
-  //
-  // THE LAST PORTFOLIO LOOP IN THIS FILE, and it stays for now on purpose. It
-  // is not a duplicate of core/consequence.py: the engine pays a FIXED minimum
-  // per card, while this recalculates the minimum every month the way issuers
-  // actually do. Retiring it means teaching the engine a declining-minimum
-  // mode — a real capability, with a known-dangerous failure mode if it is got
-  // wrong (see the $3.7M claim above) — not a swap. Until then this is the one
-  // place the client still simulates a portfolio, and it is deliberate.
-  const minResult = (function(){
-    let bals=data.map(c=>c.balance), m=0, ti=0;
-    while(m<360&&bals.some(b=>b>0.01)){
-      m++;
-      for(let i=0;i<data.length;i++){
-        if(bals[i]<=0)continue;
-        const ic=bals[i]*(data[i].rate/100/12);
-        const revolving=(data[i].debtType||'credit')==='credit';
-        const pay=revolving ? Math.max(25, bals[i]*0.01 + ic) : data[i].minimum;
-        if(!revolving && pay<=ic) return null;   // non-amortizing loan data — no valid baseline
-        bals[i]+=ic; ti+=ic;
-        bals[i]=Math.max(0,bals[i]-Math.min(pay,bals[i]));
-      }
-    }
-    return {months:m, totalInterest:Math.round(ti)};
-  })();
-
-  const intSaved = minResult ? Math.max(0, minResult.totalInterest - result.totalInterest) : 0;
+  // V11: "minimums only" has one meaning everywhere - _minimumsOnly. A savings
+  // figure shows only when that run finishes: cut off at 30 years, its interest
+  // is short of the truth and so is any saving worked from it.
+  const minResult = _minimumsOnly(data);
+  const intSaved = minResult && !minResult.capped ? Math.max(0, minResult.totalInterest - result.totalInterest) : 0;
   S._interestSaved = intSaved;
 
   // Write hero band
@@ -26221,11 +26219,14 @@ async function _rcRenderDebtPayoff() {
     const pmt   = _payoffPayment(card)||0;   // V3
     const calcMin = bal > 0 && apr > 0 ? _calcMinPayment(bal, apr) : pmt;
     const snaps   = bal > 0 && pmt > 0 ? _projectPayoff(bal, apr, pmt) : [];
-    const minSnaps = bal > 0 && calcMin > 0 ? _projectPayoff(bal, apr, calcMin) : [];
     const totalInt    = snaps.reduce((s,r)=>s+r.interest,0);
-    const minTotalInt = minSnaps.reduce((s,r)=>s+r.interest,0);
-    const intSaved    = Math.max(0, minTotalInt - totalInt);
-    const mosSooner   = Math.max(0, minSnaps.length - snaps.length);
+    // V11: this debt at minimums only, as everywhere else (_minimumsOnly) - not
+    // today's minimum frozen for its life. Claimed only when both runs finish.
+    const minOnly     = bal > 0 ? _minimumsOnly([{ balance: bal, rate: apr, minimum: pmt, debtType: card.debtType || 'credit' }]) : null;
+    const provable    = minOnly && !minOnly.capped && snaps.length && !snaps[snaps.length - 1].noPayoff;
+    const minTotalInt = provable ? minOnly.totalInterest : 0;
+    const intSaved    = provable ? Math.max(0, minOnly.totalInterest - totalInt) : 0;
+    const mosSooner   = provable ? Math.max(0, minOnly.months - snaps.length) : 0;
     // APR history
     const history = (_debtHistoryCache[String(card._dbId)]||[]).slice().reverse();
     const aprHistory = [];
@@ -26252,7 +26253,12 @@ async function _rcRenderDebtPayoff() {
   const eliminated    = Math.max(0, beginDebt - totalDebt);
   const pctElim       = beginDebt > 0 ? Math.round((eliminated/beginDebt)*100) : 0;
   const totalRemInt   = cardData.reduce((s,d)=>s+d.totalInt,0);
-  const totalIntSaved = cardData.reduce((s,d)=>s+d.intSaved,0);
+  // V11: the plan against minimums only - the Debt page's own pair of figures. The
+  // old card summed each debt's gains against a frozen minimum and dropped its
+  // losses ($297.52 "saved" where the net was -$2,642), under "your strategy is
+  // working". Shown only when both runs finish and the plan is ahead.
+  const minsOnly      = (() => { const d = getCardData(); return d.length ? _minimumsOnly(d) : null; })();
+  const planSaves     = plan && minsOnly && !minsOnly.capped ? Math.max(0, minsOnly.totalInterest - plan.totalInterest) : 0;
   const debtFreeDate  = plan?.months ? _payoffDateLabel(plan.months) : '—';
   const freed         = _budgetFreedMinimumsThisYear(activeDebts);
 
@@ -26292,7 +26298,7 @@ async function _rcRenderDebtPayoff() {
         <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ember)">${fmt(totalRemInt)}</div>
         <div style="font-size:11px;color:var(--slate);margin-top:2px">at current rates</div>
       </div>
-      ${totalIntSaved>0?`<div class="card" style="padding:14px;border-color:var(--pine-border);background:var(--pine-bg)"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--pine);margin-bottom:4px">Saved vs minimums</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--pine)">${fmt(totalIntSaved)}</div><div style="font-size:11px;color:var(--pine);opacity:.8;margin-top:2px">your strategy is working</div></div>`:''}
+      ${planSaves>0?`<div class="card" style="padding:14px;border-color:var(--pine-border);background:var(--pine-bg)"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--pine);margin-bottom:4px">Less interest than minimums only</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--pine)">${fmt(planSaves)}</div><div style="font-size:11px;color:var(--pine);opacity:.8;margin-top:2px">your ${_planName()} plan at ${fmt(_getMonthlyBudget())}/mo, against paying only each minimum as issuers calculate it</div></div>`:''}
       ${freed>0?`<div class="card" style="padding:14px;border-color:var(--pine-border);background:var(--pine-bg)"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--pine);margin-bottom:4px">Freed minimums</div><div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--pine)">+${fmt(freed)}/mo</div><div style="font-size:11px;color:var(--pine);opacity:.8;margin-top:2px">since January</div></div>`:''}
     </div>
 
@@ -26319,7 +26325,7 @@ async function _rcRenderDebtPayoff() {
           </div>
           ${d.totalInt>0?`<div style="font-size:11px;color:var(--slate-2);flex-wrap:wrap;display:flex;gap:16px">
             <span>Interest: <span style="font-family:var(--font-mono);color:var(--ember)">${fmt(d.totalInt)}</span></span>
-            ${d.intSaved>0?`<span style="color:var(--pine)">Saves ${fmt(d.intSaved)} vs minimums · ${d.mosSooner} months sooner</span>`:''}
+            ${d.intSaved>0?`<span style="color:var(--pine)">${fmt(d.intSaved)} less interest than minimums only · ${d.mosSooner} months sooner</span>`:''}
           </div>`:''}
         </div>`;
       }).join('')}
@@ -26364,7 +26370,7 @@ async function _rcRenderDebtPayoff() {
 
   const aiCard = g('rcDebtPayoffAICard');
   if (aiCard) aiCard._debtData = { cardData, sortedByApr, planSeq, totalDebt, beginDebt,
-    eliminated, pctElim, totalRemInt, totalIntSaved, freed, debtFreeDate,
+    eliminated, pctElim, totalRemInt, planSaves, freed, debtFreeDate,
     scenario50, scenario100, targetData };
 }
 
@@ -26374,7 +26380,7 @@ async function _rcRunDebtPayoffAI() {
 
   const cardLines = d.cardData.map(cd =>
     `${cd.card.name||'Card'}: ${fmt(cd.bal)}, ${cd.apr}% APR, ${fmt(cd.pmt)}/mo, payoff ${cd.payoffLabel}, ${fmt(cd.totalInt)} interest remaining` +
-    (cd.intSaved > 0 ? `, saves ${fmt(cd.intSaved)} vs minimums` : '') +
+    (cd.intSaved > 0 ? `, ${fmt(cd.intSaved)} less interest than minimums only (issuer-style falling minimum)` : '') +
     (cd.aprHistory.length ? `, APR changed: ${cd.aprHistory.map(h=>`${h.from}%→${h.to}% in ${h.month}`).join(', ')}` : '')
   );
 
@@ -26386,7 +26392,7 @@ async function _rcRunDebtPayoffAI() {
     ...(d.eliminated > 0 ? [`Eliminated: ${fmt(d.eliminated)} (${d.pctElim}% of starting balance)`] : []),
     `Debt-free date: ${d.debtFreeDate}`,
     `Remaining interest at current rates: ${fmt(d.totalRemInt)}`,
-    ...(d.totalIntSaved > 0 ? [`Interest saved vs minimums-only: ${fmt(d.totalIntSaved)}`] : []),
+    ...(d.planSaves > 0 ? [`Less interest than paying only the minimums (issuer-style falling minimums, nothing rolled over), under the ${_planName()} plan: ${fmt(d.planSaves)}`] : []),
     ...(d.freed > 0 ? [`Freed minimums since January: +${fmt(d.freed)}/month`] : []),
     '---',
     'Per-card:', ...cardLines,

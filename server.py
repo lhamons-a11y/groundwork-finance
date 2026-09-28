@@ -2266,11 +2266,21 @@ def list_trophies():
             paid_by_month[key] = paid_by_month.get(key, 0.0) + float(e.amount or 0)
         above_series = [paid_by_month[m] for m in sorted(paid_by_month)]
 
+        # V11: "minimums only" means one thing everywhere - core.consequence.
+        # minimums_only, the twin of the pages' _minimumsOnly. It was the engine at
+        # today's minimum total, rolled over: a plan, not minimums. A run cut off
+        # at 30 years proves no saving, so the trophy stays unproven then.
+        from core.consequence import minimums_only
         interest_saved = None
         if cards:
             plan = _sim(cards, budget, strategy)
-            floor = _sim(cards, minimum_total, strategy) if minimum_total > 0 else None
-            if plan and floor:
+            floor = minimums_only([
+                {'balance': (d.current_balance if d.current_balance is not None
+                             else (d.begin_balance or 0)),
+                 'rate': d.interest_rate or 0,
+                 'minimum': _payoff_minimum(d),
+                 'debt_type': d.debt_type or 'credit'} for d in actives])
+            if plan and floor and not floor['capped']:
                 interest_saved = floor['total_interest'] - plan['total_interest']
 
         # What each trophy actually claims, not merely what kind of proof it
