@@ -25,9 +25,19 @@
   function _sfPaceSentence(p) {
     if (!p || p.funded || !p.finish_months) return '';
 
-    const at = (p.pace_source === 'observed')
-      ? `at the ${fmt(p.pace_monthly)}/mo you have actually been putting in`
+    // F.8 (BREAK_DETECTOR.md ruling 6): when what goes in changed level, only
+    // the months since count - and when there are too few of them, the date is
+    // the plan's and the sentence says why, rather than borrowing the old pace.
+    const brk = p.since_break;
+    const since = brk ? _breakMonth(brk.month) : '';
+    let at = (p.pace_source === 'observed')
+      ? (brk ? `at the ${fmt(p.pace_monthly)}/mo you have put in since ${since}, when what goes in changed`
+             : `at the ${fmt(p.pace_monthly)}/mo you have actually been putting in`)
       : `at the planned ${fmt(p.pace_monthly)}/mo`;
+    if (brk && p.insufficient_since_break) {
+      at = `what goes in changed in ${since}, from about ${fmt(brk.before)}/mo to about ${fmt(brk.after)}/mo, and`
+         + ` there are too few months since then to set a pace from - so at the planned ${fmt(p.pace_monthly)}/mo`;
+    }
     const lands = `lands <strong>${_monthsFromNowLabel(p.finish_months)}</strong>`;
 
     let verdict;
@@ -54,6 +64,11 @@
     return `<div style="font-size:11px;color:var(--slate);line-height:1.7;margin-top:4px">
       ${at.charAt(0).toUpperCase()}${at.slice(1)}, this ${lands} ${verdict}.${lever}
     </div>`;
+  }
+
+  function _breakMonth(m) {
+    var p = String(m).split('-').map(Number);
+    return new Date(p[0], p[1] - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   }
 
   function render() {

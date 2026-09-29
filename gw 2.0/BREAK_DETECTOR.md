@@ -1,6 +1,7 @@
 # The break-detector: the build pass (Appendix F.8)
 
-> Status: **OPENED 2026-09-28. No code.** Queue item 25. Rob, 2026-09-28: *"open Break-detector next,
+> Status: **RULED and AUTHORISED 2026-09-28 (Rob, §6): the seven points, with fund pace resolved to
+> post-break evidence only. BUILT (§7); awaiting the gate and Rob's acceptance.** Opened the same day. Queue item 25. Rob, 2026-09-28: *"open Break-detector next,
 > but only its defined Appendix F.8 slice — not W-D, W-E, Queue 24, or dashboard work."*
 >
 > The design is **F.8** (*"the trigger for 'live' is a break-detector, not a clock"*), with its limits
@@ -187,3 +188,81 @@ name exactly as W-A does.
 6. **B7:** shown only in the working picture, as a fact with its receipt, never speaking first and
    never on the dashboard?
 7. **B8 / B9:** nothing stored and no schema change; G named but not wired; master only?
+
+---
+
+## 6. Ruling: Rob, 2026-09-28
+
+**F.8 authorised on exactly this seven-point basis:**
+
+| # | ruling |
+|---|---|
+| **1** | **A break is an evidence boundary.** Pre-break behaviour cannot support a post-break willingness reading |
+| **2** | **Detection is evidence-based and calibrated by simulation.** Two recorded months at a new level are necessary; the change must be material relative to that category's own variation. One anomalous month and missing months do not count. **If no threshold reliably separates known shifts from ordinary variation, the detector does not ship** |
+| **3** | **Scope is proportional to the evidence affected.** A category break reaches that category's reading. An income break, or a coordinated multi-category change, reaches every reading that relies on older evidence. **No invented confidence score** |
+| **4** | **Recovery requires new evidence.** No timer-based resurrection |
+| **5** | **Declarations are immutable to the detector.** A behavioural break cannot invalidate something the user explicitly said |
+| **6** | **Fund pace uses post-break evidence only.** When there are too few post-break months for a defensible pace, it says so; it **never falls back to the pre-break average** |
+| **7** | **The working picture may state the observed change** (spending moved from roughly $310 to $452 a month). It does not attribute a cause, does not infer a duration beyond what is established, and does not turn the change into advice. It **stays out of the dashboard** and is **not surfaced unprompted** |
+
+**The architectural point, recorded exactly as Rob made it:**
+
+> A break does not erase historical evidence. It changes which evidence is admissible for a particular
+> current behavioural reading. The underlying budget edits remain intact for receipts, history, and any
+> other calculation that legitimately uses them.
+
+**Scope boundaries confirmed:**
+- no W-D, no W-E, and nothing from item 24;
+- no category split / merge semantics;
+- no dashboard work;
+- no debt-cycle connection until a debt-based willingness reading exists;
+- no schema change.
+
+---
+
+## 7. The build (2026-09-28)
+
+| piece | where | what it does |
+|---|---|---|
+| **the detector** | `core/breaks.py` `detect_break` | Finds the latest run of **at least two recorded months** past the prior level. Every month of the run must clear **2.0 robust spreads** (median absolute deviation) of the series' own variation. The run's level must be **≥ 3.5 standard errors** away, measured on both segments' lengths, and the change must be **at least 30%** of the prior level. A two-month run is judged by its *less* extreme month, so one big month cannot carry it. The prior level needs at least four months. Gaps are never zeros. It imports only `random` and `statistics` |
+| **the null model** | `core/breaks.py` `null_model`, run by s130 on **every gate** | Seeded simulations of monthly spending at 10 / 20 / 35 / 50% noise, including one-off double months. **False breaks on trend-free series: 0.7% / 2.4% / 3.1% / 4.1%, all ≤ 5%.** Sustained three-month shifts, located within a month: at 10% noise, +50% 85%, −50% 87%, ×2 97%, −70% 97%; at 20% noise, ×2 79%, −70% 82%. All clear the committed floors. A loosened threshold is shown to fail it, so a weaker detector cannot ship |
+| **what it cannot see** | stated in `core/breaks.py` | A moderate shift in a noisy category (35% variation or more), or a ±50% shift at 20% variation, is usually invisible. That is the safe direction: an unseen break leaves every reading exactly as it was before this build |
+| **the boundary** | `core/willingness.py` `breaks`, `observed_readings` | Each reading is computed twice, on the whole window and on post-break evidence only. If the post-break reading concludes, it stands and cites only post-break months (`boundary`). If only the whole-window reading concluded, the reading is **set aside** (`reason: 'break'`), keeping the break and the whole reading as its receipt. **Nothing is erased** |
+| **explained by the user's own edit** | `breaks` | A category break beginning **within a month of the user's own budget edit** to that category (the month before, the month of it, or the month after) is the behaviour the reading is about, not an unexplained discontinuity (E.2b). It is no boundary for that category. Without this, a cut that held would set aside its own reading. *Found building; see below* |
+| **reach** | `breaks` | A category break reaches its own category. **Broad** breaks reach every reading: an income break (load-bearing by definition), or unexplained category breaks beginning within a month of each other whose categories carried **at least a quarter of spending** before them (`BROAD_SHARE`) |
+| **declarations** | `effective` unchanged | What the user said is never touched by a break |
+| **fund pace** | `server.fund_contribution_break`, `fund_observed_monthly(since=)`, `solution.fund_pace(since_break=)`, `teaching/funds.js` | Complete months of in-app contributions (a month with none is a real zero here, because the app records them itself). After a break, only the months since count. With too few, `insufficient_since_break` is set: the date is the plan's, and the sentence says *"what goes in changed in July, from about $200/mo to about $60/mo, and there are too few months since then to set a pace from"* |
+| **the words** | `teaching/willingness.js` `_breakText` | *"Hobbies spending moved from about $60 a month to about $126, from June on. What Groundwork read about Hobbies from before then is set aside until the months since show where it stands."* The set-aside reading is shown under it. No new control is added. A lexicon test forbids cause, duration and advice words |
+
+**Tests: `smoke_sections/s130_break_detector.py`, 35 checks.**
+- **The null model's acceptance numbers,** plus two mutations: a loosened threshold fails the model, and a one-month run would make a wobble a break.
+- **Detector cases:** Bd1–Bd4, a shift that returns, the two-month minimum, and too little history.
+- **Boundary cases:**
+  - Bd5, local, with nothing erased;
+  - a cut explaining its own drop, in the same month and the month after, while an edit months away does not;
+  - Bd6, income and coordinated breaks, with small envelopes staying local;
+  - Bd7, recovery on post-break proof;
+  - Bd8, declarations;
+  - Bd13, no claim without a reading.
+- **Bd12, fund pace:** unit cases, then end to end from the Historian.
+- **Scope checks:**
+  - no storage;
+  - no usage read;
+  - no `core.cycles` import;
+  - SCHEMA_VERSION unchanged;
+  - the break stated as a fact, with a mutation adding a cause;
+  - nothing in the proactive voice or app.js.
+
+Standalone: s130 35 / 0, s129 45 / 0, s45 288 / 0, s30 12 / 0.
+
+**Seen in the page** (throwaway database, built-in browser):
+- Hobbies' "kept through tight months" reading was set aside under the break fact, with the old reading visible beneath it.
+- Dining's cut explained its own drop: no boundary, still flexible.
+- The fund's break read as the post-break pace. With too few months since, it read as the plan's date with the change stated.
+- No console errors.
+
+**Found while building, for Rob:**
+- **The edit window.** Without it, the user's own cut is detected as a break and sets aside the reading it created. I ruled nothing new here. The window applies E.2b's "a break is an unexplained discontinuity", and it is named so it can be reviewed. Its width (a month either side) follows how people act: spend less first, update the budget after.
+- **The detector's blind spot** (above) is real and structural. Eleven months of a noisy category cannot show a moderate shift at a false-alarm rate that protects true readings. Longer windows would help and are not proposed here.
+- **The app's own auto-contribution counts.** Fund pace includes the current month's contribution once it is made, as before this build. In the page run it moved a fund from "too few months" to a post-break pace the moment the Budget page posted September's contribution.
+

@@ -1294,7 +1294,8 @@ def capacity_unlocked(cards, budget, liquid, monthly_expenses,
 
 
 def fund_pace(target, current, planned_monthly, deadline_months=None,
-              observed_monthly=None, samples=0, categories=None, recurring=None):
+              observed_monthly=None, samples=0, categories=None, recurring=None,
+              since_break=None):
     """Where a savings target lands at the pace it is actually being fed, and
     the lever that moves that date.
 
@@ -1316,6 +1317,13 @@ def fund_pace(target, current, planned_monthly, deadline_months=None,
     **The lever** is the same named money every other surface draws on, and it
     is aimed at the shortfall rather than at the whole contribution: what closes
     the gap between the pace and the deadline is the difference, not the plan.
+
+    **A break** (F.8; BREAK_DETECTOR.md ruling 6). When the contributions
+    changed level, the caller passes only the months since as `observed_monthly`
+    / `samples` and the break as `since_break`. Too few of them and there is no
+    observed pace - never the average from before the change - and the result
+    says so (`insufficient_since_break`), so the date it carries is plainly the
+    plan's.
     """
     target = float(target or 0)
     current = float(current or 0)
@@ -1348,6 +1356,9 @@ def fund_pace(target, current, planned_monthly, deadline_months=None,
         'on_track': None,
         'short_monthly': None,
         'lever': None,
+        'since_break': ({k: since_break[k] for k in ('month', 'direction', 'before', 'after')}
+                        if since_break else None),
+        'insufficient_since_break': bool(since_break) and not enough,
     }
     if out['finish_months'] is None:
         # Nothing is being contributed and nothing is planned. There is no

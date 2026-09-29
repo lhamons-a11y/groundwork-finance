@@ -3056,11 +3056,14 @@ def report_teaching():
                 except ValueError:
                     deadline_months = None
             planned = float(f.monthly_contribution or 0)
-            observed, samples = fund_observed_monthly(session, f.id)
+            # F.8: a break in what the fund has been fed is a boundary - only the months since it may
+            # set the pace (BREAK_DETECTOR.md ruling 6).
+            brk = fund_contribution_break(session, f.id)
+            observed, samples = fund_observed_monthly(session, f.id, since=brk['month'] if brk else None)
             pace = fund_pace(f.target_amount, f.current_amount, planned,
                              deadline_months=deadline_months,
                              observed_monthly=observed, samples=samples,
-                             categories=cats, recurring=rec)
+                             categories=cats, recurring=rec, since_break=brk)
             if pace and not pace.get('funded') and pace.get('on_track') is False:
                 findings.append({
                     'kind': 'fund',
@@ -8152,7 +8155,49 @@ def _serialize_sinking_fund(f) -> dict:
     }
 
 
-def fund_observed_monthly(session, fund_id: int, months: int = 12):
+def _fund_contributions(session, fund_id: int, months: int = 12):
+    """The Historian's contribution events for one fund, inside the window."""
+    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    matched = []
+    for e in session.query(HistorianEntry).filter(
+            HistorianEntry.event_category == 'sinking_fund_contribution_variance',
+            HistorianEntry.created_at >= cutoff).all():
+        try:
+            ctx = json.loads(e.context_json or '{}')
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if str(ctx.get('sinking_fund_id')) == str(fund_id) and e.actual_value is not None:
+            matched.append(e)
+    return matched
+
+
+def fund_contribution_break(session, fund_id: int, months: int = 12):
+    """F.8 on what a fund has actually been fed: the latest break in its monthly contributions, or None.
+
+    The series runs over COMPLETE months from the first contribution on record. A month with no contribution
+    is a real zero here, unlike a month missing from a bank import: contributions are recorded in the app
+    itself, so the record of them is complete, and a fund that stopped being fed is exactly the change F.8
+    exists to see. The current month is left out because it is half over by definition.
+    """
+    from core.breaks import detect_break
+    matched = _fund_contributions(session, fund_id, months)
+    if not matched:
+        return None
+    first = min(e.created_at for e in matched)
+    now = datetime.utcnow()
+    by_month = {}
+    for e in matched:
+        k = e.created_at.strftime('%Y-%m')
+        by_month[k] = by_month.get(k, 0.0) + float(e.actual_value or 0)
+    series, y, m = [], first.year, first.month
+    while (y, m) < (now.year, now.month):
+        k = f'{y}-{m:02d}'
+        series.append((k, by_month.get(k, 0.0)))
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return detect_break(series)
+
+
+def fund_observed_monthly(session, fund_id: int, months: int = 12, since: str = None):
     """What a fund has actually been fed, per MONTH — not per contribution.
 
     The distinction is the same one that bit the recurring-cost lever: months
@@ -8163,24 +8208,22 @@ def fund_observed_monthly(session, fund_id: int, months: int = 12):
 
     The span runs from the first contribution on record to now, so a fund
     started three months ago is not averaged across a year it has not lived.
+
+    `since` ('YYYY-MM'), when a break in the contributions was found, starts
+    the span there instead: only the months since the change may set the pace
+    (F.8, BREAK_DETECTOR.md ruling 6). The earlier contributions stay in the
+    record; they are simply not evidence of the pace being kept now.
     """
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
-    entries = session.query(HistorianEntry).filter(
-        HistorianEntry.event_category == 'sinking_fund_contribution_variance',
-        HistorianEntry.created_at >= cutoff,
-    ).all()
-    matched = []
-    for e in entries:
-        try:
-            ctx = json.loads(e.context_json or '{}')
-        except (json.JSONDecodeError, TypeError):
-            continue
-        if str(ctx.get('sinking_fund_id')) == str(fund_id) and e.actual_value is not None:
-            matched.append(e)
+    matched = _fund_contributions(session, fund_id, months)
+    if since:
+        start = datetime(int(since[:4]), int(since[5:7]), 1)
+        matched = [e for e in matched if e.created_at >= start]
     if not matched:
         return None, 0
 
     first = min(e.created_at for e in matched)
+    if since:
+        first = datetime(int(since[:4]), int(since[5:7]), 1)
     now = datetime.utcnow()
     span = max(1, (now.year - first.year) * 12 + (now.month - first.month) + 1)
     total = sum(float(e.actual_value or 0) for e in matched)
@@ -8217,11 +8260,14 @@ def sinking_funds_pace():
                 planned = max(0.0, (float(f.target_amount or 0)
                                     - float(f.current_amount or 0)) / deadline_months)
 
-            observed, samples = fund_observed_monthly(session, f.id)
+            # F.8: a break in what the fund has been fed is a boundary - only the months since it may
+            # set the pace (BREAK_DETECTOR.md ruling 6).
+            brk = fund_contribution_break(session, f.id)
+            observed, samples = fund_observed_monthly(session, f.id, since=brk['month'] if brk else None)
             pace = fund_pace(f.target_amount, f.current_amount, planned,
                              deadline_months=deadline_months,
                              observed_monthly=observed, samples=samples,
-                             categories=cats, recurring=rec)
+                             categories=cats, recurring=rec, since_break=brk)
             if pace:
                 out.append({'id': f.id, 'name': f.name, 'pace': pace})
         return ok({'funds': out})

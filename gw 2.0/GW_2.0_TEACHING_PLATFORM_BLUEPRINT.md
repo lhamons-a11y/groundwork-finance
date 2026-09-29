@@ -71,7 +71,8 @@ the proactive threshold (`core/proactive.py`); **B.3** the Trophy Room's proof s
 surfaces** (`static/js/teaching/`). **Partly built (2026-09-28): the Willingness Layer**, the spine. Its
 observed and declared channels and the solution engine's use of them are built, along with the working
 picture's home (`WILLINGNESS_LAYER.md` §7). The inferred channel (F.6b) and the contradiction-check are
-not. **Not built:** the **break-detector**, **streamed
+not. **Built 2026-09-28: the break-detector** (F.8; `BREAK_DETECTOR.md` §7), used as an evidence
+boundary on the willingness readings and on fund pace. **Not built:** **streamed
 narration** (BUILD_QUEUE item 10, decided 2026-08-30), learning Layer 4, and the evidence substrate
 the proof layer rests on as the thing the teaching surfaces actually read (most of BUILD_QUEUE items
 1–21 are ruled and built as substrate, not yet as the surfaces' source). Most design questions are worked through (Appendices A–G); the open surface is sorted

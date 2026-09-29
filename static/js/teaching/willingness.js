@@ -54,6 +54,11 @@
       + ' data-gw-answer="' + esc(proposalText) + '">never ' + esc(category) + '</a>';
   }
 
+  // A reading standing on the months since a break counts only those (F.8).
+  function _sinceNote(r) {
+    return r.boundary ? ' Only the months from ' + _month(r.boundary.month) + ' on are counted: the record changed level then.' : '';
+  }
+
   // What each reading claims, said as a fact about the record - never as what
   // the user ought to do.
   function _claimText(r) {
@@ -62,7 +67,8 @@
     if (r.reason === 'cut_held') {
       return c + ': you lowered its budget from ' + fmt(x.cut.old) + ' to ' + fmt(x.cut.new) + ' on '
         + _date(x.cut.date) + ', and it stayed within ' + fmt(x.cut.new) + ' in each of the ' + x.months.length
-        + ' months since (the highest was ' + fmt(x.worst) + '). Groundwork reads it as flexible for you.';
+        + ' months since (the highest was ' + fmt(x.worst) + ').' + _sinceNote(r)
+        + ' Groundwork reads it as flexible for you.';
     }
     if (r.reason === 'restored') {
       return c + ': you lowered its budget from ' + fmt(x.cut.old) + ' to ' + fmt(x.cut.new) + ' on '
@@ -77,6 +83,7 @@
         + ' months when spending passed income - ' + months.join('; ')
         + '. Groundwork reads it as something you keep, until your record shows otherwise.';
     }
+    if (r.reason === 'break') return _breakText(r);
     if (r.reason === 'probation') {
       return c + ': you lowered its budget from ' + fmt(x.cut.old) + ' to ' + fmt(x.cut.new) + ' on '
         + _date(x.cut.date) + '. In the same window your recorded income moved from ' + fmt(x.income.from)
@@ -85,6 +92,30 @@
         + ' to protect is yours to say.';
     }
     return '';
+  }
+
+  // F.8: the shift, not the story (BREAK_DETECTOR.md ruling 7). What moved,
+  // from what to what, and from which month - never why, never for how long,
+  // never what to do about it. The reading it set aside stays visible under it:
+  // a break changes what is admissible now, it erases nothing.
+  function _breakText(r) {
+    var b = r.receipt.break;
+    var from = _month(b.month);
+    var fact;
+    if (b.scope === 'income') {
+      fact = 'Your recorded income moved from about ' + fmt(b.before) + ' a month to about ' + fmt(b.after)
+        + ', from ' + from + ' on.';
+    } else if (b.scope === 'together') {
+      fact = 'Spending in ' + esc(_joinNames(b.categories.map(function (n) { return { name: n }; })))
+        + ' changed level together, from ' + from + ' on.';
+    } else {
+      fact = '<strong>' + esc(r.category) + '</strong> spending moved from about ' + fmt(b.before)
+        + ' a month to about ' + fmt(b.after) + ', from ' + from + ' on.';
+    }
+    var aside = r.receipt.set_aside ? _claimText(r.receipt.set_aside) : '';
+    return fact + ' What Groundwork read about <strong>' + esc(r.category) + '</strong> from before then is set'
+      + ' aside until the months since show where it stands.'
+      + (aside ? '<div style="font-size:11px;color:var(--slate-2);margin-top:3px">Set aside: ' + aside + '</div>' : '');
   }
 
   function _claimControls(r) {
@@ -133,7 +164,7 @@
 
   function _pictureHTML(s) {
     var readings = (s.readings || []).filter(function (r) {
-      return r.stance === 'flexible' || r.stance === 'sacred' || r.reason === 'probation';
+      return r.stance === 'flexible' || r.stance === 'sacred' || r.reason === 'probation' || r.reason === 'break';
     });
     var said = {};
     (s.current || []).forEach(function (d) { said[d.category.trim().toLowerCase()] = true; });
