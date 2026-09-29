@@ -1,7 +1,7 @@
 # The break-detector: the build pass (Appendix F.8)
 
 > Status: **RULED and AUTHORISED 2026-09-28 (Rob, §6): the seven points, with fund pace resolved to
-> post-break evidence only. BUILT (§7); awaiting the gate and Rob's acceptance.** Opened the same day. Queue item 25. Rob, 2026-09-28: *"open Break-detector next,
+> post-break evidence only. BUILT (§7), gate 1946 / 0 (master `9f475ea`, code identical to the gated `23fc301`); awaiting Rob's acceptance.** Opened the same day. Queue item 25. Rob, 2026-09-28: *"open Break-detector next,
 > but only its defined Appendix F.8 slice — not W-D, W-E, Queue 24, or dashboard work."*
 >
 > The design is **F.8** (*"the trigger for 'live' is a break-detector, not a clock"*), with its limits
