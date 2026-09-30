@@ -1,7 +1,7 @@
 # The summary tiles meet the attention standard (queue item 27)
 
 > Status: **RULED and AUTHORISED 2026-09-30 (Rob: "I accept all six points, build it") and BUILT (§6),
-> 2.0 only; awaiting the gate and Rob's acceptance.** Opened the same day. Rob, 2026-09-30: *"I accept the dashboard build, open item 27."*
+> 2.0 only; gate 1989 / 0; awaiting Rob's acceptance.** Opened the same day. Rob, 2026-09-30: *"I accept the dashboard build, open item 27."*
 >
 > **The standard** is the one Needs attention already meets (`DASHBOARD_SUMMARY_ATTENTION.md` §6–7):
 > - every statement is a fact from the record, with its source;
