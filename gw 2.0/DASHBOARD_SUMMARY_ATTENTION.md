@@ -1,6 +1,6 @@
 # The dashboard — your summary, and what needs attention
 
-> Status: **RULED 2026-09-27 (Rob, §6); AUTHORISED 2026-09-30 and BUILT (§7), 2.0 only; awaiting the gate and
+> Status: **RULED 2026-09-27 (Rob, §6); AUTHORISED 2026-09-30 and BUILT (§7), 2.0 only; gate 1969 / 0; awaiting
 > Rob's acceptance.** Opened the same day. Rob's question:
 >
 > > **Should the dashboard become more dynamic: showing the summary items the user normally looks
