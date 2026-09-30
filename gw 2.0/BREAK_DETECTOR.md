@@ -1,7 +1,7 @@
 # The break-detector: the build pass (Appendix F.8)
 
-> Status: **RULED and AUTHORISED 2026-09-28 (Rob, §6): the seven points, with fund pace resolved to
-> post-break evidence only. BUILT (§7), gate 1946 / 0 (master `9f475ea`, code identical to the gated `23fc301`); awaiting Rob's acceptance.** Opened the same day. Queue item 25. Rob, 2026-09-28: *"open Break-detector next,
+> Status: **ACCEPTED and CLOSED (Rob, 2026-09-30, §8).** Ruled and authorised 2026-09-28 (§6), built (§7),
+> gate 1946 / 0, master code byte-identical to the gated `23fc301`. Opened the same day. Queue item 25. Rob, 2026-09-28: *"open Break-detector next,
 > but only its defined Appendix F.8 slice — not W-D, W-E, Queue 24, or dashboard work."*
 >
 > The design is **F.8** (*"the trigger for 'live' is a break-detector, not a clock"*), with its limits
@@ -265,4 +265,21 @@ Standalone: s130 35 / 0, s129 45 / 0, s45 288 / 0, s30 12 / 0.
 - **The edit window.** Without it, the user's own cut is detected as a break and sets aside the reading it created. I ruled nothing new here. The window applies E.2b's "a break is an unexplained discontinuity", and it is named so it can be reviewed. Its width (a month either side) follows how people act: spend less first, update the budget after.
 - **The detector's blind spot** (above) is real and structural. Eleven months of a noisy category cannot show a moderate shift at a false-alarm rate that protects true readings. Longer windows would help and are not proposed here.
 - **The app's own auto-contribution counts.** Fund pace includes the current month's contribution once it is made, as before this build. In the page run it moved a fund from "too few months" to a post-break pace the moment the Budget page posted September's contribution.
+
+---
+
+## 8. Acceptance: Rob, 2026-09-30
+
+**Item 25 is accepted and closed.** The basis Rob gave:
+- built on master, full gate 1946 / 0;
+- the code is byte-identical to the gated commit `23fc301`;
+- the accidental push `9f475ea` is accounted for, with no history rewrite;
+- `8354aff` removes the conflict markers and restores the intended queue state;
+- `fbe2e8d` records the gate result;
+- master is clean;
+- the implementation follows the seven F.8 rulings, including post-break-only fund pace;
+- item 24, item 26, W-D, W-E, category split / merge and the dashboard stay outside this pass.
+
+**Sequencing:** Willingness Layer → break-detector → **dashboard, now the next pass to build**. Item 24
+and the other explicitly unbuilt pieces stay separate.
 
