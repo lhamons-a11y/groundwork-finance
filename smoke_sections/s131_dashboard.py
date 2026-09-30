@@ -108,7 +108,7 @@ def _server_cases(c, HJ, dbs):
     rules = [str(r) for r in c.application.url_map.iter_rules() if '/api/dashboard' in str(r)]
     out['the dashboard\'s routes are its prefs, layout, dismissals and import facts - nothing that records use'] = (
         sorted(rules) == ['/api/dashboard/attention/imports', '/api/dashboard/dismiss',
-                          '/api/dashboard/layout', '/api/dashboard/prefs'])
+                          '/api/dashboard/investments', '/api/dashboard/layout', '/api/dashboard/prefs'])
     return out
 
 

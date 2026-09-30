@@ -1718,7 +1718,7 @@ def willingness_declare():
 # stored is the user's own choices: how they arranged the summary tiles, and which facts they dismissed.
 
 DASHBOARD_TILES = ('dashWhatChanged', 'dashHealthCard', 'dashHeroCard', 'dashFreedMinimumsCard',
-                   'dashDonutCard', 'dashUpcomingCard')
+                   'dashDonutCard', 'dashUpcomingCard', 'dashInvestmentsCard')   # the seventh: item 29
 IMPORT_STALE_DAYS = 21          # ruling 4: an account not imported for three weeks
 _MAX_DISMISSED = 300
 
@@ -1849,6 +1849,105 @@ def dashboard_dismiss():
         _dashboard_store(session, 'dashboard_dismissed', dismissed[-_MAX_DISMISSED:])
         session.commit()
         return ok({'dismissed': dismissed[-_MAX_DISMISSED:]})
+
+
+def investments_tile(session, today=None):
+    """Item 29: the dashboard's Investments tile, from what is on record (INVESTMENTS_TILE.md I1-I5).
+
+    I1  cached prices only - `skip_refresh=True`, so opening the dashboard fetches nothing - each with its date
+    I2  a position with no price is named and left out of value and gain; never valued at cost
+    I3  a lot with no cost basis counts in value (its value is known) and is named and left out of the gain
+    I4  realized gains this calendar year from closed lots; allocation against the user's target only if set
+    I5  investment accounts with a balance but no holdings are listed as a fact
+
+    Reuses _compute_portfolio_positions (the arithmetic the Investments page and net worth share) and applies
+    the two exclusions at lot level, rather than a second valuation that could drift from it.
+    """
+    today = today or date.today()
+    positions, _summary = _compute_portfolio_positions(session, skip_refresh=True)
+    value = gain_value = basis = 0.0
+    unpriced, no_basis, dates, manual, by_class, unclassified = [], [], [], [], {}, {}
+    for p in positions:
+        if p.get('price_stale'):
+            unpriced.append({'ticker': p['ticker'], 'shares': round(p['total_shares'], 6)})
+            continue
+        price = float(p['current_price'])
+        row = session.get(PriceCache, p['ticker'])
+        if row and row.last_updated:
+            dates.append(row.last_updated.date().isoformat())
+        if row and row.is_manual:
+            manual.append(p['ticker'])
+        pos_value = float(p['total_shares']) * price
+        value += pos_value
+        cls = p.get('asset_class')
+        if cls:
+            by_class[cls] = by_class.get(cls, 0.0) + pos_value
+        else:
+            # No class assigned: its value is real, so it is named with its share rather than silently
+            # dropped - dropping it would read as "0% US equity" when VOO is most of the portfolio.
+            unclassified[p['ticker']] = unclassified.get(p['ticker'], 0.0) + pos_value
+        missing = 0.0
+        for lot in p.get('lots') or []:
+            shares, cost = float(lot.get('shares') or 0), lot.get('cost_basis')
+            if cost is None or float(cost) <= 0:
+                missing += shares
+                continue
+            basis += shares * float(cost)
+            gain_value += shares * price
+        if missing > 0:
+            no_basis.append({'ticker': p['ticker'], 'shares': round(missing, 6)})
+
+    realized = {'total': 0.0, 'short': 0.0, 'long': 0.0, 'unstated': 0, 'lots': 0}
+    for lot in session.query(InvestmentLot).filter_by(is_closed=True).all():
+        if not lot.closed_date or lot.closed_date.year != today.year:
+            continue
+        realized['lots'] += 1
+        if lot.realized_gain is None:
+            realized['unstated'] += 1
+            continue
+        realized['total'] += lot.realized_gain
+        days = getattr(lot, 'holding_period_days', None)
+        if days is not None:
+            realized['long' if days >= 365 else 'short'] += lot.realized_gain
+    realized = {k: (round(v, 2) if isinstance(v, float) else v) for k, v in realized.items()}
+
+    allocation = None
+    try:
+        t_row = _get_setting(session, 'inv_target_alloc')
+        targets = json.loads(t_row.value) if t_row and t_row.value else {}
+    except (json.JSONDecodeError, TypeError):
+        targets = {}
+    targets = {k: v for k, v in (targets or {}).items() if v}
+    if targets and value > 0:
+        allocation = [{'asset_class': k, 'target_pct': float(v),
+                       'actual_pct': round(by_class.get(k, 0.0) / value * 100, 1)} for k, v in sorted(targets.items())]
+    allocation_unclassified = ([{'ticker': t, 'pct': round(v / value * 100, 1)} for t, v in sorted(unclassified.items())]
+                               if allocation is not None else [])
+
+    held_accounts = {p.get('account_id') for p in positions}
+    balance_only = [{'account': a.name, 'balance': round(float(a.balance or 0), 2)}
+                    for a in session.query(Account).filter_by(type='investment').all()
+                    if a.is_active is not False and a.id not in held_accounts and (a.balance or 0) > 0]
+
+    present = bool(positions) or bool(balance_only) or realized['lots'] > 0
+    return {
+        'present': present,
+        'value': round(value, 2),
+        'unrealized': ({'gain': round(gain_value - basis, 2),
+                        'pct': round((gain_value - basis) / basis * 100, 2) if basis else None}
+                       if basis > 0 else None),
+        'prices_from': min(dates) if dates else None, 'prices_to': max(dates) if dates else None,
+        'manual_prices': sorted(set(manual)),
+        'unpriced': unpriced, 'no_basis': no_basis,
+        'realized_this_year': realized, 'year': today.year,
+        'allocation': allocation, 'allocation_unclassified': allocation_unclassified, 'balance_only': balance_only,
+    }
+
+
+@dashboard_bp.route('/investments', methods=['GET'])
+def dashboard_investments():
+    with db_session() as session:
+        return ok(investments_tile(session))
 
 
 @budget_bp.route('/detect-recurring', methods=['GET'])

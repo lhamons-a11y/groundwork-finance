@@ -26,7 +26,8 @@
   var NAMES = {
     dashWhatChanged: 'What changed since last month', dashHealthCard: 'This month',
     dashHeroCard: 'Your plan', dashFreedMinimumsCard: 'Freed minimums',
-    dashDonutCard: 'Spending by category', dashUpcomingCard: 'Coming up'
+    dashDonutCard: 'Spending by category', dashUpcomingCard: 'Coming up',
+    dashInvestmentsCard: 'Investments'                                   // item 29
   };
   var _prefs = null;          // {tiles, layout:{order,pinned,hidden}, dismissed}
   var _arranging = false;
@@ -59,6 +60,15 @@
     var panel = document.createElement('div');
     panel.id = 'gwArrange';
     anchor.parentNode.insertBefore(panel, sum);
+    // Item 29: the seventh tile. It exists for the layout from the start and stays hidden until tiles.js
+    // finds investments on record (item 22 D1: no investments, no investment tile).
+    if (!g('dashInvestmentsCard')) {
+      var inv = document.createElement('div');
+      inv.id = 'dashInvestmentsCard';
+      inv.className = 'card';
+      inv.style.display = 'none';
+      sum.appendChild(inv);
+    }
   }
 
   async function _loadPrefs() {

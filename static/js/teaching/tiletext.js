@@ -75,12 +75,60 @@
     return '';
   }
 
+  /* Item 29 (INVESTMENTS_TILE.md): the Investments tile, from what is on record. Every figure names what it
+   * leaves out - a holding with no price, shares with no purchase price - rather than counting it as zero. */
+  function _cls(c) { return String(c).replace(/_/g, ' '); }
+  function investments(d, f) {
+    if (!d || !d.present) return null;
+    var lines = [];
+    if (d.prices_from) {
+      var when = d.prices_from === d.prices_to ? 'as of ' + f.date(d.prices_from)
+               : 'from ' + f.date(d.prices_from) + ' to ' + f.date(d.prices_to);
+      lines.push('Value: ' + f.money(d.value) + ', at prices ' + when + '.'
+                 + (d.manual_prices.length ? ' Hand-entered price: ' + _names(d.manual_prices) + '.' : ''));
+    }
+    if (d.unrealized) {
+      var g = d.unrealized.gain;
+      lines.push('Unrealized ' + (g < 0 ? 'loss' : 'gain') + ': ' + f.money(Math.abs(g))
+                 + (d.unrealized.pct !== null ? ' (' + Math.abs(d.unrealized.pct).toFixed(1) + '%)' : '')
+                 + ' on holdings with a recorded purchase price.');
+    }
+    if (d.unpriced.length) {
+      lines.push('Not included: ' + _names(d.unpriced.map(function (u) { return u.ticker; })) + ' - no price on record.');
+    }
+    d.no_basis.forEach(function (n) {
+      lines.push('Gain not stated for ' + n.shares + ' ' + n.ticker + ' shares: no purchase price recorded.');
+    });
+    var r = d.realized_this_year;
+    if (r && r.lots > 0) {
+      var parts = [];
+      if (r.short) parts.push('short-term ' + f.money(r.short));
+      if (r.long) parts.push('long-term ' + f.money(r.long));
+      lines.push('Realized in ' + d.year + ': ' + f.money(r.total) + (parts.length ? ' (' + parts.join(', ') + ')' : '')
+                 + (r.unstated ? '; ' + r.unstated + ' sale' + (r.unstated === 1 ? '' : 's') + ' with no gain recorded' : '') + '.');
+    }
+    if (d.allocation && d.allocation.length) {
+      var un = d.allocation_unclassified || [];
+      lines.push('Against your target: ' + d.allocation.map(function (a) {
+        return _cls(a.asset_class) + ' ' + a.actual_pct + '% (target ' + a.target_pct + '%)';
+      }).join('; ') + (un.length ? '; not yet assigned a class: ' + un.map(function (u) {
+        return u.ticker + ' ' + u.pct + '%';
+      }).join(', ') : '') + '.');
+    }
+    d.balance_only.forEach(function (b) {
+      lines.push('Also on record: ' + b.account + ', ' + f.money(b.balance) + ' balance - holdings not recorded, so not in the figures above.');
+    });
+    return { lines: lines,
+             source: 'From your investment lots, closed sales and the prices on record; prices are not refreshed here.' };
+  }
+
   function banned(text) {
     var t = String(text || '').toLowerCase();
     return BANNED.filter(function (w) { return t.indexOf(w) >= 0; });
   }
 
-  var api = { BANNED: BANNED, month: month, dti: dti, plan: plan, greetingFact: greetingFact, banned: banned };
+  var api = { BANNED: BANNED, month: month, dti: dti, plan: plan, greetingFact: greetingFact, investments: investments,
+              banned: banned };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root && root.GWTeaching) root.GWTeaching.register('tiletext', api);
 })(typeof window !== 'undefined' ? window : null);

@@ -1,6 +1,7 @@
 # An Investments tile on the dashboard (queue item 29)
 
-> Status: **OPENED 2026-09-30. No code.** Rob, 2026-09-30: *"Investments have no standing in dashboard. We should
+> Status: **RULED and AUTHORISED 2026-09-30 (Rob: "I accept all six points, build it") and BUILT (§6), 2.0 only;
+> awaiting the gate and Rob's acceptance.** Opened the same day. Rob, 2026-09-30: *"Investments have no standing in dashboard. We should
 > have those items on the dashboard."*, then *"open item 29"*.
 >
 > **What governs it:**
@@ -98,3 +99,46 @@
 4. **I5:** list investment accounts with a balance but no holdings as a fact (a), or leave them out (b)?
 5. **I6:** a seventh tile, present only when investments are on record, user-arranged like the rest?
 6. **I7:** 2.0 only through the seam, no schema?
+
+---
+
+## 5. Ruling: Rob, 2026-09-30
+
+*"I accept all six points, build it."* I1–I7 as proposed, with I5 resolved to **(a)**: investment accounts with a
+balance and no holdings are listed as a fact.
+
+---
+
+## 6. The build (2026-09-30)
+
+| piece | where | what it does |
+|---|---|---|
+| **the figures** | `server.investments_tile`, `GET /api/dashboard/investments` | Reuses `_compute_portfolio_positions(skip_refresh=True)`, so **no price fetch** happens, and applies the exclusions at lot level. **Unpriced** positions are named and add nothing. Lots with **no basis** have their value counted, and are named and left out of the gain. The unrealized gain is taken only on lots with both price and basis. Price dates come from `PriceCache.last_updated` (oldest to newest), and hand-entered prices are named. Realized gains are this calendar year, split long and short by holding period, with sales that recorded no gain counted as such. Allocation is shown only against a set `inv_target_alloc`. Investment accounts with a balance and no lots are listed. `present` is true only when anything is on record |
+| **the words** | `tiletext.investments` (Node-tested) | *"Value: $24,415.68, at prices from Sep 24 to Sep 29. Hand-entered price: VXUS."*, *"Unrealized gain: $4,092.00 (24.9%) on holdings with a recorded purchase price."*, *"Not included: NEWCO - no price on record."*, *"Gain not stated for 120 VXUS shares: no purchase price recorded."*, *"Realized in 2026: $450.00 (long-term $450.00)."*, *"Also on record: 401(k), $62,400.00 balance - holdings not recorded, so not in the figures above."*, plus a source line that says prices are not refreshed here |
+| **the tile** | `dashboard.js` creates `dashInvestmentsCard` hidden in *Your summary*; `tiles.js` fills it or keeps it hidden | the seventh tile in `DASHBOARD_TILES` and the Arrange panel, so pin / hide / reorder work. Shown only when `present` |
+
+**Found in the page run, fixed and pinned:**
+- **Holdings with no asset class.** Positions give a holding with no user-assigned or default class `asset_class = None`. VOO, a US stock fund, is not in the defaults. The allocation line read *"us equity 0% (target 60%)"* while VOO was 73% of the value, which is absence read as zero again.
+- The tile now names them: *"...; not yet assigned a class: VOO 73%."*
+- s133 pins it.
+
+**Found, named, not changed here (out of scope):**
+- **The Investments page and net worth have the same three gaps.** They value an unpriced holding **at cost**, count a lot with basis 0 as **all gain**, and drop unclassified holdings from allocation.
+- The tile does not inherit any of them, because it applies its own exclusions on top of the shared positions.
+- Fixing the page itself is a separate change (shared code, 1.x as well).
+
+**Tests: `smoke_sections/s133_investments_tile.py`, 22 checks.**
+- **In Node:** In1, In3, In4, In7, In8 / In9, In10, In12, I1's dates and hand-entered price, a loss said as a loss, and the unclassified line.
+- **Server, end to end, on this run's own tickers:**
+  - In2, In3, In4, In7 and In10;
+  - **In11: the price refresh is never called** (patched and counted);
+  - the endpoint;
+  - In13: the tile is arrangeable.
+- **Structural:** hidden until present; `skip_refresh=True`; app.js and index.html untouched.
+
+The existing sections stay green: s131 (its pinned route list now includes `/investments`), s132, s30.
+
+**Seen in the page** (throwaway database, built-in browser):
+- The seeded brokerage showed with every rule visible: dated prices, hand-entered VXUS, NEWCO unpriced and left out, 120 VXUS shares with no basis, realized long-term, the balance-only 401(k), and VOO named as unclassified.
+- The dashboard had no banned word.
+

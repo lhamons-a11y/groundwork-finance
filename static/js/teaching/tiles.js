@@ -40,8 +40,26 @@
     el.appendChild(s);
   }
 
+  // Item 29: the Investments tile, only when investments are on record (INVESTMENTS_TILE.md).
+  async function _investments() {
+    var card = g('dashInvestmentsCard');
+    if (!card) return;
+    var d = null;
+    try { d = await API.get('/api/dashboard/investments'); }
+    catch (e) { _gwErr('dashboard investments')(e); }
+    var t = d && _tiletext().investments(d, F);
+    if (!t) { card.style.display = 'none'; card.innerHTML = ''; return; }
+    card.innerHTML = '<div class="card-label">Investments</div>'
+      + t.lines.map(function (l) {
+        return '<div style="font-size:12px;color:var(--slate);line-height:1.7;padding:2px 0">' + esc(l) + '</div>';
+      }).join('');
+    card.style.display = '';
+    _source('dashInvestmentsCard', t.source);
+  }
+
   function render(imports, items, payments) {
     if (!_tiletext()) { _gwErr('dashboard tiles')(new Error('tiletext module not loaded')); return; }
+    _investments();
     var behind = (imports && imports.behind_this_month) || [];
     var now = new Date();
     var monthName = now.toLocaleDateString(undefined, { month: 'long' });
