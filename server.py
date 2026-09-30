@@ -210,6 +210,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(gift_bp,           url_prefix='/api/gift')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
+    app.register_blueprint(dashboard_bp,      url_prefix='/api/dashboard')
 
     # System routes
     @app.route('/api/ping')
@@ -1707,6 +1708,122 @@ def willingness_declare():
         s = willingness_state(session)
         s.pop('effective')
         return ok(s)
+
+
+# ── The dashboard: your summary, and what needs attention (gw 2.0/DASHBOARD_SUMMARY_ATTENTION.md, ruled
+# 2026-09-27, authorised 2026-09-30) ──────────────────────────────────────────────────────────────────────
+#
+# Rob's rule, exactly: usage never creates, ranks, or implies an attention item; an attention item requires
+# evidence about the user's finances. Nothing here reads, counts or stores what the user opens. What IS
+# stored is the user's own choices: how they arranged the summary tiles, and which facts they dismissed.
+
+DASHBOARD_TILES = ('dashWhatChanged', 'dashHealthCard', 'dashHeroCard', 'dashFreedMinimumsCard',
+                   'dashDonutCard', 'dashUpcomingCard')
+IMPORT_STALE_DAYS = 21          # ruling 4: an account not imported for three weeks
+_MAX_DISMISSED = 300
+
+dashboard_bp = Blueprint('dashboard', __name__)
+
+
+def _dashboard_json(session, key, default):
+    row = _get_setting(session, key)
+    try:
+        return json.loads(row.value) if row and row.value else default
+    except (json.JSONDecodeError, TypeError):
+        return default
+
+
+def _dashboard_store(session, key, value):
+    row = _get_setting(session, key)
+    if row:
+        row.value = json.dumps(value)
+    else:
+        session.add(AppSetting(key=key, value=json.dumps(value)))
+
+
+def stale_imports(session, today=None):
+    """Ruling 4's second kind: an account whose last IMPORT is three weeks old or more.
+
+    The completeness test comes first (absence is not zero). Only an account that has been imported
+    into at all - any transaction whose source is not 'manual' - can be stale. An account kept by hand
+    has no import to be late, and saying it is late would invent an obligation the user never took on.
+    The fact is the date the last import landed (its transactions' created_at), not the latest
+    transaction date: a quiet account imported yesterday is up to date.
+    """
+    now = today or datetime.utcnow()
+    rows = session.query(
+        Transaction.account_id, func.max(Transaction.created_at)
+    ).filter(
+        Transaction.account_id.isnot(None),
+        Transaction.source.isnot(None), Transaction.source != '', Transaction.source != 'manual',
+    ).group_by(Transaction.account_id).all()
+    out = []
+    for account_id, last in rows:
+        if last is None:
+            continue
+        days = (now - last).days
+        if days < IMPORT_STALE_DAYS:
+            continue
+        acct = session.get(Account, account_id)
+        if not acct or (hasattr(acct, 'is_active') and acct.is_active is False):
+            continue
+        out.append({'account_id': account_id, 'account': acct.name, 'last_import': last.date().isoformat(),
+                    'days': days})
+    out.sort(key=lambda r: -r['days'])
+    return out
+
+
+@dashboard_bp.route('/attention/imports', methods=['GET'])
+def dashboard_stale_imports():
+    with db_session() as session:
+        return ok({'stale': stale_imports(session), 'threshold_days': IMPORT_STALE_DAYS})
+
+
+@dashboard_bp.route('/prefs', methods=['GET'])
+def dashboard_prefs():
+    """The user's own arrangement and dismissals - their choices, nothing observed."""
+    with db_session() as session:
+        return ok({'tiles': list(DASHBOARD_TILES),
+                   'layout': _dashboard_json(session, 'dashboard_layout', {'order': [], 'pinned': [], 'hidden': []}),
+                   'dismissed': _dashboard_json(session, 'dashboard_dismissed', [])})
+
+
+@dashboard_bp.route('/layout', methods=['PUT'])
+@require_json
+def dashboard_set_layout():
+    """Ruling 1: pin / hide / reorder, by the user. Only the known tiles; nothing else is accepted."""
+    body = request.json or {}
+    layout = {}
+    for field in ('order', 'pinned', 'hidden'):
+        v = body.get(field, [])
+        if not isinstance(v, list) or any(t not in DASHBOARD_TILES for t in v) or len(set(v)) != len(v):
+            return err(f'{field} must list known dashboard tiles, each once')
+        layout[field] = v
+    with db_session() as session:
+        _dashboard_store(session, 'dashboard_layout', layout)
+        session.commit()
+    return ok(layout)
+
+
+@dashboard_bp.route('/dismiss', methods=['POST'])
+@require_json
+def dashboard_dismiss():
+    """Ruling 3: a dismissal is the user's act and persists until the fact it names changes.
+
+    The client sends the item's fingerprint - its kind, its subject and the fact itself (a due date and
+    amount, a last-import date, a gated conclusion's missing input). When the fact changes, so does the
+    fingerprint, and the item returns on its own evidence: no timeout, and nothing about use resurfaces it.
+    """
+    fp = (request.json or {}).get('fingerprint')
+    if not isinstance(fp, str) or not fp or len(fp) > 300 or fp.split('|', 1)[0] not in (
+            'payment_due', 'import_stale', 'blocked_conclusion'):
+        return err('a fingerprint of a ruled attention kind is required')
+    with db_session() as session:
+        dismissed = [d for d in _dashboard_json(session, 'dashboard_dismissed', []) if d != fp]
+        dismissed.append(fp)
+        _dashboard_store(session, 'dashboard_dismissed', dismissed[-_MAX_DISMISSED:])
+        session.commit()
+        return ok({'dismissed': dismissed[-_MAX_DISMISSED:]})
 
 
 @budget_bp.route('/detect-recurring', methods=['GET'])

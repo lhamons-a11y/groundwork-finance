@@ -1,6 +1,7 @@
 # The dashboard — your summary, and what needs attention
 
-> Status: **RULED 2026-09-27 (Rob, §6). No code; the build is not yet authorised.** Opened the same day. Rob's question:
+> Status: **RULED 2026-09-27 (Rob, §6); AUTHORISED 2026-09-30 and BUILT (§7), 2.0 only; awaiting the gate and
+> Rob's acceptance.** Opened the same day. Rob's question:
 >
 > > **Should the dashboard become more dynamic: showing the summary items the user normally looks
 > > at, and the items Groundwork sees as needing the user's attention?**
@@ -163,4 +164,49 @@ stored or computed anywhere on the dashboard's path. Every attention item is one
 ruled kinds, with its source and the fact its dismissal is tied to. Completeness is tested
 before any item appears (absence is not zero). The LTS bundle carries none of it (the seam's
 existing check). **Not authorised yet:** the build itself.
+
+---
+
+## 7. The build (authorised 2026-09-30)
+
+Rob, 2026-09-30: *"Build it."* Scope exactly the six rulings. His note, recorded: the ruling that Groundwork is a
+financial coach **does not turn this into usage-based personalisation**. The dashboard actively surfaces the three
+ruled conditions, and the user's own pin / hide / reorder choices set the tiles.
+
+| piece | where | what it does |
+|---|---|---|
+| **the attention rules** | `static/js/teaching/attention.js` (pure, run in Node by the gate) | Exactly **three kinds**, and `build()` **refuses any other** (Da10). **Unpaid payment due within 7 days**: the next due date on or after today (month-end clamped), less anything the record's own paid-this-month test (`_debtPaidThisMonth`) shows paid. **Account not imported for 3 weeks**: from the server. **Conclusion blocked by missing data**: `_computeClaimConfidence`'s `insufficient` claims, naming the failed checks in the record's own words. Ordered by kind, then by the fact's own urgency, **never by use** |
+| **the page** | `static/js/teaching/dashboard.js` (wraps `renderDashboard`; app.js and index.html untouched) | **Needs attention** above **Your summary**. Each item is a dated fact with its source, an action that resolves it, and *Dismiss*. It reads nothing of Speaking up (ruling 2). With nothing to show: *"Nothing needs attention"*, plus *"Financial Record: up to date"* when it is. **Current priority is hidden** (ruling 5), and so is the old check-engine band, whose content is the third kind |
+| **the tiles** | same | Six tiles: What changed, This month, Your plan, Freed minimums, Spending by category, Coming up. *Arrange* offers ↑ ↓ / Pin / Hide / Show. Pinned tiles come first, then the user's order, then the page's own order for anything unplaced. **Defaults are the record's**: every tile starts in place and still hides itself when the record has nothing for it |
+| **the server** | `server.py` `dashboard_bp` (`/api/dashboard/prefs`, `/layout`, `/dismiss`, `/attention/imports`), `stale_imports` | **Completeness first**: only an account that has ever been imported into (a transaction whose `source` is not `manual`) can be late. The fact is when the last import **landed** (`created_at`), not the last transaction date. The layout accepts only the six known tiles. A dismissal accepts only a fingerprint of a ruled kind: **kind \| subject \| the fact itself**, so a changed fact (a new amount, a newer import) returns the item, with no timeout. Both are stored as the user's settings (`dashboard_layout`, `dashboard_dismissed`); **no schema change** |
+
+**Tests: `smoke_sections/s131_dashboard.py`, 23 checks.**
+- **In Node, the attention rules:**
+  - due-within-7 with paid, far and undated excluded (Da4);
+  - blocked with named missing inputs (Da6), and nothing called blocked with no record;
+  - the order;
+  - dismissal while the fact stands, and a changed fact returns the item (Da9);
+  - a fourth kind refused (Da10).
+- **Server:**
+  - stale / fresh / hand-kept accounts (Da5);
+  - layout stored and read back (Da2);
+  - Current priority not arrangeable;
+  - dismissals limited to ruled kinds;
+  - the route list.
+- **Structural:**
+  - no use read, counted or stored anywhere on the path (Da3): no timers, dwell, storage or engagement events, with a view-counter mutation;
+  - only the dashboard's own endpoints called;
+  - nothing of Speaking up (Da8);
+  - no Historian reads on the server side;
+  - the seam: app.js and index.html unchanged, so 1.x is untouched (ruling 6).
+
+**Seen in the page** (throwaway database, built-in browser):
+- A seeded Visa due in 3 days, a Checking account last imported 26 days ago, and two conclusions blocked by unverified balances each showed with source, action and Dismiss. Current priority was hidden.
+- Dismissing Visa, hiding *What changed* and pinning *Your plan* all survived a reload.
+- No console errors.
+
+**Found while building, for Rob:**
+- **The 1.x "Coming up" card misses next month's due dates.** `_renderDashUpcoming` only looks at this month's due day, so a card due on the 3rd, seen on the 30th, never appears there. Needs attention handles the next occurrence correctly. The 1.x card is **not changed** (ruling 6, and out of scope); named here.
+- **Seasonal alert** stays where it was. It is none of the three ruled kinds, so it is neither moved nor added to Needs attention.
+- **The AI insight line** (`dashProjectionCard`) is not one of the arrangeable tiles. It is the app's own narrative, not a summary tile, so it stays in place.
 
