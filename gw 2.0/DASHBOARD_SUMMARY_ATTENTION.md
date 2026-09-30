@@ -1,7 +1,7 @@
 # The dashboard — your summary, and what needs attention
 
-> Status: **RULED 2026-09-27 (Rob, §6); AUTHORISED 2026-09-30 and BUILT (§7), 2.0 only; gate 1969 / 0; awaiting
-> Rob's acceptance.** Opened the same day. Rob's question:
+> Status: **RULED 2026-09-27 (Rob, §6); AUTHORISED 2026-09-30 and BUILT (§7), 2.0 only; gate 1969 / 0; ACCEPTED
+> and CLOSED (Rob, 2026-09-30: "I accept the dashboard build").** Opened the same day. Rob's question:
 >
 > > **Should the dashboard become more dynamic: showing the summary items the user normally looks
 > > at, and the items Groundwork sees as needing the user's attention?**
@@ -210,3 +210,9 @@ ruled conditions, and the user's own pin / hide / reorder choices set the tiles.
 - **Seasonal alert** stays where it was. It is none of the three ruled kinds, so it is neither moved nor added to Needs attention.
 - **The AI insight line** (`dashProjectionCard`) is not one of the arrangeable tiles. It is the app's own narrative, not a summary tile, so it stays in place.
 
+---
+
+## 8. Acceptance: Rob, 2026-09-30
+
+*"I accept the dashboard build, open item 27."* Item 22 is closed at master `dfde36e`, gate 1969 / 0. The summary tiles
+move to the attention standard in item 27 (`SUMMARY_TILES_STANDARD.md`).
