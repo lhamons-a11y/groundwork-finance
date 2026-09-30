@@ -1773,10 +1773,35 @@ def stale_imports(session, today=None):
     return out
 
 
+def imports_behind_this_month(session, today=None):
+    """Item 27 T1: the completeness test for any pace statement about this month.
+
+    The imported accounts (hand-kept ones never count) with nothing imported since the month began. While
+    any is listed, the month's spending is not known, and a tile says so instead of stating a pace.
+    """
+    now = today or datetime.utcnow()
+    start = datetime(now.year, now.month, 1)
+    rows = session.query(Transaction.account_id, func.max(Transaction.created_at)).filter(
+        Transaction.account_id.isnot(None),
+        Transaction.source.isnot(None), Transaction.source != '', Transaction.source != 'manual',
+    ).group_by(Transaction.account_id).all()
+    out = []
+    for account_id, last in rows:
+        if last is None or last >= start:
+            continue
+        acct = session.get(Account, account_id)
+        if not acct or acct.is_active is False:
+            continue
+        out.append({'account_id': account_id, 'account': acct.name, 'last_import': last.date().isoformat()})
+    out.sort(key=lambda r: r['account'])
+    return out
+
+
 @dashboard_bp.route('/attention/imports', methods=['GET'])
 def dashboard_stale_imports():
     with db_session() as session:
-        return ok({'stale': stale_imports(session), 'threshold_days': IMPORT_STALE_DAYS})
+        return ok({'stale': stale_imports(session), 'threshold_days': IMPORT_STALE_DAYS,
+                   'behind_this_month': imports_behind_this_month(session)})
 
 
 @dashboard_bp.route('/prefs', methods=['GET'])

@@ -1,6 +1,7 @@
 # The summary tiles meet the attention standard (queue item 27)
 
-> Status: **OPENED 2026-09-30. No code.** Rob, 2026-09-30: *"I accept the dashboard build, open item 27."*
+> Status: **RULED and AUTHORISED 2026-09-30 (Rob: "I accept all six points, build it") and BUILT (§6),
+> 2.0 only; awaiting the gate and Rob's acceptance.** Opened the same day. Rob, 2026-09-30: *"I accept the dashboard build, open item 27."*
 >
 > **The standard** is the one Needs attention already meets (`DASHBOARD_SUMMARY_ATTENTION.md` §6–7):
 > - every statement is a fact from the record, with its source;
@@ -103,3 +104,47 @@
 4. **T4–T5:** ratios with the question they answer; plan date against projected date, instead of *behind schedule*?
 5. **T6–T8:** a source line on every tile; completeness on the donut; next-occurrence Coming up in 2.0?
 6. **T9:** 2.0 only through the teaching seam; 1.x untouched?
+
+---
+
+## 5. Ruling: Rob, 2026-09-30
+
+*"I accept all six points, build it."* T1–T9 as proposed. T3 is resolved to the greeting plus **one upcoming fact
+from the record**: the first Needs attention item, or nothing.
+
+---
+
+## 6. The build (2026-09-30)
+
+| piece | where | what it does |
+|---|---|---|
+| **the words** | `static/js/teaching/tiletext.js` (pure, run in Node by the gate) | **This month:** with any imported account behind, the gap is stated and names each account with its last import, and no pace is given. Otherwise the arithmetic sentence, *"Spent $X in N of M days. At that rate - a straight line, not a forecast - the month ends near $Y against $Z budgeted."* With no budgeted income, the spending is stated and the missing comparison said plainly. **DTI:** the ratio and what 36% means. **Plan:** the two payoff dates from `_gwDateMovement`, or one when they agree. **Greeting fact:** from the first attention item. A `BANNED` list of verdict and advice words is checked by the gate against every sentence |
+| **the tiles** | `static/js/teaching/tiles.js`, called by `dashboard.js` after `renderDashboard` | **This month:** the verdict becomes *"September so far"*, the border and colours go neutral, and the pace bar is hidden while the month is incomplete. **Meta row:** days left plus the DTI sentence; no streak dots, *lender-ready* or ⚠. **Your plan:** *"behind / ahead of schedule"* is replaced by the two dates. **What changed:** ✓ / ↑ become a neutral •. **Coming up:** rebuilt from the next occurrence of each unpaid due date (the attention rules), plus recurring items. **A source line on all six tiles** |
+| **completeness** | `server.imports_behind_this_month`, on `/api/dashboard/attention/imports` | Imported accounts with nothing imported since the month began. Hand-kept accounts never count |
+| **the greeting** | `tiles.js` | The line under the greeting is `greetingFact(items[0])`, or empty |
+
+**Two things found building, both fixed and pinned:**
+- **Load order.** Teaching modules load in file-name order, so `tiletext.js` and `tiles.js` load after `dashboard.js`. A load-time lookup found nothing, and the tiles silently kept their verdicts; the first page check showed exactly that. Both lookups now happen at render, and s132 pins it.
+- **s30's cap** (no module borrows more than 8 app.js functions). Folding the tiles into `dashboard.js` reached 12. So the tile text is its own module, fed the import facts, attention items and unpaid payments `dashboard.js` already measured. `tiletext.js` reads its formatters off `f`, so s30 no longer counts `date` as a borrowed app.js function.
+
+**Tests: `smoke_sections/s132_summary_tiles.py`, 20 checks.**
+- **In Node:** St1, St2, St3, no budgeted income, St7, St8 (both forms and unknown), St5 / St6, St10 (no banned word in any sentence), and a mutation adding *"On track - keep going!"*.
+- **Server:** St1 behind / current, St4 hand-kept, and the endpoint carrying the list.
+- **Structural:** T2, T3, T5, T6 on all six tiles, T8, the lazy lookups, and T9 (app.js and index.html untouched).
+
+Standalone: s132 20 / 0, s131 23 / 0, s30 12 / 0.
+
+**Seen in the page** (throwaway database, built-in browser, after the split):
+- The greeting line read *"Visa: $85.00 due Oct 3, not yet recorded as paid."*
+- This month read as arithmetic, and the DTI came with its question.
+- Coming up showed Visa's October date, which 1.x missed.
+- Source lines were on all six tiles.
+- The dashboard's whole text had **no banned word**.
+
+**For Rob: T1 as ruled has a gap the page showed.**
+- The seeded Checking account was **imported on Sep 4**, so it counts as current for September.
+- But that import held only August transactions, so the tile said *"Spent $0.00 in 30 of 30 days"*.
+- That is true of the ledger, but it reads as if September were known.
+- A tighter test would state the spending **through the last import date** (*"Spent $0 through Sep 4, the last import"*) rather than across the whole month.
+- Not done here: T1 was ruled as written. Named for a ruling.
+

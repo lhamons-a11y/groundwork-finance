@@ -162,26 +162,37 @@
       + ' <button class="btn btn-sm btn-secondary" data-gw-dismiss="' + esc(A.fingerprint(i)) + '">Dismiss</button></div></div>';
   }
 
+
+  // Item 27's tile text lives in tiles.js (SUMMARY_TILES_STANDARD.md). Looked up when the tiles render,
+  // not at load: modules load in file-name order and tiles.js comes after this file.
+  function _tiles(imports, items, payments) {
+    var m = GWTeaching._modules.filter(function (x) { return x.name === 'tiles'; })[0];
+    if (!m) { _gwErr('dashboard tiles')(new Error('tiles module not loaded')); return; }
+    m.mod.render(imports, items, payments);
+  }
+
   async function _renderAttention() {
     var host = g('gwAttention');
     if (!host || !A) return;
     var hasRecord = (S.transactions || []).length > 0;
-    if (!hasRecord && !(S.debtCards || []).length) { host.innerHTML = ''; return; }   // the empty dashboard speaks instead
-    var stale = [];
-    try { stale = (await API.get('/api/dashboard/attention/imports')).stale || []; }
+    if (!hasRecord && !(S.debtCards || []).length) { host.innerHTML = ''; _tiles(null, [], []); return; }
+    var stale = [], imports = null;
+    try { imports = await API.get('/api/dashboard/attention/imports'); stale = imports.stale || []; }
     catch (e) { _gwErr('dashboard imports')(e); }
     var conf = _computeClaimConfidence();
+    var payments = A.paymentsDue(_activeDebtCards().map(function (c) {
+      return { id: c.id, name: c.name, dueDay: c.dueDay, minimum: c.minimum };
+    }), new Date(), function (c, month) {
+      var m = parseFloat(c.minimum) || 0;
+      return _debtPaidThisMonth({ id: c.id, name: c.name, minimum: m, total: m }, month).paid;
+    });
     var items = A.build({
-      payments: A.paymentsDue(_activeDebtCards().map(function (c) {
-        return { id: c.id, name: c.name, dueDay: c.dueDay, minimum: c.minimum };
-      }), new Date(), function (c, month) {
-        var m = parseFloat(c.minimum) || 0;
-        return _debtPaidThisMonth({ id: c.id, name: c.name, minimum: m, total: m }, month).paid;
-      }),
+      payments: payments,
       imports: A.importsStale(stale),
       blocked: A.blockedConclusions(conf, hasRecord)
     }, (_prefs && _prefs.dismissed) || []);
     var head = '<div class="card-label" style="margin-bottom:4px">Needs attention</div>';
+    try { _tiles(imports, items, payments); } catch (e) { _gwErr('dashboard tiles')(e); }
     if (!items.length) {
       host.innerHTML = '<div class="card mb-5">' + head + '<div style="font-size:12px;color:var(--slate)">Nothing needs'
         + ' attention.' + (conf.overall === 'ready' ? ' Financial Record: up to date.' : '') + '</div></div>';
