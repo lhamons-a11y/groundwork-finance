@@ -84,7 +84,10 @@ def _mutations(db):
                 return
             p = connection.execute(PAY.select().where(PAY.c.id == target.subject_payment_id)).first()
             x = connection.execute(X.select().where(X.c.id == target.object_expense_id)).first()
-            if p is not None and x is not None and x.created_at > p.created_at:
+            # 'Must precede' is strict: a tie is not precedence. Windows' clock ticks about every 15 ms, so a
+            # warm run mints both anchors on one tick - with '>' the guard then never fired and the mutation
+            # escaped (gate 2026-09-30, twice). '>=' is the guard the mutation claims to be.
+            if p is not None and x is not None and x.created_at >= p.created_at:
                 raise ValueError('an expense must precede a payment in respect of it')
         event.listen(db.Proposition, 'before_insert', refuse_out_of_order)
         return lambda: event.remove(db.Proposition, 'before_insert', refuse_out_of_order)
