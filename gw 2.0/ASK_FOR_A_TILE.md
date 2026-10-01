@@ -1,7 +1,8 @@
 # Ask for a tile (queue item 28)
 
 > Status: **RULED 2026-10-01 (Rob, §5: all five; §6: the seven build requirements); first slice AUTHORISED
-> (Rob: "Build it") and BUILT (§7), 2.0 only; gate 2039 / 0; awaiting Rob's acceptance.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
+> (Rob: "Build it") and BUILT (§7), 2.0 only; gate 2039 / 0; first slice ACCEPTED (Rob, 2026-10-01). Still to come, each by ruled
+> addition: the other five catalogue entries, then the model matcher.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
 >
 > Rob's request (2026-09-30): let the user type what they would like to see. His example: *"a comparison to their
 > gains and losses in their investments in the dashboard"*. That example is now answered by item 29's tile; this
@@ -205,3 +206,17 @@ s131's pinned layout and route list are updated as expected (the layout now carr
 - The BANNED scan of Groundwork's text was clean, while the full page text, including the user's own words, contained *"on track"*. R4 is working as ruled.
 - No errors.
 
+---
+
+## 8. Acceptance: Rob, 2026-10-01
+
+*"I accept."* The first slice is accepted at master `4181006`, gate 2039 / 0. Item 28 stays open for its remaining
+slices, each a small ruled addition under K1:
+- savings funds pace;
+- recurring charges;
+- one category over time (the first parameterised entry, under R2);
+- EIA energy prices;
+- the working picture;
+- then the local-model matcher (R7).
+
+Named, not part of this item: the app's monthly net worth snapshot counts missing balances as $0.
