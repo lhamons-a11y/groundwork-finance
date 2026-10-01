@@ -2,7 +2,7 @@
 
 > Status: **RULED 2026-10-01 (Rob, §5: all five; §6: the seven build requirements); first slice AUTHORISED
 > (Rob: "Build it") and BUILT (§7), 2.0 only; gate 2039 / 0; first slice ACCEPTED (Rob, 2026-10-01). The remaining slices (the five
-> entries and the model matcher) AUTHORISED ("Build Item 28") and BUILT (§9); awaiting the gate and Rob's acceptance.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
+> entries and the model matcher) AUTHORISED ("Build Item 28") and BUILT (§9), gate 2065 / 0; awaiting Rob's acceptance.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
 >
 > Rob's request (2026-09-30): let the user type what they would like to see. His example: *"a comparison to their
 > gains and losses in their investments in the dashboard"*. That example is now answered by item 29's tile; this
