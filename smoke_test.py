@@ -12,7 +12,10 @@ import os
 import re
 import sys
 import json
+import time
 import tempfile
+import threading
+import traceback
 from pathlib import Path
 import importlib.util
 from types import SimpleNamespace
@@ -26,6 +29,53 @@ sys.path.insert(0, str(BASE))
 sys.path.insert(0, str(BASE / 'core'))
 
 PASS, FAIL = [], []
+
+# Line-buffer stdout so a redirected run shows its true last line. Block
+# buffering once left the visible log 120-245 lines behind a slow section
+# (s113, 7-14 min), which read as a hang.
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+except (AttributeError, ValueError):
+    pass
+
+# A section still running after this many seconds reports where it is (its
+# name, elapsed time and the main thread's innermost frames), and again each
+# interval after, so a slow or hung section names itself instead of going
+# silent. It only reports - nothing is interrupted. GW_SMOKE_HEARTBEAT_SECONDS
+# overrides; 0 disables. (faulthandler.dump_traceback_later was tried first:
+# it reads frames without the GIL and segfaulted the gate mid-section.)
+HEARTBEAT_SECONDS = int(os.environ.get('GW_SMOKE_HEARTBEAT_SECONDS', '300'))
+SECTION_TIMES = []
+_CURRENT_SECTION = None          # (stem, monotonic start), swapped whole by the runner
+
+
+def _heartbeat():
+    main = threading.main_thread()
+    seen, next_at = None, 0.0
+    while main.is_alive():
+        time.sleep(5)
+        cur = _CURRENT_SECTION
+        if cur is None:
+            continue
+        if cur is not seen:
+            seen, next_at = cur, HEARTBEAT_SECONDS
+        elapsed = time.monotonic() - cur[1]
+        if elapsed < next_at:
+            continue
+        next_at += HEARTBEAT_SECONDS
+        frame = sys._current_frames().get(main.ident)
+        stack = traceback.extract_stack(frame) if frame else []
+        # The innermost frames are usually SQLAlchemy; show where in OUR code
+        # the section is (sections, fixtures, core), then the innermost frame.
+        ours = [fs for fs in stack if str(BASE) in fs.filename][-4:]
+        if stack and stack[-1] not in ours:
+            ours.append(stack[-1])
+        where = ''.join(traceback.format_list(ours)) or '  (no frame)\n'
+        # sys.__stdout__, not print()'s default: the mutation sections run their
+        # fixtures under redirect_stdout(StringIO), which would swallow this.
+        print(f'  .. {cur[0]} still running after {elapsed / 60:.1f} min '
+              f'[{time.strftime("%H:%M:%S")}]; main thread at:\n{where}',
+              end='', file=sys.__stdout__, flush=True)
 
 
 def check(name, condition):
@@ -48,7 +98,13 @@ def _run_sections(ctx):
     files = [f for f in sorted(d.glob('*.py')) if not f.name.startswith('_')]
     print()
     print('  discovered sections: ' + (', '.join(f.stem for f in files) or 'none'))
+    global _CURRENT_SECTION
+    if HEARTBEAT_SECONDS > 0:
+        threading.Thread(target=_heartbeat, name='smoke-heartbeat', daemon=True).start()
     for f in files:
+        print(f'  -- {f.stem}  [{time.strftime("%H:%M:%S")}]')
+        t0 = time.monotonic()
+        _CURRENT_SECTION = (f.stem, t0)
         try:
             spec = importlib.util.spec_from_file_location(f'smoke_sections.{f.stem}', f)
             mod = importlib.util.module_from_spec(spec)
@@ -57,6 +113,9 @@ def _run_sections(ctx):
         except Exception as e:
             ctx.check(f'section {f.name} ran without raising '
                       f'({type(e).__name__}: {e})', False)
+        finally:
+            _CURRENT_SECTION = None
+        SECTION_TIMES.append((time.monotonic() - t0, f.stem))
 
 def main():
     print(f'Groundwork smoke test — temp DB at {_TMP}\n')
@@ -2171,6 +2230,11 @@ def main():
 
 
 def finish():
+    if SECTION_TIMES:
+        total = sum(t for t, _ in SECTION_TIMES)
+        print(f'\n  section time: {total / 60:.1f} min over {len(SECTION_TIMES)} sections; slowest:')
+        for t, stem in sorted(SECTION_TIMES, reverse=True)[:10]:
+            print(f'    {t:7.1f}s  {stem}')
     print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
     if FAIL:
         print('\nDO NOT DEPLOY — failures:')

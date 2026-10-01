@@ -68,6 +68,7 @@ def _fresh():
     @event.listens_for(eng, 'connect')
     def _fk_on(conn, _):
         conn.execute('PRAGMA foreign_keys=ON')
+        conn.execute('PRAGMA synchronous=OFF')          # throwaway DB: no fsync per commit
     Base.metadata.create_all(eng)
     return sessionmaker(bind=eng)()
 
