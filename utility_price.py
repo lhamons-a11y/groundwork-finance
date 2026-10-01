@@ -39,12 +39,25 @@ ELECTRICITY_FALLBACK = 16.50   # cents/kWh — rough national ballpark, used onl
 NG_URL = ('https://api.eia.gov/v2/natural-gas/pri/sum/data/'
           '?api_key={key}&frequency=monthly&data[0]=value'
           '&facets[process][]=PRS&facets[duoarea][]={area}'
-          '&sort[0][column]=period&sort[0][direction]=desc&length=1')
+          '&sort[0][column]=period&sort[0][direction]=desc&length=6')
 
 ELEC_URL = ('https://api.eia.gov/v2/electricity/retail-sales/data/'
             '?api_key={key}&frequency=monthly&data[0]=price'
             '&facets[sectorid][]=RES&facets[stateid][]={state}'
-            '&sort[0][column]=period&sort[0][direction]=desc&length=1')
+            '&sort[0][column]=period&sort[0][direction]=desc&length=6')
+
+
+# UTILITY_ESTIMATES.md U0 (item 26, ruled 2026-10-01): EIA publishes each state's months on its own schedule, and
+# its newest row for a state can exist with no value yet (Ohio's June 2026 natural gas did). Asking for one row
+# and treating an empty value as a failure sent the price to the hard-coded estimate, so the Budget page showed
+# no EIA line at all. The last six rows are asked for, and the newest one that HAS a value is used, with its own
+# period - for every state, not one.
+def _latest_published(rows, field):
+    for r in rows or []:
+        v = r.get(field)
+        if v is not None and str(v).strip() != '':
+            return r
+    return None
 
 
 def _state_to_duoarea(state: str) -> str:
@@ -60,14 +73,11 @@ def _fetch_natural_gas(api_key: str, area: str):
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
             data = json.loads(r.read().decode('utf-8'))
-        rows = ((data.get('response') or {}).get('data')) or []
-        if not rows:
+        row = _latest_published(((data.get('response') or {}).get('data')) or [], 'value')
+        if not row:
             return None
-        price = rows[0].get('value')
-        if price is None:
-            return None
-        return {'price': round(float(price), 2), 'period': str(rows[0].get('period') or ''),
-                'area_name': rows[0].get('area-name', '')}
+        return {'price': round(float(row['value']), 2), 'period': str(row.get('period') or ''),
+                'area_name': row.get('area-name', '')}
     except Exception as e:
         logger.info('utility_price: natural gas fetch failed (%s): %s', area, e)
         return None
@@ -81,14 +91,11 @@ def _fetch_electricity(api_key: str, state_code: str):
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
             data = json.loads(r.read().decode('utf-8'))
-        rows = ((data.get('response') or {}).get('data')) or []
-        if not rows:
+        row = _latest_published(((data.get('response') or {}).get('data')) or [], 'price')
+        if not row:
             return None
-        price = rows[0].get('price')
-        if price is None:
-            return None
-        return {'price': round(float(price), 2), 'period': str(rows[0].get('period') or ''),
-                'area_name': rows[0].get('stateDescription', '')}
+        return {'price': round(float(row['price']), 2), 'period': str(row.get('period') or ''),
+                'area_name': row.get('stateDescription', '')}
     except Exception as e:
         logger.info('utility_price: electricity fetch failed (%s): %s', state_code, e)
         return None
@@ -161,11 +168,27 @@ def get_natural_gas_price(api_key: str, state: str = '') -> dict:
     """Residential natural gas price, $/MCF (thousand cubic feet — the unit
     on an actual gas bill). {price, period, area_name, live, source}."""
     area = _state_to_duoarea(state) if state else 'NUS'
-    return _get_price('ng', area, api_key, _fetch_natural_gas, NATURAL_GAS_FALLBACK)
+    out = _get_price('ng', area, api_key, _fetch_natural_gas, NATURAL_GAS_FALLBACK)
+    return _national_if_unpublished(out, area, 'NUS', 'ng', api_key, _fetch_natural_gas, NATURAL_GAS_FALLBACK)
 
 
 def get_electricity_price(api_key: str, state: str = '') -> dict:
     """Residential electricity price, cents/kWh.
     {price, period, area_name, live, source}."""
     area = state.strip().upper()[:2] if state else 'US'
-    return _get_price('elec', area, api_key, _fetch_electricity, ELECTRICITY_FALLBACK)
+    out = _get_price('elec', area, api_key, _fetch_electricity, ELECTRICITY_FALLBACK)
+    return _national_if_unpublished(out, area, 'US', 'elec', api_key, _fetch_electricity, ELECTRICITY_FALLBACK)
+
+
+def _national_if_unpublished(out, area, national, kind, api_key, fetch_fn, fallback):
+    """U0: a state EIA does not publish (no row with a value, no cache) is shown at the U.S. figure - and SAYS so.
+
+    `area_name` becomes 'U.S.' (the Budget page prints it as the area), and `national_fallback` names the state that
+    was asked for, so nothing presents the national figure as the state's.
+    """
+    if out.get('source') != 'estimate' or area == national:
+        return out
+    nat = _get_price(kind, national, api_key, fetch_fn, fallback)
+    if nat.get('source') == 'estimate':
+        return out
+    return {**nat, 'area_name': 'U.S.', 'national_fallback': area}
