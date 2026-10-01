@@ -1,7 +1,7 @@
 # Ask for a tile (queue item 28)
 
 > Status: **RULED 2026-10-01 (Rob, §5: all five; §6: the seven build requirements); first slice AUTHORISED
-> (Rob: "Build it") and BUILT (§7), 2.0 only; awaiting the gate and Rob's acceptance.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
+> (Rob: "Build it") and BUILT (§7), 2.0 only; gate 2039 / 0; awaiting Rob's acceptance.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
 >
 > Rob's request (2026-09-30): let the user type what they would like to see. His example: *"a comparison to their
 > gains and losses in their investments in the dashboard"*. That example is now answered by item 29's tile; this
