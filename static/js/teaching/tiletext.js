@@ -136,13 +136,88 @@
     };
   }
 
+  /* Item 28's remaining entries. Each says what the record holds and what it doesn't - never a verdict. */
+  function _gate(d, title) {
+    if (!d) return null;
+    if (!d.backed) return { lines: [d.needs], source: '' };
+    return false;
+  }
+
+  function funds(d, f) {
+    var g = _gate(d); if (g !== false) return g;
+    var lines = (d.funds || []).map(function (x) {
+      var p = x.pace || {};
+      if (p.funded) return x.name + ': funded.';
+      if (!p.finish_months) return x.name + ': ' + f.money(p.remaining) + ' still to go; nothing going in and nothing planned, so no finish date.';
+      var how = p.pace_source === 'observed' ? 'put in' : 'planned';
+      var brk = p.since_break ? (p.insufficient_since_break
+        ? ' (what goes in changed in ' + f.month(p.since_break.month) + '; too few months since to set a pace, so this is the plan\'s)'
+        : ' (counting only since ' + f.month(p.since_break.month) + ', when what goes in changed)') : '';
+      return x.name + ': ' + f.money(p.remaining) + ' still to go; at the ' + f.money(p.pace_monthly) + '/mo ' + how
+        + ' it finishes in ' + p.finish_months + ' month' + (p.finish_months === 1 ? '' : 's')
+        + (p.deadline_months !== null && p.deadline_months !== undefined ? ', with ' + p.deadline_months + ' months to its deadline' : '')
+        + brk + '.';
+    });
+    return { lines: lines, source: 'From your savings funds and what has gone into them; the same pace the Budget page shows.' };
+  }
+
+  function recurring(d, f) {
+    var g = _gate(d); if (g !== false) return g;
+    var items = d.items || [];
+    var total = items.reduce(function (s, i) { return s + (i.monthly || 0); }, 0);
+    var lines = [items.length + ' recurring charge' + (items.length === 1 ? '' : 's') + ', about ' + f.money(total) + ' a month together:'];
+    items.slice(0, 6).forEach(function (i) {
+      lines.push(i.name + ': ' + f.money(i.monthly) + '/mo' + (i.category ? ' (' + i.category + ')' : ''));
+    });
+    return { lines: lines, source: 'From charges that repeat for at least three months in your ledger, at what each costs per month.' };
+  }
+
+  function category(d, f) {
+    var g = _gate(d); if (g !== false) return g;
+    var seen = d.months.filter(function (m) { return m.amount !== null && m.amount !== undefined; });
+    var avg = seen.length ? seen.reduce(function (s, m) { return s + m.amount; }, 0) / seen.length : 0;
+    return {
+      lines: [d.category + ', by month: ' + d.months.map(function (m) {
+                return f.month(m.month) + ' ' + (m.amount === null || m.amount === undefined ? 'none recorded' : f.money(m.amount));
+              }).join('; ') + '.',
+              'Average over the ' + seen.length + ' months it appears: ' + f.money(avg) + '.'],
+      source: 'From your ledger, months that are complete; a month without ' + d.category + ' says so rather than counting it as zero.'
+    };
+  }
+
+  function energy(d, f) {
+    var g = _gate(d); if (g !== false) return g;
+    var p = d.prices || {};
+    var lines = [];
+    if (p.elec) lines.push('Electricity (' + p.elec.area + '): ' + p.elec.price + '\u00a2/kWh' + (p.elec.period ? ', ' + p.elec.period : '') + '.');
+    if (p.ng) lines.push('Natural gas (' + p.ng.area + '): ' + f.money(p.ng.price) + '/MCF' + (p.ng.period ? ', ' + p.ng.period : '') + '.');
+    else lines.push('Natural gas: no EIA price on record yet.');
+    if (p.gasoline) lines.push('Gasoline (U.S. average): ' + f.money(p.gasoline.price) + '/gal' + (p.gasoline.period ? ', week of ' + p.gasoline.period : '') + '.');
+    return { lines: lines, source: 'From the U.S. Energy Information Administration, as last fetched; not refreshed here.' };
+  }
+
+  function picture(d, f) {
+    var g = _gate(d); if (g !== false) return g;
+    var read = { flexible: 'reads as flexible, from your record', sacred: 'reads as something you keep, from your record' };
+    var lines = (d.claims || []).slice(0, 4).map(function (c) {
+      if (c.reason === 'break') return c.category + ': set aside after its spending changed level.';
+      if (c.reason === 'probation') return c.category + ': moved beside your income, so not classified.';
+      return c.category + ': ' + (read[c.stance] || c.stance) + '.';
+    });
+    (d.said || []).slice(0, 4).forEach(function (s) {
+      lines.push('You marked ' + s.category + ' ' + (s.stance === 'protect' ? 'protected' : 'flexible') + ' on ' + f.date(s.said_at) + '.');
+    });
+    return { lines: lines, source: 'From the working picture: what your record shows, and what you have told Groundwork.' };
+  }
+
   function banned(text) {
     var t = String(text || '').toLowerCase();
     return BANNED.filter(function (w) { return t.indexOf(w) >= 0; });
   }
 
   var api = { BANNED: BANNED, month: month, dti: dti, plan: plan, greetingFact: greetingFact, investments: investments,
-              netWorth: netWorth, banned: banned };
+              netWorth: netWorth, funds: funds, recurring: recurring, category: category, energy: energy,
+              picture: picture, banned: banned };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root && root.GWTeaching) root.GWTeaching.register('tiletext', api);
 })(typeof window !== 'undefined' ? window : null);

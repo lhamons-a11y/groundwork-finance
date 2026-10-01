@@ -70,6 +70,9 @@
     var input = g('gwAskInput');
     var text = input ? input.value.trim() : '';
     if (!text) return;
+    // R7: the page never waits blind - the model matcher may take a few seconds, so say so while it does.
+    var res = g('gwAskResult');
+    if (res) res.textContent = 'Looking\u2026';
     var r;
     try { r = await API.post('/api/dashboard/ask', { text: text }); }
     catch (e) { _gwErr('ask for a tile')(e); return; }
@@ -104,18 +107,34 @@
     _draw('');
   }
 
-  // The first catalogue entry beyond the seven. R3: when its evidence is gone it says what it needs, in place.
-  async function _netWorthTile() {
-    var card = g('gwNetWorthTrendCard');
+  // The catalogue entries beyond the seven: where each reads from, and which words say it. R3: when a chosen
+  // tile's evidence is gone, it says what it needs in place.
+  var TILES = {
+    gwNetWorthTrendCard: { url: '/api/dashboard/tile/net-worth', words: 'netWorth' },
+    gwFundsCard: { url: '/api/dashboard/tile/funds', words: 'funds' },
+    gwRecurringCard: { url: '/api/dashboard/tile/recurring', words: 'recurring' },
+    gwEnergyCard: { url: '/api/dashboard/tile/energy', words: 'energy' },
+    gwPictureCard: { url: '/api/dashboard/tile/picture', words: 'picture' }
+  };
+  var F = { money: function (n) { return fmt(n); }, date: _date, month: _date };
+
+  async function _fillTile(id) {
+    var card = g(id);
     var T = _tiletext();
     if (!card || !T) return;
+    var spec = TILES[id] || (id.indexOf('cat:') === 0
+      ? { url: '/api/dashboard/tile/category?name=' + encodeURIComponent(id.slice(4)), words: 'category' } : null);
+    if (!spec) return;
     var d = null;
-    try { d = await API.get('/api/dashboard/tile/net-worth'); }
-    catch (e) { _gwErr('net worth tile')(e); return; }
-    var t = T.netWorth(d, { money: function (n) { return fmt(n); }, date: _date });
-    card.innerHTML = '<div class="card-label">Net worth over time</div>'
+    try { d = await API.get(spec.url); }
+    catch (e) { _gwErr('dashboard tile ' + id)(e); return; }
+    var t = T[spec.words](d, F);
+    if (!t) return;
+    var title = (_prefs && _prefs.titles && _prefs.titles[id]) || id;
+    card.innerHTML = '<div class="card-label">' + esc(title) + '</div>'
       + t.lines.map(function (l) { return '<div style="font-size:12px;color:var(--slate);line-height:1.7">' + esc(l) + '</div>'; }).join('')
-      + '<div class="gw-src" style="font-size:10px;color:var(--slate-2);margin-top:8px">' + esc(t.source) + '</div>';
+      + (id === 'gwPictureCard' && d && d.backed ? '<div style="margin-top:6px"><button class="btn btn-sm btn-secondary" onclick="showView(\'picture\')">Open the working picture</button></div>' : '')
+      + (t.source ? '<div class="gw-src" style="font-size:10px;color:var(--slate-2);margin-top:8px">' + esc(t.source) + '</div>' : '');
     card.style.display = '';
   }
 
@@ -136,7 +155,7 @@
   function render(prefs) {
     _prefs = prefs;
     if (!g('gwAskInput')) _draw('');
-    _netWorthTile();
+    ((prefs && prefs.layout && prefs.layout.added) || []).forEach(function (id) { _fillTile(id); });
   }
 
   GWTeaching.register('asktile', { render: render });

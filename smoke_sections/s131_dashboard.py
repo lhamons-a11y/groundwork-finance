@@ -109,7 +109,9 @@ def _server_cases(c, HJ, dbs):
     out['the dashboard\'s routes are its prefs, layout, dismissals and import facts - nothing that records use'] = (
         sorted(rules) == ['/api/dashboard/add', '/api/dashboard/ask', '/api/dashboard/attention/imports',
                           '/api/dashboard/dismiss', '/api/dashboard/investments', '/api/dashboard/layout',
-                          '/api/dashboard/prefs', '/api/dashboard/requests/delete', '/api/dashboard/tile/net-worth'])
+                          '/api/dashboard/prefs', '/api/dashboard/requests/delete', '/api/dashboard/tile/category',
+                          '/api/dashboard/tile/energy', '/api/dashboard/tile/funds', '/api/dashboard/tile/net-worth',
+                          '/api/dashboard/tile/picture', '/api/dashboard/tile/recurring'])
     return out
 
 

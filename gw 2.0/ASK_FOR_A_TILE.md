@@ -1,8 +1,8 @@
 # Ask for a tile (queue item 28)
 
 > Status: **RULED 2026-10-01 (Rob, §5: all five; §6: the seven build requirements); first slice AUTHORISED
-> (Rob: "Build it") and BUILT (§7), 2.0 only; gate 2039 / 0; first slice ACCEPTED (Rob, 2026-10-01). Still to come, each by ruled
-> addition: the other five catalogue entries, then the model matcher.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
+> (Rob: "Build it") and BUILT (§7), 2.0 only; gate 2039 / 0; first slice ACCEPTED (Rob, 2026-10-01). The remaining slices (the five
+> entries and the model matcher) AUTHORISED ("Build Item 28") and BUILT (§9); awaiting the gate and Rob's acceptance.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
 >
 > Rob's request (2026-09-30): let the user type what they would like to see. His example: *"a comparison to their
 > gains and losses in their investments in the dashboard"*. That example is now answered by item 29's tile; this
@@ -220,3 +220,54 @@ slices, each a small ruled addition under K1:
 - then the local-model matcher (R7).
 
 Named, not part of this item: the app's monthly net worth snapshot counts missing balances as $0.
+
+---
+
+## 9. The remaining slices (2026-10-01)
+
+Rob: *"Build Item 28."* The five entries named in §1 and the model matcher (K7's last step).
+
+| entry / piece | record test (K3) | what the tile says |
+|---|---|---|
+| **Savings funds** (`gwFundsCard`) | an active savings fund | each fund: what is still to go, the pace (put in or planned), the finish in months, and the months to its deadline. It uses the same answer as `/api/sinking-funds/pace`, so a break in contributions (item 25) says the date is the plan's |
+| **Recurring charges** (`gwRecurringCard`) | a charge repeating at least three months (`trim_candidates`) | the count, the monthly total, and each charge at its monthly cost with its category |
+| **One category over time** (`cat:<category>`) | **R2's one parameterised shape:** a category in the ledger, seen in at least three recorded months | *"Dining, by month: June 2026 $310.00; July 2026 none recorded; ..."* plus the average over the months it appears. **A gap stays a gap** |
+| **Energy prices** (`gwEnergyCard`) | an EIA price **already on record**; the dashboard fetches nothing | electricity and gasoline with area and period. Natural gas with none on record says so, until item 26's Ohio fix |
+| **What Groundwork has concluded** (`gwPictureCard`) | a concluding reading or a statement | up to four readings said as the record's, the user's statements as theirs, and a button to open the working picture |
+
+- **Matching with the ledger's categories:** a category named in the request competes on the **same scale** as the catalogue. With a category called *Gas*, *"gas prices"* is still the energy tile, while *"gas over time"* is the category.
+- **R1:** `/prefs` gives added category tiles their titles.
+- **R2:** `_catalogue_entry` admits only a catalogue id or `cat:<1–80 chars>`, and `/add` then requires the category to be in the ledger and backed.
+
+**The model matcher (K2, R7)**, `model_match_tile`:
+- **When it runs:** only when the search finds nothing. Only when AI is on **and** a local model is actually answering (`_model_ready`: one 1-second look, remembered for a minute).
+- **What it is asked:** the ids, the titles and the request, in a background thread with a **12-second** cap.
+- **What counts as a match:** only an answer that is exactly one catalogue id. A sentence, a parameterised id, an unknown id, an error, a timeout or no model is *none*.
+- **What the page does:** shows *"Looking..."* while it waits, and makes no model call of its own.
+
+**Found while building, fixed and pinned:**
+- **With AI switched on but no model running,** every unmatched request waited out the full timeout. `_model_ready` makes that cost nothing, and s135 pins it at under half a second with no model call.
+- **A real local model during the gate.** s134 sends 55 unmatched requests; on a machine with a model running that took over eight minutes of live, nondeterministic calls. s134 now holds the model matcher off; it tests the search. s135 tests the matcher with controlled answers.
+
+**Found in the page run, for Rob:**
+- **The installed local model is a "thinking" model.** Asked the K2 question about *"how are my rainy day pots doing"*, it took about **32 seconds**. It ignored the 12-token limit, and its answer was paragraphs of reasoning that **did reach `gwFundsCard`**.
+- As ruled, that is *none*: the cap cut it off, and the words never reached the page. **R7 worked exactly as designed.**
+- **But on this machine the matcher will rarely match.** Making it useful needs Ollama's constrained output (a JSON schema limiting the answer to the catalogue ids) and thinking switched off. That is a change to the shared AI call, so it is **named, not made here**.
+
+**Tests:**
+- **`smoke_sections/s135_tile_catalogue.py`, 26 checks:**
+  - each entry's record test, both ways;
+  - the category entry end to end (2 months not backed, 3 added, the tile with its gap, its title from /prefs);
+  - R2 refusals;
+  - the category-versus-catalogue scoring;
+  - each entry found by its words;
+  - the model matcher: exact id, a sentence, a parameterised id, an unknown id and an error, the 0.3-second cut-off, no model, AI on with no model running costing nothing, and asked only when the search finds nothing;
+  - all five tiles' words in Node, with the BANNED lexicon.
+- **s134** (28 checks) is updated for the larger catalogue and holds the model off.
+- **s131's** route list gains the five tile endpoints.
+
+**Seen in the page** (throwaway database with a fund, a recurring charge and groceries):
+- *"show my savings goals"*, *"my subscriptions"* and *"groceries by month"* each became a tile with real figures.
+- *"energy prices"* said what it needs, because a fresh database has no EIA price.
+- *"how are my rainy day pots doing"* went to the model and came back *none* at the 12-second cap, as above.
+

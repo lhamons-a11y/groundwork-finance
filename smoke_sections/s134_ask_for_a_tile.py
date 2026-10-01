@@ -70,6 +70,19 @@ def _readers(server_src, key):
 
 
 def run(ctx):
+    import server
+    # This section tests the SEARCH path. The model matcher has its own section (s135) with controlled answers; a
+    # real local model here would make every unmatched request a live, slow, nondeterministic call (found: a machine
+    # with a model running took over eight minutes on the 55 unmatched requests below).
+    real_model = server.model_match_tile
+    server.model_match_tile = lambda text: None
+    try:
+        _run(ctx)
+    finally:
+        server.model_match_tile = real_model
+
+
+def _run(ctx):
     check, c, HJ = ctx.check, ctx.c, ctx.HJ
     base = ctx.BASE
     import server
@@ -81,8 +94,9 @@ def run(ctx):
 
     # K1 / R1 - one closed list, read by the page.
     cat_ids = [e['id'] for e in server.TILE_CATALOGUE]
-    check('s134 K1 the catalogue is the seven defaults plus net worth over time - closed, written in code',
-          cat_ids == list(server.DASHBOARD_TILES) + ['gwNetWorthTrendCard'])
+    check('s134 K1 the catalogue is the seven defaults plus the ruled entries - closed, written in code',
+          cat_ids == list(server.DASHBOARD_TILES) + ['gwNetWorthTrendCard', 'gwFundsCard', 'gwRecurringCard', 'cat:',
+                                                     'gwEnergyCard', 'gwPictureCard'])
     p = (c.get('/api/dashboard/prefs', headers=HJ).get_json() or {}).get('data') or {}
     check('s134 R1 /prefs gives the user\'s tiles and every title from the catalogue (the page\'s one source)',
           p.get('tiles', [])[:7] == list(server.DASHBOARD_TILES) and p.get('titles', {}).get('gwNetWorthTrendCard') == 'Net worth over time')
@@ -128,11 +142,14 @@ def run(ctx):
           t == {'backed': False, 'needs': 'Net worth over time needs at least two net worth snapshots; you have 0.'}
           and 'gwNetWorthTrendCard' in p.get('tiles', []))
 
-    # R2 - closed in practice.
-    code, _ = post('/api/dashboard/add', {'id': 'cat:Dining'})
+    # R2 - closed in practice. 'cat:<name>' is the one parameterised shape (s135): for a category the record does not
+    # back it is refused as unbacked (409); any other shape is not a tile at all (400); and the layout accepts only
+    # tiles the user already has.
+    code, _ = post('/api/dashboard/add', {'id': 'cat:No Such Category S134'})
     code2, _ = post('/api/dashboard/add', {'id': 'anything-at-all'})
-    r = c.put('/api/dashboard/layout', headers=HJ, data=json.dumps({'order': ['cat:Dining'], 'pinned': [], 'hidden': []}))
-    check('s134 R2 a parameterised or unknown id is refused by /add and by the layout', code == 400 and code2 == 400 and r.status_code == 400)
+    r = c.put('/api/dashboard/layout', headers=HJ, data=json.dumps({'order': ['cat:No Such Category S134'], 'pinned': [], 'hidden': []}))
+    check('s134 R2 an unbacked parameterised id or any unknown id is refused by /add and by the layout',
+          code == 409 and code2 == 400 and r.status_code == 400)
 
     # Ak7 + R6 - asking for a hidden default shows it; additions merge into the latest layout.
     c.put('/api/dashboard/layout', headers=HJ, data=json.dumps({'order': [], 'pinned': [], 'hidden': ['dashUpcomingCard']}))
@@ -164,10 +181,11 @@ def run(ctx):
     ask = base.joinpath('static/js/teaching/asktile.js').read_text(encoding='utf-8')
     check('s134 R4 / R5 the user\'s words are escaped and marked as theirs, so the lexicon never reads them as Groundwork\'s',
           '<span data-gw-user-words' in ask and 'esc(r.text)' in ask)
-    check('s134 K4 the page sends the requests nowhere - only the dashboard\'s own endpoints are called',
-          set(re.findall(r"API\.(?:get|put|post)\('([^']+)'", ask)) == {
-              '/api/dashboard/ask', '/api/dashboard/add', '/api/dashboard/requests/delete', '/api/dashboard/tile/net-worth'})
-    check('s134 R7 / K7 no model call in this first slice', '/api/ai' not in ask and '_ai_' not in ask)
+    urls = set(re.findall(r"'(/api/[^'?]+)", ask))
+    check('s134 K4 the page sends the requests nowhere - every address it uses is the dashboard\'s own',
+          urls and all(u.startswith('/api/dashboard/') for u in urls))
+    check('s134 R7 the page itself never calls a model - matching happens on the server, behind /ask',
+          '/api/ai' not in ask and '_ai_' not in ask)
     # Found in the page run: the app's own monthly net worth snapshot stores 'YYYY-MM', and a day-only formatter
     # showed it as "Invalid Date". Run the page's own formatter on both shapes.
     node = shutil.which('node')

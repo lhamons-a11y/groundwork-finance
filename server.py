@@ -18,7 +18,7 @@ from pathlib import Path
 from functools import wraps
 from typing import Any
 
-from flask import Flask, jsonify, request, send_from_directory, send_file
+from flask import copy_current_request_context, Flask, jsonify, request, send_from_directory, send_file
 
 # Session ID — changes on every server start so client can detect restarts
 _GW_SESSION_ID = str(_uuid.uuid4())[:8]
@@ -1810,7 +1810,8 @@ def dashboard_prefs():
     with db_session() as session:
         lay = _layout(session)
         return ok({'tiles': _user_tiles(lay),
-                   'titles': {e['id']: e['title'] for e in TILE_CATALOGUE},
+                   'titles': {**{e['id']: e['title'] for e in TILE_CATALOGUE if not e.get('param')},
+                              **{a: _catalogue_entry(a)['title'] for a in lay['added']}},
                    'layout': lay,
                    'dismissed': _dashboard_json(session, 'dashboard_dismissed', []),
                    'requests': _dashboard_json(session, 'dashboard_tile_requests', [])})
@@ -1978,8 +1979,44 @@ TILE_CATALOGUE = [
      'words': ['investments', 'investment', 'stocks', 'portfolio', 'gains', 'losses', 'holdings']},
     {'id': 'gwNetWorthTrendCard', 'title': 'Net worth over time', 'default': False,
      'words': ['net worth', 'networth', 'worth over time', 'wealth', 'assets minus debts', 'how much am i worth']},
+    # The remaining slices (Rob, 2026-10-01: "Build Item 28"), each a ruled addition under K1.
+    {'id': 'gwFundsCard', 'title': 'Savings funds', 'default': False,
+     'words': ['savings funds', 'sinking funds', 'savings goals', 'saving for', 'funds pace', 'savings']},
+    {'id': 'gwRecurringCard', 'title': 'Recurring charges', 'default': False,
+     'words': ['recurring charges', 'subscriptions', 'recurring', 'monthly charges', 'repeating charges']},
+    {'id': 'cat:', 'title': 'One category over time', 'default': False, 'param': 'category',
+     'words': ['over time', 'by month', 'monthly', 'trend', 'history']},
+    {'id': 'gwEnergyCard', 'title': 'Energy prices', 'default': False,
+     'words': ['energy prices', 'gas prices', 'electricity price', 'natural gas', 'utility prices', 'eia', 'fuel prices']},
+    {'id': 'gwPictureCard', 'title': 'What Groundwork has concluded', 'default': False,
+     'words': ['working picture', 'what groundwork has concluded', 'conclusions', 'what you know about me',
+               'flexible', 'protected']},
 ]
-_CATALOGUE_BY_ID = {e['id']: e for e in TILE_CATALOGUE}
+_CATALOGUE_BY_ID = {e['id']: e for e in TILE_CATALOGUE if not e.get('param')}
+
+
+def _catalogue_entry(tile_id):
+    """R2: a tile id is a catalogue id, or the one parameterised shape 'cat:<category>' - nothing else."""
+    if tile_id in _CATALOGUE_BY_ID:
+        return _CATALOGUE_BY_ID[tile_id]
+    if isinstance(tile_id, str) and tile_id.startswith('cat:') and 0 < len(tile_id) - 4 <= 80:
+        return {'id': tile_id, 'title': tile_id[4:] + ' over time', 'default': False, 'param': 'category'}
+    return None
+
+
+def _category_months(session, name, months=12):
+    """Complete ledger months, and this category's spending in each month it appears (gaps stay gaps)."""
+    today = date.today()
+    start = today.replace(day=1)
+    cutoff = start - timedelta(days=30 * months)
+    held = sorted({r[0] for r in session.query(func.strftime('%Y-%m', Transaction.date)).filter(
+        Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.date < start).distinct().all() if r[0]})
+    rows = session.query(func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)).join(
+        Category, Transaction.category_id == Category.id).filter(
+        func.lower(Category.name) == name.lower(), Transaction.type == 'debit',
+        Transaction.date >= cutoff, Transaction.date < start).group_by(func.strftime('%Y-%m', Transaction.date)).all()
+    seen = {m: round(float(v or 0), 2) for m, v in rows if m}
+    return held, seen
 assert tuple(e['id'] for e in TILE_CATALOGUE if e['default']) == DASHBOARD_TILES   # one list, not two (R1)
 _REQUEST_MAX_CHARS = 200        # R5
 _REQUEST_MAX_COUNT = 50         # R5
@@ -1994,10 +2031,55 @@ def _tile_evidence(session, tile_id):
         n = session.query(NetWorthSnapshot).count()
         return (n >= 2, None if n >= 2 else
                 f'Net worth over time needs at least two net worth snapshots; you have {n}.')
+    if tile_id == 'gwFundsCard':
+        from core.database import SinkingFund
+        n = session.query(SinkingFund).filter_by(is_active=True).count()
+        return (n >= 1, None if n else 'Savings funds needs at least one savings fund; you have none yet.')
+    if tile_id == 'gwRecurringCard':
+        n = len(trim_candidates(session))
+        return (n >= 1, None if n else
+                'Recurring charges needs a charge that repeats for at least three months in your ledger; none found yet.')
+    if isinstance(tile_id, str) and tile_id.startswith('cat:'):
+        name = tile_id[4:]
+        cat = session.query(Category).filter(func.lower(Category.name) == name.lower()).first()
+        if not cat:
+            return False, f'There is no category called {name} in your ledger.'
+        held, seen = _category_months(session, cat.name)
+        n = len(seen)
+        return (n >= 3, None if n >= 3 else
+                f'{cat.name} over time needs {cat.name} in at least three recorded months; it appears in {n}.')
+    if tile_id == 'gwEnergyCard':
+        e = _energy_on_record(session)
+        return (bool(e), None if e else 'Energy prices needs an EIA price on record; the Budget page fetches them.')
+    if tile_id == 'gwPictureCard':
+        st = willingness_state(session)
+        n = sum(1 for r in st['readings'] if r['stance'] in ('flexible', 'sacred') or r['reason'] in ('probation', 'break'))
+        n += len(st['current'])
+        return (n >= 1, None if n else 'What Groundwork has concluded needs at least one conclusion or statement; there are none yet.')
     return True, None            # the default tiles hide themselves when the record has nothing for them
 
 
-def match_tile_request(text):
+def _energy_on_record(session):
+    """The EIA prices already in the cache - read only; the dashboard fetches nothing (as item 29's I1)."""
+    out = {}
+    state = ''
+    row = _get_setting(session, 'home_state')
+    if row and row.value:
+        state = row.value.strip().upper()[:2]
+    for kind, area, label, unit in (('elec', state or 'US', 'Electricity', 'c/kWh'),
+                                    ('ng', ('S' + state) if state else 'NUS', 'Natural gas', '$/MCF')):
+        c = _dashboard_json(session, f'utility_price_{kind}_{area}', None)
+        if c and c.get('price') is not None:
+            out[kind] = {'label': label, 'price': c['price'], 'period': c.get('period') or '',
+                         'area': c.get('area_name') or ('U.S.' if area in ('US', 'NUS') else state), 'unit': unit}
+    g_ = _dashboard_json(session, 'gas_price_cache', None)
+    if g_ and g_.get('price') is not None:
+        out['gasoline'] = {'label': 'Gasoline', 'price': g_['price'], 'period': g_.get('period') or '',
+                           'area': 'U.S.', 'unit': '$/gal'}
+    return out
+
+
+def match_tile_request(text, categories=()):
     """K2: the request only MATCHES - by its words against each entry's title and plain words, and nothing else.
 
     A phrase from the entry found in the request scores 3; a shared content word scores 1. The best entry wins if it
@@ -2006,12 +2088,25 @@ def match_tile_request(text):
     t = ' '.join(re.findall(r"[a-z0-9-]+", (text or '').lower()))
     words = {w for w in t.split() if w not in _ASK_STOP}
     best, best_score = None, 0
+    # A category the user's own ledger names, said in the request, is the parameterised entry (R2's one shape).
+    # It competes on the same scale rather than winning outright: with a category called "Gas", the request
+    # "gas prices" still means the energy prices tile (its own phrase plus two shared words outscore one name).
+    for name in sorted(categories or (), key=lambda n: -len(n)):
+        n_ = ' '.join(re.findall(r"[a-z0-9-]+", name.lower()))
+        if n_ and ' ' + n_ + ' ' in ' ' + t + ' ':
+            score = 3 + len(n_.split())
+            if score > best_score:
+                best = {'id': 'cat:' + name, 'title': name + ' over time', 'default': False, 'param': 'category'}
+                best_score = score
+            break
     for e in TILE_CATALOGUE:
+        if e.get('param'):
+            continue
         phrases = [e['title'].lower()] + e['words']
         score = sum(3 for ph in phrases if ' ' + ph + ' ' in ' ' + t + ' ')
         vocab = {w for ph in phrases for w in ph.split() if w not in _ASK_STOP}
         score += len(words & vocab)
-        if score > best_score:
+        if score >= best_score and (score > best_score or (best or {}).get('param')):   # a tie goes to the entry
             best, best_score = e, score
     return best if best_score >= 2 else None
 
@@ -2019,12 +2114,66 @@ def match_tile_request(text):
 def _layout(session):
     lay = _dashboard_json(session, 'dashboard_layout', {})
     return {'order': lay.get('order', []), 'pinned': lay.get('pinned', []), 'hidden': lay.get('hidden', []),
-            'added': [a for a in lay.get('added', []) if a in _CATALOGUE_BY_ID]}
+            'added': [a for a in lay.get('added', []) if _catalogue_entry(a)]}
 
 
 def _user_tiles(layout):
     """The tiles this user has: the defaults plus the catalogue entries they added (R1)."""
     return list(DASHBOARD_TILES) + [a for a in layout['added'] if a not in DASHBOARD_TILES]
+
+
+MODEL_MATCH_TIMEOUT_S = 12      # R7: the model never holds the request longer than this
+_MODEL_READY = {'at': 0.0, 'ok': False}
+
+
+def _model_ready():
+    """Is a local model actually answering? One quick look (1 s), remembered for a minute.
+
+    Found building: with AI switched on in settings but no model running, every unmatched request waited out the
+    full timeout. A request should cost nothing extra when there is no model to ask.
+    """
+    import time as _t
+    if _t.time() - _MODEL_READY['at'] < 60:
+        return _MODEL_READY['ok']
+    okay = False
+    try:
+        import urllib.request
+        with urllib.request.urlopen(urllib.request.Request(f'{_local_endpoint()}/api/tags', method='GET'), timeout=1) as r:
+            okay = bool(json.loads(r.read().decode('utf-8')).get('models'))
+    except Exception:
+        okay = False
+    _MODEL_READY.update(at=_t.time(), ok=okay)
+    return okay
+
+
+def model_match_tile(text):
+    """K2 / R7: when the search finds nothing, the local model may pick ONE catalogue id - and nothing else.
+
+    It is shown the ids and titles and the request, and must answer with exactly one id or 'none'. Anything else -
+    a sentence, two ids, a parameterised id, a timeout, no model - is 'none'. It never writes a figure, a title or a
+    sentence the user sees: the entry's own title and engine do that.
+    """
+    if not _ai_is_enabled() or not _model_ready():
+        return None
+    ids = [e for e in TILE_CATALOGUE if not e.get('param')]
+    system = ('You match a request to one dashboard tile. Reply with exactly one id from the list, or the single '
+              'word none. No other words.')
+    user = 'Tiles:\n' + '\n'.join(f"{e['id']}: {e['title']}" for e in ids) + f'\n\nRequest: {text}'
+    import threading
+    box = {}
+
+    @copy_current_request_context
+    def _call():
+        try:
+            box['out'] = _ai_complete_text(system, user, max_tokens=12)
+        except Exception as ex:          # a failing model is 'none', never an error the user sees
+            box['err'] = ex
+
+    th = threading.Thread(target=_call, daemon=True)
+    th.start()
+    th.join(MODEL_MATCH_TIMEOUT_S)
+    answer = (box.get('out') or '').strip()
+    return _CATALOGUE_BY_ID.get(answer) if not th.is_alive() and answer in _CATALOGUE_BY_ID else None
 
 
 @dashboard_bp.route('/ask', methods=['POST'])
@@ -2034,7 +2183,10 @@ def dashboard_ask():
     text = str((request.json or {}).get('text') or '').strip()[:_REQUEST_MAX_CHARS]
     if not text:
         return err('type what you would like to see')
-    e = match_tile_request(text)
+    with db_session() as session:
+        cats = [c for (c,) in session.query(Category.name).join(Transaction, Transaction.category_id == Category.id)
+                .filter(Transaction.type == 'debit').distinct().all() if c]
+    e = match_tile_request(text, cats) or model_match_tile(text)
     with db_session() as session:
         if e:
             ok_, needs = _tile_evidence(session, e['id'])
@@ -2054,7 +2206,7 @@ def dashboard_add_tile():
     """The user's confirmation. R2: only a catalogue id - nothing else, parameterised or not, becomes a tile.
     R6: the server appends to the LATEST stored layout, so two quick additions cannot overwrite each other."""
     tile_id = (request.json or {}).get('id')
-    if tile_id not in _CATALOGUE_BY_ID:
+    if not _catalogue_entry(tile_id):
         return err('not a tile Groundwork can show')
     with db_session() as session:
         lay = _layout(session)
@@ -2082,6 +2234,65 @@ def dashboard_delete_request():
         _dashboard_store(session, 'dashboard_tile_requests', reqs)
         session.commit()
         return ok({'requests': reqs})
+
+
+@dashboard_bp.route('/tile/funds', methods=['GET'])
+def dashboard_tile_funds():
+    """Savings funds and their pace - the same answer as /api/sinking-funds/pace (post-break only, item 25)."""
+    with db_session() as session:
+        backed, needs = _tile_evidence(session, 'gwFundsCard')
+    if not backed:
+        return ok({'backed': False, 'needs': needs})
+    r = sinking_funds_pace()
+    resp = r[0] if isinstance(r, tuple) else r
+    return ok({'backed': True, 'funds': ((resp.get_json() or {}).get('data') or {}).get('funds', [])})
+
+
+@dashboard_bp.route('/tile/recurring', methods=['GET'])
+def dashboard_tile_recurring():
+    """Recurring charges, at what each costs per MONTH (trim_candidates' own rules)."""
+    with db_session() as session:
+        backed, needs = _tile_evidence(session, 'gwRecurringCard')
+        if not backed:
+            return ok({'backed': False, 'needs': needs})
+        items = [{'name': c['name'], 'monthly': c['monthly'], 'category': c.get('category')}
+                 for c in trim_candidates(session)]
+        return ok({'backed': True, 'items': items})
+
+
+@dashboard_bp.route('/tile/category', methods=['GET'])
+def dashboard_tile_category():
+    """One category over time: the months the ledger holds, and this category's spending where it appears."""
+    name = (request.args.get('name') or '').strip()
+    with db_session() as session:
+        backed, needs = _tile_evidence(session, 'cat:' + name)
+        if not backed:
+            return ok({'backed': False, 'needs': needs})
+        cat = session.query(Category).filter(func.lower(Category.name) == name.lower()).first()
+        held, seen = _category_months(session, cat.name)
+        return ok({'backed': True, 'category': cat.name,
+                   'months': [{'month': m, 'amount': seen.get(m)} for m in held]})
+
+
+@dashboard_bp.route('/tile/energy', methods=['GET'])
+def dashboard_tile_energy():
+    with db_session() as session:
+        backed, needs = _tile_evidence(session, 'gwEnergyCard')
+        return ok({'backed': backed, 'needs': needs, 'prices': _energy_on_record(session) if backed else {}})
+
+
+@dashboard_bp.route('/tile/picture', methods=['GET'])
+def dashboard_tile_picture():
+    """What Groundwork has concluded - the working picture's own readings and the user's statements, summarised."""
+    with db_session() as session:
+        backed, needs = _tile_evidence(session, 'gwPictureCard')
+        if not backed:
+            return ok({'backed': False, 'needs': needs})
+        st = willingness_state(session)
+        claims = [{'category': r['category'], 'stance': r['stance'], 'reason': r['reason']} for r in st['readings']
+                  if r['stance'] in ('flexible', 'sacred') or r['reason'] in ('probation', 'break')]
+        said = [{'category': d['category'], 'stance': d['stance'], 'said_at': d['said_at']} for d in st['current']]
+        return ok({'backed': True, 'claims': claims, 'said': said})
 
 
 @dashboard_bp.route('/tile/net-worth', methods=['GET'])
