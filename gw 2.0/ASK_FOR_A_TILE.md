@@ -1,6 +1,7 @@
 # Ask for a tile (queue item 28)
 
-> Status: **RULED 2026-10-01 (Rob, §5): all five accepted. No code; the build is not yet authorised.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
+> Status: **RULED 2026-10-01 (Rob, §5: all five; §6: the seven build requirements). No code; the build is not yet
+> authorised.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
 >
 > Rob's request (2026-09-30): let the user type what they would like to see. His example: *"a comparison to their
 > gains and losses in their investments in the dashboard"*. That example is now answered by item 29's tile; this
@@ -128,3 +129,28 @@
 - the first build is the mechanism, the search matcher and *Net worth over time*.
 
 **Not authorised yet:** the build itself.
+
+---
+
+## 6. Build requirements: ruled by Rob, 2026-10-01
+
+Rob asked whether accepting all five would create a bug in the code. The answer was that the rulings do not
+contradict each other, but seven places would break if built naively. Rob, 2026-10-01: *"I accept your input as
+written. I too felt that it would cause issue but also parts of each has its importance. I rule we accept your
+recommendations."*
+
+Each is a requirement of the build, and **R1–R4 each get their own test**.
+
+| # | requirement | why |
+|---|---|---|
+| **R1** | **One source for the tile list.** The server's allowed ids are the seven tiles plus the catalogue. The page reads that list, so no second copy is kept in the JS | the layout endpoint accepts only known ids, and s131 pins that. An added tile would otherwise fail to save, and two copies drift |
+| **R2** | **Parameterised entries are validated against the record.** *One category over time* carries its category in the id (`cat:Dining`), and the server accepts it only for a category the record backs (seen in at least 3 recorded months) | otherwise any string becomes a tile, and the catalogue stops being closed in practice |
+| **R3** | **A chosen tile that loses its evidence stays and says what it needs** (K3's honest no). It is never hidden silently and never drawn broken | item 29's *hidden when absent* governs **defaults**, not tiles the user chose |
+| **R4** | **The BANNED lexicon covers Groundwork's words, not the user's.** Kept requests are marked as the user's text and excluded from the scan | a user who asks *"am I on track?"* must not trip the test |
+| **R5** | **Kept requests are escaped, and capped in length and count.** The docs say plainly that the user's own backup file includes their settings, and so their requests. That is the user's file and action, not Groundwork sending anything | free text on the page; honesty about *"never sent"* |
+| **R6** | **Additions are saved one at a time from the latest layout** | two quick additions must not overwrite each other |
+| **R7** | **The model matcher never blocks the page.** It runs in the background with a timeout, and any answer that is not exactly one catalogue id counts as *"none"* | K2, plus a timeout |
+
+Expected changes, not bugs: s131's pinned route list gains the new endpoints, as items 22 and 29 did. The
+mechanism lives in its own module, inside s30's borrowing cap.
+
