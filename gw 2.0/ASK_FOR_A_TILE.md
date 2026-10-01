@@ -1,6 +1,6 @@
 # Ask for a tile (queue item 28)
 
-> Status: **OPENED 2026-10-01. No code.** Rob, 2026-10-01: *"open item 28"*.
+> Status: **RULED 2026-10-01 (Rob, §5): all five accepted. No code; the build is not yet authorised.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
 >
 > Rob's request (2026-09-30): let the user type what they would like to see. His example: *"a comparison to their
 > gains and losses in their investments in the dashboard"*. That example is now answered by item 29's tile; this
@@ -114,3 +114,17 @@
 4. **K5 / K6:** added tiles behave like the seven, to item 27's standard; settings only, no schema, 2.0 only?
 5. **K7:** first build is the mechanism, the search matcher and *Net worth over time*; then the other entries; the
    model matcher last?
+
+---
+
+## 5. Ruling: Rob, 2026-10-01
+
+*"Accept all .. each one fits."* K1–K7 as proposed:
+- a closed, evidence-gated catalogue;
+- matching only, by search or by the local model picking an id, with the user confirming;
+- an honest no that names what is needed;
+- kept requests that are visible, deletable, never mined and never sent;
+- added tiles to item 27's standard, settings only, 2.0 only;
+- the first build is the mechanism, the search matcher and *Net worth over time*.
+
+**Not authorised yet:** the build itself.
