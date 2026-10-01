@@ -275,7 +275,15 @@ Rob: *"Build Item 28."* The five entries named in §1 and the model matcher (K7'
 
 ## 10. Acceptance: Rob, 2026-10-01
 
-*"i accept"*. Item 28 is complete and closed at master `48b0ee2`, gate 2065 / 0. Still named, outside this item:
+*"i accept"*, then *"I accept item 28 as built"*. Item 28 is complete and closed: build `cf8d370`, gate 2065 / 0
+recorded at `48b0ee2`, with no stall and master unmoved during the run.
+
+**The boundary Rob singled out, recorded as a principle:**
+
+> The installed thinking model actually found the right answer, but because it violated the matcher contract,
+> Groundwork rejected the output. That's exactly the kind of boundary I want here: **being technically capable of
+> producing an answer doesn't make the answer admissible.**
+ Still named, outside this item:
 - the installed thinking model needs constrained output (allowed ids only) with thinking switched off before the
   model matcher is useful on this machine;
 - the monthly net worth snapshot counts missing balances as $0;
