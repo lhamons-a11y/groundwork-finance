@@ -2,7 +2,7 @@
 
 > Status: **RULED 2026-10-01 (Rob, §5: all five; §6: the seven build requirements); first slice AUTHORISED
 > (Rob: "Build it") and BUILT (§7), 2.0 only; gate 2039 / 0; first slice ACCEPTED (Rob, 2026-10-01). The remaining slices (the five
-> entries and the model matcher) AUTHORISED ("Build Item 28") and BUILT (§9), gate 2065 / 0; awaiting Rob's acceptance.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
+> entries and the model matcher) AUTHORISED ("Build Item 28") and BUILT (§9), gate 2065 / 0. ITEM 28 ACCEPTED and CLOSED (Rob, 2026-10-01).** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
 >
 > Rob's request (2026-09-30): let the user type what they would like to see. His example: *"a comparison to their
 > gains and losses in their investments in the dashboard"*. That example is now answered by item 29's tile; this
@@ -271,3 +271,12 @@ Rob: *"Build Item 28."* The five entries named in §1 and the model matcher (K7'
 - *"energy prices"* said what it needs, because a fresh database has no EIA price.
 - *"how are my rainy day pots doing"* went to the model and came back *none* at the 12-second cap, as above.
 
+---
+
+## 10. Acceptance: Rob, 2026-10-01
+
+*"i accept"*. Item 28 is complete and closed at master `48b0ee2`, gate 2065 / 0. Still named, outside this item:
+- the installed thinking model needs constrained output (allowed ids only) with thinking switched off before the
+  model matcher is useful on this machine;
+- the monthly net worth snapshot counts missing balances as $0;
+- the Investments page's three gaps.
