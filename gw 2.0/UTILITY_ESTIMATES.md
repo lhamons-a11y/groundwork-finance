@@ -1,6 +1,7 @@
 # Utility bill estimates from weather, usage and EIA prices (queue item 26)
 
-> Status: **OPENED 2026-10-01. No code.** Rob, 2026-10-01: *"open item 26"*.
+> Status: **RULED and AUTHORISED 2026-10-01 (Rob: "I accept all seven points, build it"). U0 BUILT on both lines; the natural
+> gas slice BUILT on 2.0 (§6). Electricity and gasoline to follow (U8).** Opened the same day. Rob, 2026-10-01: *"open item 26"*.
 >
 > **Rob's requests (2026-09-28), recorded in the queue. For every U.S. state, not one (Rob, 2026-10-01; U9):**
 > - estimate natural gas from weather, usage and price, and set it in the budget;
@@ -190,3 +191,64 @@ means the software will have to either grab the user location or ask the user to
 7. **U9:** the user's state is **asked** (the existing Settings choice) and **never detected**; a fixed table maps every
    state to its census division, EIA state series and PADD region; with no state set, U.S. figures, labelled, with
    one plain pointer on the row?
+
+---
+
+## 5. Ruling: Rob, 2026-10-01
+
+**All seven points accepted, and the build authorised.** Rob recorded the location model in particular:
+
+> a fact the user hasn't supplied should not become "known" just because the computer can obtain it somewhere else.
+> The state selector is transparent, reversible, and under the user's control.
+
+**One build decision, asked and answered the same day.** U3(a) says the estimate is *"shown and used as that row's
+amount for the month"*. But budget totals are read in several places, some of them shared with 1.x: the Budget page,
+the dashboard's *This month*, and the solution engine.
+
+Rob chose: **show it now, totals later.**
+- This build shows the estimate and its figures, records the user's choice to follow it, and gives the report line
+  and the reconciliation figure.
+- **Totals keep the saved amount, and the card says so.**
+- A follow-up pass routes every budget reader through one *"amount for this month"* function.
+- So the report says only what is true now: *"the gas estimate on your Budget page uses that forecast"*. It does not
+  say the budget *"already includes it"*.
+
+---
+
+## 6. The build (2026-10-01)
+
+| piece | where | what it does |
+|---|---|---|
+| **U0, both lines** | `utility_price.py` (`lts/1.x` `d9ce860`, gate 830 / 0; merged to master) | Asks EIA for six months and uses the newest **with a value**. Live: Ohio natural gas **$19.86, May 2026** (June and July unpublished); Arizona its own July; Ohio electricity 19.45¢. A state with nothing published is the U.S. figure, labelled `U.S.`, naming the state asked for. `s53`, 9 checks, no network |
+| **U9, every state** | `core/utility_estimate.py` `STATE_DIVISION`, `STATE_PADD` | All 50 states and DC, to their census division and PADD. **All nine STEO division codes were confirmed against EIA** (NEC MAC ENC WNC SAC ESC WSC MTN PAC: degree days and residential gas price). No state set means the U.S. series, labelled *United States* |
+| **the outlook** | `server._steo` | EIA's Short-Term Energy Outlook, cached a week (it publishes monthly; a call takes ~10 s, and the first load in the page took about 39 s for two series). Fetched only by `gas_estimate`, behind the Budget page's route; **never by the dashboard** |
+| **the bills** | `server._gas_bills` | Debits in the *Gas* category, summed by the month paid and moved to their **service month** (`lag`, default 1, the user's setting). A month without a bill is absent, never zero |
+| **U1, the fit** | `utility_estimate.choose` | `bill = F + B*price + S*(price*HDD)` by least squares. **It earns its place three ways, each scored leave-one-out over every bill:** it beats the baseline; it beats a plain average by at least a quarter; and its heating slope is positive. Otherwise the baseline (*last year's same month x the price change*), labelled with the reason. With no year-ago bill either, it says what it needs |
+| **the null model** | run in `s136` on **every gate** | Bills that follow weather x price: the fit chosen 396 / 400 (20% noise: 362 / 400). **Pure noise: 1 / 400. Flat bills with no heating: 2 / 400.** The first version, which only had to beat the baseline, chose the fit on 295 / 400 noise worlds, which is why the average test was added |
+| **U6, the split** | `utility_estimate.split_vs_last_year` | Against the **same month last year**: the fit splits into price (last year's usage x the price change) and usage (the usage change x this year's price). The baseline says the whole difference is price, because it assumes last year's usage. *Found building:* the first version compared month to month and called the season "price" |
+| **U3, following it** | `POST /api/budget/utility-estimate/optin` | The user's choice and their lag (0–2 months). **No budget amount is written and no `budget_adjusted` event is logged**, so the Willingness Layer never reads an estimate as the user's edit |
+| **the card** | `static/js/teaching/utility.js`, `utilitytext.js` (Node-tested) | On the Budget page, only when there is a Gas row or gas bills. It shows the region, the estimate and how it was made, how close past estimates came, the split, EIA's forecast line, *"your saved Gas budget of $X still sets the budget totals"*, *Follow this estimate*, and *bills pay for* |
+| **U4, the report** | `utility.js` wraps `_rcRenderMonthlyReport` | Only when the user follows the estimate, and only the sentence the estimate proves, credited to EIA |
+
+**Found building, fixed and pinned:**
+- **A missing month must not be zero.** The first server read used `hdds.get(month, 0.0)`, so a month without EIA's degree days would have claimed no heating. And a month without a price crashed the estimate. Both now return *"needs EIA's outlook figures for that month"*.
+
+**Tests: `smoke_sections/s136_utility_estimate.py`, 25 checks.**
+- U9: 51 of 51; the region and series ids; the national fallback; the service-month lag.
+- **The null model**, plus *too few bills*, a fitted estimate's figures, *no estimate*, and missing EIA figures.
+- U6: both splits, with the sum checked.
+- **The route end to end**, with EIA and the bills stood in.
+- **U3a:** the saved amount untouched and no `budget_adjusted` event; opt-in validation.
+- **I1:** `_steo` called only by `gas_estimate`; nothing on the dashboard calls it.
+- **U17:** no geolocation or IP-location anywhere.
+- The words in Node: the fit, the baseline and its reason, the split, EIA's statement exactly, *"still sets the budget totals"* and never *"budget already includes"*, the national pointer, no statement when the forecast is unchanged.
+
+**Seen in the page** (throwaway database: Ohio, 21 months of gas bills, a $120 Gas row, **live EIA**):
+- *"Using EIA's outlook for East North Central (your home state, OH)."*
+- The weather fit was chosen: *about 4.0 MCF at EIA's forecast $14.54/MCF plus about $39.73 fixed, about $90.65*, within about $8.16 on held-out months.
+- *"Against October 2025 ($76.46): -$3.02 from price and +$11.55 from usage."*
+- EIA's forecast line, and *"Your saved Gas budget of $120.00 still sets the budget totals."*
+- Ticking *Follow this estimate* put EIA's line into the monthly report.
+
+**Still to come (U8):** electricity (adds cooling degree days), gasoline (fill-up gallons x EIA's weekly price, by PADD), and the follow-up pass that makes every budget total use the estimate for a followed row.
+

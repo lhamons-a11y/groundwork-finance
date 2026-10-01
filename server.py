@@ -2308,6 +2308,135 @@ def dashboard_tile_net_worth():
                                               for s in snaps]})
 
 
+# ── Item 26: utility bill estimates (gw 2.0/UTILITY_ESTIMATES.md, ruled 2026-10-01) - the natural gas slice ──────
+#
+# EIA's Short-Term Energy Outlook (STEO) gives each census division's residential natural gas price and heating
+# degree days, history and forecast. Calls take ~10 s and STEO publishes monthly, so each series is cached for a
+# week and fetched only from these routes, which the Budget page and the monthly report call - never the dashboard
+# (item 29's I1). The estimate is DERIVED: recomputed on every read and never written to BudgetItem.amount, so the
+# Willingness Layer never reads an estimate as the user's own budget edit (U3(a); Rob, 2026-10-01: totals keep the
+# saved amount until a follow-up pass).
+
+STEO_URL = ('https://api.eia.gov/v2/steo/data/?api_key={key}&frequency=monthly&data[0]=value'
+            '&facets[seriesId][]={series}&start={start}&sort[0][column]=period&sort[0][direction]=asc&length=120')
+STEO_FRESH_DAYS = 7
+UTILITY_KINDS = ('gas',)          # electricity and gasoline are later slices (U8)
+
+
+def _steo(session, series, fetch=True):
+    """One STEO series as {period: value}, from a week-fresh cache or, when `fetch`, from EIA. {} when unavailable."""
+    key = f'steo_{series}'
+    cached = _dashboard_json(session, key, None)
+    if cached and cached.get('rows'):
+        try:
+            age = datetime.utcnow() - datetime.fromisoformat(cached['fetched_at'])
+        except (KeyError, ValueError, TypeError):
+            age = timedelta(days=999)
+        if age < timedelta(days=STEO_FRESH_DAYS) or not fetch:
+            return cached['rows']
+    if not fetch:
+        return {}
+    api_key = _get_eia_api_key()
+    if not api_key:
+        return (cached or {}).get('rows', {})
+    try:
+        import urllib.request
+        import urllib.parse
+        start = f'{date.today().year - 3}-01'
+        url = STEO_URL.format(key=urllib.parse.quote(api_key), series=urllib.parse.quote(series), start=start)
+        with urllib.request.urlopen(url, timeout=30) as r:
+            data = json.loads(r.read().decode('utf-8'))
+        rows = {x['period']: float(x['value']) for x in ((data.get('response') or {}).get('data') or [])
+                if x.get('period') and x.get('value') not in (None, '')}
+        if rows:
+            _dashboard_store(session, key, {'fetched_at': datetime.utcnow().isoformat(), 'rows': rows})
+            session.commit()
+            return rows
+    except Exception as e:
+        logging.info('steo fetch failed (%s): %s', series, e)
+    return (cached or {}).get('rows', {})
+
+
+def _gas_bills(session, lag):
+    """The user's natural gas bills: debits in the Gas category, summed by the month PAID, each moved to its service
+    month (`lag` months earlier; Rob: gas is billed a month behind). Months with no bill are absent, never zero."""
+    from core.utility_estimate import service_month
+    rows = session.query(func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)).join(
+        Category, Transaction.category_id == Category.id).filter(
+        func.lower(Category.name) == 'gas', Transaction.type == 'debit').group_by(
+        func.strftime('%Y-%m', Transaction.date)).order_by(func.strftime('%Y-%m', Transaction.date)).all()
+    return [{'month': service_month(m, lag), 'paid_month': m, 'amount': round(float(v or 0), 2)} for m, v in rows if m and v]
+
+
+def _month_add(m, k):
+    y, mo = int(m[:4]), int(m[5:7]) + k
+    while mo > 12:
+        y, mo = y + 1, mo - 12
+    while mo <= 0:
+        y, mo = y - 1, mo + 12
+    return f'{y}-{mo:02d}'
+
+
+def gas_estimate(session, fetch=True, today=None):
+    """Item 26's natural gas estimate for the bill paid next month, with every figure it rests on."""
+    from core import utility_estimate as ue
+    today = today or date.today()
+    prefs = _dashboard_json(session, 'utility_estimates', {})
+    lag = int((prefs.get('gas') or {}).get('lag', 1))
+    optin = bool((prefs.get('gas') or {}).get('on'))
+    row = _get_setting(session, 'home_state')
+    reg = ue.region(row.value if row and row.value else '')
+    prices = _steo(session, ue.steo_series('ng_price', reg), fetch)
+    hdds = _steo(session, ue.steo_series('hdd', reg), fetch)
+    bills = _gas_bills(session, lag)
+    this_month = today.strftime('%Y-%m')
+    next_service = this_month                       # the bill paid next month pays for this month
+    prev_service = _month_add(this_month, -1)
+    item = session.query(BudgetItem).filter(func.lower(BudgetItem.category) == 'gas', BudgetItem.is_active == True).first()  # noqa: E712
+    out = {'kind': 'gas', 'region': reg, 'optin': optin, 'lag': lag,
+           'saved_amount': round(float(item.amount), 2) if item and item.amount is not None else None,
+           'bills': len(bills), 'has_eia': bool(prices and hdds)}
+    if not prices or not hdds:
+        return {**out, 'estimate': None,
+                'needs': 'EIA\'s outlook for your region could not be loaded; it is fetched from this page when online.'}
+    choice = ue.choose(bills, prices, hdds)
+    nxt = ue.estimate(choice, bills, next_service, prices.get(next_service), hdds.get(next_service), prices)
+    prv = ue.estimate(choice, bills, prev_service, prices.get(prev_service), hdds.get(prev_service), prices)
+    out.update({
+        'choice': {k: v for k, v in choice.items() if k != 'model'},
+        'estimate': nxt, 'previous': prv, 'split': ue.split_vs_last_year(choice, nxt, bills, prices, hdds),
+        'forecast': {'month': next_service, 'price': prices.get(next_service), 'prev_month': prev_service,
+                     'prev_price': prices.get(prev_service), 'hdd': hdds.get(next_service)},
+        'last_bill': bills[-1] if bills else None,
+    })
+    return out
+
+
+@budget_bp.route('/utility-estimate/gas', methods=['GET'])
+def budget_utility_estimate_gas():
+    with db_session() as session:
+        return ok(gas_estimate(session))
+
+
+@budget_bp.route('/utility-estimate/optin', methods=['POST'])
+@require_json
+def budget_utility_estimate_optin():
+    """U3: the user's choice to have a row follow the estimate. Their saved amount is never touched."""
+    body = request.json or {}
+    kind = body.get('kind')
+    if kind not in UTILITY_KINDS:
+        return err('not a utility Groundwork estimates yet')
+    lag = body.get('lag', 1)
+    if not isinstance(lag, int) or not 0 <= lag <= 2:
+        return err('the billing lag is 0, 1 or 2 months')
+    with db_session() as session:
+        prefs = _dashboard_json(session, 'utility_estimates', {})
+        prefs[kind] = {'on': bool(body.get('on')), 'lag': lag}
+        _dashboard_store(session, 'utility_estimates', prefs)
+        session.commit()
+        return ok(prefs)
+
+
 @budget_bp.route('/detect-recurring', methods=['GET'])
 def budget_detect_recurring():
     months = int(request.args.get('months', 6))
