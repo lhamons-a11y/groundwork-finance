@@ -20,76 +20,87 @@
   }
   var F = { money: function (n) { return fmt(n); }, month: _month };
 
-  async function _load() {
-    try { return await API.get('/api/budget/utility-estimate/gas'); }
-    catch (e) { _gwErr('gas estimate')(e); return null; }
+  var KINDS = [
+    { kind: 'gas', title: 'Natural gas estimate', id: 'gwGasEstimate' },
+    { kind: 'electric', title: 'Electricity estimate', id: 'gwElecEstimate' }
+  ];
+
+  async function _load(kind) {
+    try { return await API.get('/api/budget/utility-estimate/' + kind); }
+    catch (e) { _gwErr(kind + ' estimate')(e); return null; }
   }
 
-  // Shown only when the record has something for it: a Gas budget row or gas bills (no empty card for a home
-  // without gas service).
-  async function _budgetCard() {
+  // Shown only when the record has something for it: that utility's budget row or bills (no empty card for a home
+  // without the service).
+  async function _card(k) {
     var cont = g('budgetContent');
     if (!cont) return;
-    var old = g('gwGasEstimate');
-    if (old) old.innerHTML = '<div class="card-label">Natural gas estimate</div><div style="font-size:12px;color:var(--slate-2)">Loading EIA\'s outlook…</div>';
-    var d = await _load();
+    var old = g(k.id);
+    if (old) old.innerHTML = '<div class="card-label">' + esc(k.title) + '</div><div style="font-size:12px;color:var(--slate-2)">Loading EIA\'s outlook\u2026</div>';
+    var d = await _load(k.kind);
     var W = _words();
     if (!d || !W || (!d.bills && d.saved_amount === null)) { if (old) old.remove(); return; }
-    var t = W.gas(d, F);
-    var html = '<div class="card-label">Natural gas estimate</div>'
+    var t = W[k.kind](d, F);
+    var html = '<div class="card-label">' + esc(k.title) + '</div>'
       + t.lines.map(function (l) { return '<div style="font-size:12px;color:var(--slate);line-height:1.7">' + esc(l) + '</div>'; }).join('')
       + '<div style="margin-top:8px;font-size:12px;color:var(--slate)">'
-      + '<label><input type="checkbox" data-gw-gas-optin ' + (d.optin ? 'checked' : '') + '> Follow this estimate</label>'
-      + ' · bills pay for <select data-gw-gas-lag style="font-size:12px">'
-      + [0, 1, 2].map(function (k) {
-          return '<option value="' + k + '"' + (d.lag === k ? ' selected' : '') + '>' + ['the same month', 'the month before', 'two months before'][k] + '</option>';
+      + '<label><input type="checkbox" data-gw-util-optin data-kind="' + k.kind + '" ' + (d.optin ? 'checked' : '') + '> Follow this estimate</label>'
+      + ' \u00b7 bills pay for <select data-gw-util-lag data-kind="' + k.kind + '" style="font-size:12px">'
+      + [0, 1, 2].map(function (n) {
+          return '<option value="' + n + '"' + (d.lag === n ? ' selected' : '') + '>' + ['the same month', 'the month before', 'two months before'][n] + '</option>';
         }).join('') + '</select></div>'
       + '<div class="gw-src" style="font-size:10px;color:var(--slate-2);margin-top:8px">' + esc(t.source || '') + '</div>';
-    var card = g('gwGasEstimate');
+    var card = g(k.id);
     if (!card) {
       card = document.createElement('div');
-      card.id = 'gwGasEstimate';
+      card.id = k.id;
       card.className = 'card mt-5';
       cont.appendChild(card);
     }
     card.innerHTML = html;
   }
 
-  async function _save(on, lag) {
-    try { await API.post('/api/budget/utility-estimate/optin', { kind: 'gas', on: on, lag: lag }); }
-    catch (e) { _gwErr('gas estimate opt-in')(e); return; }
-    _budgetCard();
+  function _budgetCard() { KINDS.forEach(function (k) { _card(k); }); }
+
+  async function _save(kind, on, lag) {
+    try { await API.post('/api/budget/utility-estimate/optin', { kind: kind, on: on, lag: lag }); }
+    catch (e) { _gwErr(kind + ' estimate opt-in')(e); return; }
+    _card(KINDS.filter(function (k) { return k.kind === kind; })[0]);
   }
 
   document.addEventListener('change', function (ev) {
     var t = ev.target;
-    if (!t || !t.matches) return;
-    if (t.matches('[data-gw-gas-optin]') || t.matches('[data-gw-gas-lag]')) {
-      var card = g('gwGasEstimate');
-      var box = card && card.querySelector('[data-gw-gas-optin]');
-      var sel = card && card.querySelector('[data-gw-gas-lag]');
-      _save(!!(box && box.checked), sel ? parseInt(sel.value, 10) : 1);
-    }
+    if (!t || !t.matches || !(t.matches('[data-gw-util-optin]') || t.matches('[data-gw-util-lag]'))) return;
+    var kind = t.getAttribute('data-kind');
+    var k = KINDS.filter(function (x) { return x.kind === kind; })[0];
+    var card = k && g(k.id);
+    var box = card && card.querySelector('[data-gw-util-optin]');
+    var sel = card && card.querySelector('[data-gw-util-lag]');
+    _save(kind, !!(box && box.checked), sel ? parseInt(sel.value, 10) : 1);
   });
 
-  // U4: the monthly report carries the forecast line only when the user follows the estimate, and only the sentence
-  // the estimate itself proves (utilitytext's `statement`) - never a claim about budget totals.
+  // U4: the monthly report carries each followed utility's forecast line - only the sentence the estimate proves
+  // (utilitytext's `statement`), never a claim about budget totals.
   async function _reportLine() {
     var anchor = g('rcMonthlyTeaching');
     if (!anchor) return;
-    var d = await _load();
     var W = _words();
     var host = g('rcUtilityEstimate');
-    if (!d || !d.optin || !W) { if (host) host.remove(); return; }
-    var t = W.gas(d, F);
-    if (!t || !t.statement) { if (host) host.remove(); return; }
+    var lines = [];
+    for (var i = 0; i < KINDS.length; i++) {
+      var d = await _load(KINDS[i].kind);
+      if (!d || !d.optin || !W) continue;
+      var t = W[KINDS[i].kind](d, F);
+      if (t && t.statement) lines.push(t.statement);
+    }
+    if (!lines.length) { if (host) host.remove(); return; }
     if (!host) {
       host = document.createElement('div');
       host.id = 'rcUtilityEstimate';
       host.style.cssText = 'font-size:12px;color:var(--slate);line-height:1.7;margin:8px 0';
       anchor.parentNode.insertBefore(host, anchor.nextSibling);
     }
-    host.textContent = t.statement;
+    host.innerHTML = lines.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('');
   }
 
   var budgetOriginal = window.renderBudget;

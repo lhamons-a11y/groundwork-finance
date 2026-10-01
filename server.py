@@ -2320,7 +2320,7 @@ def dashboard_tile_net_worth():
 STEO_URL = ('https://api.eia.gov/v2/steo/data/?api_key={key}&frequency=monthly&data[0]=value'
             '&facets[seriesId][]={series}&start={start}&sort[0][column]=period&sort[0][direction]=asc&length=120')
 STEO_FRESH_DAYS = 7
-UTILITY_KINDS = ('gas',)          # electricity and gasoline are later slices (U8)
+UTILITY_KINDS = ('gas', 'electric')   # gasoline is the last slice (U8)
 
 
 def _steo(session, series, fetch=True):
@@ -2360,10 +2360,15 @@ def _steo(session, series, fetch=True):
 def _gas_bills(session, lag):
     """The user's natural gas bills: debits in the Gas category, summed by the month PAID, each moved to its service
     month (`lag` months earlier; Rob: gas is billed a month behind). Months with no bill are absent, never zero."""
+    return _utility_bills(session, 'gas', lag)
+
+
+def _utility_bills(session, category, lag):
+    """A utility's bills by service month, from debits in its own category (Gas, Electric)."""
     from core.utility_estimate import service_month
     rows = session.query(func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)).join(
         Category, Transaction.category_id == Category.id).filter(
-        func.lower(Category.name) == 'gas', Transaction.type == 'debit').group_by(
+        func.lower(Category.name) == category, Transaction.type == 'debit').group_by(
         func.strftime('%Y-%m', Transaction.date)).order_by(func.strftime('%Y-%m', Transaction.date)).all()
     return [{'month': service_month(m, lag), 'paid_month': m, 'amount': round(float(v or 0), 2)} for m, v in rows if m and v]
 
@@ -2412,10 +2417,47 @@ def gas_estimate(session, fetch=True, today=None):
     return out
 
 
-@budget_bp.route('/utility-estimate/gas', methods=['GET'])
-def budget_utility_estimate_gas():
+def electric_estimate(session, fetch=True, today=None):
+    """Item 26's electricity estimate (U8's second slice): the same shape as gas, with cooling degree days."""
+    from core import utility_estimate as ue
+    today = today or date.today()
+    prefs = _dashboard_json(session, 'utility_estimates', {})
+    lag = int((prefs.get('electric') or {}).get('lag', 1))
+    optin = bool((prefs.get('electric') or {}).get('on'))
+    row = _get_setting(session, 'home_state')
+    reg = ue.region(row.value if row and row.value else '')
+    cents = _steo(session, ue.steo_series('elec_price', reg), fetch)
+    prices = {m: v / 100.0 for m, v in cents.items()}          # cents/kWh -> $/kWh, the unit on the arithmetic
+    hdds = _steo(session, ue.steo_series('hdd', reg), fetch)
+    cdds = _steo(session, ue.steo_series('cdd', reg), fetch)
+    bills = _utility_bills(session, 'electric', lag)
+    this_month = today.strftime('%Y-%m')
+    prev_service = _month_add(this_month, -1)
+    item = session.query(BudgetItem).filter(func.lower(BudgetItem.category) == 'electric', BudgetItem.is_active == True).first()  # noqa: E712
+    out = {'kind': 'electric', 'region': reg, 'optin': optin, 'lag': lag,
+           'saved_amount': round(float(item.amount), 2) if item and item.amount is not None else None,
+           'bills': len(bills), 'has_eia': bool(prices and hdds and cdds)}
+    if not prices or not hdds or not cdds:
+        return {**out, 'estimate': None,
+                'needs': 'EIA\'s outlook for your region could not be loaded; it is fetched from this page when online.'}
+    choice = ue.choose_electric(bills, prices, hdds, cdds)
+    nxt = ue.estimate_electric(choice, bills, this_month, prices.get(this_month), hdds.get(this_month), cdds.get(this_month), prices)
+    out.update({
+        'choice': {k: v for k, v in choice.items() if k != 'model'},
+        'estimate': nxt, 'split': ue.split_electric(choice, nxt, bills, prices, hdds, cdds),
+        'forecast': {'month': this_month, 'price': cents.get(this_month), 'prev_month': prev_service,
+                     'prev_price': cents.get(prev_service), 'hdd': hdds.get(this_month), 'cdd': cdds.get(this_month)},
+        'last_bill': bills[-1] if bills else None,
+    })
+    return out
+
+
+@budget_bp.route('/utility-estimate/<kind>', methods=['GET'])
+def budget_utility_estimate(kind):
+    if kind not in UTILITY_KINDS:
+        return err('not a utility Groundwork estimates yet', 404)
     with db_session() as session:
-        return ok(gas_estimate(session))
+        return ok(gas_estimate(session) if kind == 'gas' else electric_estimate(session))
 
 
 @budget_bp.route('/utility-estimate/optin', methods=['POST'])

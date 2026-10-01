@@ -1,7 +1,8 @@
 # Utility bill estimates from weather, usage and EIA prices (queue item 26)
 
 > Status: **RULED and AUTHORISED 2026-10-01 (Rob: "I accept all seven points, build it"). U0 BUILT on both lines; the natural
-> gas slice BUILT on 2.0 (§6), gate 2099 / 0 with the U0 merge. Electricity and gasoline to follow (U8).** Opened the same day. Rob, 2026-10-01: *"open item 26"*.
+> gas slice BUILT on 2.0 (§6), gate 2099 / 0 with the U0 merge; the gas slice ACCEPTED (Rob, 2026-10-01). Electricity AUTHORISED ("build
+> electricity") and BUILT (§7); awaiting the gate and Rob's acceptance. Gasoline to follow (U8).** Opened the same day. Rob, 2026-10-01: *"open item 26"*.
 >
 > **Rob's requests (2026-09-28), recorded in the queue. For every U.S. state, not one (Rob, 2026-10-01; U9):**
 > - estimate natural gas from weather, usage and price, and set it in the budget;
@@ -251,4 +252,47 @@ Rob chose: **show it now, totals later.**
 - Ticking *Follow this estimate* put EIA's line into the monthly report.
 
 **Still to come (U8):** electricity (adds cooling degree days), gasoline (fill-up gallons x EIA's weekly price, by PADD), and the follow-up pass that makes every budget total use the estimate for a followed row.
+
+---
+
+## 7. The electricity slice (2026-10-01)
+
+Rob: *"I accept the gas slice, build electricity."* The gas code is left exactly as accepted. Electricity sits beside it.
+
+```
+bill = F + (B + Sh x HDD + Sc x CDD) x price          price in $/kWh (EIA publishes cents/kWh), usage in kWh
+```
+
+| piece | where | what it does |
+|---|---|---|
+| **series** | `steo_series` | Residential electricity `ESRCU_<division>` / `ESRCUUS` and cooling degree days `ZWCD_<division>` / **`ZWCDPUS`**, all confirmed against EIA |
+| **the weather terms** | `_positive_terms` | Three candidates: cooling only, heating only, both. Each must have positive slopes and is scored leave-one-out; the simpler wins unless the extra term cuts the error by 10%. *Measured before shipping:* keeping both whenever positive gave about one cooling-only home in ten a January estimate 60% or more too high, winter heating it does not have. Now cooling-only homes get cooling only, and homes that heat and cool get both, more than 9 in 10 each |
+| **earning its place** | `choose_electric` | As for gas: beats the baseline, beats a plain average by a quarter, and needs both a heating and a cooling season in the record |
+| **capable is not admissible** | `_usage_identified` | **The bill can be predicted while the kWh figure cannot.** Electricity's price barely moves month to month, so the fixed charge and usage x price trade off. *Measured:* bills predicted within 1.5%, but implied January kWh from a third to 1.6x the truth. So **a kWh figure and a fixed charge are stated only when the base-usage coefficient's standard error is under a tenth of it**. At 15%, a few near-flat-price homes got a figure 30–60% off; at 10%, none did. Otherwise the card gives the dollar estimate, says *"your bills don't yet separate how much power you use from the fixed charge, so no kWh figure is given"*, and states the change against last year **whole** (*"your bills can't yet tell how much of that is price and how much is usage"*) |
+| **the server** | `electric_estimate`, `GET /api/budget/utility-estimate/<kind>` | The same shape as gas. EIA's cents become dollars for the arithmetic, and the forecast stays in cents. Bills come from the *Electric* category by service month. The user's choice to follow is stored, and **nothing is written to the budget** |
+| **the card and the report** | `utilitytext.electric`, `utility.js` (one card per utility, each only when the record has it) | kWh and ¢/kWh, which weather the bills follow, the split or the whole change, EIA's credited forecast line, and *"your saved Electric budget of $X still sets the budget totals"*. The monthly report carries each **followed** utility's line |
+
+**Gas, measured the same way and left as accepted:**
+- gas's usage figure is well supported (±6%); its fixed part is looser (±25–30%, said as *"about"*);
+- the bill is within ±2%;
+- gas prices move enough to separate usage from price.
+
+**Tests: `smoke_sections/s137_electric_estimate.py`, 16 checks.**
+- **The series ids.**
+- **The null model:** both 0.94 and cooling only 0.90 chosen; noise 0.00 and flat 0.01.
+- **Term choice.**
+- **Capable is not admissible, both sides:**
+  - near-flat prices: the bill within 5% and no kWh stated;
+  - moving prices: kWh stated, and every stated figure within the band.
+- **The fitted split adds up; the unsplit path.**
+- **No-estimate and missing EIA months.**
+- **The route:** cents to dollars; the forecast in cents; no budget write and no `budget_adjusted` event; 404 for other utilities.
+- **The words in Node,** both paths.
+- s136 is updated for the shared fetch (the outlook is fetched only by the utility estimates).
+
+**Seen in the page** (throwaway database: Ohio, gas and electric bills, **live EIA**):
+- The Electricity card chose cooling only, *about $103.89 at EIA's forecast 19.65¢/kWh*, within about $5.12 on held-out months.
+- The test bills had a flat price, so **no kWh figure was given**, and the change against October 2025 was stated whole.
+- EIA's forecast line, and the saved Electric amount still setting the totals.
+- The Gas card beside it.
 

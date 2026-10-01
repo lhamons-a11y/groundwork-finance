@@ -56,12 +56,17 @@ def region(state):
 
 
 def steo_series(kind, reg):
-    """STEO series ids for a region: residential natural gas price ($/MCF) and heating degree days."""
+    """STEO series ids for a region: residential natural gas ($/MCF) and electricity (cents/kWh) prices, heating and
+    cooling degree days. (All confirmed against EIA, 2026-10-01, including the national cooling series ZWCDPUS.)"""
     s = reg['steo_suffix']
     if kind == 'ng_price':
         return 'NGRCUUS' if s == 'US' else 'NGRCU' + s
+    if kind == 'elec_price':
+        return 'ESRCUUS' if s == 'US' else 'ESRCU' + s
     if kind == 'hdd':
         return 'ZWHDPUS' if s == 'US' else 'ZWHD' + s
+    if kind == 'cdd':
+        return 'ZWCDPUS' if s == 'US' else 'ZWCD' + s
     raise ValueError(kind)
 
 
@@ -214,3 +219,215 @@ def split_vs_last_year(choice, est, bills, prices, hdds):
                 'usage': round((u1 - u0) * p1, 2), 'assumes_same_usage': False}
     return {'vs_month': prev, 'last_year_bill': last['amount'], 'price': round(est['amount'] - last['amount'], 2),
             'usage': 0.0, 'assumes_same_usage': True}
+
+
+# ── Electricity (U8's second slice) ────────────────────────────────────────────────────────────────────────────
+#
+#     bill = F + (B + Sh x HDD + Sc x CDD) x price          price in $/kWh, usage in kWh
+#
+# Not every home heats with electricity or cools with it. A weather term whose slope comes out negative is not a
+# fact about that home - it is the fit reaching for noise - so it is dropped and the fit redone; at least one weather
+# slope must remain, and be positive. The same three tests as gas decide whether the fit is used, leave-one-out.
+
+COOLING_CDD = 100          # a month with this many cooling degree days is a cooling month
+TERMS = ('hdd', 'cdd')
+
+
+def _solve(a, b):
+    n = len(b)
+    m = [row[:] + [b[i]] for i, row in enumerate(a)]
+    for col in range(n):
+        piv = max(range(col, n), key=lambda r: abs(m[r][col]))
+        if abs(m[piv][col]) < 1e-12:
+            return None
+        m[col], m[piv] = m[piv], m[col]
+        for r in range(n):
+            if r != col:
+                f = m[r][col] / m[col][col]
+                for c in range(col, n + 1):
+                    m[r][c] -= f * m[col][c]
+    return [m[i][n] / m[i][i] for i in range(n)]
+
+
+def _feats(p, terms):
+    return [1.0, p['price']] + [p['price'] * p[t] for t in terms]
+
+
+def fit_terms(points, terms):
+    """Least squares for bill = F + B*price + sum(S_t * price * weather_t). None if it can't fit."""
+    xs = [_feats(p, terms) for p in points]
+    ys = [p['amount'] for p in points]
+    k = len(xs[0]) if xs else 0
+    if len(xs) <= k:
+        return None
+    ata = [[sum(x[i] * x[j] for x in xs) for j in range(k)] for i in range(k)]
+    aty = [sum(x[i] * y for x, y in zip(xs, ys)) for i in range(k)]
+    sol = _solve(ata, aty)
+    if sol is None:
+        return None
+    model = {'F': sol[0], 'B': sol[1], 'terms': list(terms)}
+    for t, v in zip(terms, sol[2:]):
+        model['S_' + t] = v
+    return model
+
+
+def usage_terms(model, w):
+    return model['B'] + sum(model['S_' + t] * w[t] for t in model['terms'])
+
+
+def predict_terms(model, price, w):
+    return model['F'] + usage_terms(model, w) * price
+
+
+EXTRA_TERM_MARGIN = 0.10    # a second weather term must cut the leave-one-out error by a tenth to be kept
+USAGE_REL_SE = 0.10         # the usage figure is stated only when its standard error is under a tenth of it
+                            # (measured: at 15%, a few near-flat-price homes got a kWh figure 30-60% off; at 10%, none)
+
+
+def _usage_identified(points, model):
+    """Can the bills tell usage from the fixed charge? (Capable is not admissible.)
+
+    bill = F + usage x price. When the price barely moves - electricity's often doesn't, month to month - F and the
+    usage term trade off against each other: the bill is predicted well while the kWh figure and the fixed charge are
+    not. Measured before shipping: electric bills predicted within about 1.5%, but the implied January kWh anywhere
+    from a third to 1.6 times the truth. So the usage figure is stated only when the base-usage coefficient's standard
+    error, from the fit's own residuals, is under USAGE_REL_SE of it.
+    """
+    terms = model['terms']
+    xs = [_feats(p, terms) for p in points]
+    k = len(xs[0])
+    n = len(xs)
+    if n <= k:
+        return False
+    resid = [p['amount'] - predict_terms(model, p['price'], p) for p in points]
+    sigma2 = sum(r * r for r in resid) / (n - k)
+    ata = [[sum(x[i] * x[j] for x in xs) for j in range(k)] for i in range(k)]
+    unit = [1.0 if j == 1 else 0.0 for j in range(k)]
+    col = _solve(ata, unit)                 # the (B, B) entry of (X'X)^-1 is col[1]
+    if col is None or col[1] <= 0 or model['B'] <= 0:
+        return False
+    return (sigma2 * col[1]) ** 0.5 < USAGE_REL_SE * model['B']
+
+
+def _loo_error(points, terms):
+    """Mean absolute leave-one-out error of a fit with these terms; None if any refit fails."""
+    err = 0.0
+    for i, p in enumerate(points):
+        m = fit_terms(points[:i] + points[i + 1:], terms)
+        if m is None:
+            return None
+        err += abs(predict_terms(m, p['price'], p) - p['amount'])
+    return err / len(points)
+
+
+def _positive_terms(points):
+    """Choose the weather terms: each candidate (heating and cooling, cooling only, heating only) must have positive
+    slopes, and is scored leave-one-out; the simpler candidate wins unless the extra term cuts the error by
+    EXTRA_TERM_MARGIN.
+
+    Measured before shipping: with both terms always kept when positive, about one home in ten that only cools got a
+    January estimate 60% or more above its true base use - winter heating it does not have, because base use and
+    heating are hard to tell apart in two years of bills. Choosing the terms by held-out error removes that.
+    None if no candidate has a positive slope.
+    """
+    best = None
+    for terms in (('cdd',), ('hdd',), ('hdd', 'cdd')):
+        m = fit_terms(points, list(terms))
+        if m is None or any(m['S_' + t] <= 0 for t in terms):
+            continue
+        e = _loo_error(points, list(terms))
+        if e is None:
+            continue
+        if best is None:
+            best = (e, m)
+            continue
+        if len(terms) > len(best[1]['terms']):
+            if e < (1 - EXTRA_TERM_MARGIN) * best[0]:
+                best = (e, m)
+        elif e < best[0]:
+            best = (e, m)
+    return best[1] if best else None
+
+
+def choose_electric(bills, prices, hdds, cdds):
+    """U1 for electricity: the fit is used only when it earns it, as for gas - scored leave-one-out, it must beat the
+    baseline, beat a plain average by AVERAGE_MARGIN, and keep at least one positive weather slope. It needs both a
+    heating and a cooling season in the record (Rob: a full year spanning summer and winter)."""
+    pts = [{'month': b['month'], 'amount': b['amount'], 'price': prices.get(b['month']),
+            'hdd': hdds.get(b['month']), 'cdd': cdds.get(b['month'])} for b in bills]
+    pts = [p for p in pts if p['price'] is not None and p['hdd'] is not None and p['cdd'] is not None]
+    heating = sum(1 for p in pts if p['hdd'] >= HEATING_HDD)
+    cooling = sum(1 for p in pts if p['cdd'] >= COOLING_CDD)
+    if len(pts) < MIN_BILLS or heating < MIN_HEATING or cooling < MIN_HEATING:
+        return {'method': 'baseline', 'reason': 'not_enough_bills', 'bills': len(pts), 'heating': heating, 'cooling': cooling}
+    whole = _positive_terms(pts)
+    if whole is None:
+        return {'method': 'baseline', 'reason': 'no_weather_slope', 'bills': len(pts)}
+    terms = whole['terms']
+    fit_err = base_err = avg_err = 0.0
+    scored = 0
+    for i, p in enumerate(pts):
+        others = pts[:i] + pts[i + 1:]
+        bl = baseline(bills, p['month'], p['price'], prices)
+        m = fit_terms(others, terms)
+        if not bl or m is None:
+            continue
+        avg = sum(o['amount'] for o in others) / len(others)
+        fit_err += abs(predict_terms(m, p['price'], p) - p['amount'])
+        base_err += abs(bl['amount'] - p['amount'])
+        avg_err += abs(avg - p['amount'])
+        scored += 1
+    if scored == 0:
+        return {'method': 'baseline', 'reason': 'no_baseline_to_test', 'bills': len(pts)}
+    out = {'bills': len(pts), 'scored': scored, 'terms': terms, 'fit_error': round(fit_err / scored, 2),
+           'baseline_error': round(base_err / scored, 2), 'average_error': round(avg_err / scored, 2)}
+    if fit_err >= base_err:
+        return {**out, 'method': 'baseline', 'reason': 'fit_did_not_beat_baseline'}
+    if fit_err > (1 - AVERAGE_MARGIN) * avg_err:
+        return {**out, 'method': 'baseline', 'reason': 'fit_no_better_than_average'}
+    return {**out, 'method': 'fit', 'model': whole, 'reason': 'earned', 'usage_identified': _usage_identified(pts, whole)}
+
+
+def estimate_electric(choice, bills, month, price, hdd, cdd, prices):
+    """The electricity estimate for `month`: price in $/kWh. A month without EIA's figures is not estimated."""
+    if price is None or (choice['method'] == 'fit' and (hdd is None or cdd is None)):
+        return {'method': 'none', 'month': month, 'needs': "EIA's outlook figures for that month"}
+    if choice['method'] == 'fit':
+        m = choice['model']
+        w = {'hdd': hdd, 'cdd': cdd}
+        out = {'method': 'fit', 'amount': round(predict_terms(m, price, w), 2), 'price': price, 'hdd': hdd, 'cdd': cdd,
+               'month': month, 'terms': m['terms'], 'usage_identified': bool(choice.get('usage_identified'))}
+        if out['usage_identified']:
+            out.update(usage_kwh=round(usage_terms(m, w), 1), fixed=round(m['F'], 2))
+        return out
+    bl = baseline(bills, month, price, prices)
+    if bl:
+        return {'method': 'baseline', 'amount': round(bl['amount'], 2), 'price': price, 'month': month,
+                'from_month': bl['from_month'], 'from_amount': bl['from_amount'], 'from_price': bl['from_price']}
+    return {'method': 'none', 'month': month,
+            'needs': 'an electric bill from the same month last year, or about eight bills across a summer and a winter'}
+
+
+def split_electric(choice, est, bills, prices, hdds, cdds):
+    """U6 for electricity, against the same month last year: price (last year's kWh x the price change) and usage."""
+    if not est or est.get('method') in (None, 'none'):
+        return None
+    month = est['month']
+    prev = f'{int(month[:4]) - 1}{month[4:]}'
+    last = next((b for b in bills if b['month'] == prev), None)
+    p0, p1 = prices.get(prev), est.get('price')
+    if not last or p0 is None or p1 is None:
+        return None
+    if est['method'] == 'fit' and not est.get('usage_identified'):
+        # The bills can't tell usage from price yet, so the change is stated whole - never split by a guess.
+        return {'vs_month': prev, 'last_year_bill': last['amount'], 'change': round(est['amount'] - last['amount'], 2),
+                'price': None, 'usage': None, 'unsplit': True, 'assumes_same_usage': False}
+    if est['method'] == 'fit':
+        m = choice['model']
+        u0 = usage_terms(m, {'hdd': hdds.get(prev, 0.0), 'cdd': cdds.get(prev, 0.0)})
+        u1 = est['usage_kwh']
+        return {'vs_month': prev, 'last_year_bill': last['amount'], 'price': round(u0 * (p1 - p0), 2),
+                'usage': round((u1 - u0) * p1, 2), 'assumes_same_usage': False}
+    return {'vs_month': prev, 'last_year_bill': last['amount'], 'price': round(est['amount'] - last['amount'], 2),
+            'usage': 0.0, 'assumes_same_usage': True}
+
