@@ -2,7 +2,7 @@
 
 > Status: **OPENED 2026-10-01. No code.** Rob, 2026-10-01: *"open item 26"*.
 >
-> **Rob's requests (2026-09-28), recorded in the queue:**
+> **Rob's requests (2026-09-28), recorded in the queue. For every U.S. state, not one (Rob, 2026-10-01; U9):**
 > - estimate natural gas from weather, usage and price, and set it in the budget;
 > - the same for electricity;
 > - gasoline from fill-ups, leaving the cheapest station to GasBuddy.
@@ -44,10 +44,13 @@ needed.
 
 ## 2. Findings and proposals
 
-**U0: The Ohio natural-gas fix comes first.**
-- `utility_price.py` asks EIA for only the latest month, and Ohio's latest has no value yet, so natural gas falls
-  back to an estimate.
-- Fix: take the latest month that **has** a value.
+**U0: The latest-published-month fix, for every state, comes first.**
+- `utility_price.py` asks EIA for only the latest month. When that month has no value yet, the price falls back to
+  an estimate. This was found on Ohio's June 2026 row, but **it applies to any state**: EIA publishes state months
+  on its own schedule and sometimes withholds a state's figure.
+- Fix: take the latest month that **has** a value, with its period.
+- A state EIA does not publish at all is shown at the U.S. average, **labelled as the U.S. average**, never presented
+  as the state's.
 - This is shared code: lts/1.x first, then master, with a gate on each line.
 
 **U1: The model, per utility (the degree-day method).**
@@ -107,6 +110,33 @@ electricity:  bill = F + (B + Sh x HDD + Sc x CDD) x price
 - A higher bill from price is never read as using more.
 - No shame wording (the BANNED lexicon applies).
 
+**U9: Where the user is: asked, never detected.**
+
+Rob, 2026-10-01: *"this program is not just Ohio based this will be used in all states in the united states which
+means the software will have to either grab the user location or ask the user to put their state information."*
+
+- **Measured:** the app already asks. *Settings* has a **Home state** choice (`home_state`), and the existing EIA
+  lookups use it. With none set, they fall back to U.S. figures. Ohio appears in this pass only because it is the
+  test machine's state.
+- **Recommend: ask, never detect.**
+  - Detecting location means asking an outside service where the user is, which sends their location off the
+    machine.
+  - That breaks the local-first promise and the call-home audit the website's trust copy rests on.
+  - It also gets things wrong (VPNs, travel, a home in one state and a job in another).
+  - The state the user chose is their own statement, visible and changeable.
+- **Every state maps to its regions in a fixed table, shipped with the app:**
+  - the **census division** for STEO's forecasts and degree days (the nine divisions, e.g. Ohio to East North
+    Central);
+  - the **EIA state series** for monthly actual prices;
+  - the **PADD region** for weekly gasoline (e.g. Ohio to PADD 2, Midwest).
+  - All 50 states and DC. STEO's exact division codes are confirmed at build, as the regional series were confirmed
+    for East North Central in §1.
+- **No state set:** the estimate uses the **U.S.** series, labelled as national. The row says plainly: *"Using U.S.
+  averages; set your home state in Settings for your region's prices and weather."* Weather matters most here, so the
+  pointer is said once, on the row, never as a prompt that speaks first.
+- **The state changes:** cached prices and fits for the old region are dropped, and the estimate is re-derived. The
+  user's bills, which are their own record, are not affected.
+
 **U7: Scope.**
 - U0 is shared (1.x first).
 - **Everything else is 2.0 only**, through the teaching seam: the estimate, the opt-in, the report line and the
@@ -137,12 +167,18 @@ electricity:  bill = F + (B + Sh x HDD + Sc x CDD) x price
 | Ue10 | a rise caused by price alone | split, and said to be price, not usage |
 | Ue11 | the dashboard opens | no STEO or EIA fetch |
 | Ue12 | fill-ups for 6 months | median monthly gallons x the latest weekly price, with its region |
+| Ue13 | a user in Arizona | the Mountain division's forecast and degree days, Arizona's monthly price, PADD 5's weekly gasoline |
+| Ue14 | no home state set | U.S. series, labelled national, with the one-line pointer to Settings |
+| Ue15 | the user changes their home state | the old region's cache and fit dropped and re-derived; the bills untouched |
+| Ue16 | a state whose latest EIA month is unpublished | that state's latest published month, with its period (U0) |
+| Ue17 | anything on the path | no location lookup and no IP geolocation; the state comes only from the user's own Settings choice |
 
 ---
 
 ## 4. Ruling sought: Rob
 
-1. **U0:** the Ohio fix first, as its own small change on both lines?
+1. **U0:** the latest-published-month fix first, for every state, as its own small change on both lines, with a state
+   EIA does not publish shown at the U.S. average, labelled?
 2. **U1:** the degree-day fit per user, the service month a month before payment (user-changeable), and the fit used
    only when it beats the last-year baseline on held-out months?
 3. **U2:** gasoline by fill-up gallons x the weekly price; Ohio or PADD 2 confirmed at build?
@@ -151,3 +187,6 @@ electricity:  bill = F + (B + Sh x HDD + Sc x CDD) x price
 5. **U4 / U5 / U6:** the report line only when proven in the run and credited to EIA; reconciliation shown as fact;
    price and usage always split?
 6. **U7 / U8:** U0 shared, the rest 2.0 only; build order U0, gas, electricity, gasoline?
+7. **U9:** the user's state is **asked** (the existing Settings choice) and **never detected**; a fixed table maps every
+   state to its census division, EIA state series and PADD region; with no state set, U.S. figures, labelled, with
+   one plain pointer on the row?
