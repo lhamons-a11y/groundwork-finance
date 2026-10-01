@@ -1,7 +1,7 @@
 # An Investments tile on the dashboard (queue item 29)
 
 > Status: **RULED and AUTHORISED 2026-09-30 (Rob: "I accept all six points, build it") and BUILT (§6), 2.0 only;
-> gate 2011 / 0; awaiting Rob's acceptance.** Opened the same day. Rob, 2026-09-30: *"Investments have no standing in dashboard. We should
+> gate 2011 / 0; ACCEPTED and CLOSED as written (Rob, 2026-10-01).** Opened the same day. Rob, 2026-09-30: *"Investments have no standing in dashboard. We should
 > have those items on the dashboard."*, then *"open item 29"*.
 >
 > **What governs it:**
@@ -142,3 +142,11 @@ The existing sections stay green: s131 (its pinned route list now includes `/inv
 - The seeded brokerage showed with every rule visible: dated prices, hand-entered VXUS, NEWCO unpriced and left out, 120 VXUS shares with no basis, realized long-term, the balance-only 401(k), and VOO named as unclassified.
 - The dashboard had no banned word.
 
+---
+
+## 7. Acceptance: Rob, 2026-10-01
+
+*"Accept 29 as written."* Closed at master `c282883`, gate 2011 / 0. Still named, not part of this item:
+- the Investments page and net worth share the three gaps (an unpriced holding valued at cost, a no-basis lot counted
+  as all gain, unclassified holdings dropped from allocation);
+- the intermittent full-gate stall seen while gating this item, carried as its own task.
