@@ -1,7 +1,7 @@
 # An Investments tile on the dashboard (queue item 29)
 
 > Status: **RULED and AUTHORISED 2026-09-30 (Rob: "I accept all six points, build it") and BUILT (§6), 2.0 only;
-> awaiting the gate and Rob's acceptance.** Opened the same day. Rob, 2026-09-30: *"Investments have no standing in dashboard. We should
+> gate 2011 / 0; awaiting Rob's acceptance.** Opened the same day. Rob, 2026-09-30: *"Investments have no standing in dashboard. We should
 > have those items on the dashboard."*, then *"open item 29"*.
 >
 > **What governs it:**
