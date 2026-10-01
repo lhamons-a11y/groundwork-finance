@@ -23,12 +23,9 @@
   var A = GWTeaching._modules.filter(function (m) { return m.name === 'attention'; })[0];
   A = A && A.mod;
 
-  var NAMES = {
-    dashWhatChanged: 'What changed since last month', dashHealthCard: 'This month',
-    dashHeroCard: 'Your plan', dashFreedMinimumsCard: 'Freed minimums',
-    dashDonutCard: 'Spending by category', dashUpcomingCard: 'Coming up',
-    dashInvestmentsCard: 'Investments'                                   // item 29
-  };
+  // R1 (item 28): the tile list and its titles come from the server's catalogue (/prefs) - one source, no copy
+  // kept here to drift from it.
+  function _title(id) { return (_prefs && _prefs.titles && _prefs.titles[id]) || id; }
   var _prefs = null;          // {tiles, layout:{order,pinned,hidden}, dismissed}
   var _arranging = false;
 
@@ -73,13 +70,13 @@
 
   async function _loadPrefs() {
     try { _prefs = await API.get('/api/dashboard/prefs'); }
-    catch (e) { _gwErr('dashboard prefs')(e); _prefs = _prefs || { tiles: Object.keys(NAMES), layout: { order: [], pinned: [], hidden: [] }, dismissed: [] }; }
+    catch (e) { _gwErr('dashboard prefs')(e); _prefs = _prefs || { tiles: [], titles: {}, layout: { order: [], pinned: [], hidden: [], added: [] }, dismissed: [], requests: [] }; }
     return _prefs;
   }
 
   // ── Your summary: the user's arrangement ───────────────────────────────────
   function _sequence(p) {
-    var tiles = p.tiles || Object.keys(NAMES);
+    var tiles = p.tiles || [];
     var order = (p.layout.order || []).filter(function (t) { return tiles.indexOf(t) >= 0; });
     tiles.forEach(function (t) { if (order.indexOf(t) < 0) order.push(t); });   // record default: the page's own order
     var pinned = order.filter(function (t) { return (p.layout.pinned || []).indexOf(t) >= 0; });
@@ -92,7 +89,13 @@
     var hidden = _prefs.layout.hidden || [];
     _sequence(_prefs).forEach(function (id) {
       var el = g(id);
-      if (!el) return;
+      if (!el) {
+        // A tile the user added from the catalogue (item 28): its container, filled by its own module.
+        el = document.createElement('div');
+        el.id = id;
+        el.className = 'card';
+        el.style.display = 'none';
+      }
       sum.appendChild(el);
       el.classList.toggle('gw-tile-hidden', hidden.indexOf(id) >= 0);
     });
@@ -118,7 +121,7 @@
       + seq.map(function (id, i) {
         var isHidden = hidden.indexOf(id) >= 0, isPinned = pinned.indexOf(id) >= 0;
         return '<div style="display:flex;align-items:center;padding:4px 0;border-bottom:1px solid var(--steel)">'
-          + '<span style="flex:1;color:' + (isHidden ? 'var(--slate-2)' : 'var(--ink)') + '">' + esc(NAMES[id] || id)
+          + '<span style="flex:1;color:' + (isHidden ? 'var(--slate-2)' : 'var(--ink)') + '">' + esc(_title(id))
           + (isPinned ? ' · pinned' : '') + (isHidden ? ' · hidden' : '') + '</span>'
           + (i > 0 ? btn('up', id, '↑') : '') + (i < seq.length - 1 ? btn('down', id, '↓') : '')
           + btn(isPinned ? 'unpin' : 'pin', id, isPinned ? 'Unpin' : 'Pin')
@@ -234,8 +237,13 @@
     _mount();
     if (!_prefs) await _loadPrefs();
     _applyLayout();
+    var ask = GWTeaching._modules.filter(function (x) { return x.name === 'asktile'; })[0];   // loads after this file
+    if (ask) { try { ask.mod.render(_prefs); } catch (e) { _gwErr('dashboard ask')(e); } }
     await _renderAttention();
   }
+
+  // After the user adds a tile (item 28), the prefs are read again: the server is the one source (R1).
+  async function reload() { _prefs = null; await render(); }
 
   var original = window.renderDashboard;
   window.renderDashboard = function () {
@@ -245,5 +253,5 @@
   };
 
   _style();
-  GWTeaching.register('dashboard', { render: render });
+  GWTeaching.register('dashboard', { render: render, reload: reload });
 })();

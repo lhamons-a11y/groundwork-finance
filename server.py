@@ -1808,9 +1808,12 @@ def dashboard_stale_imports():
 def dashboard_prefs():
     """The user's own arrangement and dismissals - their choices, nothing observed."""
     with db_session() as session:
-        return ok({'tiles': list(DASHBOARD_TILES),
-                   'layout': _dashboard_json(session, 'dashboard_layout', {'order': [], 'pinned': [], 'hidden': []}),
-                   'dismissed': _dashboard_json(session, 'dashboard_dismissed', [])})
+        lay = _layout(session)
+        return ok({'tiles': _user_tiles(lay),
+                   'titles': {e['id']: e['title'] for e in TILE_CATALOGUE},
+                   'layout': lay,
+                   'dismissed': _dashboard_json(session, 'dashboard_dismissed', []),
+                   'requests': _dashboard_json(session, 'dashboard_tile_requests', [])})
 
 
 @dashboard_bp.route('/layout', methods=['PUT'])
@@ -1818,13 +1821,16 @@ def dashboard_prefs():
 def dashboard_set_layout():
     """Ruling 1: pin / hide / reorder, by the user. Only the known tiles; nothing else is accepted."""
     body = request.json or {}
-    layout = {}
-    for field in ('order', 'pinned', 'hidden'):
-        v = body.get(field, [])
-        if not isinstance(v, list) or any(t not in DASHBOARD_TILES for t in v) or len(set(v)) != len(v):
-            return err(f'{field} must list known dashboard tiles, each once')
-        layout[field] = v
     with db_session() as session:
+        stored = _layout(session)
+        allowed = set(_user_tiles(stored))
+        layout = {}
+        for field in ('order', 'pinned', 'hidden'):
+            v = body.get(field, [])
+            if not isinstance(v, list) or any(t not in allowed for t in v) or len(set(v)) != len(v):
+                return err(f'{field} must list known dashboard tiles, each once')
+            layout[field] = v
+        layout['added'] = stored['added']       # only /add changes what the user has added (R6)
         _dashboard_store(session, 'dashboard_layout', layout)
         session.commit()
     return ok(layout)
@@ -1948,6 +1954,147 @@ def investments_tile(session, today=None):
 def dashboard_investments():
     with db_session() as session:
         return ok(investments_tile(session))
+
+
+# ── Item 28: ask for a tile (ASK_FOR_A_TILE.md, ruled 2026-10-01 with build requirements R1-R7) ─────────────
+#
+# K1: a CLOSED catalogue. Every tile a user can have is an entry here - the seven defaults and the entries the
+# engines can back - and adding one is a ruled code change, never generated. R1: this is the one source of the
+# tile list; the page reads it from /prefs and keeps no copy of its own.
+TILE_CATALOGUE = [
+    {'id': 'dashWhatChanged', 'title': 'What changed since last month', 'default': True,
+     'words': ['what changed', 'changes', 'since last month', 'month over month', 'movement']},
+    {'id': 'dashHealthCard', 'title': 'This month', 'default': True,
+     'words': ['this month', 'month so far', 'spending this month', 'budget', 'pace']},
+    {'id': 'dashHeroCard', 'title': 'Your plan', 'default': True,
+     'words': ['debt free', 'debt-free', 'payoff', 'pay off', 'debt plan', 'your plan']},
+    {'id': 'dashFreedMinimumsCard', 'title': 'Freed minimums', 'default': True,
+     'words': ['freed minimums', 'paid off cards', 'freed up', 'minimums freed']},
+    {'id': 'dashDonutCard', 'title': 'Spending by category', 'default': True,
+     'words': ['spending by category', 'categories', 'where my money goes', 'breakdown', 'category breakdown']},
+    {'id': 'dashUpcomingCard', 'title': 'Coming up', 'default': True,
+     'words': ['upcoming bills', 'coming up', 'due dates', 'bills due', 'upcoming payments']},
+    {'id': 'dashInvestmentsCard', 'title': 'Investments', 'default': True,
+     'words': ['investments', 'investment', 'stocks', 'portfolio', 'gains', 'losses', 'holdings']},
+    {'id': 'gwNetWorthTrendCard', 'title': 'Net worth over time', 'default': False,
+     'words': ['net worth', 'networth', 'worth over time', 'wealth', 'assets minus debts', 'how much am i worth']},
+]
+_CATALOGUE_BY_ID = {e['id']: e for e in TILE_CATALOGUE}
+assert tuple(e['id'] for e in TILE_CATALOGUE if e['default']) == DASHBOARD_TILES   # one list, not two (R1)
+_REQUEST_MAX_CHARS = 200        # R5
+_REQUEST_MAX_COUNT = 50         # R5
+_ASK_STOP = {'show', 'me', 'my', 'the', 'a', 'an', 'of', 'in', 'on', 'to', 'for', 'see', 'view', 'tile', 'dashboard',
+             'please', 'i', 'want', 'would', 'like', 'what', 'how', 'is', 'are', 'and', 'with', 'can', 'you', 'add',
+             'do', 'have', 'it', 'be', 'all'}
+
+
+def _tile_evidence(session, tile_id):
+    """K3 / R3: whether the record backs a catalogue tile now, and if not, what it needs - in the user's terms."""
+    if tile_id == 'gwNetWorthTrendCard':
+        n = session.query(NetWorthSnapshot).count()
+        return (n >= 2, None if n >= 2 else
+                f'Net worth over time needs at least two net worth snapshots; you have {n}.')
+    return True, None            # the default tiles hide themselves when the record has nothing for them
+
+
+def match_tile_request(text):
+    """K2: the request only MATCHES - by its words against each entry's title and plain words, and nothing else.
+
+    A phrase from the entry found in the request scores 3; a shared content word scores 1. The best entry wins if it
+    scores at least 2. Nothing about the user's history ranks anything (item 22's rule).
+    """
+    t = ' '.join(re.findall(r"[a-z0-9-]+", (text or '').lower()))
+    words = {w for w in t.split() if w not in _ASK_STOP}
+    best, best_score = None, 0
+    for e in TILE_CATALOGUE:
+        phrases = [e['title'].lower()] + e['words']
+        score = sum(3 for ph in phrases if ' ' + ph + ' ' in ' ' + t + ' ')
+        vocab = {w for ph in phrases for w in ph.split() if w not in _ASK_STOP}
+        score += len(words & vocab)
+        if score > best_score:
+            best, best_score = e, score
+    return best if best_score >= 2 else None
+
+
+def _layout(session):
+    lay = _dashboard_json(session, 'dashboard_layout', {})
+    return {'order': lay.get('order', []), 'pinned': lay.get('pinned', []), 'hidden': lay.get('hidden', []),
+            'added': [a for a in lay.get('added', []) if a in _CATALOGUE_BY_ID]}
+
+
+def _user_tiles(layout):
+    """The tiles this user has: the defaults plus the catalogue entries they added (R1)."""
+    return list(DASHBOARD_TILES) + [a for a in layout['added'] if a not in DASHBOARD_TILES]
+
+
+@dashboard_bp.route('/ask', methods=['POST'])
+@require_json
+def dashboard_ask():
+    """K2-K4: match a typed request to the catalogue; the user confirms with /add. No match is kept as their words."""
+    text = str((request.json or {}).get('text') or '').strip()[:_REQUEST_MAX_CHARS]
+    if not text:
+        return err('type what you would like to see')
+    e = match_tile_request(text)
+    with db_session() as session:
+        if e:
+            ok_, needs = _tile_evidence(session, e['id'])
+            shown = e['id'] in _user_tiles(_layout(session)) and e['id'] not in _layout(session)['hidden']
+            return ok({'match': {'id': e['id'], 'title': e['title'], 'shown': shown}, 'backed': ok_, 'needs': needs})
+        reqs = _dashboard_json(session, 'dashboard_tile_requests', [])
+        reqs.append({'text': text, 'at': datetime.utcnow().isoformat(timespec='seconds')})
+        reqs = reqs[-_REQUEST_MAX_COUNT:]
+        _dashboard_store(session, 'dashboard_tile_requests', reqs)
+        session.commit()
+        return ok({'match': None, 'kept': True, 'requests': reqs})
+
+
+@dashboard_bp.route('/add', methods=['POST'])
+@require_json
+def dashboard_add_tile():
+    """The user's confirmation. R2: only a catalogue id - nothing else, parameterised or not, becomes a tile.
+    R6: the server appends to the LATEST stored layout, so two quick additions cannot overwrite each other."""
+    tile_id = (request.json or {}).get('id')
+    if tile_id not in _CATALOGUE_BY_ID:
+        return err('not a tile Groundwork can show')
+    with db_session() as session:
+        lay = _layout(session)
+        if tile_id in DASHBOARD_TILES:
+            lay['hidden'] = [h for h in lay['hidden'] if h != tile_id]      # asking for a hidden default shows it
+        else:
+            backed, needs = _tile_evidence(session, tile_id)
+            if not backed:
+                return err(needs, 409)
+            if tile_id not in lay['added']:
+                lay['added'].append(tile_id)
+        _dashboard_store(session, 'dashboard_layout', lay)
+        session.commit()
+        return ok(lay)
+
+
+@dashboard_bp.route('/requests/delete', methods=['POST'])
+@require_json
+def dashboard_delete_request():
+    """K4: the user may delete their own kept request. Nothing else ever reads these but /prefs, to show them."""
+    body = request.json or {}
+    with db_session() as session:
+        reqs = [r for r in _dashboard_json(session, 'dashboard_tile_requests', [])
+                if not (r.get('at') == body.get('at') and r.get('text') == body.get('text'))]
+        _dashboard_store(session, 'dashboard_tile_requests', reqs)
+        session.commit()
+        return ok({'requests': reqs})
+
+
+@dashboard_bp.route('/tile/net-worth', methods=['GET'])
+def dashboard_tile_net_worth():
+    """The first catalogue entry beyond the seven: net worth over time, from the user's own snapshots.
+    R3: when the record stops backing it, the tile says what it needs instead of vanishing or drawing broken."""
+    with db_session() as session:
+        backed, needs = _tile_evidence(session, 'gwNetWorthTrendCard')
+        if not backed:
+            return ok({'backed': False, 'needs': needs})
+        snaps = session.query(NetWorthSnapshot).order_by(NetWorthSnapshot.snapshot_date).all()
+        return ok({'backed': True, 'points': [{'date': s.snapshot_date, 'net_worth': round(s.net_worth or 0, 2)}
+                                              for s in snaps]})
 
 
 @budget_bp.route('/detect-recurring', methods=['GET'])

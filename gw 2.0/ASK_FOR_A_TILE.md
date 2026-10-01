@@ -1,7 +1,7 @@
 # Ask for a tile (queue item 28)
 
-> Status: **RULED 2026-10-01 (Rob, §5: all five; §6: the seven build requirements). No code; the build is not yet
-> authorised.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
+> Status: **RULED 2026-10-01 (Rob, §5: all five; §6: the seven build requirements); first slice AUTHORISED
+> (Rob: "Build it") and BUILT (§7), 2.0 only; awaiting the gate and Rob's acceptance.** Opened the same day. Rob, 2026-10-01: *"open item 28"*.
 >
 > Rob's request (2026-09-30): let the user type what they would like to see. His example: *"a comparison to their
 > gains and losses in their investments in the dashboard"*. That example is now answered by item 29's tile; this
@@ -153,4 +153,55 @@ Each is a requirement of the build, and **R1–R4 each get their own test**.
 
 Expected changes, not bugs: s131's pinned route list gains the new endpoints, as items 22 and 29 did. The
 mechanism lives in its own module, inside s30's borrowing cap.
+
+---
+
+## 7. The first slice (2026-10-01)
+
+Rob: *"Build it."* K7's first slice:
+- the mechanism;
+- the search matcher with confirmation;
+- kept requests;
+- **Net worth over time**.
+
+The other five catalogue entries and the model matcher (R7) come later, each by ruled addition.
+
+| piece | where | what it does |
+|---|---|---|
+| **the catalogue (K1, R1)** | `server.TILE_CATALOGUE` | The seven defaults plus `gwNetWorthTrendCard`, each with a title and plain words. **The one source**: an `assert` ties its defaults to `DASHBOARD_TILES`, and `/prefs` gives the page the user's tiles (defaults plus added) and every title. `dashboard.js` keeps no list or titles of its own |
+| **matching (K2)** | `match_tile_request`, `POST /api/dashboard/ask` | A phrase from an entry found in the request scores 3, and a shared content word scores 1; the best entry wins at 2 or more. The words decide, nothing else. Returns the match with `backed` / `needs`, or none |
+| **confirming (K2, R2, R6)** | `POST /api/dashboard/add` | **Only a catalogue id**: a parameterised or unknown id gets 400. Asking for a hidden default shows it. A catalogue entry is added only if the record backs it (409 with its needs otherwise). **The server merges into the latest stored layout**, and `PUT /layout` cannot drop what was added |
+| **evidence (K3, R3)** | `_tile_evidence`, `GET /api/dashboard/tile/net-worth` | Net worth over time needs at least 2 snapshots. A chosen tile that loses its evidence **stays the user's** and returns `{backed: false, needs}`, so the tile says what it needs in place |
+| **kept requests (K4, R5)** | `dashboard_tile_requests`; `POST /api/dashboard/requests/delete` | No match keeps the words with their date. Capped at **200 characters and 50 requests**. Deletable by the user. **Read only by the three routes that keep, show and delete them**, pinned by an AST test. Never sent: the page calls only the dashboard's own endpoints. *Footnote, R5:* the user's own backup file contains their settings, so it contains these requests. That is their file and their action |
+| **the page (R4)** | `static/js/teaching/asktile.js` (dashboard.js calls it after layout) | An *Ask for a tile* box in Your summary. *"Add 'X' to your summary?"* with Add / No. *"'X' is already on your dashboard"*. The needs sentence. *"Groundwork can't show that yet. Your request is kept below, in your words."* The kept list is **escaped and marked `data-gw-user-words`**, so the BANNED lexicon checks Groundwork's words only |
+| **the tile** | `tiletext.netWorth` (Node-tested), `asktile._netWorthTile` | *"Net worth: $X on <latest>. First saved: $Y on <first> - a change of ±$Z across N snapshots."* The source line says Groundwork does not fill the gaps between snapshots |
+
+**Found in the page run, fixed and pinned:**
+- **Snapshot dates come in two shapes.** The user saves a day (`2026-08-31`); the app's own monthly snapshot saves a month (`2026-10`). The tile showed *"Invalid Date"* for the month.
+- It now shows a month as a month, never invented into a day.
+- s134 runs the page's own formatter on both shapes.
+
+**Found, named, not changed (out of scope, shared with 1.x):**
+- **The app's monthly net worth snapshot counts missing account balances as $0.** On the test database (accounts with no balance entered) it recorded *-$2,800* (the Visa balance, against $0 of assets).
+- The tile reports the record faithfully, but the snapshot writer has the absence-as-zero shape.
+
+**Tests: `smoke_sections/s134_ask_for_a_tile.py`, 28 checks.**
+- **K1 and R1:** the catalogue; /prefs as the one source; no copy in dashboard.js.
+- **K2:** Ak1, Ak7, Ak4, and one everyday word is not a match.
+- **K3 / R3:** evidence through a session with a known count; /add 409 when not backed; the tile computed from snapshots; a tile that loses its evidence stays and says what it needs.
+- **R2:** parameterised and unknown ids refused by /add and the layout.
+- **Ak7 / R6:** a hidden default shown, and two additions both survive.
+- **K5:** the layout cannot drop an addition.
+- **K4 / R5:** the honest no, the 200-character and 50-request caps, Ak8 delete, the readers pin, the page calling only its own endpoints.
+- **R4:** the user's words escaped and marked.
+- **R7:** no model call in this slice.
+- **In Node:** the tile's words, including the needs line, and the month-date formatter.
+
+s131's pinned layout and route list are updated as expected (the layout now carries `added`; four new routes).
+
+**Seen in the page** (throwaway database, built-in browser):
+- *"show my net worth over time"* went to *Add 'Net worth over time'?*, then Add, and the tile appeared in Your summary and stayed after a reload.
+- *"am I on track with my credit score?"* got the honest no, with the words kept, dated and deletable.
+- The BANNED scan of Groundwork's text was clean, while the full page text, including the user's own words, contained *"on track"*. R4 is working as ruled.
+- No errors.
 

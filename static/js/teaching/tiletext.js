@@ -122,13 +122,27 @@
              source: 'From your investment lots, closed sales and the prices on record; prices are not refreshed here.' };
   }
 
+  /* Item 28's first catalogue entry: net worth over time, from the user's own snapshots. */
+  function netWorth(d, f) {
+    if (!d) return null;
+    if (!d.backed) return { lines: [d.needs], source: 'From your net worth snapshots.' };
+    var pts = d.points, first = pts[0], last = pts[pts.length - 1];
+    var change = last.net_worth - first.net_worth;
+    return {
+      lines: ['Net worth: ' + f.money(last.net_worth) + ' on ' + f.date(last.date) + '.',
+              'First saved: ' + f.money(first.net_worth) + ' on ' + f.date(first.date) + ' - a change of '
+              + (change < 0 ? '-' : '+') + f.money(Math.abs(change)) + ' across ' + pts.length + ' snapshots.'],
+      source: 'From your net worth snapshots, as you saved them; Groundwork does not fill the gaps between them.'
+    };
+  }
+
   function banned(text) {
     var t = String(text || '').toLowerCase();
     return BANNED.filter(function (w) { return t.indexOf(w) >= 0; });
   }
 
   var api = { BANNED: BANNED, month: month, dti: dti, plan: plan, greetingFact: greetingFact, investments: investments,
-              banned: banned };
+              netWorth: netWorth, banned: banned };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root && root.GWTeaching) root.GWTeaching.register('tiletext', api);
 })(typeof window !== 'undefined' ? window : null);

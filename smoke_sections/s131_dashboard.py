@@ -96,8 +96,8 @@ def _server_cases(c, HJ, dbs):
         {'order': ['dashDonutCard', 'dashHealthCard'], 'pinned': ['dashDonutCard'], 'hidden': ['dashHeroCard']}))
     p = (c.get('/api/dashboard/prefs', headers=HJ).get_json() or {}).get('data') or {}
     out['Da2 the user\'s arrangement is stored as their setting and read back exactly'] = (
-        r.status_code == 200 and p.get('layout') == {'order': ['dashDonutCard', 'dashHealthCard'],
-                                                      'pinned': ['dashDonutCard'], 'hidden': ['dashHeroCard']})
+        r.status_code == 200 and {k: v for k, v in (p.get('layout') or {}).items() if k != 'added'}
+        == {'order': ['dashDonutCard', 'dashHealthCard'], 'pinned': ['dashDonutCard'], 'hidden': ['dashHeroCard']})
     r = c.put('/api/dashboard/layout', headers=HJ, data=json.dumps({'order': ['dashCurrentPriority']}))
     out['only known tiles can be arranged - Current priority is not one (retired)'] = r.status_code == 400
     r = c.post('/api/dashboard/dismiss', headers=HJ, data=json.dumps({'fingerprint': 'payment_due|2|2026-09-30|25.00'}))
@@ -107,8 +107,9 @@ def _server_cases(c, HJ, dbs):
         r.status_code == 200 and 'payment_due|2|2026-09-30|25.00' in p.get('dismissed', []) and r2.status_code == 400)
     rules = [str(r) for r in c.application.url_map.iter_rules() if '/api/dashboard' in str(r)]
     out['the dashboard\'s routes are its prefs, layout, dismissals and import facts - nothing that records use'] = (
-        sorted(rules) == ['/api/dashboard/attention/imports', '/api/dashboard/dismiss',
-                          '/api/dashboard/investments', '/api/dashboard/layout', '/api/dashboard/prefs'])
+        sorted(rules) == ['/api/dashboard/add', '/api/dashboard/ask', '/api/dashboard/attention/imports',
+                          '/api/dashboard/dismiss', '/api/dashboard/investments', '/api/dashboard/layout',
+                          '/api/dashboard/prefs', '/api/dashboard/requests/delete', '/api/dashboard/tile/net-worth'])
     return out
 
 
