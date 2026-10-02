@@ -4,6 +4,9 @@ Groundwork — Cross-platform launcher
 
 import sys
 import os
+# Before anything can import numpy: OpenBLAS reserves memory per processor thread (620 MB measured on 20 threads) and
+# Groundwork does no numpy maths. See core/engine.py (the 8 GB floor, ENGINE_REPLACEMENT.md s9).
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import threading
 import time
 import logging

@@ -112,6 +112,23 @@ def run(ctx):
     check('E4 the pinned hash is the tested file (the runtime spike and voice A/B ran on sha256-b537...)',
           engine.MODEL_SHA256 == 'b5374915da534cb93df39f03bd4f2cd5a0c533df0d5e21957dc9556c260be9eb')
 
+    # ── The 8 GB floor (Rob 2026-10-02: "make the 8 GB configuration work") - memory only, never the arithmetic ──
+    import os as _os
+    tests_set = any(k.startswith('GROUNDWORK_TEST_ENGINE_') for k in _os.environ)
+    check('8GB the shipped configuration: 2048 context, batch 256, full-precision cache, no flash attention '
+          '(identical text to the validated 4096 one; the 8-bit cache stays out - 2 R8 violations in 120)',
+          tests_set or (engine.N_CTX == 2048 and engine.N_BATCH == 256 and engine.KV_CACHE_TYPE == 'GGML_TYPE_F16'
+                        and engine.FLASH_ATTN is False))
+    launch_src = ctx.BASE.joinpath('launch.py').read_text(encoding='utf-8')
+    check('8GB OpenBLAS is capped at one thread before anything can import numpy (620 MB measured on 20 threads)',
+          _os.environ.get('OPENBLAS_NUM_THREADS') == '1'
+          and launch_src.index("os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')") < launch_src.index('import threading')
+          and src.index("os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')") < src.index('import llama_cpp'))
+    shipped_all = '\n'.join(ctx.BASE.joinpath(n).read_text(encoding='utf-8')
+                            for n in ('server.py', 'launch.py', 'static/js/app.js'))
+    check('8GB the test-only engine switches are read by the engine alone; nothing in Groundwork sets them',
+          'GROUNDWORK_TEST_ENGINE_' not in shipped_all)
+
     # ── E8: no port, no network, no Ollama ───────────────────────────────────
     tree = ast.parse(src)
     imported = {a.name.split('.')[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names} | {
