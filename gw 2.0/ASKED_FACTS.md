@@ -15,6 +15,13 @@ computer can obtain it somewhere else.* Every input to a 2.0 calculation is one 
 | **Published** | an outside source the user chose to use (EIA prices, quotes) | credited by name, never presented as the user's fact |
 | **Never** | Groundwork could find it out but must not: location, behaviour, usage | nobody |
 
+**No data goes unused (Rob, 2026-10-01):** *"Having the user first enter data that will already get the program
+moving in what the user will feel like a custom setting and also goes with the belief that no data goes unused."* This
+works in both directions:
+- **Every question earns its place.** It feeds a named calculation. A question nothing reads is not asked.
+- **Every answer is used where the user can see it.** The answer changes something they meet soon after, so the setup
+  feels like it was made for them.
+
 A ledger reading may **prompt** a question (*"these look like propane deliveries; is propane how you heat?"*). It never
 **answers** one. That keeps the no-silent-learning rule: nothing unsurfaced persists.
 
@@ -67,6 +74,16 @@ So the historian cannot say *"you told us Ohio in March and Arizona in August"*,
 from the answer that was in force at the time. Every asked fact should be recorded as a **dated statement by the
 user**, with the current value as the latest. That fits historical truth and the custody rulings.
 
+**F8. Two onboarding answers are stored and never used.** This breaks *no data goes unused* today.
+- *"What brought you here today?"* is saved as `onboarding_intent` (app.js ~12612). Its only effect is the subtitle on
+  the next screen. Nothing reads it afterwards.
+- *"When you have money beyond your immediate needs, what would you most like it to accomplish?"* is saved as
+  `surplus_goal` (app.js ~13170) and put in `S.surplusGoal`. Nothing reads either one, and the answer isn't restored
+  on startup.
+
+The revisit must either give each a reader the user can see (for example, the first dashboard tiles or the debt plan's
+order), or stop asking it.
+
 **Not gaps, on purpose:**
 - Whether the home has air conditioning. The electricity fit finds cooling from the user's own bills, under the null
   model, so asking adds nothing.
@@ -96,8 +113,10 @@ user**, with the current value as the latest. That fits historical truth and the
   - the first surface that needs it, such as the Budget card.
 
   Existing users never see onboarding again, so the last place is how they meet it.
+- **A7.** *No data goes unused* as the test for every question: a question with no named reader is not asked, and
+  each answer shows its effect where the user meets it. F8's two questions are fixed or removed in the revisit.
 - **A6.** Then the onboarding revisit, as its own pass: the order, what is skipped, and fixing the ambiguous *Gas* label.
 
 ## 5. Status
 
-OPEN: six points for ruling (A1–A6). No code. The onboarding revisit follows once these are ruled.
+OPEN: seven points for ruling (A1–A7). No code. The onboarding revisit follows once these are ruled.
