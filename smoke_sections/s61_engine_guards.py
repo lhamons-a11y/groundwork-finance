@@ -152,6 +152,10 @@ def run(ctx):
     check('R-b the notice code removes nothing: no delete, no uninstall command, no process launched',
           not re.search(r'\b(remove|unlink|rmtree|rmdir|subprocess|Popen|system)\b', notice_src))
     real_fp = server._ollama_footprint
+    from core.database import AppSetting
+    with ctx.dbs() as s:                       # start from "never shown": s50's sweep POSTs every route, this one too
+        s.query(AppSetting).filter_by(key='ollama_notice').delete()
+        s.commit()
     try:
         server._ollama_footprint = lambda: None
         check('R-b no Ollama on this computer: no notice', data_of(c.get('/api/ai/ollama-notice', headers=H)).get('show') is False)
@@ -167,7 +171,7 @@ def run(ctx):
     finally:
         server._ollama_footprint = real_fp
         with ctx.dbs() as s:
-            from core.database import AppSetting
+
             s.query(AppSetting).filter_by(key='ollama_notice').delete()
             s.commit()
     app = ctx.app_src
