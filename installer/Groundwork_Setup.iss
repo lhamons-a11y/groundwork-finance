@@ -67,10 +67,29 @@ begin
       'pv', Version);
 end;
 
+// Rob, 2026-10-02: warn, don't block. Groundwork holds financial data, so it suggests an operating system that
+// still receives security updates - Windows 11 today (Windows 10's consumer updates end 13 October 2026). It still
+// installs on Windows 10: on an older computer that stays offline, that's perfectly fine. Shown once, interactive
+// installs only.
+procedure WarnIfWindowsUnsupported();
+var
+  V: TWindowsVersion;
+begin
+  GetWindowsVersionEx(V);
+  if (V.Major = 10) and (V.Build < 22000) then
+    MsgBox(
+      'This computer is running Windows 10, which no longer receives security updates from Microsoft.' + #13#10 + #13#10 +
+      'Because Groundwork holds your financial data, we suggest running it on a version of Windows that still' + #13#10 +
+      'gets security updates (Windows 11).' + #13#10 + #13#10 +
+      'You can still install and use Groundwork here. On an older computer that stays offline, that''s perfectly fine.',
+      mbInformation, MB_OK);
+end;
+
 procedure InitializeWizard();
 var
   Msg: String;
 begin
+  if not WizardSilent() then WarnIfWindowsUnsupported();
   if not IsWebView2Installed() then
   begin
     Msg := 'Groundwork uses the Microsoft WebView2 runtime, which does not appear to be installed.';
