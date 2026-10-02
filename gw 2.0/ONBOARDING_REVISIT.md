@@ -200,6 +200,30 @@ Every question must create or update a canonical fact that the product actually 
 
   A question whose consumer is not built in this pass is not asked in this pass.
 
-## 4. Status
+## 4. Refinements agreed, and the build authorised (Rob, 2026-10-02)
 
-RULED 2026-10-02 (O1–O10, with Rob's changes). Four refinements raised back. No code until the build is authorised.
+*"Yes. I agree with all four refinements, and I would authorize the build."*
+
+**Rob's added requirement: the latest history row is authoritative.**
+- `set_household_fact()` appends the history row and updates the current-value store, together.
+- The history is the audit trail. The current-value store is the fast operational copy.
+- Enforced: `current_value == latest_history_value` for every fact that has history.
+- A withdrawal is a row with no value. The current value becomes **unanswered**. The empty value is the withdrawal
+  event, never an "unknown propane".
+
+**Build order (Rob):**
+1. the append-only fact table and its migration;
+2. `set_household_fact()` and its invariants;
+3. the consistency test and its mutation test;
+4. the reworked onboarding;
+5. the Settings *Your home* card;
+6. the contextual inline prompts;
+7. item 26's consumers;
+8. the question-to-consumer matrix test;
+9. the 1.x shared changes.
+
+**Scope frozen:** no propane or oil pricing, no narration block, and not item 24's general fix.
+
+## 5. Status
+
+AUTHORISED 2026-10-02. Building from step 1.
