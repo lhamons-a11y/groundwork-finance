@@ -18,11 +18,16 @@
     var p = String(m).split('-').map(Number);
     return new Date(p[0], p[1] - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   }
-  var F = { money: function (n) { return fmt(n); }, month: _month };
+  function _day(iso) {
+    var p = String(iso).split('-').map(Number);
+    return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+  var F = { money: function (n) { return fmt(n); }, month: _month, date: _day };
 
   var KINDS = [
     { kind: 'gas', title: 'Natural gas estimate', id: 'gwGasEstimate' },
-    { kind: 'electric', title: 'Electricity estimate', id: 'gwElecEstimate' }
+    { kind: 'electric', title: 'Electricity estimate', id: 'gwElecEstimate' },
+    { kind: 'gasoline', title: 'Gasoline estimate', id: 'gwFuelEstimate', noLag: true }   // fill-ups aren't billed later
   ];
 
   async function _load(kind) {
@@ -45,10 +50,10 @@
       + t.lines.map(function (l) { return '<div style="font-size:12px;color:var(--slate);line-height:1.7">' + esc(l) + '</div>'; }).join('')
       + '<div style="margin-top:8px;font-size:12px;color:var(--slate)">'
       + '<label><input type="checkbox" data-gw-util-optin data-kind="' + k.kind + '" ' + (d.optin ? 'checked' : '') + '> Follow this estimate</label>'
-      + ' \u00b7 bills pay for <select data-gw-util-lag data-kind="' + k.kind + '" style="font-size:12px">'
+      + (k.noLag ? '' : ' \u00b7 bills pay for <select data-gw-util-lag data-kind="' + k.kind + '" style="font-size:12px">'
       + [0, 1, 2].map(function (n) {
           return '<option value="' + n + '"' + (d.lag === n ? ' selected' : '') + '>' + ['the same month', 'the month before', 'two months before'][n] + '</option>';
-        }).join('') + '</select></div>'
+        }).join('') + '</select>') + '</div>'
       + '<div class="gw-src" style="font-size:10px;color:var(--slate-2);margin-top:8px">' + esc(t.source || '') + '</div>';
     var card = g(k.id);
     if (!card) {

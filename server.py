@@ -2320,7 +2320,7 @@ def dashboard_tile_net_worth():
 STEO_URL = ('https://api.eia.gov/v2/steo/data/?api_key={key}&frequency=monthly&data[0]=value'
             '&facets[seriesId][]={series}&start={start}&sort[0][column]=period&sort[0][direction]=asc&length=120')
 STEO_FRESH_DAYS = 7
-UTILITY_KINDS = ('gas', 'electric')   # gasoline is the last slice (U8)
+UTILITY_KINDS = ('gas', 'electric', 'gasoline')
 
 
 def _steo(session, series, fetch=True):
@@ -2452,12 +2452,74 @@ def electric_estimate(session, fetch=True, today=None):
     return out
 
 
+EIA_WEEKLY_GAS_URL = ('https://api.eia.gov/v2/petroleum/pri/gnd/data/?api_key={key}&frequency=weekly&data[0]=value'
+                      '&facets[product][]=EPMR&facets[duoarea][]={area}&sort[0][column]=period'
+                      '&sort[0][direction]=desc&length=130')
+WEEKLY_FRESH_DAYS = 3
+
+
+def _eia_weekly_gas(session, area, fetch=True):
+    """EIA's weekly regular-gasoline retail price for an area, {week 'YYYY-MM-DD': $/gal}, cached three days."""
+    key = f'eia_weekly_gas_{area}'
+    cached = _dashboard_json(session, key, None)
+    if cached and cached.get('rows'):
+        try:
+            age = datetime.utcnow() - datetime.fromisoformat(cached['fetched_at'])
+        except (KeyError, ValueError, TypeError):
+            age = timedelta(days=999)
+        if age < timedelta(days=WEEKLY_FRESH_DAYS) or not fetch:
+            return cached['rows']
+    if not fetch:
+        return {}
+    api_key = _get_eia_api_key()
+    if not api_key:
+        return (cached or {}).get('rows', {})
+    try:
+        import urllib.request
+        import urllib.parse
+        url = EIA_WEEKLY_GAS_URL.format(key=urllib.parse.quote(api_key), area=urllib.parse.quote(area))
+        with urllib.request.urlopen(url, timeout=30) as r:
+            data = json.loads(r.read().decode('utf-8'))
+        rows = {x['period']: float(x['value']) for x in ((data.get('response') or {}).get('data') or [])
+                if x.get('period') and x.get('value') not in (None, '')}
+        if rows:
+            _dashboard_store(session, key, {'fetched_at': datetime.utcnow().isoformat(), 'rows': rows})
+            session.commit()
+            return rows
+    except Exception as e:
+        logging.info('eia weekly gasoline fetch failed (%s): %s', area, e)
+    return (cached or {}).get('rows', {})
+
+
+def gasoline_estimate(session, fetch=True, today=None):
+    """Item 26's gasoline estimate (U2): typical monthly gallons from the user's fill-ups x EIA's latest weekly price."""
+    from core import utility_estimate as ue
+    today = today or date.today()
+    prefs = _dashboard_json(session, 'utility_estimates', {})
+    optin = bool((prefs.get('gasoline') or {}).get('on'))
+    row = _get_setting(session, 'home_state')
+    reg = ue.region(row.value if row and row.value else '')
+    area = ue.gasoline_area(reg)
+    weekly = _eia_weekly_gas(session, area['duoarea'], fetch)
+    fills = [{'date': d.isoformat(), 'amount': float(a)} for d, a in session.query(Transaction.date, Transaction.amount).join(
+        Category, Transaction.category_id == Category.id).filter(
+        func.lower(Category.name) == 'gas / fuel', Transaction.type == 'debit').order_by(Transaction.date).all() if d and a]
+    months = ue.fuel_months(fills, weekly, today.strftime('%Y-%m')) if weekly else {}
+    item = session.query(BudgetItem).filter(func.lower(BudgetItem.category) == 'gas / fuel', BudgetItem.is_active == True).first()  # noqa: E712
+    est = ue.estimate_gasoline(months, weekly)
+    return {'kind': 'gasoline', 'region': reg, 'area': area, 'optin': optin, 'lag': 0,
+            'saved_amount': round(float(item.amount), 2) if item and item.amount is not None else None,
+            'bills': len(fills), 'has_eia': bool(weekly), 'months': months, 'estimate': est,
+            'needs': est.get('needs') if est.get('method') == 'none' else None}
+
+
 @budget_bp.route('/utility-estimate/<kind>', methods=['GET'])
 def budget_utility_estimate(kind):
     if kind not in UTILITY_KINDS:
         return err('not a utility Groundwork estimates yet', 404)
     with db_session() as session:
-        return ok(gas_estimate(session) if kind == 'gas' else electric_estimate(session))
+        return ok(gas_estimate(session) if kind == 'gas' else electric_estimate(session) if kind == 'electric'
+                  else gasoline_estimate(session))
 
 
 @budget_bp.route('/utility-estimate/optin', methods=['POST'])

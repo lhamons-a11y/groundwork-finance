@@ -130,7 +130,42 @@
              source: 'From the U.S. Energy Information Administration\'s Short-Term Energy Outlook and your own electric bills.' };
   }
 
-  var api = { gas: gas, electric: electric };
+  // Gasoline (U2): gallons from the user's own fill-ups, at EIA's weekly price for their area. Facts only: the
+  // weekly price is what EIA published, not a forecast.
+  function gasoline(d, f) {
+    if (!d) return null;
+    var lines = [];
+    var reg = d.region || {}, area = d.area || {};
+    var where = area.kind === 'state' ? 'your state' : area.kind === 'padd' ? area.label : 'the U.S.';
+    lines.push(reg.national
+      ? 'Using U.S. average prices; set your home state in Settings for your region\'s prices.'
+      : 'Using EIA\'s weekly regular-gasoline price for ' + where + (area.kind === 'padd'
+          ? ' (EIA publishes no weekly series for ' + reg.state + ').' : ' (' + reg.state + ').'));
+    var e = d.estimate || {};
+    if (e.method !== 'gallons') {
+      return { lines: lines.concat(['A gasoline estimate needs ' + (e.needs || d.needs) + '.']), statement: null,
+               source: 'From the U.S. Energy Information Administration\'s weekly retail prices and your own fill-ups.' };
+    }
+    lines.push('Your fill-ups come to about ' + e.gallons.toFixed(1) + ' gallons in a typical month (the middle of your last '
+      + e.months_used.length + ' months with fill-ups, at each week\'s average price - what you paid at the pump isn\'t in your record).');
+    lines.push('At EIA\'s latest weekly price, ' + f.money(e.price) + '/gal (week of ' + f.date(e.week) + '), that is about '
+      + f.money(e.amount) + ' a month.');
+    var statement = null;
+    if (e.year_ago) {
+      lines.push('The same gallons a year earlier, at ' + f.money(e.year_ago.price) + '/gal, came to about ' + f.money(e.year_ago.amount)
+        + ': ' + (e.year_ago.price_part >= 0 ? '+' : '-') + f.money(Math.abs(e.year_ago.price_part)) + ', all from price.');
+      statement = 'EIA\'s latest weekly regular-gasoline price for ' + where + ' is ' + f.money(e.price) + '/gal (week of '
+        + f.date(e.week) + '), ' + (e.price >= e.year_ago.price ? 'up' : 'down') + ' from ' + f.money(e.year_ago.price)
+        + ' a year earlier; the gasoline estimate on your Budget page uses it.';
+    }
+    if (d.saved_amount !== null && d.saved_amount !== undefined) {
+      lines.push('Your saved Gas / Fuel budget of ' + f.money(d.saved_amount) + ' still sets the budget totals; this estimate is shown beside it.');
+    }
+    return { lines: lines, statement: statement,
+             source: 'From the U.S. Energy Information Administration\'s weekly retail prices and your own fill-ups.' };
+  }
+
+  var api = { gas: gas, electric: electric, gasoline: gasoline };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root && root.GWTeaching) root.GWTeaching.register('utilitytext', api);
 })(typeof window !== 'undefined' ? window : null);

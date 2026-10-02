@@ -2,7 +2,8 @@
 
 > Status: **RULED and AUTHORISED 2026-10-01 (Rob: "I accept all seven points, build it"). U0 BUILT on both lines; the natural
 > gas slice BUILT on 2.0 (§6), gate 2099 / 0 with the U0 merge; the gas slice ACCEPTED (Rob, 2026-10-01). Electricity AUTHORISED ("build
-> electricity") and BUILT (§7), gate 2115 / 0; ACCEPTED (Rob, 2026-10-01: "Accept item 26 in both parts"). Gasoline to follow (U8).** Opened the same day. Rob, 2026-10-01: *"open item 26"*.
+> electricity") and BUILT (§7), gate 2115 / 0; ACCEPTED (Rob, 2026-10-01: "Accept item 26 in both parts"). Gasoline BUILT
+> (§9); awaiting the gate and Rob's acceptance. The totals follow-up pass is next, as its own pass. Gasoline to follow (U8).** Opened the same day. Rob, 2026-10-01: *"open item 26"*.
 >
 > **Rob's requests (2026-09-28), recorded in the queue. For every U.S. state, not one (Rob, 2026-10-01; U9):**
 > - estimate natural gas from weather, usage and price, and set it in the budget;
@@ -309,3 +310,37 @@ U0 is on both lines (`lts/1.x` `d9ce860`).
 **Item 26 stays open for what is not built yet:**
 - **gasoline** (U2): fill-up gallons x EIA's weekly price, by PADD;
 - **the follow-up pass Rob chose:** every budget total (the Budget page, the dashboard's *This month*, the solution engine) reads one *"amount for this month"* function. A followed estimate then sets the totals, and the report can truthfully say the budget includes the forecast.
+
+---
+
+## 9. The gasoline slice (2026-10-01)
+
+Rob: *"Build this."* U2, the last of U8's slices. Rob chose the totals follow-up pass on 2026-10-01, and it has not been
+designed or ruled yet, so it is **not** part of this build. It is opened as its own short pass next.
+
+| piece | where | what it does |
+|---|---|---|
+| **the area** | `gasoline_area` | EIA's weekly regular-gasoline series for the user's **own state** where EIA publishes one (CA CO FL MA MN NY OH TX WA). Otherwise their **PADD region** (1A New England R1X, 1B Central Atlantic R1Y, 1C Lower Atlantic R1Z, 2 Midwest R20, 3 Gulf Coast R30, 4 Rocky Mountains R40, 5 West Coast R50). Otherwise the **U.S.** All were confirmed against EIA on 2026-10-01; Ohio was $4.263 for the week of Sep 28 |
+| **the weekly prices** | `server._eia_weekly_gas` | 130 weeks, cached three days (EIA publishes weekly), fetched only by `gasoline_estimate` behind the Budget route |
+| **gallons** | `fuel_months` | Each fill-up (a debit in *Gas / Fuel*) is divided by the average price for the week it fell in. **That average is not what the user paid, and the card says so.** A fill-up with no weekly price within two weeks is not converted. A month without fill-ups is absent, never zero. The current month is left out |
+| **the estimate** | `estimate_gasoline` | The median of the last six months with fill-ups, x EIA's latest weekly price. Under three months it says what it needs |
+| **U6** | the same function | A year earlier: the same gallons at last year's weekly price. The difference is **all price**, and said so. Usage is held at the typical month, never guessed |
+| **the card and the report** | `utilitytext.gasoline`, `utility.js` | The area (and why a PADD is used where EIA has no state series), the gallons and how they were found, the estimate, the year-earlier comparison, *"your saved Gas / Fuel budget still sets the budget totals"*. No *"bills pay for"* choice, because fill-ups aren't billed later. The report line is EIA's weekly price, credited, and **not a forecast** |
+
+**Tests: `smoke_sections/s138_gasoline_estimate.py`, 16 checks.**
+- The area for OH, AZ, NJ and no state; every PADD code.
+- The week matching, and no guess outside two weeks.
+- Gallons per complete month.
+- *Needs* under three months; the estimate; U6.
+- No weekly prices means no estimate.
+- **The route, with nothing written to the budget and no `budget_adjusted` event.**
+- The weekly fetch only behind the Budget route.
+- The words in Node.
+
+**Seen in the page** (live EIA, Ohio, seven months of fill-ups):
+- *"Using EIA's weekly regular-gasoline price for your state (OH)."*
+- *"about 34.2 gallons in a typical month ... at each week's average price - what you paid at the pump isn't in your record"*.
+- *"At EIA's latest weekly price, $3.71/gal (week of Sep 28), that is about $126.93 a month."*
+- *"The same gallons a year earlier, at $2.49/gal, came to about $85.04: +$41.89, all from price."*
+- The saved amount still setting the totals.
+

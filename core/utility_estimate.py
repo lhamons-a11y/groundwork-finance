@@ -431,3 +431,87 @@ def split_electric(choice, est, bills, prices, hdds, cdds):
     return {'vs_month': prev, 'last_year_bill': last['amount'], 'price': round(est['amount'] - last['amount'], 2),
             'usage': 0.0, 'assumes_same_usage': True}
 
+
+# ── Gasoline (U8's third slice): no weather - gallons from the user's own fill-ups ───────────────────────────────
+#
+# Each fill-up (a debit in Gas / Fuel) divided by EIA's weekly retail price for that week, in the user's area, gives
+# the gallons bought - at the area's AVERAGE price, which the card says, because what the user paid at the pump is
+# not in the record. A month's gallons are summed; the typical month is the median of the last six complete months
+# that have fill-ups (a month without one may be a month without driving, or a month paid in cash - it is absent,
+# never zero). The estimate is typical gallons x EIA's latest weekly price. Intraday pump swings don't matter at a
+# monthly budget; gallons are the variable (Rob, 2026-09-28). Finding the cheapest station is GasBuddy's job.
+
+# EIA publishes a weekly series for these states; everywhere else uses its PADD region (all confirmed, 2026-10-01).
+WEEKLY_GAS_STATES = {'CA', 'CO', 'FL', 'MA', 'MN', 'NY', 'OH', 'TX', 'WA'}
+PADD_AREA = {'1A': 'R1X', '1B': 'R1Y', '1C': 'R1Z', '2': 'R20', '3': 'R30', '4': 'R40', '5': 'R50'}
+PADD_NAME = {'1A': 'New England', '1B': 'Central Atlantic', '1C': 'Lower Atlantic', '2': 'the Midwest',
+             '3': 'the Gulf Coast', '4': 'the Rocky Mountains', '5': 'the West Coast'}
+MIN_FUEL_MONTHS = 3
+TYPICAL_OF = 6
+PRICE_MATCH_DAYS = 14       # a fill-up with no weekly price within two weeks is not converted (gallons unknown)
+
+
+def gasoline_area(reg):
+    """EIA's weekly area for the user: their own state when EIA publishes one, else their PADD, else the U.S."""
+    st = reg.get('state')
+    if st in WEEKLY_GAS_STATES:
+        return {'duoarea': 'S' + st, 'label': st, 'kind': 'state'}
+    padd = reg.get('padd')
+    if padd in PADD_AREA:
+        return {'duoarea': PADD_AREA[padd], 'label': PADD_NAME[padd] + ' (PADD ' + padd + ')', 'kind': 'padd'}
+    return {'duoarea': 'NUS', 'label': 'the U.S.', 'kind': 'national'}
+
+
+def _week_price(day, weekly):
+    """EIA's price for the week a fill-up fell in: the latest weekly period on or before it, within PRICE_MATCH_DAYS."""
+    from datetime import date as _d
+    best = None
+    for period in weekly:
+        if period <= day and (best is None or period > best):
+            best = period
+    if best is None:
+        return None
+    gap = (_d.fromisoformat(day) - _d.fromisoformat(best)).days
+    return weekly[best] if gap <= PRICE_MATCH_DAYS else None
+
+
+def fuel_months(fillups, weekly, current_month):
+    """Gallons per complete month, from fill-ups at the week's average price. {month: {gallons, spent, fillups}}."""
+    out = {}
+    for f in fillups:
+        m = f['date'][:7]
+        if m >= current_month:
+            continue
+        price = _week_price(f['date'], weekly)
+        if not price:
+            continue
+        row = out.setdefault(m, {'gallons': 0.0, 'spent': 0.0, 'fillups': 0})
+        row['gallons'] += f['amount'] / price
+        row['spent'] += f['amount']
+        row['fillups'] += 1
+    return {m: {k: (round(v, 2) if isinstance(v, float) else v) for k, v in r.items()} for m, r in sorted(out.items())}
+
+
+def estimate_gasoline(months, weekly):
+    """Typical monthly gallons x EIA's latest weekly price, with the figures; or what it needs."""
+    if not weekly:
+        return {'method': 'none', 'needs': "EIA's weekly gasoline prices"}
+    latest = max(weekly)
+    recent = list(months.items())[-TYPICAL_OF:]
+    if len(recent) < MIN_FUEL_MONTHS:
+        return {'method': 'none', 'months': len(recent),
+                'needs': 'fill-ups in at least three months (Gas / Fuel purchases in your ledger)'}
+    gal = sorted(r['gallons'] for _, r in recent)
+    typical = gal[len(gal) // 2] if len(gal) % 2 else (gal[len(gal) // 2 - 1] + gal[len(gal) // 2]) / 2
+    price = weekly[latest]
+    year_ago = None
+    from datetime import date as _d, timedelta as _td
+    target = (_d.fromisoformat(latest) - _td(days=364)).isoformat()
+    then = _week_price(target, weekly)
+    if then:
+        # U6: price only - the same typical gallons at last year's price; usage is held at the typical month.
+        year_ago = {'week': target, 'price': then, 'amount': round(typical * then, 2),
+                    'price_part': round(typical * (price - then), 2)}
+    return {'method': 'gallons', 'amount': round(typical * price, 2), 'gallons': round(typical, 1), 'price': price,
+            'week': latest, 'months_used': [m for m, _ in recent], 'year_ago': year_ago}
+
