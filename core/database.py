@@ -2,6 +2,7 @@
 Groundwork — Core Database Layer
 Column names match server.py exactly.
 """
+import contextvars
 import itertools
 import os
 from datetime import datetime
@@ -3882,17 +3883,42 @@ def _holder_series(session, entries, knowing, role_of, d, role_key):
     return out
 
 
+def _claim_rows(session, claim_ids):
+    """{claim_id: [(relationship_id, utterance_id, origin_party_id), ...]} for every evidentiary relationship
+    of the claims, in relationship-id order: ONE query, the utterance's origin joined rather than lazy-loaded
+    per relationship. Every requested id is present (an unevidenced claim maps to [])."""
+    out = {cid: [] for cid in claim_ids}
+    if not out:
+        return out
+    for pid, rid, uid, origin in (session.query(EvidentiaryRelationship.proposition_id, EvidentiaryRelationship.id,
+                                                EvidentiaryRelationship.utterance_id, Utterance.origin_party_id)
+                                  .outerjoin(Utterance, Utterance.id == EvidentiaryRelationship.utterance_id)
+                                  .filter(EvidentiaryRelationship.proposition_id.in_(sorted(out)))
+                                  .order_by(EvidentiaryRelationship.id).all()):
+        out[pid].append((rid, uid, origin))
+    return out
+
+
+# The rows one derivation call has already read for its claims (in_effect sets it for the length of the
+# call and resets it on return). Read-scoped, never kept across reads: nothing is stored. Callers still go
+# through _claim_states per claim, so the per-claim seam - and every mutation that wraps it - is unchanged.
+_CLAIM_ROWS_IN_CALL = contextvars.ContextVar('_CLAIM_ROWS_IN_CALL', default=None)
+
+
 def _claim_states(session, claim, retracted):
     """One (state, asserter, relationship_id) per evidentiary relationship of a claim."""
+    in_call = _CLAIM_ROWS_IN_CALL.get()
+    rows = in_call.get(claim.id) if in_call is not None else None
+    if rows is None:
+        rows = _claim_rows(session, [claim.id])[claim.id]
     out = []
-    for rel in (session.query(EvidentiaryRelationship).filter(EvidentiaryRelationship.proposition_id == claim.id)
-                .order_by(EvidentiaryRelationship.id).all()):
-        if rel.utterance_id is None:
-            out.append((CLAIM_CANDIDATE, None, rel.id))
-        elif rel.utterance_id in retracted:
-            out.append((CLAIM_CONTESTED, rel.utterance.origin_party_id, rel.id))
+    for rid, uid, origin in rows:
+        if uid is None:
+            out.append((CLAIM_CANDIDATE, None, rid))
+        elif uid in retracted:
+            out.append((CLAIM_CONTESTED, origin, rid))
         else:
-            out.append((CLAIM_ESTABLISHED, rel.utterance.origin_party_id, rel.id))
+            out.append((CLAIM_ESTABLISHED, origin, rid))
     return out
 
 
@@ -4023,14 +4049,19 @@ def in_effect(session, party, role_kind, d):
     sorts = {role_kind: STANCE_HOLDS}
     sorts.update({k: r['boundary'] for k, r in bounds.items()})
     per_identity = {}
-    for claim in (session.query(Proposition).filter(Proposition.kind.in_(sorted(sorts)), Proposition.subject_party_id.in_(members))
-                  .order_by(Proposition.id).all()):
-        ident = next((getattr(claim, c) for c in obj_cols if getattr(claim, c) is not None), None)
-        if ident is None:
-            continue
-        for state, asserter, ground in _claim_states(session, claim, retracted):
-            per_identity.setdefault(ident, []).append({'sort': sorts[claim.kind], 'kind': claim.kind, 'as_of': claim.as_of,
-                                                       'claim': claim.id, 'asserter': asserter, 'state': state, 'ground': ground})
+    claims = (session.query(Proposition).filter(Proposition.kind.in_(sorted(sorts)), Proposition.subject_party_id.in_(members))
+              .order_by(Proposition.id).all())
+    token = _CLAIM_ROWS_IN_CALL.set(_claim_rows(session, [c.id for c in claims]))
+    try:
+        for claim in claims:
+            ident = next((getattr(claim, c) for c in obj_cols if getattr(claim, c) is not None), None)
+            if ident is None:
+                continue
+            for state, asserter, ground in _claim_states(session, claim, retracted):
+                per_identity.setdefault(ident, []).append({'sort': sorts[claim.kind], 'kind': claim.kind, 'as_of': claim.as_of,
+                                                           'claim': claim.id, 'asserter': asserter, 'state': state, 'ground': ground})
+    finally:
+        _CLAIM_ROWS_IN_CALL.reset(token)
     identities = {}
     for ident, stances in sorted(per_identity.items()):
         established = [st for st in stances if st['state'] == CLAIM_ESTABLISHED and st['as_of']]

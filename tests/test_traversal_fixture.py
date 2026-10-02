@@ -505,7 +505,7 @@ def _run(db):
           'referent' in (calls_in(db.reach) | calls_in(db._referent_members))
           and not ({'aboutness', 'chain_strength', 'level_consistency', 'independence', 'parse_disputes', 'derived_strength'} & (calls_in(db.reach) | calls_in(db.in_effect))))
     check('the 7F wiring guard is executable (AST): reach, in_effect and their helpers call no session write method and construct no mapped class',
-          all(writes_in(f) == [] for f in (db.reach, db.in_effect, db._stance_answer, db._claim_states, db._retracted, db._referent_members)))
+          all(writes_in(f) == [] for f in (db.reach, db.in_effect, db._stance_answer, db._claim_states, db._claim_rows, db._retracted, db._referent_members)))
 
 
 if __name__ == '__main__':
