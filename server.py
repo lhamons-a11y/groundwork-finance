@@ -2429,9 +2429,11 @@ def electric_estimate(session, fetch=True, today=None):
                 'needs': 'EIA\'s outlook for your region could not be loaded; it is fetched from this page when online.'}
     choice = ue.choose_electric(bills, prices, hdds, cdds)
     nxt = ue.estimate_electric(choice, bills, this_month, prices.get(this_month), hdds.get(this_month), cdds.get(this_month), prices)
+    prv = ue.estimate_electric(choice, bills, prev_service, prices.get(prev_service), hdds.get(prev_service),
+                               cdds.get(prev_service), prices)
     out.update({
         'choice': {k: v for k, v in choice.items() if k != 'model'},
-        'estimate': nxt, 'split': ue.split_electric(choice, nxt, bills, prices, hdds, cdds),
+        'estimate': nxt, 'previous': prv, 'split': ue.split_electric(choice, nxt, bills, prices, hdds, cdds),
         'forecast': {'month': this_month, 'price': cents.get(this_month), 'prev_month': prev_service,
                      'prev_price': cents.get(prev_service), 'hdd': hdds.get(this_month), 'cdd': cdds.get(this_month)},
         'last_bill': bills[-1] if bills else None,
@@ -2563,6 +2565,56 @@ def utility_applies(session, kind):
 
 
 _UTILITY_CATEGORY = {'gas': 'gas', 'electric': 'electric', 'gasoline': 'gas / fuel'}
+_KIND_WORDS = {'gas': 'the natural gas estimate', 'electric': 'the electricity estimate', 'gasoline': 'the gasoline estimate'}
+
+
+def _estimate_for(session, kind, fetch):
+    """An item 26 estimate as its route answers it (the household's answers first, then the estimate)."""
+    app = utility_applies(session, kind)
+    if not app['applies']:
+        return {'kind': kind, 'not_applicable': app['why'], 'estimate': None}
+    if kind == 'gas':
+        return gas_estimate(session, fetch=fetch)
+    if kind == 'electric':
+        return electric_estimate(session, fetch=fetch)
+    return gasoline_estimate(session, fetch=fetch)
+
+
+def budget_month_amounts(session, fetch=False, today=None):
+    """Every expense row's amount for this month (BUDGET_MONTH_AMOUNT.md, M1-M3, M5), keyed by budget item id.
+
+    {'month_amount', 'month_source' ('estimate' | 'saved'), 'month_why', 'kind'}. The saved amount is never changed:
+    this is derived on every read, and no write path sends it. Only a row whose kind the user FOLLOWS can differ; a
+    followed estimate with no figure for the bill paid this month uses the saved amount and says why. fetch=False:
+    the totals never wait on EIA - they use what the Budget page's estimate cards last fetched.
+    """
+    from core import budget_month as bm
+    this_month = (today or date.today()).strftime('%Y-%m')
+    prefs = _dashboard_json(session, 'utility_estimates', {})
+    picked = {}
+    for kind in UTILITY_KINDS:
+        if (prefs.get(kind) or {}).get('on'):
+            picked[kind] = bm.pick_estimate(_estimate_for(session, kind, fetch), kind, this_month)
+    out = {}
+    for item in session.query(BudgetItem).filter_by(is_active=True, type='expense').all():
+        kind = next((k for k, c in _UTILITY_CATEGORY.items() if (item.category or '').lower() == c), None)
+        followed = kind in picked
+        est, why = picked.get(kind, (None, None))
+        amt, src = bm.month_amount(item.amount, followed, est)
+        out[item.id] = {'month_amount': amt, 'month_source': src, 'kind': kind if followed else None,
+                        'month_why': (f'{_KIND_WORDS[kind]} is followed, but {why}' if followed and src == 'saved' and why
+                                      else None),
+                        'month_from': _KIND_WORDS[kind] if followed and src == 'estimate' else None,
+                        # the service month of the bill paid this month (gas/electric); none for fill-ups
+                        'month_for': (est or {}).get('month') if followed and src == 'estimate' and kind != 'gasoline' else None}
+    return out
+
+
+@budget_bp.route('/month-amounts', methods=['GET'])
+def budget_month_amounts_route():
+    """This month's figure for every expense row - read by the Budget page after a change; never written."""
+    with db_session() as session:
+        return ok({str(k): v for k, v in budget_month_amounts(session).items()})
 
 
 @budget_bp.route('/utility-estimate/<kind>', methods=['GET'])
@@ -2584,6 +2636,11 @@ def budget_utility_estimate(kind):
         out = (gas_estimate(session) if kind == 'gas' else electric_estimate(session) if kind == 'electric'
                else gasoline_estimate(session))
         out.update(ask=app.get('ask', []), assumes=app.get('assumes'))
+        rows = [v for v in budget_month_amounts(session).values() if v['kind'] == kind]
+        out['budget_uses'] = {'in_totals': bool(rows) and all(v['month_source'] == 'estimate' for v in rows),
+                              'month_amount': rows[0]['month_amount'] if rows else None,
+                              'month_for': rows[0]['month_for'] if rows else None,
+                              'why': rows[0]['month_why'] if rows else None}
         return ok(out)
 
 
@@ -4013,9 +4070,8 @@ def debt_capacity():
                 return 0.0
 
         liquid = setting('savings_balance') + setting('cash_balance')
-        monthly_expenses = sum(
-            float(b.amount or 0) for b in session.query(BudgetItem)
-            .filter_by(is_active=True, type='expense').all())
+        # This month's figures (BUDGET_MONTH_AMOUNT.md M3): a followed estimate counts; the saved amounts are untouched.
+        monthly_expenses = sum(v['month_amount'] for v in budget_month_amounts(session).values())
 
         today = date.today().strftime('%Y-%m')
         return ok({
@@ -6152,8 +6208,9 @@ def bootstrap():
                                   .order_by(BudgetItem.type, BudgetItem.sort_order).all()
             incomes  = [{'id':i.id,'name':i.name,'amount':i.amount}
                         for i in budget_items if i.type == 'income']
+            _month = budget_month_amounts(session)
             expenses = [{'id':i.id,'name':i.name,'amount':i.amount,
-                         'cat': i.category or 'Other'}
+                         'cat': i.category or 'Other', **_month.get(i.id, {})}
                         for i in budget_items if i.type == 'expense']
 
             # ── Debt accounts ──────────────────────────────────────────────────

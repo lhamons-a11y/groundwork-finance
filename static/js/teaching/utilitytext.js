@@ -173,8 +173,33 @@
       if (d && d.not_applicable) return { lines: [d.not_applicable], statement: null, source: '' };
       var t = fn(d, f);
       if (t && d && d.assumes) t.lines = t.lines.concat([d.assumes]);
+      if (t) _totals(t, d, f);
       return t;
     };
+  }
+
+  // BUDGET_MONTH_AMOUNT.md M4-M6: what this month's budget really uses, from the server's own figure for this request
+  // (d.budget_uses). The report may say the budget includes the estimate only when it does (M6) - proven, not hoped.
+  function _totals(t, d, f) {
+    var u = d.budget_uses || {};
+    var i = -1;
+    t.lines.forEach(function (l, k) { if (l.indexOf('still sets the budget totals') >= 0) i = k; });
+    if (i >= 0) {
+      var saved = t.lines[i].replace(/ still sets the budget totals; this estimate is shown beside it\.$/, '');
+      t.lines[i] = (d.optin && u.in_totals)
+        ? (u.month_for
+            ? "This month's budget uses the estimate for the bill paid this month (for " + f.month(u.month_for) + "'s use), "
+              + f.money(u.month_amount) + ', in place of ' + saved.replace(/^Your/, 'your') + '.'
+            : "This month's budget uses this estimate (" + f.money(u.month_amount) + ') in place of ' + saved.replace(/^Your/, 'your') + '.')
+        : (d.optin && u.why)
+          ? "You follow this estimate, but this month's budget uses " + saved.replace(/^Your/, 'your') + ': ' + u.why + '.'
+          : saved + ' sets the budget totals. Follow this estimate to use it for this month instead.';
+    }
+    if (t.statement) {
+      t.statement = (d.optin && u.in_totals)
+        ? t.statement.replace(/; the [a-z]+ estimate on your Budget page uses (that forecast|it)\.$/, "; this month's budget includes the estimate built on it.")
+        : t.statement;
+    }
   }
 
   var api = { gas: _withFacts(gas), electric: _withFacts(electric), gasoline: _withFacts(gasoline) };

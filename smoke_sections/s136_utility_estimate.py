@@ -187,8 +187,12 @@ def run(ctx):
         check('s136 U4 the forecast is EIA\'s, credited, and says only that the estimate uses it',
               o['fit']['statement'] == 'EIA forecasts residential natural gas in East North Central at $14.54/MCF for 2026-10, '
                                        'up from $13.10 in 2026-09; the gas estimate on your Budget page uses that forecast.')
-        check('s136 the saved amount still sets the totals, and the card says so (Rob, 2026-10-01)',
-              any('still sets the budget totals' in l for l in f) and not any('budget already includes' in l for l in f))
+        # Was "the saved amount still sets the totals" (show it now, totals later, 2026-10-01); since M1-M7
+        # (BUDGET_MONTH_AMOUNT.md, 2026-10-02) a NOT-followed estimate says the saved amount sets the totals, and
+        # offers to follow it. The "includes" wording appears only when the budget really uses it (s141).
+        check('s136 not followed: the saved amount sets the totals, the card says so, and nothing claims "includes"',
+              any('Your saved Gas budget of' in l and 'sets the budget totals. Follow this estimate' in l for l in f)
+              and not any('includes' in l for l in f))
         b = o['base']['lines']
         check('s136 the baseline names last year\'s bill and both prices, and why no weather fit is used',
               any('2025-10\'s bill of $96.03, at EIA\'s forecast $14.54/MCF instead of $15.51' in l for l in b)

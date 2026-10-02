@@ -79,7 +79,44 @@
   async function _save(kind, on, lag) {
     try { await API.post('/api/budget/utility-estimate/optin', { kind: kind, on: on, lag: lag }); }
     catch (e) { _gwErr(kind + ' estimate opt-in')(e); return; }
+    await _refreshMonth();                    // the totals follow the choice at once (M4); nothing is written
     _card(KINDS.filter(function (k) { return k.kind === kind; })[0]);
+  }
+
+  // This month's figure per row, from the server (BUDGET_MONTH_AMOUNT.md M2). It only ever sets the month_* fields;
+  // the saved amount (e.amount) - the only figure any write sends - is never touched here.
+  async function _refreshMonth() {
+    var m;
+    try { m = await API.get('/api/budget/month-amounts'); } catch (e) { _gwErr('month amounts')(e); return; }
+    m = (m && (m.data || m)) || {};
+    (S.expenses || []).forEach(function (e) {
+      var r = e.id != null ? m[String(e.id)] : null;
+      if (!r) return;
+      e.month_amount = r.month_amount; e.month_source = r.month_source; e.month_why = r.month_why; e.month_from = r.month_from;
+      e.month_for = r.month_for;
+    });
+    budgetOriginal.apply(window, []);
+    _rowNotes();
+  }
+
+  // M4/M5: a row that differs from what the user saved says so, with both figures; a followed estimate that has no
+  // figure says why the saved amount is in use.
+  function _rowNotes() {
+    document.querySelectorAll('#budgetExpenseRows .ledger-row[data-expense-idx]').forEach(function (row) {
+      var e = (S.expenses || [])[+row.dataset.expenseIdx];
+      var old = row.querySelector('[data-gw-month-note]');
+      if (old) old.remove();
+      if (!e) return;
+      var text = e.month_source === 'estimate' && e.month_from
+        ? fmt(e.month_amount) + ' this month, from ' + e.month_from + ' \u00b7 you saved ' + fmt(parseFloat(e.amount) || 0)
+        : e.month_why ? 'Using your saved ' + fmt(parseFloat(e.amount) || 0) + ': ' + e.month_why : '';
+      if (!text) return;
+      var note = document.createElement('div');
+      note.setAttribute('data-gw-month-note', '');
+      note.style.cssText = 'font-size:11px;color:var(--slate-2);margin:4px 0 0 46px;line-height:1.5';
+      note.textContent = text;
+      row.appendChild(note);
+    });
   }
 
   document.addEventListener('change', function (ev) {
@@ -120,7 +157,7 @@
   var budgetOriginal = window.renderBudget;
   window.renderBudget = function () {
     var out = budgetOriginal.apply(this, arguments);
-    try { _budgetCard(); } catch (e) { /* never break the page under it */ }
+    try { _rowNotes(); _budgetCard(); } catch (e) { /* never break the page under it */ }
     return out;
   };
   var reportOriginal = window._rcRenderMonthlyReport;

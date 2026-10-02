@@ -183,8 +183,8 @@ console.log(JSON.stringify(out));
         check('s137 the forecast is EIA\'s, credited, and says only that the estimate uses it',
               o['statement'] == 'EIA forecasts residential electricity in Mountain at 19.82¢/kWh for 2026-10, up from 19.34¢ '
                                 'in 2026-09; the electricity estimate on your Budget page uses that forecast.')
-        check('s137 the saved Electric amount still sets the totals, and the card says so',
-              any('Your saved Electric budget of $110.00 still sets the budget totals' in l for l in L))
+        check('s137 not followed: the saved Electric amount sets the totals, and the card says so (M4)',
+              any('Your saved Electric budget of $110.00 sets the budget totals. Follow this estimate' in l for l in L))
         prog2 = prog.replace("usage_identified: true", "usage_identified: false").replace(
             "split: {vs_month: '2025-10', last_year_bill: 131, price: 3.1, usage: 8.4, assumes_same_usage: false}",
             "split: {vs_month: '2025-10', last_year_bill: 131, change: 11.5, price: null, usage: null, unsplit: true}")

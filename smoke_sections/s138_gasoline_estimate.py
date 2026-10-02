@@ -103,5 +103,5 @@ console.log(JSON.stringify(out));
               and o['ok']['statement'] == "EIA's latest weekly regular-gasoline price for the West Coast (PADD 5) is $4.25/gal "
                                           "(week of 2026-09-28), up from $3.80 a year earlier; the gasoline estimate on your Budget page uses it.")
         check('s138 the saved amount still sets the totals; without enough fill-ups, it says what it needs',
-              any('Your saved Gas / Fuel budget of $160.00 still sets the budget totals' in l for l in L)
+              any('Your saved Gas / Fuel budget of $160.00 sets the budget totals. Follow this estimate' in l for l in L)
               and o['none']['lines'][-1] == 'A gasoline estimate needs fill-ups in at least three months.')
