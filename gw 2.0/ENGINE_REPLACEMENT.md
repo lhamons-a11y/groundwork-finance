@@ -347,6 +347,44 @@ start from never-shown.
 
 *"i accept"*. The build is ACCEPTED as built, with the 8 GB test still outstanding.
 
+## 8. The 8 GB test: the kit, and a dry run (2026-10-02)
+
+Rob: *"Run the test."* It cannot run here: this machine has 34 GB, and R-d rules that it cannot substitute. So the
+test was built, packaged and dry-run, ready for the real machine.
+
+**`engine_8gb_test.py`**, also packaged as `engine_8gb_test.exe`, so the test machine needs no Python. That makes the
+same run the clean-machine test too.
+- It launches the packaged Groundwork twice, with a throwaway data folder, and measures R-d's six points:
+  - the load, and the engine's state;
+  - ordinary requests timed **while the model loads** and **while it generates**;
+  - a real narration-sized request;
+  - free memory, swap and **hard page faults per second** (the paging cliff);
+  - the model released and the process exiting on a normal close;
+  - a second launch.
+- It writes `engine_8gb_report.json`. It passes or fails nothing; Rob rules on the figures.
+- **The kit:** `installer_output/gw_8gb_test_kit/` (git-ignored): the packaged 2.0 Groundwork with the model in
+  `models\`, the test exe, and a README with how to run it. About 2.2 GB.
+
+**The dry run, on this machine (34 GB) - not the 8 GB result:**
+
+| | run 1 | run 2 |
+|---|---|---|
+| window up | 3.1 s | 1.2 s |
+| engine ready after launch | 8.2 s (load 1.6 s) | 8.1 s |
+| requests while loading | 90, 0 errors, median 0.018 s, worst 0.084 s | 90, 0 errors, worst 0.080 s |
+| requests while generating | 66, 0 errors, worst 0.34 s | 69, 0 errors, worst 0.046 s |
+| AI request | completed, 11.6 s, 109 words, `end_turn` | completed, 11.7 s |
+| Groundwork + window, model loaded | 4.79 GB private | 4.79 GB |
+| free memory used up | 5.8 GB (18.74 to 12.97 GB) | 5.8 GB |
+| hard page faults | 0 / s | 0 / s |
+| on close | model released in 1.0 s, exited in 3.0 s | 1.0 s, 3.5 s |
+
+**What it predicts:** an 8 GB machine typically has 3–4 GB free once Windows and background programs are running.
+Groundwork with AI on takes about 5–6 GB, so the 8 GB run is likely to page. The 2048 context saves about 0.9 GB,
+which may still not be enough. The real run's page-fault figure is the deciding number, and R-d's choice between
+4096 and 2048, or a finding that 8 GB cannot hold the narrator, follows from it. **Not decided here:** a prediction
+is not the test.
+
 ## 8. Status
 
 BUILT and ACCEPTED on both lines (lts `a594f73`, master `84469f5`).
