@@ -12,8 +12,9 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260928-willingness-declarations'   # the willingness_declarations table (WILLINGNESS_LAYER.md); init_db creates it
-# The previous version, '20260927-cloud-ai-removed', removed cloud AI. This bump carries no migrate.py code: a
+SCHEMA_VERSION = '20261002-household-facts'   # the household_facts table + carrying existing answers over (ONBOARDING_REVISIT.md)
+# The previous version, '20260928-willingness-declarations', added the willingness_declarations table; before it,
+# '20260927-cloud-ai-removed' removed cloud AI. This bump carries no migrate.py code: a
 # new MODEL table is created by init_db's create_all, which runs only when the stored version differs - so a new
 # table needs a bump exactly as a new column does, and s51's fingerprint of this file cannot see it (s129 proves
 # the upgrade instead).
@@ -23,7 +24,7 @@ SCHEMA_VERSION = '20260928-willingness-declarations'   # the willingness_declara
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = '5a58453179372f0fd1e5fc3d62c64454ca5452af9d4d45dc0cfac21dac0a78c5'
+SCHEMA_SPEC_SHA256 = '01adb2cf8f0101ad2fbe7d661d751ec2f7d5b0a67a58907014fa6df718f53ebe'
 
 
 def _stored_schema_version():
@@ -262,6 +263,16 @@ def _backfill_party_anchors(session):
     _mark_migration_done(session, flag)
 
 
+def _carry_over_household_facts(session):
+    """Answers given before household_facts existed (home_state, pay_frequency, surplus_goal) get one history row each,
+    source 'carried_over', answered_at NULL - when they were said is not known, so it is not invented. After this the
+    invariant holds for every fact: the current value equals the latest history row (ONBOARDING_REVISIT.md s4).
+    Idempotent: a fact that already has history is left alone."""
+    from core import household
+    n = household.carry_over(session)
+    logger.info('Household facts carried over: %d', n)
+
+
 def _seed_child_categories(session):
     """
     Add child categories to an existing database.
@@ -485,6 +496,7 @@ def run_migration_if_needed():
             _seed_child_categories(session)
             _migrate_old_category_names(session)
             _backfill_party_anchors(session)
+            _carry_over_household_facts(session)
             for name, ctype, color in [
                 ('Interest / Fees', 'expense', '#dc2626'),
                 ('Other', 'expense', '#6b7280'),
