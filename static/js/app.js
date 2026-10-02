@@ -1523,8 +1523,9 @@ function restoreFromBootstrap(data) {
     S.prefs.aiEnabled = _aiEnabled;
     // AI is local-only (CLOUD_AI_REMOVAL.md): no provider, no key.
     _cloudAiRemovedNotice(data.settings['cloud_ai_removed_notice']);
-    S.localModel    = data.settings['local_model']    || '';
-    S.localEndpoint = data.settings['local_endpoint'] || '';
+    // One notice at a time: the Ollama one waits a launch if the cloud one is showing now.
+    const _cloudPending = data.settings['cloud_ai_removed_notice'] && data.settings['cloud_ai_removed_notice'] !== 'shown';
+    if (!_cloudPending) _ollamaNotice();
     S.homeState     = data.settings['home_state']     || '';
     updateAIFeatureVisibility();
 
@@ -11771,7 +11772,7 @@ const HELP_FAQ = [
   },
   {
     q: 'Is my financial data sent to AI servers?',
-    a: 'No. Groundwork\'s AI runs only on your own computer (via Ollama), and nothing is ever sent to an AI service. There is no cloud mode. If your computer can\'t run a local model, AI features are simply off, and everything else works the same.',
+    a: 'No. Groundwork\'s AI runs only on your own computer (inside Groundwork itself), and nothing is ever sent to an AI service. There is no cloud mode. If your computer can\'t run a local model, AI features are simply off, and everything else works the same.',
   },
 
   { h: 'Tools' },
@@ -11943,7 +11944,8 @@ async function _cloudAiRemovedNotice(raw) {
   let rec = {};
   try { rec = JSON.parse(raw); } catch (e) { return; }
   let localReady = false;
-  try { localReady = !!(await API.get('/api/ai/status'))?.reachable; } catch (e) { /* treated as not ready */ }
+  // The engine may still be loading at boot; "available" counts loading as running, "unavailable" as not.
+  try { localReady = !!(await API.get('/api/ai/status'))?.available; } catch (e) { /* treated as not ready */ }
   if (rec.was_cloud && !localReady) {
     await API.patch('/api/settings', { ai_enabled: 'false' }).catch(_gwErr('_cloudAiRemovedNotice'));
     if (S.prefs) S.prefs.aiEnabled = false;
@@ -11960,6 +11962,28 @@ async function _cloudAiRemovedNotice(raw) {
   confirmAction('Cloud AI has been removed',
     `<div style="line-height:1.7;font-size:13px;color:var(--slate)">${lines.map(l => `<p style="margin-bottom:8px">${esc(l)}</p>`).join('')}</div>`,
     null, 'OK', false);
+}
+
+// ─── Ollama is no longer used: the one-time notice (ENGINE_REPLACEMENT.md R-b) ───
+// Earlier versions installed Ollama to run AI. Groundwork now runs its model itself and no longer uses Ollama, but
+// it cannot tell a copy it installed from one the user uses for other things, so it removes nothing. It says, once,
+// what is there - where, how much space, whether it starts at login - and offers Windows' own uninstall page.
+async function _ollamaNotice() {
+  let d;
+  try { d = await API.get('/api/ai/ollama-notice'); } catch (e) { return; }
+  if (!d || !d.show) return;
+  const gb = n => (n / 1024 ** 3).toFixed(1) + ' GB';
+  const lines = [
+    'Groundwork no longer uses Ollama. Its AI now runs inside Groundwork itself, on this computer, with nothing else to install or keep running.',
+    `Ollama is still installed at ${d.program_dir} (${gb(d.program_bytes)})` + (d.models_dir ? `, with ${gb(d.models_bytes)} of models in ${d.models_dir}.` : '.'),
+  ];
+  if (d.starts_at_login) lines.push('It starts automatically when you sign in to Windows, so it uses some memory even when Groundwork is closed.');
+  lines.push('Other programs may use Ollama, so Groundwork leaves it alone. Removing it is your choice: Windows\' Installed apps page can uninstall it.');
+  API.post('/api/ai/ollama-notice', {}).catch(_gwErr('_ollamaNotice'));   // shown once, whatever is clicked
+  confirmAction('Groundwork no longer uses Ollama',
+    `<div style="line-height:1.7;font-size:13px;color:var(--slate)">${lines.map(l => `<p style="margin-bottom:8px">${esc(l)}</p>`).join('')}</div>`,
+    () => API.post('/api/ai/ollama-notice/uninstall', {}).catch(_gwErr('_ollamaNotice')),
+    "Open Windows' Installed apps", false);
 }
 
 // ─── Terms of Use / EULA acceptance ──────────────────────────────────────────
@@ -12095,9 +12119,10 @@ function _showOnboarding() {
   _obCheckAICapability();
 }
 
-// ── Phase 2B: first-run RAM detection — the trust surface ────────────────────
-// Reports what THIS machine can actually run, before anything else happens.
-// Every tier is a legitimate path; framing never shames a lower tier.
+// ── First run: what this machine can run — the trust surface ──────────────────
+// One engine, one model, shipped inside Groundwork (ENGINE_REPLACEMENT.md). 8 GB is the minimum for Groundwork AI,
+// not for Groundwork (R-d), and the processor must have AVX2. Either way the choice is the user's, and every core
+// feature works with AI off.
 async function _obCheckAICapability() {
   const statusEl = g('obRamStatus');
   if (!statusEl) return;
@@ -12112,120 +12137,42 @@ async function _obCheckAICapability() {
     _gwErr('_obCheckAICapability')(e);
   }
 
+  let fits = false;
   if (!data.available) {
-    statusEl.innerHTML = 'Could not check your machine\'s memory — Groundwork will use a safe default and you can change it anytime in Settings.';
-    _obRenderCapabilityContinue('mid');
-    return;
-  }
-
-  const { tier, free_gb } = data;
-  if (tier === 'high') {
-    statusEl.innerHTML = `<strong>${free_gb}GB free</strong> — this machine can comfortably run Groundwork's larger local AI model for sharper analysis. Still completely free and private: nothing ever leaves your computer.`;
-  } else if (tier === 'mid') {
-    statusEl.innerHTML = `<strong>${free_gb}GB free</strong> — this machine can run Groundwork's local AI fully offline. Free and private: nothing ever leaves your computer.`;
+    statusEl.innerHTML = 'Could not check this computer\'s memory. You can turn local AI on or off now, and change it anytime in Settings.';
+    fits = true;
+  } else if (!data.cpu_ok) {
+    statusEl.innerHTML = 'This computer\'s processor doesn\'t have the instructions Groundwork\'s local AI needs, so AI features stay off here. Every core feature of Groundwork works fully without it — budgets, debt payoff, reports, all of it.';
+  } else if (data.meets_ai_minimum) {
+    statusEl.innerHTML = `<strong>${data.total_gb} GB of memory</strong> — this computer can run Groundwork\'s local AI. It runs inside Groundwork, uses about 3–4 GB of memory while Groundwork is open, and nothing ever leaves your computer. You can also leave it off: every core feature works without it.`;
+    fits = true;
   } else {
-    statusEl.innerHTML = `<strong>${free_gb}GB free</strong> — not quite enough to run local AI well right now. Every core feature of Groundwork works fully without it — budgets, debt payoff, reports, all of it. AI in Groundwork only ever runs on your own computer, so on this one AI features stay off.`;
+    statusEl.innerHTML = `<strong>${data.total_gb} GB of memory</strong> — local AI needs at least 8 GB, so AI features stay off on this computer. Every core feature of Groundwork works fully without it — budgets, debt payoff, reports, all of it.`;
   }
-  _obRenderCapabilityContinue(tier);
+  _obRenderCapabilityContinue(fits);
 }
 
-function _obRenderCapabilityContinue(tier) {
+function _obRenderCapabilityContinue(fits) {
   const actionsEl = g('obRamActions');
   if (!actionsEl) return;
   actionsEl.style.display = '';
-  if (tier === 'high') {
-    actionsEl.innerHTML = `
-      <button class="btn btn-primary btn-full" onclick="_obApplyAITier('high')">Continue with the sharper model</button>
-      <button class="btn btn-ghost btn-full mt-2" style="font-size:12px" onclick="_obApplyAITier('mid')">Use the lighter model instead</button>`;
-  } else if (tier === 'low') {
-    actionsEl.innerHTML = `<button class="btn btn-primary btn-full" onclick="_obApplyAITier('low')">Continue</button>`;
-  } else {
-    actionsEl.innerHTML = `<button class="btn btn-primary btn-full" onclick="_obApplyAITier('mid')">Continue</button>`;
-  }
+  actionsEl.innerHTML = fits
+    ? `<button class="btn btn-primary btn-full" onclick="_obApplyAIChoice(true)">Turn on local AI</button>
+       <button class="btn btn-ghost btn-full mt-2" style="font-size:12px" onclick="_obApplyAIChoice(false)">Continue with AI off</button>`
+    : `<button class="btn btn-primary btn-full" onclick="_obApplyAIChoice(false)">Continue</button>`;
 }
 
-async function _obApplyAITier(tier) {
-  let targetModel = '';
-  if (tier === 'high') {
-    targetModel = 'qwen2.5:7b';
-    S.localModel = targetModel;
-    API.patch('/api/settings', { local_model: targetModel }).catch(_gwErr('_obApplyAITier'));
-  } else if (tier === 'mid') {
-    targetModel = 'phi3.5';
-    S.localModel = targetModel;
-    API.patch('/api/settings', { local_model: targetModel }).catch(_gwErr('_obApplyAITier'));
-  } else if (tier === 'low') {
-    // Honest default for underpowered hardware: the fully-structured
-    // experience, not a slow/degraded local model. One toggle in Settings
-    // turns local AI back on whenever this machine can run it.
-    S.prefs = S.prefs || {}; S.prefs.aiEnabled = false;
-    API.patch('/api/settings', { ai_enabled: 'false' }).catch(_gwErr('_obApplyAITier'));
-  }
+function _obApplyAIChoice(on) {
+  S.prefs = S.prefs || {}; S.prefs.aiEnabled = !!on;
+  // Turning it on starts the engine loading in the background; off means nothing is loaded at all (R-a).
+  API.patch('/api/settings', { ai_enabled: String(!!on) }).catch(_gwErr('_obApplyAIChoice'));
   updateAIFeatureVisibility();
-
-  if (!targetModel) return _obFinishCapabilityStep();
-
-  // Phase 6A: don't just set a preference and hope — actually fetch the
-  // model, with a real progress bar, so local AI works offline the moment
-  // onboarding finishes instead of quietly failing on first use.
-  let status;
-  try { status = await API.get('/api/ai/status'); } catch (e) { status = null; }
-  const already = (status?.installed_models || []).some(m => m.split(':')[0] === targetModel.split(':')[0]);
-  if (already || !status?.reachable) {
-    // Already have it, or Ollama itself isn't reachable (nothing to pull
-    // toward) — either way, no pull to run. aiEnabled()'s existing graceful
-    // fallback covers "AI turned on but Ollama isn't actually running yet."
-    return _obFinishCapabilityStep();
-  }
-  _obStartModelPull(targetModel);
+  _obFinishCapabilityStep();
 }
 
 function _obFinishCapabilityStep() {
   g('obStepAICapability')?.classList.add('hidden');
   g('obStepIntent')?.classList.remove('hidden');
-}
-
-async function _obStartModelPull(model) {
-  const statusEl  = g('obRamStatus');
-  const actionsEl = g('obRamActions');
-  if (statusEl) statusEl.innerHTML = `
-    Downloading <strong>${esc(model)}</strong> — this happens once; everything runs offline after.
-    <div style="margin-top:10px;height:8px;background:var(--steel);border-radius:4px;overflow:hidden">
-      <div id="obPullBarFill" style="height:100%;width:0%;background:var(--sky);transition:width .3s"></div>
-    </div>
-    <div id="obPullPercent" style="margin-top:6px;font-size:11px;color:var(--slate-2)">Starting…</div>`;
-  if (actionsEl) {
-    actionsEl.style.display = '';
-    actionsEl.innerHTML = `<button class="btn btn-ghost btn-full" style="font-size:12px" onclick="_obFinishCapabilityStep()">Skip for now — I'll do this later in Settings</button>`;
-  }
-
-  try {
-    await API.post('/api/ai/pull-model', { model });
-  } catch (e) {
-    _gwErr('_obStartModelPull')(e);
-    return _obFinishCapabilityStep();
-  }
-  _obPollPullStatus();
-}
-
-async function _obPollPullStatus() {
-  // Stop polling if the user already moved on (e.g. clicked Skip).
-  if (g('obStepAICapability')?.classList.contains('hidden')) return;
-
-  let data;
-  try { data = await API.get('/api/ai/pull-status'); } catch (e) { data = null; }
-  if (!data) { setTimeout(_obPollPullStatus, 1500); return; }
-
-  const fill = g('obPullBarFill');
-  const pct  = g('obPullPercent');
-  if (fill) fill.style.width = `${data.percent || 0}%`;
-  if (pct)  pct.textContent = data.error
-    ? `Couldn't finish the download — ${data.error}. You can try again anytime in Settings.`
-    : `${data.status || 'Downloading…'} (${data.percent || 0}%)`;
-
-  if (data.error) { setTimeout(_obFinishCapabilityStep, 2500); return; }
-  if (data.done)  { if (pct) pct.textContent = 'Ready.'; setTimeout(_obFinishCapabilityStep, 600); return; }
-  setTimeout(_obPollPullStatus, 1200);
 }
 
 // Onboarding intent — the single "what brought you here" answer. Stored and
@@ -21797,11 +21744,10 @@ function updateAIFeatureVisibility() {
 }
 
 // ── Phase 2A: Settings → AI provider pane ─────────────────────────────────────
-// Local AI only (CLOUD_AI_REMOVAL.md). Fed by /api/ai/status so a tester can
-// see "local reachable · phi3.5" without editing settings by hand.
+// Local AI only (CLOUD_AI_REMOVAL.md), run by the in-app engine (ENGINE_REPLACEMENT.md). Fed by /api/ai/status:
+// off / loading / ready / unavailable, with the engine's own honest message.
 
 function renderAISettings() {
-  if (g('aiLocalEndpoint') && !g('aiLocalEndpoint').value) g('aiLocalEndpoint').value = S.localEndpoint || '';
   _loadAiLocalStatus();
   _loadGateHealth();
 }
@@ -21833,165 +21779,30 @@ async function _loadGateHealth() {
   }
 }
 
+function _aiEngineLine(data) {
+  if (!data.enabled) return `<span style="color:var(--slate-2)">●</span> AI features are off. Nothing is loaded.`;
+  if (data.engine === 'ready') return `<span style="color:var(--pine)">●</span> Local AI is running inside Groundwork${data.load_seconds ? ` (loaded in ${data.load_seconds}s)` : ''}.`;
+  if (data.engine === 'loading') return `<span style="color:var(--gold)">●</span> Local AI is loading…`;
+  return `<span style="color:var(--ember)">●</span> ${esc(data.message || 'Local AI is not running.')}`;
+}
+
 async function _loadAiLocalStatus() {
   const statusEl = g('aiLocalStatus');
-  const picker   = g('aiLocalModelPicker');
-  const setupEl  = g('aiOllamaSetup');
   if (statusEl) statusEl.innerHTML = `<span style="color:var(--slate-2)">Checking…</span>`;
   try {
     const data = await API.get('/api/ai/status');
-    if (statusEl) {
-      statusEl.innerHTML = data.reachable
-        ? `<span style="color:var(--pine)">●</span> Local reachable · <strong>${esc(data.active_model || 'no model resolved')}</strong>`
-        : `<span style="color:var(--ember)">●</span> Not reachable — is Ollama running? (<code>ollama serve</code>)`;
-    }
-    if (setupEl) {
-      if (data.reachable) {
-        setupEl.style.display = 'none';
-      } else {
-        setupEl.style.display = '';
-        _renderOllamaSetupPrompt(setupEl);
-      }
-    }
-    if (picker) {
-      const models = data.installed_models || [];
-      const current = picker.value || S.localModel || '';
-      picker.innerHTML = `<option value="">Auto-detect${data.active_model ? ` (currently ${esc(data.active_model)})` : ''}</option>` +
-        models.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
-      picker.value = current;
-    }
+    if (statusEl) statusEl.innerHTML = _aiEngineLine(data);
+    // A load in progress finishes in seconds: check back until it settles.
+    if (data.enabled && data.engine === 'loading') setTimeout(_loadAiLocalStatus, 1500);
   } catch (e) {
     if (statusEl) statusEl.innerHTML = `<span style="color:var(--ember)">●</span> Could not reach the server.`;
     _gwErr('_loadAiLocalStatus')(e);
   }
 }
 
-// ── One-click Ollama setup (Settings → AI) ──────────────────────────────────
-// Fills the gap Phase 6A's model-pull left open: pull-model only works once
-// Ollama is already installed and running. This calls /api/ai/install-ollama,
-// which figures out per-OS on the server side whether to actually run the
-// install (Windows/macOS) or hand back a manual command instead (Linux —
-// the official install script needs sudo, and a background thread has no TTY
-// to satisfy that prompt). The client doesn't need to know which platform
-// it's on; it just reacts to whatever the poll response says.
-function _renderOllamaSetupPrompt(el) {
-  if (g('ollamaInstallBtn') || g('ollamaInstallProgress')?.dataset.polling) return; // already showing/running
-  el.innerHTML = `
-    <button class="btn btn-primary btn-sm" id="ollamaInstallBtn" onclick="_startOllamaInstall()">Set up Local AI</button>
-    <div id="ollamaInstallProgress" style="margin-top:8px;font-size:11px;color:var(--slate)"></div>`;
-}
-
-async function _startOllamaInstall() {
-  const btn  = g('ollamaInstallBtn');
-  const prog = g('ollamaInstallProgress');
-  if (btn) { btn.disabled = true; btn.textContent = 'Setting up…'; }
-  if (prog) prog.dataset.polling = '1';
-  try {
-    await API.post('/api/ai/install-ollama', {});
-  } catch (e) {
-    if (prog) { prog.innerHTML = `<span style="color:var(--ember)">Could not start setup — ${esc(e.message||'')}</span>`; prog.dataset.polling = ''; }
-    if (btn) { btn.disabled = false; btn.textContent = 'Set up Local AI'; }
-    return;
-  }
-  _pollOllamaInstall();
-}
-
-async function _pollOllamaInstall() {
-  const prog = g('ollamaInstallProgress');
-  const btn  = g('ollamaInstallBtn');
-  let data;
-  try { data = await API.get('/api/ai/install-status'); } catch (e) { data = null; }
-  if (!data) { setTimeout(_pollOllamaInstall, 1500); return; }
-
-  if (data.needs_manual) {
-    if (prog) {
-      prog.dataset.polling = '';
-      prog.innerHTML = `
-        <div style="margin-bottom:6px;color:var(--ink)">Run this in a terminal, then check again:</div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <code style="background:var(--mist);padding:4px 8px;border-radius:4px;flex:1;overflow-x:auto;white-space:nowrap;font-size:11px">${esc(data.manual_command)}</code>
-          <button class="btn btn-secondary btn-sm" onclick='_copyOllamaCommand(${JSON.stringify(data.manual_command)})'>Copy</button>
-        </div>
-        <button class="btn btn-secondary btn-sm mt-2" onclick="_loadAiLocalStatus()">Check again</button>`;
-    }
-    if (btn) btn.style.display = 'none';
-    return;
-  }
-
-  if (data.error) {
-    if (prog) { prog.dataset.polling = ''; prog.innerHTML = `<span style="color:var(--ember)">${esc(data.error)}</span>`; }
-    if (btn) { btn.disabled = false; btn.textContent = 'Try again'; }
-    return;
-  }
-
-  if (data.done) {
-    if (prog) { prog.dataset.polling = ''; prog.innerHTML = `<span style="color:var(--pine)">Done — checking connection…</span>`; }
-    setTimeout(_loadAiLocalStatus, 800);
-    return;
-  }
-
-  if (prog) prog.innerHTML = `${esc(data.stage || 'Working…')}${data.percent ? ` (${data.percent}%)` : ''}`;
-  setTimeout(_pollOllamaInstall, 1000);
-}
-
-function _copyOllamaCommand(cmd) {
-  navigator.clipboard?.writeText(cmd)
-    .then(() => showToast('Copied', '', 'success'))
-    .catch(() => showToast('Could not copy — select and copy manually', '', 'warning'));
-}
-
-async function saveLocalModel(model) {
-  S.localModel = model || '';
-  await API.patch('/api/settings', { local_model: S.localModel }).catch(_gwErr('saveLocalModel'));
-  showToast(model ? `Model set to ${model}` : 'Auto-detect enabled', '', 'success');
-  _loadAiLocalStatus();
-}
-
-async function saveLocalEndpoint() {
-  const val = g('aiLocalEndpoint')?.value?.trim() || '';
-  try {
-    await API.patch('/api/settings', { local_endpoint: val });
-  } catch (e) {
-    // The server refuses any address off this computer (S6).
-    showToast('Endpoint not saved', e.message || '', 'warning');
-    return;
-  }
-  S.localEndpoint = val;
-  showToast('Endpoint saved', '', 'success');
-  _loadAiLocalStatus();
-}
-
-async function testAiConnection(btn) {
-  const resultEl = g('aiTestResult');
-  if (btn) { btn.disabled = true; btn.textContent = 'Testing…'; }
-  if (resultEl) resultEl.textContent = '';
-  try {
-    const data = await API.get('/api/ai/status');
-    if (resultEl) {
-      if (data.reachable) {
-        resultEl.innerHTML = `<span style="color:var(--pine)">✓ Reachable — ${esc(data.active_model || 'model resolved')}</span>`;
-      } else {
-        resultEl.innerHTML = `<span style="color:var(--ember)">✗ ${esc(data.error || 'Not reachable')}</span>`;
-      }
-    }
-    if (g('aiLocalModelPicker')) {
-      const models = data.installed_models || [];
-      const current = g('aiLocalModelPicker').value;
-      g('aiLocalModelPicker').innerHTML = `<option value="">Auto-detect${data.active_model ? ` (currently ${esc(data.active_model)})` : ''}</option>` +
-        models.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
-      g('aiLocalModelPicker').value = current;
-    }
-  } catch (e) {
-    if (resultEl) resultEl.innerHTML = `<span style="color:var(--ember)">✗ Could not reach the server</span>`;
-    _gwErr('testAiConnection')(e);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Test connection'; }
-  }
-}
-
 function aiEnabled() {
   // The user's AI toggle is the only gate. AI is local-only, so there is no
-  // key to check; an unreachable Ollama or missing model is handled
+  // key to check; an engine that is loading or unavailable is handled
   // downstream by callAI()'s ok:false -> fallback path, not gated here.
   if (S.prefs?.aiEnabled === false) return false;
   return true;
@@ -22009,6 +21820,8 @@ function toggleAI(checkbox) {
   S.prefs = S.prefs || {};
   S.prefs.aiEnabled = on;
   API.patch('/api/settings', { ai_enabled: String(on) }).catch(_gwErr('toggleAI'));
+  // The server loads or releases the model on this change; show its state as it settles.
+  setTimeout(_loadAiLocalStatus, 300);
   // updateAIFeatureVisibility() already sets the provider-aware status
   // message on #settingsApiKeyStatus — no need to duplicate that logic here.
   updateAIFeatureVisibility();
@@ -22750,7 +22563,7 @@ async function _rcAnalyzeWithAI(reportId, dataLines, buildPrompt, container) {
   // Don't show a second preview, and don't fire a second concurrent
   // generate, if one is already in flight for this report (e.g. the local
   // auto-generate path below has no button click to naturally prevent a
-  // second call while the first is still running against Ollama).
+  // second call while the first is still running on the local engine).
   if (g(`rcAIPreview-${reportId}`) || g(`rcAILoading-${reportId}`)) return;
 
   // Server-persisted cache — survives a restart, unlike the in-memory

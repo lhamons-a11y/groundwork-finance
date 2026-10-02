@@ -265,52 +265,27 @@ def _start_downloads_watcher():
     return observer
 
 
-def _ensure_ollama_running():
-    """Start the local AI runtime (Ollama) if it's installed but not reachable.
+def _start_engine():
+    """Load the local AI model if the user's AI setting is on (ENGINE_REPLACEMENT.md R-a).
 
-    Groundwork talks to Ollama at localhost:11434. Normally Ollama's own tray
-    app keeps that server up, but the Microsoft Store build ships Ollama as
-    copied files with no autostart configured (the installer can't run Ollama's
-    setup and still certify silently) — so the app is responsible for starting
-    it. Best-effort and non-blocking: if Ollama is already up, or isn't
-    installed, or fails to start, Groundwork just runs without local AI, exactly
-    as it does today.
+    The engine runs inside this process (core/engine.py): no separate AI program, no second process, no port. Loading happens on
+    the engine's own background thread after the CPU check and the model's SHA-256 check, so the window never waits
+    for it. With AI off nothing is loaded at all - not even the runtime library.
     """
     try:
-        import socket
-        import subprocess
-
-        def _up() -> bool:
-            try:
-                with socket.create_connection(('127.0.0.1', 11434), timeout=0.6):
-                    return True
-            except OSError:
-                return False
-
-        if _up():
-            return  # already running — nothing to do
-
-        if sys.platform != 'win32':
-            return  # macOS/Linux Ollama manage their own service
-
-        # Ollama's fixed per-user install location on Windows (docs.ollama.com).
-        exe = Path(os.environ.get('LOCALAPPDATA', '')) / 'Programs' / 'Ollama' / 'ollama.exe'
-        if not exe.exists():
-            return  # not installed — run without local AI
-
-        CREATE_NO_WINDOW = 0x08000000
-        subprocess.Popen(
-            [str(exe), 'serve'],
-            creationflags=CREATE_NO_WINDOW,
-            close_fds=True,
-        )
-        # Give it a few seconds to bind the port; non-fatal if it doesn't.
-        for _ in range(20):
-            if _up():
-                break
-            time.sleep(0.5)
+        import server
+        server.engine_launch()
     except Exception:
-        logging.exception('Ollama ensure-running failed (local AI may be unavailable)')
+        logging.exception('local AI engine did not start (AI will be unavailable; everything else works)')
+
+
+def _stop_engine():
+    """Release the model when Groundwork closes (R-a) - explicitly, not left to process teardown."""
+    try:
+        from core import engine
+        engine.stop()
+    except Exception:
+        logging.exception('local AI engine did not stop cleanly')
 
 
 def _start_server(base_dir: Path):
@@ -369,14 +344,6 @@ def main():
 
     base_dir = _get_base_dir()
 
-    # Start the local AI runtime if it's installed but not yet running (Store
-    # build ships Ollama with no autostart). Daemon thread — never blocks boot.
-    threading.Thread(
-        target=_ensure_ollama_running,
-        daemon=True,
-        name='groundwork-ollama',
-    ).start()
-
     # Start Flask
     server_thread = threading.Thread(
         target=_start_server,
@@ -408,6 +375,8 @@ def main():
             + error_detail)
         sys.exit(1)
 
+    _start_engine()
+
     api    = GroundworkAPI()
 
     # Start the Downloads auto-import watcher — Flask is up, token exists
@@ -423,6 +392,7 @@ def main():
     )
 
     webview.start(debug=False)
+    _stop_engine()
 
 
 if __name__ == '__main__':

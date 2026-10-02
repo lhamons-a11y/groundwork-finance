@@ -328,27 +328,22 @@ def main():
         print('      lines:', bad_coerce)
 
     # ── 15. AI provider path (Phase 6D) ───────────────────────────────────────
-    # /api/ai/status must always answer 200 — it's what the Settings "Test
-    # connection" button and first-run onboarding poll to tell the user
-    # whether local AI is reachable. A provider misconfiguration or an
-    # unreachable Ollama must show up as an honest status, never a 500 or a
-    # silently-dead feature. Offline-safe: this box likely has no Ollama
-    # running, so 'reachable' is expected to be False here — the checks are
-    # about the shape/honesty of the response, not that a model is present.
+    # /api/ai/status must always answer 200 — Settings -> AI polls it to tell the user what the in-app engine is
+    # doing (ENGINE_REPLACEMENT.md): off / loading / ready / unavailable, with the engine's own honest message. The
+    # gate never loads the real model, so the engine is 'off' here - the checks are about the shape and honesty of
+    # the answer, not that a model is present.
     a = c.get('/api/ai/status', headers=H)
     ad = (a.get_json() or {}).get('data') or {}
     check('/api/ai/status responds 200', a.status_code == 200)
     check('ai/status reports the only provider there is - local', ad.get('provider') == 'local')
-    check('ai/status reachability is a real boolean', isinstance(ad.get('reachable'), bool))
-    check('ai/status never claims a model when unreachable',
-          ad.get('reachable') or not ad.get('active_model'))
+    check("ai/status reports the engine's state, one of four",
+          ad.get('engine') in ('off', 'loading', 'ready', 'unavailable') and isinstance(ad.get('ready'), bool))
+    check('ai/status never claims ready without a loaded model, and says why when not ready',
+          (ad.get('ready') is False and bool(ad.get('message'))) or ad.get('engine') == 'ready')
 
-    # The client must surface "no model" honestly rather than hide it —
-    # tripwire on the literal fallback string so this can't regress silently.
-    check("app.js has a 'no model resolved' fallback string",
-          'no model resolved' in app_src)
-    check("app.js has a 'not reachable' fallback for local AI",
-          'Not reachable' in app_src)
+    # The client must surface a stopped or unavailable engine honestly rather than hide it.
+    check("app.js shows the engine's own message when local AI is not running",
+          "esc(data.message || 'Local AI is not running.')" in app_src)
 
     # ── 16. Debt Reconciliation Phase A (data layer) ──────────────────────────
     # No routes exist yet (Phase A is schema + query helpers only — UI lands
@@ -2125,31 +2120,16 @@ def main():
           '(regression: Debt Payoff page edits never populated history)',
           '_budgetSaveDebtSnapshot(_budgetMonthKey)' in set_card_field_fn)
 
-    # ── One-click "Set up Local AI" (install Ollama itself) ─────────────────────
-    # Fills the gap onboarding's own comment admitted: pull-model only works
-    # once Ollama is already installed, and if it isn't, onboarding just gives
-    # up on local AI entirely — on every platform, not only Mac/Linux. Only
-    # /install-status is safe to call for real here (a read of shared, inert
-    # state); /install-ollama actually downloads and runs installers, so it's
-    # deliberately never invoked from this suite — verified live instead
-    # (real Windows install, and real Linux install via WSL Ubuntu, both
-    # confirmed end-to-end against a genuinely running Ollama afterward).
-    r = c.get('/api/ai/install-status', headers=H)
-    check('GET /api/ai/install-status responds with the idle default shape',
-          r.status_code == 200 and r.get_json()['data']['active'] is False
-          and r.get_json()['data']['done'] is False)
-
-    check('server.py wires per-OS install-ollama routes (Windows/macOS auto, Linux manual)',
-          "OLLAMA_WIN_URL = 'https://ollama.com/download/OllamaSetup.exe'" in server_src
-          and "OLLAMA_MAC_URL = 'https://ollama.com/download/Ollama-darwin.zip'" in server_src
-          and "OLLAMA_LINUX_INSTALL_CMD = 'curl -fsSL https://ollama.com/install.sh | sh'" in server_src)
-
-    check('app.js wires the "Set up Local AI" button and Linux manual-command fallback',
-          "id=\"ollamaInstallBtn\"" in app_src and '_startOllamaInstall' in app_src
-          and 'needs_manual' in app_src and '_copyOllamaCommand' in app_src)
-
-    check('the Settings AI panel has a container for the setup prompt',
-          'id="aiOllamaSetup"' in html_src)
+    # ── No Ollama to install (ENGINE_REPLACEMENT.md) ──────────────────────────────
+    # The one-click Ollama installer and the model download were here. Both are gone: the model ships inside
+    # Groundwork and runs in its own process. The routes no longer exist, and nothing in the page offers them.
+    _routes = {str(r.rule) for r in c.application.url_map.iter_rules()}
+    check('the Ollama install and model-download routes are gone',
+          not {'/api/ai/install-ollama', '/api/ai/install-status', '/api/ai/pull-model',
+               '/api/ai/pull-status'} & _routes)
+    check('the page offers no Ollama setup, model picker or endpoint override',
+          'ollamaInstallBtn' not in app_src and 'id="aiOllamaSetup"' not in html_src
+          and 'aiLocalModelPicker' not in html_src and 'aiLocalEndpoint' not in html_src)
 
     # ── Discovered sections ──────────────────────────────────────────────────
     # Sections live in smoke_sections/*.py, one file each, so adding a section

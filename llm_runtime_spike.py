@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
-GROUNDWORK LLM RUNTIME SPIKE
+GROUNDWORK LLM RUNTIME SPIKE  -  HISTORICAL CONTROL (ENGINE_REPLACEMENT.md, item 31)
 ============================
+Kept as the record of how the in-process runtime was chosen. Its Ollama A/B is a historical control only: Ollama is
+gone from both lines (Rob, 2026-09-27 / 2026-10-02), and Groundwork's engine is core/engine.py. Do not build on the
+Ollama half of this file; the shipped engine is evaluated with voice_discipline_test.py and llm_model_eval.py.
+
 Purpose: measure whether an IN-PROCESS inference runtime (llama.cpp) can replace
 the Ollama dependency, without changing what reaches the user.
 

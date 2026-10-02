@@ -1,9 +1,9 @@
-"""The sixteen routes the sweep in s50 had to skip, tested by doing and undoing.
+"""The fifteen routes the sweep in s50 had to skip, tested by doing and undoing.
 
-s50 asks every mutating route to refuse a body it cannot use. Sixteen cannot be
+s50 asks every mutating route to refuse a body it cannot use. Fifteen cannot be
 asked that, because they require nothing: an empty body is a valid instruction
 to act, and sweeping them there would have meant emptying the transactions
-table and downloading a 1.3GB installer to prove they do not crash.
+table and opening Windows Settings to prove they do not crash.
 
 So they are tested here instead, on their own terms, and the isolation comes
 from the feature under test. A backup is taken before anything runs and
@@ -15,13 +15,10 @@ about; the rest of the section depends on them working.
 Ordering is deliberate. This is s55 so it runs after every other section, and
 the check that empties the transactions table is last inside it.
 
-One thing is deliberately not exercised in full, and it is not an oversight:
-
-  /api/ai/install-ollama and /api/ai/pull-model are checked with the network
-  blocked, which is the interesting half anyway: the installer runs on a
-  background thread, so the failure a user actually meets is not an error
-  response but a progress state that either reports the failure or spins
-  forever.
+The Ollama installer and model download that used to be here are gone with Ollama
+(ENGINE_REPLACEMENT.md): the model ships inside Groundwork. Their place is taken by
+/api/ai/ollama-notice/uninstall, checked with Windows' launcher replaced, so the
+check proves what it opens and that nothing is removed.
 """
 import io
 import json
@@ -181,32 +178,32 @@ def run(ctx):
             socket.socket.connect = _blocked
             socket.create_connection = _blocked
 
-            check('a model pull with no model named is refused before it reaches '
-                  'the network', c.post('/api/ai/pull-model', headers=HJ,
-                                        json={}).status_code == 400)
             check('refreshing prices with no connection reports a result rather '
                   'than failing',
                   c.post('/api/investments/prices/refresh',
                          headers=HJ, json={}).status_code == 200)
 
-            # The installer answers immediately because the work is on a
-            # thread, so "started" is true and tells the user nothing. What
-            # matters is where the thread leaves the progress state: an install
-            # that can never finish has to say so, or the UI reports a download
-            # in progress until the app is closed.
-            _kick = c.post('/api/ai/install-ollama', headers=HJ, json={})
-            check('the installer starts on a thread and says so',
-                  _kick.status_code == 200
-                  and data_of(_kick).get('started') is True)
-            _state = {}
-            for _ in range(60):                       # ~6s ceiling
-                _state = data_of(c.get('/api/ai/install-status', headers=H))
-                if _state.get('done') or _state.get('error'):
-                    break
-                time.sleep(0.1)                       # the work is on a thread
-            check('and an install that cannot reach the network ends reported, '
-                  'not running forever',
-                  bool(_state.get('error')) and _state.get('active') is False)
+            # R-b: Groundwork never uninstalls Ollama. The one thing this route
+            # may do is open Windows' own Installed apps page; the launcher is
+            # replaced so the check sees exactly what would be opened.
+            import os as _os
+            import sys as _sys
+            _opened = []
+            _real_startfile = getattr(_os, 'startfile', None)
+            _os.startfile = lambda target, *a, **k: _opened.append(target)
+            try:
+                _u = c.post('/api/ai/ollama-notice/uninstall', headers=HJ, json={})
+            finally:
+                if _real_startfile is None:
+                    del _os.startfile
+                else:
+                    _os.startfile = _real_startfile
+            if _sys.platform == 'win32':
+                check("the Ollama notice's button opens Windows' Installed apps page and nothing else",
+                      _u.status_code == 200 and _opened == ['ms-settings:appsfeatures'])
+            else:
+                check('off Windows the button is refused, and nothing is opened',
+                      _u.status_code == 400 and not _opened)
         finally:
             socket.socket.connect = _real_connect
             socket.create_connection = _real_create

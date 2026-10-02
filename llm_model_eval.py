@@ -15,7 +15,8 @@ WHAT IT MEASURES, per model
   * R8 violations — the cardinal metric. A model that fabricates a figure is
     disqualified regardless of how well it scores on tone.
   * per-rule failure rates — WHERE a model fails, not just how often
-  * generation throughput (Ollama's eval counters, so prefill is excluded)
+  * throughput (completion tokens over the call's wall time, so prefill is INCLUDED - unlike the Ollama-era
+    eval counters this file once read; compare like with like)
   * output length — because of the hypothesis below
 
 THE HYPOTHESIS UNDER TEST
@@ -32,14 +33,16 @@ USAGE
     python llm_model_eval.py                 # default models, 5 runs
     python llm_model_eval.py --runs 3
     python llm_model_eval.py --models phi3.5 qwen2.5:3b
-Requires Ollama running with the models pulled. No extra pip deps.
+Runs on Groundwork's own in-app engine (core/engine.py, ENGINE_REPLACEMENT.md): the shipped model file, the
+shipped load settings. Ollama is gone from both lines, so the multi-model comparison this file was built for is
+historical; it now measures the one model Groundwork ships, a different seed per call so repeated runs are
+independent samples. Needs llama-cpp-python (the CPU wheel) and the model file.
 """
 import argparse
 import json
 import statistics
 import sys
 import time
-import urllib.request
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -47,8 +50,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import voice_discipline_test as H  # real GW_VOICE, real CASES, real check()
 
-ENDPOINT = "http://localhost:11434"
-DEFAULT_MODELS = ["llama3.2:1b", "qwen2.5:3b", "llama3.2:3b", "phi3.5", "qwen2.5:7b"]
+ENGINE_MODEL = "phi3.5 (in-app engine)"
+DEFAULT_MODELS = [ENGINE_MODEL]
+_SEED = [0]
 
 # Minimum sample per group before the terseness verdict means anything. The
 # recorded finding pooled 143 calls; a 6-call run once printed "SUPPORTED,
@@ -58,11 +62,9 @@ MIN_TERSENESS_N = 30
 
 
 def model_sizes():
-    try:
-        with urllib.request.urlopen(f"{ENDPOINT}/api/tags", timeout=10) as r:
-            return {m["name"]: m["size"] / 1e9 for m in json.load(r).get("models", [])}
-    except Exception:
-        return {}
+    from core import engine
+    p = engine.model_path()
+    return {ENGINE_MODEL: p.stat().st_size / 1e9} if p.exists() else {}
 
 
 def size_of(name, sizes):
@@ -70,26 +72,26 @@ def size_of(name, sizes):
 
 
 def unload(model):
-    body = json.dumps({"model": model, "keep_alive": 0}).encode()
-    req = urllib.request.Request(f"{ENDPOINT}/api/generate", data=body, method="POST")
-    req.add_header("Content-Type", "application/json")
-    try:
-        urllib.request.urlopen(req, timeout=30).read()
-    except Exception:
-        pass
+    """The engine owns its lifecycle; it is released when this process ends."""
 
 
 def chat(model, system, user):
-    body = json.dumps({
-        "model": model, "stream": False, "keep_alive": "10m",
-        "messages": [{"role": "system", "content": system},
-                     {"role": "user", "content": user}],
-        "options": {"temperature": 0.3, "num_predict": 300},
-    }).encode()
-    req = urllib.request.Request(f"{ENDPOINT}/api/chat", data=body, method="POST")
-    req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=300) as r:
-        return json.load(r)
+    """One call on the in-app engine, returned in the shape eval_model() reads."""
+    from core import engine
+    engine.allow_load()
+    engine.start()
+    engine._ready.wait(120)
+    if engine._model is None:
+        raise RuntimeError(engine.status().get("message") or "engine unavailable")
+    _SEED[0] += 1
+    t = time.time()
+    with engine._lock:
+        out = engine._model.create_chat_completion(
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            max_tokens=300, temperature=0.3, seed=_SEED[0])
+    return {"message": {"content": out["choices"][0]["message"]["content"]},
+            "eval_count": (out.get("usage") or {}).get("completion_tokens") or 0,
+            "eval_duration": int((time.time() - t) * 1e9)}
 
 
 def score(text, case):
@@ -195,7 +197,7 @@ def main():
 
     sizes = model_sizes()
     if not sizes:
-        print("Ollama unreachable at " + ENDPOINT)
+        print("the in-app engine's model file was not found (models/ or vendor/phi3.5_model, or GROUNDWORK_MODEL_PATH)")
         return 1
     models = [m for m in args.models if size_of(m, sizes)]
     missing = [m for m in args.models if not size_of(m, sizes)]
@@ -265,7 +267,7 @@ def main():
               'or returned nothing. The gate is doing the work.')
 
     out = {"generated": time.strftime("%Y-%m-%d %H:%M"), "runs": args.runs,
-           "endpoint": ENDPOINT, "terseness": th,
+           "engine": ENGINE_MODEL, "terseness": th,
            "results": [{k: v for k, v in r.items() if k != "samples"} for r in results],
            "samples": {r["model"]: r["samples"] for r in results}}
     p = HERE / "llm_model_eval_results.json"
