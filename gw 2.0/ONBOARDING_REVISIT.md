@@ -340,6 +340,17 @@ three facts 1.x has readers for.
 
 **Gates:** master **2201 / 0** (`3667469`); lts/1.x **881 / 0** (`0c0e4a7`).
 
-## 6. Status
+## 6. Acceptance (Rob, 2026-10-02)
 
-BUILT on both lines and gated. Awaiting Rob's acceptance.
+*"yes i accept this build"*. The onboarding revisit is ACCEPTED as built on both lines: master `3667469`, lts
+`0c0e4a7`.
+
+## 7. Status
+
+ACCEPTED. Item 30 is CLOSED: the asked facts (A1–A10) and the onboarding revisit (A6).
+
+Carried forward, named and not queued (O10's frozen scope):
+- the narration facts block (A8, on the in-app engine);
+- propane and heating-oil pricing;
+- a diesel estimate;
+- item 24's general schema-pin guard.
