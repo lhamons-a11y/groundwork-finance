@@ -17,8 +17,17 @@ What it establishes, one line each (the ruling's six points):
   5. closing releases the model        the window closed normally; memory comes back; the process exits
   6. a second launch works normally    launch again, load again, answer again
 
+It is a CONFIGURATION-SELECTION test (Rob, 2026-10-02: "make the 8 GB configuration work"). It runs:
+  shipping        the engine as it ships (2048 context, batch 256, full-precision cache, OpenBLAS at one thread),
+                  twice - the second run is point 6
+  next_lever      the same with an 8-bit KV cache: about 0.4 GB less, but R8-DISQUALIFIED in the voice A/B (2
+                  violations in 120). Measured here only so Rob can see what it would buy on this machine; it is not
+                  shippable unless re-validated.
+The target (Rob): Groundwork stays responsive, the AI request completes, and sustained memory pressure does not
+turn ordinary use into disk-bound behaviour - not "zero paging".
+
 It prints a report and writes it beside itself (engine_8gb_report.json). It passes or fails nothing on its own:
-the figures go to Rob, who rules on them (R-d also decides 4096 vs 2048 context from these numbers).
+the figures go to Rob, who rules on them.
 Needs: Python 3 with psutil (pip install psutil). Windows only (the packaged app is Windows).
 """
 import json
@@ -110,10 +119,18 @@ def responsiveness(tok, seconds, label):
             'p95_s': times[int(len(times) * 0.95)] if times else None, 'worst_s': times[-1] if times else None}
 
 
-def one_run(app_dir, data_dir, n):
-    run = {'run': n}
+CONFIGS = [
+    ('shipping', {}),
+    ('shipping', {}),
+    ('next_lever_q8_kv (R8-disqualified unless re-validated)', {'GROUNDWORK_TEST_ENGINE_KV': 'GGML_TYPE_Q8_0',
+                                                                'GROUNDWORK_TEST_ENGINE_FLASH': '1'}),
+]
+
+
+def one_run(app_dir, data_dir, n, label='shipping', extra=None):
+    run = {'run': n, 'configuration': label}
     exe = os.path.join(app_dir, 'Groundwork.exe')
-    env = dict(os.environ, GROUNDWORK_DATA_DIR=data_dir)
+    env = dict(os.environ, GROUNDWORK_DATA_DIR=data_dir, **(extra or {}))
     run['memory_before'] = system_memory()
     t0 = time.time()
     proc = subprocess.Popen([exe], env=env)
@@ -203,7 +220,11 @@ def main():
         'threads': psutil.cpu_count(), **system_memory()},
         'running_processes': len(psutil.pids())}
     data_dir = tempfile.mkdtemp(prefix='gw_8gb_test_')
-    report['runs'] = [one_run(app_dir, data_dir, 1), one_run(app_dir, data_dir, 2)]    # 6: a second launch
+    report['runs'] = []
+    for n, (label, extra) in enumerate(CONFIGS, 1):              # the second shipping run is point 6
+        print(f'run {n}: {label} ...', flush=True)
+        report['runs'].append(one_run(app_dir, data_dir, n, label, extra))
+        time.sleep(5)
     here = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))
     path = os.path.join(here, 'engine_8gb_report.json')
     with open(path, 'w', encoding='utf-8') as fh:
