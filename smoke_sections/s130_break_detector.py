@@ -235,8 +235,13 @@ def run(ctx):
     check('s130 B9 the debt cycle is named, not wired: nothing on this path imports core.cycles',
           'core.cycles' not in imports)
     import migrate
-    check('s130 B8 no schema change: SCHEMA_VERSION is still the Willingness Layer\'s',
-          migrate.SCHEMA_VERSION == '20260928-willingness-declarations')
+    # Was pinned to the Willingness Layer's SCHEMA_VERSION, which proved "no schema change" only until the next
+    # legitimate bump (the household facts, 2026-10-02). What B8 means is that the detector owns no schema.
+    _db_src = ctx.BASE.joinpath('core/database.py').read_text(encoding='utf-8')
+    _mig_src = ctx.BASE.joinpath('migrate.py').read_text(encoding='utf-8')
+    check('s130 B8 no schema of its own: no break table, and nothing of the detector in the migration',
+          not re.search(r"__tablename__ = '[a-z_]*break", _db_src) and not re.search(r'\bbreaks?\b|detect_break', _mig_src)
+          and bool(migrate.SCHEMA_VERSION))
 
     # Words: the fact of the shift, never a cause, a duration or advice (ruling 7).
     js = ctx.BASE.joinpath('static/js/teaching/willingness.js').read_text(encoding='utf-8')
