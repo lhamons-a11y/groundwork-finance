@@ -5,7 +5,9 @@
 
 ## Before you begin
 
-You'll need a Windows computer running Windows 10 or Windows 11. That's it. You don't need to install Python or any other software first — the installer handles everything.
+You'll need a Windows computer. You don't need to install Python or any other software first — the installer handles everything.
+
+**We suggest a computer whose operating system still gets security updates** (Windows 11 today). Groundwork holds your financial data, and an up-to-date system is the first thing protecting it. Groundwork still installs and runs on Windows 10, which no longer receives security updates; on an older computer that stays offline, that's perfectly fine.
 
 ---
 

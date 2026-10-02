@@ -215,3 +215,11 @@ def run(ctx):
               and not re.search(r'OllamaSetup|\.ollama|ollama_runtime|NeedsOllama', text))
     spec = ctx.BASE.joinpath('groundwork.spec').read_text(encoding='utf-8')
     check("E6 the packaged build collects the runtime's native libraries", "collect_dynamic_libs('llama_cpp')" in spec)
+
+    # Rob, 2026-10-02: warn, don't block, on a Windows that no longer gets security updates (financial data).
+    for iss in ('groundwork.iss', 'groundwork_offline.iss', 'groundwork_store.iss', 'installer/Groundwork_Setup.iss'):
+        text = ctx.BASE.joinpath(iss).read_text(encoding='utf-8')
+        mv = re.search(r'^MinVersion=([\d.]+)', text, re.M)
+        check(f'OS {iss} warns on Windows 10 and still installs there (no Windows 11 floor), interactive installs only',
+              'WarnIfWindowsUnsupported();' in text and 'V.Build < 22000' in text and "that''s perfectly fine" in text
+              and mv is not None and not mv.group(1).startswith('10.0.22') and 'WizardSilent()' in text)
