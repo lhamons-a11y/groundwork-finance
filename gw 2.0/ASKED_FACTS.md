@@ -115,8 +115,33 @@ order), or stop asking it.
   Existing users never see onboarding again, so the last place is how they meet it.
 - **A7.** *No data goes unused* as the test for every question: a question with no named reader is not asked, and
   each answer shows its effect where the user meets it. F8's two questions are fixed or removed in the revisit.
+- **A8.** *The household facts block for narration* (discussed 2026-10-02, proposed, not yet put to Rob as a ruling):
+  - the current asked facts are given to the narrator as one small block, each labelled asked / ledger / published,
+    with the date it was given;
+  - it goes in the prompt's stable prefix, so the runtime reuses it and the in-app engine can process it at launch;
+  - history goes in only when the question is about a change;
+  - `onboarding_intent` is never put in, because it would steer every answer toward that motive;
+  - the user's stated priority may go in, as their choice, never as advice.
+
+  Why: the model reads input in batches, but each token it writes is a full read of its 2.2 GB of weights from RAM. A
+  fact given as input replaces text and round trips it would otherwise have to write. Fewer trips and shorter answers,
+  with a small block.
+- **A9.** *AI off means nothing AI-related loads* (Rob agreed, 2026-10-02). The engine checks the user's AI setting
+  **before** loading the model. Today [`launch.py`](../launch.py) (~404) starts the Ollama runtime on every launch
+  without checking `ai_enabled`. That costs little now, because Ollama loads the model only on first use, but the
+  in-app engine (MODEL_PLACEMENT ruling 4, not built) loads 2.2 GB at launch. Test: with AI off, the process never
+  loads the model and its memory stays at the no-AI level.
+- **A10.** *Every surface is complete with AI off* (Rob agreed, 2026-10-02). The program is still good with AI off:
+  each page gives the plain-figures fallback, never an empty box or an error. Items 22-29 are worked out from data
+  already. The older AI surfaces (trip planning, categorising, the narrator panels) have not been checked. Test: one
+  gate pass with `ai_enabled=false` that visits each AI surface and requires a useful non-AI answer.
+
+  Rob's stance, recorded with it (2026-10-02): users know how their own machine runs. Those who want AI know it needs
+  RAM and a decent processor or GPU. Those who don't care switch it off in onboarding and still get *"freeware that
+  doesn't suck"*, on little RAM. So the onboarding machine check and the AI on/off choice are the first asked fact
+  (A7: that answer decides what loads).
 - **A6.** Then the onboarding revisit, as its own pass: the order, what is skipped, and fixing the ambiguous *Gas* label.
 
 ## 5. Status
 
-OPEN: seven points for ruling (A1–A7). No code. The onboarding revisit follows once these are ruled.
+OPEN: ten points (A1–A10). Rob agreed A9 and A10 on 2026-10-02 as points for item 30. They are recorded as points, not as a build authorisation. No code. The onboarding revisit follows once these are ruled.
