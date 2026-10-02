@@ -3,7 +3,7 @@
 > Status: **RULED and AUTHORISED 2026-10-01 (Rob: "I accept all seven points, build it"). U0 BUILT on both lines; the natural
 > gas slice BUILT on 2.0 (§6), gate 2099 / 0 with the U0 merge; the gas slice ACCEPTED (Rob, 2026-10-01). Electricity AUTHORISED ("build
 > electricity") and BUILT (§7), gate 2115 / 0; ACCEPTED (Rob, 2026-10-01: "Accept item 26 in both parts"). Gasoline BUILT
-> (§9); awaiting the gate and Rob's acceptance. The totals follow-up pass is next, as its own pass. Gasoline to follow (U8).** Opened the same day. Rob, 2026-10-01: *"open item 26"*.
+> (§9), gate 2131 / 0 (pushed 8e7087c); awaiting Rob's acceptance. The totals follow-up pass is next, as its own pass. Gasoline to follow (U8).** Opened the same day. Rob, 2026-10-01: *"open item 26"*.
 >
 > **Rob's requests (2026-09-28), recorded in the queue. For every U.S. state, not one (Rob, 2026-10-01; U9):**
 > - estimate natural gas from weather, usage and price, and set it in the budget;
@@ -344,3 +344,4 @@ designed or ruled yet, so it is **not** part of this build. It is opened as its 
 - *"The same gallons a year earlier, at $2.49/gal, came to about $85.04: +$41.89, all from price."*
 - The saved amount still setting the totals.
 
+**Gate: 2131 passed, 0 failed** (8e7087c, pushed 2026-10-01). Awaiting Rob's acceptance. The totals follow-up pass is opened as `BUDGET_MONTH_AMOUNT.md` (seven points, no code).
