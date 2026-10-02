@@ -158,4 +158,4 @@ question and never answers it; no data goes unused.
 
 ## 6. Status
 
-RULED 2026-10-02 (A1–A10). No code authorised. The onboarding revisit is next.
+RULED 2026-10-02 (A1–A10). No code authorised. Item 31 (replacing Ollama, `ENGINE_REPLACEMENT.md`) goes first, by Rob's choice. The onboarding revisit follows it.
