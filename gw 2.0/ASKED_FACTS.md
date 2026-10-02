@@ -142,6 +142,20 @@ order), or stop asking it.
   (A7: that answer decides what loads).
 - **A6.** Then the onboarding revisit, as its own pass: the order, what is skipped, and fixing the ambiguous *Gas* label.
 
-## 5. Status
+## 5. Ruling: Rob, 2026-10-02
 
-OPEN: ten points (A1–A10). Rob agreed A9 and A10 on 2026-10-02 as points for item 30. They are recorded as points, not as a build authorisation. No code. The onboarding revisit follows once these are ruled.
+**All ten points accepted as written** (*"I accept A8, all ten points as written"*). This is a ruling, not a build
+authorisation.
+
+Already settled before this ruling, and still in force: unanswered stays unanswered; a ledger reading prompts a
+question and never answers it; no data goes unused.
+
+**Next:** the onboarding revisit, opened as its own pass (A6). The build pieces each need their own go-ahead:
+- the asked-fact store with history (A2, A3);
+- the questions in Settings and on the first page that needs each one (A5);
+- the AI-off checks (A9, A10);
+- the narration facts block (A8, which waits on the in-app engine).
+
+## 6. Status
+
+RULED 2026-10-02 (A1–A10). No code authorised. The onboarding revisit is next.
