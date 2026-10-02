@@ -151,6 +151,55 @@ has no reader, or if a reader names a question onboarding no longer asks. *Recom
 
 *Recommended.*
 
-## 3. Status
+## 3. Ruling: Rob, 2026-10-02
 
-OPEN: ten points for ruling (O1–O10). No code until ruled and authorised.
+**O1–O10 approved**, with these changes:
+- **O4:** the underlying question is *"What type of fuel does your vehicle use?"* The answers are gasoline, diesel,
+  **electric**, other, **no vehicle / no vehicle fuel expense**, and unanswered. The display label can stay *Vehicle
+  fuel (gasoline or diesel)*. The boundary is preserved explicitly: **user-facing terminology changes without a ledger
+  migration.** `Gas` and `Gas / Fuel` keep their names unless there is an accounting or data-model reason.
+- **O5:** a versioned migration with tests, preserving when each answer was given and its **source** (onboarding,
+  settings, inline prompt, imported).
+- **O6:** an actual answer (*Electric*, *No vehicle*, *Unknown*) is never collapsed into unanswered. A missing answer
+  means *"we don't have enough information to calculate this"*, never zero.
+- **O7, a hard acceptance criterion:** *every onboarding question must have at least one documented consumer, and
+  every consumer must identify which answer supplies its value* (question → stored answer → consumer →
+  feature). The question-to-consumer matrix is part of the implementation.
+- **O8:** a known answer is never asked again. An unknown one gets a contextual request that disappears once answered.
+- **O9:** **one canonical household fact** (state, housing status, heating fuel, heating payment method, pay
+  frequency). Onboarding, Settings and inline prompts are different ways of setting the same fact, never separate
+  answers.
+- **O10:** the scope is frozen.
+
+The overarching principle, Rob's words: **"Onboarding is a data-collection mechanism, not a conversation script.
+Every question must create or update a canonical fact that the product actually uses."**
+
+**Raised back, 2026-10-02 (refinements, awaiting Rob):**
+- **No `user_id`.** The facts are the household's (O9's own sketch, and the ruling that a joint account has no
+  author): one household per installation.
+- **Append-only, so no `updated_at`.** A change is a new row (`answered_at`, `source`). The current value is the
+  latest row. Removing an answer adds a row with no value, so the fact is **withdrawn**: unanswered again, with the
+  history kept. The states are: an answer, an explicit *none* (*No vehicle*), *Not sure*, and unanswered (never
+  given, or withdrawn).
+- **O9 applied to O5 itself.** O5 kept the current value in `AppSetting` and the history in a new table. That is two
+  stores. Fix: **one write path**, `set_household_fact()`, which writes both in one transaction. Onboarding, Settings,
+  inline prompts and the existing `PATCH /api/settings` all go through it for household keys. A test fails if any
+  fact's `AppSetting` value differs from its latest row, with a mutation check that proves the test can catch it.
+- **The matrix lists only consumers that exist or are built in this pass:**
+
+| fact | consumer | exists? |
+|---|---|---|
+| `home_state` | EIA benchmarks (both lines), item 26 estimates | yes |
+| `pay_frequency` | cash-flow and payday views | yes |
+| `housing_status` + utilities included | item 26 (included: no utility estimates); the bills label (Mortgage / Rent) | built here |
+| `heating_fuel` | item 26: prices natural gas only for natural gas, and otherwise says why | built here |
+| `heating_payment_method` | item 26: under even-monthly or prepaid billing, says why it cannot fit | built here |
+| `vehicle_fuel_type` | the gasoline estimate: gasoline only; none for electric or no vehicle; diesel *not priced yet* | built here |
+| `financial_priority` | the summary's arithmetic (O3) | built here |
+| `net_worth_target` | the Net Worth page | yes |
+
+  A question whose consumer is not built in this pass is not asked in this pass.
+
+## 4. Status
+
+RULED 2026-10-02 (O1–O10, with Rob's changes). Four refinements raised back. No code until the build is authorised.
