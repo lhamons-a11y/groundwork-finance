@@ -224,6 +224,122 @@ Every question must create or update a canonical fact that the product actually 
 
 **Scope frozen:** no propane or oil pricing, no narration block, and not item 24's general fix.
 
-## 5. Status
+## 5. The build (2026-10-02)
 
-AUTHORISED 2026-10-02. Building from step 1.
+Built in Rob's order, steps 1–9.
+
+**1–3. The fact store and the one write path** (`core/household.py`, `household_facts`):
+- The table is append-only and belongs to the household: there is no user column.
+- **`set_household_fact()`** appends the history row and updates `app_settings[key]` in one transaction.
+- An answer equal to the current one records nothing.
+- A withdrawal is a row with no value; the fact becomes unanswered and the history is kept.
+- An unknown fact, value or source is refused, and nothing is written.
+- `PATCH /api/settings` routes every household key through the write path, with source `settings`. An invalid answer
+  refuses the whole request.
+- `GET`/`POST /api/settings/household` are for the page. The page cannot claim `carried_over`.
+- **Answers given before history existed are carried over** by the migration: one row each, source `carried_over`,
+  with **no `answered_at`**. When they were said is not known, so it is not invented.
+- `SCHEMA_VERSION` was bumped on each line (`20261002-household-facts`, `20261002-lts-household-facts`) with the s51
+  pin, and **the upgrade is proved through `run_migration_if_needed`** on a database at the previous version. This is
+  item 24's gap, closed for this table.
+- Tests (s139 on 2.0, s62 on 1.x) cover the invariant, `current == latest history row`, with two mutations that prove
+  the check can fail: a write that bypasses the path, and a history row edited behind the current value.
+
+**4. The onboarding** (O1–O6):
+- The intent screen is gone.
+- *How often are you paid?* is on the income screen.
+- A new **Your home** screen sits between income and the bills: the state on both lines, and on 2.0 own or rent,
+  electricity in rent (renters only), the heating fuel (*heat is included* offered only to renters), how heating is
+  paid (only for a billed or delivered fuel), and *What type of fuel does your vehicle use?* (gasoline, diesel,
+  **electric**, other, **no vehicle**).
+- Every question can be skipped. A skipped one sends nothing.
+- The bills screen is **labelled from the answers**: *Rent* or *Mortgage*; *Home heating fuel: natural gas*, or no
+  line for electric heat or heat in the rent; no electric line when rent includes it; *Vehicle fuel (gasoline or
+  diesel)*, or no line for an EV or no vehicle.
+- **Category names are unchanged** (`Gas`, `Gas / Fuel`). Propane, heating oil and other fuels are filed in their own
+  categories, so they never feed the natural gas estimate.
+- The priority answer is saved through the write path, and only when chosen; there is no manufactured `unsure`.
+- The O9 seam holds: the 2.0 questions and their labels live in `teaching/household.js`, which wraps real app.js
+  functions. app.js names none of those facts (tested).
+
+**O3, the priority's reader:** the summary states the user's own choice and the arithmetic from what they entered.
+For example: *"You said building emergency savings comes first. From what you entered, about $2,122.80 a month is
+left after bills and minimum payments; at that pace, one month of bills ($1,531.20) set aside takes about 1 month."*
+It has no verdict and no date.
+
+**O7 in the summary:** each answer is listed next to what it turned on, and the skipped ones are named with where to
+answer them.
+
+**5. Settings → Your home (2.0):** the same facts, source `settings`. *Skip for now* withdraws an answer. The state
+stays in its one existing Settings field.
+
+**6. Inline (2.0):**
+- A Budget utility card asks an unanswered fact where it is needed (source `inline_prompt`) and redraws once it is
+  answered.
+- While a fact is unanswered, the estimate **says what it is reading the bills as**, for example *"Reading the bills
+  in your Gas category as natural gas. Tell us what heats your home to be sure."* It is never silent.
+
+**7. Item 26's consumers (2.0):** `utility_applies()` settles an estimate from what the household said, **before any
+EIA fetch**, and says why:
+- propane, oil or other fuel: not priced yet;
+- electric heat;
+- heat or electricity included in the rent;
+- *not sure*;
+- an even-monthly or prepaid heating bill: those payments do not follow the weather;
+- an electric vehicle, no vehicle, or diesel (not priced yet).
+
+The monthly report gets no statement for a settled estimate.
+
+**8. The matrix** (s140 on 2.0, s63 on 1.x), both ways:
+- every question sets a fact;
+- every fact is asked;
+- every consumer exists **and reads its fact**.
+
+Three mutations prove it can fail: a missing consumer, a question with no fact, and a consumer that does not read
+its fact. As built on 2.0:
+
+| fact | consumers |
+|---|---|
+| `home_state` | `_home_state` (EIA benchmarks), `gas_estimate`, `electric_estimate`, `gasoline_estimate` |
+| `pay_frequency` | `S.lifeStage.payFrequency` (cash-flow and payday views) |
+| `housing_status` | `utility_applies`, `_housingLabel` |
+| `electricity_included` | `utility_applies` |
+| `heating_fuel` | `utility_applies`, `_heatingLabel` |
+| `heating_payment` | `utility_applies` |
+| `vehicle_fuel` | `utility_applies` |
+| `surplus_goal` | `_obPriorityLine` |
+
+1.x has `home_state` (`_home_state`), `pay_frequency` and `surplus_goal` only.
+
+**9. 1.x:** the same store, write path, onboarding code (byte-identical to 2.0's), priority line and labels. Only the
+three facts 1.x has readers for.
+
+**Found building, and fixed:**
+- **An answer manufactured by a reader.** An unanswered pay frequency read as `'monthly'`, and the monthly report
+  would then describe the pay as monthly. Unanswered is now `null` in the client.
+- **The onboarding state list was empty.** It copied the Settings select, which fills only when Settings renders. It
+  now uses `US_STATES`, as does the inline asker.
+- **A false "Not answered"** (found in the browser). A second walk-through started blank, so the summary called the
+  answered pay frequency *not answered*. Onboarding now opens on the facts as they stand (O8: a known answer is never
+  asked as new), and s140/s63 check it.
+
+**Seen in the browser** (2.0, fresh database):
+- After the AI choice, onboarding went straight to *how to start*.
+- Pay frequency was saved as `biweekly / onboarding`.
+- The home screen's follow-ups appeared for a renter on natural gas.
+- The bills read *Rent*, *Home heating fuel: natural gas*, with no electric line and *Vehicle fuel (gasoline or
+  diesel)*.
+- The summary carried the priority line and each answer's effect.
+- Settings → Your home showed the same facts.
+- Changing the vehicle to gasoline and withdrawing the heating fuel gave the history `diesel/onboarding →
+  gasoline/settings` and `natural_gas/onboarding → WITHDRAWN/settings`.
+- The Budget gas card then said what it assumed and asked inline. Answering *Propane* there switched it to *"You told
+  us propane heats your home. Groundwork does not price propane yet, so there is no natural gas estimate."*, and the
+  history gained `propane/inline_prompt`.
+- No console errors.
+
+**Gates:** master **2201 / 0** (`3667469`); lts/1.x **881 / 0** (`0c0e4a7`).
+
+## 6. Status
+
+BUILT on both lines and gated. Awaiting Rob's acceptance.
