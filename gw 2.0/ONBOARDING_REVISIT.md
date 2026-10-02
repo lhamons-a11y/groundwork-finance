@@ -85,6 +85,19 @@ goes into the narration block as the user's choice (A8). *Recommended.*
 
 *Recommended.*
 
+**O4, Rob's wording (2026-10-02):** *"Should we specify the gas field better as heating fuel (for home fuel usage),
+petro for vehicle fuel."* Adopted into O4, pending the ruling:
+- **Home: "Home heating fuel: <the fuel from step 6>"**, for example *Home heating fuel: propane*. The label alone
+  can't tell item 26 which fuel to price, so the step-6 answer fills it in. There is no field when heat is included
+  in the rent or is electric.
+- **Vehicle: "Vehicle fuel (gasoline or diesel)"**, not *petrol*, which is the British word. Item 26 prices regular
+  gasoline only, so a diesel driver would be priced wrong. EIA's weekly diesel series makes a diesel estimate a later
+  small slice, with one question (*gasoline, diesel, or electric*). Electric links to the home-charging question
+  (F6).
+- **Labels change; category names do not, in this pass.** `Gas` and `Gas / Fuel` keep their names, because existing
+  history is filed under them and item 26 reads them by name. Renaming categories rewrites the ledger, which is its
+  own migration. Propane and heating oil get new categories, so they never feed a natural-gas estimate.
+
 **O5. Where the answers live: dated statements (A2, A3), built here.**
 - A new table, `asked_fact` (key, value, said_at, where: onboarding, Settings or a page). The current value stays in
   `AppSetting`, so nothing that reads settings today changes.
