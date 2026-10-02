@@ -1,247 +1,133 @@
-"""The AI paths that work, tested against an Ollama that answers.
+"""The AI paths that work, tested against the in-app engine with a stand-in model.
 
-s55 checks these three routes with the network blocked, which is honest as far
-as it goes: it proves the failures are reported rather than hung. It says
-nothing about the case where everything is fine, and that half was untestable
-for the usual reason - the success path needed a 1.3GB installer and a model
-download, so nobody ever ran it and the parsing underneath it was never
-exercised by anything but hand-testing.
+The engine (core/engine.py, ENGINE_REPLACEMENT.md) owns the model; the server reaches it through one seam,
+_ai_chat_local. This section puts a stand-in where the loaded model would be - an object with the same
+create_chat_completion() the real llama_cpp.Llama has, which RECORDS what it was sent - and runs the real routes
+against it. So it checks both halves: what the user's request becomes on the way in (system first, content blocks
+flattened, the budget and temperature passed through), and what the response becomes on the way out.
 
-None of that needs the internet. What it needs is something at the other end
-speaking Ollama's protocol, and the app already knows how to be pointed
-somewhere else: _local_endpoint() reads the local_endpoint setting, which is
-how a user puts Ollama on another machine. So this stands up an Ollama on
-127.0.0.1 that answers /api/tags, /api/chat and /api/pull, points the setting
-at it, and runs the real client code against it.
-
-The fake also RECORDS what it was sent, which is the only way to check the
-half of this that lives in the request rather than the response - the qwen3
-reasoning switch is a field in an outgoing payload, and no response can tell
-you whether it was set.
-
-Still not covered, and it cannot be from here: _run_install_ollama's last step
-shells out to the downloaded installer with /VERYSILENT. Everything before it -
-the download, the progress accounting, the file on disk - is exercised.
+It never loads the real 2.2 GB model: that is measured outside the gate (the voice A/B and the memory figures in
+ENGINE_REPLACEMENT.md), and the gate has to stay fast and runnable on any machine.
 """
 import json
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
-
-# What the fake is currently pretending to be. Rewritten between checks.
-STATE = {
-    'tags': ['mistral:7b', 'llama3:8b', 'qwen2.5:7b-instruct'],
-    'chat_reply': 'A plain answer.',
-    'pull_lines': [],
-    'seen_chat': None,          # the last /api/chat payload, as sent
-    'payload': b'',             # what /download/payload.bin serves
-}
 
 
-class _FakeOllama(BaseHTTPRequestHandler):
-    protocol_version = 'HTTP/1.1'
+class _StandIn:
+    """Answers like llama_cpp.Llama.create_chat_completion; records calls and how many ran at once."""
 
-    def log_message(self, *_args):
-        pass                    # the suite's output is not a web server log
+    def __init__(self, reply='A plain answer.', delay=0.0, raise_exc=None):
+        self.reply, self.delay, self.raise_exc = reply, delay, raise_exc
+        self.seen = []
+        self.active = 0
+        self.max_active = 0
+        self.closed = False
+        self._mx = threading.Lock()
 
-    def _send(self, body, status=200, ctype='application/json'):
-        self.send_response(status)
-        self.send_header('Content-Type', ctype)
-        self.send_header('Content-Length', str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def do_GET(self):
-        if self.path == '/api/tags':
-            models = [{'name': n} for n in STATE['tags']]
-            self._send(json.dumps({'models': models}).encode('utf-8'))
-        elif self.path == '/download/payload.bin':
-            self._send(STATE['payload'], ctype='application/octet-stream')
-        else:
-            self._send(b'{}', status=404)
-
-    def do_POST(self):
-        raw = self.rfile.read(int(self.headers.get('Content-Length') or 0))
+    def create_chat_completion(self, messages, max_tokens, temperature, **_kw):
+        with self._mx:
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
         try:
-            sent = json.loads(raw.decode('utf-8'))
-        except ValueError:
-            sent = {}
+            self.seen.append({'messages': messages, 'max_tokens': max_tokens, 'temperature': temperature})
+            if self.raise_exc:
+                raise self.raise_exc
+            time.sleep(self.delay)
+            return {'choices': [{'message': {'content': '  ' + self.reply + '  '}, 'finish_reason': 'stop'}],
+                    'usage': {'completion_tokens': 3}}
+        finally:
+            with self._mx:
+                self.active -= 1
 
-        if self.path == '/api/chat':
-            STATE['seen_chat'] = sent
-            self._send(json.dumps(
-                {'message': {'content': STATE['chat_reply']}}).encode('utf-8'))
-        elif self.path == '/api/pull':
-            # Ollama streams newline-delimited JSON while it works. This is the
-            # shape _run_model_pull parses, one event per line.
-            body = b''.join(json.dumps(line).encode('utf-8') + b'\n'
-                            for line in STATE['pull_lines'])
-            self._send(body, ctype='application/x-ndjson')
-        else:
-            self._send(b'{}', status=404)
+    def close(self):
+        self.closed = True
 
 
 def run(ctx):
     check, c, H, HJ = ctx.check, ctx.c, ctx.H, ctx.HJ
-    from server import _download_with_progress, _install_state, _local_endpoint
-
-    server = HTTPServer(('127.0.0.1', 0), _FakeOllama)
-    port = server.server_address[1]
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    base = f'http://127.0.0.1:{port}'
+    import server
+    from core import engine
 
     def data_of(resp):
         body = resp.get_json() or {}
         return body.get('data') or body
 
-    def settings(**kw):
-        return c.patch('/api/settings', headers=HJ, json=kw)
+    def install(model):
+        engine.stop()
+        with engine._lock:
+            engine._model = model
+            engine._set('ready')
+
+    def chat(**body):
+        return c.post('/api/ai/chat', headers=HJ, data=json.dumps(body))
 
     try:
-        settings(local_endpoint=base, ai_provider='local', ai_enabled='true',
-                 local_model='')
-        check('the endpoint is a setting, so the app can be pointed at another '
-              'machine - or at this one', _local_endpoint() == base)
+        c.patch('/api/settings', headers=HJ, json={'ai_enabled': 'true'})
+        m = _StandIn()
+        install(m)
 
-        # ── Which model gets picked ─────────────────────────────────────────
-        # The preference order is what makes "the model we shipped got pulled
-        # from the registry" a non-event, so it is worth pinning: qwen first,
-        # then llama, and never simply whatever came back first.
-        _status = data_of(c.get('/api/ai/status', headers=H))
-        check('an installed model is auto-detected from the tags Ollama reports',
-              _status.get('active_model') == 'qwen2.5:7b-instruct'
-              and _status.get('reachable') is True)
-        STATE['tags'] = ['mistral:7b', 'llama3:8b']
-        check('and with no qwen installed it falls to the next preference, not '
-              'to the first tag returned',
-              data_of(c.get('/api/ai/status', headers=H)).get('active_model')
-              == 'llama3:8b')
-        STATE['tags'] = []
-        # Reachable AND empty, both asserted: "no model" and "no such field"
-        # are the same falsy value, and the first version of this check could
-        # not tell them apart - it passed while the two above it failed on a
-        # key that does not exist.
-        _empty = data_of(c.get('/api/ai/status', headers=H))
-        check('an Ollama with no models at all resolves to nothing, and says so '
-              'rather than guessing',
-              _empty.get('reachable') is True
-              and _empty.get('installed_models') == []
-              and _empty.get('active_model') == '')
-        STATE['tags'] = ['phi3.5:latest']
+        r = chat(system='Be plain.', messages=[{'role': 'user', 'content': [{'type': 'text', 'text': 'Hi'},
+                                                                          {'type': 'text', 'text': 'there'}]}],
+                 max_tokens=77, temperature=0.1)
+        body = r.get_json() or {}
+        check('a chat reaches the engine and comes back in the shape callAI() reads',
+              r.status_code == 200 and body.get('content') == [{'type': 'text', 'text': 'A plain answer.'}]
+              and body.get('provider') == 'local' and body.get('model') == engine.MODEL_FILE
+              and body.get('finish') == 'stop' and body.get('stop_reason') == 'end_turn')
+        sent = m.seen[-1]
+        check('the system prompt goes first and content blocks are flattened to text',
+              sent['messages'] == [{'role': 'system', 'content': 'Be plain.'}, {'role': 'user', 'content': 'Hi\nthere'}])
+        check('the token budget and temperature pass through unchanged',
+              sent['max_tokens'] == 77 and sent['temperature'] == 0.1)
 
-        # ── A chat that works ───────────────────────────────────────────────
-        STATE['chat_reply'] = 'Your debt-free date moves two months earlier.'
-        _chat = c.post('/api/ai/chat', headers=HJ, json={
-            'system': 'You are terse.',
-            'messages': [{'role': 'user', 'content': 'What changed?'}],
-            'max_tokens': 200})
-        _body = _chat.get_json() or {}
-        check('a chat against a reachable model returns the text it produced, '
-              'in the shape the client expects',
-              _chat.status_code == 200
-              and _body.get('content', [{}])[0].get('text') == STATE['chat_reply']
-              and _body.get('model') == 'phi3.5:latest')
-        check('and the system prompt is sent as a leading message, which is how '
-              'Ollama takes one',
-              (STATE['seen_chat'] or {}).get('messages', [{}])[0]
-              == {'role': 'system', 'content': 'You are terse.'})
-        check('the model is asked for a whole answer, not a stream the caller '
-              'would have to reassemble',
-              (STATE['seen_chat'] or {}).get('stream') is False)
+        with c.application.test_request_context('/api/debt/pdf-extract', method='POST'):
+            text = server._ai_complete_text('sys', 'user text', max_tokens=50)
+        check('the server-side path (_ai_complete_text) gets the text too', text == 'A plain answer.')
 
-        # A small model that reasons out loud puts the reasoning in the reply.
-        # Shipping that to the user would read as the app talking to itself.
-        STATE['chat_reply'] = ('<think>The user asked about the date. I should '
-                               'check the balance.</think>Two months earlier.')
-        _thought = c.post('/api/ai/chat', headers=HJ, json={
-            'messages': [{'role': 'user', 'content': 'What changed?'}]})
-        check('a model that thinks out loud has its thinking stripped before '
-              'the answer is shown',
-              (_thought.get_json() or {}).get('content', [{}])[0].get('text')
-              == 'Two months earlier.')
+        # ── Not running, said honestly ───────────────────────────────────────
+        calls_before = len(m.seen)
+        c.patch('/api/settings', headers=HJ, json={'ai_enabled': 'false'})
+        r = data_of(chat(messages=[{'role': 'user', 'content': 'x'}]))
+        check('with AI off the route says so, and the engine is never asked',
+              r.get('ai_available') is False and r.get('reason') == 'disabled' and len(m.seen) == calls_before)
+        check('switching AI off released the model (it was closed, and nothing is loaded)',
+              m.closed and not engine.is_loaded() and engine.status()['state'] == 'off')
+        c.patch('/api/settings', headers=HJ, json={'ai_enabled': 'true'})
+        check('switching AI back on in the gate loads nothing: only the launcher may load the real model',
+              engine.status()['state'] == 'off' and not engine.is_loaded())
+        r = data_of(chat(messages=[{'role': 'user', 'content': 'x'}]))
+        check('AI on but the engine not running: an honest message, never a 500 or an empty answer',
+              r.get('ai_available') is False and r.get('reason') == 'engine_off' and 'Settings' in r.get('message', ''))
 
-        # ── The qwen3 switch, which only the request can prove ──────────────
-        # qwen3 reasons by default in Ollama, which on CPU either times out or
-        # spends the whole token budget before writing an answer - and comes
-        # back with empty content, which looks exactly like a broken model.
-        # Both halves of the workaround are in what gets SENT.
-        settings(local_model='qwen3:8b')
-        STATE['chat_reply'] = 'Fine.'
-        c.post('/api/ai/chat', headers=HJ,
-               json={'messages': [{'role': 'user', 'content': 'Status?'}]})
-        _sent = STATE['seen_chat'] or {}
-        check('a qwen3 model is asked not to reason, through the documented '
-              'switch', _sent.get('think') is False)
-        check('and the prompt carries the no-think token as well, because the '
-              'switch alone did not hold',
-              (_sent.get('messages') or [{}])[-1].get('content', '')
-              .endswith('/no_think'))
-        settings(local_model='')
+        with engine._lock:
+            engine._set('unavailable', 'cpu', 'no AVX2')
+        r = data_of(chat(messages=[{'role': 'user', 'content': 'x'}]))
+        st = data_of(c.get('/api/ai/status', headers=H))
+        check("an unavailable engine says why, in the user's words, on the chat and on the status",
+              r.get('reason') == 'engine_cpu' and 'processor' in r.get('message', '')
+              and st.get('engine') == 'unavailable' and 'processor' in st.get('message', ''))
 
-        # ── A pull that finishes ────────────────────────────────────────────
-        STATE['pull_lines'] = [
-            {'status': 'pulling manifest'},
-            {'status': 'downloading', 'total': 1000, 'completed': 250},
-            {'status': 'downloading', 'total': 1000, 'completed': 900},
-            {'status': 'verifying sha256 digest'},
-            {'status': 'success'},
-        ]
-        _started = c.post('/api/ai/pull-model', headers=HJ,
-                          json={'model': 'phi3.5'})
-        check('a pull starts in the background and names what it is pulling',
-              _started.status_code == 200
-              and data_of(_started).get('model') == 'phi3.5')
-        _pull = {}
-        for _ in range(60):                            # ~6s ceiling
-            _pull = data_of(c.get('/api/ai/pull-status', headers=H))
-            if _pull.get('done'):
-                break
-            time.sleep(0.1)
-        check('and it finishes, reporting complete rather than stopping at the '
-              'last percentage it saw',
-              _pull.get('done') is True and _pull.get('percent') == 100
-              and not _pull.get('error') and _pull.get('active') is False)
+        install(_StandIn(raise_exc=ValueError('Requested tokens (5000) exceed context window of 4096')))
+        r = data_of(chat(messages=[{'role': 'user', 'content': 'x' * 10}]))
+        check('a request too long for the model is refused plainly, not crashed on',
+              r.get('ai_available') is False and r.get('reason') == 'engine_too_long')
 
-        # An error arrives mid-stream, in a line that otherwise looks like
-        # progress. Losing it would leave a pull that reports success.
-        STATE['pull_lines'] = [
-            {'status': 'downloading', 'total': 1000, 'completed': 100},
-            {'status': 'error', 'error': 'no space left on device'},
-        ]
-        c.post('/api/ai/pull-model', headers=HJ, json={'model': 'phi3.5'})
-        _failed = {}
-        for _ in range(60):
-            _failed = data_of(c.get('/api/ai/pull-status', headers=H))
-            if _failed.get('done'):
-                break
-            time.sleep(0.1)
-        check('an error inside the stream is kept, not overwritten by the '
-              'lines after it',
-              'no space left' in (_failed.get('error') or '')
-              and _failed.get('percent') != 100)
-
-        # ── The download, which is every step of the install but the last ───
-        STATE['payload'] = b'GW-FAKE-INSTALLER' * 4096      # ~68KB, many chunks
-        _dest = ctx.TMP / 's60_downloaded.bin'
-        _install_state['percent'] = 0
-        _download_with_progress(f'{base}/download/payload.bin', _dest,
-                                'Downloading Ollama…')
-        check('the installer download writes the bytes it was served, all of them',
-              _dest.exists() and _dest.read_bytes() == STATE['payload'])
-        check('and it reports progress as it goes, ending at complete',
-              _install_state['percent'] == 100
-              and _install_state['stage'] == 'Downloading Ollama…')
-
-        # ── The toggle still outranks all of it ─────────────────────────────
-        # A reachable model must not make the off switch advisory.
-        settings(ai_enabled='false')
-        _off = data_of(c.post('/api/ai/chat', headers=HJ, json={
-            'messages': [{'role': 'user', 'content': 'Anything?'}]}))
-        check('with AI turned off, a working model is still not called',
-              _off.get('ai_available') is False and _off.get('reason') == 'disabled')
+        # ── One call at a time ────────────────────────────────────────────────
+        slow = _StandIn(delay=0.25)
+        install(slow)
+        outs = []
+        threads = [threading.Thread(target=lambda: outs.append(engine.chat(None, [{'role': 'user', 'content': 'q'}])))
+                   for _ in range(3)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(10)
+        check('three calls at once run one at a time, and all three answer',
+              slow.max_active == 1 and len(outs) == 3 and all(o['ok'] for o in outs))
+        st = data_of(c.get('/api/ai/status', headers=H))
+        check('status reports ready while a model is loaded', st.get('engine') == 'ready' and st.get('ready') is True)
     finally:
-        server.shutdown()
-        server.server_close()
-        # The endpoint and the toggle are settings; leaving them pointed at a
-        # port that no longer exists would break every check written after this.
-        settings(local_endpoint='', local_model='', ai_enabled='true')
+        engine.stop()
+        engine.allow_load(False)
+        c.patch('/api/settings', headers=HJ, json={'ai_enabled': 'true'})

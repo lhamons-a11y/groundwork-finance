@@ -43,6 +43,20 @@ _version_res.write_text(f'''VSVersionInfo(
 ''', encoding='utf-8')
 
 # Find pywebview package location
+# The local AI engine (ENGINE_REPLACEMENT.md, item 31): llama-cpp-python, the CPU wheel, runs the model inside
+# Groundwork. It is imported lazily (core/engine.py, after the processor check), so PyInstaller cannot see it on its
+# own; it is collected here. A build without it would ship a Groundwork whose AI can never start, so it fails here.
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_submodules, collect_data_files
+try:
+    import llama_cpp  # noqa: F401
+except Exception as _e:
+    raise SystemExit('groundwork.spec: llama-cpp-python is not installed in the build environment (%s). Install the '
+                     'CPU wheel: pip install llama-cpp-python==0.3.35 --only-binary=:all: '
+                     '--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu' % _e)
+_engine_binaries = collect_dynamic_libs('llama_cpp')
+_engine_datas = collect_data_files('llama_cpp')
+_engine_imports = collect_submodules('llama_cpp')
+
 try:
     import webview
     webview_path = Path(webview.__file__).parent
@@ -52,8 +66,9 @@ except ImportError:
 a = Analysis(
     ['launch.py'],
     pathex=['C:\\Groundwork'],
-    binaries=[],
+    binaries=[*_engine_binaries],
     datas=[
+        *_engine_datas,
         ('static', 'static'),
         ('core', 'core'),
         ('bank_importer.py', '.'),
@@ -61,6 +76,7 @@ a = Analysis(
         *( [(str(webview_path / 'lib'), 'webview/lib')] if webview_path and (webview_path / 'lib').exists() else [] ),
     ],
     hiddenimports=[
+        *_engine_imports,
         # waitress — the WSGI server every launch path now uses. Imported
         # inside server.serve() rather than at module scope, which is exactly
         # the import style PyInstaller's static analysis is least likely to
@@ -165,7 +181,7 @@ a = Analysis(
     excludes=[
         # Only exclude things we are 100% certain are not needed
         'matplotlib',
-        'numpy',
+        # numpy is NOT excluded: llama_cpp imports it (the local AI engine).
         'pandas',
         'PIL',
         # pdfplumber's render backend. It and PIL are imported in exactly one
@@ -245,6 +261,8 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=True,
-    upx_exclude=[],
+    # The engine's native libraries are never UPX-packed: they are loaded by ctypes and a packed DLL is one more
+    # thing that can fail on a clean machine.
+    upx_exclude=['llama.dll', 'ggml.dll', 'ggml-base.dll', 'ggml-cpu.dll', 'mtmd.dll'],
     name='Groundwork',
 )

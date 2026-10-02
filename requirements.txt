@@ -33,8 +33,16 @@ requests>=2.31.0
 # PDF statement extraction (Phase 4 — layout-to-text only, never interprets meaning)
 pdfplumber>=0.11.0
 
-# Free-RAM detection for first-run local-model tiering (Phase 2B)
+# Memory check for the first-run AI choice (8 GB is the minimum for Groundwork AI, ENGINE_REPLACEMENT.md R-d)
 psutil>=5.9.0
+
+# The local AI engine (ENGINE_REPLACEMENT.md, item 31): runs the model inside Groundwork - no Ollama, no second
+# program. Pinned to the version measured and packaged (0.3.35), from the project's prebuilt CPU wheels so no
+# compiler is needed. If it is missing, Groundwork still runs and says AI is unavailable; a packaged build refuses
+# to build without it (groundwork.spec).
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+--only-binary llama-cpp-python
+llama-cpp-python==0.3.35
 
 # ── Platform-specific ─────────────────────────────────────────────────────────
 # Linux only: install these via your package manager, NOT pip

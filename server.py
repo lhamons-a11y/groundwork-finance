@@ -2123,27 +2123,14 @@ def _user_tiles(layout):
 
 
 MODEL_MATCH_TIMEOUT_S = 12      # R7: the model never holds the request longer than this
-_MODEL_READY = {'at': 0.0, 'ok': False}
-
-
 def _model_ready():
-    """Is a local model actually answering? One quick look (1 s), remembered for a minute.
+    """Is the in-app model loaded and answering? (ENGINE_REPLACEMENT.md) Asked of the engine itself - no probe, no wait.
 
-    Found building: with AI switched on in settings but no model running, every unmatched request waited out the
-    full timeout. A request should cost nothing extra when there is no model to ask.
+    Found building item 28: with AI on but no model running, every unmatched request waited out the full timeout. A
+    request costs nothing extra when there is no model: the engine's state says so at once.
     """
-    import time as _t
-    if _t.time() - _MODEL_READY['at'] < 60:
-        return _MODEL_READY['ok']
-    okay = False
-    try:
-        import urllib.request
-        with urllib.request.urlopen(urllib.request.Request(f'{_local_endpoint()}/api/tags', method='GET'), timeout=1) as r:
-            okay = bool(json.loads(r.read().decode('utf-8')).get('models'))
-    except Exception:
-        okay = False
-    _MODEL_READY.update(at=_t.time(), ok=okay)
-    return okay
+    from core import engine
+    return engine.status()['state'] == 'ready'
 
 
 def model_match_tile(text):
@@ -5992,10 +5979,10 @@ def update_settings():
     # no key to store, so neither setting is ever written.
     body.pop('api_key', None)
     body.pop('ai_provider', None)
-    # The local model's address must be this computer - a "local" call that
-    # reaches another host would carry the user's data off the device.
-    if 'local_endpoint' in body and body['local_endpoint'] and not _is_loopback_endpoint(body['local_endpoint']):
-        return err('The local AI address must be on this computer (localhost, 127.0.0.1 or ::1).', 400)
+    # There is no AI address or model to choose: the engine is in this process and ships one tested model
+    # (ENGINE_REPLACEMENT.md). Neither setting is ever written.
+    body.pop('local_endpoint', None)
+    body.pop('local_model', None)
 
     with db_session() as session:
         for key, value in body.items():
@@ -6005,7 +5992,14 @@ def update_settings():
             else:
                 session.add(AppSetting(key=key, value=str(value)))
         session.commit()
-        return ok({'updated': list(body.keys())})
+    # Switching AI off releases the model; switching it on loads it (R-a). Only the launcher allows a real load.
+    if 'ai_enabled' in body:
+        from core import engine
+        if str(body['ai_enabled']).lower() == 'false':
+            engine.stop()
+        else:
+            engine.start()
+    return ok({'updated': list(body.keys())})
 
 
 @settings_bp.route('/bootstrap', methods=['GET'])
@@ -7990,7 +7984,7 @@ ai_bp = Blueprint('ai', __name__)
 @require_json
 def ai_chat():
     """
-    AI proxy to the LOCAL model (Ollama, on this computer) - the only AI
+    AI proxy to the LOCAL model (the in-app engine, in this process) - the only AI
     Groundwork has. Cloud AI was removed on purpose (CLOUD_AI_REMOVAL.md): no
     path sends a user's data to an off-device model, and s52 fails if one
     returns. The response keeps its internal shape
@@ -8009,177 +8003,33 @@ def ai_chat():
     return _ai_chat_local(body)
 
 
-# ── Local LLM (Ollama) ────────────────────────────────────────────────────────
-DEFAULT_OLLAMA_ENDPOINT = 'http://localhost:11434'
-
-
-def _is_loopback_endpoint(url) -> bool:
-    """True only for an http(s) address on THIS computer: localhost, 127.0.0.0/8 or ::1."""
-    from urllib.parse import urlsplit
-    import ipaddress
-    try:
-        parts = urlsplit(str(url).strip())
-        host = (parts.hostname or '').lower()
-    except ValueError:
-        return False
-    if parts.scheme not in ('http', 'https') or not host:
-        return False
-    if host == 'localhost':
-        return True
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        return False
-
-
-def _local_endpoint() -> str:
-    """Ollama base URL - always on this computer.
-
-    Overridable via the local_endpoint setting, but only to another loopback
-    address: "local" is a boundary, not a label (SAFETY_PROVISIONS_INVENTORY
-    S6). A stored non-loopback value - planted, or left from before the rule -
-    is ignored here, at the moment of use, not merely refused on save.
-    """
-    try:
-        with db_session() as session:
-            row = _get_setting(session, 'local_endpoint')
-            val = (row.value if row else '').strip()
-            return val if val and _is_loopback_endpoint(val) else DEFAULT_OLLAMA_ENDPOINT
-    except Exception:
-        return DEFAULT_OLLAMA_ENDPOINT
-
-
-def _resolve_local_model(endpoint: str) -> str:
-    """
-    Which local model to narrate with. Resolution order:
-      1. local_model setting, if the user pinned one
-      2. auto-detect from Ollama's installed tags, preferring Qwen → Llama
-      3. '' when nothing is reachable (caller degrades gracefully)
-
-    The auto-detect step is what makes "Qwen got pulled from the registry"
-    a non-event: swap in any other installed model and it's picked up with
-    no code change.
-    """
-    try:
-        with db_session() as session:
-            row = _get_setting(session, 'local_model')
-            configured = (row.value if row else '').strip()
-            if configured:
-                return configured
-    except Exception:
-        pass
-
-    try:
-        import urllib.request
-        req = urllib.request.Request(f'{endpoint}/api/tags', method='GET')
-        with urllib.request.urlopen(req, timeout=5) as r:
-            tags = json.loads(r.read().decode('utf-8')).get('models', [])
-        names = [m.get('name', '') for m in tags if m.get('name')]
-        if not names:
-            return ''
-        for pref in ('qwen', 'llama', 'phi', 'mistral', 'gemma'):
-            for n in names:
-                if pref in n.lower():
-                    return n
-        return names[0]
-    except Exception:
-        return ''
-
+# ── Local AI: the in-app engine (core/engine.py; ENGINE_REPLACEMENT.md, item 31) ────────────────────────────────
+# Ollama is gone from both lines (Rob, 2026-09-27 and 2026-10-02). The model runs inside this process: no port, no
+# second program, no endpoint or model to configure. So the old rule that a "local" address must be this computer
+# (SAFETY_PROVISIONS_INVENTORY S6) now holds by construction - there is no address at all.
 
 def _ai_chat_local(body: dict):
-    """Call a local Ollama model; return the Anthropic response shape."""
-    import urllib.request
-    import urllib.error
+    """Run one chat on the in-app engine; return the internal shape callAI() reads ({content:[{type,text}]})."""
+    from core import engine
+    r = engine.chat(body.get('system'), body.get('messages', []),
+                    max_tokens=int(body.get('max_tokens', 1000)),
+                    temperature=float(body.get('temperature', 0.3)))
+    if not r['ok']:
+        return ok({'ai_available': False, 'reason': f"engine_{r['reason']}", 'message': r['message']})
+    # Whether the answer finished or hit its token cap, from the engine itself: 'length' is the cap, 'stop' is a
+    # finished answer, and anything else is unknown - never read as finished (item 12 reads this as stop_reason).
+    finish = r['finish']
+    stop_reason = 'max_tokens' if finish == 'length' else 'end_turn' if finish == 'stop' else 'unknown'
+    return jsonify({'content': [{'type': 'text', 'text': r['text']}], 'model': engine.MODEL_FILE,
+                    'provider': 'local', 'finish': finish, 'stop_reason': stop_reason})
 
-    endpoint = _local_endpoint()
-    model = _resolve_local_model(endpoint)
-    if not model:
-        return ok({
-            'ai_available': False,
-            'reason':       'no_local_model',
-            'message':      ('No local model reachable. Start Ollama and pull a model '
-                             '(e.g. `ollama pull qwen2.5:7b-instruct`), or switch to the '
-                             'cloud provider in Settings.'),
-        })
 
-    # Anthropic-style payload → Ollama messages (system becomes a leading message)
-    messages = []
-    if body.get('system'):
-        messages.append({'role': 'system', 'content': body['system']})
-    messages.extend(body.get('messages', []))
-
-    # Qwen3-generation models "think" by default in Ollama: a long hidden
-    # reasoning pass that, on CPU, either exceeds the timeout or consumes the
-    # whole token budget before any answer is written — the response comes
-    # back with empty `content`, which looks identical to a broken model.
-    # voice_discipline_test.py hit and fixed this exact issue for the test
-    # harness; mirror the same fix here so production doesn't quietly ship a
-    # dead AI feature to anyone whose Ollama resolves a qwen3 model. Disable
-    # via Ollama's documented top-level `think: false` switch (the
-    # `/no_think` prompt token alone did not suppress it in testing).
-    # Belt-and-suspenders: also send /no_think, raise the token budget, and
-    # strip any residual <think> block from the response.
-    is_qwen3 = 'qwen3' in model.lower()
-    max_tokens = int(body.get('max_tokens', 1000))
-    if is_qwen3 and messages:
-        messages = [*messages[:-1], {**messages[-1], 'content': messages[-1]['content'] + ' /no_think'}]
-        max_tokens = max(max_tokens, 768)
-
-    payload = {
-        'model':      model,
-        'messages':   messages,
-        'stream':     False,
-        # Ollama's default keep_alive is 5 minutes — anything slower than
-        # that between two reports (very normal usage: read one, go do
-        # something else, come back) pays a full model-reload-from-disk
-        # penalty on top of actual generation, on every single call. Keeping
-        # it loaded for the length of a realistic session avoids that.
-        'keep_alive': '30m',
-        'options':  {
-            # Low temperature keeps a small model on the voice rails and
-            # discourages the invented certainty _GW_VOICE forbids.
-            'temperature': float(body.get('temperature', 0.3)),
-            'num_predict': max_tokens,
-        },
-    }
-    if is_qwen3:
-        payload['think'] = False  # Ollama API switch to turn off qwen3 reasoning
-
-    try:
-        data = json.dumps(payload).encode('utf-8')
-        req = urllib.request.Request(f'{endpoint}/api/chat', data=data, method='POST')
-        req.add_header('Content-Type', 'application/json')
-        # First token on a cold small model can be slow — be patient.
-        with urllib.request.urlopen(req, timeout=180) as r:
-            result = json.loads(r.read().decode('utf-8'))
-        text = (result.get('message') or {}).get('content', '')
-        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
-        # Item 12 (BUILD_QUEUE, STREAMING.md T7): carry Ollama's stop reason through in
-        # the internal response format's vocabulary (CLOUD_AI_REMOVAL.md ruling 2), so the
-        # frontend gate can see that an answer was cut at num_predict rather than
-        # finished. Ollama: done_reason 'length' = hit the cap, 'stop' = finished.
-        # Anything else (older Ollama without the field) is reported as unknown, never
-        # as complete - a missing field must not read as 'finished'.
-        done_reason = result.get('done_reason')
-        stop_reason = ('max_tokens' if done_reason == 'length'
-                       else 'end_turn' if done_reason == 'stop'
-                       else 'unknown')
-        return jsonify({
-            'content':     [{'type': 'text', 'text': text}],
-            'model':       model,
-            'provider':    'local',
-            'stop_reason': stop_reason,
-        })
-    except urllib.error.URLError as e:
-        # Ollama not running / unreachable — degrade to the frontend fallbacks
-        return ok({
-            'ai_available': False,
-            'reason':       'local_unreachable',
-            'message':      (f'Local model not reachable at {endpoint}. '
-                             'Is Ollama running? (`ollama serve`)'),
-        })
-    except Exception as e:
-        return err(f'Local AI request failed: {e}', 500)
+def engine_launch():
+    """Called once by the launcher when the server is up. Loads the model only if AI is on (R-a); never blocks."""
+    from core import engine
+    engine.allow_load()
+    if _ai_is_enabled():
+        engine.start()
 
 
 def _get_config_value(name: str) -> str:
@@ -8247,270 +8097,105 @@ def _ai_is_enabled() -> bool:
 
 @ai_bp.route('/status', methods=['GET'])
 def ai_status():
-    """
-    Diagnostic: which provider is active, whether it's reachable, and which
-    model resolves. Powers a 'Test connection' button and lets beta testers
-    confirm the local LLM is wired without touching a terminal.
-    """
-    out = {'enabled': _ai_is_enabled(), 'provider': 'local'}
-    endpoint = _local_endpoint()
-    out['endpoint'] = endpoint
-    try:
-        import urllib.request
-        req = urllib.request.Request(f'{endpoint}/api/tags', method='GET')
-        with urllib.request.urlopen(req, timeout=5) as r:
-            tags = json.loads(r.read().decode('utf-8')).get('models', [])
-        out['reachable']        = True
-        out['installed_models'] = [m.get('name') for m in tags if m.get('name')]
-        out['active_model']     = _resolve_local_model(endpoint)
-    except Exception as e:
-        out['reachable']        = False
-        out['installed_models'] = []
-        out['active_model']     = ''
-        out['error']            = str(e)
+    """The engine's state for Settings -> AI: off / loading / ready / unavailable, with an honest message."""
+    from core import engine
+    st = engine.status()
+    return ok({'enabled': _ai_is_enabled(), 'provider': 'local', 'engine': st['state'], 'reason': st['reason'],
+               'message': st['message'], 'model_file': st['model_file'],
+               'ready': st['state'] == 'ready', 'available': st['state'] in ('loading', 'ready'),
+               'load_seconds': st['load_seconds']})
 
-    return ok(out)
+
+# 8 GB is the minimum for Groundwork AI, not for Groundwork (R-d). An "8 GB" machine reports a little under 8 to
+# Windows (firmware and integrated graphics reserve some), so the line sits at 7.5.
+AI_MIN_TOTAL_GB = 7.5
 
 
 @ai_bp.route('/system-ram', methods=['GET'])
 def ai_system_ram():
     """
-    Phase 2B — the first-run trust surface (Blueprint §11.1). Reports free
-    RAM so setup can honestly state what THIS machine can run, before
-    anything else happens. Every tier is a legitimate path — no tier is
-    framed as a downgrade or a failure to meet a spec.
-      16GB+ free -> 'high' (qwen2.5:7b, ~5GB, sharper analysis)
-      8-16GB free -> 'mid'  (phi3.5, ~2.2GB, the default)
-      <8GB free  -> 'low'  (the fully structured experience, no local model)
-    Uses available (not total) memory — total installed RAM overstates what
-    a machine can actually spare for a model alongside everything else
-    already running.
+    The first-run trust surface: what THIS machine can run, before anything else happens. One model, one engine:
+    a machine meets the AI minimum or it doesn't, and either way the choice to turn AI on is the user's. Every core
+    feature works with AI off.
     """
+    from core import engine
+    cpu_ok, cpu_detail = engine.cpu_supported()
     try:
         import psutil
         vm = psutil.virtual_memory()
-        free_gb  = round(vm.available / (1024 ** 3), 1)
         total_gb = round(vm.total / (1024 ** 3), 1)
+        free_gb  = round(vm.available / (1024 ** 3), 1)
     except Exception as e:
-        return ok({'available': False, 'error': str(e)})
-
-    tier = 'high' if free_gb >= 16 else 'mid' if free_gb >= 8 else 'low'
-    return ok({'available': True, 'free_gb': free_gb, 'total_gb': total_gb, 'tier': tier})
-
-
-# ── Phase 6A: first-run model pull ────────────────────────────────────────────
-# Completes the trust surface Phase 2B started: it's not enough to detect what
-# a machine CAN run and set a preference — first run should actually fetch the
-# model, with a real progress bar, so local AI works offline immediately after
-# setup instead of silently failing the first time a narrative surface calls
-# it. One pull at a time; state is in-process (a single desktop app instance),
-# polled by the client rather than streamed, to keep the transport simple.
-_pull_lock  = threading.Lock()
-_pull_state = {'active': False, 'model': '', 'status': '', 'percent': 0, 'done': False, 'error': ''}
+        return ok({'available': False, 'error': str(e), 'cpu_ok': cpu_ok})
+    return ok({'available': True, 'total_gb': total_gb, 'free_gb': free_gb, 'ai_min_gb': 8,
+               'cpu_ok': cpu_ok, 'cpu_detail': cpu_detail,
+               'meets_ai_minimum': cpu_ok and total_gb >= AI_MIN_TOTAL_GB})
 
 
-def _run_model_pull(model: str):
-    import urllib.request
-    endpoint = _local_endpoint()
-    try:
-        payload = json.dumps({'name': model, 'stream': True}).encode('utf-8')
-        req = urllib.request.Request(f'{endpoint}/api/pull', data=payload, method='POST')
-        req.add_header('Content-Type', 'application/json')
-        with urllib.request.urlopen(req, timeout=1800) as r:
-            for raw_line in r:
-                line = raw_line.strip()
-                if not line:
-                    continue
-                try:
-                    evt = json.loads(line.decode('utf-8'))
-                except (ValueError, UnicodeDecodeError):
-                    continue
-                total     = evt.get('total') or 0
-                completed = evt.get('completed') or 0
-                with _pull_lock:
-                    _pull_state['status'] = evt.get('status', _pull_state['status'])
-                    if total:
-                        _pull_state['percent'] = round(completed / total * 100, 1)
-                    if evt.get('error'):
-                        _pull_state['error'] = str(evt['error'])
-        with _pull_lock:
-            _pull_state['done']   = True
-            _pull_state['active'] = False
-            if not _pull_state['error']:
-                _pull_state['percent'] = 100
-    except Exception as e:
-        with _pull_lock:
-            _pull_state['error']  = str(e)
-            _pull_state['done']   = True
-            _pull_state['active'] = False
+# ── An Ollama left from before: the one-time notice (R-b) ───────────────────────────────────────────────────────
+# Earlier installers ran Ollama's own installer into its standard per-user location and wrote no marker, so
+# Groundwork cannot tell a copy it installed from one the user installed and uses elsewhere. It removes nothing: it
+# says once what is there and offers Windows' own uninstall. The user decides.
 
-
-@ai_bp.route('/pull-model', methods=['POST'])
-@require_json
-def ai_pull_model():
-    """Start pulling a model in the background; poll /pull-status for progress."""
-    model = (request.json.get('model') or '').strip()
-    if not model:
-        return err('model required')
-
-    with _pull_lock:
-        if _pull_state['active']:
-            return err('A model pull is already in progress', 409)
-        _pull_state.update({'active': True, 'model': model, 'status': 'starting',
-                            'percent': 0, 'done': False, 'error': ''})
-
-    threading.Thread(target=_run_model_pull, args=(model,), daemon=True).start()
-    return ok({'started': True, 'model': model})
-
-
-@ai_bp.route('/pull-status', methods=['GET'])
-def ai_pull_status():
-    with _pull_lock:
-        return ok(dict(_pull_state))
-
-
-# ── Install Ollama itself ────────────────────────────────────────────────────
-# The gap Phase 6A didn't cover: pull-model only works once Ollama is already
-# installed and running — if it isn't, onboarding's own comment says so
-# plainly ("Ollama itself isn't reachable — nothing to pull toward") and just
-# gives up on local AI, on every platform, not just Mac/Linux. The Windows
-# offline installer solves this at INSTALL time by silently running a bundled
-# OllamaSetup.exe; this solves it at RUN time instead, from inside Settings,
-# so the online (small) installer and the Mac/Linux builds — none of which
-# bundle Ollama — get the same one-click path Windows' offline installer had
-# exclusively.
-#
-# Automation level is deliberately uneven across platforms, because the risk
-# profile is uneven:
-#   Windows — fully automated (download + silent install). Verified for real.
-#   macOS   — automated download + place in /Applications + `open -a Ollama`
-#             (the OS-sanctioned launch path, same as double-clicking in
-#             Finder). Best-effort: no real Mac to verify Gatekeeper behavior
-#             on a freshly-downloaded, unsigned-by-us zip.
-#   Linux   — NOT auto-run. Ollama's official install script invokes sudo
-#             internally on most distros; a GUI app silently subprocessing
-#             that from a background thread has no TTY to satisfy a password
-#             prompt and would just hang forever with no way for the user to
-#             know why. Show the official one-liner instead — safe, still
-#             far easier than the user having to go find it themselves.
-_install_lock  = threading.Lock()
-_install_state = {'active': False, 'stage': '', 'percent': 0, 'done': False,
-                   'error': '', 'manual_command': '', 'needs_manual': False}
-
-OLLAMA_WIN_URL = 'https://ollama.com/download/OllamaSetup.exe'
-OLLAMA_MAC_URL = 'https://ollama.com/download/Ollama-darwin.zip'
-OLLAMA_LINUX_INSTALL_CMD = 'curl -fsSL https://ollama.com/install.sh | sh'
-
-
-def _download_with_progress(url: str, dest_path, stage_label: str):
-    import urllib.request
-    req = urllib.request.Request(url, headers={'User-Agent': 'Groundwork'})
-    with urllib.request.urlopen(req, timeout=30) as resp, open(dest_path, 'wb') as f:
-        total = int(resp.headers.get('Content-Length') or 0)
-        read = 0
-        chunk = 1024 * 256
-        while True:
-            block = resp.read(chunk)
-            if not block:
-                break
-            f.write(block)
-            read += len(block)
-            with _install_lock:
-                _install_state['stage'] = stage_label
-                if total:
-                    _install_state['percent'] = round(read / total * 100, 1)
-
-
-def _run_install_ollama():
-    import subprocess
-    import tempfile
-    import platform as _platform
-    system = _platform.system()
-    try:
-        if system == 'Windows':
-            with tempfile.TemporaryDirectory() as tmp:
-                exe_path = Path(tmp) / 'OllamaSetup.exe'
-                _download_with_progress(OLLAMA_WIN_URL, exe_path, 'Downloading Ollama…')
-                with _install_lock:
-                    _install_state['stage'] = 'Installing (this runs once)…'
-                    _install_state['percent'] = 100
-                subprocess.run(
-                    [str(exe_path), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'],
-                    timeout=300, check=True,
-                )
-        elif system == 'Darwin':
-            import zipfile
-            import shutil
-            with tempfile.TemporaryDirectory() as tmp:
-                zip_path = Path(tmp) / 'Ollama-darwin.zip'
-                _download_with_progress(OLLAMA_MAC_URL, zip_path, 'Downloading Ollama…')
-                with _install_lock:
-                    _install_state['stage'] = 'Installing…'
-                with zipfile.ZipFile(zip_path) as zf:
-                    zf.extractall(tmp)
-                extracted = Path(tmp) / 'Ollama.app'
-                if not extracted.exists():
-                    raise RuntimeError('Ollama.app not found in downloaded archive')
-                dest = Path('/Applications/Ollama.app')
-                if dest.exists():
-                    shutil.rmtree(dest)
-                shutil.move(str(extracted), str(dest))
-                with _install_lock:
-                    _install_state['stage'] = 'Starting Ollama…'
-                subprocess.run(['open', '-a', 'Ollama'], timeout=30, check=True)
-        else:
-            # Linux: surfaced as needs_manual so the UI shows the copyable
-            # command instead of pretending to have run it.
-            with _install_lock:
-                _install_state['needs_manual']   = True
-                _install_state['manual_command'] = OLLAMA_LINUX_INSTALL_CMD
-                _install_state['done']           = True
-                _install_state['active']         = False
-            return
-
-        # Windows/macOS: give the newly-installed server a moment to come up,
-        # then confirm it's actually reachable before declaring success —
-        # installing the app isn't the same as it being ready to serve.
-        with _install_lock:
-            _install_state['stage'] = 'Waiting for Ollama to start…'
-        import urllib.request as _ur
-        import time as _t
-        reachable = False
-        for _ in range(20):
+def _dir_bytes(path):
+    total = 0
+    for root, _dirs, files in os.walk(path):
+        for f in files:
             try:
-                _ur.urlopen(_ur.Request(f'{DEFAULT_OLLAMA_ENDPOINT}/api/tags'), timeout=2)
-                reachable = True
-                break
-            except Exception:
-                _t.sleep(1)
-        with _install_lock:
-            _install_state['done']   = True
-            _install_state['active'] = False
-            if not reachable:
-                _install_state['error'] = 'Installed, but Ollama isn\'t responding yet — try Test connection in a moment.'
-    except Exception as e:
-        with _install_lock:
-            _install_state['error']  = str(e)
-            _install_state['done']   = True
-            _install_state['active'] = False
+                total += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                pass
+    return total
 
 
-@ai_bp.route('/install-ollama', methods=['POST'])
-def ai_install_ollama():
-    with _install_lock:
-        if _install_state['active']:
-            return err('An install is already in progress', 409)
-        _install_state.update({'active': True, 'stage': 'starting', 'percent': 0,
-                               'done': False, 'error': '', 'manual_command': '',
-                               'needs_manual': False})
-    threading.Thread(target=_run_install_ollama, daemon=True).start()
-    return ok({'started': True})
+def _ollama_footprint():
+    """What an existing Ollama is: where, how big, whether it starts at login. Read-only. None when there is none."""
+    if sys.platform != 'win32':
+        return None
+    program = Path(os.environ.get('LOCALAPPDATA', '')) / 'Programs' / 'Ollama'
+    if not (program / 'ollama.exe').exists():
+        return None
+    models = Path.home() / '.ollama' / 'models'
+    startup = (Path(os.environ.get('APPDATA', '')) / 'Microsoft' / 'Windows' / 'Start Menu' / 'Programs'
+               / 'Startup' / 'Ollama.lnk')
+    return {'program_dir': str(program), 'program_bytes': _dir_bytes(program),
+            'models_dir': str(models) if models.exists() else '',
+            'models_bytes': _dir_bytes(models) if models.exists() else 0,
+            'starts_at_login': startup.exists()}
 
 
-@ai_bp.route('/install-status', methods=['GET'])
-def ai_install_status():
-    with _install_lock:
-        return ok(dict(_install_state))
+@ai_bp.route('/ollama-notice', methods=['GET'])
+def ai_ollama_notice():
+    with db_session() as session:
+        row = _get_setting(session, 'ollama_notice')
+        if row and row.value == 'shown':
+            return ok({'show': False})
+    fp = _ollama_footprint()
+    return ok({'show': bool(fp), **(fp or {})})
+
+
+@ai_bp.route('/ollama-notice', methods=['POST'])
+def ai_ollama_notice_shown():
+    with db_session() as session:
+        row = _get_setting(session, 'ollama_notice')
+        if row:
+            row.value = 'shown'
+        else:
+            session.add(AppSetting(key='ollama_notice', value='shown'))
+        session.commit()
+    return ok({'shown': True})
+
+
+@ai_bp.route('/ollama-notice/uninstall', methods=['POST'])
+def ai_ollama_open_uninstall():
+    """Open Windows' own Installed apps page. Groundwork uninstalls nothing itself."""
+    if sys.platform != 'win32':
+        return err('Only on Windows', 400)
+    try:
+        os.startfile('ms-settings:appsfeatures')
+    except OSError as e:
+        return err(f'Could not open Windows Settings: {e}', 500)
+    return ok({'opened': True})
 
 
 @ai_bp.route('/voice-miss', methods=['POST'])

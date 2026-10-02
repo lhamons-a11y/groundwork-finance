@@ -114,8 +114,7 @@ def run(ctx):
     # convenience: the ones that reach the network or the filesystem cannot be
     # made safe by a temp database.
     ACTS_ON_EMPTY = {
-        ('POST', '/api/ai/install-ollama'),       # downloads and runs an installer
-        ('POST', '/api/ai/pull-model'),           # downloads a model
+        ('POST', '/api/ai/ollama-notice/uninstall'),  # opens Windows' Installed apps page
         ('POST', '/api/investments/prices/refresh'),   # reaches the network
         ('POST', '/api/backup'),                  # writes a backup
         ('POST', '/api/backup/create'),           # writes a backup

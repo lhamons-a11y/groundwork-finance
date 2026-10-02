@@ -38,13 +38,11 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "C:\Groundwork\dist\Groundwork\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Ollama's own installer, bundled so local AI works out of the box with no
-; separate download step. Extracted to a temp dir at install time only
-; (dontcopy) — it's run once via [Run] below and never becomes part of the
-; installed Groundwork folder. Built with Inno Setup itself (confirmed:
-; ollama/ollama's build_windows.ps1 packages OllamaSetup.exe with Inno
-; Setup), so it accepts the standard Inno silent-install switches used below.
-Source: "C:\Groundwork\vendor\OllamaSetup.exe"; DestDir: "{tmp}"; Flags: dontcopy noencryption
+
+; The local AI model (ENGINE_REPLACEMENT.md, item 31): the exact tested file, inside Groundwork's own folder,
+; where core/engine.py looks for it and checks its SHA-256 before loading. No Ollama, no second program, no
+; download, and nothing written outside {app}. Already compressed, so it is stored as-is.
+Source: "C:\Groundwork\vendor\phi3.5_model\blobs\sha256-b5374915da534cb93df39f03bd4f2cd5a0c533df0d5e21957dc9556c260be9eb"; DestDir: "{app}\models"; DestName: "phi3.5-mini-instruct-q4.gguf"; Flags: ignoreversion nocompression
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
@@ -52,40 +50,12 @@ Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Run]
-; Silent, unattended — matches how OllamaSetup.exe's own build already
-; behaves for scripted installs. Only runs when Ollama isn't already present
-; (NeedsOllamaInstall), so re-running this installer on a machine that
-; already has Ollama (e.g. a Groundwork update) never re-installs it.
-; waituntilterminated: Groundwork's first run needs Ollama already usable,
-; not still installing in the background.
-Filename: "{tmp}\OllamaSetup.exe"; Parameters: "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"; StatusMsg: "Setting up local AI (Ollama) — this runs once..."; Check: NeedsOllamaInstall; Flags: waituntilterminated
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
 
 [Code]
-// Ollama installs per-user, no admin rights, always to this fixed path — see
-// docs.ollama.com/windows. Checking for the real binary rather than a
-// registry key: Ollama's installer doesn't write the kind of versioned
-// uninstall registry entry WebView2 does, but this file's presence is
-// exactly as reliable and needs no assumption about registry layout.
-function NeedsOllamaInstall(): Boolean;
-begin
-  Result := not FileExists(ExpandConstant('{localappdata}\Programs\Ollama\ollama.exe'));
-end;
-
-// dontcopy files aren't extracted automatically — pull it into {tmp} during
-// the main install step, before [Run] gets to it in ssPostInstall, and only
-// when actually needed (skips a pointless 1.3GB extraction on a machine
-// that already has Ollama, e.g. a Groundwork update).
-procedure CurStepChanged(CurStep: TSetupStep);
-begin
-  if (CurStep = ssInstall) and NeedsOllamaInstall() then begin
-    ExtractTemporaryFile('OllamaSetup.exe');
-  end;
-end;
-
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   // Guard against UninstallSilent(): an unattended/scripted uninstall must

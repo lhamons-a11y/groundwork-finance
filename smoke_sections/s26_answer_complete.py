@@ -3,15 +3,15 @@
 Before this, every narrative surface handed the model a hard token cap and nothing
 told the gate the answer had hit it - a report cut mid-sentence passed R1-R9 (all
 its numbers present, nothing forbidden) and was shown as complete. The stop reason
-exists at the provider and nowhere else, so the fix is a carry: the server maps
-Ollama's done_reason onto the internal response format's stop_reason (the only
-provider since the cloud path was removed - CLOUD_AI_REMOVAL.md), and callAI feeds
-it to the gate as rule R10.
+exists at the model and nowhere else, so the fix is a carry: the server maps the
+in-app engine's finish reason (ENGINE_REPLACEMENT.md; Ollama's done_reason before
+it) onto the internal response format's stop_reason, and callAI feeds it to the gate
+as rule R10.
 
 Measured where the failure can appear, not at the source text:
-  1. the /api/ai/chat route itself, with a fake Ollama answering done_reason
-     'length' / 'stop' / nothing - the server must say max_tokens / end_turn /
-     unknown, and a missing field must never read as finished;
+  1. the /api/ai/chat route itself, with a stand-in model finishing 'length' /
+     'stop' / nothing - the server must say max_tokens / end_turn / unknown, and a
+     missing reason must never read as finished;
   2. the gate function itself, executed in Node from the shipped app.js, with
      truncated true / false - R10 must fail exactly when the flag says cut;
   3. the wiring: both gate call sites in callAI pass the flag, and attempt()
@@ -29,63 +29,46 @@ def run(ctx):
     server_src = ctx.server_src
     app_src = ctx.app_src
 
-    # ── 1. the route, against a fake Ollama ─────────────────────────────────
-    import urllib.request
+    # ── 1. the route, against a stand-in model in the engine ────────────────
     import server as srv
+    from core import engine
 
-    class _Resp(io.BytesIO):
-        def __enter__(self): return self
-        def __exit__(self, *a): return False
+    class _StandIn:
+        def __init__(self, finish):
+            self.finish = finish
 
-    def _fake_urlopen_for(done_reason):
-        def fake(req, timeout=None):
-            url = req.full_url if hasattr(req, 'full_url') else str(req)
-            if url.endswith('/api/tags'):
-                return _Resp(json.dumps({'models': [{'name': 'phi3.5:latest'}]}).encode())
-            body = {'message': {'role': 'assistant', 'content': 'Income was $4,280.00 this month'}, 'done': True}
-            if done_reason is not None:
-                body['done_reason'] = done_reason
-            return _Resp(json.dumps(body).encode())
-        return fake
+        def create_chat_completion(self, messages, max_tokens, temperature, **_kw):
+            return {'choices': [{'message': {'content': 'Income was $4,280.00 this month'},
+                                 'finish_reason': self.finish}], 'usage': {'completion_tokens': 8}}
 
-    def ask(done_reason):
-        real = urllib.request.urlopen
-        urllib.request.urlopen = _fake_urlopen_for(done_reason)
-        try:
-            r = c.post('/api/ai/chat', headers=HJ, data=json.dumps({
-                'messages': [{'role': 'user', 'content': 'Income: $4,280.00'}], 'max_tokens': 20}))
-            return r.status_code, r.get_json()
-        finally:
-            urllib.request.urlopen = real
+        def close(self):
+            pass
 
-    # the route reads the provider from settings; make sure it is local for this test
-    with srv.db_session() as s:
-        row = srv._get_setting(s, 'ai_provider')
-        prior = row.value if row else None
-        if row: row.value = 'local'
-        else: s.add(srv.AppSetting(key='ai_provider', value='local'))
-        s.commit()
+    def ask(finish):
+        engine.stop()
+        with engine._lock:
+            engine._model = _StandIn(finish)
+            engine._set('ready')
+        r = c.post('/api/ai/chat', headers=HJ, data=json.dumps({
+            'messages': [{'role': 'user', 'content': 'Income: $4,280.00'}], 'max_tokens': 20}))
+        return r.status_code, r.get_json()
+
+    c.patch('/api/settings', headers=HJ, json={'ai_enabled': 'true'})
     try:
         st, cut = ask('length')
-        check('/api/ai/chat (local) reports stop_reason max_tokens when Ollama says done_reason length',
+        check('/api/ai/chat (local) reports stop_reason max_tokens when the engine stops at the length cap',
               st == 200 and cut.get('stop_reason') == 'max_tokens' and cut.get('provider') == 'local')
         st, fin = ask('stop')
-        check('/api/ai/chat (local) reports stop_reason end_turn when Ollama says done_reason stop',
+        check('/api/ai/chat (local) reports stop_reason end_turn when the engine finishes the answer',
               st == 200 and fin.get('stop_reason') == 'end_turn')
         st, unk = ask(None)
-        check('a missing done_reason is reported as unknown - never as finished, never as cut',
+        check('a missing finish reason is reported as unknown - never as finished, never as cut',
               st == 200 and unk.get('stop_reason') == 'unknown')
         check('the carry changed nothing else in the response shape (content, model, provider intact)',
               cut.get('content') == [{'type': 'text', 'text': 'Income was $4,280.00 this month'}]
-              and cut.get('model') == 'phi3.5:latest')
+              and cut.get('model') == engine.MODEL_FILE)
     finally:
-        with srv.db_session() as s:
-            row = srv._get_setting(s, 'ai_provider')
-            if prior is None:
-                if row: s.delete(row)
-            elif row:
-                row.value = prior
-            s.commit()
+        engine.stop()
 
     # ── 2. the gate itself, executed from the shipped source ────────────────
     node = shutil.which('node')

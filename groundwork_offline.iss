@@ -1,8 +1,7 @@
 ; Groundwork — Inno Setup installer script (OFFLINE variant, Phase 6B)
-; Same as groundwork.iss, plus the phi3.5 model weights bundled directly, so
-; the whole install works with zero network access — verified for the
-; no-internet field case, unlike groundwork.iss's Lane A (which still needs
-; one internet pull the first time local AI runs).
+; Since item 31 (ENGINE_REPLACEMENT.md) every installer ships the model inside Groundwork, so
+; groundwork.iss is already fully offline. This variant is kept as its own output name
+; for the release scripts that build it; its contents now match groundwork.iss.
 ; Produces: Groundwork_Setup_Offline.exe
 ; Tested with Inno Setup 6.x
 
@@ -43,25 +42,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "C:\Groundwork\dist\Groundwork\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; Ollama's own installer, bundled so local AI works out of the box with no
-; separate download step. Extracted to a temp dir at install time only
-; (dontcopy) — it's run once via [Run] below and never becomes part of the
-; installed Groundwork folder.
-Source: "C:\Groundwork\vendor\OllamaSetup.exe"; DestDir: "{tmp}"; Flags: dontcopy noencryption
-
-; Phase 6B — the phi3.5 model itself (~2.2GB), bundled straight into Ollama's
-; own content-addressed model store layout, so first run finds it already
-; installed and never needs to touch the network. This is what makes the
-; install genuinely offline-capable, unlike groundwork.iss's Lane A.
-;
-; Ollama identifies models by content hash — writing straight to {%USERPROFILE}
-; (not {tmp}) via [Files] is the same "just files on disk" operation
-; `ollama pull` itself performs; Ollama doesn't need to be running for this.
-; onlyifdoesntexist means a machine that already has this exact blob (shared
-; hash with any other model) never gets a redundant multi-GB overwrite, and
-; NeedsModelInstall skips the whole section instantly when it's already there.
-Source: "C:\Groundwork\vendor\phi3.5_model\blobs\*"; DestDir: "{%USERPROFILE}\.ollama\models\blobs"; Flags: onlyifdoesntexist; Check: NeedsModelInstall
-Source: "C:\Groundwork\vendor\phi3.5_model\manifests\registry.ollama.ai\library\phi3.5\latest"; DestDir: "{%USERPROFILE}\.ollama\models\manifests\registry.ollama.ai\library\phi3.5"; Flags: onlyifdoesntexist; Check: NeedsModelInstall
+; The local AI model (ENGINE_REPLACEMENT.md, item 31): the exact tested file, inside Groundwork's own folder,
+; where core/engine.py looks for it and checks its SHA-256 before loading. No Ollama, no second program, no
+; download, and nothing written outside {app}. Already compressed, so it is stored as-is.
+Source: "C:\Groundwork\vendor\phi3.5_model\blobs\sha256-b5374915da534cb93df39f03bd4f2cd5a0c533df0d5e21957dc9556c260be9eb"; DestDir: "{app}\models"; DestName: "phi3.5-mini-instruct-q4.gguf"; Flags: ignoreversion nocompression
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
@@ -69,49 +53,12 @@ Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Run]
-; Silent, unattended — matches how OllamaSetup.exe's own build already
-; behaves for scripted installs. Only runs when Ollama isn't already present
-; (NeedsOllamaInstall), so re-running this installer on a machine that
-; already has Ollama (e.g. a Groundwork update) never re-installs it.
-; waituntilterminated: Groundwork's first run needs Ollama already usable,
-; not still installing in the background.
-Filename: "{tmp}\OllamaSetup.exe"; Parameters: "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"; StatusMsg: "Setting up local AI (Ollama) — this runs once..."; Check: NeedsOllamaInstall; Flags: waituntilterminated
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
 
 [Code]
-// Ollama installs per-user, no admin rights, always to this fixed path — see
-// docs.ollama.com/windows. Checking for the real binary rather than a
-// registry key: Ollama's installer doesn't write the kind of versioned
-// uninstall registry entry WebView2 does, but this file's presence is
-// exactly as reliable and needs no assumption about registry layout.
-function NeedsOllamaInstall(): Boolean;
-begin
-  Result := not FileExists(ExpandConstant('{localappdata}\Programs\Ollama\ollama.exe'));
-end;
-
-// The manifest file is the single marker Ollama itself uses to know a model
-// is present (its blobs are only ever referenced through it) — if it's
-// already there, either this installer already ran once or the user pulled
-// phi3.5 themselves, and copying ~2.2GB of blobs again would be pure waste.
-function NeedsModelInstall(): Boolean;
-begin
-  Result := not FileExists(ExpandConstant('{%USERPROFILE}\.ollama\models\manifests\registry.ollama.ai\library\phi3.5\latest'));
-end;
-
-// dontcopy files aren't extracted automatically — pull it into {tmp} during
-// the main install step, before [Run] gets to it in ssPostInstall, and only
-// when actually needed (skips a pointless 1.3GB extraction on a machine
-// that already has Ollama, e.g. a Groundwork update).
-procedure CurStepChanged(CurStep: TSetupStep);
-begin
-  if (CurStep = ssInstall) and NeedsOllamaInstall() then begin
-    ExtractTemporaryFile('OllamaSetup.exe');
-  end;
-end;
-
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   // Guard against UninstallSilent(): an unattended/scripted uninstall must
@@ -122,9 +69,7 @@ begin
       'Your financial data will NOT be deleted.' + #13#10 +
       'It stays safe at:' + #13#10 +
       ExpandConstant('{localappdata}') + '\Groundwork\' + #13#10 + #13#10 +
-      'You can back it up or delete it manually.' + #13#10 + #13#10 +
-      'The local AI model at ~\.ollama\ was also left in place —' + #13#10 +
-      'delete it manually too if you want to reclaim ~2.2GB.',
+      'You can back it up or delete it manually.',
       mbInformation, MB_OK
     );
   end;

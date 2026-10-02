@@ -55,6 +55,9 @@ class _Refused(OSError):
     pass
 
 
+_ENGINE_CALLS = [0]   # AI calls that reached core.engine.chat during _runtime
+
+
 def _runtime(c, H, HJ, server):
     """Every connection attempt recorded and refused; returns (attempted hosts, route statuses)."""
     from core.database import db_session, AppSetting
@@ -80,6 +83,13 @@ def _runtime(c, H, HJ, server):
         s.commit()
     old_env = os.environ.get('ANTHROPIC_API_KEY')
     os.environ['ANTHROPIC_API_KEY'] = 'sk-ant-s52-planted'
+    from core import engine
+    real_chat = engine.chat
+
+    def counted_chat(*a, **k):
+        _ENGINE_CALLS[0] += 1
+        return real_chat(*a, **k)
+    engine.chat = counted_chat
     try:
         socket.socket.connect, socket.create_connection = rec_connect, rec_create
         body = json.dumps({'messages': [{'role': 'user', 'content': 's52: my balance is $1,234'}],
@@ -94,6 +104,7 @@ def _runtime(c, H, HJ, server):
         except Exception as e:                           # noqa: BLE001 - recorded, not hidden
             statuses['_ai_complete_text'] = f'raised {type(e).__name__}'
     finally:
+        engine.chat = real_chat
         socket.socket.connect, socket.create_connection = real_connect, real_create
         if old_env is None:
             os.environ.pop('ANTHROPIC_API_KEY', None)
@@ -213,13 +224,19 @@ def run(ctx):
     print(f'        route answers: {statuses}')
     for h in off[:5]:
         print(f'        tried to reach {h}')
-    check('s52 runtime: the AI routes did try the local model (the test was not vacuous)', bool(attempts))
+    # The engine is in this process (ENGINE_REPLACEMENT.md): an AI call opens no connection at all - not even to
+    # this computer. Not vacuous: the calls are counted arriving at the engine.
+    check('s52 runtime: the AI routes open no network connection at all, not even to this computer', not attempts)
+    check('s52 runtime: the AI routes did reach the in-app engine (the test was not vacuous)',
+          _ENGINE_CALLS[0] >= 2)
 
-    check('s52 "local" is local: a non-loopback endpoint is refused on save',
-          c.patch('/api/settings', headers=HJ, data=json.dumps({'local_endpoint': 'http://10.0.0.5:11434'})).status_code == 400)
-    ok_local = c.patch('/api/settings', headers=HJ, data=json.dumps({'local_endpoint': 'http://127.0.0.1:11434'})).status_code == 200
-    c.patch('/api/settings', headers=HJ, data=json.dumps({'local_endpoint': ''}))
-    check('s52 "local" is local: a loopback endpoint is accepted', ok_local)
+    for key, value in (('local_endpoint', 'http://10.0.0.5:11434'), ('local_endpoint', 'http://127.0.0.1:11434'),
+                       ('local_model', 'qwen2.5:7b')):
+        c.patch('/api/settings', headers=HJ, data=json.dumps({key: value}))
+    stored = c.get('/api/settings', headers=H).get_json()['data']
+    check('s52 there is no AI address or model to set: neither is ever stored, on any host',
+          stored.get('local_model') is None
+          and stored.get('local_endpoint') in (None, 'http://ai.example.com:11434'))
     check('s52 the provider cannot be set - there is none', (
         c.patch('/api/settings', headers=HJ, data=json.dumps({'ai_provider': 'cloud'})).status_code == 200
         and c.get('/api/settings', headers=H).get_json()['data'].get('ai_provider') is None))
@@ -260,13 +277,21 @@ def run(ctx):
     other = dict(texts, **{'static/js/app.js': texts['static/js/app.js'] + "\n// fetch('https://api.openai.com/v1/chat')\n"})
     check('s52 mutation caught: a second provider added under another name', bool(_scan(other)))
 
-    real_loop = server._is_loopback_endpoint
+    real_local = server._ai_chat_local
+
+    def _ollama_again(body):                   # the old architecture, put back: a model behind a local port
+        import urllib.request
+        try:
+            urllib.request.urlopen('http://127.0.0.1:11434/api/chat', timeout=1)
+        except Exception:                      # noqa: BLE001 - refused by the recorder, as intended
+            pass
+        return real_local(body)
     try:
-        server._is_loopback_endpoint = lambda url: True
+        server._ai_chat_local = _ollama_again
         m_attempts, _ = _runtime(c, H, HJ, server)
     finally:
-        server._is_loopback_endpoint = real_loop
-    check('s52 mutation caught: "local" widened to any host', bool(_off_device(m_attempts)))
+        server._ai_chat_local = real_local
+    check('s52 mutation caught: an AI call put back behind a local port (Ollama\'s architecture)', bool(m_attempts))
 
     import migrate
     real_step = migrate._remove_cloud_ai

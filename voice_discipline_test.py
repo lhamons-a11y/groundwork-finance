@@ -18,17 +18,15 @@ WHAT THIS FILE DOES
    motive, jargon that reads as judgment.
 3. Defines a rule-by-rule scoring rubric (regex + keyword heuristics for the
    mechanical checks; flags the ones that need human eyes).
-4. Has a MODEL ADAPTER you point at your local runtime (llama.cpp / Ollama /
-   whatever). Claude cannot download model weights, so YOU run this against real
+4. Has a MODEL ADAPTER: Groundwork's own in-app engine (core/engine.py). Claude cannot download model weights, so YOU run this against real
    models; the adapter is where you plug them in.
 5. Prints a per-rule survival rate per model and a PASS/FAIL verdict.
 
 HOW TO RUN
 ----------
-    # 1. install a local runtime, e.g. Ollama, and pull candidates:
-    #    ollama pull qwen2.5:3b   ;  ollama pull llama3.2:3b  ;  ollama pull phi3.5
-    # 2. set MODEL_RUNNER below to call your runtime
-    # 3. python3 voice_discipline_test.py
+    # From the repo root, with llama-cpp-python installed (the CPU wheel) and the model file present
+    # (models/ or vendor/phi3.5_model, or GROUNDWORK_MODEL_PATH):
+    #    python voice_discipline_test.py
 
 The scorer is deliberately STRICT and can FAIL. A test that can't fail is wor
 useless when the thing being protected is the product's integrity.
@@ -39,7 +37,6 @@ import os
 import sys
 import json
 import subprocess
-import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -220,65 +217,30 @@ def check(text, case=None):
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MODEL ADAPTER — plug your local runtime here.
-# Claude cannot run model weights; this is the seam YOU wire to Ollama/llama.cpp.
+# The seam: Groundwork's own in-app engine (core/engine.py, ENGINE_REPLACEMENT.md item 31). Ollama is gone from
+# both lines (Rob, 2026-09-27 / 2026-10-02), so this scores exactly what the shipped engine generates: the same
+# model file, the same load settings, the same chat path the server uses.
 # ─────────────────────────────────────────────────────────────────────────────
-OLLAMA_ENDPOINT = os.environ.get("OLLAMA_ENDPOINT", "http://localhost:11434")
 
 
 def run_model(model_name, system, user):
     """
-    Call a local Ollama model. Dependency-free (stdlib urllib) so this runs
-    anywhere Python does — no `pip install ollama` needed, and it matches the
-    exact request the server's local path (_ai_chat_local in server.py) makes,
-    so the harness scores what production will actually generate.
-
-    Point OLLAMA_ENDPOINT at your runtime if it isn't on the default
-    localhost:11434. Returns the model's text, or None if the runtime is
-    unreachable / the model isn't pulled (the runner prints that as a stub).
+    Call the in-app engine. Loads the model on first use (this is a dev tool, so it opts in to loading).
+    Returns the model's text, or None if the engine is unavailable here (the runner prints that as a stub).
     """
-    # Qwen3-generation models "think" by default in Ollama: a long hidden
-    # reasoning pass that, on CPU, either exceeds the timeout or consumes the
-    # whole token budget before any answer is written — yielding an empty
-    # `content` that looks like a stub. Disable it via Ollama's documented
-    # top-level `think: false` switch (the /no_think prompt token alone did NOT
-    # suppress it). Belt-and-suspenders: also send /no_think, raise the budget,
-    # and strip any residual <think> block. Applied only to qwen3.
-    is_qwen3 = "qwen3" in model_name.lower()
-    if is_qwen3:
-        user = user + " /no_think"
-    payload = {
-        "model": model_name,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user",   "content": user},
-        ],
-        "stream": False,
-        # Mirror the server's local defaults: low temperature for voice discipline.
-        "options": {"temperature": 0.3, "num_predict": 768 if is_qwen3 else 512},
-    }
-    if is_qwen3:
-        payload["think"] = False  # Ollama API switch to turn off qwen3 reasoning
-    try:
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            f"{OLLAMA_ENDPOINT}/api/chat", data=data, method="POST")
-        req.add_header("Content-Type", "application/json")
-        with urllib.request.urlopen(req, timeout=300) as r:
-            result = json.loads(r.read().decode("utf-8"))
-        msg = result.get("message") or {}
-        text = re.sub(r"<think>.*?</think>", "", msg.get("content", ""),
-                      flags=re.DOTALL).strip()
-        if text:
-            return text
-        # Reached the model but got nothing usable (e.g. thinking ate the budget):
-        # report it distinctly so it's not confused with "not pulled".
-        return "[EMPTY RESPONSE — model reached but returned no answer]"
-    except Exception as e:
-        return None  # runtime not reachable / model not pulled
+    from core import engine
+    engine.allow_load()
+    engine.start()
+    r = engine.chat(system, [{"role": "user", "content": user}], max_tokens=512, temperature=0.3)
+    if not r.get("ok"):
+        print(f"  (engine unavailable: {r.get('reason')} - {engine.status().get('detail', '')})")
+        return None
+    if r["text"]:
+        return r["text"]
+    return "[EMPTY RESPONSE — model reached but returned no answer]"
 
-# Qwen led manual testing (vs Llama and Gemini). Edit tags to match what
-# you've actually pulled: `ollama list` shows installed names.
-CANDIDATE_MODELS = ["qwen3:4b", "qwen2.5:7b", "qwen2.5:3b", "phi3.5", "llama3.2:3b"]
+# One engine, one model: the file Groundwork ships (core/engine.py MODEL_FILE / MODEL_SHA256).
+CANDIDATE_MODELS = ["phi3.5 (in-app engine)"]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # RUNNER
@@ -330,7 +292,7 @@ def main():
         print("\n" + "-" * 70)
         print("NO LOCAL RUNTIME WIRED YET.")
         print("This is expected on first run and inside any environment without")
-        print("model weights. Wire run_model() to Ollama/llama.cpp on your machine")
+        print("model weights. Install llama-cpp-python and the model file (see HOW TO RUN)")
         print("and rerun. The rubric above is live and will score real output.")
         print("-" * 70)
         # Demonstrate the scorer on illustrative samples so you see it working:
