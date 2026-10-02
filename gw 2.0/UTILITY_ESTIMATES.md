@@ -2,7 +2,7 @@
 
 > Status: **RULED and AUTHORISED 2026-10-01 (Rob: "I accept all seven points, build it"). U0 BUILT on both lines; the natural
 > gas slice BUILT on 2.0 (§6), gate 2099 / 0 with the U0 merge; the gas slice ACCEPTED (Rob, 2026-10-01). Electricity AUTHORISED ("build
-> electricity") and BUILT (§7); awaiting the gate and Rob's acceptance. Gasoline to follow (U8).** Opened the same day. Rob, 2026-10-01: *"open item 26"*.
+> electricity") and BUILT (§7), gate 2115 / 0; awaiting Rob's acceptance. Gasoline to follow (U8).** Opened the same day. Rob, 2026-10-01: *"open item 26"*.
 >
 > **Rob's requests (2026-09-28), recorded in the queue. For every U.S. state, not one (Rob, 2026-10-01; U9):**
 > - estimate natural gas from weather, usage and price, and set it in the budget;
