@@ -240,6 +240,110 @@ replacement, not another round of deciding what the replacement is"*):
 - **The real 8 GB machine test is the one remaining hard completion gate.** Until it is passed, the engine can be
   built and otherwise validated, but the replacement stays **explicitly not complete for release**.
 
-## 6. Status
+## 6. The build (2026-10-02)
 
-AUTHORISED 2026-10-02. Building: the packaged 1.x build test first. NOT COMPLETE FOR RELEASE until the real 8 GB test.
+**Step 1, the packaged build test.** This ran on the development machine. No clean machine is available here: Windows
+11 Home has no Windows Sandbox or Hyper-V. Results:
+- A frozen probe and then the real 1.x app, built with the new `groundwork.spec`, loaded the runtime from inside the
+  bundle with PATH stripped to `System32`.
+- PyInstaller bundles the Visual C++ runtime the native libraries import (`msvcp140`, `vcomp140`,
+  `vcruntime140(_1)`). The rest is the Universal CRT that ships with Windows 10 and 11.
+- The packaged app loaded the model at launch with AI on, settling at **3.7 GB private about 12 s after launch**. The
+  window did not wait for it.
+- **The only listening port was 8765**, Groundwork's own existing UI server, so the engine adds none.
+- Closing the window released the model: **3,697 MB to 726 MB within a second**. The process then exited cleanly.
+- Found on the same machine: the user's own Ollama, listening on 11434 since login on 25 September. Groundwork did not
+  start it. That is exactly R-b's case.
+
+**Found building, and handled:**
+- **The CPU build requires AVX2, FMA and F16C.** On a processor without AVX2 (Celeron or Pentium chips from before
+  about 2021, common in 8 GB laptops) the runtime would fault **the whole app**, because it runs in-process. So
+  `core/engine.py` asks Windows (`IsProcessorFeaturePresent`) **before** importing the runtime. Without AVX2, AI is
+  unavailable and said so (ruling 7). s61 checks the order.
+- **numpy was excluded** from the spec, but `llama_cpp` imports it. It is now included.
+- **The runtime is imported lazily,** so the spec collects it explicitly, and the build **fails** if it is missing,
+  rather than quietly shipping a Groundwork whose AI can never start.
+
+**The cache, chosen by measurement.**
+
+Memory (process private, model loaded):
+
+| setting | memory | speed |
+|---|---|---|
+| 4096 context, f16 cache | 4.53 GB | 18.3 tok/s |
+| 2048 context, f16 cache | 3.63 GB | 18.7 tok/s |
+| 4096 context, q8_0 cache + flash attention | 3.61 GB | 19.7 tok/s |
+
+The voice A/B ran on the real `CASES` and `check()`, 20 seeds × 6 cases per setting:
+
+| setting | gate pass | R8 violations |
+|---|---|---|
+| q8_0 + flash | 30/120 | **2** |
+| f16 | 38/120 | **0** |
+
+R8 is cardinal, so **the 8-bit cache is disqualified** despite saving about 0.9 GB. The engine ships **f16 at 4096,
+flash attention off**: the configuration the voice was validated on, R8 0/120, gate pass within the measured range.
+- The largest measured prompt plus answer is about 1,720 tokens (STREAMING.md §3), so 4096 keeps headroom.
+- **2048 is the measured fallback** (3.63 GB, identical output for anything that fits). The real 8 GB test chooses
+  between them (R-d).
+- The runtime library itself is about 0.64 GB once imported. With AI off it is never imported, and the process stays
+  around 11 MB plus the app.
+
+**What changed, on both lines:**
+- **`core/engine.py` (new):**
+  - loads only when the launcher allows it and AI is on;
+  - checks the CPU, then that the file exists, then its SHA-256 (2.3 s), then imports the runtime and loads;
+  - runs one call at a time behind a lock;
+  - is released by `stop()`;
+  - opens no network: no socket or HTTP import.
+- **`server.py`:**
+  - `_ai_chat_local` calls the engine and carries its finish reason as `stop_reason` (item 12);
+  - `/api/ai/status` reports off, loading, ready or unavailable, with the engine's own message;
+  - `/system-ram` reports the 8 GB AI minimum and the CPU check;
+  - the AI toggle starts or stops the engine;
+  - the endpoint and model settings are never written;
+  - the Ollama install, pull and tags code is gone;
+  - the R-b notice (`/api/ai/ollama-notice`) reads what is there and opens `ms-settings:appsfeatures`. It removes
+    nothing.
+- **`launch.py`:** no Ollama starter. `_start_engine()` runs after the server is up, and `_stop_engine()` runs after
+  the window closes.
+- **The client:**
+  - onboarding offers *Turn on local AI* / *Continue with AI off* against the machine check, with no download;
+  - Settings → AI shows the engine's state;
+  - the one-time Ollama notice;
+  - the model picker, endpoint override and Ollama setup are gone.
+- **Installers:** all three ship `{app}\models\phi3.5-mini-instruct-q4.gguf`, stored uncompressed, with no Ollama.
+- **`requirements.txt`:** `llama-cpp-python==0.3.35`, from the project's CPU wheel index.
+- **Dev tools:**
+  - `voice_discipline_test.py` and `llm_model_eval.py` run on the engine, with a seed per call in the eval;
+  - `llm_runtime_spike.py` is marked as the historical control.
+- **2.0 only:** item 28's `_model_ready` asks the engine's state, and s26 drives the engine's finish reason.
+
+**Tests:**
+- `s60` was rewritten on a stand-in model (12 checks).
+- `s61` is new (29 checks): AI off loads nothing; the CPU check comes first; checksum refusal; missing file; runtime
+  failure leaves the app answering; no network imports; Ollama absent from shipped code, with a mutation check; the
+  notice removes nothing and shows once; the installers ship the model.
+- **`s52` now proves an AI call opens no connection at all, not even to this computer.** A mutation that puts a call
+  behind a local port is caught.
+- `s50`, `s55`, `smoke_test` and (2.0) `s26` follow the changes.
+
+**Gates:**
+- lts/1.x **850 / 0** (`a594f73`, pushed).
+- master **2151 / 0**.
+
+The first 1.x run caught one ordering fault in s61: s50's sweep had already marked the notice shown. It was fixed to
+start from never-shown.
+
+**Still open, by the ruling:**
+- **The real 8 GB machine test** (R-d, the hard completion gate). It also decides 4096 against 2048.
+- **The clean-machine run** of the packaged build: no prior Python, no Visual C++ redistributable, no Ollama. That
+  can be the same machine.
+- **Building the installer itself** with the 2.2 GB model inside (Inno Setup is installed here; not yet built).
+- **Vulkan** (R-c), a separate later implementation.
+- **The licence release gate** on the exact artifact (ruling 8).
+
+## 7. Status
+
+BUILT on both lines and gated (see §6). **NOT COMPLETE FOR RELEASE:** the real 8 GB machine test is the hard gate,
+and the clean-machine packaged run goes with it. Awaiting Rob's acceptance of the build.
