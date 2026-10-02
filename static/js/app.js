@@ -1425,7 +1425,10 @@ function restoreFromBootstrap(data) {
 
   // ── Incomes & expenses ────────────────────────────────────────────────
   S.incomes  = (data.incomes  || []).map(i => ({ id: i.id, name: i.name, amount: i.amount }));
-  S.expenses = (data.expenses || []).map(e => ({ id: e.id, cat: e.cat || 'Other', name: e.name, amount: e.amount }));
+  S.expenses = (data.expenses || []).map(e => ({ id: e.id, cat: e.cat || 'Other', name: e.name, amount: e.amount,
+    // This month's figure and where it came from (the server decides; nothing here writes it - M1/M2).
+    month_amount: e.month_amount, month_source: e.month_source, month_why: e.month_why, month_from: e.month_from,
+    month_for: e.month_for }));
 
   // ── Debt cards ────────────────────────────────────────────────────────
   S.debtCards = [];
@@ -2384,7 +2387,7 @@ function _findTopOverCat() {
     spent[cat] = (spent[cat]||0) + t.amount;
   });
   const budgeted = {};
-  S.expenses.forEach(e => { budgeted[e.cat||e.name] = (budgeted[e.cat||e.name]||0) + e.amount; });
+  S.expenses.forEach(e => { budgeted[e.cat||e.name] = (budgeted[e.cat||e.name]||0) + _rowMonth(e); });
 
   let topCat = null, topOver = 0;
   for (const [cat, s] of Object.entries(spent)) {
@@ -6654,6 +6657,14 @@ function esc(s='') {
 // Called alongside scheduleSave() so both the snapshot and DB stay consistent
 // during the 0B→0C transition period.
 
+// A budget row's amount for THIS month (BUDGET_MONTH_AMOUNT.md M1/M2): what the server sent as month_amount (a
+// followed estimate, when it has a figure) or else the saved amount. Read-only: every write path sends e.amount, the
+// saved figure, and nothing ever sends month_amount.
+function _rowMonth(e) {
+  const m = e && e.month_amount;
+  return (m === null || m === undefined) ? (parseFloat(e && e.amount) || 0) : m;
+}
+
 async function _syncBudgetItemsToDb(type, items) {
   // Simple replace strategy: fetch existing IDs, delete removed ones, upsert remaining.
   // Budget lists are small (<20 items) so this is safe and avoids complex diffing.
@@ -7464,7 +7475,7 @@ function renderBudget() {
   _loadUtilityPrices();
 
   const totalIncome = S.incomes.reduce((s,i) => s + i.amount, 0);
-  const totalExpenses = S.expenses.reduce((s,e) => s + e.amount, 0);
+  const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
   const _today = new Date().toISOString().slice(0, 10);
   const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _today));
   const totalDebt = activeDebts.reduce((s,c) => {
@@ -7701,11 +7712,11 @@ function _budgetCheckShortfall(activeDebts) {
   const totalIncome   = S.incomes.reduce((s,i) => s + i.amount, 0);
   if (totalIncome <= 0) return;
 
-  const totalExpenses = S.expenses.reduce((s,e) => s + e.amount, 0);
+  const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
   const totalMins     = activeDebts.reduce((s,c) => s + (parseFloat(c.minimum)||0), 0);
   const projExpenses  = S.expenses.reduce((sum, exp) => {
-    const p = _budgetProjection(exp.cat || exp.name || 'Other', parseFloat(exp.amount)||0);
-    return sum + (p ? p.projected : parseFloat(exp.amount)||0);
+    const p = _budgetProjection(exp.cat || exp.name || 'Other', _rowMonth(exp));
+    return sum + (p ? p.projected : _rowMonth(exp));
   }, 0);
   const leftProjected = totalIncome - projExpenses;
 
@@ -7757,7 +7768,7 @@ function _budgetUpdateRealismSentence(left, totalIncome) {
     totalIncome = S.incomes.reduce((s,i) => s + i.amount, 0);
     const activeDebts = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < _tod));
     const totalDebt   = activeDebts.reduce((s,c) => s + (parseFloat(c.minimum)||0), 0);
-    const totalExpenses = S.expenses.reduce((s,e) => s + e.amount, 0);
+    const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
     left = totalIncome - totalExpenses - totalDebt;
   }
   if (!totalIncome || totalIncome <= 0) { el.textContent = ''; return; }
@@ -7800,7 +7811,7 @@ function _budgetUpdateLedgerIncomeNote() {
 // pine when under, ember when over.
 function _budgetUpdateWhatsLeft() {
   const totalIncome   = S.incomes.reduce((s,i) => s + i.amount, 0);
-  const totalExpenses = S.expenses.reduce((s,e) => s + e.amount, 0);
+  const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
   const today         = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   const activeDebts   = S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < today));
   const totalDebt     = activeDebts.reduce((s,c) => s + (parseFloat(c.minimum)||0), 0);
@@ -7811,12 +7822,12 @@ function _budgetUpdateWhatsLeft() {
 
   // CP2: sum projected spend across all expense categories that have projections
   const projExpenses = S.expenses.reduce((sum, exp) => {
-    const p = _budgetProjection(exp.cat || exp.name || 'Other', parseFloat(exp.amount)||0);
-    return sum + (p ? p.projected : parseFloat(exp.amount)||0);
+    const p = _budgetProjection(exp.cat || exp.name || 'Other', _rowMonth(exp));
+    return sum + (p ? p.projected : _rowMonth(exp));
   }, 0);
   const leftProjected   = totalIncome - projExpenses - totalDebt - totalSinking;
   const hasProjection   = S.expenses.some(exp =>
-    _budgetProjection(exp.cat || exp.name || 'Other', parseFloat(exp.amount)||0) !== null
+    _budgetProjection(exp.cat || exp.name || 'Other', _rowMonth(exp)) !== null
   );
 
   // Card border/bg follows projected when available, planned otherwise
@@ -8079,7 +8090,7 @@ function _budgetRenderExpenseRow(exp, idx) {
   if (emptyEl) emptyEl.remove();
 
   const cs      = _categoryStyle(exp.cat || exp.name || 'Other');
-  const budget  = parseFloat(exp.amount) || 0;
+  const budget  = _rowMonth(exp);
   const catName = exp.cat || exp.name || 'Other';
   const proj    = _budgetProjection(catName, budget);
   const spent   = proj ? proj.spent : _budgetSpentForCat(catName);
@@ -8267,7 +8278,7 @@ function _budgetSaveExpenseBloom(btn) {
   if (amt <= 0) { showToast('Amount required','Enter a positive amount','warning'); return; }
 
   const item = { name, amount: amt, cat: cat||'Other', id: idx >= 0 ? (S.expenses[idx]?.id||null) : null };
-  if (idx >= 0) S.expenses[idx] = item;
+  if (idx >= 0) S.expenses[idx] = { ...S.expenses[idx], ...item };
   else S.expenses.push(item);
 
   _syncBudgetItemsToDb('expense', S.expenses);
@@ -8432,9 +8443,9 @@ function _budgetConsequenceSentence() {
   // Find the expense projecting furthest over budget
   let worstCat = null, worstOverage = 0;
   S.expenses.forEach(exp => {
-    const p = _budgetProjection(exp.cat || exp.name || 'Other', parseFloat(exp.amount)||0);
+    const p = _budgetProjection(exp.cat || exp.name || 'Other', _rowMonth(exp));
     if (!p || p.trending === 'ok') return;
-    const overage = p.projected - (parseFloat(exp.amount)||0);
+    const overage = p.projected - _rowMonth(exp);
     if (overage > worstOverage) { worstOverage = overage; worstCat = exp.cat || exp.name; }
   });
   if (!worstCat || worstOverage < 5) return '';
@@ -8775,8 +8786,8 @@ function _runScheduler(activeDebts) {
   if (totalIncome <= 0) return null;
 
   const projExpenses = S.expenses.reduce((sum, exp) => {
-    const p = _budgetProjection(exp.cat || exp.name || 'Other', parseFloat(exp.amount)||0);
-    return sum + (p ? p.projected : parseFloat(exp.amount)||0);
+    const p = _budgetProjection(exp.cat || exp.name || 'Other', _rowMonth(exp));
+    return sum + (p ? p.projected : _rowMonth(exp));
   }, 0);
   const available = Math.max(0, totalIncome - projExpenses);
 
@@ -10845,7 +10856,7 @@ function tripUpdateBudget() {
 
   // Monthly surplus after debt commitment
   const income   = S.incomes.reduce((s,i)=>s+i.amount,0);
-  const expenses = S.expenses.reduce((s,e)=>s+e.amount,0);
+  const expenses = S.expenses.reduce((s,e)=>s+_rowMonth(e),0);
   const debtPay  = _getMonthlyBudget();
   const surplus  = Math.max(0, income - expenses - debtPay);
 
@@ -13452,7 +13463,7 @@ function calcUserStage() {
 
 function calcLeanMode() {
   const income   = _effectiveIncome();    // rolling avg in commission mode
-  const expenses = S.expenses.reduce((s,e) => s+e.amount, 0);
+  const expenses = S.expenses.reduce((s,e) => s+_rowMonth(e), 0);
   const debtPay  = _getMonthlyBudget();
   if (!income) return false;
   return (income - expenses - debtPay) < 200;
@@ -15048,7 +15059,7 @@ function _debtMaybeSuggestCommitment() {
   if (hasUserValue) return;
 
   const income = S.incomes ? S.incomes.reduce((s,i) => s + (parseFloat(i.amount)||0), 0) : 0;
-  const bills  = S.expenses ? S.expenses.reduce((s,e) => s + (parseFloat(e.amount)||0), 0) : 0;
+  const bills  = S.expenses ? S.expenses.reduce((s,e) => s + _rowMonth(e), 0) : 0;
   const today_sug = new Date().toISOString().slice(0, 10);
   const mins   = S.debtCards ? S.debtCards.filter(c => !c.paidInFull && !(c.endDate && c.endDate < today_sug)).reduce((s,c) => s + (parseFloat(c.minimum)||0), 0) : 0;
   if (!income) return;
@@ -15462,7 +15473,7 @@ function loadDebtAdvisor(baseResult, totalDebt) {
   // DTI stats row — IDs match the Advisor tab HTML
   const dti      = calcDTI();
   const income   = S.incomes.reduce((s,i) => s+i.amount, 0);
-  const expenses = S.expenses.reduce((s,e) => s+e.amount, 0);
+  const expenses = S.expenses.reduce((s,e) => s+_rowMonth(e), 0);
   const surplus  = Math.max(0, income - expenses);
 
   // Use the HTML element IDs that actually exist in the Advisor tab
@@ -18071,7 +18082,7 @@ async function renderRetirementReadiness() {
   const portfolio = (nw.investments||0) + (nw.retirement401k||0) + (nw.retirementIRA||0);
 
   // Monthly spending from budget
-  const monthlySpend = S.expenses.reduce((s,e) => s+e.amount, 0)
+  const monthlySpend = S.expenses.reduce((s,e) => s+_rowMonth(e), 0)
     || _getMonthlyBudget();
 
   if (portfolio < 1000 && !totalGuaranteedIncome) {
@@ -18369,7 +18380,7 @@ async function renderWithdrawalSustainability() {
   if (!content) return;
 
   // Monthly spending from budget
-  const monthlySpend = S.expenses.reduce((s,e) => s+e.amount, 0)
+  const monthlySpend = S.expenses.reduce((s,e) => s+_rowMonth(e), 0)
     || _getMonthlyBudget();
 
   // Guaranteed income offset (SS + pension)
@@ -20170,7 +20181,7 @@ function _bybLiveUpdate() {
 
 function _bybCurrentWhatsLeft() {
   const income   = S.incomes.reduce((s,i) => s+i.amount, 0);
-  const expenses = S.expenses.reduce((s,e) => s+e.amount, 0);
+  const expenses = S.expenses.reduce((s,e) => s+_rowMonth(e), 0);
   const debt     = _activeDebtCards().reduce((s,c) => s+(parseFloat(c.minimum)||0), 0);
   const sinking  = (_sinkingFunds||[]).reduce((s,f) => s+(parseFloat(f.monthly)||0), 0);
   return income - expenses - debt - sinking;
