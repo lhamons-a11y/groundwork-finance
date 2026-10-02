@@ -149,6 +149,66 @@ New:
 3. Merge to master; master's own removals (2.0 surfaces); gate.
 4. The voice A/B on the packaged build of each line.
 
-## 4. Status
+## 4. Rob's ruling, 2026-10-02, and what was raised back
 
-OPEN: ten points for ruling (E1–E10). No code until ruled and authorised. Ahead of the onboarding revisit.
+Rob ruled in ten points and closed the architecture (*"the next pass should therefore be implementation of the
+replacement, not another round of deciding what the replacement is"*):
+
+1. **Runtime:** `llama-cpp-python`; no ONNX in this pass.
+2. **8 GB:** a hard shipping requirement, tested on a real 8 GB Windows machine. The test: usable with the model
+   resident; loads reliably; database and UI stay responsive; AI completes its work; memory pressure does not make the
+   app unusable; closing releases the model.
+3. **GPU:** opportunistic acceleration, never a prerequisite. Vulkan is the first Windows backend, not CUDA. *One
+   engine. CPU always available. No GPU-only edition.* The 8 GB test decides how far layers are offloaded.
+4. **Model:** ship the exact tested quantized artifact, pinned by file, revision and checksum. No download.
+5. **Packaging:** the installer holds Groundwork, the runtime and the model. No first-run download, model server,
+   account, Ollama install or network dependency.
+6. **Lifecycle:** load at launch, keep available, release at close. No lazy loading.
+7. **A 1.x machine that cannot run the model:** AI unavailable, said honestly, and the app otherwise fully usable.
+   There is no Ollama fallback, no cloud fallback, no API key request, no forced upgrade and no invented AI result.
+8. **Licence:** a release gate on the exact artifact, recording the upstream model and revision, the quantized file,
+   its hash, the quantization's provenance, the licence, and the included notice files.
+9. **Existing installs:**
+   - stop launching and contacting Ollama;
+   - remove Groundwork's Ollama configuration, routes and UI;
+   - use the bundled engine;
+   - leave the financial data untouched;
+   - never silently uninstall a separately installed Ollama.
+
+   *"If Groundwork itself installed a private/bundled Ollama component ... that component can be removed."*
+10. **A8, A9, item 10, item 12:** these wait on the replacement and talk to Groundwork's local inference interface, never
+    Ollama's HTTP: *Groundwork → local engine → model.*
+
+**Raised back, 2026-10-02 (awaiting Rob):**
+
+- **R-a. Point 6 and A9.** *Load at launch* must stay *load at launch when AI is on*. That is ruling 4's own wording,
+  and item 30's A9, which Rob agreed.
+- **R-b. Point 9: there is no "private" Ollama to tell apart.** All three installers ran Ollama's **own** installer, or
+  copied it, into Ollama's standard per-user location (`%LOCALAPPDATA%\Programs\Ollama`). They skipped that step when it
+  was already there, and they wrote no marker. So Groundwork cannot prove which copy it installed, and a copy it did
+  install may since have been used for other things. That copy also starts at Windows login, which costs memory even
+  when Groundwork is closed.
+
+  Proposed:
+  - Groundwork removes nothing by itself.
+  - It shows a one-time notice: *Groundwork no longer uses Ollama; it is here, it uses this much space and starts at
+    login; other programs may use it.*
+  - The notice offers to open Windows' own uninstall for Ollama. The user chooses.
+- **R-c. Point 3: CPU first, then Vulkan behind its own packaged test.** A Vulkan build of `llama-cpp-python` is a
+  different build of the library. If it fails to load on a machine with no Vulkan driver (older integrated graphics,
+  some VMs), the whole engine fails, which would break *CPU always available*. Proposed order:
+  - ship the CPU build first;
+  - add Vulkan only once a packaged test shows it loads, **and falls back to CPU**, on a machine with no Vulkan
+    driver, and is measurably faster on integrated graphics at 8 GB.
+- **R-d. Point 2: wording.** *8 GB minimum* is the minimum for **AI**, not for running Groundwork. With AI off,
+  Groundwork runs on less (Rob, 2026-10-02: *"freeware that doesn't suck"*), and point 7 already says so. The 8 GB test
+  also needs a real 8 GB Windows machine. This one has 34 GB, and Windows 11 Home has no Hyper-V to make a VM, so
+  Rob supplies the machine.
+- **Kept from the pass, not contradicted by the ruling:** E3's one-call-at-a-time lock, E4's checksum check at load,
+  E6's packaged-build test on a clean machine as step one, E8's tests (no listening port, Ollama absent, AI off never
+  loads, memory released, the voice A/B on the packaged build), and E9's dev tools moving to the engine.
+
+## 5. Status
+
+RULED by Rob 2026-10-02 (points 1–10). Four points raised back (R-a to R-d) await his answer. Implementation is next;
+no code until those are settled.
