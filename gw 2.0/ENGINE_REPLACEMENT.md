@@ -208,7 +208,38 @@ replacement, not another round of deciding what the replacement is"*):
   E6's packaged-build test on a clean machine as step one, E8's tests (no listening port, Ollama absent, AI off never
   loads, memory released, the voice A/B on the packaged build), and E9's dev tools moving to the engine.
 
-## 5. Status
+## 5. R-a to R-d agreed, and the build authorised (Rob, 2026-10-02)
 
-RULED by Rob 2026-10-02 (points 1–10). Four points raised back (R-a to R-d) await his answer. Implementation is next;
-no code until those are settled.
+*"Agreed to R-a through R-d, and I authorize the build."*
+
+- **R-a, lifecycle:** the model loads at launch **only when AI is enabled**. With AI off it is not loaded at all. It
+  is released when Groundwork closes.
+- **R-b, Ollama migration:** Groundwork never uninstalls Ollama. Every existing Ollama is treated as potentially
+  user-owned. The migration is a one-time notice: Groundwork no longer uses it; where it is, the space it uses, and that
+  it starts at login. The notice offers Windows' own uninstall path, and the user decides.
+- **R-c, acceleration:** the CPU engine ships first. Vulkan is a separate later implementation and test. It becomes
+  supported only after proving that machines without Vulkan still have a working CPU path, and that Vulkan gives a real
+  benefit on an 8 GB shared-memory machine.
+- **R-d, 8 GB:** 8 GB is the minimum for Groundwork **AI**, not for Groundwork itself. AI off stays usable on less. A
+  real 8 GB machine is a completion criterion. The 34 GB development machine cannot substitute for it.
+
+**Retained controls, agreed:**
+- one AI call at a time;
+- SHA-256 verified before the model loads;
+- the clean-machine packaged-build test first;
+- no listening port;
+- Ollama absent from the architecture;
+- AI off means no model load;
+- memory released on exit;
+- the voice check rerun;
+- the developer evaluation tools on the new engine.
+
+**Authorisation:**
+- *"Build the replacement now. Start with the packaged 1.x build test."*
+- Both lines converge on the built-in engine, with no Ollama fallback and no cloud fallback.
+- **The real 8 GB machine test is the one remaining hard completion gate.** Until it is passed, the engine can be
+  built and otherwise validated, but the replacement stays **explicitly not complete for release**.
+
+## 6. Status
+
+AUTHORISED 2026-10-02. Building: the packaged 1.x build test first. NOT COMPLETE FOR RELEASE until the real 8 GB test.
