@@ -343,7 +343,19 @@ start from never-shown.
 - **Vulkan** (R-c), a separate later implementation.
 - **The licence release gate** on the exact artifact (ruling 8).
 
-## 7. Status
+## 7. Acceptance (Rob, 2026-10-02)
 
-BUILT on both lines and gated (see §6). **NOT COMPLETE FOR RELEASE:** the real 8 GB machine test is the hard gate,
-and the clean-machine packaged run goes with it. Awaiting Rob's acceptance of the build.
+*"i accept"*. The build is ACCEPTED as built, with the 8 GB test still outstanding.
+
+## 8. Status
+
+BUILT and ACCEPTED on both lines (lts `a594f73`, master `84469f5`).
+
+**NOT COMPLETE FOR RELEASE.** These remain open:
+- The real 8 GB machine test. It is the hard gate, and it also chooses between 4096 and 2048.
+- The clean-machine run of the packaged build.
+- Building the installer with the model inside.
+- The licence release gate.
+- Vulkan, later (R-c).
+
+The onboarding revisit (item 30, A6) is next.
