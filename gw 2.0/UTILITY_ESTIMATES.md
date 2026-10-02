@@ -2,7 +2,7 @@
 
 > Status: **RULED and AUTHORISED 2026-10-01 (Rob: "I accept all seven points, build it"). U0 BUILT on both lines; the natural
 > gas slice BUILT on 2.0 (§6), gate 2099 / 0 with the U0 merge; the gas slice ACCEPTED (Rob, 2026-10-01). Electricity AUTHORISED ("build
-> electricity") and BUILT (§7), gate 2115 / 0; awaiting Rob's acceptance. Gasoline to follow (U8).** Opened the same day. Rob, 2026-10-01: *"open item 26"*.
+> electricity") and BUILT (§7), gate 2115 / 0; ACCEPTED (Rob, 2026-10-01: "Accept item 26 in both parts"). Gasoline to follow (U8).** Opened the same day. Rob, 2026-10-01: *"open item 26"*.
 >
 > **Rob's requests (2026-09-28), recorded in the queue. For every U.S. state, not one (Rob, 2026-10-01; U9):**
 > - estimate natural gas from weather, usage and price, and set it in the budget;
@@ -296,3 +296,16 @@ bill = F + (B + Sh x HDD + Sc x CDD) x price          price in $/kWh (EIA publis
 - EIA's forecast line, and the saved Electric amount still setting the totals.
 - The Gas card beside it.
 
+---
+
+## 8. Acceptance: Rob, 2026-10-01
+
+*"Accept item 26 in both parts."* Both built slices are accepted:
+- **natural gas**, at `fca0e33` (gate 2099 / 0, with U0's merge);
+- **electricity**, at `ad6b9b9` (gate 2115 / 0, on master `aa2368c`, rebased onto `ee9fe9b` with the same-tick test fixes `8db143c`).
+
+U0 is on both lines (`lts/1.x` `d9ce860`).
+
+**Item 26 stays open for what is not built yet:**
+- **gasoline** (U2): fill-up gallons x EIA's weekly price, by PADD;
+- **the follow-up pass Rob chose:** every budget total (the Budget page, the dashboard's *This month*, the solution engine) reads one *"amount for this month"* function. A followed estimate then sets the totals, and the report can truthfully say the budget includes the forecast.
