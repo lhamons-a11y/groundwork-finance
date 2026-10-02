@@ -4784,8 +4784,19 @@ def update_settings():
     # (ENGINE_REPLACEMENT.md). Neither setting is ever written.
     body.pop('local_endpoint', None)
     body.pop('local_model', None)
+    # Household facts (home_state, pay_frequency, ...) are never written here directly: they go through the one write
+    # path, which keeps their history and their current value together (ONBOARDING_REVISIT.md s4). An empty value
+    # withdraws the answer; an unknown value is refused, and then nothing in this request is saved.
+    from core import household
+    facts = {k: body.pop(k) for k in list(body) if k in household.FACTS}
 
     with db_session() as session:
+        try:
+            for key, value in facts.items():
+                household.set_household_fact(session, key, value, 'settings')
+        except household.FactError as e:
+            session.rollback()
+            return err(str(e), 400)
         for key, value in body.items():
             setting = _get_setting(session, key)
             if setting:
@@ -4800,7 +4811,44 @@ def update_settings():
             engine.stop()
         else:
             engine.start()
-    return ok({'updated': list(body.keys())})
+    return ok({'updated': list(body.keys()) + list(facts)})
+
+
+# ── Household facts (ONBOARDING_REVISIT.md, item 30) ─────────────────────────────────────────────────────────────
+# Onboarding, Settings' "Your home" card and the inline prompts all set the SAME canonical facts, through
+# core.household.set_household_fact(). These routes are how the page reads and sets them.
+
+@settings_bp.route('/household', methods=['GET'])
+def household_facts():
+    """Every household fact this line asks: the question, the answers that exist, the current value (null =
+    unanswered), and - with ?history=1 - each fact's dated history."""
+    from core import household
+    with db_session() as session:
+        facts = household.snapshot(session)
+        if request.args.get('history'):
+            for k in facts:
+                facts[k]['history'] = household.history(session, k)
+        return ok(facts)
+
+
+@settings_bp.route('/household', methods=['POST'])
+@require_json
+def household_set_fact():
+    """Set one fact: {key, value, source}. value null or '' withdraws it. source: onboarding | settings |
+    inline_prompt (carried_over is the migration's alone)."""
+    from core import household
+    body = request.json or {}
+    source = body.get('source') or 'settings'
+    if source not in ('onboarding', 'settings', 'inline_prompt'):
+        return err('not a source the page can use', 400)
+    with db_session() as session:
+        try:
+            changed = household.set_household_fact(session, body.get('key'), body.get('value'), source)
+        except household.FactError as e:
+            session.rollback()
+            return err(str(e), 400)
+        session.commit()
+        return ok({'key': body.get('key'), 'value': household.current(session, body.get('key')), 'changed': changed})
 
 
 @settings_bp.route('/bootstrap', methods=['GET'])

@@ -486,6 +486,27 @@ class AppSetting(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class HouseholdFact(Base):
+    """What the household told Groundwork - the history of one canonical fact (gw 2.0/ONBOARDING_REVISIT.md, item 30).
+
+    Append-only and authoritative: a changed answer is a NEW row, a withdrawal is a row with value NULL, and nothing
+    is edited or deleted. The current value is mirrored in app_settings[key] by core.household.set_household_fact(),
+    the one write path, in the same transaction. The household's, not a person's: there is no user column.
+
+    key          a fact in core.household.FACTS ('home_state', 'pay_frequency', 'surplus_goal')
+    value        the answer, or NULL for a withdrawal (the fact is unanswered again)
+    answered_at  when it was said; NULL only for 'carried_over' rows (said before history existed - not invented)
+    source       'onboarding' | 'settings' | 'inline_prompt' | 'carried_over'
+    """
+    __tablename__ = 'household_facts'
+    id          = Column(Integer, primary_key=True)
+    key         = Column(String(40), nullable=False, index=True)
+    value       = Column(String(80), nullable=True)
+    answered_at = Column(DateTime, nullable=True)
+    source      = Column(String(20), nullable=False)
+    recorded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class BYBItem(Base):
     """
     The wizard (_bybCommit in app.js) has always computed decision,

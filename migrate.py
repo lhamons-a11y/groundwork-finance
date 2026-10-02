@@ -12,11 +12,14 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20260927-lts-cloud-ai-removed'   # cloud AI removed: ai_provider gone, ANTHROPIC_API_KEY deleted from config.json
+SCHEMA_VERSION = '20261002-lts-household-facts'   # the household_facts table + carrying existing answers over (ONBOARDING_REVISIT.md)
+# The previous version, '20260927-lts-cloud-ai-removed', removed cloud AI. A new MODEL table is created by init_db's
+# create_all only when the stored version differs, so a new table needs a bump exactly as a column does - and s51's
+# fingerprint cannot see that, so s62 proves the upgrade (item 24's gap). Distinct from every 2.0 value as well.
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = '24c20454d9e430d885918b5f183e7d3b7fc3a0c6c18fdbf99efda4f7c9b105f4'
+SCHEMA_SPEC_SHA256 = 'a7fbe60d84347954228a4eff02bc3b243d761c5cf0dd2370d134b62edf8b9d5f'
 
 
 def _stored_schema_version():
@@ -138,6 +141,16 @@ def _mark_migration_done(session, flag: str):
     from core.database import AppSetting
     if not _migration_done(session, flag):
         session.add(AppSetting(key=flag, value='1'))
+
+
+def _carry_over_household_facts(session):
+    """Answers given before household_facts existed (home_state, pay_frequency, surplus_goal) get one history row each,
+    source 'carried_over', answered_at NULL - when they were said is not known, so it is not invented. After this the
+    invariant holds for every fact: the current value equals the latest history row (ONBOARDING_REVISIT.md s4).
+    Idempotent: a fact that already has history is left alone."""
+    from core import household
+    n = household.carry_over(session)
+    logger.info('Household facts carried over: %d', n)
 
 
 def _seed_child_categories(session):
@@ -341,6 +354,7 @@ def run_migration_if_needed():
         try:
             _seed_child_categories(session)
             _migrate_old_category_names(session)
+            _carry_over_household_facts(session)
             for name, ctype, color in [
                 ('Interest / Fees', 'expense', '#dc2626'),
                 ('Other', 'expense', '#6b7280'),

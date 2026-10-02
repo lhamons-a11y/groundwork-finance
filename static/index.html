@@ -877,18 +877,6 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         </div>
 
         <!-- Step 0: Welcome — how are you getting started? -->
-        <!-- Step 0a: one question. Tunes the app's personality before anything is collected. -->
-        <div id="obStepIntent" class="hidden">
-          <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">Welcome to Groundwork.</div>
-          <div style="font-size:13px;color:var(--slate);margin-bottom:6px;line-height:1.6">We'll build a clear picture of your finances together — most people are ready in about ten minutes, and nothing you do today is permanent.</div>
-          <div style="font-size:14px;font-weight:600;color:var(--ink);margin:24px 0 12px">What brought you here today?</div>
-          <button class="ob-start-option" onclick="obSetIntent('debt')"><div class="ob-start-title">I want to get out of debt</div></button>
-          <button class="ob-start-option" onclick="obSetIntent('paycheck')"><div class="ob-start-title">I want to stop living paycheck to paycheck</div></button>
-          <button class="ob-start-option" onclick="obSetIntent('understand')"><div class="ob-start-title">I want to understand where my money goes</div></button>
-          <button class="ob-start-option" onclick="obSetIntent('save')"><div class="ob-start-title">I'm trying to save more</div></button>
-          <button class="ob-start-option" onclick="obSetIntent('curious')"><div class="ob-start-title">I'm just curious</div></button>
-        </div>
-
         <div id="obStep0" class="hidden">
           <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">Let's begin.</div>
           <div id="obStep0Sub" style="font-size:13px;color:var(--slate);margin-bottom:24px;line-height:1.6">The fastest start is bringing in your recent spending — Groundwork organizes it for you and shows you what it found. You can also set things up by hand.</div>
@@ -967,8 +955,38 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           </div>
 
           <div id="obIncomeSub" style="font-size:11px;color:var(--slate-2);margin-top:8px;min-height:18px"></div>
+          <!-- A household fact (ONBOARDING_REVISIT.md): read by the cash-flow and payday views. Blank = skipped. -->
+          <div class="field mt-4">
+            <label for="obPayFrequency">How often are you paid?</label>
+            <select class="field-input" id="obPayFrequency" data-gw-fact="pay_frequency">
+              <option value="">Skip for now</option>
+              <option value="weekly">Every week</option>
+              <option value="biweekly">Every two weeks</option>
+              <option value="semimonthly">Twice a month</option>
+              <option value="monthly">Once a month</option>
+              <option value="irregular">It varies</option>
+            </select>
+          </div>
           <button class="btn btn-primary btn-full mt-5" onclick="obNext(1)" id="obBtn1" disabled>
-            Next — add your debts →
+            Next — your home →
+          </button>
+        </div>
+
+        <!-- Your home (ONBOARDING_REVISIT.md O1): asked just before the bills it labels. Every field is a household
+             fact set through the one write path, and every one can be skipped - a skipped fact stays unanswered. -->
+        <div id="obStepHome" class="hidden">
+          <div class="ob-back-link" onclick="obHomeBack()">← Back</div>
+          <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">Your home.</div>
+          <div style="font-size:13px;color:var(--slate);margin-bottom:20px;line-height:1.6">Each answer here sets something Groundwork works out for you, like the energy prices where you live. Skip anything you'd rather not say: nothing is assumed in its place, and you can answer later in Settings.</div>
+          <div class="field">
+            <label for="obHomeState">Which state is your home in?</label>
+            <select class="field-input" id="obHomeState" data-gw-fact="home_state">
+              <option value="">Skip for now</option>
+            </select>
+          </div>
+          <div id="obHomeMore"></div>
+          <button class="btn btn-primary btn-full mt-5" onclick="obHomeNext()" id="obBtnHome">
+            Next — what goes out →
           </button>
         </div>
 
@@ -984,19 +1002,19 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <!-- Housing -->
             <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px">Housing</div>
             <div class="field">
-              <label>Mortgage or rent ($/month)</label>
+              <label id="obExpHousingLabel">Mortgage or rent ($/month)</label>
               <input type="number" id="obExpHousing" placeholder="e.g. 1,500" min="0" step="0.01">
             </div>
 
             <!-- Utilities -->
             <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin:20px 0 8px">Utilities</div>
             <div class="grid-2" style="gap:12px">
-              <div class="field" style="margin:0">
+              <div class="field" style="margin:0" id="obExpElectricField">
                 <label>Electric ($/month)</label>
                 <input type="number" id="obExpElectric" placeholder="e.g. 120" min="0" step="0.01">
               </div>
-              <div class="field" style="margin:0">
-                <label>Gas ($/month)</label>
+              <div class="field" style="margin:0" id="obExpGasField">
+                <label id="obExpGasLabel">Home heating fuel ($/month)</label>
                 <input type="number" id="obExpGas" placeholder="e.g. 45" min="0" step="0.01">
               </div>
               <div class="field" style="margin:0">
@@ -1033,8 +1051,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <!-- Transportation -->
             <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin:20px 0 8px">Transportation</div>
             <div class="grid-2" style="gap:12px">
-              <div class="field" style="margin:0">
-                <label>Gas / Fuel ($/month)</label>
+              <div class="field" style="margin:0" id="obExpFuelField">
+                <label>Vehicle fuel (gasoline or diesel) ($/month)</label>
                 <input type="number" id="obExpFuel" placeholder="e.g. 150" min="0" step="0.01">
               </div>
               <div class="field" style="margin:0">
