@@ -385,6 +385,50 @@ which may still not be enough. The real run's page-fault figure is the deciding 
 4096 and 2048, or a finding that 8 GB cannot hold the narrator, follows from it. **Not decided here:** a prediction
 is not the test.
 
+## 9. Tuned for the 8 GB floor (Rob, 2026-10-02: "make the 8 GB configuration work")
+
+Memory only, never the model's arithmetic. Each step was checked **word for word** against the validated 4096
+configuration: the six voice cases on two seeds, **12 of 12 identical**. So the voice A/B (R8 0/120) carries over
+unchanged.
+
+| step | process memory, model loaded |
+|---|---|
+| the first build: 4096 context, f16 cache | 4.53 GB |
+| 2048 context | 3.63 GB |
+| OpenBLAS capped at one thread (numpy reserved 620 MB on 20 threads; Groundwork does no numpy maths) | 3.02 GB |
+| prompt batch 256 | 2.90 GB |
+| model file **read in, not memory-mapped** (the mapped file stayed resident beside the CPU build's own copy, ~1.8 GB) | **2.83 GB resident** (was 4.60 GB resident) |
+
+- **The 8-bit KV cache stays out.** Rob proposed it; it was raised back because the 20-seed A/B gave it **2 R8
+  violations in 120**, and at 2048 it would save only ~0.4 GB. The kit measures it on the real machine, labelled
+  *R8-disqualified unless re-validated*.
+- Phi-3.5, the CPU-only baseline and the launch/close lifecycle are unchanged.
+- **Guards in s61:** the shipped values; OpenBLAS set before anything can import numpy (in `launch.py` and
+  `core/engine.py`); the file not mapped; the test-only switches (`GROUNDWORK_TEST_ENGINE_*`) set by nothing in
+  Groundwork.
+- **Gates:**
+  - lts `102a208` 884 / 0, then `a0d971e` 885 / 0;
+  - master `e834a75` 2204 / 0, then `21281db` 2205 / 0.
+
+**The kit is now a configuration-selection test**: shipping twice (the second run is R-d's point 6), then the 8-bit
+cache for comparison. The target, in Rob's words: *Groundwork remains responsive, the AI request completes, and
+sustained memory pressure does not turn ordinary use into disk-bound behavior* - not zero paging.
+
+**Dry run of the tuned kit, on this machine (not the 8 GB result):**
+
+| | shipping, run 1 | shipping, run 2 | 8-bit cache (R8-disqualified) |
+|---|---|---|---|
+| free memory taken, model loaded | **3.26 GB** (was 5.8) | 3.29 GB | 2.93 GB |
+| Groundwork + window | 3.35 GB (was 4.79) | 3.34 GB | 2.96 GB |
+| requests while loading / generating | 0 errors, worst 0.27 / 0.05 s | 0 errors, worst 0.27 / 0.06 s | 0 errors |
+| AI request | completed, 12.2 s | completed, 12.3 s | completed, 10.6 s |
+| hard page faults | 0 / s | 1 / s (once) | 0 / s |
+| on close | released 1.0 s, exited 4.0 s | 1.0 s, 4.0 s | 1.0 s, 4.0 s |
+
+**State (Rob, 2026-10-02):** the architecture decision is settled; the runtime tuning looks promising; the code is
+green on both lines; **8 GB usability is still unproven; the engine replacement is not closed.** The cold-start load on
+the 8 GB machine must read 2.2 GB from disk either way, so expect it to be slower there than the 1.44 s measured here.
+
 ## 8. Status
 
 BUILT and ACCEPTED on both lines (lts `a594f73`, master `84469f5`).
