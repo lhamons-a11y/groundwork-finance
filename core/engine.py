@@ -20,6 +20,12 @@ import gc
 import hashlib
 import logging
 import os
+
+# numpy (imported by llama_cpp) brings OpenBLAS, which reserves a buffer per processor thread: measured 620 MB on a
+# 20-thread machine. Groundwork does no numpy maths - the model runs in llama.cpp's own kernels - so one thread
+# changes nothing the model writes (verified: identical text) and frees that memory. Must be set before numpy loads;
+# launch.py sets it first thing too. setdefault: a developer's own setting wins.
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
 import platform
 import sys
 import threading
@@ -39,9 +45,30 @@ MODEL_SHA256 = 'b5374915da534cb93df39f03bd4f2cd5a0c533df0d5e21957dc9556c260be9eb
 # The largest measured prompt + answer is ~1,720 tokens (STREAMING.md s3), so 4096 keeps headroom; 2048 gives the
 # same output for anything that fits, at 3.63 GB, and is the measured fallback the real 8 GB test may choose (R-d).
 # The runtime library itself is ~0.64 GB once imported - never, with AI off.
-N_CTX = 4096
+#
+# Tuned for the 8 GB floor (Rob, 2026-10-02: "make the 8 GB configuration work"), memory only - never the model's
+# arithmetic. Process private memory with the model loaded, measured 2026-10-02:
+#   4096 ctx, f16 cache                         4.53 GB   (the first build)
+#   2048 ctx, f16 cache                         3.63 GB
+#   2048 ctx, f16, OpenBLAS at one thread       3.02 GB
+#   2048 ctx, f16, OpenBLAS 1, batch 256        2.90 GB   <- shipped
+#   (2048 ctx, q8_0 cache: 3.19 GB before the OpenBLAS fix - still R8-disqualified, 2 violations in 120)
+# The shipped configuration writes WORD FOR WORD the same text as the validated 4096 one: 12 of 12 voice cases over
+# two seeds identical, so the voice A/B (R8 0/120) carries over unchanged. 2048 holds the largest measured prompt
+# plus answer (~1,720 tokens, STREAMING.md s3); a longer request is refused plainly ('too_long'), never cut silently.
+N_CTX = 2048
+N_BATCH = 256          # prompt-processing batch: smaller compute buffers; measured not to change the output
 FLASH_ATTN = False
 KV_CACHE_TYPE = 'GGML_TYPE_F16'
+
+# The 8 GB test kit compares configurations on the real machine in one visit (ENGINE_REPLACEMENT.md s9). These are
+# read ONLY from the test's own variables; nothing in Groundwork sets them, and the shipped values above apply
+# otherwise.
+_T = os.environ.get
+N_CTX = int(_T('GROUNDWORK_TEST_ENGINE_CTX', N_CTX))
+N_BATCH = int(_T('GROUNDWORK_TEST_ENGINE_BATCH', N_BATCH))
+KV_CACHE_TYPE = _T('GROUNDWORK_TEST_ENGINE_KV', KV_CACHE_TYPE)
+FLASH_ATTN = _T('GROUNDWORK_TEST_ENGINE_FLASH', '1' if FLASH_ATTN else '') == '1'
 LOADING_WAIT_SECONDS = 60       # a call made while the model is still loading waits this long for it
 
 MESSAGES = {
@@ -184,8 +211,8 @@ def _load(gen):
             return _finish(gen, None, 'runtime', repr(e))
         t1 = time.time()
         try:
-            model = Llama(model_path=str(path), n_ctx=N_CTX, flash_attn=FLASH_ATTN, type_k=kv, type_v=kv,
-                          verbose=False)
+            model = Llama(model_path=str(path), n_ctx=N_CTX, n_batch=N_BATCH, n_ubatch=N_BATCH,
+                          flash_attn=FLASH_ATTN, type_k=kv, type_v=kv, verbose=False)
         except Exception as e:
             return _finish(gen, None, 'load_failed', repr(e))
         _state['load_seconds'] = round(time.time() - t1, 2)
