@@ -199,7 +199,7 @@ const S = {
   lifeStage: {
     pslfAccounts:   {},     // { debtCardId: true } — loans on income-based forgiveness
     commissionMode: false,  // irregular/commission income — disables monthly failure flags
-    payFrequency:   'monthly', // 'weekly'|'biweekly'|'semimonthly'|'monthly'|'irregular'
+    payFrequency:   null,      // 'weekly'|'biweekly'|'semimonthly'|'monthly'|'irregular', or null = unanswered (never assumed)
     pensions:       [],     // [{ id, name, monthlyBenefit, retirementAge }]
   },
 };
@@ -1586,7 +1586,7 @@ function restoreFromBootstrap(data) {
     try { S.lifeStage.debtTypes      = JSON.parse(s.debt_types_json      || '{}'); } catch(e) { _gwErr('restoreFromBootstrap')(e); }
     try { S.lifeStage.pensions       = JSON.parse(s.pension_json         || '[]'); } catch(e) { _gwErr('restoreFromBootstrap')(e); }
     S.lifeStage.commissionMode = s.commission_mode  === 'true';
-    S.lifeStage.payFrequency   = s.pay_frequency    || 'monthly';
+    S.lifeStage.payFrequency   = s.pay_frequency    || null;   // unanswered stays unanswered (ONBOARDING_REVISIT.md O6)
 
     // Import intelligence (category map + categorization rules) — read straight
     // from the bootstrap payload instead of a second /api/settings round trip.
@@ -5775,7 +5775,6 @@ function _showOnboardingSnapshot() {
   const overlay = g('onboardingOverlay');
   if (overlay) overlay.classList.remove('hidden');
   // Hide every step; commandeer step0's container for the snapshot.
-  g('obStepIntent')?.classList.add('hidden');
   ['obStep0','obStep1','obStep2','obStep3','obStep4','obStep5','obStep6']
     .forEach(id => g(id)?.classList.add('hidden'));
   let host = g('obSnapshotHost');
@@ -10090,7 +10089,7 @@ a plain fact — not a command or suggestion, and never a number you calculate y
     : '';
 
   // Pay frequency context
-  const payFreq = S.lifeStage?.payFrequency || 'monthly';
+  const payFreq = S.lifeStage?.payFrequency || null;
   const payFreqNote = (payFreq === 'weekly' || payFreq === 'biweekly')
     ? `\nNote: User is paid ${payFreq}. Monthly budget comparisons may appear uneven mid-month — this is expected, not a spending problem.`
     : '';
@@ -12478,6 +12477,8 @@ async function checkFirstRun() {
 }
 
 function _showOnboarding() {
+  _obAnswers = {};                      // a walk-through starts from the household's facts as they stand
+  _obPrefillFacts();
   const overlay = g('onboardingOverlay');
   if (overlay) overlay.classList.remove('hidden');
   obAddDebtRow();
@@ -12537,28 +12538,121 @@ function _obApplyAIChoice(on) {
 
 function _obFinishCapabilityStep() {
   g('obStepAICapability')?.classList.add('hidden');
-  g('obStepIntent')?.classList.remove('hidden');
+  g('obStep0')?.classList.remove('hidden');
 }
 
-// Onboarding intent — the single "what brought you here" answer. Stored and
-// used to tune later copy (the stage-context system already reads goals);
-// this is the top-of-funnel signal, not a new personality engine.
-let _obIntent = null;
-const _OB_INTENT_COPY = {
-  debt:       'Groundwork is built for exactly this. We\u2019ll get your debts in view and show you the fastest way out.',
-  paycheck:   'Let\u2019s find the breathing room. Seeing where your money goes is the first step out of the paycheck-to-paycheck cycle.',
-  understand: 'That\u2019s the best place to start. Bring in your spending and Groundwork will show you where it\u2019s actually going.',
-  save:       'Good goal. First we\u2019ll see your real spending, then find the room to redirect toward savings.',
-  curious:    'Take a look around. Bring in some spending and see what Groundwork can already tell you.',
-};
-function obSetIntent(intent) {
-  _obIntent = intent;
-  const sub = g('obStep0Sub');
-  if (sub && _OB_INTENT_COPY[intent]) sub.textContent = _OB_INTENT_COPY[intent];
-  // Persist as a goal signal (best-effort; never blocks the flow)
-  API.patch('/api/settings', { onboarding_intent: intent }).catch(_gwErr('obSetIntent'));
-  g('obStepIntent')?.classList.add('hidden');
-  g('obStep0')?.classList.remove('hidden');
+// ── Household facts in onboarding (ONBOARDING_REVISIT.md) ─────────────────────────────────────────────────
+// "Onboarding is a data-collection mechanism, not a conversation script. Every question must create or update a
+// canonical fact that the product actually uses." (Rob, 2026-10-02.) Every [data-gw-fact] field sets that fact
+// through the one write path (POST /api/settings/household, source 'onboarding'). A blank field is skipped and the
+// fact stays unanswered; clearing an answer given earlier in this walk-through withdraws it.
+let _obAnswers = {};
+
+// A known answer is never asked again as if new (O8): every fact field opens on the household's current value, so a
+// second walk-through (or one after Settings) shows what is already known, and the summary states the facts as they
+// stand - never "not answered" for a fact that is.
+async function _obPrefillFacts() {
+  let facts = {};
+  try { const r = await API.get('/api/settings/household'); facts = (r && (r.data || r)) || {}; } catch (e) { return; }
+  _obFillStates();
+  for (const f of document.querySelectorAll('#onboardingOverlay [data-gw-fact]')) {
+    const v = (facts[f.dataset.gwFact] || {}).value;
+    if (!v) continue;
+    f.value = v;
+    _obAnswers[f.dataset.gwFact] = v;
+    f.dispatchEvent(new Event('change', { bubbles: true }));   // conditional questions follow the known answer
+  }
+}
+
+function _obFillStates() {
+  const sel = g('obHomeState');
+  if (sel && sel.options.length <= 1) US_STATES.forEach(([code, name]) => sel.add(new Option(name, code)));
+}
+
+async function _obSaveFacts(screenId) {
+  for (const f of document.querySelectorAll(`#${screenId} [data-gw-fact]`)) {
+    const key = f.dataset.gwFact;
+    if (f.closest('.hidden')) continue;                 // a question not shown was not answered
+    if (!f.value && !(key in _obAnswers)) continue;     // skipped: nothing sent, nothing assumed
+    if (f.value) _obAnswers[key] = f.value; else delete _obAnswers[key];
+    if (!_obTestMode) await API.post('/api/settings/household', { key, value: f.value || null, source: 'onboarding' })
+      .catch(_gwErr('_obSaveFacts'));
+  }
+  if ('pay_frequency' in _obAnswers || screenId === 'obStep1') S.lifeStage.payFrequency = _obAnswers.pay_frequency || null;
+  if (screenId === 'obStepHome') S.homeState = _obAnswers.home_state || '';
+}
+
+function _obShowHome() {
+  _obFillStates();
+  g('obStep1')?.classList.add('hidden');
+  g('obStepHome')?.classList.remove('hidden');
+}
+
+function obHomeBack() {
+  g('obStepHome')?.classList.add('hidden');
+  g('obStep1')?.classList.remove('hidden');
+}
+
+async function obHomeNext() {
+  await _obSaveFacts('obStepHome');
+  _obPrepareExpensesStep();
+  g('obStepHome')?.classList.add('hidden');
+  g('obStep2')?.classList.remove('hidden');
+  _obSetStepIndicator(2);
+}
+
+// Where the home heating line's bill is filed. Gas, as always: the category keeps its name (labels change, the
+// ledger's names do not).
+function _obHeatingCategory() {
+  return { cat: 'Gas', name: 'Home heating fuel' };
+}
+
+// O3: the priority's reader. The user's own choice and its arithmetic from what they entered - no verdict, no date.
+function _obPriorityLine() {
+  const goal = _obAnswers.surplus_goal;
+  if (!goal || goal === 'unsure') return '';
+  const income = _householdTotalIncome();
+  const bills  = S.expenses.reduce((s, e) => s + e.amount, 0);
+  const mins   = S.debtCards.reduce((s, c) => s + (parseFloat(c.minimum) || 0), 0);
+  const room   = income - bills - mins;
+  const said = { savings: 'building emergency savings', debt: 'paying down debt faster',
+                 goal: 'saving for a future goal', invest: 'investing for the future' }[goal];
+  let line = `You said ${said} comes first.`;
+  if (room <= 0) {
+    line += ` The income, bills and minimum payments you entered leave no monthly room yet, so there is no amount to put toward it.`;
+  } else if (goal === 'savings' && bills > 0) {
+    const months = Math.ceil(bills / room);
+    line += ` From what you entered, about ${fmt(room)} a month is left after bills and minimum payments; at that pace, one month of bills (${fmt(bills)}) set aside takes about ${months} month${months === 1 ? '' : 's'}.`;
+  } else {
+    line += ` From what you entered, about ${fmt(room)} a month is left after bills and minimum payments.`;
+  }
+  return `<div style="margin-top:14px;padding:12px 14px;background:var(--mist);border-radius:var(--r-md);font-size:13px;color:var(--slate);line-height:1.6" data-gw-priority>${esc(line)}</div>`;
+}
+
+// O7: each answer next to what it turned on, and what was skipped - with where to answer it later.
+const _OB_FACT_LABELS = { home_state: 'your state', pay_frequency: 'how often you are paid' };
+const _OB_PAY_WORDS = { weekly: 'every week', biweekly: 'every two weeks', semimonthly: 'twice a month',
+                        monthly: 'once a month', irregular: 'on an irregular schedule' };
+
+function _obFactEffect(key, v) {
+  if (key === 'home_state') {
+    const name = (US_STATES.find(([code]) => code === v) || [v, v])[1];
+    return `${name}: the energy prices on your Budget page are the ones published for ${name}.`;
+  }
+  if (key === 'pay_frequency') return `Paid ${_OB_PAY_WORDS[v]}: your reports describe your pay that way.`;
+  return '';
+}
+
+function _obAnswerLines() {
+  const asked = [...document.querySelectorAll('#onboardingOverlay [data-gw-fact]')]
+    .map(f => f.dataset.gwFact).filter((k, i, all) => all.indexOf(k) === i && k in _OB_FACT_LABELS);
+  const said = asked.filter(k => _obAnswers[k]).map(k => _obFactEffect(k, _obAnswers[k])).filter(Boolean);
+  const skipped = asked.filter(k => !_obAnswers[k]).map(k => _OB_FACT_LABELS[k]);
+  if (!said.length && !skipped.length) return '';
+  return `<div style="margin-top:14px;font-size:12px;color:var(--slate);line-height:1.7" data-gw-answers>`
+    + said.map(l => `<div>${esc(l)}</div>`).join('')
+    + (skipped.length ? `<div style="color:var(--slate-2);margin-top:6px">Not answered: ${esc(skipped.join(', '))}. Nothing is assumed in their place; you can answer any time in Settings.</div>` : '')
+    + `</div>`;
 }
 
 function obAdvanceFromStep0() {
@@ -12581,6 +12675,11 @@ function _obSetStepIndicator(targetStep) {
 // effects that obNext()/obFinishGoals() perform, so nothing gets double-saved.
 function obBack(step) {
   g(`obStep${step}`)?.classList.add('hidden');
+  if (step === 2) {                                    // the home screen sits between income and the bills
+    g('obStepHome')?.classList.remove('hidden');
+    _obSetStepIndicator(1);
+    return;
+  }
   if (step <= 1) {
     g('obStep0')?.classList.remove('hidden');
     document.querySelectorAll('.ob-step').forEach(el => el.classList.remove('ob-step-active','ob-step-done'));
@@ -13041,7 +13140,9 @@ async function obNext(step) {
       if (g('settingsUser2Name'))     g('settingsUser2Name').value = user2Name;
       if (g('householdNamesPanel'))   g('householdNamesPanel').style.display = '';
     }
-    _obPrepareExpensesStep();
+    await _obSaveFacts('obStep1');
+    _obShowHome();
+    return;
   }
   if (step===2) {
     let newExpenses = [];
@@ -13056,14 +13157,16 @@ async function obNext(step) {
       // Fresh-start path — granular individual expense fields
       // Each field creates its own child-category budget row
       const _obExp = (id, cat, name) => {
+        if (g(id)?.closest('.hidden')) return;     // a line the answers removed (heat in the rent, an EV) is not a bill
         const v = parseFloat(g(id)?.value) || 0;
         if (v > 0) newExpenses.push({id:null, cat, name, amount:v});
       };
+      const _heat = _obHeatingCategory(_obAnswers);
       // Housing
       _obExp('obExpHousing',   'Rent / Mortgage',    'Rent / Mortgage');
       // Utilities (child categories)
       _obExp('obExpElectric',  'Electric',            'Electric');
-      _obExp('obExpGas',       'Gas',                 'Gas');
+      _obExp('obExpGas',       _heat.cat,             _heat.name);
       _obExp('obExpWater',     'Water / Sewer',       'Water / Sewer');
       _obExp('obExpInternet',  'Internet',            'Internet');
       _obExp('obExpPhone',     'Phone / Cell',        'Phone / Cell');
@@ -13072,7 +13175,7 @@ async function obNext(step) {
       _obExp('obExpGroceries', 'Groceries',           'Groceries');
       _obExp('obExpDining',    'Restaurants',         'Dining Out / Takeout');
       // Transportation
-      _obExp('obExpFuel',      'Gas / Fuel',          'Gas / Fuel');
+      _obExp('obExpFuel',      'Gas / Fuel',          'Vehicle fuel');
       _obExp('obExpCarLease',  'Transportation',      'Car Lease');
     }
     S.expenses = newExpenses;
@@ -13113,9 +13216,12 @@ async function obNext(step) {
     // not a prescribed debt payment. No monthly_budget is set here — the amount
     // comes later from verified history, per the "aspiration and amount are
     // separately gated" rule. The chosen goal is stored to tune later guidance.
-    const goal = _obSurplusGoal || 'unsure';
-    if (!_obTestMode) await API.patch('/api/settings', { surplus_goal: goal }).catch(_gwErr('obNext'));
-    S.surplusGoal = goal;
+    const goal = _obSurplusGoal;
+    if (goal) {
+      _obAnswers.surplus_goal = goal;
+      if (!_obTestMode) await API.post('/api/settings/household', { key: 'surplus_goal', value: goal, source: 'onboarding' }).catch(_gwErr('obNext'));
+    }
+    S.surplusGoal = goal || null;
 
     // Strategy still persists (it's a preference, not a prescription) so the
     // Debt Payoff page has a sensible default when the user visits it.
@@ -13185,6 +13291,7 @@ function _obRenderPlanSummary() {
         ${surplus>0 ? `<div style="font-size:13px;color:var(--slate);margin-top:6px">With about <strong style="color:var(--pine)">${fmt(surplus)}/month</strong> of room, saving consistently builds <strong>${fmt(surplus*12)}</strong> a year.</div>` : ''}
         <div style="font-size:12px;color:var(--slate-2);margin-top:10px">Nothing here is locked in — it can change as your life does.</div>
       </div>${bufferLine}`;
+    el.innerHTML += _obPriorityLine() + _obAnswerLines();
     return;
   }
 
@@ -13204,6 +13311,7 @@ function _obRenderPlanSummary() {
       <div style="font-size:13px;color:var(--slate);margin-top:8px">You have <strong>${fmt(totalDebt)}</strong> in debt tracked. When you're ready, you can put some of that monthly room toward paying it down faster, building savings, or a goal — your call, and you can change it anytime. Groundwork will show what each choice does; it won't pick for you.</div>
       <div style="font-size:12px;color:var(--slate-2);margin-top:10px">Verify your balances against your statements and Groundwork can project actual payoff dates for each path.</div>
     </div>${bufferLine}`;
+  el.innerHTML += _obPriorityLine() + _obAnswerLines();
 }
 
 // Grounds the step-5 buffer framing in the user's real current savings.

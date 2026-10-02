@@ -2500,13 +2500,91 @@ def gasoline_estimate(session, fetch=True, today=None):
             'needs': est.get('needs') if est.get('method') == 'none' else None}
 
 
+_HEAT_WORDS = {'propane': 'propane', 'heating_oil': 'heating oil', 'wood_pellets': 'wood or pellets', 'other': 'another fuel'}
+
+
+def utility_applies(session, kind):
+    """Whether an item 26 estimate applies to this household, from what it told Groundwork (ONBOARDING_REVISIT.md).
+
+    The consumer of housing_status, electricity_included, heating_fuel, heating_payment and vehicle_fuel. Returns
+    {'applies', 'why' (when it does not), 'ask' (unanswered facts that would settle it), 'assumes' (what is taken
+    from the record while they are unanswered - said, never silent)}. An answer is never replaced by a default: an
+    unanswered fuel is not natural gas - the estimate says it is reading the Gas category's bills as natural gas, and
+    asks.
+    """
+    from core import household
+    f = {k: household.current(session, k) for k in household.FACTS}
+    ask = [] if f['home_state'] else ['home_state']
+    if kind == 'gas':
+        fuel, pay = f['heating_fuel'], f['heating_payment']
+        if fuel in _HEAT_WORDS:
+            w = _HEAT_WORDS[fuel]
+            return {'applies': False, 'why': f'You told us {w} heats your home. Groundwork does not price {w} yet, '
+                                             f'so there is no natural gas estimate.'}
+        if fuel == 'electric':
+            return {'applies': False, 'why': 'You told us electricity heats your home, so heating is part of your '
+                                             'electricity estimate, not a natural gas one.'}
+        if fuel == 'included':
+            return {'applies': False, 'why': 'You told us your rent includes heat, so there is no gas bill to estimate.'}
+        if fuel == 'not_sure':
+            return {'applies': False, 'why': 'You told us you are not sure what heats your home, so there is no '
+                                             'natural gas estimate until you know.', 'ask': []}
+        if pay in ('even_monthly', 'prepaid'):
+            how = 'the same amount every month' if pay == 'even_monthly' else 'a prepaid contract'
+            return {'applies': False, 'why': f'You told us you pay for heating with {how}. Those payments do not follow '
+                                             f'the weather, so they cannot show how much gas you use - there is no estimate.'}
+        if fuel is None:
+            return {'applies': True, 'ask': ask + ['heating_fuel'],
+                    'assumes': 'Reading the bills in your Gas category as natural gas. Tell us what heats your home to be sure.'}
+        return {'applies': True, 'ask': ask + ([] if pay else ['heating_payment'])}
+    if kind == 'electric':
+        if f['housing_status'] == 'rent' and f['electricity_included'] == 'yes':
+            return {'applies': False, 'why': 'You told us your rent includes electricity, so there is no electricity '
+                                             'bill to estimate.'}
+        return {'applies': True, 'ask': ask}
+    if kind == 'gasoline':
+        v = f['vehicle_fuel']
+        if v == 'electric':
+            return {'applies': False, 'why': 'You told us your vehicle is electric, so there is no gasoline estimate; '
+                                             'charging at home is part of your electricity bill.'}
+        if v == 'none':
+            return {'applies': False, 'why': 'You told us you have no vehicle fuel expense, so there is no gasoline estimate.'}
+        if v == 'diesel':
+            return {'applies': False, 'why': 'You told us your vehicle uses diesel. Groundwork prices regular gasoline '
+                                             'only so far, so there is no estimate for it yet.'}
+        if v == 'other':
+            return {'applies': False, 'why': 'You told us your vehicle uses another fuel. Groundwork prices regular '
+                                             'gasoline only, so there is no estimate for it.'}
+        if v is None:
+            return {'applies': True, 'ask': ask + ['vehicle_fuel'],
+                    'assumes': 'Reading your Gas / Fuel fill-ups as regular gasoline. Tell us what your vehicle uses to be sure.'}
+        return {'applies': True, 'ask': ask}
+    return {'applies': True, 'ask': ask}
+
+
+_UTILITY_CATEGORY = {'gas': 'gas', 'electric': 'electric', 'gasoline': 'gas / fuel'}
+
+
 @budget_bp.route('/utility-estimate/<kind>', methods=['GET'])
 def budget_utility_estimate(kind):
     if kind not in UTILITY_KINDS:
         return err('not a utility Groundwork estimates yet', 404)
     with db_session() as session:
-        return ok(gas_estimate(session) if kind == 'gas' else electric_estimate(session) if kind == 'electric'
-                  else gasoline_estimate(session))
+        app = utility_applies(session, kind)
+        if not app['applies']:
+            # What the household told Groundwork settles it: no EIA fetch, no estimate - and the reason, said plainly.
+            cat = _UTILITY_CATEGORY[kind]
+            n = session.query(func.count(Transaction.id)).join(Category, Transaction.category_id == Category.id).filter(
+                func.lower(Category.name) == cat, Transaction.type == 'debit').scalar() or 0
+            item = session.query(BudgetItem).filter(func.lower(BudgetItem.category) == cat,
+                                                    BudgetItem.is_active == True).first()  # noqa: E712
+            return ok({'kind': kind, 'optin': False, 'estimate': None, 'not_applicable': app['why'],
+                       'bills': n, 'saved_amount': round(float(item.amount), 2) if item and item.amount is not None else None,
+                       'ask': app.get('ask', [])})
+        out = (gas_estimate(session) if kind == 'gas' else electric_estimate(session) if kind == 'electric'
+               else gasoline_estimate(session))
+        out.update(ask=app.get('ask', []), assumes=app.get('assumes'))
+        return ok(out)
 
 
 @budget_bp.route('/utility-estimate/optin', methods=['POST'])

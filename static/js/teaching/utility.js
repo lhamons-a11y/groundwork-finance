@@ -54,7 +54,13 @@
       + [0, 1, 2].map(function (n) {
           return '<option value="' + n + '"' + (d.lag === n ? ' selected' : '') + '>' + ['the same month', 'the month before', 'two months before'][n] + '</option>';
         }).join('') + '</select>') + '</div>'
+      + '<div data-gw-ask></div>'
       + '<div class="gw-src" style="font-size:10px;color:var(--slate-2);margin-top:8px">' + esc(t.source || '') + '</div>';
+    if (d.not_applicable) {                       // nothing to follow: the household's answer settled it
+      html = '<div class="card-label">' + esc(k.title) + '</div>'
+        + '<div style="font-size:12px;color:var(--slate);line-height:1.7">' + esc(d.not_applicable) + '</div>'
+        + '<div style="font-size:11px;color:var(--slate-2);margin-top:6px">Change this in Settings, under Your home.</div>';
+    }
     var card = g(k.id);
     if (!card) {
       card = document.createElement('div');
@@ -63,6 +69,9 @@
       cont.appendChild(card);
     }
     card.innerHTML = html;
+    var host = card.querySelector('[data-gw-ask]');
+    var H = GWTeaching._modules.filter(function (x) { return x.name === 'household'; })[0];
+    if (host && H && d.ask && d.ask.length) H.mod.ask(host, d.ask, {}, function () { _budgetCard(); });
   }
 
   function _budgetCard() { KINDS.forEach(function (k) { _card(k); }); }

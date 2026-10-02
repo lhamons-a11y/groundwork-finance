@@ -53,7 +53,7 @@ FACTS = {
         'lines': '2.0',
         'consumers': [
             ('server.py', 'utility_applies', 'item 26: whether a home utility estimate applies at all'),
-            ('static/js/app.js', '_obHousingLabel', 'the bills screen: Mortgage or Rent'),
+            ('static/js/teaching/household.js', '_housingLabel', 'the bills screen: Mortgage or Rent'),
         ],
     },
     'electricity_included': {
@@ -71,7 +71,7 @@ FACTS = {
         'lines': '2.0',
         'consumers': [
             ('server.py', 'utility_applies', 'item 26: natural gas is priced only for natural gas, else it says why'),
-            ('static/js/app.js', '_obHeatingLabel', 'the bills screen: the home heating fuel line'),
+            ('static/js/teaching/household.js', '_heatingLabel', 'the bills screen: the home heating fuel line'),
         ],
     },
     'heating_payment': {
@@ -87,14 +87,14 @@ FACTS = {
         'values': ('gasoline', 'diesel', 'electric', 'other', 'none'),
         'lines': '2.0',
         'consumers': [
-            ('server.py', 'gasoline_estimate', 'item 26: priced for gasoline only; none for electric or no vehicle; '
-                                               'diesel is not priced yet'),
+            ('server.py', 'utility_applies', 'item 26: the gasoline estimate is for gasoline only; none for electric '
+                                             'or no vehicle; diesel is not priced yet'),
         ],
     },
     'surplus_goal': {
         'asks': 'When you have money beyond your immediate needs, what would you most like it to accomplish?',
         'values': ('debt', 'savings', 'goal', 'invest', 'unsure'),
-        'lines': '2.0',
+        'lines': 'both',
         'consumers': [
             ('static/js/app.js', '_obPriorityLine', "the onboarding summary: the user's own choice and its arithmetic"),
         ],

@@ -165,7 +165,19 @@
              source: 'From the U.S. Energy Information Administration\'s weekly retail prices and your own fill-ups.' };
   }
 
-  var api = { gas: gas, electric: electric, gasoline: gasoline };
+  // What the household told Groundwork can settle an estimate before any figure (ONBOARDING_REVISIT.md): then the
+  // card says why, and the report has no statement. An estimate read from the record while a fact is unanswered
+  // says what it assumed, never silently.
+  function _withFacts(fn) {
+    return function (d, f) {
+      if (d && d.not_applicable) return { lines: [d.not_applicable], statement: null, source: '' };
+      var t = fn(d, f);
+      if (t && d && d.assumes) t.lines = t.lines.concat([d.assumes]);
+      return t;
+    };
+  }
+
+  var api = { gas: _withFacts(gas), electric: _withFacts(electric), gasoline: _withFacts(gasoline) };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root && root.GWTeaching) root.GWTeaching.register('utilitytext', api);
 })(typeof window !== 'undefined' ? window : null);
