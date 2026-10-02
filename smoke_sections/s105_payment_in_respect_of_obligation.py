@@ -138,7 +138,7 @@ def _mutations(db):
                 return
             p = connection.execute(PAY.select().where(PAY.c.id == target.subject_payment_id)).first()
             o = connection.execute(O.select().where(O.c.id == target.object_obligation_id)).first()
-            if p is not None and o is not None and o.created_at > p.created_at:
+            if p is not None and o is not None and o.created_at >= p.created_at:   # 'must precede' is strict: a tie is not precedence (same-tick mints; cf. s104)
                 raise ValueError('an obligation must exist before a payment in respect of it')
         event.listen(db.Proposition, 'before_insert', refuse_out_of_order)
         return lambda: event.remove(db.Proposition, 'before_insert', refuse_out_of_order)

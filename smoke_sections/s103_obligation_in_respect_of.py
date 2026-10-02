@@ -78,7 +78,7 @@ def _mutations(db):
                 return
             o = connection.execute(O.select().where(O.c.id == target.subject_obligation_id)).first()
             x = connection.execute(X.select().where(X.c.id == target.object_expense_id)).first()
-            if o is not None and x is not None and x.created_at > o.created_at:
+            if o is not None and x is not None and x.created_at >= o.created_at:   # 'must precede' is strict: a tie is not precedence (same-tick mints; cf. s104)
                 raise ValueError('an expense must precede the obligation in respect of it')
         event.listen(db.Proposition, 'before_insert', refuse_out_of_order)
         return lambda: event.remove(db.Proposition, 'before_insert', refuse_out_of_order)

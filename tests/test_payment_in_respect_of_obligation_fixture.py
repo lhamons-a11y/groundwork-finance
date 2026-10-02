@@ -278,6 +278,13 @@ def run(db):
     stmt = held('h-mercy-june', '2026-06-05', mercy, u_mercy)
     r_stmt = read(stmt)
     role_p('credited', mercy, dep, utter("Mercy's June statement shows the deposit credited.", '2026-06-06T09:00:00'), as_of='2026-06-05', content='deposit credited $500')
+    # The scenario is a payment minted BEFORE the obligation. Two mints a moment apart can share one clock tick
+    # (Windows ticks ~15 ms; with the fixture DBs' synchronous=OFF the mints got fast enough to, 2026-10-01), and a
+    # strict '<' then failed on a race, not on the substrate. The order the scenario needs is made real here.
+    if OK.created_at <= dep.created_at:
+        from datetime import timedelta as _td
+        OK.created_at = dep.created_at + _td(milliseconds=1)
+        s.flush()
     check("D'4 (PERMANENT): the payment precedes the obligation; p->X, O->X and E's credit all stand; p->O is derived from none of them - not from order, not from convergence, not from the credit",
           dep.created_at < OK.created_at and rel(p=dep).count() == 0 and nothing_selected()
           and s.query(db.Proposition).filter_by(kind='credited', object_payment_id=dep.id).count() == 1)
