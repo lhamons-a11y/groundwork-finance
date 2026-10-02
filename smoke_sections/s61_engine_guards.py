@@ -119,6 +119,9 @@ def run(ctx):
           '(identical text to the validated 4096 one; the 8-bit cache stays out - 2 R8 violations in 120)',
           tests_set or (engine.N_CTX == 2048 and engine.N_BATCH == 256 and engine.KV_CACHE_TYPE == 'GGML_TYPE_F16'
                         and engine.FLASH_ATTN is False))
+    check('8GB the model file is read in, not memory-mapped: no second resident copy of the weights '
+          '(4.60 GB resident mapped, 2.83 GB read - identical text)',
+          tests_set or (engine.USE_MMAP is False and 'use_mmap=USE_MMAP' in src))
     launch_src = ctx.BASE.joinpath('launch.py').read_text(encoding='utf-8')
     check('8GB OpenBLAS is capped at one thread before anything can import numpy (620 MB measured on 20 threads)',
           _os.environ.get('OPENBLAS_NUM_THREADS') == '1'
