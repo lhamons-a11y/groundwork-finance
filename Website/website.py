@@ -733,19 +733,24 @@ def download():
   <div class="beta-badge" style="margin-top:20px">Version 1.1 — Now available</div>
 </section>
 
+<p class="container" style="font-size:14px;color:var(--slate, #64748b);line-height:1.6;margin-bottom:16px">
+  <strong>Use a system that still gets security updates.</strong> Groundwork holds your financial data, and an
+  up-to-date operating system is the first thing protecting it - so we suggest running it on one that is still
+  supported. Groundwork doesn't refuse an older system: on an older computer that stays offline, that's perfectly fine.
+</p>
 <div class="download-grid container">
   <div class="download-card">
     <div class="os-icon">🪟</div>
     <h3>Windows</h3>
-    <p>Windows 10 or 11. Double-click the installer and you're done in 60 seconds.</p>
+    <p>Windows 11 suggested. Double-click the installer and you're done in 60 seconds.</p>
     <a href="/dl/windows" class="btn btn-primary" style="width:100%;text-align:center">
       ⬇ Download for Windows
     </a>
     <div class="requirements">
       <strong>Requirements:</strong><br>
-      Windows 10 or 11 (64-bit)<br>
+      Windows 11 (64-bit) suggested; Windows 10 still works<br>
       Microsoft Edge WebView2 (usually already installed)<br>
-      ~150MB disk space<br>
+      ~2.5GB disk space (includes the built-in local AI model)<br>
       4GB RAM (8GB+ for the optional local AI)
     </div>
     <div style="margin-top:12px;font-size:12px;color:var(--slate)">
@@ -767,7 +772,7 @@ def download():
     </a>
     <div class="requirements">
       <strong>Requirements:</strong><br>
-      macOS 12 Monterey or later<br>
+      macOS 12 Monterey or later (a version Apple still updates is suggested)<br>
       ~150MB disk space<br>
       4GB RAM (8GB+ for the optional local AI)
     </div>
@@ -782,7 +787,7 @@ def download():
     </a>
     <div class="requirements">
       <strong>Requirements:</strong><br>
-      Ubuntu 22.04+, Debian 12+, Fedora 38+, or similar (x86_64)<br>
+      Ubuntu 22.04+, Debian 12+, Fedora, or similar (x86_64), on a release that still gets security updates<br>
       ~150MB disk space<br>
       4GB RAM (8GB+ for the optional local AI)<br>
       <a href="/knowledge-base#linux">Installing from source →</a>
@@ -848,7 +853,7 @@ def knowledge_base():
       <p>Download the installer from the <a href="/download">Download page</a> and double-click <strong>Groundwork_Setup.exe</strong>.</p>
       <p>Windows may show a SmartScreen warning — "Windows protected your PC." This happens because Groundwork isn't yet code-signed. Click <strong>More info → Run anyway</strong>. The app is completely safe.</p>
       <h3>Microsoft Edge WebView2</h3>
-      <p>Groundwork uses Microsoft Edge WebView2 to display its interface. On most Windows 10/11 machines it's already installed. If it's not, the installer will prompt you to download it (it's free and takes about 30 seconds).</p>
+      <p>Groundwork uses Microsoft Edge WebView2 to display its interface. On most Windows machines it's already installed. If it's not, the installer will prompt you to download it (it's free and takes about 30 seconds).</p>
       <div class="kb-tip">💡 If the app opens with a blank white screen, restart your computer and try again. This usually fixes it on first install.</div>
     </div>
 
