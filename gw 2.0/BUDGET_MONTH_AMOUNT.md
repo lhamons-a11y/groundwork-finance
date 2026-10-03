@@ -82,6 +82,61 @@ includes it"*. The test is that the sentence appears only when the same run's to
 - The *"includes"* sentence appears only when the total really contains the estimate.
 - 1.x: no row has `month_amount`, and the totals are unchanged.
 
-## 4. Status
+## 4. Ruling and build (Rob, 2026-10-02)
 
-OPEN: seven points for ruling (M1–M7). No code until ruled.
+*"I accept M1-M7 as recommended, build it."* That includes the helper staying in app.js (M7).
+
+**What was built:**
+- **`core/budget_month.py`** (pure):
+  - `bill_month(this_month, lag)` gives the service month whose bill is paid this month;
+  - `pick_estimate()` chooses the estimate for **that** bill: lag 0 is this month's estimate, lag 1 is last month's
+    (`previous`, now computed for electricity too), lag 2 is not covered. It returns none, with the reason, for a
+    *needs* or for an estimate the household's answers rule out;
+  - `month_amount()` gives the followed estimate's figure, or the saved amount.
+- **`server.budget_month_amounts()`** is the one function (M2):
+  - it gives every expense row `month_amount`, `month_source`, `month_why`, `month_from` and `month_for`;
+  - it uses `fetch=False`, so totals never wait on EIA and use what the estimate cards last fetched.
+- **Readers of it:** bootstrap; `GET /api/budget/month-amounts`; `debt_capacity` (M3); and the estimate route's
+  `budget_uses` (M6), so the words are proven from the same request.
+- **The client:**
+  - `_rowMonth(e)` is the one helper;
+  - 15 this-month readers use it: the Budget totals, shortfall, realism, what's left, the scheduler, trip room, lean
+    mode, the debt suggestion and advisor, retirement and withdrawal monthly spend, the BYB what's left, the top-over
+    category, the consequence sentence, and the row's own bar and figure;
+  - history readers keep the saved amount: the behavioural profile, high leverage, reports of any month, the sandbox
+    copy, the sandbox commit and the bloom save (M3).
+- **M4/M5:** the 2.0 layer adds the row note, for example *"$48.21 this month, from the natural gas estimate · you
+  saved $120.00"*, or the reason the saved amount is in use. Following or un-following refreshes the figures at once,
+  with no write.
+- **M6:** the card line becomes, for example, *"This month's budget uses the estimate for the bill paid this month
+  (for September 2026's use), $48.21, in place of your saved Gas budget of $120.00."* The report statement says
+  *"this month's budget includes the estimate built on it"* **only** when `budget_uses.in_totals` is true in that
+  same request.
+- **The earlier wording checks** in s136, s137 and s138 (*"still sets the totals"*, from 2026-10-01) were updated to
+  the ruled behaviour.
+
+**The crossing test for no-silent-writing** (s141):
+- every write path sends the saved amount (the whole-list save, the sandbox copy and commit, every API payload);
+- a mutation that makes the whole-list save send this month's figure is caught;
+- at run time, after following, un-following and every read, the saved amounts are as set, and no `budget_adjusted`
+  event was logged.
+
+**Found in the browser, and now guarded:** an edit left a bare `async` on its own line in app.js. That is valid syntax
+(`node --check` passed it), but at run time it stopped app.js part-way, so everything after it never existed. No
+gate check executed app.js, so the gate could not see it. **s64**, on both lines, now runs app.js and every teaching
+module top to bottom in the page's own order. A bare-`async` mutation proves it catches the failure. s66 checks the
+shared helper (M7).
+
+**Seen in the browser** (2.0, seeded, live EIA):
+- unfollowed, the gas row is $120 (saved) and the card offers to follow;
+- after ticking *Follow this estimate*, the row note, the card line and *What's left* (Expenses $904.80 to $848.61)
+  all show $48.21 for September's bill at a one-month lag;
+- the database still holds Gas $120, Electric $110 and Gas / Fuel $160;
+- no console errors.
+
+**Gates:** lts/1.x **895 / 0** (`b74f7da`); master **2237 / 0** (`9fb63f2`).
+
+## 5. Status
+
+BUILT on both lines (the helper on both; the month figures from 2.0's server) and gated. Awaiting Rob's acceptance.
+Item 26's last open piece.
