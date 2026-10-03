@@ -22356,7 +22356,7 @@ function _financialNumbers(s) {
 // the model was actually given (the user-message content) — R8 rejects any
 // financial figure in `text` that doesn't appear there, deterministically
 // catching fabricated numbers regardless of tone.
-function _voiceGateCheck(text, findings) {
+function _voiceGateCheck(text, findings, truncated = false) {
   const rules = _VOICE_RULES || _VOICE_RULES_FALLBACK;
   const t = ' ' + String(text || '').toLowerCase() + ' ';
   // Returns the actual matched phrase(s), not just true/false — a retry that
@@ -22420,6 +22420,17 @@ function _voiceGateCheck(text, findings) {
       'invented figure(s) not in the findings given');
   }
 
+  // R10 (item 12, STREAMING.md T7): an answer the model did not finish is not
+  // an answer. Before this rule a report cut mid-sentence at max_tokens passed
+  // every check above - all its numbers present, nothing forbidden - and was
+  // shown as complete. The stop reason comes from the local model (the in-app
+  // engine's finish reason, mapped by the server onto the internal stop_reason); the
+  // text alone cannot show it. Not a wordlist rule, so the harness cannot score
+  // it from text - it is enforced here, where the stop reason exists.
+  record('R10_answer_complete',
+    truncated ? ['(cut off at the token limit)'] : [],
+    'the answer was cut off at the token limit and is incomplete');
+
   return { pass: failedRules.length === 0, results, failedRules };
 }
 
@@ -22459,9 +22470,12 @@ async function callAI(payload) {
       const data = res.data || res;
       if (data.ai_available === false) return { ok:false, text:'', unavailable:true, message:data.message||'' };
       const text = (data.content||[]).map(b=>b.text||'').filter(Boolean).join('\n');
+      // 'max_tokens' is the one stop reason that means the answer was cut; the
+      // server maps the engine's 'length' onto it (the internal format, ruling 2).
+      const truncated = data.stop_reason === 'max_tokens';
       // 'provider' comes verbatim from _ai_chat_local()'s response ('local');
       // it is the only provider there is.
-      return { ok:true, text, model:data.model||'', provider:data.provider||'' };
+      return { ok:true, text, model:data.model||'', provider:data.provider||'', truncated };
     } catch(e) {
       return { ok:false, text:'' };
     }
@@ -22469,9 +22483,9 @@ async function callAI(payload) {
 
   let result = await attempt(baseSystem);
   if (!result.ok) return { ok:false, text:'', payload };
-  if (skipGate) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider };
+  if (skipGate) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider, truncated:result.truncated };
 
-  let gate = _voiceGateCheck(result.text, findings);
+  let gate = _voiceGateCheck(result.text, findings, result.truncated);
   if (gate.pass) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider };
 
   // Up to 2 corrective retries (3 attempts total). Each cites the exact
@@ -22495,7 +22509,7 @@ async function callAI(payload) {
       `about causes even hedged. Omit anything that wasn't computed rather than guessing at it.`;
     result = await attempt(retrySystem);
     if (!result.ok) return { ok:false, text:'', payload };
-    gate = _voiceGateCheck(result.text, findings);
+    gate = _voiceGateCheck(result.text, findings, result.truncated);
     if (gate.pass) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider };
   }
   _logVoiceMiss(surface, result.model, gate, result.text);
