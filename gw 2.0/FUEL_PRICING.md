@@ -141,6 +141,11 @@ consumption signal.
   earlier, at $3.25/gal, came to about $84.95: +$63.64, all from price."* No console errors.
 - **Gate:** master **2269 / 0** (`87873c1`). 2.0 only (F6).
 
-## 5. Status
+## 5. Acceptance (Rob, 2026-10-03)
 
-F1 BUILT; awaiting Rob's acceptance. F2–F4 (propane and heating oil) are next, each its own authorisation (F7).
+*"Yes I accept the diesel slice"*. F1 is ACCEPTED as built (master `87873c1`).
+
+## 6. Status
+
+F1 ACCEPTED. F2–F4 (propane and heating oil, delivered fuels) are next, and need their own authorisation (F7). Per
+F2's guard, they are measured and simulated first.
