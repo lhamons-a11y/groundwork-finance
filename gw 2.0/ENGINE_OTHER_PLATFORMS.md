@@ -94,6 +94,30 @@ other site changes. *Recommended.*
 
 **Q8. Both lines, 1.x first.** 1.x ships macOS and Linux downloads too. *Recommended.*
 
-## 3. Status
+## 3. Ruling and authorisation (Rob, 2026-10-03)
 
-OPEN: eight points for ruling (Q1–Q8). No code until ruled. The real-hardware tests (Q6) need machines Rob supplies.
+**Q1–Q8 approved as recommended.** Q2 stands as written: *"Do not compile the engine from source for Intel just to
+claim support. Graceful unavailability is preferable to shipping an untested artifact."* An Intel Mac is described
+accurately: **the application runs; the local AI engine is unavailable there.**
+
+**Clarification 1, an acceptance criterion: five separate states, never collapsed.**
+
+```text
+platform supported → the app packages → the AI engine is available → the model loads → inference works (on real hardware)
+```
+
+CI can prove the first four. **It does not prove the fifth.** A green build is never read as *"Mac/Linux AI is
+validated"*, and Apple Silicon and Linux AI are not called available until Q6's hardware validation passes.
+
+**Clarification 2: the model's fingerprint check is mandatory.** The build fails if the download fails, if the file
+is missing, if its SHA-256 does not match, or if the model cannot be packaged. That replaces *"whatever happens to be
+in `vendor/` on the developer's machine"* with a pinned engine, a pinned model and a verified fingerprint, so the
+package is reproducible.
+
+**Authorised:** Q1–Q5 first (packaging, the model path, the reproducible model), and **Q7 now**: the website is
+corrected immediately. Then Q6's real Apple Silicon and Linux hardware gives the final inference and usability proof.
+Both lines, 1.x first (Q8).
+
+## 4. Status
+
+AUTHORISED 2026-10-03. Building Q1–Q5 and Q7. Q6 waits for hardware.
