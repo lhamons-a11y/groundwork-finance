@@ -136,7 +136,13 @@ shared helper (M7).
 
 **Gates:** lts/1.x **895 / 0** (`b74f7da`); master **2237 / 0** (`9fb63f2`).
 
-## 5. Status
+## 5. Acceptance (Rob, 2026-10-03)
 
-BUILT on both lines (the helper on both; the month figures from 2.0's server) and gated. Awaiting Rob's acceptance.
-Item 26's last open piece.
+*"Yes I accept the pass"*. The totals pass is ACCEPTED as built: master `9fb63f2`, lts `b74f7da`.
+
+## 6. Status
+
+ACCEPTED. **Item 26 is CLOSED**: U0, the gas, electricity and gasoline slices, and the totals pass.
+
+Carried forward, not queued: propane and heating-oil pricing, a diesel estimate (the household facts already record
+both).
