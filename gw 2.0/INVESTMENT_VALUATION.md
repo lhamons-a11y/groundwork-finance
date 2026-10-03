@@ -130,6 +130,21 @@ should not reach out because the user opened it. This is Rob's call: it sets how
 | Iv10 | A snapshot after the fix | The value per V2; the exclusions in the note; older snapshots untouched |
 | Iv11 | 1.x | Iv1–Iv10 that apply to 1.x, on `lts/1.x` |
 
-## 4. Status
+## 4. Ruling (Rob, 2026-10-03)
 
-OPENED 2026-10-03. Ruling sought on V1–V8. No build authorised.
+*"I accept V1-V8 as recommended."*
+
+- **V1:** one valuation inside `_compute_portfolio_positions`. An unpriced holding has no value and no gain. A lot with
+  no basis counts in value and not in gain. The tile reads the summary.
+- **V2 (a):** net worth is stated from what is priced, and each unpriced holding is named beside it.
+- **V3:** a basis-0 lot counts in value; the row says the gain is not shown and why.
+- **V4:** every price is shown with its date (*manual* where manual). There is no stale threshold.
+- **V5 (a):** opening the Investments page may fetch prices. The Net Worth page reads cached prices only.
+- **V6:** the Net Worth sync, snapshots, drift log and advisor prompt each say what they left out. No drift is logged
+  for an allocation with an unpriced holding.
+- **V7:** recorded history is never rewritten. The first snapshot after the fix notes that valuation changed.
+- **V8:** both lines, `lts/1.x` first, then master, with a gate on each. The tile's change is master only.
+
+## 5. Status
+
+OPENED and RULED 2026-10-03. No build authorised (a ruling is not an authorisation).
