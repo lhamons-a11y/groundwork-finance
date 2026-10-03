@@ -147,4 +147,76 @@ should not reach out because the user opened it. This is Rob's call: it sets how
 
 ## 5. Status
 
-OPENED and RULED 2026-10-03. No build authorised (a ruling is not an authorisation).
+OPENED, RULED, AUTHORISED (Rob: *"yes i authorize"*) and BUILT 2026-10-03 on both lines (s6). Awaiting acceptance.
+
+## 6. Built (2026-10-03): `lts/1.x` `55310dd` (gate 957 / 0), then master with the fee fix (gate 2368 / 0)
+
+**V1, one valuation at its source.** `_compute_portfolio_positions` now values only what has a price on record.
+- **A holding with no price.** `current_price`, `market_value`, `unrealized_gain` and `unrealized_pct` are `None`, not
+  the cost and not zero. It is sorted last and listed in `summary.unpriced`.
+- **The gain.** Computed only on lots with a cost basis. `gain_basis` is the basis it rests on, so the % is gain over
+  that basis, not over everything invested.
+- **The summary** adds `unpriced`, `no_basis`, `prices_from`/`prices_to` and `manual_prices`.
+- **On master,** the dashboard tile reads the summary instead of re-deriving the exclusions at lot level (s133 checks
+  they agree).
+- **On the measured portfolio,** the tile, the Investments page and Net Worth all say **$20,942.00 / +$4,092.00
+  (+24.9%)**, with VXUS and NEWCO named.
+
+**V3.** A basis-0 lot counts in value and is left out of the gain.
+- Its row says *Not shown · no cost basis on record*.
+- In a mixed position the gain covers only the lots with a basis, and the row says how many shares it leaves out.
+
+**V4.** Each row says *$512.30/share · as of Oct 2, 2026*, or *set by you*. The page note gives the date range.
+There is no threshold.
+
+**V2, Net Worth.**
+- It takes the priced value and names what is left out, beside the field and under the headline: *"Investments leave
+  out VXUS · 120 shares: no price on record. Set a price on the Investments page."*
+- A figure saved earlier that differs from the portfolio's is never silently replaced. The badge offers the
+  portfolio's priced value, and the user chooses *Use it*.
+- A saved figure equal to the portfolio's priced value is treated as the portfolio's, so it still names the gap after
+  a reload. (Found in the browser.)
+
+**V5.** Net Worth calls `/api/investments/positions?skip_refresh=true`, so opening it sends nothing to Yahoo. The
+Investments page still refreshes on open, as ruled.
+
+**V6, everything that carries the total.**
+- **The drift log** logs nothing while a holding is unpriced, and logs as before once all are priced.
+- **The target-allocation card** says *"Allocation against your targets needs every holding priced"* instead of
+  *within tolerance*.
+- **Snapshots** keep the page's note (the route used to drop `note`).
+- **The advisor prompt** is given only computed figures, plus the exclusions.
+
+Found in the browser and fixed under the same rule:
+- **the concentration warning** (*"VOO is 98% of your portfolio"* with VXUS unpriced) now says concentration needs
+  every holding priced;
+- **the allocation donut** no longer shows *Intl equity 0.0%* for an unpriced holding; it is named under the donut;
+- **fee drag** no longer lists a $0.00 fee for a holding with no value.
+
+**V7.** No snapshot or Historian event is rewritten.
+- The first snapshot after the change gets *"Investment valuation changed on <date>: holdings with no price on record
+  are no longer counted at cost, and lots with no cost basis are left out of the gain."* This happens once
+  (`inv_valuation_v35_noted`), and only for a household that has held investments.
+- The Net Worth chart shows a snapshot's note on its point and under the chart.
+- No schema change: `net_worth_snapshots.notes` already existed and was never written.
+
+**Tests:**
+- s145 (30 checks, on both lines): Iv1–Iv6, Iv8, Iv10 on constructed holdings; Iv7 and Iv9 in the source; the words
+  in Node.
+- s133 (+2, master): the tile agrees with the page, and no longer re-derives the exclusions.
+
+**Fee drag, fixed the same day** (Rob: *"Do this task here"*; `lts/1.x` `0027a3e`, gate 970 / 0; s146, 13 checks).
+The figure was about 100× too high:
+- the defaults were written in percent and read as a fraction (VOO 0.03% showed as 3.00% and $614.76/yr on $20,492);
+- the prompt stored an entry <= 1 as typed (0.03 became 3%);
+- the colour flags compared against 100% and 50%, so they never showed.
+
+Now:
+- the user's entry is stored as the percent they typed, with its unit;
+- the page gets a fraction; VOO shows 0.03% and $6.15/yr;
+- an old unit-less value is used only where its unit can be proven from how it was saved. Otherwise the row asks
+  *Confirm ER*, and the value is named and left out of the fee.
+
+**Seen and not fixed (out of this pass; offered as a separate task):**
+- the 1.x Net Worth page prints a raw `${helpIcon('retirement_account')}` in the 401(k) label;
+- the paid-off marker posts a snapshot with no assets, a separate gap.
