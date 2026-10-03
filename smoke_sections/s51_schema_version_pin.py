@@ -9,8 +9,10 @@ and minimum_payment_source on lts/1.x, where every 1.1 user's database stores '2
 because every smoke run starts from a fresh database, which the migration builds from scratch.
 
 This section closes the blind spot by pinning. migrate.py carries SCHEMA_SPEC_SHA256 beside SCHEMA_VERSION: a
-fingerprint of migrate.py's code (its AST - comments, docstrings and formatting do not count; the two pin lines
-themselves are excluded). Change anything the migration does and the fingerprint moves, and this section fails
+fingerprint of migrate.py's code (its AST - comments, docstrings and formatting do not count; the pin lines
+themselves are excluded). Since item 24 (2026-10-03) it also carries SCHEMA_MODELS_SHA256, a fingerprint of the models'
+tables and columns, because migrate.py's fingerprint cannot see core/database.py - a new model table needs a bump
+too (P1). s67 upgrades real old-schema fixtures, the only check that sees an unlisted column (P2). Change anything the migration does and the fingerprint moves, and this section fails
 until BOTH lines are updated: a new SCHEMA_VERSION, and the new fingerprint, which the failure prints.
 
 It guards against forgetting, not against someone who updates the fingerprint and not the version - the failure
@@ -22,7 +24,21 @@ column the current migration adds (the mechanism the bump relies on).
 import ast
 import hashlib
 
-_PIN_NAMES = ('SCHEMA_VERSION', 'SCHEMA_SPEC_SHA256')
+_PIN_NAMES = ('SCHEMA_VERSION', 'SCHEMA_SPEC_SHA256', 'SCHEMA_MODELS_SHA256')
+
+
+def schema_models_sha256(metadata):
+    """SHA-256 of the models' schema: every table, and each column's name, type, nullability and key (item 24, P1).
+
+    migrate.py's fingerprint cannot see core/database.py, and a new model TABLE is created only inside the migration
+    that a matching SCHEMA_VERSION skips. So the models get their own pin: change a table or a column and this moves.
+    """
+    import json as _json
+    parts = []
+    for name in sorted(metadata.tables):
+        cols = sorted((c.name, str(c.type), bool(c.nullable), bool(c.primary_key)) for c in metadata.tables[name].columns)
+        parts.append([name, cols])
+    return hashlib.sha256(_json.dumps(parts).encode('utf-8')).hexdigest()
 
 
 def schema_spec_sha256(source):
@@ -68,6 +84,32 @@ def run(ctx):
     new_step = src.replace('def run_migration_if_needed():', 'def run_migration_if_needed():\n    _s51_new_seed_step = True', 1)
     check('s51 mutation caught: a migration step added without a bump',
           new_step != src and schema_spec_sha256(new_step) != pinned)
+
+    # ── P1 (item 24): the models are pinned too ──────────────────────────────
+    from core import database as _d
+    models_actual = schema_models_sha256(_d.Base.metadata)
+    models_pinned = getattr(migrate, 'SCHEMA_MODELS_SHA256', None)
+    check('s51 the models match the fingerprint pinned beside SCHEMA_VERSION (a model change came with a bump)',
+          models_actual == models_pinned)
+    if models_actual != models_pinned:
+        print('        core/database.py changed since SCHEMA_VERSION was last bumped. A new table never reaches an existing')
+        print('        database without a bump, and a new column needs listing in a _NEW_*_COLUMNS list as well.')
+        print(f'        1. set SCHEMA_VERSION to a new value (currently {migrate.SCHEMA_VERSION!r})')
+        print('        2. list any new column on an existing table in its _NEW_*_COLUMNS list (create_all never alters one)')
+        print(f'        3. set SCHEMA_MODELS_SHA256 = {models_actual!r} (and SCHEMA_SPEC_SHA256 as printed above)')
+        print('        4. python schema_fixture.py   (saves the new version\'s schema; the gate upgrades it from then on)')
+    import copy as _copy
+    from sqlalchemy import Column as _Col, Integer as _Int, MetaData as _Meta, String as _Str, Table as _Tab
+    meta2 = _Meta()
+    for t in _d.Base.metadata.tables.values():
+        t.to_metadata(meta2)
+    _Tab('s51_probe_table', meta2, _Col('id', _Int, primary_key=True))
+    check('s51 mutation caught: a model table added without a bump', schema_models_sha256(meta2) != models_pinned)
+    meta3 = _Meta()
+    for t in _d.Base.metadata.tables.values():
+        t.to_metadata(meta3)
+    meta3.tables['accounts'].append_column(_Col('s51_probe_column', _Str(4)))
+    check('s51 mutation caught: a model column added without a bump', schema_models_sha256(meta3) != models_pinned)
 
     # What the bump buys: a database stored at an older version gains a listed column on start.
     from sqlalchemy import text
