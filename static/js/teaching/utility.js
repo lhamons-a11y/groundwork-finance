@@ -32,6 +32,40 @@
     { kind: 'heating_oil', title: 'Heating oil estimate', id: 'gwOilEstimate', noLag: true }
   ];
 
+  // Rob 2026-10-03: the user has full control of each card - follow it, do not follow it (an explicit answer; until
+  // they give one, nothing is assumed), or hide it. Hiding is a VIEW choice only - in the off season they may see no
+  // need to view it - so a hidden card keeps its follow choice, and the hidden line says what the budget uses.
+  var _hidden = {};
+  // A save re-renders the card more than once (the month refresh and the card itself), so 'Saved.' is shown for a
+  // few seconds after the press rather than cleared by whichever render lands first.
+  var _justSaved = {};
+  function _saved(kind) { return _justSaved[kind] && Date.now() - _justSaved[kind] < 8000; }
+  function _title(k, d) { return (k.kind === 'gasoline' && d && d.fuel === 'diesel') ? 'Diesel estimate' : k.title; }   // item 34 F1
+  function _hideBtn(kind) {
+    return '<button type="button" class="btn btn-ghost btn-sm" data-gw-util-hide data-kind="' + kind + '">Hide this card</button>';
+  }
+  function _hiddenLine() {
+    var cont = g('budgetContent');
+    if (!cont) return;
+    var host = g('gwHiddenEstimates');
+    var ks = KINDS.filter(function (k) { return _hidden[k.kind]; });
+    if (!ks.length) { if (host) host.remove(); return; }
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'gwHiddenEstimates';
+      host.style.cssText = 'font-size:12px;color:var(--slate-2);margin-top:12px;line-height:1.9';
+    }
+    cont.appendChild(host);
+    host.innerHTML = 'Hidden estimates: ' + ks.map(function (k) {
+      var d = _hidden[k.kind], u = d.budget_uses || {};
+      var note = d.follow !== 'follow' ? ''
+        : u.in_totals ? ' \u2014 followed; this month\u2019s budget uses it, ' + fmt(u.month_amount)
+        : ' \u2014 followed; this month\u2019s budget uses your saved amount';
+      return esc(_title(k, d)) + esc(note) + ' <button type="button" class="btn btn-ghost btn-sm" data-gw-util-show data-kind="'
+        + k.kind + '">Show</button>';
+    }).join(' \u00b7 ');
+  }
+
   async function _load(kind) {
     try { return await API.get('/api/budget/utility-estimate/' + kind); }
     catch (e) { _gwErr(kind + ' estimate')(e); return null; }
@@ -46,23 +80,47 @@
     if (old) old.innerHTML = '<div class="card-label">' + esc(k.title) + '</div><div style="font-size:12px;color:var(--slate-2)">Loading EIA\'s outlook\u2026</div>';
     var d = await _load(k.kind);
     var W = _words();
-    if (!d || !W || (!d.bills && d.saved_amount === null)) { if (old) old.remove(); return; }
+    if (!d || !W || (!d.bills && d.saved_amount === null)) { if (old) old.remove(); delete _hidden[k.kind]; _hiddenLine(); return; }
+    if (d.hidden) { if (old) old.remove(); _hidden[k.kind] = d; _hiddenLine(); return; }
+    delete _hidden[k.kind];
+    _hiddenLine();
     var t = W[k.kind](d, F);
-    var title = (k.kind === 'gasoline' && d.fuel === 'diesel') ? 'Diesel estimate' : k.title;   // item 34 F1
+    var title = _title(k, d);
+    var nm = 'gwUtilChoice_' + k.kind;
+    var radio = function (v, label) {
+      return '<label style="margin-right:12px"><input type="radio" name="' + nm + '" value="' + v + '" data-gw-util-choice data-kind="'
+        + k.kind + '"' + (d.follow === v ? ' checked' : '') + '> ' + label + '</label>';
+    };
     var html = '<div class="card-label">' + esc(title) + '</div>'
       + t.lines.map(function (l) { return '<div style="font-size:12px;color:var(--slate);line-height:1.7">' + esc(l) + '</div>'; }).join('')
       + '<div style="margin-top:8px;font-size:12px;color:var(--slate)">'
-      + '<label><input type="checkbox" data-gw-util-optin data-kind="' + k.kind + '" ' + (d.optin ? 'checked' : '') + '> Follow this estimate</label>'
+      + radio('follow', 'Follow this estimate') + radio('not_follow', 'Do not follow')
       + (k.noLag ? '' : ' \u00b7 bills pay for <select data-gw-util-lag data-kind="' + k.kind + '" style="font-size:12px">'
       + [0, 1, 2].map(function (n) {
           return '<option value="' + n + '"' + (d.lag === n ? ' selected' : '') + '>' + ['the same month', 'the month before', 'two months before'][n] + '</option>';
-        }).join('') + '</select>') + '</div>'
+        }).join('') + '</select>')
+      + ' <button type="button" class="btn btn-primary btn-sm" data-gw-util-submit data-kind="' + k.kind + '" disabled>Submit</button> '
+      + _hideBtn(k.kind)
+      + '<div data-gw-util-status style="font-size:11px;color:var(--slate-2);margin-top:4px">'
+      + (_saved(k.kind) ? 'Saved.' : '') + '</div></div>'
       + '<div data-gw-ask></div>'
       + '<div class="gw-src" style="font-size:10px;color:var(--slate-2);margin-top:8px">' + esc(t.source || '') + '</div>';
-    if (d.not_applicable) {                       // nothing to follow: the household's answer settled it
+    if (d.not_applicable) {                       // the household's answer settled it - nothing new to follow
+      // Rob 2026-10-03: a household that moved (renters often do) may still follow this from before. That choice is
+      // said, never changed for them, and the card offers the choice and Submit so they can stop following it.
+      var stale = d.follow === 'follow';
       html = '<div class="card-label">' + esc(k.title) + '</div>'
         + '<div style="font-size:12px;color:var(--slate);line-height:1.7">' + esc(d.not_applicable) + '</div>'
-        + '<div style="font-size:11px;color:var(--slate-2);margin-top:6px">Change this in Settings, under Your home.</div>';
+        + (stale ? '<div style="font-size:12px;color:var(--slate);line-height:1.7">You still follow this estimate from before. '
+            + 'It no longer applies, so your saved amount sets the budget; choose Do not follow and press Submit to stop following it.</div>'
+            + '<div style="margin-top:8px;font-size:12px;color:var(--slate)">' + radio('follow', 'Follow this estimate')
+            + radio('not_follow', 'Do not follow')
+            + ' <button type="button" class="btn btn-primary btn-sm" data-gw-util-submit data-kind="' + k.kind + '" disabled>Submit</button>'
+            + '<div data-gw-util-status style="font-size:11px;color:var(--slate-2);margin-top:4px"></div></div>'
+          : _saved(k.kind) ? '<div style="font-size:12px;color:var(--slate);margin-top:6px">Saved: you no longer follow this estimate.</div>'
+          : '')
+        + '<div style="font-size:11px;color:var(--slate-2);margin-top:6px">Change this in Settings, under Your home.</div>'
+        + '<div style="margin-top:6px">' + _hideBtn(k.kind) + '</div>';
     }
     var card = g(k.id);
     if (!card) {
@@ -72,6 +130,8 @@
       cont.appendChild(card);
     }
     card.innerHTML = html;
+    card.dataset.gwSavedFollow = d.follow || '';
+    card.dataset.gwSavedLag = d.lag === undefined || d.lag === null ? '' : String(d.lag);
     var host = card.querySelector('[data-gw-ask]');
     var H = GWTeaching._modules.filter(function (x) { return x.name === 'household'; })[0];
     if (host && H && d.ask && d.ask.length) H.mod.ask(host, d.ask, {}, function () { _budgetCard(); });
@@ -79,8 +139,9 @@
 
   function _budgetCard() { KINDS.forEach(function (k) { _card(k); }); }
 
-  async function _save(kind, on, lag) {
-    try { await API.post('/api/budget/utility-estimate/optin', { kind: kind, on: on, lag: lag }); }
+  // Only the field the user changed is sent: hiding keeps the follow choice and the lag, and the reverse.
+  async function _save(kind, patch) {
+    try { await API.post('/api/budget/utility-estimate/optin', Object.assign({ kind: kind }, patch)); }
     catch (e) { _gwErr(kind + ' estimate opt-in')(e); return; }
     await _refreshMonth();                    // the totals follow the choice at once (M4); nothing is written
     _card(KINDS.filter(function (k) { return k.kind === kind; })[0]);
@@ -122,15 +183,39 @@
     });
   }
 
+  // The card's choices are a draft until Submit: picking a radio or a billing month saves nothing. Submit is enabled
+  // only when the draft differs from what is saved, and the card says a choice is waiting.
+  function _draft(card) {
+    var r = card.querySelector('[data-gw-util-choice]:checked'), sel = card.querySelector('[data-gw-util-lag]');
+    return { follow: r ? r.value : '', lag: sel ? sel.value : card.dataset.gwSavedLag };
+  }
   document.addEventListener('change', function (ev) {
     var t = ev.target;
-    if (!t || !t.matches || !(t.matches('[data-gw-util-optin]') || t.matches('[data-gw-util-lag]'))) return;
+    if (!t || !t.matches || !(t.matches('[data-gw-util-choice]') || t.matches('[data-gw-util-lag]'))) return;
+    var card = t.closest('.card');
+    if (!card) return;
+    var dr = _draft(card), changed = dr.follow !== card.dataset.gwSavedFollow || dr.lag !== card.dataset.gwSavedLag;
+    var btn = card.querySelector('[data-gw-util-submit]'), st = card.querySelector('[data-gw-util-status]');
+    if (btn) btn.disabled = !changed;
+    if (st) st.textContent = changed ? 'Not saved yet \u2014 press Submit to keep this choice.' : '';
+  });
+  document.addEventListener('click', function (ev) {
+    var t = ev.target && ev.target.closest && ev.target.closest('[data-gw-util-hide], [data-gw-util-show], [data-gw-util-submit]');
+    if (!t) return;
     var kind = t.getAttribute('data-kind');
-    var k = KINDS.filter(function (x) { return x.kind === kind; })[0];
-    var card = k && g(k.id);
-    var box = card && card.querySelector('[data-gw-util-optin]');
-    var sel = card && card.querySelector('[data-gw-util-lag]');
-    _save(kind, !!(box && box.checked), sel ? parseInt(sel.value, 10) : 1);
+    if (t.hasAttribute('data-gw-util-submit')) {             // the user's decision: what they picked, sent together
+      var card = t.closest('.card');
+      if (!card || t.disabled) return;
+      var dr = _draft(card), patch = {};
+      if (dr.follow && dr.follow !== card.dataset.gwSavedFollow) patch.choice = dr.follow;
+      if (dr.lag !== card.dataset.gwSavedLag && dr.lag !== '') patch.lag = parseInt(dr.lag, 10);
+      if (!Object.keys(patch).length) return;
+      t.disabled = true;
+      _justSaved[kind] = Date.now();
+      _save(kind, patch);
+      return;
+    }
+    _save(kind, { hidden: t.hasAttribute('data-gw-util-hide') });   // hiding is a view choice: immediate
   });
 
   // U4: the monthly report carries each followed utility's forecast line - only the sentence the estimate proves

@@ -2759,6 +2759,19 @@ def budget_month_amounts_route():
         return ok({str(k): v for k, v in budget_month_amounts(session).items()})
 
 
+def _estimate_pref(prefs, kind):
+    """The user's own choices for one estimate card: {'follow': 'follow' | 'not_follow' | None, 'hidden': bool}.
+    ('follow', not 'choice': each estimate's 'choice' is already its weather-fit decision.)
+
+    None means they have not chosen - never read as 'do not follow' (an unanswered question is not a default), though
+    until they choose, the saved amount sets the totals. Hidden is a VIEW choice only: it says nothing about whether
+    they follow or track it (Rob: maybe in the off season they see no need to view it), so a followed estimate stays
+    followed while its card is hidden."""
+    p = prefs.get(kind) or {}
+    choice = p.get('choice') or ('follow' if p.get('on') else None)
+    return {'follow': choice, 'hidden': bool(p.get('hidden'))}
+
+
 @budget_bp.route('/utility-estimate/<kind>', methods=['GET'])
 def budget_utility_estimate(kind):
     if kind not in UTILITY_KINDS:
@@ -2774,9 +2787,13 @@ def budget_utility_estimate(kind):
                                                     BudgetItem.is_active == True).first()  # noqa: E712
             return ok({'kind': kind, 'optin': False, 'estimate': None, 'not_applicable': app['why'],
                        'bills': n, 'saved_amount': round(float(item.amount), 2) if item and item.amount is not None else None,
-                       'ask': app.get('ask', [])})
+                       'ask': app.get('ask', []),
+                       # still the user's choices: a follow made before they moved stays theirs to change (Rob)
+                       'lag': int(((_dashboard_json(session, 'utility_estimates', {}) or {}).get(kind) or {}).get('lag', 1)),
+                       **_estimate_pref(_dashboard_json(session, 'utility_estimates', {}), kind)})
         out = _estimate_for(session, kind, True)
-        out.update(ask=app.get('ask', []), assumes=app.get('assumes'))
+        out.update(ask=app.get('ask', []), assumes=app.get('assumes'),
+                   **_estimate_pref(_dashboard_json(session, 'utility_estimates', {}), kind))
         rows = [v for v in budget_month_amounts(session).values() if v['kind'] == kind]
         out['budget_uses'] = {'in_totals': bool(rows) and all(v['month_source'] == 'estimate' for v in rows),
                               'month_amount': rows[0]['month_amount'] if rows else None,
@@ -2788,17 +2805,36 @@ def budget_utility_estimate(kind):
 @budget_bp.route('/utility-estimate/optin', methods=['POST'])
 @require_json
 def budget_utility_estimate_optin():
-    """U3: the user's choice to have a row follow the estimate. Their saved amount is never touched."""
+    """U3: the user's choices for an estimate card. Their saved amount is never touched.
+
+    Each field is changed only when sent, so hiding a card keeps its follow choice and lag: 'choice' ('follow' |
+    'not_follow'; 'on' true/false is the same choice, as earlier pages send it), 'lag' (0-2), 'hidden' (true/false)."""
     body = request.json or {}
     kind = body.get('kind')
     if kind not in UTILITY_KINDS:
         return err('not a utility Groundwork estimates yet')
-    lag = body.get('lag', 1)
-    if not isinstance(lag, int) or not 0 <= lag <= 2:
+    lag = body.get('lag')
+    if lag is not None and (not isinstance(lag, int) or isinstance(lag, bool) or not 0 <= lag <= 2):
         return err('the billing lag is 0, 1 or 2 months')
+    choice = body.get('choice')
+    if choice is None and 'on' in body:
+        choice = 'follow' if body.get('on') else 'not_follow'
+    if choice not in (None, 'follow', 'not_follow'):
+        return err('the choice is follow or not_follow')
+    hidden = body.get('hidden')
+    if hidden is not None and not isinstance(hidden, bool):
+        return err('hidden is true or false')
     with db_session() as session:
         prefs = _dashboard_json(session, 'utility_estimates', {})
-        prefs[kind] = {'on': bool(body.get('on')), 'lag': lag}
+        cur = dict(prefs.get(kind) or {})
+        cur.setdefault('lag', 1)
+        if lag is not None:
+            cur['lag'] = lag
+        if choice is not None:
+            cur['choice'], cur['on'] = choice, choice == 'follow'
+        if hidden is not None:
+            cur['hidden'] = hidden
+        prefs[kind] = cur
         _dashboard_store(session, 'utility_estimates', prefs)
         session.commit()
         return ok(prefs)

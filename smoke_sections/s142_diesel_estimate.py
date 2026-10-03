@@ -107,4 +107,5 @@ console.log(JSON.stringify(U.gasoline(d, F)));
               and 'gasoline' not in ' '.join(L) + (o.get('statement') or ''))
         ut = BASE.joinpath('static/js/teaching/utility.js').read_text(encoding='utf-8')
         check('s142 the card is titled "Diesel estimate" for a diesel household',
-              "(k.kind === 'gasoline' && d.fuel === 'diesel') ? 'Diesel estimate' : k.title" in ut)
+              "function _title(k, d) { return (k.kind === 'gasoline' && d && d.fuel === 'diesel') ? 'Diesel estimate' : k.title; }" in ut
+              and 'var title = _title(k, d);' in ut)

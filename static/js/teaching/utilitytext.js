@@ -264,7 +264,9 @@
             : "This month's budget uses this estimate, " + f.money(u.month_amount) + ', in place of ' + saved.replace(/^Your/, 'your') + '.')
         : (d.optin && u.why)
           ? "You follow this estimate, but this month's budget uses " + saved.replace(/^Your/, 'your') + ': ' + u.why + '.'
-          : saved + ' sets the budget totals. Follow this estimate to use it for this month instead.';
+          : d.follow === 'not_follow'
+            ? 'You chose not to follow this estimate: ' + saved.replace(/^Your/, 'your') + ' sets the budget totals.'
+            : saved + ' sets the budget totals. Follow this estimate to use it for this month instead.';
     }
     if (t.statement && d.optin && u.in_totals) {
       // "...; the gas estimate on your Budget page uses that forecast." becomes the proven "includes" (M6).

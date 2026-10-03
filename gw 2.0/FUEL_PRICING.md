@@ -274,3 +274,55 @@ F1 ACCEPTED. F2–F4 BUILT (s9), awaiting acceptance.
   price, so there is no estimate for this month"*, with no figure and no zero.
 
 **Gate:** 2301 / 0.
+
+## 10. The estimate cards' controls (Rob, 2026-10-03)
+
+Rob: *"we are not giving the user full control. we should also offer do not follow and hide the card."* On hiding:
+*"It doesn't assume the user is not wanting to track it but maybe due to season they don't see a need to view it."*
+
+This applies to all five estimate cards: natural gas, electricity, vehicle fuel, propane and heating oil.
+
+- **Follow, or do not follow: each is an explicit answer.**
+  - The old checkbox is replaced by two choices, *Follow this estimate* and *Do not follow*.
+  - Never choosing is stored as no answer (`follow: None`), never as "do not follow". Until the user chooses, the
+    saved amount sets the totals, and the card says how to follow.
+  - *Do not follow* is stored as the user's answer, and the card then says *"You chose not to follow this estimate:
+    your saved … sets the budget totals."*
+- **Submit is the decision** (Rob: *"we do need to add a submit button … That would be the user decision to hit the
+  submit button. If they are unsure but don't want to see the card then the user can select hide this card, so if the
+  user doesn't decide that is fine."*)
+  - Picking *Follow* / *Do not follow*, or the billing month, is a draft and saves nothing.
+  - *Submit* starts disabled. It is enabled only when the draft differs from what is saved, and the card says *"Not
+    saved yet — press Submit to keep this choice."*
+  - After the press, the card says *Saved.*
+  - A pick left unsubmitted is gone on reload.
+  - Hiding needs no Submit.
+- **Hide this card: a view choice only.**
+  - Hiding keeps the follow choice and the billing lag.
+  - A followed estimate still sets this month's budget while its card is hidden.
+  - Hidden cards are listed on the Budget page (*"Hidden estimates: Propane estimate — followed; this month's budget
+    uses it, $… · Show"*), and that line says what the budget really uses. A card is never removed without a way back.
+  - Cards the household's answers ruled out can be hidden too.
+- **When the household's situation changes** (Rob: *"if the user does move and now they are using natural gas we are
+  not allowing them to unfollow. Many of these users may rent and if they move as many renters do our software is not
+  helping them change their decision because their situation has changed."*)
+  - An estimate the household's answers now rule out (propane after *natural gas heats your home*), still followed
+    from before, keeps that follow as the user's own choice. It is never changed for them.
+  - The card says *"You still follow this estimate from before. It no longer applies, so your saved amount sets the
+    budget; choose Do not follow and press Submit to stop following it."* It shows the choice and Submit.
+  - After the press it says *"Saved: you no longer follow this estimate."* and the row's note goes.
+  - Found in the browser: a save re-renders the card twice, so *Saved.* was cleared by whichever render came first.
+    It now shows for a few seconds after the press.
+- **What it touches.** The settings route changes only the field sent (`choice`, `lag`, `hidden`; an earlier page's
+  `on` true or false is the same choice). Nothing writes a saved amount, nothing is logged, and there is no schema
+  change: the choices live in the existing `utility_estimates` preferences.
+- **Found while building.** The response field is `follow`, not `choice`, because each estimate's `choice` is already
+  its weather-fit decision. Overwriting it would have broken the gas, electricity and propane words.
+- **Not built (Rob did not ask for it):** a hidden card coming back on its own when the season returns.
+- **Tests:** s144 (22 checks); s142 now checks the shared `_title` (diesel titling unchanged).
+- **Browser:**
+  - No choice was pre-selected and Submit was disabled; picking Do not follow enabled it with the not-saved note; Submit saved it ("Saved.", "You chose not to follow this estimate: …"); a pick left unsubmitted was gone after a reload.
+  - Follow took effect and the card said why the saved amount is used out of season.
+  - Hide removed the card and the hidden line reported *"followed; this month's budget uses your saved amount"*.
+  - Show brought the card back with Follow still selected.
+- **Gate:** 2323 / 0.
