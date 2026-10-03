@@ -1,0 +1,45 @@
+name: Linux Build
+# Item 33 (ENGINE_OTHER_PLATFORMS.md): the Linux x86_64 package with the in-app engine and the pinned model.
+# A green run proves the package BUILDS (the first states of item 33's five) - not that inference works on real
+# hardware, which is Q6's proof on a real Linux machine.
+
+on:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: System packages for the window (pywebview's GTK backend)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgirepository1.0-dev libcairo2-dev gir1.2-webkit2-4.1 pkg-config
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller pygobject
+      - name: Fetch and verify the pinned model
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python fetch_model.py
+      - name: Build with PyInstaller
+        run: pyinstaller groundwork_linux.spec --clean --noconfirm
+      - name: The engine imports and the model is where it looks (packaging only - not inference)
+        run: |
+          test -f dist/Groundwork/_internal/models/phi3.5-mini-instruct-q4.gguf
+          ls dist/Groundwork/_internal/llama_cpp/lib/ | grep -q libllama
+      - name: Archive
+        run: tar -czf Groundwork-linux-x86_64.tar.gz -C dist Groundwork
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Groundwork-linux
+          path: Groundwork-linux-x86_64.tar.gz
+          retention-days: 30

@@ -223,3 +223,63 @@ def run(ctx):
         check(f'OS {iss} warns on Windows 10 and still installs there (no Windows 11 floor), interactive installs only',
               'WarnIfWindowsUnsupported();' in text and 'V.Build < 22000' in text and "that''s perfectly fine" in text
               and mv is not None and not mv.group(1).startswith('10.0.22') and 'WizardSilent()' in text)
+
+    # ── Item 33 (ENGINE_OTHER_PLATFORMS.md, Rob 2026-10-03): macOS and Linux package the same engine and model ──
+    import importlib
+    import sys as _sys
+    _sys.path.insert(0, str(ctx.BASE))
+    se = importlib.import_module('spec_engine')
+    check('33 one pin: spec_engine and fetch_model read the model\'s name and SHA-256 from core/engine.py',
+          se.MODEL_FILE == engine.MODEL_FILE and se.MODEL_SHA256 == engine.MODEL_SHA256
+          and 'core\' / \'engine.py' in ctx.BASE.joinpath('fetch_model.py').read_text(encoding='utf-8'))
+    junk = ctx.TMP / 's61_wrong_model.gguf'
+    junk.write_bytes(b'GGUF' + b'\1' * 1024)
+    refused = {}
+    old_env = os.environ.get('GW_MODEL_PATH')
+    real_intel = se.intel_mac
+    try:
+        se.intel_mac = lambda: False
+        for label, path in (('wrong', junk), ('missing', ctx.TMP / 's61_no_model.gguf')):
+            os.environ['GW_MODEL_PATH'] = str(path)
+            try:
+                se.model_data(stage_dir=ctx.TMP / 's61_stage')
+                refused[label] = None
+            except se.BuildRefused as e:
+                refused[label] = str(e)
+        real_pin = se.MODEL_SHA256
+        se.MODEL_SHA256 = hashlib.sha256(junk.read_bytes()).hexdigest()   # a file that IS the pinned one
+        os.environ['GW_MODEL_PATH'] = str(junk)
+        staged = se.model_data(stage_dir=ctx.TMP / 's61_stage')
+        se.MODEL_SHA256 = real_pin
+        se.intel_mac = lambda: True
+        intel = (se.engine_parts(), se.model_data(stage_dir=ctx.TMP / 's61_stage'))
+    finally:
+        se.intel_mac = real_intel
+        if old_env is None:
+            os.environ.pop('GW_MODEL_PATH', None)
+        else:
+            os.environ['GW_MODEL_PATH'] = old_env
+    check('33 the build REFUSES a model that is not the tested file, and a missing one (the check is mandatory)',
+          refused.get('wrong') and 'not the tested model' in refused['wrong']
+          and refused.get('missing') and 'missing' in refused['missing'])
+    check('33 the tested file is staged under its shipped name, for models/',
+          len(staged) == 1 and staged[0][1] == 'models' and staged[0][0].endswith(engine.MODEL_FILE))
+    check('33 Q2 an Intel Mac builds Groundwork WITHOUT the engine or the model - no untested runtime is shipped',
+          intel == (([], [], []), []))
+    for spec in ('groundwork_macos.spec', 'groundwork_linux.spec'):
+        text = ctx.BASE.joinpath(spec).read_text(encoding='utf-8')
+        check(f'33 Q4 {spec} packages the engine and the verified model, and no longer excludes numpy',
+              'spec_engine.engine_parts()' in text and 'spec_engine.model_data()' in text and '*_model_datas' in text
+              and "        'numpy'," not in text)
+    req = ctx.BASE.joinpath('requirements.txt').read_text(encoding='utf-8')
+    check('33 Q2 requirements: the runtime is not installed on an Intel Mac (no tested wheel), so the install never fails',
+          'llama-cpp-python==0.3.35; sys_platform != "darwin" or platform_machine == "arm64"' in req)
+    check("33 Q4 the engine finds the model in a macOS app's Contents/Resources",
+          "exe_dir.parent / 'Resources'" in src)
+    for wf in ('macos-build.yml', 'linux-build.yml'):
+        text = ctx.BASE.joinpath('.github', 'workflows', wf).read_text(encoding='utf-8')
+        check(f'33 Q5 {wf} fetches and verifies the pinned model before packaging (any failure fails the build)',
+              'fetch_model.py' in text and text.index('fetch_model.py') < text.index('pyinstaller groundwork_'))
+    site = ctx.BASE.joinpath('Website', 'website.py').read_text(encoding='utf-8')
+    check('33 Q7 the website says what is true: macOS and Linux local AI is coming; Intel Macs run fully without it',
+          'Intel Macs run Groundwork fully, without local AI.' in site and 'Local AI: coming to Linux.' in site)

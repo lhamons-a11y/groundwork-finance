@@ -774,7 +774,8 @@ def download():
       <strong>Requirements:</strong><br>
       macOS 12 Monterey or later (a version Apple still updates is suggested)<br>
       ~150MB disk space<br>
-      4GB RAM (8GB+ for the optional local AI)
+      4GB RAM<br>
+      Local AI: coming to Apple Silicon Macs. Intel Macs run Groundwork fully, without local AI.
     </div>
   </div>
 
@@ -789,7 +790,8 @@ def download():
       <strong>Requirements:</strong><br>
       Ubuntu 22.04+, Debian 12+, Fedora, or similar (x86_64), on a release that still gets security updates<br>
       ~150MB disk space<br>
-      4GB RAM (8GB+ for the optional local AI)<br>
+      4GB RAM<br>
+      Local AI: coming to Linux. Groundwork runs fully without it.<br>
       <a href="/knowledge-base#linux">Installing from source →</a>
     </div>
   </div>
