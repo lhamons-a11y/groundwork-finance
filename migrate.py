@@ -25,6 +25,11 @@ SCHEMA_VERSION = '20261002-household-facts'   # the household_facts table + carr
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
 SCHEMA_SPEC_SHA256 = '01adb2cf8f0101ad2fbe7d661d751ec2f7d5b0a67a58907014fa6df718f53ebe'
+# The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
+# change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
+# existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
+# the new version's schema (s67 upgrades every saved schema).
+SCHEMA_MODELS_SHA256 = '14ec4cfb1bc7d70d01c5e077a2a35f7f5419230ec295c8a9495caa29c4d3f6c3'
 
 
 def _stored_schema_version():
