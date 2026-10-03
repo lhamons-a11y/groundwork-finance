@@ -129,6 +129,10 @@ models pin and its current-schema fixture.
 
 The old fixtures stay: each is a shape some user's database is in.
 
-## 6. Status
+## 6. Acceptance (Rob, 2026-10-03)
 
-BUILT on both lines and gated. Awaiting Rob's acceptance.
+*"Yes"*. Item 24 is ACCEPTED as built: lts `7d72a70`, master `d3afc5e`.
+
+## 7. Status
+
+ACCEPTED. **Item 24 is CLOSED.**
