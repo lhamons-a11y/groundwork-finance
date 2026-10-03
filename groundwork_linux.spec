@@ -15,6 +15,16 @@ from pathlib import Path
 block_cipher = None
 root = Path.cwd()
 
+# The local AI engine and its pinned, fingerprint-checked model (ENGINE_OTHER_PLATFORMS.md, item 33; spec_engine.py).
+# The build fails without the runtime or with the wrong model - except on an Intel Mac, where no tested runtime exists
+# and Groundwork ships with local AI unavailable (Q2).
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(SPECPATH)))
+import spec_engine
+_engine_binaries, _engine_datas, _engine_imports = spec_engine.engine_parts()
+_model_datas = spec_engine.model_data()
+
 try:
     import webview
     webview_path = Path(webview.__file__).parent
@@ -24,14 +34,17 @@ except ImportError:
 a = Analysis(
     ['launch.py'],
     pathex=[str(root)],
-    binaries=[],
+    binaries=[*_engine_binaries],
     datas=[
+        *_engine_datas,
+        *_model_datas,             # -> models/ (macOS: Contents/Resources/models), where core/engine.py looks
         ('static', 'static'),
         ('core', 'core'),
         ('bank_importer.py', '.'),
         *( [(str(webview_path / 'js'), 'webview/js')] if webview_path and (webview_path / 'js').exists() else [] ),
     ],
     hiddenimports=[
+        *_engine_imports,
         # waitress — the WSGI server every launch path now uses. Imported
         # inside server.serve() rather than at module scope, which is exactly
         # the import style PyInstaller's static analysis is least likely to
@@ -115,7 +128,7 @@ a = Analysis(
     ],
     excludes=[
         'matplotlib',
-        'numpy',
+        # numpy is NOT excluded: llama_cpp imports it (the local AI engine).
         'pandas',
         'PIL',
         # pdfplumber's render backend. It and PIL are imported in exactly one
@@ -190,6 +203,7 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=True,
-    upx_exclude=[],
+    # The engine's native libraries are never UPX-packed (they are loaded by ctypes).
+    upx_exclude=['libllama.dylib', 'libggml.dylib', 'libggml-base.dylib', 'libggml-cpu.dylib', 'libggml-metal.dylib', 'libggml-blas.dylib', 'libmtmd.dylib', 'libllama.so', 'libggml.so', 'libggml-base.so', 'libggml-cpu.so', 'libmtmd.so'],
     name='Groundwork',
 )

@@ -112,6 +112,9 @@ def _base_dirs():
     if getattr(sys, 'frozen', False):
         exe_dir = Path(sys.executable).resolve().parent
         dirs += [exe_dir, exe_dir.parent]
+        # A macOS .app keeps bundled data in Contents/Resources (the executable is in Contents/MacOS) - item 33 Q4.
+        if (exe_dir.parent / 'Resources').is_dir():
+            dirs.append(exe_dir.parent / 'Resources')
         if getattr(sys, '_MEIPASS', None):
             dirs.append(Path(sys._MEIPASS))
     dirs.append(Path(__file__).resolve().parent.parent)

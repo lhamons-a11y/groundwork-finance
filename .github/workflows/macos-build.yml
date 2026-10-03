@@ -32,6 +32,12 @@ jobs:
           python3 build_icns.py
           iconutil -c icns groundwork.iconset -o assets/groundwork.icns
 
+      # Item 33 Q5: the exact tested model, fetched and fingerprint-checked. Any failure here fails the build -
+      # a release never ships the wrong model, or none (spec_engine.py checks it again while packaging).
+      - name: Fetch and verify the pinned model
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 fetch_model.py
       - name: Build with PyInstaller
         run: pyinstaller groundwork_macos.spec --clean --noconfirm
 

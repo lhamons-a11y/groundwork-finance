@@ -42,7 +42,9 @@ psutil>=5.9.0
 # to build without it (groundwork.spec).
 --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 --only-binary llama-cpp-python
-llama-cpp-python==0.3.35
+# Not on an Intel Mac: no tested wheel is published there, and Groundwork does not build an untested one
+# (ENGINE_OTHER_PLATFORMS.md Q2). The application runs there; the engine reports local AI unavailable.
+llama-cpp-python==0.3.35; sys_platform != "darwin" or platform_machine == "arm64"
 
 # ── Platform-specific ─────────────────────────────────────────────────────────
 # Linux only: install these via your package manager, NOT pip
