@@ -70,7 +70,8 @@ FACTS = {
                    'not_sure'),
         'lines': '2.0',
         'consumers': [
-            ('server.py', 'utility_applies', 'item 26: natural gas is priced only for natural gas, else it says why'),
+            ('server.py', 'utility_applies', 'item 26/34: natural gas is priced only for natural gas, propane and heating '
+                                             'oil from deliveries only when they heat the home; else it says why'),
             ('static/js/teaching/household.js', '_heatingLabel', 'the bills screen: the home heating fuel line'),
         ],
     },

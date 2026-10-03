@@ -168,6 +168,74 @@
              source: 'From the U.S. Energy Information Administration\'s weekly retail prices and your own fill-ups.' };
   }
 
+  // Propane and heating oil (item 34 F2-F4, FUEL_PRICING.md): gallons from the user's own deliveries at EIA's weekly
+  // RESIDENTIAL price, and a weather fit only where it passed the F2 guard. EIA collects these prices October to March;
+  // out of season the latest is last season's, said as last season's - never this month's, never a zero (F3).
+  function delivered(d, f) {
+    if (!d) return null;
+    var lines = [];
+    var oil = d.fuel === 'heating_oil';
+    var w = oil ? 'heating oil' : 'propane', cat = oil ? 'Heating Oil' : 'Propane';
+    var reg = d.region || {}, area = d.area || {};
+    var where = area.kind === 'state' ? 'your state' : area.kind === 'padd' ? area.label : 'the U.S.';
+    var src = 'From the U.S. Energy Information Administration\'s weekly residential ' + w + ' prices and heating degree days, '
+      + 'and your own deliveries.';
+    lines.push(reg.national
+      ? 'Using U.S. average prices; set your home state in Settings for your region\'s prices and weather.'
+      : 'Using EIA\'s weekly residential ' + w + ' price for ' + where + (area.kind === 'state' ? ' (' + reg.state + ')'
+          : ' (EIA publishes no residential ' + w + ' series for ' + reg.state + ')') + ' and its degree days for '
+          + reg.division_name + '.');
+    var e = d.estimate;
+    if (!e) return { lines: lines.concat([d.needs]), statement: null, source: src };
+    var c = d.choice || {};
+    var lp = e.last_price;
+    var pct = function (x) { return Math.round(x * 100) + '%'; };
+    var week = function (iso) { return f.date(iso) + ', ' + String(iso).slice(0, 4); };
+    if (c.method === 'weather') {
+      lines.push('Your deliveries follow the weather: from ' + c.n + ' priced deliveries, about ' + c.base.toFixed(2)
+        + ' gallons a day all year plus ' + c.k.toFixed(3) + ' per heating degree day. On deliveries held out, within about '
+        + pct(c.held_out_error) + ' (one steady daily rate: ' + pct(c.average_error) + '); the weather is about '
+        + pct(c.weather_share) + ' of a year\'s use.');
+    } else {
+      var why = {
+        too_few: 'A delivery can be turned into gallons only when EIA published a residential price that week (October to March). '
+          + (c.n || 0) + ' of your deliveries can be compared so far; 3 are needed.',
+        no_fit: 'Your priced deliveries all fell in similar weather, so a weather fit cannot be made from them.',
+        no_heating_slope: 'Your deliveries do not rise with the cold, so there is not enough evidence to estimate them as heating.',
+        no_better_than_average: 'Your deliveries do not follow the weather more closely than one steady daily rate does'
+          + (c.held_out_error !== undefined ? ' (held out: ' + pct(c.held_out_error) + ' against ' + pct(c.average_error) + ')' : '')
+          + ', so there is not enough evidence to estimate them.',
+        weather_share_too_small: 'The weather explains only about ' + pct(c.weather_share || 0) + ' of a year\'s use in your deliveries '
+          + '- too little to estimate them as heating (30% is needed).',
+        no_degree_days: 'EIA\'s degree days for your region are not complete for the past year, so the deliveries cannot be compared.'
+      }[c.reason];
+      lines.push(why || ('A ' + w + ' estimate needs ' + (d.needs || 'more deliveries') + '.'));
+    }
+    if (d.unpriced) {
+      lines.push(d.unpriced + (d.unpriced === 1 ? ' delivery' : ' deliveries') + ' had no EIA residential price within two weeks (EIA prices mostly October to March), '
+        + 'so ' + (d.unpriced === 1 ? 'it is' : 'they are') + ' not turned into gallons.');
+    }
+    var statement = null;
+    if (e.method === 'weather') {
+      lines.push('For ' + f.month(e.month) + ': about ' + e.gallons.toFixed(1) + ' gallons (EIA\'s outlook: ' + Math.round(e.hdd)
+        + ' heating degree days) at EIA\'s latest residential price, ' + f.money(e.price) + '/gal (week of ' + week(e.week)
+        + '), is about ' + f.money(e.amount) + '.');
+      lines.push('This assumes each delivery refilled what was used since the one before; a fixed-amount or partial fill breaks that.');
+      statement = 'EIA\'s latest weekly residential ' + w + ' price for ' + where + ' is ' + f.money(e.price) + '/gal (week of '
+        + week(e.week) + '); the ' + w + ' estimate on your Budget page uses it.';
+    } else if (lp && !e.current) {
+      lines.push(lp.season === 'last'
+        ? 'EIA publishes residential ' + w + ' prices weekly October to March. Its latest, ' + f.money(lp.price) + '/gal for the week of '
+          + week(lp.week) + ', is last season\'s price, so there is no estimate for this month until this season\'s first price.'
+        : 'EIA\'s latest residential ' + w + ' price, ' + f.money(lp.price) + '/gal for the week of ' + week(lp.week)
+          + ', is more than two weeks old, so there is no estimate for this month until a current one.');
+    }
+    if (d.saved_amount !== null && d.saved_amount !== undefined) {
+      lines.push('Your saved ' + cat + ' budget of ' + f.money(d.saved_amount) + ' still sets the budget totals; this estimate is shown beside it.');
+    }
+    return { lines: lines, statement: statement, source: src };
+  }
+
   // What the household told Groundwork can settle an estimate before any figure (ONBOARDING_REVISIT.md): then the
   // card says why, and the report has no statement. An estimate read from the record while a fact is unanswered
   // says what it assumed, never silently.
@@ -207,7 +275,8 @@
     }
   }
 
-  var api = { gas: _withFacts(gas), electric: _withFacts(electric), gasoline: _withFacts(gasoline) };
+  var api = { gas: _withFacts(gas), electric: _withFacts(electric), gasoline: _withFacts(gasoline),
+              propane: _withFacts(delivered), heating_oil: _withFacts(delivered) };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root && root.GWTeaching) root.GWTeaching.register('utilitytext', api);
 })(typeof window !== 'undefined' ? window : null);

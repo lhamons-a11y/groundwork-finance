@@ -27,7 +27,9 @@
   var KINDS = [
     { kind: 'gas', title: 'Natural gas estimate', id: 'gwGasEstimate' },
     { kind: 'electric', title: 'Electricity estimate', id: 'gwElecEstimate' },
-    { kind: 'gasoline', title: 'Gasoline estimate', id: 'gwFuelEstimate', noLag: true }   // fill-ups aren't billed later
+    { kind: 'gasoline', title: 'Gasoline estimate', id: 'gwFuelEstimate', noLag: true },  // fill-ups aren't billed later
+    { kind: 'propane', title: 'Propane estimate', id: 'gwPropaneEstimate', noLag: true },  // item 34: paid on delivery
+    { kind: 'heating_oil', title: 'Heating oil estimate', id: 'gwOilEstimate', noLag: true }
   ];
 
   async function _load(kind) {

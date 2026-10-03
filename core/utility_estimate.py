@@ -532,3 +532,145 @@ def estimate_gasoline(months, weekly):
     return {'method': 'gallons', 'amount': round(typical * price, 2), 'gallons': round(typical, 1), 'price': price,
             'week': latest, 'months_used': [m for m, _ in recent], 'year_ago': year_ago}
 
+
+# ── Delivered fuels: propane and heating oil (item 34 F2-F4, FUEL_PRICING.md) ───────────────────────────────────────
+# EIA's weekly RESIDENTIAL price (petroleum/pri/wfr, process PRS - not the wholesale PWR figures in the same series),
+# collected weekly October to March (and, in 2024 and April-May 2025, one summer week a month - measured 2026-10-03, so
+# the calendar is not the rule: the price evidence is). Residential coverage measured 2026-10-03 for the 2025-26 season.
+PROPANE_STATES = set('AL AR CO CT DE FL GA IA ID IL IN KS KY MA MD ME MI MN MO MS MT NC ND NE NH NJ NY OH OK PA RI SD '
+                     'TN TX UT VA VT WI'.split())
+HEATING_OIL_STATES = set('CT DC DE IA IN KY MA MD ME MI MN NC NE NH NJ NY OH PA RI VA VT WI'.split())
+DELIVERED_PRODUCT = {'propane': 'EPLLPA', 'heating_oil': 'EPD2F'}
+_DELIVERED_PADDS = {'propane': {'1A', '1B', '1C', '2', '3', '4'}, 'heating_oil': {'1A', '1B', '1C', '2'}}
+
+# The acceptance rule the F2 guard's simulation supports (FUEL_PRICING.md s7, delivered_fuel_sim.py): attempt from
+# three priced intervals; accept the weather fit only if it beats one daily rate by 25% held-out, k > 0, and the
+# weather explains at least 30% of a year's use. Otherwise: insufficient evidence - no estimate.
+MIN_DELIVERED_INTERVALS = 3
+DELIVERED_MARGIN = 0.25
+WEATHER_SHARE_FLOOR = 0.30
+
+
+def delivered_area(reg, fuel):
+    """EIA's weekly residential area for a delivered fuel: the state's own series, else its PADD, else the U.S."""
+    st = reg.get('state')
+    if st in (PROPANE_STATES if fuel == 'propane' else HEATING_OIL_STATES):
+        return {'duoarea': 'S' + st, 'label': st, 'kind': 'state'}
+    padd = reg.get('padd')
+    if padd in _DELIVERED_PADDS[fuel]:
+        return {'duoarea': PADD_AREA[padd], 'label': PADD_NAME[padd] + ' (PADD ' + padd + ')', 'kind': 'padd'}
+    return {'duoarea': 'NUS', 'label': 'the U.S.', 'kind': 'national'}
+
+
+def _days_in(month):
+    import calendar
+    y, m = (int(x) for x in month.split('-'))
+    return calendar.monthrange(y, m)[1]
+
+
+def delivered_intervals(deliveries, weekly, hdds):
+    """Intervals between consecutive deliveries, gallons from the LATER delivery's dollars at that week's EIA price.
+
+    A delivery with no EIA price within two weeks (a summer fill) is not converted - it still marks the start of the
+    next interval. An interval whose days fall in a month without degree days is not usable. Returns (intervals,
+    unpriced count)."""
+    import datetime as _dt
+    out, unpriced = [], 0
+    ds = sorted(deliveries, key=lambda x: x['date'])
+    for a, b in zip(ds, ds[1:]):
+        price = _week_price(b['date'], weekly)
+        if price is None:
+            unpriced += 1
+            continue
+        d0, d1 = _dt.date.fromisoformat(a['date']), _dt.date.fromisoformat(b['date'])
+        days = (d1 - d0).days
+        if days <= 0:
+            continue
+        hdd, ok = 0.0, True
+        day = d0 + _dt.timedelta(days=1)
+        while day <= d1:
+            m = day.strftime('%Y-%m')
+            if hdds.get(m) is None:
+                ok = False
+                break
+            hdd += hdds[m] / _days_in(m)
+            day += _dt.timedelta(days=1)
+        if ok:
+            out.append({'from': a['date'], 'to': b['date'], 'days': days, 'hdd': hdd,
+                        'gallons': b['amount'] / price, 'price': price})
+    return out, unpriced
+
+
+def _fit_bk(iv):
+    sdd = sum(x['days'] ** 2 for x in iv); shh = sum(x['hdd'] ** 2 for x in iv); sdh = sum(x['days'] * x['hdd'] for x in iv)
+    sdg = sum(x['days'] * x['gallons'] for x in iv); shg = sum(x['hdd'] * x['gallons'] for x in iv)
+    det = sdd * shh - sdh * sdh
+    if abs(det) < 1e-9:
+        return None
+    return (sdg * shh - shg * sdh) / det, (sdd * shg - sdh * sdg) / det
+
+
+def _rate(iv):
+    return sum(x['gallons'] for x in iv) / max(1, sum(x['days'] for x in iv))
+
+
+def _loo(iv, weather):
+    errs = []
+    for i, x in enumerate(iv):
+        rest = iv[:i] + iv[i + 1:]
+        if weather:
+            f = _fit_bk(rest)
+            if not f:
+                return None
+            pred = f[0] * x['days'] + f[1] * x['hdd']
+        else:
+            pred = _rate(rest) * x['days']
+        errs.append(abs(pred - x['gallons']) / max(1.0, x['gallons']))
+    return sum(errs) / len(errs)
+
+
+def choose_delivered(intervals, year_hdd):
+    """The F2 rule. {'method': 'weather', 'base', 'k', 'n', 'held_out_error', 'weather_share'} or
+    {'method': 'none', 'reason', 'n', ...}: never a forced fit."""
+    n = len(intervals)
+    if n < MIN_DELIVERED_INTERVALS:
+        return {'method': 'none', 'reason': 'too_few', 'n': n}
+    f = _fit_bk(intervals)
+    lw, ln = _loo(intervals, True), _loo(intervals, False)
+    if not f or lw is None:
+        return {'method': 'none', 'reason': 'no_fit', 'n': n}
+    b, k = f
+    heat = k * year_hdd
+    total = heat + b * 365
+    share = heat / total if total > 0 else 0.0
+    if k <= 0:
+        return {'method': 'none', 'reason': 'no_heating_slope', 'n': n}
+    if not lw < ln * (1 - DELIVERED_MARGIN):
+        return {'method': 'none', 'reason': 'no_better_than_average', 'n': n,
+                'held_out_error': round(lw, 3), 'average_error': round(ln, 3)}
+    if share < WEATHER_SHARE_FLOOR:
+        return {'method': 'none', 'reason': 'weather_share_too_small', 'n': n, 'weather_share': round(share, 3)}
+    return {'method': 'weather', 'base': round(b, 4), 'k': round(k, 5), 'n': n, 'held_out_error': round(lw, 3),
+            'average_error': round(ln, 3), 'weather_share': round(share, 3)}
+
+
+def estimate_delivered(choice, month, hdd_month, weekly, today):
+    """This month's use at EIA's latest residential price - only while that price is current (F3: within two weeks).
+
+    With no price from the last two weeks there is no estimate: the latest price is reported with its week, marked
+    'last' when it is from before this heating season (which starts 1 October), never as this month's, never a zero."""
+    import datetime as _dt
+    latest = max(weekly) if weekly else None
+    start = _dt.date(today.year if today.month >= 10 else today.year - 1, 10, 1)
+    last = ({'week': latest, 'price': weekly[latest], 'season': 'last' if latest < start.isoformat() else 'this'}
+            if latest else None)
+    current = latest is not None and (today - _dt.date.fromisoformat(latest)).days <= PRICE_MATCH_DAYS
+    if choice.get('method') != 'weather':
+        return {'method': 'none', 'reason': choice.get('reason'), 'last_price': last, 'current': current}
+    if not current:
+        return {'method': 'none', 'reason': 'out_of_season', 'last_price': last, 'current': False}
+    if hdd_month is None:
+        return {'method': 'none', 'reason': 'no_degree_days', 'last_price': last, 'current': True}
+    gallons = choice['base'] * _days_in(month) + choice['k'] * hdd_month
+    return {'method': 'weather', 'month': month, 'gallons': round(gallons, 1), 'price': last['price'],
+            'week': latest, 'amount': round(gallons * last['price'], 2), 'hdd': hdd_month, 'current': True}

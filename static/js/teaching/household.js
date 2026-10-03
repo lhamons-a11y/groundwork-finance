@@ -138,6 +138,8 @@
         if (v === 'electric') return 'Electric heat: heating is part of your electricity bill.';
         if (v === 'included') return 'Your rent includes heat, so there is no heating estimate.';
         if (v === 'not_sure') return 'Heating fuel not sure: no natural gas estimate until you know.';
+        if (v === 'propane' || v === 'heating_oil') return fuel.charAt(0).toUpperCase() + fuel.slice(1) + ' heats your home: your '
+          + 'Budget page can estimate it from your deliveries, at EIA\'s weekly residential price (published October to March).';
         return 'Your heating line is ' + fuel + '. Groundwork does not price ' + fuel + ' yet, so there is no estimate for it.';
       case 'heating_payment':
         return (v === 'even_monthly' || v === 'prepaid')

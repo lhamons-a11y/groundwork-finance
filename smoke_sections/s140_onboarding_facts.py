@@ -147,8 +147,9 @@ def run(ctx):
             return {kind: server.utility_applies(s, kind) for kind in ('gas', 'electric', 'gasoline')}
 
     a = say(heating_fuel='propane', home_state='OH')
-    check('s140 step 7 propane: no natural gas estimate, and it says propane is not priced yet',
-          a['gas']['applies'] is False and 'propane' in a['gas']['why'] and 'does not price' in a['gas']['why'])
+    # Propane was "not priced yet" until item 34 F2-F4 (2026-10-03); it has its own estimate now, from deliveries.
+    check('s140 step 7 propane: no natural gas estimate, and it points to propane\'s own estimate',
+          a['gas']['applies'] is False and 'propane' in a['gas']['why'] and 'own estimate' in a['gas']['why'])
     a = say(housing_status='rent', electricity_included='yes', heating_fuel='included')
     check('s140 step 7 rent includes electricity and heat: neither estimate applies, each says why',
           not a['electric']['applies'] and 'includes electricity' in a['electric']['why']

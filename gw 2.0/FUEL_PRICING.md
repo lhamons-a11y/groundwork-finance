@@ -208,5 +208,69 @@ their January error went from 2–3% (no weather) to a median of 8–9%, 15–19
 
 ## 8. Status
 
-F1 ACCEPTED. The F2 simulation is done (s7): the method works where the weather drives use, and the null case needs
-the 30% floor. F2–F4 await their build authorisation.
+F1 ACCEPTED. F2–F4 BUILT (s9), awaiting acceptance.
+
+## 9. F2–F4, propane and heating oil: authorised and built (Rob, 2026-10-03: *"Yes I authorize the propane and heating oil build"*)
+
+**What was built (2.0 only, master):**
+- **Price.** EIA's weekly *residential* price, `petroleum/pri/wfr`, product EPLLPA (propane) or EPD2F (No. 2 heating
+  oil), **filtered to `process = PRS`**. The same series also carries wholesale (PWR) rows, which are not what a
+  household pays. The area is the state's own series where EIA publishes one (propane 38 states, heating oil 22),
+  else the PADD region where published, else the U.S. Cached three days; fetched only by `delivered_estimate`, behind
+  the Budget page's route.
+- **Gallons.** Each delivery's dollars ÷ that week's price (within two weeks). A delivery with no price is not
+  converted. It still starts the next interval, and the card counts it. An interval runs between consecutive
+  deliveries; the gallons at the later fill are what was used since the earlier one. Degree days are EIA STEO's
+  monthly division HDD, spread evenly over each month's days.
+- **F2, the guard, exactly as s7 supports.** The fit is attempted from 3 priced intervals. It is accepted only if all
+  three hold:
+  - its leave-one-out error is under 0.75 × that of one steady daily rate;
+  - k > 0;
+  - the weather is at least 30% of a year's use (k × the past 12 months' HDD over the year's total).
+
+  Otherwise there is no estimate, and the card says which test failed (too few / no fit / no heating slope / no
+  better than one rate / weather share too small), with the figures.
+- **F3, by evidence.** The estimate is this month's use (b × days + k × EIA's HDD outlook) × EIA's latest price. That
+  price must be under two weeks old; otherwise there is no figure, and never a zero. The latest price is shown with
+  its week, and as *last season's* when it predates 1 October.
+- **F4.**
+  - Even-monthly and prepaid payments get no fit, and the card says why.
+  - A home heated by another fuel gets no propane or oil estimate, and the card says why.
+  - An unanswered heating fuel reads the deliveries as heating, says so, and asks.
+  - The natural gas card no longer says propane or oil is "not priced yet"; it points to their own estimate.
+- **Totals.** The kinds `propane` and `heating_oil` join the totals contract. Following one sets that month's row from
+  the estimate, writes nothing, and logs no `budget_adjusted`. Out of season, the saved amount is used and the note
+  says why.
+- **Words.** The card states the stated limit: *each delivery is assumed to refill what was used since the one
+  before; a fixed-amount or partial fill breaks that.* The report statement is EIA's residential price, credited to
+  the estimate.
+
+**Found while building, and fixed or recorded:**
+1. **F3's premise is not strictly true.** Measured live: Ohio's residential propane series has one summer week a month
+   in 2024 (April–September) and in April–May 2025. So the calendar is not the rule; the price evidence is (F3
+   restated: *"current-season estimation stays blocked while the current price evidence does not exist"*). A price
+   under two weeks old is current in any month, and one older is not. A March 30 price is current on April 2 and not
+   on April 20. A summer delivery in a week EIA *did* price is converted, because it has a real price that week.
+   **This is a reading of F3 for Rob to confirm at acceptance.**
+2. **A race, found in the browser.** The Budget page loads its estimate cards at once. On a cold cache, propane and
+   heating oil both fetched the same STEO degree-day series, and the second insert of its cache key failed. That
+   left the request's session failed, and the card returned a 500. Every EIA fetch (STEO, weekly gasoline/diesel,
+   weekly residential) now caches through one write, `_cache_rows`. On a lost race that write rolls back and still
+   returns the rows. This was latent for gas and electricity too.
+
+**Tests:**
+- s143 (32 checks): the area and the PRS filter; intervals and unpriced deliveries; F2 on constructed data (a heating
+  home recovered; too few; weather-free declined; the 30% floor); in season; F3 out of season and by evidence; the
+  route; the totals followed and never written; the household's answers; the race; the words in Node.
+- s136 (the degree-day fetch now also has `delivered_estimate` as a caller) and s140 step 7 (propane points to its
+  own estimate) were updated: both asserted what F2–F4 supersede.
+- `heating_fuel`'s consumer entry names the new effect.
+
+**Live (2026-10-03, temp DB):**
+- Ohio propane SOH $2.695 (week of 30 March 2026); Ohio heating oil SOH $4.726.
+- Texas propane STX $2.989; Texas heating oil NUS $5.535 (no Texas or Gulf Coast series).
+- With constructed deliveries, the card showed the accepted fit (held out 11% against 28% for one rate; weather 48%
+  of the year). It reported 17 unpriced deliveries and *"$2.35/gal for the week of Mar 30, 2026, is last season's
+  price, so there is no estimate for this month"*, with no figure and no zero.
+
+**Gate:** 2301 / 0.

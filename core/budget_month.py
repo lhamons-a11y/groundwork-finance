@@ -26,7 +26,7 @@ def pick_estimate(est_out, kind, this_month):
         return None, 'the estimate could not be worked out'
     if est_out.get('not_applicable'):
         return None, est_out['not_applicable']
-    if kind == 'gasoline':                                  # fill-ups are paid when bought: a typical month, today's price
+    if kind in ('gasoline', 'propane', 'heating_oil'):     # paid when bought or delivered: one figure, today's price
         e = est_out.get('estimate')
         return (e, None) if e and e.get('method') not in (None, 'none') else (None, _needs(est_out, e))
     want = bill_month(this_month, est_out.get('lag', 1))

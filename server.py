@@ -2307,7 +2307,19 @@ def dashboard_tile_net_worth():
 STEO_URL = ('https://api.eia.gov/v2/steo/data/?api_key={key}&frequency=monthly&data[0]=value'
             '&facets[seriesId][]={series}&start={start}&sort[0][column]=period&sort[0][direction]=asc&length=120')
 STEO_FRESH_DAYS = 7
-UTILITY_KINDS = ('gas', 'electric', 'gasoline')
+UTILITY_KINDS = ('gas', 'electric', 'gasoline', 'propane', 'heating_oil')
+
+
+def _cache_rows(session, key, rows):
+    """Cache freshly fetched EIA rows. The Budget page loads its estimate cards at once, and two of them can fetch the
+    same series (degree days) on a cold cache: the second insert of the key fails. The rows are still good - this
+    request returns them - and its session is rolled back, never left failed for the next query."""
+    try:
+        _dashboard_store(session, key, {'fetched_at': datetime.utcnow().isoformat(), 'rows': rows})
+        session.commit()
+    except Exception as e:                       # noqa: BLE001 - another request cached the same rows first
+        session.rollback()
+        logging.info('eia cache write skipped (%s): %s', key, e)
 
 
 def _steo(session, series, fetch=True):
@@ -2336,8 +2348,7 @@ def _steo(session, series, fetch=True):
         rows = {x['period']: float(x['value']) for x in ((data.get('response') or {}).get('data') or [])
                 if x.get('period') and x.get('value') not in (None, '')}
         if rows:
-            _dashboard_store(session, key, {'fetched_at': datetime.utcnow().isoformat(), 'rows': rows})
-            session.commit()
+            _cache_rows(session, key, rows)
             return rows
     except Exception as e:
         logging.info('steo fetch failed (%s): %s', series, e)
@@ -2473,8 +2484,7 @@ def _eia_weekly_gas(session, area, fetch=True, product='EPMR'):
         rows = {x['period']: float(x['value']) for x in ((data.get('response') or {}).get('data') or [])
                 if x.get('period') and x.get('value') not in (None, '')}
         if rows:
-            _dashboard_store(session, key, {'fetched_at': datetime.utcnow().isoformat(), 'rows': rows})
-            session.commit()
+            _cache_rows(session, key, rows)
             return rows
     except Exception as e:
         logging.info('eia weekly gasoline fetch failed (%s): %s', area, e)
@@ -2510,6 +2520,102 @@ def gasoline_estimate(session, fetch=True, today=None):
             'needs': est.get('needs') if est.get('method') == 'none' else None}
 
 
+EIA_WEEKLY_RES_URL = ('https://api.eia.gov/v2/petroleum/pri/wfr/data/?api_key={key}&frequency=weekly&data[0]=value'
+                      '&facets[product][]={product}&facets[duoarea][]={area}&facets[process][]=PRS'
+                      '&sort[0][column]=period&sort[0][direction]=desc&length=130')
+
+
+def _eia_weekly_heating(session, area, product, fetch=True):
+    """EIA's weekly RESIDENTIAL heating-fuel price for an area, {week: $/gal}, cached three days (item 34 F2-F4).
+
+    product: EPLLPA propane, EPD2F heating oil. Only process PRS (residential): the same EIA series also carries
+    wholesale (PWR) prices, which are not what a household pays. EIA collects these October to March only."""
+    key = f'eia_weekly_res_{product}_{area}'
+    cached = _dashboard_json(session, key, None)
+    if cached and cached.get('rows'):
+        try:
+            age = datetime.utcnow() - datetime.fromisoformat(cached['fetched_at'])
+        except (KeyError, ValueError, TypeError):
+            age = timedelta(days=999)
+        if age < timedelta(days=WEEKLY_FRESH_DAYS) or not fetch:
+            return cached['rows']
+    if not fetch:
+        return {}
+    api_key = _get_eia_api_key()
+    if not api_key:
+        return (cached or {}).get('rows', {})
+    try:
+        import urllib.request
+        import urllib.parse
+        url = EIA_WEEKLY_RES_URL.format(key=urllib.parse.quote(api_key), area=urllib.parse.quote(area), product=product)
+        with urllib.request.urlopen(url, timeout=30) as r:
+            data = json.loads(r.read().decode('utf-8'))
+        rows = {x['period']: float(x['value']) for x in ((data.get('response') or {}).get('data') or [])
+                if x.get('period') and x.get('value') not in (None, '') and x.get('process') in (None, 'PRS')}
+        if rows:
+            _cache_rows(session, key, rows)
+            return rows
+    except Exception as e:
+        logging.info('eia weekly heating fetch failed (%s %s): %s', product, area, e)
+    return (cached or {}).get('rows', {})
+
+
+_DELIVERED_CATEGORY = {'propane': 'propane', 'heating_oil': 'heating oil'}
+_DELIVERED_NEEDS = {
+    'too_few': 'three deliveries priced in EIA\'s heating season (October to March), each after another delivery',
+    'no_fit': 'deliveries spread across different weather',
+    'no_heating_slope': 'deliveries that rise with the cold',
+    'no_better_than_average': 'deliveries that follow the weather more closely than one steady daily rate',
+    'weather_share_too_small': 'deliveries in which the weather explains at least 30% of a year\'s use',
+    'out_of_season': 'a current EIA price (under two weeks old); EIA publishes them weekly in the heating season, '
+                     'October to March',
+    'no_degree_days': 'EIA\'s degree days for your region',
+}
+
+
+def delivered_estimate(session, fuel, fetch=True, today=None):
+    """Item 34 F2-F4: a propane or heating oil estimate from the user's own deliveries (FUEL_PRICING.md s7).
+
+    Each delivery's dollars become gallons at EIA's weekly residential price for that week; the gallons delivered at
+    one fill are what was used since the fill before. The weather fit is used only if it passes the F2 guard (three
+    priced intervals, beats one daily rate by 25% held out, rises with the cold, weather >= 30% of a year's use);
+    otherwise there is no estimate, and the card says which test it did not pass. Out of season (F3) there is no
+    current figure: last season's price is shown as last season's, never as this month's, and never a zero.
+    """
+    from core import utility_estimate as ue
+    today = today or date.today()
+    prefs = _dashboard_json(session, 'utility_estimates', {})
+    optin = bool((prefs.get(fuel) or {}).get('on'))
+    row = _get_setting(session, 'home_state')
+    reg = ue.region(row.value if row and row.value else '')
+    area = ue.delivered_area(reg, fuel)
+    cat = _DELIVERED_CATEGORY[fuel]
+    weekly = _eia_weekly_heating(session, area['duoarea'], ue.DELIVERED_PRODUCT[fuel], fetch)
+    hdds = _steo(session, ue.steo_series('hdd', reg), fetch)
+    deliveries = [{'date': d.isoformat(), 'amount': float(a)} for d, a in session.query(Transaction.date, Transaction.amount).join(
+        Category, Transaction.category_id == Category.id).filter(
+        func.lower(Category.name) == cat, Transaction.type == 'debit').order_by(Transaction.date).all() if d and a]
+    item = session.query(BudgetItem).filter(func.lower(BudgetItem.category) == cat, BudgetItem.is_active == True).first()  # noqa: E712
+    this_month = today.strftime('%Y-%m')
+    out = {'kind': fuel, 'fuel': fuel, 'region': reg, 'area': area, 'optin': optin, 'lag': 0,
+           'saved_amount': round(float(item.amount), 2) if item and item.amount is not None else None,
+           'bills': len(deliveries), 'has_eia': bool(weekly and hdds)}
+    if not weekly or not hdds:
+        return {**out, 'estimate': None,
+                'needs': 'EIA\'s residential prices and degree days for your region could not be loaded; they are '
+                         'fetched from this page when online.'}
+    year = [_month_add(this_month, -i) for i in range(1, 13)]
+    year_hdd = sum(hdds[m] for m in year) if all(hdds.get(m) is not None for m in year) else None
+    intervals, unpriced = ue.delivered_intervals(deliveries, weekly, hdds)
+    choice = (ue.choose_delivered(intervals, year_hdd) if year_hdd is not None
+              else {'method': 'none', 'reason': 'no_degree_days', 'n': len(intervals)})
+    est = ue.estimate_delivered(choice, this_month, hdds.get(this_month), weekly, today)
+    if est.get('method') == 'none':
+        est['needs'] = _DELIVERED_NEEDS.get(est.get('reason'), 'more deliveries')
+    return {**out, 'choice': choice, 'estimate': est, 'intervals': len(intervals), 'unpriced': unpriced,
+            'year_hdd': year_hdd, 'needs': est.get('needs')}
+
+
 _HEAT_WORDS = {'propane': 'propane', 'heating_oil': 'heating oil', 'wood_pellets': 'wood or pellets', 'other': 'another fuel'}
 
 
@@ -2527,6 +2633,10 @@ def utility_applies(session, kind):
     ask = [] if f['home_state'] else ['home_state']
     if kind == 'gas':
         fuel, pay = f['heating_fuel'], f['heating_payment']
+        if fuel in ('propane', 'heating_oil'):          # item 34: priced on its own card, from its own deliveries
+            w = _HEAT_WORDS[fuel]
+            return {'applies': False, 'why': f'You told us {w} heats your home, so there is no natural gas estimate; '
+                                             f'{w} has its own estimate, from your deliveries.'}
         if fuel in _HEAT_WORDS:
             w = _HEAT_WORDS[fuel]
             return {'applies': False, 'why': f'You told us {w} heats your home. Groundwork does not price {w} yet, '
@@ -2546,6 +2656,23 @@ def utility_applies(session, kind):
         if fuel is None:
             return {'applies': True, 'ask': ask + ['heating_fuel'],
                     'assumes': 'Reading the bills in your Gas category as natural gas. Tell us what heats your home to be sure.'}
+        return {'applies': True, 'ask': ask + ([] if pay else ['heating_payment'])}
+    if kind in ('propane', 'heating_oil'):           # item 34 F2-F4: delivered heating fuel
+        fuel, pay, w = f['heating_fuel'], f['heating_payment'], _HEAT_WORDS[kind]
+        if fuel is not None and fuel != kind:
+            other = _HEAT_WORDS.get(fuel) or {'natural_gas': 'natural gas', 'electric': 'electricity',
+                                              'included': 'heat included in your rent', 'not_sure': None}.get(fuel)
+            told = f'You told us {other} heats your home' if other else 'You told us you are not sure what heats your home'
+            return {'applies': False, 'why': f'{told}. Groundwork estimates {w} only as the fuel that heats your home, '
+                                             f'so there is no {w} estimate.', 'ask': []}
+        if pay in ('even_monthly', 'prepaid'):
+            how = 'the same amount every month' if pay == 'even_monthly' else 'a prepaid contract'
+            return {'applies': False, 'why': f'You told us you pay for heating with {how}. Those payments do not follow '
+                                             f'the weather, so they cannot show how much {w} you use - there is no estimate.'}
+        if fuel is None:
+            return {'applies': True, 'ask': ask + ['heating_fuel'],
+                    'assumes': f'Reading your {w.capitalize()} deliveries as the fuel that heats your home. Tell us what '
+                               f'heats your home to be sure.'}
         return {'applies': True, 'ask': ask + ([] if pay else ['heating_payment'])}
     if kind == 'electric':
         if f['housing_status'] == 'rent' and f['electricity_included'] == 'yes':
@@ -2571,8 +2698,10 @@ def utility_applies(session, kind):
     return {'applies': True, 'ask': ask}
 
 
-_UTILITY_CATEGORY = {'gas': 'gas', 'electric': 'electric', 'gasoline': 'gas / fuel'}
-_KIND_WORDS = {'gas': 'the natural gas estimate', 'electric': 'the electricity estimate', 'gasoline': 'the gasoline estimate'}
+_UTILITY_CATEGORY = {'gas': 'gas', 'electric': 'electric', 'gasoline': 'gas / fuel', 'propane': 'propane',
+                     'heating_oil': 'heating oil'}
+_KIND_WORDS = {'gas': 'the natural gas estimate', 'electric': 'the electricity estimate', 'gasoline': 'the gasoline estimate',
+               'propane': 'the propane estimate', 'heating_oil': 'the heating oil estimate'}
 
 
 def _estimate_for(session, kind, fetch):
@@ -2584,6 +2713,8 @@ def _estimate_for(session, kind, fetch):
         return gas_estimate(session, fetch=fetch)
     if kind == 'electric':
         return electric_estimate(session, fetch=fetch)
+    if kind in _DELIVERED_CATEGORY:
+        return delivered_estimate(session, kind, fetch=fetch)
     return gasoline_estimate(session, fetch=fetch)
 
 
@@ -2616,7 +2747,8 @@ def budget_month_amounts(session, fetch=False, today=None):
                                       else None),
                         'month_from': words if followed and src == 'estimate' else None,
                         # the service month of the bill paid this month (gas/electric); none for fill-ups
-                        'month_for': (est or {}).get('month') if followed and src == 'estimate' and kind != 'gasoline' else None}
+                        'month_for': ((est or {}).get('month') if followed and src == 'estimate'
+                                      and kind in ('gas', 'electric') else None)}
     return out
 
 
@@ -2643,8 +2775,7 @@ def budget_utility_estimate(kind):
             return ok({'kind': kind, 'optin': False, 'estimate': None, 'not_applicable': app['why'],
                        'bills': n, 'saved_amount': round(float(item.amount), 2) if item and item.amount is not None else None,
                        'ask': app.get('ask', [])})
-        out = (gas_estimate(session) if kind == 'gas' else electric_estimate(session) if kind == 'electric'
-               else gasoline_estimate(session))
+        out = _estimate_for(session, kind, True)
         out.update(ask=app.get('ask', []), assumes=app.get('assumes'))
         rows = [v for v in budget_month_amounts(session).values() if v['kind'] == kind]
         out['budget_uses'] = {'in_totals': bool(rows) and all(v['month_source'] == 'estimate' for v in rows),

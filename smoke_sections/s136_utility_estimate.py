@@ -166,7 +166,7 @@ def run(ctx):
     callers = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
                and any(isinstance(c, ast.Call) and getattr(c.func, 'id', None) == '_steo' for c in ast.walk(n))}
     check('s136 I1 the outlook is fetched only by the utility estimates (behind the Budget page\'s route)',
-          callers == {'gas_estimate', 'electric_estimate'})
+          callers == {'gas_estimate', 'electric_estimate', 'delivered_estimate'})   # item 34: degree days for deliveries
     dash = ''.join(ctx.BASE.joinpath('static/js/teaching', f).read_text(encoding='utf-8')
                    for f in ('dashboard.js', 'tiles.js', 'asktile.js', 'attention.js'))
     check('s136 I1 nothing on the dashboard calls the estimate', 'utility-estimate' not in dash)
