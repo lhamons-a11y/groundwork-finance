@@ -82,6 +82,36 @@ is never written. *Recommended.*
 
 Each is its own build authorisation. *Recommended.*
 
-## 3. Status
+## 3. Ruling (Rob, 2026-10-03)
 
-OPEN: seven points for ruling (F1–F7). No code until ruled.
+**F1–F7 ruled as written.** EIA's own pages agree with the measurement: on-highway diesel is weekly for the U.S., the
+PADD regions and California, and residential heating oil and propane are collected October to March only.
+
+**The build-level guard on F2** (it defines what *"tested against random data first"* must prove, without changing the
+ruling):
+- **Three priced deliveries is the minimum to attempt the model, not a guarantee that it is accepted.**
+- The pre-release tests must show, on constructed data where the underlying consumption relationship is known, that
+  the weather model beats the appropriate non-weather (null) model.
+- If it cannot, Groundwork returns *insufficient evidence* rather than forcing the fit, and stays unknown.
+
+In Rob's words: *having enough rows to calculate something is not the same as having enough evidence to justify
+saying it.*
+
+**F3, restated:**
+- never substitute zero;
+- never pretend a summer delivery has an EIA price that week;
+- last season's price is shown only as last season's;
+- current-season estimation stays blocked while the current price evidence does not exist.
+
+**F4:** no consumption fit where the payments do not represent the consumption, unless a future pass finds a real
+consumption signal.
+
+**F5:** the existing totals path, with no second budgeting mechanism.
+
+**F6:** no 1.x implementation.
+
+**F7:** diesel, then its acceptance, then the delivered-fuel pass, then its own acceptance.
+
+## 4. Status
+
+RULED 2026-10-03. No code until a build is authorised. F1 (diesel) is first.
