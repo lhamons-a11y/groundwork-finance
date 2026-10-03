@@ -112,6 +112,35 @@ consumption signal.
 
 **F7:** diesel, then its acceptance, then the delivered-fuel pass, then its own acceptance.
 
-## 4. Status
+## 4. F1, diesel: authorised and built (Rob, 2026-10-03: *"Yes I authorize the diesel build"*)
 
-RULED 2026-10-03. No code until a build is authorised. F1 (diesel) is first.
+- **`core/utility_estimate.py`:**
+  - `diesel_area()`: California's own series (`SCA`), else the PADD region, else the U.S.;
+  - `EIA_PRODUCT`: gasoline `EPMR`, diesel `EPD2D`.
+- **`server.py`:**
+  - `_eia_weekly_gas()` takes the product, and its cache keeps diesel apart from gasoline;
+  - `gasoline_estimate()` prices diesel when the household said `vehicle_fuel = diesel`, and returns `fuel`. It keeps
+    its id, so the opt-in and the budget totals (`budget_month_amounts`, whose words say *"the diesel estimate"*) carry
+    over unchanged;
+  - `utility_applies()` no longer says diesel is *"not priced yet"*.
+- **The words:**
+  - the card reads *"Using EIA's weekly diesel price for the Midwest (PADD 2) (EIA publishes no weekly series for
+    OH)"*;
+  - its title is *Diesel estimate*;
+  - the report statement is EIA's diesel price, credited, and never says *gasoline*;
+  - the onboarding summary says diesel is estimated from fill-ups.
+- **The registry** (`core/household.py`): `vehicle_fuel`'s consumers include `gasoline_estimate` for diesel.
+- **Tests:**
+  - **s142** (12 checks): the areas, gasoline unchanged, a diesel household priced from R20/EPD2D, unanswered fuel
+    still gasoline, the fetch still behind the Budget page only, the cache split, the words in Node, the title;
+  - s140's vehicle check and s138's stand-in were updated for the extended signature.
+- **Live EIA, through Groundwork's own fetch:** Midwest diesel **$6.526/gal**, California $8.181, U.S. $6.382 (week of
+  28 September 2026). Ohio gasoline is unchanged at $4.263.
+- **In the browser** (seeded, live): a diesel household's card read *"... about 26.2 gallons in a typical month ... At
+  EIA's latest weekly price, $6.53/gal (week of Sep 28), that is about $148.59 a month. The same gallons a year
+  earlier, at $3.25/gal, came to about $84.95: +$63.64, all from price."* No console errors.
+- **Gate:** master **2269 / 0** (`87873c1`). 2.0 only (F6).
+
+## 5. Status
+
+F1 BUILT; awaiting Rob's acceptance. F2–F4 (propane and heating oil) are next, each its own authorisation (F7).
