@@ -5600,6 +5600,25 @@ def delete_inv_transaction(txn_id):
         return ok({'deleted': txn_id})
 
 
+def _expense_ratio_for(ticker, pct_map, legacy_map, defaults_pct):
+    """(fraction, source, unconfirmed): a holding's annual expense ratio as a FRACTION of its value (0.0003 = 0.03%).
+
+    source 'yours' (entered in percent), 'default' (the published figure), or None. A value saved before the unit was
+    stated came from a prompt that asked for a percent but stored an entry <= 1 as typed and divided a larger one by
+    100. So a saved v <= 0.01 or v > 0.03 can only have been typed as a percent; a v in (0.01, 0.03] could be either
+    (0.02% typed, or 2% divided). That one is not guessed: no figure, and `unconfirmed` carries it so the page asks.
+    """
+    if ticker in pct_map:
+        return float(pct_map[ticker]) / 100, 'yours', None
+    if ticker in legacy_map:
+        v = float(legacy_map[ticker])
+        if v <= 0.01 or v > 0.03:
+            return v / 100, 'yours', None
+        return None, None, v
+    d = defaults_pct.get(ticker)
+    return (d / 100, 'default', None) if d is not None else (None, None, None)
+
+
 def _compute_portfolio_positions(session, account_id=None, skip_refresh=False):
     """
     Shared by GET /api/investments/positions and
@@ -5730,9 +5749,11 @@ def _compute_portfolio_positions(session, account_id=None, skip_refresh=False):
 
     # Inject user-defined asset_class and expense_ratio from app_settings
     ac_setting = _get_setting(session, 'inv_asset_classes_json')
-    er_setting = _get_setting(session, 'inv_expense_ratios_json')
+    er_setting = _get_setting(session, 'inv_expense_ratios_json')        # saved before the unit was stated
+    pct_setting = _get_setting(session, 'inv_expense_ratios_pct_json')   # the user's entries, in percent
     asset_classes   = json.loads(ac_setting.value)  if ac_setting  else {}
     expense_ratios  = json.loads(er_setting.value)  if er_setting  else {}
+    expense_pct     = json.loads(pct_setting.value) if pct_setting else {}
 
     # Smart defaults for common tickers
     _ASSET_CLASS_DEFAULTS = {
@@ -5746,7 +5767,8 @@ def _compute_portfolio_positions(session, account_id=None, skip_refresh=False):
         'VNQ':'real_estate','VNQI':'real_estate','REZ':'real_estate',
         'SCHH':'real_estate','IYR':'real_estate',
     }
-    _EXPENSE_RATIO_DEFAULTS = {
+    # Published expense ratios in PERCENT (VOO 0.03 = 0.03% a year); handed to the page as a fraction (/ 100).
+    _EXPENSE_RATIO_PCT_DEFAULTS = {
         'VOO':0.03,'VTI':0.03,'VUG':0.04,'VTV':0.04,'VXUS':0.07,
         'BND':0.03,'VNQ':0.13,'VWO':0.08,'EFA':0.07,'EEM':0.68,
         'SCHB':0.03,'SCHA':0.04,'SCHG':0.04,'SCHD':0.06,
@@ -5756,7 +5778,8 @@ def _compute_portfolio_positions(session, account_id=None, skip_refresh=False):
     for p in result:
         t = p['ticker']
         p['asset_class']    = asset_classes.get(t) or _ASSET_CLASS_DEFAULTS.get(t) or None
-        p['expense_ratio']  = expense_ratios.get(t) if t in expense_ratios else _EXPENSE_RATIO_DEFAULTS.get(t)
+        p['expense_ratio'], p['expense_ratio_source'], p['expense_ratio_unconfirmed'] = _expense_ratio_for(
+            t, expense_pct, expense_ratios, _EXPENSE_RATIO_PCT_DEFAULTS)
 
     # Portfolio totals (item 35 V1): the value of what is priced, the gain on lots with a cost basis, and - named -
     # what each leaves out. One summary for the Investments page, Net Worth, the snapshots, the drift log and the
@@ -6076,24 +6099,41 @@ def manage_asset_classes():
 
 @investments_bp.route('/expense-ratios', methods=['GET', 'PATCH'])
 def manage_expense_ratios():
-    """Get or update the ticker → expense_ratio mapping stored in app_settings."""
+    """Get or update the user's expense ratios, in PERCENT ({'unit': 'percent', 'ratios': {ticker: 0.03}}).
+
+    A body without `unit: percent` is refused: the old shape could not say which unit it meant, which is how a 0.03%
+    fund came to be stored as 3%. Saving a ticker in percent retires its old, unit-less entry.
+    """
     with db_session() as session:
+        pct_row = _get_setting(session, 'inv_expense_ratios_pct_json')
+        legacy_row = _get_setting(session, 'inv_expense_ratios_json')
+        pct = json.loads(pct_row.value) if pct_row else {}
+        legacy = json.loads(legacy_row.value) if legacy_row else {}
         if request.method == 'GET':
-            s = _get_setting(session, 'inv_expense_ratios_json')
-            return ok(json.loads(s.value) if s else {})
+            return ok({'unit': 'percent', 'ratios': pct,
+                       'unconfirmed': {t: v for t, v in legacy.items() if t not in pct and 0.01 < float(v) <= 0.03}})
 
         body = request.get_json(silent=True) or {}
-        existing = _get_setting(session, 'inv_expense_ratios_json')
-        current  = json.loads(existing.value) if existing else {}
-        current.update({k.upper(): float(v) for k, v in body.items() if v is not None})
-        payload = json.dumps(current)
-        if existing:
-            existing.value      = payload
-            existing.updated_at = datetime.utcnow()
-        else:
-            session.add(AppSetting(key='inv_expense_ratios_json', value=payload))
+        if body.get('unit') != 'percent' or not isinstance(body.get('ratios'), dict):
+            return err('send {"unit": "percent", "ratios": {ticker: percent}} - e.g. 0.03 for a 0.03% fund')
+        try:
+            update = {str(k).upper(): float(v) for k, v in body['ratios'].items() if v is not None}
+        except (TypeError, ValueError):
+            return err('each expense ratio is a number, in percent')
+        if any(v < 0 or v > 100 for v in update.values()):
+            return err('an expense ratio is a percent between 0 and 100')
+        pct.update(update)
+        for t in update:
+            legacy.pop(t, None)
+        for key, value in (('inv_expense_ratios_pct_json', pct), ('inv_expense_ratios_json', legacy)):
+            row = _get_setting(session, key)
+            if row:
+                row.value      = json.dumps(value)
+                row.updated_at = datetime.utcnow()
+            elif value or key == 'inv_expense_ratios_pct_json':
+                session.add(AppSetting(key=key, value=json.dumps(value)))
         session.commit()
-        return ok(current)
+        return ok({'unit': 'percent', 'ratios': pct})
 
 
 # ── Analytics ─────────────────────────────────────────────────────────────────
