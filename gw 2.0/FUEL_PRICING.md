@@ -145,7 +145,68 @@ consumption signal.
 
 *"Yes I accept the diesel slice"*. F1 is ACCEPTED as built (master `87873c1`).
 
-## 6. Status
+## 7. The F2 guard's simulation (Rob: *"Yes run the simulation"*, 2026-10-03)
 
-F1 ACCEPTED. F2–F4 (propane and heating oil, delivered fuels) are next, and need their own authorisation (F7). Per
-F2's guard, they are measured and simulated first.
+**Measurement only, no product code.** The script is `delivered_fuel_sim.py`. It uses **constructed households where
+the true consumption is known**:
+- **Use:** base plus k × degree days, with day-to-day noise (±30%) and month-to-month behaviour (±20%: occupancy,
+  thermostat, time away).
+- **Each home's weather** differs from its census division's by ±15%. Groundwork sees **only the division's monthly
+  degree days**, as from EIA STEO.
+- **Price:** each home's dealer price differs from EIA's state average by -15% to +20%.
+- **Deliveries:** *will-call* fills (to 80% of the tank when it falls to 25%), plus a late-August top-up. Heating homes
+  have a 500-gallon tank; water-heater and cooking homes have 120 gallons.
+- **Pricing:** only deliveries in October to March have an EIA price, so only those intervals can be converted.
+
+**The models** are chosen as item 26's gas fit is, by leave-one-out error: *weather* (gallons = b × days + k × degree
+days) against *no-weather* (one daily rate). Each is judged on an average January's **true** use. There are three
+household kinds:
+- *heating* (k 0.10–0.20 gal per degree day);
+- *weak* (k 0.02–0.05: supplemental heat);
+- *weather-free* (k = 0: the null case).
+
+**Results: weather must beat no-weather by 25%, with k > 0.**
+
+| priced intervals | heating accepted | error when accepted | no-weather's error | **weather-free falsely accepted** |
+|---|---|---|---|---|
+| 3 | 48% | 8.0% | 40% | 3.9% |
+| 4 | 93% | 7.5% | 43% | 5.9% |
+| 5 | 98% | 7.5% | 42% | 4.6% |
+| 6 | 100% | 7.1% | 41% | 3.9% |
+| 8 | 100% | 6.8% | 41% | 2.1% |
+
+**What it shows:**
+- **Where the weather drives use, the weather model is about 5–6 times more accurate than no weather** (about 7–8%
+  against about 41%).
+- **At three intervals it declines about half the time.** The guard is working: three is the minimum to *attempt*,
+  not a guarantee.
+
+**The null case was not good enough as is.** 4–6% of weather-free homes got a weather model, and those were worse off:
+their January error went from 2–3% (no weather) to a median of 8–9%, 15–19% at the 90th percentile.
+- **A statistical-clarity test** (k at least 3 × its standard error) **barely helped**: 4.8% → 3.8% at four intervals.
+- **A plausibility floor did:** *the weather must explain at least 30% of a year's use.*
+
+| at 4 / 5 / 6 intervals | heating accepted (error) | weather-free falsely accepted | weak accepted |
+|---|---|---|---|
+| no floor | 93.0 / 98.2 / 100% (7.8 / 6.8 / 7.1%) | 5.3 / 4.0 / 3.4% | 79 / 86 / 94% |
+| **floor 30%** | **92.8 / 97.8 / 100%** (8.2 / 7.6 / 7.4%) | **0.1 / 0.0 / 0.0%** | 69 / 76 / 81% |
+| floor 50% | 91.2 / 96.8 / 99.2% | 0.1 / 0 / 0% | 25 / 27 / 29% (too strict) |
+
+**The rule the simulation supports**, for F2's build:
+- attempt the fit from **3** priced intervals (F2's minimum);
+- **accept** it only if its leave-one-out error beats no-weather's by **25%**, **k > 0**, and the **weather explains at
+  least 30% of a year's use**;
+- otherwise: **insufficient evidence**, with no estimate.
+
+**Limits, said plainly:**
+- This is constructed data. Real delivery records can break its central assumption: **each delivery refills the tank
+  to the same level**. A household that orders a fixed amount (*"100 gallons"*) when money is short, or a keep-full
+  plan with partial fills, makes *delivered* differ from *used*. The fit cannot tell, so it would still pass or fail
+  on the evidence alone.
+- The first real delivery histories should be checked against this before the method is trusted further.
+- Even-monthly and prepaid payers are excluded by F4.
+
+## 8. Status
+
+F1 ACCEPTED. The F2 simulation is done (s7): the method works where the weather drives use, and the null case needs
+the 30% floor. F2–F4 await their build authorisation.
