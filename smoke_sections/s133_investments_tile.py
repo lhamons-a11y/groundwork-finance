@@ -95,6 +95,7 @@ def run(ctx):
                             cost_basis_per_share=0.0, purchase_date=date(2025, 3, 5)))
         s.commit()
         before = server.investments_tile(s)
+        page_pos, page = server._compute_portfolio_positions(s, skip_refresh=True)
     with ctx.dbs() as s:
         s.add(InvestmentLot(account_id=acct.id, ticker=d, shares_original=1, shares_remaining=0, cost_basis_per_share=10,
                             purchase_date=date(2024, 1, 5), is_closed=True, closed_date=date.today(),
@@ -129,6 +130,16 @@ def run(ctx):
     check('s133 In10 I5 on the server: the investment account with a balance and no holdings is listed',
           any(x['account'] == f'S133 401k {n}' and x['balance'] == 62400 for x in before['balance_only'])
           and not any(x['account'] == f'S133 Brokerage {n}' for x in before['balance_only']))
+    # Item 35 V1 (INVESTMENT_VALUATION.md): one valuation - the tile reads the summary the Investments page and Net
+    # Worth read, so the two screens can no longer disagree about the same holdings.
+    check('s133 item 35 the tile and the Investments page / Net Worth say the same value, gain and exclusions',
+          before['value'] == page['total_market_value']
+          and (before['unrealized'] or {}).get('gain') == page['total_gain']
+          and sorted(u['ticker'] for u in before['unpriced']) == sorted(u['ticker'] for u in page['unpriced'])
+          and sorted(u['ticker'] for u in before['no_basis']) == sorted(u['ticker'] for u in page['no_basis']))
+    tile_src = ctx.server_src.split('def investments_tile(', 1)[1].split('\ndef ', 1)[0]
+    check('s133 item 35 the tile no longer re-derives the exclusions at lot level',
+          "summary['unpriced']" in tile_src and "for lot in p.get('lots')" not in tile_src)
     r = ctx.c.get('/api/dashboard/investments', headers=ctx.HJ)
     check('s133 the tile\'s endpoint answers', r.status_code == 200 and 'present' in ((r.get_json() or {}).get('data') or {}))
 

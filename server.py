@@ -1867,25 +1867,20 @@ def investments_tile(session, today=None):
     I4  realized gains this calendar year from closed lots; allocation against the user's target only if set
     I5  investment accounts with a balance but no holdings are listed as a fact
 
-    Reuses _compute_portfolio_positions (the arithmetic the Investments page and net worth share) and applies
-    the two exclusions at lot level, rather than a second valuation that could drift from it.
+    Item 35 V1 (INVESTMENT_VALUATION.md): the two exclusions now live in _compute_portfolio_positions itself - the
+    one valuation the Investments page, Net Worth, the snapshots, the drift log and the advisor prompt share - so
+    the tile reads its summary rather than re-deriving them, and no two screens can disagree.
     """
     today = today or date.today()
-    positions, _summary = _compute_portfolio_positions(session, skip_refresh=True)
-    value = gain_value = basis = 0.0
-    unpriced, no_basis, dates, manual, by_class, unclassified = [], [], [], [], {}, {}
+    positions, summary = _compute_portfolio_positions(session, skip_refresh=True)
+    value = summary['total_market_value']
+    unpriced = [{'ticker': u['ticker'], 'shares': round(u['shares'], 6)} for u in summary['unpriced']]
+    no_basis = [{'ticker': u['ticker'], 'shares': round(u['shares'], 6)} for u in summary['no_basis']]
+    by_class, unclassified = {}, {}
     for p in positions:
-        if p.get('price_stale'):
-            unpriced.append({'ticker': p['ticker'], 'shares': round(p['total_shares'], 6)})
-            continue
-        price = float(p['current_price'])
-        row = session.get(PriceCache, p['ticker'])
-        if row and row.last_updated:
-            dates.append(row.last_updated.date().isoformat())
-        if row and row.is_manual:
-            manual.append(p['ticker'])
-        pos_value = float(p['total_shares']) * price
-        value += pos_value
+        if p['market_value'] is None:
+            continue                                   # no price on record: named in `unpriced`, never valued
+        pos_value = float(p['market_value'])
         cls = p.get('asset_class')
         if cls:
             by_class[cls] = by_class.get(cls, 0.0) + pos_value
@@ -1893,16 +1888,6 @@ def investments_tile(session, today=None):
             # No class assigned: its value is real, so it is named with its share rather than silently
             # dropped - dropping it would read as "0% US equity" when VOO is most of the portfolio.
             unclassified[p['ticker']] = unclassified.get(p['ticker'], 0.0) + pos_value
-        missing = 0.0
-        for lot in p.get('lots') or []:
-            shares, cost = float(lot.get('shares') or 0), lot.get('cost_basis')
-            if cost is None or float(cost) <= 0:
-                missing += shares
-                continue
-            basis += shares * float(cost)
-            gain_value += shares * price
-        if missing > 0:
-            no_basis.append({'ticker': p['ticker'], 'shares': round(missing, 6)})
 
     realized = {'total': 0.0, 'short': 0.0, 'long': 0.0, 'unstated': 0, 'lots': 0}
     for lot in session.query(InvestmentLot).filter_by(is_closed=True).all():
@@ -1940,11 +1925,10 @@ def investments_tile(session, today=None):
     return {
         'present': present,
         'value': round(value, 2),
-        'unrealized': ({'gain': round(gain_value - basis, 2),
-                        'pct': round((gain_value - basis) / basis * 100, 2) if basis else None}
-                       if basis > 0 else None),
-        'prices_from': min(dates) if dates else None, 'prices_to': max(dates) if dates else None,
-        'manual_prices': sorted(set(manual)),
+        'unrealized': ({'gain': summary['total_gain'], 'pct': summary['total_gain_pct']}
+                       if summary['total_gain'] is not None else None),
+        'prices_from': summary['prices_from'], 'prices_to': summary['prices_to'],
+        'manual_prices': summary['manual_prices'],
         'unpriced': unpriced, 'no_basis': no_basis,
         'realized_this_year': realized, 'year': today.year,
         'allocation': allocation, 'allocation_unclassified': allocation_unclassified, 'balance_only': balance_only,
