@@ -205,7 +205,7 @@ console.log(JSON.stringify(out));
             print('        node:', r.stderr[:400])
         it, nf, no = o.get('inTotals', {}), o.get('noFig', {}), o.get('notFollowed', {})
         check('s141 M4 followed and used: the card says this month\'s budget uses the estimate, in place of the saved amount',
-              any("This month's budget uses this estimate ($163.20) in place of your saved Gas / Fuel budget of $160.00." == l
+              any("This month's budget uses this estimate, $163.20, in place of your saved Gas / Fuel budget of $160.00." == l
                   for l in it.get('lines', [])))
         check('s141 M6 the report says the budget includes it only when it does',
               "this month's budget includes the estimate built on it" in (it.get('statement') or '')

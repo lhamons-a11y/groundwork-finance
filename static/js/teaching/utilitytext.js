@@ -190,15 +190,17 @@
         ? (u.month_for
             ? "This month's budget uses the estimate for the bill paid this month (for " + f.month(u.month_for) + "'s use), "
               + f.money(u.month_amount) + ', in place of ' + saved.replace(/^Your/, 'your') + '.'
-            : "This month's budget uses this estimate (" + f.money(u.month_amount) + ') in place of ' + saved.replace(/^Your/, 'your') + '.')
+            : "This month's budget uses this estimate, " + f.money(u.month_amount) + ', in place of ' + saved.replace(/^Your/, 'your') + '.')
         : (d.optin && u.why)
           ? "You follow this estimate, but this month's budget uses " + saved.replace(/^Your/, 'your') + ': ' + u.why + '.'
           : saved + ' sets the budget totals. Follow this estimate to use it for this month instead.';
     }
-    if (t.statement) {
-      t.statement = (d.optin && u.in_totals)
-        ? t.statement.replace(/; the [a-z]+ estimate on your Budget page uses (that forecast|it)\.$/, "; this month's budget includes the estimate built on it.")
-        : t.statement;
+    if (t.statement && d.optin && u.in_totals) {
+      // "...; the gas estimate on your Budget page uses that forecast." becomes the proven "includes" (M6).
+      var k = t.statement.lastIndexOf('; the ');
+      if (k >= 0 && t.statement.indexOf(' estimate on your Budget page ', k) > k) {
+        t.statement = t.statement.slice(0, k) + "; this month's budget includes the estimate built on it.";
+      }
     }
   }
 
