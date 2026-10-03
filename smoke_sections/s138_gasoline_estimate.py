@@ -54,7 +54,7 @@ def run(ctx):
     from core.database import BudgetItem, HistorianEntry
     real = server._eia_weekly_gas
     try:
-        server._eia_weekly_gas = lambda session, area, fetch=True: dict(weekly)
+        server._eia_weekly_gas = lambda session, area, fetch=True, product='EPMR': dict(weekly)
         with ctx.dbs() as s:
             before = s.query(HistorianEntry).filter_by(event_category='budget_adjusted').count()
             amounts = sorted((b.id, b.amount) for b in s.query(BudgetItem).all())

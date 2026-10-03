@@ -87,8 +87,9 @@ FACTS = {
         'values': ('gasoline', 'diesel', 'electric', 'other', 'none'),
         'lines': '2.0',
         'consumers': [
-            ('server.py', 'utility_applies', 'item 26: the gasoline estimate is for gasoline only; none for electric '
-                                             'or no vehicle; diesel is not priced yet'),
+            ('server.py', 'utility_applies', 'item 26/34: the vehicle-fuel estimate prices gasoline or diesel; none for '
+                                             'an electric vehicle or no vehicle'),
+            ('server.py', 'gasoline_estimate', 'item 34 F1: diesel is priced from EIA\'s weekly diesel series'),
         ],
     },
     'surplus_goal': {

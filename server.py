@@ -2442,14 +2442,15 @@ def electric_estimate(session, fetch=True, today=None):
 
 
 EIA_WEEKLY_GAS_URL = ('https://api.eia.gov/v2/petroleum/pri/gnd/data/?api_key={key}&frequency=weekly&data[0]=value'
-                      '&facets[product][]=EPMR&facets[duoarea][]={area}&sort[0][column]=period'
+                      '&facets[product][]={product}&facets[duoarea][]={area}&sort[0][column]=period'
                       '&sort[0][direction]=desc&length=130')
 WEEKLY_FRESH_DAYS = 3
 
 
-def _eia_weekly_gas(session, area, fetch=True):
-    """EIA's weekly regular-gasoline retail price for an area, {week 'YYYY-MM-DD': $/gal}, cached three days."""
-    key = f'eia_weekly_gas_{area}'
+def _eia_weekly_gas(session, area, fetch=True, product='EPMR'):
+    """EIA's weekly retail price for an area, {week 'YYYY-MM-DD': $/gal}, cached three days. product: EPMR regular
+    gasoline (item 26), EPD2D No. 2 diesel (item 34 F1)."""
+    key = f'eia_weekly_gas_{area}' if product == 'EPMR' else f'eia_weekly_{product}_{area}'
     cached = _dashboard_json(session, key, None)
     if cached and cached.get('rows'):
         try:
@@ -2466,7 +2467,7 @@ def _eia_weekly_gas(session, area, fetch=True):
     try:
         import urllib.request
         import urllib.parse
-        url = EIA_WEEKLY_GAS_URL.format(key=urllib.parse.quote(api_key), area=urllib.parse.quote(area))
+        url = EIA_WEEKLY_GAS_URL.format(key=urllib.parse.quote(api_key), area=urllib.parse.quote(area), product=product)
         with urllib.request.urlopen(url, timeout=30) as r:
             data = json.loads(r.read().decode('utf-8'))
         rows = {x['period']: float(x['value']) for x in ((data.get('response') or {}).get('data') or [])
@@ -2481,22 +2482,29 @@ def _eia_weekly_gas(session, area, fetch=True):
 
 
 def gasoline_estimate(session, fetch=True, today=None):
-    """Item 26's gasoline estimate (U2): typical monthly gallons from the user's fill-ups x EIA's latest weekly price."""
+    """The vehicle-fuel estimate: typical monthly gallons from the user's fill-ups x EIA's latest weekly price.
+
+    Item 26 U2 priced regular gasoline; item 34 F1 prices diesel by the same method when the household said its vehicle
+    uses diesel (EIA's weekly diesel series: California's own, else the PADD region). The estimate keeps its id
+    ('gasoline'), so the opt-in and the budget totals carry over; 'fuel' says which fuel it priced.
+    """
     from core import utility_estimate as ue
+    from core import household
     today = today or date.today()
     prefs = _dashboard_json(session, 'utility_estimates', {})
     optin = bool((prefs.get('gasoline') or {}).get('on'))
     row = _get_setting(session, 'home_state')
     reg = ue.region(row.value if row and row.value else '')
-    area = ue.gasoline_area(reg)
-    weekly = _eia_weekly_gas(session, area['duoarea'], fetch)
+    fuel = 'diesel' if household.current(session, 'vehicle_fuel') == 'diesel' else 'gasoline'
+    area = ue.diesel_area(reg) if fuel == 'diesel' else ue.gasoline_area(reg)
+    weekly = _eia_weekly_gas(session, area['duoarea'], fetch, product=ue.EIA_PRODUCT[fuel])
     fills = [{'date': d.isoformat(), 'amount': float(a)} for d, a in session.query(Transaction.date, Transaction.amount).join(
         Category, Transaction.category_id == Category.id).filter(
         func.lower(Category.name) == 'gas / fuel', Transaction.type == 'debit').order_by(Transaction.date).all() if d and a]
     months = ue.fuel_months(fills, weekly, today.strftime('%Y-%m')) if weekly else {}
     item = session.query(BudgetItem).filter(func.lower(BudgetItem.category) == 'gas / fuel', BudgetItem.is_active == True).first()  # noqa: E712
     est = ue.estimate_gasoline(months, weekly)
-    return {'kind': 'gasoline', 'region': reg, 'area': area, 'optin': optin, 'lag': 0,
+    return {'kind': 'gasoline', 'fuel': fuel, 'region': reg, 'area': area, 'optin': optin, 'lag': 0,
             'saved_amount': round(float(item.amount), 2) if item and item.amount is not None else None,
             'bills': len(fills), 'has_eia': bool(weekly), 'months': months, 'estimate': est,
             'needs': est.get('needs') if est.get('method') == 'none' else None}
@@ -2551,9 +2559,8 @@ def utility_applies(session, kind):
                                              'charging at home is part of your electricity bill.'}
         if v == 'none':
             return {'applies': False, 'why': 'You told us you have no vehicle fuel expense, so there is no gasoline estimate.'}
-        if v == 'diesel':
-            return {'applies': False, 'why': 'You told us your vehicle uses diesel. Groundwork prices regular gasoline '
-                                             'only so far, so there is no estimate for it yet.'}
+        if v == 'diesel':                      # item 34 F1: priced from EIA's weekly diesel series
+            return {'applies': True, 'ask': ask}
         if v == 'other':
             return {'applies': False, 'why': 'You told us your vehicle uses another fuel. Groundwork prices regular '
                                              'gasoline only, so there is no estimate for it.'}
@@ -2588,7 +2595,7 @@ def budget_month_amounts(session, fetch=False, today=None):
     followed estimate with no figure for the bill paid this month uses the saved amount and says why. fetch=False:
     the totals never wait on EIA - they use what the Budget page's estimate cards last fetched.
     """
-    from core import budget_month as bm
+    from core import budget_month as bm, household
     this_month = (today or date.today()).strftime('%Y-%m')
     prefs = _dashboard_json(session, 'utility_estimates', {})
     picked = {}
@@ -2601,10 +2608,13 @@ def budget_month_amounts(session, fetch=False, today=None):
         followed = kind in picked
         est, why = picked.get(kind, (None, None))
         amt, src = bm.month_amount(item.amount, followed, est)
+        words = _KIND_WORDS.get(kind)
+        if kind == 'gasoline' and household.current(session, 'vehicle_fuel') == 'diesel':
+            words = 'the diesel estimate'
         out[item.id] = {'month_amount': amt, 'month_source': src, 'kind': kind if followed else None,
-                        'month_why': (f'{_KIND_WORDS[kind]} is followed, but {why}' if followed and src == 'saved' and why
+                        'month_why': (f'{words} is followed, but {why}' if followed and src == 'saved' and why
                                       else None),
-                        'month_from': _KIND_WORDS[kind] if followed and src == 'estimate' else None,
+                        'month_from': words if followed and src == 'estimate' else None,
                         # the service month of the bill paid this month (gas/electric); none for fill-ups
                         'month_for': (est or {}).get('month') if followed and src == 'estimate' and kind != 'gasoline' else None}
     return out

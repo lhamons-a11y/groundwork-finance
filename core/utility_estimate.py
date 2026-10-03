@@ -462,6 +462,23 @@ def gasoline_area(reg):
     return {'duoarea': 'NUS', 'label': 'the U.S.', 'kind': 'national'}
 
 
+# Diesel (item 34 F1, FUEL_PRICING.md): EIA's weekly No. 2 on-highway diesel price is published for the U.S., each PADD
+# region and California alone among states (measured 2026-10-03). Everyone else uses their PADD region.
+WEEKLY_DIESEL_STATES = {'CA'}
+EIA_PRODUCT = {'gasoline': 'EPMR', 'diesel': 'EPD2D'}
+
+
+def diesel_area(reg):
+    """EIA's weekly diesel area for the user: California's own series, else their PADD, else the U.S."""
+    st = reg.get('state')
+    if st in WEEKLY_DIESEL_STATES:
+        return {'duoarea': 'S' + st, 'label': st, 'kind': 'state'}
+    padd = reg.get('padd')
+    if padd in PADD_AREA:
+        return {'duoarea': PADD_AREA[padd], 'label': PADD_NAME[padd] + ' (PADD ' + padd + ')', 'kind': 'padd'}
+    return {'duoarea': 'NUS', 'label': 'the U.S.', 'kind': 'national'}
+
+
 def _week_price(day, weekly):
     """EIA's price for the week a fill-up fell in: the latest weekly period on or before it, within PRICE_MATCH_DAYS."""
     from datetime import date as _d

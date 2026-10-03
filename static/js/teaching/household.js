@@ -144,7 +144,7 @@
           ? 'A ' + (v === 'prepaid' ? 'prepaid' : 'same-every-month') + ' heating bill does not follow the weather, so the estimate does not try to fit it.' : '';
       case 'vehicle_fuel':
         if (v === 'gasoline') return 'Gasoline: your Budget page can estimate fuel from your fill-ups.';
-        if (v === 'diesel') return 'Diesel is not priced yet, so there is no vehicle-fuel estimate.';
+        if (v === 'diesel') return 'Diesel: your Budget page can estimate fuel from your fill-ups, at EIA\'s weekly diesel price.';
         if (v === 'electric') return 'An electric vehicle: no gasoline estimate.';
         if (v === 'none') return 'No vehicle fuel: no fuel line in your bills.';
         return '';

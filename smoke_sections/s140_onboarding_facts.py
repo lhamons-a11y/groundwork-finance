@@ -159,9 +159,10 @@ def run(ctx):
     a = say(vehicle_fuel='electric')
     b = say(vehicle_fuel='diesel')
     n = say(vehicle_fuel='none')
-    check('s140 step 7 vehicle: electric, diesel and no vehicle each settle the gasoline estimate, each saying why',
+    # Diesel was "not priced yet" until item 34 F1 (2026-10-03); it is priced now, from EIA's weekly diesel series.
+    check('s140 step 7 vehicle: electric and no vehicle settle the vehicle-fuel estimate, saying why; diesel is priced',
           not a['gasoline']['applies'] and 'electric' in a['gasoline']['why']
-          and not b['gasoline']['applies'] and 'diesel' in b['gasoline']['why']
+          and b['gasoline']['applies'] and 'vehicle_fuel' not in b['gasoline'].get('ask', [])
           and not n['gasoline']['applies'] and 'no vehicle fuel' in n['gasoline']['why'])
     a = say()
     check('s140 step 7 nothing answered: the estimates run from the record, SAY what they read the bills as, and ask',

@@ -135,15 +135,18 @@
   function gasoline(d, f) {
     if (!d) return null;
     var lines = [];
+    // Item 34 F1: diesel is priced the same way, from EIA's weekly diesel series; the words name the fuel priced.
+    var diesel = d.fuel === 'diesel';
+    var fw = diesel ? 'diesel' : 'regular-gasoline', kw = diesel ? 'diesel' : 'gasoline';
     var reg = d.region || {}, area = d.area || {};
     var where = area.kind === 'state' ? 'your state' : area.kind === 'padd' ? area.label : 'the U.S.';
     lines.push(reg.national
       ? 'Using U.S. average prices; set your home state in Settings for your region\'s prices.'
-      : 'Using EIA\'s weekly regular-gasoline price for ' + where + (area.kind === 'padd'
+      : 'Using EIA\'s weekly ' + fw + ' price for ' + where + (area.kind === 'padd'
           ? ' (EIA publishes no weekly series for ' + reg.state + ').' : ' (' + reg.state + ').'));
     var e = d.estimate || {};
     if (e.method !== 'gallons') {
-      return { lines: lines.concat(['A gasoline estimate needs ' + (e.needs || d.needs) + '.']), statement: null,
+      return { lines: lines.concat(['A ' + kw + ' estimate needs ' + (e.needs || d.needs) + '.']), statement: null,
                source: 'From the U.S. Energy Information Administration\'s weekly retail prices and your own fill-ups.' };
     }
     lines.push('Your fill-ups come to about ' + e.gallons.toFixed(1) + ' gallons in a typical month (the middle of your last '
@@ -154,9 +157,9 @@
     if (e.year_ago) {
       lines.push('The same gallons a year earlier, at ' + f.money(e.year_ago.price) + '/gal, came to about ' + f.money(e.year_ago.amount)
         + ': ' + (e.year_ago.price_part >= 0 ? '+' : '-') + f.money(Math.abs(e.year_ago.price_part)) + ', all from price.');
-      statement = 'EIA\'s latest weekly regular-gasoline price for ' + where + ' is ' + f.money(e.price) + '/gal (week of '
+      statement = 'EIA\'s latest weekly ' + fw + ' price for ' + where + ' is ' + f.money(e.price) + '/gal (week of '
         + f.date(e.week) + '), ' + (e.price >= e.year_ago.price ? 'up' : 'down') + ' from ' + f.money(e.year_ago.price)
-        + ' a year earlier; the gasoline estimate on your Budget page uses it.';
+        + ' a year earlier; the ' + kw + ' estimate on your Budget page uses it.';
     }
     if (d.saved_amount !== null && d.saved_amount !== undefined) {
       lines.push('Your saved Gas / Fuel budget of ' + f.money(d.saved_amount) + ' still sets the budget totals; this estimate is shown beside it.');

@@ -46,7 +46,8 @@
     var W = _words();
     if (!d || !W || (!d.bills && d.saved_amount === null)) { if (old) old.remove(); return; }
     var t = W[k.kind](d, F);
-    var html = '<div class="card-label">' + esc(k.title) + '</div>'
+    var title = (k.kind === 'gasoline' && d.fuel === 'diesel') ? 'Diesel estimate' : k.title;   // item 34 F1
+    var html = '<div class="card-label">' + esc(title) + '</div>'
       + t.lines.map(function (l) { return '<div style="font-size:12px;color:var(--slate);line-height:1.7">' + esc(l) + '</div>'; }).join('')
       + '<div style="margin-top:8px;font-size:12px;color:var(--slate)">'
       + '<label><input type="checkbox" data-gw-util-optin data-kind="' + k.kind + '" ' + (d.optin ? 'checked' : '') + '> Follow this estimate</label>'
