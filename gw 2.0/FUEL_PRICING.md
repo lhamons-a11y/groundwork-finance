@@ -145,6 +145,13 @@ consumption signal.
 
 *"Yes I accept the diesel slice"*. F1 is ACCEPTED as built (master `87873c1`).
 
+*"Yes I accept the propane and heating oil build"* (Rob, 2026-10-03). F2–F4 are ACCEPTED as built (master `82c4c72`,
+gate 2301 / 0, s9). That build was presented for acceptance with its reading of F3, so the reading is accepted with
+it: the price evidence decides, not the calendar. An estimate needs an EIA residential price under two weeks old, in
+any month, because EIA published summer weeks in 2024 and April–May 2025.
+
+The estimate card controls (s10, `352223e`) are a separate build and still await acceptance.
+
 ## 7. The F2 guard's simulation (Rob: *"Yes run the simulation"*, 2026-10-03)
 
 **Measurement only, no product code.** The script is `delivered_fuel_sim.py`. It uses **constructed households where
@@ -208,7 +215,8 @@ their January error went from 2–3% (no weather) to a median of 8–9%, 15–19
 
 ## 8. Status
 
-F1 ACCEPTED. F2–F4 BUILT (s9), awaiting acceptance.
+F1 ACCEPTED. F2–F4 ACCEPTED (s5, `82c4c72`). F5 (budget via the totals pass) and F6 (2.0 only) are met by the
+builds. The estimate card controls (s10) await acceptance.
 
 ## 9. F2–F4, propane and heating oil: authorised and built (Rob, 2026-10-03: *"Yes I authorize the propane and heating oil build"*)
 
