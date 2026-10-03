@@ -84,6 +84,51 @@ each line's own fixtures. 1.x has 24 tables and 2.0 has 51. *Recommended.*
 
 *"Yes as recommended."* P1–P5 are ruled as recommended. A ruling is not a build authorisation.
 
-## 5. Status
+## 5. The build (authorised by Rob, 2026-10-03: *"Yes I authorize the build"*)
 
-RULED. No code until the build is authorised.
+**P1, the models pinned (s51).**
+- `SCHEMA_MODELS_SHA256` sits beside `SCHEMA_VERSION` in `migrate.py`. It is a fingerprint of every model table and
+  each column's name, type, nullability and key.
+- It is excluded from the code fingerprint like the other pins, so adding it needed no bump: the schema itself did
+  not change.
+- When the models change, s51 fails and prints four steps: bump; list any new column in its `_NEW_*_COLUMNS` list;
+  set the pin; run `schema_fixture.py`.
+- **Mutations caught:** a model table added with no bump, and a model column added with no bump.
+
+**P2/P3, real old schemas upgraded (s67).**
+- `tests/schema/<version>.sql` holds the exact `CREATE` statements of a database at that version.
+- Each fixture is built in **its own process with its own throwaway data folder**, stamped with its version, and
+  upgraded by today's migration. Every model table and column must then exist, and the version must be recorded.
+- **Mutations caught:**
+  - a model column added and bumped but **not listed**, which never reaches an upgraded database. This is the case no
+    version check can see;
+  - a model table added with no bump.
+- s67 also fails if the current `SCHEMA_VERSION` has no fixture.
+
+**`schema_fixture.py`** builds a fresh database with a tree's own migration, in its own process, and saves its schema.
+Use `--tree` for another checkout. The v1.1.0 fixture was made from a worktree of the `v1.1.0` tag.
+
+**The fixtures:**
+
+| line | fixtures | what each stands for |
+|---|---|---|
+| lts/1.x | `20260725-byb` (v1.1.0, 23 tables), `20261002-lts-household-facts` (today, 24) | a 1.1 user's database; today's 1.x |
+| master | the same two, plus `20261002-household-facts` (today, 51) | the 1.x fixture on 2.0 is a 1.x user moving to 2.0 |
+
+All of them upgrade cleanly today.
+
+**P4:** lts first (`7d72a70`, gate **903 / 0**), merged to master (`d3afc5e`, gate **2246 / 0**) with 2.0's own
+models pin and its current-schema fixture.
+
+**From now on, a schema change is:**
+1. change the models;
+2. run s51, which prints what to do;
+3. bump `SCHEMA_VERSION`, and list any new column;
+4. update both pins;
+5. run `python schema_fixture.py`.
+
+The old fixtures stay: each is a shape some user's database is in.
+
+## 6. Status
+
+BUILT on both lines and gated. Awaiting Rob's acceptance.
