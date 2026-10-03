@@ -118,6 +118,58 @@ package is reproducible.
 corrected immediately. Then Q6's real Apple Silicon and Linux hardware gives the final inference and usability proof.
 Both lines, 1.x first (Q8).
 
-## 4. Status
+## 4. The build: Q1–Q5 and Q7 (2026-10-03)
 
-AUTHORISED 2026-10-03. Building Q1–Q5 and Q7. Q6 waits for hardware.
+- **`spec_engine.py`** (shared by the macOS and Linux specs).
+  - It reads the model's name and SHA-256 from `core/engine.py`, so there is still one pin.
+  - `engine_parts()` collects the runtime and **refuses the build without it**. On an **Intel Mac** it builds without
+    the engine and says so (Q2).
+  - `model_data()` stages the model as `models/<MODEL_FILE>` and **refuses the build** if the file is missing or is not
+    the tested file. Rob's clarification 2: the check is mandatory.
+- **Both specs** collect the runtime and the verified model, no longer exclude numpy, and keep the native libraries out
+  of UPX. The model lands in `Contents/Resources/models` on macOS and `_internal/models` on Linux.
+- **`core/engine.py`** also searches a macOS app's `Contents/Resources` (Q4).
+- **`requirements.txt`:** the runtime is skipped on an Intel Mac (`sys_platform != "darwin" or platform_machine ==
+  "arm64"`), so the install never fails there. Checked: Windows, Linux and Apple Silicon true; Intel Mac false.
+- **`fetch_model.py`** (Q5) downloads the pinned **release asset** (tag `model-phi3.5-mini-q4`) with `gh`, verifies
+  the SHA-256, and exits 1 on a failed download, a missing file or a mismatch. In CI it sets `GW_MODEL_PATH`.
+  - `macos-build.yml` runs it before PyInstaller.
+  - **`linux-build.yml` is new**, the first Linux CI build. Its last step checks that the model and the runtime are in
+    the package, and says in its own text that a green run proves packaging, not inference.
+- **The website (Q7):**
+  - macOS: *"Local AI: coming to Apple Silicon Macs. Intel Macs run Groundwork fully, without local AI."*
+  - Linux: *"Local AI: coming to Linux. Groundwork runs fully without it."*
+  - The Windows line is unchanged. **Not deployed.**
+- **Tests (s61, 12 new checks):** one pin; the build refusing a wrong and a missing model; the tested file staged
+  under its name; the Intel Mac building with neither engine nor model; both specs; the requirements marker; the
+  Resources path; both workflows verifying before packaging; the website lines.
+
+**Found by building, not by the gate:** the Linux spec never imported `sys`, so the new block failed at its first
+line. The gate's text checks could not see it. Building it for real did. Both specs' blocks now import what they use.
+
+**Proven on real Linux (WSL Ubuntu, x86_64, this machine).** These are states 2–4 of Rob's five, never state 5:
+- **The engine:** the `manylinux` wheel installed; `core/engine.py` passed the CPU check, verified the SHA-256, loaded
+  the model and answered *"Understood."* (the same text as on Windows); `stop()` released it. The load took about
+  28 s only because WSL reads `/mnt/c` slowly.
+- **The package:** `groundwork_linux.spec` built (exit 0) with `GW_MODEL_PATH` exactly as CI sets it. It contains the
+  model under its shipped name (2,176,177,152 bytes), `libllama.so` and the `libggml` set, and numpy; 2.2 GB in all.
+- Running the packaged app needs a Linux desktop with GTK, so it is **not shown here**.
+
+**Gates:** lts/1.x **927 / 0** (`138d3e4`), master **2257 / 0** (`7eed5e0`).
+
+**Not done, by the ruling's own order:**
+- **The release asset does not exist yet**, so both build workflows will fail at *Fetch and verify* until it is
+  published. That is the intended behaviour: no model, no build. Publishing it uploads the 2.2 GB model to this
+  **private** repository's Releases, and **waits for Rob's go-ahead** (the licence gate, ruling 8, covers
+  redistribution).
+- **No macOS build was run.** There is no Mac here.
+- **Q6 is the real hardware:**
+  - an Apple Silicon Mac (ideally 8 GB) and a Linux desktop;
+  - the five states proven there;
+  - a macOS/Linux version of the 8 GB kit.
+- Apple Silicon and Linux AI are **not called available** until Q6 passes.
+
+## 5. Status
+
+Q1–Q5 and Q7 BUILT on both lines and gated. Q6 waits for hardware, and the release asset waits for Rob's go-ahead.
+Awaiting acceptance of the build.
