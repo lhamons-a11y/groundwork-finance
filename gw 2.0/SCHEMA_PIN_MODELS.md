@@ -80,6 +80,10 @@ each line's own fixtures. 1.x has 24 tables and 2.0 has 51. *Recommended.*
 - A correctly made change (bumped, listed, fixture committed) passes.
 - The v1.1.0 fixture upgrades cleanly on both lines, as measured above.
 
-## 4. Status
+## 4. Ruling (Rob, 2026-10-03)
 
-OPEN: five points for ruling (P1–P5). No code until ruled.
+*"Yes as recommended."* P1–P5 are ruled as recommended. A ruling is not a build authorisation.
+
+## 5. Status
+
+RULED. No code until the build is authorised.
