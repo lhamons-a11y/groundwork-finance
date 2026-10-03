@@ -16353,16 +16353,53 @@ async function _loadInvPositions() {
   }
 }
 
+// Item 35 (INVESTMENT_VALUATION.md, Rob 2026-10-03): the server values only what has a price on record and gains only
+// lots with a cost basis; these say what each figure leaves out, by name, wherever the figure is shown or carried.
+function _invDate(iso) {
+  if (!iso) return '';
+  const [y, m, d] = String(iso).split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function _invShares(n) { return `${+(+n).toFixed(4)} share${+n === 1 ? '' : 's'}`; }
+function _invExclusions(summary) {
+  const s = summary || {};
+  const unpriced = (s.unpriced || []).map(u => `${u.ticker} \u00b7 ${_invShares(u.shares)}`);
+  const noBasis  = (s.no_basis || []).map(u => `${u.ticker} \u00b7 ${_invShares(u.shares)}`);
+  return {
+    unpriced: unpriced.length ? `No price on record: ${unpriced.join(', ')}` : '',
+    noBasis:  noBasis.length  ? `No cost basis on record: ${noBasis.join(', ')}` : '',
+    unpricedNames: unpriced.join(', '),
+  };
+}
+function _renderInvValuationNote(summary) {
+  const el = g('invValuationNote');
+  if (!el) return;
+  const x = _invExclusions(summary), lines = [];
+  if (summary.prices_from) {
+    lines.push(summary.prices_from === summary.prices_to
+      ? `Prices as of ${_invDate(summary.prices_to)}`
+      : `Prices from ${_invDate(summary.prices_from)} to ${_invDate(summary.prices_to)}`);
+    if ((summary.manual_prices || []).length) lines[0] += ` \u00b7 set by you: ${summary.manual_prices.join(', ')}`;
+  }
+  if (x.unpriced) lines.push(`${x.unpriced}. Not valued \u2014 the value, gain, allocation and Net Worth leave it out. Set a price with \u270e on its row.`);
+  if (x.noBasis)  lines.push(`${x.noBasis}. In the value; left out of the gain.`);
+  el.innerHTML = lines.map(l => `<div>${esc(l)}</div>`).join('');
+  el.style.display = lines.length ? '' : 'none';
+}
+
 function _renderInvStats(summary) {
   if (!summary) return;
   setText('invTotalValue',   fmt(summary.total_market_value || 0));
   setText('invTotalCost',    `${fmt(summary.total_cost || 0)} invested`);
-  const gain    = summary.total_gain || 0;
-  const gainPct = summary.total_gain_pct || 0;
-  setText('invTotalGain',    `${gain >= 0 ? '+' : ''}${fmt(gain)}`);
-  setText('invTotalGainPct', `${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(1)}%`);
+  const gain    = summary.total_gain;
+  const gainPct = summary.total_gain_pct;
+  const known   = gain !== null && gain !== undefined;
+  setText('invTotalGain',    known ? `${gain >= 0 ? '+' : ''}${fmt(gain)}` : 'Not computed');
+  setText('invTotalGainPct', known && gainPct !== null && gainPct !== undefined
+    ? `${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(1)}%` : 'needs a priced lot with a cost basis');
   const gainEl = g('invTotalGain');
-  if (gainEl) gainEl.style.color = gain >= 0 ? 'var(--pine)' : 'var(--ember)';
+  if (gainEl) gainEl.style.color = !known ? 'var(--slate)' : gain >= 0 ? 'var(--pine)' : 'var(--ember)';
+  _renderInvValuationNote(summary);
   setText('invPositionCount', String(summary.position_count || 0));
   const dayChg    = _invPositions.reduce((s,p) => s+((p.day_change||0)*(p.total_shares||0)), 0);
   const dayChgPct = summary.total_market_value > 0
@@ -16390,10 +16427,15 @@ function _renderInvPositions() {
   }
 
   const rows = _invPositions.map(p => {
-    const allocPct  = total > 0 ? ((p.market_value||0) / total * 100) : 0;
-    const gain      = p.unrealized_gain || 0;
-    const gainPct   = p.unrealized_pct  || 0;
-    const gainColor = gain >= 0 ? 'var(--pine)' : 'var(--ember)';
+    const valued    = p.market_value !== null && p.market_value !== undefined;
+    const allocPct  = valued && total > 0 ? (p.market_value / total * 100) : 0;
+    const gained    = p.unrealized_gain !== null && p.unrealized_gain !== undefined;
+    const gain      = gained ? p.unrealized_gain : 0;
+    const gainPct   = gained ? p.unrealized_pct : 0;
+    const gainColor = !gained ? 'var(--slate)' : gain >= 0 ? 'var(--pine)' : 'var(--ember)';
+    const priceLine = valued
+      ? `${fmt(p.current_price)}/share \u00b7 ${p.price_manual ? 'set by you' : 'as of'} ${_invDate(p.price_date)}`
+      : 'No price on record \u2014 set a price';
     const ac        = p.asset_class;
     const acLabel   = ac ? ASSET_CLASSES[ac] : null;
     const acColor   = ac ? ASSET_CLASS_COLORS[ac] : null;
@@ -16435,16 +16477,18 @@ function _renderInvPositions() {
              style="font-size:11px;color:${p.price_stale?'var(--gold)':'var(--slate-2)'};margin-top:3px;cursor:pointer;
                     display:inline-flex;align-items:center;gap:3px"
              title="Click to set price manually">
-          ${fmt(p.current_price||0)}/share <span style="opacity:.6">✎</span>
+          ${esc(priceLine)} <span style="opacity:.6">✎</span>
         </div>
       </td>
       <td style="text-align:right;padding:12px 16px">
-        <div class="text-mono" style="font-weight:500">${fmt(p.market_value||0)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:1px">${allocPct.toFixed(1)}%</div>
+        <div class="text-mono" style="font-weight:500">${valued ? fmt(p.market_value) : 'Not valued'}</div>
+        <div style="font-size:11px;color:var(--slate);margin-top:1px">${valued ? allocPct.toFixed(1) + '%' : 'no price on record'}</div>
       </td>
       <td style="text-align:right;padding:12px 16px">
-        <div class="text-mono" style="color:${gainColor}">${gain >= 0 ? '+' : ''}${fmt(gain)}</div>
-        <div style="font-size:11px;color:${gainColor};opacity:.8;margin-top:1px">${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(1)}%</div>
+        <div class="text-mono" style="color:${gainColor}">${gained ? (gain >= 0 ? '+' : '') + fmt(gain) : 'Not shown'}</div>
+        <div style="font-size:11px;color:${gainColor};opacity:.8;margin-top:1px">${gained
+          ? (gainPct >= 0 ? '+' : '') + gainPct.toFixed(1) + '%' + (p.no_basis_shares ? ' \u00b7 leaves out ' + _invShares(p.no_basis_shares) + ' with no cost basis' : '')
+          : valued ? 'no cost basis on record' : 'no price on record'}</div>
       </td>
     </tr>`;
   }).join('');
@@ -16500,8 +16544,9 @@ function _renderInvAnalytics() {
   const byClass = {};
   let untaggedVal = 0;
   _invPositions.forEach(p => {
-    if (p.asset_class) byClass[p.asset_class] = (byClass[p.asset_class]||0) + (p.market_value||0);
-    else untaggedVal += (p.market_value||0);
+    if (p.market_value === null || p.market_value === undefined) return;   // item 35: no price, no share - named below
+    if (p.asset_class) byClass[p.asset_class] = (byClass[p.asset_class]||0) + p.market_value;
+    else untaggedVal += p.market_value;
   });
   if (untaggedVal > 0) byClass['untagged'] = untaggedVal;
   const colors   = { ...ASSET_CLASS_COLORS, untagged:'#d1d5db' };
@@ -16519,8 +16564,10 @@ function _renderInvAnalytics() {
       <span style="color:var(--slate)">${label}</span>
       <span style="font-family:var(--font-mono);margin-left:auto;color:var(--ink)">${s.pct.toFixed(1)}%</span>
     </div>`;
-  }).join('');
-  const sorted  = [..._invPositions].sort((a,b) => (b.unrealized_pct||0)-(a.unrealized_pct||0));
+  }).join('') + (_invExclusions(_invSummary).unpriced
+    ? `<div style="color:var(--slate-2);margin-top:4px;line-height:1.5">Of priced holdings only. ${esc(_invExclusions(_invSummary).unpriced)}.</div>` : '');
+  const sorted  = _invPositions.filter(p => p.unrealized_pct !== null && p.unrealized_pct !== undefined)
+    .sort((a,b) => b.unrealized_pct - a.unrealized_pct);
   const topEl   = g('invTopPerformers');
   const botEl   = g('invBottomPerformers');
 
@@ -16562,7 +16609,12 @@ function _renderInvAnalytics() {
     const concentrated50 = top3Pct   > 60;  // top-3 concentration warning
 
     let concentrationNote = '';
-    if (concentrated30)
+    const unpricedC = _invExclusions(s).unpriced;
+    if (unpricedC)   // item 35 V6: a share of an incomplete total is not the holding's share of the portfolio
+      concentrationNote = `<div style="padding:7px 0;font-size:11px;color:var(--slate)">
+        Concentration needs every holding priced. ${esc(unpricedC)}.
+      </div>`;
+    else if (concentrated30)
       concentrationNote = `<div style="padding:7px 0;font-size:11px;color:var(--gold)">
         ⚠ ${esc(largest.ticker)} is ${largestPct.toFixed(0)}% of your portfolio — consider diversifying.
       </div>`;
@@ -16587,7 +16639,8 @@ function _renderInvAnalytics() {
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:0.5px solid var(--steel-2)">
         <span style="font-size:12px;color:var(--slate)">Overall return</span>
         <span class="text-mono" style="font-size:13px;color:${gainColor}">
-          ${(s.total_gain||0)>=0?'+':''}${fmt(s.total_gain||0)} · ${(s.total_gain_pct||0)>=0?'+':''}${(s.total_gain_pct||0).toFixed(1)}%
+          ${s.total_gain === null || s.total_gain === undefined ? 'Not computed'
+            : `${s.total_gain>=0?'+':''}${fmt(s.total_gain)} · ${(s.total_gain_pct||0)>=0?'+':''}${(s.total_gain_pct||0).toFixed(1)}%`}
         </span>
       </div>
       ${_renderFeeAnalysis()}
@@ -16597,7 +16650,9 @@ function _renderInvAnalytics() {
 
 function _renderFeeAnalysis() {
   // Collect positions that have an expense ratio
-  const withER = _invPositions.filter(p => p.expense_ratio != null && p.expense_ratio > 0);
+  // Item 35: a fee is figured only on a holding that has a value - never $0 for one with no price on record
+  const withER = _invPositions.filter(p => p.expense_ratio != null && p.expense_ratio > 0
+    && p.market_value !== null && p.market_value !== undefined);
   if (!withER.length) return '';   // no ER data yet — show nothing, no empty shelf
 
   // Annual fee per holding = market_value × expense_ratio
@@ -16725,18 +16780,54 @@ function _drawAllocDonut(segments, colors) {
     `<text x="${cx}" y="${cy+15}" text-anchor="middle" font-size="9" fill="var(--slate-2)">types</text>`;
 }
 
+// Item 35 V2: net worth carries the priced value and names what has no price beside it - never the cost of an
+// unpriced holding, and never a silent gap. _nwInvExclusion is what a snapshot's note says the figure leaves out.
+let _nwInvExclusion = '';
+function _nwSnapshotNote(extra) {
+  const field = g('nwInvestments');
+  const synced = field && field.dataset.portfolioSync !== undefined && field.dataset.portfolioSync !== ''
+    && parseFloat(field.value) === parseFloat(field.dataset.portfolioSync);
+  return [extra || '', synced && _nwInvExclusion ? `Investments leave out ${_nwInvExclusion}: no price on record.` : '']
+    .filter(Boolean).join(' ');
+}
+let _nwLastPortfolio = null;
 function _syncPortfolioToNetWorth(summary) {
-  if (!summary || !summary.total_market_value) return;
+  if (!summary || !summary.position_count) return;
+  _nwLastPortfolio = summary;
   const field = g('nwInvestments');
   if (!field) return;
+  const badge = g('nwInvSyncBadge');
+  const value = summary.total_market_value || 0;
+  const x = _invExclusions(summary).unpricedNames;
   const prev = parseFloat(field.dataset.portfolioSync||'0');
-  if (!field.value || parseFloat(field.value)===prev) {
-    field.value = summary.total_market_value;
-    field.dataset.portfolioSync = summary.total_market_value;
-    const badge = g('nwInvSyncBadge');
-    if (badge) { badge.textContent = `\u21BA synced from portfolio \xB7 ${fmt(summary.total_market_value)}`; badge.style.display=''; }
+  // The field already holding the portfolio's own priced value (saved in an earlier session) is the portfolio's figure,
+  // so it names what it leaves out like a fresh sync does.
+  const same = field.value !== '' && Math.abs((parseFloat(field.value) || 0) - value) < 0.01;
+  if (!field.value || parseFloat(field.value)===prev || same) {
+    field.value = value;
+    field.dataset.portfolioSync = value;
+    _nwInvExclusion = x;
+    if (badge) {
+      badge.textContent = `\u21BA synced from portfolio \xB7 ${fmt(value)} priced` + (x ? ` \u2014 leaves out ${x}: no price on record. Set a price on the Investments page.` : '');
+      badge.style.color = x ? 'var(--gold)' : 'var(--pine)';
+      badge.style.display = '';
+    }
     updateNetWorth();
+  } else if (badge && Math.abs((parseFloat(field.value) || 0) - value) >= 0.01) {
+    // A figure entered or saved earlier, not this session's sync: say what the portfolio values now; the user decides.
+    badge.innerHTML = `${esc(`Your portfolio's priced value is ${fmt(value)}` + (x ? `, leaving out ${x}: no price on record` : '') + '.')} `
+      + `<a href="#" onclick="_nwUsePortfolioValue(event)" style="color:inherit;text-decoration:underline">Use it</a>`;
+    badge.style.color = 'var(--slate)';
+    badge.style.display = '';
   }
+}
+function _nwUsePortfolioValue(ev) {
+  if (ev) ev.preventDefault();
+  const field = g('nwInvestments');
+  if (!field || !_nwLastPortfolio) return;
+  field.value = '';
+  field.dataset.portfolioSync = '';
+  _syncPortfolioToNetWorth(_nwLastPortfolio);   // the same sync, now that the user chose the portfolio's figure
 }
 
 // ── Target allocation system ───────────────────────────────────────────────────
@@ -16756,6 +16847,12 @@ async function _renderTargetAllocation() {
   const hasTagged   = Object.keys(taggedPcts).length > 0;
   if (!hasTargets || !hasTagged) { card.style.display='none'; return; }
   card.style.display = '';
+  const unpricedX = _invExclusions(_invSummary).unpriced;
+  if (unpricedX) {   // item 35 V6: an allocation without a holding in it is not the allocation
+    driftEl.innerHTML = `<div style="font-size:12px;color:var(--slate);line-height:1.6">Allocation against your targets needs every holding priced. ${esc(unpricedX)}.</div>`;
+    if (rebalEl) rebalEl.innerHTML = '';
+    return;
+  }
 
   const total = _invSummary?.total_market_value || 0;
   const rows  = [];
@@ -16880,10 +16977,15 @@ async function _invLaunchAdvisorAI() {
   const summary = _invSummary;
   if (!summary || !_invPositions.length) return;
 
-  const topByValue = [..._invPositions].sort((a,b) => (b.market_value||0)-(a.market_value||0)).slice(0, 5);
-  const posLines = topByValue.map(p =>
-    `${p.ticker}: ${fmt(p.market_value)} (${p.unrealized_gain>=0?'+':''}${fmt(p.unrealized_gain)}, ${p.unrealized_pct>=0?'+':''}${p.unrealized_pct.toFixed(1)}%)`
+  // Item 35 V6: the model is handed only what was computed - no value for a holding with no price, no gain for a
+  // lot with no cost basis - and is told what the totals leave out.
+  const topByValue = _invPositions.filter(p => p.market_value !== null && p.market_value !== undefined)
+    .sort((a,b) => b.market_value - a.market_value).slice(0, 5);
+  const posLines = topByValue.map(p => p.unrealized_gain === null || p.unrealized_gain === undefined
+    ? `${p.ticker}: ${fmt(p.market_value)}, gain not computed: no cost basis on record`
+    : `${p.ticker}: ${fmt(p.market_value)} (${p.unrealized_gain>=0?'+':''}${fmt(p.unrealized_gain)}, ${p.unrealized_pct>=0?'+':''}${p.unrealized_pct.toFixed(1)}%)`
   );
+  const invX = _invExclusions(summary);
 
   const taggedPcts = _calcActualAlloc();
   const driftLines = Object.keys(_invTargets).length
@@ -16895,10 +16997,14 @@ async function _invLaunchAdvisorAI() {
     : [];
 
   const dataLines = [
-    `Total portfolio value: ${fmt(summary.total_market_value)}`,
+    `Total portfolio value, priced holdings only: ${fmt(summary.total_market_value)}`,
     `Total invested (cost basis): ${fmt(summary.total_cost)}`,
-    `Unrealized gain: ${fmt(summary.total_gain)} (${summary.total_gain_pct>=0?'+':''}${summary.total_gain_pct.toFixed(1)}%)`,
+    summary.total_gain === null || summary.total_gain === undefined
+      ? 'Unrealized gain: not computed (no priced lot with a cost basis)'
+      : `Unrealized gain, lots with a cost basis only: ${fmt(summary.total_gain)} (${summary.total_gain_pct>=0?'+':''}${summary.total_gain_pct.toFixed(1)}%)`,
     `Position count: ${summary.position_count}`,
+    ...(invX.unpriced ? [`Not valued, left out of every figure above: ${invX.unpriced}`] : []),
+    ...(invX.noBasis ? [`In the value, left out of the gain: ${invX.noBasis}`] : []),
     '---',
     'TOP POSITIONS BY VALUE:',
     ...posLines,
@@ -17071,7 +17177,8 @@ function renderNetWorth() {
   // as a side effect of _loadInvPositions(), so Net Worth only picked up
   // current investment data if the Investments page had already been
   // visited this session. Net Worth shouldn't depend on view-visit order.
-  API.get('/api/investments/positions').then(res => {
+  // Item 35 V5: Net Worth reads cached prices only - opening it never reaches out for prices.
+  API.get('/api/investments/positions?skip_refresh=true').then(res => {
     const data = res?.data || res;
     if (data?.summary) _syncPortfolioToNetWorth(data.summary);
   }).catch(() => { /* no investment accounts yet, or request failed — leave the manual/saved value as-is */ });
@@ -17150,6 +17257,16 @@ function updateNetWorth() {
 
   const nwEl = g('nwTotal');
   if (nwEl) { nwEl.textContent = fmt(netWorth); nwEl.className = `nw-value ${netWorth>=0?'positive':'negative'}`; }
+  // Item 35 V2: the headline names what its investments figure leaves out - only while that figure is the portfolio's.
+  const nwGap = _nwSnapshotNote();
+  let nwGapEl = g('nwInvGap');
+  if (!nwGapEl && nwEl && nwEl.parentNode) {
+    nwGapEl = document.createElement('div');
+    nwGapEl.id = 'nwInvGap';
+    nwGapEl.style.cssText = 'font-size:11px;color:var(--gold);margin-top:4px';
+    nwEl.parentNode.insertBefore(nwGapEl, nwEl.nextSibling);
+  }
+  if (nwGapEl) { nwGapEl.textContent = nwGap ? nwGap + ' Set a price on the Investments page.' : ''; nwGapEl.style.display = nwGap ? '' : 'none'; }
   setText('nwTotalAssets',      fmt(totalAssets));
   setText('nwTotalLiabilities', fmt(totalLiab));
   setText('nwDebtFromCards', fmt(debtBals - (_m.fromDebtPage ? _m.amount : 0)));   // V9: the mortgage is listed as the mortgage
@@ -17267,7 +17384,7 @@ async function autoSnapshotNetWorthIfDue() {
     // Nothing entered yet (new user) — don't record a meaningless $0 snapshot.
     if (totalAssets === 0 && totalLiab === 0) return;
 
-    await API.post('/api/net-worth/snapshot', { force: false, assets: totalAssets, liabilities: totalLiab });
+    await API.post('/api/net-worth/snapshot', { force: false, assets: totalAssets, liabilities: totalLiab, note: _nwSnapshotNote() });
   } catch(e) { /* non-fatal — manual "Save snapshot now" remains available */ }
 }
 
@@ -17292,7 +17409,7 @@ async function saveNWSnapshot(force=false) {
     updateNetWorth();
     const assets      = S.netWorth._totalAssets || 0;
     const liabilities = S.netWorth._totalLiab   || 0;
-    await API.post('/api/net-worth/snapshot', { force, assets, liabilities });
+    await API.post('/api/net-worth/snapshot', { force, assets, liabilities, note: _nwSnapshotNote() });
     showToast('Snapshot saved', 'Net worth recorded for this month', 'success');
     awardAchievement('first_snapshot');
     await loadSnapshotStatus();
@@ -17350,10 +17467,11 @@ function _renderNWChart() {
     <line x1="0" y1="${h/2}" x2="${w}" y2="${h/2}" stroke="rgba(0,0,0,.1)" stroke-width="1"/>
     <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>
     ${projSVG}
-    ${_nwHistory.map((d,i)=>`<circle cx="${toX(i)}" cy="${toY(d.net_worth)}" r="3" fill="${color}"/>`).join('')}
+    ${_nwHistory.map((d,i)=>`<circle cx="${toX(i)}" cy="${toY(d.net_worth)}" r="${d.notes ? 4.5 : 3}" fill="${color}">${d.notes ? `<title>${esc(d.month_label + ': ' + d.notes)}</title>` : ''}</circle>`).join('')}
     ${proj.length ? `<text x="${w-8}" y="${toY(proj[Math.min(11,proj.length-1)].projected)+4}"
        text-anchor="end" font-size="9" fill="${color}" opacity=".5">12mo</text>` : ''}
-  </svg>`;
+  </svg>` + _nwHistory.filter(d => d.notes).slice(-3).map(d =>
+    `<div style="font-size:10px;color:var(--slate-2);margin-top:4px">${esc(d.month_label + ': ' + d.notes)}</div>`).join('');
 }
 
 function _updateNWDelta() {

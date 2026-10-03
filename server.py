@@ -5791,11 +5791,15 @@ def _log_investment_allocation_drift(session):
     total = summary['total_market_value']
     if not total:
         return  # nothing priced yet — nothing meaningful to log
+    if summary.get('unpriced'):
+        # Item 35 V6: a holding with no price makes the total incomplete; a drift computed without it would be a
+        # partial allocation recorded as if whole, and later read as evidence. Nothing is logged.
+        return
 
     by_class = {}
     for p in positions:
         cls = p.get('asset_class')
-        if cls:
+        if cls and p['market_value'] is not None:
             by_class[cls] = by_class.get(cls, 0) + p['market_value']
 
     for cls, target_pct in targets.items():
@@ -7168,6 +7172,10 @@ def _compute_portfolio_positions(session, account_id=None, skip_refresh=False):
         })
         p['total_shares'] += adj_shares
         p['total_cost']   += adj_shares * adj_cost
+        # Item 35 V3: a lot with no cost basis has a known value but no known gain.
+        if adj_cost is not None and adj_cost > 0:
+            p['basis_shares'] = p.get('basis_shares', 0.0) + adj_shares
+            p['basis_cost']   = p.get('basis_cost', 0.0) + adj_shares * adj_cost
 
     # Attach prices from cache
     result = []
@@ -7178,21 +7186,29 @@ def _compute_portfolio_positions(session, account_id=None, skip_refresh=False):
         avg_cost = pos['total_cost'] / pos['total_shares'] if pos['total_shares'] else 0
 
         price_row = session.get(PriceCache, pos['ticker'])
-        if price_row:
+        priced = bool(price_row and price_row.price is not None and price_row.price > 0)
+        if priced:
             current_price    = price_row.price
             company_name     = price_row.company_name or pos['ticker']
             day_change       = price_row.day_change or 0
             day_change_pct   = price_row.day_change_pct or 0
         else:
-            # No price yet — use avg cost as placeholder
-            current_price    = avg_cost
-            company_name     = pos['ticker']
+            # Item 35 V1 (Rob 2026-10-03): no price on record means no value and no gain - never the cost, which is
+            # what was paid, not what it is worth, and never zero. The holding is named in the summary instead.
+            current_price    = None
+            company_name     = (price_row.company_name if price_row else None) or pos['ticker']
             day_change       = 0
             day_change_pct   = 0
 
-        market_value    = pos['total_shares'] * current_price
-        unrealized_gain = market_value - pos['total_cost']
-        unrealized_pct  = (unrealized_gain / pos['total_cost'] * 100) if pos['total_cost'] else 0
+        basis_shares = pos.get('basis_shares', 0.0)
+        basis_cost   = pos.get('basis_cost', 0.0)
+        market_value = pos['total_shares'] * current_price if priced else None
+        if priced and basis_shares > 0 and basis_cost > 0:
+            unrealized_gain = basis_shares * current_price - basis_cost
+            unrealized_pct  = unrealized_gain / basis_cost * 100
+        else:
+            unrealized_gain = unrealized_pct = None
+        no_basis_shares = pos['total_shares'] - basis_shares
 
         result.append({
             'ticker':          pos['ticker'],
@@ -7202,18 +7218,26 @@ def _compute_portfolio_positions(session, account_id=None, skip_refresh=False):
             'total_shares':    round(pos['total_shares'], 6),
             'avg_cost_basis':  round(avg_cost, 4),
             'total_cost':      round(pos['total_cost'], 2),
-            'current_price':   round(current_price, 4),
-            'market_value':    round(market_value, 2),
-            'unrealized_gain': round(unrealized_gain, 2),
-            'unrealized_pct':  round(unrealized_pct, 2),
+            'current_price':   round(current_price, 4) if priced else None,
+            'market_value':    round(market_value, 2) if priced else None,
+            'unrealized_gain': round(unrealized_gain, 2) if unrealized_gain is not None else None,
+            'unrealized_pct':  round(unrealized_pct, 2) if unrealized_pct is not None else None,
             'day_change':      round(day_change, 4),
             'day_change_pct':  round(day_change_pct, 2),
-            'price_stale':     price_row is None,
+            'price_stale':     not priced,          # (kept for older readers) true = no price on record
+            'priced':          priced,
+            # V4: every price carries its date; a manual price says so. No threshold, no verdict.
+            'price_date':      (price_row.last_updated.date().isoformat()
+                                if priced and price_row.last_updated else None),
+            'price_manual':    bool(priced and price_row.is_manual),
+            # V3: shares with no cost basis on record - in the value, left out of the gain
+            'no_basis_shares': round(no_basis_shares, 6) if no_basis_shares > 0.00001 else 0,
+            'gain_basis':      round(basis_cost, 2) if unrealized_gain is not None else None,
             'lots':            pos['lots'],
         })
 
-    # Sort by market_value descending
-    result.sort(key=lambda x: x['market_value'], reverse=True)
+    # Sort by market_value descending; holdings with no price on record last
+    result.sort(key=lambda x: (x['market_value'] is not None, x['market_value'] or 0), reverse=True)
 
     # Inject user-defined asset_class and expense_ratio from app_settings
     ac_setting = _get_setting(session, 'inv_asset_classes_json')
@@ -7245,18 +7269,31 @@ def _compute_portfolio_positions(session, account_id=None, skip_refresh=False):
         p['asset_class']    = asset_classes.get(t) or _ASSET_CLASS_DEFAULTS.get(t) or None
         p['expense_ratio']  = expense_ratios.get(t) if t in expense_ratios else _EXPENSE_RATIO_DEFAULTS.get(t)
 
-    # Portfolio totals
+    # Portfolio totals (item 35 V1): the value of what is priced, the gain on lots with a cost basis, and - named -
+    # what each leaves out. One summary for the Investments page, Net Worth, the snapshots, the drift log and the
+    # advisor prompt, so no two screens can disagree about the same holdings.
     total_cost         = sum(p['total_cost']    for p in result)
-    total_market_value = sum(p['market_value']  for p in result)
-    total_gain         = sum(p['unrealized_gain'] for p in result)
-    total_gain_pct     = (total_gain / total_cost * 100) if total_cost else 0
+    total_market_value = sum(p['market_value'] for p in result if p['market_value'] is not None)
+    gained             = [p for p in result if p['unrealized_gain'] is not None]
+    gain_basis         = sum(p['gain_basis'] for p in gained)
+    total_gain         = sum(p['unrealized_gain'] for p in gained) if gained else None
+    total_gain_pct     = (total_gain / gain_basis * 100) if gained and gain_basis else None
+    dates              = sorted(p['price_date'] for p in result if p['price_date'])
 
     summary = {
         'total_cost':         round(total_cost, 2),
         'total_market_value': round(total_market_value, 2),
-        'total_gain':         round(total_gain, 2),
-        'total_gain_pct':     round(total_gain_pct, 2),
+        'total_gain':         round(total_gain, 2) if total_gain is not None else None,
+        'total_gain_pct':     round(total_gain_pct, 2) if total_gain_pct is not None else None,
+        'gain_basis':         round(gain_basis, 2),
         'position_count':     len(result),
+        'unpriced':           [{'ticker': p['ticker'], 'shares': p['total_shares'], 'account_id': p['account_id']}
+                               for p in result if not p['priced']],
+        'no_basis':           [{'ticker': p['ticker'], 'shares': p['no_basis_shares']}
+                               for p in result if p['priced'] and p['no_basis_shares']],
+        'prices_from':        dates[0] if dates else None,
+        'prices_to':          dates[-1] if dates else None,
+        'manual_prices':      sorted({p['ticker'] for p in result if p['price_manual']}),
     }
     return result, summary
 
@@ -8050,6 +8087,7 @@ def _serialize_snapshot(s) -> dict:
         'total_assets':     round(s.assets      or 0, 2),
         'total_liabilities':round(s.liabilities or 0, 2),
         'net_worth':        round(s.net_worth   or 0, 2),
+        'notes':            s.notes or '',
         'breakdown':        {},
     }
 
@@ -8083,10 +8121,22 @@ def create_snapshot():
         assets      = float(body.get('assets',      0))
         liabilities = float(body.get('liabilities', 0))
         net_worth   = assets - liabilities
+        notes = [str(body.get('note') or '').strip()[:500]]        # what the page says the figure leaves out (V6)
+        # Item 35 V7: history is never rewritten; the first snapshot after valuation changed says so, so a step in the
+        # line is explained rather than read as a loss. Once, and only for a household that has held investments.
+        if not _get_setting(session, 'inv_valuation_v35_noted'):
+            if session.query(InvestmentLot.id).first():
+                notes.append('Investment valuation changed on ' + date.today().isoformat() + ': holdings with no '
+                             'price on record are no longer counted at cost, and lots with no cost basis are left '
+                             'out of the gain.')
+            session.add(AppSetting(key='inv_valuation_v35_noted', value=date.today().isoformat()))
+        note = ' '.join(n for n in notes if n)
         if existing:
             existing.assets      = assets
             existing.liabilities = liabilities
             existing.net_worth   = net_worth
+            if note:
+                existing.notes = note
             snap = existing
         else:
             snap = NetWorthSnapshot(
@@ -8094,6 +8144,7 @@ def create_snapshot():
                 assets=assets,
                 liabilities=liabilities,
                 net_worth=net_worth,
+                notes=note,
             )
             session.add(snap)
         _log_net_worth_milestone_variance(session, month_key, net_worth)
