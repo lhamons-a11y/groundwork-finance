@@ -150,7 +150,9 @@ gate 2301 / 0, s9). That build was presented for acceptance with its reading of 
 it: the price evidence decides, not the calendar. An estimate needs an EIA residential price under two weeks old, in
 any month, because EIA published summer weeks in 2024 and April–May 2025.
 
-The estimate card controls (s10, `352223e`) are a separate build and still await acceptance.
+*"Yes I accept the card controls build"* (Rob, 2026-10-03). The estimate card controls (s10) are ACCEPTED as built
+(master `352223e`, gate 2323 / 0). This covers Submit as the decision, Hide as a view choice, and unfollowing an
+estimate that no longer applies after a move.
 
 ## 7. The F2 guard's simulation (Rob: *"Yes run the simulation"*, 2026-10-03)
 
@@ -216,7 +218,8 @@ their January error went from 2–3% (no weather) to a median of 8–9%, 15–19
 ## 8. Status
 
 F1 ACCEPTED. F2–F4 ACCEPTED (s5, `82c4c72`). F5 (budget via the totals pass) and F6 (2.0 only) are met by the
-builds. The estimate card controls (s10) await acceptance.
+builds. The estimate card controls (s10) ACCEPTED. Item 34's built slices are all accepted. Named, not built: a
+hidden card returning on its own in season (Rob did not ask for it).
 
 ## 9. F2–F4, propane and heating oil: authorised and built (Rob, 2026-10-03: *"Yes I authorize the propane and heating oil build"*)
 
