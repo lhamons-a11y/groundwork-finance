@@ -169,7 +169,14 @@ line. The gate's text checks could not see it. Building it for real did. Both sp
   - a macOS/Linux version of the 8 GB kit.
 - Apple Silicon and Linux AI are **not called available** until Q6 passes.
 
-## 5. Status
+## 5. Acceptance (Rob, 2026-10-03)
 
-Q1–Q5 and Q7 BUILT on both lines and gated. Q6 waits for hardware, and the release asset waits for Rob's go-ahead.
-Awaiting acceptance of the build.
+*"Yes"*. Q1–Q5 and Q7 are ACCEPTED as built: lts `138d3e4`, master `7eed5e0`.
+
+## 6. Status
+
+Q1–Q5 and Q7 ACCEPTED. **Item 33 stays open** for two things:
+- **the model release asset** (tag `model-phi3.5-mini-q4`): not created. Publishing it is Rob's decision, alongside
+  the licence gate (ruling 8). Until then both build workflows stop at *Fetch and verify*, by design;
+- **Q6, real hardware:** an Apple Silicon Mac (ideally 8 GB) and a Linux desktop, to prove state 5. Apple Silicon and
+  Linux AI are not called available before then.
