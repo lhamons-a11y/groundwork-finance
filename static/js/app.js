@@ -16439,14 +16439,19 @@ function _renderInvPositions() {
     const ac        = p.asset_class;
     const acLabel   = ac ? ASSET_CLASSES[ac] : null;
     const acColor   = ac ? ASSET_CLASS_COLORS[ac] : null;
-    const er        = p.expense_ratio;
-    // Fee flag — only shown when ER is notable (>0.5%)
-    const feeFlag = er > 1.0
+    const er        = p.expense_ratio;   // a FRACTION of the value a year (0.0003 = 0.03%)
+    // Fee flag — only shown when ER is notable (>0.5%); a ratio saved before its unit was stated asks to be confirmed
+    const feeFlag = p.expense_ratio_unconfirmed != null
+      ? `<span onclick="promptExpenseRatio('${esc(p.ticker)}')"
+               style="font-size:10px;padding:2px 6px;border-radius:20px;cursor:pointer;
+                      background:var(--gold-bg);border:1px solid #FAC775;color:#854F0B"
+               title="Expense ratio saved without a unit — click to confirm">Confirm ER</span>`
+      : er > 0.01
       ? `<span onclick="promptExpenseRatio('${esc(p.ticker)}')"
                style="font-size:10px;padding:2px 6px;border-radius:20px;cursor:pointer;
                       background:#FCEBEB;border:1px solid #F7C1C1;color:#A32D2D"
                title="High expense ratio — click to review">${(er*100).toFixed(2)}%</span>`
-      : er > 0.5
+      : er > 0.005
       ? `<span onclick="promptExpenseRatio('${esc(p.ticker)}')"
                style="font-size:10px;padding:2px 6px;border-radius:20px;cursor:pointer;
                       background:var(--gold-bg);border:1px solid #FAC775;color:#854F0B"
@@ -16662,6 +16667,7 @@ function _renderFeeAnalysis() {
 
   const totalAnnualFee = feeRows.reduce((s,r) => s+r.annualFee, 0);
   if (totalAnnualFee < 1) return '';
+  const unconfirmedER = _invPositions.filter(p => p.expense_ratio_unconfirmed != null).map(p => p.ticker);
 
   // 30-year compounding opportunity cost at 7% average market return
   // Future value of annuity: FV = PMT × ((1+r)^n − 1) / r
@@ -16691,27 +16697,34 @@ function _renderFeeAnalysis() {
           </span>
           <span class="text-mono" style="color:var(--color-text-danger)">${fmt(r.annualFee)}/yr</span>
         </div>`).join('')}
+      ${unconfirmedER.length ? `<div style="font-size:11px;color:var(--slate-2);margin-top:4px">Not counted: ${esc(unconfirmedER.join(', '))} \u2014 expense ratio needs confirming.</div>` : ''}
     </div>`;
 }
 
 async function saveExpenseRatio(ticker, er) {
   const val = parseFloat(er);
-  if (isNaN(val) || val < 0) return;
-  // Store as decimal (0.03 not 3)
-  const decimal = val > 1 ? val / 100 : val;
+  if (isNaN(val) || val < 0 || val > 100) return;
+  // What the user typed is a PERCENT (the prompt asks for one: 0.03 for a 0.03% fund). It is saved as typed, with its
+  // unit; the page works in a fraction of the value.
   const pos = _invPositions.find(p => p.ticker === ticker);
-  if (pos) pos.expense_ratio = decimal;
-  await API.patch('/api/investments/expense-ratios', { [ticker]: decimal }).catch(_gwErr('saveExpenseRatio'));
+  if (pos) { pos.expense_ratio = val / 100; pos.expense_ratio_unconfirmed = null; pos.expense_ratio_source = 'yours'; }
+  await API.patch('/api/investments/expense-ratios', { unit: 'percent', ratios: { [ticker]: val } }).catch(_gwErr('saveExpenseRatio'));
   _renderInvPositions();
   _renderInvAnalytics();
 }
 
 function promptExpenseRatio(ticker) {
   const pos     = _invPositions.find(p => p.ticker === ticker);
-  const current = pos?.expense_ratio != null ? (pos.expense_ratio * 100).toFixed(2) : '';
+  const current = pos?.expense_ratio != null ? +(pos.expense_ratio * 100).toFixed(4) : '';
+  const unconfirmed = pos?.expense_ratio_unconfirmed != null
+    ? `<div style="margin-bottom:8px;font-size:12px;color:var(--slate)">
+         A figure of ${esc(String(pos.expense_ratio_unconfirmed))} was saved for ${esc(ticker)} before Groundwork said which unit it meant,
+         so it could be ${esc(String(pos.expense_ratio_unconfirmed))}% or ${esc(String(+(pos.expense_ratio_unconfirmed * 100).toFixed(4)))}%.
+         It is not used until you confirm it.
+       </div>` : '';
   confirmAction(
     `Expense ratio for ${ticker}`,
-    `<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">
+    `${unconfirmed}<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">
        Enter the annual expense ratio as a percentage (e.g. 0.03 for Vanguard index funds, 0.20 for QQQ).
      </div>
      <div style="display:flex;align-items:center;gap:8px">
