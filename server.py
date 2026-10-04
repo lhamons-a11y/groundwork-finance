@@ -8126,9 +8126,10 @@ def _serialize_snapshot(s) -> dict:
 
 
 def _snapshot_without_figures(s) -> bool:
-    """Item 38 P4: a snapshot whose assets and liabilities are both 0 records no figures - the paid-off marker wrote
-    such rows from the first commit until 2026-10-04 (a missing figure read as 0). It is not a net worth of $0."""
-    return not (s.assets or 0) and not (s.liabilities or 0)
+    """Item 38 P4: a snapshot whose assets, liabilities and net worth are all 0 records no figures - the paid-off
+    marker wrote such rows from the first commit until 2026-10-04 (a missing figure read as 0). It is not a net worth
+    of $0. A row with a net worth but no breakdown has a figure, and is never set aside."""
+    return not (s.assets or 0) and not (s.liabilities or 0) and not (s.net_worth or 0)
 
 
 def _snapshots_by_month(session):
