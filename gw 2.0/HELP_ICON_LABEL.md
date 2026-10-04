@@ -43,6 +43,14 @@ gate on each.
 | Hi3 | The guard | It finds no `${` outside scripts. Adding one back makes the check fail. |
 | Hi4 | Both lines | Hi1–Hi3 on `lts/1.x` and master |
 
-## 4. Status
+## 4. Ruling (Rob, 2026-10-04)
 
-OPENED 2026-10-03. Ruling sought on H1–H3. No build authorised.
+*"I accept all three recommendations."*
+
+- **H1:** the label carries the icon as the markup `helpIcon` produces, opening `HELP_TOPICS.retirement_account`.
+- **H2:** a gate check fails on any `${` in `static/index.html` outside a `<script>` block.
+- **H3:** both lines, `lts/1.x` first, then merged to master, with a gate on each.
+
+## 5. Status
+
+OPENED 2026-10-03; RULED 2026-10-04. No build authorised (a ruling is not an authorisation).
