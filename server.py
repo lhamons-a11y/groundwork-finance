@@ -2012,7 +2012,7 @@ _ASK_STOP = {'show', 'me', 'my', 'the', 'a', 'an', 'of', 'in', 'on', 'to', 'for'
 def _tile_evidence(session, tile_id):
     """K3 / R3: whether the record backs a catalogue tile now, and if not, what it needs - in the user's terms."""
     if tile_id == 'gwNetWorthTrendCard':
-        n = session.query(NetWorthSnapshot).count()
+        n = len(_snapshots_by_month(session)[0])      # item 38: months with figures, never an all-zero record
         return (n >= 2, None if n >= 2 else
                 f'Net worth over time needs at least two net worth snapshots; you have {n}.')
     if tile_id == 'gwFundsCard':
@@ -2274,7 +2274,7 @@ def dashboard_tile_net_worth():
         backed, needs = _tile_evidence(session, 'gwNetWorthTrendCard')
         if not backed:
             return ok({'backed': False, 'needs': needs})
-        snaps = session.query(NetWorthSnapshot).order_by(NetWorthSnapshot.snapshot_date).all()
+        snaps = _snapshots_by_month(session)[0]       # item 38 P4: one per month, with figures
         return ok({'backed': True, 'points': [{'date': s.snapshot_date, 'net_worth': round(s.net_worth or 0, 2)}
                                               for s in snaps]})
 

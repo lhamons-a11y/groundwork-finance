@@ -20,11 +20,21 @@ import subprocess
 
 
 class _FakeQuery:
+    """n net worth snapshots: counted, or - since item 38 reads one per month with figures - listed as n distinct
+    months that each have figures."""
     def __init__(self, n):
         self.n = n
 
     def count(self):
         return self.n
+
+    def order_by(self, *_a):
+        return self
+
+    def all(self):
+        from types import SimpleNamespace
+        return [SimpleNamespace(id=i, snapshot_date=f'2020-{i + 1:02d}', assets=1000.0, liabilities=0.0,
+                                net_worth=1000.0, notes='') for i in range(self.n)]
 
 
 class _FakeSession:

@@ -228,3 +228,21 @@ def run(ctx):
               and 'You marked Rent protected on 2026-09-28.' in o['picture']['lines'])
         check('s135 R3 a tile without its evidence shows only what it needs', o['needs']['lines'] == ['Savings funds needs at least one savings fund; you have none yet.'])
         check('s135 no verdict or advice word in any new tile', o['banned'] == [])
+
+    # Item 38 (PAID_OFF_SNAPSHOT.md P4): the net worth tile never draws, or counts as evidence, an all-zero record.
+    from core.database import NetWorthSnapshot as _NWS
+    with ctx.dbs() as s:
+        s.add(_NWS(snapshot_date='1998-01', assets=0, liabilities=0, net_worth=0, notes='Paid off: Old'))
+        s.add(_NWS(snapshot_date='1998-01', assets=30000, liabilities=5000, net_worth=25000, notes=''))
+        s.add(_NWS(snapshot_date='1998-02', assets=0, liabilities=0, net_worth=0, notes='Paid off: Old2'))
+        s.add(_NWS(snapshot_date='1998-03', assets=31000, liabilities=5000, net_worth=26000, notes=''))
+        s.commit()
+    try:
+        r = ctx.c.get('/api/dashboard/tile/net-worth', headers=ctx.HJ)
+        pts = [p for p in ((r.get_json() or {}).get('data') or {}).get('points') or [] if p['date'].startswith('1998-')]
+        check('s135 item 38 the net worth tile draws one point per month with figures, and none for an all-zero record',
+              pts == [{'date': '1998-01', 'net_worth': 25000.0}, {'date': '1998-03', 'net_worth': 26000.0}])
+    finally:
+        with ctx.dbs() as s:
+            s.query(_NWS).filter(_NWS.snapshot_date.like('1998-%')).delete(synchronize_session=False)
+            s.commit()
