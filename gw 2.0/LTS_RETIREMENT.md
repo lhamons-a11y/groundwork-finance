@@ -104,6 +104,72 @@ master is pushed. This is unchanged from today.
 
 *Recommended*, as a working rule, with the check run at every master push that follows a 1.x merge.
 
+**Gaps in L2, found on review (2026-10-04, Rob: *"Is there any gaps that you see in L2?"* / *"Let's add these"*).**
+L2a–L2d say how a fix reaches the branches. They do not say how it reaches people, and they leave five other cases
+unwritten. Measured 2026-10-04:
+- Only `v1.1.0` is tagged (`3935484`, 2026-08-28), and `lts/1.x` has **183 commits** since.
+- `GW_VERSION` is still `20260826-d24` on both lines.
+- `Website/version.json`, which the in-app update check reads, still says Groundwork *"installs Ollama for you"*.
+- The lines carry different `SCHEMA_VERSION` strings: `20261002-lts-household-facts` on 1.x,
+  `20261002-household-facts` on master.
+
+**L2e. A 1.x fix reaches users only in a release. The release is part of the fix.**
+- No 1.x release has shipped since August. Item 38's fix (wrong figures written into saved history), item 35's and
+  item 36's are on `lts/1.x` and have reached no 1.1 user.
+- When a qualifying fix is accepted, it is released as **1.1.x**, which means:
+  - the version bumped on 1.x (`GW_VERSION`, matched in `app.js`);
+  - the Windows installer built from `lts/1.x` and checked on a clean machine;
+  - the changelog written, listing everything since the last release (see L2j);
+  - `version.json` updated so 1.1 installs are offered it.
+- Rob decides each release and deploys the website (the deploy stays his, as now). Claude prepares everything else and
+  says what is ready.
+- **The first such release** carries everything on `lts/1.x` since `v1.1.0`. It is laid out for Rob's go-ahead as its
+  own step, not bundled into a ruling.
+
+*Recommended.* Without this, L1's *"1.x gets data-loss fixes"* is true of a branch and of nobody's computer.
+
+**L2f. The bug is shown on 1.x before it is fixed there.**
+- Development is now master-only, so most bugs will be found on master.
+- A pass proposing a 1.x fix measures the bug on `lts/1.x` (as items 35 and 38 did, on both lines) and records it.
+- A bug that does not reproduce on 1.x is master only, whatever its kind.
+
+*Recommended.*
+
+**L2g. Merges go one way: `lts/1.x` into master, never master into `lts/1.x`.** A merge the other way would carry
+2.0's code into the 1.x line. The rule is implied by L2a and written here so it is not only implied.
+
+*Recommended.*
+
+**L2h. A 1.x fix that changes the database.**
+- The lines already keep separate schema versions. A 1.x fix with a migration therefore:
+  - bumps 1.x's own version and pin (s51) on 1.x;
+  - is resolved at the version line in the merge into master, where master takes its own next version and pin;
+  - adds an s67 fixture for the new 1.x schema, so the 1.x → 2.0 upgrade still proves itself from that version.
+- Each such fix says so in its pass, because this is the one kind of fix where the merge forward is never automatic.
+
+*Recommended.*
+
+**L2i. When the code around a fix has diverged, master's resolution is recorded as a change.**
+- If the merge forward conflicts, the resolution is master's version of the fix. Only master's gate checks it.
+- The build record names the conflict, the resolution, and the master check that covers it, as items 35 and 38 named
+  their master-only follow-ups.
+- It is never left as merge mechanics.
+
+*Recommended.*
+
+**L2j. The ancestry check runs itself.**
+- L2d's *"master contains every 1.x commit"* becomes a gate check on master.
+- When git and `origin/lts/1.x` are present, it fails if `lts/1.x` is not an ancestor of `HEAD`.
+- When they are not present, it says it was skipped rather than passing silently.
+- Today's slip happened because nothing checked.
+
+*Recommended.*
+
+**Note (not a point).** Some changes already on `lts/1.x` would not qualify under L1, such as item 36's help icon and
+the Ollama removal (item 31). Nothing is undone. The first 1.1.x release notes list them with the rest (L2e).
+
+**L2, for ruling as a whole:** L2a (a); L2b; L2c; L2d; L2e–L2j.
+
 **L3. 1.1 users move to 2.0 by upgrading in place.**
 - When 2.0 ships, its installer opens a 1.x database and migrates it. s67's 1.x → 2.0 fixture already proves this in
   the gate.
@@ -141,7 +207,8 @@ master is pushed. This is unchanged from today.
 
 From this ruling on, a shared change is not built on 1.x unless it is one of those fixes.
 
-L2–L6 have not been ruled. They stay open, and are not assumed.
+L2–L6 have not been ruled. They stay open, and are not assumed. L2 was opened, tested and reviewed
+2026-10-04 (L2a–L2j above).
 
 ## 4. Status
 
