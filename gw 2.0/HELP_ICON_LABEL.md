@@ -54,7 +54,8 @@ gate on each.
 ## 5. Status
 
 OPENED 2026-10-03. RULED 2026-10-04. AUTHORISED 2026-10-04 (Rob: *"I do authorize item 38 build"* — read as item 36,
-the only build then awaiting authorisation; there is no item 38). BUILT on both lines. Awaiting acceptance.
+the only build then awaiting authorisation; there is no item 38). BUILT on both lines. **ACCEPTED 2026-10-04** (Rob: *"I accept"*), as built: `lts/1.x` `bfaa8fa`,
+master `c2094fc`. Item 36 CLOSED.
 
 ## 6. Built (2026-10-04): `lts/1.x` `bfaa8fa` (gate 974 / 0), then master (gate 2372 / 0)
 
