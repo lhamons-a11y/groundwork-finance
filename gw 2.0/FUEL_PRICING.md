@@ -337,3 +337,13 @@ This applies to all five estimate cards: natural gas, electricity, vehicle fuel,
   - Hide removed the card and the hidden line reported *"followed; this month's budget uses your saved amount"*.
   - Show brought the card back with Follow still selected.
 - **Gate:** 2323 / 0.
+
+## 11. Closed (Rob, 2026-10-03)
+
+*"Let's close item 34."*
+
+Item 34 is CLOSED.
+- F1 (diesel), F2–F4 (propane and heating oil) and the estimate card controls are each ACCEPTED.
+- F5 (budget via the totals pass) and F6 (2.0 only) are met.
+- F7 (each slice its own authorisation) was followed.
+- Named, not built: a hidden card returning on its own in season.
