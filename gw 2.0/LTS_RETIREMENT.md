@@ -207,9 +207,29 @@ the Ollama removal (item 31). Nothing is undone. The first 1.1.x release notes l
 
 From this ruling on, a shared change is not built on 1.x unless it is one of those fixes.
 
-L2–L6 have not been ruled. They stay open, and are not assumed. L2 was opened, tested and reviewed
-2026-10-04 (L2a–L2j above).
+**L2 RULED AS A WHOLE (Rob, 2026-10-04: *"Yes i accept L2 as a whole"*), as recommended:**
+- **L2a (a):** a qualifying fix is built on `lts/1.x` first, gated, then merged forward into master.
+- **L2b:** each pass says whether a change qualifies under L1 and why; Rob rules it. Without that ruling it is master
+  only.
+- **L2c:** the 1.x gate before pushing 1.x, then master's gate before pushing master.
+- **L2d:** never rebase a branch that holds 1.x merges; check ancestry before pushing master.
+- **L2e:** a 1.x fix reaches users in a 1.1.x release. Rob decides each release and deploys the site; Claude prepares
+  the rest. The first release, carrying everything since `v1.1.0`, is laid out for Rob's go-ahead as its own step.
+- **L2f:** the bug is shown on 1.x before it is fixed there.
+- **L2g:** merges go `lts/1.x` → master only.
+- **L2h:** a schema-changing 1.x fix keeps 1.x's own version and pin, is resolved at the merge, and adds an s67 fixture.
+- **L2i:** a diverged-code resolution is recorded as master's change.
+- **L2j:** the ancestry check becomes a gate check on master.
+
+**What L2 needs built:**
+- L2j's gate check: a small change, master only.
+- L2e's first 1.1.x release: a release, laid out for Rob before anything is built or published.
+
+Neither is authorised by this ruling.
+
+L3–L6 have not been ruled. They stay open, and are not assumed.
 
 ## 4. Status
 
-QUESTION RULED 2026-10-04 (LTS no longer needed). L1 RULED (b). L2–L6 open. No build authorised.
+QUESTION RULED 2026-10-04 (LTS no longer needed). L1 RULED (b). L2 RULED as a whole. L3–L6 open. No build
+authorised: L2j's gate check and L2e's first 1.1.x release each await their own go-ahead.
