@@ -75,6 +75,35 @@ master is pushed. This is unchanged from today.
 
 *Recommended.*
 
+**L2 tested (2026-10-04, Rob: *"Test L2"*).**
+- **Method.** A throwaway clone of the current GitHub branches, with pushing disabled (`scratchpad/l2_test.py`). Each
+  simulated fix is a one-line change to a line both lines share. If a fix cannot be applied, the test says it is
+  broken rather than reporting.
+- **The first run found a real defect.**
+  - `lts/1.x` had two commits master did not contain. They were item 38's `7031844` and `9a1f20e`.
+  - **Cause:** while recording item 38's build, the master branch was rebased before pushing. A rebase flattens merge
+    commits, so master carried *copies* of the two commits (`fcfe5b8`, `85220b9`), with the same code and different
+    identities.
+  - **Effect:** every later merge from 1.x conflicted. That is the failure (b) produces, arrived at by accident under (a).
+  - **Repaired** by a real merge of `lts/1.x` into master (`c213510`). It changes no file: the tree is identical,
+    verified with `git diff`. It restores *master contains every 1.x commit*. The code on master was always the gated
+    code (`a09bfea` and `27c596f` differ only in `gw 2.0/`).
+- **The second run, after the repair:**
+
+| | First merge or pick | A later 1.x fix merged into master | Master contains every 1.x commit |
+|---|---|---|---|
+| (a) on 1.x, merged forward | clean | clean | yes |
+| (a), with master-only follow-up in between (as items 35 and 38 had) | clean | clean | yes |
+| (b) on master, cherry-picked back (same text) | clean | **conflict** (`server.py`) | **no** |
+| (b), with the backport adapted to the older code | — | **conflict** (`server.py`) | **no** |
+
+**What the test adds to L2:**
+- **L2d. Never rebase a branch that holds merges from `lts/1.x`.** Update it with `git merge`, or not at all.
+- **Before pushing master,** check `git merge-base --is-ancestor origin/lts/1.x HEAD`. If it fails, master has lost the
+  link and the push waits.
+
+*Recommended*, as a working rule, with the check run at every master push that follows a 1.x merge.
+
 **L3. 1.1 users move to 2.0 by upgrading in place.**
 - When 2.0 ships, its installer opens a 1.x database and migrates it. s67's 1.x → 2.0 fixture already proves this in
   the gate.
