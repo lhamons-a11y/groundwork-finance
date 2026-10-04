@@ -439,7 +439,7 @@ async function buildFinancialProfile() {
       API.get('/api/net-worth/snapshots?months=24').catch(_gwErrVal('buildFinancialProfile', { data: [] })),
       API.get('/api/budget/plan').catch(_gwErrVal('buildFinancialProfile', { data: null })),
     ]);
-    const nwSnapshots = (nwRes.data || []);
+    const nwSnapshots = (nwRes.data || []).filter(r => !r.without_figures);   // item 38: never a $0 from no figures
     const sbMonths    = (sbRes.data?.months || []);
 
     S.profile = {
@@ -9808,15 +9808,11 @@ function setCardPaidInFull(id, checked) {
     // ── Cascade: update every surface that reads S.debtCards ──────────────
     renderDashboard();                          // mission card, freed minimums
     updateNetWorth();                           // liabilities drop immediately
-    autoSnapshotNetWorthIfDue();                // capture the milestone
+    // Item 38 P1: the payoff is a note on this month's snapshot - the one real snapshot carries it (a month already
+    // taken gets the note added, its figures untouched). It used to post a second "marker" snapshot with no figures,
+    // which recorded a $0 net worth whenever it reached the server first.
+    autoSnapshotNetWorthIfDue(`Paid off: ${card.name || 'Debt account'}`);
     buildFinancialProfile().catch(_gwErr('setCardPaidInFull'));    // debt trajectory stale
-
-    // ── NW chart marker: write a snapshot with the payoff noted ──────────
-    const moKey = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
-    API.post('/api/net-worth/snapshot', {
-      force: false,
-      note:  `Paid off: ${card.name || 'Debt account'}`,
-    }).catch(_gwErr('setCardPaidInFull'));
 
     // ── Re-render the Debt page row in paid-off pine state ────────────────
     const row = g(`dc-${id}`);
@@ -17169,6 +17165,7 @@ function _checkWealthAchievements() {
 }
 
 let _nwHistory = null;
+let _nwNoFigures = [];   // item 38: months recorded without figures (shown as such, never as $0)
 
 // ─── Net Worth ─────────────────────────────────────────────────────────────────
 
@@ -17373,7 +17370,7 @@ function _nwMortgageFieldState(m) {
   }
 }
 
-async function autoSnapshotNetWorthIfDue() {
+async function autoSnapshotNetWorthIfDue(extraNote) {
   try {
     const nw              = S.netWorth || {};
     const savings         = parseFloat(nw.savings)||0;
@@ -17394,10 +17391,14 @@ async function autoSnapshotNetWorthIfDue() {
     const totalAssets       = savings + totalInvestments + cash + homeValue + pensionTotal;
     const totalLiab         = debtBals + _m.counted;
 
-    // Nothing entered yet (new user) — don't record a meaningless $0 snapshot.
-    if (totalAssets === 0 && totalLiab === 0) return;
+    // Nothing entered yet (new user) — don't record a meaningless $0 snapshot. A payoff is still noted on the
+    // month's snapshot if it has one with figures (item 38 P1) - never a snapshot of its own.
+    if (totalAssets === 0 && totalLiab === 0) {
+      if (extraNote) await API.post('/api/net-worth/snapshot', { note_only: true, note: extraNote });
+      return;
+    }
 
-    await API.post('/api/net-worth/snapshot', { force: false, assets: totalAssets, liabilities: totalLiab, note: _nwSnapshotNote() });
+    await API.post('/api/net-worth/snapshot', { force: false, assets: totalAssets, liabilities: totalLiab, note: _nwSnapshotNote(extraNote) });
   } catch(e) { /* non-fatal — manual "Save snapshot now" remains available */ }
 }
 
@@ -17406,10 +17407,14 @@ async function loadSnapshotStatus() {
   if (!el) return;
   try {
     const res  = await API.get('/api/net-worth/snapshots?months=120');
-    const data = Array.isArray(res) ? res : (res.data||[]);
+    const all  = Array.isArray(res) ? res : (res.data||[]);
+    const data = all.filter(r => !r.without_figures);
+    const none = all.length - data.length;
     el.textContent = data.length === 0
       ? 'No snapshots yet — saves automatically on first launch of each month.'
-      : `${data.length} snapshot${data.length!==1?'s':''} recorded · Last: ${data[data.length-1].month_label}`;
+        + (none ? ` (${none} month${none!==1?'s':''} recorded without figures.)` : '')
+      : `${data.length} snapshot${data.length!==1?'s':''} recorded · Last: ${data[data.length-1].month_label}`
+        + (none ? ` · ${none} month${none!==1?'s':''} recorded without figures` : '');
   } catch(e) { _gwErr('loadSnapshotStatus')(e); }
 }
 
@@ -17439,7 +17444,10 @@ async function saveNWSnapshot(force=false) {
 async function loadNWHistory() {
   try {
     const res = await API.get('/api/net-worth/snapshots?months=24');
-    _nwHistory = Array.isArray(res) ? res : (res.data||[]);
+    const rows = Array.isArray(res) ? res : (res.data||[]);
+    // Item 38 P4: a month whose only record has no figures is not a $0 net worth - it is kept apart and said.
+    _nwHistory = rows.filter(r => !r.without_figures);
+    _nwNoFigures = rows.filter(r => r.without_figures);
     _renderNWChart();
     _updateNWDelta();
     _checkWealthAchievements();
@@ -17483,7 +17491,9 @@ function _renderNWChart() {
     ${_nwHistory.map((d,i)=>`<circle cx="${toX(i)}" cy="${toY(d.net_worth)}" r="${d.notes ? 4.5 : 3}" fill="${color}">${d.notes ? `<title>${esc(d.month_label + ': ' + d.notes)}</title>` : ''}</circle>`).join('')}
     ${proj.length ? `<text x="${w-8}" y="${toY(proj[Math.min(11,proj.length-1)].projected)+4}"
        text-anchor="end" font-size="9" fill="${color}" opacity=".5">12mo</text>` : ''}
-  </svg>` + _nwHistory.filter(d => d.notes).slice(-3).map(d =>
+  </svg>` + (_nwNoFigures || []).map(d =>
+    `<div style="font-size:10px;color:var(--slate-2);margin-top:4px">${esc(d.month_label)}: recorded without figures \u2014 not a net worth.</div>`).join('')
+    + _nwHistory.filter(d => d.notes).slice(-3).map(d =>
     `<div style="font-size:10px;color:var(--slate-2);margin-top:4px">${esc(d.month_label + ': ' + d.notes)}</div>`).join('');
 }
 
@@ -19960,6 +19970,10 @@ async function _renderNWMilestones(goals) {
     const confBadge = (confPct != null)
       ? `<span style="font-size:11px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine)':confPct>=40?'var(--gold)':'var(--ember)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>`
       : '';
+    // Item 38 P5: a $0 reading logged the day a snapshot was recorded without figures is left out - and said here.
+    const leftOut   = conf && conf.left_out
+      ? `<span style="font-size:10px;color:var(--slate-2)">${conf.left_out} reading${conf.left_out!==1?'s':''} of $0 left out \u2014 logged the day a snapshot was recorded without figures</span>`
+      : '';
     return `
       <div style="padding:14px;border:0.5px solid var(--steel-2);border-radius:var(--r-md);margin-bottom:10px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -19969,7 +19983,7 @@ async function _renderNWMilestones(goals) {
             ${goal.date ? `<span style="font-size:11px;color:var(--slate-2);margin-left:8px">${new Date(yr,mo-1).toLocaleDateString('en-US',{month:'short',year:'numeric'})}</span>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:8px">
-            ${reached ? '<span style="font-size:11px;color:var(--pine)">✓ Reached</span>' : confBadge}
+            ${reached ? '<span style="font-size:11px;color:var(--pine)">✓ Reached</span>' : confBadge + leftOut}
             <button onclick="removeNWMilestone(${idx})" style="font-size:11px;background:none;border:none;color:var(--slate-2);cursor:pointer;padding:2px 6px">×</button>
           </div>
         </div>
@@ -25684,7 +25698,7 @@ async function _rcRenderDistanceTraveled() {
   let nwFirst = null, nwLast = null;
   try {
     const res  = await API.get('/api/net-worth/snapshots?months=24');
-    const rows = Array.isArray(res) ? res : (res.data || []);
+    const rows = (Array.isArray(res) ? res : (res.data || [])).filter(r => !r.without_figures);   // item 38
     if (rows.length >= 2) { nwFirst = rows[0]; nwLast = rows[rows.length-1]; }
   } catch(e) { /* net worth section simply doesn't render */ }
 

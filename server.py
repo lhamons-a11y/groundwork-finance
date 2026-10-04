@@ -3511,8 +3511,7 @@ def list_trophies():
 
         snaps = [{'date': s.snapshot_date, 'net_worth': float(s.net_worth or 0),
                   'liabilities': float(s.liabilities or 0)}
-                 for s in session.query(NetWorthSnapshot).order_by(
-                     NetWorthSnapshot.snapshot_date).all()]
+                 for s in _snapshots_by_month(session)[0]]          # item 38: one per month, with figures
 
         # Payments landing above the minimums, by month — the receipt
         # `above_minimum` needs and the setting it currently fires on does not
@@ -5731,13 +5730,23 @@ def get_net_worth_milestone_confidence(session, milestone_id, months: int = 12) 
             continue
         if str(ctx.get('milestone_id')) == str(milestone_id):
             matched.append(e)
+    # Item 38 P5: a $0 actual logged on a day an all-zero snapshot was written is the paid-off marker's, not a net
+    # worth. Such events carry no month or snapshot link, so the same day and the same $0 are the evidence; they are
+    # left out, and the result says how many.
+    zero_days = {r.created_at.date() for r in session.query(NetWorthSnapshot).all()
+                 if _snapshot_without_figures(r) and r.created_at}
+    left_out = [e for e in matched if (e.actual_value or 0) == 0 and e.created_at and e.created_at.date() in zero_days]
+    matched = [e for e in matched if e not in left_out]
+    note = (f' {len(left_out)} reading(s) of $0 left out: logged the day a snapshot was recorded without figures.'
+            if left_out else '')
     if not matched:
         return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
-                'samples': 0, 'reasoning': 'No snapshot history yet for this milestone.'}
+                'samples': 0, 'left_out': len(left_out),
+                'reasoning': 'No snapshot history yet for this milestone.' + note}
     variances = [e.variance_pct for e in matched if e.variance_pct is not None]
     if not variances:
         return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
-                'samples': len(matched), 'reasoning': 'No variance data yet.'}
+                'samples': len(matched), 'left_out': len(left_out), 'reasoning': 'No variance data yet.' + note}
     avg_variance = sum(variances) / len(variances)
     # variance_pct = (actual-expected)/expected*100 — positive means AHEAD of
     # pace, which never lowers confidence; only running behind pace does.
@@ -5745,8 +5754,8 @@ def get_net_worth_milestone_confidence(session, milestone_id, months: int = 12) 
     trend = 'ahead' if avg_variance > 5 else 'behind' if avg_variance < -5 else 'on_pace'
     return {
         'confidence_pct': confidence, 'trend': trend,
-        'avg_variance_pct': round(avg_variance, 1), 'samples': len(matched),
-        'reasoning': f'{len(matched)} snapshot(s) tracked, {trend.replace("_", " ")}',
+        'avg_variance_pct': round(avg_variance, 1), 'samples': len(matched), 'left_out': len(left_out),
+        'reasoning': f'{len(matched)} snapshot(s) tracked, {trend.replace("_", " ")}' + note,
     }
 
 
@@ -8116,34 +8125,100 @@ def _serialize_snapshot(s) -> dict:
     }
 
 
+def _snapshot_without_figures(s) -> bool:
+    """Item 38 P4: a snapshot whose assets and liabilities are both 0 records no figures - the paid-off marker wrote
+    such rows from the first commit until 2026-10-04 (a missing figure read as 0). It is not a net worth of $0."""
+    return not (s.assets or 0) and not (s.liabilities or 0)
+
+
+def _snapshots_by_month(session):
+    """(month rows oldest first, all-zero rows that stand alone in their month). Nothing is deleted or rewritten:
+    for each month the readers use its latest snapshot with figures; an all-zero row beside one is skipped; an all-zero
+    row alone in its month is returned separately, to be shown as recorded without figures, never as a value."""
+    by_month = {}
+    for r in session.query(NetWorthSnapshot).order_by(NetWorthSnapshot.snapshot_date, NetWorthSnapshot.id).all():
+        by_month.setdefault(r.snapshot_date, []).append(r)
+    real, alone = [], []
+    for month in sorted(by_month):
+        with_figures = [r for r in by_month[month] if not _snapshot_without_figures(r)]
+        if with_figures:
+            real.append(with_figures[-1])
+        else:
+            alone.append(by_month[month][-1])
+    return real, alone
+
+
 @networth_bp.route('/snapshots', methods=['GET'])
 def list_snapshots():
-    """Return snapshot history for the trending chart."""
+    """Return snapshot history for the trending chart: one row per month with figures (item 38 P4), plus - marked
+    `without_figures` - any month whose only record has none, so the page can say so instead of drawing $0."""
     months = int(request.args.get('months', 24))
     with db_session() as session:
-        rows = (session.query(NetWorthSnapshot)
-                .order_by(NetWorthSnapshot.snapshot_date.desc())
-                .limit(months)
-                .all())
-        rows.reverse()
-        return ok([_serialize_snapshot(r) for r in rows])
+        real, alone = _snapshots_by_month(session)
+        rows = sorted([(r, False) for r in real] + [(r, True) for r in alone], key=lambda x: x[0].snapshot_date)[-months:]
+        return ok([{**_serialize_snapshot(r), 'without_figures': w} for r, w in rows])
+
+
+_SNAPSHOT_LOCK = threading.Lock()
+
+
+def _merge_note(old, new):
+    """A note is added to a snapshot's notes once; nothing already recorded is removed."""
+    old, new = (old or '').strip(), (new or '').strip()
+    if not new or new in old:
+        return old
+    return (old + ' ' + new).strip()[:2000]
 
 
 @networth_bp.route('/snapshot', methods=['POST'])
 def create_snapshot():
-    """Manually take a net worth snapshot for the current month."""
+    """Take this month's net worth snapshot (item 38, PAID_OFF_SNAPSHOT.md).
+
+    P2  `assets` and `liabilities` are required numbers - a missing figure is refused, never read as 0
+    P3  one snapshot per month: the check and the insert happen under one lock
+    P1  a `note` on a month already taken is added to that month's snapshot; its figures are left alone unless `force`
+    """
     body  = request.get_json(silent=True) or {}
     force = bool(body.get('force', False))
     month_key = date.today().strftime('%Y-%m')
 
-    with db_session() as session:
-        existing = session.query(NetWorthSnapshot).filter_by(
-            snapshot_date=month_key).first()
-        if existing and not force:
-            return ok({'taken': False,
+    if body.get('note_only'):
+        # P1: a payoff noted on this month's snapshot, when there is one with figures. Never a snapshot of its own.
+        note = str(body.get('note') or '').strip()[:500]
+        with _SNAPSHOT_LOCK, db_session() as session:
+            snap = next((r for r in session.query(NetWorthSnapshot).filter_by(snapshot_date=month_key)
+                         .order_by(NetWorthSnapshot.id.desc()).all() if not _snapshot_without_figures(r)), None)
+            if not snap or not note:
+                return ok({'taken': False, 'noted': False,
+                           'message': 'No snapshot with figures this month to add the note to.' if note else 'No note.'})
+            snap.notes = _merge_note(snap.notes, note)
+            session.commit()
+            return ok({'taken': False, 'noted': True, 'snapshot': _serialize_snapshot(snap)})
+
+    def _figure(k):
+        v = body.get(k)
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v or v in (float('inf'), float('-inf')):
+            return None
+        return float(v)
+    assets, liabilities = _figure('assets'), _figure('liabilities')
+    if assets is None or liabilities is None:
+        return err('a snapshot needs assets and liabilities as numbers - a missing figure is not zero')
+
+    with _SNAPSHOT_LOCK, db_session() as session:
+        existing = (session.query(NetWorthSnapshot).filter_by(snapshot_date=month_key)
+                    .order_by(NetWorthSnapshot.id.desc()).all())
+        existing = next((r for r in existing if not _snapshot_without_figures(r)), existing[0] if existing else None)
+        if existing and not force and not _snapshot_without_figures(existing):
+            note = str(body.get('note') or '').strip()[:500]
+            if note:
+                existing.notes = _merge_note(existing.notes, note)
+                session.commit()
+            return ok({'taken': False, 'noted': bool(note), 'snapshot': _serialize_snapshot(existing),
                        'message': 'Snapshot already exists. Pass force=true to overwrite.'})
-        assets      = float(body.get('assets',      0))
-        liabilities = float(body.get('liabilities', 0))
+        # An all-zero record for this month (the old marker's) is never overwritten; a real snapshot is added beside
+        # it, and the readers use the one with figures (P4).
+        if existing and _snapshot_without_figures(existing):
+            existing = None
         net_worth   = assets - liabilities
         notes = [str(body.get('note') or '').strip()[:500]]        # what the page says the figure leaves out (V6)
         # Item 35 V7: history is never rewritten; the first snapshot after valuation changed says so, so a step in the
@@ -8160,7 +8235,7 @@ def create_snapshot():
             existing.liabilities = liabilities
             existing.net_worth   = net_worth
             if note:
-                existing.notes = note
+                existing.notes = _merge_note(existing.notes, note)
             snap = existing
         else:
             snap = NetWorthSnapshot(

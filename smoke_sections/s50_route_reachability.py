@@ -123,7 +123,6 @@ def run(ctx):
         ('POST', '/api/backup/location'),         # moves where backups live
         ('POST', '/api/settings/export-to-file'), # writes a file outside the DB
         ('POST', '/api/save'),                    # saves the settings blob
-        ('POST', '/api/net-worth/snapshot'),      # a snapshot needs no fields
         ('POST', '/api/import/commit'),           # commits whatever it is given
         ('POST', '/api/categories/reclassify-income'),  # rewrites rows in bulk
         ('POST', '/api/categories/smart-backfill'),     # rewrites rows in bulk
