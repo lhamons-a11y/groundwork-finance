@@ -229,11 +229,13 @@ def run(ctx):
         # force, because an earlier section already took this month's snapshot
         # and the route is right to refuse a second one without it. That
         # refusal has its own checks; this is the overwrite path.
-        _snap = c.post('/api/net-worth/snapshot', headers=HJ, json={'force': True})
+        # Item 38 (PAID_OFF_SNAPSHOT.md P2): a snapshot without figures is refused - it used to record a $0 net worth.
+        _snap = c.post('/api/net-worth/snapshot', headers=HJ, json={'force': True, 'assets': 9000, 'liabilities': 2000})
+        _bare = c.post('/api/net-worth/snapshot', headers=HJ, json={'force': True})
         with db_session() as session:
             _snap_rows = session.query(NetWorthSnapshot).count()
-        check('a net-worth snapshot needs no figures of its own and records one',
-              _snap.status_code == 200 and _snap_rows >= 1
+        check('a net-worth snapshot records its figures, and one without figures is refused',
+              _snap.status_code == 200 and _snap_rows >= 1 and _bare.status_code == 400
               and data_of(_snap).get('snapshot', {}).get('month_label'))
 
         for _url, _field in (('/api/categories/reclassify-income', 'message'),
