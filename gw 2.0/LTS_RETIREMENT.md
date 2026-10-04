@@ -73,6 +73,16 @@ a fix that goes to 1.x. Everything else is built on master alone.
 
 *Recommended.*
 
-## 3. Status
+## 3. Ruling
 
-QUESTION RULED 2026-10-04 (LTS no longer needed). L1–L6 sought. No build authorised.
+**L1 RULED (Rob, 2026-10-04: *"I agree with L1"*), as recommended: (b).** Until 2.0 ships:
+- `lts/1.x` gets only fixes for data loss, wrong saved figures and security.
+- Everything else is built on master alone.
+
+From this ruling on, a shared change is not built on 1.x unless it is one of those fixes.
+
+L2–L6 have not been ruled. They stay open, and are not assumed.
+
+## 4. Status
+
+QUESTION RULED 2026-10-04 (LTS no longer needed). L1 RULED (b). L2–L6 open. No build authorised.
