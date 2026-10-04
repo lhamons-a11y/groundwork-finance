@@ -39,8 +39,39 @@ out what retiring it changes. It asks for rulings and authorises nothing.
 like item 38's, until 2027. (a) leaves known history-corrupting bugs in shipped software for a year. (c) keeps the cost
 Rob asked about.
 
-**L2. The order for shared code changes.** Under (b), the rule *"lts/1.x first, then merge to master"* applies only to
-a fix that goes to 1.x. Everything else is built on master alone.
+**L2. How a fix that qualifies under L1 reaches both lines** (opened 2026-10-04, Rob: *"Open L2"*).
+
+L1 settles *which* changes go to 1.x. L2 settles *how* such a fix is built, and who says it qualifies.
+
+**What today showed.** Four fixes went to both lines this session (items 35, 36, 38, and the fee drag). Each was built
+on `lts/1.x`, gated, then merged into master and gated again.
+- **The merges.** All four merged without a conflict. Each still needed master-only follow-up the 1.x code does not
+  have: item 35's tile, item 38's 2.0 net worth tile and the s134 stub. Each was found on master's gate or sections.
+- **One fix changed during the merge.** Item 38's *"without figures"* definition was found too broad on master's s134.
+  It was corrected on 1.x first (`9a1f20e`) and merged again, so both lines kept one definition.
+
+**L2a. The order.**
+- (a) **On `lts/1.x` first, then merged forward into master** (as today). The fix is written against the older code
+  it must run on. Master always contains everything 1.x has, by merge, so nothing can be on 1.x and missing from master.
+- (b) **On master first, then backported to `lts/1.x`** (cherry-pick, adapted). The fix is written where development
+  happens. But the two lines carry two versions of the same fix, and nothing guarantees they agree. A later merge of 1.x
+  into master would meet the fix twice.
+- (c) **Written separately on each line.** Two implementations, each gated.
+
+*Recommended: (a).* It keeps one implementation of each fix, keeps "master contains 1.x" true by construction, and
+writes the fix for the line where it is hardest to get right. Master-only follow-up stays master-only, found by
+master's gate, as today.
+
+**L2b. Who decides that a change qualifies.**
+- Each pass that could touch 1.x says, in its points, whether the change is a data-loss, wrong-saved-figure or security
+  fix and why. Rob rules it with the pass's other points.
+- Without that ruling, the change is master only. Nothing goes to 1.x by default.
+
+*Recommended.* (The alternative, Claude deciding at build time, would make the line a side effect of an implementation
+choice.)
+
+**L2c. The gate.** A fix on 1.x passes the 1.x gate before it is pushed, and master's gate after the merge, before
+master is pushed. This is unchanged from today.
 
 *Recommended.*
 
