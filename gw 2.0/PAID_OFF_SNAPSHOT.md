@@ -95,6 +95,22 @@ then merge to master, with a gate on each.
 | Ps7 | Milestone confidence with a $0 variance logged the same day as an all-zero snapshot | Left out, and the milestone says so |
 | Ps8 | Both lines | Ps1–Ps7 on `lts/1.x` and master |
 
-## 4. Status
+## 4. Ruling (Rob, 2026-10-04)
 
-OPENED 2026-10-04. Ruling sought on P1–P6. No build authorised.
+*"I agree with you. I accept your recommendations."*
+
+- **P1:** the payoff is a note on the month's snapshot. The second POST is removed. On a month already taken, the note
+  is appended and the figures are left alone.
+- **P2:** a snapshot without `assets` and `liabilities` as numbers is refused (400).
+- **P3 (a):** a process lock around the check-and-insert. No schema change.
+- **P4:** existing rows are never deleted or rewritten.
+  - An all-zero row beside a real one for the same month is skipped by the readers.
+  - One alone in its month is shown labelled *"recorded without figures — not a net worth"*, with no chart point and
+    no delta against it.
+- **P5 (b):** a $0 `net_worth_milestone_variance` logged the same day as an all-zero snapshot is left out of
+  confidence, and the milestone says so.
+- **P6:** both lines, `lts/1.x` first, with a gate on each.
+
+## 5. Status
+
+OPENED and RULED 2026-10-04. No build authorised (a ruling is not an authorisation).
