@@ -1930,7 +1930,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div class="field mb-4"><label>Investment accounts ($) <span style="font-weight:400;font-size:10px;color:var(--slate-2)">brokerage, taxable</span></label><input type="number" step="0.01" id="nwInvestments" placeholder="0" oninput="updateNetWorth(); this.dataset.portfolioSync='';"><div id="nwInvSyncBadge" style="font-size:10px;color:var(--pine);margin-top:3px;display:none"></div></div>
               <!-- Retirement accounts — Phase 11 -->
               <div class="field mb-4">
-                <label>401(k) / 403(b) ($) ${helpIcon('retirement_account')}</label>
+                <label>401(k) / 403(b) ($) <span class="help-icon" onclick="showHelp('retirement_account',this)" title="What is this?">i</span></label>
                 <input type="number" step="0.01" id="nw401k" placeholder="0" oninput="updateNetWorth()">
               </div>
               <div class="field mb-4">
