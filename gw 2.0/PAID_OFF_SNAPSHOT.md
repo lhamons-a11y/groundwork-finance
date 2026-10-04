@@ -113,4 +113,53 @@ then merge to master, with a gate on each.
 
 ## 5. Status
 
-OPENED and RULED 2026-10-04. No build authorised (a ruling is not an authorisation).
+OPENED and RULED 2026-10-04. AUTHORISED 2026-10-04 (Rob: *"Yes I authorize 38 build"*). BUILT on both lines (s6).
+Awaiting acceptance.
+
+## 6. Built (2026-10-04): `lts/1.x` `7031844` (987 / 0) and `9a1f20e` (988 / 0); master gate 2387 / 0
+
+**P1.** `setCardPaidInFull` no longer posts a snapshot of its own. It calls `autoSnapshotNetWorthIfDue("Paid off: <card>")`,
+and the one real snapshot carries the payoff as its note.
+- A month already taken gets the note (`_merge_note`: added once, nothing removed), and its figures are untouched.
+- **Found in the browser:** when the paid debt was the last one and nothing else was entered, the totals were 0 / 0.
+  The auto snapshot rightly records nothing then, and the payoff was lost.
+  - A `note_only` request now adds the note to the month's snapshot with figures, and never creates one.
+  - Re-tested: October kept its −$1,200 figures and gained *"Paid off: Visa"*.
+
+**P2.** `create_snapshot` requires `assets` and `liabilities` as numbers (not strings, not booleans, finite). A
+missing one is a 400. s55's check *"a net-worth snapshot needs no figures of its own"* pinned the bug and is
+rewritten. s50 now sweeps the route with an empty body.
+
+**P3.** `_SNAPSHOT_LOCK` holds the check and the insert together. Twenty concurrent trials gave one row for the month
+every time; with the lock removed, the s148 check fails.
+
+**P4.** `_snapshots_by_month` reads one row per month: the latest with figures.
+- **"Without figures"** means assets, liabilities and net worth all 0, which is what the marker wrote.
+  - **Found on master's s134:** a row with a net worth but no breakdown is a figure, and is never set aside.
+- **Readers:** `list_snapshots` marks a month whose only record has none `without_figures`. The chart, the delta, the
+  status line, the financial profile and the monthly report skip it, and the chart says *"<month>: recorded without
+  figures — not a net worth."*
+- **On master,** the 2.0 *Net worth over time* tile and its evidence count read the same.
+- **A real snapshot** is added beside an old all-zero row for the month, never written over it.
+- **Nothing is deleted or rewritten.**
+
+**P5.** `get_net_worth_milestone_confidence` leaves out a $0 actual logged on a day an all-zero snapshot was written.
+It returns `left_out`, the reasoning says it, and the milestone shows *"1 reading of $0 left out — logged the day a
+snapshot was recorded without figures."*
+
+**P6.** Built on 1.x first, then merged to master. Each line passed its gate.
+
+**Tests:**
+- s148 (14 checks): Ps1–Ps7, the note-only path, the definition, the source.
+- s55 and s50 updated.
+- s135 +1 (the tile) and s134's stub (master).
+
+**Browser (1.x):**
+- August, with an old $0 row and a real one, read $36,540.
+- July, with only the $0 row, had no point and was labelled.
+- The status line said *"1 month recorded without figures"*.
+- Marking the Visa paid off noted October and wrote no second row.
+
+**Seen and not fixed (separate task offered):** `POST /api/settings/export-to-file` reads `s.total_assets` /
+`s.total_liabilities`, which the model does not have. Every net worth snapshot is skipped from the user's export
+(caught, counted, logged).
