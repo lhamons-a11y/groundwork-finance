@@ -114,7 +114,9 @@ then merge to master, with a gate on each.
 ## 5. Status
 
 OPENED and RULED 2026-10-04. AUTHORISED 2026-10-04 (Rob: *"Yes I authorize 38 build"*). BUILT on both lines (s6).
-Awaiting acceptance.
+
+**ACCEPTED 2026-10-04** (Rob: *"I accept item 38"*), as built: `lts/1.x` `7031844` + `9a1f20e`, master `27c596f`.
+Item 38 CLOSED.
 
 ## 6. Built (2026-10-04): `lts/1.x` `7031844` (987 / 0) and `9a1f20e` (988 / 0); master gate 2387 / 0
 
