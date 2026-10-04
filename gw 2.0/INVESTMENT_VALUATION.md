@@ -150,8 +150,8 @@ should not reach out because the user opened it. This is Rob's call: it sets how
 OPENED, RULED, AUTHORISED (Rob: *"yes i authorize"*) and BUILT 2026-10-03 on both lines (s6).
 
 **ACCEPTED 2026-10-03** (Rob: *"I accept item 35"*), as built: `lts/1.x` `55310dd` (957 / 0), master `fe41907`
-(2368 / 0). Item 35 CLOSED. The fee-drag fix built alongside it (`0027a3e`) is its own change. It was not named in
-this acceptance and stays awaiting acceptance.
+(2368 / 0). Item 35 CLOSED. The fee-drag fix built alongside it (`0027a3e`) is its own change, ACCEPTED separately
+2026-10-03 (Rob: *"I accept fee-drag fix"*).
 
 ## 6. Built (2026-10-03): `lts/1.x` `55310dd` (gate 957 / 0), then master with the fee fix (gate 2368 / 0)
 
