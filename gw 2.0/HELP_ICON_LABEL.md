@@ -53,4 +53,17 @@ gate on each.
 
 ## 5. Status
 
-OPENED 2026-10-03; RULED 2026-10-04. No build authorised (a ruling is not an authorisation).
+OPENED 2026-10-03. RULED 2026-10-04. AUTHORISED 2026-10-04 (Rob: *"I do authorize item 38 build"* — read as item 36,
+the only build then awaiting authorisation; there is no item 38). BUILT on both lines. Awaiting acceptance.
+
+## 6. Built (2026-10-04): `lts/1.x` `bfaa8fa` (gate 974 / 0), then master (gate 2372 / 0)
+
+- **H1.** The label now reads `401(k) / 403(b) ($) <span class="help-icon" onclick="showHelp('retirement_account',this)"
+  title="What is this?">i</span>`, exactly what `helpIcon('retirement_account')` returns.
+  - **In the browser (1.x):** the label shows the ⓘ icon, and clicking it opens *"401(k) / 403(b) retirement accounts —
+    Employer-sponsored retirement accounts with pre-tax contributions …"*.
+- **H2.** s147 fails the gate on any `${` in `static/index.html` outside a `<script>` block.
+  - It finds none now.
+  - Run against the file as it was, it reports line 1933.
+  - It also proves the check can fail: a template put back is caught, and one inside a script is not.
+- **H3.** Built on 1.x first, then merged to master. Each line passed its gate.
