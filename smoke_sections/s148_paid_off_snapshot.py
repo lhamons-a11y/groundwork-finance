@@ -104,6 +104,13 @@ def run(ctx):
         with ctx.dbs() as s:
             after = s.query(NetWorthSnapshot).filter(NetWorthSnapshot.snapshot_date.like('1999-%')).count()
         check('s148 P4 nothing was deleted or rewritten to read them', after == before == 4)
+        with ctx.dbs() as s:
+            only_nw = NetWorthSnapshot(snapshot_date='1999-04', assets=0, liabilities=0, net_worth=12000, notes='')
+            s.add(only_nw)
+            s.commit()
+        hist = (c.get('/api/net-worth/snapshots?months=500', headers=HJ).get_json() or {}).get('data') or []
+        check('s148 P4 a row with a net worth but no breakdown is a figure, never set aside (only 0 / 0 / 0 is)',
+              [(h['net_worth'], h['without_figures']) for h in hist if h['date'] == '1999-04'] == [(12000.0, False)])
 
         # P4: a real snapshot this month is added beside an old all-zero row, never written over it
         with ctx.dbs() as s:
