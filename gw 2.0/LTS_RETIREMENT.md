@@ -203,21 +203,38 @@ the Ollama removal (item 31). Nothing is undone. The first 1.1.x release notes l
   does not upgrade keeps the last 1.1.x, with no further fixes (L5).
 
   *Recommended.* (A separate 1.x manifest would only matter if 1.x outlived 2.0's release, which L1 rules out.)
+  - **The Store channel is separate** (found on review). `groundwork_store.iss` builds a Store package. Store installs
+    update through the Store, not `version.json`, so *"every 1.1 install is offered 2.0"* is not true of them. The 2.0
+    release (L7) includes the Store submission, or says the Store channel is not offered 2.0.
 - **L3e. The machine 1.1 ran on runs 2.0.** 2.0 with AI off has no AI requirement (A9). The AI needs AVX2 and the 8 GB
   minimum (item 31). The upgrade is never refused for lack of them: the AI is simply off, and the app says why.
 
   *Recommended.*
+- **L3f. 2.0's version string stays in the date form for as long as 1.1 is in use** (found on review, measured).
+  - The installed 1.1.0 compares versions as text (`latest > GW_VERSION`), and `GW_VERSION` is a date string
+    (`20260826-d24`).
+  - Measured: `"2.0.0" > "20260826-d24"` is **False**, and `"20270101-2.0" > "20260826-d24"` is True.
+  - So a 2.0 that called itself `2.0.0` would never be offered to a single 1.1.0 install. That code is on users'
+    machines and cannot be changed.
+  - **The rule:** `GW_VERSION` and the manifest's `latest` keep the date form (`YYYYMMDD-…`), and *"2.0"* is the name
+    shown to people. Any change to the comparison is made only in 2.0, for 2.0's own future updates.
+  - A gate check pins that `GW_VERSION` sorts after every released version.
+
+  *Recommended.* Without it, L3d's *"every 1.1 install is offered 2.0"* fails silently.
 
 **L4. Machines that cannot run the local AI use 2.0 with AI off. The A10 audit is the exit criterion.**
 
 **Measured:**
-- `callAI` (the single path for every narrative AI answer) is called from nine places in `app.js`:
+- `callAI` (the single path for every narrative AI answer) is called from **at least** nine places in `app.js`:
   - `generateReport`;
   - the trip planner: `_learnFromPastTrip`, `_readTripQuote` and `generateTripBudget`;
   - `renderSundayCard`;
   - `_renderProjectionAI`;
   - the report chat: `_rcSendAI`, `_rcFollowUp` and `_rcMonthlyGenerate`.
 - The Investments advisor and other model uses go through their own paths. The audit lists them as it finds them.
+- **Correction (found on review):** nine is the count in `app.js` only. The teaching modules and the server have other
+  model uses, such as item 28's tile matcher. L4a's list is built from the code, so the audit's coverage is not limited
+  by this count, but the count is not the total.
 - A10 (item 30, 2026-10-02) says each must give *"the plain-figures fallback, never an empty box or an error"* with AI
   off, and that this has *"not been checked"*.
 - **AI defaults to on.** The settings route sets `ai_enabled = 'true'` when unset. A machine that cannot run it relies
@@ -241,6 +258,22 @@ the Ollama removal (item 31). Nothing is undone. The first 1.1.x release notes l
   engine guard (no AVX2 or under 8 GB means off, with the reason), so the user is not left with an AI that fails.
 
   *Recommended.* Item 31's 8 GB test measures the RAM half on real hardware.
+- **L4d. "AI on but not working" gets the same fallback** (found on review).
+  - L4a checks the switch set to off. A machine where the AI is on but the engine does not load, the model file is
+    missing, or an answer fails part-way must give the same plain-figures answer, with the reason.
+  - These are item 31's five states, never collapsed. So the audit runs twice: once with `ai_enabled=false`, and once
+    with AI on and the engine made to fail at each state it can fail at.
+
+  *Recommended.*
+- **L4e. "Useful" is ruled, not tested** (found on review). The gate proves what it can: no empty box, no error, no
+  endless spinner, a stated reason. Whether each surface's AI-off answer is good enough is Rob's ruling, surface by
+  surface, in the L4b pass, with each surface's AI-off output shown to him.
+
+  *Recommended.* (*Capable is not admissible:* a passing check is not the same as a good answer.)
+- **L4f. The count in the record is corrected** to *"at least nine in app.js; the full list is the L4a audit's"*, so
+  the record does not understate the audit.
+
+  *Recommended.*
 
 **L5. Nothing is deleted.**
 
@@ -255,8 +288,13 @@ the Ollama removal (item 31). Nothing is undone. The first 1.1.x release notes l
   branch on GitHub. That is his account setting, and Claude does not change it.
 - **L5c. After 2.0 ships, a 1.1 user who does not upgrade** keeps the last 1.1.x, unsupported. The website says so
   (item 37).
+- **L5d. The last 1.1.x stays downloadable** (found on review).
+  - The site serves one file, `Groundwork_Setup.exe`, which becomes 2.0. A 1.1 user moving to a new computer could
+    not get 1.1 again.
+  - The last 1.1.x installer stays on the site under a versioned name (`Groundwork_Setup_1.1.x.exe`), with its SHA-256
+    published beside it, and is labelled unsupported. The site's side of this is item 37's.
 
-*Recommended* (all three).
+*Recommended* (all four).
 
 **L6. Other items.**
 
@@ -276,6 +314,24 @@ the Ollama removal (item 31). Nothing is undone. The first 1.1.x release notes l
 - **L6e.** Item 12 step 2 (the caps) is master only unless ruled otherwise.
 
 *Recommended* (all five).
+
+**L7. "When 2.0 ships" is defined by a release checklist** (found on review).
+
+L3, L4 and L5 each turn on 2.0 shipping, and nothing yet defines that moment. The 2.0 release is its own item, opened
+when 2.0 is near. It ships only when every line below holds:
+
+| Condition | From |
+|---|---|
+| The AI-off audit passes on master, with every surface listed, and Rob has ruled each surface's AI-off answer | L4a, L4b, L4d, L4e |
+| Item 31's 8 GB result is recorded, and the AI minimum is set from it | item 31, L4c |
+| A dated backup is written before a 1.x database is migrated, and the one-way test is recorded | L3b, L3c |
+| `GW_VERSION` is in the date form and sorts after every released version | L3f |
+| The installer upgrades a 1.1 install in place, checked on a clean machine with a real 1.1 database | L3a |
+| The Store channel is submitted, or said not to be offered | L3d |
+| The last 1.1.x is tagged, and stays downloadable under a versioned name | L5b, L5d |
+| The website says what 2.0 is and what happens to 1.1 | item 37, L6c |
+
+*Recommended.* The checklist is the definition. Adding a line to it later is a ruling, not a build detail.
 
 ## 3. Ruling
 
@@ -305,7 +361,8 @@ From this ruling on, a shared change is not built on 1.x unless it is one of tho
 
 Neither is authorised by this ruling.
 
-L3–L6 have not been ruled. They stay open, and are not assumed. L3–L6 were opened and measured 2026-10-04 (above).
+L3–L6 have not been ruled. They stay open, and are not assumed. L3–L6 were opened and measured 2026-10-04 (above). On review they gained L3f, the Store channel in L3d,
+L4d–L4f, L5d and L7.
 
 ## 4. Status
 
