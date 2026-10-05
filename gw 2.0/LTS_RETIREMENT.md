@@ -390,8 +390,17 @@ Neither is authorised by this ruling.
 - **L7:** the 2.0 release checklist above defines "when 2.0 ships". Adding a line to it is a ruling.
 
 **Item 32 is fully ruled.** What it leaves to be built or opened, each with its own go-ahead:
-- L2j's ancestry check in the gate.
-- L3f's version-order check in the gate.
+- ~~L2j's ancestry check in the gate.~~ **BUILT 2026-10-04** (Rob: *"Run the gates"*), as s149 on master. It fails
+  when an `lts/1.x` commit is missing from master, and prints a SKIP line, counted as nothing, when it cannot measure.
+  - Replayed against history: master before the `c213510` relink was reported *not containing* 1.x; after, containing
+    it.
+  - Master gate 2394 / 0 (`29c122b`).
+- ~~L3f's version-order check in the gate.~~ **BUILT 2026-10-04**, in s149. It checks that:
+  - every released version (`Website/changelog.json`, `version.json`) is in date form;
+  - `GW_VERSION` is in date form and sorts at or after all of them;
+  - `server.py` and `app.js` match.
+
+  It pins the reason: `"2.0.0"` is not offered to 1.1.0, and a date-form 2.0 is. It is shown to fail on `"2.0.0"`.
 - L3b's backup before migrating (2.0, with the release).
 - The first 1.1.x release (L2e).
 - The AI-off audit pass (L4b).
