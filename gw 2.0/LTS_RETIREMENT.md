@@ -361,10 +361,43 @@ From this ruling on, a shared change is not built on 1.x unless it is one of tho
 
 Neither is authorised by this ruling.
 
-L3–L6 have not been ruled. They stay open, and are not assumed. L3–L6 were opened and measured 2026-10-04 (above). On review they gained L3f, the Store channel in L3d,
-L4d–L4f, L5d and L7.
+**L3–L7 RULED (Rob, 2026-10-04: *"I accept L3 -L7"*), as recommended, with the additions found on review:**
+- **L3a–L3f:**
+  - 1.1 upgrades to 2.0 in place.
+  - A dated backup is written before a 1.x database is migrated.
+  - The move is one-way, and the test of that is recorded.
+  - `version.json` names 2.0. The Store channel is submitted, or said not to be offered.
+  - The upgrade is never refused on older hardware.
+  - `GW_VERSION` stays in the date form for as long as 1.1 is in use.
+- **L4a–L4f:**
+  - The AI-off audit is a gate check, with its list built from the code. It is its own pass, and its passing is an
+    exit criterion for 2.0.
+  - AI is off automatically, with the reason, on a machine that cannot run it.
+  - "AI on but not working" gets the same fallback.
+  - "Useful" is Rob's ruling, surface by surface.
+  - The surface count is corrected.
+- **L5a–L5d:**
+  - Nothing is deleted.
+  - When 2.0 ships, the last 1.1.x is tagged and the line takes no further commits. Branch protection is Rob's setting.
+  - 1.1 is unsupported after 2.0, and the site says so.
+  - The last 1.1.x stays downloadable under a versioned name, with its SHA-256.
+- **L6a–L6e:**
+  - Item 31 still sets the AI minimum.
+  - Item 33's remaining work is master only.
+  - Item 37 carries the site.
+  - Closed records stay as written. BUILD_QUEUE notes that *"1.x first"* is retired except for L1's fixes.
+  - Item 12 step 2 is master only.
+- **L7:** the 2.0 release checklist above defines "when 2.0 ships". Adding a line to it is a ruling.
+
+**Item 32 is fully ruled.** What it leaves to be built or opened, each with its own go-ahead:
+- L2j's ancestry check in the gate.
+- L3f's version-order check in the gate.
+- L3b's backup before migrating (2.0, with the release).
+- The first 1.1.x release (L2e).
+- The AI-off audit pass (L4b).
+- The 2.0 release item (L7), opened when 2.0 is near.
 
 ## 4. Status
 
-QUESTION RULED 2026-10-04 (LTS no longer needed). L1 RULED (b). L2 RULED as a whole. L3–L6 open. No build
-authorised: L2j's gate check and L2e's first 1.1.x release each await their own go-ahead.
+QUESTION RULED 2026-10-04 (LTS no longer needed). L1 RULED (b). L2 RULED as a whole. L3–L7 RULED. **Item 32 fully
+ruled.** No build authorised: each follow-on listed in §3 awaits its own go-ahead.
