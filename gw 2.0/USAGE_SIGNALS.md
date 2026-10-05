@@ -101,7 +101,60 @@ key and category. `core/proactive.py` then applies three effects:
 
   *Recommended.*
 
+## 2a. The rule's edges
+
+Rob asked: *"What are your feelings on the no silent learning rule? Are we narrowing the scope too much?"* The review
+found the rule right and not too narrow, read as *surface it*, not *never infer*. It also found three ways it can be
+over-read:
+- **It can be read as forbidding a conclusion that is shown, with its receipt, and disputable.** The tight-months
+  reading met the rule. It was removed for weak evidence, which is a different reason.
+- **It can be read as forbidding protective bookkeeping,** such as caps and cooldowns.
+- **It can be read as forbidding the user's own settings.**
+
+The cost of the rule is that Groundwork asks rather than guesses. The answer to that cost is to ask rarely, at the
+moment the evidence appears (U2 (b)), not to loosen the rule.
+
+Rob, 2026-10-05: *"Groundwork should be transparent and let the user know everything it is doing. That builds trust
+with the user also it makes the software be 100% accurate. If the formulas are correct and the numbers are correct the
+math is correct and math doesn't have an opinion it's just a fact."*
+
+**U7. The rule's edges, written down so later passes neither widen nor narrow it by accident.**
+
+- **Conclusions about the person** (willingness, strategy, any label of who they are or how they behave):
+  - always shown to them, with the evidence they rest on, and disputable;
+  - **never drawn from usage** (pages opened, clicks, dismissals, time in the app);
+  - an inference must earn its place by test before it exists (W-E's null model).
+- **Protective bookkeeping** (frequency caps, cooldowns, limits that keep Groundwork from nagging):
+  - allowed, and may count what was shown or dismissed;
+  - it draws no conclusion about the person;
+  - **it is stated whenever it changes what the user sees** (U1).
+- **The user's own settings and conveniences** (a dial, a hidden card, a collapsed panel, the last tab): allowed. They
+  are the user's choice, kept as such.
+- **Transparency is the default:**
+  - Groundwork tells the user what it is doing, what it has concluded and why, and what it chose not to show.
+  - Nothing that affects what they see happens without a sentence that says so.
+- **A figure is a fact only when its inputs are.**
+  - A figure computed from the user's record by a correct formula is stated as a fact.
+  - Anything resting on an assumption is stated **as an assumption, with the assumption named**. For example: a
+    return rate, an EIA forecast, a typical month.
+  - It is never shown as a fact. This extends the report rule (2026-09-27), that a statement must be proven in the
+    same run or it is blocked.
+
+*Recommended.* It is a statement of the rule, not a build. It applies to every pass that follows, and BUILD_QUEUE's
+header carries a one-line pointer to it.
+
+**U7 RULED (Rob, 2026-10-05: *"I accept it"*).** With it, Rob: *"I really feel we are close to building this as a full
+feature financial application and we have an obligation to make sure the software shows the user why the answer is
+what it is and how the answer came about."*
+
+So every figure and conclusion Groundwork shows carries, where the user can reach it:
+- **why** it is what it is;
+- **how** it came about: the inputs from their record, the formula, and any assumption, named as one.
+
+A pass that adds a figure says how it meets this. A figure that cannot show its working is not shown. This is the
+same standard as the report rule (proven in the same run, or blocked), applied to every screen.
+
 ## 3. Status
 
-OPENED 2026-10-05. Points 1 and 3 ruled and built on master (gate below). U1–U6 for point 2 sought. Their build is
-not authorised.
+OPENED 2026-10-05. Points 1 and 3 ruled and built on master: `f300d85`, master gate 2396 / 0 (s129 45/45, s130 35/35, s150 2/2). U7 RULED 2026-10-05. U1–U6 for point 2
+sought, and not assumed. Their build is not authorised.
