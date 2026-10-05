@@ -58,19 +58,23 @@ def _willingness_cases():
     income['2025-09'] = 4000.0
     debits = {m: 2000.0 for m in _MONTHS}
 
-    # A category with a sacred 'held' reading from two tight months early on, then a level shift late.
-    tight = dict(debits, **{'2025-10': 5000.0, '2025-11': 5000.0})
+    # A category with a sacred 'restored' reading early on (a cut the user set back), then a level shift late.
+    # (Item 39 removed the "kept through tight months" reading these cases used to rest on.)
+    kept = [{'id': 11, 'date': '2025-10-05', 'category': 'Hobbies', 'old': 80.0, 'new': 50.0},
+            {'id': 12, 'date': '2025-11-05', 'category': 'Hobbies', 'old': 50.0, 'new': 80.0},
+            {'id': 13, 'date': '2025-10-05', 'category': 'Dining', 'old': 350.0, 'new': 250.0},
+            {'id': 14, 'date': '2025-11-05', 'category': 'Dining', 'old': 250.0, 'new': 350.0}]
     hob = {('Hobbies', m): v for m, v in zip(_MONTHS, [60, 62, 58, 61, 60, 59, 63, 60, 140, 150, 145])}
     din = {('Dining', m): 300.0 for m in _MONTHS}
     spend = {**hob, **din}
-    r = {x['category']: x for x in observed_readings(['Hobbies', 'Dining'], [], spend, months, income, tight)}
+    r = {x['category']: x for x in observed_readings(['Hobbies', 'Dining'], kept, spend, months, income, debits)}
     h = r['Hobbies']
     out['Bd5 a local break sets its category\'s reading aside, the break and the old reading as receipt'] = (
         h['stance'] == 'unclassified' and h['reason'] == 'break' and h['receipt']['break']['month'] == '2026-06'
-        and h['receipt']['break']['scope'] == 'category' and h['receipt']['set_aside']['reason'] == 'held')
-    out['nothing is erased: the set-aside reading keeps every month it read'] = (
-        [t['month'] for t in h['receipt']['set_aside']['receipt']['tight_months']] == ['2025-10', '2025-11'])
-    out['Bd5 a local break reaches no other category'] = r['Dining']['reason'] == 'held'
+        and h['receipt']['break']['scope'] == 'category' and h['receipt']['set_aside']['reason'] == 'restored')
+    out['nothing is erased: the set-aside reading keeps the edits it read'] = (
+        h['receipt']['set_aside']['receipt']['cut']['id'] == 11 and h['receipt']['set_aside']['receipt']['restore']['id'] == 12)
+    out['Bd5 a local break reaches no other category'] = r['Dining']['reason'] == 'restored'
 
     # The user's own cut explains the drop that follows it: no boundary for that category.
     cut = {'id': 1, 'date': '2026-02-05', 'category': 'Dining', 'old': 450.0, 'new': 300.0}
@@ -90,8 +94,8 @@ def _willingness_cases():
 
     # Income breaks: broad, reaching every reading with pre-break evidence.
     inc2 = dict(income, **{'2026-07': 2600.0, '2026-08': 2500.0})
-    r = {x['category']: x for x in observed_readings(['Hobbies', 'Dining'], [], {**din, **{('Hobbies', m): 60.0 for m in _MONTHS}},
-                                                     months, inc2, tight)}
+    r = {x['category']: x for x in observed_readings(['Hobbies', 'Dining'], kept, {**din, **{('Hobbies', m): 60.0 for m in _MONTHS}},
+                                                     months, inc2, debits)}
     out['Bd6 an income break reaches every reading resting on earlier months'] = (
         all(x['reason'] == 'break' and x['receipt']['break']['scope'] == 'income' for x in r.values()))
 
@@ -119,7 +123,7 @@ def _willingness_cases():
 
     # Declarations are immune.
     decl = [{'id': 1, 'category': 'Hobbies', 'stance': 'protect', 'said_at': '2025-10-01T00:00:00', 'answer_kind': 'claim'}]
-    eff = effective(observed_readings(['Hobbies'], [], spend, months, income, tight), decl)
+    eff = effective(observed_readings(['Hobbies'], kept, spend, months, income, debits), decl)
     out['Bd8 what the user said stands through a break, untouched'] = (
         eff['hobbies']['stance'] == 'protected' and eff['hobbies']['source'] == 'declared'
         and eff['hobbies']['declaration'] == decl[0])

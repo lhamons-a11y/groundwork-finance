@@ -75,14 +75,6 @@
         + _date(x.cut.date) + ', then set it back to ' + fmt(x.restore.new) + ' on ' + _date(x.restore.date)
         + '. Groundwork reads it as something you keep.';
     }
-    if (r.reason === 'held') {
-      var months = x.tight_months.map(function (t) {
-        return _month(t.month) + ' (' + fmt(t.spent) + ' spent against ' + fmt(t.income) + ' income)';
-      });
-      return c + ': it was kept, not cut, through ' + x.tight_months.length
-        + ' months when spending passed income - ' + months.join('; ')
-        + '. Groundwork reads it as something you keep, until your record shows otherwise.';
-    }
     if (r.reason === 'break') return _breakText(r);
     if (r.reason === 'probation') {
       return c + ': you lowered its budget from ' + fmt(x.cut.old) + ' to ' + fmt(x.cut.new) + ' on '

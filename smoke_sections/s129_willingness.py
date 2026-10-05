@@ -2,8 +2,8 @@
 
 `gw 2.0/WILLINGNESS_LAYER.md`, ruled 2026-09-27 (all eight). Cases Wl1-Wl13 of s4 where this build reaches them:
 
-    observed    E.2's readings are citations: a cut that held (flexible), a cut later restored (sacred), an
-                envelope kept through two tight months (sacred); E.2a - a cut beside an income move is not
+    observed    E.2's readings are citations: a cut that held (flexible), a cut later restored (sacred) - and,
+                since item 39, nothing read from a cut the user never made; E.2a - a cut beside an income move is not
                 classified, and income not on record is unknown, never level (absence is not zero)
     declared    the user's word beats every reading, a release is a new row, nothing is ever rewritten; a
                 statement must answer a claim or a proposal that names the category (F.3)
@@ -66,13 +66,17 @@ def _engine_cases():
     out['a cut that did not hold is not classified either way - an answer, not a verdict'] = (
         r['stance'] == 'unclassified' and r['reason'] == 'did_not_hold')
 
+    # Item 39 (Rob 2026-10-05): an envelope kept, not cut, through months when spending passed income is no
+    # longer read as sacred - that concluded from what the user did not do.
     tight = {m: (5000.0 if m in ('2026-04', '2026-06') else 1000.0) for m in months}
     r = read('Hobbies', [], {('Hobbies', '2026-04'): 60.0, ('Hobbies', '2026-06'): 55.0}, debits=tight)
-    out['an envelope kept through two tight months is sacred, citing each month'] = (
-        r['stance'] == 'sacred' and r['reason'] == 'held'
-        and [t['month'] for t in r['receipt']['tight_months']] == ['2026-04', '2026-06'])
-    r = read('Hobbies', [], {('Hobbies', '2026-04'): 60.0}, debits=tight)
-    out['one tight month is an anecdote - nothing concluded'] = r['stance'] == 'unclassified'
+    out['item 39 an envelope kept through tight months concludes nothing - no reading from a cut never made'] = (
+        r['stance'] == 'unclassified' and r['reason'] == 'no_evidence' and r['receipt'] is None)
+    import core.willingness as _w
+    out['item 39 the reading is gone from the engine and the page, not just unreached'] = (
+        not hasattr(_w, 'tight_months') and not hasattr(_w, 'MIN_TIGHT_MONTHS')
+        and "'held'" not in __import__('pathlib').Path(__file__).resolve().parents[1].joinpath(
+            'static/js/teaching/willingness.js').read_text(encoding='utf-8'))
     out['a necessity-floor category gets no reading at all (E.1 already governs it)'] = (
         observed_readings(['Groceries', 'Rent'], [], {}, set(months), flat, {}) == [])
     r = read('Hobbies', [], {})
@@ -99,7 +103,7 @@ def _engine_cases():
             {'name': 'Hobbies', 'budgeted': 200, 'max_observed': 100, 'months_observed': 6}]
     eff = {'dining': {'stance': 'flexible', 'source': 'observed', 'reading': {'reason': 'cut_held'}},
            'shopping': {'stance': 'protected', 'source': 'declared', 'declaration': d1},
-           'hobbies': {'stance': 'sacred', 'source': 'observed', 'reading': {'reason': 'held'}}}
+           'hobbies': {'stance': 'sacred', 'source': 'observed', 'reading': {'reason': 'restored'}}}
     ann = annotate(cats, eff)
     room = _headroom(ann)
     out['Wl5 a protected category is never a lever'] = [c['name'] for c in room] == ['Dining', 'Hobbies']

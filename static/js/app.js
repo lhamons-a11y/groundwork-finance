@@ -930,14 +930,9 @@ function _calcBehavioralProfile(sbMonths) {
   const topOverage = Object.entries(categoryOverages).sort((a,b) => b[1]-a[1])[0];
   const worstCategory = topOverage ? topOverage[0] : null;
 
-  // Annotation frequency — check app_settings for annotation keys
-  // (Simplified: engagement inferred from transaction volume as proxy)
-  const recentTxnCount = S.transactions
-    .filter(t => _lastNMonths(3).some(mo => (t.date||'').startsWith(mo)))
-    .length;
-  const engagementLevel = recentTxnCount > 30 ? 'engaged'
-    : recentTxnCount > 10 ? 'occasional'
-    : 'passive';
+  // Item 39 (Rob 2026-10-05): the "engaged / occasional / passive" label that stood here - a guess about the
+  // person from how many transactions they had - is removed. Nothing read it, and a sparse record can mean many
+  // things; "passive" is not one Groundwork can see.
 
   // Best performing month — which calendar month is historically greenest
   const monthGreenCount = {};
@@ -963,7 +958,6 @@ function _calcBehavioralProfile(sbMonths) {
     peakStreak:           _streakFromData().peak,
     mostOverageCategory:  worstCategory,
     bestPerformingMonth,
-    engagementLevel,
   };
 }
 

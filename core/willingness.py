@@ -3,8 +3,10 @@
 Two of F.6a's three channels, and what the solution engine may do with them:
 
   observed   E.2's readings of a budgeted category, each a CITATION of the edits and months it rests on:
-             a cut that held (flexible), a cut the user later restored (sacred), an envelope kept through
-             tight months without being cut (sacred until shown otherwise). E.2a's probation: a cut that
+             a cut that held (flexible), a cut the user later restored (sacred). Both rest on something the
+             user DID to the budget. (Item 39, Rob 2026-10-05: the third reading - an envelope "kept through
+             tight months" read as sacred - is removed. It concluded from what the user did not do, the
+             nearest thing in the layer to inference from silence.) E.2a's probation: a cut that
              coincides with an income change is not classified - the correlation is shown as a fact and the
              classification is the user's to make.
   declared   what the user said, in their own words' place: protect a category, call it flexible, or release
@@ -36,10 +38,6 @@ INCOME_CHANGE_SHARE = 0.10
 # protects.
 BROAD_SHARE = 0.25
 _CONCLUDED = ('flexible', 'sacred')
-
-# E.2 says "held through tight months" - plural. One tight month an envelope happened to survive is an
-# anecdote; two is a record.
-MIN_TIGHT_MONTHS = 2
 
 STANCES = ('protect', 'flexible', 'release')
 
@@ -80,7 +78,7 @@ def _income_correlation(cut_month, income):
     return 'none', None
 
 
-def _reading(category, edits, spend, ledger_months, income, tight):
+def _reading(category, edits, spend, ledger_months, income):
     """One budgeted category's observed reading, with the receipts it rests on."""
     cuts = [e for e in edits if e['new'] < e['old']]
     base = {'category': category, 'source': 'observed'}
@@ -115,22 +113,8 @@ def _reading(category, edits, spend, ledger_months, income, tight):
         return {**base, 'stance': 'flexible', 'reason': 'cut_held',
                 'receipt': {'cut': cut, 'months': seen, 'worst': round(worst, 2)}}
 
-    held = [t for t in tight if spend.get((category, t['month']), 0.0) > 0]
-    if len(held) >= MIN_TIGHT_MONTHS:
-        return {**base, 'stance': 'sacred', 'reason': 'held',
-                'receipt': {'tight_months': [{**t, 'category_spend': round(spend[(category, t['month'])], 2)}
-                                             for t in held]}}
+    # No edit, no reading: an envelope the user never cut is not read as one they keep (item 39).
     return {**base, 'stance': 'unclassified', 'reason': 'no_evidence', 'receipt': None}
-
-
-def tight_months(ledger_months, income, debits):
-    """Months the record shows spending past income - each one needs income on record to count at all."""
-    out = []
-    for m in sorted(ledger_months):
-        inc = income.get(m)
-        if inc and debits.get(m, 0.0) > inc:
-            out.append({'month': m, 'income': round(inc, 2), 'spent': round(debits[m], 2)})
-    return out
 
 
 def _months_apart(a, b):
@@ -208,14 +192,13 @@ def observed_readings(categories, edits, spend, ledger_months, income, debits):
     A floor category gets no reading: E.1 already keeps it out of every lever, and a reading there would
     be a claim with nothing to decide.
     """
-    tight = tight_months(ledger_months, income, debits)
     found = breaks(categories, edits, spend, ledger_months, income, debits)
     out = []
     for name in sorted({c for c in categories if c}, key=_key):
         if is_protected(name):
             continue
         mine = sorted((e for e in edits if _key(e['category']) == _key(name)), key=lambda e: (e['date'], e['id']))
-        whole = _reading(name, mine, spend, ledger_months, income, tight)
+        whole = _reading(name, mine, spend, ledger_months, income)
         b = _boundary_for(name, found)
         if not b:
             out.append(whole)
@@ -225,8 +208,7 @@ def observed_readings(categories, edits, spend, ledger_months, income, debits):
         # receipt - they are simply not admissible for behaviour after the break.
         since = b['month']
         bounded = _reading(name, [e for e in mine if _month(e['date']) >= since], spend,
-                           {m for m in ledger_months if m >= since}, income,
-                           [t for t in tight if t['month'] >= since])
+                           {m for m in ledger_months if m >= since}, income)
         if _concluded(bounded):
             out.append({**bounded, 'boundary': b})
         elif _concluded(whole):
