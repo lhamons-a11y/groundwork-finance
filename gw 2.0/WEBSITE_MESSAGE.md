@@ -256,8 +256,11 @@ outside company seeing their finances."*
 Recorded for this pass, not yet a point for ruling:
 - **A forum on the site** is where users report problems and ask questions. It is the user's own choice to post.
   Nothing is sent from the app.
-- **A forum is public.** A post is seen by everyone, and by whoever hosts the forum. So the site's guidance, and any
-  "copy a problem report" helper in the app, must keep financial figures, names, account details and transactions out
-  of a post by default. The user adds detail only if they choose, seeing exactly what they share. The privacy that
-  makes the forum attractive depends on this.
+- **A report is plain words, not data** (Rob, 2026-10-05: *"I wouldn't expect users to put copies of their program on
+  the forum but a suggestion or report an issue like 'the monthly report calculator is not working' that way it's
+  easier to report bugs."*).
+  - A post describes what happened, or suggests something, in the user's own words.
+  - No file, export or "problem report" helper is part of it.
+- **A forum is public.** The site's short posting guidance asks users not to include amounts, names or account
+  details, since a description is all a bug report needs.
 - **Who hosts it,** and what that host can see, is part of the site's privacy statement (W-points on privacy).
