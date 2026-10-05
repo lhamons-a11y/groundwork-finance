@@ -170,34 +170,112 @@ the Ollama removal (item 31). Nothing is undone. The first 1.1.x release notes l
 
 **L2, for ruling as a whole:** L2a (a); L2b; L2c; L2d; L2e–L2j.
 
-**L3. 1.1 users move to 2.0 by upgrading in place.**
-- When 2.0 ships, its installer opens a 1.x database and migrates it. s67's 1.x → 2.0 fixture already proves this in
-  the gate.
-- The update check offers 2.0 to 1.x users.
-- Nothing is required of the user beyond installing.
+**L3. 1.1 users move to 2.0 by upgrading in place** (opened 2026-10-04, Rob: *"Open L3 - L6"*).
 
-*Recommended.*
+**Measured:**
+- **Both lines keep their data in the same place.** `core/database.py` uses `%LOCALAPPDATA%\Groundwork`, unless
+  `GROUNDWORK_DATA_DIR` is set. So 2.0, installed over 1.1, opens the 1.1 database.
+- **The upgrade is already proven in the gate.** `tests/schema/` holds `20260725-byb` (v1.1.0's released schema),
+  `20261002-lts-household-facts` (1.x today) and `20261002-household-facts` (master). On master, s67 upgrades each one
+  through `run_migration_if_needed` and checks every table and column.
+- **Nothing is backed up before a migration.** `run_migration_if_needed` changes the database in place. Once 2.0 has
+  migrated a 1.1 database, nothing measured shows that 1.1 can still open it, and the user has no copy from before.
+- **One manifest serves both lines.** Both read `https://groundworkfinance.app/version.json`, and both offer an update
+  when its `latest` is newer than their own `GW_VERSION` (a date string).
+  - So the day `version.json` names 2.0, every 1.1 install is offered 2.0.
+  - Until then, 1.1.x releases (L2e) and 2.0 cannot both be "latest".
+
+**Points:**
+- **L3a. In place, as recommended:** the 2.0 installer goes over 1.1, and the first launch migrates the database. No
+  export or import is asked of the user.
+- **L3b. A copy before the move.** Before migrating a database whose stored schema version differs, the app writes a
+  dated copy beside it (*"Groundwork backup before 2.0, <date>"*), using the existing backup function. It says where the
+  copy is, and never deletes it.
+
+  *Recommended.* It is the user's whole financial record, and the move is one-way.
+- **L3c. One way, said plainly.** Once migrated, the database is a 2.0 database. 1.1 is not made to open it. A user who
+  wants 1.1 back restores the L3b copy.
+  - Before release, a test opens a 2.0-migrated database in 1.1. The result is recorded either way, so the statement
+    is measured, not assumed.
+
+  *Recommended.*
+- **L3d. The manifest when 2.0 ships.** `version.json` names 2.0, and every 1.1 install is offered it. A 1.1 user who
+  does not upgrade keeps the last 1.1.x, with no further fixes (L5).
+
+  *Recommended.* (A separate 1.x manifest would only matter if 1.x outlived 2.0's release, which L1 rules out.)
+- **L3e. The machine 1.1 ran on runs 2.0.** 2.0 with AI off has no AI requirement (A9). The AI needs AVX2 and the 8 GB
+  minimum (item 31). The upgrade is never refused for lack of them: the AI is simply off, and the app says why.
+
+  *Recommended.*
 
 **L4. Machines that cannot run the local AI use 2.0 with AI off. The A10 audit is the exit criterion.**
-- Before 2.0 ships, each AI surface is confirmed to work, or to say plainly that it needs the AI, with the AI off. The
-  older surfaces were named in item 32: trip planning, categorising, the narrator panels.
-- This is what makes retiring LTS safe for those machines. Until it is done, the retirement holds but the reason is
-  unproven.
 
-*Recommended.*
+**Measured:**
+- `callAI` (the single path for every narrative AI answer) is called from nine places in `app.js`:
+  - `generateReport`;
+  - the trip planner: `_learnFromPastTrip`, `_readTripQuote` and `generateTripBudget`;
+  - `renderSundayCard`;
+  - `_renderProjectionAI`;
+  - the report chat: `_rcSendAI`, `_rcFollowUp` and `_rcMonthlyGenerate`.
+- The Investments advisor and other model uses go through their own paths. The audit lists them as it finds them.
+- A10 (item 30, 2026-10-02) says each must give *"the plain-figures fallback, never an empty box or an error"* with AI
+  off, and that this has *"not been checked"*.
+- **AI defaults to on.** The settings route sets `ai_enabled = 'true'` when unset. A machine that cannot run it relies
+  on the engine guard (AVX2, the 8 GB check) to switch it off.
+
+**Points:**
+- **L4a. The audit is a gate check, as A10 already specifies.** One pass with `ai_enabled=false` visits every AI
+  surface. Each must give a useful answer without AI, or say plainly what needs the AI and that it is off. It must
+  never show an empty box, an error or a spinner that never ends. The list of surfaces is built from the code (every
+  `callAI` caller and every AI route), not from memory, so a new surface cannot be missed.
+
+  *Recommended.*
+- **L4b. The audit happens before 2.0 ships, as its own pass.** It is opened, ruled and built like any item, and each
+  surface it finds wanting is fixed in it.
+  - **Exit criterion:** the L4a check passes on master with every surface listed.
+  - Until it passes, the retirement of LTS stands, but its reason (machines without AI are served by 2.0) is unproven,
+    and the record says so.
+
+  *Recommended.*
+- **L4c. A machine that cannot run the AI gets AI off automatically, and is told why.** This is measured on the
+  engine guard (no AVX2 or under 8 GB means off, with the reason), so the user is not left with an AI that fails.
+
+  *Recommended.* Item 31's 8 GB test measures the RAM half on real hardware.
 
 **L5. Nothing is deleted.**
-- `lts/1.x` and `v1.1.0` stay as they are.
-- Under (b), the last 1.x fix release is tagged when 2.0 ships, and the branch is then frozen.
 
-*Recommended.*
+**Measured:**
+- `lts/1.x` is not a protected branch on GitHub (`protected: false`). "Frozen" is a working rule today, not something
+  GitHub enforces.
+- `v1.1.0` is the only tag.
+
+**Points:**
+- **L5a.** `lts/1.x`, `v1.1.0` and every 1.1.x tag (L2e) stay as they are. Nothing on the line is deleted or rewritten.
+- **L5b. When 2.0 ships:** the last 1.1.x is tagged, and `lts/1.x` takes no further commits. Rob may also protect the
+  branch on GitHub. That is his account setting, and Claude does not change it.
+- **L5c. After 2.0 ships, a 1.1 user who does not upgrade** keeps the last 1.1.x, unsupported. The website says so
+  (item 37).
+
+*Recommended* (all three).
 
 **L6. Other items.**
-- **Item 31 (the 8 GB test)** still stands: it sets 2.0's AI minimum, not whether LTS exists.
-- **Item 37 (the website)** carries anything the site says about versions or LTS.
-- **Item 12's 1.x note,** and any *"LTS carries correctness fixes"* wording elsewhere, follow L1.
 
-*Recommended.*
+**Measured:** wording that assumes every shared change goes to 1.x first still stands in:
+- `ENGINE_REPLACEMENT.md` E7 (*"as with every shared fix: lts first"*);
+- `ENGINE_OTHER_PLATFORMS.md` Q8 (*"Both lines, 1.x first"*; item 33 is open);
+- several closed items' records.
+
+**Points:**
+- **L6a.** Item 31 (the 8 GB test) still stands. It sets 2.0's AI minimum (L4c), not whether LTS exists.
+- **L6b.** Item 33's remaining work (the release asset, Q6 on real hardware) is master only under L1, unless a part of
+  it is a data-loss or security fix (L2b). Q8's *"1.x first"* is superseded for what remains.
+- **L6c.** Item 37 (the website) carries what the site says about versions, LTS, the 1.1.x releases and the end of 1.1
+  support (L3d, L5c).
+- **L6d.** Closed items' records stay as written: they were true when built. Open items and new passes follow L1/L2,
+  and a note in BUILD_QUEUE says the *"1.x first"* order is retired except for L1's fixes.
+- **L6e.** Item 12 step 2 (the caps) is master only unless ruled otherwise.
+
+*Recommended* (all five).
 
 ## 3. Ruling
 
@@ -227,7 +305,7 @@ From this ruling on, a shared change is not built on 1.x unless it is one of tho
 
 Neither is authorised by this ruling.
 
-L3–L6 have not been ruled. They stay open, and are not assumed.
+L3–L6 have not been ruled. They stay open, and are not assumed. L3–L6 were opened and measured 2026-10-04 (above).
 
 ## 4. Status
 
