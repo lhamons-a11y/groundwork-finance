@@ -246,3 +246,18 @@ identical, so it has not mattered.
 - Any 2.0 feature itself. This pass only describes features; it never builds them.
 
 OPENED 2026-10-04. No code. Awaiting Rob's rulings on W1–W9.
+
+## Direction from Rob, 2026-10-05: a user forum for reporting problems
+
+Rob, on the gap that Groundwork has no way to hear when something breaks (it sends no telemetry, by design): *"we can
+fix this with a website rebuild. Have a user forum that things can be reported. This way user won't be concerned with a
+outside company seeing their finances."*
+
+Recorded for this pass, not yet a point for ruling:
+- **A forum on the site** is where users report problems and ask questions. It is the user's own choice to post.
+  Nothing is sent from the app.
+- **A forum is public.** A post is seen by everyone, and by whoever hosts the forum. So the site's guidance, and any
+  "copy a problem report" helper in the app, must keep financial figures, names, account details and transactions out
+  of a post by default. The user adds detail only if they choose, seeing exactly what they share. The privacy that
+  makes the forum attractive depends on this.
+- **Who hosts it,** and what that host can see, is part of the site's privacy statement (W-points on privacy).

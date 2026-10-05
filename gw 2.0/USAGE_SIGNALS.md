@@ -154,7 +154,25 @@ So every figure and conclusion Groundwork shows carries, where the user can reac
 A pass that adds a figure says how it meets this. A figure that cannot show its working is not shown. This is the
 same standard as the report rule (proven in the same run, or blocked), applied to every screen.
 
+**U7, where the working lives (Rob, 2026-10-05).** *"We can show our formulas in the help menu and items that won't
+change in the help menu. What we show the user is what transactions they made and those numbers. If a user manually
+entered the wrong number they should see that values in the report. Like how a bank sends monthly draft reports. That
+shows the transactions. We don't need to show everything in the ui but the report will be valued."*
+
+| Where | What it carries |
+|---|---|
+| **The screens** | The figures, and the user's own transactions and numbers behind them. Not every formula. |
+| **The help menu** | The formulas, and the fixed inputs that do not change (constants, published rates, rules), each named. |
+| **The monthly report** | The statement, like a bank's monthly statement: every transaction and every entry the user made, **as entered**, including a number they typed wrong, so they can see it and fix it. |
+
+- The report never corrects, smooths or hides a user's entry. The value shown is the value recorded, with its source:
+  imported or entered by hand.
+- So *"why and how"* is always reachable: the figure on screen, its formula in help, and its transactions in the
+  report.
+- This explains the volume concern raised in review (transparency becoming overload): the working is one step away,
+  not on every screen.
+
 ## 3. Status
 
-OPENED 2026-10-05. Points 1 and 3 ruled and built on master: `f300d85`, master gate 2396 / 0 (s129 45/45, s130 35/35, s150 2/2). U7 RULED 2026-10-05. U1–U6 for point 2
+OPENED 2026-10-05. U7 refined 2026-10-05 (where the working lives: screens / help / report). Points 1 and 3 ruled and built on master: `f300d85`, master gate 2396 / 0 (s129 45/45, s130 35/35, s150 2/2). U7 RULED 2026-10-05. U1–U6 for point 2
 sought, and not assumed. Their build is not authorised.
