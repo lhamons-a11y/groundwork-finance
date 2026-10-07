@@ -27,7 +27,7 @@ import socket
 from pathlib import Path
 
 _SHIPPED = ['server.py', 'launch.py', 'migrate.py', 'bank_importer.py', 'pdf_statement.py', 'price_engine.py',
-            'gas_price.py', 'utility_price.py', 'trip_distance.py', 'flight_price.py', 'quicken_import.py',
+            'gas_price.py', 'utility_price.py', 'trip_distance.py', 'quicken_import.py',
             'static/js/app.js', 'static/index.html']
 
 # Hosted-model endpoints and the cloud-only machinery. Any of these in a shipped file is a path off the device.

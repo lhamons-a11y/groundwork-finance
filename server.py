@@ -7978,36 +7978,6 @@ def trip_distance_estimate():
     return ok(trip_distance.get_drive_distance(origin, destination))
 
 
-@trip_bp.route('/flight-price', methods=['GET'])
-def trip_flight_price():
-    """
-    Real live flight price search (flight_price.py, SerpApi's Google
-    Flights engine — GROUNDWORK_LLM_BUILD_PLAN.md decision #7, previously
-    deferred). Unlike gas-price/distance above, this DOES send the user's
-    route and dates to a third party — that's inherent to flight search,
-    not avoidable the way the gas-price national-average query is. Called
-    only from an explicit "Search live flight prices" action in the UI,
-    never automatically — SerpApi's free tier is 100 searches/month and
-    the trip planner recomputes on every keystroke, so this must not be on
-    that automatic path.
-    """
-    import flight_price
-    origin        = (request.args.get('origin') or '').strip()
-    destination   = (request.args.get('destination') or '').strip()
-    outbound_date = (request.args.get('outbound_date') or '').strip()
-    return_date   = (request.args.get('return_date') or '').strip() or None
-    try:
-        travelers = int(request.args.get('travelers', 1))
-    except (TypeError, ValueError):
-        travelers = 1
-
-    result = flight_price.search_flights(
-        origin, destination, outbound_date, return_date, travelers,
-        api_key=_get_flights_api_key(),
-    )
-    return ok(result)
-
-
 @trip_bp.route('/budget', methods=['GET'])
 def get_trip_budget():
     """Return any saved trip budget from app_settings."""
@@ -8551,7 +8521,7 @@ def _get_config_value(name: str) -> str:
       3. config.json next to server.py
       4. config.json in the user's home directory
     Never reads from the database — keys stay on the filesystem only.
-    Shared by every external API key this app uses (EIA, SerpApi) —
+    Shared by every external API key this app uses (EIA) —
     one lookup convention, not a copy per key.
     """
     val = os.environ.get(name, '').strip()
@@ -8581,18 +8551,6 @@ def _get_eia_api_key() -> str:
     a crash or a silently wrong "live" number.
     """
     return _get_config_value('EIA_API_KEY')
-
-
-def _get_flights_api_key() -> str:
-    """
-    The SerpApi key for real live flight-price search (flight_price.py).
-    Free, self-service key at https://serpapi.com/users/sign_up — same
-    config.json/env lookup convention as every other external key this app
-    uses. Trip planning degrades to the existing AI-estimated/manual-quote
-    flight cost when this isn't configured — never a crash or a silently
-    wrong "live" price.
-    """
-    return _get_config_value('FLIGHTS_API_KEY')
 
 
 def _ai_is_enabled() -> bool:

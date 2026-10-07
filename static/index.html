@@ -2334,11 +2334,16 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
                   oninput="this.value=this.value.toUpperCase()">
               </div>
             </div>
-            <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
-              <button class="btn btn-secondary btn-sm" onclick="searchLiveFlightPrice()">Search live flight prices</button>
+            <div style="display:flex;align-items:flex-end;gap:10px;margin-top:10px;flex-wrap:wrap">
+              <button class="btn btn-secondary btn-sm" onclick="openFlightSearch()">Look up fares on Google Flights</button>
+              <div class="field" style="margin:0">
+                <label>Flight total for all travelers ($)</label>
+                <input type="number" id="tripFlightFare" placeholder="0.00" min="0" step="0.01" style="width:140px"
+                  oninput="tripSetFlightFare()">
+              </div>
               <span id="tripFlightSearchResult" style="font-size:11px"></span>
             </div>
-            <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Live prices need both airport codes and your dates above. Without a search, flight cost is AI-estimated when you generate the trip budget.</div>
+            <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Opens the search in your own web browser &mdash; Groundwork itself sends nothing. Pick a fare there, check the passenger count, and type the total here. It is used for your trip cost.</div>
           </div>
         </div>
 
