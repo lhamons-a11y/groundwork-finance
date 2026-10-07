@@ -1,5 +1,7 @@
 # Item 41 — The DOT average fare replaces the $220 guess
 
+**ACCEPTED and CLOSED 2026-10-07 (Rob: "I accept item 41")** at `81e2588`, gate 2425 / 0.
+
 Opened and ruled 2026-10-07 from the flight-fare follow-up to item 40 (`FLIGHT_FARES.md`). Master only: a new
 feature, not a fix that L1 admits to 1.x, so 1.1 keeps its $220 fallback.
 
