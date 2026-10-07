@@ -421,10 +421,10 @@ class PdfExtractCache(Base):
 
 class FlightPriceCache(Base):
     """
-    SHA-256-keyed cache of live flight price searches (origin+destination+
-    dates+travelers), via SerpApi's Google Flights engine (flight_price.py).
-    SerpApi's free tier is 100 searches/month — this is what keeps a page
-    reload or a duplicate click from spending it on a search already run.
+    No longer written (gw 2.0/FLIGHT_FARES.md, item 40): the keyed SerpApi search
+    that filled it was removed — fares are now looked up in the user's own
+    browser and typed in. The table stays so existing databases need no
+    migration.
     """
     __tablename__  = 'flight_price_cache'
     cache_key      = Column(String(64), primary_key=True)

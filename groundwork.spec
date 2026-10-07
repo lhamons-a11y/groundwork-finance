@@ -119,7 +119,6 @@ a = Analysis(
         'utility_price',
         'trip_distance',
         'pdf_statement',
-        'flight_price',
         # Flask
         'flask',
         'flask.json',

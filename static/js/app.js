@@ -10679,6 +10679,7 @@ function _applyTripQuote() {
       hotelPerNight: clean.lodgingPerNight,
       flightTotal:   clean.flightTotal,
     };
+    if (clean.flightTotal != null && g('tripFlightFare')) g('tripFlightFare').value = clean.flightTotal;
   }
 
   const resultEl = g('tripQuoteResult');
@@ -10693,68 +10694,56 @@ function _applyTripQuote() {
 
 function _clearTripQuote() {
   _tripQuoteData = null;
+  if (g('tripFlightFare')) g('tripFlightFare').value = '';
   const resultEl = g('tripQuoteResult');
   if (resultEl) resultEl.innerHTML = '';
   tripUpdateBudget();
 }
 
-// Real live flight price search (server.py :: trip_flight_price,
-// flight_price.py / SerpApi). Deliberately an explicit button, not part of
-// tripUpdateBudget()'s automatic recompute-on-every-keystroke path — the
-// free tier is 100 searches/month. A successful search fills the same
-// _tripQuoteData.flightTotal slot the "paste a quote" flow already uses, so
-// tripUpdateBudget() picks it up through its existing priority chain with
-// no changes to that function.
-const _FLIGHT_SEARCH_ERROR_COPY = {
-  no_api_key:            'No flights API key configured yet — add FLIGHTS_API_KEY to config.json (free key at serpapi.com).',
-  missing_required_field:'Enter both airport codes and your dates first.',
-  unreachable:            'Could not reach the flight search service — try again in a moment.',
-  no_results:             'No flights found for that route/date — try different airports or dates.',
-  no_price_in_response:   'Got a response but no usable price — try again, or enter dates further out.',
-};
+// Flight fares (gw 2.0/FLIGHT_FARES.md, item 40, Rob 2026-10-07). The old
+// "Search live flight prices" button needed a flight-search service key the user was told
+// to put in config.json — no user has one, so every click failed. Now the
+// search opens in the user's own browser (Groundwork sends nothing) and the
+// fare they pick is typed into tripFlightFare, which fills the same
+// _tripQuoteData.flightTotal slot the "paste a quote" flow uses, so
+// tripUpdateBudget() picks it up through its existing priority chain.
+function flightSearchUrl(origin, dest, depart, ret, travelers) {
+  const n = Math.max(1, parseInt(travelers) || 1);
+  const q = `Flights from ${origin} to ${dest} on ${depart}` +
+            (ret ? ` through ${ret}` : ' one way') +
+            ` for ${n} adult${n !== 1 ? 's' : ''}`;
+  return 'https://www.google.com/travel/flights?q=' + encodeURIComponent(q);
+}
 
-async function searchLiveFlightPrice() {
+function openFlightSearch() {
   const resultEl = g('tripFlightSearchResult');
-  const origin   = g('tripAirport')?.value?.trim();
-  const dest     = g('tripDestAirport')?.value?.trim();
+  const origin   = g('tripAirport')?.value?.trim().toUpperCase();
+  const dest     = g('tripDestAirport')?.value?.trim().toUpperCase();
   const depart   = g('tripDepart')?.value;
-  const ret      = g('tripReturn')?.value;
-  const travelers= parseInt(g('tripTravelers')?.value) || 1;
-
-  if (!origin || origin.length !== 3 || !dest || dest.length !== 3 || !depart) {
+  if (!/^[A-Z]{3}$/.test(origin || '') || !/^[A-Z]{3}$/.test(dest || '') || !depart) {
     if (resultEl) { resultEl.style.color = 'var(--ember)'; resultEl.textContent = 'Enter both 3-letter airport codes and your dates first.'; }
     return;
   }
+  if (resultEl) resultEl.textContent = '';
+  openExternal(flightSearchUrl(origin, dest, depart, g('tripReturn')?.value, g('tripTravelers')?.value));
+}
 
-  if (resultEl) { resultEl.style.color = 'var(--slate)'; resultEl.textContent = 'Searching…'; }
-
-  try {
-    const params = new URLSearchParams({ origin, destination: dest, outbound_date: depart, travelers: String(travelers) });
-    if (ret) params.set('return_date', ret);
-    const res = await API.get(`/api/trip/flight-price?${params.toString()}`);
-
-    if (!res.live) {
-      if (resultEl) {
-        resultEl.style.color = 'var(--ember)';
-        resultEl.textContent = _FLIGHT_SEARCH_ERROR_COPY[res.reason] || `Could not get a live price (${res.reason || 'unknown reason'}).`;
-      }
-      return;
-    }
-
-    _tripQuoteData = {
-      ..._tripQuoteData,   // preserve hotelTotal/hotelPerNight if the user already pasted a lodging quote
-      label: 'live flight search',
-      flightTotal: res.price_total,
-    };
-    if (resultEl) {
-      resultEl.style.color = 'var(--pine)';
-      resultEl.textContent = `✓ ${fmt(res.price_total)}${res.airline ? ' · ' + res.airline : ''}${res.cached ? ' (cached)' : ''} — using this for your trip cost.`;
-    }
-    tripUpdateBudget();
-  } catch (e) {
-    _gwErr('searchLiveFlightPrice')(e);
-    if (resultEl) { resultEl.style.color = 'var(--ember)'; resultEl.textContent = 'Search failed — try again.'; }
+function tripSetFlightFare() {
+  const raw = g('tripFlightFare')?.value;
+  const fare = raw === '' || raw == null ? null : parseFloat(raw);
+  const resultEl = g('tripFlightSearchResult');
+  if (fare != null && !(Number.isFinite(fare) && fare >= 0)) {
+    if (resultEl) { resultEl.style.color = 'var(--ember)'; resultEl.textContent = 'Enter the fare as a dollar amount.'; }
+    return;
   }
+  if (resultEl) resultEl.textContent = '';
+  if (fare != null) {
+    _tripQuoteData = { ..._tripQuoteData, label: 'the fare you entered', flightTotal: fare };
+  } else if (_tripQuoteData) {
+    const { flightTotal, ...rest } = _tripQuoteData;
+    _tripQuoteData = (rest.hotelTotal != null || rest.hotelPerNight != null) ? rest : null;
+  }
+  tripUpdateBudget();
 }
 
 // ── Budget calculator ─────────────────────────────────────────────────────────
