@@ -7961,6 +7961,40 @@ def trip_gas_price():
     return ok(result)
 
 
+@trip_bp.route('/airfare-markets', methods=['GET'])
+def trip_airfare_markets():
+    """
+    The city markets DOT lists, for the trip planner's From / To pickers
+    (core/airfare.py, gw 2.0/DOT_AIRFARE.md). Read from the table on disk;
+    nothing is fetched here.
+    """
+    from core import airfare
+    return ok(airfare.markets())
+
+
+@trip_bp.route('/airfare', methods=['GET'])
+def trip_airfare():
+    """
+    The average one-way fare DOT reports for a route, narrowed to the airport
+    pair when both airports are given and DOT lists it. A lookup in the table
+    on disk: the user's route never leaves the computer.
+    """
+    from core import airfare
+    return ok(airfare.lookup(request.args.get('from', ''), request.args.get('to', ''),
+                             request.args.get('from_airport', ''), request.args.get('to_airport', '')))
+
+
+@trip_bp.route('/airfare-refresh', methods=['POST'])
+def trip_airfare_refresh():
+    """
+    Download DOT's newest quarter when it is newer than the table the app has,
+    at most one look a week. The request is the whole quarter's table, so it
+    carries nothing about the user's trip. Any failure keeps the current table.
+    """
+    from core import airfare
+    return ok(airfare.refresh())
+
+
 @trip_bp.route('/distance', methods=['GET'])
 def trip_distance_estimate():
     """

@@ -2322,18 +2322,37 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div id="tripFlyDetails" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:16px;border:0.5px solid var(--steel-2)">
             <div class="field-row">
               <div class="field">
-                <label>Departure airport (IATA code)</label>
+                <label>Flying from (city)</label>
+                <input type="text" id="tripFromCity" list="airfareMarketList" placeholder="Start typing, e.g. Chicago"
+                  autocomplete="off" oninput="tripUpdateBudget()">
+              </div>
+              <div class="field">
+                <label>Flying to (city)</label>
+                <input type="text" id="tripToCity" list="airfareMarketList" placeholder="e.g. Denver"
+                  autocomplete="off" oninput="tripUpdateBudget()">
+              </div>
+              <datalist id="airfareMarketList"></datalist>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Departure airport (optional)</label>
                 <input type="text" id="tripAirport" placeholder="ORD" maxlength="3"
                   style="text-transform:uppercase;width:120px"
                   oninput="this.value=this.value.toUpperCase(); tripUpdateBudget()">
               </div>
               <div class="field">
-                <label>Arrival airport (IATA code)</label>
+                <label>Arrival airport (optional)</label>
                 <input type="text" id="tripDestAirport" placeholder="DEN" maxlength="3"
                   style="text-transform:uppercase;width:120px"
-                  oninput="this.value=this.value.toUpperCase()">
+                  oninput="this.value=this.value.toUpperCase(); tripUpdateBudget()">
+              </div>
+              <div class="field" style="align-self:flex-end">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                  <input type="checkbox" id="tripRoundTrip" checked onchange="tripUpdateBudget()"> Round trip
+                </label>
               </div>
             </div>
+            <div id="tripAirfareNote" style="display:none;margin-top:10px"></div>
             <div style="display:flex;align-items:flex-end;gap:10px;margin-top:10px;flex-wrap:wrap">
               <button class="btn btn-secondary btn-sm" onclick="openFlightSearch()">Look up fares on Google Flights</button>
               <div class="field" style="margin:0">
@@ -2343,7 +2362,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               </div>
               <span id="tripFlightSearchResult" style="font-size:11px"></span>
             </div>
-            <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Opens the search in your own web browser &mdash; Groundwork itself sends nothing. Pick a fare there, check the passenger count, and type the total here. It is used for your trip cost.</div>
+            <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Opens the search in your own web browser &mdash; Groundwork itself sends nothing. Pick a fare there, check the passenger count, and type the total here. A fare you enter is used in place of the DOT average.</div>
           </div>
         </div>
 

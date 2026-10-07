@@ -25,7 +25,7 @@ const src = process.argv[1];
 const els = {};
 const g = id => els[id] || (els[id] = { value: '', style: {}, textContent: '' });
 let opened = null; const openExternal = u => { opened = u; };
-let _tripQuoteData = null; let budgetRuns = 0; const tripUpdateBudget = () => { budgetRuns++; };
+let _tripQuoteData = null; let _airfareMarkets = null; let budgetRuns = 0; const tripUpdateBudget = () => { budgetRuns++; };
 eval(src);
 const out = {};
 out.round = flightSearchUrl('ORD', 'DEN', '2026-11-01', '2026-11-08', '2');
@@ -75,8 +75,9 @@ def run(ctx):
     check('s151 node is available to run the fare functions (skip the rest if not)', bool(node))
     if not node:
         return
-    src = '\n'.join(_fn(app, n) for n in ('flightSearchUrl', 'openFlightSearch', 'tripSetFlightFare'))
-    check('s151 the three fare functions are found in app.js', src.count('\nfunction ') == 3)
+    src = '\n'.join(_fn(app, n) for n in ('flightSearchUrl', '_airfareMarketId', '_flightPlace',
+                                          'openFlightSearch', 'tripSetFlightFare'))
+    check('s151 the fare functions are found in app.js', src.count('\nfunction ') == 5)
     p = subprocess.run([node, '-e', RUNNER, src], capture_output=True, text=True, encoding='utf-8', timeout=60)
     try:
         out = json.loads(p.stdout.strip().splitlines()[-1])

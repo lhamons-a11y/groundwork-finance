@@ -10475,6 +10475,10 @@ let _tripLearnedBasis = null; // Phase 5C — { label, hotelPerNight, diningPerP
 let _tripLearnPending  = null; // computed but not yet applied (waiting on "Use these numbers")
 let _tripQuoteData    = null; // Phase 5D — { label, hotelTotal, hotelPerNight, flightTotal } once confirmed
 let _tripQuotePending = null; // extracted but not yet applied (waiting on "Fill the form")
+let _airfareMarkets = null;   // item 41 — { year, quarter, byName: {name: id} } from /api/trip/airfare-markets
+let _airfareData    = null;   // the DOT lookup for _airfareKey
+let _airfareKey     = '';     // "fromId|toId|fromAirport|toAirport" the above is valid for
+let _airfareTimer   = null;
 
 // Phase 5E: debounced distance fetch — origin/destination fire this on
 // every keystroke (oninput="tripUpdateBudget()"), so this waits for a
@@ -10512,6 +10516,66 @@ function _monthsFromNowLabel(months) {
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
+// Item 41 (gw 2.0/DOT_AIRFARE.md): the DOT city list for the From / To
+// pickers, then a weekly check for a newer DOT quarter. The check downloads
+// DOT's whole table, never the user's route; a newer quarter reloads the list.
+async function _loadAirfareMarkets(checkForNewer) {
+  try {
+    const res = await API.get('/api/trip/airfare-markets');
+    if (res?.available) {
+      const byName = {};
+      res.markets.forEach(m => { byName[m.name] = m.id; });
+      _airfareMarkets = { year: res.year, quarter: res.quarter, byName };
+      const list = g('airfareMarketList');
+      if (list) list.innerHTML = res.markets.map(m => `<option value="${esc(m.name)}"></option>`).join('');
+      _airfareKey = '';
+      tripUpdateBudget();
+    }
+  } catch (e) {
+    _gwErr('_loadAirfareMarkets')(e);
+  }
+  if (checkForNewer) {
+    try {
+      const r = await API.post('/api/trip/airfare-refresh', {});
+      if (r?.updated) _loadAirfareMarkets(false);
+    } catch (e) {
+      _gwErr('_loadAirfareMarkets refresh')(e);
+    }
+  }
+}
+
+function _airfareMarketId(inputId) {
+  const name = g(inputId)?.value?.trim() || '';
+  return (name && _airfareMarkets?.byName[name]) || '';
+}
+
+function _maybeLoadAirfare(fromId, toId, fromAirport, toAirport) {
+  const key = `${fromId}|${toId}|${fromAirport}|${toAirport}`;
+  if (!fromId || !toId || key === _airfareKey) return;
+  clearTimeout(_airfareTimer);
+  _airfareTimer = setTimeout(async () => {
+    try {
+      const p = new URLSearchParams({ from: fromId, to: toId, from_airport: fromAirport, to_airport: toAirport });
+      _airfareData = await API.get(`/api/trip/airfare?${p.toString()}`);
+      _airfareKey  = key;
+    } catch (e) {
+      _gwErr('_maybeLoadAirfare')(e);
+    }
+    tripUpdateBudget();
+  }, 300);
+}
+
+// The flight line of the trip budget from the DOT average: one way, or the
+// outbound leg plus the return leg. DOT keeps one figure for both directions
+// of a route, so the return leg is the same average.
+function airfareEstimate(lookup, roundTrip, travelers) {
+  if (!lookup?.found) return null;
+  const legs = roundTrip ? 2 : 1;
+  const n = Math.max(1, parseInt(travelers) || 1);
+  const fare = Number(lookup.fare_one_way);
+  return { fare, legs, travelers: n, total: Math.round(fare * legs * n * 100) / 100 };
+}
+
 async function _loadGasPrice() {
   try {
     _gasPriceData = await API.get('/api/trip/gas-price');
@@ -10528,6 +10592,7 @@ function renderTripPlanner() {
   // Load saved vehicle details
   _loadVehicleFromSettings();
   _loadGasPrice();
+  _loadAirfareMarkets(true);
 
   // Set default dates (next weekend)
   const now  = new Date();
@@ -11073,17 +11138,24 @@ function flightSearchUrl(origin, dest, depart, ret, travelers) {
   return 'https://www.google.com/travel/flights?q=' + encodeURIComponent(q);
 }
 
+function _flightPlace(airportId, cityId) {
+  const code = g(airportId)?.value?.trim().toUpperCase() || '';
+  if (/^[A-Z]{3}$/.test(code)) return code;
+  return _airfareMarketId(cityId) ? g(cityId).value.trim().replace(/\s*\(Metropolitan Area\)$/, '') : '';
+}
+
 function openFlightSearch() {
   const resultEl = g('tripFlightSearchResult');
-  const origin   = g('tripAirport')?.value?.trim().toUpperCase();
-  const dest     = g('tripDestAirport')?.value?.trim().toUpperCase();
+  const origin   = _flightPlace('tripAirport', 'tripFromCity');
+  const dest     = _flightPlace('tripDestAirport', 'tripToCity');
   const depart   = g('tripDepart')?.value;
-  if (!/^[A-Z]{3}$/.test(origin || '') || !/^[A-Z]{3}$/.test(dest || '') || !depart) {
-    if (resultEl) { resultEl.style.color = 'var(--ember)'; resultEl.textContent = 'Enter both 3-letter airport codes and your dates first.'; }
+  if (!origin || !dest || !depart) {
+    if (resultEl) { resultEl.style.color = 'var(--ember)'; resultEl.textContent = 'Pick both cities from the list (or enter both airport codes) and your dates first.'; }
     return;
   }
   if (resultEl) resultEl.textContent = '';
-  openExternal(flightSearchUrl(origin, dest, depart, g('tripReturn')?.value, g('tripTravelers')?.value));
+  const ret = g('tripRoundTrip')?.checked === false ? '' : g('tripReturn')?.value;
+  openExternal(flightSearchUrl(origin, dest, depart, ret, g('tripTravelers')?.value));
 }
 
 function tripSetFlightFare() {
@@ -11104,6 +11176,43 @@ function tripSetFlightFare() {
   tripUpdateBudget();
 }
 
+// The DOT lookup for the route on screen, starting one if the route changed.
+function _airfareCurrent() {
+  const fromId = _airfareMarketId('tripFromCity');
+  const toId   = _airfareMarketId('tripToCity');
+  const ap = id => { const v = g(id)?.value?.trim().toUpperCase() || ''; return /^[A-Z]{3}$/.test(v) ? v : ''; };
+  const fa = ap('tripAirport'), fb = ap('tripDestAirport');
+  _maybeLoadAirfare(fromId, toId, fa, fb);
+  return (fromId && toId && _airfareKey === `${fromId}|${toId}|${fa}|${fb}`) ? _airfareData : null;
+}
+
+function _airfareNoteHtml(travelers) {
+  const box = inner => `<div style="padding:10px 14px;border-radius:var(--r-md);background:var(--paper);border:0.5px solid var(--steel);font-size:12px;color:var(--slate)">${inner}</div>`;
+  const fromTyped = g('tripFromCity')?.value?.trim(), toTyped = g('tripToCity')?.value?.trim();
+  if (!_airfareMarkets) return '';
+  if ((fromTyped && !_airfareMarketId('tripFromCity')) || (toTyped && !_airfareMarketId('tripToCity'))) {
+    return box('Pick each city from the list so Groundwork can find DOT\'s average fare for the route.');
+  }
+  const d = _airfareCurrent();
+  if (!d) return '';
+  const quarter = `${d.year} Q${d.quarter}`;
+  if (!d.found) {
+    return box(d.reason === 'same_market'
+      ? 'From and To are the same city.'
+      : `DOT has no average fare for ${esc(d.from_name)} – ${esc(d.to_name)} in ${quarter} (it lists routes averaging 10+ passengers a day in the lower 48 states). Enter your fare below; until then flights are not in the trip total.`);
+  }
+  const roundTrip = g('tripRoundTrip')?.checked !== false;
+  const est = airfareEstimate(d, roundTrip, travelers);
+  const name = (city, ap) => `${esc(city)}${ap ? ` (${esc(ap)})` : ''}`;
+  const from = name(d.from_name, d.from_airport), to = name(d.to_name, d.to_airport);
+  const typed = _tripQuoteData?.flightTotal != null;
+  return box(`✈ The average cost of this flight is <strong style="color:var(--ink)">${fmt(est.fare)}</strong> one way,
+    ${from} → ${to}${roundTrip ? `, and ${fmt(est.fare)} back, ${to} → ${from}` : ''}.
+    ${roundTrip ? `Round trip: (${fmt(est.fare)} + ${fmt(est.fare)})` : `One way: ${fmt(est.fare)}`}
+    × ${est.travelers} traveler${est.travelers !== 1 ? 's' : ''} = <strong style="color:var(--ink)">${fmt(est.total)}</strong>.
+    <div style="margin-top:6px;font-size:11px;color:var(--slate-2)">Source: ${esc(d.source)}, ${quarter} — the average one-way fare passengers actually paid${d.basis === 'airport' ? ' between these two airports' : ' between these two cities, all their airports'}, from a 10% sample of real tickets (about ${Math.round(d.passengers_per_day).toLocaleString()} passengers a day). DOT keeps one figure for both directions of a route, so the return leg is the same average. It is not a fare you can book${typed ? '; the fare you entered is used in your total instead' : ''}.</div>`);
+}
+
 // ── Budget calculator ─────────────────────────────────────────────────────────
 function tripUpdateBudget() {
   const dest      = g('tripDestination')?.value?.trim();
@@ -11111,6 +11220,14 @@ function tripUpdateBudget() {
   const ret       = g('tripReturn')?.value;
   const travelers = parseInt(g('tripTravelers')?.value) || 1;
   const calcCard  = g('tripBudgetCalc');
+
+  // Item 41: the DOT average as its own finding, with its working — shown as
+  // soon as both cities are picked, before the rest of the trip is filled in.
+  const airNote = g('tripAirfareNote');
+  if (airNote) {
+    airNote.innerHTML = _tripMode === 'fly' ? _airfareNoteHtml(travelers) : '';
+    airNote.style.display = airNote.innerHTML ? '' : 'none';
+  }
 
   if (!dest || !depart || !ret) { if (calcCard) calcCard.style.display='none'; return; }
 
@@ -11146,12 +11263,16 @@ function tripUpdateBudget() {
     transportCost = Math.round(_tripQuoteData.flightTotal);
     transportNote = `${fmt(transportCost)} total (from your quote)`;
   } else {
-    // Fly: rough estimate $220/person roundtrip — AI refines in 10C
-    const airport = g('tripAirport')?.value?.trim() || '';
-    transportCost = 220 * travelers;
-    transportNote = airport
-      ? `~$220/person from ${airport} est. · AI will refine`
-      : `~$220/person est. · AI will refine`;
+    // Item 41: the DOT average fare for the route replaces the old $220/person
+    // guess. No DOT figure → no flight cost, and the line says it is left out.
+    const est = airfareEstimate(_airfareCurrent(), g('tripRoundTrip')?.checked !== false, travelers);
+    if (est) {
+      transportCost = est.total;
+      transportNote = `DOT avg ${fmt(est.fare)} one way × ${est.legs} leg${est.legs !== 1 ? 's' : ''} × ${est.travelers} traveler${est.travelers !== 1 ? 's' : ''}`;
+    } else {
+      transportCost = 0;
+      transportNote = 'Not in the total yet — pick both cities or enter your fare';
+    }
   }
 
   // Hotel estimate, in priority order: a real pasted quote (Phase 5D, either

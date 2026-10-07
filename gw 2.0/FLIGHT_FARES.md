@@ -41,4 +41,5 @@ data loss"*, so L1 admits it to 1.x. It is built on `lts/1.x` first and merged f
 
 - **The $220 per person fallback**, and its *"AI will refine"* text, when no fare is entered. Cloud AI is removed, so
   nothing refines it, and under the transparency standard (item 39 U7) a figure that cannot show its working is not
-  shown. Raised 2026-10-07, not ruled.
+  shown. Raised 2026-10-07; ruled the same day and built on master as item 41 (`DOT_AIRFARE.md`): the DOT
+  average fare for the route replaces it. 1.x keeps the $220.
