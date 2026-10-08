@@ -6,7 +6,7 @@
 ; Tested with Inno Setup 6.x
 
 #define AppName "Groundwork"
-#define AppVersion "1.1.0"
+#define AppVersion "1.1.1"
 #define AppPublisher "Groundwork"
 #define AppURL "https://groundworkfinance.app"
 #define AppExeName "Groundwork.exe"
@@ -22,10 +22,10 @@ AppUpdatesURL={#AppURL}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
-LicenseFile=C:\Groundwork\EULA.txt
-OutputDir=C:\Groundwork\installer_output
+LicenseFile=EULA.txt
+OutputDir=installer_output
 OutputBaseFilename=Groundwork_Setup_Offline
-SetupIconFile=C:\Groundwork\groundwork.ico
+SetupIconFile=groundwork.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -40,12 +40,12 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "C:\Groundwork\dist\Groundwork\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\Groundwork\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; The local AI model (ENGINE_REPLACEMENT.md, item 31): the exact tested file, inside Groundwork's own folder,
 ; where core/engine.py looks for it and checks its SHA-256 before loading. No Ollama, no second program, no
 ; download, and nothing written outside {app}. Already compressed, so it is stored as-is.
-Source: "C:\Groundwork\vendor\phi3.5_model\blobs\sha256-b5374915da534cb93df39f03bd4f2cd5a0c533df0d5e21957dc9556c260be9eb"; DestDir: "{app}\models"; DestName: "phi3.5-mini-instruct-q4.gguf"; Flags: ignoreversion nocompression
+Source: "vendor\phi3.5_model\blobs\sha256-b5374915da534cb93df39f03bd4f2cd5a0c533df0d5e21957dc9556c260be9eb"; DestDir: "{app}\models"; DestName: "phi3.5-mini-instruct-q4.gguf"; Flags: ignoreversion nocompression
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
@@ -103,15 +103,6 @@ begin
   // block on a MsgBox waiting for a click that will never come.
   if WizardSilent() then exit;
   WarnIfWindowsUnsupported();
-
-  MsgBox(
-    'This is the OFFLINE installer — it includes Groundwork''s local AI ' +
-    'model (~2.2GB) bundled in, so the whole install works with no ' +
-    'internet connection at all, including first run.' + #13#10 + #13#10 +
-    'If you have internet access, the regular installer is smaller and ' +
-    'downloads the same model in the background instead.',
-    mbInformation, MB_OK
-  );
 
   if not RegQueryStringValue(
     HKLM,
