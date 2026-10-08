@@ -44,6 +44,8 @@ A DOT refresh between releases keeps the shipped airports. They change far more 
 
 ## 3a. The trip's own cities (found by Rob 2026-10-08)
 
+**ACCEPTED 2026-10-08 (Rob: "I accept the trip planner changes")**: eb42dfb, 2e38783 and ef0c086, gate 2475 / 0.
+
 Rob tested it: *"I put in the destination and home city I hit fly the airport code did not go into the airport code."*
 - **What was wrong.** The trip form has two pairs of city boxes: *Destination* and *Home city* at the top, and *Flying
   from* / *Flying to* inside the Fly section. Only the second pair filled airports, and nothing connected the two, so
