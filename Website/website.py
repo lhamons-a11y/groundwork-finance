@@ -754,12 +754,10 @@ def download():
       4GB RAM (8GB+ for the optional local AI)
     </div>
     <div style="margin-top:12px;font-size:12px;color:var(--slate)">
-      Local AI sets itself up automatically from Settings — but if you'd
-      rather have it all bundled in from the start (or expect to be
-      offline for that first setup), grab the
-      <a href="/dl/windows-offline">offline installer</a>
-      instead (~3.3GB, includes Ollama and a local model — nothing to
-      download later).
+      Every Windows installer includes the local AI model (about 2.2GB of the
+      download), so there is nothing to download later. The
+      <a href="/dl/windows-offline">offline installer</a> is the same file,
+      kept under its own link.
     </div>
   </div>
 
@@ -1035,7 +1033,7 @@ python3 launch.py</pre>
       <h2>AI features</h2>
       <p>Groundwork can write a plain-English monthly report and other narrative insights. AI is completely optional, and it runs <strong>only on your own machine</strong>.</p>
       <h3>Local AI (free, fully private)</h3>
-      <p>Out of the box, Groundwork runs AI <strong>on your own machine</strong> using <a href="https://ollama.com" target="_blank">Ollama</a>. Nothing ever leaves your computer, there's no API key, and there's no cost. In <strong>Settings → AI</strong>, click <strong>Set up Local AI</strong> and Groundwork installs Ollama and a small language model for you (a few GB of disk space). Every other feature of Groundwork works fully whether or not you set this up.</p>
+      <p>Groundwork runs AI <strong>on your own machine</strong>, with a language model that comes inside the installer and runs inside Groundwork itself: there is no separate program to install, nothing ever leaves your computer, there's no API key, and there's no cost. Turn it on when Groundwork first asks, or later under <strong>Settings → AI features</strong>. Local AI needs at least 8 GB of memory; on a smaller computer AI stays off, and every other feature of Groundwork works fully either way.</p>
       <h3>No cloud AI</h3>
       <p>Groundwork has no cloud AI option. <strong>Nothing is sent to an AI service, ever.</strong> If a computer can't comfortably run a local model, AI features simply stay off; budgets, debt payoff and reports all work the same. Reading PDF statements needs the local model too; without it, import your bank's CSV or QFX download instead.</p>
     </div>
