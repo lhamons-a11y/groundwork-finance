@@ -1,5 +1,7 @@
 # Item 43 — Picking a city fills its airport
 
+**ACCEPTED and CLOSED 2026-10-07 (Rob: "I accept item 43")**, gate 2454 / 0.
+
 Asked 2026-10-07 by Rob. Master only. What he asked for:
 - *"when someone enters the city in the trip planner and select fly the airport code should appear … if their is two
   different airports for that city then the user should be asked which airport? Then that airport code will appear."*
