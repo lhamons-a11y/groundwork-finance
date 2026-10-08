@@ -8,6 +8,7 @@
          would never be offered to a 1.1.0 install.
 """
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -63,7 +64,11 @@ def run(ctx):
     else:
         check('s149 L2j master contains every lts/1.x commit (fixes reach master by merge, never as copies)', contained)
         git = shutil.which('git')
+        # The probe commit carries its own name: a CI runner has no git identity, and without one commit-tree
+        # fails, the probe is empty and this check failed on GitHub while passing locally (2026-10-08).
+        probe_env = dict(os.environ, GIT_AUTHOR_NAME='s149 probe', GIT_AUTHOR_EMAIL='s149@probe.invalid',
+                         GIT_COMMITTER_NAME='s149 probe', GIT_COMMITTER_EMAIL='s149@probe.invalid')
         orphan = subprocess.run([git, 'commit-tree', 'HEAD^{tree}', '-m', 's149 probe: a commit not in master'],
-                                cwd=BASE, capture_output=True, text=True).stdout.strip()
+                                cwd=BASE, capture_output=True, text=True, env=probe_env).stdout.strip()
         check('s149 L2j the check can fail: a commit that is not in master is reported as not contained',
               bool(orphan) and lts_contained(BASE, ref=orphan) is False)
