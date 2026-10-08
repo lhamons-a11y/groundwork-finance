@@ -8004,9 +8004,33 @@ def trip_flights_window():
         return err('Enter both 3-letter airport codes and your departure date first.', 400)
     if body.get('mode') == 'browser':
         return ok({'result': bank_window.open_in_browser(url)})
+    import flights_window
     key = ('flights', 0)
     bank_window.close_bank_window(key)        # a new search replaces the one on screen
-    return ok({'result': bank_window.open_bank_window(key, url)})
+    flights_window.clear()                    # and its fare with it
+    result = bank_window.open_bank_window(key, url)
+    if result == 'opened' and bank_window.process(key):
+        flights_window.watch(bank_window.process(key))     # item 44: the fare the user picks, if they pick one
+    return ok({'result': result})
+
+
+@trip_bp.route('/flights-window/fare', methods=['GET'])
+def trip_flights_window_fare():
+    """
+    Item 44 (FLIGHT_FARE_READ.md R3/R4): the price on the Google Flights
+    Continue button the user last clicked, or none. Shown to the user to
+    confirm; nothing is written here.
+    """
+    import flights_window
+    return ok(flights_window.latest())
+
+
+@trip_bp.route('/flights-window/fare/clear', methods=['POST'])
+def trip_flights_window_fare_clear():
+    """The user used the fare or turned it down: forget it."""
+    import flights_window
+    flights_window.clear()
+    return ok({'cleared': True})
 
 
 @trip_bp.route('/airfare-refresh', methods=['POST'])

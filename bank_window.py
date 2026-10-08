@@ -218,15 +218,22 @@ def child_main():
 
     # Downloads here and only here: the main process keeps ALLOW_DOWNLOADS False.
     webview.settings['ALLOW_DOWNLOADS'] = True
-    if window_title(url) == 'Google Flights':
+    flights = window_title(url) == 'Google Flights'
+    if flights:
         keep_new_windows_in_engine(platform_key)
 
-    window = webview.create_window(
-        title=window_title(url),
-        url=url,
-        width=1100,
-        height=800,
-    )
+    if flights:
+        # Item 44 (FLIGHT_FARE_READ.md): the one page read, Google Flights only. It all lives in flights_window.py,
+        # so this file still reads nothing from any page.
+        import flights_window
+        window = flights_window.create_window(webview, url, window_title(url))
+    else:
+        window = webview.create_window(
+            title=window_title(url),
+            url=url,
+            width=1100,
+            height=800,
+        )
 
     def _close_when_parent_goes():
         # The parent holds our stdin open for as long as it wants this window. EOF means it
@@ -262,6 +269,13 @@ def _child_command():
 
 def _alive(proc):
     return proc is not None and proc.poll() is None
+
+
+def process(key):
+    """The running window process for `key`, or None."""
+    with _children_lock:
+        proc = _children.get(key)
+    return proc if _alive(proc) else None
 
 
 def is_open(key):

@@ -118,6 +118,7 @@ a = Analysis(
         'gas_price',
         'utility_price',
         'trip_distance',
+        'flights_window',
         'pdf_statement',
         # Flask
         'flask',

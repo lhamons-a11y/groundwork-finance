@@ -138,7 +138,7 @@ def run(ctx):
     runner = r'''
 const els = {}; const g = id => els[id] || (els[id] = {value: '', style: {}, innerHTML: ''});
 const esc = s => String(s); const _gwErr = () => () => {};
-const posts = []; const API = {post: async (u, b) => { posts.push([u, b]); return {result: 'opened'}; }};
+const posts = []; const API = {post: async (u, b) => { posts.push([u, b]); return {result: 'opened'}; }}; const _watchGoogleFare = () => {};
 ''' + src + r'''
 (async () => {
   g('tripAirport').value = 'ord'; g('tripDestAirport').value = 'DEN';
@@ -168,7 +168,7 @@ const posts = []; const API = {post: async (u, b) => { posts.push([u, b]); retur
     import sys as _sys
     bw_src = (ctx.BASE / 'bank_window.py').read_text(encoding='utf-8')
     check('s153 W5 only the Google Flights window keeps new windows in the engine; a bank window is untouched',
-          "    if window_title(url) == 'Google Flights':\n        keep_new_windows_in_engine(platform_key)\n" in bw_src
+          "    flights = window_title(url) == 'Google Flights'\n    if flights:\n        keep_new_windows_in_engine(platform_key)\n" in bw_src
           and bw_src.count('keep_new_windows_in_engine(') == 2)
     check('s153 W5 off Windows nothing is changed (the other engines do not use this handler)',
           bank_window.keep_new_windows_in_engine('linux') is False and bank_window.keep_new_windows_in_engine('darwin') is False)

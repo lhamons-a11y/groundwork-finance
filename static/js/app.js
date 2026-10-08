@@ -11263,6 +11263,60 @@ function _tripAirportCode(id) {
   return /^[A-Z]{3}$/.test(v) ? v : '';
 }
 
+// Item 44 (FLIGHT_FARE_READ.md): after a search opens in Groundwork's window,
+// look for the fare the user picks there (the Continue button they click),
+// and ask before using it. The figure is named as Google's: the airline's
+// checkout may add taxes or fees (R0 (a)).
+let _googleFareTimer = null, _googleFareTrip = null;
+
+function _watchGoogleFare(trip) {
+  clearInterval(_googleFareTimer);
+  _googleFareTrip = trip;
+  const started = Date.now();
+  _googleFareTimer = setInterval(async () => {
+    if (Date.now() - started > 30 * 60 * 1000) { clearInterval(_googleFareTimer); return; }
+    try {
+      const r = await API.get('/api/trip/flights-window/fare');
+      if (r && typeof r.fare === 'number' && r.fare > 0) {
+        clearInterval(_googleFareTimer);
+        _offerGoogleFare(r.fare);
+      }
+    } catch (e) { /* the window may have closed; keep the box as it is */ }
+  }, 2000);
+}
+
+function googleFareMessage(amount, trip) {
+  const n = trip?.travelers || 1;
+  return `Google Flights showed ${fmt(amount)} for this trip (${n} traveler${n !== 1 ? 's' : ''}, ${trip?.roundTrip ? 'round trip' : 'one way'}). ` +
+         `The airline's checkout may add taxes or fees.`;
+}
+
+function _offerGoogleFare(amount) {
+  const el = g('tripFlightSearchResult');
+  if (!el) return;
+  el.style.color = 'var(--ink)';
+  el.innerHTML = `${esc(googleFareMessage(amount, _googleFareTrip))}
+    <button class="btn btn-secondary btn-sm" style="margin-left:6px" onclick="tripUseGoogleFare(${Number(amount)})">Use ${fmt(amount)}</button>
+    <button class="btn btn-secondary btn-sm" style="margin-left:4px" onclick="tripDeclineGoogleFare()">Enter the airline's total</button>`;
+}
+
+function tripUseGoogleFare(amount) {
+  const box = g('tripFlightFare');
+  if (box) box.value = Number(amount).toFixed(2);
+  _tripQuoteData = { ..._tripQuoteData, label: 'Google Flights', flightTotal: Number(amount) };
+  const el = g('tripFlightSearchResult');
+  if (el) { el.style.color = 'var(--slate)'; el.textContent = 'Using Google Flights\' price. If the airline\'s checkout shows more, type its total in the box.'; }
+  API.post('/api/trip/flights-window/fare/clear', {}).catch(_gwErr('googleFareClear'));
+  tripUpdateBudget();
+}
+
+function tripDeclineGoogleFare() {
+  const el = g('tripFlightSearchResult');
+  if (el) { el.style.color = 'var(--slate)'; el.textContent = 'Type the airline\'s total in the box.'; }
+  API.post('/api/trip/flights-window/fare/clear', {}).catch(_gwErr('googleFareClear'));
+  g('tripFlightFare')?.focus();
+}
+
 async function openFlightSearch(mode) {
   const resultEl = g('tripFlightSearchResult');
   const say = (text, color) => { if (resultEl) { resultEl.style.color = color; resultEl.innerHTML = text; } };
@@ -11286,6 +11340,7 @@ async function openFlightSearch(mode) {
     if (r?.result === 'engine_unavailable') {
       say(`Groundwork's window could not open on this computer. <button onclick="openFlightSearch('browser')" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:11px;padding:0">Open in my browser</button>`, 'var(--ember)');
     } else {
+      if (mode !== 'browser' && r?.result === 'opened') _watchGoogleFare({ travelers: parseInt(g('tripTravelers')?.value) || 1, roundTrip: !!ret });
       say(`${mode === 'browser' ? 'Opened in your browser' : 'Opened in a Groundwork window'}: ${esc(origin)} → ${esc(dest)}${ret ? ' and back' : ', one way'}. ` +
           (mode === 'browser' ? '' : `<button onclick="openFlightSearch('browser')" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:11px;padding:0">Open in my browser instead</button>`), 'var(--slate)');
     }
@@ -11398,7 +11453,9 @@ function tripUpdateBudget() {
   } else if (_tripQuoteData?.flightTotal != null) {
     // Phase 5D: a real pasted flight-quote total beats the $220/person guess.
     transportCost = Math.round(_tripQuoteData.flightTotal);
-    transportNote = `${fmt(transportCost)} total (from your quote)`;
+    transportNote = _tripQuoteData.label === 'Google Flights'
+      ? `${fmt(transportCost)} total (from Google Flights; the airline may add taxes or fees)`
+      : `${fmt(transportCost)} total (from your quote)`;
   } else {
     // Item 41: the DOT average fare for the route replaces the old $220/person
     // guess. No DOT figure → no flight cost, and the line says it is left out.
