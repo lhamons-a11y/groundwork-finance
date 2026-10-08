@@ -1,5 +1,7 @@
 # Item 40 — Flight prices that need a key nobody has
 
+**ACCEPTED and CLOSED 2026-10-07 (Rob: "I accept item 40")** at lts `e266a78` / master `6957bcf`.
+
 Reported 2026-10-07 by Rob: *"When users are using travel and click the flights they are getting an api key missing."*
 Fix approved the same day. On which lines it goes: *"if the users can't get a price to budget then this is a potential
 data loss"*, so L1 admits it to 1.x. It is built on `lts/1.x` first and merged forward.
