@@ -1,5 +1,7 @@
 # Item 42 — Google Flights in Groundwork's window, already filled in
 
+**ACCEPTED and CLOSED 2026-10-07 (Rob: "I accept item 42").** Also on 1.x (lts `3871d77`), by Rob's ruling, in the user's browser.
+
 Asked 2026-10-07 by Rob: *"In 2.0 the google flight link should open in the groundwork app web browser and it should
 have the airport that the user entered already in the google flight search."* Master only.
 
@@ -41,5 +43,5 @@ have the airport that the user entered already in the google flight search."* Ma
 - **Downloads are on in that process**, as they are for a bank (F1, F6). A file saved from Google Flights would land
   in the watched Downloads folder like any other file and go through the same review. Groundwork imports nothing
   without the user.
-- **1.x still opens Google's front page.** Its link (item 40) uses `?q=`, so the user types the airports there.
-  Nothing is lost, so L1 does not admit this to 1.x on its own.
+- **1.x** got the same encoded search by Rob's ruling ("bring the filled-in search to 1.x too"), opened in the user's
+  browser: 1.x has no in-app window.
