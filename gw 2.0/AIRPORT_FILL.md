@@ -56,6 +56,14 @@ Rob tested it: *"I put in the destination and home city I hit fly the airport co
     nothing is guessed. The Fly section says the name did not match one city and asks the user to pick it.
   - A *Flying from* / *Flying to* city the user chose themselves is never replaced. Nothing is carried for a drive.
 - **Gate:** s154 A5.
+- **One set of city boxes at a time** (Rob 2026-10-08: *"Top card should also hide when fly is clicked. It does
+  confuse a user (me)"*; agreed: *"that is a better decision"*).
+  - Choosing Fly slides away the top card's Destination and Home city, which repeat Flying to / Flying from. The
+    dates, Travelers and the Drive / Fly buttons stay.
+  - Choosing Drive brings them back, and a city chosen only in the Fly section fills an empty one.
+  - While flying, the trip budget's destination is Flying to.
+  - The drive and fly cards slide too, and Round trip sits on the Google Flights row.
+  - Gate: s155.
 
 ## 3. Gate
 

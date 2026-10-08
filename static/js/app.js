@@ -10618,6 +10618,15 @@ function _tripCarryCities() {
   });
 }
 
+// Back to Drive: a city chosen only in the Fly section fills the top card's
+// empty Destination / Home city, so switching never loses what was typed.
+function _tripCarryBack() {
+  [['tripFromCity', 'tripOrigin'], ['tripToCity', 'tripDestination']].forEach(([flyId, topId]) => {
+    const fly = g(flyId)?.value?.trim(), top = g(topId);
+    if (fly && top && !top.value.trim()) top.value = fly.replace(/\s*\(Metropolitan Area\)$/, '');
+  });
+}
+
 function tripPickAirport(side, code) {
   const codeEl = g(side === 'from' ? 'tripAirport' : 'tripDestAirport');
   const choice = g(side === 'from' ? 'tripFromAirportChoice' : 'tripToAirportChoice');
@@ -10826,8 +10835,13 @@ function setTripMode(mode) {
 
     if (driveBtn) driveBtn.classList.toggle('active', mode === 'drive');
     if (flyBtn)   flyBtn.classList.toggle('active',   mode === 'fly');
+    if (mode === 'drive') _tripCarryBack();
     _slideTripPanel(driveDet, mode === 'drive');
     _slideTripPanel(flyDet,   mode === 'fly');
+    // The top card's Destination and Home city repeat Flying to / Flying from,
+    // so they slide away while flying and come back for a drive.
+    _slideTripPanel(g('tripDestField'),   mode === 'drive');
+    _slideTripPanel(g('tripOriginField'), mode === 'drive');
 
     _tripCarryCities();
     tripUpdateBudget();
@@ -11338,7 +11352,7 @@ function _airfareNoteHtml(travelers) {
 
 // ── Budget calculator ─────────────────────────────────────────────────────────
 function tripUpdateBudget() {
-  const dest      = g('tripDestination')?.value?.trim();
+  const dest      = (_tripMode === 'fly' && g('tripToCity')?.value?.trim()) || g('tripDestination')?.value?.trim();
   const depart    = g('tripDepart')?.value;
   const ret       = g('tripReturn')?.value;
   const travelers = parseInt(g('tripTravelers')?.value) || 1;

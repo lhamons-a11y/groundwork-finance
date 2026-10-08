@@ -2253,7 +2253,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div id="tripStep1" class="card mb-5">
           <div class="card-label">Where are you going?</div>
           <div class="field-row-3" style="margin-bottom:16px">
-            <div class="field">
+            <div class="field" id="tripDestField">
               <label>Destination</label>
               <input type="text" id="tripDestination" placeholder="Nashville, TN"
                 oninput="_tripCarryCities(); tripUpdateBudget()">
@@ -2273,7 +2273,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <input type="number" id="tripTravelers" value="1" min="1" max="10"
                 oninput="tripUpdateBudget()">
             </div>
-            <div class="field">
+            <div class="field" id="tripOriginField">
               <label>Home city (for driving distance)</label>
               <input type="text" id="tripOrigin" placeholder="Chicago, IL"
                 oninput="_tripCarryCities(); tripUpdateBudget()">
