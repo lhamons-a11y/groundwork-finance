@@ -66,6 +66,8 @@ Rob tested it: *"I put in the destination and home city I hit fly the airport co
   - While flying, the trip budget's destination is Flying to.
   - The drive and fly cards slide too, and Round trip sits on the Google Flights row.
   - Gate: s155.
+- **The Google Flights row on one line** (Rob 2026-10-08, screenshot): Round trip, then the button, then the fare,
+  centred on one line (598eb46, gate 2475 / 0). ACCEPTED 2026-10-08 (Rob: "I accept the trip planner row change").
 
 ## 3. Gate
 
