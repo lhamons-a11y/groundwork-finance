@@ -2348,14 +2348,13 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
                   style="text-transform:uppercase;width:120px"
                   oninput="this.value=this.value.toUpperCase(); this.dataset.auto=''; tripUpdateBudget()">
               </div>
-              <div class="field" style="align-self:flex-end">
-                <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-                  <input type="checkbox" id="tripRoundTrip" checked onchange="tripUpdateBudget()"> Round trip
-                </label>
-              </div>
             </div>
             <div style="display:flex;align-items:flex-end;gap:10px;margin-top:10px;flex-wrap:wrap">
               <button class="btn btn-secondary btn-sm" onclick="openFlightSearch()">Look up fares on Google Flights</button>
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);cursor:pointer;align-self:center;white-space:nowrap"
+                onclick="if (event.target.id !== 'tripRoundTrip') { const b = g('tripRoundTrip'); b.checked = !b.checked; tripUpdateBudget(); }">
+                <input type="checkbox" id="tripRoundTrip" checked onchange="tripUpdateBudget()" style="width:auto;margin:0">Round trip
+              </span>
               <div class="field" style="margin:0">
                 <label>Flight total for all travelers ($)</label>
                 <input type="number" id="tripFlightFare" placeholder="0.00" min="0" step="0.01" style="width:140px"

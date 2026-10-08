@@ -135,7 +135,7 @@ console.log(JSON.stringify(out));'''
                and html.count('oninput="_tripCarryCities(); tripUpdateBudget()"') == 2)
     check('s154 A5 Destination and Home city both carry into the Fly section as they are typed', html_ok)
     check('s154 A5 choosing Fly carries them, and so does the city list arriving',
-          re.search(r"flyDet\.style\.display[^\n]*\n\s*\n\s*_tripCarryCities\(\);", app) is not None
+          re.search(r"_slideTripPanel\(flyDet,[^\n]*\n\s*\n\s*_tripCarryCities\(\);", app) is not None
           and "_airfareKey = '';\n      _tripCarryCities();" in app.replace('\r\n', '\n'))
     names = json.dumps({v: k for k, v in shipped['markets'].items()})
     src5 = '\n'.join(_fn(app.replace('\r\n', '\n'), n) for n in ('_airfareNorm', 'airfareMatchCity', '_tripCarryCities',

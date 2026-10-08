@@ -10788,6 +10788,34 @@ async function _checkOilChange() {
 }
 
 // ── Mode toggle ───────────────────────────────────────────────────────────────
+// Rob 2026-10-08: choosing Drive or Fly slides the other card up out of the
+// way, and the chosen one down, so the page keeps its space. With reduced
+// motion asked for (or no Web Animations), the cards switch at once.
+function _slideTripPanel(el, show) {
+  if (!el) return;
+  const hidden = el.style.display === 'none';
+  if (el._slideAnim) { el._slideAnim.cancel(); el._slideAnim = null; }
+  const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (still || typeof el.animate !== 'function') { el.style.display = show ? '' : 'none'; return; }
+  if (show) {
+    if (!hidden) return;                                  // already open: nothing to slide
+    el.style.display = '';
+    const h = el.scrollHeight;
+    el._slideAnim = el.animate([{ height: '0px', opacity: 0, overflow: 'hidden' },
+                                { height: h + 'px', opacity: 1, overflow: 'hidden' }],
+                               { duration: 260, easing: 'ease-out' });
+    el._slideAnim.onfinish = () => { el._slideAnim = null; };
+  } else {
+    if (hidden) return;
+    const h = el.offsetHeight;
+    el._slideAnim = el.animate([{ height: h + 'px', opacity: 1, overflow: 'hidden' },
+                                { height: '0px', opacity: 0, overflow: 'hidden', paddingTop: '0px',
+                                  paddingBottom: '0px', marginBottom: '0px', borderWidth: '0px' }],
+                               { duration: 220, easing: 'ease-in' });
+    el._slideAnim.onfinish = () => { el.style.display = 'none'; el._slideAnim = null; };
+  }
+}
+
 function setTripMode(mode) {
   try {
     _tripMode = mode;
@@ -10798,8 +10826,8 @@ function setTripMode(mode) {
 
     if (driveBtn) driveBtn.classList.toggle('active', mode === 'drive');
     if (flyBtn)   flyBtn.classList.toggle('active',   mode === 'fly');
-    if (driveDet) driveDet.style.display = mode === 'drive' ? '' : 'none';
-    if (flyDet)   flyDet.style.display   = mode === 'fly'   ? '' : 'none';
+    _slideTripPanel(driveDet, mode === 'drive');
+    _slideTripPanel(flyDet,   mode === 'fly');
 
     _tripCarryCities();
     tripUpdateBudget();
@@ -11231,7 +11259,12 @@ async function openFlightSearch(mode) {
     say('Enter both 3-letter airport codes and your departure date to open the search filled in.', 'var(--ember)');
     return;
   }
-  const ret = g('tripRoundTrip')?.checked === false ? '' : (g('tripReturn')?.value || '');
+  const roundTrip = g('tripRoundTrip')?.checked !== false;
+  const ret = roundTrip ? (g('tripReturn')?.value || '') : '';
+  if (roundTrip && !ret) {
+    say('Round trip is ticked: enter your return date above, or untick Round trip to search one way.', 'var(--ember)');
+    return;
+  }
   try {
     const r = await API.post('/api/trip/flights-window', {
       origin, dest, depart, return: ret, travelers: parseInt(g('tripTravelers')?.value) || 1, mode: mode || 'window',
