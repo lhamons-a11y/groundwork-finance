@@ -96,6 +96,28 @@ def window_title(url):
     return f'Bank website - {portal_host(url)}'
 
 
+def keep_new_windows_in_engine(platform_key):
+    """Google Flights only (item 42; Rob 2026-10-08: "when I am clicking continue in google flights another window is
+    opening and i am getting a 404 error"). Continue posts a form into a new window (/travel/clk/f, target=_blank).
+    pywebview hands every new window to the system browser by its address alone, so the form is lost and Google
+    answers 404. Left unhandled, WebView2 opens the page's own window in this same private process and the form
+    arrives (measured 2026-10-08: unhandled, the POST and its fields reached the server; handed over, a bare GET).
+    It changes where the page's own window opens, nothing more. Windows only: the other engines do not use this
+    handler. A bank window is untouched."""
+    if platform_key != 'win32':
+        return False
+    try:
+        from webview.platforms import edgechromium
+    except Exception:
+        return False
+
+    def on_new_window_request(self, sender, args):
+        return          # unhandled: WebView2 opens the window the page asked for, with what the page sent
+
+    edgechromium.EdgeChrome.on_new_window_request = on_new_window_request
+    return True
+
+
 def portal_host(url):
     from urllib.parse import urlsplit
     return (urlsplit(url).hostname or '').lower()
@@ -196,6 +218,8 @@ def child_main():
 
     # Downloads here and only here: the main process keeps ALLOW_DOWNLOADS False.
     webview.settings['ALLOW_DOWNLOADS'] = True
+    if window_title(url) == 'Google Flights':
+        keep_new_windows_in_engine(platform_key)
 
     window = webview.create_window(
         title=window_title(url),

@@ -38,6 +38,22 @@ have the airport that the user entered already in the google flight search."* Ma
 - **Gate:** `s153_flights_window.py`. It decodes the address back into legs, travelers and trip type, stands in for
   the window process, and runs the button in Node. `s151` was trimmed to the fare box.
 
+## 2a. Continue to the airline (found by Rob 2026-10-08)
+
+- **The fault:** *"when I am clicking continue in google flights another window is opening and i am getting a 404
+  error"*.
+- **The cause, measured.** Google's *Continue* posts a form (fields `u`, `w`) to `/travel/clk/f` with
+  `target=_blank`. pywebview hands every new window to the system browser by its address alone, so the browser
+  requested `/travel/clk/f` with no form, and Google answered 404.
+- **The fix, measured before and after.** In the Google Flights window only, the new-window request is left
+  unhandled. WebView2 then opens the window itself, in the same private process, carrying the form.
+  - Proved with a local form server: handed over, the server saw a bare address; left unhandled, it received the
+    POST and both fields.
+  - Then in the real window: Continue opened United's own page at *Traveler Info*, ORD → DEN, 1–8 Nov, 2 adults.
+- **Banks are unaffected.** A bank window keeps pywebview's handling (`BANK_BROWSER.md` is unchanged), and s126's
+  crossing rules all hold.
+- **Gate:** s153 W5.
+
 ## 3. Not changed
 
 - **Downloads are on in that process**, as they are for a bank (F1, F6). A file saved from Google Flights would land

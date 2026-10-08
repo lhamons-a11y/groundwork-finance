@@ -8,6 +8,9 @@ in the google flight search").
     W3  it opens in the bank window's separate private process, given only the address, titled from it;
         a new search replaces the one on screen; "Open in my browser" is the escape hatch
     W4  the button needs both airport codes and a departure date, and says so
+    W5  Google's Continue posts a form into a new window; in the Google Flights window (only) that window is opened by
+        WebView2 itself, so the form arrives - handed to the system browser by address it was a bare GET and a 404
+        (Rob 2026-10-08)
 """
 import base64
 import json
@@ -159,3 +162,40 @@ const posts = []; const API = {post: async (u, b) => { posts.push([u, b]); retur
                                                    'return': '2026-11-08', 'travelers': 3, 'mode': 'window'}],
                     ['/api/trip/flights-window', {'origin': 'ORD', 'dest': 'DEN', 'depart': '2026-11-01',
                                                    'return': '', 'travelers': 3, 'mode': 'window'}]])
+
+
+    # W5 - Continue keeps its form (Rob 2026-10-08: "another window is opening and i am getting a 404 error")
+    import sys as _sys
+    bw_src = (ctx.BASE / 'bank_window.py').read_text(encoding='utf-8')
+    check('s153 W5 only the Google Flights window keeps new windows in the engine; a bank window is untouched',
+          "    if window_title(url) == 'Google Flights':\n        keep_new_windows_in_engine(platform_key)\n" in bw_src
+          and bw_src.count('keep_new_windows_in_engine(') == 2)
+    check('s153 W5 off Windows nothing is changed (the other engines do not use this handler)',
+          bank_window.keep_new_windows_in_engine('linux') is False and bank_window.keep_new_windows_in_engine('darwin') is False)
+    if _sys.platform == 'win32':
+        try:
+            from webview.platforms import edgechromium
+        except Exception:
+            edgechromium = None
+        check('s153 W5 pywebview\'s Edge engine is importable here (skip the patch check if not)', edgechromium is not None)
+        if edgechromium is not None:
+            before = edgechromium.EdgeChrome.on_new_window_request
+            try:
+                patched = bank_window.keep_new_windows_in_engine('win32')
+                after = edgechromium.EdgeChrome.on_new_window_request
+
+                class _Args:
+                    handled = None
+
+                    def set_Handled(self, v):
+                        self.handled = v
+
+                    def get_Uri(self):
+                        return 'https://www.google.com/travel/clk/f?t=1'
+
+                a = _Args()
+                after(None, None, a)
+                check('s153 W5 on Windows the new-window request is left unhandled, so WebView2 opens it with its form',
+                      patched is True and after is not before and a.handled is None)
+            finally:
+                edgechromium.EdgeChrome.on_new_window_request = before
