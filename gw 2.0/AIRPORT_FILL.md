@@ -42,6 +42,21 @@ A DOT refresh between releases keeps the shipped airports. They change far more 
   Flights shows for your dates."* It states the average and leaves the comparison to the user, with no judgement of
   whether a fare is good.
 
+## 3a. The trip's own cities (found by Rob 2026-10-08)
+
+Rob tested it: *"I put in the destination and home city I hit fly the airport code did not go into the airport code."*
+- **What was wrong.** The trip form has two pairs of city boxes: *Destination* and *Home city* at the top, and *Flying
+  from* / *Flying to* inside the Fly section. Only the second pair filled airports, and nothing connected the two, so
+  a user who filled the top of the form and chose Fly got nothing.
+- **The fix.** Choosing Fly, editing either top box while Fly is chosen, or the city list arriving carries Home city
+  into *Flying from* and Destination into *Flying to*, and their airports fill in as above.
+  - The match is to DOT's own city list: the city with or without its state, common names (NYC, Washington DC,
+    Saint Louis), and a city inside a two-city name (Dallas → Dallas/Fort Worth, St. Paul → Minneapolis/St. Paul).
+  - Only an unambiguous match is used. "Columbus" with no state is three DOT cities, and "Disney World" is none, so
+    nothing is guessed. The Fly section says the name did not match one city and asks the user to pick it.
+  - A *Flying from* / *Flying to* city the user chose themselves is never replaced. Nothing is carried for a drive.
+- **Gate:** s154 A5.
+
 ## 3. Gate
 
 `s154_airport_fill.py`:

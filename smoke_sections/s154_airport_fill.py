@@ -7,6 +7,8 @@ then the user should be asked which airport ... the DOT flight average should ap
     A2  one airport is filled in; several ask which, and the one picked is filled in; a code the user typed is kept
     A3  the DOT average sits beside the Google Flights button and says to compare it with Google's fares
     A4  a DOT refresh keeps the airports
+    A5  the trip's own Destination and Home city carry into the Fly section once Fly is chosen (Rob 2026-10-08: "I
+        hit fly the airport code did not go into the airport code"); only an unambiguous DOT match is used
 """
 import json
 import re
@@ -89,7 +91,7 @@ def run(ctx):
           'compare it with the fares Google Flights shows for your dates' in app)
     check('s154 A2 each city box has its airport chooser, and both cities fill their airport',
           all(s in html for s in ('id="tripFromAirportChoice"', 'id="tripToAirportChoice"',
-                                  "oninput=\"tripCityChanged('from')\"", "oninput=\"tripCityChanged('to')\"")))
+                                  "tripCityChanged('from')\"", "tripCityChanged('to')\"")))
 
     # A2 - run in Node
     node = shutil.which('node')
@@ -126,3 +128,53 @@ console.log(JSON.stringify(out));'''
     check('s154 A2 a city with no known airport leaves an auto-filled code empty for the user to type',
           out.get('none') == '')
     check('s154 A2 a code the user typed is never replaced by a city pick', out.get('typedKept') == 'XNA')
+
+
+    # A5 - the trip's own cities, matched against the shipped DOT list
+    html_ok = ('oninput="_tripCarryCities(); tripUpdateBudget()"' in html
+               and html.count('oninput="_tripCarryCities(); tripUpdateBudget()"') == 2)
+    check('s154 A5 Destination and Home city both carry into the Fly section as they are typed', html_ok)
+    check('s154 A5 choosing Fly carries them, and so does the city list arriving',
+          re.search(r"flyDet\.style\.display[^\n]*\n\s*\n\s*_tripCarryCities\(\);", app) is not None
+          and "_airfareKey = '';\n      _tripCarryCities();" in app.replace('\r\n', '\n'))
+    names = json.dumps({v: k for k, v in shipped['markets'].items()})
+    src5 = '\n'.join(_fn(app.replace('\r\n', '\n'), n) for n in ('_airfareNorm', 'airfareMatchCity', '_tripCarryCities',
+                                                                 '_airfareMarketId', 'tripCityChanged'))
+    alias = re.search(r'\nconst _AIRFARE_ALIASES = \{.*?\};\n', app.replace('\r\n', '\n'), re.S)
+    runner5 = r"""
+const els = {}; const g = id => els[id] || (els[id] = {value: '', style: {}, innerHTML: '', textContent: '', dataset: {}});
+const esc = s => String(s); const tripUpdateBudget = () => {};
+const byName = """ + names + r""";
+let _tripMode = 'fly'; let _airfareMarkets = {byName, airports: {}};
+""" + (alias.group(0) if alias else '') + src5 + r"""
+const out = {};
+out.matches = ['Nashville, TN', 'chicago', 'NYC', 'Washington DC', 'Saint Louis, MO', 'Dallas', 'St. Paul, MN',
+               'Columbus', 'Columbus, OH', 'Portland', 'Disney World'].map(s => airfareMatchCity(s, byName));
+g('tripOrigin').value = 'Chicago, IL'; g('tripDestination').value = 'Nashville, TN'; _tripCarryCities();
+out.carried = [g('tripFromCity').value, g('tripToCity').value];
+g('tripDestination').value = 'Denver'; _tripCarryCities(); out.followed = g('tripToCity').value;
+g('tripToCity').value = 'Orlando, FL'; g('tripToCity').dataset.auto = ''; g('tripDestination').value = 'Denver, CO';
+_tripCarryCities(); out.kept = g('tripToCity').value;
+g('tripOrigin').value = 'Columbus'; _tripCarryCities();
+out.ambiguous = [g('tripFromCity').value, /doesn't match one city/.test(g('tripFromAirportChoice').textContent)];
+_tripMode = 'drive'; g('tripFromCity').value = ''; g('tripOrigin').value = 'Chicago, IL'; _tripCarryCities();
+out.driving = g('tripFromCity').value;
+console.log(JSON.stringify(out));"""
+    p5 = subprocess.run([node, '-e', runner5], capture_output=True, text=True, encoding='utf-8', timeout=60)
+    try:
+        out5 = json.loads(p5.stdout.strip().splitlines()[-1])
+    except Exception:
+        print('        node stderr:', p5.stderr[-800:])
+        out5 = {}
+    check('s154 A5 typed city names match DOT\'s city: with or without the state, common names (NYC, Washington DC, '
+          'Saint Louis), a city inside a two-city name (Dallas, St. Paul)',
+          out5.get('matches', [])[:7] == ['Nashville, TN', 'Chicago, IL', 'New York City, NY (Metropolitan Area)',
+                                         'Washington, DC (Metropolitan Area)', 'St. Louis, MO', 'Dallas/Fort Worth, TX',
+                                         'Minneapolis/St. Paul, MN'])
+    check('s154 A5 an ambiguous or unknown name matches nothing (Columbus with no state, Portland, Disney World)',
+          out5.get('matches', [])[7:] == [None, 'Columbus, OH', None, None])
+    check('s154 A5 Home city and Destination fill Flying from and Flying to', out5.get('carried') == ['Chicago, IL', 'Nashville, TN'])
+    check('s154 A5 editing the Destination updates a carried city', out5.get('followed') == 'Denver, CO')
+    check('s154 A5 a Fly-section city the user chose is never replaced', out5.get('kept') == 'Orlando, FL')
+    check('s154 A5 an ambiguous name fills nothing and asks the user to pick', out5.get('ambiguous') == ['', True])
+    check('s154 A5 nothing is carried while the trip is a drive', out5.get('driving') == '')

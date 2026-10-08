@@ -10529,6 +10529,7 @@ async function _loadAirfareMarkets(checkForNewer) {
       const list = g('airfareMarketList');
       if (list) list.innerHTML = res.markets.map(m => `<option value="${esc(m.name)}"></option>`).join('');
       _airfareKey = '';
+      _tripCarryCities();
       tripUpdateBudget();
     }
   } catch (e) {
@@ -10565,6 +10566,56 @@ function tripCityChanged(side) {
     choice.style.display = '';
   }
   tripUpdateBudget();
+}
+
+// Item 43 follow-up (AIRPORT_FILL.md s4, Rob 2026-10-08): the trip's own
+// Destination and Home city carry into the Fly section once Fly is chosen,
+// matched to DOT's city list. Only an unambiguous match is used: "Columbus"
+// with no state is three DOT cities, so nothing is guessed and the user is
+// asked to pick. A Fly-section city the user chose themselves is kept.
+function _airfareNorm(s) {
+  return String(s || '').toLowerCase().replace(/\(metropolitan area\)/g, '').replace(/\./g, '')
+    .replace(/\bsaint\b/g, 'st').replace(/\bfort\b/g, 'ft').replace(/\s+/g, ' ').trim();
+}
+
+const _AIRFARE_ALIASES = { 'new york': 'new york city', 'nyc': 'new york city', 'washington dc': 'washington',
+                           'dc': 'washington', 'la': 'los angeles', 'sf': 'san francisco' };
+
+function airfareMatchCity(text, byName) {
+  let city = _airfareNorm(text), st = '';
+  if (!city) return null;
+  const m = city.match(/^(.+?),?\s+([a-z]{2})$/);          // "nashville, tn" or "nashville tn"
+  if (m && !_AIRFARE_ALIASES[city]) { city = m[1].replace(/,$/, '').trim(); st = m[2]; }
+  city = _AIRFARE_ALIASES[city] || city;
+  if (city === 'washington' && !st) st = 'dc';
+  const hits = Object.keys(byName || {}).filter(name => {
+    const n = _airfareNorm(name), i = n.lastIndexOf(', ');
+    if (i < 0) return false;
+    const c = n.slice(0, i), s = n.slice(i + 2);
+    if (st && s !== st) return false;
+    return c === city || c.split('/').map(x => x.trim()).includes(city);
+  });
+  return hits.length === 1 ? hits[0] : null;
+}
+
+function _tripCarryCities() {
+  if (_tripMode !== 'fly' || !_airfareMarkets) return;
+  [['from', 'tripOrigin', 'tripFromCity'], ['to', 'tripDestination', 'tripToCity']].forEach(([side, srcId, cityId]) => {
+    const el = g(cityId);
+    if (!el || (el.value && el.dataset.auto !== '1')) return;        // a city the user chose here is theirs
+    const src = g(srcId)?.value?.trim() || '';
+    const name = src ? airfareMatchCity(src, _airfareMarkets.byName) : null;
+    if (el.value !== (name || '')) {
+      el.value = name || '';
+      el.dataset.auto = name ? '1' : '';
+      tripCityChanged(side);
+    }
+    const choice = g(side === 'from' ? 'tripFromAirportChoice' : 'tripToAirportChoice');
+    if (src && !name && choice) {
+      choice.textContent = `"${src}" doesn't match one city in DOT's list. Pick the city here and its airport fills in.`;
+      choice.style.display = '';
+    }
+  });
 }
 
 function tripPickAirport(side, code) {
@@ -10750,6 +10801,7 @@ function setTripMode(mode) {
     if (driveDet) driveDet.style.display = mode === 'drive' ? '' : 'none';
     if (flyDet)   flyDet.style.display   = mode === 'fly'   ? '' : 'none';
 
+    _tripCarryCities();
     tripUpdateBudget();
   } catch(e) {
     console.error('setTripMode error:', e);

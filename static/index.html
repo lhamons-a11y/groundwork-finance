@@ -2256,7 +2256,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <div class="field">
               <label>Destination</label>
               <input type="text" id="tripDestination" placeholder="Nashville, TN"
-                oninput="tripUpdateBudget()">
+                oninput="_tripCarryCities(); tripUpdateBudget()">
             </div>
             <div class="field">
               <label>Departure date</label>
@@ -2276,7 +2276,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <div class="field">
               <label>Home city (for driving distance)</label>
               <input type="text" id="tripOrigin" placeholder="Chicago, IL"
-                oninput="tripUpdateBudget()">
+                oninput="_tripCarryCities(); tripUpdateBudget()">
             </div>
           </div>
 
@@ -2324,13 +2324,13 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div class="field">
                 <label>Flying from (city)</label>
                 <input type="text" id="tripFromCity" list="airfareMarketList" placeholder="Start typing, e.g. Chicago"
-                  autocomplete="off" oninput="tripCityChanged('from')">
+                  autocomplete="off" oninput="this.dataset.auto=''; tripCityChanged('from')">
                 <div id="tripFromAirportChoice" style="display:none;margin-top:6px;font-size:12px"></div>
               </div>
               <div class="field">
                 <label>Flying to (city)</label>
                 <input type="text" id="tripToCity" list="airfareMarketList" placeholder="e.g. Denver"
-                  autocomplete="off" oninput="tripCityChanged('to')">
+                  autocomplete="off" oninput="this.dataset.auto=''; tripCityChanged('to')">
                 <div id="tripToAirportChoice" style="display:none;margin-top:6px;font-size:12px"></div>
               </div>
               <datalist id="airfareMarketList"></datalist>
