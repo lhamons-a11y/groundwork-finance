@@ -1,5 +1,10 @@
 # Item 45 — The health review: where the module stands, and the smallest first piece
 
+**RULED 2026-10-08 at design level (Rob: "approve H1–H7 as recommended, with one clarification to H7"; confirmed:
+"yes that's my ruling").** See section 6. **Nothing is authorised for implementation.** No code, schema change,
+migration or 1.x change follows from this ruling. Each piece of work is its own item, with its own scope, review and
+authorisation.
+
 Opened 2026-10-08 (Rob: *"what is there to build for health?"* → *"open the health review item"*). The module was held
 on 2026-10-04. This item reopens it as a **review only: no code**. It reconciles the draft with its challengers, checks
 §0 against today's code, maps the record layer, and proposes a first slice. It asks for rulings and authorises nothing.
@@ -150,3 +155,47 @@ fences the design's §1.5–1.7 (visit report, year in review, named people), §
 - **Failure semantics:** three cases left open there.
 - **The closing criticism, which stands:** *"The biggest danger is not getting healthcare wrong. It is becoming the
   first place Groundwork violates its own philosophy."*
+
+## 6. Ruling — Rob, 2026-10-08
+
+Item 45 stays review-only. The rulings settle H1–H7 **at the design level**. They do not authorise implementation,
+schema changes, migrations, or changes to 1.x.
+
+| Point | Ruling | Boundary, as ruled |
+|---|---|---|
+| H1 — fix the live violations | **Approved** | Fix the four teaching-layer surfaces that price protected health spending in months towards debt freedom. Add regression gates covering the Budget page, the monthly report, the dashboard and the Ledger. |
+| H2 — protected categories, version 3 | **Approved** | Expand the list to the identified health terms and built-in categories. Test aliases, capitalisation, partial matches and false positives. A match inside an unrelated word, such as `ER` inside `water`, must not count as a valid classification. |
+| H3 — health belongs in Groundwork | **Approved** | Health records, calculations and explanations belong in Groundwork. The Assistant must not become a separate health-data store or a route around Groundwork's rules. |
+| H4 — medication prices | **Approved** | Only prices supported by the user's own records. No invented prices, no population averages presented as personal costs, no inferred medication expenses. Missing information stays missing. |
+| H5 — first slice: HSA / FSA balances | **Approved** | Money only. No person, medication, diagnosis or other named health record. An FSA forfeiture warning must be grounded in the user's actual plan-year and forfeiture rules. Unknown terms stay explicitly unknown. |
+| H6 — privacy enforcement before named health data | **Approved** | No named people, medications or diagnoses until the enforcement point covers logs, exports and backups, with release-gating tests. It applies to every relevant persistence and disclosure path, not just the main database. |
+| H7 — the sequence | **Approved, with a gate between stages** | The order stands. Each stage is a separate item with its own review, authorisation and passing gates. Finishing one stage authorises nothing for the next. |
+
+**Two qualifications, as ruled.**
+
+1. **H1 is a correctness fix, not a health-feature dependency.**
+   - The engine must not frame necessary care as money available to sacrifice for a debt-free date. The fix does not
+     wait for the health module, the privacy enforcement point or the wider protected-category work.
+   - Its tests check the rendered conclusions the user reads, not merely that a category is marked `protected`. A
+     flag that fails to change the user-facing conclusion does not satisfy the rule.
+2. **H5 must not quietly implement H7's plan-year tracking.**
+   - The HSA / FSA slice records the money and explains what is known.
+   - A forfeiture warning needs reliable plan-year, deadline and forfeiture information. Without it, Groundwork says
+     it cannot determine whether money is at risk, rather than manufacture a warning.
+
+**H7's sequence, as ruled:**
+1. the privacy enforcement point;
+2. plan-year and deductible tracking;
+3. the health reserve;
+4. the visit report and year in review;
+5. named people;
+6. the bill that lands;
+7. collections, last.
+
+Each item establishes its own scope and unresolved decisions before code is authorised. Named people stays behind H6's
+completed privacy gate.
+
+**What this item keeps apart.**
+- **Findings confirmed against the code:** section 2 (Findings A and B), measured on master `c32a083`.
+- **Design decisions approved here:** H1–H7, with the boundaries above.
+- **Work authorised:** none. Each piece, starting with H1, needs its own item and go-ahead.
