@@ -66,10 +66,14 @@ console.log(JSON.stringify(out));
 def run(ctx):
     check, app, html = ctx.check, ctx.app_src, ctx.html_src
     # Rob 2026-10-08 (screenshot): Round trip sits on the Google Flights row, as a plain checkbox, not a field.
-    row = html[html.find('onclick="openFlightSearch()"'):html.find('id="tripFlightFare"')]
-    check('s155 R1 Round trip is on the Google Flights row, once, as a plain checkbox',
-          'id="tripRoundTrip" checked' in row and html.count('id="tripRoundTrip"') == 1
-          and 'style="width:auto;margin:0">Round trip' in row)
+    # Rob 2026-10-08 (second screenshot): Round trip first, then the button, then the fare, on one centred line.
+    row_at = html.find('id="tripFlightRow"')
+    row = html[row_at:html.find('</div>', row_at)]
+    order = [row.find(s) for s in ('id="tripRoundTrip"', 'onclick="openFlightSearch()"', 'id="tripFlightFare"')]
+    check('s155 R1 the Google Flights row is one centred line: Round trip, then the button, then the fare',
+          row_at > 0 and 'align-items:center' in row[:120] and -1 not in order and order == sorted(order)
+          and html.count('id="tripRoundTrip"') == 1 and 'style="width:auto;margin:0">Round trip' in row
+          and '<label>Flight total' not in row and 'class="btn btn-secondary" onclick="openFlightSearch()"' in row)
     check('s155 R2 a round trip with no return date says so instead of searching one way',
           'Round trip is ticked: enter your return date above, or untick Round trip to search one way.' in app)
     check('s155 M1 setTripMode slides the two cards, one each way',

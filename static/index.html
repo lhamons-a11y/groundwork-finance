@@ -2349,18 +2349,20 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
                   oninput="this.value=this.value.toUpperCase(); this.dataset.auto=''; tripUpdateBudget()">
               </div>
             </div>
-            <div style="display:flex;align-items:flex-end;gap:10px;margin-top:10px;flex-wrap:wrap">
-              <button class="btn btn-secondary btn-sm" onclick="openFlightSearch()">Look up fares on Google Flights</button>
-              <span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);cursor:pointer;align-self:center;white-space:nowrap"
+            <!-- One straight line (Rob 2026-10-08): Round trip, the search button, then the fare. Everything is
+                 centred on the same line; a message from the button wraps onto its own line beneath. -->
+            <div id="tripFlightRow" style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap">
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);cursor:pointer;white-space:nowrap"
                 onclick="if (event.target.id !== 'tripRoundTrip') { const b = g('tripRoundTrip'); b.checked = !b.checked; tripUpdateBudget(); }">
                 <input type="checkbox" id="tripRoundTrip" checked onchange="tripUpdateBudget()" style="width:auto;margin:0">Round trip
               </span>
-              <div class="field" style="margin:0">
-                <label>Flight total for all travelers ($)</label>
-                <input type="number" id="tripFlightFare" placeholder="0.00" min="0" step="0.01" style="width:140px"
+              <button class="btn btn-secondary" onclick="openFlightSearch()" style="margin:0">Look up fares on Google Flights</button>
+              <span class="field" style="display:inline-flex;flex-direction:row;align-items:center;gap:8px;margin:0">
+                <label for="tripFlightFare" style="font-size:13px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink);white-space:nowrap">Flight total for all travelers ($)</label>
+                <input type="number" id="tripFlightFare" placeholder="0.00" min="0" step="0.01" style="width:120px"
                   oninput="tripSetFlightFare()">
-              </div>
-              <span id="tripFlightSearchResult" style="font-size:11px"></span>
+              </span>
+              <span id="tripFlightSearchResult" style="font-size:11px;flex-basis:100%"></span>
             </div>
             <div id="tripAirfareNote" style="display:none;margin-top:10px"></div>
             <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Opens Google Flights in a Groundwork window with your airports, dates and travelers filled in &mdash; a private window that keeps no sign-in, and Groundwork reads nothing from it. Pick a fare there and type the total here. A fare you enter is used in place of the DOT average.</div>
