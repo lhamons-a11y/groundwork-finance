@@ -1121,7 +1121,7 @@ def privacy():
     content = """
 <div class="container" style="max-width:700px;padding:60px 24px">
   <h1 style="font-size:36px;font-weight:800;margin-bottom:8px">Privacy Policy</h1>
-  <p style="color:var(--slate);margin-bottom:40px">Last updated: July 2026</p>
+  <p style="color:var(--slate);margin-bottom:40px">Last updated: October 2026</p>
   <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">Your data stays on your machine</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:20px">
     Groundwork is a desktop application. Your financial data — transactions, balances, 
@@ -1137,8 +1137,17 @@ def privacy():
   <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">AI features</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:20px">
     Groundwork's AI features are optional and run <strong>only on your own machine</strong>: the
-    app uses a language model on your computer (via Ollama), so nothing is sent to an AI service
-    and no API key exists. There is no cloud AI option.
+    model comes with Groundwork and runs inside it, so nothing is sent to an AI service and no API
+    key exists. There is no cloud AI option.
+  </p>
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">Websites opened inside Groundwork</h2>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:20px">
+    Groundwork can open your bank's website, and Google Flights, in a separate private window. That
+    window keeps no sign-in after it closes, and anything you type there goes to that website under
+    its own privacy policy, not to us. Groundwork does not read those pages, with one exception: in
+    the Google Flights window, when you click <em>Continue</em> to choose a fare, Groundwork reads the
+    price on that button and asks whether to use it in your trip budget. Nothing else on the page is
+    read or kept, the price stays on your computer, and it is used only if you say yes.
   </p>
   <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">Contact</h2>
   <p style="color:var(--slate);line-height:1.9">
@@ -1161,7 +1170,7 @@ def terms():
     content = """
 <div class="container" style="max-width:760px;padding:60px 24px">
   <h1 style="font-size:36px;font-weight:800;margin-bottom:4px">Terms of Use &amp; License</h1>
-  <p style="color:var(--slate);margin-bottom:8px">End User License Agreement · Version 1.1 · Effective September 27, 2026</p>
+  <p style="color:var(--slate);margin-bottom:8px">End User License Agreement · Version 1.2 · Effective October 8, 2026</p>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:32px">
     By installing, accessing, or using Groundwork (the "Software"), you agree to this
     End User License Agreement and Terms of Use (the "Agreement"). If you do not agree,
@@ -1241,9 +1250,22 @@ def terms():
   </p>
 
   <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">8. Privacy</h2>
-  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:12px">
     Your financial data is stored locally on your device. The publisher does not collect or
-    receive it. See the <a href="/privacy">Privacy Policy</a> for details.
+    receive it.
+  </p>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:12px">
+    Some features open a third-party website in a separate, private window inside the Software:
+    your bank's website, and Google Flights. Anything you enter on such a website goes to that
+    website, under its own terms and privacy policy. The Software does not read those pages, with
+    one exception: in the Google Flights window, when you click a "Continue" button to choose a
+    fare, the Software reads the price shown on that button so that it can offer to use it in your
+    trip budget. It reads nothing else from the page, keeps nothing else, and uses the price only if
+    you confirm it. That price is Google's figure; the airline's final price may be higher, and
+    Section 3 applies to it.
+  </p>
+  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
+    See the <a href="/privacy">Privacy Policy</a> for details.
   </p>
 
   <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">9. Termination</h2>

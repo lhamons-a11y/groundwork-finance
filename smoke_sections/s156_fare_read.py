@@ -22,6 +22,7 @@ def _fn(app, name):
 
 def run(ctx):
     check, c, H, HJ, BASE = ctx.check, ctx.c, ctx.H, ctx.HJ, ctx.BASE
+    run_terms(ctx)
     app, html = ctx.app_src, ctx.html_src
     import flights_window as fw
 
@@ -163,3 +164,27 @@ console.log(JSON.stringify(out));'''
                             ['/api/trip/flights-window/fare/clear']])
     check('s156 R4 Enter the airline\'s total writes nothing, puts the cursor in the fare box and clears the fare',
           o.get('declined') == ['', None, True, ['/api/trip/flights-window/fare/clear']])
+
+
+def run_terms(ctx):
+    """R6, the Terms and privacy wording (Rob 2026-10-08: "update the Terms and privacy wording for item 44")."""
+    check, BASE = ctx.check, ctx.BASE
+    eula = (BASE / 'EULA.txt').read_text(encoding='utf-8')
+    site = (BASE / 'Website/website.py').read_text(encoding='utf-8')
+    app = ctx.app_src
+    terms_app = app.split('const _TERMS_HTML', 1)[1].split('`;', 1)[0]
+    terms_site = site.split("@app.route('/terms')", 1)[1].split('@app.route', 1)[0]
+    privacy = site.split("@app.route('/privacy')", 1)[1].split('@app.route', 1)[0]
+    flat = lambda s: ' '.join(s.split())
+    check('s156 R6 the Terms say what the Google Flights window reads, in all three places, at version 1.2',
+          "the Software reads the price shown on that button" in flat(eula)
+          and "the Software reads the price shown on that button" in flat(terms_site)
+          and 'reads the price on the Continue button you click' in flat(terms_app)
+          and re.search(r'^Version 1\.2$', eula, re.M) is not None)
+    check('s156 R6 the Terms say the price is Google\'s and the airline\'s may be higher, everywhere they say it is read',
+          all("airline's final price may be higher" in flat(t) for t in (eula, terms_site, terms_app)))
+    check('s156 R6 the privacy policy has the section on websites opened inside Groundwork, with the one exception',
+          'Websites opened inside Groundwork' in privacy
+          and 'Groundwork reads the price on that button and asks whether to use it' in flat(privacy))
+    check('s156 R6 the privacy policy no longer says the AI runs via Ollama (untrue since item 31)',
+          'Ollama' not in privacy)

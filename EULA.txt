@@ -1,7 +1,7 @@
 GROUNDWORK — END USER LICENSE AGREEMENT AND TERMS OF USE
 
-Version 1.1
-Effective date: September 27, 2026
+Version 1.2
+Effective date: October 8, 2026
 
 PLEASE READ THIS AGREEMENT CAREFULLY. By installing, accessing, or using
 Groundwork (the "Software"), you agree to be bound by this End User License
@@ -93,8 +93,19 @@ AI outputs may be inaccurate or incomplete and are subject to Sections 3 and 4.
 8. PRIVACY
 
 Your financial data is stored locally on your device. The publisher does not
-collect or receive it. See the Privacy Policy at
-https://groundworkfinance.app/privacy for details.
+collect or receive it.
+
+Some features open a third-party website in a separate, private window inside
+the Software: your bank's website, and Google Flights. Anything you enter on
+such a website goes to that website, under its own terms and privacy policy.
+The Software does not read those pages, with one exception: in the Google
+Flights window, when you click a "Continue" button to choose a fare, the
+Software reads the price shown on that button so that it can offer to use it
+in your trip budget. It reads nothing else from the page, keeps nothing else,
+and uses the price only if you confirm it. That price is Google's figure; the
+airline's final price may be higher, and Section 3 applies to it.
+
+See the Privacy Policy at https://groundworkfinance.app/privacy for details.
 
 
 9. TERMINATION

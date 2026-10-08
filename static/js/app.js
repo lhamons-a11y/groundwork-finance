@@ -12662,7 +12662,8 @@ async function _ollamaNotice() {
 // all three in sync when the terms change.
 // 1.1 (2026-09-27): section 7 rewritten when cloud AI was removed (CLOUD_AI_REMOVAL.md). A changed
 // version shows the terms again to every user whose stored terms_accepted differs.
-const GW_TERMS_VERSION = '1.1';
+// 1.2 (2026-10-08): section 8 says what the Google Flights window reads (FLIGHT_FARE_READ.md R6, item 44).
+const GW_TERMS_VERSION = '1.2';
 
 const _TERMS_HTML = `
   <p style="margin-bottom:14px"><strong>In short:</strong> Groundwork is a planning aid, not your bank.
@@ -12698,7 +12699,10 @@ const _TERMS_HTML = `
   charge, total aggregate liability shall not exceed US $0.</p>
   <h4 style="margin:16px 0 4px;color:var(--ink)">7. AI, privacy &amp; more</h4>
   <p>AI features are optional and run only on your own computer, using a local model; Groundwork
-  does not send your data to any AI service and has no option to. Your data is stored locally. This agreement is governed by the laws of the State of Ohio, USA, and may
+  does not send your data to any AI service and has no option to. Your data is stored locally. Your bank's
+  website and Google Flights open in a private window that Groundwork does not read, except that in the
+  Google Flights window it reads the price on the Continue button you click, and uses it only if you
+  confirm it; the airline's final price may be higher. This agreement is governed by the laws of the State of Ohio, USA, and may
   be updated for future versions. The full terms are at
   <span style="white-space:nowrap">groundworkfinance.app/terms</span>.</p>`;
 

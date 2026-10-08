@@ -3,8 +3,9 @@
 Opened 2026-10-08 (Rob: *"is it possible for the agent to grab to final cost from the airlines page and put that in
 the cost so the customer doesn't have to paste anything"*; *"yes open item 44"*). No code.
 
-**ACCEPTED and CLOSED 2026-10-08 (Rob: "I accept item 44")** at `c39f905`. Carried forward: the Terms / privacy
-wording (R6) before release, and measuring the Google-vs-airline gap.
+**ACCEPTED and CLOSED 2026-10-08 (Rob: "I accept item 44")** at `c39f905`. R6's Terms / privacy wording done 2026-10-08:
+Terms 1.2 (section 8, all three copies), the privacy policy's "Websites opened inside Groundwork". Carried forward:
+measuring the Google-vs-airline gap.
 
 **RULED 2026-10-08 (Rob: "I accept R0 (a) and R1-R8").** Google's price is read on the user's Continue click, named as
 Google's, confirmed before use, flights window only. BUILT 2026-10-08 (Rob: "yes build item 44"): flights_window.py, s156, gate 2503 / 0. Tested live: Continue on Economy delivered $774.30, the fare clicked, and United's page still opened. The gap between Google's price and the
