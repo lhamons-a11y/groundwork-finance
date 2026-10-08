@@ -75,23 +75,26 @@ def run(ctx):
     check('s151 node is available to run the fare functions (skip the rest if not)', bool(node))
     if not node:
         return
-    src = '\n'.join(_fn(app, n) for n in ('flightSearchUrl', 'openFlightSearch', 'tripSetFlightFare'))
-    check('s151 the three fare functions are found in app.js', src.count('\nfunction ') == 3)
+    src = '\n'.join(_fn(app, n) for n in ('_pbVarint', '_pbField', '_pbStr', 'flightSearchUrl', 'openFlightSearch',
+                                          'tripSetFlightFare'))
+    check('s151 the fare functions are found in app.js', src.count('\nfunction ') == 6)
     p = subprocess.run([node, '-e', RUNNER, src], capture_output=True, text=True, encoding='utf-8', timeout=60)
     try:
         out = json.loads(p.stdout.strip().splitlines()[-1])
     except Exception:
         print('        node stderr:', p.stderr[-800:])
         out = {}
-    q = 'https://www.google.com/travel/flights?q='
-    check('s151 F2 a round trip link carries both airports, both dates and the travelers',
-          out.get('round') == q + 'Flights%20from%20ORD%20to%20DEN%20on%202026-11-01%20through%202026-11-08%20for%202%20adults')
-    check('s151 F2 a trip with no return date searches one way for one adult',
-          out.get('oneway') == q + 'Flights%20from%20ORD%20to%20DEN%20on%202026-11-01%20one%20way%20for%201%20adult')
+    q = 'https://www.google.com/travel/flights/search?tfs='
+    # Item 42: the exact addresses Google was seen to open filled in, 2026-10-07 (Chicago ORD - Denver DEN).
+    check('s151 F2 a round trip link is Google\'s encoded search: both legs, two adults (item 42)',
+          out.get('round') == q + 'GhoSCjIwMjYtMTEtMDFqBRIDT1JEcgUSA0RFThoaEgoyMDI2LTExLTA4agUSA0RFTnIFEgNPUkRAAUABSAGYAQE%3D&hl=en&curr=USD')
+    check('s151 F2 a trip with no return date is one leg, one way, one adult (item 42)',
+          out.get('oneway') == q + 'GhoSCjIwMjYtMTEtMDFqBRIDT1JEcgUSA0RFTkABSAGYAQI%3D&hl=en&curr=USD')
+    check('s151 F2 the plain-text ?q= search Google ignores is gone (item 42)', 'travel/flights?q=' not in app)
     check('s151 F2 nothing opens without a departure date or with a code that is not 3 letters',
           'noDate' in out and out['noDate'] is None and 'badCode' in out and out['badCode'] is None)
     check('s151 F2 the button opens the form\'s own trip, airport codes upper-cased',
-          out.get('opened') == q + 'Flights%20from%20ORD%20to%20DEN%20on%202026-11-01%20through%202026-11-08%20for%203%20adults')
+          (out.get('opened') or '').startswith(q) and out.get('opened') != out.get('round'))
     check('s151 F3 a typed fare becomes the flight total and keeps a pasted lodging total',
           out.get('typed') == {'label': 'the fare you entered', 'hotelTotal': 900, 'hotelPerNight': None,
                                'flightTotal': 612.4})

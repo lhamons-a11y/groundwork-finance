@@ -10707,12 +10707,35 @@ function _clearTripQuote() {
 // fare they pick is typed into tripFlightFare, which fills the same
 // _tripQuoteData.flightTotal slot the "paste a quote" flow uses, so
 // tripUpdateBudget() picks it up through its existing priority chain.
+// Item 42 on 1.x (gw 2.0/FLIGHTS_WINDOW.md): Google ignores a plain-text ?q=
+// search and opens its front page on the user's local airport. A search opens
+// filled in only as Google's encoded form, tfs= — a small protobuf of the legs,
+// passengers (adults), cabin (economy) and trip type, base64. Undocumented by
+// Google; if it stops being read, Google shows its front page, as before.
+function _pbVarint(n) {
+  const out = [];
+  do { let b = n & 0x7f; n >>>= 7; if (n) b |= 0x80; out.push(b); } while (n);
+  return out;
+}
+function _pbField(num, value) {
+  if (typeof value === 'number') return [..._pbVarint(num << 3), ..._pbVarint(value)];
+  return [..._pbVarint((num << 3) | 2), ..._pbVarint(value.length), ...value];
+}
+function _pbStr(s) {
+  return Array.from(new TextEncoder().encode(s));
+}
+
 function flightSearchUrl(origin, dest, depart, ret, travelers) {
-  const n = Math.max(1, parseInt(travelers) || 1);
-  const q = `Flights from ${origin} to ${dest} on ${depart}` +
-            (ret ? ` through ${ret}` : ' one way') +
-            ` for ${n} adult${n !== 1 ? 's' : ''}`;
-  return 'https://www.google.com/travel/flights?q=' + encodeURIComponent(q);
+  const n = Math.min(9, Math.max(1, parseInt(travelers) || 1));
+  const leg = (date, a, b) => _pbField(3, [..._pbField(2, _pbStr(date)),
+                                           ..._pbField(13, _pbField(2, _pbStr(a))),
+                                           ..._pbField(14, _pbField(2, _pbStr(b)))]);
+  let info = leg(depart, origin, dest);
+  if (ret) info = info.concat(leg(ret, dest, origin));
+  for (let i = 0; i < n; i++) info = info.concat(_pbField(8, 1));
+  info = info.concat(_pbField(9, 1), _pbField(19, ret ? 1 : 2));
+  const tfs = btoa(String.fromCharCode(...info));
+  return 'https://www.google.com/travel/flights/search?tfs=' + encodeURIComponent(tfs) + '&hl=en&curr=USD';
 }
 
 function openFlightSearch() {
