@@ -45,3 +45,15 @@ data loss"*, so L1 admits it to 1.x. It is built on `lts/1.x` first and merged f
   nothing refines it, and under the transparency standard (item 39 U7) a figure that cannot show its working is not
   shown. Raised 2026-10-07; ruled the same day and built on master as item 41 (`DOT_AIRFARE.md`): the DOT
   average fare for the route replaces it. 1.x keeps the $220.
+
+## 5. The search opens filled in on 1.x (item 42 on 1.x, Rob 2026-10-07: "bring the filled-in search to 1.x too")
+
+- **F2's `?q=` link was ignored by Google.** It opened Google's Flights front page on the user's local airport, not
+  the trip.
+- **The fix.** `flightSearchUrl()` now builds Google's encoded search (`tfs=`): the legs, passengers (adults),
+  economy and trip type, base64. It is the same address master builds on the server (`FLIGHTS_WINDOW.md`), checked to
+  the character in `s151` against what Google was seen to open filled in.
+- **1.x has no in-app window.** It opens in the user's own browser, as before.
+- **An exception to L1, by Rob's ruling.** Nothing was lost without it: the user could type the airports on Google's
+  page.
+- **On master** the search opens in Groundwork's own window instead (item 42, `FLIGHTS_WINDOW.md`).
