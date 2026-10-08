@@ -3,7 +3,7 @@
 Opened 2026-10-08 (Rob: *"is it possible for the agent to grab to final cost from the airlines page and put that in
 the cost so the customer doesn't have to paste anything"*; *"yes open item 44"*). No code.
 
-**ACCEPTED and CLOSED 2026-10-08 (Rob: "I accept item 44")** at `c39f905`. R6's Terms / privacy wording done 2026-10-08:
+**ACCEPTED and CLOSED 2026-10-08 (Rob: "I accept item 44")** at `c39f905`. R6's Terms / privacy wording done 2026-10-08 and ACCEPTED (Rob: "I accept the Terms and privacy wording"), at 994cd72:
 Terms 1.2 (section 8, all three copies), the privacy policy's "Websites opened inside Groundwork". Carried forward:
 measuring the Google-vs-airline gap.
 
