@@ -8,6 +8,8 @@ mandatory fingerprint check (item 33 Q5).
     P3  no halves: nothing happens (a release holding the whole file still works)
     P4  the download asks for the halves too, and the fingerprint check still follows the join
     P5  the Linux build pins pygobject below 3.51, which still builds on Ubuntu 22.04
+    P6  the macOS build compiles the pinned engine from source, CPU only, before the other packages (every published
+        macOS arm64 wheel is corrupt), and checks the engine and model are inside the app (Rob 2026-10-08, option (a))
 """
 import importlib
 import re
@@ -53,3 +55,12 @@ def run(ctx):
     wf = (BASE / '.github/workflows/linux-build.yml').read_text(encoding='utf-8')
     check('s157 P5 the Linux build pins pygobject below 3.51 (3.51+ needs GLib 2.80, which Ubuntu 22.04 lacks)',
           '"pygobject<3.51"' in wf and 'ubuntu-22.04' in wf and re.search(r'pip install [^\n]*\bpygobject\b(?!<)', wf) is None)
+
+    mac = (BASE / '.github/workflows/macos-build.yml').read_text(encoding='utf-8')
+    src_at = mac.find('pip install --no-binary llama-cpp-python')
+    check('s157 P6 the macOS build compiles the pinned engine (0.3.35) from source, CPU only, before the other packages',
+          src_at > 0 and '"llama-cpp-python==0.3.35"' in mac and 'CMAKE_ARGS: -DGGML_METAL=OFF' in mac
+          and src_at < mac.find('pip install -r requirements.txt'))
+    check('s157 P6 the macOS build checks the engine is 0.3.35 and that it and the model are inside the app',
+          "llama_cpp.__version__ != '0.3.35'" in mac and "find dist/Groundwork.app -name 'libllama*'" in mac
+          and "find dist/Groundwork.app -name 'phi3.5-mini-instruct-q4.gguf'" in mac)
