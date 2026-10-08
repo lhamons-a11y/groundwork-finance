@@ -13,7 +13,7 @@
 ; ---------------------------------------------------------------------------
 
 #define AppName "Groundwork"
-#define AppVersion "1.1.0"
+#define AppVersion "1.1.1"
 #define AppPublisher "Groundwork"
 #define AppURL "https://groundworkfinance.app"
 #define AppExeName "Groundwork.exe"

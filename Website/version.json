@@ -1,5 +1,5 @@
 {
-  "latest": "20260826-d24",
+  "latest": "20261008-d25",
   "url": "https://groundworkfinance.app/static/download/Groundwork_Setup.exe",
-  "notes": "Set up Local AI in one click — Groundwork now installs Ollama for you, not just the model. Adds a dashboard check-in streak, and fixes several places where reports counted transfers as spending or read a month with no deposits as a shortfall. See the changelog for the full list."
+  "notes": "Local AI now runs inside Groundwork, with no separate program to install. Fixes debt payoff, net worth and investment figures, adds a Mortgage debt type and flight prices in the trip planner, and removes cloud AI. See the changelog for the full list."
 }

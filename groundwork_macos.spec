@@ -209,7 +209,7 @@ app = BUNDLE(
     info_plist={
         'CFBundleName': 'Groundwork',
         'CFBundleDisplayName': 'Groundwork',
-        'CFBundleShortVersionString': '1.1.0',
+        'CFBundleShortVersionString': '1.1.1',
         'NSHighResolutionCapable': True,
     },
 )

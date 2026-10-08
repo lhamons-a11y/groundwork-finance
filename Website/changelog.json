@@ -1,5 +1,39 @@
 [
   {
+    "version": "20261008-d25",
+    "date": "2026-10-08",
+    "headline": "Groundwork 1.1.1: local AI built in, and corrected debt, net worth and investment figures",
+    "added": [
+      "Local AI now runs inside Groundwork itself. There is no separate Ollama program to install: the model comes with the installer, is checked before it loads, and never leaves your computer",
+      "A Mortgage debt type. Its payoff projections use the principal and interest part of the payment, not the whole payment with escrow",
+      "Flights in the trip planner: a button that opens Google Flights with your airports, dates and travelers filled in, and a box for the fare you choose, which is used in the trip total",
+      "Setup asks which state you live in and how often you are paid, and utility estimates use the latest month the EIA has published for your state"
+    ],
+    "improved": [
+      "No part of Groundwork sends your data to a cloud AI service any more. Cloud AI has been removed, and the Terms of Use (version 1.1) say so",
+      "Groundwork responds faster. It now runs on a web server built for the job, and pages that took about a quarter of a second now take a few milliseconds",
+      "Exports are saved where you choose, instead of always to your Downloads folder",
+      "On Windows 10 the installer suggests Windows 11, which still receives security updates, and then installs as normal"
+    ],
+    "fixed": [
+      "A blank APR, balance or minimum payment is kept as unknown instead of being treated as zero, and payoff projections say what they assumed",
+      "A debt's current APR and minimum payment show where they came from, and figures entered from a statement are no longer reverted",
+      "Each debt's payoff month comes from your payoff plan, and every payoff month says which scenario it belongs to",
+      "The Budget page's payoff forecast is now the same plan the Debt page shows",
+      "\"Minimums only\" means the same thing on every page, and an interest-savings line appears only when the figures show it",
+      "Net worth counts a mortgage once: the home's value as the asset and the mortgage once as the liability",
+      "Before You Buy no longer records a financed purchase as a $0 debt at 0%",
+      "A card added by mistake can now be deleted, so its history stops counting, and the Remove card dialog says what removing does",
+      "The credit utilization line describes your utilization instead of telling you what to do",
+      "Investments: a holding with no price is shown as unpriced, instead of being valued at what you paid or counted as all gain, and net worth uses the same valuation",
+      "Fund expense ratios are kept in the unit you typed them in, so fee costs are calculated correctly",
+      "Marking a debt paid off no longer writes a $0 net worth into your history",
+      "The trip planner no longer shows an estimate of how a trip delays your debt-free date. It understated the real effect, sometimes by more than four times",
+      "The trip planner's flight search no longer stops with an \"API key missing\" message",
+      "The 401(k) field on the Net Worth page shows its help icon instead of a line of code"
+    ]
+  },
+  {
     "version": "20260826-d24",
     "date": "2026-08-26",
     "headline": "Groundwork 1.1 — one-click local AI, a check-in streak, and more accurate numbers",
