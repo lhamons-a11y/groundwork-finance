@@ -18,6 +18,10 @@ old made-up $220/person.
     Both downloads are the whole table for a quarter - nothing about the
     user's trip is ever sent. Looking a route up never leaves the computer.
   - A route DOT does not list returns found: False. Never a guessed fare.
+  - Each city's airports (item 43) ship in the same table: BTS's airport list
+    ("City, ST: Airport name") matched to DOT's city names, kept when the
+    airport carried passengers in BTS's T-100 counts, busiest first. Built at
+    release (build_airports); a DOT refresh keeps them.
 """
 import base64
 import json
@@ -88,12 +92,15 @@ def table():
 
 
 def markets():
-    """Every city market DOT lists, for the From / To pickers: [{id, name}], by name."""
+    """Every city market DOT lists, for the From / To pickers: [{id, name, airports}], by name.
+    airports is [[code, name], ...], busiest first; empty when none is known for the city."""
     t = table()
     if not t:
         return {'available': False}
+    aps = t.get('airports') or {}
     return {'available': True, 'year': t['year'], 'quarter': t['quarter'], 'source': SOURCE,
-            'markets': sorted(({'id': k, 'name': v} for k, v in t['markets'].items()), key=lambda m: m['name'])}
+            'markets': sorted(({'id': k, 'name': v, 'airports': aps.get(k, [])} for k, v in t['markets'].items()),
+                              key=lambda m: m['name'])}
 
 
 def lookup(from_market, to_market, from_airport='', to_airport=''):
@@ -218,6 +225,70 @@ def build(year, quarter):
     return t if _valid(t) else None
 
 
+# ── Each city's airports (item 43) ──────────────────────────────────────────
+BTS_AIRPORTS = 'https://www.transtats.bts.gov/Download_Lookup.asp?Y11x72=Y_NVecbeg'   # L_AIRPORT: code -> "City, ST: Name"
+BTS_T100 = 'https://data.bts.gov/resource/r495-tyji.json'                            # T-100 passengers by origin airport
+MIN_PASSENGERS = 2000        # a year's domestic boardings; below this an airfield is not a choice to offer
+MIN_SHARE = 0.03             # of the city's busiest airport: keeps a second airport, drops a business-jet field
+_MILITARY = re.compile(r'\b(Army|Air Force|AFB|Naval|NAS|Air Reserve|Air National Guard|Joint Base|Marine Corps|AAF|AAB|ANGB|NAF)\b', re.I)
+_CIVIL = re.compile(r'\b(International|Regional|Municipal)\b', re.I)     # a joint-use field still serves the public
+
+
+def _military_only(desc):
+    return bool(_MILITARY.search(desc)) and not _CIVIL.search(desc)
+
+
+def _city_names(loc):
+    """'Dallas/Fort Worth, TX (Metropolitan Area)' -> ({'dallas', 'fort worth', 'dallas/fort worth'}, 'TX')."""
+    loc = re.sub(r'\s*\(Metropolitan Area\)', '', loc)
+    city, st = loc.rsplit(', ', 1)
+    return {c.strip().lower() for c in city.split('/')} | {city.strip().lower()}, st.strip()
+
+
+def build_airports(t, lookup_csv, passengers):
+    """{market id: [[code, name], ...]} for the table t, busiest airport first.
+    lookup_csv is BTS's L_AIRPORT text; passengers is {code: a year's domestic boardings}."""
+    import csv
+    import io
+    names = {}
+    for row in csv.DictReader(io.StringIO(lookup_csv)):
+        code, desc = (row.get('Code') or '').strip(), (row.get('Description') or '').strip()
+        if re.fullmatch(r'[A-Z]{3}', code) and ':' in desc and ', ' in desc.split(':', 1)[0]:
+            names[code] = desc
+    markets = {mid: _city_names(m) for mid, m in t['markets'].items()}
+    found = {}
+    for code, desc in names.items():
+        if passengers.get(code, 0) < MIN_PASSENGERS or _military_only(desc):
+            continue
+        cities, st = _city_names(desc.split(':', 1)[0])
+        for mid, (mcities, mst) in markets.items():
+            if st == mst and cities & mcities:
+                found.setdefault(mid, set()).add(code)
+    for a1, a2, m1, m2, *_ in t.get('airport_pairs') or []:     # DOT's own airport-to-city pairs
+        for code, mid in ((a1, m1), (a2, m2)):
+            if code in names and not _military_only(names[code]):
+                found.setdefault(mid, set()).add(code)
+    out = {}
+    for mid, codes in found.items():
+        top = max(passengers.get(c, 0) for c in codes)
+        keep = sorted((c for c in codes if passengers.get(c, 0) >= max(MIN_PASSENGERS, MIN_SHARE * top)),
+                      key=lambda c: -passengers.get(c, 0))
+        if keep:
+            out[mid] = [[c, names[c].split(':', 1)[1].strip()] for c in keep]
+    return out
+
+
+def _fetch_airports(t):
+    req = urllib.request.Request(BTS_AIRPORTS, headers={'User-Agent': 'Mozilla/5.0 (Groundwork release build)'})
+    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
+        lookup_csv = r.read().decode('latin-1')
+    since = f'{datetime.now().year - 1}-{datetime.now().month:02d}-01'
+    rows = _get(BTS_T100, {'$select': 'origin_airport_code,sum(domestic_passengers) as pax',
+                           '$where': f"reporting_month >= '{since}'", '$group': 'origin_airport_code', '$limit': 10000})
+    passengers = {r['origin_airport_code']: float(r.get('pax') or 0) for r in rows}
+    return build_airports(t, lookup_csv, passengers)
+
+
 def _write(path, t):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -257,6 +328,7 @@ def refresh(force=False):
                 if not t:
                     result = {'updated': False, 'reason': 'bad_download'}
                 else:
+                    t['airports'] = (current or {}).get('airports') or {}     # built at release, not refetched
                     _write(DOWNLOADED, t)
                     result = {'updated': True, 'year': year, 'quarter': quarter}
         except Exception as e:     # network, DOT's API, a full disk: keep what we have
@@ -277,6 +349,8 @@ if __name__ == '__main__':
     t = build(y, q)
     if not t:
         raise SystemExit(f'DOT {y} Q{q} did not read cleanly; shipped table left alone')
+    t['airports'] = _fetch_airports(t)
     _write(SHIPPED, t)
     print(f'shipped table: DOT {y} Q{q}, {len(t["markets"])} markets, '
-          f'{len(t["city_pairs"])} city pairs, {len(t["airport_pairs"])} airport pairs')
+          f'{len(t["city_pairs"])} city pairs, {len(t["airport_pairs"])} airport pairs, '
+          f'airports for {len(t["airports"])} cities')

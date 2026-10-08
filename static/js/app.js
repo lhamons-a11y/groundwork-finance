@@ -10523,9 +10523,9 @@ async function _loadAirfareMarkets(checkForNewer) {
   try {
     const res = await API.get('/api/trip/airfare-markets');
     if (res?.available) {
-      const byName = {};
-      res.markets.forEach(m => { byName[m.name] = m.id; });
-      _airfareMarkets = { year: res.year, quarter: res.quarter, byName };
+      const byName = {}, airports = {};
+      res.markets.forEach(m => { byName[m.name] = m.id; airports[m.id] = m.airports || []; });
+      _airfareMarkets = { year: res.year, quarter: res.quarter, byName, airports };
       const list = g('airfareMarketList');
       if (list) list.innerHTML = res.markets.map(m => `<option value="${esc(m.name)}"></option>`).join('');
       _airfareKey = '';
@@ -10542,6 +10542,37 @@ async function _loadAirfareMarkets(checkForNewer) {
       _gwErr('_loadAirfareMarkets refresh')(e);
     }
   }
+}
+
+// Item 43 (gw 2.0/AIRPORT_FILL.md): picking a city fills its airport code.
+// One airport → filled in. Several → the user is asked which, and the code
+// they pick is filled in. A code the user typed themselves is never replaced.
+function tripCityChanged(side) {
+  const cityId = side === 'from' ? 'tripFromCity' : 'tripToCity';
+  const codeEl = g(side === 'from' ? 'tripAirport' : 'tripDestAirport');
+  const choice = g(side === 'from' ? 'tripFromAirportChoice' : 'tripToAirportChoice');
+  const id = _airfareMarketId(cityId);
+  const aps = (id && _airfareMarkets?.airports?.[id]) || [];
+  const mine = codeEl && codeEl.value && codeEl.dataset.auto !== '1';
+  if (choice) { choice.style.display = 'none'; choice.innerHTML = ''; }
+  if (codeEl && !mine) {
+    if (aps.length === 1) { codeEl.value = aps[0][0]; codeEl.dataset.auto = '1'; }
+    else { codeEl.value = ''; codeEl.dataset.auto = ''; }
+  }
+  if (aps.length > 1 && choice && !mine) {
+    choice.innerHTML = 'Which airport? ' + aps.map(([code, name]) =>
+      `<button class="btn btn-secondary btn-sm" style="margin:2px 4px 2px 0" onclick="tripPickAirport('${side}','${esc(code)}')">${esc(code)} · ${esc(name)}</button>`).join('');
+    choice.style.display = '';
+  }
+  tripUpdateBudget();
+}
+
+function tripPickAirport(side, code) {
+  const codeEl = g(side === 'from' ? 'tripAirport' : 'tripDestAirport');
+  const choice = g(side === 'from' ? 'tripFromAirportChoice' : 'tripToAirportChoice');
+  if (codeEl) { codeEl.value = code; codeEl.dataset.auto = '1'; }
+  if (choice) { choice.style.display = 'none'; choice.innerHTML = ''; }
+  tripUpdateBudget();
 }
 
 function _airfareMarketId(inputId) {
@@ -11217,7 +11248,7 @@ function _airfareNoteHtml(travelers) {
     ${from} → ${to}${roundTrip ? `, and ${fmt(est.fare)} back, ${to} → ${from}` : ''}.
     ${roundTrip ? `Round trip: (${fmt(est.fare)} + ${fmt(est.fare)})` : `One way: ${fmt(est.fare)}`}
     × ${est.travelers} traveler${est.travelers !== 1 ? 's' : ''} = <strong style="color:var(--ink)">${fmt(est.total)}</strong>.
-    <div style="margin-top:6px;font-size:11px;color:var(--slate-2)">Source: ${esc(d.source)}, ${quarter} — the average one-way fare passengers actually paid${d.basis === 'airport' ? ' between these two airports' : ' between these two cities, all their airports'}, from a 10% sample of real tickets (about ${Math.round(d.passengers_per_day).toLocaleString()} passengers a day). DOT keeps one figure for both directions of a route, so the return leg is the same average. It is not a fare you can book${typed ? '; the fare you entered is used in your total instead' : ''}.</div>`);
+    <div style="margin-top:6px;font-size:11px;color:var(--slate-2)">Source: ${esc(d.source)}, ${quarter} — the average one-way fare passengers actually paid${d.basis === 'airport' ? ' between these two airports' : ' between these two cities, all their airports'}, from a 10% sample of real tickets (about ${Math.round(d.passengers_per_day).toLocaleString()} passengers a day). DOT keeps one figure for both directions of a route, so the return leg is the same average. It is not a fare you can book: compare it with the fares Google Flights shows for your dates${typed ? '. The fare you entered is used in your total instead' : ''}.</div>`);
 }
 
 // ── Budget calculator ─────────────────────────────────────────────────────────

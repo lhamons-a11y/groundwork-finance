@@ -68,7 +68,7 @@ def run(ctx):
     m = (c.get('/api/trip/airfare-markets', headers=H).get_json() or {}).get('data') or {}
     check('s152 D2 GET /api/trip/airfare-markets lists every DOT city by name, with the quarter',
           m.get('available') and len(m['markets']) == len(t['markets']) and m['year'] == t['year']
-          and {'id': chi, 'name': 'Chicago, IL'} in m['markets'])
+          and {'id': chi, 'name': 'Chicago, IL'} in [{'id': x['id'], 'name': x['name']} for x in m['markets']])
 
     # D3 - DOT's API stood in for, so the gate never touches the network
     real_get, calls = af._get, []
