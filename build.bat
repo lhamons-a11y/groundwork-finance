@@ -7,8 +7,12 @@ echo   Groundwork Installer Builder
 echo ============================================
 echo.
 
-:: Change to project directory
-cd /d C:\Groundwork
+:: Build from the checkout this script is in (C:\Groundwork, or a worktree of
+:: lts/1.x for a 1.1.x release). The .iss files use paths relative to this
+:: folder, so the bundle, licence, icon and output all come from here.
+cd /d "%~dp0"
+echo       Building from: %CD%
+echo.
 
 :: -- Product line -------------------------------------------------------------
 :: Which product is this build? "teaching" (GW 2.0, the default) or "lts" (1.x).
@@ -26,13 +30,9 @@ echo.
 :: Downloads auto-import watcher silently doesn't exist in the frozen
 :: installer - no error, no warning, testers just never see the auto-import
 :: banner and there's no way to tell from the outside that anything's wrong.
-:: Checking the actual spec file here, at build time, instead of trusting
-:: that this got fixed at some point and was never verified.
-echo [0/4] Checking that watchdog is bundled...
 :: Regex requires "watchdog" to appear before any '#' on the line, so a
-:: line that's only a comment mentioning watchdog (e.g. if the real
-:: hiddenimports entry were ever removed but an explanatory comment left
-:: behind) correctly does NOT satisfy this check.
+:: comment that only mentions watchdog does NOT satisfy this check.
+echo [0/4] Checking that watchdog is bundled...
 findstr /i /r "^[^#]*watchdog" groundwork.spec >nul 2>&1
 if errorlevel 1 (
     echo.
@@ -41,8 +41,6 @@ if errorlevel 1 (
     echo ============================================================
     echo  If watchdog isn't declared as a hidden import, the Downloads
     echo  auto-import watcher will be silently missing from this build.
-    echo  The app will run fine - testers just won't get the "file
-    echo  detected" import banner, with no indication anything's wrong.
     echo.
     echo  Press Ctrl+C to stop and fix groundwork.spec first, or
     pause
@@ -51,28 +49,42 @@ if errorlevel 1 (
 )
 echo.
 
-:: -- Step 0b: Ollama installer must be present to bundle --------------------
-:: Downloaded once and cached in vendor\ rather than committed - it's ~1.3GB
-:: and Ollama ships updates often enough that a stale copy isn't a one-time
-:: cost worth paying either. Delete vendor\OllamaSetup.exe manually before a
-:: build if you want the bundled version refreshed.
-echo [0b/4] Checking for bundled Ollama installer...
-if not exist vendor mkdir vendor
-if exist vendor\OllamaSetup.exe (
-    echo       vendor\OllamaSetup.exe present. OK.
-) else (
-    echo       Not found - downloading from ollama.com ^(~1.3GB, this may take a while^)...
-    powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri 'https://ollama.com/download/OllamaSetup.exe' -OutFile 'vendor\OllamaSetup.exe'"
-    if errorlevel 1 (
-        echo.
-        echo ERROR: Could not download OllamaSetup.exe.
-        echo Check your internet connection, or download it manually from
-        echo https://ollama.com/download/OllamaSetup.exe into vendor\
+:: -- Step 0b: the local AI model, the exact tested file -----------------------
+:: Since item 31 (ENGINE_REPLACEMENT.md) every installer ships the model inside
+:: Groundwork; there is no Ollama to download or bundle. The .iss files take it
+:: from vendor\phi3.5_model\blobs\sha256-<pin>. It is git-ignored, so a fresh
+:: worktree has no copy: set GW_MODEL_PATH to the pinned file (python
+:: fetch_model.py downloads and verifies it) and it is linked in here.
+:: The fingerprint check is mandatory (Rob, 2026-10-03): a wrong file stops the build.
+echo [0b/4] Checking the local AI model...
+for /f "usebackq delims=" %%H in (`python -c "import fetch_model as f; print(f.MODEL_SHA256)"`) do set MODEL_SHA=%%H
+if "%MODEL_SHA%"=="" (
+    echo ERROR: could not read the model pin from core\engine.py.
+    pause
+    exit /b 1
+)
+set MODEL_BLOB=vendor\phi3.5_model\blobs\sha256-%MODEL_SHA%
+if not exist "%MODEL_BLOB%" (
+    if "%GW_MODEL_PATH%"=="" (
+        echo ERROR: the model is not at %MODEL_BLOB%
+        echo Run "python fetch_model.py" and set GW_MODEL_PATH to the file it prints,
+        echo or copy the pinned model into %MODEL_BLOB%.
         pause
         exit /b 1
     )
-    echo       Downloaded.
+    if not exist vendor\phi3.5_model\blobs mkdir vendor\phi3.5_model\blobs
+    mklink /H "%MODEL_BLOB%" "%GW_MODEL_PATH%" >nul 2>&1 || copy /b "%GW_MODEL_PATH%" "%MODEL_BLOB%" >nul
 )
+echo       Verifying its SHA-256 ^(about 2.2GB^)...
+python -c "import sys, fetch_model as f; sys.exit(0 if f.sha256(sys.argv[1]) == f.MODEL_SHA256 else 1)" "%MODEL_BLOB%"
+if errorlevel 1 (
+    echo.
+    echo ERROR: %MODEL_BLOB% is not the pinned model ^(SHA-256 mismatch^).
+    echo The build stops: Groundwork ships only the tested file.
+    pause
+    exit /b 1
+)
+echo       Model verified. OK.
 echo.
 
 :: -- Step 1: Clean previous build --------------------------------------------
@@ -87,13 +99,11 @@ echo.
 echo [2/4] Bundling app with PyInstaller...
 echo       This takes 2-5 minutes. Please wait.
 echo.
-pyinstaller groundwork.spec --clean --noconfirm
+python -m PyInstaller groundwork.spec --clean --noconfirm
 if errorlevel 1 (
     echo.
     echo ERROR: PyInstaller failed. See output above for details.
-    echo Common fixes:
-    echo   - Make sure all packages are installed: pip install -r requirements.txt
-    echo   - Make sure bank_importer.py is in C:\Groundwork\
+    echo Common fix: python -m pip install -r requirements.txt
     pause
     exit /b 1
 )
@@ -113,10 +123,9 @@ echo       Groundwork.exe found. OK.
 echo.
 
 :: -- Step 4: Inno Setup --------------------------------------------------------
-echo [4/4] Building installer with Inno Setup...
+echo [4/4] Building the installers with Inno Setup...
 echo.
 
-:: Find Inno Setup compiler
 set INNO="C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 if not exist %INNO% (
     set INNO="C:\Program Files\Inno Setup 6\ISCC.exe"
@@ -128,67 +137,16 @@ if not exist %INNO% (
     exit /b 1
 )
 
-%INNO% groundwork.iss
-if errorlevel 1 (
-    echo.
-    echo ERROR: Inno Setup failed. See output above.
-    pause
-    exit /b 1
-)
-
-:: Offline installer (Phase 6B) - only if the phi3.5 model has been staged
-:: into vendor\phi3.5_model\. Unlike vendor\OllamaSetup.exe, there's no simple
-:: single-file download for this (it's copied out of a real local Ollama
-:: install's model store), so skip it rather than fail the whole build when
-:: it's missing - Lane A (groundwork.iss) alone is still a complete, working
-:: installer.
-if exist "vendor\phi3.5_model\manifests\registry.ollama.ai\library\phi3.5\latest" (
-    echo.
-    echo Building offline installer ^(bundled phi3.5 model^)...
-    %INNO% groundwork_offline.iss
+:: All three ship the same app and model (item 31). They differ in name and
+:: behaviour only: Groundwork_Setup.exe is the download, _Offline is the same
+:: file under the name the website's offline link uses, and _Store installs
+:: silently for Microsoft Store certification.
+for %%S in (groundwork.iss groundwork_offline.iss groundwork_store.iss) do (
+    echo       %%S
+    %INNO% /Q %%S
     if errorlevel 1 (
         echo.
-        echo ERROR: Offline installer build failed. See output above.
-        pause
-        exit /b 1
-    )
-) else (
-    echo.
-    echo   NOTE: vendor\phi3.5_model\ not found - skipping the offline
-    echo   installer. Groundwork_Setup.exe ^(online^) was still built.
-)
-
-:: Store installer (Path 2) - only if a full Ollama runtime has been staged
-:: into vendor\ollama_runtime\. This lane runs NOTHING during install: the
-:: runtime and the model both go down as plain file copies, so the install
-:: certifies silently under Store requirement 10.2.9.2, and Groundwork starts
-:: Ollama itself on launch (_ensure_ollama_running in launch.py). The runtime
-:: is staged by hand from a machine that has Ollama installed - there's no
-:: single-file download for it - so skip rather than fail the whole build when
-:: it's absent, same reasoning as the offline lane above.
-::
-:: NOT YET VERIFIED on a clean machine: portable Ollama plus an app-started
-:: `ollama serve` must be tested on a box with no prior Ollama before this
-:: output is submitted to the Store.
-if not exist "vendor\ollama_runtime\ollama.exe" (
-    echo.
-    echo   NOTE: vendor\ollama_runtime\ not found - skipping the Store
-    echo   installer. Stage it by copying the contents of
-    echo   %%LOCALAPPDATA%%\Programs\Ollama\ from a machine that has Ollama
-    echo   installed ^(ollama.exe, "ollama app.exe", lib\, app.ico^).
-)
-if exist "vendor\ollama_runtime\ollama.exe" if not exist "vendor\phi3.5_model\manifests\registry.ollama.ai\library\phi3.5\latest" (
-    echo.
-    echo   NOTE: vendor\phi3.5_model\ not found - skipping the Store
-    echo   installer, which bundles the model as file copies too.
-)
-if exist "vendor\ollama_runtime\ollama.exe" if exist "vendor\phi3.5_model\manifests\registry.ollama.ai\library\phi3.5\latest" (
-    echo.
-    echo Building Store installer ^(file-copy Ollama + phi3.5, nothing executed^)...
-    %INNO% groundwork_store.iss
-    if errorlevel 1 (
-        echo.
-        echo ERROR: Store installer build failed. See output above.
+        echo ERROR: Inno Setup failed on %%S. See the messages above.
         pause
         exit /b 1
     )
@@ -197,25 +155,17 @@ if exist "vendor\ollama_runtime\ollama.exe" if exist "vendor\phi3.5_model\manife
 :: -- Done -----------------------------------------------------------------------
 echo.
 echo ============================================
-echo   INSTALLER BUILT. Testers do NOT have it yet.
+echo   INSTALLERS BUILT. Users do NOT have them yet.
 echo ============================================
 echo.
-echo   Installer is at:
-echo   C:\Groundwork\installer_output\Groundwork_Setup.exe
+echo   In %CD%\installer_output\:
+echo     Groundwork_Setup.exe          the download
+echo     Groundwork_Setup_Offline.exe  the same, under the offline link's name
+echo     Groundwork_Setup_Store.exe    silent install, for the Microsoft Store
 echo.
-echo   Two ways testers actually get this:
+echo   Before release: install on a clean machine. Then upload to
+echo   groundworkfinance.app and publish version.json ^("latest" + "url"^)
+echo   so the in-app "Update available" banner offers it.
 echo.
-echo     A. Send that file to them directly right now
-echo        ^(fastest - good for an urgent fix like tonight's^)
-echo.
-echo     B. Upload it to groundworkfinance.app and update
-echo        version.json ^("latest" + "url"^) so the in-app
-echo        "Update available" banner picks it up automatically
-echo        next time they launch Groundwork
-echo.
-echo   For anything this important, do BOTH - direct send now,
-echo   plus the site update so the download page and update
-echo   banner aren't still pointing at the broken version.
-echo.
-explorer C:\Groundwork\installer_output
+explorer "%CD%\installer_output"
 pause
