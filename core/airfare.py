@@ -19,9 +19,11 @@ old made-up $220/person.
     user's trip is ever sent. Looking a route up never leaves the computer.
   - A route DOT does not list returns found: False. Never a guessed fare.
 """
+import base64
 import json
 import logging
 import os
+import re
 import threading
 import urllib.parse
 import urllib.request
@@ -117,6 +119,56 @@ def lookup(from_market, to_market, from_airport='', to_airport=''):
         if {m1, m2} == {a, b}:
             return {**out, 'found': True, 'basis': 'city', 'fare_one_way': fare, 'passengers_per_day': pax}
     return {**out, 'found': False, 'reason': 'no_route'}
+
+
+# ── The Google Flights search, filled in (item 42) ──────────────────────────
+# Google Flights ignores a plain-text ?q= search and opens its front page with
+# the user's own local airport. A search opens filled in only when it is given
+# as Google's encoded search (tfs=): a small protobuf of the legs, passengers,
+# cabin and trip type, base64. Google does not document it; if it stops being
+# read, Google shows its front page, which is where the old link already went.
+
+GOOGLE_FLIGHTS = 'https://www.google.com/travel/flights/search'
+_IATA = re.compile(r'^[A-Z]{3}$')
+_DATE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
+
+def _varint(n):
+    out = bytearray()
+    while True:
+        b, n = n & 0x7F, n >> 7
+        out.append(b | 0x80 if n else b)
+        if not n:
+            return bytes(out)
+
+
+def _field(num, value):
+    """A protobuf field: bytes are length-delimited, ints are varints."""
+    if isinstance(value, int):
+        return _varint(num << 3) + _varint(value)
+    return _varint(num << 3 | 2) + _varint(len(value)) + value
+
+
+def google_flights_url(origin, dest, depart, ret=None, travelers=1):
+    """The Google Flights search for these airports, dates and travelers, or None if any is not well formed."""
+    origin, dest = (origin or '').strip().upper(), (dest or '').strip().upper()
+    if not _IATA.match(origin) or not _IATA.match(dest) or origin == dest:
+        return None
+    if not _DATE.match(depart or '') or (ret and not _DATE.match(ret)):
+        return None
+    try:
+        n = min(9, max(1, int(travelers)))
+    except (TypeError, ValueError):
+        n = 1
+
+    def leg(date, a, b):
+        return _field(3, _field(2, date.encode()) + _field(13, _field(2, a.encode())) + _field(14, _field(2, b.encode())))
+
+    info = leg(depart, origin, dest) + (leg(ret, dest, origin) if ret else b'')
+    info += b''.join(_field(8, 1) for _ in range(n))          # passengers: n adults
+    info += _field(9, 1) + _field(19, 1 if ret else 2)        # economy; round trip or one way
+    tfs = base64.b64encode(info).decode('ascii')
+    return f'{GOOGLE_FLIGHTS}?{urllib.parse.urlencode({"tfs": tfs, "hl": "en", "curr": "USD"})}'
 
 
 # ── Building a table from DOT's two datasets ────────────────────────────────

@@ -11130,32 +11130,39 @@ function _clearTripQuote() {
 // fare they pick is typed into tripFlightFare, which fills the same
 // _tripQuoteData.flightTotal slot the "paste a quote" flow uses, so
 // tripUpdateBudget() picks it up through its existing priority chain.
-function flightSearchUrl(origin, dest, depart, ret, travelers) {
-  const n = Math.max(1, parseInt(travelers) || 1);
-  const q = `Flights from ${origin} to ${dest} on ${depart}` +
-            (ret ? ` through ${ret}` : ' one way') +
-            ` for ${n} adult${n !== 1 ? 's' : ''}`;
-  return 'https://www.google.com/travel/flights?q=' + encodeURIComponent(q);
+// Item 42 (gw 2.0/FLIGHTS_WINDOW.md): the search opens in Groundwork's own
+// window with the airports, dates and travelers already filled in. The server
+// builds the address; the window is the bank window's separate process.
+function _tripAirportCode(id) {
+  const v = g(id)?.value?.trim().toUpperCase() || '';
+  return /^[A-Z]{3}$/.test(v) ? v : '';
 }
 
-function _flightPlace(airportId, cityId) {
-  const code = g(airportId)?.value?.trim().toUpperCase() || '';
-  if (/^[A-Z]{3}$/.test(code)) return code;
-  return _airfareMarketId(cityId) ? g(cityId).value.trim().replace(/\s*\(Metropolitan Area\)$/, '') : '';
-}
-
-function openFlightSearch() {
+async function openFlightSearch(mode) {
   const resultEl = g('tripFlightSearchResult');
-  const origin   = _flightPlace('tripAirport', 'tripFromCity');
-  const dest     = _flightPlace('tripDestAirport', 'tripToCity');
-  const depart   = g('tripDepart')?.value;
+  const say = (text, color) => { if (resultEl) { resultEl.style.color = color; resultEl.innerHTML = text; } };
+  const origin = _tripAirportCode('tripAirport');
+  const dest   = _tripAirportCode('tripDestAirport');
+  const depart = g('tripDepart')?.value;
   if (!origin || !dest || !depart) {
-    if (resultEl) { resultEl.style.color = 'var(--ember)'; resultEl.textContent = 'Pick both cities from the list (or enter both airport codes) and your dates first.'; }
+    say('Enter both 3-letter airport codes and your departure date to open the search filled in.', 'var(--ember)');
     return;
   }
-  if (resultEl) resultEl.textContent = '';
-  const ret = g('tripRoundTrip')?.checked === false ? '' : g('tripReturn')?.value;
-  openExternal(flightSearchUrl(origin, dest, depart, ret, g('tripTravelers')?.value));
+  const ret = g('tripRoundTrip')?.checked === false ? '' : (g('tripReturn')?.value || '');
+  try {
+    const r = await API.post('/api/trip/flights-window', {
+      origin, dest, depart, return: ret, travelers: parseInt(g('tripTravelers')?.value) || 1, mode: mode || 'window',
+    });
+    if (r?.result === 'engine_unavailable') {
+      say(`Groundwork's window could not open on this computer. <button onclick="openFlightSearch('browser')" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:11px;padding:0">Open in my browser</button>`, 'var(--ember)');
+    } else {
+      say(`${mode === 'browser' ? 'Opened in your browser' : 'Opened in a Groundwork window'}: ${esc(origin)} → ${esc(dest)}${ret ? ' and back' : ', one way'}. ` +
+          (mode === 'browser' ? '' : `<button onclick="openFlightSearch('browser')" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:11px;padding:0">Open in my browser instead</button>`), 'var(--slate)');
+    }
+  } catch (e) {
+    _gwErr('openFlightSearch')(e);
+    say('Could not open the search — try again.', 'var(--ember)');
+  }
 }
 
 function tripSetFlightFare() {

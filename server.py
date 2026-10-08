@@ -7984,6 +7984,31 @@ def trip_airfare():
                              request.args.get('from_airport', ''), request.args.get('to_airport', '')))
 
 
+@trip_bp.route('/flights-window', methods=['POST'])
+@require_json
+def trip_flights_window():
+    """
+    Open the Google Flights search for the trip's airports, dates and
+    travelers in Groundwork's own window (item 42, gw 2.0/FLIGHTS_WINDOW.md):
+    the bank window's separate, private process (bank_window.py), given only
+    the address. The address is built here from the form's fields, so the
+    page can never ask for any other site to be opened. mode 'browser' is the
+    escape hatch: the same search in the user's own browser.
+    """
+    import bank_window
+    from core import airfare
+    body = request.json
+    url = airfare.google_flights_url(body.get('origin'), body.get('dest'), body.get('depart'),
+                                     body.get('return') or None, body.get('travelers', 1))
+    if not url:
+        return err('Enter both 3-letter airport codes and your departure date first.', 400)
+    if body.get('mode') == 'browser':
+        return ok({'result': bank_window.open_in_browser(url)})
+    key = ('flights', 0)
+    bank_window.close_bank_window(key)        # a new search replaces the one on screen
+    return ok({'result': bank_window.open_bank_window(key, url)})
+
+
 @trip_bp.route('/airfare-refresh', methods=['POST'])
 def trip_airfare_refresh():
     """

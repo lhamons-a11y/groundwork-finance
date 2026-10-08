@@ -86,6 +86,16 @@ def normalise_portal_url(url):
     return url
 
 
+def window_title(url):
+    """The window's title, from its address alone - nothing else crosses into this process.
+    The trip planner's Google Flights search (item 42) opens in this same separate window."""
+    from urllib.parse import urlsplit
+    parts = urlsplit(url)
+    if (parts.hostname or '').lower() == 'www.google.com' and parts.path.startswith('/travel/flights'):
+        return 'Google Flights'
+    return f'Bank website - {portal_host(url)}'
+
+
 def portal_host(url):
     from urllib.parse import urlsplit
     return (urlsplit(url).hostname or '').lower()
@@ -188,7 +198,7 @@ def child_main():
     webview.settings['ALLOW_DOWNLOADS'] = True
 
     window = webview.create_window(
-        title=f'Bank website - {portal_host(url)}',
+        title=window_title(url),
         url=url,
         width=1100,
         height=800,
