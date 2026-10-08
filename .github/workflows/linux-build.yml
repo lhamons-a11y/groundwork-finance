@@ -25,7 +25,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller pygobject
+          # pygobject 3.51+ needs girepository-2.0 (GLib 2.80), which Ubuntu 22.04 does not have (the v1.1.1 build
+          # failed on it, 2026-10-08); 3.50 is the last that builds against 22.04's girepository-1.0.
+          pip install pyinstaller "pygobject<3.51"
       - name: Fetch and verify the pinned model
         env:
           GH_TOKEN: ${{ github.token }}
