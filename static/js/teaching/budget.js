@@ -42,7 +42,10 @@
         : `<strong>${esc(o.name)}</strong> has run at least
            <strong style="font-family:var(--font-mono)">${fmt(o.monthly)}/mo</strong> over its
            <strong>${fmt(o.budgeted)}</strong> budget in every one of the last ${o.months_observed} months.`;
-      const cost = o.months_cost > 0
+      // Item 46 (CARE_NOT_PRICED.md C2): necessary care is never priced on the
+      // debt-free date - the correction to the budget is the whole sentence.
+      const cost = !o.priced ? ''
+        : o.months_cost > 0
         ? `That difference costs <strong style="color:var(--ember)">${o.months_cost} month${o.months_cost !== 1 ? 's' : ''}</strong>
            on your debt-free date and <strong style="font-family:var(--font-mono)">${fmt(o.interest_cost)}</strong> in interest.`
         : `It costs <strong>${fmt(o.interest_cost)}</strong> in interest, and does not move your debt-free date.`;

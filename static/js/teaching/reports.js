@@ -38,10 +38,10 @@
            + ` and <strong>${fmt(f.interest)}</strong> in interest — had that money gone to the debt instead.`;
     }
     if (f.kind === 'overspend') {
+      // Item 46 C2: necessary care is described, never priced in months.
       return f.protected
         ? `<strong>${esc(f.subject)}</strong> is budgeted <strong>${fmt(f.monthly)}/mo</strong> below what it`
-          + ` has cost every month on record; that difference is <strong>${mo(f.months)}</strong> and`
-          + ` <strong>${fmt(f.interest)}</strong> in interest.`
+          + ` has cost every month on record.`
         : `<strong>${esc(f.subject)}</strong> ran at least <strong>${fmt(f.monthly)}/mo</strong> over budget`
           + ` every month on record, which costs <strong>${mo(f.months)}</strong> and`
           + ` <strong>${fmt(f.interest)}</strong> in interest.`;

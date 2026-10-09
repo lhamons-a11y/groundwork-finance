@@ -1148,8 +1148,14 @@ def budget_pressure(cards, budget, categories=None, strategy='avalanche',
     room = _headroom(categories)
     out = []
     for over in _overspend(categories)[:limit]:
-        after = simulate_payoff(cards, budget + over['monthly'], **kw)
-        if after is None:
+        # Item 46 (CARE_NOT_PRICED.md C2; item 45 H1, §0.1): a category on the
+        # necessity floor is described - its budget is set below what it costs -
+        # and never priced on the debt-free date. Months and interest for
+        # someone's medicine is an accusation, not information, and the only
+        # counterfactual it implies is the care not happening.
+        priced = not over['protected']
+        after = simulate_payoff(cards, budget + over['monthly'], **kw) if priced else None
+        if priced and after is None:
             continue
         sources = [r for r in room if r['name'] != over['name']]
         chosen, freed = _smallest_cover(sources, over['monthly'])
@@ -1160,8 +1166,9 @@ def budget_pressure(cards, budget, categories=None, strategy='avalanche',
             'floor': over['floor'],
             'months_observed': over['months_observed'],
             'protected': over['protected'],
-            'months_cost': base['months'] - after['months'],
-            'interest_cost': base['total_interest'] - after['total_interest'],
+            'priced': priced,
+            'months_cost': (base['months'] - after['months']) if priced else None,
+            'interest_cost': (base['total_interest'] - after['total_interest']) if priced else None,
             # The fix, when the record can name one. `monthly` is what covering
             # this actually takes — the overspend — not the room the named
             # envelopes happen to have: reporting the capacity said "covering it

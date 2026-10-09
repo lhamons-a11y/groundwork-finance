@@ -716,12 +716,18 @@ def run(ctx):
           any(o['name'] == 'Dining Out' and o['monthly'] == 85 for o in over))
 
     press = budget_pressure(cards, 775, categories=over_cats)
-    check('each overspend is priced in months, the same currency as every decision',
-          press and all(p['months_cost'] >= 0 and p['interest_cost'] > 0 for p in press))
+    # Item 46 (CARE_NOT_PRICED.md C2): a category on the necessity floor is
+    # described and never priced - so "each overspend is priced" holds for the
+    # unprotected ones, and the protected ones carry no months or interest at all.
+    priced = [p for p in press if p['priced']]
+    check('each discretionary overspend is priced in months, the same currency as every decision',
+          priced and all(p['months_cost'] >= 0 and p['interest_cost'] > 0 for p in priced))
+    check('and an overspend on the necessity floor is never priced (item 46)',
+          all(p['months_cost'] is None and p['interest_cost'] is None for p in press if p['protected']))
     base_p = simulate_payoff(cards, 775)['months']
     check('and the months are verified against the engine, not asserted',
           all(simulate_payoff(cards, 775 + p['monthly'])['months']
-              == base_p - p['months_cost'] for p in press))
+              == base_p - p['months_cost'] for p in priced))
 
     groc = next((p for p in press if p['name'] == 'Groceries'), None)
     check('a category on the necessity floor is flagged as a budget set too low',

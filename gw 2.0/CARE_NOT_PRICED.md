@@ -2,7 +2,7 @@
 
 Opened 2026-10-08 (Rob: *"push master h1"*). This is item 45's H1, ruled at design level 2026-10-08: *"H1 is a
 correctness fix, not a health-feature dependency … The tests should verify the actual rendered conclusions, not merely
-that a category is marked `protected`."* This document scopes it. **No code until Rob's go-ahead.** Master only: 1.x
+that a category is marked `protected`."* This document scopes it. **ACCEPTED and CLOSED 2026-10-08 (Rob: "I accept item 46"), gate 2532 / 0.** **BUILT 2026-10-08 (Rob: "push master and build item 46")**: C1 in `large_charge_lesson`, C2 in `budget_pressure` (rows carry `priced`) and the dashboard brake, the Budget page and report sentences, `s158` end to end; s45's pricing check now holds only unprotected rows to a price. Master only: 1.x
 builds strip the teaching layer where these sentences appear.
 
 ## 1. Every path that prices a protected category or charge in months (measured on master `dc004e3`)

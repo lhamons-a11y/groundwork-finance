@@ -3361,7 +3361,7 @@ def large_charge_lesson(session, cards, budget, strategy, days: int = 60,
     and manufacturing a lesson from the largest available row would be teaching
     for its own sake.
     """
-    from core.solution import past_charge_lesson
+    from core.solution import past_charge_lesson, is_protected
 
     cutoff = date.today() - timedelta(days=days)
     linked = {r[0] for r in session.query(
@@ -3382,6 +3382,13 @@ def large_charge_lesson(session, cards, budget, strategy, days: int = 60,
             continue
         cat = session.query(Category).filter_by(id=t.category_id).first() if t.category_id else None
         if cat and (cat.name or '').strip().lower() in _LESSON_EXCLUDED_CATEGORIES:
+            continue
+        # Item 46 (CARE_NOT_PRICED.md C1): necessary care is never the lesson. A
+        # charge in a protected category is skipped, and so is an uncategorised
+        # one whose merchant or description reads like the necessity floor
+        # ("CVS Pharmacy", "St. Mary's Hospital") - over-protecting loses one
+        # lesson, under-protecting prices someone's surgery in months.
+        if (cat and is_protected(cat.name)) or (not cat and (is_protected(t.merchant) or is_protected(t.description))):
             continue
         priced += 1
         lesson = past_charge_lesson(cards, budget, t.amount, strategy=strategy,
@@ -3719,7 +3726,8 @@ def _proactive_candidates(session, cards, budget, strategy):
             'detail_kind': 'charge',
         })
 
-    for over in budget_pressure(cards, budget, categories=cats, **kw)[:1]:
+    # Item 46 C2: a brake is a cost by definition, and necessary care is not one.
+    for over in [o for o in budget_pressure(cards, budget, categories=cats, **kw) if o['priced']][:1]:
         out.append({
             'key': f"overspend:{over['name']}",
             'kind': 'brake', 'category': over['name'],
