@@ -194,3 +194,15 @@ def run(ctx):
           any('Your bank is asking you something' in b for b in bars) and any('Groundwork is fetching your download' in b for b in bars)
           and not any(LOGIN[1] in b for b in bars))
 
+    # Rob's fourth real run: Superior CU's sign-in sits in an embedded frame from another address
+    opened = []
+    page, clock, lines = _Page(['frame:https://online.example.com/auth/signin', 'login:sign_in', 'ok', 'ok', 'ok']), _Clock(), []
+    r = baw.Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep, open_url=opened.append).run()
+    check('s174 A6 a sign-in in an embedded frame: the window opens the frame\'s address as the page, signs in there, then carries on',
+          r == 'done' and opened == ['https://online.example.com/auth/signin'])
+    opened = []
+    page, clock, lines = _Page(['frame:https://a.example.com/login'] * 3 + ['missing'] * 400), _Clock(), []
+    r = baw.Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep, open_url=opened.append).run()
+    check('s174 A6 the frame is opened once per step at most - no loop', len(opened) == 1 and r == 'page_changed')
+    check('s174 A6 only an https frame address is opened, and only by the window\'s own https check',
+          "u.protocol === 'https:'" in baw.DO_SCRIPT and 'if not bw.portal_url_problem(u):' in (BASE / 'bank_agent_window.py').read_text(encoding='utf-8'))

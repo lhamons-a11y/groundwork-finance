@@ -98,10 +98,14 @@ RECORD_SCRIPT = r'''(function () {
       host.id = '__gwBarHost';
       host.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;pointer-events:none';
       (document.body || document.documentElement).appendChild(host);
-      host.attachShadow({mode: 'open'}).innerHTML = '<div id="b" style="margin:0 auto 10px;max-width:760px;padding:10px 16px;border-radius:8px;font:13px/1.45 system-ui,sans-serif;color:#fff;background:#1f3a2e;box-shadow:0 4px 18px rgba(0,0,0,.25)"></div>';
+      host.attachShadow({mode: 'open'}).innerHTML = '<style>@keyframes gwrec{0%,100%{opacity:1}50%{opacity:.15}}'
+        + '#d{display:none;width:11px;height:11px;border-radius:50%;background:#e5322d;margin-right:9px;vertical-align:-1px;animation:gwrec 1s infinite}'
+        + '@media (prefers-reduced-motion: reduce){#d{animation:none}}</style>'
+        + '<div id="b" style="margin:0 auto 10px;max-width:760px;padding:10px 16px;border-radius:8px;font:13px/1.45 system-ui,sans-serif;color:#fff;background:#1f3a2e;box-shadow:0 4px 18px rgba(0,0,0,.25)"><span id="d"></span><span id="t"></span></div>';
     }
     var b = host.shadowRoot.getElementById('b');
-    b.textContent = text;
+    host.shadowRoot.getElementById('t').textContent = text;
+    host.shadowRoot.getElementById('d').style.display = tone === 'rec' ? 'inline-block' : 'none';
     b.style.background = tone === 'ask' ? '#8a4b08' : '#1f3a2e';
   }
   window.__gwBar = gwBar;
@@ -109,8 +113,8 @@ RECORD_SCRIPT = r'''(function () {
   var noted = 0;
   try { noted = parseInt(sessionStorage.getItem('__gwNoted') || '0', 10) || 0; } catch (e) {}
   function say() {
-    gwBar('\u25cf Recording for Groundwork \u2014 do your usual download. Groundwork notes your clicks and choices, never what you type. '
-      + (noted ? noted + ' step' + (noted === 1 ? '' : 's') + ' noted. ' : '') + 'Press Done in Groundwork when the file has downloaded.');
+    gwBar('Recording for Groundwork \u2014 do your usual download. Groundwork notes your clicks and choices, never what you type. '
+      + (noted ? noted + ' step' + (noted === 1 ? '' : 's') + ' noted. ' : '') + 'Press Done in Groundwork when the file has downloaded.', 'rec');
   }
   function note(step) {
     window.pywebview.api.step(step);
@@ -380,10 +384,14 @@ DO_SCRIPT = r'''(function () {
       host.id = '__gwBarHost';
       host.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;pointer-events:none';
       (document.body || document.documentElement).appendChild(host);
-      host.attachShadow({mode: 'open'}).innerHTML = '<div id="b" style="margin:0 auto 10px;max-width:760px;padding:10px 16px;border-radius:8px;font:13px/1.45 system-ui,sans-serif;color:#fff;background:#1f3a2e;box-shadow:0 4px 18px rgba(0,0,0,.25)"></div>';
+      host.attachShadow({mode: 'open'}).innerHTML = '<style>@keyframes gwrec{0%,100%{opacity:1}50%{opacity:.15}}'
+        + '#d{display:none;width:11px;height:11px;border-radius:50%;background:#e5322d;margin-right:9px;vertical-align:-1px;animation:gwrec 1s infinite}'
+        + '@media (prefers-reduced-motion: reduce){#d{animation:none}}</style>'
+        + '<div id="b" style="margin:0 auto 10px;max-width:760px;padding:10px 16px;border-radius:8px;font:13px/1.45 system-ui,sans-serif;color:#fff;background:#1f3a2e;box-shadow:0 4px 18px rgba(0,0,0,.25)"><span id="d"></span><span id="t"></span></div>';
     }
     var b = host.shadowRoot.getElementById('b');
-    b.textContent = text;
+    host.shadowRoot.getElementById('t').textContent = text;
+    host.shadowRoot.getElementById('d').style.display = tone === 'rec' ? 'inline-block' : 'none';
     b.style.background = tone === 'ask' ? '#8a4b08' : '#1f3a2e';
   }
   window.__gwBar = gwBar;
@@ -429,10 +437,19 @@ DO_SCRIPT = r'''(function () {
     })[0];
     return u ? 'sign_in_user' : null;
   }
+  // A sign-in held in an embedded frame (another address the agent can't see into): its https address, or null
+  function loginFrame() {
+    var f = Array.prototype.filter.call(document.querySelectorAll('iframe[src]'), function (fr) {
+      return visible(fr) && /log ?in|sign ?in|auth/i.test((fr.getAttribute('title') || '') + ' ' + fr.getAttribute('src'));
+    })[0];
+    if (!f) return null;
+    try { var u = new URL(f.getAttribute('src'), location.href); return u.protocol === 'https:' ? u.href : null; } catch (e) { return null; }
+  }
   window.__gwDo = function (step, login, probe) {
     if (botCheck()) return 'bot';
     // A login form on the page while the step is something else: the driver signs in first (recorded or not)
     if (step.k !== 'sign_in' && step.k !== 'sign_in_user') { var lf = loginForm(); if (lf) return 'login:' + lf; }
+    if (!probe) { var fr = loginFrame(); if (fr && !document.querySelector('input[type=password]')) return 'frame:' + fr; }
     if (step.k === 'sign_in_user') {
       var pw = Array.prototype.filter.call(document.querySelectorAll('input[type=password]'), visible)[0];
       if (pw) return probe ? 'present' : 'missing';
@@ -518,9 +535,10 @@ class Driver:
     """Runs the saved steps against a window. `window` needs evaluate_js(js) -> result; `login` is (user, password)
     or None; `say` writes one line; `now`/`sleep` are injectable for the gate. Never says the password."""
 
-    def __init__(self, window, steps, login, say, now=None, sleep=None, downloads=None):
+    def __init__(self, window, steps, login, say, now=None, sleep=None, downloads=None, open_url=None):
         import time
         self.w, self.steps, self.login, self.say = window, steps, login, say
+        self.open_url = open_url          # opens an https address in this window (a sign-in held in a frame)
         self.now, self.sleep = now or time.monotonic, sleep or time.sleep
         self.downloads = downloads        # callable -> set of file names, or None
         self.cancelled = False
@@ -546,12 +564,24 @@ class Driver:
         i = 0
         while i < len(self.steps):
             step = self.steps[i]
-            deadline, waiting_code, skip_to, sign_ins = self.now() + STEP_WAIT, False, None, 0
+            deadline, waiting_code, skip_to, sign_ins, framed = self.now() + STEP_WAIT, False, None, 0, False
             while True:
                 if self.cancelled:
                     self.say(fetch_line('stopped', i=i, why='cancelled'))
                     return 'cancelled'
                 r = self._try(step)
+                if isinstance(r, str) and r.startswith('frame:') and not framed:
+                    # The sign-in lives in an embedded frame from another address; open that address as the page
+                    # (https only, checked again here), then sign in there. Once per step.
+                    framed = True
+                    target = r.split(':', 1)[1]
+                    if target.startswith('https://') and self.open_url:
+                        self.open_url(target)
+                        deadline = self.now() + STEP_WAIT
+                    self.sleep(1.0)
+                    continue
+                if isinstance(r, str) and r.startswith('frame:'):
+                    r = 'missing'
                 if r == 'code':
                     self._bar('Your bank is asking you something. Type the code or answer it here - Groundwork carries on after.', 'ask')
                 elif r in ('ok', 'missing', 'ambiguous'):
@@ -668,8 +698,11 @@ def fetch_child_main():
     save_downloads_to_downloads_folder(platform_key)
     window = webview.create_window(title=bw.window_title(url) + ' - Groundwork is fetching your download', url=url,
                                    width=1100, height=800)
+    def _go_to(u):
+        if not bw.portal_url_problem(u):            # the same https check as the link itself
+            window.load_url(u)
     driver = Driver(window, steps_, _read_login(key), lambda l: (sys.stdout.write(l + '\n'), sys.stdout.flush()),
-                    downloads=_downloads_lister())
+                    downloads=_downloads_lister(), open_url=_go_to)
 
     def _close_when_parent_goes():
         try:
