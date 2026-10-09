@@ -76,6 +76,9 @@ a = Analysis(
         *( [(str(webview_path / 'lib'), 'webview/lib')] if webview_path and (webview_path / 'lib').exists() else [] ),
     ],
     hiddenimports=[
+        # keyring - item 57 (BANK_AGENT.md A4): bank logins live in the operating system's vault. Imported
+        # inside core/bank_vault.py's functions, and its backend is chosen at runtime, so both are named here.
+        'keyring', 'keyring.backends', 'keyring.backends.Windows',
         *_engine_imports,
         # waitress — the WSGI server every launch path now uses. Imported
         # inside server.serve() rather than at module scope, which is exactly

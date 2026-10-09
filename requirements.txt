@@ -65,3 +65,5 @@ llama-cpp-python==0.3.35; sys_platform != "darwin" or platform_machine == "arm64
 # error dialogs and a folder picker; those now use ctypes/osascript/zenity and
 # pywebview respectively, and the PyInstaller specs exclude tkinter outright
 # (it was ~10MB of tcl/tk per bundle). pywebview imports tkinter nowhere.
+# Item 57 (BANK_AGENT.md A4): bank logins live in the operating system's vault, never in Groundwork's files
+keyring>=25.6.0,<26

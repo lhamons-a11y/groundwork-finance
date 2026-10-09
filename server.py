@@ -6461,6 +6461,65 @@ def household_set_fact():
         return ok({'key': body.get('key'), 'value': household.current(session, body.get('key')), 'changed': changed})
 
 
+# ── Item 57 stage 1 (BANK_AGENT.md A3/A4, Rob 2026-10-09): saved bank logins, in the operating system's vault ──
+# Nothing here returns, logs or stores a password: the vault holds it (core/bank_vault.py), and only the fetch reads
+# it. Saving needs the user's acknowledgement of A3's wording, sent with the save.
+
+def _bank_agent_accounts(session):
+    """The accounts and standalone cards with a bank link (BANK_BROWSER.md F3): the ones a fetch could open."""
+    from core import bank_vault
+    rows = []
+    for a in session.query(Account).filter(Account.is_active == True).all():   # noqa: E712
+        if a.portal_url:
+            rows.append({'key': f'account:{a.id}', 'name': a.name})
+    for d in session.query(DebtAccount).filter(DebtAccount.is_active == True).all():   # noqa: E712
+        if d.portal_url and not d.linked_account_id:
+            rows.append({'key': f'card:{d.id}', 'name': d.name})
+    for r in rows:
+        r['has_login'] = bank_vault.has_login(r['key'])
+    return rows
+
+
+@settings_bp.route('/bank-logins', methods=['GET'])
+def bank_logins():
+    from core import bank_vault
+    with db_session() as session:
+        return ok({'available': bank_vault.available(), 'vault': bank_vault.vault_name(),
+                   'accounts': _bank_agent_accounts(session)})
+
+
+@settings_bp.route('/bank-logins', methods=['POST'])
+@require_json
+def bank_login_save():
+    """{key, username, password, acknowledged: true}. The login goes to the vault and nowhere else."""
+    from core import bank_vault
+    body = request.json or {}
+    key = str(body.get('key') or '')
+    if body.get('acknowledged') is not True:
+        return err('Read and accept how fetching works before saving a login.', 400)
+    if not (body.get('username') and body.get('password')):
+        return err('A username and a password are both needed.', 400)
+    with db_session() as session:
+        if key not in {r['key'] for r in _bank_agent_accounts(session)}:
+            return err('Not an account with a bank link.', 400)
+    if not bank_vault.available():
+        return err('This computer has no password vault Groundwork can use, so it cannot keep a bank login.', 400)
+    bank_vault.save_login(key, body['username'], body['password'])
+    return ok({'key': key, 'has_login': True})
+
+
+@settings_bp.route('/bank-logins/forget', methods=['POST'])
+@require_json
+def bank_login_forget():
+    from core import bank_vault
+    key = str((request.json or {}).get('key') or '')
+    try:
+        removed = bank_vault.forget(key)
+    except ValueError:
+        return err('Not a saved login.', 400)
+    return ok({'key': key, 'forgotten': removed})
+
+
 @settings_bp.route('/bootstrap', methods=['GET'])
 def bootstrap():
     """

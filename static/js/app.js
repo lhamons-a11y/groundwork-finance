@@ -22785,7 +22785,71 @@ function _settingsShowTab(tab) {
   if (tab === 'automation') _loadDownloadsCleanupToggles();
 }
 
+// ── Item 57 stage 1 (BANK_AGENT.md A3/A4, Rob 2026-10-09) ────────────────────
+// Groundwork can fetch an account's downloads when the user asks. Before the first login is saved the user reads
+// why it only runs when they ask (two-step verification and the banks' rules) and where the password lives, and
+// accepts it. The password goes to the operating system's vault; this page never sees one again.
+const BANK_AGENT_TERMS = [
+  'Groundwork can fetch your downloads for you, but only when you ask, and only while you\'re here. Many banks require two-step verification (a code by text or app) and have rules against unattended automated access, so Groundwork can\'t run this on a schedule. You\'ll type any code yourself; Groundwork never reads your texts or email.',
+  'Your password is kept in your computer\'s own password vault (VAULT), not in Groundwork\'s files. Anyone who can sign in to your computer as you could use it. Your bank\'s terms may not allow automated access, and how a bank treats fraud on an account whose password was used by software varies. Check with your bank if you\'re unsure.',
+];
+
+async function renderBankLogins() {
+  const box = g('settingsBankLogins');
+  if (!box) return;
+  let d;
+  try { d = await API.get('/api/settings/bank-logins'); } catch (e) { _gwErr('renderBankLogins')(e); return; }
+  box.innerHTML = bankLoginsHtml(d);
+}
+
+function bankLoginsHtml(d) {
+  if (!d || !d.available) {
+    return `<div style="font-size:12px;color:var(--slate)">This computer has no password vault Groundwork can use, so it can't keep a bank login. You can still open your bank and download files yourself.</div>`;
+  }
+  const terms = BANK_AGENT_TERMS.map(p => `<p style="font-size:12px;color:var(--slate);line-height:1.6;margin:0 0 8px">${esc(p.replace('VAULT', d.vault || 'your system\'s password vault'))}</p>`).join('');
+  if (!d.accounts.length) return terms + `<div style="font-size:12px;color:var(--slate-2)">Add your bank's website to an account (the Bank button on the Ledger) to save its login here.</div>`;
+  return terms + d.accounts.map(a => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--steel-2);flex-wrap:wrap">
+      <div style="flex:1;min-width:140px;font-size:13px;color:var(--ink)">${esc(a.name)}
+        <span style="font-size:11px;color:var(--slate-2)">${a.has_login ? ' · login saved in the vault' : ''}</span></div>
+      ${a.has_login
+        ? `<button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${esc(a.key)}')">Forget</button>`
+        : `<button class="btn btn-secondary btn-sm" onclick="openBankLoginForm('${esc(a.key)}')">Save login</button>`}
+      <div id="bankLoginForm-${esc(a.key).replace(':', '-')}" style="width:100%"></div>
+    </div>`).join('');
+}
+
+function openBankLoginForm(key) {
+  const box = g(`bankLoginForm-${key.replace(':', '-')}`);
+  if (!box) return;
+  box.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      <input type="text" id="bankLoginUser" placeholder="Username" autocomplete="off" style="flex:1;min-width:140px">
+      <input type="password" id="bankLoginPass" placeholder="Password" autocomplete="new-password" style="flex:1;min-width:140px"></div>
+    <label style="display:block;font-size:12px;color:var(--slate);margin-top:6px"><input type="checkbox" id="bankLoginAck"> I've read how fetching works, above, and want Groundwork to keep this login.</label>
+    <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="saveBankLogin('${esc(key)}')">Save to the vault</button>
+    <span id="bankLoginMsg" style="font-size:11px;margin-left:6px"></span>`;
+}
+
+async function saveBankLogin(key) {
+  const u = g('bankLoginUser'), p = g('bankLoginPass'), ack = g('bankLoginAck');
+  try {
+    await API.post('/api/settings/bank-logins', { key, username: u?.value || '', password: p?.value || '', acknowledged: !!ack?.checked });
+  } catch (e) {
+    const m = g('bankLoginMsg'); if (m) { m.style.color = 'var(--ember)'; m.textContent = e?.message || 'Not saved.'; }
+    return;
+  } finally {
+    if (p) p.value = '';            // the password leaves the page either way
+  }
+  renderBankLogins();
+}
+
+async function forgetBankLogin(key) {
+  try { await API.post('/api/settings/bank-logins/forget', { key }); } catch (e) { _gwErr('forgetBankLogin')(e); }
+  renderBankLogins();
+}
+
 function renderSettings() {
+  renderBankLogins();
   _settingsShowTab(_settingsActiveTab);
   if (g('settingsSavingsPct')) g('settingsSavingsPct').value = S.dfmSavingsCut || 5;
   if (g('settingsMonthlyBudget')) g('settingsMonthlyBudget').value = g('monthlyBudget')?.value || '';
