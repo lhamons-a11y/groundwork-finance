@@ -338,8 +338,8 @@ def begin_for_test(key):
 # Nothing is guessed and nothing is retried on its own. The password never leaves this process except into the
 # page's own login boxes, and is never written to a line, a log or a file.
 
-FETCH_STATUSES = ('step', 'skipped', 'waiting_code', 'stopped', 'downloaded', 'no_download', 'done')
-STOP_REASONS = ('page_changed', 'bot_check', 'no_login', 'code_timeout', 'cancelled')
+FETCH_STATUSES = ('step', 'skipped', 'signed_in', 'waiting_code', 'stopped', 'downloaded', 'no_download', 'done')
+STOP_REASONS = ('page_changed', 'bot_check', 'no_login', 'code_timeout', 'cancelled', 'sign_in_failed')
 STEP_WAIT = 15.0          # seconds for a step's control to appear after a page load
 CODE_WAIT = 300.0         # the user types a code
 DOWNLOAD_WAIT = 120.0
@@ -370,13 +370,27 @@ DO_SCRIPT = r'''(function () {
     if (document.querySelector('input[type=password]')) return false;
     var c = document.querySelector('input[autocomplete="one-time-code"]');
     if (c && visible(c)) return true;
-    return Array.prototype.some.call(document.querySelectorAll('input'), function (i) {
+    var box = Array.prototype.some.call(document.querySelectorAll('input'), function (i) {
       var n = (i.name || '') + ' ' + (i.id || '') + ' ' + (i.getAttribute('aria-label') || '') + ' ' + (i.placeholder || '');
-      return visible(i) && /\b(code|otp|one.?time|verification)\b/i.test(n);
+      return visible(i) && /\b(code|otp|one.?time|verification|passcode)\b/i.test(n);
     });
+    if (box) return true;
+    return /trust (this )?(device|computer|browser)|remember (this )?(device|computer|browser)|verify (your )?identity/i
+      .test((document.body && document.body.innerText || '').slice(0, 4000));
+  }
+  function loginForm() {
+    var p = Array.prototype.filter.call(document.querySelectorAll('input[type=password]'), visible)[0];
+    if (p) return 'sign_in';
+    if (!/\b(sign ?in|log ?in|login)\b/i.test((document.body && document.body.innerText || '').slice(0, 4000))) return null;
+    var u = Array.prototype.filter.call(document.querySelectorAll('input[type=text],input[type=email],input[type=tel],input:not([type])'), function (i) {
+      return visible(i) && /user|login|e-?mail|member|account|id\b/i.test((i.name || '') + ' ' + (i.id || '') + ' ' + (i.getAttribute('autocomplete') || '') + ' ' + (i.getAttribute('aria-label') || ''));
+    })[0];
+    return u ? 'sign_in_user' : null;
   }
   window.__gwDo = function (step, login, probe) {
     if (botCheck()) return 'bot';
+    // A login form on the page while the step is something else: the driver signs in first (recorded or not)
+    if (step.k !== 'sign_in' && step.k !== 'sign_in_user') { var lf = loginForm(); if (lf) return 'login:' + lf; }
     if (step.k === 'sign_in_user') {
       var pw = Array.prototype.filter.call(document.querySelectorAll('input[type=password]'), visible)[0];
       if (pw) return probe ? 'present' : 'missing';
@@ -483,12 +497,27 @@ class Driver:
         i = 0
         while i < len(self.steps):
             step = self.steps[i]
-            deadline, waiting_code, skip_to = self.now() + STEP_WAIT, False, None
+            deadline, waiting_code, skip_to, sign_ins = self.now() + STEP_WAIT, False, None, 0
             while True:
                 if self.cancelled:
                     self.say(fetch_line('stopped', i=i, why='cancelled'))
                     return 'cancelled'
                 r = self._try(step)
+                if isinstance(r, str) and r.startswith('login:'):
+                    # The bank's login form, whether or not a sign-in was recorded (a remembered device can record
+                    # none): sign in from the vault, then try the same step again. Twice at most, then stop.
+                    if self.login is None:
+                        self.say(fetch_line('stopped', i=i, why='no_login'))
+                        return 'no_login'
+                    if sign_ins >= 2:
+                        self.say(fetch_line('stopped', i=i, why='sign_in_failed'))
+                        return 'sign_in_failed'
+                    sign_ins += 1
+                    if self._try({'k': r.split(':', 1)[1]}) == 'ok':
+                        self.say(fetch_line('signed_in', i=i))
+                    deadline = self.now() + STEP_WAIT
+                    self.sleep(1.0)
+                    continue
                 if r == 'ok':
                     self.say(fetch_line('step', i=i))
                     break
@@ -701,6 +730,8 @@ def fetch_words(ev, steps_):
         return 'Done: ' + step_words(steps_[i])
     if s == 'skipped' and i is not None and i < len(steps_):
         return 'Skipped (your bank didn\'t ask this time): ' + step_words(steps_[i])
+    if s == 'signed_in':
+        return 'Signed in with your saved login.'
     if s == 'waiting_code':
         return 'Your bank is asking for a code. Type it in the window; Groundwork carries on after that.'
     if s == 'stopped':
@@ -708,6 +739,7 @@ def fetch_words(ev, steps_):
                 'bot_check': 'Stopped: your bank showed a check for automated access. Groundwork stops there; the window is yours.',
                 'no_login': 'Stopped: no saved login for this account.',
                 'code_timeout': 'Stopped: no code was entered in 5 minutes.',
+                'sign_in_failed': "Stopped: signing in didn't get past the login page twice. Check the saved login (Forget, then Save login again).",
                 'cancelled': 'Stopped.'}.get(ev.get('why'), 'Stopped.')
     if s == 'downloaded':
         return f"Downloaded {ev.get('file', '')} to your Downloads folder. It's waiting for you in the import review."

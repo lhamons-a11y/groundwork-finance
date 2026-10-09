@@ -169,4 +169,19 @@ def run(ctx):
                   and os.path.dirname(a.ResultFilePath) == str(bw.downloads_dir()) and a.ResultFilePath.endswith('stmt.csv'))
         finally:
             edgechromium.EdgeChrome.on_download_starting = before
+    # Rob's third real run: recorded while already signed in (no sign-in step); the fetch met the login page
+    STEPS3 = [{'k': 'click', 'text': 'Checking'}, {'k': 'click', 'text': 'Download'}]
+    page, clock, lines = _Page(['login:sign_in', 'ok', 'ok', 'ok']), _Clock(), []
+    r = baw.Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    evs = [baw.parse_fetch_line(l)['s'] for l in lines]
+    check('s174 A6 the login form appears with no sign-in recorded: it signs in from the vault, then carries on',
+          r == 'done' and evs == ['signed_in', 'step', 'step', 'done'] and LOGIN[1] in page.sent[1] and LOGIN[1] not in page.sent[0])
+    page, clock, lines = _Page(['login:sign_in', 'ok', 'login:sign_in', 'ok', 'login:sign_in']), _Clock(), []
+    r = baw.Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    check('s174 A6 still on the login page after two sign-ins: it stops and says so - no loop', r == 'sign_in_failed')
+    page, clock, lines = _Page(['login:sign_in']), _Clock(), []
+    r = baw.Driver(page, STEPS3, None, lines.append, now=clock.now, sleep=clock.sleep).run()
+    check('s174 A4 a login form with no saved login: it stops and says so', r == 'no_login')
+    check('s174 A6 a "trust this device" / "verify your identity" page waits for the user like a code',
+          'trust (this )?(device|computer|browser)|remember (this )?(device|computer|browser)|verify (your )?identity' in baw.DO_SCRIPT.split('function codeAsked')[1].split('function loginForm')[0])
 
