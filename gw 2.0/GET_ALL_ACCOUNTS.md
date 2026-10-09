@@ -11,7 +11,7 @@ accounts that could be in the header the dashboard wherever it make logic."*
 - Nothing leaves the computer: bank → the user's computer → Groundwork. No middleman holds a login (the difference
   from Plaid).
 
-**G1-G9 RULED 2026-10-09 (Rob: "i accept all points"), each as recommended (G2 both (a) and (b); G6 both (a) and (b)). Build not yet authorised; it waits on item 57's acceptance.**
+**G1-G9 RULED 2026-10-09 (Rob: "i accept all points"), each as recommended (G2 both (a) and (b); G6 both (a) and (b)). BUILT 2026-10-09 (Rob: "Item 57 passed. Build 67"):** `bank_agent_window` start_batch / run_batch / stop_batch, routes `/bank-agent/fetch-all` (POST, GET, stop), `/last-fetched`, `/remind-days`, the review's account by hash in `/auto-import/pending`, the header button, the dashboard line, the panel; s176; gate 2803 / 0. **Added on Rob's word ("In the ledger bank button if the account has a download automation it should automatically switch to that"):** the Ledger's Bank button, the account rows and card panels fetch for an account with saved steps; the browser button stays; gate 2806 / 0. Awaiting a real run and acceptance.
 
 **Depends on item 57 being accepted.** Item 57's single-account fetch must pass Rob's real-bank run first. This item
 only runs it for several accounts in turn.
