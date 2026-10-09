@@ -6697,7 +6697,8 @@ function clientAutoCategory(desc='') {
   if (/\bgeico\b|\bprogressive\b|\bstate farm\b|\ballstate\b|\bnationwide\b|\bliberty mutual\b|\busaa\b|\bfarmers\b|\binsurance\b/.test(d)) return 'Health Insurance';
 
   // Gas (before Transportation)
-  if (/\bclark (gas|oil|station)?\b|\bbp\s|\bshell\b|\bexxon\b|\bmobil\b|\bspeedway\b|\bmarathon\b|\bcircle k\b|\bsunoco\b|\bchevron\b|\b76\s+(gas|fuel)\b|\bbuc.ee|\bsheetz\b|\bwawa\b|\bfuel|\bgas station\b/.test(d)) return 'Gas / Fuel';
+  // Item 53 (FUEL_NAMES.md): the same text as the Gas / Fuel pattern in bank_importer.py (G6, s165).
+  if (/\bclark (gas|oil|station)?\b|\bbp(\s|#|\d)|\bexxon|\bmobil\b|\bshell\b|\bspeedway\b|\bcircle k\b|\bsunoco\b|\bchevron\b|\b76\s+(gas|fuel)\b|\bbuc.ee|\bsheetz\b|\bwawa\b|\bphillips 66\b|\bconoco\b|\bcitgo\b|\bvalero\b|\bquik ?trip\b|\bracetrac\b|\bkwik trip\b|\bmurphy (usa|express)\b|\bthorntons\b|\bta travel\b|\bget ?go\b|\bspeedy q\b|\bcumberland farms\b|\bflying j\b|\bmarathon(\s+petro|\s*#|\s+\d)|\bpilot(\s*#|\s+\d|\s+travel)|\blove'?s(\s*#|\s+\d|\s+travel|\s+country)|\bholiday(\s+stations?|\s+oil|\s*#|\s+\d)|\bgulf(\s+oil|\s*#|\s+\d)|\barco(\s*#|\s+\d)|\bqt(\s*#|\s+\d)|\bcasey'?s(\s+gen|\s*#|\s+\d)|\bsinclair(\s+oil|\s*#|\s+\d)|\b(costco|sam'?s(\s+club)?)\s+(gas|fuel)\b|\bmeijer express\b|\bfuel|\bgas station\b/.test(d)) return 'Gas / Fuel';
 
   // Auto Service
   if (/\bjiffy lube\b|\bvalvoline\b|\bmidas\b|\bfirestone\b|\bpep boys\b|\bmechanic\b|\bauto (service|repair|parts)\b|\boil change\b|\bcar wash\b|\btire (shop|store|center)\b/.test(d)) return 'Car Maintenance';
@@ -22438,24 +22439,30 @@ function _renderCategoryCleanup() {
 // them, and the list is here again next time.
 let _labelReview = null;
 
-function labelReviewHTML(r) {
-  if (!r || (!r.fuel && !r.fitness)) return '';
-  let h = '';
-  if (r.fuel) {
-    const f = r.fuel, n = f.count;
-    h += `<div style="font-size:13px;color:var(--ink);margin-bottom:6px">${n} purchase${n !== 1 ? 's' : ''} in <strong>Gas</strong> (your natural-gas utility) look${n === 1 ? 's' : ''} like fill-up${n !== 1 ? 's' : ''}, not gas bill${n !== 1 ? 's' : ''} — ${fmt(f.total)} in all. Move ${n === 1 ? 'it' : 'them'} to <strong>Gas / Fuel</strong> (Transportation)?</div>
-      <div style="font-size:11px;color:var(--slate-2);margin-bottom:6px">Older imports filed fuel under Gas. Moving them changes what the gas bill and gasoline estimates read.</div>
-      <div id="labelReviewRows" style="max-height:220px;overflow:auto;margin-bottom:8px">${f.rows.map(x => `
+function _labelReviewFuelBlock(f, key, intro, why) {
+  const n = f.count;
+  return `<div id="lrBlock_${key}" style="margin-bottom:14px"><div style="font-size:13px;color:var(--ink);margin-bottom:6px">${n} purchase${n !== 1 ? 's' : ''} in ${intro} look${n === 1 ? 's like a' : ' like'} fill-up${n !== 1 ? 's' : ''} — ${fmt(f.total)} in all. Move ${n === 1 ? 'it' : 'them'} to <strong>Gas / Fuel</strong> (Transportation)?</div>
+      <div style="font-size:11px;color:var(--slate-2);margin-bottom:6px">${why}</div>
+      <div style="max-height:220px;overflow:auto;margin-bottom:8px">${f.rows.map(x => `
         <label style="display:flex;gap:8px;align-items:center;font-size:12px;padding:3px 0">
-          <input type="checkbox" class="lrFuel" value="${x.id}" checked>
+          <input type="checkbox" class="lrFuel_${key}" value="${x.id}" checked>
           <span style="flex:1">${esc(x.description)}</span><span>${fmtDate(x.date)}</span><strong>${fmt(x.amount)}</strong></label>`).join('')}</div>
-      <button class="btn btn-primary btn-sm" onclick="labelReviewMove(true)">Move all</button>
-      <button class="btn btn-secondary btn-sm" onclick="labelReviewMove(false)">Move the ones checked</button>
-      <button class="btn btn-ghost btn-sm" onclick="g('labelReviewContent').innerHTML=''">Leave them</button>`;
-  }
+      <button class="btn btn-primary btn-sm" onclick="labelReviewMove('${key}', true)">Move all</button>
+      <button class="btn btn-secondary btn-sm" onclick="labelReviewMove('${key}', false)">Move the ones checked</button>
+      <button class="btn btn-ghost btn-sm" onclick="g('lrBlock_${key}').remove()">Leave them</button></div>`;
+}
+
+function labelReviewHTML(r) {
+  if (!r || (!r.fuel && !r.fuel_groceries && !r.fitness)) return '';
+  let h = '';
+  if (r.fuel) h += _labelReviewFuelBlock(r.fuel, 'fuel', '<strong>Gas</strong> (your natural-gas utility)',
+    'Older imports filed fuel under Gas. Moving them changes what the gas bill and gasoline estimates read.');
+  // Item 53 G7 (FUEL_NAMES.md): warehouse-club and grocery fuel saved under Groceries.
+  if (r.fuel_groceries) h += _labelReviewFuelBlock(r.fuel_groceries, 'fuel_groceries', '<strong>Groceries</strong>',
+    'Older imports didn\'t recognise station names like Costco Gas or Meijer Express. Moving them changes what the gasoline estimate reads.');
   if (r.fitness) {
     const x = r.fitness;
-    h += `<div id="labelReviewFitness" style="margin-top:${r.fuel ? '14px' : '0'}"><div style="font-size:13px;color:var(--ink);margin-bottom:6px">A category named <strong>${esc(x.name)}</strong> (${x.count} transaction${x.count !== 1 ? 's' : ''}) was made by an older import. Merge it into <strong>${esc(x.to)}</strong> (Healthcare)?</div>
+    h += `<div id="labelReviewFitness"><div style="font-size:13px;color:var(--ink);margin-bottom:6px">A category named <strong>${esc(x.name)}</strong> (${x.count} transaction${x.count !== 1 ? 's' : ''}) was made by an older import. Merge it into <strong>${esc(x.to)}</strong> (Healthcare)?</div>
       <button class="btn btn-secondary btn-sm" onclick="labelReviewMergeFitness()">Merge into ${esc(x.to)}</button>
       <button class="btn btn-ghost btn-sm" onclick="g('labelReviewFitness').remove()">Leave it</button></div>`;
   }
@@ -22472,9 +22479,9 @@ async function _renderLabelReview() {
   if (card) card.style.display = box.innerHTML ? '' : 'none';
 }
 
-async function labelReviewMove(all) {
-  const ids = all ? (_labelReview?.fuel?.rows || []).map(x => x.id)
-                  : [...document.querySelectorAll('.lrFuel:checked')].map(e => parseInt(e.value, 10));
+async function labelReviewMove(key, all) {
+  const ids = all ? (_labelReview?.[key]?.rows || []).map(x => x.id)
+                  : [...document.querySelectorAll(`.lrFuel_${key}:checked`)].map(e => parseInt(e.value, 10));
   if (!ids.length) { showToast('Nothing checked', '', 'warning'); return; }
   try {
     const r = await API.post('/api/categories/label-review/move', { ids });

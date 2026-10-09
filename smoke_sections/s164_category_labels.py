@@ -174,7 +174,7 @@ def run(ctx):
             made_c.clear()
         node = shutil.which('node')
         if node:
-            js = _fn(app, 'labelReviewHTML') + r'''
+            js = _fn(app, '_labelReviewFuelBlock') + _fn(app, 'labelReviewHTML') + r'''
 const esc = s => String(s), fmt = n => '$' + Number(n).toFixed(2), fmtDate = s => s;
 console.log(JSON.stringify([labelReviewHTML({fuel: {count: 2, total: 79.47, rows: [{id: 1, date: '2026-10-01', description: 'SHELL OIL', amount: 41.37}, {id: 2, date: '2026-10-02', description: 'MEIJER FUEL', amount: 38.10}]}, fitness: null}),
   labelReviewHTML({fuel: null, fitness: null})]));'''

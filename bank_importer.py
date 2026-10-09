@@ -304,10 +304,51 @@ _CATEGORY_PATTERNS = [
 
     # ── GAS / FUEL (must come before Transportation). Item 52: 'Gas / Fuel' is the
     # Transportation leaf; bare 'Gas' is the natural-gas UTILITY leaf, where fuel used to land.
-    ('Gas / Fuel', r'\bclark (gas|oil|station)?\b|\bbp\s|\bshell\b|\bexxon\b|\bmobil\b|'
-            r'\bspeedway\b|\bmarathon\b|\bcircle k\b|\bsunoco\b|'
-            r'\bchevron\b|\b76\s+(gas|fuel)\b|\bbuc.ee|\bsheetz\b|\bwawa\b|'
-            r'\bfuel|\bgas station\b'),
+    # Item 53 (FUEL_NAMES.md): the station names. G6 - this is the same text as the fuel test in
+    # clientAutoCategory() in app.js; s165 fails if they differ. A name that is also a word or another
+    # business (Pilot, Holiday, Gulf, Marathon ...) counts only with a store number or a station word.
+    ('Gas / Fuel', (
+        r"\bclark (gas|oil|station)?\b|"
+        r"\bbp(\s|#|\d)|"
+        r"\bexxon|"
+        r"\bmobil\b|"
+        r"\bshell\b|"
+        r"\bspeedway\b|"
+        r"\bcircle k\b|"
+        r"\bsunoco\b|"
+        r"\bchevron\b|"
+        r"\b76\s+(gas|fuel)\b|"
+        r"\bbuc.ee|"
+        r"\bsheetz\b|"
+        r"\bwawa\b|"
+        r"\bphillips 66\b|"
+        r"\bconoco\b|"
+        r"\bcitgo\b|"
+        r"\bvalero\b|"
+        r"\bquik ?trip\b|"
+        r"\bracetrac\b|"
+        r"\bkwik trip\b|"
+        r"\bmurphy (usa|express)\b|"
+        r"\bthorntons\b|"
+        r"\bta travel\b|"
+        r"\bget ?go\b|"
+        r"\bspeedy q\b|"
+        r"\bcumberland farms\b|"
+        r"\bflying j\b|"
+        r"\bmarathon(\s+petro|\s*#|\s+\d)|"
+        r"\bpilot(\s*#|\s+\d|\s+travel)|"
+        r"\blove'?s(\s*#|\s+\d|\s+travel|\s+country)|"
+        r"\bholiday(\s+stations?|\s+oil|\s*#|\s+\d)|"
+        r"\bgulf(\s+oil|\s*#|\s+\d)|"
+        r"\barco(\s*#|\s+\d)|"
+        r"\bqt(\s*#|\s+\d)|"
+        r"\bcasey'?s(\s+gen|\s*#|\s+\d)|"
+        r"\bsinclair(\s+oil|\s*#|\s+\d)|"
+        r"\b(costco|sam'?s(\s+club)?)\s+(gas|fuel)\b|"
+        r"\bmeijer express\b|"
+        r"\bfuel|"
+        r"\bgas station\b"
+    )),
 
     # ── AUTO SERVICE
     ('Car Maintenance', r'\bjiffy lube\b|'

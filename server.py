@@ -6705,26 +6705,34 @@ def _label_review(session):
     parent = {c.id: c.name for c in cats}
     gas = next((c for c in cats if c.name == 'Gas' and parent.get(c.parent_id) == 'Utilities'), None)
     fuel, gym = by.get('Gas / Fuel'), by.get('Gym / Fitness')
-    rows = []
+    rows, groc_rows = [], []
     if gas and fuel:
         for t in session.query(Transaction).filter(Transaction.category_id == gas.id, Transaction.type == 'debit').all():
             if bi.auto_category(t.description or '', t.mcc or '') == 'Gas / Fuel':
                 rows.append(t)
+    # Item 53 G7 (FUEL_NAMES.md): warehouse-club and grocery fuel (Costco Gas, Meijer Express) that older imports
+    # saved under Groceries, offered the same way.
+    groc = by.get('Groceries')
+    if groc and fuel:
+        for t in session.query(Transaction).filter(Transaction.category_id == groc.id, Transaction.type == 'debit').all():
+            if bi.auto_category(t.description or '', t.mcc or '') == 'Gas / Fuel':
+                groc_rows.append(t)
     stray = next((c for c in cats if c.name.lower() == 'fitness' and not c.is_system), None)
-    return gas, fuel, gym, rows, stray
+    return gas, fuel, gym, rows, stray, groc_rows
 
 
 @categories_bp.route('/label-review', methods=['GET'])
 def category_label_review():
     with db_session() as session:
-        gas, fuel, gym, rows, stray = _label_review(session)
-        rows.sort(key=lambda t: t.date, reverse=True)
-        out = {'fuel': None, 'fitness': None}
-        if rows:
-            out['fuel'] = {'from': 'Gas', 'to': 'Gas / Fuel', 'count': len(rows),
-                           'total': round(sum(float(t.amount) for t in rows), 2),
-                           'rows': [{'id': t.id, 'date': t.date.isoformat(), 'description': t.description or '',
-                                     'amount': float(t.amount)} for t in rows]}
+        gas, fuel, gym, rows, stray, groc_rows = _label_review(session)
+
+        def block(src, rs):
+            rs.sort(key=lambda t: t.date, reverse=True)
+            return {'from': src, 'to': 'Gas / Fuel', 'count': len(rs), 'total': round(sum(float(t.amount) for t in rs), 2),
+                    'rows': [{'id': t.id, 'date': t.date.isoformat(), 'description': t.description or '',
+                              'amount': float(t.amount)} for t in rs]}
+        out = {'fuel': block('Gas', rows) if rows else None,
+               'fuel_groceries': block('Groceries', groc_rows) if groc_rows else None, 'fitness': None}
         if stray and gym:
             n = session.query(Transaction).filter_by(category_id=stray.id).count()
             out['fitness'] = {'id': stray.id, 'name': stray.name, 'count': n, 'to_id': gym.id, 'to': gym.name}
@@ -6737,9 +6745,9 @@ def category_label_review_move():
     """Move the fill-ups the user said yes to. Only rows the review itself offers can move."""
     ids = {int(i) for i in (request.json.get('ids') or []) if str(i).isdigit()}
     with db_session() as session:
-        gas, fuel, gym, rows, stray = _label_review(session)
+        gas, fuel, gym, rows, stray, groc_rows = _label_review(session)
         moved = 0
-        for t in rows:
+        for t in rows + groc_rows:
             if t.id in ids:
                 t.category_id = fuel.id
                 moved += 1
