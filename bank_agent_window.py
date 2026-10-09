@@ -412,6 +412,22 @@ DO_SCRIPT = r'''(function () {
     if (d && d.set) d.set.call(el, v); else el.value = v;
     el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true}));
   }
+  // Press the sign-in control for a field: the visible one named like a sign-in (whatever the bank calls it), nearest
+  // the field; else a visible submit button; else Enter in the field
+  function submitFor(field) {
+    var named = /^(sign ?in|log ?in|login|log on|continue|next|submit)\b/i;
+    var all = Array.prototype.filter.call(document.querySelectorAll('button,input[type=submit],input[type=button],[role=button],a'), visible);
+    var fr = field.getBoundingClientRect();
+    function dist(el) { var r = el.getBoundingClientRect(); return Math.abs(r.top - fr.bottom) + Math.abs(r.left - fr.left); }
+    var hits = all.filter(function (el) { return named.test(nameOf(el)); }).sort(function (a, b) { return dist(a) - dist(b); });
+    var btn = hits[0] || all.filter(function (el) { return el.type === 'submit'; })[0];
+    if (btn) { btn.click(); return; }
+    var form = field.closest('form');
+    if (form && form.requestSubmit) { form.requestSubmit(); return; }
+    ['keydown', 'keypress', 'keyup'].forEach(function (k) {
+      field.dispatchEvent(new KeyboardEvent(k, {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true}));
+    });
+  }
   function botCheck() {
     if (document.querySelector('iframe[src*="captcha"],.g-recaptcha,.h-captcha,[id*="captcha" i]')) return true;
     return /unusual activity|verify (that )?you(\u2019|')?re (a )?human|are you a robot/i.test((document.body && document.body.innerText || '').slice(0, 4000));
@@ -458,8 +474,7 @@ DO_SCRIPT = r'''(function () {
       if (probe) return 'present';
       if (!login) return 'no_login';
       setVal(ub, login[0]);
-      var f1 = ub.closest('form') || document, b1 = f1.querySelector('button[type=submit],input[type=submit],button:not([type])');
-      if (b1) b1.click(); else if (f1.requestSubmit) f1.requestSubmit();
+      submitFor(ub);
       return 'ok';
     }
     if (step.k === 'sign_in') {
@@ -471,8 +486,7 @@ DO_SCRIPT = r'''(function () {
       var users = Array.prototype.filter.call(form.querySelectorAll('input[type=text],input[type=email],input[type=tel],input:not([type])'), visible);
       if (users.length) setVal(users[0], login[0]);
       setVal(p, login[1]);
-      var btn = form.querySelector('button[type=submit],input[type=submit],button:not([type])');
-      if (btn) btn.click(); else if (form.requestSubmit) form.requestSubmit();
+      submitFor(p);
       return 'ok';
     }
     if (step.k === 'click') {

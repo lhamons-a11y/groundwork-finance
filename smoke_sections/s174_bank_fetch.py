@@ -206,3 +206,8 @@ def run(ctx):
     check('s174 A6 the frame is opened once per step at most - no loop', len(opened) == 1 and r == 'page_changed')
     check('s174 A6 only an https frame address is opened, and only by the window\'s own https check',
           "u.protocol === 'https:'" in baw.DO_SCRIPT and 'if not bw.portal_url_problem(u):' in (BASE / 'bank_agent_window.py').read_text(encoding='utf-8'))
+    ds = baw.DO_SCRIPT
+    check('s174 A6 signing in presses the control named like a sign-in (Sign in, Log in, Continue...), not the first button in the form (Rob\'s fifth run)',
+          ds.count('submitFor(') == 3 and 'sign ?in|log ?in|login|log on|continue|next|submit' in ds
+          and "querySelector('button[type=submit],input[type=submit],button:not([type])')" not in ds)
+
