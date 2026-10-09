@@ -2,7 +2,7 @@
 
 Opened 2026-10-09 (Rob: *"open the regex gaps as an item"*). It comes from item 52 (`CATEGORY_LABELS.md` §3): the
 2026-09-20 audit noted that `\bbp\s` misses `BP#8823` and `\bexxon\b` misses `EXXONMOBIL`. **RULED 2026-10-09 (Rob: "approve G1–G8 as recommended")**: master only (G8).
-**BUILT 2026-10-09 (Rob: "build item 53")**: one 40-part pattern, the same text in `bank_importer.py` and `clientAutoCategory` (G6); all 48 station lines read as Gas / Fuel and none of the 19 non-fuel lines do, on both sides (`s165`); Groceries rows join the *Imported categories to check* card (G7). One addition to G2's store-number list: **Sinclair**, because Sinclair Community College is a common Ohio charge. Flying J was added beside Pilot. Awaiting acceptance.
+**BUILT 2026-10-09 (Rob: "build item 53")**: one 40-part pattern, the same text in `bank_importer.py` and `clientAutoCategory` (G6); all 48 station lines read as Gas / Fuel and none of the 19 non-fuel lines do, on both sides (`s165`); Groceries rows join the *Imported categories to check* card (G7). One addition to G2's store-number list: **Sinclair**, because Sinclair Community College is a common Ohio charge. Flying J was added beside Pilot. **ACCEPTED and CLOSED (Rob, 2026-10-09: "I accept items 53, 54 and 55"), gate 2627 / 0.**
 
 ## 1. What is true today (measured 2026-10-09 on master 90194ab)
 
