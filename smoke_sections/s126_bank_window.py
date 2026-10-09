@@ -124,6 +124,7 @@ PORTAL_READERS = {
     'put_debt_portal',         # get / open read it only through _debt_portal_url
     'update_debt',             # refuses portal_url in the PATCH body
     '_relink_card_portal',     # F3 across a link change
+    '_bank_agent_accounts',    # item 57 (BANK_AGENT.md A1 (b)): whether a link exists, to list it; returns key + name, never the URL
 }
 
 
