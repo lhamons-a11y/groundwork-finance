@@ -235,4 +235,9 @@ def run(ctx):
           baw.DO_SCRIPT.index('scrollIntoView') < baw.DO_SCRIPT.index("new PointerEvent('pointerdown'"))
     check('s173 A5 a click on a sign-in-named control with a password box showing is recorded as the sign-in (a page with no form)',
           "note({k: 'sign_in', opt: checkPage()});" in baw.RECORD_SCRIPT)
+    fsrc = (BASE / 'bank_agent_window.py').read_text(encoding='utf-8')
+    drive = fsrc.split('def _drive():')[1].split('threading.Thread(target=_drive')[0]
+    check('s174 A6 the fetch window always closes itself when the fetch ends, whatever the outcome (Rob: "always close out the web browser window")',
+          'outcome = driver.run()' in drive and 'window.destroy()' in drive and 'except Exception:' in drive
+          and drive.index('outcome = driver.run()') < drive.index('window.destroy()') and 'if not driver.cancelled' in drive)
 

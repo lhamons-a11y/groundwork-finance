@@ -384,6 +384,7 @@ FETCH_STATUSES = ('step', 'skipped', 'signed_in', 'waiting_code', 'stopped', 'do
 STOP_REASONS = ('page_changed', 'bot_check', 'no_login', 'code_timeout', 'cancelled', 'sign_in_failed')
 STEP_WAIT = 15.0          # seconds for a step's control to appear after a page load
 SIGN_IN_SETTLE = 12.0     # seconds the old login page may still show after Sign In is pressed
+CLOSE_PAUSE = 3.0         # seconds the finished fetch window stays, so the file finishes writing, before it closes
 _SIGN_IN_WORDS = re.compile(r'(^|[\s_])(sign ?in|log ?in|login|log on)([\s_]|$)', re.I)
 
 
@@ -787,7 +788,20 @@ def fetch_child_main():
 
     def _drive():
         started.wait(60)
-        driver.run()
+        try:
+            outcome = driver.run()
+        except Exception:
+            outcome = 'stopped'
+        # Rob: the agent always closes the window when it is finished - whatever the outcome. A short pause first lets
+        # the file finish writing and shows the outcome on the bar; Groundwork's page says what happened and why.
+        if not driver.cancelled:
+            driver._bar('Finished (' + str(outcome).replace('_', ' ') + '). Groundwork is closing this window.')
+            driver.sleep(CLOSE_PAUSE)
+        try:
+            window.destroy()
+        except Exception:
+            import os
+            os._exit(0)
     threading.Thread(target=_drive, daemon=True).start()
     bw._say(bw.STATUS_READY)
     if device:
