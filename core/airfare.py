@@ -22,6 +22,11 @@ old made-up $220/person.
     ("City, ST: Airport name") matched to DOT's city names, kept when the
     airport carried passengers in BTS's T-100 counts, busiest first. Built at
     release (build_airports); a DOT refresh keeps them.
+  - Item 51 (gw 2.0/FARE_CHANGE.md, Rob 2026-10-08: "approve F1-F8 as
+    recommended"): the table also carries the same quarter a year earlier
+    ('compare'), downloaded beside the newest one, so a route's average can be
+    stated against it - like for like (season moves the average ~10% within a
+    year), in each quarter's own dollars, by sign only, never estimated.
 """
 import base64
 import json
@@ -118,14 +123,81 @@ def lookup(from_market, to_market, from_airport='', to_airport=''):
            'from_name': t['markets'][a], 'to_name': t['markets'][b]}
     fa, fb = (from_airport or '').strip().upper(), (to_airport or '').strip().upper()
     if fa and fb:
-        for ap1, ap2, m1, m2, fare, pax in t.get('airport_pairs') or []:
-            if {(ap1, m1), (ap2, m2)} == {(fa, a), (fb, b)}:
-                return {**out, 'found': True, 'basis': 'airport', 'from_airport': fa, 'to_airport': fb,
-                        'fare_one_way': fare, 'passengers_per_day': pax}
-    for m1, m2, fare, pax in t['city_pairs']:
-        if {m1, m2} == {a, b}:
-            return {**out, 'found': True, 'basis': 'city', 'fare_one_way': fare, 'passengers_per_day': pax}
+        hit = _airport_pair(t.get('airport_pairs'), a, b, fa, fb)
+        if hit:
+            return {**out, 'found': True, 'basis': 'airport', 'from_airport': fa, 'to_airport': fb,
+                    'fare_one_way': hit[0], 'passengers_per_day': hit[1], 'change': change(t, a, b, fa, fb)}
+    hit = _city_pair(t['city_pairs'], a, b)
+    if hit:
+        return {**out, 'found': True, 'basis': 'city', 'fare_one_way': hit[0], 'passengers_per_day': hit[1],
+                'change': change(t, a, b)}
     return {**out, 'found': False, 'reason': 'no_route'}
+
+
+def _airport_pair(pairs, a, b, fa, fb):
+    for ap1, ap2, m1, m2, fare, pax in pairs or []:
+        if {(ap1, m1), (ap2, m2)} == {(fa, a), (fb, b)}:
+            return fare, pax
+    return None
+
+
+def _city_pair(pairs, a, b):
+    for m1, m2, fare, pax in pairs or []:
+        if {m1, m2} == {a, b}:
+            return fare, pax
+    return None
+
+
+# ── Has the average gone up or down? (item 51) ──────────────────────────────
+
+def _compare_valid(t):
+    """The comparison is the same quarter a year earlier (F1), and a real quarter's worth of rows, or nothing."""
+    c = t.get('compare')
+    return (isinstance(c, dict) and c.get('year') == t['year'] - 1 and c.get('quarter') == t['quarter']
+            and len(c.get('city_pairs') or []) >= MIN_CITY_ROWS)
+
+
+def change(t, a, b, fa='', fb=''):
+    """The route's average against the same quarter a year earlier (F1). Like for like (F3): the airport pair when
+    both quarters list it, otherwise the city pair for both; a route the earlier quarter does not list is said so,
+    never estimated. The direction is the sign alone (F2); dollars are each quarter's own (F4); one-way, per leg (F6);
+    both quarters' passengers a day are carried (F7). available: False with no comparison table (F5)."""
+    if not _compare_valid(t):
+        return {'available': False, 'reason': 'no_compare_table'}
+    c = t['compare']
+    when = {'year': c['year'], 'quarter': c['quarter']}
+    now = then = None
+    basis = 'airport'
+    if fa and fb:
+        now, then = _airport_pair(t.get('airport_pairs'), a, b, fa, fb), _airport_pair(c.get('airport_pairs'), a, b, fa, fb)
+    if not (now and then):
+        basis = 'city'
+        now, then = _city_pair(t['city_pairs'], a, b), _city_pair(c['city_pairs'], a, b)
+    if not now:
+        return {'available': False, 'reason': 'no_route', **when}
+    if not then:
+        return {'available': False, 'reason': 'no_earlier_route', **when}
+    diff = round(now[0] - then[0], 2)
+    return {'available': True, **when, 'basis': basis, 'fare_now': now[0], 'fare_then': then[0],
+            'passengers_now': now[1], 'passengers_then': then[1], 'difference': abs(diff),
+            'percent': round(abs(diff) / then[0] * 100, 1),
+            'direction': 'more' if diff > 0 else ('less' if diff < 0 else 'same')}
+
+
+def attach_compare(t):
+    """F5: download the same quarter a year earlier into t['compare']. True when it read cleanly; on any failure
+    the table is left as it was, and the page says nothing about change."""
+    try:
+        p = build(t['year'] - 1, t['quarter'])
+    except Exception as e:     # network, DOT's API
+        logger.warning('airfare: year-earlier quarter not downloaded: %s', e)
+        p = None
+    if not p:
+        t.pop('compare', None)
+        return False
+    t['compare'] = {'year': p['year'], 'quarter': p['quarter'],
+                    'city_pairs': p['city_pairs'], 'airport_pairs': p['airport_pairs']}
+    return True
 
 
 # ── The Google Flights search, filled in (item 42) ──────────────────────────
@@ -329,6 +401,7 @@ def refresh(force=False):
                     result = {'updated': False, 'reason': 'bad_download'}
                 else:
                     t['airports'] = (current or {}).get('airports') or {}     # built at release, not refetched
+                    attach_compare(t)                                          # item 51 F5; optional
                     _write(DOWNLOADED, t)
                     result = {'updated': True, 'year': year, 'quarter': quarter}
         except Exception as e:     # network, DOT's API, a full disk: keep what we have
@@ -350,7 +423,9 @@ if __name__ == '__main__':
     if not t:
         raise SystemExit(f'DOT {y} Q{q} did not read cleanly; shipped table left alone')
     t['airports'] = _fetch_airports(t)
+    attach_compare(t)
     _write(SHIPPED, t)
     print(f'shipped table: DOT {y} Q{q}, {len(t["markets"])} markets, '
           f'{len(t["city_pairs"])} city pairs, {len(t["airport_pairs"])} airport pairs, '
-          f'airports for {len(t["airports"])} cities')
+          f'airports for {len(t["airports"])} cities; '
+          + (f'compared with {t["compare"]["year"]} Q{t["compare"]["quarter"]}' if t.get('compare') else 'NO year-earlier quarter'))

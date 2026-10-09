@@ -115,7 +115,7 @@ def run(ctx):
               and af.lookup(chi, den)['fare_one_way'] == 123.45)
         sent = json.dumps(calls)
         check('s152 D3 the download asks DOT only for a whole quarter - no city, airport or route of the user\'s',
-              len(calls) == 3 and all(set(p) <= {'$select', '$order', '$limit', '$where'} for _, p in calls)
+              len(calls) == 5 and all(set(p) <= {'$select', '$order', '$limit', '$where'} for _, p in calls)
               and 'Chicago' not in sent and chi not in sent and 'ORD' not in sent.replace('airport_1', ''))
         calls.clear()
         res = (c.post('/api/trip/airfare-refresh', headers=H).get_json() or {}).get('data')
