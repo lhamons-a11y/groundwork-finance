@@ -6575,28 +6575,31 @@ function clientParseCSV(text) {
 // Maps Apple Card's category labels to Groundwork's category system.
 // Apple categories: Food and Drink, Shopping, Entertainment, Health,
 // Transportation, Travel, Services, Other, Interest, Payment
+// Item 52 L2 (CATEGORY_LABELS.md): every name returned here is a real category
+// in the tree - Apple's "Gas" is fuel (Gas / Fuel, under Transportation), not
+// the natural-gas utility; the tree has no Shopping, so it is Personal.
 function _mapAppleCardCategory(appleCategory, description) {
   const ac = (appleCategory || '').toLowerCase().trim();
   const d  = (description   || '').toLowerCase();
   switch (ac) {
     case 'food and drink':
-    case 'restaurants':       return clientAutoCategory(description) || 'Restaurant';
+    case 'restaurants':       return clientAutoCategory(description) || 'Restaurants';
     case 'groceries':         return 'Groceries';
-    case 'shopping':          return clientAutoCategory(description) || 'Shopping';
+    case 'shopping':          return clientAutoCategory(description) || 'Personal';
     case 'entertainment':     return clientAutoCategory(description) || 'Entertainment';
-    case 'health':            return 'Health';
-    case 'fitness':           return 'Health';
+    case 'health':            return 'Healthcare';
+    case 'fitness':           return 'Gym / Fitness';
     case 'transportation':    return clientAutoCategory(description) || 'Transportation';
-    case 'gas':               return 'Gas';
-    case 'travel':            return clientAutoCategory(description) || 'Travel';
-    case 'hotel':             return 'Travel';
-    case 'flights':           return 'Travel';
+    case 'gas':               return 'Gas / Fuel';
+    case 'travel':            return clientAutoCategory(description) || 'Vacation / Travel';
+    case 'hotel':             return 'Vacation / Travel';
+    case 'flights':           return 'Vacation / Travel';
     case 'services':          return clientAutoCategory(description) || 'Utilities';
     case 'utilities':         return 'Utilities';
     case 'home':              return 'Home';
     case 'education':         return 'Education';
-    case 'interest':          return 'Interest';
-    case 'fees & adjustments':return 'Fees';
+    case 'interest':          return 'Interest / Fees';
+    case 'fees & adjustments':return 'Interest / Fees';
     default:
       // Fall back to keyword-based auto-categorization
       return clientAutoCategory(description) || 'Other';
@@ -22286,6 +22289,7 @@ function renderCategoryManager() {
     if (!ok) throw new Error('load failed');
     _drawCategoryManager();
     _renderCategoryCleanup();
+    _renderLabelReview();
   }).catch(() => {
     cont.innerHTML = '<div style="font-size:12px;color:var(--slate)">Could not load categories.</div>';
   });
@@ -22426,6 +22430,77 @@ function _renderCategoryCleanup() {
     }).join('');
 
   content.innerHTML = rows;
+}
+
+// Item 52 L5 (CATEGORY_LABELS.md): rows saved before the import names were
+// fixed - fill-ups under the natural-gas utility, a stray "Fitness" category -
+// offered with their amounts. Nothing moves without a yes; "Leave them" leaves
+// them, and the list is here again next time.
+let _labelReview = null;
+
+function labelReviewHTML(r) {
+  if (!r || (!r.fuel && !r.fitness)) return '';
+  let h = '';
+  if (r.fuel) {
+    const f = r.fuel, n = f.count;
+    h += `<div style="font-size:13px;color:var(--ink);margin-bottom:6px">${n} purchase${n !== 1 ? 's' : ''} in <strong>Gas</strong> (your natural-gas utility) look${n === 1 ? 's' : ''} like fill-up${n !== 1 ? 's' : ''}, not gas bill${n !== 1 ? 's' : ''} — ${fmt(f.total)} in all. Move ${n === 1 ? 'it' : 'them'} to <strong>Gas / Fuel</strong> (Transportation)?</div>
+      <div style="font-size:11px;color:var(--slate-2);margin-bottom:6px">Older imports filed fuel under Gas. Moving them changes what the gas bill and gasoline estimates read.</div>
+      <div id="labelReviewRows" style="max-height:220px;overflow:auto;margin-bottom:8px">${f.rows.map(x => `
+        <label style="display:flex;gap:8px;align-items:center;font-size:12px;padding:3px 0">
+          <input type="checkbox" class="lrFuel" value="${x.id}" checked>
+          <span style="flex:1">${esc(x.description)}</span><span>${fmtDate(x.date)}</span><strong>${fmt(x.amount)}</strong></label>`).join('')}</div>
+      <button class="btn btn-primary btn-sm" onclick="labelReviewMove(true)">Move all</button>
+      <button class="btn btn-secondary btn-sm" onclick="labelReviewMove(false)">Move the ones checked</button>
+      <button class="btn btn-ghost btn-sm" onclick="g('labelReviewContent').innerHTML=''">Leave them</button>`;
+  }
+  if (r.fitness) {
+    const x = r.fitness;
+    h += `<div id="labelReviewFitness" style="margin-top:${r.fuel ? '14px' : '0'}"><div style="font-size:13px;color:var(--ink);margin-bottom:6px">A category named <strong>${esc(x.name)}</strong> (${x.count} transaction${x.count !== 1 ? 's' : ''}) was made by an older import. Merge it into <strong>${esc(x.to)}</strong> (Healthcare)?</div>
+      <button class="btn btn-secondary btn-sm" onclick="labelReviewMergeFitness()">Merge into ${esc(x.to)}</button>
+      <button class="btn btn-ghost btn-sm" onclick="g('labelReviewFitness').remove()">Leave it</button></div>`;
+  }
+  return h;
+}
+
+async function _renderLabelReview() {
+  const box = g('labelReviewContent');
+  if (!box) return;
+  try { _labelReview = await API.get('/api/categories/label-review'); }
+  catch (e) { _gwErr('_renderLabelReview')(e); _labelReview = null; }
+  box.innerHTML = labelReviewHTML(_labelReview);
+  const card = g('labelReviewCard');
+  if (card) card.style.display = box.innerHTML ? '' : 'none';
+}
+
+async function labelReviewMove(all) {
+  const ids = all ? (_labelReview?.fuel?.rows || []).map(x => x.id)
+                  : [...document.querySelectorAll('.lrFuel:checked')].map(e => parseInt(e.value, 10));
+  if (!ids.length) { showToast('Nothing checked', '', 'warning'); return; }
+  try {
+    const r = await API.post('/api/categories/label-review/move', { ids });
+    showToast('Moved to Gas / Fuel', `${r.moved} purchase${r.moved !== 1 ? 's' : ''}`, 'success');
+  } catch (e) { showToast('Could not move them', e.message || '', 'error'); return; }
+  await renderCategoryManager();
+  renderLedger(); renderDashboard(); _refreshBudgetIfActive();
+}
+
+function labelReviewMergeFitness() {
+  const x = _labelReview?.fitness;
+  if (!x) return;
+  confirmAction(
+    `Merge "${esc(x.name)}" into "${esc(x.to)}"?`,
+    `<div style="font-size:13px;color:var(--slate);line-height:1.6">${x.count} transaction${x.count !== 1 ? 's' : ''} and any budget lines using "${esc(x.name)}" will move to "${esc(x.to)}". "${esc(x.name)}" will then be removed. This can't be undone.</div>`,
+    async () => {
+      try {
+        const res = await API.post(`/api/categories/${x.id}/merge`, { target_id: x.to_id });
+        showToast('Categories merged', `${res.transactions_moved || 0} transaction${(res.transactions_moved || 0) !== 1 ? 's' : ''} moved to "${esc(x.to)}"`, 'success');
+      } catch (e) { showToast('Could not merge categories', e.message || '', 'error'); return; }
+      await renderCategoryManager();
+      renderLedger(); renderDashboard(); _refreshBudgetIfActive();
+    },
+    'Merge',
+    true
+  );
 }
 
 async function _mergeGhostCategory(sourceId) {

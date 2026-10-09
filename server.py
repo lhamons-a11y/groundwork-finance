@@ -6682,12 +6682,69 @@ def merge_category(cat_id):
         if source.id == target.id: return err('Source and target cannot be the same')
         moved = session.query(Transaction).filter_by(category_id=source.id).all()
         for t in moved: t.category_id = target.id
-        bmoved = session.query(BudgetItem).filter_by(category_id=source.id).all()
-        for b in bmoved: b.category_id = target.id
+        # Budget lines carry the category's NAME, not an id (item 52: the
+        # id lookup here raised on every merge since 1.0, so no merge ever saved).
+        bmoved = session.query(BudgetItem).filter(func.lower(BudgetItem.category) == source.name.lower()).all()
+        for b in bmoved: b.category = target.name
         if not source.is_system: session.delete(source)
         session.commit()
         return ok({'transactions_moved': len(moved), 'budget_items_moved': len(bmoved),
                    'target': serialize_category(target)})
+
+
+# ── Item 52 L5 (CATEGORY_LABELS.md, Rob 2026-10-09): what is already saved ──
+# Before item 52 the importer filed fill-ups under Gas, the natural-gas utility,
+# and gyms under a "Fitness" that is not in the tree. Fixing the names fixed new
+# imports only. This offers the rows already saved - each with its amount - and
+# moves nothing without the user's yes (no silent writing).
+
+def _label_review(session):
+    import bank_importer as bi
+    cats = session.query(Category).all()
+    by = {c.name: c for c in cats}
+    parent = {c.id: c.name for c in cats}
+    gas = next((c for c in cats if c.name == 'Gas' and parent.get(c.parent_id) == 'Utilities'), None)
+    fuel, gym = by.get('Gas / Fuel'), by.get('Gym / Fitness')
+    rows = []
+    if gas and fuel:
+        for t in session.query(Transaction).filter(Transaction.category_id == gas.id, Transaction.type == 'debit').all():
+            if bi.auto_category(t.description or '', t.mcc or '') == 'Gas / Fuel':
+                rows.append(t)
+    stray = next((c for c in cats if c.name.lower() == 'fitness' and not c.is_system), None)
+    return gas, fuel, gym, rows, stray
+
+
+@categories_bp.route('/label-review', methods=['GET'])
+def category_label_review():
+    with db_session() as session:
+        gas, fuel, gym, rows, stray = _label_review(session)
+        rows.sort(key=lambda t: t.date, reverse=True)
+        out = {'fuel': None, 'fitness': None}
+        if rows:
+            out['fuel'] = {'from': 'Gas', 'to': 'Gas / Fuel', 'count': len(rows),
+                           'total': round(sum(float(t.amount) for t in rows), 2),
+                           'rows': [{'id': t.id, 'date': t.date.isoformat(), 'description': t.description or '',
+                                     'amount': float(t.amount)} for t in rows]}
+        if stray and gym:
+            n = session.query(Transaction).filter_by(category_id=stray.id).count()
+            out['fitness'] = {'id': stray.id, 'name': stray.name, 'count': n, 'to_id': gym.id, 'to': gym.name}
+        return ok(out)
+
+
+@categories_bp.route('/label-review/move', methods=['POST'])
+@require_json
+def category_label_review_move():
+    """Move the fill-ups the user said yes to. Only rows the review itself offers can move."""
+    ids = {int(i) for i in (request.json.get('ids') or []) if str(i).isdigit()}
+    with db_session() as session:
+        gas, fuel, gym, rows, stray = _label_review(session)
+        moved = 0
+        for t in rows:
+            if t.id in ids:
+                t.category_id = fuel.id
+                moved += 1
+        session.commit()
+        return ok({'moved': moved})
 
 
 @categories_bp.route('/bulk-categorize', methods=['POST'])
