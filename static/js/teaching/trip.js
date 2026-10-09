@@ -218,7 +218,7 @@
     var out = originalFunding.apply(this, arguments);
     try {
       var detail = document.getElementById('tripFundDetail');
-      if (detail && _tripFunding !== 'now' && _tripBudgetData) {
+      if (detail && _tripFunding === 'save' && _tripBudgetData) {
             // Lever 6 (§6.1), from the engine rather than from a division. The line
             // this replaces divided the trip by the page's "surplus" — the money left
             // AFTER the debt payment — while the sentence directly above it prices the

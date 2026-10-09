@@ -10854,13 +10854,131 @@ function setTripFunding(mode) {
   _tripFunding = mode;
   g('tripFundNow')?.classList.toggle('active',  mode==='now');
   g('tripFundSave')?.classList.toggle('active', mode==='save');
+  g('tripFundCard')?.classList.toggle('active', mode==='card');
   _renderFundingDetail();
+}
+
+// ── Item 49 (TRIP_ON_CREDIT.md, Rob 2026-10-08): putting the trip on a card ──
+// "We are not saying don't do this but if you do this then here is what you need
+// to do to pay this off and how much it will cost." Every figure is the engine's
+// (core/trip_card.py) and says what it rests on; every sentence is conditional;
+// no row is preferred. Choosing a card saves nothing and is learned from nowhere.
+let _tripCards = null, _tripCardId = null, _tripCardPlan = null, _tripCardPlanKey = '', _tripSaveRatePick = null;
+
+async function _tripLoadCards() {
+  try { _tripCards = (await API.get('/api/trip/cards')).cards || []; }
+  catch (e) { _gwErr('_tripLoadCards')(e); _tripCards = []; }
+  _renderFundingDetail();
+}
+
+function tripPickCard(id) {
+  _tripCardId = id ? parseInt(id, 10) : null;
+  _tripCardPlan = null; _tripCardPlanKey = '';
+  _renderFundingDetail();
+}
+
+function tripPickSaveRate(pct) {
+  _tripSaveRatePick = pct ? parseFloat(pct) : null;
+  _renderFundingDetail();
+}
+
+async function _tripLoadCardPlan(amount) {
+  const key = `${_tripCardId}|${amount}`;
+  if (_tripCardPlanKey === key) return;
+  _tripCardPlanKey = key;
+  try { _tripCardPlan = await API.get(`/api/trip/card-plan?card_id=${_tripCardId}&amount=${amount}`); }
+  catch (e) { _gwErr('_tripLoadCardPlan')(e); _tripCardPlan = null; }
+  _renderFundingDetail();
+}
+
+// R5: the user's own rate - income minus spending over income, the way the
+// annual summary counts it - from the last 6 full months, and only when every
+// one of them has income recorded (absence is not zero). Otherwise null, and the
+// user picks a rate to plan with.
+function tripOwnSavingsRate(transactions, today) {
+  const t0 = today || new Date();
+  const months = [];
+  for (let i = 1; i <= 6; i++) {
+    const d = new Date(t0.getFullYear(), t0.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  let inc = 0, spend = 0;
+  for (const m of months) {
+    const tx = (transactions || []).filter(t => (t.date || '').startsWith(m));
+    const mi = tx.filter(_isEarn).reduce((s, t) => s + t.amount, 0);
+    if (!(mi > 0)) return null;
+    inc += mi;
+    spend += tx.filter(_isSpend).reduce((s, t) => s + t.amount, 0);
+  }
+  return { rate: Math.round(((inc - spend) / inc) * 1000) / 10, monthlyIncome: inc / 6 };
+}
+
+function tripCardDetailHTML(p, surplus, own, pick, incomeMonthly) {
+  const c = p.card, money = fmt, n = (k) => `${k} month${k !== 1 ? 's' : ''}`;
+  const fit = p.available == null
+    ? `${esc(c.name)}'s credit limit isn't entered, so Groundwork can't tell whether ${money(p.amount)} fits.`
+    : p.fits
+      ? `The trip is ${money(p.amount)}. ${esc(c.name)} has ${money(p.available)} of available credit.`
+      : `The trip is ${money(p.amount)}. ${esc(c.name)} has ${money(p.available)} of available credit — ${money(p.short_by)} short.`;
+  const left = (pay) => {
+    const l = surplus - pay;
+    return l >= 0 ? `${money(l)}/mo left` : `${money(-l)}/mo more than your surplus`;
+  };
+  const rows = p.rows.map(r => `<tr><td>${n(r.months)}</td><td>${money(r.payment)}/mo</td><td>${money(r.interest)}</td>`
+    + `<td>${esc(r.paid_off)}</td><td>${left(r.payment)}</td></tr>`).join('');
+  const cur = p.current && p.current.payable
+    ? `At your current payments, ${esc(c.name)} carries the trip until the plan clears it: your debt-free date moves `
+      + `${p.current.months_added > 0 ? `${n(p.current.months_added)} later` : 'no later'} and the trip adds `
+      + `${money(p.current.interest_added)} in interest.`
+    : (p.current && !p.current.payable ? `At your current payments the plan could not clear the card with the trip on it.` : '');
+  let save = '';
+  if (own) {
+    const after = incomeMonthly > 0 ? Math.round(((own.rate / 100 * incomeMonthly - p.rows[0].payment) / incomeMonthly) * 1000) / 10 : null;
+    save = `You've kept ${own.rate}% of your income over the last 6 months (income minus spending, as the annual summary counts it).`
+      + (after != null ? ` With the ${money(p.rows[0].payment)}/mo of a 3-month payoff, that would be ${after}% for those months.` : '');
+  } else if (pick) {
+    const set = Math.round(pick / 100 * incomeMonthly * 100) / 100;
+    save = `At the ${pick}% you chose: ${money(set)}/mo set aside, leaving ${money(surplus - set)}/mo of your surplus before any trip payment.`;
+  } else {
+    save = `Your record doesn't show 6 full months of income, so Groundwork can't tell what you usually keep. Pick a rate to plan with: `
+      + [5, 10, 15, 20].map(r => `<button class="btn btn-secondary btn-sm" style="margin:2px" onclick="tripPickSaveRate(${r})">${r}%</button>`).join('');
+  }
+  return `<div style="font-size:12px;color:var(--ink);line-height:1.7">
+    <div>${fit}</div>
+    <div style="margin-top:8px">If you pay it off in full by the statement due date: ${money(p.amount)} once, and no interest if your card has a grace period — check your card's terms.</div>
+    <table style="width:100%;margin-top:8px;font-size:12px"><tr style="color:var(--slate)"><td>If you pay it off in…</td><td>Each month</td><td>Interest</td><td>Paid off</td><td>Your surplus</td></tr>${rows}</table>
+    <div style="margin-top:8px">${cur}</div>
+    <div style="margin-top:8px">Your surplus after debt payments today: ${money(surplus)}/mo. ${save}</div>
+    <div style="margin-top:8px;font-size:11px;color:var(--slate-2)">${p.assumptions.map(esc).join(' ')}</div>
+  </div>`;
+}
+
+function _renderCardFunding(detail) {
+  if (_tripCards === null) { detail.textContent = 'Loading your cards…'; _tripLoadCards(); return; }
+  if (!_tripCards.length) { detail.textContent = 'No credit card is recorded on your Debt page, so there is nothing to put it on yet.'; return; }
+  const opts = ['<option value="">Choose a card…</option>'].concat(_tripCards.map(c =>
+    `<option value="${c.id}"${c.id === _tripCardId ? ' selected' : ''}>${esc(c.name)} · ${fmt(c.balance)} balance · ${c.apr}% APR · `
+    + `${c.available == null ? 'limit not entered' : fmt(c.available) + ' available'}</option>`)).join('');
+  let html = `<select id="tripFundCardSelect" onchange="tripPickCard(this.value)" style="width:100%;margin-bottom:8px">${opts}</select>`;
+  const total = _tripBudgetData && _tripBudgetData.total;
+  if (_tripCardId && total > 0) {
+    if (_tripCardPlan && _tripCardPlanKey === `${_tripCardId}|${total}`) {
+      const own = tripOwnSavingsRate(S.transactions);
+      const income = own ? own.monthlyIncome : (S.incomes || []).reduce((s, i) => s + (i.amount || 0), 0);
+      html += tripCardDetailHTML(_tripCardPlan, _tripBudgetData.surplus, own, _tripSaveRatePick, income);
+    } else {
+      html += 'Working it out…';
+      _tripLoadCardPlan(total);
+    }
+  }
+  detail.innerHTML = html;
 }
 
 function _renderFundingDetail() {
   const detail = g('tripFundDetail');
   if (!detail || !_tripBudgetData) return;
   const { total, surplus } = _tripBudgetData;
+  if (_tripFunding === 'card') { _renderCardFunding(detail); return; }
   if (_tripFunding === 'now') {
     const remaining = surplus - total;
     detail.innerHTML = remaining >= 0
