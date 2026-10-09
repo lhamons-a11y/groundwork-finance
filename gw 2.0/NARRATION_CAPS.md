@@ -1,7 +1,7 @@
 # Item 12, step 2 — Room to finish: each AI surface's length cap
 
 Opened 2026-10-09 (Rob: *"open item 12 step 2"*, *"ok measure them after the gate"*). Step 1 (R10: a cut answer is not
-an answer) is on both lines and ACCEPTED (2026-10-03). Step 2, the caps themselves, was never ruled. **K1–K8 RULED 2026-10-09 (Rob: "I accept these rules as written")**: K3 (a), keep the finished sentences and mark them shortened; master only (K8). **BUILT 2026-10-09 (Rob: "build item 12 step 2")**: the caps and word lengths in `app.js` (K1, K2), `_gwKeepFinished` and the shortened mark in `callAI` and the stream (K3), the classifier in batches of 10 (K4), `generateReport` removed and its buttons pointed at the live report (K5), `s171` (K6 included). K7 measured, then a length limit added (§3). Awaiting acceptance.
+an answer) is on both lines and ACCEPTED (2026-10-03). Step 2, the caps themselves, was never ruled. **K1–K8 RULED 2026-10-09 (Rob: "I accept these rules as written")**: K3 (a), keep the finished sentences and mark them shortened; master only (K8). **BUILT 2026-10-09 (Rob: "build item 12 step 2")**: the caps and word lengths in `app.js` (K1, K2), `_gwKeepFinished` and the shortened mark in `callAI` and the stream (K3), the classifier in batches of 10 (K4), `generateReport` removed and its buttons pointed at the live report (K5), `s171` (K6 included). K7 measured, then a length limit added (§3). **ACCEPTED and CLOSED (Rob, 2026-10-09: "I accept items 10 and 12 step 2"), gate 2699 / 0.**
 
 ## 1. What is true today (measured 2026-10-09 on master 65048b4)
 

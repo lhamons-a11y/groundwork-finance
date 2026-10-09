@@ -5,7 +5,7 @@ program?"*, and *"lets not worry about never break the rules as much as giving t
 instead of hoping they holdup"*).
 
 Item 10 was DECIDED on 2026-08-30 (*narration is streamed*; `MODEL_PLACEMENT.md`, blueprint Appendix H) and measured
-in `STREAMING.md` on 2026-09-20, when the model ran in Ollama. It was never built. **S1–S9 RULED 2026-10-09 (Rob: "approve S1–S9 as recommended")**: S1 (a), sentence-gated reveal; master only (S8); CPU-only before/after timing needed for acceptance (S7). **BUILT 2026-10-09 (Rob: "build item 10")**: `engine.chat_stream` / `cancel`, `/api/ai/chat` `stream: true` and `/api/ai/stop`, callAI's sentence-checked streamed attempt, the live panel with Stop on the monthly report and the report narratives, `s170`. Awaiting acceptance.
+in `STREAMING.md` on 2026-09-20, when the model ran in Ollama. It was never built. **S1–S9 RULED 2026-10-09 (Rob: "approve S1–S9 as recommended")**: S1 (a), sentence-gated reveal; master only (S8); CPU-only before/after timing needed for acceptance (S7). **BUILT 2026-10-09 (Rob: "build item 10")**: `engine.chat_stream` / `cancel`, `/api/ai/chat` `stream: true` and `/api/ai/stop`, callAI's sentence-checked streamed attempt, the live panel with Stop on the monthly report and the report narratives, `s170`. **ACCEPTED and CLOSED (Rob, 2026-10-09: "I accept items 10 and 12 step 2"), gate 2687 / 0. S7's timing on a slower machine was not taken; it carries forward by name.**
 
 ## 1. What is true today (measured 2026-10-09 on master a729e15)
 
