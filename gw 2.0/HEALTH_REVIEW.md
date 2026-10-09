@@ -199,3 +199,58 @@ completed privacy gate.
 - **Findings confirmed against the code:** section 2 (Findings A and B), measured on master `c32a083`.
 - **Design decisions approved here:** H1–H7, with the boundaries above.
 - **Work authorised:** none. Each piece, starting with H1, needs its own item and go-ahead.
+
+## 7. Open design questions recorded 2026-10-09 (no code, no authorisation)
+
+Recorded after a review of the 2026-10-08 ruling. That review found the ruling already separated design approval from
+authorisation (§6), already kept H1 and H2 apart, and already ruled H5's unknown-terms case and H7's gates. It also
+found two requirements not yet written down precisely enough to stop a later build from meeting the wording and
+missing the intent.
+
+**Verified against the repository** (not a narrative summary):
+- `dc004e3`: the design-level ruling.
+- Item 46 (H1): `cc37853`, accepted, gate 2532 / 0.
+- Item 47 (H2): `e9d6d95`, accepted at `e6178be`, gate 2566 / 0.
+- `8fafb95` (this review) contained this document **and one `BUILD_QUEUE.md` row**. Rob was told, and said to push it as
+  is.
+
+**H4 — Evidence scope for medication-cost claims (open).** Before designing this slice, define which claims each type
+of user record can support. A recorded pharmacy payment establishes the recorded payment (for example, $25 paid on a
+date). It does not establish:
+- the medication's regular price;
+- the next refill's cost;
+- the out-of-pocket cost after an insurance or plan change.
+
+Each displayed claim must be supported by evidence sufficient for that specific claim, with the source and relevant
+date of each amount preserved. No claim may be extended beyond what its evidence establishes. This is the existing
+per-figure discipline (R8; item 60 I3), not a new mechanism.
+
+**H6 — Privacy enforcement inventory (open).** Before declaring the privacy enforcement point complete, establish an
+inventory of the relevant data **flows and sinks**: logs, exports, backups, diagnostics, model context, and the AI log
+introduced by item 62. For each applicable path, define:
+1. what data can reach it, including **derived** health-sensitive information, not only explicitly named health
+   records (a record without a name can still disclose through an associated transaction or an inference);
+2. what may be retained, exported or disclosed;
+3. what enforcement prevents prohibited data from crossing the boundary;
+4. which test demonstrates that enforcement works.
+
+Establish the inventory's completeness criteria before treating the gate as satisfied. This does not require every
+conceivable path to be built or investigated now. The completeness criteria must be **verifiable**, not a statement in a document:
+- the design specifies how the inventory is reconciled against the actual code paths and relevant dependencies, so a
+  new logging or export path cannot silently escape it;
+- item 62's AI log is an explicit **test case**, not only a mention.
+
+Recording this requirement does not satisfy it. H4 and H6 each need their own design work and acceptance gate when
+their slices are opened.
+
+**Status:** open design questions only. No code, schema change, migration or implementation authorisation follows from
+this section. Each is taken up when its slice is opened.
+
+**Decision, 2026-10-09:**
+- **H6:** the requirements above are accepted as design requirements, and **the gate remains open**. H6 is complete
+  only after its design is approved, its implementation is separately authorised, and its acceptance tests pass. The
+  tests must cover the inventory, the reconciliation method, each path's boundary and enforcement, and item 62's AI
+  log as a regression case.
+- **H4:** remains an open design question.
+
+Item 57's work is separate and does not affect either.
