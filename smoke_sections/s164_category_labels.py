@@ -91,6 +91,38 @@ def run(ctx):
                 s.get(Category, renamed).name = 'Gym / Fitness'
             s.commit()
 
+    # The category merge (both lines; Rob 2026-10-09: "fix the merge button on 1.x too"). It looked budget lines up
+    # by a category_id they don't have and raised on every merge since 1.0, so no merge ever saved.
+    mt, ma, mc, mb = [], [], [], []
+    try:
+        from datetime import date
+        with db_session() as s:
+            target_id = s.query(Category).filter(Category.name == 'Gym / Fitness').first().id
+            a = Account(name='s164 merge Checking', type='checking', is_active=True)
+            ghost = Category(name='S164 Ghost', is_system=False)
+            s.add_all([a, ghost]); s.flush()
+            tx = Transaction(date=date.today(), description='S164 GHOST ROW', amount=5.0, type='debit', account_id=a.id, category_id=ghost.id)
+            bl = BudgetItem(name='S164 ghost line', category='s164 ghost', amount=5.0)
+            s.add_all([tx, bl]); s.commit()
+            mt.append(tx.id); ma.append(a.id); mc.append(ghost.id); mb.append(bl.id)
+        r = c.post(f'/api/categories/{mc[0]}/merge', headers=HJ, data=json.dumps({'target_id': target_id}))
+        with db_session() as s:
+            gone = s.get(Category, mc[0]) is None
+            row_ok = s.get(Transaction, mt[0]).category_id == target_id
+            line = s.get(BudgetItem, mb[0]).category
+        check('s164 the category merge saves: rows and budget lines (matched by name, any case) move, and the merged category is removed',
+              r.status_code == 200 and gone and row_ok and line == 'Gym / Fitness'
+              and (r.get_json() or {}).get('data', {}).get('budget_items_moved') == 1)
+        if gone:
+            mc.clear()
+    finally:
+        with db_session() as s:
+            s.query(Transaction).filter(Transaction.id.in_(mt)).delete(synchronize_session=False)
+            s.query(Account).filter(Account.id.in_(ma)).delete(synchronize_session=False)
+            s.query(Category).filter(Category.id.in_(mc)).delete(synchronize_session=False)
+            s.query(BudgetItem).filter(BudgetItem.id.in_(mb)).delete(synchronize_session=False)
+            s.commit()
+
     # L5 (master): rows already saved are offered, with their amounts, and move only on a yes
     if not (ctx.BASE / 'core/utility_estimate.py').exists():
         return
