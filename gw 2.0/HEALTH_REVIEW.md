@@ -235,7 +235,13 @@ introduced by item 62. For each applicable path, define:
 4. which test demonstrates that enforcement works.
 
 Establish the inventory's completeness criteria before treating the gate as satisfied. This does not require every
-conceivable path to be built or investigated now.
+conceivable path to be built or investigated now. The completeness criteria must be **verifiable**, not a statement in a document:
+- the design specifies how the inventory is reconciled against the actual code paths and relevant dependencies, so a
+  new logging or export path cannot silently escape it;
+- item 62's AI log is an explicit **test case**, not only a mention.
+
+Recording this requirement does not satisfy it. H4 and H6 each need their own design work and acceptance gate when
+their slices are opened.
 
 **Status:** open design questions only. No code, schema change, migration or implementation authorisation follows from
 this section. Each is taken up when its slice is opened.
