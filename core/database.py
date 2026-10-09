@@ -5428,6 +5428,9 @@ CATEGORY_TREE = [
     ('Phone / Cell',            'expense','#06b6d4','phone',       'Utilities', 4, True, False),
     ('Trash',                   'expense','#06b6d4','trash',       'Utilities', 5, True, False),
     ('Cable / TV',              'expense','#06b6d4','tv',          'Utilities', 6, True, False),
+    # Item 56 (MUNICIPAL_UTILITIES.md): one bill from a city, village or town for several services; what it covers
+    # is the household fact municipal_covers
+    ('Municipal Utilities',     'expense','#06b6d4','building',    'Utilities', 7, True, False),
 
     # ── Food ──────────────────────────────────────────────────────────────────
     ('Food',                    'expense','#f97316','utensils',    None,   2,  True, False),

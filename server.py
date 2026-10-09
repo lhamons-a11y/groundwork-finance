@@ -2603,6 +2603,17 @@ def delivered_estimate(session, fuel, fetch=True, today=None):
 _HEAT_WORDS = {'propane': 'propane', 'heating_oil': 'heating oil', 'wood_pellets': 'wood or pellets', 'other': 'another fuel'}
 
 
+def _municipal_ask(session, f):
+    """Item 56 U2: ask what the municipal bill covers - once, where it matters - only when a Municipal Utilities
+    charge exists and the question is unanswered. Never inferred from the amount or from other bills."""
+    if f.get('municipal_covers'):
+        return []
+    cat = session.query(Category).filter(Category.name == 'Municipal Utilities').first()
+    if not cat or not session.query(Transaction.id).filter(Transaction.category_id == cat.id).first():
+        return []
+    return ['municipal_covers']
+
+
 def utility_applies(session, kind):
     """Whether an item 26 estimate applies to this household, from what it told Groundwork (ONBOARDING_REVISIT.md).
 
@@ -2637,6 +2648,10 @@ def utility_applies(session, kind):
             how = 'the same amount every month' if pay == 'even_monthly' else 'a prepaid contract'
             return {'applies': False, 'why': f'You told us you pay for heating with {how}. Those payments do not follow '
                                              f'the weather, so they cannot show how much gas you use - there is no estimate.'}
+        if 'natural_gas' in (f['municipal_covers'] or '').split(','):     # item 56 U5
+            return {'applies': False, 'why': 'Your natural gas is on your municipal utility bill with other services, so '
+                                             'Groundwork can\'t separate it from the total - there is no natural gas estimate.'}
+        ask += _municipal_ask(session, f)
         if fuel is None:
             return {'applies': True, 'ask': ask + ['heating_fuel'],
                     'assumes': 'Reading the bills in your Gas category as natural gas. Tell us what heats your home to be sure.'}
@@ -2662,7 +2677,10 @@ def utility_applies(session, kind):
         if f['housing_status'] == 'rent' and f['electricity_included'] == 'yes':
             return {'applies': False, 'why': 'You told us your rent includes electricity, so there is no electricity '
                                              'bill to estimate.'}
-        return {'applies': True, 'ask': ask}
+        if 'electricity' in (f['municipal_covers'] or '').split(','):     # item 56 U5
+            return {'applies': False, 'why': 'Your electricity is on your municipal utility bill with other services, so '
+                                             'Groundwork can\'t separate it from the total - there is no electricity estimate.'}
+        return {'applies': True, 'ask': ask + _municipal_ask(session, f)}
     if kind == 'gasoline':
         v = f['vehicle_fuel']
         if v == 'electric':
@@ -6732,12 +6750,16 @@ _OLD_MATCHER_ANSWERS = ('Utilities', 'Insurance', 'Transportation', 'Food', 'Hea
                         'Personal Care', 'Tuition / Courses')
 
 
+_MUNICIPAL_FROM = ('Other', 'Water / Sewer', 'Utilities')
+
+
 def _regroup_review(session):
     import bank_importer as bi
     cats = session.query(Category).all()
     by_id = {c.id: c for c in cats}
     by_name = {c.name: c for c in cats}
-    from_ids = [c.id for c in cats if c.name in _OLD_MATCHER_ANSWERS]
+    # Item 56 U6: Other and Water / Sewer are old answers only for a municipal utility bill
+    from_ids = [c.id for c in cats if c.name in _OLD_MATCHER_ANSWERS or c.name in _MUNICIPAL_FROM]
     groups = {}
     if not from_ids:
         return groups
@@ -6748,6 +6770,8 @@ def _regroup_review(session):
             continue
         if to == 'Gas / Fuel' and src in ('Gas', 'Groceries'):
             continue                  # item 52/53's blocks
+        if src in _MUNICIPAL_FROM and src not in _OLD_MATCHER_ANSWERS and to != 'Municipal Utilities':
+            continue                  # item 56 U6: from Other or Water / Sewer, only to Municipal Utilities
         groups.setdefault((src, to), []).append(t)
     return groups
 

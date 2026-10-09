@@ -17,7 +17,7 @@ EXPECT = {
     'AEP OHIO BILL PAY': 'Electric', 'OHIO EDISON 12': 'Electric', 'DOMINION ENERGY GAS': 'Gas', 'COLUMBIA GAS OF OHIO': 'Gas',
     'ENBRIDGE GAS 44': 'Gas', 'CITY WATER DEPT': 'Water / Sewer', 'RUMPKE TRASH PICKUP': 'Trash',
     'DUKE ENERGY 1234': 'Other', 'DOMINION ENERGY 123': 'Other', 'NATIONAL GRID 7': 'Other', 'PGE WEB PAY': 'Other',
-    'CITY UTILITY BILL': 'Other',
+    'CITY UTILITY BILL': 'Municipal Utilities',   # item 56 U4: a city's utility bill
     'GEICO AUTO': 'Auto Insurance', 'STATE FARM 1234': 'Auto Insurance', 'ANTHEM INSURANCE': 'Other',
     'UBER TRIP 123': 'Rideshare / Transit', 'LYFT RIDE': 'Rideshare / Transit', 'AMTRAK 44': 'Rideshare / Transit',
     'CITY PARKING 9': 'Parking / Tolls', 'OHIO TURNPIKE TOLL': 'Parking / Tolls', 'UBER EATS 1': 'Fast Food / Takeout',

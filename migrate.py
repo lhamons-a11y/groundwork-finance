@@ -12,8 +12,10 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261008-trip-bookings'   # the trip_bookings table (TRIP_BOOKED.md, item 50)
-# The previous version, '20261002-household-facts', added the household_facts table and carried existing answers
+SCHEMA_VERSION = '20261009-municipal-utilities'   # the Municipal Utilities leaf (MUNICIPAL_UTILITIES.md, item 56)
+# This bump carries no migrate.py code: a new CATEGORY_TREE leaf reaches an existing database through
+# _seed_child_categories, which runs only when the stored version differs. Before it, '20261008-trip-bookings'
+# added the trip_bookings table (TRIP_BOOKED.md, item 50). The previous version, '20261002-household-facts', added the household_facts table and carried existing answers
 # over (ONBOARDING_REVISIT.md); before it, '20260928-willingness-declarations' added the willingness_declarations table;
 # before it,
 # '20260927-cloud-ai-removed' removed cloud AI. This bump carries no migrate.py code: a

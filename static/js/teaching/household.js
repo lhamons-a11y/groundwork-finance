@@ -31,8 +31,15 @@
                                 prepaid: 'A prepaid contract', not_sure: 'Not sure' } },
     vehicle_fuel: { asks: 'What type of fuel does your vehicle use?',
                     words: { gasoline: 'Gasoline', diesel: 'Diesel', electric: 'Electric (charged)', other: 'Something else',
-                             none: 'No vehicle / no fuel expense' } }
+                             none: 'No vehicle / no fuel expense' } },
+    // Item 56 (MUNICIPAL_UTILITIES.md, U2): a SET of answers - the services one city/village/town bill covers
+    municipal_covers: { asks: 'What does your municipal utility bill cover?', multi: true,
+                        words: { water: 'Water', sewer: 'Sewer', trash: 'Trash', electricity: 'Electricity',
+                                 natural_gas: 'Natural gas', none: "I don't get a municipal utility bill" } }
   };
+  // Item 56 U3: where each service is filed when the city doesn't cover it
+  var SERVICE_LEAF = { water: 'Water / Sewer', sewer: 'Water / Sewer', trash: 'Trash', electricity: 'Electric',
+                       natural_gas: 'Gas' };
   var FUEL = { natural_gas: 'natural gas', propane: 'propane', heating_oil: 'heating oil', wood_pellets: 'wood or pellets',
                other: 'other fuel' };
 
@@ -43,7 +50,42 @@
     return { asks: 'Which state is your home in?', words: words };
   }
 
+  // Item 56 U2: a multi-answer fact is a checklist; its value is the sorted, comma-joined set (the server's form)
+  function _checklist(key, value, source) {
+    var q = Q[key], have = (value || '').split(',');
+    return '<div class="field" data-gw-q="' + key + '"><label>' + esc(q.asks) + '</label>'
+      + '<div data-gw-fact="' + key + '" data-gw-multi="1" data-gw-source="' + source + '">'
+      + Object.keys(q.words).map(function (v) {
+          return '<label style="display:inline-block;margin:2px 12px 2px 0;font-size:12px"><input type="checkbox" value="' + v + '"'
+            + (have.indexOf(v) >= 0 ? ' checked' : '') + '> ' + esc(q.words[v]) + '</label>';
+        }).join('')
+      + '</div>' + (source === 'settings' ? '<div data-gw-municipal-services>' + _municipalServices(value) + '</div>' : '')
+      + '</div>';
+  }
+
+  // The checklist's value: "none" alone, or the checked services sorted; '' when nothing is checked (withdrawn).
+  function _multiValue(box, changed) {
+    var boxes = [].slice.call(box.querySelectorAll('input[type=checkbox]'));
+    if (changed && changed.value === 'none' && changed.checked) boxes.forEach(function (b) { if (b !== changed) b.checked = false; });
+    else if (changed && changed.checked) boxes.forEach(function (b) { if (b.value === 'none') b.checked = false; });
+    return boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; }).sort().join(',');
+  }
+
+  // Item 56 U3: each service - on the municipal bill, or its own company and the category it is filed under. Nothing
+  // is concluded from a bill that isn't there (absence is not zero): a service not on the city bill is a question.
+  function _municipalServices(value) {
+    if (!value || value === 'none') return '';
+    var on = value.split(','), w = Q.municipal_covers.words;
+    var lines = ['water', 'sewer', 'trash', 'electricity', 'natural_gas'].map(function (s) {
+      return on.indexOf(s) >= 0
+        ? esc(w[s]) + ': on your municipal utility bill (filed under Municipal Utilities).'
+        : esc(w[s]) + ': not on your municipal bill. If you pay for it, its own company\'s charge is filed under ' + esc(SERVICE_LEAF[s]) + '.';
+    });
+    return '<div style="font-size:11px;color:var(--slate-2);line-height:1.7;margin-top:4px">' + lines.join('<br>') + '</div>';
+  }
+
   function _select(key, value, source) {
+    if (Q[key] && Q[key].multi) return _checklist(key, value, source);
     var q = key === 'home_state' ? _stateQ() : Q[key];
     return '<div class="field" data-gw-q="' + key + '"><label>' + esc(q.asks) + '</label>'
       + '<select class="field-input" data-gw-fact="' + key + '" data-gw-source="' + source + '">'
@@ -169,6 +211,13 @@
         var f = ev.target.closest('[data-gw-fact]');
         if (!f) return;
         _applyConditions(card);
+        if (f.dataset.gwMulti) {                    // item 56: the checklist's whole set is the answer
+          var v = _multiValue(f, ev.target);
+          var sv = card.querySelector('[data-gw-municipal-services]');
+          if (sv) sv.innerHTML = _municipalServices(v);
+          _set(f.dataset.gwFact, v, 'settings');
+          return;
+        }
         _set(f.dataset.gwFact, f.value, 'settings');
       });
     }
@@ -205,14 +254,28 @@
       + open.map(function (k) { return _select(k, '', 'inline_prompt'); }).join('') + '</div>';
     host.onchange = function (ev) {
       var f = ev.target.closest('[data-gw-fact]');
-      if (!f || !f.value) return;
+      if (!f) return;
+      if (f.dataset.gwMulti) {                      // item 56: a checklist is sent with its own Save, not per tick
+        _multiValue(f, ev.target);
+        return;
+      }
+      if (!f.value) return;
       _set(f.dataset.gwFact, f.value, 'inline_prompt').then(function () { if (done) done(); });
     };
+    [].slice.call(host.querySelectorAll('[data-gw-multi]')).forEach(function (f) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn btn-secondary btn-sm'; b.textContent = 'Save';
+      b.onclick = function () {
+        var v = _multiValue(f);
+        if (v) _set(f.dataset.gwFact, v, 'inline_prompt').then(function () { if (done) done(); });
+      };
+      f.appendChild(b);
+    });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _onboarding);
   else _onboarding();
 
-  GWTeaching.register('household', { ask: ask, load: _loadFacts, questions: Q,
+  GWTeaching.register('household', { ask: ask, load: _loadFacts, questions: Q, municipalServices: _municipalServices,
                                       housingLabel: _housingLabel, heatingLabel: _heatingLabel });
 })();

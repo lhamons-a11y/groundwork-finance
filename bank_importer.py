@@ -296,6 +296,10 @@ _CATEGORY_PATTERNS = [
               r'\bus cellular\b|\bcricket wireless\b|\bvisible\b'),
 
     # ── UTILITIES (electric, gas, water, trash — NOT phone, NOT cable)
+    # Item 56 U4 (MUNICIPAL_UTILITIES.md): one bill from a city, village or town for several services. The word
+    # 'utilit' is required, so a city parking ticket or court fee is not filed here.
+    ('Municipal Utilities', r'\b(city|village|town|township|borough)\b[a-z .\-]{0,40}?\butilit|'
+                            r'\bmunicipal utilit|\bpublic utilit'),
     ('Gas', r'\benbridge\b|\bdominion (energy )?gas\b|\bcolumbia gas\b|\bgas (company|utility)\b'),
     ('Electric', r'\baep\b|\bohio edison\b|\bdominion power\b|\bsce\b|\bsouthern california edison\b|'
                  r'\belectric (bill|company)\b'),

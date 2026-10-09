@@ -6667,6 +6667,7 @@ function clientAutoCategory(desc='') {
   if (/\banthropic\b|\bopenai\b|\bclaude\.ai\b|\bchatgpt\b|\bapple\.com\/bill\b|\bgoogle storage\b|\bicloud\b|\bdropbox\b|\bmicrosoft\b.*(365|subscription)|\badobe\b|\brocket money\b|\bexperian\b|\bcredit karma\b/.test(d)) return 'Software / Apps';
   if (/\bnyt(imes)?\b|\bwashington post\b|\bsubscription\b/.test(d)) return 'Other Subscriptions';
   if (/\bat\s*&?\s*t\b|\battinternet\b|\battpayment\b|\bverizon\b|\bt-?mobile\b|\bsprint\b|\bmint mobile\b|\bus cellular\b|\bcricket wireless\b|\bvisible\b/.test(d)) return 'Phone / Cell';
+  if (/\b(city|village|town|township|borough)\b[a-z .\-]{0,40}?\butilit|\bmunicipal utilit|\bpublic utilit/.test(d)) return 'Municipal Utilities';
   if (/\benbridge\b|\bdominion (energy )?gas\b|\bcolumbia gas\b|\bgas (company|utility)\b/.test(d)) return 'Gas';
   if (/\baep\b|\bohio edison\b|\bdominion power\b|\bsce\b|\bsouthern california edison\b|\belectric (bill|company)\b/.test(d)) return 'Electric';
   if (/\bwater (dept|utility|bill)\b|\bsewer\b|\bsewage\b/.test(d)) return 'Water / Sewer';

@@ -93,6 +93,20 @@ FACTS = {
             ('server.py', 'gasoline_estimate', 'item 34 F1: diesel is priced from EIA\'s weekly diesel series'),
         ],
     },
+    # Item 56 (MUNICIPAL_UTILITIES.md, U2): the services one municipal utility bill covers - a SET of answers, kept as
+    # a sorted, comma-joined list ('sewer,trash,water'), or 'none' alone. A changed set is a new history row.
+    'municipal_covers': {
+        'asks': 'What does your municipal utility bill cover?',
+        'values': ('water', 'sewer', 'trash', 'electricity', 'natural_gas', 'none'),
+        'multi': True,
+        'lines': '2.0',
+        'consumers': [
+            ('server.py', 'utility_applies', 'item 56 U5: no gas or electricity estimate from a bundle that covers it - '
+                                             'it says the bill cannot be separated'),
+            ('static/js/teaching/household.js', '_municipalServices', 'item 56 U3: each service on the municipal bill, '
+                                                                     'or its own company and category'),
+        ],
+    },
     'surplus_goal': {
         'asks': 'When you have money beyond your immediate needs, what would you most like it to accomplish?',
         'values': ('debt', 'savings', 'goal', 'invest', 'unsure'),
@@ -147,7 +161,9 @@ def set_household_fact(session, key, value, source):
     if source not in SOURCES:
         raise FactError(f'not a source: {source}')
     value = None if value in (None, '') else str(value)
-    if value is not None and value not in FACTS[key]['values']:
+    if value is not None and FACTS[key].get('multi'):
+        value = canonical_set(key, value)
+    elif value is not None and value not in FACTS[key]['values']:
         raise FactError(f'{key} cannot be {value!r}')
     if value == current(session, key):
         return False
@@ -164,6 +180,24 @@ def set_household_fact(session, key, value, source):
         session.add(AppSetting(key=key, value=value))
     session.flush()
     return True
+
+
+def canonical_set(key, value):
+    """A multi-answer fact's value in its one stored form: each part an allowed answer, sorted, no repeats; 'none'
+    only alone. Raises FactError otherwise."""
+    parts = sorted({p.strip() for p in str(value).split(',') if p.strip()})
+    bad = [p for p in parts if p not in FACTS[key]['values']]
+    if not parts or bad:
+        raise FactError(f'{key} cannot be {value!r}')
+    if 'none' in parts and len(parts) > 1:
+        raise FactError(f"{key}: 'none' cannot be combined with services")
+    return ','.join(parts)
+
+
+def covers(session, service):
+    """Item 56: True when the household said its municipal utility bill covers this service."""
+    v = current(session, 'municipal_covers')
+    return bool(v) and service in v.split(',')
 
 
 def carry_over(session):
