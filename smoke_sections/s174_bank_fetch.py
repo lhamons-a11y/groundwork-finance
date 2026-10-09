@@ -1,0 +1,118 @@
+"""Item 57 stage 3: the fetch (gw 2.0/BANK_AGENT.md A2/A4/A6/A7; Rob 2026-10-09: "lets do stage 3").
+
+    A2  started by the user's click only: a route, no schedule, no background start, no retry on its own
+    A4  the password is read from the vault inside the agent's process and goes only into the page's login boxes -
+        never into a line Groundwork reads, a log or a file
+    A6  it stops and says why: a code asked for (it waits for the user), the page changed, a bot check (stops for
+        good), no download in 2 minutes; nothing guessed, nothing retried on its own
+    A7  a remembered device only when the user opted in for that account; unticking forgets it
+The driver runs against a stand-in window whose page answers are scripted - no real bank, no real browser.
+"""
+import json
+import re
+
+
+class _Page:
+    """A stand-in window. `answers` is a list of results per evaluate_js call; it records what it was sent."""
+    def __init__(self, answers):
+        self.answers, self.sent = list(answers), []
+
+    def evaluate_js(self, js):
+        self.sent.append(js)
+        return self.answers.pop(0) if self.answers else 'missing'
+
+
+class _Clock:
+    def __init__(self):
+        self.t = 0.0
+
+    def now(self):
+        return self.t
+
+    def sleep(self, s):
+        self.t += s
+
+
+def run(ctx):
+    check, c, H, HJ, BASE, srv, app = ctx.check, ctx.c, ctx.H, ctx.HJ, ctx.BASE, ctx.server_src, ctx.app_src
+    import bank_agent_window as baw
+    from core import bank_vault
+
+    STEPS = [{'k': 'sign_in'}, {'k': 'click', 'text': 'Accounts'}, {'k': 'choose', 'field': 'Range', 'option': 'Last 30 days'},
+             {'k': 'click', 'text': 'Download'}]
+    LOGIN = ('s174user', 's174-Secret-pw')
+
+    def drive(answers, downloads_seq=None, login=LOGIN, steps=STEPS):
+        page, clock, lines = _Page(answers), _Clock(), []
+        seq = list(downloads_seq) if downloads_seq is not None else None
+        dl = (lambda: seq.pop(0) if len(seq) > 1 else seq[0]) if seq is not None else None
+        d = baw.Driver(page, steps, login, lines.append, now=clock.now, sleep=clock.sleep, downloads=dl)
+        return d.run(), lines, page, clock
+
+    r, lines, page, _ = drive(['ok', 'ok', 'ok', 'ok'], downloads_seq=[set(), set(), {'stmt.csv'}])
+    evs = [baw.parse_fetch_line(l) for l in lines]
+    check('s174 A6 a clean run follows each saved step in order and reports the file that arrived',
+          r == 'downloaded' and [e['s'] for e in evs] == ['step', 'step', 'step', 'step', 'downloaded'] and evs[-1]['file'] == 'stmt.csv')
+    check('s174 A4 the password goes only into the sign-in step, and no line Groundwork reads carries it',
+          LOGIN[1] in page.sent[0] and all(LOGIN[1] not in js for js in page.sent[1:]) and not any(LOGIN[1] in l for l in lines))
+
+    r, lines, _, clock = drive(['ok', 'code', 'code', 'ok', 'ok', 'ok'], downloads_seq=[set(), {'a.csv'}])
+    check('s174 A6 a code request: it says so once, waits for the user to type it, then carries on',
+          r == 'downloaded' and [baw.parse_fetch_line(l)['s'] for l in lines].count('waiting_code') == 1)
+    r, lines, _, clock = drive(['ok'] + ['code'] * 400)
+    check('s174 A6 no code in 5 minutes: it stops and says so', r == 'code_timeout' and clock.t <= baw.CODE_WAIT + baw.STEP_WAIT + 5)
+    r, lines, _, clock = drive(['ok'] + ['missing'] * 100)
+    check('s174 A6 the next control never appears: it stops after the wait - "the page changed" - nothing guessed',
+          r == 'page_changed' and baw.parse_fetch_line(lines[-1]) == {'s': 'stopped', 'i': 1, 'why': 'page_changed'} and clock.t <= baw.STEP_WAIT + 2)
+    r, lines, _, _ = drive(['ok', 'ambiguous'])
+    check('s174 A6 two controls match: it stops rather than pick one', r == 'page_changed')
+    r, lines, page, _ = drive(['ok', 'bot', 'ok', 'ok'])
+    check('s174 A6 a bot check: automation stops for good, nothing after it is tried', r == 'bot_check' and len(page.sent) == 2)
+    r, lines, _, _ = drive(['no_login'], login=None)
+    check('s174 A4 no saved login: it stops and says so', r == 'no_login')
+    r, lines, _, clock = drive(['ok', 'ok', 'ok', 'ok'], downloads_seq=[set()])
+    check('s174 A6 no file in 2 minutes: it says so', r == 'no_download' and clock.t >= baw.DOWNLOAD_WAIT)
+
+    words = [baw.fetch_words({'s': 'stopped', 'why': w}, STEPS) for w in ('bot_check', 'page_changed')]
+    check('s174 A6 the user is told why in words, and the window is theirs',
+          "Groundwork stops there; the window is yours" in words[0] and "The window is yours" in words[1])
+    check('s174 A2 Groundwork checks each line again: an unknown status or reason is refused',
+          baw.parse_fetch_line('fetch {"s":"stopped","why":"retrying"}') is None
+          and baw.parse_fetch_line('fetch {"s":"step","i":1,"password":"x"}') is None)
+    check('s174 A4 the agent reads the vault the same way Settings saves it',
+          baw.VAULT_SERVICE == bank_vault.SERVICE and "f'{VAULT_SERVICE} - {key}'" in (BASE / 'bank_agent_window.py').read_text(encoding='utf-8')
+          and "f'{SERVICE} - {key}'" in (BASE / 'core/bank_vault.py').read_text(encoding='utf-8'))
+
+    src = (BASE / 'bank_agent_window.py').read_text(encoding='utf-8')
+    check('s174 A2 nothing starts a fetch except the route the user\'s click calls - no timer, no schedule, no retry loop',
+          srv.count('start_fetch(') == 1 and "@settings_bp.route('/bank-agent/fetch', methods=['POST'])" in srv
+          and not re.search(r'(schedule|Timer\(|setInterval\([^)]*startBankFetch)', src + srv.split('bank_agent_fetch():')[1][:1500])
+          and app.count('startBankFetch(') == 2)
+    check('s174 A4 the agent writes the password to no file and no log', not re.search(r'(logging|logger|(?<![A-Za-z])open\()', src.split('# ── Stage 3')[1]))
+
+    # A7 + the route's guards
+    from core.database import Account, AppSetting, db_session
+    made = []
+    try:
+        with db_session() as s:
+            a = Account(name='s174 Checking', type='checking', is_active=True, portal_url='https://bank.example.com')
+            s.add(a); s.commit(); made.append(a.id)
+            ka = f'account:{a.id}'
+        r = c.post('/api/settings/bank-agent/fetch', headers=HJ, data=json.dumps({'key': ka}))
+        check('s174 A2 a fetch needs a saved login and saved steps first', r.status_code == 400)
+        c.post('/api/settings/bank-agent/device', headers=HJ, data=json.dumps({'key': ka, 'on': True}))
+        on = next(x for x in c.get('/api/settings/bank-logins', headers=H).get_json()['data']['accounts'] if x['key'] == ka)['remembered']
+        import server
+        d = server._bank_device_dir(ka, create=True)
+        (d / 'cookie').write_text('x')
+        c.post('/api/settings/bank-agent/device', headers=HJ, data=json.dumps({'key': ka, 'on': False}))
+        off = next(x for x in c.get('/api/settings/bank-logins', headers=H).get_json()['data']['accounts'] if x['key'] == ka)['remembered']
+        check('s174 A7 a remembered device only when ticked for that account; unticking forgets it (the folder is deleted)',
+              on is True and off is False and not d.exists())
+        check('s174 A7 with no tick the fetch runs private, as the viewer does', "device = str(_bank_device_dir(key, create=True)) if device_on else ''" in srv
+              and "private_mode=True" in src.split('def fetch_child_main')[1])
+    finally:
+        with db_session() as s:
+            s.query(AppSetting).filter(AppSetting.key.in_([f'bank_device:account:{i}' for i in made])).delete(synchronize_session=False)
+            s.query(Account).filter(Account.id.in_(made)).delete(synchronize_session=False)
+            s.commit()

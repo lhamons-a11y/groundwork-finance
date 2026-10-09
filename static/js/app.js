@@ -22800,6 +22800,7 @@ async function renderBankLogins() {
   let d;
   try { d = await API.get('/api/settings/bank-logins'); } catch (e) { _gwErr('renderBankLogins')(e); return; }
   box.innerHTML = bankLoginsHtml(d);
+  _renderBankFetchHistory();
 }
 
 function bankLoginsHtml(d) {
@@ -22813,11 +22814,34 @@ function bankLoginsHtml(d) {
       <div style="flex:1;min-width:140px;font-size:13px;color:var(--ink)">${esc(a.name)}
         <span style="font-size:11px;color:var(--slate-2)">${a.has_login ? ' · login saved in the vault' : ''}</span></div>
       ${a.has_login
-        ? `<button class="btn btn-secondary btn-sm" onclick="startBankRecording('${esc(a.key)}')">Show me once</button>
-           <button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${esc(a.key)}')">Forget</button>`
+        ? `${a.has_steps ? `<button class="btn btn-primary btn-sm" onclick="startBankFetch('${esc(a.key)}')">Get my latest transactions</button>` : ''}
+           <button class="btn btn-secondary btn-sm" onclick="startBankRecording('${esc(a.key)}')">${a.has_steps ? 'Record the steps again' : 'Show me once'}</button>
+           <button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${esc(a.key)}')">Forget</button>
+           <label style="display:block;width:100%;font-size:11px;color:var(--slate-2);margin-top:4px"><input type="checkbox" ${a.remembered ? 'checked' : ''} onchange="setBankDevice('${esc(a.key)}', this.checked)">
+             Remember this computer with the bank, so it asks for a code less often (keeps the bank's own cookies for this account; unticking forgets them)</label>`
         : `<button class="btn btn-secondary btn-sm" onclick="openBankLoginForm('${esc(a.key)}')">Save login</button>`}
       <div id="bankLoginForm-${esc(a.key).replace(':', '-')}" style="width:100%"></div>
+      ${a.has_steps ? `<div data-gw-fetch-history="${esc(a.key)}" style="width:100%;font-size:11px;color:var(--slate-2)"></div>` : ''}
     </div>`).join('');
+}
+
+// Item 57 A11: an account's last fetches, each with whether its file has been imported (joined by the file's hash).
+function bankFetchHistoryHtml(fetches) {
+  const when = s => s ? String(s).replace('T', ' ').slice(0, 16) : '';
+  return (fetches || []).slice(0, 3).map(f => {
+    const what = f.outcome === 'downloaded' ? `fetched ${esc(f.file_name || 'a file')}` : f.outcome === 'stopped' ? `stopped (${esc((f.why || '').replace('_', ' '))})` : esc(f.outcome || '');
+    const imp = f.outcome !== 'downloaded' ? '' : (f.imported ? ` · imported ${when(f.imported.at)}${f.imported.records != null ? `, ${f.imported.records} transactions` : ''}` : ' · not imported yet');
+    return `<div>${when(f.started)}: ${what}${imp}</div>`;
+  }).join('');
+}
+
+async function _renderBankFetchHistory() {
+  for (const el of document.querySelectorAll('[data-gw-fetch-history]')) {
+    try {
+      const r = await API.get(`/api/settings/bank-agent/history?key=${encodeURIComponent(el.dataset.gwFetchHistory)}`);
+      el.innerHTML = bankFetchHistoryHtml(r.fetches);
+    } catch (e) { _gwErr('_renderBankFetchHistory')(e); }
+  }
 }
 
 function openBankLoginForm(key) {
@@ -22893,6 +22917,42 @@ async function saveBankRecipe(key) {
   catch (e) { _gwErr('saveBankRecipe')(e); return; }
   window._bankRecSteps = null;
   renderBankLogins();
+}
+
+// Item 57 stage 3 (A2/A6/A7): the fetch, started by this click only; progress in words; Stop.
+let _bankFetchTimer = null;
+async function startBankFetch(key) {
+  const box = _bankRecBox(key);
+  if (!box) return;
+  let r;
+  try { r = await API.post('/api/settings/bank-agent/fetch', { key }); } catch (e) {
+    box.innerHTML = `<div style="font-size:12px;color:var(--ember);margin-top:6px">${esc(e?.message || 'Could not start.')}</div>`; return;
+  }
+  if (r.result !== 'opened' && r.result !== 'already_open') {
+    box.innerHTML = `<div style="font-size:12px;color:var(--ember);margin-top:6px">The window couldn't open (${esc(r.result)}).</div>`;
+    return;
+  }
+  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">Groundwork is following your steps in the window. Stay nearby: if your bank asks for a code, type it there.</div>
+    <ol data-gw-fetch style="font-size:12px;color:var(--ink);margin:6px 0 6px 18px"></ol>
+    <button class="btn btn-ghost btn-sm" onclick="stopBankFetch('${esc(key)}')">Stop</button>`;
+  clearInterval(_bankFetchTimer);
+  _bankFetchTimer = setInterval(async () => {
+    let s;
+    try { s = await API.get(`/api/settings/bank-agent/fetch?key=${encodeURIComponent(key)}`); } catch (e) { clearInterval(_bankFetchTimer); return; }
+    const ol = box.querySelector('[data-gw-fetch]');
+    if (ol) ol.innerHTML = bankStepsHtml(s.words);
+    if ((s.events || []).some(ev => ['stopped', 'downloaded', 'no_download', 'done'].includes(ev.s))) clearInterval(_bankFetchTimer);
+  }, 1500);
+}
+
+async function stopBankFetch(key) {
+  clearInterval(_bankFetchTimer);
+  try { await API.post('/api/settings/bank-agent/fetch/stop', { key }); } catch (e) { _gwErr('stopBankFetch')(e); }
+  renderBankLogins();
+}
+
+async function setBankDevice(key, on) {
+  try { await API.post('/api/settings/bank-agent/device', { key, on: !!on }); } catch (e) { _gwErr('setBankDevice')(e); }
 }
 
 async function forgetBankLogin(key) {

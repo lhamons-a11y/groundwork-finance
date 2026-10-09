@@ -122,7 +122,8 @@ def run(ctx):
     # (provenance, never a prompt). Any other reader fails here - that is how H2's arrival was surfaced.
     readers = _readers(ctx.server_src)
     check("s127 'import_committed' is touched in server.py by its writer and H2's import check alone - it reaches no prompt",
-          readers == {'_log_import_committed', 'auto_import_remove_download'})
+          readers == {'_log_import_committed', 'auto_import_remove_download',
+                      'bank_agent_history'})   # item 57 A11: joins a fetch to its import by hash, for display only
 
     # The watcher: the raw-bytes hash for a transaction file; a statement's bytes unread.
     tmp = Path(tempfile.mkdtemp(prefix='s127_'))
@@ -184,6 +185,6 @@ def run(ctx):
 
     reader_src = ctx.server_src + "\n\ndef _narrator_context(session):\n    return session.query(1).filter_by(event_category='import_committed')\n"
     check('s127 mutation caught: the event read by a prompt-building function',
-          _readers(reader_src) != {'_log_import_committed', 'auto_import_remove_download'})
+          _readers(reader_src) != {'_log_import_committed', 'auto_import_remove_download', 'bank_agent_history'})
 
     check('s127 the writer is left as found', server._log_import_committed is real_log and all(_cases(c, HJ, dbs).values()))

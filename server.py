@@ -6477,6 +6477,8 @@ def _bank_agent_accounts(session):
             rows.append({'key': f'card:{d.id}', 'name': d.name})
     for r in rows:
         r['has_login'] = bank_vault.has_login(r['key'])
+        r['has_steps'] = bool(((_bank_recipe(session, r['key']) or {}).get('steps')))
+        r['remembered'] = (_get_setting(session, f"bank_device:{r['key']}") or AppSetting(value='')).value == 'yes'
     return rows
 
 
@@ -6613,6 +6615,148 @@ def bank_agent_recipe_delete():
             session.delete(row)
             session.commit()
     return ok({'key': key, 'deleted': True})
+
+
+# ── Item 57 stage 3 (BANK_AGENT.md A2/A6/A7): the fetch - started by the user's click, never on a schedule ──
+
+def _bank_device_dir(key, create=False):
+    """A7: the per-account folder where the bank's own cookies are kept, only when the user opted in."""
+    safe = str(key).replace(':', '_')
+    d = DATA_DIR / 'bank_devices' / safe
+    if create:
+        d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+@settings_bp.route('/bank-agent/fetch', methods=['POST'])
+@require_json
+def bank_agent_fetch():
+    import bank_agent_window
+    from core import bank_vault
+    key = str((request.json or {}).get('key') or '')
+    with db_session() as session:
+        url = _bank_agent_url(session, key)
+        recipe = _bank_recipe(session, key)
+        device_on = (_get_setting(session, f'bank_device:{key}') or AppSetting(value='')).value == 'yes'
+    if not url:
+        return err('That account has no bank link.', 400)
+    if not bank_vault.has_login(key):
+        return err('Save a login for this account first.', 400)
+    steps_ = (recipe or {}).get('steps') or []
+    if not steps_:
+        return err('Show Groundwork the steps once first.', 400)
+    device = str(_bank_device_dir(key, create=True)) if device_on else ''
+    started = datetime.now().isoformat(timespec='seconds')
+    words = [bank_agent_window.step_words(s) for s in steps_]
+
+    def _finished(k, events):
+        _record_fetch(k, url, words, started, events)
+    return ok({'key': key, 'result': bank_agent_window.start_fetch(key, url, steps_, device, on_finish=_finished)})
+
+
+def _record_fetch(key, url, words, started, events, folder=None):
+    """Item 57 A11: one 'statement_fetched' Historian event per fetch - provenance, the user's own action and its
+    times. A fixed set of keys; the file's name and SHA-256 (correspondence with the later import's own record),
+    never its content. Read by the Settings history route alone - no prompt, no engine."""
+    import hashlib
+    from urllib.parse import urlsplit
+    first = lambda s: next((e for e in events if e.get('s') == s), None)          # noqa: E731
+    end = next((e for e in reversed(events) if e.get('s') in ('stopped', 'downloaded', 'no_download', 'done')), {}) or {}
+    code = first('waiting_code')
+    after_code = next((e for e in events if code and e.get('s') == 'step' and e.get('i') == code.get('i')), None)
+    file_name, sha = None, None
+    if end.get('s') == 'downloaded' and end.get('file'):
+        import bank_window
+        p = Path(folder or bank_window.downloads_dir()) / Path(end['file']).name
+        file_name = p.name
+        try:
+            sha = hashlib.sha256(p.read_bytes()).hexdigest()
+        except OSError:
+            sha = None              # the file has gone - recorded as unknown, never guessed
+    try:
+        with db_session() as session:
+            log_historian_event(session, 'statement_fetched', context={
+                'account_key':    key,
+                'host':           (urlsplit(url).hostname or '').lower(),
+                'steps':          list(words),
+                'started':        started,
+                'code_asked':     code.get('at') if code else None,
+                'code_entered':   after_code.get('at') if after_code else None,
+                'finished':       end.get('at'),
+                'outcome':        end.get('s'),
+                'why':            end.get('why'),
+                'file_name':      file_name,
+                'content_sha256': sha,
+            })
+            session.commit()
+    except Exception:
+        logging.getLogger('groundwork').warning('statement_fetched could not be recorded')
+
+
+@settings_bp.route('/bank-agent/history', methods=['GET'])
+def bank_agent_history():
+    """A11: an account's last fetches, each joined to its import by the file's hash (or 'not imported yet')."""
+    key = request.args.get('key', '')
+    out = []
+    with db_session() as session:
+        rows = session.query(HistorianEntry).filter(HistorianEntry.event_category == 'statement_fetched') \
+            .order_by(HistorianEntry.id.desc()).limit(200).all()
+        for e in rows:
+            ctx = json.loads(e.context_json or '{}')
+            if ctx.get('account_key') != key:
+                continue
+            imp = None
+            if ctx.get('content_sha256'):
+                hit = session.query(HistorianEntry).filter(
+                    HistorianEntry.event_category == 'import_committed',
+                    HistorianEntry.context_json.contains(f'"content_sha256": "{ctx["content_sha256"]}"')).first()
+                if hit:
+                    ic = json.loads(hit.context_json or '{}')
+                    imp = {'at': hit.created_at.isoformat(timespec='seconds'), 'records': ic.get('created')}
+            out.append({**{k: ctx.get(k) for k in ('started', 'finished', 'outcome', 'why', 'file_name', 'code_asked', 'code_entered')},
+                        'imported': imp})
+            if len(out) >= 10:
+                break
+    return ok({'key': key, 'fetches': out})
+
+
+@settings_bp.route('/bank-agent/fetch', methods=['GET'])
+def bank_agent_fetch_status():
+    import bank_agent_window
+    key = request.args.get('key', '')
+    with db_session() as session:
+        steps_ = ((_bank_recipe(session, key) or {}).get('steps')) or []
+    evs = bank_agent_window.fetch_events(key)
+    return ok({'key': key, 'events': evs, 'words': [w for w in (bank_agent_window.fetch_words(e, steps_) for e in evs) if w]})
+
+
+@settings_bp.route('/bank-agent/fetch/stop', methods=['POST'])
+@require_json
+def bank_agent_fetch_stop():
+    import bank_agent_window
+    key = str((request.json or {}).get('key') or '')
+    return ok({'key': key, 'stopped': bank_agent_window.stop_fetch(key)})
+
+
+@settings_bp.route('/bank-agent/device', methods=['POST'])
+@require_json
+def bank_agent_device():
+    """A7: {key, on}. On keeps the bank's cookies for this account in its own folder; off forgets them."""
+    import shutil
+    body = request.json or {}
+    key = str(body.get('key') or '')
+    with db_session() as session:
+        if not _bank_agent_url(session, key):
+            return err('That account has no bank link.', 400)
+        if body.get('on'):
+            _set_setting(session, f'bank_device:{key}', 'yes')
+        else:
+            row = _get_setting(session, f'bank_device:{key}')
+            if row:
+                session.delete(row)
+            shutil.rmtree(_bank_device_dir(key), ignore_errors=True)
+        session.commit()
+    return ok({'key': key, 'remembered': bool(body.get('on'))})
 
 
 @settings_bp.route('/bootstrap', methods=['GET'])

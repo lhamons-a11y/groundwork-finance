@@ -363,6 +363,10 @@ class HistorianEntry(Base):
       'proactive_dismissed'               — the user dismissed one. An instruction about that insight:
                                              a 60-day cooldown, said on the card (item 39 U1). It never
                                              silences a category on its own (U2 (b)).
+      'statement_fetched'                 — the bank agent fetched (or tried to fetch) a statement at the
+                                             user's request (BANK_AGENT.md A11): host, the steps in words, the
+                                             times, the outcome, the file's name and SHA-256 - joined to its
+                                             'import_committed' by that hash. Never the file's content.
       'proactive_category_silenced'       — the user said yes to "stop bringing up <category> on its
                                              own?" (item 39 U2 (b)); their setting proactive_silenced.
       'proactive_category_unsilenced'     — the user's Undo of that, from Settings.
