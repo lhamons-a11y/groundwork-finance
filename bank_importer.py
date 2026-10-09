@@ -28,7 +28,7 @@ from datetime import datetime
 GROUNDWORK_CATEGORIES = [
     # Core
     'Food', 'Groceries', 'Coffee Shops', 'Restaurants', 'Fast Food / Takeout',
-    'Transportation', 'Gas', 'Car Maintenance',
+    'Transportation', 'Gas / Fuel', 'Car Maintenance',
     'Rent / Mortgage', 'Home Maintenance',
     'Utilities', 'Phone / Cell',
     'Clothing', 'Personal',
@@ -65,11 +65,12 @@ MCC_CATEGORY_MAP = {
     '5451': 'Groceries',      # Dairy products
     '5462': 'Groceries',      # Bakeries
 
-    # ── Transportation: split between Gas, AutoService, Transportation
-    '5541': 'Gas',            # Service stations w/ pumps (Clark Gas, BP, Marathon)
-    '5542': 'Gas',            # Automated fuel dispensers
+    # ── Transportation: split between Gas / Fuel, Car Maintenance, Transportation
+    # (item 52: 'Gas / Fuel' is the Transportation leaf; bare 'Gas' is the natural-gas utility)
+    '5541': 'Gas / Fuel',     # Service stations w/ pumps (Clark Gas, BP, Marathon)
+    '5542': 'Gas / Fuel',     # Automated fuel dispensers
     '5552': 'Transportation', # Electric vehicle charging (NAYAX EV in his data)
-    '5172': 'Gas',            # Petroleum and petroleum products
+    '5172': 'Gas / Fuel',     # Petroleum and petroleum products
     '7542': 'Car Maintenance',    # Car washes (Whitewater Car Wash)
     '7538': 'Car Maintenance',    # Auto service shops
     '5511': 'Car Maintenance',    # Car/truck dealers
@@ -167,7 +168,7 @@ MCC_CATEGORY_MAP = {
     '7993': 'Entertainment',
     '7994': 'Entertainment',  # Video game arcades
     '7996': 'Entertainment',  # Amusement parks
-    '7997': 'Fitness',        # Country clubs / fitness clubs
+    '7997': 'Gym / Fitness',  # Country clubs / fitness clubs
     '7999': 'Vacation / Travel',         # Recreation services - travel
 
     # ── Charity / public
@@ -301,8 +302,9 @@ _CATEGORY_PATTERNS = [
                   r'\bnationwide\b|\bliberty mutual\b|\busaa\b|\bfarmers\b|'
                   r'\binsurance\b'),
 
-    # ── GAS (must come before Transportation)
-    ('Gas', r'\bclark (gas|oil|station)?\b|\bbp\s|\bshell\b|\bexxon\b|\bmobil\b|'
+    # ── GAS / FUEL (must come before Transportation). Item 52: 'Gas / Fuel' is the
+    # Transportation leaf; bare 'Gas' is the natural-gas UTILITY leaf, where fuel used to land.
+    ('Gas / Fuel', r'\bclark (gas|oil|station)?\b|\bbp\s|\bshell\b|\bexxon\b|\bmobil\b|'
             r'\bspeedway\b|\bmarathon\b|\bcircle k\b|\bsunoco\b|'
             r'\bchevron\b|\b76\s+(gas|fuel)\b|\bbuc.ee|\bsheetz\b|\bwawa\b|'
             r'\bfuel|\bgas station\b'),
@@ -396,8 +398,8 @@ _CATEGORY_PATTERNS = [
                       r'\bmovie theater\b|\bconcert\b|\bticketmaster\b|'
                       r'\bstubhub\b|\bvenue\b|\bveterans memorial\b'),
 
-    # ── FITNESS
-    ('Fitness', r'\bplanet fitness\b|\banytime fitness\b|\bla fitness\b|'
+    # ── FITNESS ('Gym / Fitness' is the Healthcare leaf; 'Fitness' is not in the tree - item 52)
+    ('Gym / Fitness', r'\bplanet fitness\b|\banytime fitness\b|\bla fitness\b|'
                 r'\bequinox\b|\bgym\b|\bcrossfit\b|\bpeloton\b|'
                 r'\byoga (studio|class)\b'),
 

@@ -6764,11 +6764,11 @@ def smart_backfill():
 
             new_cat = cat_map.get(new_cat_name.lower())
             if not new_cat:
-                # Category doesn't exist yet — create it
-                new_cat = Category(name=new_cat_name, is_system=False)
-                session.add(new_cat)
-                session.flush()
-                cat_map[new_cat_name.lower()] = new_cat
+                # Item 52 L4 (CATEGORY_LABELS.md): never mint a category from a
+                # matcher's name - a parentless ghost the budget doesn't track.
+                # A name the user's categories don't hold leaves the row as it is.
+                skipped += 1
+                continue
 
             if len(sample) < 10:
                 sample.append({
