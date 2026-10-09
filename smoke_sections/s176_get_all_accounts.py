@@ -16,6 +16,14 @@ import re
 import threading
 
 
+def _only_clicks(app, html):
+    """Every call of startFetchAll is its definition, an onclick, or inside openLedgerBank (the Bank button's click)."""
+    ledger = app.split('async function openLedgerBank(')[1].split('\nfunction ')[0]
+    rest = app.replace(ledger, '')
+    lines = [ln for ln in (rest + html).splitlines() if 'startFetchAll(' in ln]
+    return all('async function startFetchAll(' in ln or 'onclick=' in ln for ln in lines)
+
+
 def run(ctx):
     check, c, H, HJ, BASE = ctx.check, ctx.c, ctx.H, ctx.HJ, ctx.BASE
     import bank_agent_window as baw
@@ -103,8 +111,8 @@ def run(ctx):
           'id="gwFetchAllBtn"' in html and re.search(r'id="gwFetchAllBtn"[^>]*style="display:none"', html)
           and "btn.style.display = (d && d.accounts.length) ? '' : 'none'" in app)
     check('s176 G3 nothing starts a batch on its own: startFetchAll is only ever a click',
-          len(re.findall(r'startFetchAll\(\)', app + html)) == len(re.findall(r'onclick="startFetchAll\(\)"', app + html)) + 1
-          and not re.search(r'(setInterval|setTimeout)\([^)]*startFetchAll', app))
+          _only_clicks(app, html) and not re.search(r'(setInterval|setTimeout)\([^)]*(startFetchAll|openLedgerBank)', app)
+          and 'onclick="openLedgerBank(event)"' in html and app.count('openLedgerBank(') == 1)
     # The real vault is never touched: an empty stand-in replaces it, so no account here has a login and no window
     # can open (an id in the gate's database can match a real login saved on this computer)
     import keyring
@@ -186,6 +194,16 @@ def run(ctx):
                 break
             threading.Event().wait(0.01)
         mine = [i for i in st['items'] if i['key'] == key]
+        baw.reset_batch_for_test()
+        r1 = c.post('/api/settings/bank-agent/fetch-all', headers=HJ, data=json.dumps({'keys': ['account:999999']}))
+        check('s176 Ledger: a press for one account visits that account only (no saved steps there: nothing to do)',
+              r1.status_code == 400)
+        pb = app.split('function _portalButtonsHTML(')[1].split('async function _openBankPortal(')[0]
+        check('s176 Ledger: an account with saved steps gets "Get my transactions" from its Bank button (Rob); the browser button stays',
+              "_fetchKeys.has(fkey)" in pb and "startFetchAll(['${fkey}'])" in pb and "_openBankPortal('${kind}', ${id}, 'browser')" in pb)
+        lb = app.split('async function openLedgerBank(')[1].split('\nfunction ')[0]
+        check('s176 Ledger: the Bank button fetches for an account with saved steps - filtered to it, or from its menu row',
+              "if (_fetchKeys.has(fk(match))) startFetchAll([fk(match)]);" in lb and "startFetchAll(['${fk(x)}'])" in lb)
         check('s176 G1 an account with no saved login stops with that reason; nothing opened',
               mine and mine[0]['why'] == 'no_login' and key not in launched)
     finally:

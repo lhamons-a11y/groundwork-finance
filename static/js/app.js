@@ -3288,14 +3288,22 @@ async function openLedgerBank(ev) {
     ...(cards || []).filter(d => d.has_portal && !d.linked_account_id).map(d => ({ kind: 'card', id: d.id, name: d.name })),
   ];
 
+  await refreshFetchAll();                     // which accounts have saved download steps (item 67, Rob)
+  const fk = x => `${x.kind}:${x.id}`;
   const current = g('ledgerAccountFilter')?.value || '';
   const match = current && withSite.find(x => x.kind === 'account' && x.name === current);
-  if (match) { _openBankPortal(match.kind, match.id, 'window'); return; }
+  if (match) {
+    if (_fetchKeys.has(fk(match))) startFetchAll([fk(match)]);
+    else _openBankPortal(match.kind, match.id, 'window');
+    return;
+  }
 
   const rows = withSite.map(x => `
     <div class="acct-switcher-item" style="gap:6px">
       <span class="acct-item-name">${esc(x.name)}</span>
-      <button class="tb-btn" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();g('ledgerBankMenu').classList.remove('open');_openBankPortal('${x.kind}', ${x.id}, 'window')">Open</button>
+      ${_fetchKeys.has(fk(x))
+        ? `<button class="tb-btn" style="padding:3px 8px;font-size:11px" title="Groundwork follows the steps you showed it; the file waits for your review" onclick="event.stopPropagation();g('ledgerBankMenu').classList.remove('open');startFetchAll(['${fk(x)}'])">⟳ Get transactions</button>`
+        : `<button class="tb-btn" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();g('ledgerBankMenu').classList.remove('open');_openBankPortal('${x.kind}', ${x.id}, 'window')">Open</button>`}
       <button class="tb-btn" style="padding:3px 8px;font-size:11px" title="Open in your usual browser" onclick="event.stopPropagation();g('ledgerBankMenu').classList.remove('open');_openBankPortal('${x.kind}', ${x.id}, 'browser')">Browser</button>
     </div>`);
   menu.innerHTML = (rows.length ? rows.join('') : `
@@ -9181,9 +9189,15 @@ function _portalFieldHTML(inputHTML) {
 
 function _portalButtonsHTML(kind, id) {
   const btn = `font-size:11px;font-family:inherit;border-radius:var(--r-md);padding:4px 9px;cursor:pointer;white-space:nowrap`;
+  // Item 67 (Rob): an account with saved download steps gets them from this button; the browser one stays a plain visit
+  const fkey = `${kind === 'account' ? 'account' : 'card'}:${id}`;
+  const main = _fetchKeys.has(fkey)
+    ? `<button onclick="startFetchAll(['${fkey}'])" title="Groundwork follows the steps you showed it and downloads your latest transactions. The file waits for your review."
+        style="${btn};background:var(--sky);color:#fff;border:none">⟳ Get my transactions</button>`
+    : `<button onclick="_openBankPortal('${kind}', ${id}, 'window')" title="Open your bank's website in its own window"
+        style="${btn};background:var(--sky);color:#fff;border:none">Open bank</button>`;
   return `
-      <button onclick="_openBankPortal('${kind}', ${id}, 'window')" title="Open your bank's website in its own window"
-        style="${btn};background:var(--sky);color:#fff;border:none">Open bank</button>
+      ${main}
       <button onclick="_openBankPortal('${kind}', ${id}, 'browser')" title="Open your bank's website in your usual browser"
         style="${btn};background:none;border:1px solid var(--steel-2);color:var(--ink)">Open in my browser</button>`;
 }
@@ -22938,11 +22952,13 @@ async function saveBankRecipe(key) {
 // Item 67 (GET_ALL_ACCOUNTS.md G1-G6): one press visits each account with saved steps, one at a time. Started by
 // the press alone - the dashboard line and the header button only read the record; nothing runs on a timer.
 let _fetchAllTimer = null;
+let _fetchKeys = new Set();      // accounts / cards with saved download steps (the Ledger's Bank button switches)
 async function refreshFetchAll() {
   let d;
   try { d = await API.get('/api/settings/bank-agent/last-fetched'); } catch (e) { return; }
   const btn = g('gwFetchAllBtn');
   if (btn) btn.style.display = (d && d.accounts.length) ? '' : 'none';
+  _fetchKeys = new Set((d && d.accounts || []).map(a => a.key));
   const line = g('dashFetchLine');
   if (line) {
     line.innerHTML = d && d.show ? fetchAllLineHtml(d) : '';
@@ -22967,9 +22983,9 @@ async function setFetchRemindDays(v) {
   refreshFetchAll();
 }
 
-async function startFetchAll() {
+async function startFetchAll(keys) {
   let r;
-  try { r = await API.post('/api/settings/bank-agent/fetch-all', {}); }
+  try { r = await API.post('/api/settings/bank-agent/fetch-all', keys ? { keys } : {}); }
   catch (e) { showToast('Could not start', e?.message || '', 'warning'); return; }
   _autoImportFastUntil = Date.now() + 30 * 60 * 1000;   // offer each file as soon as it lands
   _showFetchAllPanel();

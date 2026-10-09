@@ -6756,10 +6756,13 @@ def bank_agent_fetch_status():
 @settings_bp.route('/bank-agent/fetch-all', methods=['POST'])
 @require_json
 def bank_agent_fetch_all():
-    """G1: the user's press. Every account with saved steps, one at a time, in the order they are listed."""
+    """G1: the user's press. Every account with saved steps, one at a time, in the order they are listed - or, from
+    an account's own Bank button on the Ledger, just that one ({keys: [key]})."""
     import bank_agent_window
+    only = (request.json or {}).get('keys')
     with db_session() as session:
-        items = [{'key': a['key'], 'name': a['name']} for a in _bank_agent_accounts(session) if a['has_steps']]
+        items = [{'key': a['key'], 'name': a['name']} for a in _bank_agent_accounts(session) if a['has_steps']
+                 and (not only or a['key'] in only)]
     if not items:
         return err('No account has saved steps yet.', 400)
 
