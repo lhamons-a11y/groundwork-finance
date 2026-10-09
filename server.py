@@ -6721,6 +6721,35 @@ def _label_review(session):
     return gas, fuel, gym, rows, stray, groc_rows
 
 
+# Item 54 M6 (MATCHER_ONE_ANSWER.md): the categories the two old matchers saved that today's rules no longer give -
+# the server's parents, and the page's wrong leaves. A row in one of them whose words now name a different real
+# leaf is offered, grouped by from -> to. Gas and Groceries rows that are fuel are item 52/53's own blocks.
+_OLD_MATCHER_ANSWERS = ('Utilities', 'Insurance', 'Transportation', 'Food', 'Healthcare', 'Entertainment', 'Education',
+                        'Personal', 'Subscriptions', 'Income', 'Property Taxes',
+                        'Gas / Fuel', 'Groceries', 'Health Insurance', 'Electric', 'Doctor / Co-pays',
+                        'Interest / Fees', 'Other Subscriptions')
+
+
+def _regroup_review(session):
+    import bank_importer as bi
+    cats = session.query(Category).all()
+    by_id = {c.id: c for c in cats}
+    by_name = {c.name: c for c in cats}
+    from_ids = [c.id for c in cats if c.name in _OLD_MATCHER_ANSWERS]
+    groups = {}
+    if not from_ids:
+        return groups
+    for t in session.query(Transaction).filter(Transaction.category_id.in_(from_ids)).all():
+        src = by_id[t.category_id].name
+        to = bi.auto_category(t.description or '', t.mcc or '')
+        if to in ('Other', src) or to not in by_name:
+            continue
+        if to == 'Gas / Fuel' and src in ('Gas', 'Groceries'):
+            continue                  # item 52/53's blocks
+        groups.setdefault((src, to), []).append(t)
+    return groups
+
+
 @categories_bp.route('/label-review', methods=['GET'])
 def category_label_review():
     with db_session() as session:
@@ -6733,6 +6762,7 @@ def category_label_review():
                               'amount': float(t.amount)} for t in rs]}
         out = {'fuel': block('Gas', rows) if rows else None,
                'fuel_groceries': block('Groceries', groc_rows) if groc_rows else None, 'fitness': None}
+        out['regroup'] = [{**block(src, rs), 'to': to} for (src, to), rs in sorted(_regroup_review(session).items())]
         if stray and gym:
             n = session.query(Transaction).filter_by(category_id=stray.id).count()
             out['fitness'] = {'id': stray.id, 'name': stray.name, 'count': n, 'to_id': gym.id, 'to': gym.name}
@@ -6751,6 +6781,13 @@ def category_label_review_move():
             if t.id in ids:
                 t.category_id = fuel.id
                 moved += 1
+        # Item 54 M6: each regrouped row goes to the leaf the review offered it for
+        to_cat = {c.name: c for c in session.query(Category).all()}
+        for (src, to), rs in _regroup_review(session).items():
+            for t in rs:
+                if t.id in ids:
+                    t.category_id = to_cat[to].id
+                    moved += 1
         session.commit()
         return ok({'moved': moved})
 

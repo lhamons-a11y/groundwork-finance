@@ -221,6 +221,16 @@ MCC_CATEGORY_MAP = {
 # Keep in sync with clientAutoCategory() in app.js.
 
 _CATEGORY_PATTERNS = [
+    # Item 54 (MATCHER_ONE_ANSWER.md, Rob 2026-10-09): this table is THE rule set. clientAutoCategory() in app.js
+    # carries the same rules - same words, same leaf, same order - and s166 fails if they differ (M1). Every rule
+    # names a leaf, never a parent (M2); words that name more than one service name 'Other', so the row waits for
+    # the user rather than a guess the estimates would trust.
+
+    # ── INTEREST CHARGES - before Debt, so a card's interest and its payment stay apart (M3: from the page's copy)
+    ('Interest / Fees', r'\binterest charge\b|\binterest charged\b|\bfinance charge\b|\bperiodic rate\b|'
+                        r'\bpurchase interest\b|\bcash advance interest\b|\bbalance transfer interest\b|'
+                        r'\bint chg\b|\bfinance chg\b'),
+
     # ── DEBT first (biggest single fix from baseline analysis)
     # Credit cards, auto loans, student loans, financial holding companies.
     # These come in as ACH/check rows with no MCC, so keyword is the only signal.
@@ -238,9 +248,10 @@ _CATEGORY_PATTERNS = [
     # first (nearly all contain the word "deposit"), making these more
     # specific payroll patterns unreachable and silently miscategorizing
     # every direct-deposit paycheck as Transfer instead of Income.
-    ('Income', r'\bpayroll\b|'
-               r'\bdirect dep(osit)?\b|\bsalary\b|\bach credit.*deposit\b|'
-               r'\birs\s*treas\s*310\b|\btax refund\b'),
+    ('Paycheck / Salary', r'\bpayroll\b|'
+               r'\bdirect dep(osit)?\b|\bsalary\b|\bach credit.*deposit\b'),
+    # M5: the tree has no tax leaf - a tax refund waits in Other for the user
+    ('Other', r'\birs\s*treas\s*310\b|\btax refund\b'),
 
     # ── TRANSFER (own accounts, peer-to-peer, ATM, checks, bank-to-bank)
     # Moved up: needs to come before generic fallbacks since these are
@@ -253,8 +264,9 @@ _CATEGORY_PATTERNS = [
                  r''
                  r'\btransactor:\b'),
 
-    # ── REFUND (often paired with merchant name — match when reversal/refund/credit memo)
-    ('Income', r'\brefund\b|\breversal\b|\bchargeback\b|\bcredit memo\b|'
+    # ── REFUND (often paired with merchant name — match when reversal/refund/credit memo). M4: Transfer, so it
+    # counts in neither income nor spending; it does not reduce the original category's spending (named limit).
+    ('Transfer', r'\brefund\b|\breversal\b|\bchargeback\b|\bcredit memo\b|'
                r'\breturn.{0,10}(credit|merch)|\bmerchandise return\b'),
 
     # ── TRANSFER (between own accounts)
@@ -272,12 +284,11 @@ _CATEGORY_PATTERNS = [
                   r'\bpeacock\b|\byoutube (premium|tv)\b|\bsling tv\b|\bstarz\b'),
 
     # ── SUBSCRIPTION (software, news, services with recurring fee)
-    ('Subscriptions', r'\banthropic\b|\bopenai\b|\bclaude\.ai\b|\bchatgpt\b|'
+    ('Software / Apps', r'\banthropic\b|\bopenai\b|\bclaude\.ai\b|\bchatgpt\b|'
                      r'\bapple\.com\/bill\b|\bgoogle storage\b|\bicloud\b|'
                      r'\bdropbox\b|\bmicrosoft\b.*(365|subscription)|'
-                     r'\badobe\b|\brocket money\b|\bexperian\b|\bcredit karma\b|'
-                     r'\bnyt(imes)?\b|\bwashington post\b|'
-                     r'\bsubscription\b'),
+                     r'\badobe\b|\brocket money\b|\bexperian\b|\bcredit karma\b'),
+    ('Other Subscriptions', r'\bnyt(imes)?\b|\bwashington post\b|\bsubscription\b'),
 
     # ── PHONE (split out from Utilities)
     ('Phone / Cell', r'\bat\s*&?\s*t\b|\battinternet\b|\battpayment\b|'
@@ -285,12 +296,13 @@ _CATEGORY_PATTERNS = [
               r'\bus cellular\b|\bcricket wireless\b|\bvisible\b'),
 
     # ── UTILITIES (electric, gas, water, trash — NOT phone, NOT cable)
-    ('Utilities', r'\baep\b|\bohio edison\b|\benbridge\b|'
-                  r'\bduke energy\b|\bdominion (energy|power|gas)\b|'
-                  r'\bnational grid\b|\bpge\b|\bsce\b|\bsouthern california edison\b|'
-                  r'\belectric (bill|company)\b|\bgas (company|utility)\b|'
-                  r'\bwater (dept|utility|bill)\b|\bsewer\b|\bsewage\b|\btrash (service|pickup)\b|'
-                  r'\butility (bill|payment)\b'),
+    ('Gas', r'\benbridge\b|\bdominion (energy )?gas\b|\bcolumbia gas\b|\bgas (company|utility)\b'),
+    ('Electric', r'\baep\b|\bohio edison\b|\bdominion power\b|\bsce\b|\bsouthern california edison\b|'
+                 r'\belectric (bill|company)\b'),
+    ('Water / Sewer', r'\bwater (dept|utility|bill)\b|\bsewer\b|\bsewage\b'),
+    ('Trash', r'\btrash (service|pickup)\b'),
+    # Gas AND electric from one company, or a bill that doesn't say which: no guess
+    ('Other', r'\bduke energy\b|\bdominion energy\b|\bnational grid\b|\bpge\b|\butility (bill|payment)\b'),
 
     # ── INSURANCE (must come before Pet, Nationwide Pet Insurance is in Pet)
     # Order: most specific first
@@ -298,9 +310,10 @@ _CATEGORY_PATTERNS = [
             r'\bbanfield\b|\bvet (clinic|hospital|services)\b|\bveterinary\b|'
             r'\bpetsmart\b|\bpet supplies\b|\bflying fur pets\b'),
 
-    ('Insurance', r'\bgeico\b|\bprogressive\b|\bstate farm\b|\ballstate\b|'
-                  r'\bnationwide\b|\bliberty mutual\b|\busaa\b|\bfarmers\b|'
-                  r'\binsurance\b'),
+    # Carriers: Auto Insurance, the most common recurring charge from them - a user re-files home or life
+    ('Auto Insurance', r'\bgeico\b|\bprogressive\b|\bstate farm\b|\ballstate\b|'
+                  r'\bnationwide\b|\bliberty mutual\b|\busaa\b|\bfarmers\b'),
+    ('Other', r'\binsurance\b'),
 
     # ── GAS / FUEL (must come before Transportation). Item 52: 'Gas / Fuel' is the
     # Transportation leaf; bare 'Gas' is the natural-gas UTILITY leaf, where fuel used to land.
@@ -357,9 +370,10 @@ _CATEGORY_PATTERNS = [
                     r'\bcar wash\b|\btire (shop|store|center)\b'),
 
     # ── TRANSPORTATION (rideshare, parking, transit — NOT gas)
-    ('Transportation', r'\buber\b(?!\s+eats)|\blyft\b|\bparking\b|'
-                       r'\bmetro (transit|card)\b|\bbus pass\b|\btoll\b|'
+    ('Rideshare / Transit', r'\buber\b(?!\s+eats)|\blyft\b|'
+                       r'\bmetro (transit|card)\b|\bbus pass\b|'
                        r'\bbart\b|\bmta\b|\bamtrak\b|\bgreyhound\b'),
+    ('Parking / Tolls', r'\bparking\b|\btoll\b'),
 
     # ── HOUSING
     ('Rent / Mortgage', r'\bmortgage\b|\brent (payment|check)\b|\blandlord\b|\bhoa fees?\b|'
@@ -374,7 +388,7 @@ _CATEGORY_PATTERNS = [
     # ── GROCERIES (specific big-box groceries — must come before Food)
     ('Groceries', r'\bwalmart\b|\bwal-?mart\b|\bwm supercenter\b|\bkroger\b|'
                   r'\bmeijer\b|\bsam.?s\s*club\b|\bsamsclub\b|\bcostco\b|\baldi\b|'
-                  r'\bwhole foods\b|'
+                  r'\bruler foods\b|\bwhole foods\b|'
                   r'\bsprouts\b|\btrader joe.?s\b|\bsafeway\b|\bpublix\b|'
                   r'\bgrocery\b'),
 
@@ -405,12 +419,14 @@ _CATEGORY_PATTERNS = [
 
     # ── FOOD (generic fallback — caught by MCC 5814/5812 in most card-swipes
     # so this only catches ACH/check rows referencing food)
-    ('Food', r'\bfood\b|\brestaurant\b|\bdiner\b|\bcafe\b|\bbar\s|\bgrill\b'),
+    ('Restaurants', r'\bfood\b|\brestaurant\b|\bdiner\b|\bcafe\b|\bbar\s|\bgrill\b'),
 
     # ── HEALTHCARE (broad — pharmacies, docs, hospitals)
-    ('Healthcare', r'\bwalgreens\b|\bcvs\b|\brite\s*aid\b|\bduane reade\b|'
-                   r'\bpharmacy\b|\bdoctor\b|\bdr\.|\bhospital\b|\bclinic\b|'
-                   r'\bdental\b|\bdentist\b|\bortho|\bvision center\b|'
+    ('Dental', r'\bdental\b|\bdentist\b|\bortho'),
+    ('Vision', r'\bvision center\b'),
+    # Pharmacy chains: Prescriptions (named judgement - they also sell everyday goods)
+    ('Prescriptions', r'\bwalgreens\b|\bcvs\b|\brite\s*aid\b|\bduane reade\b|\bpharmacy\b'),
+    ('Doctor / Co-pays', r'\bdoctor\b|\bdr\.|\bhospital\b|\bclinic\b|'
                    r'\bmedical (center|group|services)\b|\bhealthcare\b|'
                    r'\bresource recycl\b'),
 
@@ -435,7 +451,7 @@ _CATEGORY_PATTERNS = [
                 r'\bunited way\b|\bdonation\b|\bcharity\b|\bnonprofit\b'),
 
     # ── ENTERTAINMENT (events, theaters, recreation — non-streaming)
-    ('Entertainment', r'\bcinemark\b|\bregal (cinemas)?\b|\bamc theatre|'
+    ('Activities / Events', r'\bcinemark\b|\bregal (cinemas)?\b|\bamc theatre|'
                       r'\bmovie theater\b|\bconcert\b|\bticketmaster\b|'
                       r'\bstubhub\b|\bvenue\b|\bveterans memorial\b'),
 
@@ -445,7 +461,7 @@ _CATEGORY_PATTERNS = [
                 r'\byoga (studio|class)\b'),
 
     # ── EDUCATION (not student loans — see Debt)
-    ('Education', r'\btuition\b|\buniversity (of|payment)\b|\bcollege payment\b|'
+    ('Tuition / Courses', r'\btuition\b|\buniversity (of|payment)\b|\bcollege payment\b|'
                   r'\bschool (district|fees|payment)\b|\btextbook\b'),
 
     # ── FEES (bank fees, late fees, ATM fees)
@@ -454,8 +470,8 @@ _CATEGORY_PATTERNS = [
              r'\bmaintenance fee\b|\battempt fee\b|\bohio bmv\b|\bdmv\b|'
              r'\btaxslayer\b'),
 
-    # ── TAXES (separate from fees)
-    ('Property Taxes', r'\birs (payment|tax)\b|\bstate tax\b|\bfederal tax\b|'
+    # ── TAXES (M5: the tree has no income-tax leaf, and Property Taxes / Interest / Fees were both wrong) - no guess
+    ('Other', r'\birs (payment|tax)\b|\bstate tax\b|\bfederal tax\b|'
               r'\btreasury\b'),
 
     # ── SHOPPING (catches Amazon, dept stores, TJ Maxx, etc.)
@@ -469,7 +485,7 @@ _CATEGORY_PATTERNS = [
                  r'\btractor.?supply|\bharbor freight'),
 
     # ── PERSONAL (specific small-business / boutique clothing & services)
-    ('Personal', r'\bfrancesca\b|\bdry clean(er)?\b|\blaundromat\b|'
+    ('Personal Care', r'\bfrancesca\b|\bdry clean(er)?\b|\blaundromat\b|'
                  r'\btailor\b|\bcobbler\b'),
 ]
 

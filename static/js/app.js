@@ -3225,7 +3225,7 @@ function _renderLedgerAcctSwitcher() {
         : (spendable >= 0 ? 'color:var(--pine)' : 'color:var(--ember)');
       const balTitle         = fromRunning ? 'From bank statement' : 'Estimated from txns';
       const debtTag          = isDebt ? ' <span style="font-size:9px;opacity:.7">DEBT</span>' : '';
-      return `<div class="acct-switcher-item ${a===current?'active':''}" onclick="pickLedgerAccount(${JSON.stringify(a).replace(/"/g,'&quot;')})">
+      return `<div class="acct-switcher-item ${a===current?'active':''}" onclick="pickLedgerAccount(${JSON.stringify(a).replace(/\x22/g,'&quot;')})">
         <span class="acct-item-dot"></span>
         <span class="acct-item-name">${esc(a)}${debtTag}</span>
         <span class="acct-item-meta" style="${balColor}" title="${balTitle}">${displayAmt} · ${txns.length}</span>
@@ -6632,7 +6632,7 @@ function splitCSVLine(line) {
 
 function clientParseDate(s) {
   if(!s) return null;
-  s = s.trim().replace(/[!']/g,'/');  // QIF separators
+  s = s.trim().replace(/[!\x27]/g,'/');  // QIF separators
   for(const fmt of [
     /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,   // MM/DD/YYYY
     /^(\d{4})-(\d{2})-(\d{2})$/,          // YYYY-MM-DD
@@ -6651,118 +6651,56 @@ function clientParseDate(s) {
 }
 
 function clientAutoCategory(desc='') {
-  // Mirror of server-side auto_category() in bank_importer.py.
-  // CP6 categorization tuning — must stay in sync, scanned in same order.
-  // Tested against real 952-txn data; misclassified rate 36% → 0.3%.
+  // Item 54 (MATCHER_ONE_ANSWER.md, Rob 2026-10-09: M1): the same rules as auto_category() in
+  // bank_importer.py - same words, same leaf, same order - written from that table; s166 fails if
+  // they differ. Change a rule there, then here.
   const d = desc.toLowerCase();
-
-  // Interest charges — must run BEFORE Debt so payments and charges are distinct.
-  // Debt = payments TO the card. Interest = charges FROM the card.
   if (/\binterest charge\b|\binterest charged\b|\bfinance charge\b|\bperiodic rate\b|\bpurchase interest\b|\bcash advance interest\b|\bbalance transfer interest\b|\bint chg\b|\bfinance chg\b/.test(d)) return 'Interest / Fees';
-
-  // Debt (credit cards, auto loans, student loans)
   if (/\bcapital one\b|\bapple\s*card\b|\bchase credit\b|\bbarclay|\bcomenity\b|\bonemain\b|\bsynchrony\b|\bsyncb\b|\bford motor (cr|credit)\b|\bstellantis\b|\bdept(\.|\s)+education\b|\bdoe payment\b|\bsallie mae\b|\bnavient\b|\bnelnet\b|\bdiscover\b.*(payment|card)|\bcredit card payment\b|\bcard payment.*thank you\b|\bthank you.*payment\b|\bminimum payment\b|\bcc payment\b/.test(d)) return 'Debt';
-
-  // Income — must come BEFORE Transfer: Transfer's generic \bdeposit\b
-  // below would otherwise match every real paycheck description first
-  // (nearly all contain the word "deposit"), making these more specific
-  // payroll patterns unreachable.
-  if (/\bpayroll\b|\bdirect dep(osit)?\b|\bsalary\b|\bach credit.*deposit\b|\birs\s*treas\s*310\b|\btax refund\b/.test(d)) return 'Income';
-
-  // Transfer (own accounts, P2P, ATM, checks)
+  if (/\bpayroll\b|\bdirect dep(osit)?\b|\bsalary\b|\bach credit.*deposit\b/.test(d)) return 'Paycheck / Salary';
+  if (/\birs\s*treas\s*310\b|\btax refund\b/.test(d)) return 'Other';
   if (/\btransfer (to|from)\b|\bach transfer\b|\binternal transfer\b|\bonline transfer\b|\bvenmo\b|\bcash app\b|\bzelle\b|\bpaypal\s+(transfer|p2p)\b|\bwithdrawal\b|\batm\s+(eft|withdraw)\b|\bat atm\b|\beft withdrawal\b|\bdraft\s+\d|\bcheck received\b|\bdeposit\b|\btransactor:\b/.test(d)) return 'Transfer';
-
-  // Refund
   if (/\brefund\b|\breversal\b|\bchargeback\b|\bcredit memo\b|\breturn.{0,10}(credit|merch)|\bmerchandise return\b/.test(d)) return 'Transfer';
-
-  // Savings
+  if (/\btransfer (to|from)\b|\bach transfer\b|\binternal transfer\b|\bonline transfer\b/.test(d)) return 'Transfer';
   if (/\btransfer.{0,10}sav\b|\bsavings (account|deposit)\b|\bfidelity\b|\bvanguard\b|\bschwab\b|\b401\s*k\b|\broth ira\b|\bbrokerage\b/.test(d)) return 'Transfer';
-
-  // Streaming (before Subscription)
   if (/\bnetflix\b|\bhulu\b|\bdisney(plus|\+)?\b|\bspotify\b|\bapple music\b|\bhbo (max)?\b|\bparamount\b|\bpeacock\b|\byoutube (premium|tv)\b|\bsling tv\b|\bstarz\b/.test(d)) return 'Streaming Video';
-
-  // Subscription
-  if (/\banthropic\b|\bopenai\b|\bclaude\.ai\b|\bchatgpt\b|\bapple\.com\/bill\b|\bgoogle storage\b|\bicloud\b|\bdropbox\b|\bmicrosoft\b.*(365|subscription)|\badobe\b|\brocket money\b|\bexperian\b|\bcredit karma\b|\bnyt(imes)?\b|\bwashington post\b|\bsubscription\b/.test(d)) return 'Other Subscriptions';
-
-  // Phone
+  if (/\banthropic\b|\bopenai\b|\bclaude\.ai\b|\bchatgpt\b|\bapple\.com\/bill\b|\bgoogle storage\b|\bicloud\b|\bdropbox\b|\bmicrosoft\b.*(365|subscription)|\badobe\b|\brocket money\b|\bexperian\b|\bcredit karma\b/.test(d)) return 'Software / Apps';
+  if (/\bnyt(imes)?\b|\bwashington post\b|\bsubscription\b/.test(d)) return 'Other Subscriptions';
   if (/\bat\s*&?\s*t\b|\battinternet\b|\battpayment\b|\bverizon\b|\bt-?mobile\b|\bsprint\b|\bmint mobile\b|\bus cellular\b|\bcricket wireless\b|\bvisible\b/.test(d)) return 'Phone / Cell';
-
-  // Utilities
-  if (/\baep\b|\bohio edison\b|\benbridge\b|\bduke energy\b|\bdominion (energy|power|gas)\b|\bnational grid\b|\bpge\b|\bsce\b|\bsouthern california edison\b|\belectric (bill|company)\b|\bgas (company|utility)\b|\bwater (dept|utility|bill)\b|\bsewer\b|\bsewage\b|\btrash (service|pickup)\b|\butility (bill|payment)\b/.test(d)) return 'Electric';
-
-  // Pet (before Insurance — Nationwide Pet Insurance must hit here)
-  if (/\bnationwide\s+pet\b|\bpetco\b|\bchewy\b|\bbanfield\b|\bvet (clinic|hospital|services)\b|\bveterinary\b|\bpetsmart\b|\bpet supplies\b/.test(d)) return 'Pet Food / Supplies';
-
-  // Insurance
-  if (/\bgeico\b|\bprogressive\b|\bstate farm\b|\ballstate\b|\bnationwide\b|\bliberty mutual\b|\busaa\b|\bfarmers\b|\binsurance\b/.test(d)) return 'Health Insurance';
-
-  // Gas (before Transportation)
-  // Item 53 (FUEL_NAMES.md): the same text as the Gas / Fuel pattern in bank_importer.py (G6, s165).
+  if (/\benbridge\b|\bdominion (energy )?gas\b|\bcolumbia gas\b|\bgas (company|utility)\b/.test(d)) return 'Gas';
+  if (/\baep\b|\bohio edison\b|\bdominion power\b|\bsce\b|\bsouthern california edison\b|\belectric (bill|company)\b/.test(d)) return 'Electric';
+  if (/\bwater (dept|utility|bill)\b|\bsewer\b|\bsewage\b/.test(d)) return 'Water / Sewer';
+  if (/\btrash (service|pickup)\b/.test(d)) return 'Trash';
+  if (/\bduke energy\b|\bdominion energy\b|\bnational grid\b|\bpge\b|\butility (bill|payment)\b/.test(d)) return 'Other';
+  if (/\bnationwide\s+pet\b|\bpetco\b|\bchewy\b|\bbanfield\b|\bvet (clinic|hospital|services)\b|\bveterinary\b|\bpetsmart\b|\bpet supplies\b|\bflying fur pets\b/.test(d)) return 'Pet Food / Supplies';
+  if (/\bgeico\b|\bprogressive\b|\bstate farm\b|\ballstate\b|\bnationwide\b|\bliberty mutual\b|\busaa\b|\bfarmers\b/.test(d)) return 'Auto Insurance';
+  if (/\binsurance\b/.test(d)) return 'Other';
   if (/\bclark (gas|oil|station)?\b|\bbp(\s|#|\d)|\bexxon|\bmobil\b|\bshell\b|\bspeedway\b|\bcircle k\b|\bsunoco\b|\bchevron\b|\b76\s+(gas|fuel)\b|\bbuc.ee|\bsheetz\b|\bwawa\b|\bphillips 66\b|\bconoco\b|\bcitgo\b|\bvalero\b|\bquik ?trip\b|\bracetrac\b|\bkwik trip\b|\bmurphy (usa|express)\b|\bthorntons\b|\bta travel\b|\bget ?go\b|\bspeedy q\b|\bcumberland farms\b|\bflying j\b|\bmarathon(\s+petro|\s*#|\s+\d)|\bpilot(\s*#|\s+\d|\s+travel)|\blove\x27?s(\s*#|\s+\d|\s+travel|\s+country)|\bholiday(\s+stations?|\s+oil|\s*#|\s+\d)|\bgulf(\s+oil|\s*#|\s+\d)|\barco(\s*#|\s+\d)|\bqt(\s*#|\s+\d)|\bcasey\x27?s(\s+gen|\s*#|\s+\d)|\bsinclair(\s+oil|\s*#|\s+\d)|\b(costco|sam\x27?s(\s+club)?)\s+(gas|fuel)\b|\bmeijer express\b|\bfuel|\bgas station\b/.test(d)) return 'Gas / Fuel';
-
-  // Auto Service
   if (/\bjiffy lube\b|\bvalvoline\b|\bmidas\b|\bfirestone\b|\bpep boys\b|\bmechanic\b|\bauto (service|repair|parts)\b|\boil change\b|\bcar wash\b|\btire (shop|store|center)\b/.test(d)) return 'Car Maintenance';
-
-  // Transportation (rideshare, parking)
-  if (/\buber\b(?!\s+eats)|\blyft\b|\bparking\b|\bmetro (transit|card)\b|\bbus pass\b|\btoll\b|\bbart\b|\bmta\b|\bamtrak\b|\bgreyhound\b/.test(d)) return 'Gas / Fuel';
-
-  // Housing
+  if (/\buber\b(?!\s+eats)|\blyft\b|\bmetro (transit|card)\b|\bbus pass\b|\bbart\b|\bmta\b|\bamtrak\b|\bgreyhound\b/.test(d)) return 'Rideshare / Transit';
+  if (/\bparking\b|\btoll\b/.test(d)) return 'Parking / Tolls';
   if (/\bmortgage\b|\brent (payment|check)\b|\blandlord\b|\bhoa fees?\b|\bproperty tax\b|\bhome depot\b|\blowe.?s\b|\bmenards|\bmnrd\b/.test(d)) return 'Rent / Mortgage';
-
-  // Home Services
   if (/\bsherwin.?williams\b|\bbenjamin moore\b|\broto.rooter\b|\bplumb(er|ing)\b|\bhvac\b|\belectrician\b|\blawn (care|service|mow)\b|\bpest control\b|\borkin\b|\bterminix\b|\bcontractor\b|\bcleaning service\b/.test(d)) return 'Home Maintenance';
-
-  // Groceries (before Food)
   if (/\bwalmart\b|\bwal-?mart\b|\bwm supercenter\b|\bkroger\b|\bmeijer\b|\bsam.?s\s*club\b|\bsamsclub\b|\bcostco\b|\baldi\b|\bruler foods\b|\bwhole foods\b|\bsprouts\b|\btrader joe.?s\b|\bsafeway\b|\bpublix\b|\bgrocery\b/.test(d)) return 'Groceries';
-
-  // Coffee (before Food)
   if (/\bstarbucks\b|\btropical smoothie\b|\bdunkin\b|\btim hortons\b|\bpeet.?s coffee\b|\bblue bottle\b|\bcaribou (coffee)?\b|\bcoffee (shop|house|company)\b/.test(d)) return 'Coffee Shops';
-
-  // Fast food (before Food/Restaurant)
   if (/\bbuffalo wild|\bbwr\b|\bwingstop|\braising canes?|\b5\s*guys|\bfive guys|\bdomino|\bpapa john|\bchipotle|\btaco bell|\bmcdonald|\bburger king|\bwendy|\bsubway\b|\bdairy queen|\bsonic\b|\bchick.?fil.?a|\bpopeye|\bkfc\b|\bjimmy john|\bpanera bread|\bquizno|\bdoordash|\bgrubhub|\bubereats|\buber eats/.test(d)) return 'Fast Food / Takeout';
-
-  // Restaurant
-  if (/\btexas roadhouse\b|\bolive garden\b|\bapplebee|\bred lobster\b|\bcheesecake (factory)?\b|\bbob evans\b|\bdenny.?s\b|\bcracker barrel\b/.test(d)) return 'Restaurants';
-
-  // Food (generic fallback)
-  if (/\bfood\b|\brestaurant\b|\bdiner\b|\bcafe\b|\bbar\s|\bgrill\b/.test(d)) return 'Groceries';
-
-  // Healthcare
-  if (/\bwalgreens\b|\bcvs\b|\brite\s*aid\b|\bduane reade\b|\bpharmacy\b|\bdoctor\b|\bdr\.|\bhospital\b|\bclinic\b|\bdental\b|\bdentist\b|\bortho|\bvision center\b|\bmedical (center|group|services)\b|\bhealthcare\b|\bresource recycl\b/.test(d)) return 'Doctor / Co-pays';
-
-  // Hobby
+  if (/\btexas roadhouse\b|\bolive garden\b|\bapplebee|\bred lobster\b|\bcheesecake (factory)?\b|\bbob evans\b|\bibuy\b|\bdenny.?s\b|\bcracker barrel\b/.test(d)) return 'Restaurants';
+  if (/\bfood\b|\brestaurant\b|\bdiner\b|\bcafe\b|\bbar\s|\bgrill\b/.test(d)) return 'Restaurants';
+  if (/\bdental\b|\bdentist\b|\bortho/.test(d)) return 'Dental';
+  if (/\bvision center\b/.test(d)) return 'Vision';
+  if (/\bwalgreens\b|\bcvs\b|\brite\s*aid\b|\bduane reade\b|\bpharmacy\b/.test(d)) return 'Prescriptions';
+  if (/\bdoctor\b|\bdr\.|\bhospital\b|\bclinic\b|\bmedical (center|group|services)\b|\bhealthcare\b|\bresource recycl\b/.test(d)) return 'Doctor / Co-pays';
   if (/\bhobby lobby\b|\bcricut\b|\bmichaels\b|\bjoann\b|\bbuild.a.bear\b|\bgame stop\b|\bbarnes.{0,3}noble\b|\bguitar center\b|\bcraft (store|supplies)\b/.test(d)) return 'Hobbies';
-
-  // Beauty
   if (/\bsephora\b|\bulta\b|\bsally beauty\b|\bsalon\b|\bbarber\b|\bspa\b|\bnail (salon|shop)\b|\bhair (cut|salon)\b/.test(d)) return 'Haircut / Salon';
-
-  // Travel
   if (/\bairlines?\b|\bdelta air\b|\bunited air\b|\bsouthwest air\b|\bamerican airlines\b|\bspirit airlines\b|\bjetblue\b|\bhotel\b|\bmotel\b|\bmarriott\b|\bhilton\b|\bairbnb\b|\bvrbo\b|\bexpedia\b|\bbooking\.com\b|\bkayak\b|\btravelocity\b|\benterprise rent\b|\bhertz\b|\bbudget rent\b/.test(d)) return 'Vacation / Travel';
-
-  // Charity
   if (/\bgoodwill\b|\bgofundme\b|\bsalvation army\b|\bred cross\b|\bunited way\b|\bdonation\b|\bcharity\b|\bnonprofit\b/.test(d)) return 'Charitable Donations';
-
-  // Entertainment
   if (/\bcinemark\b|\bregal (cinemas)?\b|\bamc theatre|\bmovie theater\b|\bconcert\b|\bticketmaster\b|\bstubhub\b|\bvenue\b|\bveterans memorial\b/.test(d)) return 'Activities / Events';
-
-  // Fitness
   if (/\bplanet fitness\b|\banytime fitness\b|\bla fitness\b|\bequinox\b|\bgym\b|\bcrossfit\b|\bpeloton\b|\byoga (studio|class)\b/.test(d)) return 'Gym / Fitness';
-
-  // Education
   if (/\btuition\b|\buniversity (of|payment)\b|\bcollege payment\b|\bschool (district|fees|payment)\b|\btextbook\b/.test(d)) return 'Tuition / Courses';
-
-  // Fees
   if (/\bservice (fee|charge)\b|\bnsf fee\b|\boverdraft\b|\batm fee\b|\bforeign transaction fee\b|\blate (fee|charge)\b|\bmaintenance fee\b|\battempt fee\b|\bohio bmv\b|\bdmv\b|\btaxslayer\b/.test(d)) return 'Interest / Fees';
-
-  // Taxes
-  if (/\birs (payment|tax)\b|\bstate tax\b|\bfederal tax\b|\btreasury\b/.test(d)) return 'Interest / Fees';
-
-  // Shopping
+  if (/\birs (payment|tax)\b|\bstate tax\b|\bfederal tax\b|\btreasury\b/.test(d)) return 'Other';
   if (/\bamazon|\bamzn\b|\btj\s*maxx|\btjx\b|\bjcpenney|\bkohl.?s|\btarget\b|\bmacy.?s|\bdollar\s*tree|\bdollartree|\bdollar.general|\bross\b|\bnordstrom|\bmarshall.?s|\bbest buy\b|\bcostco\.com|\bwayfair|\bindian lake outfitters|\bfamily dollar|\bfamilydollar|\btractor.?supply|\bharbor freight/.test(d)) return 'Clothing';
-
-  // Personal
   if (/\bfrancesca\b|\bdry clean(er)?\b|\blaundromat\b|\btailor\b|\bcobbler\b/.test(d)) return 'Personal Care';
-
   return 'Other';
 }
 
@@ -6859,7 +6797,7 @@ function parseRichDescription(description='') {
 }
 
 function esc(s='') {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\x22/g,'&quot;');
 }
 
 // ─── DB write helpers (Phase 0B) ─────────────────────────────────────────────
@@ -22439,9 +22377,10 @@ function _renderCategoryCleanup() {
 // them, and the list is here again next time.
 let _labelReview = null;
 
-function _labelReviewFuelBlock(f, key, intro, why) {
+function _labelReviewFuelBlock(f, key, intro, why, ask) {
   const n = f.count;
-  return `<div id="lrBlock_${key}" style="margin-bottom:14px"><div style="font-size:13px;color:var(--ink);margin-bottom:6px">${n} purchase${n !== 1 ? 's' : ''} in ${intro} look${n === 1 ? 's like a' : ' like'} fill-up${n !== 1 ? 's' : ''} — ${fmt(f.total)} in all. Move ${n === 1 ? 'it' : 'them'} to <strong>Gas / Fuel</strong> (Transportation)?</div>
+  const q = ask || `look${n === 1 ? 's like a' : ' like'} fill-up${n !== 1 ? 's' : ''} — ${fmt(f.total)} in all. Move ${n === 1 ? 'it' : 'them'} to <strong>Gas / Fuel</strong> (Transportation)?`;
+  return `<div id="lrBlock_${key}" style="margin-bottom:14px"><div style="font-size:13px;color:var(--ink);margin-bottom:6px">${n} purchase${n !== 1 ? 's' : ''} in ${intro} ${q}</div>
       <div style="font-size:11px;color:var(--slate-2);margin-bottom:6px">${why}</div>
       <div style="max-height:220px;overflow:auto;margin-bottom:8px">${f.rows.map(x => `
         <label style="display:flex;gap:8px;align-items:center;font-size:12px;padding:3px 0">
@@ -22453,8 +22392,16 @@ function _labelReviewFuelBlock(f, key, intro, why) {
 }
 
 function labelReviewHTML(r) {
-  if (!r || (!r.fuel && !r.fuel_groceries && !r.fitness)) return '';
+  const groups = (r && r.regroup) || [];
+  if (!r || (!r.fuel && !r.fuel_groceries && !r.fitness && !groups.length)) return '';
   let h = '';
+  // Item 54 M6 (MATCHER_ONE_ANSWER.md): rows saved under an old matcher answer whose words now name another leaf.
+  groups.forEach((gp, i) => {
+    const n = gp.count;
+    h += _labelReviewFuelBlock(gp, `rg${i}`, `<strong>${esc(gp.from)}</strong>`,
+      'Older imports and entries filed these by an earlier set of rules. Groundwork doesn\'t record whether you chose a category yourself, so nothing moves unless you say so.',
+      `would now be filed under <strong>${esc(gp.to)}</strong> — ${fmt(gp.total)} in all. Move ${n === 1 ? 'it' : 'them'}?`);
+  });
   if (r.fuel) h += _labelReviewFuelBlock(r.fuel, 'fuel', '<strong>Gas</strong> (your natural-gas utility)',
     'Older imports filed fuel under Gas. Moving them changes what the gas bill and gasoline estimates read.');
   // Item 53 G7 (FUEL_NAMES.md): warehouse-club and grocery fuel saved under Groceries.
@@ -22480,12 +22427,13 @@ async function _renderLabelReview() {
 }
 
 async function labelReviewMove(key, all) {
-  const ids = all ? (_labelReview?.[key]?.rows || []).map(x => x.id)
+  const src = key.startsWith('rg') ? (_labelReview?.regroup || [])[parseInt(key.slice(2), 10)] : _labelReview?.[key];
+  const ids = all ? (src?.rows || []).map(x => x.id)
                   : [...document.querySelectorAll(`.lrFuel_${key}:checked`)].map(e => parseInt(e.value, 10));
   if (!ids.length) { showToast('Nothing checked', '', 'warning'); return; }
   try {
     const r = await API.post('/api/categories/label-review/move', { ids });
-    showToast('Moved to Gas / Fuel', `${r.moved} purchase${r.moved !== 1 ? 's' : ''}`, 'success');
+    showToast(`Moved to ${src?.to || 'Gas / Fuel'}`, `${r.moved} purchase${r.moved !== 1 ? 's' : ''}`, 'success');
   } catch (e) { showToast('Could not move them', e.message || '', 'error'); return; }
   await renderCategoryManager();
   renderLedger(); renderDashboard(); _refreshBudgetIfActive();
@@ -27781,7 +27729,7 @@ function _renderBYBList() {
     // 'T00:00:00' the way other plain-date fields in this app need to
     // produced "Invalid Date" here.
     const decidedAt    = b.decided_at ? new Date(b.decided_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
-    const safeJson     = JSON.stringify(b).replace(/"/g, '&quot;');
+    const safeJson     = JSON.stringify(b).replace(/\x22/g, '&quot;');
     return `
       <div class="card mb-3" style="${b.decision==='commit'?'border-color:var(--pine-border)':b.decision==='walkaway'?'opacity:.75':''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">

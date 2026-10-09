@@ -31,8 +31,9 @@ def run(ctx):
                   'PLANET FITNESS 33': 'Gym / Fitness'})
     check('s164 L1 the fuel-station and fitness card codes follow',
           [bi.auto_category('X', m) for m in ('5541', '5542', '5172', '7997')] == ['Gas / Fuel'] * 3 + ['Gym / Fitness'])
-    check('s164 L1 natural-gas bills still go to Utilities, not to fuel',
-          bi.auto_category('DOMINION ENERGY GAS') == 'Utilities' and bi.auto_category('X', '4900') == 'Utilities')
+    check('s164 L1 natural-gas bills never go to fuel (item 54: a gas company is the Gas leaf; card code 4900 unchanged)',
+          bi.auto_category('DOMINION ENERGY GAS') != 'Gas / Fuel' and bi.auto_category('COLUMBIA GAS OF OHIO') != 'Gas / Fuel'
+          and bi.auto_category('X', '4900') == 'Utilities')
     tree_gas = [r for r in CATEGORY_TREE if r[0] in ('Gas', 'Gas / Fuel')]
     check('s164 L1 the tree is unchanged: Gas is the utility leaf, Gas / Fuel the Transportation leaf',
           sorted((r[0], r[4]) for r in tree_gas) == [('Gas', 'Utilities'), ('Gas / Fuel', 'Transportation')])
