@@ -58,6 +58,8 @@ the time. So this ranks on the universal two and stops. Not knowing someone's
 strategy costs humility in ranking, not the ability to help (F.6a).
 """
 
+import re
+
 from core.consequence import (MAX_MONTHS, Card, affordable_monthly, affordable_one_time,
                               decision_impact, extra_above_minimums,
                               offsetting_monthly_delta, simulate_payoff)
@@ -87,7 +89,29 @@ NECESSITY_FLOOR = (
     # reason this floor exists rather than an afterthought to it.
     'mental health', 'therapy', 'counseling', 'counselling', 'psychiatry',
     'psychologist',
+    # Version 3 (item 47 = item 45 H2, Rob 2026-10-08). The names users type for
+    # care that version 2 missed - each could be offered as money to cut:
+    # medicine by any name, visits and procedures, eyes, ears and teeth, care
+    # that lasts, and the emergency room by its initials.
+    'medicine', 'meds', 'rx', 'insulin',
+    'urgent care', 'physician', 'pediatrician', 'surgery', 'surgeon', 'ambulance',
+    'ob gyn', 'obgyn', 'lab', 'lab work',
+    'vision', 'eyeglasses', 'glasses', 'contacts', 'contact lenses', 'optometrist',
+    'ophthalmologist', 'hearing', 'hearing aid',
+    'orthodontist', 'orthodontics', 'braces',
+    'long term care', 'home health', 'nursing home',
+    'er', 'emergency room',
+    # Utilities and food under the spellings whole-word matching (below) no
+    # longer catches by accident, and "gas", which was only ever matched as part
+    # of "gas / electric".
+    'electricity', 'grocery', 'gasoline', 'gas',
 )
+
+# Names that are on the floor only when they are the WHOLE name. "Health" alone
+# is someone's health spending; "Health Club" is a gym (s45). Version 2 got both
+# right by accident - "health" sat inside "health care" - and version 3 keeps it
+# on purpose.
+NECESSITY_FLOOR_WHOLE_NAME = ('health',)
 
 
 # The floor's rule version. Not cosmetic: `is_protected` is an interpretation
@@ -100,18 +124,54 @@ NECESSITY_FLOOR = (
 #
 # Bump on any change to NECESSITY_FLOOR. Version '1' was the pre-2026-09-06 list,
 # which had no health terms and is the reason this constant exists.
-NECESSITY_FLOOR_VERSION = '2'
+NECESSITY_FLOOR_VERSION = '3'
+# Version '2' (2026-09-06) added the health terms. Version '3' (2026-10-08, item
+# 47) added the names in its block and changed how a name is matched (below).
+
+_WORD = re.compile(r'[a-z0-9]+')
+
+
+def _floor_words(text):
+    """A name as words: lower case, split on anything that is not a letter or a
+    digit, a plural s dropped ("Prescriptions" and "prescription" are one word;
+    "glasses" and "glasses" stay alike; "ss" is never cut)."""
+    out = []
+    for w in _WORD.findall(str(text).lower()):
+        if len(w) > 3 and w.endswith('s') and not w.endswith('ss'):
+            w = w[:-1]
+        out.append(w)
+    return tuple(out)
+
+
+def _has_run(words, run):
+    n = len(run)
+    return n > 0 and any(words[i:i + n] == run for i in range(len(words) - n + 1))
+
+
+_FLOOR_RUNS = tuple(_floor_words(p) for p in NECESSITY_FLOOR)
+_WHOLE_NAMES = frozenset(_floor_words(p) for p in NECESSITY_FLOOR_WHOLE_NAME)
 
 
 def is_protected(category_name):
     """True when a category sits on the necessity floor and may never be proposed
-    for cuts. Matching is loose on purpose: a near-miss that over-protects costs
-    one unavailable lever, while a near-miss that under-protects proposes cutting
-    someone's rent."""
+    for cuts. Matching stays loose on purpose - a near-miss that over-protects
+    costs one unavailable lever, while a near-miss that under-protects proposes
+    cutting someone's rent - but it is loose in WHOLE WORDS (version 3, item 47).
+    A floor term counts when its words appear together in the name ("Doctor /
+    Co-pays" has "doctor", "Urgent Care Visit" has "urgent care"). A term inside
+    an unrelated word never counts (Rob 2026-10-08): "ER" was protected by
+    "water", "groceries" and "therapy", "Hospitality" by "hospital", "Parenting"
+    by "rent". Nor does a name inside a longer term: version 2 let "Gas" match
+    "gas / electric", which in whole words would make "Home" match "nursing
+    home" - so "gas" is a term, and "health" counts only as the whole name."""
     if not category_name:
         return False
-    n = str(category_name).strip().lower()
-    return any(p in n or n in p for p in NECESSITY_FLOOR)
+    words = _floor_words(category_name)
+    if not words:
+        return False
+    if words in _WHOLE_NAMES:
+        return True
+    return any(_has_run(words, run) for run in _FLOOR_RUNS)
 
 
 # Both history-reading levers need a window long enough to be a record rather
