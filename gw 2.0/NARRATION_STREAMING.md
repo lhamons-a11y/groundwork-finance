@@ -5,7 +5,7 @@ program?"*, and *"lets not worry about never break the rules as much as giving t
 instead of hoping they holdup"*).
 
 Item 10 was DECIDED on 2026-08-30 (*narration is streamed*; `MODEL_PLACEMENT.md`, blueprint Appendix H) and measured
-in `STREAMING.md` on 2026-09-20, when the model ran in Ollama. It was never built. **S1–S9 RULED 2026-10-09 (Rob: "approve S1–S9 as recommended")**: S1 (a), sentence-gated reveal; master only (S8); CPU-only before/after timing needed for acceptance (S7). **No code yet:** the build needs its own go-ahead.
+in `STREAMING.md` on 2026-09-20, when the model ran in Ollama. It was never built. **S1–S9 RULED 2026-10-09 (Rob: "approve S1–S9 as recommended")**: S1 (a), sentence-gated reveal; master only (S8); CPU-only before/after timing needed for acceptance (S7). **BUILT 2026-10-09 (Rob: "build item 10")**: `engine.chat_stream` / `cancel`, `/api/ai/chat` `stream: true` and `/api/ai/stop`, callAI's sentence-checked streamed attempt, the live panel with Stop on the monthly report and the report narratives, `s170`. Awaiting acceptance.
 
 ## 1. What is true today (measured 2026-10-09 on master a729e15)
 
@@ -86,7 +86,25 @@ numbers.
 
 *Recommended.*
 
-## 3. Not decided here
+## 3. S7 measured (2026-10-09, this build, the CPU engine on an i7-12800H laptop)
+
+The real model (`phi3.5-mini-instruct-q4.gguf`, the CPU build shipped since item 31), a monthly-report prompt, 350
+tokens:
+
+| | Before: the whole answer | After: the first sentence shown | After: total |
+|---|---|---|---|
+| Run 1 | 23.2 s | **1.7 s** | 19.4 s |
+| Run 2 | 19.2 s | **1.7 s** | 18.7 s |
+
+The wait for something to read falls from about 20 seconds to under 2. The total is unchanged, as `STREAMING.md`
+predicted. This is a fast laptop CPU: a slower tester machine will wait longer in both columns, and S7 still asks
+for one measured there before acceptance.
+
+**Found while measuring (item 12, step 2):** both runs used every one of the 350 tokens allowed. Each answer ended at
+the cap, so R10 rejects it and the answer is reworded. The cap, not the model, is what turns a monthly report into a
+rewrite. Item 12 step 2 (the caps) is still unruled.
+
+## 4. Not decided here
 
 - **Item 12 step 2:** the token caps per surface. Its own ruling.
 - **Shorter prompts** for the silence before the first word. Measured per surface during S7.
