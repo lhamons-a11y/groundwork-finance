@@ -1,7 +1,7 @@
 # Item 59 — The trip budget uses real prices, or says it has none
 
 Opened 2026-10-09. Rob: *"can we add that web search capability?"*, then, on the way set out below, *"Lets approach
-it that way"*. **No code yet:** P1–P8 need a ruling, and the build needs its own go-ahead.
+it that way"*. **P1–P8 RULED as recommended (Rob 2026-10-09: "I accept item 59, 60, 62")**: P1 on both lines; P2 on condition GSA's files and terms allow it. **No code yet:** the build needs its own go-ahead.
 
 ## 1. What is true today (measured 2026-10-09, master and lts/1.x)
 

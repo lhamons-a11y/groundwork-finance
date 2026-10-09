@@ -2,7 +2,7 @@
 
 Opened 2026-10-09. Rob: *"should we have a page maybe in settings we have a page that shows the what was sent to ai
 log that they could select and view, That way we can clean up the look of the ui and still show the users what
-data was used."*, then *"yes"*. **No code yet:** G1–G8 need a ruling, and the build needs its own go-ahead.
+data was used."*, then *"yes"*. **G1–G8 RULED as recommended (Rob 2026-10-09: "I accept item 59, 60, 62"). No code yet:** the build needs its own go-ahead.
 
 ## 1. What is true today (measured 2026-10-09, master)
 

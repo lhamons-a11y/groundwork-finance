@@ -1,8 +1,7 @@
 # Item 60 — Bring in a whole itinerary and see the trip's budget
 
 Opened 2026-10-09. Rob: *"figure out a way to import from expedia and other travel groups plans that the agent can
-break apart and show the travel budget."* **No code yet:** I1–I7 need a ruling, and the build needs its own
-go-ahead.
+break apart and show the travel budget."* **I1–I7 RULED as recommended (Rob 2026-10-09: "I accept item 59, 60, 62"). No code yet:** the build needs its own go-ahead.
 
 ## 1. What is true today (measured 2026-10-09, master)
 
