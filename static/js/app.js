@@ -11405,6 +11405,15 @@ function _airfareNoteHtml(travelers) {
     <div style="margin-top:6px;font-size:11px;color:var(--slate-2)">Source: ${esc(d.source)}, ${quarter} — the average one-way fare passengers actually paid${d.basis === 'airport' ? ' between these two airports' : ' between these two cities, all their airports'}, from a 10% sample of real tickets (about ${Math.round(d.passengers_per_day).toLocaleString()} passengers a day). DOT keeps one figure for both directions of a route, so the return leg is the same average. It is not a fare you can book: compare it with the fares Google Flights shows for your dates${typed ? '. The fare you entered is used in your total instead' : ''}.</div>`);
 }
 
+// Item 48 (TRIP_EXACT_TOTALS.md, Rob 2026-10-08: "it should grab the exact
+// total since a good chance the user ordered it"): a total the user chose or
+// typed - a fare, a hotel quote - is a price, and is kept to the cent. Only the
+// planner's own estimates (fuel, dining, activities, a per-night guess) are
+// rounded, because they were never exact.
+function tripExactTotal(x) {
+  return Math.round(Number(x) * 100) / 100;
+}
+
 // ── Budget calculator ─────────────────────────────────────────────────────────
 function tripUpdateBudget() {
   const dest      = (_tripMode === 'fly' && g('tripToCity')?.value?.trim()) || g('tripDestination')?.value?.trim();
@@ -11452,7 +11461,7 @@ function tripUpdateBudget() {
     transportNote  = `~${distEst} mi ${distLive ? '(estimated route)' : 'est.'} · ${mpg} mpg · $${gasRate.toFixed(2)}/gal ${gasPriceLive ? '(national avg)' : 'est.'}`;
   } else if (_tripQuoteData?.flightTotal != null) {
     // Phase 5D: a real pasted flight-quote total beats the $220/person guess.
-    transportCost = Math.round(_tripQuoteData.flightTotal);
+    transportCost = tripExactTotal(_tripQuoteData.flightTotal);
     transportNote = _tripQuoteData.label === 'Google Flights'
       ? `${fmt(transportCost)} total (from Google Flights; the airline may add taxes or fees)`
       : `${fmt(transportCost)} total (from your quote)`;
@@ -11474,7 +11483,7 @@ function tripUpdateBudget() {
   // trip's learned rate (Phase 5C) > the rough $140/night default.
   let hotelCost, hotelPerNight;
   if (_tripQuoteData?.hotelTotal != null) {
-    hotelCost = Math.round(_tripQuoteData.hotelTotal);
+    hotelCost = tripExactTotal(_tripQuoteData.hotelTotal);
     hotelPerNight = Math.round(hotelCost / nights);
   } else {
     hotelPerNight = _tripQuoteData?.hotelPerNight ?? _tripLearnedBasis?.hotelPerNight ?? 140;
