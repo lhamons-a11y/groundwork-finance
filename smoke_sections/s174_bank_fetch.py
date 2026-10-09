@@ -136,4 +136,37 @@ def run(ctx):
     check('s174 A7 the recording window uses the same remembered-device folder when ticked, so "Trust this device" carries into the fetch; private otherwise',
           'storage_path=device' in rec_src and 'private_mode=True' in rec_src
           and "start_recording(key, url, device_dir=device)" in srv and "device = str(_bank_device_dir(key, create=True)) if device_on else ''" in srv.split('def bank_agent_record():')[1][:1200])
+    import tempfile, os
+    d = tempfile.mkdtemp(prefix='s174_dl_')
+    first = baw.unique_path(d, r'C:\\Users\\x\\Downloads\\transactions-1.csv')
+    open(first, 'w').close()
+    second = baw.unique_path(d, 'transactions-1.csv')
+    check('s174 A8 a download lands in the Downloads folder under the bank\'s own name; a taken name gets " (2)", never an overwrite',
+          os.path.basename(first) == 'transactions-1.csv' and os.path.dirname(first) == d
+          and os.path.basename(second) == 'transactions-1 (2).csv')
+    check('s174 A8 both agent windows save downloads without the Save As dialog the agent cannot see; the plain viewer keeps it',
+          src.count('    save_downloads_to_downloads_folder(platform_key)\n') == 2
+          and 'save_downloads_to_downloads_folder' not in (BASE / 'bank_window.py').read_text(encoding='utf-8'))
+    if os.name == 'nt':
+        from webview.platforms import edgechromium
+        before = edgechromium.EdgeChrome.on_download_starting
+        try:
+            ok_patch = baw.save_downloads_to_downloads_folder('win32')
+
+            class _Args:
+                ResultFilePath = r'C:\\anything\\stmt.csv'
+                Cancel = False
+                Handled = False
+            from webview import settings as ws
+            old = ws.get('ALLOW_DOWNLOADS')
+            ws['ALLOW_DOWNLOADS'] = True
+            a = _Args()
+            edgechromium.EdgeChrome.on_download_starting(None, None, a)
+            ws['ALLOW_DOWNLOADS'] = old
+            import bank_window as bw
+            check('s174 A8 on Windows the handler saves to the Downloads folder with no dialog and no cancel',
+                  ok_patch and a.Cancel is False and a.Handled is True
+                  and os.path.dirname(a.ResultFilePath) == str(bw.downloads_dir()) and a.ResultFilePath.endswith('stmt.csv'))
+        finally:
+            edgechromium.EdgeChrome.on_download_starting = before
 

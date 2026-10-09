@@ -149,6 +149,46 @@ RECORD_SCRIPT = r'''(function () {
 })();'''
 
 
+def unique_path(folder, name):
+    """Where a download lands: the Downloads folder, under the bank's own file name - with " (2)", " (3)" ... when that
+    name is taken, so an earlier file is never overwritten."""
+    import os
+    base = os.path.basename(name or '') or 'download'
+    stem, ext = os.path.splitext(base)
+    path, n = os.path.join(folder, base), 2
+    while os.path.exists(path):
+        path, n = os.path.join(folder, f'{stem} ({n}){ext}'), n + 1
+    return path
+
+
+def save_downloads_to_downloads_folder(platform_key):
+    """Rob's real run (2026-10-09): the bank's download opened Windows' Save As dialog, a system window the agent can't
+    see or answer, so the fetch waited forever. In the agent's windows only, a download is saved straight into the
+    Downloads folder - the folder the watcher reads and the import review offers to tidy away. pywebview 6 on Windows
+    always shows the dialog (EdgeChrome.on_download_starting); this replaces that one handler in this process. The plain
+    bank viewer (bank_window.py) is not touched and keeps its dialog."""
+    if platform_key != 'win32':
+        return False                                  # macOS / Linux: not yet measured (named in BANK_AGENT.md)
+    import bank_window as bw
+    try:
+        from webview.platforms import edgechromium
+    except Exception:
+        return False
+
+    def on_download_starting(self, sender, args):
+        from webview import settings as webview_settings
+        if not webview_settings.get('ALLOW_DOWNLOADS'):
+            args.Cancel = True
+            return
+        args.ResultFilePath = unique_path(str(bw.downloads_dir()), args.ResultFilePath)
+        try:
+            args.Handled = True                       # no download flyout either
+        except Exception:
+            pass
+    edgechromium.EdgeChrome.on_download_starting = on_download_starting
+    return True
+
+
 class RecordApi:
     """The one function the page may call while recording. Everything it is given is cleaned before it leaves."""
     def __init__(self, out=None):
@@ -185,6 +225,7 @@ def child_main(mode):
         bw._say(bw.STATUS_REFUSED_ENGINE)
         return 3
     webview.settings['ALLOW_DOWNLOADS'] = True
+    save_downloads_to_downloads_folder(platform_key)
     api = RecordApi()
     window = webview.create_window(title=bw.window_title(url) + ' - showing Groundwork how', url=url,
                                    width=1100, height=800, js_api=api)
@@ -542,6 +583,7 @@ def fetch_child_main():
         bw._say(bw.STATUS_REFUSED_ENGINE)
         return 3
     webview.settings['ALLOW_DOWNLOADS'] = True
+    save_downloads_to_downloads_folder(platform_key)
     window = webview.create_window(title=bw.window_title(url) + ' - Groundwork is fetching your download', url=url,
                                    width=1100, height=800)
     driver = Driver(window, steps_, _read_login(key), lambda l: (sys.stdout.write(l + '\n'), sys.stdout.flush()),
