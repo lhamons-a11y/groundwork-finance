@@ -8069,6 +8069,51 @@ def trip_distance_estimate():
     return ok(trip_distance.get_drive_distance(origin, destination))
 
 
+def _trip_credit_cards(session):
+    """Item 49 R1: the active debts a trip can be put on - type credit - with what the record holds about each, in the
+    same order the payoff engine sees them (`_consequence_inputs`)."""
+    from core.trip_card import available_credit
+    out = []
+    for i, d in enumerate(session.query(DebtAccount).filter_by(is_active=True).all()):
+        if (d.debt_type or 'credit') != 'credit':
+            continue
+        bal = d.current_balance if d.current_balance is not None else (d.begin_balance or 0)
+        out.append({'id': d.id, 'index': i, 'name': d.name or 'Card', 'balance': round(float(bal or 0), 2),
+                    'apr': float(d.interest_rate or 0), 'minimum': float(d.minimum_payment or 0),
+                    'limit': float(d.credit_limit) if d.credit_limit is not None else None,
+                    'available': available_credit(bal, d.credit_limit)})
+    return out
+
+
+@trip_bp.route('/cards', methods=['GET'])
+def trip_cards():
+    """Item 49 (TRIP_ON_CREDIT.md R1): the credit cards a trip could go on. Available credit only where a limit is
+    entered; otherwise None, and the page says the limit isn't entered."""
+    with db_session() as session:
+        return ok({'cards': _trip_credit_cards(session)})
+
+
+@trip_bp.route('/card-plan', methods=['GET'])
+def trip_card_plan():
+    """Item 49 R2-R4: what putting the trip on one card would take and cost - whether it fits, 3/6/12-month payoffs at
+    the card's APR, the in-full-this-statement row, and the whole plan at current payments - each with its assumption.
+    Computed here, in core/trip_card.py; nothing is saved."""
+    from core.trip_card import plan
+    try:
+        amount = float(request.args.get('amount', ''))
+        card_id = int(request.args.get('card_id', ''))
+    except (TypeError, ValueError):
+        return err('amount and card_id required')
+    if not (0 < amount <= 1_000_000):
+        return err('amount out of range')
+    with db_session() as session:
+        card = next((c for c in _trip_credit_cards(session) if c['id'] == card_id), None)
+        if not card:
+            return err('Not one of your credit cards', 404)
+        cards, budget, strategy, _undated = _consequence_inputs(session)
+        return ok(plan(amount, card, cards, budget, strategy, card['index']))
+
+
 @trip_bp.route('/budget', methods=['GET'])
 def get_trip_budget():
     """Return any saved trip budget from app_settings."""
