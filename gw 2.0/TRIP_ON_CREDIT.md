@@ -5,7 +5,7 @@ we should offer the available credit option and if they select that it should br
 user to select a … credit card. Then we can show the user available payment options that the user could do with their
 current payments how much the user has left in their monthly finances and a good percentage for the user to save. We
 are not saying don't do this but if you do this then here is what you need to do to pay this off and how much it will
-cost over the time that it will take you to pay it off."*). **RULED 2026-10-08 (Rob: "approve R1–R7 as recommended").** R5 is the user's own savings rate from the record, or a rate they pick, labelled as theirs: no outside guideline, no percentage called good. **BUILT 2026-10-08 (Rob: "build item 49")**: `core/trip_card.py` (the rows, the plan at current payments, the assumptions), `GET /api/trip/cards` and `GET /api/trip/card-plan`, the third option and its renderer in `app.js`, `s161` end to end; the teaching layer's save line now applies to *Save for it* only. Master only: a new
+cost over the time that it will take you to pay it off."*). **ACCEPTED and CLOSED (Rob, 2026-10-08: "I accept items 47, 48 and 49"), gate 2566 / 0.** **RULED 2026-10-08 (Rob: "approve R1–R7 as recommended").** R5 is the user's own savings rate from the record, or a rate they pick, labelled as theirs: no outside guideline, no percentage called good. **BUILT 2026-10-08 (Rob: "build item 49")**: `core/trip_card.py` (the rows, the plan at current payments, the assumptions), `GET /api/trip/cards` and `GET /api/trip/card-plan`, the third option and its renderer in `app.js`, `s161` end to end; the teaching layer's save line now applies to *Save for it* only. Master only: a new
 teaching feature.
 
 ## 1. What exists (measured 2026-10-08)

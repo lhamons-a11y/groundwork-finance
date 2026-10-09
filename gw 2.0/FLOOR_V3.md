@@ -1,6 +1,6 @@
 # Item 47 — The necessity floor, version 3 (item 45 H2)
 
-Opened and built 2026-10-08 (Rob: *"build item 45 H2"*). H2 was ruled at design level that day: *"Expand the list to
+**ACCEPTED and CLOSED (Rob, 2026-10-08: "I accept items 47, 48 and 49"), gate 2566 / 0.** Opened and built 2026-10-08 (Rob: *"build item 45 H2"*). H2 was ruled at design level that day: *"Expand the list to
 cover the identified health terms and built-in categories. Test aliases, capitalization, partial matches, and false
 positives. A match inside an unrelated word, such as `ER` inside `water`, must not count as valid classification."*
 Master only: 1.x never shows a proposed cut, because its builds strip the teaching layer.
