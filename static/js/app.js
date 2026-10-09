@@ -23679,6 +23679,123 @@ function _findingsKindsRefusal(payload) {
   return null;
 }
 
+// ── Item 10 (NARRATION_STREAMING.md, Rob 2026-10-09: S1-S9): narration that appears as it is written ──
+// S1 (a), the foundation: nothing unchecked reaches the screen. A sentence is shown only after it passes every
+// sentence-level voice rule (R1-R5b, R7, R8, R9 - each judges text, so each can judge one sentence). R10 (finished,
+// not cut off) needs the end, so the whole answer is checked again when it ends - which also catches a phrase split
+// across two sentences. A failure stops the stream, withdraws what was shown, and the answer is reworded out of
+// sight (S2) by callAI's existing retries.
+
+// Split finished sentences off the front of `buf`. A sentence ends at . ! ? (and any closing quote or bracket)
+// followed by whitespace, or at a blank line; "$1,234.56", "3.5%" and "e.g. this" do not end one.
+function _gwTakeSentences(buf) {
+  const out = [];
+  const re = /([.!?][\x22\x27)\]]*)(\s+)(?=[A-Z0-9$\x22\x27(])|\n\s*\n/g;
+  let last = 0, m;
+  while ((m = re.exec(buf)) !== null) {
+    const end = m.index + (m[1] ? m[1].length : 0);
+    const s = buf.slice(last, end).trim();
+    if (s) out.push(s);
+    last = m.index + m[0].length;
+  }
+  return { sentences: out, rest: buf.slice(last) };
+}
+
+// One streamed attempt. Returns {pass, text, gate, truncated} | {stopped, shown} | {unavailable}.
+async function _gwStreamAttempt(payload, systemText, findings) {
+  const body = { ...payload, system: systemText, stream: true };
+  delete body.onSentence; delete body.onReset; delete body.signal;
+  let res;
+  try {
+    res = await fetch('/api/ai/chat', { method: 'POST', signal: payload.signal,
+      headers: { 'Content-Type': 'application/json', ..._GW_AUTH_HEADER() }, body: JSON.stringify(body) });
+  } catch (e) {
+    return payload.signal && payload.signal.aborted ? { stopped: true, shown: '' } : { unavailable: true };
+  }
+  if (!res.ok || !(res.headers.get('content-type') || '').includes('text/event-stream')) {
+    // AI off answers in JSON (ai_available: false); anything else is unavailable
+    return { unavailable: true };
+  }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let raw = '', buf = '', full = '', shown = [], done = null;
+  const fail = async (gate) => {
+    try { await reader.cancel(); } catch (e) { /* closed */ }
+    API.post('/api/ai/stop', {}).catch(() => {});
+    return { pass: false, text: full, gate, truncated: false };
+  };
+  try {
+    while (true) {
+      const { value, done: end } = await reader.read();
+      if (end) break;
+      raw += dec.decode(value, { stream: true });
+      let i;
+      while ((i = raw.indexOf('\n\n')) >= 0) {
+        const line = raw.slice(0, i).replace(/^data: /, ''); raw = raw.slice(i + 2);
+        let ev; try { ev = JSON.parse(line); } catch (e) { continue; }
+        if (ev.t) {
+          full += ev.t; buf += ev.t;
+          const { sentences, rest } = _gwTakeSentences(buf);
+          buf = rest;
+          for (const s of sentences) {
+            const g1 = _voiceGateCheck(s, findings, false);
+            if (!g1.pass) return await fail(g1);
+            shown.push(s);
+            payload.onSentence(s);
+          }
+        } else if (ev.done) { done = ev; }
+        else if (ev.stopped) { return { stopped: true, shown: shown.join(' ') }; }
+        else if (ev.error) { return { unavailable: true }; }
+      }
+    }
+  } catch (e) {
+    if (payload.signal && payload.signal.aborted) return { stopped: true, shown: shown.join(' ') };
+    return { unavailable: true };
+  }
+  if (!done) return { unavailable: true };
+  const tail = buf.trim();
+  const truncated = done.stop_reason === 'max_tokens';
+  if (tail) {
+    const g2 = _voiceGateCheck(tail, findings, false);
+    if (!g2.pass) return { pass: false, text: full, gate: g2, truncated };
+  }
+  // The whole answer, again: R10 and anything a sentence-sized check could not see
+  const whole = _voiceGateCheck(full, findings, truncated);
+  if (!whole.pass) return { pass: false, text: full, gate: whole, truncated };
+  if (tail) payload.onSentence(tail);
+  return { pass: true, text: full.trim(), gate: whole, truncated };
+}
+
+// The live narration panel (item 10 S5/S6): checked sentences appear one by one; Stop ends the generation; a
+// rewrite withdraws them and says so. close() removes it - the surface then renders its final text as before.
+function _gwLiveNarration(host, key) {
+  const ctl = new AbortController();
+  const box = document.createElement('div');
+  box.id = `gwLive-${key}`;
+  box.style.cssText = 'margin-top:16px;padding:16px 20px;font-size:14px;color:var(--ink);line-height:1.8';
+  box.innerHTML = `<div data-gw-live-text></div><div style="margin-top:8px;font-size:11px;color:var(--slate-2)">
+      <span data-gw-live-status>Writing on your machine…</span>
+      <button class="btn btn-ghost btn-sm" data-gw-live-stop style="margin-left:8px">Stop</button></div>`;
+  host.appendChild(box);
+  const txt = box.querySelector('[data-gw-live-text]'), status = box.querySelector('[data-gw-live-status]');
+  box.querySelector('[data-gw-live-stop]').onclick = () => {
+    ctl.abort();
+    API.post('/api/ai/stop', {}).catch(() => {});
+  };
+  return {
+    signal: ctl.signal,
+    add: (s) => { txt.textContent = (txt.textContent ? txt.textContent + ' ' : '') + s; },
+    reset: (why) => { txt.textContent = ''; status.textContent = why || 'Rewording…'; },
+    close: () => box.remove(),
+  };
+}
+
+function _gwShowStopped(host, text, id, replace) {
+  const html = `<div id="${id}" class="card" style="padding:20px;margin-top:16px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);font-weight:600">Stopped before it finished</div>
+      <div style="font-size:14px;color:var(--ink);line-height:1.8;margin-top:8px">${esc(text || '')}</div></div>`;
+  if (replace) host.innerHTML = html; else host.insertAdjacentHTML('beforeend', html);
+}
+
 // ── callAI() — THE single choke point every narrative AI surface calls
 // through. Appends _GW_VOICE, runs the voice gate on the response, retries
 // once with a corrective terser prompt on failure, and returns ok:false on a
@@ -23709,7 +23826,9 @@ async function callAI(payload) {
 
   async function attempt(systemText) {
     try {
-      const res = await API.post('/api/ai/chat', { ...payload, system: systemText });
+      const body = { ...payload, system: systemText };
+      delete body.onSentence; delete body.onReset; delete body.signal;
+      const res = await API.post('/api/ai/chat', body);
       const data = res.data || res;
       if (data.ai_available === false) return { ok:false, text:'', unavailable:true, message:data.message||'' };
       const text = (data.content||[]).map(b=>b.text||'').filter(Boolean).join('\n');
@@ -23724,12 +23843,25 @@ async function callAI(payload) {
     }
   }
 
-  let result = await attempt(baseSystem);
-  if (!result.ok) return { ok:false, text:'', payload };
-  if (skipGate) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider, truncated:result.truncated };
-
-  let gate = _voiceGateCheck(result.text, findings, result.truncated);
-  if (gate.pass) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider };
+  let result, gate;
+  // Item 10 S1: a surface that passes onSentence streams its first attempt, shown sentence by sentence as each
+  // passes the voice check. A failure withdraws what was shown (onReset) and falls into the retries below, out of
+  // sight (S2). A surface without onSentence is unchanged.
+  if (!skipGate && typeof payload.onSentence === 'function') {
+    const s = await _gwStreamAttempt(payload, baseSystem, findings);
+    if (s.stopped) return { ok:false, stopped:true, text:s.shown, payload };
+    if (s.unavailable) return { ok:false, text:'', payload };
+    if (s.pass) return { ok:true, text:s.text, payload, model:'', provider:'local', streamed:true };
+    if (typeof payload.onReset === 'function') payload.onReset('Rewording…');
+    result = { ok:true, text:s.text, model:'', provider:'local', truncated:s.truncated };
+    gate = s.gate;
+  } else {
+    result = await attempt(baseSystem);
+    if (!result.ok) return { ok:false, text:'', payload };
+    if (skipGate) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider, truncated:result.truncated };
+    gate = _voiceGateCheck(result.text, findings, result.truncated);
+    if (gate.pass) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider };
+  }
 
   // Up to 2 corrective retries (3 attempts total). Each cites the exact
   // offending word/phrase from the MOST RECENT attempt, not just the rule
@@ -23989,7 +24121,10 @@ async function _rcSendAI(reportId) {
   if (!_rcAIThread[reportId]) _rcAIThread[reportId] = [];
   _rcAIThread[reportId].push({ role: 'user', content: prompt });
 
+  // Item 10 S5/S6: the narrative appears as it is written, each sentence after the voice check passes it, with Stop.
+  const live = _gwLiveNarration(target, reportId);
   const result = await callAI({
+    onSentence: live.add, onReset: live.reset, signal: live.signal,
     max_tokens: 350,
     system: `You are Groundwork's financial analysis engine. Write clear, specific, direct analysis.
 Tone: like a knowledgeable friend who knows the user's numbers. Direct, never preachy, never generic.
@@ -24002,6 +24137,11 @@ Use the actual dollar amounts provided. 3 short paragraphs max.`,
 
   if (previewPanel) previewPanel.remove();
   g(`rcAILoading-${reportId}`)?.remove();
+  live.close();
+  if (result.stopped) {          // S6: what was shown stays, marked stopped - never cached, never treated as finished
+    _gwShowStopped(target, result.text, `rcAIStopped-${reportId}`);
+    return;
+  }
 
   if (result.ok && result.text) {
     _rcAIThread[reportId].push({ role: 'assistant', content: result.text });
@@ -24683,12 +24823,20 @@ async function _rcMonthlyGenerate() {
     return;
   }
   try {
+    // Item 10 S5/S6: the monthly report appears as it is written, sentence by checked sentence, with Stop.
+    const live = _gwLiveNarration(cont, 'monthly');
     const result = await callAI({
+      onSentence: live.add, onReset: live.reset, signal: live.signal,
       messages:[{role:'user',content:`Monthly report for ${monthName}. Spent: ${fmt(spent)}. Income: ${fmt(income)}. ${under>=0?`Under budget by ${fmt(under)}.`:`Over by ${fmt(Math.abs(under))}.`} Top categories: ${topCats}. ${priceLines.length?`Real market price benchmarks for the categories above (use these to tell price-driven changes apart from usage-driven ones — don't blame the household for a price increase): ${priceLines.join(' ')}`:''} ${annotation?`Note: "${annotation}"`:''}. Write 3-4 paragraphs. Start with one punchy sentence. Follow with analysis. End by naming the single largest category above and its exact dollar amount, stated as a plain fact — not a command or suggestion, and never calculate a new number yourself (write "Transfer was the largest category at $X," never "Consider cutting..." or "You should trim..." or any dollar figure not listed above). No bullets. No headings.`}],
       system:'You are writing a monthly financial report. Tone: direct, honest, like a trusted friend who knows their numbers. Never preachy.',
       surface: 'monthly_report_v2',
       findings_kinds: ['income', 'total', 'category', 'budget', 'date', 'price_benchmark', 'annotation'],
     });
+    live.close();
+    if (result.stopped) {        // S6: shown text stays, marked stopped; not saved as the month's report
+      if (stillCurrent()) _gwShowStopped(cont, result.text, 'rcMonthlyStopped', true);
+      return;
+    }
     if (!result.ok || !result.text) throw new Error('empty');
     if (stillCurrent()) {
       _rcMonthlyDisplayNarrative(result.text,monthName,false);

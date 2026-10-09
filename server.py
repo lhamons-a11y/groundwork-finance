@@ -18,7 +18,7 @@ from pathlib import Path
 from functools import wraps
 from typing import Any
 
-from flask import copy_current_request_context, Flask, jsonify, request, send_from_directory, send_file
+from flask import copy_current_request_context, Flask, jsonify, request, send_from_directory, send_file, Response, stream_with_context
 
 # Session ID — changes on every server start so client can detect restarts
 _GW_SESSION_ID = str(_uuid.uuid4())[:8]
@@ -9015,7 +9015,41 @@ def ai_chat():
         })
 
     body = request.json or {}
+    if body.get('stream'):
+        return _ai_chat_stream(body)
     return _ai_chat_local(body)
+
+
+@ai_bp.route('/stop', methods=['POST'])
+def ai_stop():
+    """Item 10 S6: the user pressed Stop - end the generation in progress."""
+    from core import engine
+    engine.cancel()
+    return ok({'stopping': True})
+
+
+def _ai_chat_stream(body: dict):
+    """Item 10 S4 (NARRATION_STREAMING.md): the same local chat, answered as server-sent events on this computer's own
+    server - {"t": piece} as the model writes, then {"done": true, "stop_reason": ...} ('end_turn', 'max_tokens' or
+    'unknown', exactly as _ai_chat_local maps it), or {"stopped": true}, or {"error": reason, "message": ...}.
+    Nothing leaves the machine (s52). The page shows nothing until the voice check has passed a whole sentence (S1)."""
+    from core import engine
+
+    def events():
+        for kind, val in engine.chat_stream(body.get('system'), body.get('messages', []),
+                                            max_tokens=int(body.get('max_tokens', 1000)),
+                                            temperature=float(body.get('temperature', 0.3))):
+            if kind == 'text':
+                yield 'data: ' + json.dumps({'t': val}) + '\n\n'
+            elif kind == 'done':
+                stop_reason = 'max_tokens' if val == 'length' else 'end_turn' if val == 'stop' else 'unknown'
+                yield 'data: ' + json.dumps({'done': True, 'stop_reason': stop_reason, 'provider': 'local'}) + '\n\n'
+            elif kind == 'stopped':
+                yield 'data: ' + json.dumps({'stopped': True}) + '\n\n'
+            else:
+                yield 'data: ' + json.dumps({'error': 'engine_' + val['reason'], 'message': val['message']}) + '\n\n'
+    return Response(stream_with_context(events()), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 
 # ── Local AI: the in-app engine (core/engine.py; ENGINE_REPLACEMENT.md, item 31) ────────────────────────────────

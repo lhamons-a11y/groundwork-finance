@@ -285,6 +285,55 @@ def _text_of(content):
     return str(content or '')
 
 
+_cancel = threading.Event()
+
+
+def cancel():
+    """Item 10 S6: end the generation in progress (the user pressed Stop). The stream reports 'stopped'."""
+    _cancel.set()
+
+
+def chat_stream(system, messages, max_tokens=1000, temperature=0.3):
+    """Item 10 S3 (NARRATION_STREAMING.md): one completion, as it is written.
+
+    Yields ('text', piece) as the model writes, then exactly one closing event: ('done', finish) with the engine's own
+    finish reason ('stop' or 'length' - item 12's R10 reads it), ('stopped', None) when cancel() ended it, or
+    ('error', {'reason', 'message'}). The engine's lock is held for the whole generation - one at a time, as chat() -
+    and released when the generator finishes or is closed (a dropped connection closes it).
+    """
+    if _state['state'] == 'loading':
+        _ready.wait(LOADING_WAIT_SECONDS)
+    with _lock:
+        if _model is None:
+            st = _state['state']
+            reason = _state['reason'] if st == 'unavailable' else st
+            yield ('error', {'reason': reason, 'message': MESSAGES.get(reason, MESSAGES['off'])})
+            return
+        _cancel.clear()
+        msgs = ([{'role': 'system', 'content': system}] if system else []) + [
+            {'role': m.get('role', 'user'), 'content': _text_of(m.get('content'))} for m in (messages or [])]
+        try:
+            pieces = _model.create_chat_completion(messages=msgs, max_tokens=int(max_tokens),
+                                                   temperature=float(temperature), stream=True)
+        except ValueError as e:
+            if 'context' in str(e).lower() or 'exceed' in str(e).lower():
+                yield ('error', {'reason': 'too_long', 'message': MESSAGES['too_long']})
+                return
+            raise
+        finish = None
+        for chunk in pieces:
+            if _cancel.is_set():
+                yield ('stopped', None)
+                return
+            choice = (chunk.get('choices') or [{}])[0]
+            piece = (choice.get('delta') or {}).get('content') or ''
+            if piece:
+                yield ('text', piece)
+            if choice.get('finish_reason'):
+                finish = choice['finish_reason']
+        yield ('done', finish)
+
+
 def chat(system, messages, max_tokens=1000, temperature=0.3):
     """One completion. {'ok': True, 'text', 'finish', 'tokens'} or {'ok': False, 'reason', 'message'}."""
     if _state['state'] == 'loading':
