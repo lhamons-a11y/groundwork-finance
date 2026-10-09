@@ -6693,6 +6693,7 @@ def _record_fetch(key, url, words, started, events, folder=None):
                 'finished':       end.get('at'),
                 'outcome':        end.get('s'),
                 'why':            end.get('why'),
+                'stopped_at':     end.get('i'),
                 'file_name':      file_name,
                 'content_sha256': sha,
             })

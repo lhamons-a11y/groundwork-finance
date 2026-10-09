@@ -111,7 +111,8 @@ RECORD_SCRIPT = r'''(function () {
   window.__gwBar = gwBar;
   function api() { return window.pywebview && window.pywebview.api && window.pywebview.api.step; }
   var noted = 0;
-  try { noted = parseInt(sessionStorage.getItem('__gwNoted') || '0', 10) || 0; } catch (e) {}
+  var countKey = '__gwNoted:' + (window.__gwRecId || '');      // per recording, so an old count never carries over
+  try { noted = parseInt(sessionStorage.getItem(countKey) || '0', 10) || 0; } catch (e) {}
   function say() {
     gwBar('Recording for Groundwork \u2014 do your usual download. Groundwork notes your clicks and choices, never what you type. '
       + (noted ? noted + ' step' + (noted === 1 ? '' : 's') + ' noted. ' : '') + 'Press Done in Groundwork when the file has downloaded.', 'rec');
@@ -119,7 +120,7 @@ RECORD_SCRIPT = r'''(function () {
   function note(step) {
     window.pywebview.api.step(step);
     noted += 1;
-    try { sessionStorage.setItem('__gwNoted', String(noted)); } catch (e) {}
+    try { sessionStorage.setItem(countKey, String(noted)); } catch (e) {}
     say();
   }
   say();
@@ -166,6 +167,12 @@ RECORD_SCRIPT = r'''(function () {
     var el = e.target && e.target.closest ? e.target.closest('a,button,[role=button],[role=link],[role=tab],[role=menuitem],input[type=submit],input[type=button]') : null;
     if (!el) return;
     if (signInForm(el.closest ? el.closest('form') : null)) return;   // the submit listener records it
+    // A page with no form (Rob's bank): a click on a control named like a sign-in, with a password box showing
+    if (/(^|[\s_])(sign ?in|log ?in|login|log on)([\s_]|$)/i.test(nameOf(el).replace(/_/g, ' ') + ' ' + (el.innerText || ''))
+        && Array.prototype.some.call(document.querySelectorAll('input[type=password]'), function (p) { var r = p.getBoundingClientRect(); return r.width > 0 && r.height > 0; })) {
+      note({k: 'sign_in', opt: checkPage()});
+      return;
+    }
     note({k: 'click', role: (el.getAttribute('role') || el.tagName.toLowerCase()), text: nameOf(el), opt: checkPage()});
   }, true);
   document.addEventListener('change', function (e) {
@@ -258,12 +265,14 @@ def child_main(mode):
     webview.settings['ALLOW_DOWNLOADS'] = True
     save_downloads_to_downloads_folder(platform_key)
     api = RecordApi()
+    import secrets
+    rec_id = secrets.token_hex(8)              # names this recording's step count on the page
     window = webview.create_window(title=bw.window_title(url) + ' - showing Groundwork how', url=url,
                                    width=1100, height=800, js_api=api)
 
     def on_loaded(*_):
         try:
-            window.evaluate_js(RECORD_SCRIPT)
+            window.evaluate_js('window.__gwRecId = ' + json.dumps(rec_id) + ';' + RECORD_SCRIPT)
         except Exception:
             pass
     window.events.loaded += on_loaded
@@ -316,10 +325,12 @@ def start_recording(key, url, wait_seconds=20.0, device_dir=''):
     import bank_window as bw
     if bw.portal_url_problem(url):
         return 'refused_url'
+    # Recording again starts over: a window still open from before (behind, or never finished) is closed, and its
+    # steps go with it (Rob: "the steps are not getting deleted when you record over them")
     with _lock:
-        rec = _recordings.get(key)
-        if rec and rec['proc'] is not None and rec['proc'].poll() is None:
-            return 'already_open'
+        old = _recordings.pop(key, None)
+    if old and old['proc'] is not None:
+        bw._stop(old['proc'])
     flags = 0x08000000 if sys.platform == 'win32' else 0
     proc = subprocess.Popen(_command('record'), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True, creationflags=flags)
@@ -372,6 +383,14 @@ def begin_for_test(key):
 FETCH_STATUSES = ('step', 'skipped', 'signed_in', 'waiting_code', 'stopped', 'downloaded', 'no_download', 'done')
 STOP_REASONS = ('page_changed', 'bot_check', 'no_login', 'code_timeout', 'cancelled', 'sign_in_failed')
 STEP_WAIT = 15.0          # seconds for a step's control to appear after a page load
+SIGN_IN_SETTLE = 12.0     # seconds the old login page may still show after Sign In is pressed
+_SIGN_IN_WORDS = re.compile(r'(^|[\s_])(sign ?in|log ?in|login|log on)([\s_]|$)', re.I)
+
+
+def is_sign_in_step(step):
+    """A recorded sign-in: either kind, or a click on a control named like one (a page with no form)."""
+    return step.get('k') in ('sign_in', 'sign_in_user') or (
+        step.get('k') == 'click' and bool(_SIGN_IN_WORDS.search((step.get('text') or '').replace('_', ' '))))
 CODE_WAIT = 300.0         # the user types a code
 DOWNLOAD_WAIT = 120.0
 
@@ -415,6 +434,7 @@ DO_SCRIPT = r'''(function () {
   // Press an element the way a mouse does. A native button, link, input or label takes a plain click; a styled element
   // (a web-app "button" that is a div) answers only the full press - pointer and mouse down and up, then the click.
   function press(el) {
+    try { el.scrollIntoView({block: 'center', inline: 'nearest'}); } catch (e) {}
     if (/^(BUTTON|A|INPUT|LABEL|OPTION)$/.test(el.tagName)) { el.click(); return; }
     var r = el.getBoundingClientRect();
     var o = {bubbles: true, cancelable: true, composed: true, view: window, button: 0, buttons: 1,
@@ -595,10 +615,11 @@ class Driver:
 
     def run(self):
         before = self.downloads() if self.downloads else set()
-        i = 0
+        i, signed_in = 0, False
         while i < len(self.steps):
             step = self.steps[i]
             deadline, waiting_code, skip_to, sign_ins, framed = self.now() + STEP_WAIT, False, None, 0, False
+            settle = 0.0
             while True:
                 if self.cancelled:
                     self.say(fetch_line('stopped', i=i, why='cancelled'))
@@ -626,16 +647,27 @@ class Driver:
                     if self.login is None:
                         self.say(fetch_line('stopped', i=i, why='no_login'))
                         return 'no_login'
+                    if sign_ins and self.now() < settle:
+                        self.sleep(1.0)               # the old login page, still showing just after Sign In
+                        continue
                     if sign_ins >= 2:
                         self.say(fetch_line('stopped', i=i, why='sign_in_failed'))
                         return 'sign_in_failed'
                     sign_ins += 1
                     if self._try({'k': r.split(':', 1)[1]}) == 'ok':
                         self.say(fetch_line('signed_in', i=i))
+                        signed_in = True
+                    settle = self.now() + SIGN_IN_SETTLE
                     deadline = self.now() + STEP_WAIT
                     self.sleep(1.0)
                     continue
                 if r == 'ok':
+                    self.say(fetch_line('step', i=i))
+                    if is_sign_in_step(step):
+                        signed_in = True
+                    break
+                if signed_in and is_sign_in_step(step) and r in ('missing', 'present'):
+                    # The recorded sign-in, already done this run (the login form has gone): it counts as done
                     self.say(fetch_line('step', i=i))
                     break
                 # An optional step (a code check, "trust this device") the bank didn't show this time: when the next

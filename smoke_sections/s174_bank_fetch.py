@@ -179,9 +179,15 @@ def run(ctx):
     evs = [baw.parse_fetch_line(l)['s'] for l in lines]
     check('s174 A6 the login form appears with no sign-in recorded: it signs in from the vault, then carries on',
           r == 'done' and evs == ['signed_in', 'step', 'step', 'done'] and LOGIN[1] in page.sent[1] and LOGIN[1] not in page.sent[0])
-    page, clock, lines = _Page(['login:sign_in', 'ok', 'login:sign_in', 'ok', 'login:sign_in']), _Clock(), []
+    class _StuckLogin(_Page):
+        def evaluate_js(self, js):                  # always the login page; a sign-in attempt "works"
+            if 'window.__gwDo ? window.__gwDo(' not in js:
+                return None
+            self.sent.append(js)
+            return 'ok' if '"k": "sign_in"' in js else 'login:sign_in'
+    page, clock, lines = _StuckLogin([]), _Clock(), []
     r = baw.Driver(page, STEPS3, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
-    check('s174 A6 still on the login page after two sign-ins: it stops and says so - no loop', r == 'sign_in_failed')
+    check('s174 A6 still on the login page after two sign-ins: it stops and says so - no loop', r == 'sign_in_failed' and sum(LOGIN[1] in js for js in page.sent) == 2)
     page, clock, lines = _Page(['login:sign_in']), _Clock(), []
     r = baw.Driver(page, STEPS3, None, lines.append, now=clock.now, sleep=clock.sleep).run()
     check('s174 A4 a login form with no saved login: it stops and says so', r == 'no_login')
@@ -215,4 +221,18 @@ def run(ctx):
           and "new PointerEvent('pointerdown'" in ds and "new MouseEvent('click', up)" in ds)
     check('s174 A6 a sign-in / log-in name wins over Continue / Next, and a label like tethered_login_sign_in counts',
           'near(signIn) || near(onward)' in ds and "replace(/_/g, ' ')" in ds)
+    # Rob's seventh run: a recorded 'Click "Sign In"' (no form on the page); the fetch signed in, then hunted for it
+    STEPS7 = [{'k': 'click', 'text': 'Sign In'}, {'k': 'click', 'text': 'Checking'}]
+    page, clock, lines = _Page(['login:sign_in', 'ok', 'login:sign_in', 'login:sign_in', 'missing', 'ok']), _Clock(), []
+    r = baw.Driver(page, STEPS7, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    evs = [baw.parse_fetch_line(l)['s'] for l in lines]
+    check('s174 A6 a recorded "Sign In" click counts as done once signed in; the old login page showing for a moment is waited out, not signed into again',
+          r == 'done' and evs == ['signed_in', 'step', 'step', 'done'] and sum(LOGIN[1] in js for js in page.sent) == 1)
+    check('s174 A6 a sign-in step is known by kind or by name', baw.is_sign_in_step({'k': 'click', 'text': 'Log In'})
+          and baw.is_sign_in_step({'k': 'sign_in'}) and not baw.is_sign_in_step({'k': 'click', 'text': 'Trouble Signing In?'})
+          and not baw.is_sign_in_step({'k': 'click', 'text': 'Checking'}))
+    check('s174 A6 each control is scrolled into view before it is pressed',
+          baw.DO_SCRIPT.index('scrollIntoView') < baw.DO_SCRIPT.index("new PointerEvent('pointerdown'"))
+    check('s173 A5 a click on a sign-in-named control with a password box showing is recorded as the sign-in (a page with no form)',
+          "note({k: 'sign_in', opt: checkPage()});" in baw.RECORD_SCRIPT)
 

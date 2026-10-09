@@ -107,7 +107,7 @@ def run(ctx):
           "document.addEventListener('submit'" in script2 and 'signInForm(e.target)' in script2
           and 'if (signInForm(el.closest' in script2)
     check('s173 A5 steps taken on a code-check page are marked optional ("only if your bank asks")',
-          script2.count('opt: checkPage()') == 4
+          script2.count('opt: checkPage()') == 5
           and baw.step_words({'k': 'choose', 'option': 'Trust Device', 'opt': True}) == 'Choose \u201cTrust Device\u201d (only if your bank asks)')
     rs = baw.RECORD_SCRIPT
     check('s173 A5 the recording window shows that it is recording, with a live count, and says it never notes what you type (Rob: "so the user knows when to start")',
@@ -119,3 +119,37 @@ def run(ctx):
     check('s173 A5 while recording the bar shows a blinking red dot (Rob: "a blinking red button instead of white"), steady for reduced motion',
           '#e5322d' in rs and '@keyframes gwrec' in rs and 'prefers-reduced-motion' in rs and "'rec');" in rs
           and "tone === 'rec' ? 'inline-block' : 'none'" in baw.DO_SCRIPT)
+    # Rob: "the steps are not getting deleted when you record over them"
+    ka2 = 'account:999173'
+    baw.begin_for_test(ka2)
+    baw.collect(ka2, ['step {"k":"click","text":"Old step"}\n'])
+    class _Gone:
+        def poll(self): return None
+        def terminate(self): self.stopped = True
+        def kill(self): self.stopped = True
+        def wait(self, timeout=None): return 0
+    with baw._lock:
+        baw._recordings[ka2]['proc'] = _Gone()
+    import bank_window as _bw
+    real_status = _bw._read_status
+    import subprocess as _sp
+    class _P:
+        def __init__(self, *a, **k):
+            import io
+            self.stdin, self.stdout = io.StringIO(), io.StringIO('')
+        def poll(self): return None
+        def terminate(self): pass
+        def kill(self): pass
+        def wait(self, timeout=None): return 0
+    orig = _sp.Popen
+    _sp.Popen, _bw._read_status = _P, (lambda proc, w: _bw.STATUS_READY)
+    try:
+        res = baw.start_recording(ka2, 'https://bank.example.com/')
+    finally:
+        _sp.Popen, _bw._read_status = orig, real_status
+    check('s173 A5 recording again starts over: the old window is closed and its steps are gone',
+          res == 'opened' and baw.steps(ka2) == [])
+    baw.finish_recording(ka2)
+    check('s173 A5 the bar\'s step count is kept per recording, and saving says it replaces the steps saved before',
+          "'__gwNoted:' + (window.__gwRecId" in baw.RECORD_SCRIPT and 'Saving them replaces any steps saved before' in ctx.app_src)
+

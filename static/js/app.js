@@ -22907,7 +22907,7 @@ async function finishBankRecording(key) {
   if (!box) return;
   if (!r.steps.length) { box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">No steps were seen. Try again, clicking through your download.</div>`; return; }
   window._bankRecSteps = r.steps;
-  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">These are the steps Groundwork would repeat for you:</div>
+  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">These are the steps Groundwork would repeat for you. Saving them replaces any steps saved before for this account.</div>
     <ol style="font-size:12px;color:var(--ink);margin:6px 0 6px 18px">${bankStepsHtml(r.words)}</ol>
     <button class="btn btn-primary btn-sm" onclick="saveBankRecipe('${esc(key)}')">Save these steps</button>
     <button class="btn btn-ghost btn-sm" onclick="renderBankLogins()">Discard</button>`;
