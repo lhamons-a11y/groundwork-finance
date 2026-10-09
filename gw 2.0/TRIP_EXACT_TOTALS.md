@@ -1,6 +1,6 @@
 # Item 48 — A fare or hotel total the user chose or typed is used to the cent
 
-Opened and built 2026-10-08. Rob: *"when travel grabs the total from the airline web page it rounds the value up it
+**ACCEPTED and CLOSED (Rob, 2026-10-08: "I accept items 47, 48 and 49"), gate 2566 / 0.** Opened and built 2026-10-08. Rob: *"when travel grabs the total from the airline web page it rounds the value up it
 should grab the exact total since a good chance the user ordered it."* Master only.
 
 ## What was wrong
