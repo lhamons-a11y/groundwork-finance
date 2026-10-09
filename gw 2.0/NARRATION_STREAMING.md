@@ -5,8 +5,7 @@ program?"*, and *"lets not worry about never break the rules as much as giving t
 instead of hoping they holdup"*).
 
 Item 10 was DECIDED on 2026-08-30 (*narration is streamed*; `MODEL_PLACEMENT.md`, blueprint Appendix H) and measured
-in `STREAMING.md` on 2026-09-20, when the model ran in Ollama. It was never built. **No code yet:** S1–S9 need a
-ruling, and the build needs its own go-ahead.
+in `STREAMING.md` on 2026-09-20, when the model ran in Ollama. It was never built. **S1–S9 RULED 2026-10-09 (Rob: "approve S1–S9 as recommended")**: S1 (a), sentence-gated reveal; master only (S8); CPU-only before/after timing needed for acceptance (S7). **No code yet:** the build needs its own go-ahead.
 
 ## 1. What is true today (measured 2026-10-09 on master a729e15)
 
