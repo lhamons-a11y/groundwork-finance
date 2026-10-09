@@ -61,7 +61,7 @@ def run(ctx):
           "g('tripFlightFare').value = clean.flightTotal" in app
           and re.search(r"function _clearTripQuote\(\) \{[^}]*tripFlightFare'\)\.value = ''", app) is not None)
     check('s151 F3 the budget still reads the flight total from _tripQuoteData.flightTotal',
-          'transportCost = Math.round(_tripQuoteData.flightTotal)' in app)
+          'transportCost = tripExactTotal(_tripQuoteData.flightTotal)' in app)
 
     node = shutil.which('node')
     check('s151 node is available to run the fare function (skip the rest if not)', bool(node))
