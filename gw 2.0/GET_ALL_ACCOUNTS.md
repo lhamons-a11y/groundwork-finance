@@ -11,6 +11,8 @@ accounts that could be in the header the dashboard wherever it make logic."*
 - Nothing leaves the computer: bank → the user's computer → Groundwork. No middleman holds a login (the difference
   from Plaid).
 
+**G1-G9 RULED 2026-10-09 (Rob: "i accept all points"), each as recommended (G2 both (a) and (b); G6 both (a) and (b)). Build not yet authorised; it waits on item 57's acceptance.**
+
 **Depends on item 57 being accepted.** Item 57's single-account fetch must pass Rob's real-bank run first. This item
 only runs it for several accounts in turn.
 
