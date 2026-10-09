@@ -125,6 +125,7 @@ PORTAL_READERS = {
     'update_debt',             # refuses portal_url in the PATCH body
     '_relink_card_portal',     # F3 across a link change
     '_bank_agent_accounts',    # item 57 (BANK_AGENT.md A1 (b)): whether a link exists, to list it; returns key + name, never the URL
+    '_bank_agent_url',         # item 57: the link the agent's window opens - handed to that process on stdin, like the viewer's
 }
 
 

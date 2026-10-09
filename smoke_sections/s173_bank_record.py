@@ -1,0 +1,92 @@
+"""Item 57 stage 2: "show me once" (gw 2.0/BANK_AGENT.md A5; Rob 2026-10-09: "BUILD 57").
+
+    A1  the plain viewer (bank_window.py) is unchanged - s126 still holds it; the agent's page actions live in
+        bank_agent_window.py, in the same kind of separate process, importing nothing of Groundwork's
+    A5  recorded: the clicked control's name and role, and a choice from a list; NEVER a typed value, page content,
+        balances or account numbers (four or more digits masked); a sign-in is recorded as "sign in", no values;
+        the steps come back in words and are saved per account only on the user's yes, re-checked when saved
+"""
+import json
+import re
+
+
+def run(ctx):
+    check, c, H, HJ, BASE = ctx.check, ctx.c, ctx.H, ctx.HJ, ctx.BASE
+    import bank_agent_window as baw
+    from core.database import Account, AppSetting, db_session
+
+    src = (BASE / 'bank_agent_window.py').read_text(encoding='utf-8')
+    body = src.split('"""', 2)[2]
+    check('s173 A1 the agent\'s window imports nothing of Groundwork\'s - no server, core, database or network library',
+          not re.search(r'^\s*(from|import)\s+(server|core|sqlite3|sqlalchemy|requests|urllib\.request|http\.client|socket)\b', body, re.M)
+          and '/api/' not in body.split('# ── Groundwork\'s side')[0])
+    check('s173 A1 the plain viewer still sets no js_api and runs no page script (s126 holds the rest)',
+          'js_api' not in (BASE / 'bank_window.py').read_text(encoding='utf-8').split('"""', 2)[2]
+          and 'evaluate_js' not in (BASE / 'bank_window.py').read_text(encoding='utf-8').split('"""', 2)[2])
+    script = baw.RECORD_SCRIPT
+    check('s173 A5 the page script never reads a typed value - no .value, no password, text or date box read',
+          '.value' not in script and "getAttribute('value')" in script and 'type === \'submit\'' in script
+          and 'innerHTML' not in script and 'document.body' not in script)
+    check('s173 A5 it acts on real clicks and choices only (isTrusted)', script.count('e.isTrusted') == 2)
+
+    # the cleaner: what leaves the page
+    cases = [
+        ({'k': 'click', 'role': 'a', 'text': 'Download transactions'}, {'k': 'click', 'role': 'a', 'text': 'Download transactions'}),
+        ({'k': 'click', 'role': 'a', 'text': 'Checking ...4321 balance $1,250.00'}, {'k': 'click', 'role': 'a', 'text': 'Checking ...•••• balance $1,250.00'}),
+        ({'k': 'choose', 'field': 'Date range', 'option': 'Last 30 days'}, {'k': 'choose', 'field': 'Date range', 'option': 'Last 30 days'}),
+        ({'k': 'sign_in'}, {'k': 'sign_in'}),
+        ({'k': 'type', 'field': 'Password', 'value': 'hunter2'}, None),
+        ({'k': 'click', 'text': 'Go', 'value': 'secret'}, {'k': 'click', 'text': 'Go'}),
+        ({'k': 'click', 'text': ''}, None),
+    ]
+    got = [baw.clean_step(a) for a, _ in cases]
+    check('s173 A5 only the named fields and kinds leave the page; a typed value is dropped; account numbers are masked',
+          got == [b for _, b in cases])
+    check('s173 A5 Groundwork checks each line again: an extra field or an unknown kind is refused',
+          baw.parse_step_line('step {"k":"click","text":"Go","value":"x"}') is None
+          and baw.parse_step_line('step {"k":"type","text":"x"}') is None
+          and baw.parse_step_line('step {"k":"click","text":"Go"}') == {'k': 'click', 'text': 'Go'}
+          and baw.parse_step_line('fare 12.00') is None)
+    check('s173 A5 the steps read as words',
+          [baw.step_words(s) for s in ({'k': 'sign_in'}, {'k': 'click', 'text': 'Accounts'}, {'k': 'choose', 'field': 'Format', 'option': 'CSV'})]
+          == ['Sign in (Groundwork fills your saved login)', 'Click “Accounts”', 'Choose “CSV” in “Format”'])
+
+    made = []
+    try:
+        with db_session() as s:
+            a = Account(name='s173 Checking', type='checking', is_active=True, portal_url='https://bank.example.com')
+            b = Account(name='s173 No Link', type='checking', is_active=True)
+            s.add_all([a, b]); s.commit()
+            made += [a.id, b.id]
+            ka, kb = f'account:{a.id}', f'account:{b.id}'
+        r = c.post('/api/settings/bank-agent/record', headers=HJ, data=json.dumps({'key': kb}))
+        check('s173 A5 an account with no bank link cannot be recorded', r.status_code == 400)
+        baw.begin_for_test(ka)
+        baw.collect(ka, ['ready\n', 'step {"k":"sign_in"}\n', 'step {"k":"click","role":"a","text":"Accounts"}\n',
+                         'step {"k":"click","text":"Go","value":"x"}\n', 'nonsense\n',
+                         'step {"k":"choose","field":"Range","option":"Last 30 days"}\n', 'step {"k":"click","role":"button","text":"Download"}\n'])
+        live = c.get(f'/api/settings/bank-agent/record?key={ka}', headers=H).get_json()['data']
+        check('s173 A5 the steps arrive as the user works, in words; a line with a typed value is refused',
+              live['words'] == ['Sign in (Groundwork fills your saved login)', 'Click “Accounts”',
+                                'Choose “Last 30 days” in “Range”', 'Click “Download”'])
+        fin = c.post('/api/settings/bank-agent/record/finish', headers=HJ, data=json.dumps({'key': ka})).get_json()['data']
+        with db_session() as s:
+            saved_before = s.query(AppSetting).filter_by(key=f'bank_recipe:{ka}').first()
+        check('s173 A5 finishing hands back the steps and saves nothing on its own', len(fin['steps']) == 4 and saved_before is None)
+        tampered = fin['steps'] + [{'k': 'click', 'text': 'Pay 4111111111111111', 'value': 'x'}]
+        sv = c.post('/api/settings/bank-agent/recipe', headers=HJ, data=json.dumps({'key': ka, 'steps': tampered})).get_json()['data']
+        got = c.get(f'/api/settings/bank-agent/recipe?key={ka}', headers=H).get_json()['data']
+        check('s173 A5 on the user\'s yes the steps are saved for that account - cleaned again (no value, digits masked)',
+              got['steps'] == sv['steps'] and len(got['steps']) == 5 and got['steps'][-1] == {'k': 'click', 'text': 'Pay ••••'}
+              and 'value' not in json.dumps(got['steps']))
+        c.post('/api/settings/bank-agent/recipe/delete', headers=HJ, data=json.dumps({'key': ka}))
+        check('s173 A5 the saved steps can be deleted', c.get(f'/api/settings/bank-agent/recipe?key={ka}', headers=H).get_json()['data']['steps'] == [])
+    finally:
+        with db_session() as s:
+            s.query(AppSetting).filter(AppSetting.key.like('bank_recipe:%')).filter(AppSetting.key.in_([f'bank_recipe:account:{i}' for i in made])).delete(synchronize_session=False)
+            s.query(Account).filter(Account.id.in_(made)).delete(synchronize_session=False)
+            s.commit()
+    launch = (BASE / 'launch.py').read_text(encoding='utf-8')
+    check('s173 A1 the agent\'s process is dispatched before anything else starts, like the viewer\'s',
+          launch.index("'--bank-agent' in sys.argv") < launch.index('logging.basicConfig(')
+          and launch.index("'--bank-window' in sys.argv") < launch.index("'--bank-agent' in sys.argv"))

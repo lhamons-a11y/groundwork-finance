@@ -366,6 +366,12 @@ def main():
     if '--bank-window' in sys.argv[1:]:
         from bank_window import child_main
         sys.exit(child_main())
+    # The bank agent's window (BANK_AGENT.md, item 57): the same kind of process, dispatched just as early, with its
+    # mode on the command line and the account's link on stdin. Everything it may do to a page is in bank_agent_window.py.
+    if '--bank-agent' in sys.argv[1:]:
+        from bank_agent_window import child_main as agent_main
+        args = sys.argv[sys.argv.index('--bank-agent') + 1:]
+        sys.exit(agent_main(args[0] if args else ''))
 
     logging.basicConfig(
         level=logging.INFO,

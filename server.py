@@ -6520,6 +6520,101 @@ def bank_login_forget():
     return ok({'key': key, 'forgotten': removed})
 
 
+# ── Item 57 stage 2 (BANK_AGENT.md A5): "show me once" ──
+# The user does their usual download once in the agent's window; it records the steps - which control, which choice -
+# never a typed value. The steps come back in words; saved per account only when the user says so.
+
+def _bank_agent_url(session, key):
+    """The link the agent's window opens for an account or standalone card (BANK_BROWSER.md F3), or None."""
+    kind, _, ident = str(key).partition(':')
+    if not ident.isdigit():
+        return None
+    if kind == 'account':
+        a = session.get(Account, int(ident))
+        return a.portal_url if a else None
+    if kind == 'card':
+        d = session.get(DebtAccount, int(ident))
+        return d.portal_url if d and not d.linked_account_id else None
+    return None
+
+
+def _bank_recipe(session, key):
+    row = _get_setting(session, f'bank_recipe:{key}')
+    try:
+        return json.loads(row.value) if row and row.value else None
+    except (TypeError, ValueError):
+        return None
+
+
+@settings_bp.route('/bank-agent/record', methods=['POST'])
+@require_json
+def bank_agent_record():
+    import bank_agent_window
+    key = str((request.json or {}).get('key') or '')
+    with db_session() as session:
+        url = _bank_agent_url(session, key)
+    if not url:
+        return err('That account has no bank link.', 400)
+    return ok({'key': key, 'result': bank_agent_window.start_recording(key, url)})
+
+
+@settings_bp.route('/bank-agent/record', methods=['GET'])
+def bank_agent_record_steps():
+    import bank_agent_window
+    key = request.args.get('key', '')
+    s = bank_agent_window.steps(key)
+    return ok({'key': key, 'steps': s, 'words': [bank_agent_window.step_words(x) for x in s]})
+
+
+@settings_bp.route('/bank-agent/record/finish', methods=['POST'])
+@require_json
+def bank_agent_record_finish():
+    import bank_agent_window
+    key = str((request.json or {}).get('key') or '')
+    s = bank_agent_window.finish_recording(key)
+    return ok({'key': key, 'steps': s, 'words': [bank_agent_window.step_words(x) for x in s]})
+
+
+@settings_bp.route('/bank-agent/recipe', methods=['POST'])
+@require_json
+def bank_agent_recipe_save():
+    """Save the steps the user confirmed. Each is cleaned again: only named fields, no typed values, digits masked."""
+    import bank_agent_window
+    body = request.json or {}
+    key = str(body.get('key') or '')
+    clean = [s for s in (bank_agent_window.clean_step(x) for x in (body.get('steps') or [])) if s]
+    if not clean:
+        return err('No steps to save.', 400)
+    with db_session() as session:
+        if not _bank_agent_url(session, key):
+            return err('That account has no bank link.', 400)
+        _set_setting(session, f'bank_recipe:{key}', json.dumps({'steps': clean, 'saved': datetime.utcnow().isoformat()}))
+        session.commit()
+    return ok({'key': key, 'steps': clean, 'words': [bank_agent_window.step_words(x) for x in clean]})
+
+
+@settings_bp.route('/bank-agent/recipe', methods=['GET'])
+def bank_agent_recipe_get():
+    import bank_agent_window
+    key = request.args.get('key', '')
+    with db_session() as session:
+        r = _bank_recipe(session, key)
+    steps_ = (r or {}).get('steps') or []
+    return ok({'key': key, 'steps': steps_, 'words': [bank_agent_window.step_words(x) for x in steps_]})
+
+
+@settings_bp.route('/bank-agent/recipe/delete', methods=['POST'])
+@require_json
+def bank_agent_recipe_delete():
+    key = str((request.json or {}).get('key') or '')
+    with db_session() as session:
+        row = _get_setting(session, f'bank_recipe:{key}')
+        if row:
+            session.delete(row)
+            session.commit()
+    return ok({'key': key, 'deleted': True})
+
+
 @settings_bp.route('/bootstrap', methods=['GET'])
 def bootstrap():
     """

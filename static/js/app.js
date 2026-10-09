@@ -22813,7 +22813,8 @@ function bankLoginsHtml(d) {
       <div style="flex:1;min-width:140px;font-size:13px;color:var(--ink)">${esc(a.name)}
         <span style="font-size:11px;color:var(--slate-2)">${a.has_login ? ' · login saved in the vault' : ''}</span></div>
       ${a.has_login
-        ? `<button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${esc(a.key)}')">Forget</button>`
+        ? `<button class="btn btn-secondary btn-sm" onclick="startBankRecording('${esc(a.key)}')">Show me once</button>
+           <button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${esc(a.key)}')">Forget</button>`
         : `<button class="btn btn-secondary btn-sm" onclick="openBankLoginForm('${esc(a.key)}')">Save login</button>`}
       <div id="bankLoginForm-${esc(a.key).replace(':', '-')}" style="width:100%"></div>
     </div>`).join('');
@@ -22840,6 +22841,57 @@ async function saveBankLogin(key) {
   } finally {
     if (p) p.value = '';            // the password leaves the page either way
   }
+  renderBankLogins();
+}
+
+// Item 57 stage 2 (A5): "show me once" - the steps, in words, as the user does them; saved only on their yes.
+let _bankRecTimer = null;
+function _bankRecBox(key) { return g(`bankLoginForm-${key.replace(':', '-')}`); }
+
+async function startBankRecording(key) {
+  const box = _bankRecBox(key);
+  if (!box) return;
+  let r;
+  try { r = await API.post('/api/settings/bank-agent/record', { key }); } catch (e) { _gwErr('startBankRecording')(e); return; }
+  if (r.result !== 'opened' && r.result !== 'already_open') {
+    box.innerHTML = `<div style="font-size:12px;color:var(--ember);margin-top:6px">The window couldn't open (${esc(r.result)}).</div>`;
+    return;
+  }
+  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">In the window that opened, sign in and do your usual download. Groundwork notes each button and choice - never what you type.</div>
+    <ol data-gw-rec-steps style="font-size:12px;color:var(--ink);margin:6px 0 6px 18px"></ol>
+    <button class="btn btn-primary btn-sm" onclick="finishBankRecording('${esc(key)}')">Done</button>`;
+  clearInterval(_bankRecTimer);
+  _bankRecTimer = setInterval(async () => {
+    try {
+      const s = await API.get(`/api/settings/bank-agent/record?key=${encodeURIComponent(key)}`);
+      const ol = box.querySelector('[data-gw-rec-steps]');
+      if (ol) ol.innerHTML = bankStepsHtml(s.words);
+    } catch (e) { clearInterval(_bankRecTimer); }
+  }, 1500);
+}
+
+function bankStepsHtml(words) {
+  return (words || []).map(w => `<li>${esc(w)}</li>`).join('');
+}
+
+async function finishBankRecording(key) {
+  clearInterval(_bankRecTimer);
+  const box = _bankRecBox(key);
+  let r;
+  try { r = await API.post('/api/settings/bank-agent/record/finish', { key }); } catch (e) { _gwErr('finishBankRecording')(e); return; }
+  if (!box) return;
+  if (!r.steps.length) { box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">No steps were seen. Try again, clicking through your download.</div>`; return; }
+  window._bankRecSteps = r.steps;
+  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">These are the steps Groundwork would repeat for you:</div>
+    <ol style="font-size:12px;color:var(--ink);margin:6px 0 6px 18px">${bankStepsHtml(r.words)}</ol>
+    <button class="btn btn-primary btn-sm" onclick="saveBankRecipe('${esc(key)}')">Save these steps</button>
+    <button class="btn btn-ghost btn-sm" onclick="renderBankLogins()">Discard</button>`;
+}
+
+async function saveBankRecipe(key) {
+  try { await API.post('/api/settings/bank-agent/recipe', { key, steps: window._bankRecSteps || [] }); }
+  catch (e) { _gwErr('saveBankRecipe')(e); return; }
+  window._bankRecSteps = null;
   renderBankLogins();
 }
 
