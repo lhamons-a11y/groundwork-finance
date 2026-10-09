@@ -5179,8 +5179,10 @@ def merge_category(cat_id):
         if source.id == target.id: return err('Source and target cannot be the same')
         moved = session.query(Transaction).filter_by(category_id=source.id).all()
         for t in moved: t.category_id = target.id
-        bmoved = session.query(BudgetItem).filter_by(category_id=source.id).all()
-        for b in bmoved: b.category_id = target.id
+        # Budget lines carry the category's NAME, not an id (item 52: the
+        # id lookup here raised on every merge since 1.0, so no merge ever saved).
+        bmoved = session.query(BudgetItem).filter(func.lower(BudgetItem.category) == source.name.lower()).all()
+        for b in bmoved: b.category = target.name
         if not source.is_system: session.delete(source)
         session.commit()
         return ok({'transactions_moved': len(moved), 'budget_items_moved': len(bmoved),
