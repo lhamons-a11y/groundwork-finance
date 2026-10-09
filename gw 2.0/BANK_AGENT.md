@@ -17,7 +17,7 @@ Focus-group testers asked the same question. The rest of the brief, in Rob's wor
 - Passwords live in the operating system's vault.
 - No third party ever sees the data: bank → the user's computer → Groundwork.
 
-**A1 RULED 2026-10-09 (Rob: "change the viewers rule, It would be a mistake to not do this"), option (b). A2–A11 RULED 2026-10-09 (Rob: "approve A2–A11 as recommended")**: A7 (a), a remembered device opt-in per account; master only (A10). **No code yet:** the build needs its own go-ahead.
+**A1 RULED 2026-10-09 (Rob: "change the viewers rule, It would be a mistake to not do this"), option (b). A2–A11 RULED 2026-10-09 (Rob: "approve A2–A11 as recommended")**: A7 (a), a remembered device opt-in per account; master only (A10). **BUILT 2026-10-09 (Rob: "BUILD 57", "lets do stage 3", "lets do stage 4") in four stages, gate 2752 / 0:** 1 the vault (`core/bank_vault.py`, keyring, Settings *Fetch my downloads* with A3's wording; s172); 2 *Show me once* (`bank_agent_window.py`, `--bank-agent`; the plain viewer `bank_window.py` unchanged and s126 still holds it; s173); 3 the fetch (A2/A4/A6/A7; s174); 4 `statement_fetched` in the Historian joined to `import_committed` by hash (A11; s175). **Acceptance held for A10's real run on Rob's bank** (Rob: "hold the acceptance. We will test it").
 
 ## 1. What is true today (measured 2026-10-09 on master 0e6335f)
 
