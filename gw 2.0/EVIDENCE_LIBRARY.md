@@ -7,8 +7,7 @@ Opened 2026-10-09. Rob:
 - *"lets not worry about never break the rules as much as giving the guardrails a foundation now instead of hoping
   they holdup."*
 
-It grew from item 39's point 2 and Rob's question about how often people check their finances. **No code yet:**
-E1–E10 need a ruling, and the build needs its own go-ahead.
+It grew from item 39's point 2 and Rob's question about how often people check their finances. **E1–E10 RULED 2026-10-09 (Rob: "approve E1–E10 as recommended")**: ruling 6 stands (E2); every entry verified against its paper and accepted by Rob before it ships (E6); master only (E10). **No code yet:** the build needs its own go-ahead.
 
 ## 1. What is true today (measured 2026-10-09 on master a729e15)
 
