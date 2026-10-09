@@ -93,6 +93,9 @@ const cut = (t) => ({ content: [{ type: 'text', text: t }], stop_reason: 'max_to
   const shown = [], resets = [];
   out.stream = await ask({ onSentence: s => shown.push(s), onReset: w => resets.push(w) });
   out.stream.shown = shown; out.stream.resets = resets;
+  REPLY = () => ({ content: [{ type: 'text', text: 'Income was $4,280.00 this month. Spending was $3,100.00. The surplus was $1,180.00. Income was $4,280.00 again.' }], stop_reason: 'end_turn' });
+  API._n = 0; out.limit = await ask({ max_sentences: 2 });
+  out.under = await ask({ max_sentences: 5 });
   console.log(JSON.stringify(out));
 })();
 '''
@@ -111,3 +114,10 @@ const cut = (t) => ({ content: [{ type: 'text', text: t }], stop_reason: 'max_to
     check('s171 K3 a streamed answer cut at its cap keeps what was shown - nothing the person read is withdrawn',
           st.get('ok') and st.get('shortened') and st.get('resets') == []
           and st.get('shown') == ['Income was $4,280.00 this month.', 'Spending was $3,100.00.', 'Shortened at the length limit.'])
+    lim, und = out.get('limit', {}), out.get('under', {})
+    check('s171 after K7 (Rob: "a") a surface that promises two sentences shows two finished, checked sentences, marked',
+          lim.get('ok') and lim.get('text') == 'Income was $4,280.00 this month. Spending was $3,100.00.\n\nShortened at the length limit.')
+    check('s171 after K7 an answer within its promised length is untouched',
+          und.get('ok') and not und.get('shortened') and 'Shortened' not in (und.get('text') or ''))
+    check('s171 after K7 the Sunday check-in and the projection promise 2 sentences, follow-ups 5',
+          app.count('max_sentences: 2,') == 1 and 'max_tokens:280,max_sentences:2,' in app and 'max_sentences: 5,' in app)

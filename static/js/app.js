@@ -12097,6 +12097,7 @@ No greeting. No sign-off. No question marks. Write as if you're a trusted friend
   try {
     const result = await callAI({
       max_tokens: 200,   // item 12 step 2 K1: measured 100 of 100 used, twice
+      max_sentences: 2,  // after K7 (Rob: "a"): the model wrote 82-139 words for "two sentences"; the code keeps the promise
       system: 'You write brief, warm, honest Sunday financial check-ins for couples. Two sentences, about 40 words. Conversational. Never preachy.',
       messages: [{ role:'user', content: prompt }],
       surface: 'sunday_checkin',
@@ -23550,7 +23551,7 @@ function _gwTakeSentences(buf) {
 // One streamed attempt. Returns {pass, text, gate, truncated} | {stopped, shown} | {unavailable}.
 async function _gwStreamAttempt(payload, systemText, findings) {
   const body = { ...payload, system: systemText, stream: true };
-  delete body.onSentence; delete body.onReset; delete body.signal;
+  delete body.onSentence; delete body.onReset; delete body.signal; delete body.max_sentences;
   let res;
   try {
     res = await fetch('/api/ai/chat', { method: 'POST', signal: payload.signal,
@@ -23660,6 +23661,19 @@ function _gwKeepFinished(text) {
   return sentences.length >= 2 ? sentences.join(' ') : null;
 }
 
+// After K7 (Rob 2026-10-09: "a"): a surface that promises a length (payload.max_sentences) shows at most that many
+// finished sentences - each already through the voice check - whatever the model wrote, and says so when it trims.
+// The promise is kept by the code, not left to the model.
+function _gwLimit(payload, res) {
+  const n = payload.max_sentences;
+  if (!res.ok || !n) return res;
+  const body = String(res.text || '').replace('\n\n' + GW_SHORTENED, '');
+  const { sentences, rest } = _gwTakeSentences(body + ' X');
+  const all = sentences.concat(rest.replace(/ X$/, '').trim() ? [rest.replace(/ X$/, '').trim()] : []);
+  if (all.length <= n) return res;
+  return { ...res, text: sentences.slice(0, n).join(' ') + '\n\n' + GW_SHORTENED, shortened: true };
+}
+
 // ── callAI() — THE single choke point every narrative AI surface calls
 // through. Appends _GW_VOICE, runs the voice gate on the response, retries
 // once with a corrective terser prompt on failure, and returns ok:false on a
@@ -23691,7 +23705,7 @@ async function callAI(payload) {
   async function attempt(systemText) {
     try {
       const body = { ...payload, system: systemText };
-      delete body.onSentence; delete body.onReset; delete body.signal;
+      delete body.onSentence; delete body.onReset; delete body.signal; delete body.max_sentences;
       const res = await API.post('/api/ai/chat', body);
       const data = res.data || res;
       if (data.ai_available === false) return { ok:false, text:'', unavailable:true, message:data.message||'' };
@@ -23715,7 +23729,7 @@ async function callAI(payload) {
     const s = await _gwStreamAttempt(payload, baseSystem, findings);
     if (s.stopped) return { ok:false, stopped:true, text:s.shown, payload };
     if (s.unavailable) return { ok:false, text:'', payload };
-    if (s.pass) return { ok:true, text:s.text, payload, model:'', provider:'local', streamed:true, shortened:!!s.shortened };
+    if (s.pass) return _gwLimit(payload, { ok:true, text:s.text, payload, model:'', provider:'local', streamed:true, shortened:!!s.shortened });
     if (typeof payload.onReset === 'function') payload.onReset('Rewording…');
     result = { ok:true, text:s.text, model:'', provider:'local', truncated:s.truncated };
     gate = s.gate;
@@ -23724,12 +23738,12 @@ async function callAI(payload) {
     if (!result.ok) return { ok:false, text:'', payload };
     if (skipGate) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider, truncated:result.truncated };
     gate = _voiceGateCheck(result.text, findings, result.truncated);
-    if (gate.pass) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider };
+    if (gate.pass) return _gwLimit(payload, { ok:true, text:result.text, payload, model:result.model, provider:result.provider });
     // K3: cut at the cap - keep what finished, if it passes on its own
     if (result.truncated) {
       const kept = _gwKeepFinished(result.text);
       if (kept && _voiceGateCheck(kept, findings, false).pass)
-        return { ok:true, text: kept + '\n\n' + GW_SHORTENED, payload, model:result.model, provider:result.provider, shortened:true };
+        return _gwLimit(payload, { ok:true, text: kept + '\n\n' + GW_SHORTENED, payload, model:result.model, provider:result.provider, shortened:true });
     }
   }
 
@@ -23755,12 +23769,12 @@ async function callAI(payload) {
     result = await attempt(retrySystem);
     if (!result.ok) return { ok:false, text:'', payload };
     gate = _voiceGateCheck(result.text, findings, result.truncated);
-    if (gate.pass) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider };
+    if (gate.pass) return _gwLimit(payload, { ok:true, text:result.text, payload, model:result.model, provider:result.provider });
     // K3: cut at the cap - keep what finished, if it passes on its own
     if (result.truncated) {
       const kept = _gwKeepFinished(result.text);
       if (kept && _voiceGateCheck(kept, findings, false).pass)
-        return { ok:true, text: kept + '\n\n' + GW_SHORTENED, payload, model:result.model, provider:result.provider, shortened:true };
+        return _gwLimit(payload, { ok:true, text: kept + '\n\n' + GW_SHORTENED, payload, model:result.model, provider:result.provider, shortened:true });
     }
   }
   _logVoiceMiss(surface, result.model, gate, result.text);
@@ -23847,7 +23861,7 @@ async function _renderProjectionAI(content, badge, d) {
   const achNote=d.nextAch?`Nearest achievement: "${d.nextAch.name}"`:'' ;
   const prompt=`${stageCtx.leanContext?stageCtx.leanContext+'\n\n':''}${stageCtx.stageNote}\n\nSpending: ${d.category} is $${d.over>0?d.over+' over':''+d.surplus+' opportunity'} with ${d.daysLeft} days left.\nRedirect $${d.surplus} → ${d.topDebt?.name||'highest-rate debt'}: payoff ${d.baseline?.freeDate}→${d.withRedirect?.freeDate||'same'}, ${d.monthsSooner} months sooner, saves $${d.intSaved}.\n${dtiNote} ${achNote}\nWrite 2 sentences. Sentence 1: category, amount, payoff impact. Sentence 2: next milestone or achievement. Second person. No greeting.`;
   try {
-    const result=await callAI({max_tokens:280,system:'Direct financial projection. Two sentences, about 40 words. Exact numbers.',messages:[{role:'user',content:prompt}],surface:'projection',findings_kinds:['category','total','debt','date','achievement']});
+    const result=await callAI({max_tokens:280,max_sentences:2,system:'Direct financial projection. Two sentences, about 40 words. Exact numbers.',messages:[{role:'user',content:prompt}],surface:'projection',findings_kinds:['category','total','debt','date','achievement']});
     if(result.ok){
       // d21: unified renderer
       const projDataLines=[
@@ -24186,6 +24200,7 @@ async function _rcFollowUp(reportId) {
 
   const result = await callAI({
     max_tokens: 400,   // item 12 step 2 K1: measured 200 of 200 used once
+    max_sentences: 5,  // after K7 (Rob: "a"): runs of 217 and 326 words for "about 100 words"
     system: `You are Groundwork's financial analysis engine. Answer follow-up questions concisely and specifically. 1-2 short paragraphs, about 100 words.`,
     messages: _rcAIThread[reportId],
     surface: `${reportId}_followup`,

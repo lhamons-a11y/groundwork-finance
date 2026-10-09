@@ -1,7 +1,7 @@
 # Item 12, step 2 — Room to finish: each AI surface's length cap
 
 Opened 2026-10-09 (Rob: *"open item 12 step 2"*, *"ok measure them after the gate"*). Step 1 (R10: a cut answer is not
-an answer) is on both lines and ACCEPTED (2026-10-03). Step 2, the caps themselves, was never ruled. **K1–K8 RULED 2026-10-09 (Rob: "I accept these rules as written")**: K3 (a), keep the finished sentences and mark them shortened; master only (K8). **BUILT 2026-10-09 (Rob: "build item 12 step 2")**: the caps and word lengths in `app.js` (K1, K2), `_gwKeepFinished` and the shortened mark in `callAI` and the stream (K3), the classifier in batches of 10 (K4), `generateReport` removed and its buttons pointed at the live report (K5), `s171` (K6 included). K7's re-measure follows the build. Awaiting acceptance.
+an answer) is on both lines and ACCEPTED (2026-10-03). Step 2, the caps themselves, was never ruled. **K1–K8 RULED 2026-10-09 (Rob: "I accept these rules as written")**: K3 (a), keep the finished sentences and mark them shortened; master only (K8). **BUILT 2026-10-09 (Rob: "build item 12 step 2")**: the caps and word lengths in `app.js` (K1, K2), `_gwKeepFinished` and the shortened mark in `callAI` and the stream (K3), the classifier in batches of 10 (K4), `generateReport` removed and its buttons pointed at the live report (K5), `s171` (K6 included). K7 measured, then a length limit added (§3). Awaiting acceptance.
 
 ## 1. What is true today (measured 2026-10-09 on master 65048b4)
 
@@ -90,3 +90,27 @@ hits its cap. The same table as §1, after.
 **K8. Lines.** Master only. 1.x has R10 (step 1) but not item 10. A cut answer there falls back honestly, and that
 isn't a wrong saved figure.
 *Recommended, and this is your call under the 1.x rule.*
+
+## 3. K7 measured after the build (2026-10-09, the CPU engine, three runs each)
+
+| Surface | Cap | Tokens per run | |
+|---|---|---|---|
+| Monthly report | 1000 | 520, 442, 416 | all finished |
+| Report narrative | 700 | 426, 327, 312 | all finished (all were cut before) |
+| Follow-up | 400 | 162, 126, **400 cut** | 217 words for "about 100" |
+| Sunday check-in | 200 | **200 cut**, **200 cut**, 153 | 82–97 words for "two sentences, about 40 words" |
+| Projection | 280 | 84, 171, 85 | all finished |
+| Trip classifier, 10 per batch | 600 | 227, 454, 176 | all finished |
+
+So 15 of 18 runs finished, against 5 of 12 before. The model doesn't keep to a short length.
+
+- **Rob chose (b) first, raising the caps.** At 600 and 300, each surface still ran over in one run of three (326 and
+  139 words), and a runaway just filled the bigger cap (40 s).
+- **Rob then ruled (a)** (*"a and agree the cap can go to 200 and 400"*): **a surface that promises a length gets
+  it, enforced in code.** `payload.max_sentences` makes `callAI` show at most that many finished sentences, each
+  already through the voice check, marked *"Shortened at the length limit."* when it trims:
+  - the Sunday check-in: 2;
+  - the projection: 2;
+  - follow-ups: 5.
+
+  The caps are back at 200 and 400, so a runaway is stopped sooner. `s171` holds it.
