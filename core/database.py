@@ -360,9 +360,13 @@ class HistorianEntry(Base):
       'proactive_shown'                   — an insight promoted past the A.2 gauntlet and shown
                                              unprompted. Context carries its key and budget class;
                                              this IS the frequency cap's ledger (A.3).
-      'proactive_dismissed'               — the user dismissed one. An instruction, not a signal to
-                                             model: it sets a 60-day cooldown, and two in a category
-                                             drops that category to passive for good (A.4).
+      'proactive_dismissed'               — the user dismissed one. An instruction about that insight:
+                                             a 60-day cooldown, said on the card (item 39 U1). It never
+                                             silences a category on its own (U2 (b)).
+      'proactive_category_silenced'       — the user said yes to "stop bringing up <category> on its
+                                             own?" (item 39 U2 (b)); their setting proactive_silenced.
+      'proactive_category_unsilenced'     — the user's Undo of that, from Settings.
+      'proactive_silence_declined'        — the user said no; the question is not asked again.
       'import_committed'                  — an import was committed (SOURCE_DOCUMENT_CUSTODY.md H1):
                                              the file's name and content hash as correspondence, origin,
                                              account, counts, date range. A fact about the file, never

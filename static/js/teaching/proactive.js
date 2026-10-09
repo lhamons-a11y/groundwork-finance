@@ -103,17 +103,82 @@
     }).catch(function () {});
   }
 
+  // Item 39 (USAGE_SIGNALS.md, Rob 2026-10-09: U1-U4). A dismissal answers
+  // that insight for 60 days, and the card says so (U1). From the second in a
+  // category the card ASKS whether to stop bringing the category up (U2 (b));
+  // a yes is the user's setting, listed in Settings with Undo. Nothing is
+  // concluded from the clicks, and the pace is the dial's alone (U3).
+  function dismissedHtml(r) {
+    var days = (r && r.cooldown_days) || 60;
+    var h = '<div style="font-size:12px;color:var(--slate)">Dismissed. Groundwork won\'t bring this up again for ' + days + ' days.</div>';
+    if (r && r.ask_silence) {
+      var c = esc(r.ask_silence);
+      h += '<div style="font-size:12px;color:var(--ink);margin-top:8px">Stop bringing up ' + c + ' on its own? Insights about it stay on their pages.</div>'
+        + '<div style="margin-top:6px"><button class="btn btn-secondary btn-sm" data-gw-silence="yes">Yes, stop</button> '
+        + '<button class="btn btn-ghost btn-sm" data-gw-silence="no">No</button></div>';
+    }
+    return h;
+  }
+
+  function answerSilence(card, category, yes) {
+    API.post('/api/proactive/silence', { category: category, silence: !!yes }).then(function () {
+      card.innerHTML = '<div style="font-size:12px;color:var(--slate)">' + (yes
+        ? 'Groundwork won\'t bring up ' + esc(category) + ' on its own. Undo it any time in Settings, under how often Groundwork speaks up.'
+        : 'Noted - ' + esc(category) + ' can still come up.') + '</div>';
+    }).catch(function () {});
+  }
+
   function dismiss() {
     var card = document.getElementById('dashProactiveCard');
-    if (card) card.remove();
-    if (!prompt) return;
-    // A dismissal is the user telling us something, and A.4 says we listen:
-    // sixty days of quiet on this one, twice in a category drops the category
-    // to passive for good.
-    API.post('/api/proactive/dismiss', {
-      key: prompt.key, category: prompt.category || null
-    }).catch(function () {});
+    if (!prompt) { if (card) card.remove(); return; }
+    var dismissed = prompt;
     prompt = null;
+    if (card) card.innerHTML = dismissedHtml({ cooldown_days: 60 });
+    API.post('/api/proactive/dismiss', {
+      key: dismissed.key, category: dismissed.category || null
+    }).then(function (r) {
+      r = (r && (r.data || r)) || {};
+      if (!card) return;
+      card.innerHTML = dismissedHtml(r);
+      card.onclick = function (ev) {
+        var b = ev.target.closest('[data-gw-silence]');
+        if (b) answerSilence(card, r.ask_silence, b.dataset.gwSilence === 'yes');
+      };
+    }).catch(function () {});
+  }
+
+  // Item 39 U2 (b): Settings lists the categories the user said to stop bringing up, each with Undo - their
+  // setting, nothing inferred. Under the dial (#proactiveSilenced); app.js knows nothing of it.
+  function silencedHtml(cats) {
+    if (!cats || !cats.length) return '';
+    return '<div style="font-size:11px;color:var(--slate-2);margin-top:8px">You asked Groundwork not to bring these up on its own (they stay on their pages):</div>'
+      + cats.map(function (c) {
+          return '<div style="font-size:12px;color:var(--ink);margin-top:4px">' + esc(c)
+            + ' <button class="btn btn-ghost btn-sm" data-gw-unsilence="' + esc(c) + '">Undo</button></div>';
+        }).join('');
+  }
+
+  function renderSilenced() {
+    var box = document.getElementById('proactiveSilenced');
+    if (!box) return;
+    API.get('/api/proactive/silenced').then(function (r) {
+      r = (r && (r.data || r)) || {};
+      box.innerHTML = silencedHtml(r.silenced || []);
+      box.onclick = function (ev) {
+        var b = ev.target.closest('[data-gw-unsilence]');
+        if (!b) return;
+        API.post('/api/proactive/unsilence', { category: b.dataset.gwUnsilence }).then(renderSilenced).catch(function () {});
+      };
+    }).catch(function () { box.innerHTML = ''; });
+  }
+
+  var originalRenderSettings = window.renderSettings;
+  if (typeof originalRenderSettings === 'function') {
+    window.renderSettings = function () {
+      var out = originalRenderSettings.apply(this, arguments);
+      try { renderSilenced(); } catch (e) { /* teaching never breaks the page under it */ }
+      return out;
+    };
   }
 
   // The wrap. app.js renders the dashboard and has no idea this happens after.
@@ -125,5 +190,6 @@
   };
 
   GWTeaching.proactiveDismiss = dismiss;
-  GWTeaching.register('proactive', { render: render, dismiss: dismiss });
+  GWTeaching.register('proactive', { render: render, dismiss: dismiss, dismissedHtml: dismissedHtml,
+                                     silencedHtml: silencedHtml });
 })();

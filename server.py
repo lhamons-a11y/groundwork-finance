@@ -3652,8 +3652,6 @@ def _proactive_state(session):
     to survive a restart. `proactive_shown` and `proactive_dismissed` are that
     ledger; nothing else here is state.
     """
-    from core.proactive import BRAKE_PER_WEEK
-
     now = datetime.utcnow()
     week = now - timedelta(days=7)
     last_session = session.query(HistorianEntry).filter(
@@ -3662,7 +3660,7 @@ def _proactive_state(session):
     session_since = last_session.created_at if last_session else now - timedelta(hours=12)
 
     shown, dismissed = {}, {}
-    session_prompts = brake_7d = green_7d = dismissed_7d = 0
+    session_prompts = brake_7d = green_7d = 0
     rows = session.query(HistorianEntry).filter(
         HistorianEntry.event_category.in_(('proactive_shown', 'proactive_dismissed'))
     ).all()
@@ -3690,8 +3688,6 @@ def _proactive_state(session):
             cat = cxt.get('category')
             if cat:
                 category_dismissals[cat] = category_dismissals.get(cat, 0) + 1
-            if e.created_at >= week:
-                dismissed_7d += 1
 
     # §12's dial: explicit control, stored as a setting like every other
     # preference. Read here so the gauntlet sees it as state rather than as a
@@ -3706,12 +3702,42 @@ def _proactive_state(session):
         'green_last_7d': green_7d,
         'shown': shown,
         'dismissed': dismissed,
+        # Counted only to know when to ASK (item 39 U2 (b)); never a gate on its own.
         'category_dismissals': category_dismissals,
-        # A.4's backoff, in the doc's own units rather than a number invented
-        # here: dismissing as many as we are allowed to send in a week is a
-        # demonstrated preference, and it costs a tier.
-        'cadence_tier': 1 if dismissed_7d >= BRAKE_PER_WEEK else 0,
+        # Item 39: the categories the user said to stop bringing up - their setting, nothing inferred.
+        'silenced_categories': _proactive_silenced(session),
     }
+
+
+def _set_setting(session, key, value):
+    row = session.query(AppSetting).filter_by(key=key).first()
+    if row:
+        row.value = value
+    else:
+        session.add(AppSetting(key=key, value=value))
+    session.flush()
+
+
+def _proactive_silenced(session):
+    row = session.query(AppSetting).filter_by(key='proactive_silenced').first()
+    try:
+        val = json.loads(row.value) if row and row.value else []
+    except (json.JSONDecodeError, TypeError):
+        val = []
+    return sorted({str(c) for c in val if c})
+
+
+def _proactive_declined(session):
+    """Categories where the user answered No to "stop bringing this up?" - asked again never, since they said."""
+    out = set()
+    for e in session.query(HistorianEntry).filter(HistorianEntry.event_category == 'proactive_silence_declined').all():
+        try:
+            cat = json.loads(e.context_json or '{}').get('category')
+        except (json.JSONDecodeError, TypeError):
+            cat = None
+        if cat:
+            out.add(cat)
+    return out
 
 
 def _proactive_candidates(session, cards, budget, strategy):
@@ -3891,20 +3917,71 @@ def proactive_shown():
 def proactive_dismiss():
     """The user closed one. That is an instruction, and it is logged as one.
 
-    A.4: a dismissal buys a 60-day cooldown, two in a category drop it to
-    passive for good, and sustained dismissals lower the whole cadence. It is
-    the only sanctioned use of engagement data — respecting a demonstrated
-    preference, never predicting from it (§9).
+    A.4: a dismissal buys a 60-day cooldown on that insight, and the card says
+    so (item 39 U1). From the second in a category the card asks whether to stop
+    bringing the category up (U2 (b)); nothing is concluded from the clicks, and
+    the cadence does not change (U3).
     """
     body = request.json or {}
     key = (body.get('key') or '').strip()
     if not key:
         return err('key is required')
+    from core.proactive import DISMISS_COOLDOWN_DAYS, DISMISSALS_TO_ASK
+    category = body.get('category') or None
     with db_session() as session:
         log_historian_event(session, 'proactive_dismissed',
-                            context={'key': key, 'category': body.get('category')})
+                            context={'key': key, 'category': category})
         session.commit()
-    return ok({'dismissed': key})
+        # Item 39 U2 (b): from the second dismissal in a category, ASK - never conclude. Not asked when the
+        # category is already silenced, or when the user already answered No.
+        ask = None
+        if category:
+            n = _proactive_state(session)['category_dismissals'].get(category, 0)
+            if (n >= DISMISSALS_TO_ASK and category not in _proactive_silenced(session)
+                    and category not in _proactive_declined(session)):
+                ask = category
+    return ok({'dismissed': key, 'cooldown_days': DISMISS_COOLDOWN_DAYS, 'ask_silence': ask})
+
+
+@proactive_bp.route('/silence', methods=['POST'])
+@require_json
+def proactive_silence():
+    """Item 39 U2 (b): the user's answer to "Stop bringing up <category> on its own?". {category, silence: true|false}.
+    Yes adds it to the user's setting (listed in Settings with Undo); No is recorded so it is not asked again."""
+    body = request.json or {}
+    category = (body.get('category') or '').strip()
+    if not category:
+        return err('category is required')
+    with db_session() as session:
+        if body.get('silence'):
+            cats = sorted(set(_proactive_silenced(session)) | {category})
+            _set_setting(session, 'proactive_silenced', json.dumps(cats))
+            log_historian_event(session, 'proactive_category_silenced', context={'category': category})
+        else:
+            log_historian_event(session, 'proactive_silence_declined', context={'category': category})
+        session.commit()
+        return ok({'silenced': _proactive_silenced(session)})
+
+
+@proactive_bp.route('/silenced', methods=['GET'])
+def proactive_silenced_list():
+    with db_session() as session:
+        return ok({'silenced': _proactive_silenced(session)})
+
+
+@proactive_bp.route('/unsilence', methods=['POST'])
+@require_json
+def proactive_unsilence():
+    """Undo, from Settings: the category may come up on its own again."""
+    category = ((request.json or {}).get('category') or '').strip()
+    if not category:
+        return err('category is required')
+    with db_session() as session:
+        cats = [c for c in _proactive_silenced(session) if c != category]
+        _set_setting(session, 'proactive_silenced', json.dumps(cats))
+        log_historian_event(session, 'proactive_category_unsilenced', context={'category': category})
+        session.commit()
+        return ok({'silenced': cats})
 
 
 def revolving_series(session):

@@ -26,15 +26,19 @@ PER_SESSION = 1
 BRAKE_PER_WEEK = 2
 GREEN_PER_WEEK = 2
 
-# A.4: the user told us; we listen.
+# A.4: the user told us; we listen. A dismissal answers the insight dismissed,
+# for 60 days, and the card says so (item 39 U1).
 DISMISS_COOLDOWN_DAYS = 60
-DISMISSALS_TO_PASSIVE = 2
+# Item 39 U2 (b) (USAGE_SIGNALS.md, Rob 2026-10-09): a category is silenced only
+# when the user says so. After this many dismissals in one category the card
+# ASKS; a yes is the user's setting, listed in Settings with Undo. Two clicks are
+# never turned into a conclusion on their own (no silent learning).
+DISMISSALS_TO_ASK = 2
 
 # §12: gentle-proactive is paired with a user control to dial it down or off.
-# A.4 sets out the division of labour — the dial is explicit control, the
-# backoff is implicit learning — and they compose rather than override: someone
-# who asked for fewer AND keeps dismissing gets fewer still. Neither cancels the
-# other, because both are the same request made two ways.
+# The dial is the control (item 39 U3): the old cadence backoff, which lowered
+# the pace from dismissals, is gone - it read "the same request made two ways",
+# an inference, when the user has a dial to say it.
 DIAL_NORMAL = 'normal'
 DIAL_FEWER = 'fewer'
 DIAL_OFF = 'off'
@@ -102,15 +106,15 @@ def verdict(candidate, state):
         out['gate'] = 'actionability'
         return out
 
-    # A.2 #3, and A.4's decay. A dismissal is an instruction, not a signal to
-    # be modelled: two in a category drops it to passive for good.
+    # A.2 #3, and A.4. A dismissal is an instruction about that insight: 60 days.
     seen = (state.get('dismissed') or {}).get(key) or {}
     if seen.get('days_ago') is not None and seen['days_ago'] < DISMISS_COOLDOWN_DAYS:
         out['gate'] = 'novelty'
         return out
+    # Item 39 U2 (b): a category is quiet only because the user said so.
     category = candidate.get('category')
-    if category and (state.get('category_dismissals') or {}).get(category, 0) >= DISMISSALS_TO_PASSIVE:
-        out['gate'] = 'novelty'
+    if category and category in (state.get('silenced_categories') or ()):
+        out['gate'] = 'silenced'
         return out
     if (state.get('shown') or {}).get(key) is not None:
         out['gate'] = 'novelty'
@@ -120,10 +124,8 @@ def verdict(candidate, state):
     if int(state.get('session_prompts') or 0) >= PER_SESSION:
         out['gate'] = 'budget'
         return out
-    # A.4's backoff lowers the whole cadence a tier when dismissals are
-    # sustained. It is the only sanctioned use of engagement data: respecting a
-    # demonstrated preference, never predicting from it.
-    tier = int(state.get('cadence_tier') or 0) + (1 if dial == DIAL_FEWER else 0)
+    # The dial alone sets the pace (item 39 U3: no backoff from dismissals).
+    tier = 1 if dial == DIAL_FEWER else 0
     weekly = (GREEN_PER_WEEK if cls == 'green' else BRAKE_PER_WEEK) - tier
     used = int(state.get('green_last_7d' if cls == 'green' else 'brake_last_7d') or 0)
     if weekly <= 0 or used >= weekly:

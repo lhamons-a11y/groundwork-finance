@@ -1080,12 +1080,12 @@ def run(ctx):
     # The gauntlet is the feature. Every gate below withholds something true,
     # which is the point: strictness is free, because a candidate that fails
     # stays passive on its own surface rather than being lost (A.1).
-    from core.proactive import (BRAKE_PER_WEEK, DISMISSALS_TO_PASSIVE,
+    from core.proactive import (BRAKE_PER_WEEK, DISMISSALS_TO_ASK,
                                 PER_SESSION, budget_class, contend, verdict)
 
     quiet = {'monthly_budget': 2000, 'session_prompts': 0, 'brake_last_7d': 0,
              'green_last_7d': 0, 'shown': {}, 'dismissed': {},
-             'category_dismissals': {}, 'cadence_tier': 0}
+             'category_dismissals': {}, 'silenced_categories': []}
     brake = {'key': 'overspend:Groceries', 'kind': 'brake', 'months': 2,
              'dollars': 120, 'has_path': True, 'category': 'Groceries'}
 
@@ -1117,12 +1117,16 @@ def run(ctx):
                   )['gate'] == 'novelty')
     check('and the same lesson is never shown twice',
           verdict(brake, {**quiet, 'shown': {'overspend:Groceries': 3}})['gate'] == 'novelty')
-    check('twice dismissed in a category drops that category to passive for good',
-          verdict(brake, {**quiet, 'category_dismissals': {'Groceries': DISMISSALS_TO_PASSIVE}}
-                  )['gate'] == 'novelty')
-    check('sustained dismissals lower the whole cadence a tier',
+    # Item 39 (USAGE_SIGNALS.md, Rob 2026-10-09): U2 (b) and U3 replace A.4's
+    # "passive for good" and the cadence backoff - both concluded from clicks.
+    check('two dismissals in a category never silence it on their own (item 39 U2 (b))',
+          verdict(brake, {**quiet, 'category_dismissals': {'Groceries': DISMISSALS_TO_ASK}}
+                  )['promote'] is True)
+    check('a category is quiet only when the user said so',
+          verdict(brake, {**quiet, 'silenced_categories': ['Groceries']})['gate'] == 'silenced')
+    check('dismissals never lower the cadence; an old backoff tier is ignored (item 39 U3)',
           verdict(brake, {**quiet, 'brake_last_7d': BRAKE_PER_WEEK - 1,
-                          'cadence_tier': 1})['gate'] == 'budget')
+                          'cadence_tier': 1})['promote'] is True)
 
     # A.2 #5 is not checkable here and says so rather than passing quietly.
     check('the timing gate is delegated to the caller, and named as delegated',
@@ -1173,7 +1177,7 @@ def run(ctx):
     # are where a demonstrated preference becomes durable: if the write is lost,
     # a dismissal is forgotten and the same card returns tomorrow.
     from core.database import HistorianEntry as _HEntry
-    from core.proactive import (DISMISSALS_TO_PASSIVE as _TO_PASSIVE,
+    from core.proactive import (DISMISSALS_TO_ASK as _TO_PASSIVE,
                                 verdict as _promote)
     from server import _proactive_state as _read_state, db_session as _db
 
@@ -1231,8 +1235,8 @@ def run(ctx):
         check('while an insight the user never dismissed still gets through',
               _promote(_cand('smoke_never_dismissed'), _free)['promote'] is True)
 
-        # Twice in a category is the doc's threshold for dropping the whole
-        # category to passive, and it is counted from these rows.
+        # Twice in a category is when the card ASKS (item 39 U2 (b)), and it is
+        # counted from these rows.
         for _ in range(_TO_PASSIVE - 1):
             ctx.c.post('/api/proactive/dismiss', headers=ctx.HJ,
                        json={'key': _KEY + '_b', 'category': _CAT})
@@ -1365,9 +1369,9 @@ def run(ctx):
           promotion_verdict(loud, {**quiet, 'dial': DIAL_FEWER})['promote'] is True
           and promotion_verdict(loud, {**quiet, 'dial': DIAL_FEWER,
                              'brake_last_7d': 1})['gate'] == 'budget')
-    check('and the explicit dial composes with the implicit backoff (A.4)',
+    check('and the dial alone sets the pace - no backoff composes with it (item 39 U3)',
           promotion_verdict(loud, {**quiet, 'dial': DIAL_FEWER,
-                         'cadence_tier': 1})['gate'] == 'budget')
+                         'cadence_tier': 1})['promote'] is True)
 
     resp15 = ctx.c.get('/api/proactive/next', headers=ctx.H).get_json() or {}
     served15 = (resp15.get('data') or resp15)
