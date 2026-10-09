@@ -412,16 +412,36 @@ DO_SCRIPT = r'''(function () {
     if (d && d.set) d.set.call(el, v); else el.value = v;
     el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true}));
   }
-  // Press the sign-in control for a field: the visible one named like a sign-in (whatever the bank calls it), nearest
-  // the field; else a visible submit button; else Enter in the field
+  // Press an element the way a mouse does. A native button, link, input or label takes a plain click; a styled element
+  // (a web-app "button" that is a div) answers only the full press - pointer and mouse down and up, then the click.
+  function press(el) {
+    if (/^(BUTTON|A|INPUT|LABEL|OPTION)$/.test(el.tagName)) { el.click(); return; }
+    var r = el.getBoundingClientRect();
+    var o = {bubbles: true, cancelable: true, composed: true, view: window, button: 0, buttons: 1,
+             clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerId: 1, pointerType: 'mouse', isPrimary: true};
+    var up = Object.assign({}, o, {buttons: 0});
+    el.dispatchEvent(new PointerEvent('pointerdown', o)); el.dispatchEvent(new MouseEvent('mousedown', o));
+    el.dispatchEvent(new PointerEvent('pointerup', up)); el.dispatchEvent(new MouseEvent('mouseup', up));
+    el.dispatchEvent(new MouseEvent('click', up));
+  }
+  // Press the sign-in control for a field: a visible one whose words or label read like a sign-in (whatever the bank
+  // calls it; a label's underscores read as spaces), nearest the field; a sign-in / log-in name before Continue / Next;
+  // else a visible submit button; else Enter in the field
   function submitFor(field) {
-    var named = /^(sign ?in|log ?in|login|log on|continue|next|submit)\b/i;
-    var all = Array.prototype.filter.call(document.querySelectorAll('button,input[type=submit],input[type=button],[role=button],a'), visible);
+    var signIn = /(^|[\s_])(sign ?in|log ?in|login|log on)([\s_]|$)/i, onward = /^(continue|next|submit)\b/i;
+    var all = Array.prototype.filter.call(document.querySelectorAll('button,input[type=submit],input[type=button],[role=button],[role=link],a'), visible);
+    function words(el) {
+      return [nameOf(el), (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim()]
+        .map(function (s) { return s.replace(/_/g, ' '); });
+    }
     var fr = field.getBoundingClientRect();
     function dist(el) { var r = el.getBoundingClientRect(); return Math.abs(r.top - fr.bottom) + Math.abs(r.left - fr.left); }
-    var hits = all.filter(function (el) { return named.test(nameOf(el)); }).sort(function (a, b) { return dist(a) - dist(b); });
-    var btn = hits[0] || all.filter(function (el) { return el.type === 'submit'; })[0];
-    if (btn) { btn.click(); return; }
+    function near(re) {
+      return all.filter(function (el) { return words(el).some(function (w) { return re.test(w); }); })
+        .sort(function (a, b) { return dist(a) - dist(b); })[0];
+    }
+    var btn = near(signIn) || near(onward) || all.filter(function (el) { return el.type === 'submit'; })[0];
+    if (btn) { press(btn); return; }
     var form = field.closest('form');
     if (form && form.requestSubmit) { form.requestSubmit(); return; }
     ['keydown', 'keypress', 'keyup'].forEach(function (k) {
@@ -492,7 +512,7 @@ DO_SCRIPT = r'''(function () {
     if (step.k === 'click') {
       var els = Array.prototype.filter.call(document.querySelectorAll('a,button,[role=button],[role=link],[role=tab],[role=menuitem],input[type=submit],input[type=button]'),
         function (el) { return visible(el) && same(step.text || '', nameOf(el)); });
-      if (els.length === 1) { if (probe) return 'present'; els[0].click(); return 'ok'; }
+      if (els.length === 1) { if (probe) return 'present'; press(els[0]); return 'ok'; }
       if (els.length > 1) return 'ambiguous';
       return codeAsked() ? 'code' : 'missing';
     }
@@ -512,7 +532,7 @@ DO_SCRIPT = r'''(function () {
         var l = r.closest('label') || (r.id && document.querySelector('label[for="' + r.id + '"]'));
         return visible(r) && l && same(step.option || '', nameOf(l));
       });
-      if (radios.length === 1) { if (probe) return 'present'; radios[0].click(); return 'ok'; }
+      if (radios.length === 1) { if (probe) return 'present'; press(radios[0]); return 'ok'; }
       return codeAsked() ? 'code' : 'missing';
     }
     return 'missing';

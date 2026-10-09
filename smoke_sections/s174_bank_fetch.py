@@ -208,6 +208,11 @@ def run(ctx):
           "u.protocol === 'https:'" in baw.DO_SCRIPT and 'if not bw.portal_url_problem(u):' in (BASE / 'bank_agent_window.py').read_text(encoding='utf-8'))
     ds = baw.DO_SCRIPT
     check('s174 A6 signing in presses the control named like a sign-in (Sign in, Log in, Continue...), not the first button in the form (Rob\'s fifth run)',
-          ds.count('submitFor(') == 3 and 'sign ?in|log ?in|login|log on|continue|next|submit' in ds
+          ds.count('submitFor(') == 3 and 'sign ?in|log ?in|login|log on' in ds and 'continue|next|submit' in ds
           and "querySelector('button[type=submit],input[type=submit],button:not([type])')" not in ds)
+    check('s174 A6 every press is a full mouse press for a styled element (Superior CU\'s online banking ignores a bare .click() on its div "links") - clicks, choices and sign-in alike',
+          ds.count('.click()') == 1 and 'el.click(); return; }' in ds and ds.count('press(') == 4
+          and "new PointerEvent('pointerdown'" in ds and "new MouseEvent('click', up)" in ds)
+    check('s174 A6 a sign-in / log-in name wins over Continue / Next, and a label like tethered_login_sign_in counts',
+          'near(signIn) || near(onward)' in ds and "replace(/_/g, ' ')" in ds)
 
