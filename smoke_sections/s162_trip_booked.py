@@ -27,7 +27,8 @@ def run(ctx):
     from core.trip_booking import names_airline, trip_cost
     import migrate
 
-    check('s162 B8 the trip_bookings table is versioned', migrate.SCHEMA_VERSION == '20261008-trip-bookings'
+    # The bump that added the table, or a later one (a later bump keeps the table: s67 upgrades its saved schema)
+    check('s162 B8 the trip_bookings table is versioned', migrate.SCHEMA_VERSION >= '20261008-trip-bookings'
           and (BASE / 'tests/schema/20261008-trip-bookings.sql').exists())
     check('s162 B3 the airline is named as whole words ("DELTA AIR 0062" names Delta; "DELTAPLEX" does not)',
           names_airline('DELTA AIR 0062345', 'Delta') and names_airline('Southwest Airlines', 'southwest')

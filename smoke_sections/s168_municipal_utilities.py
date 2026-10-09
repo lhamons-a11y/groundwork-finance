@@ -66,7 +66,7 @@ def run(ctx):
 
     row = [r for r in CATEGORY_TREE if r[0] == 'Municipal Utilities']
     check('s168 U1 Municipal Utilities is a leaf under Utilities', len(row) == 1 and row[0][4] == 'Utilities')
-    check('s168 U1 the version is bumped and its schema saved', migrate.SCHEMA_VERSION == '20261009-municipal-utilities'
+    check('s168 U1 the version is bumped and its schema saved', migrate.SCHEMA_VERSION >= '20261009-municipal-utilities'
           and (BASE / 'tests/schema/20261009-municipal-utilities.sql').exists())
 
     def upgrade(mode):
