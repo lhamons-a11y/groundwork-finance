@@ -91,7 +91,34 @@ def _step_words_rest(step):
 RECORD_SCRIPT = r'''(function () {
   if (window.__gwRecorder) return;
   window.__gwRecorder = true;
+  function gwBar(text, tone) {
+    var host = document.getElementById('__gwBarHost');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = '__gwBarHost';
+      host.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;pointer-events:none';
+      (document.body || document.documentElement).appendChild(host);
+      host.attachShadow({mode: 'open'}).innerHTML = '<div id="b" style="margin:0 auto 10px;max-width:760px;padding:10px 16px;border-radius:8px;font:13px/1.45 system-ui,sans-serif;color:#fff;background:#1f3a2e;box-shadow:0 4px 18px rgba(0,0,0,.25)"></div>';
+    }
+    var b = host.shadowRoot.getElementById('b');
+    b.textContent = text;
+    b.style.background = tone === 'ask' ? '#8a4b08' : '#1f3a2e';
+  }
+  window.__gwBar = gwBar;
   function api() { return window.pywebview && window.pywebview.api && window.pywebview.api.step; }
+  var noted = 0;
+  try { noted = parseInt(sessionStorage.getItem('__gwNoted') || '0', 10) || 0; } catch (e) {}
+  function say() {
+    gwBar('\u25cf Recording for Groundwork \u2014 do your usual download. Groundwork notes your clicks and choices, never what you type. '
+      + (noted ? noted + ' step' + (noted === 1 ? '' : 's') + ' noted. ' : '') + 'Press Done in Groundwork when the file has downloaded.');
+  }
+  function note(step) {
+    window.pywebview.api.step(step);
+    noted += 1;
+    try { sessionStorage.setItem('__gwNoted', String(noted)); } catch (e) {}
+    say();
+  }
+  say();
   function nameOf(el) {
     var t = el.getAttribute('aria-label') || el.getAttribute('title') || '';
     if (!t && el.tagName === 'INPUT' && (el.type === 'submit' || el.type === 'button')) t = el.getAttribute('value') || '';
@@ -128,22 +155,22 @@ RECORD_SCRIPT = r'''(function () {
   document.addEventListener('submit', function (e) {
     if (!api()) return;
     var kind = signInForm(e.target);
-    if (kind) window.pywebview.api.step({k: kind, opt: checkPage()});
+    if (kind) note({k: kind, opt: checkPage()});
   }, true);
   document.addEventListener('click', function (e) {
     if (!e.isTrusted || !api()) return;
     var el = e.target && e.target.closest ? e.target.closest('a,button,[role=button],[role=link],[role=tab],[role=menuitem],input[type=submit],input[type=button]') : null;
     if (!el) return;
     if (signInForm(el.closest ? el.closest('form') : null)) return;   // the submit listener records it
-    window.pywebview.api.step({k: 'click', role: (el.getAttribute('role') || el.tagName.toLowerCase()), text: nameOf(el), opt: checkPage()});
+    note({k: 'click', role: (el.getAttribute('role') || el.tagName.toLowerCase()), text: nameOf(el), opt: checkPage()});
   }, true);
   document.addEventListener('change', function (e) {
     if (!e.isTrusted || !api()) return;
     var el = e.target;
     if (el && el.tagName === 'SELECT' && el.selectedIndex >= 0) {
-      window.pywebview.api.step({k: 'choose', field: labelOf(el), option: nameOf(el.options[el.selectedIndex]), opt: checkPage()});
+      note({k: 'choose', field: labelOf(el), option: nameOf(el.options[el.selectedIndex]), opt: checkPage()});
     } else if (el && el.tagName === 'INPUT' && (el.type === 'radio' || el.type === 'checkbox') && el.checked) {
-      window.pywebview.api.step({k: 'choose', field: el.getAttribute('name') || '', option: labelOf(el), opt: checkPage()});
+      note({k: 'choose', field: el.getAttribute('name') || '', option: labelOf(el), opt: checkPage()});
     }
   }, true);
 })();'''
@@ -346,6 +373,21 @@ DOWNLOAD_WAIT = 120.0
 
 DO_SCRIPT = r'''(function () {
   if (window.__gwDo) return;
+  function gwBar(text, tone) {
+    var host = document.getElementById('__gwBarHost');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = '__gwBarHost';
+      host.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;pointer-events:none';
+      (document.body || document.documentElement).appendChild(host);
+      host.attachShadow({mode: 'open'}).innerHTML = '<div id="b" style="margin:0 auto 10px;max-width:760px;padding:10px 16px;border-radius:8px;font:13px/1.45 system-ui,sans-serif;color:#fff;background:#1f3a2e;box-shadow:0 4px 18px rgba(0,0,0,.25)"></div>';
+    }
+    var b = host.shadowRoot.getElementById('b');
+    b.textContent = text;
+    b.style.background = tone === 'ask' ? '#8a4b08' : '#1f3a2e';
+  }
+  window.__gwBar = gwBar;
+
   function nameOf(el) {
     var t = el.getAttribute('aria-label') || el.getAttribute('title') || '';
     if (!t && el.tagName === 'INPUT' && (el.type === 'submit' || el.type === 'button')) t = el.getAttribute('value') || '';
@@ -483,6 +525,13 @@ class Driver:
         self.downloads = downloads        # callable -> set of file names, or None
         self.cancelled = False
 
+    def _bar(self, text, tone=''):
+        """The bar on the bank page (visual only). A page without the script yet ignores it."""
+        try:
+            self.w.evaluate_js(DO_SCRIPT + ';window.__gwBar && window.__gwBar(' + json.dumps(text) + ', ' + json.dumps(tone) + ');')
+        except Exception:
+            pass
+
     def _try(self, step, probe=False):
         uses_login = step.get('k') in ('sign_in', 'sign_in_user') and self.login and not probe
         js = DO_SCRIPT + ';window.__gwDo ? window.__gwDo(' + json.dumps(step) + ', ' + \
@@ -503,6 +552,10 @@ class Driver:
                     self.say(fetch_line('stopped', i=i, why='cancelled'))
                     return 'cancelled'
                 r = self._try(step)
+                if r == 'code':
+                    self._bar('Your bank is asking you something. Type the code or answer it here - Groundwork carries on after.', 'ask')
+                elif r in ('ok', 'missing', 'ambiguous'):
+                    self._bar("Groundwork is fetching your download. Please don't click unless your bank asks for something.")
                 if isinstance(r, str) and r.startswith('login:'):
                     # The bank's login form, whether or not a sign-in was recorded (a remembered device can record
                     # none): sign in from the vault, then try the same step again. Twice at most, then stop.

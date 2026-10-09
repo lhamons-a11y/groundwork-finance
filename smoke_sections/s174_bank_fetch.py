@@ -15,9 +15,12 @@ import re
 class _Page:
     """A stand-in window. `answers` is a list of results per evaluate_js call; it records what it was sent."""
     def __init__(self, answers):
-        self.answers, self.sent = list(answers), []
+        self.answers, self.sent, self.bars = list(answers), [], []
 
     def evaluate_js(self, js):
+        if 'window.__gwDo ? window.__gwDo(' not in js:
+            self.bars.append(js)
+            return None                     # the bar on the page (visual only) - kept apart from the agent's actions
         self.sent.append(js)
         return self.answers.pop(0) if self.answers else 'missing'
 
@@ -184,4 +187,10 @@ def run(ctx):
     check('s174 A4 a login form with no saved login: it stops and says so', r == 'no_login')
     check('s174 A6 a "trust this device" / "verify your identity" page waits for the user like a code',
           'trust (this )?(device|computer|browser)|remember (this )?(device|computer|browser)|verify (your )?identity' in baw.DO_SCRIPT.split('function codeAsked')[1].split('function loginForm')[0])
+    page, clock, lines = _Page(['code', 'code', 'ok', 'ok']), _Clock(), []
+    baw.Driver(page, [{'k': 'click', 'text': 'Download'}, {'k': 'click', 'text': 'CSV'}], LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    bars = page.bars
+    check('s174 A6 the fetch window says what is happening on the page: fetching, and when the bank asks the user something',
+          any('Your bank is asking you something' in b for b in bars) and any('Groundwork is fetching your download' in b for b in bars)
+          and not any(LOGIN[1] in b for b in bars))
 

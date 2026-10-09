@@ -23,7 +23,9 @@ def run(ctx):
     check('s173 A1 the plain viewer still sets no js_api and runs no page script (s126 holds the rest)',
           'js_api' not in (BASE / 'bank_window.py').read_text(encoding='utf-8').split('"""', 2)[2]
           and 'evaluate_js' not in (BASE / 'bank_window.py').read_text(encoding='utf-8').split('"""', 2)[2])
-    script = baw.RECORD_SCRIPT
+    full = baw.RECORD_SCRIPT
+    # The recording bar only DRAWS on the page (its own shadow root); the recorder is checked without it
+    script = full[:full.index('  function gwBar(')] + full[full.index('  window.__gwBar = gwBar;'):]
     check('s173 A5 the page script never reads a typed value - no .value, no password, text or date box read',
           '.value' not in script and "getAttribute('value')" in script and 'type === \'submit\'' in script
           and 'innerHTML' not in script
@@ -107,3 +109,10 @@ def run(ctx):
     check('s173 A5 steps taken on a code-check page are marked optional ("only if your bank asks")',
           script2.count('opt: checkPage()') == 4
           and baw.step_words({'k': 'choose', 'option': 'Trust Device', 'opt': True}) == 'Choose \u201cTrust Device\u201d (only if your bank asks)')
+    rs = baw.RECORD_SCRIPT
+    check('s173 A5 the recording window shows that it is recording, with a live count, and says it never notes what you type (Rob: "so the user knows when to start")',
+          'Recording for Groundwork' in rs and 'never what you type' in rs and 'step(s) noted' not in rs and "noted + ' step'" in rs
+          and "pointer-events:none" in rs and 'attachShadow' in rs)
+    check('s173 A5 the bar is visual only: it takes no clicks and is never recorded (it lives in a shadow root the recorder never sees)',
+          rs.count('function note(') == 1 and rs.count('window.pywebview.api.step(') == 1)
+
