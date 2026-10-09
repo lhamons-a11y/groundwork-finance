@@ -66,7 +66,7 @@ from sqlalchemy import func, desc, text
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from core.database import ( db_session, DATA_DIR,
+from core.database import ( db_session, DATA_DIR, TripBooking,
     Account, Category, Transaction, BudgetItem,
     DebtAccount, BudgetPlan, BudgetMonth, Achievement,
     AppSetting, BYBItem, NetWorthSnapshot,
@@ -8112,6 +8112,199 @@ def trip_card_plan():
             return err('Not one of your credit cards', 404)
         cards, budget, strategy, _undated = _consequence_inputs(session)
         return ok(plan(amount, card, cards, budget, strategy, card['index']))
+
+
+# ── Item 50 (TRIP_BOOKED.md, Rob 2026-10-08, B1-B8): "I booked it" ─────────────
+# A booking is a planned record (B2): nothing here writes a transaction, a debt
+# ledger entry, a budget total or a balance. The real charge is counted once, when
+# it is imported; these routes only propose it (B3) and link it on the user's yes.
+# The confirmation number is the user's own typing (B1), served only to its own
+# record and never logged.
+
+def _booking_json(b):
+    from core.trip_booking import trip_cost
+    d = {'id': b.id, 'trip_label': b.trip_label, 'airline': b.airline, 'amount': b.amount,
+         'booked_on': b.booked_on.isoformat(), 'paid_with_kind': b.paid_with_kind,
+         'debt_account_id': b.debt_account_id, 'account_id': b.account_id, 'confirmation': b.confirmation or '',
+         'status': b.status, 'refund_expected': bool(b.refund_expected), 'charged_amount': b.charged_amount,
+         'matched': bool(b.matched_transaction_id or b.matched_debt_entry_id),
+         'refunded': bool(b.refund_transaction_id or b.refund_debt_entry_id)}
+    d['trip_cost'] = trip_cost({**d, 'booked_on': b.booked_on})
+    return d
+
+
+def _booking_rows(session, b, refund=False):
+    """Every row on the card or account the booking was paid with, inside the date window, as {kind, id, amount,
+    date, text} - charges for a booking, money back for a refund. Already-matched rows come back flagged."""
+    from core.trip_booking import window
+    lo, hi = window(b.booked_on)
+    rows = []
+    account_ids = []
+    if b.paid_with_kind == 'account' and b.account_id:
+        account_ids.append(b.account_id)
+    if b.paid_with_kind == 'card' and b.debt_account_id:
+        debt = session.get(DebtAccount, b.debt_account_id)
+        if debt and debt.linked_account_id:
+            account_ids.append(debt.linked_account_id)
+        etype = 'payment' if refund else 'charge'
+        for e in session.query(DebtLedgerEntry).filter(
+                DebtLedgerEntry.debt_account_id == b.debt_account_id, DebtLedgerEntry.entry_type == etype,
+                DebtLedgerEntry.entry_date >= lo, DebtLedgerEntry.entry_date <= hi).all():
+            rows.append({'kind': 'ledger', 'id': e.id, 'amount': float(e.amount), 'date': e.entry_date,
+                         'text': f'{e.merchant or ""} {e.description or ""}'})
+    if account_ids:
+        ttype = 'credit' if refund else 'debit'
+        for x in session.query(Transaction).filter(
+                Transaction.account_id.in_(account_ids), Transaction.type == ttype,
+                Transaction.date >= lo, Transaction.date <= hi).all():
+            rows.append({'kind': 'transaction', 'id': x.id, 'amount': float(x.amount), 'date': x.date,
+                         'text': f'{x.merchant or ""} {x.description or ""}'})
+    taken_t, taken_l = set(), set()
+    for o in session.query(TripBooking).filter(TripBooking.id != b.id).all():
+        taken_t.update(i for i in (o.matched_transaction_id, o.refund_transaction_id) if i)
+        taken_l.update(i for i in (o.matched_debt_entry_id, o.refund_debt_entry_id) if i)
+    for r in rows:
+        r['taken'] = (r['id'] in taken_t) if r['kind'] == 'transaction' else (r['id'] in taken_l)
+    return rows
+
+
+@trip_bp.route('/booking-accounts', methods=['GET'])
+def trip_booking_accounts():
+    """B4: what a booking can be paid with - the user's credit cards and checking accounts (airlines take debit cards).
+    'Other' is always offered by the page."""
+    with db_session() as session:
+        cards = [{'id': c['id'], 'name': c['name']} for c in _trip_credit_cards(session)]
+        accounts = [{'id': a.id, 'name': a.name} for a in session.query(Account).filter_by(is_active=True).all()
+                    if (a.type or 'checking').lower() == 'checking']
+        return ok({'cards': cards, 'accounts': accounts})
+
+
+@trip_bp.route('/bookings', methods=['GET'])
+def trip_bookings_list():
+    """The bookings for one trip (or all), each with what the trip's flight line shows for it (B7)."""
+    trip = (request.args.get('trip') or '').strip()
+    with db_session() as session:
+        q = session.query(TripBooking)
+        if trip:
+            q = q.filter(TripBooking.trip_label == trip)
+        return ok({'bookings': [_booking_json(b) for b in q.order_by(TripBooking.id).all()]})
+
+
+@trip_bp.route('/bookings', methods=['POST'])
+@require_json
+def trip_bookings_create():
+    """B2: record a booking the user says they made. A planned record - no transaction, no balance."""
+    body = request.json
+    airline = (body.get('airline') or '').strip()[:80]
+    try:
+        amount = round(float(body.get('amount')), 2)
+        booked_on = date.fromisoformat(body.get('booked_on') or date.today().isoformat())
+    except (TypeError, ValueError):
+        return err('amount and booked_on (YYYY-MM-DD) required')
+    if not airline or not (0 < amount <= 1_000_000):
+        return err('An airline and an amount over $0 are needed.')
+    kind = body.get('paid_with_kind') or 'other'
+    if kind not in ('card', 'account', 'other'):
+        return err("paid_with_kind must be 'card', 'account' or 'other'")
+    conf = (body.get('confirmation') or '').strip()[:40] or None
+    with db_session() as session:
+        b = TripBooking(trip_label=(body.get('trip_label') or '').strip()[:160], airline=airline, amount=amount,
+                        booked_on=booked_on, paid_with_kind=kind, confirmation=conf, status='booked')
+        if kind == 'card':
+            ids = {c['id'] for c in _trip_credit_cards(session)}
+            if body.get('debt_account_id') not in ids:
+                return err('Not one of your credit cards.', 400)
+            b.debt_account_id = body['debt_account_id']
+        elif kind == 'account':
+            acct = session.get(Account, body.get('account_id') or 0)
+            if not acct:
+                return err('Not one of your accounts.', 400)
+            b.account_id = acct.id
+        session.add(b)
+        session.commit()
+        return ok(_booking_json(b))
+
+
+@trip_bp.route('/bookings/<int:booking_id>', methods=['PUT'])
+@require_json
+def trip_bookings_update(booking_id):
+    """B6: correct a booking, or mark it cancelled (kept, never deleted), with or without a refund expected."""
+    body = request.json
+    with db_session() as session:
+        b = session.get(TripBooking, booking_id)
+        if not b:
+            return err('Not found', 404)
+        if 'airline' in body and (body['airline'] or '').strip():
+            b.airline = body['airline'].strip()[:80]
+        if 'amount' in body:
+            try:
+                b.amount = round(float(body['amount']), 2)
+            except (TypeError, ValueError):
+                return err('amount must be a number')
+        if 'confirmation' in body:
+            b.confirmation = (body['confirmation'] or '').strip()[:40] or None
+        if body.get('status') == 'cancelled' and b.status in ('booked', 'charged'):
+            b.status = 'cancelled'
+            b.refund_expected = bool(body.get('refund_expected'))
+        b.updated_at = datetime.utcnow()
+        session.commit()
+        return ok(_booking_json(b))
+
+
+@trip_bp.route('/bookings/<int:booking_id>/candidates', methods=['GET'])
+def trip_bookings_candidates(booking_id):
+    """B3: the imported charges that may be this booking (or, B6, the refund of a cancelled one). Nothing is linked."""
+    from core.trip_booking import candidates
+    with db_session() as session:
+        b = session.get(TripBooking, booking_id)
+        if not b:
+            return err('Not found', 404)
+        refund = b.status == 'cancelled' and b.refund_expected
+        if b.status not in ('booked',) and not refund:
+            return ok({'candidates': [], 'for': b.status})
+        rows = _booking_rows(session, b, refund=refund)
+        bk = {'amount': b.amount, 'booked_on': b.booked_on, 'airline': b.airline}
+        found = candidates(bk, [r for r in rows if not r['taken']])
+        return ok({'for': 'refund' if refund else 'charge',
+                   'candidates': [{**r, 'date': r['date'].isoformat()} for r in found]})
+
+
+@trip_bp.route('/bookings/<int:booking_id>/match', methods=['POST'])
+@require_json
+def trip_bookings_match(booking_id):
+    """B3: the user said yes. Link the booking to the row - one the rule proposed, or (by hand) any unmatched row on the
+    same card or account in the window. The charge stays counted where it was imported; the booking just points at it."""
+    from core.trip_booking import candidates
+    body = request.json
+    kind, row_id, by_hand = body.get('kind'), body.get('id'), bool(body.get('by_hand'))
+    with db_session() as session:
+        b = session.get(TripBooking, booking_id)
+        if not b:
+            return err('Not found', 404)
+        refund = b.status == 'cancelled' and b.refund_expected
+        if b.status != 'booked' and not refund:
+            return err('This booking is not waiting for a charge.', 400)
+        rows = [r for r in _booking_rows(session, b, refund=refund) if not r['taken']]
+        pool = rows if by_hand else candidates({'amount': b.amount, 'booked_on': b.booked_on, 'airline': b.airline}, rows)
+        row = next((r for r in pool if r['kind'] == kind and r['id'] == row_id), None)
+        if not row:
+            return err('That row is not one this booking can be matched to.', 400)
+        if refund:
+            if kind == 'transaction':
+                b.refund_transaction_id = row_id
+            else:
+                b.refund_debt_entry_id = row_id
+            b.status = 'refunded'
+        else:
+            if kind == 'transaction':
+                b.matched_transaction_id = row_id
+            else:
+                b.matched_debt_entry_id = row_id
+            b.charged_amount = row['amount']
+            b.status = 'charged'
+        b.updated_at = datetime.utcnow()
+        session.commit()
+        return ok(_booking_json(b))
 
 
 @trip_bp.route('/budget', methods=['GET'])

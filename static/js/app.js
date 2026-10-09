@@ -11532,6 +11532,141 @@ function tripExactTotal(x) {
   return Math.round(Number(x) * 100) / 100;
 }
 
+// ── Item 50 (TRIP_BOOKED.md, Rob 2026-10-08, B1-B8): "I booked it" ──
+// A booking is a planned record: it never enters spending or a balance. The real
+// charge is counted once, when it is imported, and only linked on the user's yes.
+// The confirmation number is the user's own typing, never read from a page.
+let _tripBookings = [], _tripBookingsKey = null, _tripBookingAccounts = null;
+
+function tripBookingLabel() {
+  const dest = (_tripMode === 'fly' && g('tripToCity')?.value?.trim()) || g('tripDestination')?.value?.trim() || '';
+  const depart = g('tripDepart')?.value || '';
+  return dest && depart ? `${dest} · ${depart}` : '';
+}
+
+async function _tripLoadBookings(force) {
+  const label = tripBookingLabel();
+  if (!force && label === _tripBookingsKey) return;
+  _tripBookingsKey = label;
+  if (!label) { _tripBookings = []; _tripRenderBookings(); return; }
+  try { _tripBookings = (await API.get(`/api/trip/bookings?trip=${encodeURIComponent(label)}`)).bookings || []; }
+  catch (e) { _gwErr('_tripLoadBookings')(e); _tripBookings = []; }
+  _tripRenderBookings();
+  tripUpdateBudget();
+}
+
+function tripBookingCost(bookings) {
+  const live = (bookings || []).filter(b => b.trip_cost);
+  return live.length ? live[live.length - 1] : null;
+}
+
+async function tripOpenBooking() {
+  const box = g('tripBookingForm');
+  if (!box) return;
+  if (!tripBookingLabel()) {
+    box.style.display = ''; box.textContent = 'Enter the destination and departure date first, so the booking belongs to this trip.';
+    return;
+  }
+  if (!_tripBookingAccounts) {
+    try { _tripBookingAccounts = await API.get('/api/trip/booking-accounts'); }
+    catch (e) { _gwErr('tripOpenBooking')(e); _tripBookingAccounts = { cards: [], accounts: [] }; }
+  }
+  const a = _tripBookingAccounts;
+  const opt = (kind, x) => `<option value="${kind}:${x.id}">${esc(x.name)}</option>`;
+  const fare = g('tripFlightFare')?.value || '';
+  box.style.display = '';
+  box.innerHTML = `<div class="field-row" style="flex-wrap:wrap;gap:8px">
+      <div class="field"><label>Airline</label><input type="text" id="tripBkAirline" placeholder="e.g. Delta"></div>
+      <div class="field"><label>Amount paid ($)</label><input type="number" id="tripBkAmount" min="0" step="0.01" value="${esc(fare)}"></div>
+      <div class="field"><label>Paid with</label><select id="tripBkPaid">
+        ${a.cards.length ? `<optgroup label="Credit cards">${a.cards.map(x => opt('card', x)).join('')}</optgroup>` : ''}
+        ${a.accounts.length ? `<optgroup label="Checking (debit card)">${a.accounts.map(x => opt('account', x)).join('')}</optgroup>` : ''}
+        <option value="other:">Other / not listed</option></select></div>
+      <div class="field"><label>Booked on</label><input type="date" id="tripBkDate" value="${today()}"></div>
+      <div class="field"><label>Confirmation (optional)</label><input type="text" id="tripBkConf" maxlength="40" placeholder="You type it"></div>
+    </div>
+    <div style="font-size:11px;color:var(--slate-2);margin:6px 0">Saved as a booking, not as spending: the charge counts once, when your bank or card import brings it in and you confirm it's this booking. Groundwork doesn't read the airline's pages.</div>
+    <button class="btn btn-primary btn-sm" onclick="tripSaveBooking()">Save booking</button>
+    <button class="btn btn-secondary btn-sm" onclick="g('tripBookingForm').style.display='none'">Cancel</button>
+    <span id="tripBkMsg" style="font-size:11px;margin-left:6px"></span>`;
+}
+
+async function tripSaveBooking() {
+  const [kind, id] = (g('tripBkPaid')?.value || 'other:').split(':');
+  const body = { trip_label: tripBookingLabel(), airline: g('tripBkAirline')?.value?.trim(), amount: g('tripBkAmount')?.value,
+                 booked_on: g('tripBkDate')?.value, confirmation: g('tripBkConf')?.value?.trim(), paid_with_kind: kind };
+  if (kind === 'card') body.debt_account_id = parseInt(id, 10);
+  if (kind === 'account') body.account_id = parseInt(id, 10);
+  try {
+    await API.post('/api/trip/bookings', body);
+    g('tripBookingForm').style.display = 'none';
+    _tripLoadBookings(true);
+  } catch (e) {
+    const m = g('tripBkMsg'); if (m) { m.style.color = 'var(--ember)'; m.textContent = e?.message || 'Could not save the booking.'; }
+  }
+}
+
+function tripBookingLine(b, payName) {
+  const when = fmtDate(b.booked_on), on = payName ? ` on ${esc(payName)}` : '';
+  if (b.status === 'booked') return `Booked: ${esc(b.airline)}, ${fmt(b.amount)}${on}, ${when} — waiting for the charge.`;
+  if (b.status === 'charged') return `Charged: ${esc(b.airline)}, ${fmt(b.charged_amount)}${on}`
+    + (Math.abs(b.charged_amount - b.amount) >= 0.005 ? ` (booked ${fmt(b.amount)})` : '') + `, booked ${when}.`;
+  if (b.status === 'cancelled') return `Cancelled: ${esc(b.airline)}, ${fmt(b.amount)}${on}, booked ${when}`
+    + (b.refund_expected ? ' — refund expected.' : '.');
+  return `Refunded: ${esc(b.airline)}, ${fmt(b.amount)}${on}, booked ${when}.`;
+}
+
+function _tripPayName(b) {
+  const a = _tripBookingAccounts || { cards: [], accounts: [] };
+  if (b.paid_with_kind === 'card') return (a.cards.find(x => x.id === b.debt_account_id) || {}).name;
+  if (b.paid_with_kind === 'account') return (a.accounts.find(x => x.id === b.account_id) || {}).name;
+  return null;
+}
+
+function _tripRenderBookings() {
+  const box = g('tripBookings');
+  if (!box) return;
+  box.innerHTML = _tripBookings.map(b => {
+    const btns = b.status === 'booked'
+      ? `<button class="btn btn-secondary btn-sm" onclick="tripFindCharge(${b.id})">Find the charge</button>
+         <button class="btn btn-secondary btn-sm" onclick="tripCancelBooking(${b.id}, true)">Cancelled — refund expected</button>
+         <button class="btn btn-secondary btn-sm" onclick="tripCancelBooking(${b.id}, false)">Cancelled — no refund</button>`
+      : (b.status === 'cancelled' && b.refund_expected ? `<button class="btn btn-secondary btn-sm" onclick="tripFindCharge(${b.id})">Find the refund</button>` : '');
+    return `<div style="font-size:12px;color:var(--ink);padding:6px 0;border-top:1px solid var(--steel)">${tripBookingLine(b, _tripPayName(b))}
+      ${b.confirmation ? `<span style="color:var(--slate-2)"> · confirmation ${esc(b.confirmation)}</span>` : ''}
+      <div style="margin-top:4px">${btns}</div><div id="tripBkFind${b.id}" style="margin-top:4px"></div></div>`;
+  }).join('');
+}
+
+async function tripFindCharge(id) {
+  const out = g(`tripBkFind${id}`), b = _tripBookings.find(x => x.id === id);
+  if (!out || !b) return;
+  let r;
+  try { r = await API.get(`/api/trip/bookings/${id}/candidates`); }
+  catch (e) { _gwErr('tripFindCharge')(e); return; }
+  const what = r.for === 'refund' ? 'refund' : 'charge';
+  if (!r.candidates.length) {
+    out.innerHTML = `<span style="color:var(--slate)">No ${what} ${_tripPayName(b) ? `on ${esc(_tripPayName(b))} ` : ''}matches yet — within $1.00 of ${fmt(b.amount)}, within 7 days of ${fmtDate(b.booked_on)}, naming ${esc(b.airline)}. It may not have been imported yet.</span>`;
+    return;
+  }
+  out.innerHTML = r.candidates.map(c => `<div>Is this the ${what} for your ${esc(b.airline)} booking of ${fmtDate(b.booked_on)}?
+      <strong>${fmt(c.amount)}</strong> · ${esc(c.text.trim())} · ${fmtDate(c.date)}
+      <button class="btn btn-secondary btn-sm" onclick="tripMatchBooking(${id}, '${c.kind}', ${c.id})">Yes</button>
+      <button class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()">No</button></div>`).join('');
+}
+
+async function tripMatchBooking(id, kind, rowId) {
+  try { await API.post(`/api/trip/bookings/${id}/match`, { kind, id: rowId }); }
+  catch (e) { _gwErr('tripMatchBooking')(e); return; }
+  _tripLoadBookings(true);
+}
+
+async function tripCancelBooking(id, refund) {
+  try { await API.put(`/api/trip/bookings/${id}`, { status: 'cancelled', refund_expected: !!refund }); }
+  catch (e) { _gwErr('tripCancelBooking')(e); return; }
+  _tripLoadBookings(true);
+}
+
 // ── Budget calculator ─────────────────────────────────────────────────────────
 function tripUpdateBudget() {
   const dest      = (_tripMode === 'fly' && g('tripToCity')?.value?.trim()) || g('tripDestination')?.value?.trim();
@@ -11542,6 +11677,8 @@ function tripUpdateBudget() {
 
   // Item 41: the DOT average as its own finding, with its working — shown as
   // soon as both cities are picked, before the rest of the trip is filled in.
+  if (tripBookingLabel() !== _tripBookingsKey) _tripLoadBookings();
+
   const airNote = g('tripAirfareNote');
   if (airNote) {
     airNote.innerHTML = _tripMode === 'fly' ? _airfareNoteHtml(travelers) : '';
@@ -11577,6 +11714,14 @@ function tripUpdateBudget() {
     const gallons = distEst / mpg;
     transportCost  = Math.round(gallons * gasRate);
     transportNote  = `~${distEst} mi ${distLive ? '(estimated route)' : 'est.'} · ${mpg} mpg · $${gasRate.toFixed(2)}/gal ${gasPriceLive ? '(national avg)' : 'est.'}`;
+  } else if (tripBookingCost(_tripBookings)) {
+    // Item 50 B7: a booking for this trip is the flight line - the booked amount
+    // while waiting, the charged amount once the user matched the real charge.
+    const bk = tripBookingCost(_tripBookings), tc = bk.trip_cost;
+    transportCost = tc.amount;
+    transportNote = tc.label === 'charged'
+      ? `${fmt(tc.amount)} charged by ${bk.airline}${tc.differs ? ` (booked ${fmt(tc.booked)})` : ''}`
+      : `${fmt(tc.amount)} booked with ${bk.airline} — waiting for the charge`;
   } else if (_tripQuoteData?.flightTotal != null) {
     // Phase 5D: a real pasted flight-quote total beats the $220/person guess.
     transportCost = tripExactTotal(_tripQuoteData.flightTotal);

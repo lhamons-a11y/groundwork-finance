@@ -448,6 +448,37 @@ class HistorianEntry(Base):
     )
 
 
+class TripBooking(Base):
+    """
+    A booking the user says they made (gw 2.0/TRIP_BOOKED.md, item 50; Rob 2026-10-08, B1-B8). A PLANNED record, not
+    a transaction (B2): it never enters spending, a budget total or a card balance. The money is counted once, when
+    the real charge is imported and the user says yes to the match (B3) - matched_* point at that row.
+
+      paid_with_kind   'card' (a credit card, debt_account_id) | 'account' (a checking account, account_id) | 'other'
+      status           'booked' -> 'charged' (matched) ; 'cancelled' (kept, never deleted - B6) -> 'refunded'
+      confirmation     typed by the user, never read from a page (B1); kept out of logs, exports and the narrator
+    """
+    __tablename__        = 'trip_bookings'
+    id                   = Column(Integer, primary_key=True)
+    trip_label           = Column(String(160), default='')
+    airline              = Column(String(80), nullable=False)
+    amount               = Column(Float, nullable=False)
+    booked_on            = Column(Date, nullable=False)
+    paid_with_kind       = Column(String(10), nullable=False, default='other')
+    debt_account_id      = Column(Integer, ForeignKey('debt_accounts.id'), nullable=True)
+    account_id           = Column(Integer, ForeignKey('accounts.id'), nullable=True)
+    confirmation         = Column(String(40), nullable=True)
+    status               = Column(String(12), nullable=False, default='booked')
+    refund_expected      = Column(Boolean, default=False)
+    matched_transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=True)
+    matched_debt_entry_id  = Column(Integer, ForeignKey('debt_ledger_entries.id'), nullable=True)
+    charged_amount       = Column(Float, nullable=True)
+    refund_transaction_id  = Column(Integer, ForeignKey('transactions.id'), nullable=True)
+    refund_debt_entry_id   = Column(Integer, ForeignKey('debt_ledger_entries.id'), nullable=True)
+    created_at           = Column(DateTime, default=datetime.utcnow)
+    updated_at           = Column(DateTime, default=datetime.utcnow)
+
+
 class TripHistory(Base):
     """
     GROUNDWORK_1_0_ROADMAP.md Phase H1 addition. Persisted trip records —
