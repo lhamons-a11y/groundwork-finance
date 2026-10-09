@@ -7,7 +7,7 @@ Opened 2026-10-09. Rob:
 - *"we can call the municipalities utilities and add what does that cover? Allow the user to enter those and if
   their municipalities utility bill doesn't cover it then they would have a company that covers that cost."*
 
-**RULED 2026-10-09 (Rob: "approve U1–U8 as recommended")**: master only (U8). **BUILT 2026-10-09 (Rob: "build item 56")**: the leaf and the bump (`20261009-municipal-utilities`, fixture saved; an upgraded database gains the leaf, and without the bump it would not - both in `s168`), the `municipal_covers` set fact (`canonical_set`), the checklist and per-service lines in Settings → Your home, the inline question in the gas and electricity estimate cards, U5 in `utility_applies`, the rule on both sides, the review from Other / Utilities / Water / Sewer. U3 shows where each uncovered service's charge is filed; linking a specific charge to it is not built. Awaiting acceptance.
+**RULED 2026-10-09 (Rob: "approve U1–U8 as recommended")**: master only (U8). **BUILT 2026-10-09 (Rob: "build item 56")**: the leaf and the bump (`20261009-municipal-utilities`, fixture saved; an upgraded database gains the leaf, and without the bump it would not - both in `s168`), the `municipal_covers` set fact (`canonical_set`), the checklist and per-service lines in Settings → Your home, the inline question in the gas and electricity estimate cards, U5 in `utility_applies`, the rule on both sides, the review from Other / Utilities / Water / Sewer. U3 shows where each uncovered service's charge is filed; linking a specific charge to it is not built. **ACCEPTED and CLOSED (Rob, 2026-10-09: "I accept item 56"), gate 2659 / 0.**
 
 ## 1. What is true today (measured 2026-10-09; items 54 and 55 on their branch, gating)
 

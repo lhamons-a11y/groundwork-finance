@@ -66,6 +66,8 @@ key and category. `core/proactive.py` then applies three effects:
 
 **Points for ruling:**
 
+**U1–U4 RULED 2026-10-09 (Rob: "approve U1–U4 as recommended")**: U1 said, U2 (b) asked, U3 the backoff goes, U4 old silenced categories are no longer silenced. U5 (lines) and U6 (tests) were not in the ruling and stay open by name. No code yet: the build needs its own go-ahead.
+
 - **U1. The insight's own cooldown stays, and is said.** At the moment of dismissing, the card is replaced by
   *"Dismissed. Groundwork won't bring this up again for 60 days."*
 
