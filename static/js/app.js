@@ -10184,171 +10184,9 @@ function _buildProfileContext() {
   return lines.length > 1 ? '\n' + lines.join('\n') + '\n' : '';
 }
 
-async function generateReport() {
-  // Make sure the overlay is open and preview is rendered
-  const modal = g('reportModal');
-  if (!modal) return;
-  if (modal.classList.contains('hidden')) openReportModal();
-
-  // Target the new magazine narrative section
-  const narrativeSection = g('reportNarrativeSection');
-  const content          = g('reportAiNarrative');
-  const badge            = g('reportAiBadge');
-  const generatePrompt   = g('reportGeneratePrompt');
-  if (!content) return;
-
-  // Show narrative section, hide generate prompt
-  if (narrativeSection) narrativeSection.style.display = '';
-  if (generatePrompt)   generatePrompt.style.display   = 'none';
-
-  const ctx    = _buildStageContext();
-  const month  = g('reportMonth')?.value;
-  const now    = new Date();
-  const [yr, mo] = month
-    ? month.split('-').map(Number)
-    : [now.getFullYear(), now.getMonth()+1];
-  const start  = `${yr}-${String(mo).padStart(2,'0')}-01`;
-  const end    = new Date(yr, mo, 0).toISOString().slice(0,10);
-  const txns   = S.transactions.filter(t => t.date >= start && t.date <= end);
-  const monthName = new Date(yr, mo-1).toLocaleDateString('en-US', {month:'long', year:'numeric'});
-  // _isSpend, not a raw debit filter: a card payment or a move to savings is a
-  // debit, but it is not spending. `income` below comes from the budget profile,
-  // so an inflated `spent` has nothing on the other side to cancel it — counting
-  // transfers here reported "over budget" in months that were comfortably under.
-  const spent  = txns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
-  const income = S.incomes.reduce((s,i)=>s+i.amount,0);
-  const under  = income - spent;
-  const streak = _calcStreakFromData();
-
-  // Group spending by PARENT category for AI prompt — cleaner signal
-  const cats = {};
-  txns.filter(_isSpend).forEach(t=>{
-    const parentName = _catParentName(t.category||'Other') || 'Other';
-    cats[parentName] = (cats[parentName]||0) + t.amount;
-  });
-  const topCats = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5)
-    .map(([c,a])=>`${c}: ${fmt(a)}`).join(', ');
-
-  if (!aiEnabled()) {
-    _renderReportFallback(content, ctx, spent, income, under, streak, topCats, monthName);
-    if (badge) badge.textContent = '';
-    return;
-  }
-
-  content.innerHTML = `<div class="report-spinner">
-    <div class="spinner" style="border-color:rgba(255,255,255,.2);border-top-color:#fff"></div>
-    <span>Writing your ${monthName} report…</span>
-  </div>`;
-
-  const stagePrompts = {
-    debt: `You are writing a monthly financial report for someone focused on getting out of debt.
-Tone: direct, encouraging, never preachy. Like a trusted friend who happens to know their numbers.`,
-    transition: `You are writing a monthly financial report for someone who has made serious debt progress.
-Tone: celebratory of their momentum, gently forward-looking. Begin planting seeds about what comes next.`,
-    wealth: `You are writing a monthly financial report for someone who has conquered their debt and is now building wealth.
-Tone: proud, ambitious, focused on the future. Debt is behind them.`,
-  };
-
-  // Lean mode overrides the system prompt tone for users with tight margins
-  const systemPrompt = ctx.lean
-    ? `You are writing a monthly financial report for someone on a very tight budget — under $200/month in surplus after all expenses and debt payments.
-${!ctx.hasBuffer ? 'They have no emergency buffer yet.' : 'They have a small emergency buffer.'}
-Tone: plain, honest, grounded. Acknowledge the difficulty without being discouraging.
-Never use words like "journey", "excellent progress", or "financial wellness."
-Instead: be specific about dollar amounts. "You kept $X that would have been interest" is better than "you're making progress."
-One specific, concrete suggestion only — never a list. Never aspirational.`
-    : stagePrompts[ctx.stage];
-
-  const annotation      = getReportAnnotation();
-  const debtMethod      = S.debtMethod === 'snowball' ? 'snowball (smallest balance first)' : 'avalanche (highest rate first)';
-  const annotationBlock = annotation
-    ? `IMPORTANT — The user left this note about ${month}: "${annotation}"\nYour opening sentence must acknowledge this note directly before any other analysis.\n`
-    : '';
-
-  // Build profile intelligence block — the upgrade that makes this a 12-month report
-  const profileContext  = _buildProfileContext();
-
-  // Determine if paragraph 2 should call out a multi-month pattern
-  const hasGrowingTrend  = (S.profile?.spending?.growingCategories?.length || 0) > 0;
-  const hasInterestMilestone = (S.profile?.debt?.interestSaved || 0) >= 500;
-  const para2Instruction = hasInterestMilestone
-    ? `One specific insight from the numbers. If the interest saved milestone is meaningful, lead with it: "${fmt(S.profile.debt.interestSaved)} saved in interest" is concrete and motivating. Otherwise, name a category trend.`
-    : hasGrowingTrend
-    ? `One specific insight that references a multi-month pattern — not just what happened this month but what the 6-month trend shows. Name the category, the direction, and what it means for the payoff date.`
-    : 'One specific insight from the numbers. Be concrete — name a dollar amount and what it means.';
-
-  const prompt = `${systemPrompt}
-${profileContext}
-${annotationBlock}${monthName} report data:
-  Income: ${fmt(income)}
-  Spent: ${fmt(spent)}
-  ${under >= 0 ? `Under budget by: ${fmt(under)}` : `Over budget by: ${fmt(Math.abs(under))}`}
-  Budget streak: ${streak} month${streak!==1?'s':''}
-  Top spending this month: ${topCats}
-  ${ctx.lean ? `Monthly surplus after debt payment: approximately $${Math.max(0, Math.round(income - spent - (_getMonthlyBudget())))}` : ''}
-${ctx.stageNote}
-${ctx.leanContext || ''}
-
-RULES — never break these:
-- The user has chosen the ${debtMethod} payoff method. Do not suggest switching methods. Execute their choice, never question it.
-- Do not use the words "journey", "wellness", or "holistic".
-- No greeting, no sign-off.
-- Write from 12 months of context, not just this month. The historical data above is real — use it.
-
-Write exactly 3 short paragraphs (2-3 sentences each). No headers, no bullets.
-Paragraph 1: What happened this month — the honest summary.
-Paragraph 2: ${para2Instruction}
-Paragraph 3: ${ctx.lean
-  ? 'One specific, plain action for next month. Name a category, a dollar amount, and what it saves in interest. Nothing else.'
-  : ctx.stage === 'debt'
-  ? 'One specific action for next month that moves the debt-free date forward.'
-  : ctx.stage === 'transition'
-  ? 'Acknowledge momentum and introduce one next-chapter idea.'
-  : 'One action that accelerates the wealth-building trajectory.'}
-
-Use their actual numbers. Be specific. Sound like you know them.`;
-
-  try {
-    const result = await callAI({
-      max_tokens: 250,
-      system: systemPrompt,
-      messages: [{ role:'user', content: prompt }],
-      surface: 'monthly_report',
-      findings_kinds: ['income', 'total', 'category', 'budget', 'debt', 'date', 'annotation', 'profile'],
-    });
-
-    if (result.ok) {
-      // d21: unified renderer — same panel, disclosure, and attribution as
-      // every other AI surface. Numbers shown are the ones the model was given.
-      const monthlyDataLines = [
-        `Month: ${monthName}`,
-        `Income: ${fmt(income)}`,
-        `Spent: ${fmt(spent)}`,
-        under >= 0 ? `Under budget by: ${fmt(under)}` : `Over budget by: ${fmt(Math.abs(under))}`,
-        `Budget streak: ${streak} month${streak !== 1 ? 's' : ''}`,
-        ...(topCats ? [`Top spending: ${topCats}`] : []),
-      ];
-      _rcRenderAIPanel('monthly_report', result.text, content, monthlyDataLines, null,
-        { compact: true, replace: true, pullquoteFirst: true, payload: result.payload, title: `${monthName} report`,
-          model: result.model, provider: result.provider });
-
-      if (badge) {
-        badge.innerHTML = `<span style="width:6px;height:6px;border-radius:50%;background:var(--sky);display:inline-block"></span> AI · ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`;
-      }
-
-      // Persist the report text so the user can retrieve it later
-      // Key format: report_text_YYYY-MM — one per calendar month
-      const reportKey = `report_text_${yr}-${String(mo).padStart(2,'0')}`;
-      API.patch('/api/settings', { [reportKey]: result.text }).catch(_gwErr('generateReport'));
-      _loadPastReportsList(); // refresh the past reports dropdown if open
-    } else {
-      _renderReportFallback(content, ctx, spent, income, under, streak, topCats, monthName);
-    }
-  } catch(e) {
-    _renderReportFallback(content, ctx, spent, income, under, streak, topCats, monthName);
-  }
-}
-
+// Item 12 step 2 K5 (NARRATION_CAPS.md; STREAMING.md T8): the old monthly report (generateReport, surface
+// 'monthly_report') wrote into a modal no path opens, and narrated $0.00 when forced. Removed; its buttons open the
+// live report (monthly_report_v2).
 function _renderReportFallback(content, ctx, spent, income, under, streak, topCats, month) {
   const beginDebt = S.debtCards.reduce((s,c)=>s+(parseFloat(c.beginBal)||0),0);
   const paid      = beginDebt - (ctx.totalDebt||0);
@@ -10951,41 +10789,47 @@ async function _learnFromPastTrip() {
 
   if (resultEl) resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--slate)"><div class="spinner"></div>Reading ${txns.length} transactions from ${esc(label)}…</div>`;
 
-  const txnList = txns.map(t => `${t.id}|${t.date}|${(t.description||'').slice(0,60)}|${t.category||'Other'}`).join('\n');
-  const prompt = `Below is a list of real transactions from a past trip (${label}, ${start} to ${end}). Format: id|date|description|category.
+  // Item 12 step 2 K4: ten transactions a call (cap 600), not all at once (up to 4,000 tokens); a batch whose reply
+  // doesn't read is retried once, then its transactions are left out and the result says how many.
+  const promptFor = (batch) => {
+  const txnList = batch.map(t => `${t.id}|${t.date}|${(t.description||'').slice(0,60)}|${t.category||'Other'}`).join('\n');
+  return `Below is a list of real transactions from a past trip (${label}, ${start} to ${end}). Format: id|date|description|category.
 
 ${txnList}
 
 Classify EVERY transaction id into exactly one bucket: "hotel" (lodging), "dining" (restaurants, food, coffee), "activities" (entertainment, attractions, trip-specific shopping), "transport" (gas, flights, rideshare, parking, tolls), or "exclude" (not actually trip spending — e.g. a subscription renewal, a bill, or anything unrelated that just happened to fall in this date range).
 
 Respond with ONLY a JSON object: {"classifications": [{"id": "<id>", "bucket": "<bucket>"}, ...]} — one entry per transaction id given above. Do not include dollar amounts. Do not invent transaction ids.`;
+  };
 
-  let result;
-  try {
-    result = await callAI({
-      max_tokens: Math.min(4000, 200 + txns.length * 40),
-      system: 'You are a strict transaction classifier. You only assign category labels to transaction ids you are given — you never state or compute dollar amounts.',
-      messages: [{ role: 'user', content: prompt }],
-      skipGate: true,
-      surface: 'trip_learn_classify',
-    });
-  } catch (e) {
-    result = { ok: false };
+  const classifications = [];
+  let unread = 0;
+  for (let i = 0; i < txns.length; i += 10) {
+    const batch = txns.slice(i, i + 10);
+    let parsed = null;
+    for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
+      let result;
+      try {
+        result = await callAI({
+          max_tokens: 600,
+          system: 'You are a strict transaction classifier. You only assign category labels to transaction ids you are given — you never state or compute dollar amounts.',
+          messages: [{ role: 'user', content: promptFor(batch) }],
+          skipGate: true,
+          surface: 'trip_learn_classify',
+        });
+      } catch (e) {
+        result = { ok: false };
+      }
+      if (!result.ok || !result.text) {
+        if (resultEl) resultEl.innerHTML = `<div style="font-size:12px;color:var(--ember)">Couldn't analyze that trip right now. Check your AI settings and try again.</div>`;
+        return;
+      }
+      try { parsed = JSON.parse(result.text.replace(/```json|```/g, '').trim()); } catch (e) { parsed = null; }
+    }
+    if (parsed) classifications.push(...(parsed.classifications || []));
+    else unread += batch.length;
   }
-
-  if (!result.ok || !result.text) {
-    if (resultEl) resultEl.innerHTML = `<div style="font-size:12px;color:var(--ember)">Couldn't analyze that trip right now. Check your AI settings and try again.</div>`;
-    return;
-  }
-
-  let parsed;
-  try {
-    const cleaned = result.text.replace(/```json|```/g, '').trim();
-    parsed = JSON.parse(cleaned);
-  } catch (e) {
-    if (resultEl) resultEl.innerHTML = `<div style="font-size:12px;color:var(--ember)">The model's response wasn't valid — try again.</div>`;
-    return;
-  }
+  const parsed = { classifications };
 
   // Validate: every id must be a REAL transaction we actually sent. Anything
   // the model invents is dropped; anything it left uncovered defaults to
@@ -11002,6 +10846,8 @@ Respond with ONLY a JSON object: {"classifications": [{"id": "<id>", "bucket": "
   txns.forEach(t => buckets[bucketById[String(t.id)] || 'exclude'].push(t));
 
   _renderTripLearnResult(label, start, end, travelers, buckets);
+  if (unread && resultEl) resultEl.insertAdjacentHTML('beforeend',
+    `<div style="font-size:11px;color:var(--slate-2);margin-top:6px">${unread} transaction${unread !== 1 ? 's' : ''} couldn't be read by the model and ${unread !== 1 ? 'are' : 'is'} left out.</div>`);
 }
 
 function _renderTripLearnResult(label, start, end, travelers, buckets) {
@@ -12250,8 +12096,8 @@ No greeting. No sign-off. No question marks. Write as if you're a trusted friend
 
   try {
     const result = await callAI({
-      max_tokens: 100,
-      system: 'You write brief, warm, honest Sunday financial check-ins for couples. Two sentences. Conversational. Never preachy.',
+      max_tokens: 200,   // item 12 step 2 K1: measured 100 of 100 used, twice
+      system: 'You write brief, warm, honest Sunday financial check-ins for couples. Two sentences, about 40 words. Conversational. Never preachy.',
       messages: [{ role:'user', content: prompt }],
       surface: 'sunday_checkin',
       findings_kinds: ['income', 'total', 'category', 'debt', 'household_name'],
@@ -23196,7 +23042,7 @@ function updateReportPreview() {
     </div>
     <div class="report-section"><div class="report-section-label">Where the money went</div>${bvaHTML}</div>
     <div class="report-section" id="reportNarrativeSection" style="display:none"><div class="report-section-label">This month in context</div><div class="report-narrative" id="reportAiNarrative"></div><div class="report-ai-badge" id="reportAiBadge"></div></div>
-    <div id="reportGeneratePrompt" style="padding:32px 0;text-align:center"><p style="color:rgba(255,255,255,.4);font-size:14px;margin-bottom:20px">Generate your AI report for a full analysis of this month.</p><button class="btn btn-primary" onclick="generateReport()">✦ Generate AI Report</button></div>`;
+    <div id="reportGeneratePrompt" style="padding:32px 0;text-align:center"><p style="color:rgba(255,255,255,.4);font-size:14px;margin-bottom:20px">Generate your AI report for a full analysis of this month.</p><button class="btn btn-primary" onclick="openReportModal()">✦ Generate AI Report</button></div>`;
 }
 
 // ─── Backup ────────────────────────────────────────────────────────────────────
@@ -23754,6 +23600,15 @@ async function _gwStreamAttempt(payload, systemText, findings) {
   if (!done) return { unavailable: true };
   const tail = buf.trim();
   const truncated = done.stop_reason === 'max_tokens';
+  // K3: cut at the cap - the sentences already shown each passed the check; the unfinished tail is dropped
+  if (truncated && shown.length >= 2) {
+    const kept = shown.join(' ');
+    const whole = _voiceGateCheck(kept, findings, false);
+    if (whole.pass) {
+      payload.onSentence(GW_SHORTENED);
+      return { pass: true, text: kept + '\n\n' + GW_SHORTENED, gate: whole, truncated, shortened: true };
+    }
+  }
   if (tail) {
     const g2 = _voiceGateCheck(tail, findings, false);
     if (!g2.pass) return { pass: false, text: full, gate: g2, truncated };
@@ -23794,6 +23649,15 @@ function _gwShowStopped(host, text, id, replace) {
       <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);font-weight:600">Stopped before it finished</div>
       <div style="font-size:14px;color:var(--ink);line-height:1.8;margin-top:8px">${esc(text || '')}</div></div>`;
   if (replace) host.innerHTML = html; else host.insertAdjacentHTML('beforeend', html);
+}
+
+// Item 12 step 2 K3 (NARRATION_CAPS.md): an answer that stopped at its length cap keeps its finished sentences - each
+// through the voice check - drops the unfinished one, and says so. R10 is unchanged: a cut answer is never presented
+// as finished, because it is marked. Fewer than two finished sentences: null, and the answer is reworded as before.
+const GW_SHORTENED = 'Shortened at the length limit.';
+function _gwKeepFinished(text) {
+  const { sentences } = _gwTakeSentences(String(text || '') + ' X');   // a sentence ends only before another starts
+  return sentences.length >= 2 ? sentences.join(' ') : null;
 }
 
 // ── callAI() — THE single choke point every narrative AI surface calls
@@ -23851,7 +23715,7 @@ async function callAI(payload) {
     const s = await _gwStreamAttempt(payload, baseSystem, findings);
     if (s.stopped) return { ok:false, stopped:true, text:s.shown, payload };
     if (s.unavailable) return { ok:false, text:'', payload };
-    if (s.pass) return { ok:true, text:s.text, payload, model:'', provider:'local', streamed:true };
+    if (s.pass) return { ok:true, text:s.text, payload, model:'', provider:'local', streamed:true, shortened:!!s.shortened };
     if (typeof payload.onReset === 'function') payload.onReset('Rewording…');
     result = { ok:true, text:s.text, model:'', provider:'local', truncated:s.truncated };
     gate = s.gate;
@@ -23861,6 +23725,12 @@ async function callAI(payload) {
     if (skipGate) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider, truncated:result.truncated };
     gate = _voiceGateCheck(result.text, findings, result.truncated);
     if (gate.pass) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider };
+    // K3: cut at the cap - keep what finished, if it passes on its own
+    if (result.truncated) {
+      const kept = _gwKeepFinished(result.text);
+      if (kept && _voiceGateCheck(kept, findings, false).pass)
+        return { ok:true, text: kept + '\n\n' + GW_SHORTENED, payload, model:result.model, provider:result.provider, shortened:true };
+    }
   }
 
   // Up to 2 corrective retries (3 attempts total). Each cites the exact
@@ -23886,6 +23756,12 @@ async function callAI(payload) {
     if (!result.ok) return { ok:false, text:'', payload };
     gate = _voiceGateCheck(result.text, findings, result.truncated);
     if (gate.pass) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider };
+    // K3: cut at the cap - keep what finished, if it passes on its own
+    if (result.truncated) {
+      const kept = _gwKeepFinished(result.text);
+      if (kept && _voiceGateCheck(kept, findings, false).pass)
+        return { ok:true, text: kept + '\n\n' + GW_SHORTENED, payload, model:result.model, provider:result.provider, shortened:true };
+    }
   }
   _logVoiceMiss(surface, result.model, gate, result.text);
   return { ok:false, text:'', payload, gateRejected:true };
@@ -23971,7 +23847,7 @@ async function _renderProjectionAI(content, badge, d) {
   const achNote=d.nextAch?`Nearest achievement: "${d.nextAch.name}"`:'' ;
   const prompt=`${stageCtx.leanContext?stageCtx.leanContext+'\n\n':''}${stageCtx.stageNote}\n\nSpending: ${d.category} is $${d.over>0?d.over+' over':''+d.surplus+' opportunity'} with ${d.daysLeft} days left.\nRedirect $${d.surplus} → ${d.topDebt?.name||'highest-rate debt'}: payoff ${d.baseline?.freeDate}→${d.withRedirect?.freeDate||'same'}, ${d.monthsSooner} months sooner, saves $${d.intSaved}.\n${dtiNote} ${achNote}\nWrite 2 sentences. Sentence 1: category, amount, payoff impact. Sentence 2: next milestone or achievement. Second person. No greeting.`;
   try {
-    const result=await callAI({max_tokens:140,system:'Direct financial projection. Two sentences max. Exact numbers.',messages:[{role:'user',content:prompt}],surface:'projection',findings_kinds:['category','total','debt','date','achievement']});
+    const result=await callAI({max_tokens:280,system:'Direct financial projection. Two sentences, about 40 words. Exact numbers.',messages:[{role:'user',content:prompt}],surface:'projection',findings_kinds:['category','total','debt','date','achievement']});
     if(result.ok){
       // d21: unified renderer
       const projDataLines=[
@@ -24125,11 +24001,11 @@ async function _rcSendAI(reportId) {
   const live = _gwLiveNarration(target, reportId);
   const result = await callAI({
     onSentence: live.add, onReset: live.reset, signal: live.signal,
-    max_tokens: 350,
+    max_tokens: 700,   // item 12 step 2 K1: measured 350 of 350 used, twice
     system: `You are Groundwork's financial analysis engine. Write clear, specific, direct analysis.
 Tone: like a knowledgeable friend who knows the user's numbers. Direct, never preachy, never generic.
 Rules: no greetings, no sign-offs, no use of "journey", "wellness", or "holistic".
-Use the actual dollar amounts provided. 3 short paragraphs max.`,
+Use the actual dollar amounts provided. Up to 3 short paragraphs, about 200 words in all.`,
     messages: _rcAIThread[reportId],
     surface: reportId,
     findings_kinds: _reportFindingsKinds(reportId),
@@ -24309,8 +24185,8 @@ async function _rcFollowUp(reportId) {
   _rcAIThread[reportId].push({ role: 'user', content: question });
 
   const result = await callAI({
-    max_tokens: 200,
-    system: `You are Groundwork's financial analysis engine. Answer follow-up questions concisely and specifically. 1-2 short paragraphs max.`,
+    max_tokens: 400,   // item 12 step 2 K1: measured 200 of 200 used once
+    system: `You are Groundwork's financial analysis engine. Answer follow-up questions concisely and specifically. 1-2 short paragraphs, about 100 words.`,
     messages: _rcAIThread[reportId],
     surface: `${reportId}_followup`,
     findings_kinds: (_reportFindingsKinds(reportId) || []).concat(['user_question']),
@@ -24827,10 +24703,11 @@ async function _rcMonthlyGenerate() {
     const live = _gwLiveNarration(cont, 'monthly');
     const result = await callAI({
       onSentence: live.add, onReset: live.reset, signal: live.signal,
-      messages:[{role:'user',content:`Monthly report for ${monthName}. Spent: ${fmt(spent)}. Income: ${fmt(income)}. ${under>=0?`Under budget by ${fmt(under)}.`:`Over by ${fmt(Math.abs(under))}.`} Top categories: ${topCats}. ${priceLines.length?`Real market price benchmarks for the categories above (use these to tell price-driven changes apart from usage-driven ones — don't blame the household for a price increase): ${priceLines.join(' ')}`:''} ${annotation?`Note: "${annotation}"`:''}. Write 3-4 paragraphs. Start with one punchy sentence. Follow with analysis. End by naming the single largest category above and its exact dollar amount, stated as a plain fact — not a command or suggestion, and never calculate a new number yourself (write "Transfer was the largest category at $X," never "Consider cutting..." or "You should trim..." or any dollar figure not listed above). No bullets. No headings.`}],
+      messages:[{role:'user',content:`Monthly report for ${monthName}. Spent: ${fmt(spent)}. Income: ${fmt(income)}. ${under>=0?`Under budget by ${fmt(under)}.`:`Over by ${fmt(Math.abs(under))}.`} Top categories: ${topCats}. ${priceLines.length?`Real market price benchmarks for the categories above (use these to tell price-driven changes apart from usage-driven ones — don't blame the household for a price increase): ${priceLines.join(' ')}`:''} ${annotation?`Note: "${annotation}"`:''}. Write 3-4 paragraphs, about 300 words. Start with one punchy sentence. Follow with analysis. End by naming the single largest category above and its exact dollar amount, stated as a plain fact — not a command or suggestion, and never calculate a new number yourself (write "Transfer was the largest category at $X," never "Consider cutting..." or "You should trim..." or any dollar figure not listed above). No bullets. No headings.`}],
       system:'You are writing a monthly financial report. Tone: direct, honest, like a trusted friend who knows their numbers. Never preachy.',
       surface: 'monthly_report_v2',
       findings_kinds: ['income', 'total', 'category', 'budget', 'date', 'price_benchmark', 'annotation'],
+      max_tokens: 1000,   // item 12 step 2 K1/K6: explicit - it was the server's default
     });
     live.close();
     if (result.stopped) {        // S6: shown text stays, marked stopped; not saved as the month's report
