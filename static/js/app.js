@@ -22816,6 +22816,7 @@ function bankLoginsHtml(d) {
       ${a.has_login
         ? `${a.has_steps ? `<button class="btn btn-primary btn-sm" onclick="startBankFetch('${esc(a.key)}')">Get my latest transactions</button>` : ''}
            <button class="btn btn-secondary btn-sm" onclick="startBankRecording('${esc(a.key)}')">${a.has_steps ? 'Record the steps again' : 'Show me once'}</button>
+           ${a.has_steps ? `<button class="btn btn-ghost btn-sm" onclick="deleteBankRecipe('${esc(a.key)}')">Delete steps</button>` : ''}
            <button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${esc(a.key)}')">Forget</button>
            <label style="display:block;width:100%;font-size:11px;color:var(--slate-2);margin-top:4px"><input type="checkbox" ${a.remembered ? 'checked' : ''} onchange="setBankDevice('${esc(a.key)}', this.checked)">
              Remember this computer with the bank, so it asks for a code less often (keeps the bank's own cookies for this account; unticking forgets them)</label>`
@@ -22953,6 +22954,12 @@ async function stopBankFetch(key) {
 
 async function setBankDevice(key, on) {
   try { await API.post('/api/settings/bank-agent/device', { key, on: !!on }); } catch (e) { _gwErr('setBankDevice')(e); }
+}
+
+// A5: the saved steps can be deleted (the login stays; Show me once records new ones)
+async function deleteBankRecipe(key) {
+  try { await API.post('/api/settings/bank-agent/recipe/delete', { key }); } catch (e) { _gwErr('deleteBankRecipe')(e); }
+  renderBankLogins();
 }
 
 async function forgetBankLogin(key) {
