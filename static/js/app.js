@@ -23720,7 +23720,7 @@ async function _gwStreamAttempt(payload, systemText, findings) {
   let raw = '', buf = '', full = '', shown = [], done = null;
   const fail = async (gate) => {
     try { await reader.cancel(); } catch (e) { /* closed */ }
-    API.post('/api/ai/stop', {}).catch(() => {});
+    API.post('/api/ai/stop', {}).catch(_gwErr('_gwStreamAttempt:stop'));
     return { pass: false, text: full, gate, truncated: false };
   };
   try {
@@ -23779,7 +23779,7 @@ function _gwLiveNarration(host, key) {
   const txt = box.querySelector('[data-gw-live-text]'), status = box.querySelector('[data-gw-live-status]');
   box.querySelector('[data-gw-live-stop]').onclick = () => {
     ctl.abort();
-    API.post('/api/ai/stop', {}).catch(() => {});
+    API.post('/api/ai/stop', {}).catch(_gwErr('_gwLiveNarration:stop'));
   };
   return {
     signal: ctl.signal,
