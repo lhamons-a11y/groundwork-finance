@@ -11496,6 +11496,27 @@ function _airfareCurrent() {
   return (fromId && toId && _airfareKey === `${fromId}|${toId}|${fa}|${fb}`) ? _airfareData : null;
 }
 
+// Item 51 (FARE_CHANGE.md, Rob 2026-10-08: "approve F1-F8 as recommended"):
+// the route's DOT average against the same quarter a year earlier - a season
+// moves the average ~10% within a year, so a quarter is only compared with its
+// own season. Stated by sign, with both figures and both quarters; nothing is
+// estimated, adjusted for inflation, or called high or low.
+function airfareChangeLine(d) {
+  const ch = d && d.change;
+  if (!ch) return '';
+  const now = `${d.year} Q${d.quarter}`, was = `${ch.year} Q${ch.quarter}`;
+  if (!ch.available) {
+    return ch.reason === 'no_earlier_route' ? `DOT has no average for this route in ${was}, so there's nothing to compare it with.` : '';
+  }
+  const where = ch.basis === 'airport' ? 'between these two airports' : 'between these two cities, all their airports';
+  const pax = n => Math.round(n).toLocaleString();
+  const how = ch.direction === 'same'
+    ? `the same as in ${was}, the same quarter a year earlier (${fmt(ch.fare_then)})`
+    : `${fmt(ch.difference)} (${ch.percent.toFixed(1)}%) ${ch.direction} than in ${was}, the same quarter a year earlier (${fmt(ch.fare_then)})`;
+  return `Compared with a year earlier, ${where}: the ${fmt(ch.fare_now)} average one-way fare in ${now} is ${how}. ` +
+         `Both are in each quarter's own dollars, not adjusted for inflation; about ${pax(ch.passengers_now)} passengers a day in ${now}, ${pax(ch.passengers_then)} in ${was}.`;
+}
+
 function _airfareNoteHtml(travelers) {
   const box = inner => `<div style="padding:10px 14px;border-radius:var(--r-md);background:var(--paper);border:0.5px solid var(--steel);font-size:12px;color:var(--slate)">${inner}</div>`;
   const fromTyped = g('tripFromCity')?.value?.trim(), toTyped = g('tripToCity')?.value?.trim();
@@ -11520,7 +11541,8 @@ function _airfareNoteHtml(travelers) {
     ${from} → ${to}${roundTrip ? `, and ${fmt(est.fare)} back, ${to} → ${from}` : ''}.
     ${roundTrip ? `Round trip: (${fmt(est.fare)} + ${fmt(est.fare)})` : `One way: ${fmt(est.fare)}`}
     × ${est.travelers} traveler${est.travelers !== 1 ? 's' : ''} = <strong style="color:var(--ink)">${fmt(est.total)}</strong>.
-    <div style="margin-top:6px;font-size:11px;color:var(--slate-2)">Source: ${esc(d.source)}, ${quarter} — the average one-way fare passengers actually paid${d.basis === 'airport' ? ' between these two airports' : ' between these two cities, all their airports'}, from a 10% sample of real tickets (about ${Math.round(d.passengers_per_day).toLocaleString()} passengers a day). DOT keeps one figure for both directions of a route, so the return leg is the same average. It is not a fare you can book: compare it with the fares Google Flights shows for your dates${typed ? '. The fare you entered is used in your total instead' : ''}.</div>`);
+    <div style="margin-top:6px;font-size:11px;color:var(--slate-2)">Source: ${esc(d.source)}, ${quarter} — the average one-way fare passengers actually paid${d.basis === 'airport' ? ' between these two airports' : ' between these two cities, all their airports'}, from a 10% sample of real tickets (about ${Math.round(d.passengers_per_day).toLocaleString()} passengers a day). DOT keeps one figure for both directions of a route, so the return leg is the same average. It is not a fare you can book: compare it with the fares Google Flights shows for your dates${typed ? '. The fare you entered is used in your total instead' : ''}.</div>
+    ${airfareChangeLine(d) ? `<div style="margin-top:6px;font-size:11px;color:var(--slate-2)">${airfareChangeLine(d)}</div>` : ''}`);
 }
 
 // Item 48 (TRIP_EXACT_TOTALS.md, Rob 2026-10-08: "it should grab the exact
