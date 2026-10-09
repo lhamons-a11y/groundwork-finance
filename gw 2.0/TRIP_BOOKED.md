@@ -2,7 +2,7 @@
 
 Opened 2026-10-08 (Rob: *"when the user selects the flight and got the final price they should have a button that said
 I booked it. Then it would [record] whatever the user selected as how they are going to pay for it with the airline
-name and the credit card confirmation if it see's it and put that in the logger"*; *"yes open item 50"*). **RULED 2026-10-08 (Rob: "approve B1–B8 as recommended"), including B3's tolerances (±$1.00, 7 days, the airline named, the chosen card or account). No code yet:** the build needs its own go-ahead. Master only.
+name and the credit card confirmation if it see's it and put that in the logger"*; *"yes open item 50"*). **RULED 2026-10-08 (Rob: "approve B1–B8 as recommended"), including B3's tolerances (±$1.00, 7 days, the airline named, the chosen card or account).** **BUILT 2026-10-08 (Rob: "build item 50"): `TripBooking` (`trip_bookings`, SCHEMA_VERSION `20261008-trip-bookings`, fingerprint pinned, fixture saved), `core/trip_booking.py` (the B3 rule), the booking routes under `/api/trip/` (accounts, list, create, edit or cancel, candidates, match), the *I booked it* form, the bookings list and *Find the charge* in `app.js`, the flight line from the booking (B7), `s162` end to end. Awaiting acceptance.** Master only.
 
 ## 1. What is true today (measured 2026-10-08)
 

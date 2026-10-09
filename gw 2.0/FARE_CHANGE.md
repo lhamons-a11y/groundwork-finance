@@ -2,7 +2,7 @@
 
 Opened 2026-10-08 (Rob: *"we should acknowledge if the average price was less or more than last average. It will let
 the user know if prices have increased."*; *"yes open item 51"*). **RULED 2026-10-08 (Rob: "approve F1–F8 as recommended"):** F1 (a), the same quarter a
-year earlier. **No code yet:** the build needs its own go-ahead. Master only, as item 41 is (`DOT_AIRFARE.md`).
+year earlier. **BUILT 2026-10-08 (Rob: "build item 51"): `core/airfare.py` keeps the same quarter a year earlier (`compare`; 2025 Q1 shipped beside 2026 Q1, 302 → 567 KB; `refresh()` and the release step download it beside a newer quarter) and `lookup()` returns `change`; `airfareChangeLine` in `app.js`; `s163`; `s152` D3 counts the two extra whole-table queries. Awaiting acceptance.** Master only, as item 41 is (`DOT_AIRFARE.md`).
 
 ## 1. What is true today (measured 2026-10-08)
 
