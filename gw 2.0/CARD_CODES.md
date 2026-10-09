@@ -2,7 +2,7 @@
 
 Opened 2026-10-09 (Rob: *"open the card-code drift as an item"*). It was found while building item 54
 (`MATCHER_ONE_ANSWER.md`), which left the card-code maps unchanged. It builds on item 54's branch. **RULED 2026-10-09 (Rob: "approve C1–C6 as
-recommended")**: master only, with item 54 (C6). **No code yet:** the build needs its own go-ahead.
+recommended")**: master only, with item 54 (C6). **BUILT 2026-10-09 (Rob: "build item 55")**: the 49 codes in §1 changed in `MCC_CATEGORY_MAP`, `CLIENT_MCC_CATEGORY_MAP` written from it, a code naming Other lets the words decide on both sides (C4), Personal Care and Tuition / Courses join the review's old answers (C5), `s167`. Three codes listed twice with the same value (5732, 8398, 8351) now appear once. Awaiting acceptance.
 
 ## 1. What is true today (measured 2026-10-09 on item 54's branch, 3e48033)
 

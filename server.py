@@ -6727,7 +6727,9 @@ def _label_review(session):
 _OLD_MATCHER_ANSWERS = ('Utilities', 'Insurance', 'Transportation', 'Food', 'Healthcare', 'Entertainment', 'Education',
                         'Personal', 'Subscriptions', 'Income', 'Property Taxes',
                         'Gas / Fuel', 'Groceries', 'Health Insurance', 'Electric', 'Doctor / Co-pays',
-                        'Interest / Fees', 'Other Subscriptions')
+                        'Interest / Fees', 'Other Subscriptions',
+                        # Item 55 C5: the page's card-code leaves that are now wrong for some codes
+                        'Personal Care', 'Tuition / Courses')
 
 
 def _regroup_review(session):

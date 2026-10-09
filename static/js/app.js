@@ -6704,66 +6704,45 @@ function clientAutoCategory(desc='') {
   return 'Other';
 }
 
-// CP6 — mirrors MCC_CATEGORY_MAP in bank_importer.py.
-// Calibrated against real Superior CU data (45 distinct MCCs observed).
+// Item 55 (CARD_CODES.md, Rob 2026-10-09: C1): written from MCC_CATEGORY_MAP in bank_importer.py - the
+// same codes, the same categories; s167 fails if they differ. Change a code there, then here.
 const CLIENT_MCC_CATEGORY_MAP = {
-  // Food family
-  '5812': 'Restaurants', '5813': 'Restaurants', '5814': 'Fast Food / Takeout', '5499':'Groceries',
-  // Groceries
-  '5411':'Groceries', '5422':'Groceries', '5441':'Groceries',
-  '5451':'Groceries', '5462':'Groceries',
-  // Transportation
-  '5541': 'Gas / Fuel', '5542': 'Gas / Fuel', '5172': 'Gas / Fuel', '5552':'Transportation',
-  '7542': 'Car Maintenance', '7538': 'Car Maintenance', '5511': 'Car Maintenance',
-  '5531': 'Car Maintenance', '5532': 'Car Maintenance', '5533': 'Car Maintenance',
-  '4111':'Transportation', '4121':'Transportation', '4131':'Transportation',
-  '4789':'Transportation', '7523':'Transportation',
-  // Housing
-  '5200': 'Rent / Mortgage', '5211': 'Rent / Mortgage', '5251': 'Rent / Mortgage', '5712': 'Rent / Mortgage',
-  '5722': 'Rent / Mortgage', '5231': 'Home Maintenance', '5713': 'Rent / Mortgage',
-  '1520': 'Home Maintenance', '1711': 'Home Maintenance',
-  // Utilities / telecom
-  '4814': 'Phone / Cell', '4815': 'Phone / Cell', '4812': 'Phone / Cell', '4816': 'Other Subscriptions',
-  '4899': 'Streaming Video', '4900': 'Electric', '4901': 'Electric',
-  // Pet / health
-  '0742': 'Pet Food / Supplies', '0743': 'Pet Food / Supplies', '5995': 'Pet Food / Supplies',
-  '5912': 'Doctor / Co-pays', '5122': 'Doctor / Co-pays', '8011': 'Doctor / Co-pays',
-  '8021': 'Doctor / Co-pays', '8031': 'Doctor / Co-pays', '8041': 'Doctor / Co-pays',
-  '8042': 'Doctor / Co-pays', '8050': 'Doctor / Co-pays', '8062': 'Doctor / Co-pays',
-  '8071': 'Doctor / Co-pays', '8099': 'Doctor / Co-pays', '5047': 'Doctor / Co-pays',
-  '8043': 'Charitable Donations',
-  // Insurance
-  '5960': 'Health Insurance', '6300': 'Health Insurance', '6381': 'Health Insurance',
-  // Shopping
-  '5311': 'Clothing', '5310': 'Clothing', '5300':'Groceries', '5331': 'Clothing',
-  '5399': 'Clothing', '5621': 'Personal Care', '5651': 'Personal Care', '5661': 'Personal Care',
-  '5691': 'Personal Care', '5732': 'Clothing', '5734': 'Other Subscriptions',
-  '5942': 'Clothing', '5970': 'Hobbies', '5945': 'Hobbies', '5947': 'Clothing',
-  '5968': 'Other Subscriptions', '5969': 'Clothing', '5818': 'Other Subscriptions',
-  '5999': 'Clothing', '5932': 'Clothing', '5921': 'Personal Care',
-  // Personal services
-  '7230': 'Haircut / Salon', '7297': 'Haircut / Salon', '7298': 'Haircut / Salon', '7261':'Other',
-  '7311':'Other', '7372': 'Other Subscriptions', '5977': 'Haircut / Salon',
-  // Recreation
-  '7832': 'Activities / Events', '7841': 'Streaming Video', '7922': 'Activities / Events',
-  '7929': 'Activities / Events', '7991': 'Activities / Events', '7993': 'Activities / Events',
-  '7994': 'Activities / Events', '7996': 'Activities / Events', '7997': 'Gym / Fitness', '7999': 'Vacation / Travel',
-  // Charity / public
-  '8398': 'Charitable Donations', '8661': 'Charitable Donations',
-  '9211': 'Interest / Fees', '9222': 'Interest / Fees', '9223': 'Interest / Fees',
-  '9311': 'Interest / Fees', '9399': 'Interest / Fees',
-  // Education
-  '8211': 'Tuition / Courses', '8220': 'Tuition / Courses', '8241': 'Tuition / Courses', '8244': 'Tuition / Courses',
-  '8249': 'Tuition / Courses', '8299': 'Tuition / Courses', '8351': 'Tuition / Courses',
-  // Financial
-  '6010':'Transfer', '6011':'Transfer', '6012':'Debt', '6051':'Transfer',
-  '6211': 'Transfer', '4829':'Transfer', '6536':'Transfer',
-  // Misc
-  '8931': 'Interest / Fees', '8999': 'Other Subscriptions', '8911':'Other',
+  '5812': 'Restaurants', '5813': 'Restaurants', '5814': 'Fast Food / Takeout', '5499': 'Groceries',
+  '5411': 'Groceries', '5422': 'Groceries', '5441': 'Groceries', '5451': 'Groceries',
+  '5462': 'Groceries', '5541': 'Gas / Fuel', '5542': 'Gas / Fuel', '5552': 'Gas / Fuel',
+  '5172': 'Gas / Fuel', '7542': 'Car Maintenance', '7538': 'Car Maintenance', '5511': 'Car Maintenance',
+  '5531': 'Car Maintenance', '5532': 'Car Maintenance', '5533': 'Car Maintenance', '4111': 'Rideshare / Transit',
+  '4121': 'Rideshare / Transit', '4131': 'Rideshare / Transit', '4789': 'Rideshare / Transit', '7523': 'Parking / Tolls',
+  '5200': 'Rent / Mortgage', '5211': 'Rent / Mortgage', '5231': 'Home Maintenance', '5251': 'Rent / Mortgage',
+  '5712': 'Rent / Mortgage', '5713': 'Rent / Mortgage', '5722': 'Rent / Mortgage', '1520': 'Home Maintenance',
+  '1711': 'Home Maintenance', '4814': 'Phone / Cell', '4815': 'Phone / Cell', '4812': 'Phone / Cell',
+  '4816': 'Other', '4899': 'Streaming Video', '4900': 'Other', '4901': 'Other',
+  '0742': 'Pet Food / Supplies', '0743': 'Pet Food / Supplies', '5995': 'Pet Food / Supplies', '5912': 'Prescriptions',
+  '5122': 'Prescriptions', '8011': 'Doctor / Co-pays', '8021': 'Dental', '8031': 'Doctor / Co-pays',
+  '8041': 'Doctor / Co-pays', '8042': 'Vision', '8043': 'Charitable Donations', '8050': 'Doctor / Co-pays',
+  '8062': 'Doctor / Co-pays', '8071': 'Doctor / Co-pays', '8099': 'Doctor / Co-pays', '5047': 'Doctor / Co-pays',
+  '5960': 'Other', '6300': 'Other', '6381': 'Other', '5311': 'Clothing',
+  '5310': 'Clothing', '5300': 'Groceries', '5331': 'Clothing', '5399': 'Clothing',
+  '5621': 'Clothing', '5651': 'Clothing', '5661': 'Clothing', '5691': 'Clothing',
+  '5732': 'Clothing', '5734': 'Software / Apps', '5942': 'Clothing', '5970': 'Hobbies',
+  '5945': 'Hobbies', '5947': 'Clothing', '5968': 'Other Subscriptions', '5969': 'Clothing',
+  '5818': 'Software / Apps', '5999': 'Clothing', '5932': 'Clothing', '5921': 'Other',
+  '7230': 'Haircut / Salon', '7297': 'Haircut / Salon', '7298': 'Haircut / Salon', '7261': 'Other',
+  '7311': 'Other', '7372': 'Software / Apps', '5977': 'Haircut / Salon', '7832': 'Activities / Events',
+  '7841': 'Streaming Video', '7922': 'Activities / Events', '7929': 'Activities / Events', '7991': 'Activities / Events',
+  '7993': 'Activities / Events', '7994': 'Activities / Events', '7996': 'Activities / Events', '7997': 'Gym / Fitness',
+  '7999': 'Vacation / Travel', '8398': 'Charitable Donations', '8661': 'Charitable Donations', '9211': 'Interest / Fees',
+  '9222': 'Interest / Fees', '9223': 'Interest / Fees', '9311': 'Other', '9399': 'Interest / Fees',
+  '8211': 'School / Tuition', '8220': 'Tuition / Courses', '8241': 'Tuition / Courses', '8244': 'Tuition / Courses',
+  '8249': 'Tuition / Courses', '8299': 'Tuition / Courses', '8351': 'Childcare / Daycare', '6010': 'Transfer',
+  '6011': 'Transfer', '6012': 'Debt', '6051': 'Transfer', '6211': 'Transfer',
+  '4829': 'Transfer', '6536': 'Transfer', '8931': 'Interest / Fees', '8999': 'Other',
+  '8911': 'Other',
 };
 
 function clientCategorize(desc, mcc) {
-  if (mcc && CLIENT_MCC_CATEGORY_MAP[mcc]) return CLIENT_MCC_CATEGORY_MAP[mcc];
+  // Item 55 C4: a code that names a leaf wins; a code that names Other lets the words decide
+  if (mcc && CLIENT_MCC_CATEGORY_MAP[mcc] && CLIENT_MCC_CATEGORY_MAP[mcc] !== 'Other') return CLIENT_MCC_CATEGORY_MAP[mcc];
   return clientAutoCategory(desc);
 }
 

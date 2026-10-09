@@ -52,6 +52,9 @@ GROUNDWORK_CATEGORIES = [
 # theory. For codes not in real data, we extend with reasonable defaults
 # from the ISO 18245 standard.
 MCC_CATEGORY_MAP = {
+    # Item 55 (CARD_CODES.md, Rob 2026-10-09): THE card-code table - CLIENT_MCC_CATEGORY_MAP in app.js is written
+    # from it and s167 fails if they differ (C1). Every code names a leaf (C2); a code covering more than one thing,
+    # or one with no leaf, names 'Other' (C3) - and then the words decide (C4, auto_category).
     # ── Food (sit-down, fast-food, bars, bakeries) ──
     '5812': 'Restaurants',     # Eating places (Beer Barrel, Kewpee, Buffalo Wild Wings)
     '5813': 'Restaurants',     # Drinking places / bars
@@ -69,7 +72,7 @@ MCC_CATEGORY_MAP = {
     # (item 52: 'Gas / Fuel' is the Transportation leaf; bare 'Gas' is the natural-gas utility)
     '5541': 'Gas / Fuel',     # Service stations w/ pumps (Clark Gas, BP, Marathon)
     '5542': 'Gas / Fuel',     # Automated fuel dispensers
-    '5552': 'Transportation', # Electric vehicle charging (NAYAX EV in his data)
+    '5552': 'Gas / Fuel', # Electric vehicle charging (NAYAX EV in his data)
     '5172': 'Gas / Fuel',     # Petroleum and petroleum products
     '7542': 'Car Maintenance',    # Car washes (Whitewater Car Wash)
     '7538': 'Car Maintenance',    # Auto service shops
@@ -77,11 +80,11 @@ MCC_CATEGORY_MAP = {
     '5531': 'Car Maintenance',    # Auto/home supply stores
     '5532': 'Car Maintenance',    # Automotive tire stores
     '5533': 'Car Maintenance',    # Automotive parts
-    '4111': 'Transportation', # Commuter transport
-    '4121': 'Transportation', # Taxicabs / rideshare
-    '4131': 'Transportation', # Bus lines
-    '4789': 'Transportation', # Transportation services - misc
-    '7523': 'Transportation', # Parking lots
+    '4111': 'Rideshare / Transit', # Commuter transport
+    '4121': 'Rideshare / Transit', # Taxicabs / rideshare
+    '4131': 'Rideshare / Transit', # Bus lines
+    '4789': 'Rideshare / Transit', # Transportation services - misc
+    '7523': 'Parking / Tolls', # Parking lots
 
     # ── Housing & home services ──
     '5200': 'Rent / Mortgage',        # Home supply warehouses (Lowe's, Menards)
@@ -98,33 +101,33 @@ MCC_CATEGORY_MAP = {
     '4814': 'Phone / Cell',          # Telecom services (cell, long distance)
     '4815': 'Phone / Cell',
     '4812': 'Phone / Cell',          # Telecom equipment
-    '4816': 'Subscriptions',   # Computer network/info services
+    '4816': 'Other',   # Computer network/info services
     '4899': 'Streaming Video',      # Cable/satellite/streaming (Spectrum, Disney+, Netflix)
-    '4900': 'Utilities',      # Electric/gas/water/sanitary (City of Millbrook)
-    '4901': 'Utilities',
+    '4900': 'Other',      # Electric/gas/water/sanitary (City of Millbrook)
+    '4901': 'Other',
 
     # ── Healthcare & pets
     '0742': 'Pet Food / Supplies',            # Veterinary services (Heidt Vet, Metz Petz)
     '0743': 'Pet Food / Supplies',
     '5995': 'Pet Food / Supplies',            # Pet shops/food/supplies (Petco, Chewy)
-    '5912': 'Healthcare',     # Drug stores / pharmacies (Walgreens)
-    '5122': 'Healthcare',     # Drug proprietary
-    '8011': 'Healthcare',     # Doctors / physicians
-    '8021': 'Healthcare',
-    '8031': 'Healthcare',
-    '8041': 'Healthcare',
-    '8042': 'Healthcare',
+    '5912': 'Prescriptions',     # Drug stores / pharmacies (Walgreens)
+    '5122': 'Prescriptions',     # Drug proprietary
+    '8011': 'Doctor / Co-pays',     # Doctors / physicians
+    '8021': 'Dental',
+    '8031': 'Doctor / Co-pays',
+    '8041': 'Doctor / Co-pays',
+    '8042': 'Vision',
     '8043': 'Charitable Donations',        # Opticians/eyewear — but real data has Goodwill here so leaning Charity
-    '8050': 'Healthcare',
-    '8062': 'Healthcare',     # Hospitals
-    '8071': 'Healthcare',     # Medical labs
-    '8099': 'Healthcare',
-    '5047': 'Healthcare',     # Medical equipment
+    '8050': 'Doctor / Co-pays',
+    '8062': 'Doctor / Co-pays',     # Hospitals
+    '8071': 'Doctor / Co-pays',     # Medical labs
+    '8099': 'Doctor / Co-pays',
+    '5047': 'Doctor / Co-pays',     # Medical equipment
 
     # ── Insurance
-    '5960': 'Insurance',      # Direct marketing insurance (Nationwide Pet Insurance)
-    '6300': 'Insurance',      # Insurance sales/underwriting
-    '6381': 'Insurance',
+    '5960': 'Other',      # Direct marketing insurance (Nationwide Pet Insurance)
+    '6300': 'Other',      # Insurance sales/underwriting
+    '6381': 'Other',
 
     # ── Shopping (specific stores)
     '5311': 'Clothing',       # Department stores (JCPenney)
@@ -132,23 +135,22 @@ MCC_CATEGORY_MAP = {
     '5300': 'Groceries',      # Wholesale clubs (Sam's Club — primarily groceries here)
     '5331': 'Clothing',       # Variety stores (Dollar Tree, Dollar General)
     '5399': 'Clothing',       # Misc general merch
-    '5621': 'Personal',       # Women's ready-to-wear (Francesca's)
-    '5651': 'Personal',       # Family clothing
-    '5661': 'Personal',       # Shoe stores
-    '5691': 'Personal',
+    '5621': 'Clothing',       # Women's ready-to-wear (Francesca's)
+    '5651': 'Clothing',       # Family clothing
+    '5661': 'Clothing',       # Shoe stores
+    '5691': 'Clothing',
     '5732': 'Clothing',       # Electronics
-    '5734': 'Subscriptions',   # Computer software stores (Anthropic — software subscription)
+    '5734': 'Software / Apps',   # Computer software stores (Anthropic — software subscription)
     '5942': 'Clothing',       # Book stores (Amazon historical MCC)
     '5970': 'Hobbies',          # Artist supplies (Cricut, Michaels)
     '5945': 'Hobbies',          # Hobby/toy/game shops (Hobby Lobby, Build-A-Bear)
     '5947': 'Clothing',       # Gift shops
-    '5968': 'Subscriptions',   # Direct marketing — subscription merchants
+    '5968': 'Other Subscriptions',   # Direct marketing — subscription merchants
     '5969': 'Clothing',
-    '5818': 'Subscriptions',   # Digital goods (Apple subscriptions)
-    '5732': 'Clothing',
+    '5818': 'Software / Apps',   # Digital goods (Apple subscriptions)
     '5999': 'Clothing',       # Misc specialty retail (Harbor Freight)
     '5932': 'Clothing',       # Antique shops (Indian Lake Outfitters in his data)
-    '5921': 'Personal',       # Package stores - liquor
+    '5921': 'Other',       # Package stores - liquor
 
     # ── Personal services
     '7230': 'Haircut / Salon',         # Barber/beauty shops (What a Tease)
@@ -156,42 +158,40 @@ MCC_CATEGORY_MAP = {
     '7298': 'Haircut / Salon',         # Health/beauty spas
     '7261': 'Other',          # Funeral services
     '7311': 'Other',
-    '7372': 'Subscriptions',   # Computer services
+    '7372': 'Software / Apps',   # Computer services
     '5977': 'Haircut / Salon',         # Cosmetic stores
 
     # ── Recreation
-    '7832': 'Entertainment',  # Movie theaters
+    '7832': 'Activities / Events',  # Movie theaters
     '7841': 'Streaming Video',      # Video tape rental
-    '7922': 'Entertainment',  # Theatrical producers
-    '7929': 'Entertainment',
-    '7991': 'Entertainment',
-    '7993': 'Entertainment',
-    '7994': 'Entertainment',  # Video game arcades
-    '7996': 'Entertainment',  # Amusement parks
+    '7922': 'Activities / Events',  # Theatrical producers
+    '7929': 'Activities / Events',
+    '7991': 'Activities / Events',
+    '7993': 'Activities / Events',
+    '7994': 'Activities / Events',  # Video game arcades
+    '7996': 'Activities / Events',  # Amusement parks
     '7997': 'Gym / Fitness',  # Country clubs / fitness clubs
     '7999': 'Vacation / Travel',         # Recreation services - travel
 
     # ── Charity / public
     '8398': 'Charitable Donations',        # Charitable orgs (GoFundMe)
     '8661': 'Charitable Donations',        # Religious orgs
-    '8398': 'Charitable Donations',
     '9211': 'Interest / Fees',           # Court costs
     '9222': 'Interest / Fees',           # Fines
     '9223': 'Interest / Fees',
-    '9311': 'Property Taxes',          # Tax payments
+    '9311': 'Other',          # Tax payments
     '9399': 'Interest / Fees',           # Govt services (BMV in his data — DMV fees)
 
     # ── Education
-    '8211': 'Education',      # Elementary/secondary schools
-    '8220': 'Education',      # Colleges/universities
-    '8241': 'Education',
-    '8244': 'Education',
-    '8249': 'Education',
-    '8299': 'Education',
-    '8351': 'Education',      # Child care services
+    '8211': 'School / Tuition',      # Elementary/secondary schools
+    '8220': 'Tuition / Courses',      # Colleges/universities
+    '8241': 'Tuition / Courses',
+    '8244': 'Tuition / Courses',
+    '8249': 'Tuition / Courses',
+    '8299': 'Tuition / Courses',
+    '8351': 'Childcare / Daycare',      # Child care services
 
     # ── Childcare
-    '8351': 'Education',      # Child care services (re-asserting — same MCC as 8351 above)
 
     # ── Financial
     '6010': 'Transfer',       # Manual cash disbursement
@@ -204,7 +204,7 @@ MCC_CATEGORY_MAP = {
 
     # ── Misc
     '8931': 'Interest / Fees',           # Accounting/tax (TaxSlayer)
-    '8999': 'Subscriptions',   # Professional services - Experian credit
+    '8999': 'Other',   # Professional services - Experian credit
     '8911': 'Other',          # Architectural/engineering
 }
 
@@ -492,7 +492,8 @@ _CATEGORY_PATTERNS = [
 
 def auto_category(description: str, mcc: str = '') -> str:
     """Categorize a transaction — MCC (definitive) takes priority over keyword matching."""
-    if mcc and mcc in MCC_CATEGORY_MAP:
+    # Item 55 C4: a code that names a leaf wins; a code that names Other lets the words decide
+    if mcc and MCC_CATEGORY_MAP.get(mcc, 'Other') != 'Other':
         return MCC_CATEGORY_MAP[mcc]
     d = (description or '').lower()
     for category, pattern in _CATEGORY_PATTERNS:

@@ -1,7 +1,7 @@
 # Item 54 — One purchase, one category, whichever way it arrives
 
 Opened 2026-10-09 (Rob: *"open the rideshare mismatch as an item"*). It was found while building item 53
-(`FUEL_NAMES.md`). **RULED 2026-10-09 (Rob: "approve M1–M7 as recommended")**: master only (M7); `ibuy` and `resource recycl` kept as they are (M3). **No code yet:** the build needs its own go-ahead.
+(`FUEL_NAMES.md`). **RULED 2026-10-09 (Rob: "approve M1–M7 as recommended")**: master only (M7); `ibuy` and `resource recycl` kept as they are (M3). **BUILT 2026-10-09 (Rob: "build item 54")**: `bank_importer._CATEGORY_PATTERNS` is the one table (46 rules), `clientAutoCategory` is written from it, `s166` compares them rule by rule and files 44 lines both ways; the review card's *regroup* blocks offer rows saved under an old answer (M6). Additions inside the ruling: Columbia Gas named as a gas company, payroll to Paycheck / Salary (an income-type leaf, so income is still found), a tax refund to Other with tax payments. Two app.js regexes (`clientParseDate`'s `/[!']/` and three `/"/g`) were rewritten with `'` / `"`, same meaning, because s30's scan read them as strings. Awaiting acceptance.
 
 ## 1. What is true today (measured 2026-10-09 on master 50d8701, item 53's branch)
 
