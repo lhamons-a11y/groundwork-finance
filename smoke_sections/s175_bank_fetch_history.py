@@ -46,7 +46,7 @@ def run(ctx):
             after_tx = s.query(Transaction).count()
         check('s175 A11 one statement_fetched event: host, steps in words, the times, the outcome, the file\'s name and hash',
               set(ctx_) == {'account_key', 'host', 'steps', 'started', 'code_asked', 'code_entered', 'finished', 'outcome', 'why',
-                            'file_name', 'content_sha256'}
+                            'stopped_at', 'file_name', 'content_sha256', 'batch'}
               and ctx_['host'] == 'bank.example.com' and ctx_['outcome'] == 'downloaded' and ctx_['file_name'] == 'stmt-oct.csv'
               and ctx_['content_sha256'] == sha and ctx_['code_asked'] and ctx_['code_entered'] and ctx_['started'] == '2026-10-09T10:00:00')
         check('s175 A11 never the file\'s content', 'COFFEE' not in ev.context_json and '4.50' not in ev.context_json)
@@ -90,5 +90,6 @@ def run(ctx):
             owner = m.group(1)
         if "'statement_fetched'" in ln and not ln.lstrip().startswith(('"""', '#')) and 'Item 57 A11: one' not in ln:
             users.add(owner)
-    check(f's175 A11 the fetch record is written by one function and read by the Settings history route alone - no prompt, no engine {sorted(users)}',
-          users == {'_record_fetch', 'bank_agent_history'} and 'statement_fetched' not in ctx.app_src)
+    # item 67 adds two readers, both ruled: the "last fetched" line (G3) and the review's account by hash (G6)
+    check(f's175 A11 the fetch record is written by one function and read only by the Settings history, item 67 last-fetched line and its import match - no prompt, no engine {sorted(users)}',
+          users == {'_record_fetch', 'bank_agent_history', '_last_fetches', '_fetched_for'} and 'statement_fetched' not in ctx.app_src)

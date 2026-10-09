@@ -1143,7 +1143,10 @@ function _offerAutoImport(item) {
     <div style="font-size:13px;color:var(--ink);line-height:1.5">
       ${item.kind === 'statement'
         ? `📄 Statement downloaded: <b style="font-weight:600">${esc(item.filename)}</b>. Open it to review?`
-        : `📥 <b style="font-weight:600">${esc(item.filename)}</b> just finished downloading.
+        : item.fetched_for && item.fetched_for.name
+          ? `📥 ${item.fetched_for.of > 1 ? `File ${item.fetched_for.pos} of ${item.fetched_for.of}: ` : ''}<b style="font-weight:600">${esc(item.fetched_for.name)}</b>
+      (${esc(item.filename)}), fetched by Groundwork. Review it for import?`
+          : `📥 <b style="font-weight:600">${esc(item.filename)}</b> just finished downloading.
       Import it into Groundwork?`}
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1196,6 +1199,13 @@ async function _acceptAutoImport() {
   // raw bytes on disk, which is what identifies the download.
   _importOriginPending = { path: item.path, sha256: item.sha256 || null };
   showImportModal();
+  // Item 67 G6 (a): a file Groundwork fetched starts on the account it was fetched for (matched by its hash);
+  // the user can still change it, and nothing is saved until they confirm.
+  const ff = item.fetched_for, sel = g('importAccount');
+  if (ff && ff.name && sel && !sel.disabled && [...sel.options].some(o => o.value === ff.name)) {
+    sel.value = ff.name;
+    toggleImportFileReady();
+  }
   handleImportFile({ target: { files: [file] } });
 }
 
@@ -2227,6 +2237,7 @@ function renderDashboard() {
   else if (overBudget)     greetSub = 'This month needs attention.';
   else if (watchIt)        greetSub = 'Getting close — stay sharp.';
   setText('dashGreetingSub', greetSub);
+  refreshFetchAll();   // item 67 G3: "Last fetched" from the record, when it's been the user's number of days
 
   // ── Update labels ──────────────────────────────────────────────────────
   const monthLabel = getPeriodLabel();
@@ -22801,6 +22812,7 @@ async function renderBankLogins() {
   try { d = await API.get('/api/settings/bank-logins'); } catch (e) { _gwErr('renderBankLogins')(e); return; }
   box.innerHTML = bankLoginsHtml(d);
   _renderBankFetchHistory();
+  refreshFetchAll();
 }
 
 function bankLoginsHtml(d) {
@@ -22809,7 +22821,10 @@ function bankLoginsHtml(d) {
   }
   const terms = BANK_AGENT_TERMS.map(p => `<p style="font-size:12px;color:var(--slate);line-height:1.6;margin:0 0 8px">${esc(p.replace('VAULT', d.vault || 'your system\'s password vault'))}</p>`).join('');
   if (!d.accounts.length) return terms + `<div style="font-size:12px;color:var(--slate-2)">Add your bank's website to an account (the Bank button on the Ledger) to save its login here.</div>`;
-  return terms + d.accounts.map(a => `
+  const remind = d.accounts.some(a => a.has_steps) ? `<label style="display:block;font-size:12px;color:var(--slate);margin:4px 0 8px">
+      Show when each account was last fetched on the dashboard after
+      <input type="number" min="0" max="365" value="${Number(d.remind_days ?? 7)}" style="width:56px" onchange="setFetchRemindDays(this.value)"> days (0 turns it off).</label>` : '';
+  return terms + remind + d.accounts.map(a => `
     <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--steel-2);flex-wrap:wrap">
       <div style="flex:1;min-width:140px;font-size:13px;color:var(--ink)">${esc(a.name)}
         <span style="font-size:11px;color:var(--slate-2)">${a.has_login ? ' · login saved in the vault' : ''}</span></div>
@@ -22918,6 +22933,89 @@ async function saveBankRecipe(key) {
   catch (e) { _gwErr('saveBankRecipe')(e); return; }
   window._bankRecSteps = null;
   renderBankLogins();
+}
+
+// Item 67 (GET_ALL_ACCOUNTS.md G1-G6): one press visits each account with saved steps, one at a time. Started by
+// the press alone - the dashboard line and the header button only read the record; nothing runs on a timer.
+let _fetchAllTimer = null;
+async function refreshFetchAll() {
+  let d;
+  try { d = await API.get('/api/settings/bank-agent/last-fetched'); } catch (e) { return; }
+  const btn = g('gwFetchAllBtn');
+  if (btn) btn.style.display = (d && d.accounts.length) ? '' : 'none';
+  const line = g('dashFetchLine');
+  if (line) {
+    line.innerHTML = d && d.show ? fetchAllLineHtml(d) : '';
+    line.style.display = d && d.show ? '' : 'none';
+  }
+}
+
+function _fetchAgo(days) {
+  if (days == null) return 'not fetched yet';
+  if (days === 0) return 'today';
+  return days === 1 ? '1 day ago' : `${days} days ago`;
+}
+
+function fetchAllLineHtml(d) {
+  const parts = (d.accounts || []).map(a => `${esc(a.name)} ${_fetchAgo(a.days)}`);
+  return `Last fetched from your bank: ${parts.join(', ')}.
+    <button class="btn btn-ghost btn-sm" style="margin-left:4px" onclick="startFetchAll()">⟳ Get my accounts</button>`;
+}
+
+async function setFetchRemindDays(v) {
+  try { await API.post('/api/settings/bank-agent/remind-days', { days: Number(v) }); } catch (e) { _gwErr('setFetchRemindDays')(e); return; }
+  refreshFetchAll();
+}
+
+async function startFetchAll() {
+  let r;
+  try { r = await API.post('/api/settings/bank-agent/fetch-all', {}); }
+  catch (e) { showToast('Could not start', e?.message || '', 'warning'); return; }
+  _autoImportFastUntil = Date.now() + 30 * 60 * 1000;   // offer each file as soon as it lands
+  _showFetchAllPanel();
+}
+
+async function stopFetchAll() {
+  try { await API.post('/api/settings/bank-agent/fetch-all/stop', {}); } catch (e) { _gwErr('stopFetchAll')(e); }
+}
+
+function closeFetchAllPanel() {
+  clearInterval(_fetchAllTimer);
+  g('gwFetchAllPanel')?.remove();
+}
+
+function fetchAllPanelHtml(s) {
+  if (!s) return '';
+  const rows = s.items.map(it => `<li style="margin:3px 0"><b style="font-weight:600">${esc(it.name)}</b>: ${esc(it.words)}</li>`).join('');
+  const head = s.done
+    ? (s.stop === 'bot_check' ? 'Stopped: a bank showed a check for automated access.' : s.stop === 'user' ? 'Stopped.' : 'Finished.')
+    : 'Groundwork is visiting each bank, one at a time. If a bank asks for a code, its window comes to the front - type it there.';
+  return `<div style="font-size:12px;color:var(--slate);line-height:1.5">${head}</div>
+    <ol style="font-size:12px;color:var(--ink);margin:8px 0 8px 18px;padding:0">${rows}</ol>
+    <div style="font-size:11px;color:var(--slate-2);margin-bottom:8px">Each file waits for your review before anything is saved.</div>
+    ${s.done
+      ? `<button class="btn btn-secondary btn-sm" onclick="closeFetchAllPanel()">Close</button>`
+      : `<button class="btn btn-ghost btn-sm" onclick="stopFetchAll()">Stop</button>`}`;
+}
+
+function _showFetchAllPanel() {
+  let p = g('gwFetchAllPanel');
+  if (!p) {
+    p = document.createElement('div');
+    p.id = 'gwFetchAllPanel';
+    p.style.cssText = 'position:fixed;top:56px;right:16px;z-index:210;width:min(420px,calc(100vw - 32px));'
+      + 'background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-lg);box-shadow:var(--shadow-md);padding:14px 16px';
+    document.body.appendChild(p);
+  }
+  clearInterval(_fetchAllTimer);
+  const tick = async () => {
+    let s;
+    try { s = await API.get('/api/settings/bank-agent/fetch-all'); } catch (e) { return; }
+    p.innerHTML = fetchAllPanelHtml(s);
+    if (!s || s.done) { clearInterval(_fetchAllTimer); refreshFetchAll(); }   // the panel stays until Close (G4)
+  };
+  tick();
+  _fetchAllTimer = setInterval(tick, 1500);
 }
 
 // Item 57 stage 3 (A2/A6/A7): the fetch, started by this click only; progress in words; Stop.
@@ -27409,6 +27507,7 @@ async function boot() {
     });
     _startHeartbeat(); // detect server restarts → auto-reload for fresh token
     _startAutoImportPolling(); // Downloads watcher bridge — offer detected bank files
+    setTimeout(refreshFetchAll, 2500);              // item 67: the header button, if any account has saved steps
     setTimeout(_checkForUpdates, 4000);             // update banner, off the boot path
     setInterval(_checkForUpdates, 6 * 3600 * 1000); // re-check twice a day
     if (typeof checkFirstRun === 'function') checkFirstRun().catch(_gwErr('boot'));

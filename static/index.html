@@ -1184,6 +1184,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <span id="gwErrorIndicator" onclick="showGwErrors()" title="JS errors detected — click to view"
           style="display:none;font-size:11px;color:var(--ember);cursor:pointer;padding:3px 8px;
                  border:1px solid var(--ember-border);border-radius:20px;background:var(--ember-bg)"></span>
+        <button id="gwFetchAllBtn" class="btn btn-sm btn-secondary" style="display:none" onclick="startFetchAll()"
+          title="Visit each bank you showed Groundwork, one at a time. Each file still waits for your review.">⟳ Get my accounts</button>
         <button class="btn btn-sm btn-secondary" onclick="showView('reports')">◫ Reports</button>
         <button class="btn btn-sm btn-secondary" onclick="openBackupModal()">Backup</button>
         <button class="btn btn-sm btn-secondary" onclick="showHelpOverlay()" title="Help">?</button>
@@ -1219,6 +1221,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
         <!-- 1. Can I trust this picture? — quiet check-engine light -->
         <div id="dashRecordStatus"></div>
+        <!-- Item 67 G3: when each account was last fetched, from the record; shown after the user's number of days -->
+        <div id="dashFetchLine" style="display:none;font-size:12px;color:var(--slate);margin:-8px 0 14px;line-height:1.6"></div>
 
         <!-- 2. What moved? -->
         <div id="dashWhatChanged"></div>

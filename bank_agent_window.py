@@ -590,9 +590,10 @@ class Driver:
     """Runs the saved steps against a window. `window` needs evaluate_js(js) -> result; `login` is (user, password)
     or None; `say` writes one line; `now`/`sleep` are injectable for the gate. Never says the password."""
 
-    def __init__(self, window, steps, login, say, now=None, sleep=None, downloads=None, open_url=None):
+    def __init__(self, window, steps, login, say, now=None, sleep=None, downloads=None, open_url=None, to_front=None):
         import time
         self.w, self.steps, self.login, self.say = window, steps, login, say
+        self.to_front = to_front          # item 67 G5: brings this window forward when the bank asks for a code
         self.open_url = open_url          # opens an https address in this window (a sign-in held in a frame)
         self.now, self.sleep = now or time.monotonic, sleep or time.sleep
         self.downloads = downloads        # callable -> set of file names, or None
@@ -688,6 +689,11 @@ class Driver:
                     return 'no_login'
                 if r == 'code' and not waiting_code:
                     waiting_code = True
+                    if self.to_front:
+                        try:
+                            self.to_front()       # the code is typed in the bank's own page - never through Groundwork
+                        except Exception:
+                            pass
                     deadline = self.now() + CODE_WAIT
                     self.say(fetch_line('waiting_code', i=i))
                 if r == 'ambiguous' or self.now() >= deadline:      # checked on every attempt, a code page included
@@ -768,8 +774,18 @@ def fetch_child_main():
     def _go_to(u):
         if not bw.portal_url_problem(u):            # the same https check as the link itself
             window.load_url(u)
+    def _front():
+        try:
+            window.restore()
+        except Exception:
+            pass
+        try:
+            window.on_top = True
+            window.on_top = False
+        except Exception:
+            pass
     driver = Driver(window, steps_, _read_login(key), lambda l: (sys.stdout.write(l + '\n'), sys.stdout.flush()),
-                    downloads=_downloads_lister(), open_url=_go_to)
+                    downloads=_downloads_lister(), open_url=_go_to, to_front=_front)
 
     def _close_when_parent_goes():
         try:
@@ -901,8 +917,8 @@ def fetch_words(ev, steps_):
     if s == 'waiting_code':
         return 'Your bank is asking for a code. Type it in the window; Groundwork carries on after that.'
     if s == 'stopped':
-        return {'page_changed': "Stopped: the page didn't look as recorded. The window is yours - finish by hand, or record the steps again.",
-                'bot_check': 'Stopped: your bank showed a check for automated access. Groundwork stops there; the window is yours.',
+        return {'page_changed': "Stopped: the page didn't look as recorded" + (f" at step {i + 1}" if i is not None else '') + '. Record the steps again, or download this one yourself.',
+                'bot_check': 'Stopped: your bank showed a check for automated access. Groundwork stops there and closed the window.',
                 'no_login': 'Stopped: no saved login for this account.',
                 'code_timeout': 'Stopped: no code was entered in 5 minutes.',
                 'sign_in_failed': "Stopped: signing in didn't get past the login page twice. Check the saved login (Forget, then Save login again).",
@@ -910,5 +926,132 @@ def fetch_words(ev, steps_):
     if s == 'downloaded':
         return f"Downloaded {ev.get('file', '')} to your Downloads folder. It's waiting for you in the import review."
     if s == 'no_download':
-        return "The steps ran, but no file arrived in 2 minutes. Check the window."
+        return "The steps ran, but no file arrived in 2 minutes."
     return ''
+
+
+# ── Item 67 - Get all my accounts (GET_ALL_ACCOUNTS.md G1-G8) ─────────────────
+# One press visits each account with saved steps, ONE AT A TIME, in the order given; each window closes as its run
+# ends. The user's Stop ends the batch, and so does a bank's bot check (carrying on would look like what banks flag);
+# any other stop ends that account's run only. Started by the press alone - nothing here runs on a timer.
+_batch = None
+
+
+def start_batch(items, launch, poll=0.5):
+    """items: [{'key', 'name'}] in order. launch(key, batch_id, on_end) -> 'opened' or a reason it didn't open; on_end
+    is called once when that account's run ends. 'started' | 'already_running' | 'nothing'."""
+    global _batch
+    import secrets
+    if not items:
+        return 'nothing'
+    with _lock:
+        if _batch and not _batch['done']:
+            return 'already_running'
+        b = {'id': secrets.token_hex(6), 'stop': None, 'done': False, 'current': None,
+             'items': [{'key': i['key'], 'name': i['name'], 'state': 'waiting', 'why': None, 'file': None} for i in items]}
+        _batch = b
+    threading.Thread(target=run_batch, args=(b, launch, poll), daemon=True).start()
+    return 'started'
+
+
+def run_batch(b, launch, poll=0.5):
+    """The batch's body (its thread; called directly by tests)."""
+    for it in b['items']:
+        if b['stop']:
+            it['state'] = 'skipped'
+            continue
+        ended, box = threading.Event(), {}
+
+        def on_end(key, events, box=box, ended=ended):
+            box['events'] = events
+            ended.set()
+        it['state'], b['current'] = 'running', it['key']
+        try:
+            r = launch(it['key'], b['id'], on_end)
+        except Exception:
+            r = 'engine_unavailable'
+        if r != 'opened':
+            it['state'], it['why'] = 'stopped', r
+            continue
+        while not ended.wait(poll):
+            pass
+        end = next((e for e in reversed(box.get('events') or []) if e.get('s') in TERMINAL), {})
+        it['state'], it['why'], it['file'] = end.get('s') or 'stopped', end.get('why'), end.get('file')
+        if it['state'] == 'stopped' and not it['why']:
+            it['why'] = 'cancelled'
+        if it['why'] == 'bot_check' and not b['stop']:
+            b['stop'] = 'bot_check'
+    b['current'] = None
+    b['done'] = True
+
+
+def stop_batch():
+    """The user's Stop: the open window closes, and the accounts not yet visited are skipped."""
+    with _lock:
+        b = _batch
+        if not b or b['done']:
+            return False
+        b['stop'] = b['stop'] or 'user'
+        cur = b['current']
+    if cur:
+        stop_fetch(cur)
+    return True
+
+
+BATCH_STATES = ('waiting', 'running', 'downloaded', 'no_download', 'done', 'stopped', 'skipped')
+
+
+def batch_words(it, live=None):
+    """One account's line in the progress panel, in words (G4)."""
+    s, why = it['state'], it.get('why')
+    if s == 'waiting':
+        return 'Waiting'
+    if s == 'running':
+        if live == 'waiting_code':
+            return 'Your bank is asking you something - its window is in front. Type it there.'
+        if live == 'signed_in':
+            return 'Signed in'
+        return 'Working on it'
+    if s == 'downloaded':
+        return f"Downloaded {it.get('file') or 'a file'}"
+    if s == 'no_download':
+        return 'The steps ran, but no file arrived'
+    if s == 'done':
+        return 'Done'
+    if s == 'skipped':
+        return 'Skipped'
+    return {'page_changed': "Stopped: the page didn't look as recorded",
+            'bot_check': 'Stopped: your bank showed a check for automated access - the rest were not visited',
+            'no_login': 'Stopped: no saved login',
+            'no_steps': 'Stopped: no saved steps',
+            'code_timeout': 'Stopped: no code was entered in 5 minutes',
+            'sign_in_failed': "Stopped: signing in didn't get past the login page",
+            'already_open': 'Stopped: a window for this account was already open',
+            'refused_url': "Stopped: the bank link isn't an https address",
+            'engine_unavailable': "Stopped: the window couldn't open",
+            'cancelled': 'Stopped'}.get(why, 'Stopped')
+
+
+def batch_state():
+    """The batch as the panel shows it: each account's state and words; the open account's live state included."""
+    with _lock:
+        b = _batch
+        if not b:
+            return None
+        items = [dict(i) for i in b['items']]
+        cur, stop, done, bid = b['current'], b['stop'], b['done'], b['id']
+    for it in items:
+        live = None
+        if it['state'] == 'running' and it['key'] == cur:
+            evs = fetch_events(cur)
+            live = evs[-1]['s'] if evs else None
+        it['live'] = live
+        it['words'] = batch_words(it, live)
+    return {'id': bid, 'items': items, 'stop': stop, 'done': done}
+
+
+def reset_batch_for_test():
+    global _batch
+    with _lock:
+        _batch = None
+

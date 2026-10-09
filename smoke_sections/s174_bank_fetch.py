@@ -77,8 +77,9 @@ def run(ctx):
     check('s174 A6 no file in 2 minutes: it says so', r == 'no_download' and clock.t >= baw.DOWNLOAD_WAIT)
 
     words = [baw.fetch_words({'s': 'stopped', 'why': w}, STEPS) for w in ('bot_check', 'page_changed')]
-    check('s174 A6 the user is told why in words, and the window is theirs',
-          "Groundwork stops there; the window is yours" in words[0] and "The window is yours" in words[1])
+    check('s174 A6 the user is told why in words; the window has closed (Rob: the agent always closes it)',
+          "Groundwork stops there and closed the window" in words[0] and "Record the steps again" in words[1]
+          and 'window is yours' not in ' '.join(words))
     check('s174 A2 Groundwork checks each line again: an unknown status or reason is refused',
           baw.parse_fetch_line('fetch {"s":"stopped","why":"retrying"}') is None
           and baw.parse_fetch_line('fetch {"s":"step","i":1,"password":"x"}') is None)

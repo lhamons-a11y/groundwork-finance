@@ -6487,7 +6487,7 @@ def bank_logins():
     from core import bank_vault
     with db_session() as session:
         return ok({'available': bank_vault.available(), 'vault': bank_vault.vault_name(),
-                   'accounts': _bank_agent_accounts(session)})
+                   'accounts': _bank_agent_accounts(session), 'remind_days': _fetch_remind_days(session)})
 
 
 @settings_bp.route('/bank-logins', methods=['POST'])
@@ -6639,30 +6639,42 @@ def _bank_device_dir(key, create=False):
 @settings_bp.route('/bank-agent/fetch', methods=['POST'])
 @require_json
 def bank_agent_fetch():
+    key = str((request.json or {}).get('key') or '')
+    result, problem = _start_bank_fetch(key)
+    if problem:
+        return err(problem, 400)
+    return ok({'key': key, 'result': result})
+
+
+def _start_bank_fetch(key, batch=None, on_end=None):
+    """Start one account's fetch: (result, None), or (None, a reason in words) when it can't start. The single
+    button and item 67's batch both come here; each run records its own statement_fetched (A11), with the batch id
+    when it was one of a batch (G8)."""
     import bank_agent_window
     from core import bank_vault
-    key = str((request.json or {}).get('key') or '')
     with db_session() as session:
         url = _bank_agent_url(session, key)
         recipe = _bank_recipe(session, key)
         device_on = (_get_setting(session, f'bank_device:{key}') or AppSetting(value='')).value == 'yes'
     if not url:
-        return err('That account has no bank link.', 400)
+        return None, 'That account has no bank link.'
     if not bank_vault.has_login(key):
-        return err('Save a login for this account first.', 400)
+        return None, 'Save a login for this account first.'
     steps_ = (recipe or {}).get('steps') or []
     if not steps_:
-        return err('Show Groundwork the steps once first.', 400)
+        return None, 'Show Groundwork the steps once first.'
     device = str(_bank_device_dir(key, create=True)) if device_on else ''
     started = datetime.now().isoformat(timespec='seconds')
     words = [bank_agent_window.step_words(s) for s in steps_]
 
     def _finished(k, events):
-        _record_fetch(k, url, words, started, events)
-    return ok({'key': key, 'result': bank_agent_window.start_fetch(key, url, steps_, device, on_finish=_finished)})
+        _record_fetch(k, url, words, started, events, batch=batch)
+        if on_end:
+            on_end(k, events)
+    return bank_agent_window.start_fetch(key, url, steps_, device, on_finish=_finished), None
 
 
-def _record_fetch(key, url, words, started, events, folder=None):
+def _record_fetch(key, url, words, started, events, folder=None, batch=None):
     """Item 57 A11: one 'statement_fetched' Historian event per fetch - provenance, the user's own action and its
     times. A fixed set of keys; the file's name and SHA-256 (correspondence with the later import's own record),
     never its content. Read by the Settings history route alone - no prompt, no engine."""
@@ -6696,6 +6708,7 @@ def _record_fetch(key, url, words, started, events, folder=None):
                 'stopped_at':     end.get('i'),
                 'file_name':      file_name,
                 'content_sha256': sha,
+                'batch':          batch,           # item 67 G8: the runs from one "Get my accounts" press share it
             })
             session.commit()
     except Exception:
@@ -6737,6 +6750,121 @@ def bank_agent_fetch_status():
         steps_ = ((_bank_recipe(session, key) or {}).get('steps')) or []
     evs = bank_agent_window.fetch_events(key)
     return ok({'key': key, 'events': evs, 'words': [w for w in (bank_agent_window.fetch_words(e, steps_) for e in evs) if w]})
+
+
+# ── Item 67 - Get all my accounts (GET_ALL_ACCOUNTS.md G1-G8) ────────────────
+@settings_bp.route('/bank-agent/fetch-all', methods=['POST'])
+@require_json
+def bank_agent_fetch_all():
+    """G1: the user's press. Every account with saved steps, one at a time, in the order they are listed."""
+    import bank_agent_window
+    with db_session() as session:
+        items = [{'key': a['key'], 'name': a['name']} for a in _bank_agent_accounts(session) if a['has_steps']]
+    if not items:
+        return err('No account has saved steps yet.', 400)
+
+    def _launch(key, batch_id, on_end):
+        result, problem = _start_bank_fetch(key, batch=batch_id, on_end=on_end)
+        if problem:
+            return 'no_login' if 'login' in problem else 'no_steps' if 'steps' in problem else 'refused_url'
+        return result
+    return ok({'result': bank_agent_window.start_batch(items, _launch)})
+
+
+@settings_bp.route('/bank-agent/fetch-all', methods=['GET'])
+def bank_agent_fetch_all_status():
+    import bank_agent_window
+    return ok(bank_agent_window.batch_state())
+
+
+@settings_bp.route('/bank-agent/fetch-all/stop', methods=['POST'])
+@require_json
+def bank_agent_fetch_all_stop():
+    import bank_agent_window
+    return ok({'stopped': bank_agent_window.stop_batch()})
+
+
+def _fetch_remind_days(session):
+    """G3: days after which the dashboard's "Last fetched" line appears; 0 turns it off. 7 unless the user set it."""
+    row = _get_setting(session, 'bank_fetch_remind_days')
+    try:
+        return max(0, min(365, int(row.value))) if row and row.value not in (None, '') else 7
+    except (TypeError, ValueError):
+        return 7
+
+
+def _last_fetches(session):
+    """account key -> when its last fetch DOWNLOADED a file (statement_fetched; the record only, G3)."""
+    out = {}
+    for e in session.query(HistorianEntry).filter(HistorianEntry.event_category == 'statement_fetched') \
+            .order_by(HistorianEntry.id.desc()).limit(2000).all():
+        ctx = json.loads(e.context_json or '{}')
+        k = ctx.get('account_key')
+        if k and k not in out and ctx.get('outcome') == 'downloaded':
+            out[k] = ctx.get('finished') or e.created_at.isoformat(timespec='seconds')
+    return out
+
+
+@settings_bp.route('/bank-agent/last-fetched', methods=['GET'])
+def bank_agent_last_fetched():
+    """G2/G3: the accounts a press would visit, each with its last download from the record. Read when a page asks;
+    nothing here starts anything or runs on a timer."""
+    with db_session() as session:
+        accts = [a for a in _bank_agent_accounts(session) if a['has_steps']]
+        last = _last_fetches(session)
+        days_setting = _fetch_remind_days(session)
+    today = datetime.now().date()
+    rows = []
+    for a in accts:
+        when = last.get(a['key'])
+        try:
+            days = (today - datetime.fromisoformat(when).date()).days if when else None
+        except ValueError:
+            days = None
+        rows.append({'key': a['key'], 'name': a['name'], 'last': when, 'days': days})
+    show = bool(rows) and days_setting > 0 and any(r['days'] is None or r['days'] >= days_setting for r in rows)
+    return ok({'accounts': rows, 'remind_days': days_setting, 'show': show})
+
+
+@settings_bp.route('/bank-agent/remind-days', methods=['POST'])
+@require_json
+def bank_agent_remind_days():
+    """G3: the user's number of days (0 = off)."""
+    try:
+        days = max(0, min(365, int((request.json or {}).get('days'))))
+    except (TypeError, ValueError):
+        return err('A number of days, please.', 400)
+    with db_session() as session:
+        _set_setting(session, 'bank_fetch_remind_days', str(days))
+        session.commit()
+    return ok({'remind_days': days})
+
+
+def _fetched_for(session, sha):
+    """G6 (a): a queued file's own fetch, matched by its content hash - the account it was fetched for, and its place
+    among the files one press brought in. None when no fetch brought it (a file the user downloaded themselves)."""
+    if not sha:
+        return None
+    hit = session.query(HistorianEntry).filter(
+        HistorianEntry.event_category == 'statement_fetched',
+        HistorianEntry.context_json.contains(f'"content_sha256": "{sha}"')).order_by(HistorianEntry.id.desc()).first()
+    if not hit:
+        return None
+    ctx = json.loads(hit.context_json or '{}')
+    key = ctx.get('account_key') or ''
+    kind, _, ident = key.partition(':')
+    row = None
+    if ident.isdigit():
+        row = session.get(Account if kind == 'account' else DebtAccount, int(ident)) if kind in ('account', 'card') else None
+    out = {'key': key, 'name': row.name if row else None, 'batch': ctx.get('batch'), 'pos': None, 'of': None}
+    if ctx.get('batch'):
+        ids = [e.id for e in session.query(HistorianEntry).filter(
+            HistorianEntry.event_category == 'statement_fetched',
+            HistorianEntry.context_json.contains(f'"batch": "{ctx["batch"]}"')).order_by(HistorianEntry.id).all()
+            if json.loads(e.context_json or '{}').get('outcome') == 'downloaded']
+        if hit.id in ids:
+            out['pos'], out['of'] = ids.index(hit.id) + 1, len(ids)
+    return out
 
 
 @settings_bp.route('/bank-agent/fetch/stop', methods=['POST'])
@@ -9724,6 +9852,14 @@ def auto_import_pending():
     if not _auto_import_queue:
         return ok(None)
     item = _auto_import_queue.pop(0)
+    if item.get('sha256'):
+        try:
+            with db_session() as session:
+                ff = _fetched_for(session, item['sha256'])
+            if ff:
+                item = {**item, 'fetched_for': ff}   # G6: the review starts on this account; the user can change it
+        except Exception:
+            pass
     return ok(item)
 
 
