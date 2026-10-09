@@ -6543,9 +6543,13 @@ def _bank_agent_url(session, key):
 def _bank_recipe(session, key):
     row = _get_setting(session, f'bank_recipe:{key}')
     try:
-        return json.loads(row.value) if row and row.value else None
+        r = json.loads(row.value) if row and row.value else None
     except (TypeError, ValueError):
         return None
+    if r and r.get('steps'):            # cleaned again on every read: an older recipe's numbers are masked here too
+        import bank_agent_window
+        r['steps'] = [s for s in (bank_agent_window.clean_step(x) for x in r['steps']) if s]
+    return r
 
 
 @settings_bp.route('/bank-agent/record', methods=['POST'])

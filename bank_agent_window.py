@@ -16,14 +16,21 @@ import re
 import sys
 import threading
 
-STEP_KINDS = ('click', 'choose', 'sign_in')
-_FIELDS = {'k', 'role', 'text', 'field', 'option'}
+STEP_KINDS = ('click', 'choose', 'sign_in', 'sign_in_user')
+_FIELDS = {'k', 'role', 'text', 'field', 'option', 'opt'}
+# Every number on a page - an amount, a balance, an account's last digits - becomes this mark; the replay treats it
+# as "any number here" (Rob's first real run recorded "$2,608.57 $2,396.32" in a link's name).
+MASK = '••••'
+# What is private: money ($2,608.57), comma-grouped or decimal figures, and runs of 4+ digits (account numbers).
+# Small whole numbers stay, so "Last 30 days" never matches "Last 90 days" at replay.
+_NUMBER = r'\$\s?\d[\d,]*(?:\.\d+)?|\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b|\b\d+\.\d+\b|\d{4,}'
 _MAX = 80
 
 
 def _clean_text(v):
     s = re.sub(r'\s+', ' ', str(v or '')).strip()[:_MAX]
-    return re.sub(r'\d{4,}', '••••', s)          # account and card numbers never leave the page
+    s = re.sub(_NUMBER, MASK, s)                  # amounts, balances and account digits never leave the page
+    return re.sub('(?:' + MASK + r'\s*)+' + MASK, MASK, s)   # several numbers in a row read as one mark
 
 
 def clean_step(raw):
@@ -34,6 +41,8 @@ def clean_step(raw):
     for f in ('role', 'text', 'field', 'option'):
         if f in raw and raw[f] not in (None, ''):
             step[f] = _clean_text(raw[f])
+    if raw.get('opt') is True:
+        step['opt'] = True                          # only if the bank asks (a code check, "trust this device")
     if step['k'] == 'click' and not step.get('text'):
         return None
     if step['k'] == 'choose' and not step.get('option'):
@@ -62,8 +71,16 @@ def parse_step_line(line):
 def step_words(step):
     """A step in words, for the user (A5)."""
     k = step.get('k')
+    tail = ' (only if your bank asks)' if step.get('opt') else ''
     if k == 'sign_in':
-        return 'Sign in (Groundwork fills your saved login)'
+        return 'Sign in (Groundwork fills your saved login)' + tail
+    if k == 'sign_in_user':
+        return 'Enter your username (Groundwork fills it)' + tail
+    return _step_words_rest(step) + tail
+
+
+def _step_words_rest(step):
+    k = step.get('k')
     if k == 'choose':
         return f"Choose “{step.get('option', '')}”" + (f" in “{step['field']}”" if step.get('field') else '')
     return f"Click “{step.get('text', '')}”"
@@ -87,21 +104,46 @@ RECORD_SCRIPT = r'''(function () {
     if (!l && el.closest) l = el.closest('label');
     return l ? nameOf(l) : (el.getAttribute('aria-label') || el.getAttribute('name') || '');
   }
+  function userBox(form) {
+    return Array.prototype.some.call(form.querySelectorAll('input[type=text],input[type=email],input[type=tel],input:not([type])'), function (i) {
+      return /user|login|e-?mail|member|account|id\b/i.test((i.name || '') + ' ' + (i.id || '') + ' ' + (i.getAttribute('autocomplete') || '') + ' ' + (i.getAttribute('aria-label') || ''));
+    });
+  }
+  // A code check: a code box, or a page asking to trust or remember this device. Steps taken here are optional.
+  function checkPage() {
+    if (document.querySelector('input[autocomplete="one-time-code"]')) return true;
+    var codeBox = Array.prototype.some.call(document.querySelectorAll('input'), function (i) {
+      return /\b(code|otp|one.?time|verification|passcode)\b/i.test((i.name || '') + ' ' + (i.id || '') + ' ' + (i.getAttribute('aria-label') || '') + ' ' + (i.placeholder || ''));
+    });
+    if (codeBox) return true;
+    return /trust (this )?(device|computer|browser)|remember (this )?(device|computer|browser)|verify (your )?identity|security code|one.?time (pass)?code/i.test((document.body && document.body.innerText || '').slice(0, 4000));
+  }
+  function signInForm(form) {
+    if (!form) return null;
+    if (form.querySelector('input[type=password]')) return 'sign_in';
+    if (userBox(form) && !checkPage()) return 'sign_in_user';
+    return null;
+  }
+  // Any submit - a click, or Enter - of a sign-in form is the sign-in step (Rob's first run: Enter was missed)
+  document.addEventListener('submit', function (e) {
+    if (!api()) return;
+    var kind = signInForm(e.target);
+    if (kind) window.pywebview.api.step({k: kind, opt: checkPage()});
+  }, true);
   document.addEventListener('click', function (e) {
     if (!e.isTrusted || !api()) return;
     var el = e.target && e.target.closest ? e.target.closest('a,button,[role=button],[role=link],[role=tab],[role=menuitem],input[type=submit],input[type=button]') : null;
     if (!el) return;
-    var form = el.closest ? el.closest('form') : null;
-    if (form && form.querySelector('input[type=password]')) { window.pywebview.api.step({k: 'sign_in'}); return; }
-    window.pywebview.api.step({k: 'click', role: (el.getAttribute('role') || el.tagName.toLowerCase()), text: nameOf(el)});
+    if (signInForm(el.closest ? el.closest('form') : null)) return;   // the submit listener records it
+    window.pywebview.api.step({k: 'click', role: (el.getAttribute('role') || el.tagName.toLowerCase()), text: nameOf(el), opt: checkPage()});
   }, true);
   document.addEventListener('change', function (e) {
     if (!e.isTrusted || !api()) return;
     var el = e.target;
     if (el && el.tagName === 'SELECT' && el.selectedIndex >= 0) {
-      window.pywebview.api.step({k: 'choose', field: labelOf(el), option: nameOf(el.options[el.selectedIndex])});
+      window.pywebview.api.step({k: 'choose', field: labelOf(el), option: nameOf(el.options[el.selectedIndex]), opt: checkPage()});
     } else if (el && el.tagName === 'INPUT' && (el.type === 'radio' || el.type === 'checkbox') && el.checked) {
-      window.pywebview.api.step({k: 'choose', field: el.getAttribute('name') || '', option: labelOf(el)});
+      window.pywebview.api.step({k: 'choose', field: el.getAttribute('name') || '', option: labelOf(el), opt: checkPage()});
     }
   }, true);
 })();'''
@@ -249,7 +291,7 @@ def begin_for_test(key):
 # Nothing is guessed and nothing is retried on its own. The password never leaves this process except into the
 # page's own login boxes, and is never written to a line, a log or a file.
 
-FETCH_STATUSES = ('step', 'waiting_code', 'stopped', 'downloaded', 'no_download', 'done')
+FETCH_STATUSES = ('step', 'skipped', 'waiting_code', 'stopped', 'downloaded', 'no_download', 'done')
 STOP_REASONS = ('page_changed', 'bot_check', 'no_login', 'code_timeout', 'cancelled')
 STEP_WAIT = 15.0          # seconds for a step's control to appear after a page load
 CODE_WAIT = 300.0         # the user types a code
@@ -264,7 +306,7 @@ DO_SCRIPT = r'''(function () {
     return String(t).replace(/\s+/g, ' ').trim().slice(0, 80);
   }
   function same(recorded, actual) {
-    var esc = recorded.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/••••/g, '\\d{4,}');
+    var esc = recorded.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/••••/g, '(?:\\$?\\d[\\d,]*(?:\\.\\d+)?\\s*)+');
     return new RegExp('^' + esc + '$', 'i').test(actual);
   }
   function visible(el) { var r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }
@@ -286,11 +328,24 @@ DO_SCRIPT = r'''(function () {
       return visible(i) && /\b(code|otp|one.?time|verification)\b/i.test(n);
     });
   }
-  window.__gwDo = function (step, login) {
+  window.__gwDo = function (step, login, probe) {
     if (botCheck()) return 'bot';
+    if (step.k === 'sign_in_user') {
+      var pw = Array.prototype.filter.call(document.querySelectorAll('input[type=password]'), visible)[0];
+      if (pw) return probe ? 'present' : 'missing';
+      var ub = Array.prototype.filter.call(document.querySelectorAll('input[type=text],input[type=email],input[type=tel],input:not([type])'), visible)[0];
+      if (!ub) return codeAsked() ? 'code' : 'missing';
+      if (probe) return 'present';
+      if (!login) return 'no_login';
+      setVal(ub, login[0]);
+      var f1 = ub.closest('form') || document, b1 = f1.querySelector('button[type=submit],input[type=submit],button:not([type])');
+      if (b1) b1.click(); else if (f1.requestSubmit) f1.requestSubmit();
+      return 'ok';
+    }
     if (step.k === 'sign_in') {
       var p = Array.prototype.filter.call(document.querySelectorAll('input[type=password]'), visible)[0];
       if (!p) return codeAsked() ? 'code' : 'missing';
+      if (probe) return 'present';
       if (!login) return 'no_login';
       var form = p.closest('form') || document;
       var users = Array.prototype.filter.call(form.querySelectorAll('input[type=text],input[type=email],input[type=tel],input:not([type])'), visible);
@@ -303,7 +358,7 @@ DO_SCRIPT = r'''(function () {
     if (step.k === 'click') {
       var els = Array.prototype.filter.call(document.querySelectorAll('a,button,[role=button],[role=link],[role=tab],[role=menuitem],input[type=submit],input[type=button]'),
         function (el) { return visible(el) && same(step.text || '', nameOf(el)); });
-      if (els.length === 1) { els[0].click(); return 'ok'; }
+      if (els.length === 1) { if (probe) return 'present'; els[0].click(); return 'ok'; }
       if (els.length > 1) return 'ambiguous';
       return codeAsked() ? 'code' : 'missing';
     }
@@ -312,6 +367,7 @@ DO_SCRIPT = r'''(function () {
       for (var i = 0; i < sels.length; i++) {
         for (var j = 0; j < sels[i].options.length; j++) {
           if (same(step.option || '', nameOf(sels[i].options[j]))) {
+            if (probe) return 'present';
             sels[i].selectedIndex = j;
             sels[i].dispatchEvent(new Event('change', {bubbles: true}));
             return 'ok';
@@ -322,7 +378,7 @@ DO_SCRIPT = r'''(function () {
         var l = r.closest('label') || (r.id && document.querySelector('label[for="' + r.id + '"]'));
         return visible(r) && l && same(step.option || '', nameOf(l));
       });
-      if (radios.length === 1) { radios[0].click(); return 'ok'; }
+      if (radios.length === 1) { if (probe) return 'present'; radios[0].click(); return 'ok'; }
       return codeAsked() ? 'code' : 'missing';
     }
     return 'missing';
@@ -366,9 +422,10 @@ class Driver:
         self.downloads = downloads        # callable -> set of file names, or None
         self.cancelled = False
 
-    def _try(self, step):
+    def _try(self, step, probe=False):
+        uses_login = step.get('k') in ('sign_in', 'sign_in_user') and self.login and not probe
         js = DO_SCRIPT + ';window.__gwDo ? window.__gwDo(' + json.dumps(step) + ', ' + \
-             (json.dumps(list(self.login)) if (step.get('k') == 'sign_in' and self.login) else 'null') + ') : "missing";'
+             (json.dumps(list(self.login)) if uses_login else 'null') + ', ' + ('true' if probe else 'false') + ') : "missing";'
         try:
             return self.w.evaluate_js(js)
         except Exception:
@@ -376,8 +433,10 @@ class Driver:
 
     def run(self):
         before = self.downloads() if self.downloads else set()
-        for i, step in enumerate(self.steps):
-            deadline, waiting_code = self.now() + STEP_WAIT, False
+        i = 0
+        while i < len(self.steps):
+            step = self.steps[i]
+            deadline, waiting_code, skip_to = self.now() + STEP_WAIT, False, None
             while True:
                 if self.cancelled:
                     self.say(fetch_line('stopped', i=i, why='cancelled'))
@@ -386,6 +445,15 @@ class Driver:
                 if r == 'ok':
                     self.say(fetch_line('step', i=i))
                     break
+                # An optional step (a code check, "trust this device") the bank didn't show this time: when the next
+                # step that isn't optional is already on the page, skip ahead to it. Nothing is guessed beyond that.
+                if r in ('missing', 'code') and step.get('opt'):
+                    j = next((n for n in range(i + 1, len(self.steps)) if not self.steps[n].get('opt')), None)
+                    if j is not None and self._try(self.steps[j], probe=True) == 'present':
+                        for n in range(i, j):
+                            self.say(fetch_line('skipped', i=n))
+                        skip_to = j
+                        break
                 if r == 'bot':
                     self.say(fetch_line('stopped', i=i, why='bot_check'))
                     return 'bot_check'
@@ -401,6 +469,7 @@ class Driver:
                     self.say(fetch_line('stopped', i=i, why=why))
                     return why
                 self.sleep(1.0)
+            i = skip_to if skip_to is not None else i + 1
         if self.downloads is None:
             self.say(fetch_line('done'))
             return 'done'
@@ -582,6 +651,8 @@ def fetch_words(ev, steps_):
     i = ev.get('i')
     if s == 'step' and i is not None and i < len(steps_):
         return 'Done: ' + step_words(steps_[i])
+    if s == 'skipped' and i is not None and i < len(steps_):
+        return 'Skipped (your bank didn\'t ask this time): ' + step_words(steps_[i])
     if s == 'waiting_code':
         return 'Your bank is asking for a code. Type it in the window; Groundwork carries on after that.'
     if s == 'stopped':

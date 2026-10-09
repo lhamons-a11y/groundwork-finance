@@ -26,13 +26,23 @@ def run(ctx):
     script = baw.RECORD_SCRIPT
     check('s173 A5 the page script never reads a typed value - no .value, no password, text or date box read',
           '.value' not in script and "getAttribute('value')" in script and 'type === \'submit\'' in script
-          and 'innerHTML' not in script and 'document.body' not in script)
+          and 'innerHTML' not in script
+          # the page's text is read only inside checkPage(), as a yes/no test for a code-check page; it never leaves
+          and script.count('document.body.innerText') == 1
+          and all(script.index('function checkPage()') < m.start() < script.index('function signInForm(')
+                  for m in re.finditer(r'document\.body', script)))
     check('s173 A5 it acts on real clicks and choices only (isTrusted)', script.count('e.isTrusted') == 2)
 
     # the cleaner: what leaves the page
     cases = [
         ({'k': 'click', 'role': 'a', 'text': 'Download transactions'}, {'k': 'click', 'role': 'a', 'text': 'Download transactions'}),
-        ({'k': 'click', 'role': 'a', 'text': 'Checking ...4321 balance $1,250.00'}, {'k': 'click', 'role': 'a', 'text': 'Checking ...•••• balance $1,250.00'}),
+        ({'k': 'click', 'role': 'a', 'text': 'Checking ...4321 balance $1,250.00'}, {'k': 'click', 'role': 'a', 'text': 'Checking ...•••• balance ••••'}),
+        # Rob's first real run: a link named with two balances - both masked, and run together into one mark
+        ({'k': 'click', 'text': 'STANDARD CHECKING ******1234 - 20 $2,608.57 $2,396.32'}, {'k': 'click', 'text': 'STANDARD CHECKING ******•••• - 20 ••••'}),
+        ({'k': 'choose', 'field': 'Range', 'option': 'Last 30 days'}, {'k': 'choose', 'field': 'Range', 'option': 'Last 30 days'}),
+        ({'k': 'choose', 'option': 'Trust Device', 'opt': True}, {'k': 'choose', 'option': 'Trust Device', 'opt': True}),
+        ({'k': 'choose', 'option': 'Trust Device', 'opt': 'yes'}, {'k': 'choose', 'option': 'Trust Device'}),
+        ({'k': 'sign_in_user', 'opt': False}, {'k': 'sign_in_user'}),
         ({'k': 'choose', 'field': 'Date range', 'option': 'Last 30 days'}, {'k': 'choose', 'field': 'Date range', 'option': 'Last 30 days'}),
         ({'k': 'sign_in'}, {'k': 'sign_in'}),
         ({'k': 'type', 'field': 'Password', 'value': 'hunter2'}, None),
@@ -40,7 +50,7 @@ def run(ctx):
         ({'k': 'click', 'text': ''}, None),
     ]
     got = [baw.clean_step(a) for a, _ in cases]
-    check('s173 A5 only the named fields and kinds leave the page; a typed value is dropped; account numbers are masked',
+    check('s173 A5 only the named fields and kinds leave the page; a typed value is dropped; amounts, balances and account numbers are masked; a small number like "30 days" stays',
           got == [b for _, b in cases])
     check('s173 A5 Groundwork checks each line again: an extra field or an unknown kind is refused',
           baw.parse_step_line('step {"k":"click","text":"Go","value":"x"}') is None
@@ -90,3 +100,10 @@ def run(ctx):
     check('s173 A1 the agent\'s process is dispatched before anything else starts, like the viewer\'s',
           launch.index("'--bank-agent' in sys.argv") < launch.index('logging.basicConfig(')
           and launch.index("'--bank-window' in sys.argv") < launch.index("'--bank-agent' in sys.argv"))
+    script2 = baw.RECORD_SCRIPT
+    check('s173 A5 a sign-in is recorded on any submit of a sign-in form - Enter included, not just a click (Rob\'s first real run)',
+          "document.addEventListener('submit'" in script2 and 'signInForm(e.target)' in script2
+          and 'if (signInForm(el.closest' in script2)
+    check('s173 A5 steps taken on a code-check page are marked optional ("only if your bank asks")',
+          script2.count('opt: checkPage()') == 4
+          and baw.step_words({'k': 'choose', 'option': 'Trust Device', 'opt': True}) == 'Choose \u201cTrust Device\u201d (only if your bank asks)')

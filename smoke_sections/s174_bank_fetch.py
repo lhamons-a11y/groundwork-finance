@@ -116,3 +116,19 @@ def run(ctx):
             s.query(AppSetting).filter(AppSetting.key.in_([f'bank_device:account:{i}' for i in made])).delete(synchronize_session=False)
             s.query(Account).filter(Account.id.in_(made)).delete(synchronize_session=False)
             s.commit()
+
+    # Rob's first real run: the code check ("Trust Device", its Submit) only appears when the bank asks
+    OPT = [{'k': 'sign_in'}, {'k': 'choose', 'option': 'Trust Device', 'opt': True}, {'k': 'click', 'text': 'Submit', 'opt': True},
+           {'k': 'click', 'text': 'Accounts'}, {'k': 'click', 'text': 'Download'}]
+    page, clock, lines = _Page(['ok', 'missing', 'present', 'ok', 'ok']), _Clock(), []
+    r = baw.Driver(page, OPT, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    evs = [baw.parse_fetch_line(l) for l in lines]
+    check('s174 A6 an optional step the bank did not show is skipped when the next real step is on the page',
+          r == 'done' and [(e['s'], e.get('i')) for e in evs] == [('step', 0), ('skipped', 1), ('skipped', 2), ('step', 3), ('step', 4), ('done', None)]
+          and LOGIN[1] not in page.sent[2] and ', true)' in page.sent[2])
+    page, clock, lines = _Page(['ok'] + ['missing'] * 100), _Clock(), []
+    r = baw.Driver(page, OPT, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    check('s174 A6 when neither the optional step nor the next real one is there, it still stops - nothing guessed', r == 'page_changed')
+    page, clock, lines = _Page(['missing'] * 100), _Clock(), []
+    r = baw.Driver(page, [{'k': 'click', 'text': 'Accounts'}], LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    check('s174 A6 a step that is not optional is never skipped', r == 'page_changed')
