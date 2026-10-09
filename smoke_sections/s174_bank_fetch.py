@@ -132,3 +132,8 @@ def run(ctx):
     page, clock, lines = _Page(['missing'] * 100), _Clock(), []
     r = baw.Driver(page, [{'k': 'click', 'text': 'Accounts'}], LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
     check('s174 A6 a step that is not optional is never skipped', r == 'page_changed')
+    rec_src = src.split('def child_main(mode)')[1].split("# ── Groundwork's side")[0]
+    check('s174 A7 the recording window uses the same remembered-device folder when ticked, so "Trust this device" carries into the fetch; private otherwise',
+          'storage_path=device' in rec_src and 'private_mode=True' in rec_src
+          and "start_recording(key, url, device_dir=device)" in srv and "device = str(_bank_device_dir(key, create=True)) if device_on else ''" in srv.split('def bank_agent_record():')[1][:1200])
+

@@ -168,6 +168,9 @@ def child_main(mode):
     if mode == 'fetch':
         return fetch_child_main()
     url = sys.stdin.readline().strip()
+    # A7: the account's remembered-device folder when the user ticked it ('' = private), so "Trust this device"
+    # given while recording carries into the fetch (Rob's real run: the trust was lost with the private window)
+    device = sys.stdin.readline().strip()
     if bw.portal_url_problem(url) or mode != 'record':
         bw._say(bw.STATUS_REFUSED_URL)
         return 2
@@ -205,7 +208,10 @@ def child_main(mode):
             os._exit(0)
     threading.Thread(target=_close_when_parent_goes, daemon=True).start()
     bw._say(bw.STATUS_READY)
-    webview.start(gui=bw._PINNED_GUI.get(platform_key), private_mode=True)
+    if device:
+        webview.start(gui=bw._PINNED_GUI.get(platform_key), private_mode=False, storage_path=device)
+    else:
+        webview.start(gui=bw._PINNED_GUI.get(platform_key), private_mode=True)
     return 0
 
 
@@ -232,7 +238,7 @@ def collect(key, lines):
                     rec['steps'].append(s)
 
 
-def start_recording(key, url, wait_seconds=20.0):
+def start_recording(key, url, wait_seconds=20.0, device_dir=''):
     """'opened' | 'already_open' | 'refused_url' | 'engine_unavailable'."""
     import subprocess
     import bank_window as bw
@@ -245,7 +251,7 @@ def start_recording(key, url, wait_seconds=20.0):
     flags = 0x08000000 if sys.platform == 'win32' else 0
     proc = subprocess.Popen(_command('record'), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True, creationflags=flags)
-    proc.stdin.write(url + '\n')
+    proc.stdin.write(url + '\n' + (device_dir or '') + '\n')
     proc.stdin.flush()
     status = bw._read_status(proc, wait_seconds)
     if status != bw.STATUS_READY:

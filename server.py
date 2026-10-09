@@ -6559,9 +6559,13 @@ def bank_agent_record():
     key = str((request.json or {}).get('key') or '')
     with db_session() as session:
         url = _bank_agent_url(session, key)
+        device_on = (_get_setting(session, f'bank_device:{key}') or AppSetting(value='')).value == 'yes'
     if not url:
         return err('That account has no bank link.', 400)
-    return ok({'key': key, 'result': bank_agent_window.start_recording(key, url)})
+    # A7: with "Remember this computer" ticked, the recording window keeps the bank's cookies in the same folder the
+    # fetch uses, so trusting this device while recording carries into the fetch
+    device = str(_bank_device_dir(key, create=True)) if device_on else ''
+    return ok({'key': key, 'result': bank_agent_window.start_recording(key, url, device_dir=device)})
 
 
 @settings_bp.route('/bank-agent/record', methods=['GET'])
