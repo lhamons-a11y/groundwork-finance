@@ -245,3 +245,12 @@ their slices are opened.
 
 **Status:** open design questions only. No code, schema change, migration or implementation authorisation follows from
 this section. Each is taken up when its slice is opened.
+
+**Decision, 2026-10-09:**
+- **H6:** the requirements above are accepted as design requirements, and **the gate remains open**. H6 is complete
+  only after its design is approved, its implementation is separately authorised, and its acceptance tests pass. The
+  tests must cover the inventory, the reconciliation method, each path's boundary and enforcement, and item 62's AI
+  log as a regression case.
+- **H4:** remains an open design question.
+
+Item 57's work is separate and does not affect either.
