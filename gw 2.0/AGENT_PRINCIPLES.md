@@ -530,6 +530,11 @@ capability withheld.
 
 ## Part 9 — Ruling Record
 
+**ACCEPTED AS WRITTEN 2026-10-10** (Rob: *"i accept all parts of item 65 as written"*): Parts 1-9 as they stand,
+the TM6 ruling note and the RG renaming included. Accepting the document opens nothing: W1-W10 stay an unopened menu
+(Part 5) and Part 6 stays a possible future item (item 71 now carries its income side). Each still needs its own
+opening, ruling and go-ahead.
+
 Accepted by Rob on 2026-10-09 (first ruling):
 - AP1–AP11: accepted as the governing standard.
 - TM1–TM8: accepted as prohibitions.
