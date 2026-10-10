@@ -168,6 +168,34 @@ guess. A file the user downloads themselves still gets `import_committed` alone,
 filled in. Nothing of the file's content is recorded (H1's C3).
 *Recommended.*
 
+## 3a. Amendment A13: the bank's pop-ups (RULED 2026-10-10)
+
+Rob, 2026-10-10, on Superior CU's "Notice" pop-up: *"i wish the agent could understand those and pass them for the
+user."* Then: *"yes write it up as an amendment and I already accept it as writtem"*. **A13.1–A13.4 RULED as written
+(Rob, 2026-10-10). Build not yet authorised.**
+
+(A12, recording the route, was proposed on 2026-10-09 and is named in item 67's "Not decided here"; it is not ruled.
+This amendment takes the next number so the two don't collide.)
+
+**A13.1. The agent handles a pop-up you dealt with while recording.** A step you take inside the bank's pop-up while
+recording (a dialog box over the page: an alert, a notice, a "what's new") is saved as **"only if your bank shows it"**.
+On a fetch, the agent presses it when the pop-up is there and skips it when it isn't (A5's optional steps). The bar
+names what it did, for example "Closed your bank's notice". A chore, so the agent's job (item 65 AP1).
+
+**A13.2. It never accepts anything.** If a pop-up mentions terms, an agreement, consent, or "I accept" / "I agree", the
+agent stops and hands it to you: the bar turns to "Your bank is asking you something", and the window waits as it does
+for a code (A6's 5 minutes), then stops if nothing happens. A recorded click named "Accept", "I agree" or "Agree" is
+never saved as a step. Agreeing to something is the person's decision, never the computer's (item 65 AP1, AP7).
+
+**A13.3. It never ticks "don't show again" for you.** A box that changes a setting at the bank ("Don't show this
+message again", "Remember my choice") is never saved as a step and never ticked by the agent. The agent closes the
+pop-up each time; the tick stays your click. (Groundwork keeps the bank's own saved settings between runs when
+"Remember this computer" is on: the window waits 8 s before closing so they reach the disk, 0a0c04c.)
+
+**A13.4. Tests.** A pop-up step recorded as optional, pressed when present and skipped when absent; a pop-up naming
+terms / agreement / consent / accept stops the run and asks, and a recorded "Accept" / "I agree" click is refused at
+save; a "don't show again" box is refused at save and never pressed; the bar's words. Master only.
+
 ## 4. Not decided here
 
 - **The Assistant voice action:** that's Assistant's own build. A2 makes it call the same start.
