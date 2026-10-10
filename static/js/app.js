@@ -22987,8 +22987,10 @@ function _billDate(iso) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-function budgetBillsHtml(bills) {
+function budgetBillsHtml(bills, checks) {
   const withSite = (bills || []).filter(b => b.site || b.pending || b.confirmed);
+  const ck = id => ((checks && checks.bills) || []).find(x => x.id === id);
+  const accts = (checks && checks.accounts) || [];
   if (!withSite.length) return '';
   const thisMonth = new Date().toISOString().slice(0, 7);
   const rows = withSite.map(b => {
@@ -23008,7 +23010,8 @@ function budgetBillsHtml(bills) {
         <span style="color:var(--slate-2)">· read from ${esc(c.host)} on ${_billDate(c.read_at)}, confirmed · you planned ${fmt(b.planned || 0)}</span>
         ${inMonth ? `<label style="display:block;color:var(--slate);margin-top:2px"><input type="checkbox" ${c.use_for_month ? 'checked' : ''} onchange="useBillReading(${c.id}, this.checked)">
           Use the bill's amount for this month (your saved amount stays as it is)</label>` : ''}
-        <button class="btn btn-ghost btn-sm" onclick="startFetchAll(['${esc(b.key)}'])">⟳ Read it again</button></div>`;
+        <button class="btn btn-ghost btn-sm" onclick="startFetchAll(['${esc(b.key)}'])">⟳ Read it again</button>
+        ${billCheckHtml(ck(b.id), accts)}</div>`;
     }
     return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:12px">
       <b style="font-weight:600">${esc(b.name)}</b>: not read yet. Save its login and show Groundwork where the bill is in Settings → Fetch my downloads, then
@@ -23021,9 +23024,61 @@ function budgetBillsHtml(bills) {
 async function renderBudgetBills() {
   const box = g('budgetBillsCard');
   if (!box) return;
-  let d;
+  let d, k;
   try { d = await API.get('/api/settings/bank-agent/bills'); } catch (e) { return; }
-  box.innerHTML = budgetBillsHtml(d.bills);
+  try { k = await API.get('/api/settings/bank-agent/bill-checks'); } catch (e) { k = null; }
+  box.innerHTML = budgetBillsHtml(d.bills, k);
+}
+
+// Item 68 B6/B7: which account pays it, the person's floor, "can I pay this?" (the 24-hour notice first), "paid?"
+function billCheckHtml(c, accounts) {
+  if (!c) return '';
+  const acct = accounts.find(a => a.id === c.account_id);
+  const pick = `<label style="display:block;color:var(--slate);margin-top:4px">Paid from
+      <select onchange="setBillFrom(${c.id}, this.value)" style="font-size:12px"><option value="">choose an account…</option>
+      ${accounts.map(a => `<option value="${a.id}" ${a.id === c.account_id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label>`;
+  if (!acct) return pick;
+  const floor = `<label style="display:block;color:var(--slate);margin-top:2px">Always leave at least
+      $<input type="number" min="0" step="1" value="${acct.buffer ?? ''}" placeholder="amount" style="width:90px;font-size:12px" onchange="setAccountBuffer(${acct.id}, this.value)"> in ${esc(acct.name)}</label>`;
+  const ck = c.check || {};
+  const when = c.last_download ? new Date(c.last_download) : null;
+  const ago = ck.stale_hours == null ? '' : ck.stale_hours < 48 ? `${ck.stale_hours} hours ago` : `${Math.floor(ck.stale_hours / 24)} days ago`;
+  const notice = ck.stale ? `<div style="color:var(--ember);margin-top:4px">${esc(acct.name)} was last downloaded ${_billDate(c.last_download)}, ${ago}. Transactions since then aren't counted.
+      ${acct.has_portal ? `<button class="btn btn-ghost btn-sm" onclick="startFetchAll(['account:${acct.id}'])">⟳ Get my latest transactions</button>` : ''}</div>` : '';
+  let answer;
+  if (ck.state === 'fits') answer = `Can I pay this? It fits: ${esc(acct.name)} would be ${fmt(ck.after)}, ${fmt(ck.margin)} above your ${fmt(acct.buffer)}.`;
+  else if (ck.state === 'below') answer = `Can I pay this? It would leave ${fmt(ck.after)} in ${esc(acct.name)}, ${fmt(-ck.margin)} below your ${fmt(acct.buffer)}.`;
+  else answer = `Can I pay this? Groundwork can't work it out yet: it needs ${esc((ck.missing || []).join(' and '))}.`;
+  const working = (ck.working || []).length ? `<div style="color:var(--slate-2);font-family:var(--font-mono);font-size:11px">${ck.working.map(esc).join(' · ')}</div>` : '';
+  const seen = when ? ` (${esc(acct.name)} last downloaded ${_billDate(c.last_download)})` : '';
+  const p = c.paid || {};
+  let paid = '';
+  if (p.state === 'paid' && p.txn) paid = `Paid ${_billDate(p.txn.date)} from ${esc(acct.name)}: ${fmt(p.txn.amount)}, "${esc(p.txn.description)}".`
+      + (p.lowest ? ` Lowest balance after it: ${fmt(p.lowest.amount)} on ${_billDate(p.lowest.date)}${acct.buffer != null ? (p.lowest.amount >= acct.buffer ? `, above your ${fmt(acct.buffer)}` : `, ${fmt(acct.buffer - p.lowest.amount)} below your ${fmt(acct.buffer)}`) : ''}.`
+        : ' The download carries no running balance, so the lowest balance after it isn\'t known.');
+  else if (p.state === 'near' && p.txn) paid = `Is this the payment? ${_billDate(p.txn.date)} ${fmt(p.txn.amount)} "${esc(p.txn.description)}"
+      <button class="btn btn-ghost btn-sm" onclick="answerBillPaid(${c.reading_id}, ${p.txn.id}, true)">Yes</button>
+      <button class="btn btn-ghost btn-sm" onclick="answerBillPaid(${c.reading_id}, ${p.txn.id}, false)">No</button>`;
+  else if (p.state === 'not_seen') paid = `No payment seen yet${seen}.`;
+  return pick + floor + notice + `<div style="margin-top:4px;color:var(--ink)">${answer}</div>` + working
+    + `<div style="color:var(--slate-2);font-size:11px">${esc(ck.cant_see || '')}</div>`
+    + (paid ? `<div style="margin-top:4px;color:var(--ink)">${paid}</div>` : '');
+}
+
+async function setBillFrom(id, accountId) {
+  try { await API.post('/api/settings/bank-agent/bill-from', { id, account_id: accountId || null }); } catch (e) { _gwErr('setBillFrom')(e); }
+  renderBudgetBills();
+}
+
+async function setAccountBuffer(accountId, v) {
+  try { await API.post('/api/settings/bank-agent/buffer', { account_id: accountId, amount: v === '' ? null : Number(v) }); }
+  catch (e) { showToast('Not saved', e?.message || '', 'warning'); return; }
+  renderBudgetBills();
+}
+
+async function answerBillPaid(readingId, txnId, yes) {
+  try { await API.post('/api/settings/bank-agent/bill-paid', { reading_id: readingId, txn_id: txnId, yes }); } catch (e) { _gwErr('answerBillPaid')(e); }
+  renderBudgetBills();
 }
 
 async function _refreshBudgetMonth() {

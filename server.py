@@ -7010,6 +7010,164 @@ def bank_agent_bill_use():
         return ok(_bill_reading_json(r))
 
 
+# ── Item 68 B6/B7 - "can I pay this?" and "paid?" (core/bill_check.py computes; nothing here pays) ──
+def _setting_json(session, key, default=None):
+    row = _get_setting(session, key)
+    try:
+        return json.loads(row.value) if row and row.value else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _account_balance_facts(session, account_id):
+    """The account's balance as the Accounts list shows it (the bank's own running balance where the download
+    carried one, else the activity's net), its date, and when its transactions last came in (import_committed)."""
+    txns = session.query(Transaction).filter_by(account_id=account_id).all()
+    anchor, _ok = _resolve_bank_anchor(txns)
+    if anchor is not None:
+        balance, as_of = round(anchor.running_balance, 2), anchor.date
+    elif txns:
+        balance = round(sum(t.amount for t in txns if t.type == 'credit') - sum(t.amount for t in txns if t.type == 'debit'), 2)
+        as_of = None
+    else:
+        balance, as_of = None, None
+    last = None
+    for e in session.query(HistorianEntry).filter(HistorianEntry.event_category == 'import_committed') \
+            .order_by(HistorianEntry.id.desc()).limit(500).all():
+        if json.loads(e.context_json or '{}').get('account_id') == account_id:
+            last = e.created_at
+            break
+    return balance, as_of, last, txns
+
+
+@settings_bp.route('/bank-agent/buffer', methods=['POST'])
+@require_json
+def bank_agent_buffer():
+    """B6: {account_id, amount}. The person's own floor for an account - kept as they said it, changed only by them.
+    amount null removes it."""
+    body = request.json or {}
+    with db_session() as session:
+        a = session.get(Account, int(body.get('account_id') or 0))
+        if not a:
+            return err('That account was not found.', 404)
+        if body.get('amount') in (None, ''):
+            row = _get_setting(session, f'bank_buffer:account:{a.id}')
+            if row:
+                session.delete(row)
+            amt = None
+        else:
+            try:
+                amt = round(float(body.get('amount')), 2)
+            except (TypeError, ValueError):
+                return err('An amount, please.', 400)
+            if amt < 0:
+                return err('An amount of zero or more, please.', 400)
+            _set_setting(session, f'bank_buffer:account:{a.id}',
+                         json.dumps({'amount': amt, 'said': datetime.now().isoformat(timespec='seconds')}))
+        session.commit()
+    return ok({'account_id': a.id, 'amount': amt})
+
+
+@settings_bp.route('/bank-agent/bill-from', methods=['POST'])
+@require_json
+def bank_agent_bill_from():
+    """B6: {id, account_id}. Which account the person pays this bill from (their statement; null removes it)."""
+    body = request.json or {}
+    with db_session() as session:
+        b = session.get(BudgetItem, int(body.get('id') or 0))
+        if not b:
+            return err('That bill was not found.', 404)
+        acct = body.get('account_id')
+        if acct in (None, ''):
+            row = _get_setting(session, f'bill_from:{b.id}')
+            if row:
+                session.delete(row)
+        else:
+            if not session.get(Account, int(acct)):
+                return err('That account was not found.', 404)
+            _set_setting(session, f'bill_from:{b.id}', str(int(acct)))
+        session.commit()
+    return ok({'id': b.id, 'account_id': acct})
+
+
+@settings_bp.route('/bank-agent/bill-paid', methods=['POST'])
+@require_json
+def bank_agent_bill_paid():
+    """B7: {reading_id, txn_id, yes}. The person's answer to "is this the payment?" - a near-match is never assumed."""
+    body = request.json or {}
+    rid, tid = int(body.get('reading_id') or 0), int(body.get('txn_id') or 0)
+    with db_session() as session:
+        if not session.get(BillReading, rid) or not session.get(Transaction, tid):
+            return err('Not found.', 404)
+        ans = _setting_json(session, f'bill_paid:{rid}', {'yes': None, 'no': []})
+        if body.get('yes') is True:
+            ans['yes'] = tid
+        else:
+            ans['no'] = sorted(set(ans.get('no') or []) | {tid})
+            if ans.get('yes') == tid:
+                ans['yes'] = None
+        _set_setting(session, f'bill_paid:{rid}', json.dumps(ans))
+        session.commit()
+    return ok(ans)
+
+
+@settings_bp.route('/bank-agent/bill-checks', methods=['GET'])
+def bank_agent_bill_checks():
+    """B6/B7 for every bill with a confirmed reading: the paying account, the check against the floor (with the
+    24-hour notice), and whether its payment has been seen. Computed on every read; nothing is written."""
+    from core import bill_check
+    now = datetime.utcnow()            # the Historian's times are UTC (HistorianEntry.created_at)
+    out, accounts = [], []
+    with db_session() as session:
+        for a in session.query(Account).filter_by(is_active=True).order_by(Account.sort_order, Account.name).all():
+            buf = _setting_json(session, f'bank_buffer:account:{a.id}')
+            accounts.append({'id': a.id, 'name': a.name, 'buffer': (buf or {}).get('amount'), 'has_portal': bool(a.portal_url)})
+        latest = {}
+        for r in session.query(BillReading).order_by(BillReading.id.desc()).all():
+            latest.setdefault(r.budget_item_id, r)
+        facts, items = {}, {}
+        for bid, r in latest.items():
+            b = session.get(BudgetItem, bid)
+            if not b or not b.is_active:
+                continue
+            items[bid] = (b, r)
+        for bid, (b, r) in items.items():
+            frm = _get_setting(session, f'bill_from:{bid}')
+            acct_id = int(frm.value) if frm and (frm.value or '').isdigit() else None
+            row = {'id': bid, 'name': b.name, 'reading_id': r.id, 'amount': r.amount,
+                   'due': r.due_date.isoformat() if r.due_date else None, 'account_id': acct_id,
+                   'check': None, 'paid': None, 'last_download': None}
+            if acct_id is not None:
+                if acct_id not in facts:
+                    facts[acct_id] = _account_balance_facts(session, acct_id)
+                balance, as_of, last, txns = facts[acct_id]
+                tx = [{'id': t.id, 'date': t.date, 'amount': t.amount, 'type': t.type, 'description': t.description,
+                       'running_balance': t.running_balance} for t in txns if t.date]
+                paid = bill_check.paid_match(r.amount, r.due_date, b.name, tx, _setting_json(session, f'bill_paid:{r.id}'))
+                earlier = []
+                for obid, (ob, orr) in items.items():
+                    if obid == bid or orr.amount is None or orr.due_date is None or r.due_date is None:
+                        continue
+                    ofrm = _get_setting(session, f'bill_from:{obid}')
+                    if not (ofrm and ofrm.value == str(acct_id)) or not (date.today() <= orr.due_date < r.due_date):
+                        continue
+                    if bill_check.paid_match(orr.amount, orr.due_date, ob.name, tx,
+                                             _setting_json(session, f'bill_paid:{orr.id}'))['state'] != 'paid':
+                        earlier.append((ob.name, orr.amount))
+                buf = next((x['buffer'] for x in accounts if x['id'] == acct_id), None)
+                chk = bill_check.pay_check(balance, as_of, last, buf, r.amount, earlier, now)
+                row['check'] = chk
+                row['last_download'] = last.isoformat(timespec='minutes') + 'Z' if last else None   # UTC, said so
+                t = paid['txn']
+                row['paid'] = {'state': paid['state'],
+                               'txn': ({'id': t['id'], 'date': t['date'].isoformat(), 'amount': t['amount'],
+                                        'description': t['description']} if t else None),
+                               'lowest': ({'amount': paid['lowest'][0], 'date': paid['lowest'][1].isoformat()}
+                                          if paid['lowest'] else None)}
+            out.append(row)
+    return ok({'bills': out, 'accounts': accounts})
+
+
 @settings_bp.route('/bank-agent/fetch/stop', methods=['POST'])
 @require_json
 def bank_agent_fetch_stop():
