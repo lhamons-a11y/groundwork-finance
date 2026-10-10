@@ -2,7 +2,7 @@
 
 > Status: **RULED 2026-09-27 (Rob, §6): all eight recommendations accepted. First build AUTHORISED
 > 2026-09-28 and BUILT (§7), gate 1911 / 0 at `4626bf7`; ACCEPTED as it stands (Rob, 2026-09-28, §8).
-> Not built, each needing its own go-ahead: W-D, the contradiction-check; W-E, strategy inference.** Opened the same day. Queue item 23. Rob, 2026-09-27: *"lets build the
+> W-D and W-E BUILT 2026-10-10 (Rob: "finish building the entire thing") - §9.** Opened the same day. Queue item 23. Rob, 2026-09-27: *"lets build the
 > teaching layer"*, then *"the unbuilt teaching pieces"*, then *"I feel we need that before the
 > dashboard"*. So this pass comes before the dashboard build (item 22, ruled, not authorised).
 >
@@ -331,3 +331,43 @@ Rob's grounds, as recorded:
 
 **Sequencing, agreed:** Willingness Layer accepted, then the break-detector, then the dashboard. Neither
 finding is folded into the break-detector unless that pass actually touches their semantics.
+
+---
+
+## 9. W-D and W-E, built (2026-10-10)
+
+Rob, after asking what the working picture was and whether it was built: *"finish building the entire thing."*
+
+**W-D, the contradiction-check (`core/willingness.contradictions`).** For each statement standing now, the user's
+own budget edits made *after* it are read exactly as E.2 reads them. "Protect" against a cut that held, or
+"flexible" against a cut later restored, is shown in the working picture as *"You marked Dining protected on …
+Since then you lowered its budget from … to …, and it stayed within that in each of the N months since. Which do
+you mean?"*, with Keep / change / Release. Nothing is changed: the statement stands, and any answer is a newer
+statement, after which the earlier edits no longer count against it. It enters the A.2 gauntlet as a
+`clarification` (A.3: from the brake budget), with its path the answer itself and `disputes` set to its category,
+so `contend` fires it before anything ranked on that category; it must still be material (the size of the cut
+against the monthly budget) or it stays passive. Edits before the statement never count: they are what it
+answered.
+
+**W-E, strategy inference (`core/willingness.shortfall_responses`, `strategy`).**
+- **The events.** A short month is one where recorded spending passed recorded income; a month missing either
+  figure is unknown, not short. The response is the user's own budget edits in the following month: cuts alone are
+  *trim*, cuts beside a raise are *reallocation*. A raise alone, or no edit, is not an event: doing nothing is not
+  attributed (F.2, item 39). Timing, payoff order, substitution and save-first leave no budget edit, so they are
+  never attributed here.
+- **The test.** Fit on the first half of the events, score on the second. The label is held only when it is right
+  on at least three in four held-out months and a random pick would do as well less than 5% of the time
+  (one-sided binomial). That makes 10 answered short months the floor.
+- **The null model (W4), run before the build.** 2,000 trend-free histories per size: 0% labelled at 6 events,
+  3.1% at 10, 2.8% at 16, 1.2% at 24. A mild 65/35 lean: 10-12%. A real 90% habit: 60%, 81%, 89%. The kill
+  condition is not met, so W-E ships. The gate re-runs 1,000 trend-free histories every time (s181).
+- **What it changes.** E.3 rule 4 only (demonstrated tolerance, `solution._rank_key_for`): among paths that need
+  a cut, the earned kind is listed first. Waiting still ranks first, and with no label the order is exactly as it
+  was. Rule 5 (spread vs concentrate) stays absent: no edit shows it.
+- **What the user sees and controls.** The working picture shows *"After a short month"* with the test in plain
+  numbers, or says plainly that there is no reading and why ("That is the usual answer"). *"That is not how I
+  work - set it aside"* stores the user's word (`willingness_strategy_aside`, with when). The label is then shown
+  but not used, and can be used again. The label itself is never stored: it is recomputed on every read.
+
+Tests: s181 (W-D, W-E, the null model, rule 4, set-aside); s129's picture pin now lists the two recomputed parts.
+

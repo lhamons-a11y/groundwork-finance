@@ -1641,18 +1641,43 @@ def _willingness_inputs(session, months: int = 12) -> dict:
 
 def willingness_state(session) -> dict:
     """The working picture's content, recomputed on every call - nothing derived is stored (ruling 2)."""
-    from core.willingness import observed_readings, current_declarations, effective
+    from core.willingness import (observed_readings, current_declarations, effective, contradictions,
+                                  shortfall_responses, strategy)
     from core.solution import is_protected
     i = _willingness_inputs(session)
     readings = observed_readings(i['categories'], i['edits'], i['spend'], i['ledger_months'],
                                  i['income'], i['debits'])
     current = current_declarations(i['declarations'])
+    st = strategy(shortfall_responses(i['edits'], i['income'], i['debits']))
+    aside = _strategy_set_aside(session)
     return {
         'readings': readings,
         'declarations': i['declarations'],
         'current': [{**d, 'on_floor': is_protected(d['category'])} for d in current.values()],
         'effective': effective(readings, i['declarations']),
+        # W-D: asked, never applied
+        'contradictions': contradictions(i['declarations'], i['edits'], i['spend'], i['ledger_months'], i['income']),
+        # W-E: earned or unclassified; the user may set an earned label aside (their word, kept with when)
+        'strategy': {**st, 'set_aside': aside},
     }
+
+
+def _strategy_set_aside(session):
+    """The user's word on the strategy label: {'said': iso} when they set it aside, else None."""
+    row = _get_setting(session, 'willingness_strategy_aside')
+    try:
+        return json.loads(row.value) if row and row.value else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _demonstrated_lever(session):
+    """E.3 rule 4's input: the earned W-E label, unless the user set it aside. None for most people."""
+    try:
+        st = willingness_state(session)['strategy']
+    except Exception:
+        return None
+    return st['label'] if st['label'] != 'unclassified' and not st.get('set_aside') else None
 
 
 willingness_bp = Blueprint('willingness', __name__)
@@ -1704,6 +1729,27 @@ def willingness_declare():
             return err('there is no statement about this category to release', 409)
         session.add(WillingnessDeclaration(category=category, stance=stance, answer_kind=kind,
                                            answer_text=said_to))
+        session.commit()
+        s = willingness_state(session)
+        s.pop('effective')
+        return ok(s)
+
+
+@willingness_bp.route('/strategy', methods=['POST'])
+@require_json
+def willingness_strategy():
+    """F.6a: the inferred channel is adjustable, always. {use: false} sets an earned strategy label aside (it is
+    then shown, not used); {use: true} lets it be used again. The label itself is never stored."""
+    use = (request.json or {}).get('use')
+    if not isinstance(use, bool):
+        return err('use must be true or false')
+    with db_session() as session:
+        row = _get_setting(session, 'willingness_strategy_aside')
+        if use:
+            if row:
+                session.delete(row)
+        else:
+            _set_setting(session, 'willingness_strategy_aside', json.dumps({'said': datetime.now().isoformat(timespec='seconds')}))
         session.commit()
         s = willingness_state(session)
         s.pop('effective')
@@ -3303,7 +3349,8 @@ def debt_decision_impact():
                                       today_key=date.today().strftime('%Y-%m'),
                                       start_month=date.today().strftime('%Y-%m'),
                                       categories=reallocation_candidates(session),
-                                      recurring=trim_candidates(session))
+                                      recurring=trim_candidates(session),
+                                      demonstrated=_demonstrated_lever(session))
             result['paths'] = sol['paths']
             result['honest_no'] = sol['honest_no']
 
@@ -3334,7 +3381,8 @@ def debt_decision_impact():
                 today_key=date.today().strftime('%Y-%m'),
                 start_month=date.today().strftime('%Y-%m'),
                 categories=reallocation_candidates(session),
-                recurring=trim_candidates(session))
+                recurring=trim_candidates(session),
+                demonstrated=_demonstrated_lever(session))
         else:
             result['monthly'] = None
 
@@ -3458,7 +3506,7 @@ def ledger_lesson():
             cards, budget, found['lesson']['amount'], strategy=strategy,
             today_key=today, start_month=today,
             categories=reallocation_candidates(session),
-            recurring=trim_candidates(session))
+            recurring=trim_candidates(session), demonstrated=_demonstrated_lever(session))
         # §6's levers, in the past tense. Substitution is dropped: a cheaper
         # version of a purchase already made is not an option anyone has.
         paths = [p for p in sol['paths'] if p['kind'] != 'substitution']
@@ -3841,6 +3889,23 @@ def _proactive_candidates(session, cards, budget, strategy):
             'subject': cyc['prior']['peak'], 'detail_kind': 'cycle',
             'cycle': cyc,
         })
+
+    # W-D (E.2b): a statement the user's own later edits contradict. A clarification costs what a brake costs
+    # (A.3: it asks the user to resolve something), its path is the answer itself, and it disputes the category
+    # - so contend() fires it before anything ranked on that category. It passes the gauntlet or stays passive
+    # in the working picture, where it always shows.
+    try:
+        for cx in willingness_state(session)['contradictions']:
+            r = cx['reading']['receipt']
+            out.append({
+                'key': cx['key'], 'kind': 'clarification', 'category': cx['category'],
+                'months': None, 'dollars': cx['dollars'], 'has_path': True, 'goal_impact': None,
+                'disputes': cx['category'], 'subject': cx['category'], 'detail_kind': 'clarification',
+                'stance': cx['declaration']['stance'], 'said_at': cx['declaration']['said_at'][:10],
+                'cut_old': r['cut']['old'], 'cut_new': r['cut']['new'],
+            })
+    except Exception:
+        logging.getLogger('groundwork').warning('the contradiction-check could not be read')
 
     lit = green_light(cards, budget, drivers, **kw)
     if lit:

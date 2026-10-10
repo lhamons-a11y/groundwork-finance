@@ -56,6 +56,12 @@
         : 'You are within <strong>' + fmt(c.distance) + '</strong> of the <strong>'
           + fmt((c.prior || {}).peak) + '</strong> you carried before you cleared this'
           + ' last time.' + cost;
+    } else if (p.detail_kind === 'clarification') {
+      // W-D: asked, never applied - a question about which they mean, never a reproach
+      body = 'You marked <strong>' + esc(p.subject) + '</strong> ' + (p.stance === 'protect' ? 'protected' : 'flexible')
+           + ' on ' + esc(p.said_at) + '. Since then you lowered its budget from <strong>' + fmt(p.cut_old)
+           + '</strong> to <strong>' + fmt(p.cut_new) + '</strong>' + (p.stance === 'protect' ? ', and it has held.' : ', then put it back.')
+           + ' Which do you mean? <a href="#" onclick="showView(\'picture\');return false">Answer it in your working picture</a>.';
     } else if (p.detail_kind === 'green') {
       body = 'You freed <strong>' + fmt(p.freed_monthly) + '/mo</strong> by clearing <strong>'
            + esc(p.subject) + '</strong> — worth <strong>' + mo(p.months)

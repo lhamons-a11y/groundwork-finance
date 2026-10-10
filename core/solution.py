@@ -382,7 +382,7 @@ def _path(kind, label, detail, closes, cost_months=None, requires_cut=False,
 
 def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
                         today_key=None, start_month=None,
-                        categories=None, recurring=None):
+                        categories=None, recurring=None, demonstrated=None):
     """Paths that absorb a one-time cost's effect on the payoff date.
 
     Returns {'gap_months', 'paths', 'honest_no'}. `paths` is ordered by E.3's
@@ -593,7 +593,7 @@ def solve_one_time_cost(cards, budget, one_time_cost, strategy='avalanche',
             closes=True, cost_months=0, requires_cut=True, reversible=True,
             items=flex))
 
-    paths.sort(key=_rank_key)
+    paths.sort(key=_rank_key_for(demonstrated))
 
     honest_no = None
     # Substitution is excluded from this test on purpose. Every other lever
@@ -654,11 +654,10 @@ def _rank_key(p):
 
     Rule 2 (flexible-by-proof) is applied where it can be proven: among a named
     lever's candidates (`_willing_key`), from the Willingness Layer's observed
-    readings and the user's own word. Rules 4 and 5 (demonstrated tolerance,
-    spread vs concentrate) are still absent deliberately: each needs the
-    inferred channel - F.6b's strategy - which is not built, and keeps that
-    `unclassified` for most people. Adding them here on a guess would be
-    exactly the assumption E.2 forbids.
+    readings and the user's own word. Rule 4 (demonstrated tolerance) applies
+    only through `_rank_key_for` with an EARNED strategy label (F.6b, W-E) -
+    unclassified for most people, which leaves this order exactly as it is.
+    Rule 5 (spread vs concentrate) stays absent: no edit in the record shows it.
     """
     return (
         p['requires_cut'],                       # False first
@@ -667,6 +666,18 @@ def _rank_key(p):
         p['available_in_months'] if p['available_in_months'] is not None else 0,
         p['cost_months'] if p['cost_months'] is not None else 0,
     )
+
+
+def _rank_key_for(demonstrated=None):
+    """E.3 rule 4: among paths that need a cut, the kind the user has DEMONSTRATED (an earned W-E label - trim or
+    reallocation) comes first; everything else keeps `_rank_key`'s order. With no label this is `_rank_key`."""
+    if not demonstrated:
+        return _rank_key
+
+    def key(p):
+        k = _rank_key(p)
+        return (k[0], p['kind'] != demonstrated) + k[1:]
+    return key
 
 
 def save_first_plan(cards, budget, price, strategy='avalanche',
@@ -856,7 +867,7 @@ def do_nothing_note(cards, budget, one_time_cost=0.0, strategy='avalanche',
 
 def solve_monthly_cost(cards, budget, monthly_cost, replaces_monthly=0.0,
                        strategy='avalanche', today_key=None, start_month=None,
-                       categories=None, recurring=None):
+                       categories=None, recurring=None, demonstrated=None):
     """Paths that absorb a NEW RECURRING cost's effect on the payoff date.
 
     Substitution's other half. The one-time solver prices a purchase; this one
@@ -1046,7 +1057,7 @@ def solve_monthly_cost(cards, budget, monthly_cost, replaces_monthly=0.0,
         closes=True, cost_months=0, requires_cut=True, reversible=True,
         items=flex))
 
-    paths.sort(key=_rank_key)
+    paths.sort(key=_rank_key_for(demonstrated))
     # No honest no here, and the omission is structural rather than an
     # oversight: a cost that leaves the minimums coverable is by definition
     # within the extra above them, so the money that holds the date always

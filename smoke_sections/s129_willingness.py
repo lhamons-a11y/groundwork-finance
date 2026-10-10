@@ -223,7 +223,8 @@ def _route_cases(c, HJ, dbs):
     r = c.get('/api/willingness', headers=HJ)
     d = (r.get_json() or {}).get('data') or {}
     out['the picture carries readings, the history and the current word - and no derived state to store'] = (
-        r.status_code == 200 and set(d) == {'readings', 'declarations', 'current'}
+        # W-D's questions and W-E's reading are recomputed on every read, like the readings - never stored
+        r.status_code == 200 and set(d) == {'readings', 'declarations', 'current', 'contradictions', 'strategy'}
         and not any(x['category'] == cat_a for x in d['current']))
     rules = [(str(rule), rule.methods) for rule in c.application.url_map.iter_rules() if '/api/willingness' in str(rule)]
     out['append-only by construction: no route can edit or delete a statement'] = (
@@ -299,7 +300,7 @@ def run(ctx):
     check('s129 F.4 no line sets the user\'s word against their behaviour as a failing', not stick)
     if stick:
         print(f'        found: {stick}')
-    empty = js.split('if (!claims.length && !answered.length && !history.length) {', 1)[-1].split('var out = head;', 1)[0]
+    empty = js.split('if (!claims.length && !answered.length && !history.length && !strat) {', 1)[-1].split('var out = head;', 1)[0]
     check('s129 Wl1 the empty state offers no controls - nothing to dispute, nothing to set (F.3)',
           'return head' in empty and '_control(' not in empty and 'data-gw-declare' not in empty)
     check('s129 the empty state says it never learns from pages opened or suggestions dismissed',

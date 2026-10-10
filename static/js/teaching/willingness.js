@@ -118,6 +118,50 @@
       + _control(r.category, 'flexible', 'claim', plain, 'It is flexible');
   }
 
+  // W-D: a statement and the user's own later edits, side by side. The question is which they mean - the
+  // statement is not touched, and any answer is a newer statement.
+  function _contradictionHTML(cx) {
+    var d = cx.declaration, x = cx.reading.receipt;
+    var text = 'You marked <strong>' + esc(d.category) + '</strong> ' + (d.stance === 'protect' ? 'protected' : 'flexible')
+      + ' on ' + _date(d.said_at) + '. Since then you lowered its budget from ' + fmt(x.cut.old) + ' to ' + fmt(x.cut.new)
+      + ' on ' + _date(x.cut.date) + (d.stance === 'protect'
+        ? ', and it stayed within that in each of the ' + x.months.length + ' months since.'
+        : ', then set it back to ' + fmt(x.restore.new) + ' on ' + _date(x.restore.date) + '.')
+      + ' Which do you mean?';
+    var plain = _plain(text);
+    return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.8">'
+      + text + '<div>'
+      + _control(d.category, d.stance, 'claim', plain, d.stance === 'protect' ? 'Keep it protected' : 'Keep it flexible')
+      + _control(d.category, d.stance === 'protect' ? 'flexible' : 'protect', 'claim', plain, d.stance === 'protect' ? 'It is flexible' : 'Protect it')
+      + _control(d.category, 'release', 'claim', plain, 'Release what I said') + '</div></div>';
+  }
+
+  // W-E (F.6b): what the user reaches for after a short month - only when it predicted months it was not
+  // fitted to. Unclassified is said plainly, and is the usual answer.
+  function _strategyHTML(st) {
+    if (!st) return '';
+    var lever = st.label === 'trim' ? 'lowering budgets' : 'moving money from one budget to another';
+    if (st.label === 'unclassified') {
+      if (!st.events) return '';
+      var why = st.reason === 'too_few'
+        ? 'there are ' + st.events + ' short months you answered with a budget change on record, and it takes 10 to test a reading'
+        : 'the earlier short months did not predict the later ones well enough to hold a reading';
+      return '<div class="card mt-5"><div class="card-label">After a short month</div><div style="font-size:12px;color:var(--slate);line-height:1.7">'
+        + 'Groundwork has no reading of what you tend to do after a month when spending passed income: ' + why + '. That is the usual answer.</div></div>';
+    }
+    var line = 'After months when spending passed income, you have tended to answer by <strong>' + lever + '</strong>.'
+      + ' Groundwork read the first ' + st.fit + ' of your ' + st.events + ' short months and predicted the next ' + st.test
+      + ': it was right ' + st.hits + ' times (picking at random would match that less than ' + Math.max(1, Math.round(st.p * 100)) + ' in 100 times).'
+      + ' This is a reading of what you did, recomputed every time, never a judgement.';
+    var use = st.set_aside
+      ? '<div style="font-size:11px;color:var(--slate-2);margin-top:4px">You set this aside on ' + _date(st.set_aside.said) + ': Groundwork shows it but does not use it.</div>'
+        + '<button class="btn btn-sm btn-secondary" style="margin-top:4px" data-gw-strategy="true">Use it again</button>'
+      : '<div style="font-size:11px;color:var(--slate-2);margin-top:4px">Groundwork uses it only to list paths of that kind first among the ones that need a cut.</div>'
+        + '<button class="btn btn-sm btn-secondary" style="margin-top:4px" data-gw-strategy="false">That is not how I work - set it aside</button>';
+    return '<div class="card mt-5"><div class="card-label">After a short month</div><div style="font-size:12px;color:var(--slate);line-height:1.7">'
+      + line + '</div>' + use + '</div>';
+  }
+
   function _plain(html) {
     var d = document.createElement('div');
     d.innerHTML = html;
@@ -172,11 +216,13 @@
 
     var how = '<div style="font-size:12px;color:var(--slate);line-height:1.7">'
       + 'Groundwork concludes only from your own record: a budget cut that holds for three months, a cut you'
-      + ' later undo, an envelope kept through months when spending passed income. Each conclusion appears here'
-      + ' with the edits and months behind it, and you can dispute any of them. It never learns from which'
-      + ' pages you open or which suggestions you dismiss.</div>';
+      + ' later undo, and - once there are enough of them - what you did to your budget after months when'
+      + ' spending passed income. Each conclusion appears here with the edits and months behind it, and you can'
+      + ' dispute any of them. It never learns from which pages you open or which suggestions you dismiss.</div>';
+    var asks = (s.contradictions || []).map(_contradictionHTML).join('');
+    var strat = _strategyHTML(s.strategy);
 
-    if (!claims.length && !answered.length && !history.length) {
+    if (!claims.length && !answered.length && !history.length && !strat) {
       return head + '<div class="card"><div class="card-label">Nothing concluded yet</div>'
         + '<div style="font-size:14px;color:var(--ink);margin:4px 0 10px">Groundwork has not drawn any conclusions about you yet.</div>'
         + how
@@ -186,6 +232,12 @@
     }
 
     var out = head;
+    if (asks) {
+      out += '<div class="card" style="border-left:3px solid var(--gold)"><div class="card-label">A question about what you said</div>'
+        + '<div style="font-size:12px;color:var(--slate);margin-bottom:4px">Your word stands until you change it. These ask which you mean - nothing has been changed.</div>'
+        + asks + '</div>';
+    }
+    if (strat) out += strat;
     if (claims.length) {
       out += '<div class="card"><div class="card-label">What your record shows</div>'
         + claims.map(function (r) {
@@ -246,6 +298,15 @@
     var name = active && active.getAttribute('data-view');
     if (name) showView(name);
   }
+
+  document.addEventListener('click', async function (ev) {
+    var b = ev.target && ev.target.closest && ev.target.closest('[data-gw-strategy]');
+    if (!b) return;
+    ev.preventDefault();
+    try { await API.post('/api/willingness/strategy', { use: b.getAttribute('data-gw-strategy') === 'true' }); }
+    catch (e) { _gwErr('willingness strategy')(e); return; }
+    render();
+  });
 
   document.addEventListener('click', function (ev) {
     var el = ev.target && ev.target.closest && ev.target.closest('[data-gw-declare]');
