@@ -4,7 +4,7 @@ Opened 2026-10-10. Rob: *"while we are utilizing the agent in the program how wo
 You can offer any idea not the idea that you think I would like."* Then, on the eight ideas offered: *"open it as an
 item with #1 through #8 I like this."*
 
-**Points Y1–Y10 for ruling. No code yet.**
+**Y1–Y10 RULED 2026-10-10 as recommended (Rob: "approve Y1–Y10 as recommended"). No code yet:** each stage needs its own go-ahead; stage 1 is Y1 + Y6.
 
 ## 1. What is true today (measured 2026-10-10, master + the unpushed item 71 amendment)
 
