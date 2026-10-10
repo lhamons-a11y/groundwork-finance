@@ -256,3 +256,41 @@ in §4.2.
 
 **D9. Lead with the money.** When the card does show, its first line is the drop in dollars a month and what
 it leaves after bills, before any percentage. *Recommended* (Rob's note).
+
+### 4.5 Pay that varies week by week (Rob: "how do we make this work for people who have wages that varies week by week?")
+
+Tested 2026-10-10 on Rob's real Harmon Packaging checks (weekly, $789–$1,837 with overtime), on his own amounts
+shuffled 1,000 times (no real change, so any alarm is false), and with a real 10% / 20% cut planted in the last 8
+weeks:
+
+| Rule (Harmon, weekly) | Real alarms | False alarms | Catches 10% cut | Catches 20% cut |
+|---|---|---|---|---|
+| 8-week totals, 10% down | 4 | 95% | yes | yes |
+| 8-week totals, 15% down | 4 | 76% | no | yes |
+| **regular check: the low end (25th percentile) of the last 8 weeks vs the 8 before, 5% down** | **0** | **4%** | **yes** | **yes** |
+| regular check, 8% down | 0 | 4% | yes | yes |
+
+The four real alarms from totals were overtime easing in August–September, not a pay cut. The regular-check rule
+works because overtime lifts the high weeks and leaves the low end alone, while a cut in hours lowers every week.
+
+For City of Millbrook's every-two-weeks salary, the same regular-check rule gives 15–68% false alarms: eight weeks hold
+only four checks. Salary keeps D4/D5, two checks in a row against the typical check.
+
+**D8 (revised). Hourly pay with overtime: watch the regular check, show overtime as a fact.**
+- For a payer marked hourly (D10), the alarm is the regular-check rule: the 25th percentile of the last 8 weeks'
+  checks against the 8 weeks before. It passed the shuffle test at 4%.
+- Overtime is never an alarm. It is shown as a fact: *"Your ordinary week is about $X. Overtime added $Y over the
+  last 8 weeks; $Z the 8 weeks before."*
+- The person can choose to budget on the regular check, with overtime as extra when it comes. This is offered as an
+  option, never a verdict.
+
+*Recommended.* It replaces the original D8's "a fact, not an alarm, until a rule passes D6": this rule passes.
+
+**D10. The kind of pay is asked, never guessed (AP4).**
+- When a payer's checks spread widely, Groundwork asks once, beside that payer: *"Is this job hourly, with
+  overtime?"*
+- The answer picks the rule for that payer: hourly uses D8, salary uses D4/D5.
+- With no answer yet, the payer gets no alarm, only the facts. The answer is kept as the person's statement and can
+  be changed.
+
+*Recommended.*
