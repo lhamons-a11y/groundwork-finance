@@ -10326,6 +10326,7 @@ async function _loadAirfareMarkets(checkForNewer) {
   if (checkForNewer) {
     try {
       const r = await API.post('/api/trip/airfare-refresh', {});
+      API.post('/api/trip/per-diem-refresh', {}).catch(() => {});   // item 59 P2: GSA's yearly file
       if (r?.updated) _loadAirfareMarkets(false);
     } catch (e) {
       _gwErr('_loadAirfareMarkets refresh')(e);
@@ -11562,13 +11563,24 @@ function tripUpdateBudget() {
   // Hotel estimate, in priority order: a real pasted quote (Phase 5D, either
   // an exact total for the whole stay or a per-night rate) > a real past
   // trip's learned rate (Phase 5C) > the rough $140/night default.
-  let hotelCost, hotelPerNight;
+  // Item 59 P2/P5: a quote you entered > your own past trips > GSA's rate for the place and month > nothing (the
+  // line is left out of the total and says so). The old $140-a-night default is gone.
+  const perDiem = _tripPerDiemFor(dest, depart);
+  let hotelCost = 0, hotelPerNight = 0, hotelSource = '';
   if (_tripQuoteData?.hotelTotal != null) {
     hotelCost = tripExactTotal(_tripQuoteData.hotelTotal);
     hotelPerNight = Math.round(hotelCost / nights);
-  } else {
-    hotelPerNight = _tripQuoteData?.hotelPerNight ?? _tripLearnedBasis?.hotelPerNight ?? 140;
+    hotelSource = 'you entered the quote';
+  } else if (_tripQuoteData?.hotelPerNight != null || _tripLearnedBasis?.hotelPerNight != null) {
+    hotelPerNight = _tripQuoteData?.hotelPerNight ?? _tripLearnedBasis.hotelPerNight;
     hotelCost = Math.round(hotelPerNight * nights);
+    hotelSource = _tripQuoteData?.hotelPerNight != null ? 'you entered the nightly rate' : 'your past trips here';
+  } else if (perDiem && perDiem.found) {
+    hotelPerNight = perDiem.lodging;
+    hotelCost = Math.round(hotelPerNight * nights);
+    hotelSource = `GSA rate for ${perDiem.dest}, ${new Date(depart + 'T12:00:00').toLocaleDateString(undefined, { month: 'long' })}: ${fmt(perDiem.lodging)} a night (the federal travel rate, not a quote)`;
+  } else {
+    hotelSource = perDiem === undefined ? 'looking up the published rate…' : 'No published rate for this destination; enter yours.';
   }
 
   // Dining: Phase 5C learned basis > the user's actual average dining
@@ -11580,22 +11592,33 @@ function tripUpdateBudget() {
   // user with no history gets). Now it averages over the real count, and
   // requires at least 4 samples before trusting history over the default so
   // one big dinner can't skew the whole trip estimate.
-  let avgDailyDining;
+  // Item 59 P2/P5: your past trips > your own dining average > GSA's meals rate > nothing (left out, said). The old
+  // $45-a-day default is gone.
+  let avgDailyDining = 0, diningSource = '';
+  const diningHistory = S.transactions
+    .filter(t => t.type==='debit' && (t.category||'').toLowerCase().includes('dining'))
+    .slice(-30);
   if (_tripLearnedBasis) {
     avgDailyDining = _tripLearnedBasis.diningPerPersonDay * travelers;
+    diningSource = 'your past trips';
+  } else if (diningHistory.length >= 4) {
+    avgDailyDining = (diningHistory.reduce((s,t)=>s+t.amount,0) / diningHistory.length) * travelers;
+    diningSource = `your average dining charge (${diningHistory.length} recent)`;
+  } else if (perDiem && perDiem.found) {
+    avgDailyDining = perDiem.mie * travelers;
+    diningSource = `GSA meals rate for ${perDiem.dest}: ${fmt(perDiem.mie)} a day per person (the federal travel rate)`;
   } else {
-    const diningHistory = S.transactions
-      .filter(t => t.type==='debit' && (t.category||'').toLowerCase().includes('dining'))
-      .slice(-30);
-    avgDailyDining = diningHistory.length >= 4
-      ? (diningHistory.reduce((s,t)=>s+t.amount,0) / diningHistory.length) * travelers
-      : 45 * travelers;
+    diningSource = 'No figure for meals yet; your dining charges or a published rate will fill it.';
   }
   const diningCost = Math.round(avgDailyDining * days);
 
-  // Activities: Phase 5C learned basis > $50/person/day default.
-  const activitiesPerPersonDay = _tripLearnedBasis?.activitiesPerPersonDay ?? 50;
-  const activitiesCost = Math.round(activitiesPerPersonDay * travelers * days);
+  // Item 59 P4: activities are your own figure (or your past trips), or left out - never a guessed price.
+  const activitiesEntered = parseFloat(g('tripActivities')?.value);
+  let activitiesCost = 0, activitiesSource = '';
+  if (activitiesEntered > 0) { activitiesCost = Math.round(activitiesEntered); activitiesSource = 'you entered'; }
+  else if (_tripLearnedBasis?.activitiesPerPersonDay != null) {
+    activitiesCost = Math.round(_tripLearnedBasis.activitiesPerPersonDay * travelers * days); activitiesSource = 'your past trips';
+  } else activitiesSource = 'Not included - add what you plan to spend.';
 
   // Buffer: 10%
   const subtotal = transportCost + hotelCost + diningCost + activitiesCost;
@@ -11631,9 +11654,9 @@ function tripUpdateBudget() {
   _tripBudgetData = {
     dest, depart, ret, nights, days, travelers,
     transport: transportCost, transportNote,
-    hotel:      hotelCost,
-    dining:     diningCost,
-    activities: activitiesCost,
+    hotel:      hotelCost,      hotelSource,
+    dining:     diningCost,     diningSource,
+    activities: activitiesCost, activitiesSource,
     buffer,
     total,
     surplus,
@@ -11656,7 +11679,7 @@ function tripUpdateBudget() {
       <div class="trip-cell">
         <div class="trip-cell-label">Estimated total</div>
         <div class="trip-cell-value">${fmt(total)}</div>
-        <div class="trip-cell-sub">AI will refine this</div>
+        <div class="trip-cell-sub">each line's source is shown below</div>
       </div>
       <div class="trip-cell">
         <div class="trip-cell-label">Monthly surplus</div>
@@ -11787,166 +11810,45 @@ async function _tripLaunchAdvisorAI() {
   }
 }
 
-// ── Phase 10C: AI trip budget ─────────────────────────────────────────────────
+// ── Item 59 (TRIP_REAL_PRICES.md): the trip budget, every line from a named source ─────────────────────────────
+// P1: no model prices any line and nothing is "live": the old AI budget (a model told to "search for real current
+// prices" with no search to use) is gone, on both lines. The budget is the sourced lines tripUpdateBudget works out.
 async function generateTripBudget() {
   const output  = g('tripBudgetOutput');
   const content = g('tripBudgetContent');
   const badge   = g('tripAIBadge');
   if (!output || !content) return;
   if (!_tripBudgetData) { tripUpdateBudget(); if (!_tripBudgetData) return; }
-
   output.style.display = '';
-  content.innerHTML = `<div style="display:flex;align-items:center;gap:10px;color:var(--slate-2);padding:16px 0">
-    <div class="spinner"></div><span>Building your ${esc(_tripBudgetData.dest)} budget…</span></div>`;
-
-  const d       = _tripBudgetData;
-  const vehicle = g('tripVehicle')?.value?.trim() || 'your vehicle';
-  const mpg     = g('tripMPG')?.value || '28';
-  const airport = g('tripAirport')?.value?.trim() || '';
-  const origin  = g('tripOrigin')?.value?.trim() || 'your city';
-
-  if (!aiEnabled()) {
-    _renderTripBudgetFallback(content, badge, d);
-    return;
-  }
-
-  if (badge) badge.textContent = '✦ AI · live prices';
-
-  // Build prompt with web search enabled
-  const transportContext = _tripMode === 'drive'
-    ? `Driving from ${origin} to ${d.dest}. Vehicle: ${vehicle}, ${mpg} MPG highway. Need: distance in miles, current gas price estimate along the route, total fuel cost. Also check if an oil change is advisable (user's last was flagged in their ledger).`
-    : `Flying from ${airport || origin} to ${d.dest}. Need: current roundtrip flight price range for ${d.travelers} passenger${d.travelers!==1?'s':''}, departure ${d.depart}.`;
-
-  const prompt = `You are building a detailed trip budget. Use web search to find current prices.
-
-Trip details:
-  Destination: ${d.dest}
-  Dates: ${d.depart} to ${d.ret} (${d.nights} nights, ${d.days} days)
-  Travelers: ${d.travelers}
-  Transport: ${_tripMode === 'drive' ? 'driving' : 'flying'}
-
-Transport specifics:
-  ${transportContext}
-
-User's financial context:
-  Total trip budget available: ${fmt(d.total)}
-  Monthly surplus after debt: ${fmt(d.surplus)}
-
-Tasks:
-1. Search for current gas prices if driving, or flight prices if flying
-2. Search for hotel options in ${d.dest} for ${d.nights} nights around ${d.depart} — find options in the $90-$160/night range
-3. Estimate dining costs for ${d.dest} (${d.days} days, ${d.travelers} people) based on the city's typical restaurant prices
-4. Suggest 1-2 activities appropriate for ${d.dest}
-
-Return a complete line-item budget that stays within ${fmt(d.total)} total.
-Format your response as a JSON object with this exact structure:
-{
-  "transport": { "cost": number, "note": "string", "detail": "string" },
-  "hotel": { "cost": number, "note": "string", "options": ["string"] },
-  "dining": { "cost": number, "note": "string" },
-  "activities": { "cost": number, "note": "string", "suggestions": ["string"] },
-  "buffer": { "cost": number },
-  "total": number,
-  "verdict": "string (one sentence on whether this fits their budget)",
-  "tip": "string (one specific money-saving tip for this destination)",
-  ${_tripMode === 'drive' ? '"road_notes": "string (stops, traffic, anything useful)",' : '"flight_notes": "string (booking tips, best time to search)",'}
-  "within_budget": boolean
+  _renderTripBudgetFallback(content, badge, _tripBudgetData);
+  // Saved as before (the trip history learns from it) - the sourced lines only, never a model's prices
+  API.post('/api/trip/budget', { ..._tripBudgetData, generatedAt: new Date().toISOString() }).catch(_gwErr('generateTripBudget'));
 }
-Respond with ONLY the JSON object. No markdown, no explanation.`;
 
+// P3: Google Hotels for this trip, in Groundwork's window (the address is built on the server)
+async function openHotelsWindow(mode) {
+  const dest = (_tripMode === 'fly' && g('tripToCity')?.value?.trim()) || g('tripDestination')?.value?.trim();
+  if (!dest) { showToast('Enter the destination first', '', 'warning'); return; }
   try {
-    const result = await callAI({
-      max_tokens: 800,
-      system: 'You are a travel budget assistant. Always search for real current prices. Return only valid JSON.',
-      messages: [{ role:'user', content: prompt }],
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      // Strict-JSON output, not narrative prose — voice/R8 don't apply
-      // (prices come from a live web search, not pre-supplied findings).
-      skipGate: true,
-    });
-
-    if (result.ok) {
-      try {
-        const clean = result.text.replace(/```json|```/g, '').trim();
-        const data  = JSON.parse(clean);
-        _renderTripBudgetResult(content, badge, data, d, result.payload);
-        // Save to DB for tracking
-        API.post('/api/trip/budget', { ...d, aiResult: data, generatedAt: new Date().toISOString() })
-          .catch(_gwErr('generateTripBudget'));
-      } catch(e) {
-        // AI returned text not JSON — render as narrative
-        _renderTripBudgetNarrative(content, badge, result.text, d, result.payload);
-      }
-    } else {
-      _renderTripBudgetFallback(content, badge, d);
-    }
-  } catch(e) {
-    _renderTripBudgetFallback(content, badge, d);
-  }
+    const r = await API.post('/api/trip/hotels-window', { dest, checkin: g('tripDepart')?.value, checkout: g('tripReturn')?.value,
+      guests: parseInt(g('tripTravelers')?.value) || 1, ...(mode ? { mode } : {}) });
+    if (r.result === 'engine_unavailable') return openHotelsWindow('browser');
+    if (r.result !== 'opened' && r.result !== 'already_open') showToast("Couldn't open Google Hotels", r.result, 'warning');
+    else showToast('Google Hotels is open', 'A price you find there is Google\'s; type it into the hotel quote to use it.', 'success');
+  } catch (e) { showToast("Couldn't open Google Hotels", e?.message || '', 'warning'); }
 }
 
-function _renderTripBudgetResult(content, badge, data, d, payload) {
-  if (badge) badge.textContent = '✦ AI · live prices';
-
-  const withinBudget = data.within_budget !== false && data.total <= d.total * 1.05;
-  const statusColor  = withinBudget ? 'var(--pine)' : 'var(--ember)';
-  const statusIcon   = withinBudget ? '✓' : '⚠';
-
-  const rows = [
-    { cat: _tripMode==='drive' ? '🚗 Transport' : '✈ Flights', cost: data.transport?.cost, note: data.transport?.note },
-    { cat: '🏨 Hotel', cost: data.hotel?.cost, note: data.hotel?.note },
-    { cat: '🍽 Dining', cost: data.dining?.cost, note: data.dining?.note },
-    { cat: '🎯 Activities', cost: data.activities?.cost, note: data.activities?.note },
-    { cat: '🛡 Buffer', cost: data.buffer?.cost, note: '10% contingency' },
-  ].filter(r => r.cost > 0);
-
-  content.innerHTML = `
-    <div style="margin-bottom:16px">
-      ${rows.map(r => `
-        <div class="trip-budget-row">
-          <span class="trip-budget-cat">${r.cat}</span>
-          <span><span class="trip-budget-amt">${fmt(r.cost||0)}</span><span class="trip-budget-note">${esc(r.note||'')}</span></span>
-        </div>`).join('')}
-      <div class="trip-budget-row">
-        <span class="trip-budget-cat">Total</span>
-        <span class="trip-budget-amt">${fmt(data.total||0)}</span>
-      </div>
-    </div>
-
-    <div style="padding:10px 14px;border-radius:var(--r-md);border:0.5px solid ${statusColor};background:${withinBudget?'var(--pine-bg)':'var(--ember-bg)'};font-size:12px;color:var(--ink);margin-bottom:14px">
-      ${statusIcon} ${esc(data.verdict||'')}
-    </div>
-
-    ${data.hotel?.options?.length ? `
-    <div style="margin-bottom:14px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Hotel suggestions</div>
-      ${data.hotel.options.map(o => `<div style="font-size:12px;color:var(--ink);padding:4px 0;border-bottom:0.5px solid var(--steel)">${esc(o)}</div>`).join('')}
-    </div>` : ''}
-
-    ${data.activities?.suggestions?.length ? `
-    <div style="margin-bottom:14px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Activities</div>
-      ${data.activities.suggestions.map(s => `<div style="font-size:12px;color:var(--ink);padding:4px 0;border-bottom:0.5px solid var(--steel)">${esc(s)}</div>`).join('')}
-    </div>` : ''}
-
-    ${data.road_notes || data.flight_notes ? `
-    <div style="padding:10px 14px;background:var(--mist);border-radius:var(--r-md);font-size:12px;color:var(--slate);margin-bottom:14px">
-      ${esc(data.road_notes || data.flight_notes || '')}
-    </div>` : ''}
-
-    ${data.tip ? `
-    <div style="padding:10px 14px;border-left:2px solid var(--sky);background:var(--sky-bg);border-radius:0 var(--r-md) var(--r-md) 0;font-size:12px;color:var(--ink)">
-      💡 <strong>Money tip:</strong> ${esc(data.tip)}
-    </div>` : ''}
-    ${_renderAIDisclosure(payload)}`;
-}
-
-function _renderTripBudgetNarrative(content, badge, text, d, payload) {
-  if (badge) badge.textContent = '✦ AI';
-  content.innerHTML = `
-    <div style="font-size:13px;color:var(--ink);line-height:1.75;margin-bottom:16px">${esc(text)}</div>
-    ${_tripBudgetFallbackHTML(d)}
-    ${_renderAIDisclosure(payload)}`;
+// P2: GSA's rate for the destination and month, fetched once per (destination, date) and then read from here
+let _tripPerDiem = { key: null, rate: null };
+function _tripPerDiemFor(dest, depart) {
+  const key = `${dest}|${depart}`;
+  if (!dest || !depart) return null;
+  if (_tripPerDiem.key === key) return _tripPerDiem.rate;
+  _tripPerDiem = { key, rate: undefined };
+  API.get(`/api/trip/per-diem?dest=${encodeURIComponent(dest)}&date=${encodeURIComponent(depart)}`)
+    .then(r => { if (_tripPerDiem.key === key) { _tripPerDiem.rate = r; tripUpdateBudget(); } })
+    .catch(() => { if (_tripPerDiem.key === key) _tripPerDiem.rate = { found: false, reason: 'unreachable' }; });
+  return undefined;
 }
 
 function _renderTripBudgetFallback(content, badge, d) {
@@ -11955,18 +11857,16 @@ function _renderTripBudgetFallback(content, badge, d) {
 }
 
 function _tripBudgetFallbackHTML(d) {
-  const withinBudget = d.total <= d.surplus * 1.2;
+  const line = (cat, amt, src) => `<div class="trip-budget-row"><span class="trip-budget-cat">${cat}</span>
+    <span><span class="trip-budget-amt">${amt ? fmt(amt) : '-'}</span><span class="trip-budget-note">${esc(src || '')}</span></span></div>`;
   return `
-    <div class="trip-budget-row"><span class="trip-budget-cat">${_tripMode==='drive'?'🚗 Transport':'✈ Flights'}</span><span class="trip-budget-amt">${fmt(d.transport)}<span class="trip-budget-note">${esc(d.transportNote)}</span></span></div>
-    <div class="trip-budget-row"><span class="trip-budget-cat">🏨 Hotel</span><span><span class="trip-budget-amt">${fmt(d.hotel)}</span><span class="trip-budget-note">${d.nights} nights · est. avg</span></span></div>
-    <div class="trip-budget-row"><span class="trip-budget-cat">🍽 Dining</span><span><span class="trip-budget-amt">${fmt(d.dining)}</span><span class="trip-budget-note">${d.days} days · based on your avg</span></span></div>
-    <div class="trip-budget-row"><span class="trip-budget-cat">🎯 Activities</span><span class="trip-budget-amt">${fmt(d.activities)}</span></div>
-    <div class="trip-budget-row"><span class="trip-budget-cat">🛡 Buffer</span><span class="trip-budget-amt">${fmt(d.buffer)}</span></div>
+    ${line(_tripMode==='drive'?'🚗 Transport':'✈ Flights', d.transport, d.transportNote)}
+    ${line('🏨 Hotel', d.hotel, d.hotelSource)}
+    ${line('🍽 Dining', d.dining, d.diningSource)}
+    ${line('🎯 Activities', d.activities, d.activitiesSource)}
+    ${line('🛡 Cushion', d.buffer, "10% of the lines above (Groundwork's rule of thumb)")}
     <div class="trip-budget-row"><span class="trip-budget-cat">Total</span><span class="trip-budget-amt">${fmt(d.total)}</span></div>
-    <div style="margin-top:12px;padding:10px 14px;border-radius:var(--r-md);border:0.5px solid ${withinBudget?'var(--pine)':'var(--gold)'};background:${withinBudget?'var(--pine-bg)':'var(--gold-bg)'};font-size:12px">
-      ${withinBudget ? '✓ This trip fits within your budget.' : '⚠ Consider saving for this trip over 2–3 months.'}
-      Turn on AI in Settings for AI-powered live price estimates.
-    </div>`;
+    <div style="margin-top:12px;font-size:12px;color:var(--slate);line-height:1.6">The total counts only lines with a source. Your monthly surplus after debt is ${fmt(d.surplus)}.</div>`;
 }
 
 

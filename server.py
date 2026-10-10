@@ -9311,6 +9311,49 @@ def trip_flights_window_fare_clear():
     return ok({'cleared': True})
 
 
+# ── Item 59 (TRIP_REAL_PRICES.md): GSA's per-diem rates, and Google Hotels in Groundwork's window ──────────────
+def _label_old_ai_prices(saved):
+    """Item 59 P1: a budget saved by an earlier version with the model's figures keeps them, said for what they are."""
+    if isinstance(saved, dict) and saved.get('aiResult') is not None:
+        saved = {**saved, 'aiResult_label': 'estimated by the AI model in an earlier version, not a price'}
+    return saved
+
+
+@trip_bp.route('/per-diem', methods=['GET'])
+def trip_per_diem():
+    """P2: GSA's lodging and meals rate for a destination on a date - the federal travel rate, never a quote. Looked
+    up in the shipped table on this computer; nothing about the trip leaves it."""
+    from core import per_diem
+    return ok(per_diem.lookup(request.args.get('dest', ''), request.args.get('date', '')))
+
+
+@trip_bp.route('/per-diem-refresh', methods=['POST'])
+def trip_per_diem_refresh():
+    """P2: GSA's file for the current fiscal year, when the app's table is older - at most one look a month. The
+    request is GSA's whole public file, carrying nothing about any trip. Any failure keeps the current table."""
+    from core import per_diem
+    return ok(per_diem.refresh())
+
+
+@trip_bp.route('/hotels-window', methods=['POST'])
+@require_json
+def trip_hotels_window():
+    """P3: Google Hotels for the trip's destination, dates and guests, in Groundwork's own window (the bank window's
+    separate, private process, given only the address, as Google Flights is - item 42). The address is built here,
+    so the page can never ask for another site. mode 'browser': the same search in the person's own browser."""
+    import bank_window
+    from core import per_diem
+    body = request.json or {}
+    url = per_diem.google_hotels_url(body.get('dest'), body.get('checkin'), body.get('checkout'), body.get('guests', 1))
+    if not url:
+        return err('Enter the destination first.', 400)
+    if body.get('mode') == 'browser':
+        return ok({'result': bank_window.open_in_browser(url)})
+    key = ('hotels', 0)
+    bank_window.close_bank_window(key)        # a new search replaces the one on screen
+    return ok({'result': bank_window.open_bank_window(key, url)})
+
+
 @trip_bp.route('/airfare-refresh', methods=['POST'])
 def trip_airfare_refresh():
     """
@@ -9584,7 +9627,7 @@ def get_trip_budget():
         row = _get_setting(session, 'trip_budget')
         if row and row.value:
             try:
-                return ok(json.loads(row.value))
+                return ok(_label_old_ai_prices(json.loads(row.value)))
             except Exception:
                 logging.getLogger('groundwork').warning(
                     'trip_budget setting is corrupt JSON — returning None',
@@ -9599,6 +9642,7 @@ def save_trip_budget():
     body = request.json
     with db_session() as session:
         row = _get_setting(session, 'trip_budget')
+        body = {k: v for k, v in (body or {}).items() if k != 'aiResult'}   # item 59 P1: never the model's prices
         val = json.dumps(body)
         if row:
             row.value = val
