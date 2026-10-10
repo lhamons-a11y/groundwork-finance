@@ -94,6 +94,9 @@ def payer_key(t):
 
 def _load(session, today):
     from core.database import Account, Category, Transaction
+    from core.income_def import income_category_ids
+    _INCOME_IDS.clear()
+    _INCOME_IDS.update(income_category_ids(session))
     cats = {c.id: c for c in session.query(Category).all()}
     accts = {a.id: a for a in session.query(Account).all()}
     since = _period(today)[0] - timedelta(days=62)        # a little before the period, for schedules and switches
@@ -106,11 +109,12 @@ def _cat_name(cats, cid):
     return c.name if c else '(no category)'
 
 
+_INCOME_IDS = set()
+
+
 def _is_income_cat(cats, cid):
-    """Today's definition, the one the income figure uses (server _willingness_inputs): the category named Income.
-    Item 71 amendment D1 would widen it; until ruled, the check reports against what the figure really counts."""
-    c = cats.get(cid)
-    return bool(c and (c.name or '').strip().lower() == 'income')
+    """Item 71 amendment D1 (core/income_def.py): the one definition the income figure uses."""
+    return cid in _INCOME_IDS
 
 
 def _row(t, cats, accts):
@@ -152,8 +156,9 @@ def check_inputs_income(session, today, data):
     table = [{'month': m, 'counted': round(counted.get(m, 0), 2),
               'left_out': {k: round(v, 2) for k, v in sorted(left.get(m, {}).items())}} for m in months]
     big = sorted({k for r in table for k, v in r['left_out'].items() if v >= 500})
-    text = (f'Your monthly income counts deposits filed under the category "Income", in complete months '
-            f'({months[0]} to {months[-1]}); the month in progress is left out. Transfers are left out.')
+    text = (f'Your monthly income counts deposits in income categories (Income, the categories under it, and any '
+            f'named for your budget\'s income lines), in complete months ({months[0]} to {months[-1]}); the month in '
+            f'progress is left out. Transfers are left out.')
     if big:
         text += ' Deposits filed under ' + ', '.join(f'"{b}"' for b in big) + ' are not counted.'
     return [_finding('inputs_income', text, extra={'table': table, 'period': [months[0], months[-1]]})]
@@ -197,12 +202,26 @@ def check_wrong_kind(session, today, data):
             by[t.category_id][t.type].append(t)
     income_cats = [c for c in cats.values() if (c.type or '') == 'income']
     out = []
+    # D2: a category counted as income (named for a budget income line) that is still a spending category
+    from core.database import BudgetItem
+    lines = {(b.name or '').strip().lower() for b in session.query(BudgetItem).filter_by(type='income').all()}
+    root = next((c for c in cats.values() if (c.name or '').strip().lower() == 'income'), None)
+    for c in cats.values():
+        if (c.name or '').strip().lower() in lines and (c.type or 'expense') != 'income' and root:
+            held = by.get(c.id, {'credit': [], 'debit': []})
+            text = (f'"{c.name}" is named for one of your budget\'s income lines, so its deposits count as income, but it '
+                    f'is set up as a spending category. It holds {len(held["credit"])} deposits and {len(held["debit"])} '
+                    f'charges.')
+            out.append(_finding('wrong_kind', text, [_row(t, cats, accts) for t in held['credit'] + held['debit']],
+                                [{'kind': 'retype_category', 'label': f'Make "{c.name}" an income category under "{root.name}"',
+                                  'category_id': c.id, 'to_type': 'income', 'to_parent_id': root.id}],
+                                {'category': c.name, 'retype': True}))
     for cid, d in by.items():
         c = cats[cid]
         cr, db = d['credit'], d['debit']
         crs, dbs = sum(t.amount or 0 for t in cr), sum(t.amount or 0 for t in db)
         if (c.type or 'expense') == 'expense' and (c.name or '').lower() != 'transfer' \
-                and len(cr) >= WRONG_KIND_MIN and crs > dbs:
+                and cid not in _INCOME_IDS and len(cr) >= WRONG_KIND_MIN and crs > dbs:
             text = (f'"{c.name}" is a spending category, and it holds {len(cr)} deposits (${crs:,.2f})'
                     + (f' and {len(db)} charges (${dbs:,.2f})' if db else '') + '.')
             fixes = [_recat_fix(f'Move the {len(cr)} deposits to "{ic.name}"', [t.id for t in cr], ic.id, None, 'credit')
@@ -211,7 +230,7 @@ def check_wrong_kind(session, today, data):
                 fixes.append(_recat_fix(f'Move the {len(db)} charges to a category you pick', [t.id for t in db], None,
                                         None, 'debit'))
             out.append(_finding('wrong_kind', text, [_row(t, cats, accts) for t in cr + db], fixes, {'category': c.name}))
-        elif (c.type or '') == 'income' and db:
+        elif cid in _INCOME_IDS and db:
             text = f'"{c.name}" is an income category, and it holds {len(db)} charges (${dbs:,.2f}).'
             out.append(_finding('wrong_kind', text, [_row(t, cats, accts) for t in db],
                                 [_recat_fix(f'Move the {len(db)} charges to a category you pick', [t.id for t in db],
@@ -389,9 +408,31 @@ def matching_rules(rules, payer, direction):
                  or (r.get('type') == 'startsWith' and p.startswith(str(r.get('value', '')).lower())))]
 
 
+def _retype_preview(session, fix):
+    """D2: a category's kind and parent, changed. Rows keep their category; what they count toward follows it."""
+    from core.database import Category, Transaction
+    c = session.get(Category, fix.get('category_id') or 0)
+    parent = session.get(Category, fix.get('to_parent_id') or 0)
+    if not c or not parent or fix.get('to_type') != 'income':
+        return None
+    rows = session.query(Transaction).filter_by(category_id=c.id).order_by(Transaction.date).all()
+    state = json.dumps([c.id, c.type, c.parent_id, len(rows)])
+    return {'label': f'Make "{c.name}" an income category under "{parent.name}"', 'retype': True,
+            'category': {'id': c.id, 'name': c.name, 'type': c.type or 'expense', 'parent': c.parent_id},
+            'to': {'type': 'income', 'parent': parent.name},
+            'count': len(rows), 'deposits': sum(1 for t in rows if t.type == 'credit'),
+            'charges': sum(1 for t in rows if t.type == 'debit'),
+            'total': round(sum(t.amount or 0 for t in rows if t.type == 'credit'), 2), 'rows': [],
+            'figure': [], 'feeds': ['Every place that sorts categories by kind (the category list, the budget, reports)'],
+            'others_may_change': 'Its rows keep their category; only the category\'s kind and place change.',
+            'rule': None, 'fingerprint': hashlib.sha256(state.encode()).hexdigest()[:24], 'fix': fix}
+
+
 def preview(session, fix, rules):
     """Everything the person sees before saying yes. None when the fix is malformed."""
     from core.database import Category, Transaction
+    if isinstance(fix, dict) and fix.get('kind') == 'retype_category':
+        return _retype_preview(session, fix)
     if not isinstance(fix, dict) or fix.get('kind') != 'recategorize':
         return None
     ids = [int(i) for i in (fix.get('ids') or []) if str(i).isdigit()][:500]
@@ -434,6 +475,23 @@ def apply(session, fix, fp, rules, use_rule=False):
         return 'invalid', None
     if p['fingerprint'] != fp:
         return 'stale', p
+    if p.get('retype'):
+        from core.database import Category
+        c = session.get(Category, p['category']['id'])
+        before = {'type': c.type, 'parent_id': c.parent_id}
+        c.type, c.parent_id = 'income', fix['to_parent_id']
+        session.flush()
+        got = session.query(Category.type, Category.parent_id).filter(Category.id == c.id).one()
+        if tuple(got) != ('income', fix['to_parent_id']):
+            session.rollback()
+            return 'failed', None
+        entry = HistorianEntry(event_category='record_fix', context_json=json.dumps({
+            'label': p['label'], 'to': 'income category', 'changes': [], 'total': p['total'],
+            'retype': {'category_id': c.id, 'before': before, 'after': {'type': 'income', 'parent_id': fix['to_parent_id']}},
+            'rule_added': None}))
+        session.add(entry)
+        session.flush()
+        return 'applied', {'historian_id': entry.id, 'changed': 1, 'rules': rules, 'rule_added': None}
     rows = session.query(Transaction).filter(Transaction.id.in_(p['fix']['ids'])).all()
     changes = [{'id': t.id, 'from': t.category_id, 'to': p['to']['id']} for t in rows]
     for t in rows:
@@ -466,8 +524,17 @@ def undo(session, historian_id, rules):
     ctx = json.loads(e.context_json or '{}')
     if ctx.get('undone'):
         return {'already': True}
-    by_id = {t.id: t for t in session.query(Transaction).filter(Transaction.id.in_([c['id'] for c in ctx['changes']]))}
     reverted, kept = [], []
+    rt = ctx.get('retype')
+    if rt:
+        from core.database import Category
+        c = session.get(Category, rt['category_id'])
+        if c and c.type == rt['after']['type'] and c.parent_id == rt['after']['parent_id']:
+            c.type, c.parent_id = rt['before']['type'], rt['before']['parent_id']
+            reverted.append(c.id)
+        elif c:
+            kept.append(c.id)
+    by_id = {t.id: t for t in session.query(Transaction).filter(Transaction.id.in_([c['id'] for c in ctx['changes']]))}
     for c in ctx['changes']:
         t = by_id.get(c['id'])
         if t and t.category_id == c['to']:

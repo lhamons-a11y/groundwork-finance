@@ -145,7 +145,7 @@ has dipped ... it should look at the past 8 weeks income average compared to eac
 over the ledger see income salary and then look at the last 5 deposits and determine if the income dropped by more
 than 8% for two pay periods in a row. why 8%"*
 
-**D1–D10 RULED 2026-10-10 as recommended (Rob: "approve D1–D10 as recommended"), with D8 as revised in §4.5. No code yet:** the build needs its own go-ahead.
+**D1–D10 RULED 2026-10-10 as recommended (Rob: "approve D1–D10 as recommended"), with D8 as revised in §4.5. BUILT 2026-10-10 (Rob: "build it"), awaiting acceptance - with D8's rule changed by D6's own test, §4.6.**
 
 ### 4.1 What happened on Rob's data (measured 2026-10-10, a copy of the live database, nothing changed)
 
@@ -294,3 +294,62 @@ only four checks. Salary keeps D4/D5, two checks in a row against the typical ch
   be changed.
 
 *Recommended.*
+
+
+### 4.6 Built (2026-10-10), and where the build departs from the ruling
+
+- **D1.** `core/income_def.py` is the one definition. It is used by the monthly figures (`_willingness_inputs`), the
+  paycheck judging, Ask why's checks, and, mirrored as `_isIncomeCategory`, the page's own income reader. Proof:
+  s190, including a Node run of the page's copy.
+- **D2.**
+  - A budget income line that names a new category now creates an income category under Income. The origin was
+    `create_budget_item` / `update_budget_item`, which created every new category as a spending one.
+  - An existing category named for an income line but set up for spending is found by Ask why, with a fix:
+    *Make it an income category under Income*. The fix is previewed, applied on the tap, recorded and undoable.
+- **D3–D6** (`detect_pay`, `judge_payer`):
+  - each payer is judged on its own checks;
+  - two deposits on one day are one paycheck;
+  - steady pay is compared with the typical check of the ~8 weeks before the drop: 2 checks for every-two-weeks or
+    monthly pay, 4 for weekly;
+  - a drop must be at least 8% and twice the payer's own swing;
+  - the earliest start that holds wins, so a cut that has lasted months is still measured against the pay before it.
+- **D7.** A payday that passed while the account kept recording becomes the question *"hasn't come in since … Is it
+  filed somewhere else, or did it stop?"*, with *Check my records*. If the account's records end first, the paycheck
+  is *not on record yet*: no card.
+- **D8, as built, departs from the ruled rule. D6 decided it.**
+  - The ruled rule was the 25th percentile of the last 8 weeks against the 8 before. On synthetic hourly pay with
+    overtime in streaks, it gave 17% false alarms with fixed windows, and 70% when searched back over time. That is
+    well past D6's 5%.
+  - Built instead: the **10th percentile of the last 12 weeks against the 12 before**.
+  - When overtime fills **more than 65% of the weeks**, no ordinary week can be told apart. Groundwork then shows the
+    figures and says so, with no alarm (AP9). An ordinary week is a pay level that repeats; overtime amounts and a
+    short week don't repeat.
+  - Measured in s183's null models:
+
+    | Pay pattern | False alarms |
+    |---|---|
+    | salary noise | 0% |
+    | a double check | 0% |
+    | monthly pay | 0% |
+    | late deposits | 0% |
+    | overtime in streaks | 2.1% |
+    | overtime most weeks | 4.0% |
+
+  - A real 13% cut in hours is caught 93% of the time, and a 12% pay cut 100%.
+  - On Rob's real Harmon pay: steady, with the ordinary week $788.77 and overtime $1,358.04 over the last 12 weeks.
+  - A cut in hours under heavy overtime mostly reads "can't tell", not "found". That is honest, and it is the cost
+    of staying under 5%. **This departure needs Rob's acceptance.**
+- **D9.** The card leads with the dollars a month and what is left after the budgeted spending, then the checks.
+  The Willingness home's line says the same.
+- **D10.**
+  - *"Is this job hourly, with overtime?"* is asked once per payer whose checks move a lot: more than 30% of checks
+    differ from the one before by over 10%.
+  - A single step down, or one double check, is not "moving a lot".
+  - The answer is kept as said (`pay_kinds`, the latest wins) and can be changed (*It's not hourly*). Until then
+    that payer gets no alarm.
+- **Removed:** the month-based `detect`, which nothing calls now.
+- **On Rob's data** (a copy):
+  - City of Millbrook reads as steady salary.
+  - Harmon Packaging is asked about. Answered hourly, it is steady, with its ordinary week and overtime shown.
+  - There is no false card.
+- **Tests:** s183 (the detection rules and their null models) and s190 (D1, D2, D9, D10).

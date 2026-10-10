@@ -9985,7 +9985,7 @@ function _buildStageContext() {
       const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
       const inc = S.transactions
         .filter(t => t.date?.startsWith(key) && t.type === 'credit' &&
-                    (t.category === 'Income' || t.category === 'income'))
+                    _isIncomeCategory(t.category))
         .reduce((s,t) => s + t.amount, 0);
       if (inc > 0) monthlyIncome.push(inc);
     }
@@ -23303,17 +23303,69 @@ function _debtWhen(months) {
   return `${months} months (${d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })})`;
 }
 
+// Item 71 amendment D1: the page's own income test, the same rule as core/income_def.py - an income-type category,
+// one under Income, or one named for a budget income line.
+function _isIncomeCategory(name) {
+  const n = String(name || '').trim().toLowerCase();
+  if (!n) return false;
+  if ((S.incomes || []).some(i => String(i.name || '').trim().toLowerCase() === n)) return true;
+  const cats = S.categories || [];
+  let c = cats.find(x => String(x.name || '').trim().toLowerCase() === n);
+  const seen = new Set();
+  while (c && !seen.has(c.id)) {
+    if (c.type === 'income' || String(c.name || '').trim().toLowerCase() === 'income') return true;
+    seen.add(c.id);
+    c = cats.find(x => x.id === c.parent_id);
+  }
+  return n === 'income';
+}
+
+const _PAY_EVERY = { 7: 'week', 14: 'two weeks', 30: 'month' };
+
+// D7 / D8 / D10: each payer, as facts - a paycheck that has not come in is asked about; hourly pay shows its ordinary
+// week and its overtime; pay that varies is asked about once. None of these is an alarm.
+function _payFactsHtml(st) {
+  const ps = (st && st.payers) || [];
+  const name = p => esc(p.payer.replace(/\b\w/g, ch => ch.toUpperCase()));
+  const rows = ps.map(p => {
+    if (p.state === 'missing') return `<div style="padding:6px 0">Your ${name(p)} pay hasn't come in since ${_billDate(p.since)}. Is it filed somewhere else, or did it stop?
+      <button class="btn btn-ghost btn-sm" onclick="openWhy('income_month')">Check my records</button></div>`;
+    if (p.state === 'ask') return `<div style="padding:6px 0">${name(p)}: your checks have ranged from ${fmt(p.low)} to ${fmt(p.high)}. Is this job hourly, with overtime?
+      <button class="btn btn-secondary btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'hourly')">Hourly, with overtime</button>
+      <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'salary')">Salary or steady pay</button>
+      <div style="font-size:11px;color:var(--slate-2)">Your answer picks how Groundwork reads this pay. Until then it watches nothing here.</div></div>`;
+    if (p.rule === 'hourly' && p.ordinary != null) return `<div style="padding:6px 0">${name(p)}: your ordinary ${_PAY_EVERY[p.every] || 'check'} is about ${fmt(p.ordinary)}.
+      Overtime added ${fmt(p.overtime.recent)} over the last ${p.overtime.weeks} weeks; ${fmt(p.overtime.before)} the ${p.overtime.weeks} weeks before.
+      <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'salary')">It's not hourly</button></div>`;
+    return '';
+  }).filter(Boolean);
+  return rows.length ? `<div class="card mt-5"><div class="card-label">Your pay</div><div style="font-size:12px;color:var(--ink);line-height:1.6">${rows.join('')}</div></div>` : '';
+}
+
+async function incomePayKind(payer, kind) {
+  try {
+    const st = await API.post('/api/income-change/pay-kind', { payer, kind });
+    const el = g('budgetIncomeChange');
+    if (el) el.innerHTML = incomeChangeHtml(st);
+  } catch (e) { _gwErr('incomePayKind')(e); }
+}
+
 function incomeChangeHtml(st) {
   const ch = st && st.change;
+  const facts = _payFactsHtml(st);
   if (!ch) {
     const ap = st && st.applied;
-    return ap ? `<div class="card mt-5" style="font-size:12px;color:var(--slate)">You changed ${ap.changes.length} budget line${ap.changes.length === 1 ? '' : 's'} on ${_billDate(ap.at)} to follow your income.
-      <button class="btn btn-ghost btn-sm" onclick="incomeChangeUndo()">Undo</button></div>` : '';
+    return (ap ? `<div class="card mt-5" style="font-size:12px;color:var(--slate)">You changed ${ap.changes.length} budget line${ap.changes.length === 1 ? '' : 's'} on ${_billDate(ap.at)} to follow your income.
+      <button class="btn btn-ghost btn-sm" onclick="incomeChangeUndo()">Undo</button></div>` : '') + facts;
   }
-  if (st.snoozed) return '';
-  const fact = ch.kind === 'step'
-    ? `Your recorded income moved from about ${fmt(ch.from)} a month to about ${fmt(ch.to)}, from ${_monthName(ch.month)} on.`
-    : `Your recorded income has been lower each month since ${_monthName(ch.month)}: about ${fmt(ch.to)} a month, from about ${fmt(ch.from)} the three months before.`;
+  if (st.snoozed) return facts;
+  // D9: the money first - dollars a month, and what it leaves after the budgeted spending - then the checks behind it
+  const who = esc(String(ch.payer || '').replace(/\b\w/g, x => x.toUpperCase()));
+  const fact = `Your pay from ${who} is about <b>${fmt(ch.monthly_drop)} a month less</b>. `
+    + (st.left_before != null ? `After your budgeted spending that leaves about ${fmt(st.left_now)} a month, from ${fmt(st.left_before)}. ` : '')
+    + `<span style="color:var(--slate)">${ch.rule === 'hourly'
+        ? `Your ordinary ${_PAY_EVERY[ch.every] || 'check'} was about ${fmt(ch.per_check_before)}; over the last 12 weeks it has been about ${fmt(ch.per_check_now)}. Overtime is not counted in either.`
+        : `Your checks were about ${fmt(ch.per_check_before)}; the last ones have been about ${fmt(ch.per_check_now)}, since ${_billDate(ch.month + '-01').replace(/ \d+,/, '')}.`}</span>`;
   const holds = st.gap > 0
     ? `What still holds: rent, food, insurance and anything you protected are untouched in every option below. It's ${fmt(st.gap)} a month of the rest that doesn't fit.`
     : 'Your budgeted spending still fits inside this income.';
@@ -23346,7 +23398,7 @@ function incomeChangeHtml(st) {
     <div style="font-size:12px;color:var(--slate);margin-top:4px;line-height:1.6">${holds}</div>
     <div style="font-size:12px;color:var(--slate);margin-top:8px">Do you expect this to last?</div><div>${ask}</div>
     <div style="font-size:11px;color:var(--slate-2);margin-top:8px">What each would mean, side by side. These are worked out from your record and recalculated when it changes; none of them is a prediction.</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">${cards}</div></div>`;
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">${cards}</div></div>` + facts;
 }
 
 async function renderIncomeChange() {

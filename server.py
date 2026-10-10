@@ -1626,10 +1626,11 @@ def _willingness_inputs(session, months: int = 12) -> dict:
     # Income by month - only months with income on record appear, so a month with none is unknown rather
     # than zero (absence is not zero).
     income = {}
+    from core.income_def import income_category_ids    # item 71 amendment D1: one definition of income
     for m, total in session.query(
             func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)
-    ).join(Category, Transaction.category_id == Category.id).filter(
-        Transaction.type == 'credit', func.lower(Category.name) == 'income',
+    ).filter(
+        Transaction.type == 'credit', Transaction.category_id.in_(income_category_ids(session)),
         Transaction.date >= cutoff, Transaction.date < month_start
     ).group_by(func.strftime('%Y-%m', Transaction.date)).all():
         if m and total and float(total) > 0:
@@ -1742,14 +1743,39 @@ def willingness_declare():
 # ── Item 71 - when income drops (INCOME_CHANGE_SCENARIOS.md), on item 66's frame ─────────────────────────────
 # Computed on every read (SC5): nothing derived is stored. What is kept is the person's own: their answer to "do you
 # expect this to last?" (append-only, with when), their "not now" for the month, and what they applied (for Undo).
+def _pay_kinds(session):
+    """D10: the person's answer per payer - {payer: 'hourly'|'salary'} - from their own statements (latest wins)."""
+    out = {}
+    for s in _setting_json(session, 'pay_kinds', []) or []:
+        if isinstance(s, dict) and s.get('payer') and s.get('kind') in ('hourly', 'salary'):
+            out[s['payer']] = s['kind']
+    return out
+
+
+def _pay_state(session, today=None):
+    """Item 71 amendment D1/D3-D10: every income deposit of the last ten months, judged per payer on its own
+    checks. Calendar months stay only for the scenarios' monthly figures."""
+    from core import income_change as ic
+    from core.ask_why import payer_key
+    from core.income_def import income_category_ids
+    today = today or date.today()
+    rows = session.query(Transaction).filter(
+        Transaction.type == 'credit', Transaction.category_id.in_(income_category_ids(session)),
+        Transaction.date >= today - timedelta(days=300)).all()
+    ends = dict(session.query(Transaction.account_id, func.max(Transaction.date)).group_by(Transaction.account_id).all())
+    deposits = [{'date': t.date, 'amount': t.amount or 0, 'payer': payer_key(t), 'account_id': t.account_id}
+                for t in rows if (t.amount or 0) > 0 and payer_key(t)]
+    return ic.detect_pay(deposits, _pay_kinds(session), ends, today)
+
+
 def _income_change_state(session):
     from core import income_change as ic
-    w = _willingness_inputs(session)
-    change = ic.detect(w['income'])
+    pay = _pay_state(session)
+    change = pay['change']
     answers = _setting_json(session, 'income_change_answers', []) or []
     applied = _setting_json(session, 'income_change_applied')
     if not change:
-        return {'change': None, 'applied': applied}
+        return {'change': None, 'applied': applied, 'payers': pay['payers']}
     answer = next((a['answer'] for a in reversed(answers) if a.get('since') == change['month']), None)
     month_amts = budget_month_amounts(session)
     items = session.query(BudgetItem).filter_by(is_active=True, type='expense').all()
@@ -1773,7 +1799,9 @@ def _income_change_state(session):
     from core import household
     return {'change': change, 'answer': answer, 'outflow': outflow, 'goal': household.current(session, 'surplus_goal'),
             'snoozed': (_get_setting(session, 'income_change_snooze') or AppSetting(value='')).value == today,
-            'applied': applied, **sc}
+            'applied': applied, 'payers': pay['payers'],
+            # D9: the money first - what is left after the budgeted spending, before and now
+            'left_before': round(change['from'] - outflow, 2), 'left_now': round(change['to'] - outflow, 2), **sc}
 
 
 evidence_bp = Blueprint('evidence', __name__)
@@ -2024,6 +2052,24 @@ def income_change_undo():
         row = _get_setting(session, 'income_change_applied')
         if row:
             session.delete(row)
+        session.commit()
+        return ok(_income_change_state(session))
+
+
+@income_bp.route('/pay-kind', methods=['POST'])
+@require_json
+def income_pay_kind():
+    """D10: the person says what kind of pay a payer's is - hourly with overtime, or salary / steady. Kept as their
+    statement (append-only, latest wins), changeable; it picks the rule for that payer."""
+    body = request.json or {}
+    payer = str(body.get('payer') or '').strip().lower()[:60]
+    kind = body.get('kind')
+    if not payer or kind not in ('hourly', 'salary'):
+        return err("a payer and kind 'hourly' or 'salary' are needed")
+    with db_session() as session:
+        said = _setting_json(session, 'pay_kinds', []) or []
+        said.append({'payer': payer, 'kind': kind, 'said_at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'pay_kinds', json.dumps(said[-200:]))
         session.commit()
         return ok(_income_change_state(session))
 
@@ -3266,6 +3312,11 @@ def create_budget_item():
             ).first()
             if not cat:
                 cat = Category(name=cat_name)
+                if body.get('type') == 'income':
+                    # item 71 amendment D2: an income line's new category is an income category under Income -
+                    # created as a spending one, it hid the pay filed under it from every income figure
+                    cat.type = 'income'
+                    cat.parent_id = getattr(session.query(Category).filter(func.lower(Category.name) == 'income').first(), 'id', None)
                 session.add(cat)
                 session.flush()
             cat_name = cat.name  # normalize to existing casing if it matched
@@ -3315,6 +3366,9 @@ def update_budget_item(item_id):
                 ).first()
                 if not cat:
                     cat = Category(name=cat_name)
+                    if item.type == 'income':        # item 71 amendment D2, as on create
+                        cat.type = 'income'
+                        cat.parent_id = getattr(session.query(Category).filter(func.lower(Category.name) == 'income').first(), 'id', None)
                     session.add(cat)
                     session.flush()
                 cat_name = cat.name

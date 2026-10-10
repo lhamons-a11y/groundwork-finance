@@ -167,7 +167,7 @@
   function _incomeHTML(st) {
     if (!st || !st.change) return '';
     var c = st.change;
-    var line = 'Your recorded income moved to about ' + fmt(c.to) + ' a month from ' + _month(c.month) + ' (from about ' + fmt(c.from) + ').';
+    var line = 'Your pay' + (c.payer ? ' from ' + esc(c.payer) : '') + ' is about ' + fmt(c.monthly_drop || (c.from - c.to)) + ' a month less since ' + _month(c.month) + '.';
     if (st.answer) line += ' You said ' + ({ lasting: 'you expect it to last for now', temporary: 'it is temporary', unsure: 'you are not sure yet' }[st.answer]) + '.';
     if (st.applied && st.applied.changes && st.applied.changes.length) {
       line += ' On ' + _date(st.applied.at) + ' you moved ' + fmt(st.applied.changes.reduce(function (t, x) { return t + (x.old - x.new); }, 0))

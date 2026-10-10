@@ -30,44 +30,94 @@ def run(ctx):
     from core import income_change as ic
     from core.consequence import Card
 
-    # ── I1 ──
-    ms = _months(10)
-    step = {m: (4600.0 if i < 6 else 3900.0) for i, m in enumerate(ms)}
-    d = ic.detect(step)
-    check('s183 I1 a step down is found, said as a fact: from, to, and the month', d and d['to'] < d['from'] and d['month'] in ms)
-    slide = dict(zip(ms, [4000, 4000, 4000, 4000, 4000, 4000, 3700, 3500, 3400, 3300]))
-    check('s183 I1 a slide is found', ic.detect(slide) is not None)
-    flat = {m: 4000.0 for m in ms}
-    gappy = {m: v for i, (m, v) in enumerate(slide.items()) if i != 6}
-    check('s183 I1 level income is not a drop; a missing month is unknown, never zero, and no slide is read across it',
-          ic.detect(flat) is None and ic.detect({m: 4000.0 for m in ms[:4]}) is None
-          and ic.detect(gappy) is None)
+    # ── I1, as amended (section 4, D3-D10): each payer judged on its own checks ──
+    today = date.today()
+
+    def series(every, n, amount, end=None):
+        end = end or today - timedelta(days=2)
+        return [(end - timedelta(days=every * (n - 1 - k)), amount(k)) for k in range(n)]
+
+    J = lambda checks, kind=None, ends=None: ic.judge_payer('p', checks, kind, today, ends or today)
+    steady = series(14, 20, lambda k: 2400.0)
+    cut = series(14, 20, lambda k: 2400.0 if k < 15 else 2100.0)
+    d = J(cut)
+    check(f's183 D4/D5 a cut in steady pay is found, measured against the checks before it, in dollars a month ({d.get("monthly_drop")})',
+          d['state'] == 'drop' and d['per_check_before'] == 2400.0 and d['per_check_now'] == 2100.0
+          and abs(d['monthly_drop'] - 300 * 26 / 12) < 0.01 and J(steady)['state'] == 'steady')
+    long_cut = series(30, 10, lambda k: 4600.0 if k < 6 else 3900.0)
+    check('s183 D4 a cut that has lasted months is still measured against the pay before it, not the new level',
+          J(long_cut)['state'] == 'drop' and J(long_cut)['per_check_before'] == 4600.0)
+    stopped = series(14, 12, lambda k: 2400.0, end=today - timedelta(days=40))
+    check('s183 D7 a paycheck that has not come in, while the account kept recording, is asked about - never a drop',
+          J(stopped, ends=today)['state'] == 'missing' and J(stopped, ends=today - timedelta(days=39))['state'] == 'not_on_record_yet')
+    hourly = series(7, 30, lambda k: 950.0 + (700.0 if k % 5 in (1, 2) else 0))
+    check('s183 D10 pay that varies widely is asked about once, and gets no alarm until answered; a single step or a double check is not "varies"',
+          J(hourly)['state'] == 'ask' and J(hourly, 'hourly')['state'] == 'steady' and J(cut)['state'] == 'drop'
+          and J(series(14, 20, lambda k: 4800.0 if k == 9 else 2400.0))['state'] == 'steady')
+    heavy = series(7, 30, lambda k: 950.0 + (600.0 + 37 * (k % 7) if k % 6 != 0 else 0))
+    check('s183 D8 / AP9 overtime nearly every week: no ordinary week can be told, so it says so - facts, no alarm',
+          J(heavy, 'hourly')['state'] == 'cannot_tell')
+    h = J(hourly, 'hourly')
+    check(f's183 D8 hourly pay: the ordinary week and the overtime, as facts ({h.get("ordinary")}, {h.get("overtime")})',
+          h['ordinary'] == 950.0 and h['overtime']['recent'] > 0)
+    hours_cut = series(7, 30, lambda k: (950.0 if k < 18 else 830.0) + (700.0 if k % 5 in (1, 2) else 0))
+    hc = J(hours_cut, 'hourly')
+    check(f's183 D8 a cut in hours is found under the overtime ({hc.get("per_check_before")} -> {hc.get("per_check_now")})',
+          hc['state'] == 'drop' and hc['per_check_before'] == 950.0 and hc['per_check_now'] < 950.0 * 0.92)
+    split = [(today - timedelta(days=14 * (19 - k)), 1200.0) for k in range(20)] * 2
+    sp = ic.detect_pay([{'date': dd, 'amount': a, 'payer': 'p', 'account_id': 1} for dd, a in split], {}, {1: today}, today)
+    check('s183 D3 a paycheck split across two deposits on one day is one paycheck', sp['payers'][0]['state'] == 'steady'
+          and sp['payers'][0]['typical'] == 2400.0)
+
+    # the null models (D6): no real change, each payer shape 1,000 times - false drops <= 5%
     rnd = random.Random(71)
 
-    def biweekly():
-        three = set(rnd.sample(range(12), 2))
-        return {m: 2000.0 * (3 if i % 12 in three else 2) for i, m in enumerate(_months(12))}
+    def salary_noise():
+        return series(14, 22, lambda k: 2400.0 * rnd.uniform(.985, 1.015)), None
 
-    def commission():
-        return {m: 3500 + (rnd.random() < .3) * rnd.uniform(500, 2500) for m in _months(12)}
+    def salary_double():
+        dbl = rnd.randrange(22)
+        return series(14, 22, lambda k: 2400.0 * (2 if k == dbl else 1) * rnd.uniform(.99, 1.01)), None
+
+    def monthly_noise():
+        return series(30, 10, lambda k: 4000.0 * rnd.uniform(.98, 1.02)), None
 
     def late():
-        v = [4000.0] * 12
-        for i in range(11):
-            if rnd.random() < .15:
-                v[i] -= 2000
-                v[i + 1] += 2000
-        return dict(zip(_months(12), v))
+        s = series(14, 22, lambda k: 2400.0)
+        i = rnd.randrange(1, 21)
+        s[i] = (s[i][0] + timedelta(days=rnd.choice((2, 3))), s[i][1])
+        return s, None
 
-    def noisy():
-        return {m: max(1.0, rnd.gauss(4000, 800)) for m in _months(12)}
-    rates = {n: sum(1 for _ in range(1000) if ic.detect(g())) / 1000
-             for n, g in (('biweekly', biweekly), ('commission', commission), ('late deposit', late), ('noise 20%', noisy))}
-    check(f"s183 I1 null model: false drops stay <= 5% - {', '.join(f'{k} {v:.1%}' for k, v in rates.items())}",
+    def overtime_streaks(stay=.7, enter=.3):
+        on, out = False, []
+        for k in range(32):
+            on = (rnd.random() < stay) if on else (rnd.random() < enter)
+            out.append(950.0 * rnd.uniform(.99, 1.01) + (rnd.uniform(300, 1100) if on else 0))
+        end = today - timedelta(days=2)
+        return [(end - timedelta(days=7 * (31 - k)), a) for k, a in enumerate(out)], 'hourly'
+
+    rates = {}
+    for name, gen in (('salary noise', salary_noise), ('a double check', salary_double), ('monthly', monthly_noise),
+                      ('late deposits', late), ('hourly overtime streaks', overtime_streaks),
+                      ('hourly overtime most weeks', lambda: overtime_streaks(.8, .45))):
+        hits = 0
+        for _ in range(1000):
+            s, kind = gen()
+            hits += J(s, kind)['state'] == 'drop'
+        rates[name] = hits / 1000
+    check(f"s183 D6 null model: false drops stay <= 5% - {', '.join(f'{k} {v:.1%}' for k, v in rates.items())}",
           all(v <= 0.05 for v in rates.values()))
-    real = sum(1 for _ in range(300) if ic.detect(dict(zip(_months(12), [4000.0 * rnd.uniform(.98, 1.02)] * 8
-                                                               + [3800, 3500, 3300, 3200])))) / 300
-    check(f's183 I1 and a real slide is found ({real:.0%})', real >= 0.9)
+
+    def real_cut():
+        return series(14, 22, lambda k: 2400.0 * rnd.uniform(.985, 1.015) * (1 if k < 18 else .88)), None
+
+    def real_hours_cut():
+        s, _ = overtime_streaks(.5, .15)        # overtime now and then; a cut under heavy overtime may read "can't tell"
+        return [(dd, a - (124.0 if k >= 20 else 0)) for k, (dd, a) in enumerate(s)], 'hourly'
+    found = {n: sum(J(*g())['state'] == 'drop' for _ in range(300)) / 300 for n, g in (('a 12% pay cut', real_cut),
+                                                                                       ('a 13% cut in hours', real_hours_cut))}
+    check(f"s183 D6 and real cuts are found: {', '.join(f'{k} {v:.0%}' for k, v in found.items())}",
+          all(v >= 0.9 for v in found.values()))
 
     # ── I3 / I4 / I6 engine ──
     lines = [{'id': 1, 'name': 'Rent', 'category': 'Rent', 'amount': 1500.0},

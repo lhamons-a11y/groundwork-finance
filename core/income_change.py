@@ -4,74 +4,182 @@ when recorded income drops, the scenarios that show what follows, and the budget
 Everything here is arithmetic over what it is handed - no database, no clock of its own, nothing stored. The
 server gathers the record; the person's answer and their tap are the only things kept, and the server keeps them.
 
-  I1  `detect`: a step (the existing break detector, core/breaks) or a slide (four months below the three before,
-      every one of them under the lowest of those) in recorded income. Months with no income on record are unknown,
-      never zero. It never says why.
+  I1  as amended (section 4, D1-D10): `detect_pay` judges each payer on its own checks - the typical check for steady
+      pay, the ordinary week for hourly pay - never calendar months. A paycheck that has not come in is asked about,
+      never counted as zero. It never says why.
   I3  `scenarios`: five futures, each with its assumptions in words and every figure tagged by kind (item 66 SC3:
       observed / projected / user_supplied), each scored against the person's goal (SC1).
   I4  `order`: which leads - from the person's own answer first, then the smallest change that keeps the goal.
   I6  `budget_follows`: the lines that would change and to what (the person's flexible categories first, never the
       necessity floor or a protected one); applied only on the person's tap, by the server.
 """
-from core.breaks import detect_break
 from core.consequence import simulate_payoff
 from core.solution import is_protected
 
-DROP_SHARE = 0.10          # a tenth is where a pay change stops being noise (as E.2a's INCOME_CHANGE_SHARE)
-SLIDE_RECENT = 3           # the recent months, each below the lowest of the PRIOR months
-SLIDE_PRIOR = 3           # at least this many earlier months to judge against
-PRIOR_MAX = 6             # and up to this many: the recent months must sit under every one of them
-SLIDE_MARGIN = 0.02        # "below" means under that lowest month by more than 2%, so a level month is not a slide
 LINE_CUT_SHARE = 0.5       # a line gives at most half of itself in the budget-follows scenario: spread, not emptied
 KIND = ('observed', 'projected', 'user_supplied')
 
 
-def _consecutive(months):
-    def nxt(m):
-        y, mo = int(m[:4]), int(m[5:7])
-        return f'{y + 1}-01' if mo == 12 else f'{y}-{mo + 1:02d}'
-    return all(nxt(a) == b for a, b in zip(months, months[1:]))
+# ── Item 71 amendment D3-D10 (section 4, RULED 2026-10-10): each payer's own paychecks, not calendar months ──
+# Tested on real pay before it was built (section 4.2 / 4.5): the average fails (overtime and double checks lift it);
+# the typical check works for steady pay; for hourly pay the ordinary week, as built in section 4.6.
+PAY_FLOOR = 0.08          # D6: a drop is at least 8% ...
+SWING_TIMES = 2           # ... and at least twice the payer's own normal swing
+MOVE = 0.10               # D10: a check more than 10% from the one before it is a move ...
+VARIES = 0.30             # ... and more than 30% of checks moving is pay that varies -> ask. A single step down (one
+                          # move) or a double check (two) is not; overtime coming and going is (tested in section 4.6)
+HOURLY_WEEKS = 12         # D8 as built (section 4.6): 12-week windows ...
+HOURLY_LOW = 0.10         # ... measured at the 10th percentile (the ordinary week, below any overtime) ...
+OT_MOST_WEEKS = 0.65      # ... and when overtime fills more than 65% of the weeks, no ordinary week can be told: facts only
+SCHEDULES = ((6, 8, 7, 52 / 12), (12, 17, 14, 26 / 12), (26, 35, 30, 1.0))    # (low, high, nominal days, checks/month)
 
 
-def detect(income):
-    """A drop in recorded income, or None. `income` is {'YYYY-MM': amount} over complete months, only months with
-    income on record. {'kind': 'step'|'slide', 'from', 'to', 'month', 'months': [...]}"""
-    series = sorted((m, float(a)) for m, a in income.items() if a and a > 0)
-    if len(series) < SLIDE_RECENT + SLIDE_PRIOR:
+def _q(xs, p):
+    xs = sorted(xs)
+    if not xs:
+        return 0.0
+    k = (len(xs) - 1) * p
+    lo, hi = int(k), min(int(k) + 1, len(xs) - 1)
+    return xs[lo] + (xs[hi] - xs[lo]) * (k - lo)
+
+
+def _median(xs):
+    return _q(xs, 0.5)
+
+
+def pay_schedule(dates):
+    """(nominal days, checks a month) when the dates keep a weekly, every-two-weeks or monthly rhythm, else None."""
+    if len(dates) < 4:
         return None
-    b = detect_break(series)
-    if b and b['after'] < b['before'] * (1 - DROP_SHARE):
-        return {'kind': 'step', 'from': round(b['before'], 2), 'to': round(b['after'], 2), 'month': b['month'],
-                'months': [m for m, _ in series if m >= b['month']]}
-    # The break detector only names changes of 30% or more; a pay cut of 10-30% is found here. The longest recent run
-    # of at least SLIDE_RECENT consecutive months, every one under the lowest of the SLIDE_PRIOR months just before
-    # it (by more than SLIDE_MARGIN), averaging DROP_SHARE or more below them. A run that holds level is a step; one
-    # still falling is a slide.
-    best = None
-    for start in range(SLIDE_PRIOR, len(series) - SLIDE_RECENT + 1):    # the longest run first
-        window = series[max(0, start - PRIOR_MAX):]
-        if not _consecutive([m for m, _ in window]):
-            continue                       # a gap is unknown; nothing is read across it
-        cut = start - max(0, start - PRIOR_MAX)
-        prior, recent = window[:cut], window[cut:]
-        floor = min(a for _, a in prior) * (1 - SLIDE_MARGIN)
-        if not all(a < floor for _, a in recent):
-            continue
-        p = [a for _, a in prior]
-        p_mean = sum(p) / len(p)
-        spread = (sum((a - p_mean) ** 2 for a in p) / len(p)) ** 0.5
-        r_mean = sum(a for _, a in recent) / len(recent)
-        # the drop must be a tenth AND stand clear of the months' own swing (twice their spread)
-        if p_mean - r_mean >= max(p_mean * DROP_SHARE, 2 * spread):
-            best = (prior, recent, p_mean, r_mean)
-            break
-    if not best:
-        return None
-    prior, recent, p_mean, r_mean = best
-    vals = [a for _, a in recent]
-    level = (max(vals) - min(vals)) <= r_mean * 0.05
-    return {'kind': 'step' if level else 'slide', 'from': round(p_mean, 2), 'to': round(r_mean if level else vals[-1], 2),
-            'month': recent[0][0], 'months': [m for m, _ in recent]}
+    gaps = [(b - a).days for a, b in zip(dates, dates[1:])]
+    g = _median(gaps)
+    for lo, hi, nominal, per_month in SCHEDULES:
+        if lo <= g <= hi and sum(lo <= x <= hi for x in gaps) >= 0.6 * len(gaps):
+            return nominal, per_month
+    return None
+
+
+def _window(checks, end, weeks):
+    from datetime import timedelta
+    return [a for d, a in checks if end - timedelta(weeks=weeks) < d <= end]
+
+
+def judge_payer(name, checks, kind, today, records_end):
+    """One payer. `checks` [(date, amount)] in date order; `kind` the person's answer ('hourly'|'salary'|None);
+    `records_end` the last date the account has any record. -> a dict with 'state':
+      'drop'     D4-D6 (steady pay) or D8 (hourly): a drop, with the per-check and monthly figures
+      'missing'  D7: the usual payday passed and the account kept recording - asked, never counted as zero
+      'ask'      D10: checks spread widely and the kind of pay is not known - no alarm, only facts
+      'steady'   nothing to say
+      'unknown'  too few checks, or no regular rhythm"""
+    from datetime import timedelta
+    dates = [d for d, _ in checks]
+    sched = pay_schedule(dates)
+    out = {'payer': name, 'kind': kind, 'checks': len(checks)}
+    if not sched:
+        return {**out, 'state': 'unknown'}
+    every, per_month = sched
+    out.update(every=every, per_month=round(per_month, 4), last=dates[-1].isoformat())
+    due = dates[-1] + timedelta(days=every)
+    grace = 3 if every < 20 else 5
+    if today > due + timedelta(days=grace):
+        if records_end and records_end > due + timedelta(days=grace):
+            return {**out, 'state': 'missing', 'since': dates[-1].isoformat()}
+        return {**out, 'state': 'not_on_record_yet', 'records_end': records_end.isoformat() if records_end else None}
+    amounts = [a for _, a in checks]
+    recent16 = _window(checks, dates[-1], 16) or amounts
+    typical_all = _median(recent16)
+    moves = sum(abs(b - a) > a * MOVE for a, b in zip(amounts, amounts[1:])) / max(1, len(amounts) - 1)
+    kind_used = kind if kind else (None if moves > VARIES else 'salary')
+    if kind_used is None:
+        return {**out, 'state': 'ask', 'moves': round(moves, 3), 'typical': round(typical_all, 2),
+                'low': round(min(recent16), 2), 'high': round(max(recent16), 2)}
+
+    if kind_used == 'hourly':
+        # D8 as built (section 4.6): the ordinary week - the 10th percentile of the last 12 weeks - against the 12
+        # weeks before. Fixed windows: searching back over every start date gave overtime streaks too many chances.
+        end = dates[-1]
+        recent = _window(checks, end, HOURLY_WEEKS)
+        before = [a for d, a in checks if end - timedelta(weeks=2 * HOURLY_WEEKS) < d <= end - timedelta(weeks=HOURLY_WEEKS)]
+        if len(recent) < 4 or len(before) < 4:
+            return {**out, 'state': 'unknown', 'rule': 'hourly'}
+        r, b = _q(recent, HOURLY_LOW), _q(before, HOURLY_LOW)
+        overtime = {'recent': round(sum(max(0.0, a - r) for a in recent), 2),
+                    'before': round(sum(max(0.0, a - b) for a in before), 2), 'weeks': HOURLY_WEEKS}
+        out.update(rule='hourly', ordinary=round(r, 2), ordinary_before=round(b, 2), overtime=overtime)
+        # the ordinary week is a pay level that repeats (base pay does; overtime amounts and a short week don't). No
+        # repeating level, or overtime above it in most weeks, and no ordinary week can be told apart (AP9).
+        def level(xs):
+            xs = sorted(xs)
+            return next((x for i, x in enumerate(xs) if any(abs(y - x) <= x * 0.02 for j, y in enumerate(xs) if j != i)), None)
+        lr, lb = level(recent), level(before)
+        ot_share = 1.0 if lr is None or lb is None else max(sum(a > lr * 1.10 for a in recent) / len(recent),
+                                                            sum(a > lb * 1.10 for a in before) / len(before))
+        if ot_share > OT_MOST_WEEKS:
+            return {**out, 'state': 'cannot_tell', 'overtime_share': round(ot_share, 2)}
+        if r < b * (1 - PAY_FLOOR):
+            start = next((d for d, a in checks if d > end - timedelta(weeks=HOURLY_WEEKS) and a <= r * 1.02), end)
+            return {**out, 'state': 'drop', 'per_check_before': round(b, 2), 'per_check_now': round(r, 2),
+                    'monthly_drop': round((b - r) * per_month, 2), 'since': start.isoformat()}
+        return {**out, 'state': 'steady'}
+
+    # D4-D6: steady pay - the checks since a date against the typical check of the ~8 weeks before it (8 weekly,
+    # 4 every-two-weeks or 3 monthly checks), at least 4 / 2 / 2 checks long. The earliest start that holds wins, so a
+    # cut that has lasted months is still measured against the pay before it.
+    n_recent = 4 if every == 7 else 2
+    k_before = {7: 8, 14: 4, 30: 3}[every]
+    if len(amounts) < n_recent + k_before:
+        return {**out, 'state': 'unknown', 'rule': 'salary'}
+    found = None
+    for i in range(len(amounts) - n_recent, k_before - 1, -1):
+        before = amounts[i - k_before:i]
+        typical = _median(before)
+        swing = _median([abs(a - typical) for a in before]) / typical if typical else 0
+        thr = max(PAY_FLOOR, SWING_TIMES * swing)
+        if typical and all(a < typical * (1 - thr) for a in amounts[i:]):
+            found = (i, typical, thr)
+    if found:
+        i, typical, thr = found
+        now = _median(amounts[i:])
+        out.update(rule='salary', typical=round(typical, 2), threshold=round(thr, 4))
+        return {**out, 'state': 'drop', 'per_check_before': round(typical, 2), 'per_check_now': round(now, 2),
+                'monthly_drop': round((typical - now) * per_month, 2), 'since': dates[i].isoformat()}
+    before = amounts[-(n_recent + k_before):-n_recent]
+    out.update(rule='salary', typical=round(_median(before), 2))
+    return {**out, 'state': 'steady'}
+
+
+def detect_pay(deposits, kinds, records_end, today):
+    """D3: every payer judged on its own checks. `deposits` [{'date', 'amount', 'payer', 'account_id'}] (income only,
+    D1); `kinds` {payer: 'hourly'|'salary'} from the person (D10); `records_end` {account_id: date}.
+    -> {'change': the largest drop, shaped for scenarios() | None, 'payers': [...judged...]}"""
+    by = {}
+    for d in sorted(deposits, key=lambda x: x['date']):
+        by.setdefault(d['payer'], []).append(d)
+    judged = []
+    for payer, ds in by.items():
+        checks = [(d['date'], float(d['amount'])) for d in ds]
+        # two deposits on one day are one paycheck (a split deposit)
+        merged = {}
+        for day, amt in checks:
+            merged[day] = merged.get(day, 0.0) + amt
+        checks = sorted(merged.items())
+        judged.append(judge_payer(payer, checks, kinds.get(payer), today, records_end.get(ds[-1]['account_id'])))
+    monthly = 0.0
+    for j in judged:
+        if j.get('per_month'):
+            base = j.get('per_check_before') or j.get('typical') or j.get('ordinary_before') or j.get('ordinary') or 0
+            monthly += base * j['per_month']
+    drops = sorted((j for j in judged if j['state'] == 'drop'), key=lambda j: -j['monthly_drop'])
+    change = None
+    if drops:
+        top = drops[0]
+        lost = sum(j['monthly_drop'] for j in drops)
+        change = {'kind': 'step', 'from': round(monthly, 2), 'to': round(monthly - lost, 2), 'month': top['since'][:7],
+                  'months': [], 'payer': top['payer'], 'rule': top.get('rule'), 'per_check_before': top['per_check_before'],
+                  'per_check_now': top['per_check_now'], 'monthly_drop': round(lost, 2), 'every': top['every'],
+                  'payers_dropped': [j['payer'] for j in drops]}
+    return {'change': change, 'payers': judged}
 
 
 def budget_follows(lines, gap, effective):
