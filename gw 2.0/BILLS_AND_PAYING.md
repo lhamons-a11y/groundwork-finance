@@ -14,6 +14,10 @@ checking and pay my utilities using my checking account."* Then: *"our agent can
 And: *"if the transaction more than 24 hour old that should be a notice to the user that a transaction has not been
 downloaded in the past 24 hours."* Then: *"yes open it as an item."*
 
+**B1–B9 RULED 2026-10-10 (Rob: "approve B1–B9 as recommended"):** B3 (a), the bill shown beside the budget line;
+**B8 (b): TM1 stands.** Groundwork takes the person to their bank's bill pay at that payee and stops; the person enters
+the amount and presses Pay. (c) is to be revisited once B6 and B7 have run on real accounts. Build not yet authorised.
+
 **Already decided (not reopened here):**
 - The person starts every outside action; nothing is scheduled or unattended (item 65 AP7, TM2; Rob 2026-10-09).
 - Groundwork never reads email or text messages (item 65 AP8). A bill that arrives by email reaches Groundwork as a
