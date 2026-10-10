@@ -70,14 +70,23 @@ def run(ctx):
 
     # ── P4: open a row ──
     row = app.split('function _autoRow(')[1].split('\nfunction ')[0]
-    check('s180 P4 a double-click, the arrow button and Enter all open a row the same way',
-          "ondblclick=\"toggleAutoRow(" in row and "onclick=\"toggleAutoRow(" in row
-          and "if (event.key === 'Enter' && event.target === this) toggleAutoRow(" in row and 'tabindex="0"' in row and 'aria-expanded' in row)
+    check('s180 P4 (amended) a click on the row, its arrow, and Enter all open it the same way',
+          '<div class="gw-auto-head" onclick="toggleAutoRow(' in row and "event.stopPropagation();toggleAutoRow(" in row
+          and "if (event.key === 'Enter' && event.target === this) toggleAutoRow(" in row and 'tabindex="0"' in row and 'aria-expanded' in row
+          and 'ondblclick' not in row)
+    check('s180 P4 (amended) it slides open smoothly - the height eases and the arrow turns - and a closed row cannot be tabbed into',
+          '.gw-auto-details{display:grid;grid-template-rows:0fr' in html and '.gw-auto-details.open{grid-template-rows:1fr' in html
+          and '.gw-auto-row.open .gw-auto-chev{transform:rotate(90deg)}' in html and "det.toggleAttribute('inert', !open)" in app)
+    check('s180 tabs: Accounts and Bills, each its own panel; a bill opened from the Budget page lands on the Bills tab',
+          'id="autoTab-accounts" role="tab"' in html and 'id="autoTab-bills" role="tab"' in html
+          and 'id="autoPanel-accounts" role="tabpanel"' in html and 'id="autoPanel-bills" role="tabpanel"' in html
+          and "_autoTab = /^(bill|pay):/.test(key) ? 'bills' : 'accounts';" in app and '_autoShowTab(_autoTab);' in app)
     tog = app.split('function toggleAutoRow(')[1].split('\nfunction ')[0]
     check('s180 P4 one row open at a time, and Esc closes it',
           "_autoOpen = _autoOpen === key ? null : key;" in tog and "row.dataset.autoKey === _autoOpen" in tog
           and "e.key === 'Escape' && _autoOpen" in app)
-    check('s180 P4 the slide respects reduced motion', '@media (prefers-reduced-motion: reduce){.gw-auto-details{animation:none}}' in html)
+    check('s180 P4 the slide respects reduced motion',
+          '@media (prefers-reduced-motion: reduce){.gw-auto-details,.gw-auto-chev,.gw-auto-head{transition:none}}' in html)
     check('s180 P4 the address is read into its field only when that row is open - never kept in page state',
           "if (!_autoOpen || !/^(account|card):\\d+$/.test(_autoOpen)) return;" in app and 'portal_url' not in app)
 

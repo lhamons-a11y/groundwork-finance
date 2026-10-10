@@ -22822,8 +22822,24 @@ const BANK_AGENT_TERMS = [
 ];
 
 // Item 69 (AUTOMATION_PAGE.md): the Automation page - every account and card, and every bill, by name with no
-// amounts (P3, P5). A row's settings slide down on a double-click, on its ▸, or on Enter (P4); one row open at a time.
+// amounts (P3, P5), on two tabs (Rob's amendment). A row's settings slide open on a click on the row, its arrow, or
+// Enter (P4 as amended: a smooth ease, not a double-click); one row open at a time.
 let _autoOpen = null;
+let _autoTab = 'accounts';
+
+function _autoShowTab(tab) {
+  _autoTab = tab;
+  ['accounts', 'bills'].forEach(t => {
+    const btn = g(`autoTab-${t}`), panel = g(`autoPanel-${t}`), on = t === tab;
+    if (btn) {
+      btn.setAttribute('aria-selected', String(on));
+      btn.style.color = on ? 'var(--pine)' : 'var(--slate)';
+      btn.style.borderBottomColor = on ? 'var(--pine)' : 'transparent';
+      btn.style.fontWeight = on ? '500' : 'normal';
+    }
+    if (panel) panel.style.display = on ? '' : 'none';
+  });
+}
 
 async function renderBankLogins() {
   const acc = g('automationAccounts');
@@ -22841,6 +22857,7 @@ async function renderBankLogins() {
   _renderBankFetchHistory();
   refreshFetchAll();
   _fillAutoSite();
+  _autoShowTab(_autoTab);
 }
 
 // P2: what automation does, one button, and when each account was last fetched
@@ -22864,14 +22881,14 @@ function _autoStatus(r) {
 
 function _autoRow(key, name, status, details) {
   const open = _autoOpen === key;
-  return `<div class="gw-auto-row" data-auto-key="${esc(key)}" tabindex="0" ondblclick="toggleAutoRow('${esc(key)}')"
+  return `<div class="gw-auto-row${open ? ' open' : ''}" data-auto-key="${esc(key)}" tabindex="0"
       onkeydown="if (event.key === 'Enter' && event.target === this) toggleAutoRow('${esc(key)}')">
-    <div style="display:flex;align-items:center;gap:8px;padding:10px 0;user-select:none">
+    <div class="gw-auto-head" onclick="toggleAutoRow('${esc(key)}')">
       <div style="flex:1;min-width:0"><div style="font-size:13px;color:var(--ink)">${esc(name)}</div>
         <div style="font-size:11px;color:var(--slate-2)">${esc(status)}</div></div>
-      <button class="btn btn-ghost btn-sm" style="font-size:16px;line-height:1;padding:4px 10px" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings (or double-click the row)"
-        onclick="toggleAutoRow('${esc(key)}')">${open ? '▾' : '▸'}</button></div>
-    <div class="gw-auto-details" data-auto-details style="${open ? '' : 'display:none'}">${details}</div></div>`;
+      <button class="btn btn-ghost btn-sm" style="padding:4px 10px" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings"
+        onclick="event.stopPropagation();toggleAutoRow('${esc(key)}')"><span class="gw-auto-chev">▸</span></button></div>
+    <div class="gw-auto-details${open ? ' open' : ''}" data-auto-details ${open ? '' : 'inert'}><div class="gw-auto-inner">${details}</div></div></div>`;
 }
 
 function toggleAutoRow(key) {
@@ -22879,8 +22896,9 @@ function toggleAutoRow(key) {
   document.querySelectorAll('[data-auto-key]').forEach(row => {
     const open = row.dataset.autoKey === _autoOpen;
     const det = row.querySelector('[data-auto-details]'), btn = row.querySelector('button[aria-expanded]');
-    if (det) det.style.display = open ? '' : 'none';
-    if (btn) { btn.setAttribute('aria-expanded', String(open)); btn.textContent = open ? '▾' : '▸'; }
+    row.classList.toggle('open', open);
+    if (det) { det.classList.toggle('open', open); det.toggleAttribute('inert', !open); }
+    if (btn) btn.setAttribute('aria-expanded', String(open));
   });
   _fillAutoSite();
 }
@@ -22893,6 +22911,7 @@ document.addEventListener('keydown', e => {
 // From another page (the Budget card's setup links): open the Automation page with that row open
 function openAutomationRow(key) {
   _autoOpen = key;
+  _autoTab = /^(bill|pay):/.test(key) ? 'bills' : 'accounts';
   showView('automation');
 }
 

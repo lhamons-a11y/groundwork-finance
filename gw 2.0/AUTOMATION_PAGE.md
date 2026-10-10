@@ -15,6 +15,11 @@ balance, bank website, reconcile running balance):
 **What this item is:** where the automation lives and how it's laid out. It changes no rule: everything the agent does
 and never does (items 57, 65, 67, 68) stays as ruled. No code until Rob says "build item 69".
 
+**Amended 2026-10-10 (Rob: "we need to use tabs for accounts and for bills. Then I would like to see a better slide
+down animation than a double click"):** Accounts and Bills on two tabs; P4 now opens a row on a single click on the row,
+its arrow, or Enter - the height eases open and the arrow turns (no motion for reduced motion) - instead of a
+double-click. A closed row's settings can't be reached by Tab.
+
 ## 1. What is true today (fix branch, aa83843)
 
 - **Settings carries all of it**, in one card, *Fetch my downloads*: the vault explanation (item 57 A3), every bank
