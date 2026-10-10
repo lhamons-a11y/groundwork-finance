@@ -5,7 +5,7 @@ and still have a great experience. In fact we should off pre built reports for n
 that help summarize what the ser would want to see in that report. Where an AI report will also offer the same data
 but can focus on things that can help inform the user and teaches the user. which is the ultimate goal."*
 
-**No code yet:** N1–N7 need a ruling, and the build needs its own go-ahead.
+**N1–N7 RULED as recommended 2026-10-10 (Rob: "I accept item 62 and 64").** No code yet: the build needs its own go-ahead.
 
 ## 1. What is true today (measured 2026-10-09, master)
 
