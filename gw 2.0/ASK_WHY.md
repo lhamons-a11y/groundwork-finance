@@ -9,7 +9,7 @@ filed under a new category:
 > bill to the user can talk with the agent to fix. Also if the user had questions on how to do things in groundwork
 > it explains where and could even open that section for them."*
 
-**Points C1–C10 for ruling. No code yet.**
+**Points C1–C10 for ruling, as revised in §5 after review. No code yet.**
 
 ## 1. What happened, and why it's the model for this
 
@@ -148,3 +148,104 @@ Each stage gets its own gate and acceptance. *Recommended.*
 - **Talking to the agent by voice.** Not proposed.
 - **The agent fixing things on a bank's or employer's website** (item 57's window). Not proposed here. C4's fixes are
   inside Groundwork only.
+
+
+## 5. Revised recommendations after review (2026-10-10)
+
+Rob passed in a review of C1–C10 and asked for push-back where it is valid. Most of the review is adopted. Three
+points are adopted only in part, with the reason given. **These replace the recommendations in §3 for ruling.**
+
+**C1 (revised).**
+- Stage 1 puts **"Why?" only on figures and findings** whose calculation or records Groundwork can check.
+- The **Ask box** arrives in stage 2, for how-to questions only. Those match a written guide, the same low-risk
+  matching as item 28.
+- Money questions in the Ask box wait for stage 3, once the AI's check-picking has passed its gate.
+- *Partly adopted:* the review deferred the whole box. That holds back how-to help, which carries no AI judgment.
+
+**C2 (revised).**
+- The AI picks only from the registered checks, with validated inputs.
+- It never writes a query, invents a check, or changes data.
+- When its pick is ambiguous or invalid, Groundwork asks the person to choose.
+- With AI off, the same checks are available through the ordinary interface.
+
+**C3 (revised): evidence before explanation.**
+- Each check is defined in writing before it is built:
+  - what it can establish;
+  - what it cannot;
+  - its comparison period;
+  - what happens when data is missing.
+- A check reports what the ledger shows ("these 7 deposits are filed under an expense-type category"). It never
+  reports a cause ("you mis-filed them").
+- Added to the checks:
+  - the figure's time period, the records it includes and the records it leaves out;
+  - duplicates, kept as *suspected* until the person confirms them;
+  - incomplete imports and stale accounts;
+  - changed (not only stopped) deposits and bills.
+- When the evidence conflicts, or no check explains the figure, Groundwork says so plainly.
+
+**C4 (revised): preview, approve, verify.**
+- The preview shows:
+  - each record;
+  - its current and proposed category;
+  - the total;
+  - the figure that was asked about, before and after;
+  - the named totals it feeds that Groundwork can recompute.
+- It says plainly that **other figures may change too**. *Partly adopted:* the review asked for "any known
+  downstream effects". A list that looks complete but isn't would mislead.
+- **Added (not in the review):** when the import's own category rule would file the next deposit the same way, the
+  preview offers to change that rule too, as a separate tick box. Otherwise the problem comes back on the next
+  import.
+- Approval covers exactly the change shown. If the records have changed since the preview, the preview refreshes
+  instead of applying.
+- After applying, Groundwork confirms the records really changed and records the result in the Historian.
+- **Undo** reverts only the rows still as the fix left them. Rows edited since are listed and left alone.
+
+**C5 (revised): deferred to stage 4, unchanged in spirit.**
+- The person tells Groundwork about it; it is never inferred.
+- A reimbursement is matched only on evidence.
+- Partial repayments and unmatched cases are handled.
+- Nothing is double-counted.
+- Not every employer deposit is a reimbursement, and not every work purchase is repaid.
+
+**C6 (adopted).**
+- The guide covers features that exist, and "Open it for me" only navigates.
+- A guide entry whose page or section doesn't exist fails the gate.
+- With no entry, Groundwork says it has no answer, rather than inventing steps.
+
+**C7 (adopted, made exact).**
+- What is said in the conversation answers the question in front of it. It never becomes a stored fact,
+  preference, willingness statement or Historian entry about the person.
+- The financial record changes only through a fix the person approved, which is recorded in the Historian as a
+  change to the record, not a trait of the person.
+- The AI log (item 62) records AI calls as calls, not as facts about the person.
+
+**C8 (revised): explain the options, never choose.**
+- This is the existing rule, *teach the question*. Groundwork explains the ways a finding can be fixed, what each
+  one changes, and what stays uncertain, conditionally and without picking one.
+- *Partly adopted:* the options come from the check's own fixed list of fixes, never from the AI. The AI
+  explaining why an option "could help" would be an invented cause again.
+- No decisions for the person, no "you must", no pressure. A fix is always a separate approved action.
+
+**C9 (adopted).**
+- Four stages, each with its own gate and Rob's acceptance. A stage starts only after the one before is accepted,
+  not merely built.
+- Stage 1 must:
+  - work with AI off;
+  - show its checks are correct;
+  - handle incomplete data safely;
+  - make every fix reversible;
+  - hold back any finding that fails.
+- Stage 3 must also meet RG1–RG6.
+
+**C10 (adopted, with failure cases). The tests must show both that real problems are found and that unsupported
+explanations are refused:**
+- a known mis-filing (today's "Rob's Income" case), and correct filing that must stay quiet;
+- one employer in two legitimate categories;
+- real repeated payments that look like duplicates;
+- missing months, partial imports and stale accounts;
+- transfers, refunds and reversals;
+- ambiguous questions, unsupported causes, and questions no check fits;
+- the AI picking a check that doesn't exist;
+- **instructions planted in an imported transaction description**: bank text is data, never instructions;
+- a stale preview, a failed write, and an Undo that meets later edits;
+- AI off, AI unavailable, and an AI answer that fails validation.
