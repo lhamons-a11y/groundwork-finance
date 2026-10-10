@@ -24196,15 +24196,16 @@ function _voiceGateCheck(text, findings, truncated = false) {
   return { pass: failedRules.length === 0, results, failedRules };
 }
 
-// Miss-log: fire-and-forget record of every gate rejection (surface, model,
-// which rule(s) failed, and the rejected text) so misses accumulate for
-// hardening instead of vanishing into the fallback silently.
 // Item 62 G1/G6: what the voice check said of one attempt, onto its log entry (fire and forget)
 function _aiLogVoice(logId, gate, shortened) {
   if (!logId || !gate) return;
   API.post(`/api/ai/log/${logId}/voice`, { pass: !(gate.failedRules || []).length, rules: gate.failedRules || [], shortened: !!shortened })
-    .catch(() => {});
+    .catch(_gwErr('_aiLogVoice'));
 }
+
+// Miss-log: fire-and-forget record of every gate rejection (surface, model,
+// which rule(s) failed, and the rejected text) so misses accumulate for
+// hardening instead of vanishing into the fallback silently.
 
 function _logVoiceMiss(surface, model, gate, text) {
   API.post('/api/ai/voice-miss', {
