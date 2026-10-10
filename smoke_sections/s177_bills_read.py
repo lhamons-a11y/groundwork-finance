@@ -151,6 +151,10 @@ def run(ctx):
     check('s177 B3 the Budget page shows what was read with its source and time, asks for a yes, and offers "use the bill\'s amount" only for this month',
           "Is that right?" in app and "confirmBillReading(${b.id}, true)" in app and "Use the bill's amount for this month (your saved amount stays as it is)" in app
           and 'id="budgetBillsCard"' in ctx.html_src and 'renderBudgetBills();   // item 68 B3' in app)
+    # Rob, 2026-10-10: the login is saved on the bill's own line too
+    check('s177 B1 each bill with a website has Save login on its own line (or says the login is saved), into the same vault',
+          "openBankLoginForm('bill:${b.id}', 'billLoginForm-${b.id}')" in app and 'login saved in the vault' in app
+          and "bank_vault.has_login(f'bill:{b.id}')" in (BASE / 'server.py').read_text(encoding='utf-8'))
 
 
 def _raises(fn):
@@ -159,7 +163,3 @@ def _raises(fn):
     except ValueError:
         return True
     return False
-    # Rob, 2026-10-10: the login is saved on the bill's own line too
-    check('s177 B1 each bill with a website has Save login on its own line (or says the login is saved), into the same vault',
-          "openBankLoginForm('bill:${b.id}', 'billLoginForm-${b.id}')" in app and 'login saved in the vault' in app
-          and "bank_vault.has_login(f'bill:{b.id}')" in (BASE / 'server.py').read_text(encoding='utf-8'))
