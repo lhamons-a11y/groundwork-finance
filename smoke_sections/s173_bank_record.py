@@ -116,8 +116,8 @@ def run(ctx):
     check('s173 A5 the bar is visual only: it takes no clicks and is never recorded (it lives in a shadow root the recorder never sees)',
           rs.count('function note(') == 1 and rs.count('window.pywebview.api.step(') == 1)
 
-    check('s173 A5 while recording the bar shows a blinking red dot (Rob: "a blinking red button instead of white"), steady for reduced motion',
-          '#e5322d' in rs and '@keyframes gwrec' in rs and 'prefers-reduced-motion' in rs and "'rec');" in rs
+    check('s173 A5 while recording the bar shows a steady red dot (Rob: red instead of white; then steady, item 65 TM6) - no motion',
+          '#e5322d' in rs and '@keyframes' not in rs and 'animation' not in rs and "'rec');" in rs
           and "tone === 'rec' ? 'inline-block' : 'none'" in baw.DO_SCRIPT)
     # Rob: "the steps are not getting deleted when you record over them"
     ka2 = 'account:999173'

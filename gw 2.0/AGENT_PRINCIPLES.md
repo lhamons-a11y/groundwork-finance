@@ -7,7 +7,7 @@ disapprove."*
 **Ruling record (Rob, 2026-10-09):**
 - **First ruling** ("I accept item 66 as a whole and item 65"): AP1–AP11 accepted as the governing standard,
   TM1–TM8 as prohibitions. W1–W10 a menu, none opened.
-- **Second ruling** ("approve H1–H6 and S1–S7 as the next ruling, while leaving W1–W10 unopened"): **H1–H6 accepted
+- **Second ruling** ("approve H1–H6 and S1–S7 as the next ruling, while leaving W1–W10 unopened"): **RG1–RG6 accepted
   as reliability guardrails and S1–S7 as their implementation expectations.** Rob supplied this document's present
   text with that ruling; it replaces the first version (in git history at 9cb29e6), keeping AP1–AP11 and TM1–TM8 as
   accepted.
@@ -15,8 +15,8 @@ disapprove."*
   item, not opened.
 - **No code is authorised by this item.** Each new feature is opened and scoped under the established process.
 
-*Naming note:* H1–H6 here are the reliability guardrails. Item 45 (HEALTH_REVIEW.md) has its own H1–H7; where this
-document means one of those, it says "item 45's H6".
+*Naming:* the reliability guardrails are **RG1–RG6** (Rob, 2026-10-09: renamed from H1–H6 so they can't be confused
+with item 45's own H1–H7; the ruling is unchanged). Where this document means one of item 45's, it says "item 45's H6".
 
 ## Purpose
 
@@ -216,14 +216,14 @@ without a verifiable source and accurate representation of what that source supp
 
 ## Part 3 — Reliability Guardrails: Preventing Hallucinations
 
-**H1–H6 ACCEPTED by Rob, 2026-10-09.** They make the accepted principles technically enforceable across all current
+**RG1–RG6 ACCEPTED by Rob, 2026-10-09.** They make the accepted principles technically enforceable across all current
 and future AI-enabled features.
 
 Hallucination prevention must not depend solely on the model being instructed to behave correctly. Groundwork must
 constrain what the model can assert, provide traceable evidence, validate consequential claims, and fail safely when
 validation cannot establish reliability.
 
-**H1. Every factual claim must have evidence.**
+**RG1. Every factual claim must have evidence.**
 Every factual claim about the user's financial situation, financial history, household circumstances, financial
 products, external sources, or calculated outcomes must be traceable to an appropriate source.
 
@@ -246,7 +246,7 @@ The model must not invent the reason, source, or context behind a verified numbe
 *Enforcement requirement:* claims without sufficient evidence must be rejected, qualified, or withheld rather than
 accepted because they sound plausible.
 
-**H2. Validate the claim, not merely the number.**
+**RG2. Validate the claim, not merely the number.**
 Groundwork must validate the meaning of an AI-generated explanation against the evidence supplied to the model.
 
 Validation must check, as applicable:
@@ -268,7 +268,7 @@ against evidence before they are rendered as natural language.
 
 No validation process may be assumed perfect merely because it passes a test suite.
 
-**H3. The model cannot create financial facts or persistent memory.**
+**RG3. The model cannot create financial facts or persistent memory.**
 The model may propose a finding for investigation, a question to ask, a possible interpretation, or a scenario to
 calculate.
 
@@ -292,7 +292,7 @@ The system must distinguish at least:
 
 These categories must not be silently merged.
 
-**H4. Forecasts and scenarios must expose their assumptions.**
+**RG4. Forecasts and scenarios must expose their assumptions.**
 Every consequential forecast, projection, or scenario must distinguish actual records from assumptions and
 hypothetical inputs.
 
@@ -311,7 +311,7 @@ convenient to explain.
 The user must be able to distinguish what has happened, what is expected, what is assumed, and what could happen
 under different conditions.
 
-**H5. Failed validation means no unsupported conclusion.**
+**RG5. Failed validation means no unsupported conclusion.**
 If a required claim cannot be traced to evidence, a calculation does not reconcile, a required input is missing, or
 an explanation contradicts verified findings, Groundwork must withhold the affected conclusion.
 
@@ -331,7 +331,7 @@ If a core calculation or source is unreliable, the system must withhold any depe
 
 The system must never claim validation succeeded when validation failed, was skipped, or could not be completed.
 
-**H6. Test reliability through deliberate adversarial testing.**
+**RG6. Test reliability through deliberate adversarial testing.**
 Every AI-enabled feature must have tests for both correct answers and appropriate refusal or qualification.
 
 The test suite must include, as applicable:
@@ -362,7 +362,7 @@ insufficient.
 
 ## Part 4 — System-Level Safeguards
 
-**S1–S7 ACCEPTED by Rob, 2026-10-09**, as the implementation expectations that make H1–H6 actionable.
+**S1–S7 ACCEPTED by Rob, 2026-10-09**, as the implementation expectations that make RG1–RG6 actionable.
 
 **S1. Use a constrained evidence package.** The financial engine should provide the explanation layer with a
 structured package containing the relevant findings, source references, values, units, dates, assumptions,
@@ -503,7 +503,7 @@ financial invariants, transparency requirements, and existing development author
 ## Part 8 — Acceptance and Release Standard
 
 Every future item is evaluated against AP1–AP11 and TM1–TM8, and every AI-enabled item must additionally demonstrate
-compliance with H1–H6 (accepted 2026-10-09), supported by S1–S7.
+compliance with RG1–RG6 (accepted 2026-10-09), supported by S1–S7.
 
 Before release, the responsible item must establish:
 - The feature's intended value and boundaries.
@@ -533,7 +533,7 @@ Accepted by Rob on 2026-10-09 (first ruling):
 
 Accepted by Rob on 2026-10-09 (second ruling: "approve H1–H6 and S1–S7 as the next ruling, while leaving W1–W10
 unopened"):
-- H1–H6: AI factuality, evidence, validation, memory, scenario, failure, and testing safeguards.
+- RG1–RG6: AI factuality, evidence, validation, memory, scenario, failure, and testing safeguards.
 - S1–S7: implementation expectations supporting those safeguards.
 - W1–W10: still unopened.
 

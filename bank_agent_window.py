@@ -98,9 +98,9 @@ RECORD_SCRIPT = r'''(function () {
       host.id = '__gwBarHost';
       host.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;pointer-events:none';
       (document.body || document.documentElement).appendChild(host);
-      host.attachShadow({mode: 'open'}).innerHTML = '<style>@keyframes gwrec{0%,100%{opacity:1}50%{opacity:.15}}'
-        + '#d{display:none;width:11px;height:11px;border-radius:50%;background:#e5322d;margin-right:9px;vertical-align:-1px;animation:gwrec 1s infinite}'
-        + '@media (prefers-reduced-motion: reduce){#d{animation:none}}</style>'
+      // A steady red recording light: it shows a state and asks nothing of the user, so it doesn't move (TM6)
+      host.attachShadow({mode: 'open'}).innerHTML = '<style>'
+        + '#d{display:none;width:11px;height:11px;border-radius:50%;background:#e5322d;margin-right:9px;vertical-align:-1px}</style>'
         + '<div id="b" style="margin:0 auto 10px;max-width:760px;padding:10px 16px;border-radius:8px;font:13px/1.45 system-ui,sans-serif;color:#fff;background:#1f3a2e;box-shadow:0 4px 18px rgba(0,0,0,.25)"><span id="d"></span><span id="t"></span></div>';
     }
     var b = host.shadowRoot.getElementById('b');
@@ -404,9 +404,9 @@ DO_SCRIPT = r'''(function () {
       host.id = '__gwBarHost';
       host.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;pointer-events:none';
       (document.body || document.documentElement).appendChild(host);
-      host.attachShadow({mode: 'open'}).innerHTML = '<style>@keyframes gwrec{0%,100%{opacity:1}50%{opacity:.15}}'
-        + '#d{display:none;width:11px;height:11px;border-radius:50%;background:#e5322d;margin-right:9px;vertical-align:-1px;animation:gwrec 1s infinite}'
-        + '@media (prefers-reduced-motion: reduce){#d{animation:none}}</style>'
+      // A steady red recording light: it shows a state and asks nothing of the user, so it doesn't move (TM6)
+      host.attachShadow({mode: 'open'}).innerHTML = '<style>'
+        + '#d{display:none;width:11px;height:11px;border-radius:50%;background:#e5322d;margin-right:9px;vertical-align:-1px}</style>'
         + '<div id="b" style="margin:0 auto 10px;max-width:760px;padding:10px 16px;border-radius:8px;font:13px/1.45 system-ui,sans-serif;color:#fff;background:#1f3a2e;box-shadow:0 4px 18px rgba(0,0,0,.25)"><span id="d"></span><span id="t"></span></div>';
     }
     var b = host.shadowRoot.getElementById('b');
