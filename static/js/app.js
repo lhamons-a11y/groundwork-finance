@@ -24421,8 +24421,15 @@ function _whyHTML(d, fixes) {
   const card = (r, i) => `<div class="card" style="margin-top:10px" data-why-check="${esc(r.check)}">
       <div class="card-label">${esc(r.title)}</div>
       <div style="font-size:13px;color:var(--ink);line-height:1.6">${esc(r.text)}</div>
-      ${r.table ? `<div style="font-size:11px;margin-top:6px;line-height:1.6">${r.table.map(m => `<div style="display:flex;gap:8px"><span style="width:62px">${esc(m.month)}</span>
-        <span style="width:90px">${fmt(m.counted)}</span><span style="color:var(--slate-2)">${Object.entries(m.left_out).map(([k, v]) => `not counted: ${esc(k)} ${fmt(v)}`).join(' · ')}</span></div>`).join('')}</div>` : ''}
+      ${r.table ? `<div style="font-size:11px;margin-top:6px;line-height:1.6"><div style="display:flex;gap:8px;color:var(--slate-2)"><span style="width:64px">Month</span><span style="width:90px">Counted</span><span>Deposits not counted</span></div>
+        ${r.table.map(m => {
+          const big = Object.entries(m.left_out).filter(([, v]) => v >= 100);
+          const small = Object.entries(m.left_out).filter(([, v]) => v < 100);
+          const smallSum = small.reduce((s, [, v]) => s + v, 0);
+          return `<div style="display:flex;gap:8px"><span style="width:64px;white-space:nowrap">${esc(m.month)}</span>
+          <span style="width:90px;white-space:nowrap">${fmt(m.counted)}</span><span style="color:var(--slate-2)">${[...big.map(([k, v]) => `${esc(k)} ${fmt(v)}`),
+          ...(small.length ? [`${small.length} small deposit${small.length !== 1 ? 's' : ''} (refunds and the like) ${fmt(smallSum)}`] : [])].join(' · ') || '-'}</span></div>`;
+        }).join('')}</div>` : ''}
       ${_whyRowsHTML(r.rows)}
       <div style="font-size:11px;color:var(--slate-2);margin-top:6px"><b>What this shows:</b> ${esc(r.establishes)} <b>What it can't tell:</b> ${esc(r.cannot)}</div>
       ${(r.fixes || []).length ? `<div style="margin-top:8px;font-size:11px;color:var(--slate)">Ways this could be changed - your choice, and nothing changes until you approve the exact list:</div>
