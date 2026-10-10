@@ -123,7 +123,8 @@ def run(ctx):
     readers = _readers(ctx.server_src)
     check("s127 'import_committed' is touched in server.py by its writer and H2's import check alone - it reaches no prompt",
           readers == {'_log_import_committed', 'auto_import_remove_download',
-                      'bank_agent_history'})   # item 57 A11: joins a fetch to its import by hash, for display only
+                      'bank_agent_history',    # item 57 A11: joins a fetch to its import by hash, for display only
+                      '_account_balance_facts'})   # item 68 B6: when an account's transactions last came in (time + id only)
 
     # The watcher: the raw-bytes hash for a transaction file; a statement's bytes unread.
     tmp = Path(tempfile.mkdtemp(prefix='s127_'))

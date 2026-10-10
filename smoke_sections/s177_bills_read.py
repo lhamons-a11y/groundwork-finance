@@ -159,3 +159,7 @@ def _raises(fn):
     except ValueError:
         return True
     return False
+    # Rob, 2026-10-10: the login is saved on the bill's own line too
+    check('s177 B1 each bill with a website has Save login on its own line (or says the login is saved), into the same vault',
+          "openBankLoginForm('bill:${b.id}', 'billLoginForm-${b.id}')" in app and 'login saved in the vault' in app
+          and "bank_vault.has_login(f'bill:{b.id}')" in (BASE / 'server.py').read_text(encoding='utf-8'))

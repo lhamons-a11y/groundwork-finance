@@ -6714,7 +6714,7 @@ def _start_bank_fetch(key, batch=None, on_end=None):
             try:
                 _bill_pending(k, url, events)
             except Exception:
-                logging.getLogger('groundwork').warning('a bill reading could not be kept for confirmation')
+                logging.getLogger('groundwork').warning('a bill reading could not be kept to be checked')
         if on_end:
             on_end(k, events)
     return bank_agent_window.start_fetch(key, url, steps_, device, on_finish=_finished), None
@@ -6941,7 +6941,9 @@ def _bill_reading_json(r):
 
 @settings_bp.route('/bank-agent/bills', methods=['GET'])
 def bank_agent_bills():
-    """B1/B3: every expense line, its website if set, what was last read (waiting for a yes) and last confirmed."""
+    """B1/B3: every expense line, its website if set, whether its login is saved, what was last read (waiting for a
+    yes) and last confirmed."""
+    from core import bank_vault
     out = []
     with db_session() as session:
         for b in session.query(BudgetItem).filter(BudgetItem.is_active == True, BudgetItem.type == 'expense') \
@@ -6955,6 +6957,7 @@ def bank_agent_bills():
                 pending = None
             out.append({'id': b.id, 'key': f'bill:{b.id}', 'name': b.name, 'category': b.category, 'planned': b.amount,
                         'site': (site.value if site else '') or '', 'pending': pending,
+                        'has_login': bool(site and site.value) and bank_vault.has_login(f'bill:{b.id}'),
                         'confirmed': _bill_reading_json(last) if last else None})
     return ok({'bills': out})
 

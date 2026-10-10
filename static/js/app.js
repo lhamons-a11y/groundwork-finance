@@ -22847,7 +22847,11 @@ function billSitesHtml(bills) {
       <span style="flex:1;min-width:120px;font-size:12px;color:var(--ink)">${esc(b.name)}</span>
       <input type="url" id="billSite-${b.id}" value="${esc(b.site)}" placeholder="https://www.yourcompany.com" aria-label="Website for ${esc(b.name)}"
         style="flex:2;min-width:180px;font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);font-family:var(--font-mono)">
-      <button class="btn btn-secondary btn-sm" onclick="saveBillSite(${b.id})">Save</button></div>`).join('');
+      <button class="btn btn-secondary btn-sm" onclick="saveBillSite(${b.id})">Save</button>
+      ${b.site ? (b.has_login
+        ? `<span style="font-size:11px;color:var(--slate-2)">login saved in the vault</span>`
+        : `<button class="btn btn-secondary btn-sm" onclick="openBankLoginForm('bill:${b.id}', 'billLoginForm-${b.id}')">Save login</button>`) : ''}
+      <div id="billLoginForm-${b.id}" style="width:100%"></div></div>`).join('');
 }
 
 async function saveBillSite(id) {
@@ -22902,8 +22906,8 @@ async function _renderBankFetchHistory() {
   }
 }
 
-function openBankLoginForm(key) {
-  const box = g(`bankLoginForm-${key.replace(':', '-')}`);
+function openBankLoginForm(key, boxId) {
+  const box = g(boxId || `bankLoginForm-${key.replace(':', '-')}`);
   if (!box) return;
   box.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
       <input type="text" id="bankLoginUser" placeholder="Username" autocomplete="off" style="flex:1;min-width:140px">
