@@ -26,7 +26,7 @@ goals."*
 **I6 RULED 2026-10-10: (a)** (Rob: *"this is where the rules to keep the ai in a box also gets gray because to do
 exactly what you want it to do, it will break a rule. I agree with A."*). Rob's reason for the tap: *"its there just in case that the agent is wrong or its a temporary moment
 that the AI is picking up."* The detector can mistake noise for a trend, and a real dip can be passing; the person's
-tap is where either gets caught before the budget moves. I1–I5, I7, I8 await Rob's ruling.
+tap is where either gets caught before the budget moves. I1–I5, I7, I8 RULED 2026-10-10 as recommended (Rob: "i accept rule 71"). Build not yet authorised.
 
 **The one point that needed Rob's ruling against a settled rule was I6** (adjusting the budget without asking each
 time). Everything else fits the rules as they stand. No code until Rob says "build item 71".
