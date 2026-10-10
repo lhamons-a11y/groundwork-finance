@@ -136,3 +136,123 @@ Master only.
 
 - **Other life changes** (a new expense, a raise): the same machinery could serve them; not proposed now.
 - **Narration:** the scenarios stand without AI (AP11); the narrator may later explain them, under RG1–RG6.
+
+
+## 4. Amendment: it fired too early (opened 2026-10-10)
+
+Rob, after seeing the card on his own data: *"the loss in wages jumps the gun a little to early. It shows my income
+has dipped ... it should look at the past 8 weeks income average compared to each 2 week period. or at least look
+over the ledger see income salary and then look at the last 5 deposits and determine if the income dropped by more
+than 8% for two pay periods in a row. why 8%"*
+
+**Points D1–D8 for ruling. No code yet.**
+
+### 4.1 What happened on Rob's data (measured 2026-10-10, a copy of the live database, nothing changed)
+
+- **The pay never dropped. It moved to a category the detector can't see.**
+  - Up to June 25, City of Millbrook pay (about $1,991–$2,125 every two weeks) was filed under **Income**.
+  - From July 9 the same deposits are filed under **"Rob's Income"**: 7 deposits, $16,748.80.
+  - "Rob's Income" and "Partner's income" were created on 2026-06-26 as **expense**-type categories, outside
+    Income. They carry the same names as the budget's two income lines.
+  - The detector counts only credits in the category named exactly "Income" (`_willingness_inputs`, server.py). From
+    July it saw Harmon Packaging alone and read about $3,741 a month as lost.
+  - "Rob's Income" also holds three debits ($317.78), one of them a City of Millbrook card charge (likely the water bill).
+- **The month it compared was complete.** The current month is already left out, so a half-month was not the cause.
+- **Other code that finds income by the name "Income":**
+  - `_willingness_inputs` (server.py), which feeds item 71 and the Willingness readings;
+  - `reclassify_income` (server.py);
+  - `_buildStageContext` (app.js), which matches 'Income' exactly.
+
+  Some page code matches any name containing "income", so different surfaces can disagree today.
+
+### 4.2 Rob's rule, tested on his own paychecks first (the null-model rule)
+
+Each payer is told apart by the deposit's description: City of Millbrook every 14 days, 20 checks; Harmon Packaging every
+7 days, 40 checks, $788–$1,837. Each version of the rule was run on the real history. It was then run on his own
+amounts shuffled 2,000 times, so that nothing changes and any alarm is false. Last, an 8–12% cut was planted in the
+last checks to see whether it would be caught.
+
+| Rule | City of Millbrook: real alarms / false alarms in the shuffles | Harmon: real / false |
+|---|---|---|
+| last 2 checks each 8% below the 8-week **average** | 4 / 92% | 19 / 100% |
+| last 2 checks each 8% below the 8-week **typical check** (median) | **0 / 16%** (10%: 0 / 4%) | 2 / 53% |
+| last 2 two-week **totals** each 8% below the typical two-week total | 0 / 14% | 4 / 98% |
+| last **4** weekly checks each 8% below the typical check | — | 2 / 43% |
+
+A real cut of 8% or more in the last checks was caught by the median versions.
+
+- **The average fails.** Occasional big checks (overtime, City of Millbrook's $4,283 double check) lift the average, so
+  ordinary pay sits below it most weeks.
+- **Two-week totals fail.** Whether a payday lands just inside or just outside a window swings the totals.
+- **The typical check works for a salary** (City of Millbrook).
+- **Nothing tried works yet for hourly pay with overtime** (Harmon). Overtime weeks cluster and lift the typical
+  check, and the ordinary weeks after them look like a cut. Harmon's checks fell in July–August against the spring
+  because there was less overtime: real money, but not a pay cut.
+
+### 4.3 Why 8%, or 10%?
+
+Neither number comes from research; item 71 ruled 10%. As Rob's note says, a percentage alone doesn't tell you what
+a drop means. What the tests show:
+
+- **The threshold matters less than the method.** At 8% and at 10% the average-based rule fired on almost
+  everything.
+- **The right threshold depends on the payer.** It has to clear that payer's own normal swing. City of Millbrook's checks
+  barely vary, so 8% is meaningful there. Harmon's vary by more than 100%, so no fixed percentage can separate a cut
+  from a quiet overtime month.
+- **What the drop does to the money matters more than its size.** The same 8% is $278 a month from $4,000. That is
+  nothing with $800 left over and a $220 shortfall with $100 left over. The card should lead with that.
+
+### 4.4 Points for ruling
+
+**D1. Count all income.**
+- A credit counts as income when its category is income-type, a child of Income, or carries the name of one of the
+  budget's income lines.
+- Every reader in §4.1 uses the same one definition, so no two surfaces can disagree again.
+
+*Recommended.* This alone stops the card on Rob's data.
+
+**D2. Repair the two categories, shown first.**
+- "Rob's Income" and "Partner's income" become income-type children of Income.
+- The three debits in "Rob's Income" are listed for Rob to re-file.
+- Separately, find what created income lines' categories as expense-type, so it doesn't happen to anyone else.
+
+*Recommended.* Nothing is changed until Rob sees the list.
+
+**D3. Pay periods, not calendar months.**
+- Each payer's deposits are compared with that payer's own pay, and payers are told apart by the deposit's
+  description.
+- Calendar months stay only for the scenarios' monthly figures.
+
+*Recommended* (Rob's direction).
+
+**D4. Against the typical check (median) of the 8 weeks before, never the average.** *Recommended*, on the evidence
+in §4.2.
+
+**D5. How long a drop must last.**
+- A payer paid every two weeks: 2 checks in a row (Rob's "two pay periods").
+- A payer paid weekly: 4 checks in a row, the same four weeks.
+
+*Recommended.*
+
+**D6. The threshold.**
+- A drop counts when it is at least the larger of 8% and twice that payer's own normal swing.
+- A rule ships only if it raises a false alarm 5% of the time or less in the shuffle test on the payer's own amounts.
+
+*Recommended.* This keeps Rob's 8% where pay is steady and stays quiet where it isn't.
+
+**D7. A paycheck that hasn't come in is not a drop.**
+- When a payer's usual payday passes with nothing on record, the card asks: *"Your City of Millbrook pay hasn't come in
+  since June 25. Is it filed somewhere else, or did it stop?"*
+- It never treats the missing pay as zero.
+
+*Recommended.* This would have caught today's problem at its real cause.
+
+**D8. Hourly pay with overtime: a fact, not an alarm, until a rule passes D6.**
+- For a payer like Harmon, the working picture shows the plain figures: *"Harmon Packaging: $3,313 over the last 4
+  weeks; the 4 weeks before, $4,320"*. No scenarios card and no budget proposal.
+- A rule for this kind of pay comes back for ruling once one passes the shuffle test.
+
+*Recommended.*
+
+**D9. Lead with the money.** When the card does show, its first line is the drop in dollars a month and what
+it leaves after bills, before any percentage. *Recommended* (Rob's note).
