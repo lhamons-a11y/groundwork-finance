@@ -107,7 +107,7 @@ def run(ctx):
           "document.addEventListener('submit'" in script2 and 'signInForm(e.target)' in script2
           and 'if (signInForm(el.closest' in script2)
     check('s173 A5 steps taken on a code-check page are marked optional ("only if your bank asks")',
-          script2.count('opt: checkPage()') == 5
+          script2.count('opt: checkPage()') == 5 and script2.count('pop: inPopup(el)') == 3
           and baw.step_words({'k': 'choose', 'option': 'Trust Device', 'opt': True}) == 'Choose \u201cTrust Device\u201d (only if your bank asks)')
     rs = baw.RECORD_SCRIPT
     check('s173 A5 the recording window shows that it is recording, with a live count, and says it never notes what you type (Rob: "so the user knows when to start")',
@@ -152,4 +152,33 @@ def run(ctx):
     baw.finish_recording(ka2)
     check('s173 A5 the bar\'s step count is kept per recording, and saving says it replaces the steps saved before',
           "'__gwNoted:' + (window.__gwRecId" in baw.RECORD_SCRIPT and 'Saving them replaces any steps saved before' in ctx.app_src)
+    # Amendment A13 (Rob, 2026-10-10: "build A13"): the bank's pop-ups
+    pop = baw.clean_step({'k': 'click', 'role': 'button', 'text': 'Close', 'opt': False, 'pop': True})
+    check('s173 A13.1 a step inside the bank\'s pop-up is saved as "only if your bank shows it"',
+          pop == {'k': 'click', 'role': 'button', 'text': 'Close', 'opt': True, 'pop': True}
+          and baw.step_words(pop) == 'Click \u201cClose\u201d (only if your bank shows it)'
+          and baw.parse_step_line('step {"k":"click","text":"Close","pop":true}') == {'k': 'click', 'text': 'Close', 'opt': True, 'pop': True}
+          and 'function inPopup(el)' in baw.RECORD_SCRIPT and "[aria-modal=true]" in baw.RECORD_SCRIPT)
+    check('s173 A13.2 a click that agrees to something is never saved as a step',
+          all(baw.clean_step({'k': 'click', 'text': t}) is None for t in ('Accept', 'I agree', 'Agree', 'I Accept the terms', 'Accept and continue'))
+          and baw.clean_step({'k': 'click', 'text': 'Accepted payments'}) is not None
+          and baw.clean_step({'k': 'click', 'text': 'Continue'}) is not None)
+    check('s173 A13.3 a choice that changes a setting at the bank ("don\'t show this again") is never saved',
+          all(baw.clean_step({'k': 'choose', 'option': o, 'pop': True}) is None
+              for o in ("Don't show this message again", 'Do not show again', 'Remember my choice', 'Don\u2019t ask me again'))
+          and baw.clean_step({'k': 'choose', 'field': 'Range', 'option': 'Last 30 days'}) is not None)
+    with db_session() as s:
+        a = Account(name='s173 Pop', type='checking', is_active=True, portal_url='https://bank.example.com')
+        s.add(a); s.commit(); kp = f'account:{a.id}'
+    try:
+        sv = c.post('/api/settings/bank-agent/recipe', headers=HJ, data=json.dumps({'key': kp, 'steps': [
+            {'k': 'click', 'text': 'Close', 'pop': True}, {'k': 'choose', 'option': "Don't show this message again", 'pop': True},
+            {'k': 'click', 'text': 'I agree'}, {'k': 'click', 'text': 'Download'}]})).get_json()['data']
+        check('s173 A13 Groundwork cleans the steps again when saving: the pop-up step kept as optional, the agreement and the setting dropped',
+              sv['steps'] == [{'k': 'click', 'text': 'Close', 'opt': True, 'pop': True}, {'k': 'click', 'text': 'Download'}])
+    finally:
+        with db_session() as s:
+            s.query(AppSetting).filter(AppSetting.key == f'bank_recipe:{kp}').delete(synchronize_session=False)
+            s.query(Account).filter(Account.id == a.id).delete(synchronize_session=False)
+            s.commit()
 

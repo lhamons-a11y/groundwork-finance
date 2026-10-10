@@ -17,7 +17,11 @@ import sys
 import threading
 
 STEP_KINDS = ('click', 'choose', 'sign_in', 'sign_in_user')
-_FIELDS = {'k', 'role', 'text', 'field', 'option', 'opt'}
+_FIELDS = {'k', 'role', 'text', 'field', 'option', 'opt', 'pop'}
+# A13.2: a click that would agree to something is never a step; A13.3: a choice that changes a setting at the bank
+# ("don't show this again") is never a step. Both are the person's own clicks, every time.
+_AGREES = re.compile(r"^\s*(i\s+)?(accept|agree)\b|\bi\s+(accept|agree)\b|\baccept\s+(and|&)\s+continue\b", re.I)
+_SETTING = re.compile(r"\b(don.?t|do\s+not)\s+(show|ask|remind)\b|\bremember\s+my\s+(choice|answer)\b|\bnever\s+show\b", re.I)
 # Every number on a page - an amount, a balance, an account's last digits - becomes this mark; the replay treats it
 # as "any number here" (Rob's first real run recorded "$2,608.57 $2,396.32" in a link's name).
 MASK = '••••'
@@ -43,6 +47,13 @@ def clean_step(raw):
             step[f] = _clean_text(raw[f])
     if raw.get('opt') is True:
         step['opt'] = True                          # only if the bank asks (a code check, "trust this device")
+    if raw.get('pop') is True:
+        step['pop'] = True                          # A13.1: taken inside the bank's pop-up - pressed only there
+        step['opt'] = True                          # ... and only if the bank shows it this time
+    if step['k'] == 'click' and _AGREES.search(step.get('text') or ''):
+        return None                                 # A13.2: never agrees to anything
+    if step['k'] == 'choose' and _SETTING.search((step.get('option') or '') + ' ' + (step.get('field') or '')):
+        return None                                 # A13.3: never ticks a setting at the bank
     if step['k'] == 'click' and not step.get('text'):
         return None
     if step['k'] == 'choose' and not step.get('option'):
@@ -71,7 +82,7 @@ def parse_step_line(line):
 def step_words(step):
     """A step in words, for the user (A5)."""
     k = step.get('k')
-    tail = ' (only if your bank asks)' if step.get('opt') else ''
+    tail = ' (only if your bank shows it)' if step.get('pop') else ' (only if your bank asks)' if step.get('opt') else ''
     if k == 'sign_in':
         return 'Sign in (Groundwork fills your saved login)' + tail
     if k == 'sign_in_user':
@@ -162,6 +173,10 @@ RECORD_SCRIPT = r'''(function () {
     var kind = signInForm(e.target);
     if (kind) note({k: kind, opt: checkPage()});
   }, true);
+  // A13.1: the bank's pop-up - a dialog box over the page
+  function inPopup(el) {
+    return !!(el && el.closest && el.closest('[role=dialog],[role=alertdialog],[aria-modal=true],dialog'));
+  }
   document.addEventListener('click', function (e) {
     if (!e.isTrusted || !api()) return;
     var el = e.target && e.target.closest ? e.target.closest('a,button,[role=button],[role=link],[role=tab],[role=menuitem],input[type=submit],input[type=button]') : null;
@@ -173,15 +188,15 @@ RECORD_SCRIPT = r'''(function () {
       note({k: 'sign_in', opt: checkPage()});
       return;
     }
-    note({k: 'click', role: (el.getAttribute('role') || el.tagName.toLowerCase()), text: nameOf(el), opt: checkPage()});
+    note({k: 'click', role: (el.getAttribute('role') || el.tagName.toLowerCase()), text: nameOf(el), opt: checkPage(), pop: inPopup(el)});
   }, true);
   document.addEventListener('change', function (e) {
     if (!e.isTrusted || !api()) return;
     var el = e.target;
     if (el && el.tagName === 'SELECT' && el.selectedIndex >= 0) {
-      note({k: 'choose', field: labelOf(el), option: nameOf(el.options[el.selectedIndex]), opt: checkPage()});
+      note({k: 'choose', field: labelOf(el), option: nameOf(el.options[el.selectedIndex]), opt: checkPage(), pop: inPopup(el)});
     } else if (el && el.tagName === 'INPUT' && (el.type === 'radio' || el.type === 'checkbox') && el.checked) {
-      note({k: 'choose', field: el.getAttribute('name') || '', option: labelOf(el), opt: checkPage()});
+      note({k: 'choose', field: el.getAttribute('name') || '', option: labelOf(el), opt: checkPage(), pop: inPopup(el)});
     }
   }, true);
 })();'''
@@ -504,8 +519,18 @@ DO_SCRIPT = r'''(function () {
     if (!f) return null;
     try { var u = new URL(f.getAttribute('src'), location.href); return u.protocol === 'https:' ? u.href : null; } catch (e) { return null; }
   }
+  // The bank's pop-ups (A13): what is showing, and whether one asks the person to agree to something
+  function popups() {
+    return Array.prototype.filter.call(document.querySelectorAll('[role=dialog],[role=alertdialog],[aria-modal=true],dialog'), visible);
+  }
+  function asksAgreement() {
+    return popups().some(function (d) {
+      return /\b(terms|agreement|consent|i accept|i agree|accept (the|these|our))\b/i.test((d.innerText || '').slice(0, 4000));
+    });
+  }
   window.__gwDo = function (step, login, probe) {
     if (botCheck()) return 'bot';
+    if (asksAgreement()) return 'code';      // A13.2: never accepts - the person answers it, as with a code
     // A login form on the page while the step is something else: the driver signs in first (recorded or not)
     if (step.k !== 'sign_in' && step.k !== 'sign_in_user') { var lf = loginForm(); if (lf) return 'login:' + lf; }
     if (!probe) { var fr = loginFrame(); if (fr && !document.querySelector('input[type=password]')) return 'frame:' + fr; }
@@ -533,8 +558,12 @@ DO_SCRIPT = r'''(function () {
       return 'ok';
     }
     if (step.k === 'click') {
-      var els = Array.prototype.filter.call(document.querySelectorAll('a,button,[role=button],[role=link],[role=tab],[role=menuitem],input[type=submit],input[type=button]'),
-        function (el) { return visible(el) && same(step.text || '', nameOf(el)); });
+      var scope = step.pop ? popups() : [document];
+      var els = [];
+      scope.forEach(function (root) {
+        Array.prototype.forEach.call(root.querySelectorAll('a,button,[role=button],[role=link],[role=tab],[role=menuitem],input[type=submit],input[type=button]'),
+          function (el) { if (visible(el) && same(step.text || '', nameOf(el)) && els.indexOf(el) < 0) els.push(el); });
+      });
       if (els.length === 1) { if (probe) return 'present'; press(els[0]); return 'ok'; }
       if (els.length > 1) return 'ambiguous';
       return codeAsked() ? 'code' : 'missing';
@@ -669,6 +698,8 @@ class Driver:
                     self.say(fetch_line('step', i=i))
                     if is_sign_in_step(step):
                         signed_in = True
+                    if step.get('pop'):
+                        self._bar('Closed your bank\u2019s pop-up (\u201c' + (step.get('text') or step.get('option') or '') + '\u201d). Carrying on.')
                     break
                 if signed_in and is_sign_in_step(step) and r in ('missing', 'present'):
                     # The recorded sign-in, already done this run (the login form has gone): it counts as done
@@ -917,7 +948,7 @@ def fetch_words(ev, steps_):
     if s == 'signed_in':
         return 'Signed in with your saved login.'
     if s == 'waiting_code':
-        return 'Your bank is asking for a code. Type it in the window; Groundwork carries on after that.'
+        return 'Your bank is asking you something (a code, or something to agree to). Answer it in the window; Groundwork carries on after that.'
     if s == 'stopped':
         return {'page_changed': "Stopped: the page didn't look as recorded" + (f" at step {i + 1}" if i is not None else '') + '. Record the steps again, or download this one yourself.',
                 'bot_check': 'Stopped: your bank showed a check for automated access. Groundwork stops there and closed the window.',

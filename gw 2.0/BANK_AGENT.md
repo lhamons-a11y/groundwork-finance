@@ -171,8 +171,7 @@ filled in. Nothing of the file's content is recorded (H1's C3).
 ## 3a. Amendment A13: the bank's pop-ups (RULED 2026-10-10)
 
 Rob, 2026-10-10, on Superior CU's "Notice" pop-up: *"i wish the agent could understand those and pass them for the
-user."* Then: *"yes write it up as an amendment and I already accept it as writtem"*. **A13.1–A13.4 RULED as written
-(Rob, 2026-10-10). Build not yet authorised.**
+user."* Then: *"yes write it up as an amendment and I already accept it as writtem"*. **A13.1–A13.4 RULED as written (Rob, 2026-10-10). BUILT 2026-10-10 (Rob: "build A13"): pop-up steps saved with `pop` (opt), pressed only inside a dialog, the bar names them; agreeing clicks and "don't show again" choices refused by `clean_step` at every save and read; a dialog asking to agree waits like a code; s173 / s174.**
 
 (A12, recording the route, was proposed on 2026-10-09 and is named in item 67's "Not decided here"; it is not ruled.
 This amendment takes the next number so the two don't collide.)

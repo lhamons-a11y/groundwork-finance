@@ -241,4 +241,22 @@ def run(ctx):
     check('s174 A6 the fetch window always closes itself when the fetch ends, whatever the outcome (Rob: "always close out the web browser window")',
           'outcome = driver.run()' in drive and 'window.destroy()' in drive and 'except Exception:' in drive
           and drive.index('outcome = driver.run()') < drive.index('window.destroy()') and 'if not driver.cancelled' in drive)
+    # Amendment A13: the bank's pop-ups during a fetch
+    ds = baw.DO_SCRIPT
+    POP = [{'k': 'click', 'text': 'Close', 'opt': True, 'pop': True}, {'k': 'click', 'text': 'Download'}]
+    page, clock, lines = _Page(['ok', 'ok']), _Clock(), []
+    r = baw.Driver(page, POP, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    check('s174 A13.1 the pop-up is there: the agent closes it, says so on the bar, and carries on',
+          r == 'done' and any('Closed your bank' in b and 'pop-up' in b for b in page.bars))
+    page, clock, lines = _Page(['missing', 'present', 'ok']), _Clock(), []
+    r = baw.Driver(page, POP, LOGIN, lines.append, now=clock.now, sleep=clock.sleep).run()
+    check('s174 A13.1 no pop-up this time: the step is skipped and the run carries on',
+          r == 'done' and [baw.parse_fetch_line(l)['s'] for l in lines][:1] == ['skipped'])
+    check('s174 A13.1 a pop-up step is pressed only inside a pop-up, never a same-named control on the page beneath',
+          'var scope = step.pop ? popups() : [document];' in ds)
+    check('s174 A13.2 a pop-up asking to agree to terms, an agreement or consent stops and waits for the person, as a code does',
+          "if (asksAgreement()) return 'code';" in ds and ds.index('if (asksAgreement())') < ds.index("if (step.k === 'sign_in_user')")
+          and 'terms|agreement|consent|i accept|i agree' in ds and 'something to agree to' in baw.fetch_words({'s': 'waiting_code'}, []))
+    check('s174 A13.3 the agent never ticks a box in a pop-up on its own: it only presses recorded steps, which never include a setting',
+          ds.count('.checked = true') == 0 and ds.count('setAttribute(\x27aria-checked') == 0)
 
