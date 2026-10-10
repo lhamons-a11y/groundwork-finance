@@ -353,3 +353,29 @@ only four checks. Salary keeps D4/D5, two checks in a row against the typical ch
   - Harmon Packaging is asked about. Answered hourly, it is steady, with its ordinary week and overtime shown.
   - There is no false card.
 - **Tests:** s183 (the detection rules and their null models) and s190 (D1, D2, D9, D10).
+
+### 4.7 D11: never cut a payment set by a contract (RULED 2026-10-10, Rob: "approve D11")
+
+**What happened.** At 18:02 on 2026-10-10, "Make this my budget" was tapped on the false income card (§4.1) in
+Rob's live Groundwork. The budget-follows option cut 33 lines by $3,543.41 a month, including:
+- Debt $1,500 → $653;
+- Car Lease A and Auto Finance A $445.79 → $222.89 each;
+- Car Lease B $433.43 → $216.72;
+- Car Insurer $163.13 → $81.56.
+
+I6's Undo restores them. The cause: `budget_follows` spares only the necessity floor and protected categories. A
+loan, lease, debt payment or insurance premium was neither, so it could be halved, and no one can pay half a lease.
+
+**D11.** The budget-follows option, and any later plan that moves budget money, never cuts a payment set by a
+contract:
+- a debt or loan payment;
+- a lease;
+- an insurance premium;
+- any line linked to a debt account;
+- any line the person marks *set by a contract*.
+
+When a line's name or category suggests a contract that Groundwork can't confirm (for example "Car Lease A" filed as
+"Transportation"), it asks the person once instead of guessing (AP4), and leaves the line alone until they answer.
+What can't be closed from the remaining lines is said, never forced (I3).
+
+**Not built yet:** the build needs its own go-ahead.
