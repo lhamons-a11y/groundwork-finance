@@ -248,8 +248,8 @@ in §4.2.
 *Recommended.* This would have caught today's problem at its real cause.
 
 **D8. Hourly pay with overtime: a fact, not an alarm, until a rule passes D6.**
-- For a payer like Harmon, the working picture shows the plain figures: *"Harmon Packaging: $3,313 over the last 4
-  weeks; the 4 weeks before, $4,320"*. No scenarios card and no budget proposal.
+- For a payer like Harmon, the working picture shows the plain figures: *"Harmon Packaging: $X over the last 4
+  weeks; the 4 weeks before, $Y"* (figures from the record). No scenarios card and no budget proposal.
 - A rule for this kind of pay comes back for ruling once one passes the shuffle test.
 
 *Recommended.*
