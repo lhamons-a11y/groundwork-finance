@@ -6552,11 +6552,31 @@ def _bank_agent_url(session, key):
     if kind == 'card':
         d = session.get(DebtAccount, int(ident))
         return d.portal_url if d and not d.linked_account_id else None
+    if kind == 'pay':                          # item 68 B8 (b): the bank of the account the bill is paid from
+        acct = _pay_account(session, ident)
+        return _bank_agent_url(session, f'account:{acct.id}') if acct else None
     if kind == 'bill':                         # item 68 B1: a bill's own website, on its budget line
         b = session.get(BudgetItem, int(ident))
         row = _get_setting(session, f'bill_site:{ident}') if b and b.is_active else None
         return (row.value or None) if row else None
     return None
+
+
+def _pay_account(session, bill_id):
+    """Item 68 B8 (b): the account the person said pays this bill (bill_from:<id>), or None."""
+    row = _get_setting(session, f'bill_from:{bill_id}')
+    if not row or not (row.value or '').isdigit():
+        return None
+    a = session.get(Account, int(row.value))
+    return a if a and a.is_active else None
+
+
+def _device_key(session, key):
+    """The key whose remembered device (A7) a window uses: a pay route uses its bank account's."""
+    if str(key).startswith('pay:'):
+        acct = _pay_account(session, str(key).split(':', 1)[1])
+        return f'account:{acct.id}' if acct else key
+    return key
 
 
 def _bank_recipe(session, key):
@@ -6578,12 +6598,14 @@ def bank_agent_record():
     key = str((request.json or {}).get('key') or '')
     with db_session() as session:
         url = _bank_agent_url(session, key)
-        device_on = (_get_setting(session, f'bank_device:{key}') or AppSetting(value='')).value == 'yes'
+        dkey = _device_key(session, key)
+        device_on = (_get_setting(session, f'bank_device:{dkey}') or AppSetting(value='')).value == 'yes'
     if not url:
         return err('That account has no bank link.', 400)
+    key_for_device = dkey
     # A7: with "Remember this computer" ticked, the recording window keeps the bank's cookies in the same folder the
     # fetch uses, so trusting this device while recording carries into the fetch
-    device = str(_bank_device_dir(key, create=True)) if device_on else ''
+    device = str(_bank_device_dir(key_for_device, create=True)) if device_on else ''
     return ok({'key': key, 'result': bank_agent_window.start_recording(key, url, device_dir=device)})
 
 
@@ -7121,7 +7143,8 @@ def bank_agent_bill_checks():
     with db_session() as session:
         for a in session.query(Account).filter_by(is_active=True).order_by(Account.sort_order, Account.name).all():
             buf = _setting_json(session, f'bank_buffer:account:{a.id}')
-            accounts.append({'id': a.id, 'name': a.name, 'buffer': (buf or {}).get('amount'), 'has_portal': bool(a.portal_url)})
+            accounts.append({'id': a.id, 'name': a.name, 'buffer': (buf or {}).get('amount'),
+                             'has_portal': bool(_bank_agent_url(session, f'account:{a.id}'))})
         latest = {}
         for r in session.query(BillReading).order_by(BillReading.id.desc()).all():
             latest.setdefault(r.budget_item_id, r)
@@ -7135,6 +7158,7 @@ def bank_agent_bill_checks():
             frm = _get_setting(session, f'bill_from:{bid}')
             acct_id = int(frm.value) if frm and (frm.value or '').isdigit() else None
             row = {'id': bid, 'name': b.name, 'reading_id': r.id, 'amount': r.amount,
+                   'pay_steps': bool(((_bank_recipe(session, f'pay:{bid}') or {}).get('steps'))),
                    'due': r.due_date.isoformat() if r.due_date else None, 'account_id': acct_id,
                    'check': None, 'paid': None, 'last_download': None}
             if acct_id is not None:
@@ -7166,6 +7190,68 @@ def bank_agent_bill_checks():
                                           if paid['lowest'] else None)}
             out.append(row)
     return ok({'bills': out, 'accounts': accounts})
+
+
+@settings_bp.route('/bank-agent/pay-open', methods=['POST'])
+@require_json
+def bank_agent_pay_open():
+    """Item 68 B8 (b), ruled: {id}. Take the person to their bank's bill pay for this bill - by the way they recorded
+    once - signed in with the bank account's login, and STOP. The window stays with the bill's facts on its bar; the
+    person enters the amount and presses Pay. Groundwork never pays (TM1), and no step can press a payment's button."""
+    import bank_agent_window
+    from core import bank_vault, bill_check
+    body = request.json or {}
+    try:
+        bid = int(body.get('id'))
+    except (TypeError, ValueError):
+        return err('Which bill?', 400)
+    key = f'pay:{bid}'
+    with db_session() as session:
+        b = session.get(BudgetItem, bid)
+        acct = _pay_account(session, bid)
+        if not b or not acct:
+            return err('Choose the account this bill is paid from first.', 400)
+        url = _bank_agent_url(session, key)          # the bank's link, through the one function that hands it on
+        if not url:
+            return err("That account has no bank link.", 400)
+        steps_ = ((_bank_recipe(session, key) or {}).get('steps')) or []
+        if not steps_:
+            return err("Show Groundwork the way to your bank's payment screen for this bill once first.", 400)
+        login_key = f'account:{acct.id}'
+        device_on = (_get_setting(session, f'bank_device:{login_key}') or AppSetting(value='')).value == 'yes'
+        r = session.query(BillReading).filter_by(budget_item_id=bid).order_by(BillReading.id.desc()).first()
+        balance, as_of, last, _tx = _account_balance_facts(session, acct.id)
+        buf = (_setting_json(session, f'bank_buffer:account:{acct.id}') or {}).get('amount')
+        chk = bill_check.pay_check(balance, as_of, last, buf, r.amount if r else None, [], datetime.utcnow())
+        name, acct_name = b.name, acct.name
+    if not bank_vault.has_login(login_key):
+        return err(f'Save a login for {acct_name} first.', 400)
+    facts = f'{name}: ' + (f'${r.amount:,.2f}' if r and r.amount is not None else 'amount not read')
+    facts += f' due {r.due_date:%b} {r.due_date.day}. ' if r and r.due_date else '. '
+    if chk['state'] == 'fits':
+        facts += f'{acct_name} would be ${chk["after"]:,.2f}, ${chk["margin"]:,.2f} above your ${buf:,.2f}'
+    elif chk['state'] == 'below':
+        facts += f'{acct_name} would be ${chk["after"]:,.2f}, ${-chk["margin"]:,.2f} below your ${buf:,.2f}'
+    else:
+        facts += 'Groundwork could not check your balance'
+    if chk.get('stale'):
+        facts += ' (last downloaded over 24 hours ago - newer transactions are not counted)'
+    hold = facts + '. Enter the amount and press Pay yourself. Groundwork never pays.'
+    device = str(_bank_device_dir(login_key, create=True)) if device_on else ''
+
+    def _finished(k, events):
+        end = next((e for e in reversed(events) if e.get('s') in bank_agent_window.TERMINAL), {}) or {}
+        try:
+            with db_session() as session:
+                log_historian_event(session, 'bill_pay_opened', context={
+                    'budget_item_id': bid, 'account_id': int(login_key.split(':')[1]), 'outcome': end.get('s'),
+                    'why': end.get('why')})
+                session.commit()
+        except Exception:
+            logging.getLogger('groundwork').warning('bill_pay_opened could not be recorded')
+    result = bank_agent_window.start_fetch(key, url, steps_, device, on_finish=_finished,
+                                           extra={'login_key': login_key, 'hold': hold})
+    return ok({'id': bid, 'result': result})
 
 
 @settings_bp.route('/bank-agent/fetch/stop', methods=['POST'])

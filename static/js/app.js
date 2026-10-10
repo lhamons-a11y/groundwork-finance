@@ -22939,7 +22939,9 @@ async function startBankRecording(key) {
     box.innerHTML = `<div style="font-size:12px;color:var(--ember);margin-top:6px">The window couldn't open (${esc(r.result)}).</div>`;
     return;
   }
-  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">${key.startsWith('bill:')
+  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">${key.startsWith('pay:')
+      ? "In the window that opened, sign in and go to your bank's payment screen for this bill. Stop before you enter an amount - Groundwork never pays. Then press Done."
+      : key.startsWith('bill:')
       ? 'In the window that opened, sign in and go to your bill. Then press <b>This is the amount due</b> and click the amount, and <b>This is the due date</b> and click the date. Groundwork notes where they are - never the figures, and never what you type.'
       : 'In the window that opened, sign in and do your usual download. Groundwork notes each button and choice - never what you type.'}</div>
     <ol data-gw-rec-steps style="font-size:12px;color:var(--ink);margin:6px 0 6px 18px"></ol>
@@ -22977,6 +22979,7 @@ async function saveBankRecipe(key) {
   catch (e) { _gwErr('saveBankRecipe')(e); return; }
   window._bankRecSteps = null;
   renderBankLogins();
+  if (key.startsWith('pay:')) renderBudgetBills();
 }
 
 // Item 68 B3 (BILLS_AND_PAYING.md): bills read from their own website. What was read waits for a yes; a confirmed
@@ -23060,9 +23063,24 @@ function billCheckHtml(c, accounts) {
       <button class="btn btn-ghost btn-sm" onclick="answerBillPaid(${c.reading_id}, ${p.txn.id}, true)">Yes</button>
       <button class="btn btn-ghost btn-sm" onclick="answerBillPaid(${c.reading_id}, ${p.txn.id}, false)">No</button>`;
   else if (p.state === 'not_seen') paid = `No payment seen yet${seen}.`;
-  return pick + floor + notice + `<div style="margin-top:4px;color:var(--ink)">${answer}</div>` + working
+  // Item 68 B8 (b): to the bank's payment screen for this bill, and stop - the person pays
+  const payWay = acct.has_portal ? `<div style="margin-top:6px">${c.pay_steps
+      ? `<button class="btn btn-secondary btn-sm" onclick="openBillPay(${c.id})">Take me to pay this</button>
+         <button class="btn btn-ghost btn-sm" onclick="startBankRecording('pay:${c.id}')">Record the way again</button>`
+      : `<button class="btn btn-ghost btn-sm" onclick="startBankRecording('pay:${c.id}')">Show Groundwork the way to pay this (once)</button>`}
+      <span style="color:var(--slate-2);font-size:11px">Groundwork opens your bank's payment screen and stops there. You enter the amount and press Pay.</span>
+      <div id="bankLoginForm-pay-${c.id}"></div></div>` : '';
+  return pick + floor + notice + `<div style="margin-top:4px;color:var(--ink)">${answer}</div>` + working + payWay
     + `<div style="color:var(--slate-2);font-size:11px">${esc(ck.cant_see || '')}</div>`
     + (paid ? `<div style="margin-top:4px;color:var(--ink)">${paid}</div>` : '');
+}
+
+async function openBillPay(id) {
+  let r;
+  try { r = await API.post('/api/settings/bank-agent/pay-open', { id }); }
+  catch (e) { showToast("Couldn't open it", e?.message || '', 'warning'); return; }
+  if (r.result !== 'opened' && r.result !== 'already_open') { showToast("Couldn't open it", r.result, 'warning'); return; }
+  showToast("Opening your bank's payment screen", 'Groundwork signs in and stops at the payment. You enter the amount and press Pay.', 'success');
 }
 
 async function setBillFrom(id, accountId) {

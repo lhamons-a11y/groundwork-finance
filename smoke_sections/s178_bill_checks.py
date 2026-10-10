@@ -114,5 +114,9 @@ def run(ctx):
     check('s178 B6 the words state facts: no verdicts ("safe", "afford", "should", "good", "bad", "don\x27t worry")',
           not re.search(r'\b(safe|afford|should|good|bad|worry|great)\b', block, re.I)
           and 'Transactions since then aren\x27t counted' in block and 'Can I pay this? It fits:' in block)
-    check('s178 B6/B7 the page never moves money: no pay route is called from the bills card',
-          'pay' not in ' '.join(re.findall(r"API\.post\('([^']+)'", block)).replace('bill-paid', ''))
+    card = app.split('function billCheckHtml(')[1].split('// Item 67 (GET_ALL_ACCOUNTS.md')[0]
+    routes = set(re.findall(r"API\.post\('([^']+)'", card))
+    check('s178 B6/B7 the bills card calls only these routes; the one near a payment (pay-open) opens the bank and stops',
+          routes == {'/api/settings/bank-agent/pay-open', '/api/settings/bank-agent/bill-from', '/api/settings/bank-agent/buffer',
+                     '/api/settings/bank-agent/bill-paid', '/api/settings/bank-agent/bill-read/confirm',
+                     '/api/settings/bank-agent/bill-read/use'})

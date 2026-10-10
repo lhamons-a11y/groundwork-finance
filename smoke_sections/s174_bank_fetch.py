@@ -89,8 +89,12 @@ def run(ctx):
 
     src = (BASE / 'bank_agent_window.py').read_text(encoding='utf-8')
     check('s174 A2 nothing starts a fetch except the route the user\'s click calls - no timer, no schedule, no retry loop',
-          srv.count('start_fetch(') == 1 and "@settings_bp.route('/bank-agent/fetch', methods=['POST'])" in srv
-          and not re.search(r'(schedule|Timer\(|setInterval\([^)]*startBankFetch)', src + srv.split('bank_agent_fetch():')[1][:1500])
+          # two starts, both behind a click's route: the fetch (item 57/67) and the way to bill pay (item 68 B8 (b))
+          srv.count('start_fetch(') == 2 and "@settings_bp.route('/bank-agent/fetch', methods=['POST'])" in srv
+          and "@settings_bp.route('/bank-agent/pay-open', methods=['POST'])" in srv
+          # (the never-press-a-payment guard names "schedule payment" as a button it refuses; that is not a schedule)
+          and not re.search(r'(schedule|Timer\(|setInterval\([^)]*startBankFetch)',
+                            (src + srv.split('bank_agent_fetch():')[1][:1500]).replace('(submit|confirm|schedule|', '('))
           and app.count('startBankFetch(') == 2)
     check('s174 A4 the agent writes the password to no file and no log', not re.search(r'(logging|logger|(?<![A-Za-z])open\()', src.split('# ── Stage 3')[1]))
 
@@ -139,7 +143,9 @@ def run(ctx):
     rec_src = src.split('def child_main(mode)')[1].split("# ── Groundwork's side")[0]
     check('s174 A7 the recording window uses the same remembered-device folder when ticked, so "Trust this device" carries into the fetch; private otherwise',
           'storage_path=device' in rec_src and 'private_mode=True' in rec_src
-          and "start_recording(key, url, device_dir=device)" in srv and "device = str(_bank_device_dir(key, create=True)) if device_on else ''" in srv.split('def bank_agent_record():')[1][:1200])
+          and "start_recording(key, url, device_dir=device)" in srv
+          and "device = str(_bank_device_dir(key_for_device, create=True)) if device_on else ''" in srv.split('def bank_agent_record():')[1][:1400]
+          and "dkey = _device_key(session, key)" in srv.split('def bank_agent_record():')[1][:1400])
     import tempfile, os
     d = tempfile.mkdtemp(prefix='s174_dl_')
     first = baw.unique_path(d, r'C:\\Users\\x\\Downloads\\transactions-1.csv')

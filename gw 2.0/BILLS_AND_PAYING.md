@@ -16,7 +16,15 @@ downloaded in the past 24 hours."* Then: *"yes open it as an item."*
 
 **B1–B9 RULED 2026-10-10 (Rob: "approve B1–B9 as recommended"):** B3 (a), the bill shown beside the budget line;
 **B8 (b): TM1 stands.** Groundwork takes the person to their bank's bill pay at that payee and stops; the person enters
-the amount and presses Pay. (c) is to be revisited once B6 and B7 have run on real accounts. Build not yet authorised.
+the amount and presses Pay. (c) is to be revisited once B6 and B7 have run on real accounts. **BUILT 2026-10-10 (Rob: "build item 68") in three
+stages:** 1 the bill read from its own website (bill_site / bill:<id> vault login / 'read' steps marking the label
+beside each figure, every number masked / parse_amount, parse_due / bill_pending until the yes / the BillReading table,
+SCHEMA_VERSION 20261010-bill-readings / the Budget page's card / "use the bill's amount for this month" derived in
+budget_month_amounts; s177); 2 core/bill_check.py - can I pay this? against the person's floor with the 24-hour notice,
+and paid? (s178); 3 "Take me to pay this" - the way to the bank's payment screen recorded once (pay:<id>), followed with
+the bank account's login and device, the window held at the payment with the bill's facts on its bar; the
+never-press-a-payment guard in clean_step, press() and the click step, checked in Node against the same names (s179).
+Awaiting the full gate, a real run on Rob's AEP account and bank, and acceptance.
 
 **Already decided (not reopened here):**
 - The person starts every outside action; nothing is scheduled or unattended (item 65 AP7, TM2; Rob 2026-10-09).

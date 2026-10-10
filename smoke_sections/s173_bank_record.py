@@ -85,11 +85,11 @@ def run(ctx):
         with db_session() as s:
             saved_before = s.query(AppSetting).filter_by(key=f'bank_recipe:{ka}').first()
         check('s173 A5 finishing hands back the steps and saves nothing on its own', len(fin['steps']) == 4 and saved_before is None)
-        tampered = fin['steps'] + [{'k': 'click', 'text': 'Pay 4111111111111111', 'value': 'x'}]
+        tampered = fin['steps'] + [{'k': 'click', 'text': 'Card 4111111111111111', 'value': 'x'}]
         sv = c.post('/api/settings/bank-agent/recipe', headers=HJ, data=json.dumps({'key': ka, 'steps': tampered})).get_json()['data']
         got = c.get(f'/api/settings/bank-agent/recipe?key={ka}', headers=H).get_json()['data']
         check('s173 A5 on the user\'s yes the steps are saved for that account - cleaned again (no value, digits masked)',
-              got['steps'] == sv['steps'] and len(got['steps']) == 5 and got['steps'][-1] == {'k': 'click', 'text': 'Pay ••••'}
+              got['steps'] == sv['steps'] and len(got['steps']) == 5 and got['steps'][-1] == {'k': 'click', 'text': 'Card ••••'}
               and 'value' not in json.dumps(got['steps']))
         c.post('/api/settings/bank-agent/recipe/delete', headers=HJ, data=json.dumps({'key': ka}))
         check('s173 A5 the saved steps can be deleted', c.get(f'/api/settings/bank-agent/recipe?key={ka}', headers=H).get_json()['data']['steps'] == [])

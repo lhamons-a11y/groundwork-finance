@@ -21,6 +21,10 @@ _FIELDS = {'k', 'role', 'text', 'field', 'option', 'opt', 'pop', 'what'}
 READ_WHAT = ('amount', 'due')        # item 68 B2: the two figures a bill's page is read for
 # A13.2: a click that would agree to something is never a step; A13.3: a choice that changes a setting at the bank
 # ("don't show this again") is never a step. Both are the person's own clicks, every time.
+# Item 68 B8 (b) / B9, item 65 TM1: Groundwork never moves money. A control named like a payment's own button is never
+# saved as a step and never pressed - in any run, a bank download included.
+_PAYS = re.compile(r"^\s*(pay(\s+(now|bill|this bill|it))?|make\s+(a\s+)?payment|(submit|confirm|schedule|authori[sz]e|complete|send)\s+payment"
+                   r"|send(\s+(money|now))?|transfer(\s+(funds|money|now))?|pay\s+(\$|•).*)\s*[.!]?\s*$", re.I)   # •: an amount already masked
 _AGREES = re.compile(r"^\s*(i\s+)?(accept|agree)\b|\bi\s+(accept|agree)\b|\baccept\s+(and|&)\s+continue\b", re.I)
 _SETTING = re.compile(r"\b(don.?t|do\s+not)\s+(show|ask|remind)\b|\bremember\s+my\s+(choice|answer)\b|\bnever\s+show\b", re.I)
 # Every number on a page - an amount, a balance, an account's last digits - becomes this mark; the replay treats it
@@ -60,6 +64,8 @@ def clean_step(raw):
         step['opt'] = True                          # ... and only if the bank shows it this time
     if step['k'] == 'click' and _AGREES.search(step.get('text') or ''):
         return None                                 # A13.2: never agrees to anything
+    if step['k'] == 'click' and _PAYS.search((step.get('text') or '').replace('_', ' ')):
+        return None                                 # item 68 B9 / TM1: never presses a payment's own button
     if step['k'] == 'choose' and _SETTING.search((step.get('option') or '') + ' ' + (step.get('field') or '')):
         return None                                 # A13.3: never ticks a setting at the bank
     if step['k'] == 'click' and not step.get('text'):
@@ -156,6 +162,11 @@ RECORD_SCRIPT = r'''(function () {
   var countKey = '__gwNoted:' + (window.__gwRecId || '');      // per recording, so an old count never carries over
   try { noted = parseInt(sessionStorage.getItem(countKey) || '0', 10) || 0; } catch (e) {}
   function say() {
+    if (window.__gwPay) {
+      gwBar('Recording the way to pay this bill \u2014 go to your bank\u2019s payment screen for it. Stop before you enter an amount; Groundwork never pays. '
+        + (noted ? noted + ' step' + (noted === 1 ? '' : 's') + ' noted. ' : '') + 'Press Done in Groundwork when you are there.', 'rec');
+      return;
+    }
     gwBar('Recording for Groundwork \u2014 do your usual download. Groundwork notes your clicks and choices, never what you type. '
       + (noted ? noted + ' step' + (noted === 1 ? '' : 's') + ' noted. ' : '') + 'Press Done in Groundwork when the file has downloaded.', 'rec');
   }
@@ -316,7 +327,9 @@ def child_main(mode):
     # A7: the account's remembered-device folder when the user ticked it ('' = private), so "Trust this device"
     # given while recording carries into the fetch (Rob's real run: the trust was lost with the private window)
     device = sys.stdin.readline().strip()
-    is_bill = sys.stdin.readline().strip() == 'bill'      # item 68 B2: the marking buttons
+    kind_line = sys.stdin.readline().strip()
+    is_bill = kind_line == 'bill'                          # item 68 B2: the marking buttons
+    is_pay = kind_line == 'pay'                            # item 68 B8 (b): the way to the bank's bill pay
     if bw.portal_url_problem(url) or mode != 'record':
         bw._say(bw.STATUS_REFUSED_URL)
         return 2
@@ -341,7 +354,8 @@ def child_main(mode):
     def on_loaded(*_):
         try:
             window.evaluate_js('window.__gwRecId = ' + json.dumps(rec_id) + ';'
-                               + ('window.__gwBill = true;' if is_bill else '') + RECORD_SCRIPT)
+                               + ('window.__gwBill = true;' if is_bill else '') + ('window.__gwPay = true;' if is_pay else '')
+                               + RECORD_SCRIPT)
         except Exception:
             pass
     window.events.loaded += on_loaded
@@ -403,7 +417,8 @@ def start_recording(key, url, wait_seconds=20.0, device_dir=''):
     flags = 0x08000000 if sys.platform == 'win32' else 0
     proc = subprocess.Popen(_command('record'), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True, creationflags=flags)
-    proc.stdin.write(url + '\n' + (device_dir or '') + '\n' + ('bill' if str(key).startswith('bill:') else '') + '\n')
+    kind = 'bill' if str(key).startswith('bill:') else 'pay' if str(key).startswith('pay:') else ''
+    proc.stdin.write(url + '\n' + (device_dir or '') + '\n' + kind + '\n')
     proc.stdin.flush()
     status = bw._read_status(proc, wait_seconds)
     if status != bw.STATUS_READY:
@@ -450,7 +465,7 @@ def begin_for_test(key):
 # page's own login boxes, and is never written to a line, a log or a file.
 
 FETCH_STATUSES = ('step', 'skipped', 'signed_in', 'waiting_code', 'stopped', 'downloaded', 'no_download', 'done', 'read')
-STOP_REASONS = ('page_changed', 'bot_check', 'no_login', 'code_timeout', 'cancelled', 'sign_in_failed')
+STOP_REASONS = ('page_changed', 'bot_check', 'no_login', 'code_timeout', 'cancelled', 'sign_in_failed', 'would_pay')
 STEP_WAIT = 15.0          # seconds for a step's control to appear after a page load
 SIGN_IN_SETTLE = 12.0     # seconds the old login page may still show after Sign In is pressed
 CLOSE_PAUSE = 8.0         # seconds the finished window stays before closing: the file finishes writing, and the
@@ -505,7 +520,14 @@ DO_SCRIPT = r'''(function () {
   }
   // Press an element the way a mouse does. A native button, link, input or label takes a plain click; a styled element
   // (a web-app "button" that is a div) answers only the full press - pointer and mouse down and up, then the click.
+  // Item 68 B9 / TM1: a payment's own button is never pressed - whatever the steps say
+  function paysMoney(el) {
+    return /^\s*(pay(\s+(now|bill|this bill|it))?|make\s+(a\s+)?payment|(submit|confirm|schedule|authori[sz]e|complete|send)\s+payment|send(\s+(money|now))?|transfer(\s+(funds|money|now))?|pay\s+\$.*)\s*[.!]?\s*$/i
+      .test(nameOf(el).replace(/_/g, ' ')) || /^\s*(pay(\s+(now|bill|this bill|it))?|make\s+(a\s+)?payment|(submit|confirm|schedule|authori[sz]e|complete|send)\s+payment|send(\s+(money|now))?|transfer(\s+(funds|money|now))?)\s*[.!]?\s*$/i
+      .test((el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim());
+  }
   function press(el) {
+    if (paysMoney(el)) return false;
     try { el.scrollIntoView({block: 'center', inline: 'nearest'}); } catch (e) {}
     if (/^(BUTTON|A|INPUT|LABEL|OPTION)$/.test(el.tagName)) { el.click(); return; }
     var r = el.getBoundingClientRect();
@@ -635,7 +657,7 @@ DO_SCRIPT = r'''(function () {
         Array.prototype.forEach.call(root.querySelectorAll('a,button,[role=button],[role=link],[role=tab],[role=menuitem],input[type=submit],input[type=button]'),
           function (el) { if (visible(el) && same(step.text || '', nameOf(el)) && els.indexOf(el) < 0) els.push(el); });
       });
-      if (els.length === 1) { if (probe) return 'present'; press(els[0]); return 'ok'; }
+      if (els.length === 1) { if (paysMoney(els[0])) return 'would_pay'; if (probe) return 'present'; press(els[0]); return 'ok'; }
       if (els.length > 1) return 'ambiguous';
       return codeAsked() ? 'code' : 'missing';
     }
@@ -798,6 +820,9 @@ class Driver:
                 if r == 'bot':
                     self.say(fetch_line('stopped', i=i, why='bot_check'))
                     return 'bot_check'
+                if r == 'would_pay':
+                    self.say(fetch_line('stopped', i=i, why='would_pay'))     # TM1: never presses a payment's button
+                    return 'would_pay'
                 if r == 'no_login':
                     self.say(fetch_line('stopped', i=i, why='no_login'))
                     return 'no_login'
@@ -868,7 +893,16 @@ def fetch_child_main():
     except ValueError:
         steps_ = []
     device = sys.stdin.readline().strip()
-    if bw.portal_url_problem(url) or not steps_ or not key.startswith(('account:', 'card:', 'bill:')):
+    try:
+        extra = json.loads(sys.stdin.readline() or '{}') or {}
+    except ValueError:
+        extra = {}
+    # Item 68 B8 (b): 'pay:<bill>' goes to the bank's bill pay, signed in with the bank account's login, and stops
+    login_key = str(extra.get('login_key') or '') if key.startswith('pay:') else key
+    hold = str(extra.get('hold') or '')[:400] if key.startswith('pay:') else ''
+    if key.startswith('pay:') and not login_key.startswith(('account:', 'card:')):
+        login_key = ''
+    if bw.portal_url_problem(url) or not steps_ or not key.startswith(('account:', 'card:', 'bill:', 'pay:')) or not login_key:
         bw._say(bw.STATUS_REFUSED_URL)
         return 2
     platform_key = bw._platform_key()
@@ -898,8 +932,8 @@ def fetch_child_main():
             window.on_top = False
         except Exception:
             pass
-    driver = Driver(window, steps_, _read_login(key), lambda l: (sys.stdout.write(l + '\n'), sys.stdout.flush()),
-                    downloads=None if key.startswith('bill:') else _downloads_lister(),   # a bill is read, not downloaded
+    driver = Driver(window, steps_, _read_login(login_key), lambda l: (sys.stdout.write(l + '\n'), sys.stdout.flush()),
+                    downloads=None if key.startswith(('bill:', 'pay:')) else _downloads_lister(),   # read or taken there; no file
                     open_url=_go_to, to_front=_front)
 
     def _close_when_parent_goes():
@@ -923,6 +957,11 @@ def fetch_child_main():
             outcome = driver.run()
         except Exception:
             outcome = 'stopped'
+        if hold and outcome == 'done' and not driver.cancelled:
+            # Item 68 B8 (b): at the bank's payment screen, the window stays for the person - they enter the amount
+            # and press Pay. Groundwork has nothing more to do here and never presses it.
+            driver._bar(hold, 'ask')
+            return
         # Rob: the agent always closes the window when it is finished - whatever the outcome. A short pause first lets
         # the file finish writing and shows the outcome on the bar; Groundwork's page says what happened and why.
         if not driver.cancelled:
@@ -975,7 +1014,7 @@ def collect_fetch(key, lines, on_finish=None):
             on_finish(key, fetch_events(key))
 
 
-def start_fetch(key, url, steps_, device_dir, wait_seconds=20.0, on_finish=None):
+def start_fetch(key, url, steps_, device_dir, wait_seconds=20.0, on_finish=None, extra=None):
     """'opened' | 'already_open' | 'refused_url' | 'engine_unavailable'. Started only from the user's click (A2)."""
     import subprocess
     import bank_window as bw
@@ -988,7 +1027,8 @@ def start_fetch(key, url, steps_, device_dir, wait_seconds=20.0, on_finish=None)
     flags = 0x08000000 if sys.platform == 'win32' else 0
     proc = subprocess.Popen(_command('fetch'), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True, creationflags=flags)
-    proc.stdin.write(url + '\n' + key + '\n' + json.dumps(steps_) + '\n' + (device_dir or '') + '\n')
+    proc.stdin.write(url + '\n' + key + '\n' + json.dumps(steps_) + '\n' + (device_dir or '') + '\n'
+                     + json.dumps(extra or {}) + '\n')
     proc.stdin.flush()
     status = bw._read_status(proc, wait_seconds)
     if status != bw.STATUS_READY:
@@ -1039,6 +1079,7 @@ def fetch_words(ev, steps_):
                 'no_login': 'Stopped: no saved login for this account.',
                 'code_timeout': 'Stopped: no code was entered in 5 minutes.',
                 'sign_in_failed': "Stopped: signing in didn't get past the login page twice. Check the saved login (Forget, then Save login again).",
+                'would_pay': "Stopped: the next step looked like making a payment. Groundwork never pays - that is your click.",
                 'cancelled': 'Stopped.'}.get(ev.get('why'), 'Stopped.')
     if s == 'downloaded':
         return f"Downloaded {ev.get('file', '')} to your Downloads folder. It's waiting for you in the import review."
@@ -1144,6 +1185,7 @@ def batch_words(it, live=None):
             'code_timeout': 'Stopped: no code was entered in 5 minutes',
             'sign_in_failed': "Stopped: signing in didn't get past the login page",
             'already_open': 'Stopped: a window for this account was already open',
+            'would_pay': 'Stopped: the next step looked like making a payment - Groundwork never pays',
             'refused_url': "Stopped: the bank link isn't an https address",
             'engine_unavailable': "Stopped: the window couldn't open",
             'cancelled': 'Stopped'}.get(why, 'Stopped')

@@ -41,7 +41,7 @@ def run(ctx):
           and rs.count('window.pywebview.api.step(') == 1)
     src = (BASE / 'bank_agent_window.py').read_text(encoding='utf-8')
     check('s177 B2 the record window is told it is a bill\'s, and only then shows the buttons',
-          "('bill' if str(key).startswith('bill:') else '')" in src and "('window.__gwBill = true;' if is_bill else '')" in src)
+          "kind = 'bill' if str(key).startswith('bill:') else" in src and "('window.__gwBill = true;' if is_bill else '')" in src)
 
     # ── B3: reading ──
     t = date(2026, 10, 10)
@@ -68,7 +68,7 @@ def run(ctx):
     check('s177 B3 the page finds the figure beside its label: an amount with cents, or a date',
           "if (step.k === 'read') {" in ds and "return 'read:' + JSON.stringify({what: step.what, text: m[0]});" in ds)
     fsrc = src.split('def fetch_child_main')[1]
-    check('s177 B3 a bill\'s fetch window expects no file', "downloads=None if key.startswith('bill:') else _downloads_lister()" in fsrc)
+    check('s177 B3 a bill\'s fetch window expects no file', "downloads=None if key.startswith(('bill:', 'pay:')) else _downloads_lister()" in fsrc)
 
     # ── B1: the vault and the website ──
     check('s177 B1 the vault takes a bill\'s login under bill:<id>, and still refuses anything else',
