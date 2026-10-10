@@ -23342,6 +23342,25 @@ function _payFactsHtml(st) {
   return rows.length ? `<div class="card mt-5"><div class="card-label">Your pay</div><div style="font-size:12px;color:var(--ink);line-height:1.6">${rows.join('')}</div></div>` : '';
 }
 
+// D11: payments set by a contract are never cut - said plainly; a line that may be one is asked about once.
+function _contractLinesHtml(st) {
+  const kept = (st && st.contracts) || [], qs = (st && st.contract_questions) || [];
+  if (!kept.length && !qs.length) return '';
+  return `<div style="font-size:12px;color:var(--slate);margin-top:10px;line-height:1.6">
+    ${kept.length ? `<div>Never cut, because each is set by a contract: ${kept.map(k => `${esc(k.name)} (${fmt(k.amount)})`).join(', ')}.</div>` : ''}
+    ${qs.map(q => `<div style="margin-top:4px">Is <b>${esc(q.name)}</b> (${fmt(q.amount)}) a loan, lease or insurance payment set by a contract? Until you say, it is left alone.
+      <button class="btn btn-secondary btn-sm" onclick="incomeContractLine(${q.id}, 'yes')">Yes, it's set</button>
+      <button class="btn btn-ghost btn-sm" onclick="incomeContractLine(${q.id}, 'no')">No, it can change</button></div>`).join('')}</div>`;
+}
+
+async function incomeContractLine(lineId, answer) {
+  try {
+    const st = await API.post('/api/income-change/contract', { line_id: lineId, answer });
+    const el = g('budgetIncomeChange');
+    if (el) el.innerHTML = incomeChangeHtml(st);
+  } catch (e) { _gwErr('incomeContractLine')(e); }
+}
+
 async function incomePayKind(payer, kind) {
   try {
     const st = await API.post('/api/income-change/pay-kind', { payer, kind });
@@ -23398,7 +23417,7 @@ function incomeChangeHtml(st) {
     <div style="font-size:12px;color:var(--slate);margin-top:4px;line-height:1.6">${holds}</div>
     <div style="font-size:12px;color:var(--slate);margin-top:8px">Do you expect this to last?</div><div>${ask}</div>
     <div style="font-size:11px;color:var(--slate-2);margin-top:8px">What each would mean, side by side. These are worked out from your record and recalculated when it changes; none of them is a prediction.</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">${cards}</div></div>` + facts;
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">${cards}</div>${_contractLinesHtml(st)}</div>` + facts;
 }
 
 async function renderIncomeChange() {

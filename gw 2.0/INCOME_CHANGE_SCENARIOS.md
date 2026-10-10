@@ -378,4 +378,16 @@ When a line's name or category suggests a contract that Groundwork can't confirm
 "Transportation"), it asks the person once instead of guessing (AP4), and leaves the line alone until they answer.
 What can't be closed from the remaining lines is said, never forced (I3).
 
-**Not built yet:** the build needs its own go-ahead.
+**BUILT 2026-10-10 (Rob: "build d11"), awaiting acceptance.**
+- `core/contracts.py` classifies each budget line as a **contract** (its name or category says loan, lease, debt,
+  mortgage, insurance or financing; it names the whole of one of the person's debt accounts; or the person said
+  yes), an **ask** (its name is a lender, insurer or loan servicer and nothing confirms it), or ordinary.
+- `budget_follows` skips both contract and ask lines.
+- The card lists *Never cut, because each is set by a contract* and asks about each held line (*Yes, it's set* /
+  *No, it can change*). Answers are kept in `contract_lines`, append-only, with the latest winning, through
+  `/api/income-change/contract`.
+- On Rob's lines (read 2026-10-10):
+  - contract: Debt, Car Lease A, Car Lease B, Insurance, Installment Lender, Housing ×2;
+  - asked: Auto Finance A, Car Insurer, Dept of Education;
+  - "Apple" is not mistaken for the Apple Master Card account.
+- s191 tests it, including a check that would fail if the rule were removed (it shows the 2026-10-10 halving).

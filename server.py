@@ -1794,8 +1794,21 @@ def _income_change_state(session):
         cushion += max(0.0, bal - floor)
         known = True
     today = date.today().strftime('%Y-%m')
+    # D11: payments set by a contract are never cut; one that may be waits for the person's answer
+    from core.contracts import classify
+    said = {}
+    for x in _setting_json(session, 'contract_lines', []) or []:
+        if isinstance(x, dict) and x.get('answer') in ('yes', 'no'):
+            said[x.get('line_id')] = x['answer']
+    debt_names = [d.name for d in session.query(DebtAccount).filter_by(is_active=True).all()]
+    kinds = classify(lines, debt_names, said)
     sc = ic.scenarios(change, outflow, lines, effective, cards, debt_budget, round(cushion, 2) if known else None,
-                      answer=answer, kw=dict(strategy=strategy, today_key=today, start_month=today))
+                      answer=answer, kw=dict(strategy=strategy, today_key=today, start_month=today), fixed=set(kinds))
+    by_id = {ln['id']: ln for ln in lines}
+    sc['contracts'] = [{'id': i, 'name': by_id[i]['name'], 'amount': by_id[i]['amount'], 'why': k['why']}
+                       for i, k in kinds.items() if k['kind'] == 'contract']
+    sc['contract_questions'] = [{'id': i, 'name': by_id[i]['name'], 'amount': by_id[i]['amount'], 'why': k['why']}
+                                for i, k in kinds.items() if k['kind'] == 'ask']
     from core import household
     return {'change': change, 'answer': answer, 'outflow': outflow, 'goal': household.current(session, 'surplus_goal'),
             'snoozed': (_get_setting(session, 'income_change_snooze') or AppSetting(value='')).value == today,
@@ -2070,6 +2083,29 @@ def income_pay_kind():
         said = _setting_json(session, 'pay_kinds', []) or []
         said.append({'payer': payer, 'kind': kind, 'said_at': datetime.now().isoformat(timespec='seconds')})
         _set_setting(session, 'pay_kinds', json.dumps(said[-200:]))
+        session.commit()
+        return ok(_income_change_state(session))
+
+
+@income_bp.route('/contract', methods=['POST'])
+@require_json
+def income_contract_line():
+    """D11: the person says whether a budget line is set by a contract. Kept as their statement (append-only, the
+    latest wins); a yes keeps the line out of every plan that moves budget money, a no lets it be offered."""
+    body = request.json or {}
+    answer = body.get('answer')
+    try:
+        line_id = int(body.get('line_id'))
+    except (TypeError, ValueError):
+        return err('line_id is required')
+    if answer not in ('yes', 'no'):
+        return err("answer must be 'yes' or 'no'")
+    with db_session() as session:
+        if not session.get(BudgetItem, line_id):
+            return err('Not one of your budget lines.', 404)
+        said = _setting_json(session, 'contract_lines', []) or []
+        said.append({'line_id': line_id, 'answer': answer, 'said_at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'contract_lines', json.dumps(said[-500:]))
         session.commit()
         return ok(_income_change_state(session))
 

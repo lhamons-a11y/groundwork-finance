@@ -182,19 +182,22 @@ def detect_pay(deposits, kinds, records_end, today):
     return {'change': change, 'payers': judged}
 
 
-def budget_follows(lines, gap, effective):
+def budget_follows(lines, gap, effective, fixed=()):
     """I3 scenario 2 / I6: close `gap` from budget lines. `lines`: [{'id', 'name', 'category', 'amount'}].
     `effective`: the Willingness Layer's per-category stance ({key: {'stance', 'source'}}).
 
     Order (E.3 rule 2): declared or observed flexible first, then unclassified, then what the record says is kept
     ('sacred'); within each, larger lines first. Never a line on the necessity floor, never a protected one. Each
     line gives at most LINE_CUT_SHARE of itself. Returns {'changes': [{id, name, category, old, new, why}],
-    'closed': amount, 'left': what could not be closed}."""
+    'closed': amount, 'left': what could not be closed}.
+
+    D11 (section 4.7): never a line in `fixed` - a payment set by a contract (loan, lease, debt, insurance), or one
+    that may be and is waiting for the person's answer."""
     rank = {'flexible': 0, 'unclassified': 1, 'sacred': 2}
     pool = []
     for ln in lines:
         cat = (ln.get('category') or ln.get('name') or '').strip()
-        if is_protected(cat) or float(ln.get('amount') or 0) <= 0:
+        if is_protected(cat) or float(ln.get('amount') or 0) <= 0 or ln['id'] in fixed:
             continue
         w = (effective or {}).get(cat.lower()) or {'stance': 'unclassified', 'source': None}
         if w['stance'] == 'protected':
@@ -227,7 +230,7 @@ def _payoff(cards, budget, kw):
     return r['months'] if r else None
 
 
-def scenarios(change, outflow, lines, effective, cards, debt_budget, cushion, answer=None, kw=None):
+def scenarios(change, outflow, lines, effective, cards, debt_budget, cushion, answer=None, kw=None, fixed=()):
     """I3: five futures for one recorded drop. `change` from detect; `outflow` the month's budgeted expenses;
     `cushion` cash the person holds above their own floors (None when not known); `answer` the person's word on
     whether it lasts ('lasting' | 'temporary' | 'unsure' | None). Debt figures use the one payoff engine.
@@ -254,7 +257,7 @@ def scenarios(change, outflow, lines, effective, cards, debt_budget, cushion, an
                                   {'label': 'Added to what you owe each month', 'value': gap, 'kind': 'projected'}]})
 
     # 2. The budget follows the income
-    plan = budget_follows(lines, gap, effective)
+    plan = budget_follows(lines, gap, effective, fixed)
     out.append({'key': 'budget_follows', 'title': 'The budget follows the income',
                 'assumptions': [f'Income stays at about ${level:,.0f} a month.',
                                 'The gap comes out of the categories you marked or showed flexible first; never rent, food, insurance or anything you protected.'],
