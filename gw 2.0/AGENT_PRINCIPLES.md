@@ -208,6 +208,11 @@ based on indirect financial clues.
 artificial urgency, coercive reminders, or celebration effects designed to influence behavior. Motion and interaction
 design must respect the same non-manipulative voice standard as written language.
 
+*Ruling note (Rob, 2026-10-09):* the bank agent's recording light blinks red. It shows a state (recording is on) and
+asks nothing of the person, so it is not a persuasion mechanic under TM6. Rob preferred it blinking over a steady
+light ("I did not mind the blinking light to be honest. I preferred it"); it is steady for anyone with reduced motion
+turned on. TM6 still governs motion meant to influence behaviour.
+
 **TM7. No health specifics before the required privacy gate.** Health-specific functionality remains blocked until
 item 45's H6 privacy gate is satisfied.
 
