@@ -12539,206 +12539,76 @@ function renderFirstVisitBanner(view) {
 
 // ── LAYER 3: Help overlay FAQ ─────────────────────────────────────────────────
 
+// Item 72 stage 2 (ASK_WHY.md C6): this list is the how-to guide. Each entry may carry `keys` (what the Ask box
+// matches on), `open` (where "Open it for me" goes - a page, a Settings tab, an element; it only navigates) and
+// `labels` (the on-screen words its answer names - s192 fails when one is not in the app).
 const HELP_FAQ = [
-
-  { h: 'Getting started' },
-  // ── Getting started ──────────────────────────────────────────────────────
-  {
-    q: 'How do I import my bank transactions?',
-    a: 'Go to Settings → Import. Download a CSV or OFX export from your bank\'s website, then upload it here. Groundwork supports most major banks and credit card issuers. If you save the file to your Downloads folder, Groundwork detects it automatically and offers a one-click import.',
-  },
-  {
-    q: 'What should I do in my first week?',
-    a: 'Five steps: set your monthly income in Budget, set your expense categories, add your debt cards under Debt Payoff, import your first bank statement, then run your first monthly report. After those five things the app knows enough to give you real guidance.',
-  },
-  {
-    q: 'How do I add a debt card or loan?',
-    a: 'Go to Debt Payoff and tap "Add card or loan." Enter the name, current balance, APR, and minimum payment. The app immediately calculates your payoff timeline, total interest cost, and debt-free date.',
-  },
-
-  { h: 'Debt payoff' },
-  // ── Debt payoff ──────────────────────────────────────────────────────────
-  {
-    q: 'What does the debt-free date mean?',
-    a: 'The month and year your last balance reaches zero at your current payment rate. Every extra dollar above the minimum moves this date earlier. The app recalculates it in real time as you update balances.',
-  },
-  {
-    q: 'Can a debt card update its own balance from my bank?',
-    a: 'Yes. Open the debt card and link it to an imported account. From then on, importing a statement brings the bank\'s reported balance along, and the card shows a cross-check whenever your entered balance and the bank\'s number drift apart — usually interest or a fee. You choose which number to keep; Groundwork never changes your balance without asking.',
-  },
-  {
-    q: 'What is the avalanche method?',
-    a: 'Pay minimums on all debts, then put every extra dollar toward the highest interest rate first. When that\'s gone, roll that payment to the next highest. It costs the least total interest — the mathematically optimal path out of debt.',
-  },
-  {
-    q: 'What is the snowball method?',
-    a: 'Pay minimums on everything, then attack the smallest balance first. It costs slightly more than avalanche but delivers faster early wins — which matters if motivation is the challenge.',
-  },
-  {
-    q: 'What does the PSLF flag do?',
-    a: 'If you have federal student loans on income-based forgiveness (PSLF, IBR, SAVE), mark them in the Loan Flags section under Debt Payoff. The app will never recommend accelerating payoff on those loans — maintaining qualifying minimum payments is the correct strategy. Paying extra on a PSLF loan is a financial mistake the app helps you avoid.',
-  },
-
-  { h: 'The Ledger — editing your transactions' },
-  {
-    q: 'How do I edit or recategorize a transaction?',
-    a: 'Click anywhere on the transaction row in the Ledger. It opens in place — change the category, amount, date, or memo right there, then click anywhere outside the row to save. No edit buttons, no separate screens.',
-  },
-  {
-    q: 'A transaction is in the wrong category. How do I fix it for good?',
-    a: 'Click the row, pick the right category, and click away. Groundwork will offer to remember it: "Always categorize this merchant this way on future imports?" Say yes once and every future import of that merchant lands correctly. The app learns your accounts one correction at a time.',
-  },
-  {
-    q: 'What is the "Add recurring bill" offer that pops up?',
-    a: 'When you recategorize a merchant that shows a monthly pattern — similar amount, around the same day each month — Groundwork offers to add it as a recurring bill. Accept, and it appears in the Upcoming card on your dashboard so due dates never sneak up on you. "Never ask for this merchant" makes the offer stop for that one.',
-  },
-  {
-    q: 'How do I split one transaction across categories?',
-    a: 'Open the transaction (click its row), then choose Split. Divide the amount across categories — a Walmart run can be part Groceries, part Household. The pieces must add up to the original amount, and the app shows the running total as you type.',
-  },
-  {
-    q: 'How do I recategorize many transactions at once?',
-    a: 'Tick the checkbox on each transaction row — a toolbar appears. Pick the new category and apply it to everything selected in one move. Handy after a first big import.',
-  },
-  {
-    q: 'What does Reconcile do?',
-    a: 'It walks you through matching Groundwork against your bank statement. Open the Reconcile panel in the Ledger, enter your statement\'s ending balance, and the app checks off transactions and flags anything missing or doubled. A green check marks the reconciled anchor point.',
-  },
-  {
-    q: 'Why does the Ledger say "Showing the most recent 300"?',
-    a: 'With years of history, drawing every row at once would make the page sluggish, so Groundwork shows the newest 300 that match your filters. Click "Show all" to load the rest, or narrow the search — the cap resets each time you change filters.',
-  },
-
-  { h: 'Budget & spending' },
-  // ── Budget & spending ────────────────────────────────────────────────────
-  {
-    q: 'What is lean budget mode?',
-    a: 'Activates automatically when your monthly surplus is under $200. In lean mode the app uses plain, specific language and focuses on your emergency buffer instead of aspirational goals. It meets you where you are.',
-  },
-  {
-    q: 'Why build a $500 emergency buffer before paying extra on debt?',
-    a: 'Without a buffer, one unexpected expense forces you to stop extra payments or go further into debt. A $500 buffer absorbs that shock so your momentum continues. Build it first, then accelerate.',
-  },
-  {
-    q: 'What does the subscription audit show?',
-    a: 'The app analyzes your transaction history for merchants appearing monthly at consistent amounts — likely forgotten recurring charges. It shows the full list and the annual total. Most users find $100–$300/year in subscriptions they no longer use.',
-  },
-  {
-    q: 'What is commission or variable income mode?',
-    a: 'Toggle it in Settings → Income & pay settings. When on, the app uses your 6-month rolling average instead of a fixed monthly target. A slow month is not flagged as a failure — the AI interprets your income pattern correctly.',
-  },
-
-  { h: 'AI & reports' },
-  // ── AI & reports ─────────────────────────────────────────────────────────
-  {
-    q: 'What does the monthly report show?',
-    a: 'A three-paragraph narrative written from 12 months of context — not just this month. It covers spending trends over time, debt trajectory, behavioral patterns, and what to do next. Add a note before generating — the AI reads it and addresses it directly.',
-  },
-  {
-    q: 'How does the AI know my patterns?',
-    a: 'On every boot, the app builds a financial profile from your full transaction history — rolling income averages, per-category spending trends, debt payoff pace, green month rate, and net worth trajectory. That profile is injected into every AI prompt so the AI sees 12 months of context.',
-  },
-  {
-    q: 'Is my financial data sent to AI servers?',
-    a: 'No. Groundwork\'s AI runs only on your own computer (inside Groundwork itself), and nothing is ever sent to an AI service. There is no cloud mode. If your computer can\'t run a local model, AI features are simply off, and everything else works the same.',
-  },
-
-  { h: 'Tools' },
-  // ── Tools ────────────────────────────────────────────────────────────────
-  {
-    q: 'How does the Before You Buy tool work?',
-    a: 'Enter the name and cost of something you\'re considering. The app shows what that purchase does to your monthly budget and your debt-free date. Not there to say no — there to make sure you know the real cost before you decide.',
-  },
-  {
-    q: 'What are sinking funds?',
-    a: 'Money set aside monthly for a known future expense — car maintenance, vacation, holiday gifts. You set a monthly contribution and a target. When the expense arrives, the money is already there. Prevents irregular expenses from derailing your budget.',
-  },
-  {
-    q: 'How does Gift Budget work?',
-    a: 'Add the people you give gifts to (with a birthday if they have one) under People. Then create a pool for each occasion — Christmas, Birthdays, Mother\'s Day, anything — with its own total budget. Each pool can either set aside its own money monthly or draw from one of your sinking funds. Inside a pool, give specific people a fixed amount (like a $25 office exchange) and split the rest flexibly among everyone else — the app shows you what\'s left to assign.',
-  },
-  {
-    q: 'What is the Sunday check-in?',
-    a: 'Every Sunday a two-sentence summary appears on the dashboard: what happened financially this week, and one thing worth reflecting on. In household mode it\'s written for two people reading together.',
-  },
-  {
-    q: 'What does the Trip Planner calculate?',
-    a: 'It reads your monthly surplus, estimates transport cost from your vehicle MPG and gas prices, uses your actual dining history for meal estimates, and adds hotel and activity estimates. It also checks your ledger for the last oil change if you\'re driving.',
-  },
-
-  { h: 'Net worth & retirement' },
-  // ── Net worth & retirement ───────────────────────────────────────────────
-  {
-    q: 'What is DTI and why does it matter?',
-    a: 'Debt-to-Income ratio — total monthly debt payments divided by gross income. Below 36% qualifies you for most mortgages. Below 43% is the maximum most lenders accept. One of the first numbers a bank looks at.',
-  },
-  {
-    q: 'Why is my net worth negative?',
-    a: 'If your total debt is larger than your total assets, net worth will be negative. That\'s expected and normal early in the debt payoff journey. What matters is that the number moves upward month over month — enter a snapshot each month in the Net Worth view to track the trend.',
-  },
-  {
-    q: 'How do I add a pension to my net worth?',
-    a: 'In the Net Worth view, open "Retirement & planning tools" and find the pension section. Enter the name, projected monthly benefit, retirement age, and sex. The app estimates present value using SSA life expectancy tables and a 3% discount rate — significantly more accurate than a simple multiplication.',
-  },
-  {
-    q: 'What is the retirement readiness card?',
-    a: 'Found under Net Worth → Retirement & planning tools. It shows years of portfolio coverage at the 4% safe withdrawal rate, monthly portfolio coverage, and total guaranteed income from SS and pensions. Enter your retirement age and Social Security estimate to personalize it.',
-  },
-  {
-    q: 'What is an RMD?',
-    a: 'Required Minimum Distribution. The IRS requires annual withdrawals from tax-deferred accounts starting at age 73 (SECURE 2.0). The app calculates your amount using the IRS Uniform Lifetime Table. Failing to take the full RMD triggers a 25% penalty on the shortfall.',
-  },
-  {
-    q: 'What does the withdrawal sustainability card show?',
-    a: 'How long your portfolio lasts at your current spending, assuming 6% nominal growth. Green = 30+ years sustainable, amber = 20–29 years, red = under 20. Social Security and pension income reduces how much the portfolio needs to cover, extending runway significantly.',
-  },
-  {
-    q: 'How does the Social Security timing card work?',
-    a: 'Enter your estimated benefit at full retirement age and your birth year. The app shows the correct benefit at 62, full retirement age, and 70 — using the actual SSA schedule for your birth year. It includes a breakeven analysis showing when delaying starts to pay off.',
-  },
-  {
-    q: 'What is the Roth vs Traditional section?',
-    a: 'Tracks your pre-tax (traditional) and post-tax (Roth) retirement account split. Tells you whether you\'re well-diversified for tax purposes, heavily pre-tax (consider Roth conversions), or heavily Roth (consider traditional contributions if you\'re in a high bracket now).',
-  },
-  {
-    q: 'How does the 529 college savings tracker work?',
-    a: 'Add a fund with the child\'s name, college year, target, monthly contribution, and assumed return (default 6%). The app calculates required monthly contributions using a future-value formula that accounts for investment growth — not just raw savings. Shows whether you\'re on track.',
-  },
-
-  { h: 'Household & settings' },
-  // ── Household & settings ─────────────────────────────────────────────────
-  {
-    q: 'What file types can I import?',
-    a: 'CSV, QIF, QFX, OFX, and QBO — every format banks commonly offer under "Download" or "Export" on their website. If your bank offers a choice, QFX/OFX carries the most detail (including the bank\'s own running balance); CSV works fine too.',
-  },
-  {
-    q: 'How do I back up my data — and get it back?',
-    a: 'Settings → Create backup now saves a complete copy of your database to your backup folder (changeable in Settings). To recover, use "Restore from a file" and pick any backup. Groundwork also makes an automatic safety backup before anything destructive, like deleting all transactions.',
-  },
-  {
-    q: 'What is the "Update available" popup?',
-    a: 'Groundwork checks the official website for new versions — nothing about you or your data is sent, it just reads a version file. When a newer build exists you get a popup with what changed; Download opens your browser to fetch the installer, or Remind me later brings it back next launch.',
-  },
-  {
-    q: 'Something looks broken. How do I report it?',
-    a: 'Click the ⚑ Report button in the top bar. It opens an email to the developer pre-filled with your version, system info, and recent error details — the technical context that makes bugs fixable. Add a sentence about what you were doing and send. If email doesn\'t open, "Copy report" puts the same text on your clipboard.',
-  },
-  {
-    q: 'What is household mode?',
-    a: 'Enable it in Settings → Household and enter both names. Add each person\'s income as its own row in Budget\'s Income card — the budget total combines them automatically. The dashboard greets both of you and the Sunday check-in is written for two people. Data stays shared — household mode adds dual-identity awareness without splitting the account.',
-  },
-  {
-    q: 'How does auto-import from Downloads work?',
-    a: 'Save a bank statement (.csv, .txt, .ofx, .qfx, .qif) to your Downloads folder. Groundwork detects it and shows a 12-second notification: "File detected — import now?" One tap imports it.',
-  },
-  {
-    q: 'Why does the app not connect to my bank directly?',
-    a: 'By design. Direct connections require sharing your banking credentials with a third-party service — and those services use your financial data for advertising or product targeting. Groundwork keeps everything on your computer. Your data stays yours.',
-  },
-  {
-    q: 'What does swiping do in the desktop app?',
-    a: 'Swiping right shows the Groundwork loading screen — a quick way to put your numbers out of sight if someone walks up, since no financial data is visible there. Swipe left to return to where you were.',
-  },
+  {"h": "Getting started"},
+  {"q": "How do I import my bank transactions?", "a": "In the Ledger, click ↑ Import, pick the account the file belongs to, then choose the CSV, OFX, QFX or QIF file you downloaded from your bank's website. If you save the file to your Downloads folder, Groundwork notices it and offers a one-click import. To have Groundwork fetch it for you, see \"How do I get my accounts from my bank?\".", "keys": ["import", "bank", "transactions", "upload", "file", "statement", "csv", "ofx", "qfx", "download"], "open": {"view": "ledger"}, "labels": ["↑ Import"]},
+  {"q": "What should I do in my first week?", "a": "Five steps: set your monthly income in Budget, set your expense categories, add your debt cards under Debt Payoff, import your first bank statement, then run your first monthly report. After those five things the app knows enough to give you real guidance.", "keys": ["first", "week", "start", "begin", "setup", "new"]},
+  {"q": "How do I add a debt card or loan?", "a": "Go to Debt Payoff and tap \"Add card or loan.\" Enter the name, current balance, APR, and minimum payment. The app immediately calculates your payoff timeline, total interest cost, and debt-free date.", "keys": ["add", "debt", "card", "loan", "credit"], "open": {"view": "debt"}, "labels": ["Add card or loan"]},
+  {"h": "Debt payoff"},
+  {"q": "What does the debt-free date mean?", "a": "The month and year your last balance reaches zero at your current payment rate. Every extra dollar above the minimum moves this date earlier. The app recalculates it in real time as you update balances.", "keys": ["debt", "free", "date", "payoff"]},
+  {"q": "Can a debt card update its own balance from my bank?", "a": "Yes. Open the debt card and link it to an imported account. From then on, importing a statement brings the bank's reported balance along, and the card shows a cross-check whenever your entered balance and the bank's number drift apart — usually interest or a fee. You choose which number to keep; Groundwork never changes your balance without asking.", "keys": ["debt", "card", "balance", "link", "update", "bank"]},
+  {"q": "What is the avalanche method?", "a": "Pay minimums on all debts, then put every extra dollar toward the highest interest rate first. When that's gone, roll that payment to the next highest. It costs the least total interest — the mathematically optimal path out of debt.", "keys": ["avalanche", "interest", "highest", "strategy"]},
+  {"q": "What is the snowball method?", "a": "Pay minimums on everything, then attack the smallest balance first. It costs slightly more than avalanche but delivers faster early wins — which matters if motivation is the challenge.", "keys": ["snowball", "smallest", "balance", "strategy"]},
+  {"q": "What does the PSLF flag do?", "a": "If you have federal student loans on income-driven forgiveness (PSLF, IBR, SAVE), open the loan on Debt Payoff and tick \"Flag for income-driven forgiveness (PSLF/IBR/SAVE)\". Flagged loans move to the Loan Forgiveness section, and Groundwork never puts extra payments toward them - keeping qualifying minimum payments is what forgiveness counts.", "keys": ["pslf", "ibr", "save", "forgiveness", "student", "loan", "flag"], "open": {"view": "debt"}, "labels": ["Flag for income-driven forgiveness (PSLF/IBR/SAVE)", "Loan Forgiveness"]},
+  {"h": "The Ledger — editing your transactions"},
+  {"q": "How do I edit or recategorize a transaction?", "a": "Click anywhere on the transaction row in the Ledger. It opens in place — change the category, amount, date, or memo right there, then click anywhere outside the row to save. No edit buttons, no separate screens.", "keys": ["edit", "recategorize", "change", "transaction", "category", "fix"], "open": {"view": "ledger"}},
+  {"q": "A transaction is in the wrong category. How do I fix it for good?", "a": "Click the row, pick the right category, and click away. Groundwork will offer to remember it: \"Always categorize this merchant this way on future imports?\" Say yes once and every future import of that merchant lands correctly. The app learns your accounts one correction at a time.", "keys": ["wrong", "category", "always", "merchant", "rule", "future", "fix", "categorize"]},
+  {"q": "What is the \"Add recurring bill\" offer that pops up?", "a": "When you recategorize a merchant that shows a monthly pattern — similar amount, around the same day each month — Groundwork offers to add it as a recurring bill. Accept, and it appears in the Upcoming card on your dashboard so due dates never sneak up on you. \"Never ask for this merchant\" makes the offer stop for that one.", "keys": ["recurring", "bill", "offer", "popup", "upcoming"]},
+  {"q": "How do I split one transaction across categories?", "a": "Open the transaction (click its row), then choose Split. Divide the amount across categories — a Walmart run can be part Groceries, part Household. The pieces must add up to the original amount, and the app shows the running total as you type.", "keys": ["split", "transaction", "categories", "divide"]},
+  {"q": "How do I recategorize many transactions at once?", "a": "Tick the checkbox on each transaction row — a toolbar appears. Pick the new category and apply it to everything selected in one move. Handy after a first big import.", "keys": ["many", "bulk", "several", "recategorize", "select", "once"]},
+  {"q": "What does Reconcile do?", "a": "It walks you through matching Groundwork against your bank statement. Open the Reconcile panel in the Ledger, enter your statement's ending balance, and the app checks off transactions and flags anything missing or doubled. A green check marks the reconciled anchor point.", "keys": ["reconcile", "statement", "match", "balance"], "open": {"view": "ledger"}, "labels": ["Reconcile"]},
+  {"q": "Why does the Ledger say \"Showing the most recent 300\"?", "a": "With years of history, drawing every row at once would make the page sluggish, so Groundwork shows the newest 300 that match your filters. Click \"Show all\" to load the rest, or narrow the search — the cap resets each time you change filters.", "keys": ["300", "most", "recent", "showing", "rows"]},
+  {"h": "Budget & spending"},
+  {"q": "What is lean budget mode?", "a": "Activates automatically when your monthly surplus is under $200. In lean mode the app uses plain, specific language and focuses on your emergency buffer instead of aspirational goals. It meets you where you are.", "keys": ["lean", "mode", "surplus", "tight"]},
+  {"q": "Why build a $500 emergency buffer before paying extra on debt?", "a": "Without a buffer, one unexpected expense forces you to stop extra payments or go further into debt. A $500 buffer absorbs that shock so your momentum continues. Build it first, then accelerate.", "keys": ["emergency", "buffer", "500"]},
+  {"q": "What does the subscription audit show?", "a": "The app analyzes your transaction history for merchants appearing monthly at consistent amounts — likely forgotten recurring charges. It shows the full list and the annual total. Most users find $100–$300/year in subscriptions they no longer use.", "keys": ["subscription", "subscriptions", "audit", "recurring", "charges"], "open": {"view": "budget", "el": "subscriptionAuditCard"}},
+  {"q": "What is commission or variable income mode?", "a": "Turn on \"Commission or irregular income\" in Settings → Automation → Income & pay settings. When on, budgets use your 6-month rolling average instead of a fixed monthly figure, so a slow month isn't read as a shortfall. For pay that changes week to week, the Budget page's \"Your pay\" card also asks once whether a job is hourly with overtime.", "keys": ["commission", "variable", "irregular", "income", "mode", "hourly", "overtime"], "open": {"view": "settings", "tab": "automation", "el": "settingsCommissionMode"}, "labels": ["Commission or irregular income", "Income &amp; pay settings"]},
+  {"h": "AI & reports"},
+  {"q": "What does the monthly report show?", "a": "Each report shows its summary - every computed figure as a plain line - whether AI is on or off. With AI on, a written part follows that explains what the figures mean; it never lists them again. Add a note before generating and the written part takes it into account.", "keys": ["report", "reports", "monthly", "summary", "narrative"], "open": {"view": "reports"}},
+  {"q": "How does the AI know my patterns?", "a": "It doesn't learn on its own. Groundwork's engines work out every figure from your records each time - income, spending by category, debt pace, net worth - and the AI is handed those figures to explain. It never adds a number of its own: a written part with a figure that isn't in what it was given is held back.", "keys": ["ai", "patterns", "profile", "know", "learn"]},
+  {"q": "Is my financial data sent to AI servers?", "a": "No. Groundwork's AI runs only on your own computer (inside Groundwork itself), and nothing is ever sent to an AI service. There is no cloud mode. If your computer can't run a local model, AI features are simply off, and everything else works the same.", "keys": ["ai", "data", "sent", "servers", "cloud", "private", "privacy", "online"]},
+  {"h": "Tools"},
+  {"q": "How does the Before You Buy tool work?", "a": "Enter the name and cost of something you're considering. The app shows what that purchase does to your monthly budget and your debt-free date. Not there to say no — there to make sure you know the real cost before you decide.", "keys": ["before", "buy", "purchase", "afford", "cost"], "open": {"view": "byb"}},
+  {"q": "What are sinking funds?", "a": "Money set aside monthly for a known future expense — car maintenance, vacation, holiday gifts. You set a monthly contribution and a target. When the expense arrives, the money is already there. Prevents irregular expenses from derailing your budget.", "keys": ["sinking", "fund", "funds", "goal", "goals", "save", "saving"], "open": {"view": "budget", "el": "sinkingFundsCard"}},
+  {"q": "How does Gift Budget work?", "a": "Add the people you give gifts to (with a birthday if they have one) under People. Then create a pool for each occasion — Christmas, Birthdays, Mother's Day, anything — with its own total budget. Each pool can either set aside its own money monthly or draw from one of your sinking funds. Inside a pool, give specific people a fixed amount (like a $25 office exchange) and split the rest flexibly among everyone else — the app shows you what's left to assign.", "keys": ["gift", "gifts", "christmas", "birthday", "present", "pool"], "open": {"view": "gifts"}},
+  {"q": "What is the Sunday check-in?", "a": "Every Sunday a two-sentence summary appears on the dashboard: what happened financially this week, and one thing worth reflecting on. In household mode it's written for two people reading together.", "keys": ["sunday", "check", "weekly", "summary"]},
+  {"q": "What does the Trip Planner calculate?", "a": "Getting there: for a drive, your car's mpg and the national gas price; for a flight, the government's average fare for the route, or the fare you enter or read from Google Flights. Lodging and meals: a quote you enter, your own past trips, or the federal travel rate for the place and month - said as such, never as a quote. Activities: your own figure. \"Look up hotels (Google Hotels)\" opens real prices in Groundwork's window, and a whole itinerary can be pasted, chosen or dropped in. Every line says where its figure came from.", "keys": ["trip", "travel", "vacation", "planner", "flight", "hotel", "cost", "budget"], "open": {"view": "trip"}, "labels": ["Look up hotels (Google Hotels)"]},
+  {"h": "Net worth & retirement"},
+  {"q": "What is DTI and why does it matter?", "a": "Debt-to-Income ratio — total monthly debt payments divided by gross income. Below 36% qualifies you for most mortgages. Below 43% is the maximum most lenders accept. One of the first numbers a bank looks at.", "keys": ["dti", "debt", "income", "ratio"]},
+  {"q": "Why is my net worth negative?", "a": "If your total debt is larger than your total assets, net worth will be negative. That's expected and normal early in the debt payoff journey. What matters is that the number moves upward month over month — enter a snapshot each month in the Net Worth view to track the trend.", "keys": ["net", "worth", "negative"]},
+  {"q": "How do I add a pension to my net worth?", "a": "In the Net Worth view, open \"Retirement & planning tools\" and find the pension section. Enter the name, projected monthly benefit, retirement age, and sex. The app estimates present value using SSA life expectancy tables and a 3% discount rate — significantly more accurate than a simple multiplication.", "keys": ["pension", "net", "worth", "add"], "open": {"view": "networth", "el": "retirementToolsToggle"}, "labels": ["Retirement &amp; planning tools"]},
+  {"q": "What is the retirement readiness card?", "a": "Found under Net Worth → Retirement & planning tools. It shows years of portfolio coverage at the 4% safe withdrawal rate, monthly portfolio coverage, and total guaranteed income from SS and pensions. Enter your retirement age and Social Security estimate to personalize it.", "keys": ["retirement", "readiness"], "open": {"view": "networth", "el": "retirementToolsToggle"}},
+  {"q": "What is an RMD?", "a": "Required Minimum Distribution. The IRS requires annual withdrawals from tax-deferred accounts starting at age 73 (SECURE 2.0). The app calculates your amount using the IRS Uniform Lifetime Table. Failing to take the full RMD triggers a 25% penalty on the shortfall.", "keys": ["rmd", "required", "minimum", "distribution"]},
+  {"q": "What does the withdrawal sustainability card show?", "a": "How long your portfolio lasts at your current spending, assuming 6% nominal growth. Green = 30+ years sustainable, amber = 20–29 years, red = under 20. Social Security and pension income reduces how much the portfolio needs to cover, extending runway significantly.", "keys": ["withdrawal", "sustainability", "portfolio", "last"]},
+  {"q": "How does the Social Security timing card work?", "a": "Enter your estimated benefit at full retirement age and your birth year. The app shows the correct benefit at 62, full retirement age, and 70 — using the actual SSA schedule for your birth year. It includes a breakeven analysis showing when delaying starts to pay off.", "keys": ["social", "security", "timing", "benefit"]},
+  {"q": "What is the Roth vs Traditional section?", "a": "Tracks your pre-tax (traditional) and post-tax (Roth) retirement account split. Tells you whether you're well-diversified for tax purposes, heavily pre-tax (consider Roth conversions), or heavily Roth (consider traditional contributions if you're in a high bracket now).", "keys": ["roth", "traditional", "ira", "tax"]},
+  {"q": "How does the 529 college savings tracker work?", "a": "Add a fund with the child's name, college year, target, monthly contribution, and assumed return (default 6%). The app calculates required monthly contributions using a future-value formula that accounts for investment growth — not just raw savings. Shows whether you're on track.", "keys": ["529", "college", "savings", "child"]},
+  {"h": "Household & settings"},
+  {"q": "What file types can I import?", "a": "CSV, QIF, QFX, OFX, and QBO — every format banks commonly offer under \"Download\" or \"Export\" on their website. If your bank offers a choice, QFX/OFX carries the most detail (including the bank's own running balance); CSV works fine too.", "keys": ["file", "types", "csv", "ofx", "qfx", "qif", "qbo", "format"]},
+  {"q": "How do I back up my data — and get it back?", "a": "Settings → Create backup now saves a complete copy of your database to your backup folder (changeable in Settings). To recover, use \"Restore from a file\" and pick any backup. Groundwork also makes an automatic safety backup before anything destructive, like deleting all transactions.", "keys": ["backup", "back", "restore", "recover", "copy", "data"], "open": {"view": "settings", "tab": "data"}, "labels": ["Create backup now", "Restore from a file"]},
+  {"q": "What is the \"Update available\" popup?", "a": "Groundwork checks the official website for new versions — nothing about you or your data is sent, it just reads a version file. When a newer build exists you get a popup with what changed; Download opens your browser to fetch the installer, or Remind me later brings it back next launch.", "keys": ["update", "available", "version", "new"]},
+  {"q": "Something looks broken. How do I report it?", "a": "Click the ⚑ Report button in the top bar. It opens an email to the developer pre-filled with your version, system info, and recent error details — the technical context that makes bugs fixable. Add a sentence about what you were doing and send. If email doesn't open, \"Copy report\" puts the same text on your clipboard.", "keys": ["broken", "bug", "report", "problem", "error"]},
+  {"q": "What is household mode?", "a": "Enable it in Settings → Household and enter both names. Add each person's income as its own row in Budget's Income card — the budget total combines them automatically. The dashboard greets both of you and the Sunday check-in is written for two people. Data stays shared — household mode adds dual-identity awareness without splitting the account.", "keys": ["household", "partner", "spouse", "two", "couple"], "open": {"view": "settings", "tab": "general"}},
+  {"q": "How does auto-import from Downloads work?", "a": "Save a bank statement (.csv, .txt, .ofx, .qfx, .qif) to your Downloads folder. Groundwork detects it and shows a 12-second notification: \"File detected — import now?\" One tap imports it.", "keys": ["auto", "import", "downloads", "folder", "detect"]},
+  {"q": "Does Groundwork connect to my bank?", "a": "Not through a third-party service - those ask for your bank login and keep your data. Instead, when you ask, Groundwork visits your bank's website itself, in its own window on this computer, and downloads the statement you showed it how to get. Nothing runs on a schedule, and the file still waits for your review before anything is imported. Set it up on the Assistant page.", "keys": ["connect", "bank", "directly", "plaid", "link", "sync", "automatic"], "open": {"view": "automation"}},
+  {"q": "What does swiping do in the desktop app?", "a": "Swiping right shows the Groundwork loading screen — a quick way to put your numbers out of sight if someone walks up, since no financial data is visible there. Swipe left to return to where you were.", "keys": ["swipe", "swiping", "hide", "screen"]},
+  {"h": "Getting your data in"},
+  {"q": "How do I get my accounts from my bank?", "a": "Set each account up once on the Assistant page (Coach → Assistant), in the Accounts tab: Groundwork opens your bank in its own window and you show it the steps to download a statement. After that, \"⟳ Get my accounts\" in the top bar visits each bank you set up, one at a time, when you press it. You sign in; each file waits for your review.", "keys": ["get", "accounts", "bank", "fetch", "download", "automatic", "automation", "assistant", "pull"], "open": {"view": "automation"}, "labels": ["Get my accounts", "Assistant"]},
+  {"q": "How do I see what a bill owes?", "a": "On the Assistant page, open the Bills tab. Groundwork can visit a bill's own website when you ask and read what is owed and when it is due. It never pays a bill - \"Take me to pay this\" opens the page where you pay it yourself.", "keys": ["bill", "bills", "owe", "owes", "due", "utility", "pay", "paid"], "open": {"view": "automation", "el": "autoTab-bills"}, "labels": ["autoTab-bills", "Take me to pay this"]},
+  {"q": "How do I make one payee always go to the same category?", "a": "Settings → Automation → Import rules. A rule says \"if the description contains this, file it under that category\". A rule can apply to deposits only or charges only, so the same name - a city that pays you and also bills your water - can go two ways.", "keys": ["payee", "always", "rule", "rules", "category", "import", "merchant", "automatic"], "open": {"view": "settings", "tab": "automation", "el": "importRulesContent"}, "labels": ["Import rules"]},
+  {"h": "When something looks wrong"},
+  {"q": "A number looks wrong. How do I find out why?", "a": "On the Budget page, the income card has \"Why does it say this?\". On the Assistant page, \"Check my records\" runs every check: a payer filed under two categories, deposits in a spending category, a regular deposit that stopped, doubles, and months with no records. Each finding shows the records behind it and says what it can and can't tell. A fix is shown as an exact list first, and changes nothing until you apply it.", "keys": ["wrong", "why", "number", "figure", "looks", "off", "check", "records", "mistake", "income", "dropped", "drop"], "open": {"view": "automation"}, "labels": ["Check my records"]},
+  {"q": "How do I undo a fix I made with \"Check my records\"?", "a": "Open \"Check my records\" (Assistant page) or \"Why does it say this?\" again. Under \"Changes made here\", each fix has Undo. It puts back the records the fix changed - any you edited since are left as they are.", "keys": ["undo", "fix", "revert", "back", "change", "records"], "open": {"view": "automation"}, "labels": ["Changes made here"]},
+  {"q": "What is the \"Your pay\" card on the Budget page?", "a": "It reads each employer's paychecks on their own. If a job's pay changes a lot from check to check, it asks once whether the job is hourly with overtime; once answered, it shows your ordinary week and the overtime as facts. If a regular paycheck hasn't come in while your account kept recording, it asks whether it's filed elsewhere or stopped.", "keys": ["pay", "paycheck", "hourly", "overtime", "employer", "wages", "salary"], "open": {"view": "budget", "el": "budgetIncomeChange"}, "labels": ["Your pay"]},
+  {"q": "What does \"Make this my budget\" on the income card do?", "a": "It changes the budget lines shown in that option, and only on your tap. It never cuts the necessity floor, a category you protected, or a payment set by a contract (a loan, lease, debt or insurance payment). \"Undo\" right there puts every line back.", "keys": ["make", "budget", "income", "card", "changed", "lines", "undo", "follows"], "open": {"view": "budget", "el": "budgetIncomeChange"}, "labels": ["Make this my budget"]},
+  {"h": "AI and privacy"},
+  {"q": "How do I turn the AI features on or off?", "a": "Settings → General → AI features. Everything in Groundwork works with AI off; with it on, reports and some cards add a written explanation.", "keys": ["ai", "turn", "off", "on", "disable", "enable", "features"], "open": {"view": "settings", "tab": "general"}, "labels": ["AI features"]},
+  {"q": "Where can I see what was sent to the AI?", "a": "Settings → General → AI log. It lists every request made to the AI on this computer, what came back, and whether the voice check passed it. You can clear it.", "keys": ["ai", "log", "sent", "history", "requests", "what"], "open": {"view": "settings", "tab": "general", "el": "settingsAiLog"}, "labels": ["AI log", "Clear the log"]},
+  {"h": "Trips"},
+  {"q": "How do I bring in a whole trip itinerary?", "a": "In the Trip Planner, the card \"Have a quote, or just want to describe the trip?\" takes a pasted itinerary (\"Read as a whole itinerary\") or a PDF or saved email (\"Choose an itinerary file\", or drop it on the card). It is read on this computer and never kept. Tick the parts you want, then \"Use the ticked parts for this trip\".", "keys": ["itinerary", "expedia", "booking", "confirmation", "trip", "import", "pdf", "email"], "open": {"view": "trip", "el": "tripQuoteCard"}, "labels": ["Read as a whole itinerary", "Have a quote"]},
 ];
 
 
@@ -24575,6 +24445,130 @@ async function whyUndo(historianId) {
     try { await bootFromDB(); } catch (e) { _gwErr('whyUndo reload')(e); }
   } catch (e) { _gwErr('whyUndo')(e); showToast(e.message || 'Undo did not take', '', 'warning'); }
   openWhy(_whyFigure);
+}
+
+// ── Item 72 stage 2 (ASK_WHY.md C1, C6, C7, C11): the Ask box - how-to questions answered from the guide ──
+// Matching is by keywords, on this computer; no model in this stage. A question that matches no entry well - a partial
+// match is not stretched - gets one fixed sentence (C11), never a guess, and is kept in the person's own list of
+// unanswered questions, which only they see and can clear (C7).
+const HELP_OUTSIDE = 'That question is outside what Groundwork understands. It can check your records and show how to use Groundwork.';
+const _HELP_STOP = new Set(['a', 'an', 'the', 'i', 'my', 'me', 'do', 'does', 'did', 'how', 'what', 'where', 'can', 'is', 'are',
+  'to', 'of', 'in', 'on', 'for', 'and', 'or', 'it', 'this', 'that', 'with', 'from', 'be', 'groundwork', 'you', 'your',
+  'there', 'way', 'get', 'see', 'want', 'need', 'about', 'should', 'will', 'would', 'when', 'which', 'who', 'why', 'at',
+  'by', 'if', 'so', 'up', 'out', 'into', 'than', 'then', 'please', 'tell', 'show', 'find', 'use', 'make', 'have', 'has']);
+const HELP_WHY_WORDS = new Set(['why', 'wrong', 'off', 'drop', 'dropped', 'lower', 'missing']);
+
+function _helpWords(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9$ ]/g, ' ').split(/\s+/)
+    .filter(w => w && !_HELP_STOP.has(w))
+    .map(w => (w.length > 4 ? w.replace(/(ing|ed|es|s)$/, '') : w));
+}
+
+// The best guide entry for a question, or null. Keywords count double; a match must be clear (C11: no stretching).
+function helpMatch(question) {
+  const qw = [...new Set(_helpWords(question))];
+  if (!qw.length) return null;
+  const scored = HELP_FAQ.filter(it => it.q).map(it => {
+    const keys = new Set((it.keys || []).flatMap(_helpWords));
+    const title = new Set(_helpWords(it.q));
+    let score = 0;
+    for (const w of qw) score += (keys.has(w) ? 2 : 0) + (title.has(w) ? 1 : 0);
+    return { it, score };
+  }).sort((a, b) => b.score - a.score);
+  const [best, next] = scored;
+  if (!best || best.score < 4) return null;
+  // two entries fit about equally: the person chooses (C2) - never a guess
+  if (next && next.score >= 4 && best.score - next.score < 2) return { choices: [best.it, next.it] };
+  return best.it;
+}
+
+function _askPanel() {
+  let p = g('askPanel');
+  if (!p) {
+    p = document.createElement('div');
+    p.id = 'askPanel';
+    p.setAttribute('role', 'dialog');
+    p.setAttribute('aria-label', 'Ask Groundwork');
+    p.style.cssText = 'position:fixed;top:56px;right:16px;width:min(440px,calc(100% - 32px));max-height:75vh;overflow:auto;'
+      + 'background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-lg);box-shadow:0 8px 24px rgba(0,0,0,.14);z-index:880;padding:16px 18px';
+    document.body.appendChild(p);
+  }
+  return p;
+}
+
+function closeAsk() { const p = g('askPanel'); if (p) p.remove(); }
+
+async function askGroundwork(question) {
+  const q = String(question || '').trim().slice(0, 300);
+  if (!q) return;
+  const hit = helpMatch(q);
+  const p = _askPanel();
+  if (hit && hit.choices) {
+    window._askChoices = hit.choices;
+    p.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="font-size:11px;color:var(--slate-2)">You asked: ${esc(q)}</div>
+        <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>
+      <div style="font-size:13px;color:var(--ink);margin-top:6px">Which of these did you mean?</div>
+      ${hit.choices.map((c, i) => `<div style="margin-top:6px"><button class="btn btn-secondary btn-sm" onclick="askGroundworkPick(${i})">${esc(c.q)}</button></div>`).join('')}`;
+    return;
+  }
+  const head = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div style="font-size:11px;color:var(--slate-2)">You asked: ${esc(q)}</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>`;
+  if (hit) {
+    window._askOpen = hit.open || null;
+    p.innerHTML = head + `<div style="font-size:14px;font-weight:600;color:var(--ink);margin-top:6px">${esc(hit.q)}</div>
+      <div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">${esc(hit.a)}</div>
+      ${hit.open ? `<button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="helpOpen(window._askOpen)">Open it for me</button>` : ''}
+      <div style="font-size:11px;color:var(--slate-2);margin-top:10px">From Groundwork's guide - the same answers as the ? button.</div>`;
+    return;
+  }
+  try { await API.post('/api/help/unanswered', { text: q }); } catch (e) { _gwErr('askGroundwork')(e); }
+  p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">${esc(HELP_OUTSIDE)}</div>
+    ${_helpWords(q).some(w => HELP_WHY_WORDS.has(w)) ? `<div style="margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); openWhy('records')">Check my records</button></div>` : ''}
+    <div style="font-size:11px;color:var(--slate-2);margin-top:10px">Your question is kept in your own list of questions Groundwork couldn't answer.
+      <button class="btn btn-ghost btn-sm" onclick="showUnanswered()">See the list</button></div>`;
+}
+
+function askGroundworkPick(i) {
+  const c = (window._askChoices || [])[i];
+  if (c) askGroundwork(c.q);
+}
+
+// "Open it for me" (C6): goes to the page, the Settings tab and the spot - it never presses anything there.
+function helpOpen(open) {
+  if (!open || !open.view) return;
+  closeAsk();
+  showView(open.view);
+  if (open.tab) _settingsShowTab(open.tab);
+  if (open.el === 'autoTab-bills') _autoShowTab('bills');
+  setTimeout(() => {
+    const el = open.el && g(open.el);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const was = el.style.outline;
+    el.style.outline = '2px solid var(--sky)';
+    setTimeout(() => { el.style.outline = was; }, 2200);
+  }, 250);
+}
+
+async function showUnanswered() {
+  const p = _askPanel();
+  let list = [];
+  try { list = ((await API.get('/api/help/unanswered')) || {}).questions || []; } catch (e) { _gwErr('showUnanswered')(e); }
+  p.innerHTML = `<div style="display:flex;justify-content:space-between"><div class="card-label">Questions Groundwork couldn't answer</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>
+    <div style="font-size:11px;color:var(--slate-2);margin-bottom:6px">Your own words, kept only here. Nothing in Groundwork reads them.</div>
+    ${list.length ? list.map((x, i) => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:0.5px solid var(--steel)">
+      <span>${esc(x.text)} <span style="color:var(--slate-2)">${esc(String(x.at || '').slice(0, 10))}</span></span>
+      <button class="btn btn-ghost btn-sm" onclick="clearUnanswered(${i})">Delete</button></div>`).join('')
+      + `<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="clearUnanswered(null)">Clear all</button>`
+      : '<div style="font-size:12px;color:var(--slate)">None.</div>'}`;
+}
+
+async function clearUnanswered(index) {
+  try { await API.post('/api/help/unanswered/clear', index == null ? {} : { index }); } catch (e) { _gwErr('clearUnanswered')(e); }
+  showUnanswered();
 }
 
 // Item 62 G1/G6: what the voice check said of one attempt, onto its log entry (fire and forget)

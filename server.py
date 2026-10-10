@@ -213,6 +213,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
     app.register_blueprint(evidence_bp,       url_prefix='/api/evidence')
     app.register_blueprint(why_bp,            url_prefix='/api/why')
+    app.register_blueprint(help_bp,           url_prefix='/api/help')
     app.register_blueprint(usage_bp,          url_prefix='/api/usage')
     app.register_blueprint(dashboard_bp,      url_prefix='/api/dashboard')
 
@@ -1903,6 +1904,49 @@ def usage_rhythm():
         if n / len(recent) >= 0.4:
             mostly = top
     return ok({'opens_30d': len(recent), 'mostly': mostly})
+
+
+help_bp = Blueprint('help', __name__)
+
+
+# ── Item 72 stage 2 C7/C11: the questions the Ask box could not answer - the person's own words, kept only to be shown
+# back to them and cleared. The three routes below are the only code that touches them (s192).
+@help_bp.route('/unanswered', methods=['GET'])
+def help_unanswered_list():
+    with db_session() as session:
+        return ok({'questions': _setting_json(session, 'help_unanswered', []) or []})
+
+
+@help_bp.route('/unanswered', methods=['POST'])
+@require_json
+def help_unanswered_add():
+    text = str((request.json or {}).get('text') or '').strip()[:300]
+    if not text:
+        return err('text is required')
+    with db_session() as session:
+        qs = _setting_json(session, 'help_unanswered', []) or []
+        qs.append({'text': text, 'at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'help_unanswered', json.dumps(qs[-100:]))
+        session.commit()
+        return ok({'count': len(qs[-100:])})
+
+
+@help_bp.route('/unanswered/clear', methods=['POST'])
+@require_json
+def help_unanswered_clear():
+    """One question (by its place in the list) or all of them."""
+    idx = (request.json or {}).get('index')
+    with db_session() as session:
+        qs = _setting_json(session, 'help_unanswered', []) or []
+        if idx is None:
+            qs = []
+        elif isinstance(idx, int) and 0 <= idx < len(qs):
+            qs.pop(idx)
+        else:
+            return err('Not a question in the list.', 404)
+        _set_setting(session, 'help_unanswered', json.dumps(qs))
+        session.commit()
+        return ok({'questions': qs})
 
 
 why_bp = Blueprint('why', __name__)

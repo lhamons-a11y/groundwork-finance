@@ -9,7 +9,7 @@ filed under a new category:
 > bill to the user can talk with the agent to fix. Also if the user had questions on how to do things in groundwork
 > it explains where and could even open that section for them."*
 
-**C1–C10 as revised in §5: go-ahead given 2026-10-10 (Rob: "build"). STAGE 1 BUILT 2026-10-10 on master (§6), awaiting acceptance. Stages 2–4 wait for that acceptance (C9).**
+**C1–C10 as revised in §5: go-ahead given 2026-10-10 (Rob: "build"). STAGE 1 ACCEPTED 2026-10-10 (Rob: "i accept item 72 stage 1, build stage 2"). STAGE 2 BUILT 2026-10-10 (§8), awaiting acceptance. Stages 3–4 wait (C9).**
 
 ## 1. What happened, and why it's the model for this
 
@@ -319,3 +319,45 @@ written by the engine, never by the model:
   no figure Groundwork has, and an instruction planted in the question all get exactly this sentence.
 
 Stage 1 takes no typed questions, so C11 is built with stage 2.
+
+
+## 8. Stage 2, built (2026-10-10)
+
+- **The guide is the existing Help & FAQ list** (`HELP_FAQ`, behind the ? button), not a second copy.
+  - It now holds 54 answers: the 44 it had and 10 new ones. The new ones cover getting accounts from the bank, a
+    bill's balance, import rules, finding out why a number looks wrong, undoing a fix, the Your pay card, "Make this
+    my budget", turning AI on or off, the AI log, and bringing in an itinerary.
+  - Each answer carries the words it matches on, where *Open it for me* goes (a page, a Settings tab, an element),
+    and the on-screen labels it names.
+- **Corrected as out of date:**
+  - importing (it is in the Ledger, *↑ Import*, not Settings);
+  - "the app does not connect to my bank" (Groundwork now visits banks itself, when asked);
+  - the Trip Planner (federal travel rates, Google Hotels and the government's average airfares; no AI prices, and
+    no oil-change check);
+  - the monthly report (the summary works with AI off);
+  - "how the AI knows my patterns" (the engines compute; the model explains);
+  - PSLF (the real checkbox wording);
+  - commission mode (the real Settings path).
+- **C1:** the *Ask how to…* box sits in the top bar, beside ?. The answer opens in a panel. **No model:** matching
+  is by keywords on this computer.
+- **C2 (stage 2's share):** when two answers fit about equally, both are offered to choose from, never a guess.
+- **C6:** *Open it for me* goes to the page, the Settings tab and the spot, and outlines it briefly. It presses
+  nothing and writes nothing.
+- **C11:**
+  - A question with no clear match gets the fixed sentence: *"That question is outside what Groundwork understands.
+    It can check your records and show how to use Groundwork."*
+  - A question that names a wrong or missing figure also gets a *Check my records* button.
+  - A partial match isn't stretched to fit, and words typed into the box are only words.
+- **C7:** unanswered questions are kept as typed (up to 300 characters, the last 100) in the person's own list,
+  which they can see and delete one at a time or all at once. Only the three `/api/help/unanswered` routes touch it.
+- **Tests:** s192 runs the matcher in Node on:
+  - 12 real how-to questions;
+  - 9 that must not match: weather, a stock tip, a medical question, a legal question, "ignore previous
+    instructions…", a joke, "how do I import a car", a capital city, and an empty question;
+  - one ambiguous question.
+
+  It also checks that every *Open it for me* target and every named label exists in the app.
+- **Seen in the page** on a copy of the real data:
+  - the import-rules answer, and *Open it for me* landing on Settings → Automation → Import rules;
+  - the stock-tip question getting the fixed sentence;
+  - the ambiguous AI question offering both answers.
