@@ -95,7 +95,8 @@ def run(ctx):
           # (the never-press-a-payment guard names "schedule payment" as a button it refuses; that is not a schedule)
           and not re.search(r'(schedule|Timer\(|setInterval\([^)]*startBankFetch)',
                             (src + srv.split('bank_agent_fetch():')[1][:1500]).replace('(submit|confirm|schedule|', '('))
-          and app.count('startBankFetch(') == 2)
+          # its definition and two buttons (an account's, a bill's - item 69's Automation page), each an onclick
+          and app.count('startBankFetch(') == 3 and app.count('onclick="startBankFetch(') == 2)
     check('s174 A4 the agent writes the password to no file and no log', not re.search(r'(logging|logger|(?<![A-Za-z])open\()', src.split('# ── Stage 3')[1]))
 
     # A7 + the route's guards

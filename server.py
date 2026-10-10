@@ -6501,8 +6501,27 @@ def _bank_agent_accounts(session):
 def bank_logins():
     from core import bank_vault
     with db_session() as session:
+        rows = _automation_accounts(session) if request.args.get('all') else _bank_agent_accounts(session)
         return ok({'available': bank_vault.available(), 'vault': bank_vault.vault_name(),
-                   'accounts': _bank_agent_accounts(session), 'remind_days': _fetch_remind_days(session)})
+                   'accounts': rows, 'remind_days': _fetch_remind_days(session)})
+
+
+def _automation_accounts(session):
+    """Item 69 P3: every active account and standalone card, by name - with or without a link - and where each
+    stands. No balance, no amount: the Automation page is about getting the data in. The link itself never leaves
+    the server (s126); only whether there is one."""
+    from core import bank_vault
+    rows = [{'key': f'account:{a.id}', 'id': a.id, 'kind': 'account', 'name': a.name}
+            for a in session.query(Account).filter(Account.is_active == True).order_by(Account.sort_order, Account.name).all()]   # noqa: E712
+    rows += [{'key': f'card:{d.id}', 'id': d.id, 'kind': 'card', 'name': d.name}
+             for d in session.query(DebtAccount).filter(DebtAccount.is_active == True).order_by(DebtAccount.sort_order, DebtAccount.name).all()   # noqa: E712
+             if not d.linked_account_id]
+    for r in rows:
+        r['has_site'] = bool(_bank_agent_url(session, r['key']))
+        r['has_login'] = r['has_site'] and bank_vault.has_login(r['key'])
+        r['has_steps'] = bool(((_bank_recipe(session, r['key']) or {}).get('steps')))
+        r['remembered'] = (_get_setting(session, f"bank_device:{r['key']}") or AppSetting(value='')).value == 'yes'
+    return rows
 
 
 @settings_bp.route('/bank-logins', methods=['POST'])
@@ -6958,6 +6977,11 @@ def bank_agent_bills():
             out.append({'id': b.id, 'key': f'bill:{b.id}', 'name': b.name, 'category': b.category, 'planned': b.amount,
                         'site': (site.value if site else '') or '', 'pending': pending,
                         'has_login': bool(site and site.value) and bank_vault.has_login(f'bill:{b.id}'),
+                        # item 69 P5: the rest of a bill's setup, for its row on the Automation page
+                        'has_steps': bool(((_bank_recipe(session, f'bill:{b.id}') or {}).get('steps'))),
+                        'pay_steps': bool(((_bank_recipe(session, f'pay:{b.id}') or {}).get('steps'))),
+                        'paid_from': (lambda a: a.id if a else None)(_pay_account(session, b.id)),
+                        'remembered': (_get_setting(session, f'bank_device:bill:{b.id}') or AppSetting(value='')).value == 'yes',
                         'confirmed': _bill_reading_json(last) if last else None})
     return ok({'bills': out})
 

@@ -1705,7 +1705,7 @@ async function loadData() { await loadSnapshot(); }
 const VIEW_LABELS = {
   dashboard: 'Dashboard', ledger: 'Ledger', budget: 'Budget',
   byb: 'Before You Buy', debt: 'Debt Payoff', tracker: 'Month Tracker',
-  networth: 'Net Worth', trophy: 'Trophy Room', settings: 'Settings', trip: 'Trip Planner',
+  networth: 'Net Worth', trophy: 'Trophy Room', settings: 'Settings', trip: 'Trip Planner', automation: 'Automation',
   reports: 'Reports',
   gifts: 'Gift Budget',
 };
@@ -1763,6 +1763,7 @@ function showView(name) {
   if (name === 'networth')  { renderNetWorth(); renderPensionList(); _retirementToolsExpanded = false; const s = g('retirementToolsSection'); if(s) s.style.display='none'; const ch = g('retirementToolsChevron'); if(ch) ch.style.transform=''; }
   if (name === 'trophy')    { try { renderTrophyRoom();   } catch(e) { console.error('Trophy render:', e); _showViewError(name, e); } }
   if (name === 'settings')  { try { renderSettings();     } catch(e) { console.error('Settings render:', e); _showViewError(name, e); } }
+  if (name === 'automation') renderBankLogins();   // item 69 P1
   if (name === 'trip')      { try { renderTripPlanner();  } catch(e) { console.error('Trip render:', e); _showViewError(name, e); } }
   if (name === 'gifts')     { try { renderGiftBudget();   } catch(e) { console.error('Gift Budget render:', e); _showViewError(name, e); } }
   if (name === 'reports')   { try { renderReportCenter(); } catch(e) { console.error('Reports render:', e); _showViewError(name, e); } }
@@ -22820,43 +22821,97 @@ const BANK_AGENT_TERMS = [
   'Your password is kept in your computer\'s own password vault (VAULT), not in Groundwork\'s files. Anyone who can sign in to your computer as you could use it. Your bank\'s terms may not allow automated access, and how a bank treats fraud on an account whose password was used by software varies. Check with your bank if you\'re unsure.',
 ];
 
+// Item 69 (AUTOMATION_PAGE.md): the Automation page - every account and card, and every bill, by name with no
+// amounts (P3, P5). A row's settings slide down on a double-click, on its ▸, or on Enter (P4); one row open at a time.
+let _autoOpen = null;
+
 async function renderBankLogins() {
-  const box = g('settingsBankLogins');
-  if (!box) return;
-  let d;
-  try { d = await API.get('/api/settings/bank-logins'); } catch (e) { _gwErr('renderBankLogins')(e); return; }
-  box.innerHTML = bankLoginsHtml(d);
+  const acc = g('automationAccounts');
+  if (!acc) return;
+  let d, b, f;
+  try {
+    [d, b, f] = await Promise.all([API.get('/api/settings/bank-logins?all=1'), API.get('/api/settings/bank-agent/bills'),
+                                    API.get('/api/settings/bank-agent/last-fetched')]);
+  } catch (e) { _gwErr('renderBankLogins')(e); return; }
+  const top = g('automationTop');
+  if (top) top.innerHTML = automationTopHtml(d, f);
+  acc.innerHTML = bankLoginsHtml(d);
+  const bil = g('automationBills');
+  if (bil) bil.innerHTML = billSitesHtml((b && b.bills) || [], d);
   _renderBankFetchHistory();
   refreshFetchAll();
-  renderBillSites();
+  _fillAutoSite();
 }
 
-// Item 68 B1: a bill's own website, on its budget line. Its login, steps and reading then appear in the list above.
-async function renderBillSites() {
-  const box = g('settingsBillSites');
-  if (!box) return;
-  let d;
-  try { d = await API.get('/api/settings/bank-agent/bills'); } catch (e) { _gwErr('renderBillSites')(e); return; }
-  box.innerHTML = billSitesHtml(d.bills || []);
+// P2: what automation does, one button, and when each account was last fetched
+function automationTopHtml(d, f) {
+  const accts = (f && f.accounts) || [];
+  const last = accts.length ? `Last fetched: ${accts.map(a => `${esc(a.name)} ${_fetchAgo(a.days)}`).join(', ')}.` : 'No account has saved steps yet.';
+  return `<div class="card mt-5"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" ${accts.length ? '' : 'disabled'} onclick="startFetchAll()">⟳ Get my accounts</button>
+      <span style="font-size:12px;color:var(--slate)">${last}</span></div>
+    <label style="display:block;font-size:12px;color:var(--slate);margin-top:8px">Show when each account was last fetched on the dashboard after
+      <input type="number" min="0" max="365" value="${Number((d && d.remind_days) ?? 7)}" style="width:56px" onchange="setFetchRemindDays(this.value)"> days (0 turns it off).</label></div>`;
 }
 
-function billSitesHtml(bills) {
-  if (!bills.length) return `<div style="font-size:12px;color:var(--slate-2)">Add your bills to the budget first.</div>`;
-  return `<div style="font-size:12px;color:var(--slate);line-height:1.6;margin-bottom:6px">Add the website where you see a bill (your electric company's, say). Groundwork can then sign in when you ask, read the amount due and the due date, and show them to you to confirm. It never pays anything. Groundwork doesn't check the address belongs to the company; make sure it does.</div>`
-    + bills.map(b => `<div style="display:flex;gap:6px;align-items:center;padding:4px 0;flex-wrap:wrap">
-      <span style="flex:1;min-width:120px;font-size:12px;color:var(--ink)">${esc(b.name)}</span>
-      <input type="url" id="billSite-${b.id}" value="${esc(b.site)}" placeholder="https://www.yourcompany.com" aria-label="Website for ${esc(b.name)}"
-        style="flex:2;min-width:180px;font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);font-family:var(--font-mono)">
-      <button class="btn btn-secondary btn-sm" onclick="saveBillSite(${b.id})">Save</button>
-      ${b.site ? (b.has_login
-        ? `<span style="font-size:11px;color:var(--slate-2)">login saved in the vault</span>`
-        : `<button class="btn btn-secondary btn-sm" onclick="openBankLoginForm('bill:${b.id}', 'billLoginForm-${b.id}')">Save login</button>`) : ''}
-      <div id="billLoginForm-${b.id}" style="width:100%"></div></div>`).join('');
+function _autoStatus(r) {
+  const parts = [r.has_site ? 'website' : 'needs a website'];
+  if (r.has_site) parts.push(r.has_login ? 'login saved' : 'needs a login');
+  if (r.has_login) parts.push(r.has_steps ? 'steps saved' : 'not shown how yet');
+  if (r.remembered) parts.push('remembered computer');
+  return parts.join(' · ');
 }
 
-async function saveBillSite(id) {
-  const v = (g(`billSite-${id}`)?.value || '').trim();
-  try { await API.post('/api/settings/bank-agent/bill-site', { id, url: v }); }
+function _autoRow(key, name, status, details) {
+  const open = _autoOpen === key;
+  return `<div class="gw-auto-row" data-auto-key="${esc(key)}" tabindex="0" ondblclick="toggleAutoRow('${esc(key)}')"
+      onkeydown="if (event.key === 'Enter' && event.target === this) toggleAutoRow('${esc(key)}')">
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 0;user-select:none">
+      <div style="flex:1;min-width:0"><div style="font-size:13px;color:var(--ink)">${esc(name)}</div>
+        <div style="font-size:11px;color:var(--slate-2)">${esc(status)}</div></div>
+      <button class="btn btn-ghost btn-sm" style="font-size:16px;line-height:1;padding:4px 10px" aria-expanded="${open}" aria-label="Settings for ${esc(name)}" title="Settings (or double-click the row)"
+        onclick="toggleAutoRow('${esc(key)}')">${open ? '▾' : '▸'}</button></div>
+    <div class="gw-auto-details" data-auto-details style="${open ? '' : 'display:none'}">${details}</div></div>`;
+}
+
+function toggleAutoRow(key) {
+  _autoOpen = _autoOpen === key ? null : key;
+  document.querySelectorAll('[data-auto-key]').forEach(row => {
+    const open = row.dataset.autoKey === _autoOpen;
+    const det = row.querySelector('[data-auto-details]'), btn = row.querySelector('button[aria-expanded]');
+    if (det) det.style.display = open ? '' : 'none';
+    if (btn) { btn.setAttribute('aria-expanded', String(open)); btn.textContent = open ? '▾' : '▸'; }
+  });
+  _fillAutoSite();
+}
+
+// Esc closes the open row
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && _autoOpen && g('view-automation')?.classList.contains('active')) toggleAutoRow(_autoOpen);
+});
+
+// From another page (the Budget card's setup links): open the Automation page with that row open
+function openAutomationRow(key) {
+  _autoOpen = key;
+  showView('automation');
+}
+
+// An account's or card's website, read into its field only when its row is open - never kept in page state
+async function _fillAutoSite() {
+  if (!_autoOpen || !/^(account|card):\d+$/.test(_autoOpen)) return;
+  const [kind, id] = _autoOpen.split(':');
+  const el = g(`autoSite-${kind}-${id}`);
+  if (!el || el.dataset.filled) return;
+  try {
+    const r = await API.get(kind === 'account' ? `/api/accounts/${id}/portal` : `/api/debt/${id}/portal`);
+    el.value = (r && r.url) || '';
+    el.dataset.filled = '1';
+  } catch (e) { /* the field stays empty; Save still works */ }
+}
+
+async function saveAutoSite(kind, id) {
+  const v = (g(`autoSite-${kind}-${id}`)?.value || '').trim();
+  try { await API.put(kind === 'account' ? `/api/accounts/${id}/portal` : `/api/debt/${id}/portal`, { url: v }); }
   catch (e) { showToast('Not saved', e?.message || '', 'warning'); return; }
   renderBankLogins();
 }
@@ -22866,25 +22921,71 @@ function bankLoginsHtml(d) {
     return `<div style="font-size:12px;color:var(--slate)">This computer has no password vault Groundwork can use, so it can't keep a bank login. You can still open your bank and download files yourself.</div>`;
   }
   const terms = BANK_AGENT_TERMS.map(p => `<p style="font-size:12px;color:var(--slate);line-height:1.6;margin:0 0 8px">${esc(p.replace('VAULT', d.vault || 'your system\'s password vault'))}</p>`).join('');
-  if (!d.accounts.length) return terms + `<div style="font-size:12px;color:var(--slate-2)">Add your bank's website to an account (the Bank button on the Ledger) to save its login here.</div>`;
-  const remind = d.accounts.some(a => a.has_steps) ? `<label style="display:block;font-size:12px;color:var(--slate);margin:4px 0 8px">
-      Show when each account was last fetched on the dashboard after
-      <input type="number" min="0" max="365" value="${Number(d.remind_days ?? 7)}" style="width:56px" onchange="setFetchRemindDays(this.value)"> days (0 turns it off).</label>` : '';
-  return terms + remind + d.accounts.map(a => `
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--steel-2);flex-wrap:wrap">
-      <div style="flex:1;min-width:140px;font-size:13px;color:var(--ink)">${esc(a.name)}
-        <span style="font-size:11px;color:var(--slate-2)">${a.has_login ? ' · login saved in the vault' : ''}</span></div>
-      ${a.has_login
-        ? `${a.has_steps ? `<button class="btn btn-primary btn-sm" onclick="startBankFetch('${esc(a.key)}')">${a.kind === 'bill' ? 'Read my bill' : 'Get my latest transactions'}</button>` : ''}
+  if (!d.accounts.length) return terms + `<div style="font-size:12px;color:var(--slate-2)">Add an account in Settings → Accounts first.</div>`;
+  return terms + d.accounts.map(a => {
+    const box = esc(a.key).replace(':', '-');
+    const site = a.kind === 'bill' ? '' : `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px">
+        <span style="font-size:12px;color:var(--slate)">Bank website</span>
+        <input type="url" id="autoSite-${a.kind}-${a.id}" placeholder="https://www.yourbank.com" aria-label="Bank website for ${esc(a.name)}"
+          style="flex:1;min-width:200px;font-size:12px;padding:5px 7px;border:1px solid var(--steel);border-radius:var(--r-sm);font-family:var(--font-mono)">
+        <button class="btn btn-secondary btn-sm" onclick="saveAutoSite('${a.kind}', ${a.id})">Save</button></div>
+      <div style="font-size:11px;color:var(--slate-2)">This is the address Groundwork will open. Groundwork doesn't check that it belongs to your bank. Make sure it does. (The same field as in Settings → Accounts.)</div>`;
+    const login = a.has_site !== false ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px">${a.has_login
+        ? `${a.has_steps ? `<button class="btn btn-primary btn-sm" onclick="startBankFetch('${esc(a.key)}')">Get my latest transactions</button>` : ''}
            <button class="btn btn-secondary btn-sm" onclick="startBankRecording('${esc(a.key)}')">${a.has_steps ? 'Record the steps again' : 'Show me once'}</button>
            ${a.has_steps ? `<button class="btn btn-ghost btn-sm" onclick="deleteBankRecipe('${esc(a.key)}')">Delete steps</button>` : ''}
-           <button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${esc(a.key)}')">Forget</button>
-           <label style="display:block;width:100%;font-size:11px;color:var(--slate-2);margin-top:4px"><input type="checkbox" ${a.remembered ? 'checked' : ''} onchange="setBankDevice('${esc(a.key)}', this.checked)">
-             Remember this computer with the bank, so it asks for a code less often (keeps the bank's own cookies for this account; unticking forgets them)</label>`
-        : `<button class="btn btn-secondary btn-sm" onclick="openBankLoginForm('${esc(a.key)}')">Save login</button>`}
-      <div id="bankLoginForm-${esc(a.key).replace(':', '-')}" style="width:100%"></div>
-      ${a.has_steps ? `<div data-gw-fetch-history="${esc(a.key)}" style="width:100%;font-size:11px;color:var(--slate-2)"></div>` : ''}
-    </div>`).join('');
+           <span style="font-size:11px;color:var(--slate-2)">login saved in the vault</span>
+           <button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${esc(a.key)}')">Forget</button>`
+        : `<button class="btn btn-secondary btn-sm" onclick="openBankLoginForm('${esc(a.key)}')">Save login</button>`}</div>
+      ${a.has_login ? `<label style="display:block;width:100%;font-size:11px;color:var(--slate-2);margin-top:4px"><input type="checkbox" ${a.remembered ? 'checked' : ''} onchange="setBankDevice('${esc(a.key)}', this.checked)">
+        Remember this computer with the bank, so it asks for a code less often (keeps the bank's own cookies for this account; unticking forgets it)</label>` : ''}` : '';
+    const details = site + login + `<div id="bankLoginForm-${box}" style="width:100%"></div>`
+      + (a.has_steps ? `<div data-gw-fetch-history="${esc(a.key)}" style="width:100%;font-size:11px;color:var(--slate-2);margin-top:4px"></div>` : '');
+    return _autoRow(a.key, a.name, _autoStatus({ has_site: a.has_site !== false, has_login: a.has_login, has_steps: a.has_steps, remembered: a.remembered }), details);
+  }).join('');
+}
+
+// P5: every bill line, by name, no amounts; its website, login, show me once, read, paid from and the way to pay
+function billSitesHtml(bills, d) {
+  if (!bills.length) return `<div style="font-size:12px;color:var(--slate-2)">Add your bills to the budget first.</div>`;
+  const accounts = ((d && d.accounts) || []).filter(a => a.kind === 'account');
+  const intro = `<div style="font-size:12px;color:var(--slate);line-height:1.6;margin-bottom:4px">Add the website where you see a bill. Groundwork can then sign in when you ask, read the amount due and the due date, and show them to you to confirm on the Budget page. It never pays anything.</div>`;
+  return intro + bills.map(b => {
+    const key = `bill:${b.id}`, has_site = !!b.site;
+    const from = accounts.find(a => a.id === b.paid_from);
+    const details = `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px">
+        <span style="font-size:12px;color:var(--slate)">Website</span>
+        <input type="url" id="billSite-${b.id}" value="${esc(b.site)}" placeholder="https://www.yourcompany.com" aria-label="Website for ${esc(b.name)}"
+          style="flex:1;min-width:200px;font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);font-family:var(--font-mono)">
+        <button class="btn btn-secondary btn-sm" onclick="saveBillSite(${b.id})">Save</button></div>
+      <div style="font-size:11px;color:var(--slate-2)">Groundwork doesn't check the address belongs to the company; make sure it does.</div>
+      ${has_site ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px">${b.has_login
+          ? `${b.has_steps ? `<button class="btn btn-primary btn-sm" onclick="startBankFetch('${key}')">Read my bill</button>` : ''}
+             <button class="btn btn-secondary btn-sm" onclick="startBankRecording('${key}')">${b.has_steps ? 'Record the steps again' : 'Show me once'}</button>
+             ${b.has_steps ? `<button class="btn btn-ghost btn-sm" onclick="deleteBankRecipe('${key}')">Delete steps</button>` : ''}
+             <span style="font-size:11px;color:var(--slate-2)">login saved in the vault</span>
+             <button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${key}')">Forget</button>`
+          : `<button class="btn btn-secondary btn-sm" onclick="openBankLoginForm('bill:${b.id}', 'billLoginForm-${b.id}')">Save login</button>`}</div>` : ''}
+      <div id="billLoginForm-${b.id}" style="width:100%"></div><div id="bankLoginForm-bill-${b.id}" style="width:100%"></div>
+      <label style="display:block;font-size:12px;color:var(--slate);margin-top:8px">Paid from
+        <select onchange="setBillFrom(${b.id}, this.value)" style="font-size:12px"><option value="">choose an account…</option>
+        ${accounts.map(a => `<option value="${a.id}" ${a.id === b.paid_from ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label>
+      ${from && from.has_login ? `<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="startBankRecording('pay:${b.id}')">${b.pay_steps ? 'Record the way to pay again' : 'Show Groundwork the way to pay this (once)'}</button>
+        <span style="font-size:11px;color:var(--slate-2)">The way to ${esc(from.name)}'s payment screen for this bill. Groundwork stops there; you enter the amount and press Pay.</span>
+        <div id="bankLoginForm-pay-${b.id}"></div></div>`
+        : from ? `<div style="font-size:11px;color:var(--slate-2);margin-top:4px">Save ${esc(from.name)}'s login above to show Groundwork the way to pay this.</div>` : ''}`;
+    const status = [has_site ? 'website' : 'needs a website', has_site ? (b.has_login ? 'login saved' : 'needs a login') : '',
+                    b.has_login ? (b.has_steps ? 'where the amount and due date are, saved' : 'not shown how yet') : '',
+                    from ? `paid from ${from.name}` : ''].filter(Boolean).join(' · ');
+    return _autoRow(key, b.name, status, details);
+  }).join('');
+}
+
+async function saveBillSite(id) {
+  const v = (g(`billSite-${id}`)?.value || '').trim();
+  try { await API.post('/api/settings/bank-agent/bill-site', { id, url: v }); }
+  catch (e) { showToast('Not saved', e?.message || '', 'warning'); return; }
+  renderBankLogins();
 }
 
 // Item 57 A11: an account's last fetches, each with whether its file has been imported (joined by the file's hash).
@@ -22983,7 +23084,7 @@ async function saveBankRecipe(key) {
   catch (e) { _gwErr('saveBankRecipe')(e); return; }
   window._bankRecSteps = null;
   renderBankLogins();
-  if (key.startsWith('pay:')) renderBudgetBills();
+  renderBudgetBills();
 }
 
 // Item 68 B3 (BILLS_AND_PAYING.md): bills read from their own website. What was read waits for a yes; a confirmed
@@ -23021,7 +23122,8 @@ function budgetBillsHtml(bills, checks) {
         ${billCheckHtml(ck(b.id), accts)}</div>`;
     }
     return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:12px">
-      <b style="font-weight:600">${esc(b.name)}</b>: not read yet. Save its login and show Groundwork where the bill is in Settings → Fetch my downloads, then
+      <b style="font-weight:600">${esc(b.name)}</b>: not read yet.
+      <a href="#" onclick="openAutomationRow('${esc(b.key)}');return false" style="color:var(--pine)">Set it up on the Automation page →</a>
       <button class="btn btn-ghost btn-sm" onclick="startFetchAll(['${esc(b.key)}'])">⟳ Read my bill</button></div>`;
   }).join('');
   return `<div class="card mt-5"><div class="card-label" style="margin-bottom:2px">Bills read from their own website</div>
@@ -23041,9 +23143,9 @@ async function renderBudgetBills() {
 function billCheckHtml(c, accounts) {
   if (!c) return '';
   const acct = accounts.find(a => a.id === c.account_id);
-  const pick = `<label style="display:block;color:var(--slate);margin-top:4px">Paid from
-      <select onchange="setBillFrom(${c.id}, this.value)" style="font-size:12px"><option value="">choose an account…</option>
-      ${accounts.map(a => `<option value="${a.id}" ${a.id === c.account_id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label>`;
+  const pick = acct
+    ? `<div style="color:var(--slate);margin-top:4px">Paid from ${esc(acct.name)} <a href="#" onclick="openAutomationRow('bill:${c.id}');return false" style="color:var(--pine);font-size:11px">change</a></div>`
+    : `<div style="color:var(--slate);margin-top:4px"><a href="#" onclick="openAutomationRow('bill:${c.id}');return false" style="color:var(--pine)">Choose which account pays it, on the Automation page →</a></div>`;
   if (!acct) return pick;
   const floor = `<label style="display:block;color:var(--slate);margin-top:2px">Always leave at least
       $<input type="number" min="0" step="1" value="${acct.buffer ?? ''}" placeholder="amount" style="width:90px;font-size:12px" onchange="setAccountBuffer(${acct.id}, this.value)"> in ${esc(acct.name)}</label>`;
@@ -23070,10 +23172,8 @@ function billCheckHtml(c, accounts) {
   // Item 68 B8 (b): to the bank's payment screen for this bill, and stop - the person pays
   const payWay = acct.has_portal ? `<div style="margin-top:6px">${c.pay_steps
       ? `<button class="btn btn-secondary btn-sm" onclick="openBillPay(${c.id})">Take me to pay this</button>
-         <button class="btn btn-ghost btn-sm" onclick="startBankRecording('pay:${c.id}')">Record the way again</button>`
-      : `<button class="btn btn-ghost btn-sm" onclick="startBankRecording('pay:${c.id}')">Show Groundwork the way to pay this (once)</button>`}
-      <span style="color:var(--slate-2);font-size:11px">Groundwork opens your bank's payment screen and stops there. You enter the amount and press Pay.</span>
-      <div id="bankLoginForm-pay-${c.id}"></div></div>` : '';
+         <span style="color:var(--slate-2);font-size:11px">Groundwork opens your bank's payment screen and stops there. You enter the amount and press Pay.</span>`
+      : `<a href="#" onclick="openAutomationRow('bill:${c.id}');return false" style="color:var(--pine)">Show Groundwork the way to pay this, on the Automation page →</a>`}</div>` : '';
   return pick + floor + notice + `<div style="margin-top:4px;color:var(--ink)">${answer}</div>` + working + payWay
     + `<div style="color:var(--slate-2);font-size:11px">${esc(ck.cant_see || '')}</div>`
     + (paid ? `<div style="margin-top:4px;color:var(--ink)">${paid}</div>` : '');
@@ -23259,7 +23359,6 @@ async function forgetBankLogin(key) {
 }
 
 function renderSettings() {
-  renderBankLogins();
   _settingsShowTab(_settingsActiveTab);
   if (g('settingsSavingsPct')) g('settingsSavingsPct').value = S.dfmSavingsCut || 5;
   if (g('settingsMonthlyBudget')) g('settingsMonthlyBudget').value = g('monthlyBudget')?.value || '';

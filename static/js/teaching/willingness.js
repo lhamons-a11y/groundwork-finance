@@ -266,6 +266,15 @@
     }
     var overview = document.querySelector('.nav-item[data-view="dashboard"]');
     var section = overview && overview.closest('.nav-section');
+    var assistant = g('navAssistant');            // item 69: the page's own Assistant group, when it has one
+    if (assistant && !document.querySelector('.nav-item[data-view="' + VIEW + '"]')) {
+      var it = document.createElement('div');
+      it.className = 'nav-item';
+      it.setAttribute('data-view', VIEW);
+      it.setAttribute('onclick', 'showView(\'' + VIEW + '\')');
+      it.innerHTML = '<span class="nav-item-icon">◇</span>Working picture';
+      assistant.appendChild(it);
+    }
     if (section && !document.querySelector('.nav-item[data-view="' + VIEW + '"]')) {
       var s = document.createElement('div');
       s.className = 'nav-section';
