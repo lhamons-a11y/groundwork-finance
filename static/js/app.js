@@ -24483,7 +24483,9 @@ async function callAI(payload) {
     try {
       const body = { ...payload, system: systemText, log_call: callId, log_attempt: ++attemptNo };
       delete body.onSentence; delete body.onReset; delete body.signal; delete body.max_sentences; delete body.logCall;
+      const t0 = Date.now();
       const res = await API.post('/api/ai/chat', body);
+      globalThis._gwAiSlowSecs = (Date.now() - t0) / 1000;   // item 64 N4: shown, never acted on
       const data = res.data || res;
       if (data.ai_available === false) return { ok:false, text:'', unavailable:true, message:data.message||'' };
       const text = (data.content||[]).map(b=>b.text||'').filter(Boolean).join('\n');
@@ -24732,9 +24734,12 @@ async function _rcTryPersistedCache(reportId, dataLines, buildPrompt, target) {
 // buildPrompt: function(profileCtx, stageCtx) → string
 // container: DOM element to append the panel to
 async function _rcAnalyzeWithAI(reportId, dataLines, buildPrompt, container) {
-  if (!aiEnabled()) return;
   const target = container || g('rcReportBody');
   if (!target) return;
+  // Item 64 N1/N3: the report's own summary first - its figures, plainly, with AI on or off. With AI off this is the
+  // whole report beneath its charts, not a fallback; with AI on the written part adds the teaching below it.
+  _rcRenderSummary(reportId, dataLines, target);
+  if (!aiEnabled()) return;
 
   // Cached response — show immediately without re-prompting
   if (_rcAICache[reportId]) {
@@ -24803,6 +24808,8 @@ async function _rcSendAI(reportId) {
     system: `You are Groundwork's financial analysis engine. Write clear, specific, direct analysis.
 Tone: like a knowledgeable friend who knows the user's numbers. Direct, never preachy, never generic.
 Rules: no greetings, no sign-offs, no use of "journey", "wellness", or "holistic".
+The person already sees these figures in the report's summary and charts: do not list them again. Teach instead -
+what one or two of them mean, which question they raise, or the mechanism behind them.
 Use the actual dollar amounts provided. Up to 3 short paragraphs, about 200 words in all.`,
     messages: _rcAIThread[reportId],
     surface: reportId,
@@ -24853,21 +24860,40 @@ Use the actual dollar amounts provided. Up to 3 short paragraphs, about 200 word
 // (_rcTryPersistedCache) — the honest floor when AI narration isn't
 // available: the real computed numbers, plainly, plus a manual retry.
 function _rcRenderAIFallback(reportId, dataLines, target) {
-  const errPanel = document.createElement('div');
-  errPanel.id = `rcAIFallback-${reportId}`;
-  errPanel.style.cssText = 'margin-top:24px;border:1px solid var(--steel);border-radius:var(--r-md);overflow:hidden';
-  errPanel.innerHTML = `
-    <div style="padding:10px 14px;background:var(--mist);border-bottom:1px solid var(--steel);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2)">
-      Written analysis unavailable — here's what was computed
-    </div>
-    <div style="padding:12px 14px;font-size:12px;color:var(--ink);line-height:1.8;font-family:var(--font-mono);white-space:pre-wrap">${dataLines.map(esc).join('\n')}</div>
-    <div style="padding:8px 14px;border-top:1px solid var(--steel);display:flex;align-items:center;gap:10px">
-      <button onclick="this.closest('[id^=rcAIFallback]').remove();_rcSendAI('${reportId}')"
-        style="font-size:11px;padding:4px 12px;border:1px solid var(--steel);border-radius:var(--r-sm);background:var(--paper);color:var(--slate);cursor:pointer">
-        Try written analysis again
-      </button>
-    </div>`;
-  target.appendChild(errPanel);
+  // Item 64 N1: the summary above already carries every figure; this only says the written part didn't come this
+  // time, and offers it again - never an error-shaped panel over raw data.
+  _rcRenderSummary(reportId, dataLines, target);
+  g(`rcAIFallback-${reportId}`)?.remove();
+  const note = document.createElement('div');
+  note.id = `rcAIFallback-${reportId}`;
+  note.style.cssText = 'margin-top:10px;font-size:11px;color:var(--slate-2)';
+  note.innerHTML = `The written explanation didn't pass Groundwork's checks this time; the figures above are complete.
+    <a href="#" onclick="this.parentNode.remove();_rcSendAI('${reportId}');return false" style="color:var(--slate-2);text-decoration:underline">Try the explanation again</a>`;
+  target.appendChild(note);
+}
+
+// Item 64 N1/N2/N4: a report's summary - each computed figure as a plain line (label, then the figure and its
+// working), in the voice rules' words. The same figures the AI is given; nothing here is the model's.
+function _rcSummaryLines(dataLines) {
+  return (dataLines || []).map(l => String(l)).filter(l => l.trim()).map(l => {
+    const i = l.indexOf(':');
+    return i > 0 && i < 60 ? { label: l.slice(0, i).trim(), value: l.slice(i + 1).trim() } : { label: '', value: l.trim() };
+  });
+}
+
+function _rcRenderSummary(reportId, dataLines, target) {
+  const rows = _rcSummaryLines(dataLines);
+  if (!rows.length || !target) return;
+  g(`rcSummary-${reportId}`)?.remove();
+  const slow = aiEnabled() && globalThis._gwAiSlowSecs && globalThis._gwAiSlowSecs >= 25
+    ? `<div style="margin-top:8px;font-size:11px;color:var(--slate-2)">The AI took about ${Math.round(globalThis._gwAiSlowSecs)} seconds to answer on this computer. Every report works fully without it - <a href="#" onclick="showView('settings');return false" style="color:var(--slate-2);text-decoration:underline">AI settings</a>.</div>` : '';
+  const box = document.createElement('div');
+  box.id = `rcSummary-${reportId}`;
+  box.style.cssText = 'margin-top:24px;border:1px solid var(--steel-2);border-radius:var(--r-md);padding:12px 14px';
+  box.innerHTML = `<div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Summary</div>
+    ${rows.map(r => `<div style="display:flex;gap:10px;justify-content:space-between;font-size:12px;line-height:1.8;border-top:1px solid var(--mist)">
+      <span style="color:var(--slate)">${esc(r.label)}</span><span style="color:var(--ink);text-align:right">${esc(r.value)}</span></div>`).join('')}${slow}`;
+  target.appendChild(box);
 }
 
 // Footer attribution line — "Analyzed on your machine · phi3.5". Every
@@ -25526,12 +25552,15 @@ async function _rcMonthlyGenerate() {
   }
 }
 
+// Item 64 N2: the AI-off monthly words are facts - what came in, what went out, where it went - and nothing more.
+// No verdict ("solid", "tight"), no advice ("trim", "worth reviewing"), no promise about interest.
 function _rcMonthlyFallbackText(monthName,spent,income,under,topCats) {
   const net=income-spent;
-  const s1=net>=0?`${monthName} was a solid month — you kept ${fmt(net)} of your income.`:`${monthName} was a tight month — spending ran ${fmt(Math.abs(net))} over income.`;
-  const s2=topCats?`Your biggest spending categories were ${topCats}. These are the areas worth reviewing if you want to find room.`:'Import your transactions to see a spending breakdown.';
-  const s3=net>=0?`That ${fmt(net)} surplus can go straight toward your top debt priority — every dollar applied now saves money in interest.`:`Start next month by identifying one category to trim. Even ${fmt(Math.abs(net)/2)} would get you back to even.`;
-  return [s1,s2,s3].join('\n\n');
+  const s1=net>=0
+    ? `In ${monthName} you kept ${fmt(net)} of ${fmt(income)} income: spending was ${fmt(spent)}.`
+    : `In ${monthName} spending was ${fmt(spent)}, ${fmt(Math.abs(net))} more than the ${fmt(income)} income on record.`;
+  const s2=topCats?`The largest spending categories were ${topCats}.`:'There are no transactions on record for this month yet, so there is no breakdown by category.';
+  return [s1,s2].join('\n\n');
 }
 
 function _rcRenderCategoryDeepDive() {

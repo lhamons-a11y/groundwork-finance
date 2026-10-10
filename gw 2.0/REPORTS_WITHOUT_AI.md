@@ -5,7 +5,7 @@ and still have a great experience. In fact we should off pre built reports for n
 that help summarize what the ser would want to see in that report. Where an AI report will also offer the same data
 but can focus on things that can help inform the user and teaches the user. which is the ultimate goal."*
 
-**N1–N7 RULED as recommended 2026-10-10 (Rob: "I accept item 62 and 64").** No code yet: the build needs its own go-ahead.
+**N1–N7 RULED as recommended 2026-10-10 (Rob: "I accept item 62 and 64"). BUILT 2026-10-10** (Rob: "build all items that have been ruled on"): every report now draws its **Summary** (each computed figure as a label and its value) before AI is asked, so with AI off the report is its charts plus that summary - before this build, AI off showed nothing there at all; a written part that did not pass the checks is one quiet line under the summary, never the old "Written analysis unavailable" panel; the AI is told the person already sees the figures and to teach; the monthly AI-off words are facts ("In September you kept $867.82 of $4,280.00 income: spending was $3,412.18"); Settings says turning AI off loses no figures, and a slow answer (25 s or more) is named in the summary with a link to AI settings, never switched off for the person; s185. **What changed** lines appear where a report already computes them; a per-report previous-period comparison is not added in this build. **N7:** 1.x keeps its old monthly wording - under the 1.x rule (L1) only data-loss, wrong-figure and security fixes go there, and this is wording. Awaiting the gate and acceptance.
 
 ## 1. What is true today (measured 2026-10-09, master)
 
