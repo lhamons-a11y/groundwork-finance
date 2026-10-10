@@ -5498,6 +5498,7 @@ function _applyImportIntelligence(records) {
     // correctly because the merchant has already been canonicalized by the
     // import pipeline before this function runs.
     for (const rule of _importRules) {
+      if (rule.direction && t.type && rule.direction !== t.type) continue;   // item 72: a rule for deposits only (or charges)
       const val      = (rule.value || '').toLowerCase();
       const merchant = (t.merchant || t.description || '').toLowerCase();
       if (rule.type === 'contains'   && merchant.includes(val))    { t.category = rule.category; return; }
@@ -5702,6 +5703,7 @@ function renderImportRules() {
         <strong style="color:var(--sky)"> "${esc(rule.value)}"</strong>
         <span style="color:var(--slate)"> → </span>
         <strong style="color:var(--pine)">${esc(rule.category)}</strong>
+        ${rule.direction ? `<span style="color:var(--slate-2)"> (${rule.direction === 'credit' ? 'deposits only' : 'charges only'})</span>` : ''}
       </div>
       <button onclick="deleteImportRule(${idx})"
         style="font-size:11px;padding:2px 8px;border-radius:20px;background:none;
@@ -23338,7 +23340,8 @@ function incomeChangeHtml(st) {
           <span>${esc(_debtWhen(x.debt_months))}</span></div>
         ${x.bridge_months != null ? `<div>Your savings cover about <b>${x.bridge_months}</b> month${x.bridge_months === 1 ? '' : 's'} of the gap.</div>` : ''}</div>${plan}</div>`;
   }).join('');
-  return `<div class="card mt-5"><div class="card-label" style="margin-bottom:2px">Your income changed</div>
+  return `<div class="card mt-5"><div class="card-label" style="margin-bottom:2px">Your income changed
+      <button class="btn btn-ghost btn-sm" style="float:right" onclick="openWhy('income_month')">Why does it say this?</button></div>
     <div style="font-size:13px;color:var(--ink);line-height:1.6">${fact}</div>
     <div style="font-size:12px;color:var(--slate);margin-top:4px;line-height:1.6">${holds}</div>
     <div style="font-size:12px;color:var(--slate);margin-top:8px">Do you expect this to last?</div><div>${ask}</div>
@@ -24370,6 +24373,130 @@ async function evidenceAnswer(id, answer) {
     showToast(answer === 'yes' ? 'Noted: yes' : 'Noted: no thanks', 'Your answer is kept as yours, and you can change it.');
   } catch (e) { _gwErr('evidenceAnswer')(e); return; }
   document.querySelectorAll('[data-evidence-surface]').forEach(el => renderEvidence(el.getAttribute('data-evidence-surface'), el));
+}
+
+// ── Item 72 (gw 2.0/ASK_WHY.md, C1-C10 as revised in section 5): Ask why, stage 1 ──
+// "Why?" opens a panel beside the page. The checks run on the record and every word is the engine's; no model in
+// this stage, so AI off changes nothing. Bank text is shown escaped, as data. A fix is an exact list: previewed,
+// applied only on the tap, verified, recorded, and undoable.
+let _whyFigure = null, _whyPreview = null;
+
+function _whyPanel() {
+  let p = g('whyPanel');
+  if (!p) {
+    p = document.createElement('div');
+    p.id = 'whyPanel';
+    p.setAttribute('role', 'dialog');
+    p.setAttribute('aria-label', 'Why does this read this way?');
+    p.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--paper);'
+      + 'border-left:1px solid var(--steel);box-shadow:-8px 0 24px rgba(0,0,0,.12);z-index:900;overflow:auto;padding:18px 20px';
+    document.body.appendChild(p);
+  }
+  return p;
+}
+
+function closeWhy() { const p = g('whyPanel'); if (p) p.remove(); _whyPreview = null; }
+
+async function openWhy(figure) {
+  _whyFigure = figure;
+  const p = _whyPanel();
+  p.innerHTML = '<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--slate)"><div class="spinner"></div>Checking your records…</div>';
+  let d;
+  try { d = await API.get('/api/why?figure=' + encodeURIComponent(figure)); }
+  catch (e) { _gwErr('openWhy')(e); p.innerHTML = '<div style="font-size:12px;color:var(--ember)">The checks could not run.</div>'; return; }
+  let fixes = [];
+  try { fixes = ((await API.get('/api/why/fixes')) || {}).fixes || []; } catch (e) { _gwErr('openWhy fixes')(e); }
+  p.innerHTML = _whyHTML(d, fixes);
+}
+
+function _whyRowsHTML(rows) {
+  if (!rows || !rows.length) return '';
+  return `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--sky);cursor:pointer">The ${rows.length} record${rows.length !== 1 ? 's' : ''}</summary>
+    <div style="font-size:11px;line-height:1.6;margin-top:4px">${rows.map(r => `<div style="display:flex;gap:8px;border-bottom:0.5px solid var(--steel);padding:3px 0">
+      <span style="white-space:nowrap">${esc(r.date)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(r.merchant || r.description)}</span>
+      <span>${r.type === 'credit' ? '+' : '-'}${fmt(r.amount)}</span><span style="color:var(--slate-2)">${esc(r.category)}</span></div>`).join('')}</div></details>`;
+}
+
+function _whyHTML(d, fixes) {
+  const card = (r, i) => `<div class="card" style="margin-top:10px" data-why-check="${esc(r.check)}">
+      <div class="card-label">${esc(r.title)}</div>
+      <div style="font-size:13px;color:var(--ink);line-height:1.6">${esc(r.text)}</div>
+      ${r.table ? `<div style="font-size:11px;margin-top:6px;line-height:1.6">${r.table.map(m => `<div style="display:flex;gap:8px"><span style="width:62px">${esc(m.month)}</span>
+        <span style="width:90px">${fmt(m.counted)}</span><span style="color:var(--slate-2)">${Object.entries(m.left_out).map(([k, v]) => `not counted: ${esc(k)} ${fmt(v)}`).join(' · ')}</span></div>`).join('')}</div>` : ''}
+      ${_whyRowsHTML(r.rows)}
+      <div style="font-size:11px;color:var(--slate-2);margin-top:6px"><b>What this shows:</b> ${esc(r.establishes)} <b>What it can't tell:</b> ${esc(r.cannot)}</div>
+      ${(r.fixes || []).length ? `<div style="margin-top:8px;font-size:11px;color:var(--slate)">Ways this could be changed - your choice, and nothing changes until you approve the exact list:</div>
+        ${r.fixes.map((f, j) => `<div style="margin-top:4px">${f.to_category_id == null ? `<select id="whyPick${i}_${j}" style="font-size:12px">${(S.categories || []).filter(c => c.type !== 'income').map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>` : ''}
+          <button class="btn btn-secondary btn-sm" onclick="whyPreviewFix(${i}, ${j})">${esc(f.label)}…</button></div>`).join('')}` : ''}
+    </div>`;
+  window._whyResults = d.results;
+  return `<div style="display:flex;justify-content:space-between;align-items:center"><div class="section-title" style="font-size:16px">Why: ${esc(d.label)}</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeWhy()" aria-label="Close">✕</button></div>
+    <div style="font-size:11px;color:var(--slate-2);margin-top:2px">Checked against your records just now. These say what the records show, not why it happened.</div>
+    ${d.results.map(card).join('')}
+    ${d.none_text ? `<div class="card" style="margin-top:10px;font-size:12px;color:var(--slate)">${esc(d.none_text)}</div>` : ''}
+    <div id="whyPreviewBox"></div>
+    ${fixes.length ? `<div class="card" style="margin-top:10px"><div class="card-label">Changes made here</div>${fixes.map(f => `<div style="font-size:12px;padding:4px 0">
+      ${esc(String(f.at || '').slice(0, 10))}: ${esc(f.label)} (${f.count}, ${fmt(f.total)})
+      ${f.undone ? '<span style="color:var(--slate-2)">undone</span>' : `<button class="btn btn-ghost btn-sm" onclick="whyUndo(${f.historian_id})">Undo</button>`}</div>`).join('')}</div>` : ''}`;
+}
+
+async function whyPreviewFix(i, j) {
+  const f = { ...(window._whyResults[i].fixes[j]) };
+  if (f.to_category_id == null) f.to_category_id = parseInt(g(`whyPick${i}_${j}`)?.value) || null;
+  const box = g('whyPreviewBox');
+  try { _whyPreview = await API.post('/api/why/preview', { fix: f }); }
+  catch (e) { if (box) box.innerHTML = `<div style="font-size:12px;color:var(--ember)">${esc(e.message)}</div>`; return; }
+  _whyRenderPreview(box);
+}
+
+function _whyRenderPreview(box) {
+  const p = _whyPreview;
+  if (!box || !p) return;
+  box.innerHTML = `<div class="card" style="margin-top:12px;border:1px solid var(--sky)"><div class="card-label">The exact change</div>
+    <div style="font-size:12px;color:var(--ink)">${esc(p.label)}: ${p.count} record${p.count !== 1 ? 's' : ''}, ${fmt(p.total)}.</div>
+    <div style="font-size:11px;line-height:1.6;margin-top:6px">${p.rows.map(r => `<div style="display:flex;gap:8px;border-bottom:0.5px solid var(--steel);padding:3px 0">
+      <span>${esc(r.date)}</span><span style="flex:1">${esc(r.merchant || r.description)}</span><span>${fmt(r.amount)}</span>
+      <span>${esc(r.category)} → <b>${esc(r.proposed)}</b></span></div>`).join('')}</div>
+    <div style="font-size:12px;margin-top:8px"><b>Your monthly income, before and after:</b>${p.figure.map(m => `<div>${esc(m.month)}: ${fmt(m.before)} → ${fmt(m.after)}</div>`).join('')}</div>
+    <div style="font-size:11px;color:var(--slate);margin-top:6px">This feeds: ${p.feeds.map(esc).join('; ')}. ${esc(p.others_may_change)}</div>
+    ${p.rule ? `<label style="display:flex;gap:6px;align-items:flex-start;font-size:12px;margin-top:8px"><input type="checkbox" id="whyUseRule">
+      <span>Also file future ${p.rule.direction === 'credit' ? 'deposits' : 'charges'} from ${esc(p.rule.value)} under "${esc(p.rule.category)}" when you import.
+      ${p.rule.replaces_for_this_direction ? `Today the rule "${esc(p.rule.replaces_for_this_direction.value)}" files them under "${esc(p.rule.replaces_for_this_direction.category)}".` : ''} ${esc(p.rule.note)}</span></label>` : ''}
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-primary btn-sm" onclick="whyApply()">Apply this change</button>
+      <button class="btn btn-ghost btn-sm" onclick="g('whyPreviewBox').innerHTML=''; _whyPreview=null">Cancel</button></div></div>`;
+  box.scrollIntoView({ block: 'nearest' });
+}
+
+async function whyApply() {
+  const p = _whyPreview;
+  if (!p) return;
+  const r = await _gwFetch('/api/why/apply', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fix: p.fix, fingerprint: p.fingerprint, use_rule: !!g('whyUseRule')?.checked }) });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 409 && j.data) {          // the records changed: show the change as it stands now, never apply it
+    _whyPreview = j.data;
+    _whyRenderPreview(g('whyPreviewBox'));
+    showToast('The records changed since the preview', 'Here is the change as it stands now.', 'warning');
+    return;
+  }
+  if (!r.ok) { showToast(j.error || 'The change did not take', 'Nothing was changed.', 'warning'); return; }
+  _whyPreview = null;
+  showToast(`Changed ${j.data.changed} record${j.data.changed !== 1 ? 's' : ''}`, 'Undo is in the panel.', 'success');
+  if (j.data.rule_added) loadImportIntelligence();
+  try { await bootFromDB(); } catch (e) { _gwErr('whyApply reload')(e); }
+  openWhy(_whyFigure);
+}
+
+async function whyUndo(historianId) {
+  try {
+    const d = await API.post('/api/why/undo', { historian_id: historianId });
+    showToast(`Reverted ${d.reverted.length}`, d.left_as_edited.length ? `${d.left_as_edited.length} changed since were left as they are.` : '', 'success');
+    loadImportIntelligence();
+    try { await bootFromDB(); } catch (e) { _gwErr('whyUndo reload')(e); }
+  } catch (e) { _gwErr('whyUndo')(e); showToast(e.message || 'Undo did not take', '', 'warning'); }
+  openWhy(_whyFigure);
 }
 
 // Item 62 G1/G6: what the voice check said of one attempt, onto its log entry (fire and forget)

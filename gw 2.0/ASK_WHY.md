@@ -9,7 +9,7 @@ filed under a new category:
 > bill to the user can talk with the agent to fix. Also if the user had questions on how to do things in groundwork
 > it explains where and could even open that section for them."*
 
-**Points C1–C10 for ruling, as revised in §5 after review. No code yet.**
+**C1–C10 as revised in §5: go-ahead given 2026-10-10 (Rob: "build"). STAGE 1 BUILT 2026-10-10 on master (§6), awaiting acceptance. Stages 2–4 wait for that acceptance (C9).**
 
 ## 1. What happened, and why it's the model for this
 
@@ -249,3 +249,52 @@ explanations are refused:**
 - **instructions planted in an imported transaction description**: bank text is data, never instructions;
 - a stale preview, a failed write, and an Undo that meets later edits;
 - AI off, AI unavailable, and an AI answer that fails validation.
+
+
+## 6. Stage 1, built (2026-10-10)
+
+- **The checks** (`core/ask_why.py`). Each has its *what it shows* and *what it can't tell* in writing, shown with every
+  finding:
+  - **what went into your monthly income:** the period (complete months), what is counted, and what is left out, per
+    month;
+  - **one payer, filed under two categories:** a clean switch from one category to another at a date, deposits and
+    charges never mixed. A payer filed two ways back and forth stays quiet;
+  - **deposits in a spending category, or charges in an income category:** a spending category is shown only when most
+    of its money is deposits, so refunds stay quiet;
+  - **a regular deposit that has not come in:** weekly, every two weeks or monthly. When the account's records end
+    before the next payday, it says the deposit may simply not be on record yet; otherwise it asks whether the deposit
+    is filed elsewhere or stopped;
+  - **the same transaction on record twice:** always *suspected*, with no fix that deletes;
+  - **money between your own accounts counted as income;**
+  - **months with no records, and accounts whose records stop.**
+
+  When nothing explains the figure, the panel says so. Findings state what the record shows, never a cause (s189
+  holds a list of cause and verdict words they may not use).
+- **Where:** *Why does it say this?* on the income card (the income figure, deposits only), and *Check my records* on
+  the Assistant page (all checks). The panel opens beside the page. **Not yet:** "Why?" on other figures; they follow
+  once stage 1 is accepted.
+- **Fixes (C4).**
+  - Each finding offers its ways to change it as choices.
+  - The preview shows each row with its current and proposed category, the total, your monthly income before and
+    after for the months touched, what it feeds, and that other figures may change.
+  - A tick box adds an import rule **for deposits only (or charges only)**, placed first, so the next import files
+    the same way without catching the same name's other direction. Import rules gained a `direction`, which the
+    import screen honours and the rules list shows.
+  - Apply refuses a preview the records have moved on from (409, with a fresh preview). It reads back what the
+    database holds, records `record_fix` in the Historian with each row's from and to, and changes nothing if the
+    write didn't take.
+  - Undo reverts only the rows still as the fix left them, lists any edited since, removes the rule it added, and
+    runs once.
+- **No model** in this stage: AI off changes nothing. Bank text is shown escaped, as data.
+- **Not built in stage 1:**
+  - *changed* (not stopped) pay, which waits for item 71's amendment D3–D6;
+  - retyping a category, since the income figure counts only "Income" until item 71's D1 is ruled;
+  - stages 2–4.
+- **On Rob's data** (a copy, 2026-10-10), the income figure shows:
+  - City of Millbrook's 7 deposits since 2026-07-09 in "Rob's Income" ($16,748.80);
+  - the same category holding the City of Millbrook utility charges;
+  - stale card accounts.
+
+  *Check my records* also finds Auto Finance A's charges moving from Debt to Car Lease Payment, and Menards' from Transfer
+  to Rent / Mortgage.
+- **Tests:** s189, 25 checks, covering the found cases and the quiet ones (C10).

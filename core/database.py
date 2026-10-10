@@ -401,6 +401,9 @@ class HistorianEntry(Base):
       'budget_reviewed'                   — user opened the Budget page. Client signal on navigation
                                              (showView('budget')), not on the re-renders renderBudget()
                                              does elsewhere. Purely categorical.
+      'record_fix'                        — Ask why (item 72 C4): a fix the person previewed and approved - the
+                                             exact rows moved (id, from, to), the total, any import rule added.
+      'record_fix_undone'                 — its Undo: the rows reverted, and any rows left as edited since.
       'budget_adjusted'                   — user intentionally changed a budget item's amount via
                                              update_budget_item. expected=old amount, actual=new amount,
                                              so variance is real. Distinct from budget_variance_observed

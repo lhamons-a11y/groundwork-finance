@@ -1219,6 +1219,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="section-header"><div class="section-title">Assistant</div>
           <div class="section-sub">Getting your data in: each bank and bill Groundwork visits for you, when you ask. Balances live on their own pages.</div></div>
         <div id="automationTop"></div>
+        <div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="openWhy('records')">Check my records</button>
+          <span style="font-size:11px;color:var(--slate-2)">Looks for payers filed two ways, deposits in spending categories, regular deposits that stopped, doubles, and months with no records.</span></div>
         <!-- Item 69 amendment (Rob 2026-10-10): Accounts and Bills on their own tabs -->
         <div role="tablist" aria-label="Assistant" style="display:flex;border-bottom:1px solid var(--steel);margin:20px 0 0">
           <button id="autoTab-accounts" role="tab" aria-selected="true" aria-controls="autoPanel-accounts" onclick="_autoShowTab('accounts')"

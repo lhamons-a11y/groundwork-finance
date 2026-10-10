@@ -212,6 +212,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
     app.register_blueprint(evidence_bp,       url_prefix='/api/evidence')
+    app.register_blueprint(why_bp,            url_prefix='/api/why')
     app.register_blueprint(usage_bp,          url_prefix='/api/usage')
     app.register_blueprint(dashboard_bp,      url_prefix='/api/dashboard')
 
@@ -1861,6 +1862,93 @@ def usage_rhythm():
         if n / len(recent) >= 0.4:
             mostly = top
     return ok({'opens_30d': len(recent), 'mostly': mostly})
+
+
+why_bp = Blueprint('why', __name__)
+
+
+# ── Item 72 - Ask why, stage 1 (ASK_WHY.md C1-C10 as revised in section 5) ─────────────────────────────────────
+# Fixed checks on the record; fixes previewed, approved, verified and undoable. No model in this stage.
+def _import_rules(session):
+    rules = _setting_json(session, 'import_rules_json', []) or []
+    return [r for r in rules if isinstance(r, dict)]
+
+
+@why_bp.route('', methods=['GET'])
+def why_investigate():
+    """C3: every check that applies to a figure, run on the record, each with its rows, what it can and can't tell."""
+    from core import ask_why
+    with db_session() as session:
+        out = ask_why.investigate(session, (request.args.get('figure') or '').strip())
+        if out is None:
+            return err('Not a figure Groundwork can check.', 404)
+        return ok(out)
+
+
+@why_bp.route('/preview', methods=['POST'])
+@require_json
+def why_preview():
+    """C4: the exact change - each row, current and proposed category, the total, the figure before and after."""
+    from core import ask_why
+    with db_session() as session:
+        p = ask_why.preview(session, (request.json or {}).get('fix'), _import_rules(session))
+        if not p:
+            return err('That change does not match the records.', 400)
+        return ok(p)
+
+
+@why_bp.route('/apply', methods=['POST'])
+@require_json
+def why_apply():
+    """C4: applies exactly the previewed change, only if the records are as previewed; confirms the write and records
+    it in the Historian. A changed record returns a fresh preview instead (409)."""
+    from core import ask_why
+    body = request.json or {}
+    with db_session() as session:
+        state, res = ask_why.apply(session, body.get('fix'), str(body.get('fingerprint') or ''), _import_rules(session),
+                                   use_rule=bool(body.get('use_rule')))
+        if state == 'invalid':
+            return err('That change does not match the records.', 400)
+        if state == 'stale':
+            return jsonify({'ok': False, 'error': 'These records changed since the preview. Here is the change as it '
+                                                  'stands now.', 'data': res}), 409
+        if state == 'failed':
+            return err('The change did not take. Nothing was changed.', 500)
+        if res['rule_added']:
+            _set_setting(session, 'import_rules_json', json.dumps(res['rules']))
+        session.commit()
+        return ok({'historian_id': res['historian_id'], 'changed': res['changed'], 'rule_added': res['rule_added']})
+
+
+@why_bp.route('/undo', methods=['POST'])
+@require_json
+def why_undo():
+    """C4: reverts a fix - only rows still as it left them; rows edited since are listed and left as they are."""
+    from core import ask_why
+    with db_session() as session:
+        res = ask_why.undo(session, int((request.json or {}).get('historian_id') or 0), _import_rules(session))
+        if res is None:
+            return err('Not a fix Groundwork made.', 404)
+        if res.get('already'):
+            return err('That fix was already undone.', 409)
+        _set_setting(session, 'import_rules_json', json.dumps(res['rules']))
+        session.commit()
+        return ok({'reverted': res['reverted'], 'left_as_edited': res['left_as_edited']})
+
+
+@why_bp.route('/fixes', methods=['GET'])
+def why_fixes():
+    """The fixes made through Ask why, newest first, each with whether it was undone."""
+    with db_session() as session:
+        rows = (session.query(HistorianEntry).filter_by(event_category='record_fix')
+                .order_by(HistorianEntry.id.desc()).limit(20).all())
+        out = []
+        for e in rows:
+            c = json.loads(e.context_json or '{}')
+            out.append({'historian_id': e.id, 'at': e.created_at.isoformat() if e.created_at else None,
+                        'label': c.get('label'), 'to': c.get('to'), 'count': len(c.get('changes') or []),
+                        'total': c.get('total'), 'undone': c.get('undone')})
+        return ok({'fixes': out})
 
 
 income_bp = Blueprint('income_change', __name__)
