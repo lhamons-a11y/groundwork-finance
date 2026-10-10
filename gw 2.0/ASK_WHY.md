@@ -298,3 +298,24 @@ explanations are refused:**
   *Check my records* also finds Auto Finance A's charges moving from Debt to Car Lease Payment, and Menards' from Transfer
   to Rent / Mortgage.
 - **Tests:** s189, 25 checks, covering the found cases and the quiet ones (C10).
+
+## 7. Amendment C11: a question outside Groundwork gets one plain answer (Rob, 2026-10-10)
+
+Rob: *"if a user tries to ask a question that does not fall in the parameters that groundwork has inside of the
+program it should default to that question is outside of Groundwork understanding. or something like that"*
+
+**C11.** When a question matches no check and no how-to guide entry, the answer is always the same fixed sentence,
+written by the engine, never by the model:
+
+> *"That question is outside what Groundwork understands. It can check your records and show how to use Groundwork."*
+
+- **No attempt from general knowledge.** The model never answers anything itself (TM8, R11). A partial match is not
+  stretched to fit; it becomes this answer.
+- **The default applies everywhere a question can be typed:** the how-to Ask box (stage 2), money questions (stage 3),
+  and any later surface.
+- **It is not an error.** The question is kept in the person's own list of unanswered questions (C7), visible and
+  deletable, read by nothing else.
+- **Tests:** an off-topic question (weather, a stock tip, medical, legal), a question phrased like a check but naming
+  no figure Groundwork has, and an instruction planted in the question all get exactly this sentence.
+
+Stage 1 takes no typed questions, so C11 is built with stage 2.
