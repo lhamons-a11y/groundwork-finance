@@ -1540,6 +1540,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <button class="btn btn-sm btn-secondary" onclick="showAddSinkingFund()">+ Fund</button>
           </div>
           <div id="sinkingFundsList" style="margin-top:14px"></div>
+          <div id="evidenceGoal" data-evidence-surface="goal"></div>
           <!-- Add fund form (hidden by default) -->
           <div id="sinkingFundForm" style="display:none;margin-top:14px;padding-top:14px;border-top:0.5px solid var(--steel-2)">
             <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;flex-wrap:wrap">
@@ -1753,6 +1754,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
           <!-- DTI + advisor section wrapper (backward compat) -->
           <div id="debtAdvisorSection" style="display:block"></div>
+          <div id="evidenceDebt" data-evidence-surface="debt_plan"></div>
           <!-- Legacy what-if card — stub kept for backward compat (content in hero now) -->
           <div id="debtWhatIfCard" style="display:none"></div>
         </div>

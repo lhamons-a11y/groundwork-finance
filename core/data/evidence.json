@@ -1,0 +1,123 @@
+{
+  "_comment": "Item 58 evidence library (gw 2.0/EVIDENCE_LIBRARY.md E1-E10). Changed only with a release. E6: every entry is drafted against its paper and shows in the app only once Rob has accepted it (status 'accepted' with accepted_on). 'checked_against' says what of the paper was read for the draft; an entry checked only against its abstract should be read against the full paper before it is accepted.",
+  "version": "2026-10-10",
+  "entries": [
+    {
+      "id": "harkin2016_monitoring",
+      "finding": "Across 138 experiments, helping people check their progress toward a goal more often made them more likely to reach it. The effect was larger when the progress was written down or reported.",
+      "limits": "Most of the studies were about health goals such as exercise, diet and weight, not money. It is an average across studies; it does not say how often any one person should check.",
+      "source": {"authors": "Harkin, Webb, Chang et al.", "year": 2016, "title": "Does monitoring goal progress promote goal attainment? A meta-analysis of the experimental evidence", "journal": "Psychological Bulletin 142(2), 198-229", "url": "https://doi.org/10.1037/bul0000025"},
+      "strength": "meta-analysis",
+      "applies_when": ["has_savings_goal"],
+      "surfaces": ["goal", "willingness"],
+      "offer": "Want a weekly reminder to look at your goals?",
+      "status": "draft",
+      "accepted_on": null,
+      "checked_against": "abstract and the accepted manuscript's record (White Rose eprints 91437)"
+    },
+    {
+      "id": "karlsson2009_ostrich",
+      "finding": "Investors in Sweden and the United States looked at their accounts more often when markets were rising than when markets were flat or falling.",
+      "limits": "It studied investors and their portfolios, not household budgets. It describes a pattern across many people and says nothing about why any one person looks or does not.",
+      "source": {"authors": "Karlsson, Loewenstein & Seppi", "year": 2009, "title": "The ostrich effect: Selective attention to information", "journal": "Journal of Risk and Uncertainty 38, 95-115", "url": "https://doi.org/10.1007/s11166-009-9060-6"},
+      "strength": "field study",
+      "applies_when": [],
+      "surfaces": ["willingness"],
+      "offer": "Want a weekly reminder that comes whatever the week looked like?",
+      "status": "draft",
+      "accepted_on": null,
+      "checked_against": "abstract"
+    },
+    {
+      "id": "sicherman2016_attention",
+      "finding": "Logins to online retirement accounts fell by about 9.5% after the market fell, and were lower when market volatility was high.",
+      "limits": "Retirement-plan investors at one provider. How much attention people paid also varied with age, gender and wealth.",
+      "source": {"authors": "Sicherman, Loewenstein, Seppi & Utkus", "year": 2016, "title": "Financial attention", "journal": "Review of Financial Studies 29(4), 863-897", "url": "https://doi.org/10.1093/rfs/hhv073"},
+      "strength": "field study",
+      "applies_when": [],
+      "surfaces": ["willingness"],
+      "offer": "Want a weekly reminder that comes whatever the week looked like?",
+      "status": "draft",
+      "accepted_on": null,
+      "checked_against": "abstract"
+    },
+    {
+      "id": "thaler2004_smart",
+      "finding": "At one company, employees who agreed in advance to send part of each future raise to retirement saving went from saving 3.5% of pay to 13.6% by their fourth raise.",
+      "limits": "One employer's plan, and the workers who chose to join it. A later U.S. Department of Labor review rated the causal evidence low. It is about raises and retirement plans.",
+      "source": {"authors": "Thaler & Benartzi", "year": 2004, "title": "Save More Tomorrow: Using behavioral economics to increase employee saving", "journal": "Journal of Political Economy 112(S1), S164-S187", "url": "https://doi.org/10.1086/380085"},
+      "strength": "field study",
+      "applies_when": ["has_savings_goal"],
+      "surfaces": ["goal"],
+      "offer": "Want to decide now how much of your next raise goes to a goal?",
+      "status": "draft",
+      "accepted_on": null,
+      "checked_against": "working-paper abstract and the Department of Labor CLEAR summary; the published abstract was not read"
+    },
+    {
+      "id": "madrian2001_defaults",
+      "finding": "When one company began enrolling new employees in its retirement plan automatically, far more took part, and many kept the plan's default contribution rate and fund.",
+      "limits": "One large U.S. company. Many people stayed at the default even where it was not the rate they would have chosen, so a default carries weight either way.",
+      "source": {"authors": "Madrian & Shea", "year": 2001, "title": "The power of suggestion: Inertia in 401(k) participation and savings behavior", "journal": "Quarterly Journal of Economics 116(4), 1149-1187", "url": "https://www.nber.org/papers/w7682"},
+      "strength": "field study",
+      "applies_when": ["has_savings_goal"],
+      "surfaces": ["goal"],
+      "offer": "Want to set one monthly amount for this goal and leave it in place?",
+      "status": "draft",
+      "accepted_on": null,
+      "checked_against": "NBER working-paper abstract (w7682)"
+    },
+    {
+      "id": "gal2012_small_wins",
+      "finding": "Among about 6,000 people in a debt settlement program, closing individual debt accounts went with finishing the program, whatever the dollar size of the accounts closed.",
+      "limits": "People in a debt settlement program. It shows a link, not that closing the smallest debt first causes success, and paying the highest rate first still costs less interest.",
+      "source": {"authors": "Gal & McShane", "year": 2012, "title": "Can small victories help win the war? Evidence from consumer debt management", "journal": "Journal of Marketing Research 49, 487-501", "url": "https://www.kellogg.northwestern.edu/academics-research/research/detail/2012/can-fighting-small-battles-help-win-the-war-evidence"},
+      "strength": "field study",
+      "applies_when": ["multiple_debts"],
+      "surfaces": ["debt_plan"],
+      "offer": "Want to see the plan that closes a debt soonest beside the one that costs the least interest?",
+      "status": "draft",
+      "accepted_on": null,
+      "checked_against": "Kellogg School research and news pages; the abstract itself was not read"
+    },
+    {
+      "id": "stewart2009_anchor",
+      "finding": "People who meant to pay only part of a credit card bill chose to repay less when the bill showed the minimum payment.",
+      "limits": "A UK survey and hypothetical bills. People who pay the whole balance each month were not affected.",
+      "source": {"authors": "Stewart", "year": 2009, "title": "The cost of anchoring on credit-card minimum repayments", "journal": "Psychological Science 20(1), 39-41", "url": "https://doi.org/10.1111/j.1467-9280.2008.02255.x"},
+      "strength": "randomized trial",
+      "applies_when": ["has_card_balance"],
+      "surfaces": ["debt_plan"],
+      "offer": "Want to set your own monthly payment for each card, apart from the minimum?",
+      "status": "draft",
+      "accepted_on": null,
+      "checked_against": "abstract opening (Warwick repository) and the university's press release"
+    },
+    {
+      "id": "karlan2016_reminders",
+      "finding": "In field experiments at three banks, new savings-account holders who were sent reminders were more likely to reach their savings goal, most of all when the reminder named the goal.",
+      "limits": "New account holders at banks in lower-income countries, with text reminders from the bank. Framing a reminder as a gain or a loss made no clear difference.",
+      "source": {"authors": "Karlan, McConnell, Mullainathan & Zinman", "year": 2016, "title": "Getting to the top of mind: How reminders increase saving", "journal": "Management Science", "url": "https://www.nber.org/papers/w16205"},
+      "strength": "randomized trial",
+      "applies_when": ["has_savings_goal"],
+      "surfaces": ["goal"],
+      "offer": "Want a reminder that names this goal?",
+      "status": "draft",
+      "accepted_on": null,
+      "checked_against": "working-paper abstracts (NBER w16205 and the 2014 draft); the published abstract was not read"
+    },
+    {
+      "id": "ashraf2006_commitment",
+      "finding": "In a randomized trial at a bank in the Philippines, clients offered a savings account that held their money until a date or amount they chose had average balances 81 percentage points higher after a year than a comparison group.",
+      "limits": "Clients of one Philippine bank; about 28% of those offered the account opened one. Money held until a date is harder to reach in an emergency.",
+      "source": {"authors": "Ashraf, Karlan & Yin", "year": 2006, "title": "Tying Odysseus to the mast: Evidence from a commitment savings product in the Philippines", "journal": "Quarterly Journal of Economics 121(2), 635-672", "url": "https://doi.org/10.1162/qjec.2006.121.2.635"},
+      "strength": "randomized trial",
+      "applies_when": ["has_savings_goal"],
+      "surfaces": ["goal"],
+      "offer": "Want to give this goal a date and an amount to hold to?",
+      "status": "draft",
+      "accepted_on": null,
+      "checked_against": "abstract and the Yale ISPS record"
+    }
+  ]
+}

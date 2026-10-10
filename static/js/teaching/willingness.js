@@ -290,7 +290,9 @@
     try {
       var s = await API.get('/api/willingness');
       try { s.income = await API.get('/api/income-change'); } catch (e) { s.income = null; }
-      view.innerHTML = _pictureHTML(s || {});
+      view.innerHTML = _pictureHTML(s || {})
+        + '<div id="evidenceWillingness" data-evidence-surface="willingness" data-evidence-rhythm></div>';
+      renderEvidence('willingness', g('evidenceWillingness'));   // item 58 E8/E9
     } catch (e) {
       _gwErr('willingness render')(e);
       view.innerHTML = '<div class="section-header"><div class="section-title">Working picture</div></div>'

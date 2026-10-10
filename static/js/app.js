@@ -16325,6 +16325,7 @@ function calculate() {
 
 function loadDebtAdvisor(baseResult, totalDebt) {
   const section = g('debtAdvisorSection');
+  renderEvidence('debt_plan', g('evidenceDebt'));
   // In the new tab layout, section is a stub inside debtPanel-advisor.
   // We don't hide/show it — the tab panel handles visibility.
   // Just bail if no result.
@@ -18395,6 +18396,7 @@ async function loadSinkingFunds() {
     API.post('/api/sinking-funds/auto-credit', {}).catch(_gwErr('loadSinkingFunds'));
     if (g('budgetSinkingFundsCard')) _budgetRenderSinkingFundsSection();
     if (g('sinkingFundsList')) _renderSinkingFunds();
+    renderEvidence('goal', g('evidenceGoal'));
   } catch(e) {
     // Fallback to settings JSON if new API not available yet
     try {
@@ -24136,6 +24138,7 @@ function _toggleAIDisclosure(id) {
 // framing, because that's what most financial content online sounds like.
 let _GW_VOICE = null;
 let _VOICE_RULES = null;
+let _EVIDENCE_IDS = null;   // item 58 E4: accepted evidence-library ids, for R11
 let _voiceRulesPromise = null;
 
 const _GW_VOICE_FALLBACK = `
@@ -24182,6 +24185,7 @@ const _VOICE_RULES_FALLBACK = {
   DECISION_VERDICTS: ["worthy trade", "a worthy", "worth it", "well worth", "good call",
     "bad call", "smart move", "smart choice", "unwise", "a wise ", "bad idea", "good idea",
     "makes sense", "a mistake", "sensible", "justified"],
+  RESEARCH_CLAIMS: [" study", " studies", " research", "evidence shows", "evidence suggests", " people who ", "on average, people", "on average people", "most people", " experts", " scientists"]
 };
 
 // Lazily fetches static/voice_rules.json once and caches the result. Safe to
@@ -24195,6 +24199,8 @@ async function _loadVoiceRules() {
       const data = await r.json();
       _GW_VOICE = data.GW_VOICE;
       _VOICE_RULES = data.wordlists;
+      try { _EVIDENCE_IDS = new Set(((await API.get('/api/evidence/ids')) || {}).ids || []); }
+      catch (e) { _EVIDENCE_IDS = new Set(); }   // none known: every research claim fails R11 (closed)
     } catch (e) {
       _GW_VOICE = _GW_VOICE_FALLBACK;
       _VOICE_RULES = _VOICE_RULES_FALLBACK;
@@ -24295,11 +24301,75 @@ function _voiceGateCheck(text, findings, truncated = false) {
   // engine's finish reason, mapped by the server onto the internal stop_reason); the
   // text alone cannot show it. Not a wordlist rule, so the harness cannot score
   // it from text - it is enforced here, where the stop reason exists.
+  // R11 (item 58 E4, EVIDENCE_LIBRARY.md): a research-style claim ("studies show", "most people") must carry
+  // the id of an accepted entry in the evidence library, as [ev:<id>], in the same sentence. Fail closed: the
+  // narrator may introduce an entry, never invent one.
+  const evIds = (typeof _EVIDENCE_IDS !== 'undefined' && _EVIDENCE_IDS) || new Set();
+  const unsourced = [];
+  for (const sentence of String(text || '').split(/(?<=[.!?])\s+/)) {
+    const ls = ' ' + sentence.toLowerCase() + ' ';
+    const hits = (rules.RESEARCH_CLAIMS || []).filter(p => ls.includes(p));
+    if (!hits.length) continue;
+    const ids = [...sentence.matchAll(/\[ev:([a-z0-9_]+)\]/g)].map(m => m[1]);
+    if (!ids.some(id => evIds.has(id))) unsourced.push(...hits.map(h => h.trim()));
+  }
+  record('R11_research_claims_sourced', [...new Set(unsourced)],
+    'made a research claim with no evidence-library entry');
+
   record('R10_answer_complete',
     truncated ? ['(cut off at the token limit)'] : [],
     'the answer was cut off at the token limit and is incomplete');
 
   return { pass: failedRules.length === 0, results, failedRules };
+}
+
+// ── Item 58 (gw 2.0/EVIDENCE_LIBRARY.md E1-E10): what research says, offered where it applies ──
+// The engine chooses (E2: the person's own goals and debts, never how the app is used); an entry shows as written,
+// with what it does not show and its source (E3), no model involved, so AI off changes nothing (A10). Its offer is
+// a question the person can take or leave (E5), and the answer is kept as theirs. Only entries Rob has accepted
+// ever arrive here (E6).
+async function renderEvidence(surface, el) {
+  if (!el) return;
+  let d = null, rhythm = null;
+  try { d = await API.get('/api/evidence?surface=' + encodeURIComponent(surface)); }
+  catch (e) { _gwErr('renderEvidence')(e); }
+  if (el.hasAttribute('data-evidence-rhythm')) {   // E8: the container asks for the person's own rhythm
+    try { rhythm = await API.get('/api/usage/rhythm'); } catch (e) { _gwErr('renderEvidence rhythm')(e); }
+  }
+  el.innerHTML = _rhythmHTML(rhythm) + ((d && d.entries) || []).map(_evidenceHTML).join('');
+}
+
+// E8: the person's own rhythm, as a fact. Shown here; nothing in Groundwork reads it (ruling 6).
+function _rhythmHTML(r) {
+  if (!r || !r.opens_30d) return '';
+  return '<div class="card mt-5"><div class="card-label">When you open Groundwork</div>'
+    + '<div style="font-size:13px;color:var(--ink);margin:4px 0">You opened Groundwork ' + r.opens_30d + ' time'
+    + (r.opens_30d !== 1 ? 's' : '') + ' in the last 30 days' + (r.mostly ? ', mostly ' + esc(r.mostly) : '') + '.</div>'
+    + '<div style="font-size:11px;color:var(--slate-2)">Shown to you only. Nothing in Groundwork reads it or draws anything from it.</div></div>';
+}
+
+function _evidenceHTML(e) {
+  const s = e.source || {};
+  const ans = e.answer;
+  const offer = ans
+    ? `<div style="font-size:12px;color:var(--slate);margin-top:8px">You said ${ans.answer === 'yes' ? 'yes' : 'no thanks'} on ${esc(String(ans.said_at || '').slice(0, 10))}.
+        <button class="btn btn-ghost btn-sm" onclick="evidenceAnswer('${esc(e.id)}', '${ans.answer === 'yes' ? 'no' : 'yes'}')">Change to ${ans.answer === 'yes' ? 'no thanks' : 'yes'}</button></div>`
+    : `<div style="font-size:12px;color:var(--ink);margin-top:8px">${esc(e.offer)}
+        <button class="btn btn-secondary btn-sm" style="margin-left:6px" onclick="evidenceAnswer('${esc(e.id)}', 'yes')">Yes</button>
+        <button class="btn btn-ghost btn-sm" onclick="evidenceAnswer('${esc(e.id)}', 'no')">No thanks</button></div>`;
+  return `<div class="card mt-5" data-evidence="${esc(e.id)}"><div class="card-label">What research has found</div>
+    <div style="font-size:13px;color:var(--ink);line-height:1.6;margin:4px 0">${esc(e.finding)}</div>
+    <div style="font-size:12px;color:var(--slate);line-height:1.6"><strong>What it doesn't show:</strong> ${esc(e.limits)}</div>
+    <div style="font-size:11px;color:var(--slate-2);margin-top:6px">${esc(s.authors || '')} (${esc(String(s.year || ''))}). ${esc(s.title || '')}. ${esc(s.journal || '')}. ${esc(e.strength || '')}.${s.url ? ' ' + esc(s.url) : ''}</div>
+    ${offer}</div>`;
+}
+
+async function evidenceAnswer(id, answer) {
+  try {
+    await API.post('/api/evidence/answer', { id, answer });
+    showToast(answer === 'yes' ? 'Noted: yes' : 'Noted: no thanks', 'Your answer is kept as yours, and you can change it.');
+  } catch (e) { _gwErr('evidenceAnswer')(e); return; }
+  document.querySelectorAll('[data-evidence-surface]').forEach(el => renderEvidence(el.getAttribute('data-evidence-surface'), el));
 }
 
 // Item 62 G1/G6: what the voice check said of one attempt, onto its log entry (fire and forget)
@@ -28092,6 +28162,7 @@ async function boot() {
     splashMsg('Loading your data…');
     try {
       await bootFromDB();
+      API.post('/api/usage/open', {}).catch(_gwErr('usageOpen'));   // item 58 E8: shown to you, read by nothing
       splashMsg('Building dashboard…');
     } catch(e) {
       console.error('bootFromDB failed:', e);

@@ -167,6 +167,19 @@
       "a mistake",
       "sensible",
       "justified"
+    ],
+    "RESEARCH_CLAIMS": [
+      " study",
+      " studies",
+      " research",
+      "evidence shows",
+      "evidence suggests",
+      " people who ",
+      "on average, people",
+      "on average people",
+      "most people",
+      " experts",
+      " scientists"
     ]
   }
 }

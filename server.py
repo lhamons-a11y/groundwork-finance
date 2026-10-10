@@ -211,6 +211,8 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
+    app.register_blueprint(evidence_bp,       url_prefix='/api/evidence')
+    app.register_blueprint(usage_bp,          url_prefix='/api/usage')
     app.register_blueprint(dashboard_bp,      url_prefix='/api/dashboard')
 
     # System routes
@@ -1771,6 +1773,94 @@ def _income_change_state(session):
     return {'change': change, 'answer': answer, 'outflow': outflow, 'goal': household.current(session, 'surplus_goal'),
             'snoozed': (_get_setting(session, 'income_change_snooze') or AppSetting(value='')).value == today,
             'applied': applied, **sc}
+
+
+evidence_bp = Blueprint('evidence', __name__)
+usage_bp = Blueprint('usage', __name__)
+
+
+# ── Item 58 - the evidence library (EVIDENCE_LIBRARY.md E1-E10) ───────────────────────────────────────────────
+@evidence_bp.route('', methods=['GET'])
+def evidence_for_surface():
+    """E2/E3/E9: the accepted entries that apply on one surface, chosen from the person's goals and debts only,
+    each with the person's own answer to its offer, if they gave one."""
+    from core import evidence as ev
+    surface = (request.args.get('surface') or '').strip()
+    with db_session() as session:
+        answers = _setting_json(session, 'evidence_answers', []) or []
+        out = []
+        for e in ev.select(session, surface):
+            last = next((a for a in reversed(answers) if a.get('id') == e['id']), None)
+            out.append({**e, 'answer': last})
+        return ok({'surface': surface, 'entries': out})
+
+
+@evidence_bp.route('/ids', methods=['GET'])
+def evidence_ids():
+    """E4: the accepted ids - the only ones the voice check's R11 lets a research claim cite."""
+    from core import evidence as ev
+    return ok({'ids': ev.accepted_ids()})
+
+
+@evidence_bp.route('/answer', methods=['POST'])
+@require_json
+def evidence_answer():
+    """E5: the person's answer to an entry's offer - their statement, kept append-only, changed by a new answer."""
+    from core import evidence as ev
+    body = request.json or {}
+    eid, answer = str(body.get('id') or ''), body.get('answer')
+    if answer not in ('yes', 'no'):
+        return err("answer must be 'yes' or 'no'")
+    if eid not in ev.accepted_ids():
+        return err('Not an entry in the evidence library.', 404)
+    with db_session() as session:
+        answers = _setting_json(session, 'evidence_answers', []) or []
+        answers.append({'id': eid, 'answer': answer, 'said_at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'evidence_answers', json.dumps(answers[-500:]))
+        session.commit()
+        return ok({'answers': [a for a in answers if a['id'] == eid]})
+
+
+# E8: the person's own rhythm. Recorded and shown to them; no engine, selection, ranking or tile reads it (ruling 6).
+# usage_open and usage_rhythm are the only code that touches the list of opens (s188).
+@usage_bp.route('/open', methods=['POST'])
+def usage_open():
+    with db_session() as session:
+        opens = _setting_json(session, 'app_opens', []) or []
+        now = datetime.now()
+        cutoff = (now - timedelta(days=60)).isoformat(timespec='seconds')
+        opens = [o for o in opens if isinstance(o, str) and o >= cutoff] + [now.isoformat(timespec='seconds')]
+        _set_setting(session, 'app_opens', json.dumps(opens[-500:]))
+        session.commit()
+        return ok({'recorded': True})
+
+
+@usage_bp.route('/rhythm', methods=['GET'])
+def usage_rhythm():
+    """E8: "You opened Groundwork 9 times in the last 30 days, mostly Sunday evenings." The 'mostly' is named only
+    when one day-and-time holds at least 40% of at least 4 opens."""
+    with db_session() as session:
+        opens = _setting_json(session, 'app_opens', []) or []
+    cutoff = (datetime.now() - timedelta(days=30)).isoformat(timespec='seconds')
+    recent = []
+    for o in opens:
+        try:
+            if isinstance(o, str) and o >= cutoff:
+                recent.append(datetime.fromisoformat(o))
+        except ValueError:
+            continue
+    mostly = None
+    if len(recent) >= 4:
+        def part(h):
+            return 'mornings' if 5 <= h < 12 else 'afternoons' if 12 <= h < 17 else 'evenings' if 17 <= h < 22 else 'nights'
+        tally = {}
+        for d in recent:
+            k = f"{d.strftime('%A')} {part(d.hour)}"
+            tally[k] = tally.get(k, 0) + 1
+        top, n = max(tally.items(), key=lambda kv: kv[1])
+        if n / len(recent) >= 0.4:
+            mostly = top
+    return ok({'opens_30d': len(recent), 'mostly': mostly})
 
 
 income_bp = Blueprint('income_change', __name__)

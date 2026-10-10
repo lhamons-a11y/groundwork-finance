@@ -7,7 +7,7 @@ Opened 2026-10-09. Rob:
 - *"lets not worry about never break the rules as much as giving the guardrails a foundation now instead of hoping
   they holdup."*
 
-It grew from item 39's point 2 and Rob's question about how often people check their finances. **E1–E10 RULED 2026-10-09 (Rob: "approve E1–E10 as recommended")**: ruling 6 stands (E2); every entry verified against its paper and accepted by Rob before it ships (E6); master only (E10). **No code yet:** the build needs its own go-ahead.
+It grew from item 39's point 2 and Rob's question about how often people check their finances. **E1–E10 RULED 2026-10-09 (Rob: "approve E1–E10 as recommended")**: ruling 6 stands (E2); every entry verified against its paper and accepted by Rob before it ships (E6); master only (E10). **BUILT 2026-10-10 on master** (Rob: "build all items that have been ruled on"); see §5. **Nothing shows yet: the nine drafted entries wait for Rob's acceptance one by one (E6).**
 
 ## 1. What is true today (measured 2026-10-09 on master a729e15)
 
@@ -120,3 +120,111 @@ proactive card's rules still govern that.
   misread people under the most strain. If Rob wants it, it's its own point with that risk beside it.
 - **Research run on Groundwork's own users.** Not possible under local only, since no data leaves the computer. One
   person's history is far too small to show such a pattern.
+
+
+## 5. Built (2026-10-10, master)
+
+- **E1.** `core/data/evidence.json`, one record per finding, read by `core/evidence.py`. `problems()` refuses a record
+  missing a field or a full source, with an unknown strength, fact or surface, or with an offer that isn't a question.
+- **E2.** Facts come from the person's goals and debts only: `has_savings_goal`, `has_debt`, `multiple_debts`,
+  `has_card_balance`. Selection never reads usage; s188 fails if `core/evidence.py` names the opens or any usage
+  record, and a mutation proves the check bites.
+- **E3.** An entry shows as written: finding, *What it doesn't show*, source line, strength. No model is involved, so
+  AI off changes nothing. **Not built:** the narrator's optional introducing sentence (E3 says *may*). Nothing calls
+  the narrator about an entry yet, so no `[ev:id]` tag is ever displayed.
+- **E4.** Voice rule **R11_research_claims_sourced**, in both gate copies (`_voiceGateCheck` and
+  `voice_discipline_test.py`), with the `RESEARCH_CLAIMS` wordlist in `voice_rules.json`. A sentence with a research
+  phrase fails unless it carries `[ev:<id>]` naming an *accepted* entry. If the accepted ids can't be loaded, every
+  such sentence fails (fail closed). It runs on every gated AI surface.
+- **E5.** Each offer has Yes / No thanks. The answer is the person's statement, kept append-only (`evidence_answers`),
+  with the latest one shown and changeable. **Not built:** acting on a yes (a reminder, a raise plan). Each offer's
+  follow-through is its own piece of work.
+- **E6.** Only entries with `status: accepted` and an `accepted_on` date are ever offered or citable. **All nine
+  shipped entries are drafts**, so nothing shows in the app until Rob accepts them below.
+- **E7.** Nine drafts, each written from its paper's abstract or publisher record (§6 says which). Not drafted yet:
+  - **emergency savings and financial strain:** no specific paper was chosen;
+  - **mental accounting (Thaler 1999):** the abstract couldn't be read in full.
+- **E8.** Each app start records the time (`app_opens`, the last 60 days). The working picture shows *"You opened
+  Groundwork N times in the last 30 days, mostly Sunday evenings"*, naming the most common time only when it
+  holds at least 40% of 4 or more opens. Only `usage_open` and `usage_rhythm` touch the record (s188).
+- **E9.** The goal card (Settings > sinking funds), the debt plan (beside the advisor) and the working picture.
+  **Not built:** item 49's card payoff rows. The debt-plan block sits on the same page.
+- **E10.** s188: 14 checks.
+
+## 6. The drafts, for acceptance one by one (E6)
+
+Each was drafted from what is named under *Checked against*. An entry checked only against its abstract or a
+working paper should be read against the full paper before it is accepted. Accepting one means setting its
+`status` to `accepted` with the date, in a release.
+
+### harkin2016_monitoring - draft
+- **Finding:** Across 138 experiments, helping people check their progress toward a goal more often made them more likely to reach it. The effect was larger when the progress was written down or reported.
+- **What it doesn't show:** Most of the studies were about health goals such as exercise, diet and weight, not money. It is an average across studies; it does not say how often any one person should check.
+- **Source:** Harkin, Webb, Chang et al. (2016). *Does monitoring goal progress promote goal attainment? A meta-analysis of the experimental evidence*. Psychological Bulletin 142(2), 198-229. https://doi.org/10.1037/bul0000025
+- **Strength:** meta-analysis. **Applies when:** has_savings_goal. **Shown on:** goal, willingness.
+- **Offer:** Want a weekly reminder to look at your goals?
+- **Checked against:** abstract and the accepted manuscript's record (White Rose eprints 91437)
+
+### karlsson2009_ostrich - draft
+- **Finding:** Investors in Sweden and the United States looked at their accounts more often when markets were rising than when markets were flat or falling.
+- **What it doesn't show:** It studied investors and their portfolios, not household budgets. It describes a pattern across many people and says nothing about why any one person looks or does not.
+- **Source:** Karlsson, Loewenstein & Seppi (2009). *The ostrich effect: Selective attention to information*. Journal of Risk and Uncertainty 38, 95-115. https://doi.org/10.1007/s11166-009-9060-6
+- **Strength:** field study. **Applies when:** always, on its surface. **Shown on:** willingness.
+- **Offer:** Want a weekly reminder that comes whatever the week looked like?
+- **Checked against:** abstract
+
+### sicherman2016_attention - draft
+- **Finding:** Logins to online retirement accounts fell by about 9.5% after the market fell, and were lower when market volatility was high.
+- **What it doesn't show:** Retirement-plan investors at one provider. How much attention people paid also varied with age, gender and wealth.
+- **Source:** Sicherman, Loewenstein, Seppi & Utkus (2016). *Financial attention*. Review of Financial Studies 29(4), 863-897. https://doi.org/10.1093/rfs/hhv073
+- **Strength:** field study. **Applies when:** always, on its surface. **Shown on:** willingness.
+- **Offer:** Want a weekly reminder that comes whatever the week looked like?
+- **Checked against:** abstract
+
+### thaler2004_smart - draft
+- **Finding:** At one company, employees who agreed in advance to send part of each future raise to retirement saving went from saving 3.5% of pay to 13.6% by their fourth raise.
+- **What it doesn't show:** One employer's plan, and the workers who chose to join it. A later U.S. Department of Labor review rated the causal evidence low. It is about raises and retirement plans.
+- **Source:** Thaler & Benartzi (2004). *Save More Tomorrow: Using behavioral economics to increase employee saving*. Journal of Political Economy 112(S1), S164-S187. https://doi.org/10.1086/380085
+- **Strength:** field study. **Applies when:** has_savings_goal. **Shown on:** goal.
+- **Offer:** Want to decide now how much of your next raise goes to a goal?
+- **Checked against:** working-paper abstract and the Department of Labor CLEAR summary; the published abstract was not read
+
+### madrian2001_defaults - draft
+- **Finding:** When one company began enrolling new employees in its retirement plan automatically, far more took part, and many kept the plan's default contribution rate and fund.
+- **What it doesn't show:** One large U.S. company. Many people stayed at the default even where it was not the rate they would have chosen, so a default carries weight either way.
+- **Source:** Madrian & Shea (2001). *The power of suggestion: Inertia in 401(k) participation and savings behavior*. Quarterly Journal of Economics 116(4), 1149-1187. https://www.nber.org/papers/w7682
+- **Strength:** field study. **Applies when:** has_savings_goal. **Shown on:** goal.
+- **Offer:** Want to set one monthly amount for this goal and leave it in place?
+- **Checked against:** NBER working-paper abstract (w7682)
+
+### gal2012_small_wins - draft
+- **Finding:** Among about 6,000 people in a debt settlement program, closing individual debt accounts went with finishing the program, whatever the dollar size of the accounts closed.
+- **What it doesn't show:** People in a debt settlement program. It shows a link, not that closing the smallest debt first causes success, and paying the highest rate first still costs less interest.
+- **Source:** Gal & McShane (2012). *Can small victories help win the war? Evidence from consumer debt management*. Journal of Marketing Research 49, 487-501. https://www.kellogg.northwestern.edu/academics-research/research/detail/2012/can-fighting-small-battles-help-win-the-war-evidence
+- **Strength:** field study. **Applies when:** multiple_debts. **Shown on:** debt_plan.
+- **Offer:** Want to see the plan that closes a debt soonest beside the one that costs the least interest?
+- **Checked against:** Kellogg School research and news pages; the abstract itself was not read
+
+### stewart2009_anchor - draft
+- **Finding:** People who meant to pay only part of a credit card bill chose to repay less when the bill showed the minimum payment.
+- **What it doesn't show:** A UK survey and hypothetical bills. People who pay the whole balance each month were not affected.
+- **Source:** Stewart (2009). *The cost of anchoring on credit-card minimum repayments*. Psychological Science 20(1), 39-41. https://doi.org/10.1111/j.1467-9280.2008.02255.x
+- **Strength:** randomized trial. **Applies when:** has_card_balance. **Shown on:** debt_plan.
+- **Offer:** Want to set your own monthly payment for each card, apart from the minimum?
+- **Checked against:** abstract opening (Warwick repository) and the university's press release
+
+### karlan2016_reminders - draft
+- **Finding:** In field experiments at three banks, new savings-account holders who were sent reminders were more likely to reach their savings goal, most of all when the reminder named the goal.
+- **What it doesn't show:** New account holders at banks in lower-income countries, with text reminders from the bank. Framing a reminder as a gain or a loss made no clear difference.
+- **Source:** Karlan, McConnell, Mullainathan & Zinman (2016). *Getting to the top of mind: How reminders increase saving*. Management Science. https://www.nber.org/papers/w16205
+- **Strength:** randomized trial. **Applies when:** has_savings_goal. **Shown on:** goal.
+- **Offer:** Want a reminder that names this goal?
+- **Checked against:** working-paper abstracts (NBER w16205 and the 2014 draft); the published abstract was not read
+
+### ashraf2006_commitment - draft
+- **Finding:** In a randomized trial at a bank in the Philippines, clients offered a savings account that held their money until a date or amount they chose had average balances 81 percentage points higher after a year than a comparison group.
+- **What it doesn't show:** Clients of one Philippine bank; about 28% of those offered the account opened one. Money held until a date is harder to reach in an emergency.
+- **Source:** Ashraf, Karlan & Yin (2006). *Tying Odysseus to the mast: Evidence from a commitment savings product in the Philippines*. Quarterly Journal of Economics 121(2), 635-672. https://doi.org/10.1162/qjec.2006.121.2.635
+- **Strength:** randomized trial. **Applies when:** has_savings_goal. **Shown on:** goal.
+- **Offer:** Want to give this goal a date and an amount to hold to?
+- **Checked against:** abstract and the Yale ISPS record

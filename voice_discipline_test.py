@@ -69,6 +69,18 @@ INFERENCE_VERBS  = _WL['INFERENCE_VERBS']
 EDITORIALIZING   = _WL['EDITORIALIZING']
 SELF_NARRATION   = _WL['SELF_NARRATION']
 DECISION_VERDICTS = _WL['DECISION_VERDICTS']
+RESEARCH_CLAIMS = _WL['RESEARCH_CLAIMS']
+
+
+def _accepted_evidence_ids():
+    """Item 58 E4: the ids R11 accepts - the evidence library's accepted entries."""
+    import json as _json
+    from pathlib import Path as _Path
+    try:
+        lib = _json.loads((_Path(__file__).parent / 'core' / 'data' / 'evidence.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return set()
+    return {e['id'] for e in lib.get('entries', []) if e.get('status') == 'accepted' and e.get('accepted_on')}
 INVENTED_CAUSE   = _WL['INVENTED_CAUSE']
 
 SYSTEM_PROMPT = (
@@ -191,6 +203,16 @@ def check(text, case=None):
     # R1 covers judging the person; this covers judging their choice.
     r9 = not any(p in t for p in DECISION_VERDICTS)
     results["R9_no_decision_verdict"] = (r9, "passes a verdict on the user's decision" if not r9 else "")
+
+    # Rule 11 (item 58 E4): a research-style claim must cite an accepted evidence-library entry, [ev:<id>], in the
+    # same sentence. Mirrors R11 in app.js.
+    ids, unsourced = _accepted_evidence_ids(), []
+    for sentence in re.split(r'(?<=[.!?])\s+', text):
+        ls = ' ' + sentence.lower() + ' '
+        hits = [p.strip() for p in RESEARCH_CLAIMS if p in ls]
+        if hits and not set(re.findall(r'\[ev:([a-z0-9_]+)\]', sentence)) & ids:
+            unsourced += hits
+    results["R11_research_claims_sourced"] = (not unsourced, f"research claim with no library entry: {sorted(set(unsourced))}" if unsourced else "")
 
     # Rule 6: precision-then-translation (still heuristic — needs human eye)
     results["R6_precision_then_translation"] = (None, "HEURISTIC: human check — precise term + plain why")
