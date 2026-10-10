@@ -145,7 +145,7 @@ has dipped ... it should look at the past 8 weeks income average compared to eac
 over the ledger see income salary and then look at the last 5 deposits and determine if the income dropped by more
 than 8% for two pay periods in a row. why 8%"*
 
-**Points D1–D8 for ruling. No code yet.**
+**D1–D10 RULED 2026-10-10 as recommended (Rob: "approve D1–D10 as recommended"), with D8 as revised in §4.5. No code yet:** the build needs its own go-ahead.
 
 ### 4.1 What happened on Rob's data (measured 2026-10-10, a copy of the live database, nothing changed)
 
