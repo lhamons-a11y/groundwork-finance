@@ -1705,7 +1705,7 @@ async function loadData() { await loadSnapshot(); }
 const VIEW_LABELS = {
   dashboard: 'Dashboard', ledger: 'Ledger', budget: 'Budget',
   byb: 'Before You Buy', debt: 'Debt Payoff', tracker: 'Month Tracker',
-  networth: 'Net Worth', trophy: 'Trophy Room', settings: 'Settings', trip: 'Trip Planner', automation: 'Automation',
+  networth: 'Net Worth', trophy: 'Trophy Room', settings: 'Settings', trip: 'Trip Planner', automation: 'Assistant',
   reports: 'Reports',
   gifts: 'Gift Budget',
 };
@@ -22821,7 +22821,7 @@ const BANK_AGENT_TERMS = [
   'Your password is kept in your computer\'s own password vault (VAULT), not in Groundwork\'s files. Anyone who can sign in to your computer as you could use it. Your bank\'s terms may not allow automated access, and how a bank treats fraud on an account whose password was used by software varies. Check with your bank if you\'re unsure.',
 ];
 
-// Item 69 (AUTOMATION_PAGE.md): the Automation page - every account and card, and every bill, by name with no
+// Item 69 (AUTOMATION_PAGE.md): the Assistant page (Coach group; named Automation until Rob renamed it) - every account and card, and every bill, by name with no
 // amounts (P3, P5), on two tabs (Rob's amendment). A row's settings slide open on a click on the row, its arrow, or
 // Enter (P4 as amended: a smooth ease, not a double-click); one row open at a time.
 let _autoOpen = null;
@@ -22908,7 +22908,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && _autoOpen && g('view-automation')?.classList.contains('active')) toggleAutoRow(_autoOpen);
 });
 
-// From another page (the Budget card's setup links): open the Automation page with that row open
+// From another page (the Budget card's setup links): open the Assistant page with that row open
 function openAutomationRow(key) {
   _autoOpen = key;
   _autoTab = /^(bill|pay):/.test(key) ? 'bills' : 'accounts';
@@ -23142,7 +23142,7 @@ function budgetBillsHtml(bills, checks) {
     }
     return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:12px">
       <b style="font-weight:600">${esc(b.name)}</b>: not read yet.
-      <a href="#" onclick="openAutomationRow('${esc(b.key)}');return false" style="color:var(--pine)">Set it up on the Automation page →</a>
+      <a href="#" onclick="openAutomationRow('${esc(b.key)}');return false" style="color:var(--pine)">Set it up on the Assistant page →</a>
       <button class="btn btn-ghost btn-sm" onclick="startFetchAll(['${esc(b.key)}'])">⟳ Read my bill</button></div>`;
   }).join('');
   return `<div class="card mt-5"><div class="card-label" style="margin-bottom:2px">Bills read from their own website</div>
@@ -23164,7 +23164,7 @@ function billCheckHtml(c, accounts) {
   const acct = accounts.find(a => a.id === c.account_id);
   const pick = acct
     ? `<div style="color:var(--slate);margin-top:4px">Paid from ${esc(acct.name)} <a href="#" onclick="openAutomationRow('bill:${c.id}');return false" style="color:var(--pine);font-size:11px">change</a></div>`
-    : `<div style="color:var(--slate);margin-top:4px"><a href="#" onclick="openAutomationRow('bill:${c.id}');return false" style="color:var(--pine)">Choose which account pays it, on the Automation page →</a></div>`;
+    : `<div style="color:var(--slate);margin-top:4px"><a href="#" onclick="openAutomationRow('bill:${c.id}');return false" style="color:var(--pine)">Choose which account pays it, on the Assistant page →</a></div>`;
   if (!acct) return pick;
   const floor = `<label style="display:block;color:var(--slate);margin-top:2px">Always leave at least
       $<input type="number" min="0" step="1" value="${acct.buffer ?? ''}" placeholder="amount" style="width:90px;font-size:12px" onchange="setAccountBuffer(${acct.id}, this.value)"> in ${esc(acct.name)}</label>`;
@@ -23192,7 +23192,7 @@ function billCheckHtml(c, accounts) {
   const payWay = acct.has_portal ? `<div style="margin-top:6px">${c.pay_steps
       ? `<button class="btn btn-secondary btn-sm" onclick="openBillPay(${c.id})">Take me to pay this</button>
          <span style="color:var(--slate-2);font-size:11px">Groundwork opens your bank's payment screen and stops there. You enter the amount and press Pay.</span>`
-      : `<a href="#" onclick="openAutomationRow('bill:${c.id}');return false" style="color:var(--pine)">Show Groundwork the way to pay this, on the Automation page →</a>`}</div>` : '';
+      : `<a href="#" onclick="openAutomationRow('bill:${c.id}');return false" style="color:var(--pine)">Show Groundwork the way to pay this, on the Assistant page →</a>`}</div>` : '';
   return pick + floor + notice + `<div style="margin-top:4px;color:var(--ink)">${answer}</div>` + working + payWay
     + `<div style="color:var(--slate-2);font-size:11px">${esc(ck.cant_see || '')}</div>`
     + (paid ? `<div style="margin-top:4px;color:var(--ink)">${paid}</div>` : '');

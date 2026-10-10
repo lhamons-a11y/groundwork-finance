@@ -781,11 +781,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         </div>
       </div>
 
-      <!-- Item 69 P1: the Assistant group. Automation lives here; the teaching layer adds its own entries to it. -->
+      <!-- Item 69 P1, renamed (Rob 2026-10-10: "combined they are a financial coach, Coach it is"): the Coach group -
+           the Assistant page lives here; the teaching layer adds its own entries (Working picture) to it. -->
       <div class="nav-section" id="navAssistant">
-        <div class="nav-section-label">Assistant</div>
+        <div class="nav-section-label">Coach</div>
         <div class="nav-item" data-view="automation" onclick="showView('automation')">
-          <span class="nav-item-icon">⟳</span>Automation
+          <span class="nav-item-icon">⟳</span>Assistant
         </div>
       </div>
 
@@ -1215,11 +1216,11 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
       <!-- AUTOMATION (item 69, AUTOMATION_PAGE.md): logins, saved steps, bills' websites - the setup, never the money -->
       <div id="view-automation" class="view">
-        <div class="section-header"><div class="section-title">Automation</div>
+        <div class="section-header"><div class="section-title">Assistant</div>
           <div class="section-sub">Getting your data in: each bank and bill Groundwork visits for you, when you ask. Balances live on their own pages.</div></div>
         <div id="automationTop"></div>
         <!-- Item 69 amendment (Rob 2026-10-10): Accounts and Bills on their own tabs -->
-        <div role="tablist" aria-label="Automation" style="display:flex;border-bottom:1px solid var(--steel);margin:20px 0 0">
+        <div role="tablist" aria-label="Assistant" style="display:flex;border-bottom:1px solid var(--steel);margin:20px 0 0">
           <button id="autoTab-accounts" role="tab" aria-selected="true" aria-controls="autoPanel-accounts" onclick="_autoShowTab('accounts')"
             style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid var(--pine);color:var(--pine);font-weight:500">Accounts</button>
           <button id="autoTab-bills" role="tab" aria-selected="false" aria-controls="autoPanel-bills" onclick="_autoShowTab('bills')"
@@ -2788,9 +2789,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           </div>
         </div>
 
-        <!-- Item 69 P1: logins and automatic downloads moved to Assistant -> Automation; this line points there -->
+        <!-- Item 69 P1: logins and downloads moved to Coach -> Assistant; this line points there -->
         <div class="card mt-5" id="settingsAutomationPointer" style="font-size:13px;color:var(--slate)">
-          Logins and automatic downloads are in <a href="#" onclick="showView('automation');return false" style="color:var(--pine)">Assistant → Automation →</a>
+          Bank and bill logins, and getting your downloads, are in <a href="#" onclick="showView('automation');return false" style="color:var(--pine)">Coach → Assistant →</a>
         </div>
 
         </div><!-- end settingsPanel-accounts -->

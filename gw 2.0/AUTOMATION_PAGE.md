@@ -20,6 +20,10 @@ down animation than a double click"):** Accounts and Bills on two tabs; P4 now o
 its arrow, or Enter - the height eases open and the arrow turns (no motion for reduced motion) - instead of a
 double-click. A closed row's settings can't be reached by Tab.
 
+**Renamed 2026-10-10 (Rob):** the page is **Assistant** and the sidebar group holding it and Working picture is
+**Coach** (*"combined they are a financial coach, Coach it is"*). "Automation" promised things happening on their own
+(TM2 rules that out) and clashed with Settings' own Automation tab. The view's internal name stays `automation`.
+
 ## 1. What is true today (fix branch, aa83843)
 
 - **Settings carries all of it**, in one card, *Fetch my downloads*: the vault explanation (item 57 A3), every bank

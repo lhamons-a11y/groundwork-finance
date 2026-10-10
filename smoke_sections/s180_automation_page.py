@@ -20,13 +20,16 @@ def run(ctx):
     settings = html.split('id="view-settings"')[1].split('<div id="view-')[0]
 
     # ── P1 ──
-    check('s180 P1 the Settings card is gone; one line in its place points to Assistant -> Automation',
+    check('s180 P1 the Settings card is gone; one line in its place points to Coach -> Assistant',
           'Fetch my downloads' not in settings and 'settingsBankLogins' not in html and 'settingsBillSites' not in html
-          and 'id="settingsAutomationPointer"' in settings and "showView('automation')" in settings)
+          and 'id="settingsAutomationPointer"' in settings and "showView('automation')" in settings
+          and 'Coach → Assistant' in settings)
     nav = html.split('id="navAssistant"')[1].split('</div>\n      </div>')[0] if 'id="navAssistant"' in html else ''
-    check('s180 P1 the Automation page is in the sidebar\'s Assistant group, and the page exists',
-          '>Assistant<' in nav and 'data-view="automation"' in nav and 'id="view-automation"' in html
-          and "automation: 'Automation'" in app and "if (name === 'automation') renderBankLogins();" in app)
+    # renamed (Rob 2026-10-10: "combined they are a financial coach, Coach it is"): the group is Coach, the page Assistant
+    check('s180 P1 the Assistant page is in the sidebar\'s Coach group, and the page exists',
+          '>Coach<' in nav and 'data-view="automation"' in nav and '</span>Assistant' in nav and 'id="view-automation"' in html
+          and "automation: 'Assistant'" in app and 'Automation page' not in app
+          and "if (name === 'automation') renderBankLogins();" in app)
     will = (ctx.BASE / 'static/js/teaching/willingness.js').read_text(encoding='utf-8')
     check('s180 P1 the teaching layer joins that Assistant group rather than making a second one; app.js still never names it',
           "var assistant = g('navAssistant');" in will and 'assistant.appendChild(it);' in will
