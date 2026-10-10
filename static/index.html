@@ -2628,6 +2628,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               </label>
             </div>
 
+            <!-- Item 62 (AI_LOG.md): every AI request, as sent and as it came back -->
+            <div id="settingsAiLog" style="margin:0 0 16px"></div>
             <div id="aiLocalPanel">
               <div id="aiLocalStatus" style="font-size:12px;margin-bottom:12px">Checking…</div>
               <div class="text-xs text-muted mt-4">Runs inside Groundwork, on this computer — nothing else to install, and nothing leaves your machine. Uses about 3–4 GB of memory while Groundwork is open with AI on; with AI off, nothing is loaded.</div>
@@ -2911,6 +2913,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               Download JSON
             </button>
           </div>
+          <label style="display:block;font-size:11px;color:var(--slate-2);margin-top:8px"><input type="checkbox" id="exportIncludeAiLog">
+            Include the AI log in a JSON export (it holds the financial summaries sent to the AI on this computer)</label>
           <div id="exportStatus" style="font-size:11px;color:var(--slate);margin-top:10px;display:none"></div>
         </div>
 
@@ -3176,6 +3180,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <button class="btn btn-primary btn-sm" onclick="createBackup()">
             + Create backup
           </button>
+          <label style="font-size:11px;color:var(--slate-2);align-self:center"><input type="checkbox" id="backupIncludeAiLog"> Include the AI log</label>
         </div>
       </div>
       <div id="backupList"></div>

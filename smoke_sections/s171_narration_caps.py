@@ -99,7 +99,15 @@ const cut = (t) => ({ content: [{ type: 'text', text: t }], stop_reason: 'max_to
   console.log(JSON.stringify(out));
 })();
 '''
-    p = subprocess.run([node, '-e', harness], capture_output=True, text=True, encoding='utf-8', timeout=120)
+    # in a file, not on the command line: Windows stops a command line at about 32,000 characters (item 62)
+    import tempfile, os
+    fd, hpath = tempfile.mkstemp(suffix='.js')
+    with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+        fh.write(harness)
+    try:
+        p = subprocess.run([node, hpath], capture_output=True, text=True, encoding='utf-8', timeout=120)
+    finally:
+        os.remove(hpath)
     try:
         out = json.loads(p.stdout.strip().splitlines()[-1])
     except Exception:                                          # noqa: BLE001

@@ -60,7 +60,9 @@ def run(ctx):
         ev = _sse(r)
         check('s170 S3/S4 the route streams the model\'s pieces as events, then its finish reason',
               r.mimetype == 'text/event-stream' and [e['t'] for e in ev if 't' in e] == ['Income was ', '$4,280.00', ' this month.']
-              and ev[-1] == {'done': True, 'stop_reason': 'end_turn', 'provider': 'local'})
+              # item 62: the end event also names its AI log entry
+              and {k: v for k, v in ev[-1].items() if k != 'log_id'} == {'done': True, 'stop_reason': 'end_turn', 'provider': 'local'}
+              and 'log_id' in ev[-1])
         ev = _sse(ask(_Streamer(['Income was ', '$4,280'], 'length')))
         check('s170 S3 a stream cut at the length cap ends as max_tokens - never as finished (R10 reads it)',
               ev[-1].get('stop_reason') == 'max_tokens')
@@ -116,7 +118,16 @@ async function run(events) {
   console.log(JSON.stringify(out));
 })();
 '''
-    p = subprocess.run([node, '-e', harness], capture_output=True, text=True, encoding='utf-8', timeout=120)
+    # the harness goes in a file: on Windows a command line stops at about 32,000 characters, and the page code it
+    # carries has grown past that (item 62)
+    import tempfile, os
+    fd, hpath = tempfile.mkstemp(suffix='.js')
+    with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+        fh.write(harness)
+    try:
+        p = subprocess.run([node, hpath], capture_output=True, text=True, encoding='utf-8', timeout=120)
+    finally:
+        os.remove(hpath)
     try:
         out = json.loads(p.stdout.strip().splitlines()[-1])
     except Exception:                                          # noqa: BLE001

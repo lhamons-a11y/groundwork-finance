@@ -23107,6 +23107,75 @@ async function saveBankRecipe(key) {
   renderBudgetBills();
 }
 
+// Item 62 (AI_LOG.md): Settings -> AI log. Every AI request as it was sent and as it came back, newest first; the
+// voice check's verdict and any rewrite; shortened or stopped; run on this computer. Read by this page alone (G3).
+let _aiLogOpen = null;
+const _AI_SURFACE = s => String(s || 'AI').replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+
+async function renderAiLog() {
+  const box = g('settingsAiLog');
+  if (!box) return;
+  let d;
+  try { d = await API.get('/api/ai/log'); } catch (e) { return; }
+  const calls = [];
+  const by = {};
+  (d.entries || []).forEach(e => {
+    const k = e.call_id || `one-${e.id}`;
+    if (!by[k]) { by[k] = { key: k, surface: e.surface, at: e.at, attempts: [] }; calls.push(by[k]); }
+    by[k].attempts.push(e);
+  });
+  const rows = calls.slice(0, 60).map(c => {
+    const last = c.attempts[0], n = c.attempts.length;
+    const verdict = last.stopped ? 'stopped' : last.stop_reason === 'unavailable' ? 'not answered'
+      : last.voice ? (last.voice.pass ? (n > 1 ? `passed after ${n - 1} rewrite${n > 2 ? 's' : ''}` : 'passed the voice check') : 'held back by the voice check')
+      : 'sent';
+    return `<div style="border-top:1px solid var(--steel-2);padding:6px 0">
+      <a href="#" onclick="toggleAiLogEntry('${esc(c.key)}');return false" style="font-size:12px;color:var(--ink);text-decoration:none">
+        ${_aiLogOpen === c.key ? '▾' : '▸'} ${esc(_AI_SURFACE(c.surface))} · ${esc(new Date(c.at).toLocaleString())} · <span style="color:var(--slate-2)">${esc(verdict)}</span></a>
+      <div data-ai-log="${esc(c.key)}" style="${_aiLogOpen === c.key ? '' : 'display:none'}"></div></div>`;
+  }).join('');
+  box.innerHTML = `<div style="font-size:13px;font-weight:500">AI log</div>
+    <div style="font-size:11px;color:var(--slate-2);margin:2px 0 6px">Every request to the AI, exactly as it was sent and as it came back. All of it ran on this computer. Kept ${d.days} days; nothing else in Groundwork reads it.</div>
+    <label style="font-size:11px;color:var(--slate)"><input type="checkbox" ${d.keep ? 'checked' : ''} onchange="setAiLogKeep(this.checked)"> Keep the log</label>
+    <button class="btn btn-ghost btn-sm" onclick="clearAiLog()">Clear the log</button>
+    <div style="max-height:360px;overflow:auto;margin-top:6px">${rows || '<div style="font-size:11px;color:var(--slate-2)">Nothing yet.</div>'}</div>`;
+  if (_aiLogOpen) _fillAiLogEntry(_aiLogOpen);
+}
+
+function aiLogEntryHtml(entries) {
+  return entries.map(e => `<div style="margin:6px 0 10px 14px;padding:10px;background:var(--mist);border-radius:var(--r-md);font-size:11px;color:var(--slate)">
+      <div style="margin-bottom:6px">Attempt ${e.attempt} · ${e.stopped ? 'you stopped it' : e.stop_reason === 'max_tokens' ? 'cut at its length limit' : e.stop_reason === 'unavailable' ? 'the AI could not answer' : 'finished'}
+        · run on this computer${e.voice ? ` · voice check: ${e.voice.pass ? (e.voice.shortened ? 'passed, shortened to what finished' : 'passed') : 'broke ' + esc(e.voice.rules.join(', '))}` : ''}</div>
+      <div style="font-weight:600;margin-top:4px">Instructions</div><pre style="white-space:pre-wrap;font-family:var(--font-mono);margin:0">${esc(e.system)}</pre>
+      <div style="font-weight:600;margin-top:6px">Your financial summary, as sent</div><pre style="white-space:pre-wrap;font-family:var(--font-mono);margin:0">${esc((e.messages || []).map(m => typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).join('\n\n'))}</pre>
+      <div style="font-weight:600;margin-top:6px">What came back</div><pre style="white-space:pre-wrap;font-family:var(--font-mono);margin:0">${esc(e.response || '(nothing)')}</pre></div>`).join('');
+}
+
+async function _fillAiLogEntry(key) {
+  const el = document.querySelector(`[data-ai-log="${CSS.escape(key)}"]`);
+  if (!el) return;
+  let entries = [];
+  try {
+    if (key.startsWith('one-')) entries = [await API.get(`/api/ai/log/${key.slice(4)}`)];
+    else entries = (await API.get(`/api/ai/log/call/${encodeURIComponent(key)}`)).entries || [];
+  } catch (e) { return; }
+  el.innerHTML = aiLogEntryHtml(entries);
+}
+
+function toggleAiLogEntry(key) { _aiLogOpen = _aiLogOpen === key ? null : key; renderAiLog(); }
+
+function openAiLog(callId) {
+  _aiLogOpen = callId;
+  showView('settings');
+  setTimeout(() => { renderAiLog(); g('settingsAiLog')?.scrollIntoView({ block: 'start' }); }, 200);
+}
+
+async function setAiLogKeep(keep) { try { await API.post('/api/ai/log/keep', { keep }); } catch (e) { _gwErr('setAiLogKeep')(e); } renderAiLog(); }
+async function clearAiLog() {
+  confirmAction('Clear the AI log?', '<div style="font-size:13px;color:var(--slate)">Every entry is deleted. The reports themselves are not affected.</div>',
+    async () => { try { await API.post('/api/ai/log/clear', {}); } catch (e) { _gwErr('clearAiLog')(e); } renderAiLog(); }, 'Clear the log', true);
+}
+
 // Item 71 (INCOME_CHANGE_SCENARIOS.md), on item 66's frame: when recorded income drops. The fact first, never a
 // why; what still holds; one question; the futures side by side with their assumptions and every figure's kind;
 // "Make this my budget" only on the person's tap, with Undo.
@@ -23177,20 +23246,20 @@ async function renderIncomeChange() {
   box.innerHTML = incomeChangeHtml(st);
 }
 
-async function _incomeChangePost(path, body) {
-  try { await API.post(`/api/income-change${path}`, body || {}); } catch (e) { showToast('Not saved', e?.message || '', 'warning'); return false; }
+async function _incomeChangePost(call) {
+  try { await call(); } catch (e) { showToast('Not saved', e?.message || '', 'warning'); return false; }
   return true;
 }
-async function incomeChangeAnswer(a) { if (await _incomeChangePost('/answer', { answer: a })) renderIncomeChange(); }
-async function incomeChangeSnooze() { if (await _incomeChangePost('/snooze')) renderIncomeChange(); }
+async function incomeChangeAnswer(a) { if (await _incomeChangePost(() => API.post('/api/income-change/answer', { answer: a }))) renderIncomeChange(); }
+async function incomeChangeSnooze() { if (await _incomeChangePost(() => API.post('/api/income-change/snooze', {}))) renderIncomeChange(); }
 async function incomeChangeApply() {
-  if (!(await _incomeChangePost('/apply'))) return;
+  if (!(await _incomeChangePost(() => API.post('/api/income-change/apply', {})))) return;
   showToast('Your budget follows your income now', 'Undo is on the card if you change your mind.', 'success');
   try { if (typeof bootFromDB === 'function') await bootFromDB(); } catch (e) { /* the page reloads its figures below */ }
   renderBudget();
 }
 async function incomeChangeUndo() {
-  if (!(await _incomeChangePost('/undo'))) return;
+  if (!(await _incomeChangePost(() => API.post('/api/income-change/undo', {})))) return;
   try { if (typeof bootFromDB === 'function') await bootFromDB(); } catch (e) { /* as above */ }
   renderBudget();
 }
@@ -23477,6 +23546,7 @@ async function forgetBankLogin(key) {
 
 function renderSettings() {
   _settingsShowTab(_settingsActiveTab);
+  renderAiLog();   // item 62
   if (g('settingsSavingsPct')) g('settingsSavingsPct').value = S.dfmSavingsCut || 5;
   if (g('settingsMonthlyBudget')) g('settingsMonthlyBudget').value = g('monthlyBudget')?.value || '';
   if (g('settingsDebtMethod')) g('settingsDebtMethod').value = S.debtMethod || 'avalanche';
@@ -23653,7 +23723,7 @@ async function exportData(format) {
   // the success line below reports the path the server actually wrote to.
   if (status) { status.textContent = 'Saving export…'; status.style.display = ''; }
   try {
-    const res  = await API.post('/api/settings/export-to-file', { format });
+    const res  = await API.post('/api/settings/export-to-file', { format, include_ai_log: !!g('exportIncludeAiLog')?.checked });
     const data = res.data || res;
     if (data.saved) {
       const msg = `Saved to: ${data.path}`;
@@ -23829,7 +23899,7 @@ async function loadBackupList() {
 
 async function createBackup() {
   try {
-    const res = await API.post('/api/backup/create', {});
+    const res = await API.post('/api/backup/create', { include_ai_log: !!g('backupIncludeAiLog')?.checked });
     showToast('Backup created', (res.data||res).filename||'', 'success');
     loadBackupList();
   } catch(e) { showToast('Backup failed', e.message||'', 'error'); }
@@ -23906,11 +23976,18 @@ async function handleRestoreUpload(evt) {
 
 let _aiDisclosureCounter = 0;
 
+// Item 62 G2: the panel keeps "The numbers behind this analysis"; what was sent lives in the AI log, one line away.
 function _renderAIDisclosure(payload) {
+  if (!payload || !payload.logCall) return '';
+  return `<div style="margin-top:10px;font-size:11px;color:var(--slate-2)">Sent to AI on this computer ·
+    <a href="#" onclick="openAiLog('${esc(payload.logCall)}');return false" style="color:var(--slate-2);text-decoration:underline">see it in the log</a></div>`;
+}
+
+// The old fold-out, kept only so nothing that still calls it breaks; nothing renders it now.
+function _renderAIDisclosureFull(payload) {
   const id       = `aiDisclosure${_aiDisclosureCounter++}`;
   const system   = payload?.system || '';
   const userMsg  = (payload?.messages||[]).map(m=>m.content).filter(Boolean).join('\n\n');
-  const usedSearch = (payload?.tools||[]).some(t=>t.type==='web_search_20250305');
   if (!system && !userMsg) return '';
   return `
     <div class="ai-disclosure" style="margin-top:10px">
@@ -23920,7 +23997,6 @@ function _renderAIDisclosure(payload) {
         View what was sent to AI
       </button>
       <div id="${id}" class="hidden" style="margin-top:8px;padding:12px;background:var(--mist);border-radius:var(--r-md)">
-        ${usedSearch ? `<div style="font-size:11px;color:var(--slate-2);margin-bottom:10px">This request could search the web for current prices.</div>` : ''}
         ${system ? `<div style="margin-bottom:${userMsg?'10px':'0'}">
           <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px">Instructions</div>
           <pre style="white-space:pre-wrap;font-family:var(--font-mono);font-size:11px;line-height:1.6;color:var(--slate);margin:0">${esc(system)}</pre>
@@ -24123,6 +24199,13 @@ function _voiceGateCheck(text, findings, truncated = false) {
 // Miss-log: fire-and-forget record of every gate rejection (surface, model,
 // which rule(s) failed, and the rejected text) so misses accumulate for
 // hardening instead of vanishing into the fallback silently.
+// Item 62 G1/G6: what the voice check said of one attempt, onto its log entry (fire and forget)
+function _aiLogVoice(logId, gate, shortened) {
+  if (!logId || !gate) return;
+  API.post(`/api/ai/log/${logId}/voice`, { pass: !(gate.failedRules || []).length, rules: gate.failedRules || [], shortened: !!shortened })
+    .catch(() => {});
+}
+
 function _logVoiceMiss(surface, model, gate, text) {
   API.post('/api/ai/voice-miss', {
     surface: surface || 'unknown',
@@ -24254,7 +24337,7 @@ async function _gwStreamAttempt(payload, systemText, findings) {
     return { unavailable: true };
   }
   const reader = res.body.getReader(), dec = new TextDecoder();
-  let raw = '', buf = '', full = '', shown = [], done = null;
+  let raw = '', buf = '', full = '', shown = [], done = null, logId = null;
   const fail = async (gate) => {
     try { await reader.cancel(); } catch (e) { /* closed */ }
     API.post('/api/ai/stop', {}).catch(_gwErr('_gwStreamAttempt:stop'));
@@ -24279,7 +24362,7 @@ async function _gwStreamAttempt(payload, systemText, findings) {
             shown.push(s);
             payload.onSentence(s);
           }
-        } else if (ev.done) { done = ev; }
+        } else if (ev.done) { done = ev; logId = ev.log_id; }
         else if (ev.stopped) { return { stopped: true, shown: shown.join(' ') }; }
         else if (ev.error) { return { unavailable: true }; }
       }
@@ -24297,18 +24380,18 @@ async function _gwStreamAttempt(payload, systemText, findings) {
     const whole = _voiceGateCheck(kept, findings, false);
     if (whole.pass) {
       payload.onSentence(GW_SHORTENED);
-      return { pass: true, text: kept + '\n\n' + GW_SHORTENED, gate: whole, truncated, shortened: true };
+      return { pass: true, text: kept + '\n\n' + GW_SHORTENED, gate: whole, truncated, shortened: true, logId };
     }
   }
   if (tail) {
     const g2 = _voiceGateCheck(tail, findings, false);
-    if (!g2.pass) return { pass: false, text: full, gate: g2, truncated };
+    if (!g2.pass) return { pass: false, text: full, gate: g2, truncated, logId };
   }
   // The whole answer, again: R10 and anything a sentence-sized check could not see
   const whole = _voiceGateCheck(full, findings, truncated);
-  if (!whole.pass) return { pass: false, text: full, gate: whole, truncated };
+  if (!whole.pass) return { pass: false, text: full, gate: whole, truncated, logId };
   if (tail) payload.onSentence(tail);
-  return { pass: true, text: full.trim(), gate: whole, truncated };
+  return { pass: true, text: full.trim(), gate: whole, truncated, logId };
 }
 
 // The live narration panel (item 10 S5/S6): checked sentences appear one by one; Stop ends the generation; a
@@ -24376,6 +24459,10 @@ async function callAI(payload) {
   await _loadVoiceRules();
   const skipGate = !!payload.skipGate;
   const surface  = payload.surface || 'unknown';
+  // Item 62: the attempts of this request share one id, which the panel's "see it in the log" opens
+  const callId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  let attemptNo = 0;
+  payload.logCall = callId;
   // Fail closed BEFORE the model: a gated call that has not declared what it
   // passes, or declares free transaction text, does not run. The caller falls
   // through to its honest fallback exactly as it does on a gate rejection.
@@ -24394,8 +24481,8 @@ async function callAI(payload) {
 
   async function attempt(systemText) {
     try {
-      const body = { ...payload, system: systemText };
-      delete body.onSentence; delete body.onReset; delete body.signal; delete body.max_sentences;
+      const body = { ...payload, system: systemText, log_call: callId, log_attempt: ++attemptNo };
+      delete body.onSentence; delete body.onReset; delete body.signal; delete body.max_sentences; delete body.logCall;
       const res = await API.post('/api/ai/chat', body);
       const data = res.data || res;
       if (data.ai_available === false) return { ok:false, text:'', unavailable:true, message:data.message||'' };
@@ -24405,7 +24492,7 @@ async function callAI(payload) {
       const truncated = data.stop_reason === 'max_tokens';
       // 'provider' comes verbatim from _ai_chat_local()'s response ('local');
       // it is the only provider there is.
-      return { ok:true, text, model:data.model||'', provider:data.provider||'', truncated };
+      return { ok:true, text, model:data.model||'', provider:data.provider||'', truncated, logId:data.log_id };
     } catch(e) {
       return { ok:false, text:'' };
     }
@@ -24416,7 +24503,8 @@ async function callAI(payload) {
   // passes the voice check. A failure withdraws what was shown (onReset) and falls into the retries below, out of
   // sight (S2). A surface without onSentence is unchanged.
   if (!skipGate && typeof payload.onSentence === 'function') {
-    const s = await _gwStreamAttempt(payload, baseSystem, findings);
+    const s = await _gwStreamAttempt({ ...payload, log_call: callId, log_attempt: ++attemptNo }, baseSystem, findings);
+    if (s.logId) _aiLogVoice(s.logId, s.gate, !!s.shortened);
     if (s.stopped) return { ok:false, stopped:true, text:s.shown, payload };
     if (s.unavailable) return { ok:false, text:'', payload };
     if (s.pass) return _gwLimit(payload, { ok:true, text:s.text, payload, model:'', provider:'local', streamed:true, shortened:!!s.shortened });
@@ -24428,12 +24516,15 @@ async function callAI(payload) {
     if (!result.ok) return { ok:false, text:'', payload };
     if (skipGate) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider, truncated:result.truncated };
     gate = _voiceGateCheck(result.text, findings, result.truncated);
+    _aiLogVoice(result.logId, gate);
     if (gate.pass) return _gwLimit(payload, { ok:true, text:result.text, payload, model:result.model, provider:result.provider });
     // K3: cut at the cap - keep what finished, if it passes on its own
     if (result.truncated) {
       const kept = _gwKeepFinished(result.text);
-      if (kept && _voiceGateCheck(kept, findings, false).pass)
+      if (kept && _voiceGateCheck(kept, findings, false).pass) {
+        _aiLogVoice(result.logId, { failedRules: [] }, true);
         return _gwLimit(payload, { ok:true, text: kept + '\n\n' + GW_SHORTENED, payload, model:result.model, provider:result.provider, shortened:true });
+      }
     }
   }
 
@@ -24459,12 +24550,15 @@ async function callAI(payload) {
     result = await attempt(retrySystem);
     if (!result.ok) return { ok:false, text:'', payload };
     gate = _voiceGateCheck(result.text, findings, result.truncated);
+    _aiLogVoice(result.logId, gate);
     if (gate.pass) return _gwLimit(payload, { ok:true, text:result.text, payload, model:result.model, provider:result.provider });
     // K3: cut at the cap - keep what finished, if it passes on its own
     if (result.truncated) {
       const kept = _gwKeepFinished(result.text);
-      if (kept && _voiceGateCheck(kept, findings, false).pass)
+      if (kept && _voiceGateCheck(kept, findings, false).pass) {
+        _aiLogVoice(result.logId, { failedRules: [] }, true);
         return _gwLimit(payload, { ok:true, text: kept + '\n\n' + GW_SHORTENED, payload, model:result.model, provider:result.provider, shortened:true });
+      }
     }
   }
   _logVoiceMiss(surface, result.model, gate, result.text);

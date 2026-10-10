@@ -68,7 +68,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from core.database import ( db_session, DATA_DIR, TripBooking,
     Account, Category, Transaction, BudgetItem,
-    DebtAccount, BudgetPlan, BudgetMonth, Achievement, BillReading,
+    DebtAccount, BudgetPlan, BudgetMonth, Achievement, BillReading, AiLog,
     AppSetting, BYBItem, NetWorthSnapshot,
     InvestmentTransaction, InvestmentLot, PriceCache,
     DebtBalanceHistory, PdfExtractCache,
@@ -10042,6 +10042,8 @@ def export_to_file():
                     'net_worth':     nw_rows,
                     'settings':      all_settings,
                 }
+                if body.get('include_ai_log'):    # item 62 G5: only when the person ticks it
+                    payload['ai_log'] = [_ai_log_json(r, full=True) for r in session.query(AiLog).order_by(AiLog.id).all()]
                 dest.write_text(json.dumps(payload, indent=2, default=str), encoding='utf-8')
 
             resp = {'saved': True, 'path': str(dest), 'filename': filename}
@@ -10101,17 +10103,22 @@ def _ai_chat_stream(body: dict):
     from core import engine
 
     def events():
+        said = []                          # item 62: the whole answer, for the log, written when the stream ends
         for kind, val in engine.chat_stream(body.get('system'), body.get('messages', []),
                                             max_tokens=int(body.get('max_tokens', 1000)),
                                             temperature=float(body.get('temperature', 0.3))):
             if kind == 'text':
+                said.append(val)
                 yield 'data: ' + json.dumps({'t': val}) + '\n\n'
             elif kind == 'done':
                 stop_reason = 'max_tokens' if val == 'length' else 'end_turn' if val == 'stop' else 'unknown'
-                yield 'data: ' + json.dumps({'done': True, 'stop_reason': stop_reason, 'provider': 'local'}) + '\n\n'
+                log_id = _ai_log_write(body, ''.join(said), stop_reason, engine.MODEL_FILE)
+                yield 'data: ' + json.dumps({'done': True, 'stop_reason': stop_reason, 'provider': 'local', 'log_id': log_id}) + '\n\n'
             elif kind == 'stopped':
+                _ai_log_write(body, ''.join(said), 'stopped', engine.MODEL_FILE, stopped=True)
                 yield 'data: ' + json.dumps({'stopped': True}) + '\n\n'
             else:
+                _ai_log_write(body, ''.join(said), 'unavailable', engine.MODEL_FILE)
                 yield 'data: ' + json.dumps({'error': 'engine_' + val['reason'], 'message': val['message']}) + '\n\n'
     return Response(stream_with_context(events()), mimetype='text/event-stream',
                     headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
@@ -10122,6 +10129,31 @@ def _ai_chat_stream(body: dict):
 # second program, no endpoint or model to configure. So the old rule that a "local" address must be this computer
 # (SAFETY_PROVISIONS_INVENTORY S6) now holds by construction - there is no address at all.
 
+# ── Item 62 - the AI log (AI_LOG.md) ───────────────────────────────────────────────────────────────────────────
+AI_LOG_DAYS = 90
+
+
+def _ai_log_write(body, response='', stop_reason='', model='', stopped=False):
+    """G1/G7: one row per attempt, written here only. Off when the person turned the log off (G4); entries older
+    than 90 days go each time one is written. Never read by anything but the log's own routes (G3)."""
+    try:
+        with db_session() as session:
+            if (_get_setting(session, 'ai_log_keep') or AppSetting(value='')).value == 'off':
+                return None
+            session.query(AiLog).filter(AiLog.created_at < datetime.utcnow() - timedelta(days=AI_LOG_DAYS)) \
+                .delete(synchronize_session=False)
+            row = AiLog(call_id=str(body.get('log_call') or '')[:64], attempt=int(body.get('log_attempt') or 1),
+                        surface=str(body.get('surface') or '')[:80], system=str(body.get('system') or '')[:40000],
+                        messages=json.dumps(body.get('messages') or [])[:80000], response=str(response or '')[:40000],
+                        stop_reason=str(stop_reason or '')[:20], stopped=bool(stopped), model=str(model or '')[:120])
+            session.add(row)
+            session.commit()
+            return row.id
+    except Exception:
+        logging.getLogger('groundwork').warning('the AI log could not be written')
+        return None
+
+
 def _ai_chat_local(body: dict):
     """Run one chat on the in-app engine; return the internal shape callAI() reads ({content:[{type,text}]})."""
     from core import engine
@@ -10129,13 +10161,15 @@ def _ai_chat_local(body: dict):
                     max_tokens=int(body.get('max_tokens', 1000)),
                     temperature=float(body.get('temperature', 0.3)))
     if not r['ok']:
+        _ai_log_write(body, stop_reason='unavailable')
         return ok({'ai_available': False, 'reason': f"engine_{r['reason']}", 'message': r['message']})
     # Whether the answer finished or hit its token cap, from the engine itself: 'length' is the cap, 'stop' is a
     # finished answer, and anything else is unknown - never read as finished (item 12 reads this as stop_reason).
     finish = r['finish']
     stop_reason = 'max_tokens' if finish == 'length' else 'end_turn' if finish == 'stop' else 'unknown'
+    log_id = _ai_log_write(body, r['text'], stop_reason, engine.MODEL_FILE)
     return jsonify({'content': [{'type': 'text', 'text': r['text']}], 'model': engine.MODEL_FILE,
-                    'provider': 'local', 'finish': finish, 'stop_reason': stop_reason})
+                    'provider': 'local', 'finish': finish, 'stop_reason': stop_reason, 'log_id': log_id})
 
 
 def engine_launch():
@@ -10298,6 +10332,100 @@ def ai_ollama_open_uninstall():
     except OSError as e:
         return err(f'Could not open Windows Settings: {e}', 500)
     return ok({'opened': True})
+
+
+def _ai_log_json(r, full=False):
+    v = None
+    try:
+        v = json.loads(r.voice) if r.voice else None
+    except (TypeError, ValueError):
+        v = None
+    out = {'id': r.id, 'at': r.created_at.isoformat(timespec='seconds') + 'Z' if r.created_at else None,
+           'call_id': r.call_id, 'attempt': r.attempt, 'surface': r.surface, 'stop_reason': r.stop_reason,
+           'stopped': bool(r.stopped), 'voice': v, 'model': r.model}
+    if full:
+        try:
+            msgs = json.loads(r.messages or '[]')
+        except (TypeError, ValueError):
+            msgs = []
+        out.update(system=r.system, messages=msgs, response=r.response)
+    return out
+
+
+@ai_bp.route('/log', methods=['GET'])
+def ai_log_list():
+    """G1: the log, newest first - one line per attempt (the page groups a request's attempts). G3: this route and
+    the four below are the only readers of the table."""
+    with db_session() as session:
+        session.query(AiLog).filter(AiLog.created_at < datetime.utcnow() - timedelta(days=AI_LOG_DAYS)) \
+            .delete(synchronize_session=False)
+        session.commit()
+        rows = session.query(AiLog).order_by(AiLog.id.desc()).limit(300).all()
+        keep = (_get_setting(session, 'ai_log_keep') or AppSetting(value='')).value != 'off'
+        return ok({'entries': [_ai_log_json(r) for r in rows], 'keep': keep, 'days': AI_LOG_DAYS})
+
+
+@ai_bp.route('/log/<int:log_id>', methods=['GET'])
+def ai_log_entry(log_id):
+    with db_session() as session:
+        r = session.get(AiLog, log_id)
+        return ok(_ai_log_json(r, full=True)) if r else err('That entry is not in the log.', 404)
+
+
+@ai_bp.route('/log/call/<call_id>', methods=['GET'])
+def ai_log_call(call_id):
+    """G2: a panel's link - every attempt of that request, in order."""
+    with db_session() as session:
+        rows = session.query(AiLog).filter(AiLog.call_id == call_id[:64]).order_by(AiLog.attempt, AiLog.id).all()
+        return ok({'entries': [_ai_log_json(r, full=True) for r in rows]})
+
+
+@ai_bp.route('/log/<int:log_id>/voice', methods=['POST'])
+def ai_log_voice(log_id):
+    """G1/G6: the page's voice check on that attempt - passed, or which rules it broke - so a rewrite shows."""
+    body = request.get_json(silent=True) or {}
+    rules = [str(x)[:60] for x in (body.get('rules') or [])][:20] if isinstance(body.get('rules'), list) else []
+    with db_session() as session:
+        r = session.get(AiLog, log_id)
+        if r:
+            r.voice = json.dumps({'pass': bool(body.get('pass')), 'rules': rules, 'shortened': bool(body.get('shortened'))})
+            session.commit()
+    return ok({'logged': bool(r)})
+
+
+@ai_bp.route('/log/clear', methods=['POST'])
+def ai_log_clear():
+    """G4: Clear the log - every entry deleted."""
+    with db_session() as session:
+        n = session.query(AiLog).delete(synchronize_session=False)
+        session.commit()
+    return ok({'cleared': n})
+
+
+@ai_bp.route('/log/keep', methods=['POST'])
+def ai_log_keep():
+    """G4: Keep the log - on or off. Off writes nothing; the panels still show their numbers."""
+    keep = (request.get_json(silent=True) or {}).get('keep')
+    if not isinstance(keep, bool):
+        return err('keep must be true or false')
+    with db_session() as session:
+        _set_setting(session, 'ai_log_keep', 'on' if keep else 'off')
+        session.commit()
+    return ok({'keep': keep})
+
+
+def _scrub_ai_log(db_file):
+    """G5: a backup copy without the AI log - its rows deleted and the file compacted, so the text is gone from it."""
+    import sqlite3
+    con = sqlite3.connect(str(db_file))
+    try:
+        con.execute('DELETE FROM ai_log')
+        con.commit()
+        con.execute('VACUUM')
+    except sqlite3.OperationalError:
+        pass                                  # an older copy with no table has nothing to remove
+    finally:
+        con.close()
 
 
 @ai_bp.route('/voice-miss', methods=['POST'])
@@ -10608,6 +10736,8 @@ def create_backup():
 
     try:
         shutil.copy2(DB_PATH, backup_path)
+        if not (request.get_json(silent=True) or {}).get('include_ai_log'):
+            _scrub_ai_log(backup_path)        # item 62 G5: left out unless the person includes it
         return ok({'filename': backup_name, 'size': backup_path.stat().st_size})
     except Exception as e:
         return err(f'Backup failed: {e}', 500)

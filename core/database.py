@@ -549,6 +549,25 @@ class FlightPriceCache(Base):
     fetched_at     = Column(DateTime, default=datetime.utcnow)
 
 
+class AiLog(Base):
+    """Item 62 (AI_LOG.md): one AI attempt, as it was sent and as it came back, and what the voice check said of it.
+    A record for the person to read - G3: no engine, prompt or narrator reads it. Written only by the AI chat route;
+    kept 90 days (G4); left out of backups and exports unless the person includes it (G5)."""
+    __tablename__ = 'ai_log'
+    id          = Column(Integer, primary_key=True)
+    created_at  = Column(DateTime, default=datetime.utcnow)
+    call_id     = Column(String(64), default='')      # the attempts of one request share it (the panel's link)
+    attempt     = Column(Integer, default=1)
+    surface     = Column(String(80), default='')
+    system      = Column(Text, default='')            # the instructions, exactly as sent
+    messages    = Column(Text, default='[]')          # the data, exactly as sent (JSON)
+    response    = Column(Text, default='')            # what came back
+    stop_reason = Column(String(20), default='')      # end_turn | max_tokens (shortened) | unknown | unavailable
+    stopped     = Column(Boolean, default=False)      # the person pressed Stop (item 10)
+    model       = Column(String(120), default='')
+    voice       = Column(Text, nullable=True)         # {"pass": bool, "rules": [...]} once the page checked it
+
+
 class BillReading(Base):
     """Item 68 B3: a bill's amount due and due date, read from the company's own website and CONFIRMED by the person.
     Nothing is stored before the yes (an unconfirmed reading waits in a setting, bill_pending:<id>). The budget line's
