@@ -4,7 +4,7 @@ Opened 2026-10-10. Rob: *"while we are utilizing the agent in the program how wo
 You can offer any idea not the idea that you think I would like."* Then, on the eight ideas offered: *"open it as an
 item with #1 through #8 I like this."*
 
-**Y1–Y10 RULED 2026-10-10 as recommended (Rob: "approve Y1–Y10 as recommended"). No code yet:** each stage needs its own go-ahead; stage 1 is Y1 + Y6.
+**Y1–Y10 RULED 2026-10-10 as recommended (Rob: "approve Y1–Y10 as recommended"). STAGE 1 (Y1 + Y6) BUILT 2026-10-10 (Rob: "build stage 1"), awaiting acceptance; §3.** Later stages each need their own go-ahead.
 
 ## 1. What is true today (measured 2026-10-10, master + the unpushed item 71 amendment)
 
@@ -139,3 +139,33 @@ Tests for each:
 - Y7's match only on the yes.
 
 *Recommended.*
+
+
+## 3. Stage 1, built (2026-10-10)
+
+- **Y1** (`core/byb_offer.py`, `/api/byb/offers`, `/api/byb/offers/answer`).
+  - A **new repeating charge** is one merchant charging at least 3 times within 5% of the same amount, weekly or
+    monthly. Its first charge must be within the last 100 days, after a year of records without it, and it must not
+    already be a budget line.
+  - A **charge that moved the payoff date** a month or more uses the existing large-charge rule, and only applies
+    when there are debts to price it against.
+  - Each offer shows what's left each month and the debt-free months before and after, plus each goal's date.
+  - The answers are *I meant to*, *I'll cancel it* (repeating charges only) and *Dismiss*. They are kept as the
+    person's statements (`byb_offers_said`), and an answered offer is never made again. An answer changes nothing
+    else: no budget line, no decision record, and nothing read into why.
+- **Y6.** Each savings goal's month at its own contribution, and with the purchase coming out of it. A goal the
+  purchase would stop shows *not reached at this rate*. The assumption is said in words under each offer.
+- **Where:** a *From your records* card at the top of Before You Buy. It is hidden when there's nothing to offer.
+- **On Rob's data** (a copy, 2026-10-10):
+  - no new repeating charges (his subscriptions are already budget lines);
+  - one charge: Hollis County tax, $765.84 on Aug 14, which moved the debt-free date from 19 to 20 months.
+- **Tests:** s192 covers:
+  - a new charge found;
+  - a budgeted one, an old one and shopping left quiet;
+  - weekly charges counted to a month;
+  - goal dates, with and without the purchase;
+  - the assumption in words;
+  - answered and dismissed offers never coming back;
+  - an answer changing nothing else;
+  - no model and no verdict words;
+  - the offers never reading usage.

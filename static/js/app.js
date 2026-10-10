@@ -28875,10 +28875,52 @@ function setMethod(m) {
 }
 
 // BYB — adapt to bybContent ID in HTML
+// ── Item 73 stage 1 (gw 2.0/BYB_AGENT.md Y1 + Y6): purchases brought to Before You Buy from the record ──
+// A new repeating charge, or a charge that moved the payoff date, shown as if Before You Buy had been asked first.
+// Offered once; the person's answer or dismissal ends it. No model, no verdict, nothing read into why.
+async function renderBybFromRecord() {
+  const el = g('bybFromRecord');
+  if (!el) return;
+  let d;
+  try { d = await API.get('/api/byb/offers'); } catch (e) { _gwErr('renderBybFromRecord')(e); el.innerHTML = ''; return; }
+  const offers = (d && d.offers) || [];
+  if (!offers.length) { el.innerHTML = ''; return; }
+  const when = n => n == null ? 'not priced' : `${n} month${n !== 1 ? 's' : ''}`;
+  el.innerHTML = `<div class="card mb-5"><div class="card-label">From your records</div>
+    <div style="font-size:12px;color:var(--slate);margin-bottom:6px">Purchases that didn't come through here, shown as if you had asked first. Nothing changes unless you change it.</div>
+    ${offers.map(o => {
+      const im = o.impact || {};
+      const head = o.kind === 'new_recurring'
+        ? `New: <b>${esc(o.name)}</b>, ${fmt(o.amount)} every ${esc(o.every)} since ${_billDate(o.since)} (about ${fmt(o.monthly)} a month).`
+        : `<b>${esc(o.name)}</b>, ${fmt(o.amount)} on ${_billDate(o.since)}.`;
+      const lines = [];
+      if (im.left_with != null) lines.push(`What's left each month: ${fmt(im.left_now)} → ${fmt(im.left_with)}.`);
+      if (im.payoff_months_now != null) lines.push(`Debt-free in: ${when(im.payoff_months_now)} → ${when(im.payoff_months_with)}.`);
+      (im.goals || []).forEach(gl => lines.push(`${esc(gl.name)}: ${_monthName(gl.date_now)} → ${gl.date_with ? _monthName(gl.date_with) : 'not reached at this rate'}.`));
+      return `<div style="padding:10px 0;border-top:1px solid var(--steel)" data-byb-offer="${esc(o.key)}">
+        <div style="font-size:13px;color:var(--ink)">${head}</div>
+        <div style="font-size:12px;color:var(--ink);line-height:1.7;margin-top:4px">${lines.join('<br>') || 'Nothing on record to price it against yet.'}</div>
+        <div style="font-size:11px;color:var(--slate-2);margin-top:2px">${esc(im.assumption || '')}</div>
+        <div style="margin-top:6px">
+          <button class="btn btn-secondary btn-sm" onclick="bybOfferAnswer('${esc(o.key)}', 'meant')">I meant to</button>
+          ${o.kind === 'new_recurring' ? `<button class="btn btn-secondary btn-sm" onclick="bybOfferAnswer('${esc(o.key)}', 'cancel')">I'll cancel it</button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="bybOfferAnswer('${esc(o.key)}', 'dismiss')">Dismiss</button></div></div>`;
+    }).join('')}</div>`;
+}
+
+async function bybOfferAnswer(key, said) {
+  try {
+    await API.post('/api/byb/offers/answer', { key, said });
+    showToast(said === 'meant' ? 'Noted: you meant to' : said === 'cancel' ? "Noted: you'll cancel it" : 'Dismissed', 'It won’t be offered again.');
+  } catch (e) { _gwErr('bybOfferAnswer')(e); return; }
+  renderBybFromRecord();
+}
+
 function renderBYB() {
   const cont = g('bybContent');
   if (!cont) return;
   _loadBYBItems();
+  renderBybFromRecord();
 }
 
 async function _loadBYBItems() {
