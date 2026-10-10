@@ -17,7 +17,7 @@ import sys
 import threading
 
 STEP_KINDS = ('click', 'choose', 'sign_in', 'sign_in_user', 'read')   # read: item 68 B2, a bill's figure
-_FIELDS = {'k', 'role', 'text', 'field', 'option', 'opt', 'pop', 'what'}
+_FIELDS = {'k', 'role', 'text', 'field', 'option', 'opt', 'pop', 'what', 'page', 'at'}
 READ_WHAT = ('amount', 'due')        # item 68 B2: the two figures a bill's page is read for
 # A13.2: a click that would agree to something is never a step; A13.3: a choice that changes a setting at the bank
 # ("don't show this again") is never a step. Both are the person's own clicks, every time.
@@ -34,6 +34,42 @@ MASK = '••••'
 # Small whole numbers stay, so "Last 30 days" never matches "Last 90 days" at replay.
 _NUMBER = r'\$\s?\d[\d,]*(?:\.\d+)?|\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b|\b\d+\.\d+\b|\d{4,}'
 _MAX = 80
+
+
+def clean_path(path):
+    """Item 70 R2: a page's path as Groundwork keeps it - '/' first, no query or fragment, at most 200 characters,
+    and any segment that could be an identifier (it holds a digit and is six characters or more, or holds four
+    digits running) masked. '/auth/login' and '/v2/accounts' stay readable; '/accounts/6f9508b0-ab48' does not
+    carry the account's id. None for anything else."""
+    p = str(path or '').split('?', 1)[0].split('#', 1)[0].strip()
+    if not p.startswith('/') or len(p) > 200:
+        return None
+    segs = [(MASK if (re.search(r'\d', s) and (len(s) >= 6 or re.search(r'\d{4}', s))) else s) for s in p.split('/')]
+    return '/'.join(segs)
+
+
+def clean_signin_at(url):
+    """Item 70 R1: the sign-in page's address - https only, its path cleaned as clean_path. None otherwise."""
+    from urllib.parse import urlsplit
+    try:
+        u = urlsplit(str(url or '').strip())
+    except ValueError:
+        return None
+    path = clean_path(u.path or '/')
+    if u.scheme != 'https' or not u.hostname or path is None:
+        return None
+    return f'https://{u.hostname.lower()}{path}'
+
+
+def same_site(a, b):
+    """Item 70 R1: two https addresses on the same site - their hosts' last two labels agree
+    (online.superiorcu.com and www.superiorcu.com do; superiorcu.com.evil.example does not)."""
+    from urllib.parse import urlsplit
+    try:
+        ha, hb = (urlsplit(x).hostname or '' for x in (a, b))
+    except ValueError:
+        return False
+    return bool(ha) and bool(hb) and ha.split('.')[-2:] == hb.split('.')[-2:] and len(ha.split('.')) >= 2
 
 
 def _clean_text(v):
@@ -57,6 +93,13 @@ def clean_step(raw):
     for f in ('role', 'text', 'field', 'option'):
         if f in raw and raw[f] not in (None, ''):
             step[f] = _clean_text(raw[f])
+    page = clean_path(raw.get('page'))
+    if page:
+        step['page'] = page                         # item 70 R2: where it was taken, to say where a run stopped
+    if raw['k'] in ('sign_in', 'sign_in_user'):
+        at = clean_signin_at(raw.get('at'))
+        if at:
+            step['at'] = at                         # item 70 R1: where the sign-in really is
     if raw.get('opt') is True:
         step['opt'] = True                          # only if the bank asks (a code check, "trust this device")
     if raw.get('pop') is True:
@@ -98,7 +141,8 @@ def step_words(step):
     k = step.get('k')
     tail = ' (only if your bank shows it)' if step.get('pop') else ' (only if your bank asks)' if step.get('opt') else ''
     if k == 'sign_in':
-        return 'Sign in (Groundwork fills your saved login)' + tail
+        where = f" at {step['at'].split('://', 1)[1]}" if step.get('at') else ''
+        return f'Sign in (Groundwork fills your saved login){where}' + tail
     if k == 'sign_in_user':
         return 'Enter your username (Groundwork fills it)' + tail
     return _step_words_rest(step) + tail
@@ -171,6 +215,8 @@ RECORD_SCRIPT = r'''(function () {
       + (noted ? noted + ' step' + (noted === 1 ? '' : 's') + ' noted. ' : '') + 'Press Done in Groundwork when the file has downloaded.', 'rec');
   }
   function note(step) {
+    step.page = location.pathname;                                      // item 70 R2
+    if (step.k === 'sign_in' || step.k === 'sign_in_user') step.at = location.origin + location.pathname;   // R1
     window.pywebview.api.step(step);
     noted += 1;
     try { sessionStorage.setItem(countKey, String(noted)); } catch (e) {}
@@ -402,7 +448,7 @@ def collect(key, lines):
                     rec['steps'].append(s)
 
 
-def start_recording(key, url, wait_seconds=20.0, device_dir=''):
+def start_recording(key, url, wait_seconds=20.0, device_dir='', from_step=None):
     """'opened' | 'already_open' | 'refused_url' | 'engine_unavailable'."""
     import subprocess
     import bank_window as bw
@@ -425,7 +471,7 @@ def start_recording(key, url, wait_seconds=20.0, device_dir=''):
         bw._stop(proc)
         return 'refused_url' if status == bw.STATUS_REFUSED_URL else 'engine_unavailable'
     with _lock:
-        _recordings[key] = {'proc': proc, 'steps': []}
+        _recordings[key] = {'proc': proc, 'steps': [], 'from': from_step}     # item 70 R3: kept steps before it
     threading.Thread(target=collect, args=(key, proc.stdout), daemon=True).start()
     return 'opened'
 
@@ -436,15 +482,15 @@ def steps(key):
         return list(rec['steps']) if rec else []
 
 
-def finish_recording(key):
-    """Close the window and hand back the steps it saw."""
+def finish_recording(key, with_from=False):
+    """Close the window and hand back the steps it saw (and, asked for, the step it re-recorded from - R3)."""
     import bank_window as bw
     with _lock:
         rec = _recordings.pop(key, None)
     if not rec:
-        return []
+        return ([], None) if with_from else []
     bw._stop(rec['proc'])
-    return list(rec['steps'])
+    return (list(rec['steps']), rec.get('from')) if with_from else list(rec['steps'])
 
 
 def begin_for_test(key):
@@ -464,7 +510,10 @@ def begin_for_test(key):
 # Nothing is guessed and nothing is retried on its own. The password never leaves this process except into the
 # page's own login boxes, and is never written to a line, a log or a file.
 
-FETCH_STATUSES = ('step', 'skipped', 'signed_in', 'waiting_code', 'stopped', 'downloaded', 'no_download', 'done', 'read')
+FETCH_STATUSES = ('step', 'skipped', 'signed_in', 'waiting_code', 'stopped', 'downloaded', 'no_download', 'done', 'read',
+                  'signed_out')
+SIGN_OUT_AFTER = ('downloaded', 'done', 'no_download', 'page_changed', 'code_timeout')   # item 70 R5: never bot_check
+SIGN_OUT_FOUND = ('pressed', 'none', 'already')
 STOP_REASONS = ('page_changed', 'bot_check', 'no_login', 'code_timeout', 'cancelled', 'sign_in_failed', 'would_pay')
 STEP_WAIT = 15.0          # seconds for a step's control to appear after a page load
 SIGN_IN_SETTLE = 12.0     # seconds the old login page may still show after Sign In is pressed
@@ -604,6 +653,17 @@ DO_SCRIPT = r'''(function () {
       return /\b(terms|agreement|consent|i accept|i agree|accept (the|these|our))\b/i.test((d.innerText || '').slice(0, 4000));
     });
   }
+  // Item 70 R5: the bank's own sign-out, by name. 'already' when the sign-in form is showing (signed out),
+  // 'pressed' when one was pressed, 'none' when none is on the page.
+  window.__gwSignOut = function () {
+    if (Array.prototype.some.call(document.querySelectorAll('input[type=password]'), visible)) return 'already';
+    var els = Array.prototype.filter.call(document.querySelectorAll('a,button,[role=button],[role=link],[role=menuitem]'), function (el) {
+      return visible(el) && /(^|[\s_])(sign|log)\s?(out|off)([\s_]|$)/i.test(nameOf(el).replace(/_/g, ' '));
+    });
+    if (!els.length) return 'none';
+    press(els[0]);
+    return 'pressed';
+  };
   window.__gwDo = function (step, login, probe) {
     if (botCheck()) return 'bot';
     if (asksAgreement()) return 'code';      // A13.2: never accepts - the person answers it, as with a code
@@ -690,7 +750,7 @@ def fetch_line(status, **kw):
         raise ValueError(status)
     d = {'s': status}
     for k, v in kw.items():
-        if k in ('i', 'why', 'file', 'what', 'val'):
+        if k in ('i', 'why', 'file', 'what', 'val', 'page', 'found'):
             d[k] = v
     return 'fetch ' + json.dumps(d, separators=(',', ':'))
 
@@ -703,7 +763,11 @@ def parse_fetch_line(line):
         d = json.loads(line[6:])
     except ValueError:
         return None
-    if not isinstance(d, dict) or d.get('s') not in FETCH_STATUSES or set(d) - {'s', 'i', 'why', 'file', 'what', 'val'}:
+    if not isinstance(d, dict) or d.get('s') not in FETCH_STATUSES or set(d) - {'s', 'i', 'why', 'file', 'what', 'val', 'page', 'found'}:
+        return None
+    if d.get('page') is not None and clean_path(d['page']) != d['page']:
+        return None                       # item 70 R2: a path, already cleaned, and nothing else
+    if d['s'] == 'signed_out' and d.get('found') not in SIGN_OUT_FOUND:
         return None
     if d['s'] == 'read' and (d.get('what') not in READ_WHAT or not isinstance(d.get('val'), str) or len(d['val']) > 40):
         return None                       # item 68: a bill's figure, as the page showed it, and nothing else
@@ -716,14 +780,38 @@ class Driver:
     """Runs the saved steps against a window. `window` needs evaluate_js(js) -> result; `login` is (user, password)
     or None; `say` writes one line; `now`/`sleep` are injectable for the gate. Never says the password."""
 
-    def __init__(self, window, steps, login, say, now=None, sleep=None, downloads=None, open_url=None, to_front=None):
+    def __init__(self, window, steps, login, say, now=None, sleep=None, downloads=None, open_url=None, to_front=None,
+                 open_signin=None):
         import time
         self.w, self.steps, self.login, self.say = window, steps, login, say
+        # item 70 R1: the recorded sign-in address, opened once when the link leads nowhere (the window checks it)
+        self.open_signin = open_signin
+        self.sign_in_at = next((s['at'] for s in steps if s.get('at')), None)
         self.to_front = to_front          # item 67 G5: brings this window forward when the bank asks for a code
         self.open_url = open_url          # opens an https address in this window (a sign-in held in a frame)
         self.now, self.sleep = now or time.monotonic, sleep or time.sleep
         self.downloads = downloads        # callable -> set of file names, or None
         self.cancelled = False
+
+    def _page(self):
+        """Item 70 R2: the bank page's path right now, cleaned - to say where a run stopped. None if unreadable."""
+        try:
+            return clean_path(self.w.evaluate_js('location.pathname'))
+        except Exception:
+            return None
+
+    def sign_out(self, wait=5.0):
+        """Item 70 R5: press the bank's own Sign out, if the page has one, and give the bank a moment to finish.
+        Says what happened in one line; never touches anything else."""
+        try:
+            found = self.w.evaluate_js(DO_SCRIPT + ';window.__gwSignOut ? window.__gwSignOut() : "none";')
+        except Exception:
+            found = 'none'
+        found = found if found in SIGN_OUT_FOUND else 'none'
+        if found == 'pressed':
+            self.sleep(wait)
+        self.say(fetch_line('signed_out', found=found))
+        return found
 
     def _bar(self, text, tone=''):
         """The bar on the bank page (visual only). A page without the script yet ignores it."""
@@ -743,7 +831,7 @@ class Driver:
 
     def run(self):
         before = self.downloads() if self.downloads else set()
-        i, signed_in = 0, False
+        i, signed_in, signin_opened = 0, False, False
         while i < len(self.steps):
             step = self.steps[i]
             deadline, waiting_code, skip_to, sign_ins, framed = self.now() + STEP_WAIT, False, None, 0, False
@@ -835,9 +923,19 @@ class Driver:
                             pass
                     deadline = self.now() + CODE_WAIT
                     self.say(fetch_line('waiting_code', i=i))
+                if (r == 'missing' and self.now() >= deadline and not waiting_code and not signed_in
+                        and not signin_opened and self.sign_in_at and self.open_signin):
+                    # Item 70 R1: the link led neither to a sign-in nor to this step - open the sign-in page the
+                    # person used while recording, once (the window refuses anything not https on the link's site)
+                    signin_opened = True
+                    self.open_signin(self.sign_in_at)
+                    deadline = self.now() + STEP_WAIT
+                    self.sleep(1.0)
+                    continue
                 if r == 'ambiguous' or self.now() >= deadline:      # checked on every attempt, a code page included
                     why = 'code_timeout' if waiting_code else 'page_changed'
-                    self.say(fetch_line('stopped', i=i, why=why))
+                    page = self._page() if why == 'page_changed' else None
+                    self.say(fetch_line('stopped', i=i, why=why, **({'page': page} if page else {})))
                     return why
                 self.sleep(1.0)
             i = skip_to if skip_to is not None else i + 1
@@ -932,9 +1030,13 @@ def fetch_child_main():
             window.on_top = False
         except Exception:
             pass
+    def _signin(u):
+        # item 70 R1: only an https address on the same site as the account's own link
+        if not bw.portal_url_problem(u) and same_site(u, url) and MASK not in u:
+            window.load_url(u)
     driver = Driver(window, steps_, _read_login(login_key), lambda l: (sys.stdout.write(l + '\n'), sys.stdout.flush()),
                     downloads=None if key.startswith(('bill:', 'pay:')) else _downloads_lister(),   # read or taken there; no file
-                    open_url=_go_to, to_front=_front)
+                    open_url=_go_to, to_front=_front, open_signin=_signin)
 
     def _close_when_parent_goes():
         try:
@@ -957,6 +1059,8 @@ def fetch_child_main():
             outcome = driver.run()
         except Exception:
             outcome = 'stopped'
+        if outcome in SIGN_OUT_AFTER and not driver.cancelled and not (hold and outcome == 'done'):
+            driver.sign_out()             # item 70 R5: before closing; never after a bot check or at a payment
         if hold and outcome == 'done' and not driver.cancelled:
             # Item 68 B8 (b): at the bank's payment screen, the window stays for the person - they enter the amount
             # and press Pay. Groundwork has nothing more to do here and never presses it.
@@ -1073,6 +1177,16 @@ def fetch_words(ev, steps_):
         return ('Read the amount due: ' if ev.get('what') == 'amount' else 'Read the due date: ') + str(ev.get('val') or '')
     if s == 'waiting_code':
         return 'Your bank is asking you something (a code, or something to agree to). Answer it in the window; Groundwork carries on after that.'
+    if s == 'signed_out':
+        return {'pressed': 'Signed out of the bank.', 'already': 'Signed out.',
+                'none': "Groundwork couldn't find Sign out; your bank will end the session on its own."}.get(ev.get('found'), '')
+    if s == 'stopped' and ev.get('why') == 'page_changed' and i is not None and i < len(steps_):
+        # item 70 R2: where the bank was, beside where the step was recorded
+        want = steps_[i].get('page')
+        got = ev.get('page')
+        where = (f" The bank was on {got}, not {want}" + (' - it may have signed you out.' if 'login' in (got or '').lower()
+                 or 'signin' in (got or '').lower() else '.')) if got and want and got != want else ''
+        return f"Stopped at step {i + 1} ({step_words(steps_[i])}): the page didn't look as recorded.{where} Show Groundwork again from step {i + 1}, or download this one yourself."
     if s == 'stopped':
         return {'page_changed': "Stopped: the page didn't look as recorded" + (f" at step {i + 1}" if i is not None else '') + '. Record the steps again, or download this one yourself.',
                 'bot_check': 'Stopped: your bank showed a check for automated access. Groundwork stops there and closed the window.',
@@ -1133,14 +1247,29 @@ def run_batch(b, launch, poll=0.5):
             continue
         while not ended.wait(poll):
             pass
+        _await_closed(it['key'])          # item 70 R5: the window signs out and closes before the next one opens
         end = next((e for e in reversed(box.get('events') or []) if e.get('s') in TERMINAL), {})
         it['state'], it['why'], it['file'] = end.get('s') or 'stopped', end.get('why'), end.get('file')
+        it['i'] = end.get('i')
         if it['state'] == 'stopped' and not it['why']:
             it['why'] = 'cancelled'
         if it['why'] == 'bot_check' and not b['stop']:
             b['stop'] = 'bot_check'
     b['current'] = None
     b['done'] = True
+
+
+def _await_closed(key, timeout=30.0):
+    """Wait (bounded) for a fetch window's process to end - signing out happens after its outcome is known."""
+    import time
+    with _lock:
+        f = _fetches.get(key)
+    proc = f and f.get('proc')
+    if proc is None:
+        return
+    end = time.monotonic() + timeout
+    while proc.poll() is None and time.monotonic() < end:
+        time.sleep(0.2)
 
 
 def stop_batch():
@@ -1205,7 +1334,11 @@ def batch_state():
             evs = fetch_events(cur)
             live = evs[-1]['s'] if evs else None
         it['live'] = live
-        it['words'] = batch_words(it, live)
+        so = next((e.get('found') for e in reversed(fetch_events(it['key'])) if e.get('s') == 'signed_out'), None) \
+            if it['state'] not in ('waiting', 'running') else None
+        it['signed_out'] = so
+        it['words'] = batch_words(it, live) + ({'pressed': ' \u00b7 signed out', 'already': ' \u00b7 signed out',
+                                                'none': " \u00b7 couldn't find Sign out"}.get(so, ''))
     return {'id': bid, 'items': items, 'stop': stop, 'done': done}
 
 

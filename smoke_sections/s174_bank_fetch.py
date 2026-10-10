@@ -144,7 +144,7 @@ def run(ctx):
     rec_src = src.split('def child_main(mode)')[1].split("# ── Groundwork's side")[0]
     check('s174 A7 the recording window uses the same remembered-device folder when ticked, so "Trust this device" carries into the fetch; private otherwise',
           'storage_path=device' in rec_src and 'private_mode=True' in rec_src
-          and "start_recording(key, url, device_dir=device)" in srv
+          and "start_recording(key, url, device_dir=device," in srv
           and "device = str(_bank_device_dir(key_for_device, create=True)) if device_on else ''" in srv.split('def bank_agent_record():')[1][:1400]
           and "dkey = _device_key(session, key)" in srv.split('def bank_agent_record():')[1][:1400])
     import tempfile, os
@@ -225,7 +225,7 @@ def run(ctx):
           ds.count('submitFor(') == 3 and 'sign ?in|log ?in|login|log on' in ds and 'continue|next|submit' in ds
           and "querySelector('button[type=submit],input[type=submit],button:not([type])')" not in ds)
     check('s174 A6 every press is a full mouse press for a styled element (Superior CU\'s online banking ignores a bare .click() on its div "links") - clicks, choices and sign-in alike',
-          ds.count('.click()') == 1 and 'el.click(); return; }' in ds and ds.count('press(') == 4
+          ds.count('.click()') == 1 and 'el.click(); return; }' in ds and ds.count('press(') == 5
           and "new PointerEvent('pointerdown'" in ds and "new MouseEvent('click', up)" in ds)
     check('s174 A6 a sign-in / log-in name wins over Continue / Next, and a label like tethered_login_sign_in counts',
           'near(signIn) || near(onward)' in ds and "replace(/_/g, ' ')" in ds)

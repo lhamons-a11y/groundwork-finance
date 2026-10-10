@@ -23035,11 +23035,11 @@ async function saveBankLogin(key) {
 let _bankRecTimer = null;
 function _bankRecBox(key) { return g(`bankLoginForm-${key.replace(':', '-')}`); }
 
-async function startBankRecording(key) {
+async function startBankRecording(key, fromStep) {
   const box = _bankRecBox(key);
   if (!box) return;
   let r;
-  try { r = await API.post('/api/settings/bank-agent/record', { key }); } catch (e) { _gwErr('startBankRecording')(e); return; }
+  try { r = await API.post('/api/settings/bank-agent/record', fromStep ? { key, from_step: fromStep } : { key }); } catch (e) { _gwErr('startBankRecording')(e); return; }
   if (r.result !== 'opened' && r.result !== 'already_open') {
     box.innerHTML = `<div style="font-size:12px;color:var(--ember);margin-top:6px">The window couldn't open (${esc(r.result)}).</div>`;
     return;
@@ -23073,7 +23073,7 @@ async function finishBankRecording(key) {
   if (!box) return;
   if (!r.steps.length) { box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">No steps were seen. Try again, clicking through your download.</div>`; return; }
   window._bankRecSteps = r.steps;
-  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">These are the steps Groundwork would repeat for you. Saving them replaces any steps saved before for this account.</div>
+  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">These are the steps Groundwork would repeat for you.${r.kept ? ` Steps 1 to ${r.kept} are the ones you had; the rest are new.` : ''} Saving them replaces any steps saved before for this account.</div>
     <ol style="font-size:12px;color:var(--ink);margin:6px 0 6px 18px">${bankStepsHtml(r.words)}</ol>
     <button class="btn btn-primary btn-sm" onclick="saveBankRecipe('${esc(key)}')">Save these steps</button>
     <button class="btn btn-ghost btn-sm" onclick="renderBankLogins()">Discard</button>`;
@@ -23279,7 +23279,9 @@ function closeFetchAllPanel() {
 
 function fetchAllPanelHtml(s) {
   if (!s) return '';
-  const rows = s.items.map(it => `<li style="margin:3px 0"><b style="font-weight:600">${esc(it.name)}</b>: ${esc(it.words)}</li>`).join('');
+  const rows = s.items.map(it => `<li style="margin:3px 0"><b style="font-weight:600">${esc(it.name)}</b>: ${esc(it.words)}${
+      s.done && it.why === 'page_changed' && it.i != null
+        ? ` <a href="#" onclick="openAutomationRow('${esc(it.key)}');setTimeout(() => startBankRecording('${esc(it.key)}', ${it.i + 1}), 400);return false" style="color:var(--pine)">Show Groundwork again from step ${it.i + 1}</a>` : ''}</li>`).join('');
   const head = s.done
     ? (s.stop === 'bot_check' ? 'Stopped: a bank showed a check for automated access.' : s.stop === 'user' ? 'Stopped.' : 'Finished.')
     : 'Groundwork is visiting each bank, one at a time. If a bank asks for a code, its window comes to the front - type it there.';
@@ -23328,12 +23330,19 @@ async function startBankFetch(key) {
     <ol data-gw-fetch style="font-size:12px;color:var(--ink);margin:6px 0 6px 18px"></ol>
     <button class="btn btn-ghost btn-sm" onclick="stopBankFetch('${esc(key)}')">Stop</button>`;
   clearInterval(_bankFetchTimer);
+  let afterEnd = 0;
   _bankFetchTimer = setInterval(async () => {
     let s;
     try { s = await API.get(`/api/settings/bank-agent/fetch?key=${encodeURIComponent(key)}`); } catch (e) { clearInterval(_bankFetchTimer); return; }
     const ol = box.querySelector('[data-gw-fetch]');
     if (ol) ol.innerHTML = bankStepsHtml(s.words);
-    if ((s.events || []).some(ev => ['stopped', 'downloaded', 'no_download', 'done'].includes(ev.s))) clearInterval(_bankFetchTimer);
+    const evs = s.events || [], end = evs.find(ev => ['stopped', 'downloaded', 'no_download', 'done'].includes(ev.s));
+    // item 70: keep listening a little after the outcome, for the sign-out line (R5)
+    if (end && (evs.some(ev => ev.s === 'signed_out') || ++afterEnd > 8 || ['bot_check', 'cancelled', 'would_pay'].includes(end.why))) {
+      clearInterval(_bankFetchTimer);
+      if (end.why === 'page_changed' && end.i != null && !box.querySelector('[data-gw-again]'))
+        box.insertAdjacentHTML('beforeend', `<button class="btn btn-secondary btn-sm" data-gw-again onclick="startBankRecording('${esc(key)}', ${end.i + 1})">Show Groundwork again from step ${end.i + 1}</button>`);
+    }
   }, 1500);
 }
 

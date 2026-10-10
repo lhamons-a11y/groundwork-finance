@@ -6680,6 +6680,11 @@ def _bank_recipe(session, key):
 def bank_agent_record():
     import bank_agent_window
     key = str((request.json or {}).get('key') or '')
+    # item 70 R3: re-record from step N (1-based): the steps before it are kept
+    try:
+        from_step = int((request.json or {}).get('from_step')) - 1 if (request.json or {}).get('from_step') else None
+    except (TypeError, ValueError):
+        from_step = None
     with db_session() as session:
         url = _bank_agent_url(session, key)
         dkey = _device_key(session, key)
@@ -6690,7 +6695,8 @@ def bank_agent_record():
     # A7: with "Remember this computer" ticked, the recording window keeps the bank's cookies in the same folder the
     # fetch uses, so trusting this device while recording carries into the fetch
     device = str(_bank_device_dir(key_for_device, create=True)) if device_on else ''
-    return ok({'key': key, 'result': bank_agent_window.start_recording(key, url, device_dir=device)})
+    return ok({'key': key, 'result': bank_agent_window.start_recording(key, url, device_dir=device,
+                                                                      from_step=from_step if from_step and from_step > 0 else None)})
 
 
 @settings_bp.route('/bank-agent/record', methods=['GET'])
@@ -6706,8 +6712,15 @@ def bank_agent_record_steps():
 def bank_agent_record_finish():
     import bank_agent_window
     key = str((request.json or {}).get('key') or '')
-    s = bank_agent_window.finish_recording(key)
-    return ok({'key': key, 'steps': s, 'words': [bank_agent_window.step_words(x) for x in s]})
+    s, frm = bank_agent_window.finish_recording(key, with_from=True)
+    kept = []
+    if frm:
+        with db_session() as session:
+            kept = (((_bank_recipe(session, key) or {}).get('steps')) or [])[:frm]
+    # item 70 R3: the whole list, kept and new, goes to the review before anything is saved (A5)
+    whole = kept + s if s else []
+    return ok({'key': key, 'steps': whole, 'kept': len(kept) if s else 0,
+               'words': [bank_agent_window.step_words(x) for x in whole]})
 
 
 @settings_bp.route('/bank-agent/recipe', methods=['POST'])
