@@ -26,7 +26,7 @@ goals."*
 **I6 RULED 2026-10-10: (a)** (Rob: *"this is where the rules to keep the ai in a box also gets gray because to do
 exactly what you want it to do, it will break a rule. I agree with A."*). Rob's reason for the tap: *"its there just in case that the agent is wrong or its a temporary moment
 that the AI is picking up."* The detector can mistake noise for a trend, and a real dip can be passing; the person's
-tap is where either gets caught before the budget moves. I1–I5, I7, I8 RULED 2026-10-10 as recommended (Rob: "i accept rule 71"). Build not yet authorised.
+tap is where either gets caught before the budget moves. I1–I5, I7, I8 RULED 2026-10-10 as recommended (Rob: "i accept rule 71"). **BUILT 2026-10-10** (Rob: "71 build on 66", "build all items that have been ruled on"): `core/income_change.py` (detect, budget_follows, scenarios, order), `/api/income-change` (read; answer; apply; undo; snooze), the Budget page card, the proactive card, the working picture's income line; s183. **The detector, null-modelled before it shipped:** a first version flagged up to 9% of plain noise, so it was tightened - the recent months must sit under every one of up to six months before them, and the drop must clear twice those months' own swing. Now: biweekly pay 0%, commission lumps 1.1%, late deposits 0%, noise 5/10/20% at 0.1/0.8/1.3%; a real slide 100%, a 15% cut found 73-100% depending on noise, a 12% cut 84%. The break detector (item 25) only names changes of 30% or more, so it is not what finds a pay cut. Awaiting the gate and acceptance.
 
 **The one point that needed Rob's ruling against a settled rule was I6** (adjusting the budget without asking each
 time). Everything else fits the rules as they stand. No code until Rob says "build item 71".

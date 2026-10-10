@@ -7,7 +7,7 @@ simulations that would help the user and the three worse scenarios … That's te
 Then, refining it: *"You're not proposing a better budgeting screen. You're proposing a different way for Groundwork
 to help someone understand and direct their financial future."*
 
-**SC1–SC7 RULED as a whole (Rob, 2026-10-09: "I accept item 66 as a whole and item 65"). No code yet:** the build needs its own go-ahead.
+**SC1–SC7 RULED as a whole (Rob, 2026-10-09: "I accept item 66 as a whole and item 65").** **First built 2026-10-10 through item 71** (Rob: "71 build on 66"): SC1 (the debt-free date as the goal measure, the goal fixed within an analysis), SC2's baseline and goal-oriented paths for an income drop, SC3 (every figure tagged observed / projected / user-supplied), SC5 (computed on read, nothing derived stored) and SC6 (side by side, assumptions in words, no verdicts, chosen only on the person's tap). **Still to build:** SC2's adverse scenarios from the record (the costliest months repeating, a month without income, minimums only, a known bill landing), SC4's "Partly / Unlikely for me" correction with a stored user-supplied possibility, SC6's charts over time, and SC7's pre-budget.
 
 ## The model (Rob, 2026-10-09)
 

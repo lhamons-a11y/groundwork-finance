@@ -210,6 +210,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(gift_bp,           url_prefix='/api/gift')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
+    app.register_blueprint(income_bp,         url_prefix='/api/income-change')
     app.register_blueprint(dashboard_bp,      url_prefix='/api/dashboard')
 
     # System routes
@@ -1733,6 +1734,130 @@ def willingness_declare():
         s = willingness_state(session)
         s.pop('effective')
         return ok(s)
+
+
+# ── Item 71 - when income drops (INCOME_CHANGE_SCENARIOS.md), on item 66's frame ─────────────────────────────
+# Computed on every read (SC5): nothing derived is stored. What is kept is the person's own: their answer to "do you
+# expect this to last?" (append-only, with when), their "not now" for the month, and what they applied (for Undo).
+def _income_change_state(session):
+    from core import income_change as ic
+    w = _willingness_inputs(session)
+    change = ic.detect(w['income'])
+    answers = _setting_json(session, 'income_change_answers', []) or []
+    applied = _setting_json(session, 'income_change_applied')
+    if not change:
+        return {'change': None, 'applied': applied}
+    answer = next((a['answer'] for a in reversed(answers) if a.get('since') == change['month']), None)
+    month_amts = budget_month_amounts(session)
+    items = session.query(BudgetItem).filter_by(is_active=True, type='expense').all()
+    outflow = round(sum((month_amts.get(i.id) or {}).get('month_amount', i.amount or 0) or 0 for i in items), 2)
+    lines = [{'id': i.id, 'name': i.name, 'category': i.category or i.name, 'amount': float(i.amount or 0)} for i in items]
+    effective = willingness_state(session)['effective']
+    cards, debt_budget, strategy, _undated = _consequence_inputs(session)
+    cushion, known = 0.0, False
+    for a in session.query(Account).filter_by(is_active=True).all():
+        if (a.type or '').lower() not in ('checking', 'savings'):
+            continue
+        bal, _asof, _last, _tx = _account_balance_facts(session, a.id)
+        if bal is None:
+            continue
+        floor = (_setting_json(session, f'bank_buffer:account:{a.id}') or {}).get('amount') or 0
+        cushion += max(0.0, bal - floor)
+        known = True
+    today = date.today().strftime('%Y-%m')
+    sc = ic.scenarios(change, outflow, lines, effective, cards, debt_budget, round(cushion, 2) if known else None,
+                      answer=answer, kw=dict(strategy=strategy, today_key=today, start_month=today))
+    from core import household
+    return {'change': change, 'answer': answer, 'outflow': outflow, 'goal': household.current(session, 'surplus_goal'),
+            'snoozed': (_get_setting(session, 'income_change_snooze') or AppSetting(value='')).value == today,
+            'applied': applied, **sc}
+
+
+income_bp = Blueprint('income_change', __name__)
+
+
+@income_bp.route('', methods=['GET'])
+def income_change_get():
+    with db_session() as session:
+        return ok(_income_change_state(session))
+
+
+@income_bp.route('/answer', methods=['POST'])
+@require_json
+def income_change_answer():
+    """I2: the person's word - 'lasting' | 'temporary' | 'unsure'. Append-only, with when and which change it answers."""
+    ans = (request.json or {}).get('answer')
+    if ans not in ('lasting', 'temporary', 'unsure'):
+        return err('answer must be lasting, temporary or unsure')
+    with db_session() as session:
+        st = _income_change_state(session)
+        if not st.get('change'):
+            return err('There is no income change on record to answer.', 409)
+        hist = _setting_json(session, 'income_change_answers', []) or []
+        hist.append({'answer': ans, 'said': datetime.now().isoformat(timespec='seconds'), 'since': st['change']['month'],
+                     'level': st['change']['to']})
+        _set_setting(session, 'income_change_answers', json.dumps(hist))
+        session.commit()
+        return ok(_income_change_state(session))
+
+
+@income_bp.route('/apply', methods=['POST'])
+@require_json
+def income_change_apply():
+    """I6 (a), ruled: the person's one tap - "Make this my budget". The plan is recomputed here (never taken from the
+    page), each line's change is a budget_adjusted event exactly as a manual edit is, and the old amounts are kept for
+    Undo. Nothing else ever changes a saved amount."""
+    with db_session() as session:
+        st = _income_change_state(session)
+        plan = next((s.get('plan') for s in st.get('scenarios', []) if s['key'] == 'budget_follows'), None)
+        if not st.get('change') or not plan or not plan['changes']:
+            return err('There is nothing to apply.', 409)
+        done = []
+        for ch in plan['changes']:
+            item = session.get(BudgetItem, ch['id'])
+            if not item or abs((item.amount or 0) - ch['old']) > 0.005:
+                continue                      # the line changed since the plan was shown: left as it is
+            item.amount = ch['new']
+            log_historian_event(session, 'budget_adjusted', expected_value=ch['old'], actual_value=ch['new'],
+                                context={'budget_item_id': item.id, 'name': item.name, 'item_type': item.type})
+            done.append({'id': item.id, 'name': item.name, 'old': ch['old'], 'new': ch['new']})
+        _set_setting(session, 'income_change_applied', json.dumps({'at': datetime.now().isoformat(timespec='seconds'),
+                                                                   'month': st['change']['month'], 'changes': done}))
+        session.commit()
+        return ok(_income_change_state(session))
+
+
+@income_bp.route('/undo', methods=['POST'])
+@require_json
+def income_change_undo():
+    """I6 (a): Undo restores the amounts the tap changed - each a budget_adjusted event back, so the record shows
+    both (AP10: undoing never falsifies the history)."""
+    with db_session() as session:
+        applied = _setting_json(session, 'income_change_applied')
+        if not applied:
+            return err('There is nothing to undo.', 409)
+        for ch in applied.get('changes', []):
+            item = session.get(BudgetItem, ch['id'])
+            if not item or abs((item.amount or 0) - ch['new']) > 0.005:
+                continue                      # changed again since: the person's later edit stands
+            item.amount = ch['old']
+            log_historian_event(session, 'budget_adjusted', expected_value=ch['new'], actual_value=ch['old'],
+                                context={'budget_item_id': item.id, 'name': item.name, 'item_type': item.type})
+        row = _get_setting(session, 'income_change_applied')
+        if row:
+            session.delete(row)
+        session.commit()
+        return ok(_income_change_state(session))
+
+
+@income_bp.route('/snooze', methods=['POST'])
+@require_json
+def income_change_snooze():
+    """I6 (a)'s monthly check-in: "Not now" hides the card for the rest of this month - the person's choice."""
+    with db_session() as session:
+        _set_setting(session, 'income_change_snooze', date.today().strftime('%Y-%m'))
+        session.commit()
+        return ok(_income_change_state(session))
 
 
 @willingness_bp.route('/strategy', methods=['POST'])
@@ -3889,6 +4014,19 @@ def _proactive_candidates(session, cards, budget, strategy):
             'subject': cyc['prior']['peak'], 'detail_kind': 'cycle',
             'cycle': cyc,
         })
+
+    # Item 71 I5: a drop in recorded income, unless the person said "not now" this month or already applied a plan
+    # for it. A brake (A.3), material by nature (it moves the whole month), its path the scenarios.
+    try:
+        ics = _income_change_state(session)
+        chg = ics.get('change')
+        if chg and not ics.get('snoozed') and not ((ics.get('applied') or {}).get('month') == chg['month']) and ics.get('gap'):
+            out.append({'key': f"income:{chg['kind']}:{chg['month']}", 'kind': 'brake', 'category': None,
+                        'months': None, 'dollars': ics['gap'], 'crosses_boundary': True, 'has_path': True,
+                        'goal_impact': None, 'perishable': False, 'detail_kind': 'income_change',
+                        'subject': 'income', 'from': chg['from'], 'to': chg['to'], 'month': chg['month']})
+    except Exception:
+        logging.getLogger('groundwork').warning('the income check could not be read')
 
     # W-D (E.2b): a statement the user's own later edits contradict. A clarification costs what a brake costs
     # (A.3: it asks the user to resolve something), its path is the answer itself, and it disputes the category

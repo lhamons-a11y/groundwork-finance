@@ -56,6 +56,11 @@
         : 'You are within <strong>' + fmt(c.distance) + '</strong> of the <strong>'
           + fmt((c.prior || {}).peak) + '</strong> you carried before you cleared this'
           + ' last time.' + cost;
+    } else if (p.detail_kind === 'income_change') {
+      // Item 71: the fact, never a why, and where the options are
+      body = 'Your recorded income is about <strong>' + fmt(p.to) + '</strong> a month now, from about <strong>'
+           + fmt(p.from) + '</strong> before. Your budget is <strong>' + fmt(p.dollars) + '</strong> a month more than that.'
+           + ' <a href="#" onclick="showView(\'budget\');return false">See what each option would mean</a>.';
     } else if (p.detail_kind === 'clarification') {
       // W-D: asked, never applied - a question about which they mean, never a reproach
       body = 'You marked <strong>' + esc(p.subject) + '</strong> ' + (p.stance === 'protect' ? 'protected' : 'flexible')

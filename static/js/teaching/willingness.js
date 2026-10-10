@@ -162,6 +162,21 @@
       + line + '</div>' + use + '</div>';
   }
 
+  // Item 71 I7: what Groundwork learned about income, out loud - the recorded fact, the person's answer, and what they
+  // changed. Never a story about why.
+  function _incomeHTML(st) {
+    if (!st || !st.change) return '';
+    var c = st.change;
+    var line = 'Your recorded income moved to about ' + fmt(c.to) + ' a month from ' + _month(c.month) + ' (from about ' + fmt(c.from) + ').';
+    if (st.answer) line += ' You said ' + ({ lasting: 'you expect it to last for now', temporary: 'it is temporary', unsure: 'you are not sure yet' }[st.answer]) + '.';
+    if (st.applied && st.applied.changes && st.applied.changes.length) {
+      line += ' On ' + _date(st.applied.at) + ' you moved ' + fmt(st.applied.changes.reduce(function (t, x) { return t + (x.old - x.new); }, 0))
+        + ' a month out of ' + esc(st.applied.changes.map(function (x) { return x.name; }).join(', ')) + '.';
+    }
+    return '<div class="card mt-5"><div class="card-label">Your income</div><div style="font-size:12px;color:var(--slate);line-height:1.7">'
+      + line + ' <a href="#" onclick="showView(\'budget\');return false">The options are on the Budget page</a>.</div></div>';
+  }
+
   function _plain(html) {
     var d = document.createElement('div');
     d.innerHTML = html;
@@ -220,9 +235,10 @@
       + ' spending passed income. Each conclusion appears here with the edits and months behind it, and you can'
       + ' dispute any of them. It never learns from which pages you open or which suggestions you dismiss.</div>';
     var asks = (s.contradictions || []).map(_contradictionHTML).join('');
+    var inc = _incomeHTML(s.income);
     var strat = _strategyHTML(s.strategy);
 
-    if (!claims.length && !answered.length && !history.length && !strat) {
+    if (!claims.length && !answered.length && !history.length && !strat && !inc) {
       return head + '<div class="card"><div class="card-label">Nothing concluded yet</div>'
         + '<div style="font-size:14px;color:var(--ink);margin:4px 0 10px">Groundwork has not drawn any conclusions about you yet.</div>'
         + how
@@ -238,6 +254,7 @@
         + asks + '</div>';
     }
     if (strat) out += strat;
+    if (inc) out += inc;
     if (claims.length) {
       out += '<div class="card"><div class="card-label">What your record shows</div>'
         + claims.map(function (r) {
@@ -272,6 +289,7 @@
     if (!view) return;
     try {
       var s = await API.get('/api/willingness');
+      try { s.income = await API.get('/api/income-change'); } catch (e) { s.income = null; }
       view.innerHTML = _pictureHTML(s || {});
     } catch (e) {
       _gwErr('willingness render')(e);

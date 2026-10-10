@@ -113,6 +113,7 @@ FACTS = {
         'lines': 'both',
         'consumers': [
             ('static/js/app.js', '_obPriorityLine', "the onboarding summary: the user's own choice and its arithmetic"),
+            ('server.py', '_income_change_state', "item 71: the goal the income scenarios are shown against"),
         ],
     },
 }

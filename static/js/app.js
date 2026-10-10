@@ -7622,6 +7622,7 @@ function renderBudget() {
   if (!cont) return;
   _loadUtilityPrices();
   renderBudgetBills();   // item 68 B3
+  renderIncomeChange();  // item 71
 
   const totalIncome = S.incomes.reduce((s,i) => s + i.amount, 0);
   const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
@@ -23104,6 +23105,94 @@ async function saveBankRecipe(key) {
   window._bankRecSteps = null;
   renderBankLogins();
   renderBudgetBills();
+}
+
+// Item 71 (INCOME_CHANGE_SCENARIOS.md), on item 66's frame: when recorded income drops. The fact first, never a
+// why; what still holds; one question; the futures side by side with their assumptions and every figure's kind;
+// "Make this my budget" only on the person's tap, with Undo.
+const _KIND_WORD = { observed: 'from your record', projected: 'if this continues', user_supplied: 'you said' };
+
+function _monthName(m) {
+  if (!m) return '';
+  const [y, mo] = m.split('-').map(Number);
+  return new Date(y, mo - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+}
+
+function _debtWhen(months) {
+  if (months == null) return "doesn't clear at this rate";
+  const d = new Date(); d.setMonth(d.getMonth() + months);
+  return `${months} months (${d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })})`;
+}
+
+function incomeChangeHtml(st) {
+  const ch = st && st.change;
+  if (!ch) {
+    const ap = st && st.applied;
+    return ap ? `<div class="card mt-5" style="font-size:12px;color:var(--slate)">You changed ${ap.changes.length} budget line${ap.changes.length === 1 ? '' : 's'} on ${_billDate(ap.at)} to follow your income.
+      <button class="btn btn-ghost btn-sm" onclick="incomeChangeUndo()">Undo</button></div>` : '';
+  }
+  if (st.snoozed) return '';
+  const fact = ch.kind === 'step'
+    ? `Your recorded income moved from about ${fmt(ch.from)} a month to about ${fmt(ch.to)}, from ${_monthName(ch.month)} on.`
+    : `Your recorded income has been lower each month since ${_monthName(ch.month)}: about ${fmt(ch.to)} a month, from about ${fmt(ch.from)} the three months before.`;
+  const holds = st.gap > 0
+    ? `What still holds: rent, food, insurance and anything you protected are untouched in every option below. It's ${fmt(st.gap)} a month of the rest that doesn't fit.`
+    : 'Your budgeted spending still fits inside this income.';
+  const ask = ['lasting', 'temporary', 'unsure'].map(a => `<button class="btn btn-sm ${st.answer === a ? 'btn-primary' : 'btn-secondary'}" style="margin:4px 6px 0 0"
+      onclick="incomeChangeAnswer('${a}')">${{ lasting: 'Yes, for now', temporary: "No, it's temporary", unsure: 'Not sure' }[a]}</button>`).join('');
+  const byKey = {}; (st.scenarios || []).forEach(x => { byKey[x.key] = x; });
+  const cards = (st.order || []).map((k, n) => {
+    const x = byKey[k]; if (!x) return '';
+    const figs = x.figures.filter(f => f.value != null).map(f => `<div style="display:flex;justify-content:space-between;gap:8px">
+        <span>${esc(f.label)} <span style="font-size:10px;color:var(--slate-2)">(${_KIND_WORD[f.kind] || ''})</span></span>
+        <span style="font-family:var(--font-mono)">${typeof f.value === 'number' && f.label.indexOf('Months') !== 0 ? fmt(f.value) : esc(String(f.value))}</span></div>`).join('');
+    const plan = x.plan && x.plan.changes.length ? `<div style="margin-top:6px">${x.plan.changes.map(c => `<div>${esc(c.name)}: ${fmt(c.old)} → <b>${fmt(c.new)}</b>
+        <span style="font-size:10px;color:var(--slate-2)">(${esc(c.why)})</span></div>`).join('')}
+      ${st.applied && st.applied.month === ch.month
+        ? `<div style="margin-top:6px;color:var(--slate)">You made this your budget on ${_billDate(st.applied.at)}. <button class="btn btn-ghost btn-sm" onclick="incomeChangeUndo()">Undo</button></div>`
+        : `<div style="margin-top:6px"><button class="btn btn-primary btn-sm" onclick="incomeChangeApply()">Make this my budget</button>
+           <button class="btn btn-ghost btn-sm" onclick="incomeChangeSnooze()">Not now</button>
+           <span style="font-size:11px;color:var(--slate-2)">Nothing changes until you tap. Undo is right here after.</span></div>`}</div>` : '';
+    return `<div style="flex:1;min-width:240px;border:1px solid var(--steel-2);border-radius:var(--r-lg);padding:10px 12px;${n === 0 ? 'border-color:var(--sky)' : ''}">
+      <div style="font-size:13px;font-weight:600;color:var(--ink)">${esc(x.title)}</div>
+      <div style="font-size:11px;color:var(--slate-2);margin:2px 0 6px">${x.assumptions.map(esc).join(' ')}</div>
+      <div style="font-size:12px;color:var(--ink);line-height:1.7">${figs}
+        <div style="display:flex;justify-content:space-between"><span>Debt-free <span style="font-size:10px;color:var(--slate-2)">(if this continues)</span></span>
+          <span>${esc(_debtWhen(x.debt_months))}</span></div>
+        ${x.bridge_months != null ? `<div>Your savings cover about <b>${x.bridge_months}</b> month${x.bridge_months === 1 ? '' : 's'} of the gap.</div>` : ''}</div>${plan}</div>`;
+  }).join('');
+  return `<div class="card mt-5"><div class="card-label" style="margin-bottom:2px">Your income changed</div>
+    <div style="font-size:13px;color:var(--ink);line-height:1.6">${fact}</div>
+    <div style="font-size:12px;color:var(--slate);margin-top:4px;line-height:1.6">${holds}</div>
+    <div style="font-size:12px;color:var(--slate);margin-top:8px">Do you expect this to last?</div><div>${ask}</div>
+    <div style="font-size:11px;color:var(--slate-2);margin-top:8px">What each would mean, side by side. These are worked out from your record and recalculated when it changes; none of them is a prediction.</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">${cards}</div></div>`;
+}
+
+async function renderIncomeChange() {
+  const box = g('budgetIncomeChange');
+  if (!box) return;
+  let st;
+  try { st = await API.get('/api/income-change'); } catch (e) { return; }
+  box.innerHTML = incomeChangeHtml(st);
+}
+
+async function _incomeChangePost(path, body) {
+  try { await API.post(`/api/income-change${path}`, body || {}); } catch (e) { showToast('Not saved', e?.message || '', 'warning'); return false; }
+  return true;
+}
+async function incomeChangeAnswer(a) { if (await _incomeChangePost('/answer', { answer: a })) renderIncomeChange(); }
+async function incomeChangeSnooze() { if (await _incomeChangePost('/snooze')) renderIncomeChange(); }
+async function incomeChangeApply() {
+  if (!(await _incomeChangePost('/apply'))) return;
+  showToast('Your budget follows your income now', 'Undo is on the card if you change your mind.', 'success');
+  try { if (typeof bootFromDB === 'function') await bootFromDB(); } catch (e) { /* the page reloads its figures below */ }
+  renderBudget();
+}
+async function incomeChangeUndo() {
+  if (!(await _incomeChangePost('/undo'))) return;
+  try { if (typeof bootFromDB === 'function') await bootFromDB(); } catch (e) { /* as above */ }
+  renderBudget();
 }
 
 // Item 68 B3 (BILLS_AND_PAYING.md): bills read from their own website. What was read waits for a yes; a confirmed
