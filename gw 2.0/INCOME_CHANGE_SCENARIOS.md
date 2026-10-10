@@ -338,7 +338,7 @@ only four checks. Salary keeps D4/D5, two checks in a row against the typical ch
   - A real 13% cut in hours is caught 93% of the time, and a 12% pay cut 100%.
   - On Rob's real Harmon pay: steady, with the ordinary week $788.77 and overtime $1,358.04 over the last 12 weeks.
   - A cut in hours under heavy overtime mostly reads "can't tell", not "found". That is honest, and it is the cost
-    of staying under 5%. **This departure needs Rob's acceptance.**
+    of staying under 5%. **D8 as built ACCEPTED by Rob 2026-10-10 ("I accept D8 as built").**
 - **D9.** The card leads with the dollars a month and what is left after the budgeted spending, then the checks.
   The Willingness home's line says the same.
 - **D10.**
