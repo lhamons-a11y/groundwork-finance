@@ -16,8 +16,9 @@ import re
 import sys
 import threading
 
-STEP_KINDS = ('click', 'choose', 'sign_in', 'sign_in_user')
-_FIELDS = {'k', 'role', 'text', 'field', 'option', 'opt', 'pop'}
+STEP_KINDS = ('click', 'choose', 'sign_in', 'sign_in_user', 'read')   # read: item 68 B2, a bill's figure
+_FIELDS = {'k', 'role', 'text', 'field', 'option', 'opt', 'pop', 'what'}
+READ_WHAT = ('amount', 'due')        # item 68 B2: the two figures a bill's page is read for
 # A13.2: a click that would agree to something is never a step; A13.3: a choice that changes a setting at the bank
 # ("don't show this again") is never a step. Both are the person's own clicks, every time.
 _AGREES = re.compile(r"^\s*(i\s+)?(accept|agree)\b|\bi\s+(accept|agree)\b|\baccept\s+(and|&)\s+continue\b", re.I)
@@ -41,6 +42,13 @@ def clean_step(raw):
     """A step as Groundwork keeps it, or None. Only the named fields, only the known kinds, digits masked."""
     if not isinstance(raw, dict) or raw.get('k') not in STEP_KINDS:
         return None
+    if raw['k'] == 'read':
+        # item 68 B2: WHERE a bill's figure is - the label beside it, digits masked - never the figure itself
+        # every number in a label is masked too (a date, a short amount): it's the figure, or next month's changes it
+        label = re.sub(r'\d+', '••••', _clean_text(raw.get('field') or ''))
+        if raw.get('what') not in READ_WHAT or not label:
+            return None
+        return {'k': 'read', 'what': raw['what'], 'field': label}
     step = {'k': raw['k']}
     for f in ('role', 'text', 'field', 'option'):
         if f in raw and raw[f] not in (None, ''):
@@ -92,6 +100,8 @@ def step_words(step):
 
 def _step_words_rest(step):
     k = step.get('k')
+    if k == 'read':
+        return ('Read the amount due' if step.get('what') == 'amount' else 'Read the due date') + f" (beside \u201c{step.get('field', '')}\u201d)"
     if k == 'choose':
         return f"Choose “{step.get('option', '')}”" + (f" in “{step['field']}”" if step.get('field') else '')
     return f"Click “{step.get('text', '')}”"
@@ -119,6 +129,27 @@ RECORD_SCRIPT = r'''(function () {
     host.shadowRoot.getElementById('d').style.display = tone === 'rec' ? 'inline-block' : 'none';
     b.style.background = tone === 'ask' ? '#8a4b08' : '#1f3a2e';
   }
+  // Item 68 B2: on a bill's site, two buttons mark where the amount due and the due date are. The next click on the
+  // page after a button is the mark: its LABEL is noted, never the figure. The buttons live in their own shadow root.
+  var armed = null;
+  function markPanel(text) {
+    var host = document.getElementById('__gwMarkHost');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = '__gwMarkHost';
+      host.style.cssText = 'position:fixed;top:10px;right:10px;z-index:2147483647';
+      (document.body || document.documentElement).appendChild(host);
+      host.attachShadow({mode: 'open'}).innerHTML = '<div style="background:#1f3a2e;color:#fff;border-radius:8px;padding:10px 12px;'
+        + 'font:12px/1.4 system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.25);max-width:260px">'
+        + '<div id="m" style="margin-bottom:6px"></div>'
+        + '<button id="a" style="font:inherit;margin:0 6px 4px 0;cursor:pointer">This is the amount due</button>'
+        + '<button id="u" style="font:inherit;cursor:pointer">This is the due date</button></div>';
+      host.shadowRoot.getElementById('a').onclick = function () { armed = 'amount'; markPanel('Now click the amount due on the page.'); };
+      host.shadowRoot.getElementById('u').onclick = function () { armed = 'due'; markPanel('Now click the due date on the page.'); };
+    }
+    host.shadowRoot.getElementById('m').textContent = text;
+  }
+  window.__gwMark = markPanel;
   window.__gwBar = gwBar;
   function api() { return window.pywebview && window.pywebview.api && window.pywebview.api.step; }
   var noted = 0;
@@ -177,8 +208,29 @@ RECORD_SCRIPT = r'''(function () {
   function inPopup(el) {
     return !!(el && el.closest && el.closest('[role=dialog],[role=alertdialog],[aria-modal=true],dialog'));
   }
+  // The text next to a marked figure (item 68 B2) - the label a later run finds it by. The figure itself is cut out.
+  function labelFor(el) {
+    var own = (el.innerText || el.textContent || '').trim(), x = el;
+    for (var n = 0; n < 4 && x.parentElement; n++) {
+      x = x.parentElement;
+      var t = (x.innerText || '').split(own).join(' ').replace(/\s+/g, ' ').trim();
+      if (t) return t.length <= 60 ? t : '';
+    }
+    return '';
+  }
+  if (window.__gwBill) markPanel('Go to your bill. Then press a button below and click that figure on the page.');
   document.addEventListener('click', function (e) {
     if (!e.isTrusted || !api()) return;
+    if (e.target && e.target.id === '__gwMarkHost') return;          // the marking buttons are not a step
+    if (window.__gwBill && armed) {
+      e.preventDefault(); e.stopPropagation();
+      var what = armed;
+      armed = null;
+      var lab = labelFor(e.target);
+      if (lab) { note({k: 'read', what: what, field: lab}); markPanel((what === 'amount' ? 'Amount due' : 'Due date') + ' marked. Mark the other, or press Done in Groundwork.'); }
+      else markPanel('Groundwork could not find a label beside that. Try clicking the figure itself.');
+      return;
+    }
     var el = e.target && e.target.closest ? e.target.closest('a,button,[role=button],[role=link],[role=tab],[role=menuitem],input[type=submit],input[type=button]') : null;
     if (!el) return;
     if (signInForm(el.closest ? el.closest('form') : null)) return;   // the submit listener records it
@@ -264,6 +316,7 @@ def child_main(mode):
     # A7: the account's remembered-device folder when the user ticked it ('' = private), so "Trust this device"
     # given while recording carries into the fetch (Rob's real run: the trust was lost with the private window)
     device = sys.stdin.readline().strip()
+    is_bill = sys.stdin.readline().strip() == 'bill'      # item 68 B2: the marking buttons
     if bw.portal_url_problem(url) or mode != 'record':
         bw._say(bw.STATUS_REFUSED_URL)
         return 2
@@ -287,7 +340,8 @@ def child_main(mode):
 
     def on_loaded(*_):
         try:
-            window.evaluate_js('window.__gwRecId = ' + json.dumps(rec_id) + ';' + RECORD_SCRIPT)
+            window.evaluate_js('window.__gwRecId = ' + json.dumps(rec_id) + ';'
+                               + ('window.__gwBill = true;' if is_bill else '') + RECORD_SCRIPT)
         except Exception:
             pass
     window.events.loaded += on_loaded
@@ -349,7 +403,7 @@ def start_recording(key, url, wait_seconds=20.0, device_dir=''):
     flags = 0x08000000 if sys.platform == 'win32' else 0
     proc = subprocess.Popen(_command('record'), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True, creationflags=flags)
-    proc.stdin.write(url + '\n' + (device_dir or '') + '\n')
+    proc.stdin.write(url + '\n' + (device_dir or '') + '\n' + ('bill' if str(key).startswith('bill:') else '') + '\n')
     proc.stdin.flush()
     status = bw._read_status(proc, wait_seconds)
     if status != bw.STATUS_READY:
@@ -395,7 +449,7 @@ def begin_for_test(key):
 # Nothing is guessed and nothing is retried on its own. The password never leaves this process except into the
 # page's own login boxes, and is never written to a line, a log or a file.
 
-FETCH_STATUSES = ('step', 'skipped', 'signed_in', 'waiting_code', 'stopped', 'downloaded', 'no_download', 'done')
+FETCH_STATUSES = ('step', 'skipped', 'signed_in', 'waiting_code', 'stopped', 'downloaded', 'no_download', 'done', 'read')
 STOP_REASONS = ('page_changed', 'bot_check', 'no_login', 'code_timeout', 'cancelled', 'sign_in_failed')
 STEP_WAIT = 15.0          # seconds for a step's control to appear after a page load
 SIGN_IN_SETTLE = 12.0     # seconds the old login page may still show after Sign In is pressed
@@ -557,6 +611,23 @@ DO_SCRIPT = r'''(function () {
       submitFor(p);
       return 'ok';
     }
+    if (step.k === 'read') {
+      // Item 68 B3: find the label, then the nearest amount or date beside it - read as the page shows it
+      var lab = Array.prototype.filter.call(document.querySelectorAll('body *'), function (el) {
+        return visible(el) && el.children.length <= 3 && same(step.field || '', (el.innerText || '').replace(/\s+/g, ' ').trim());
+      })[0];
+      if (!lab) return codeAsked() ? 'code' : 'missing';
+      if (probe) return 'present';
+      var re = step.what === 'amount' ? /\$\s?\d[\d,]*\.\d{2}/
+        : /\b(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2}|(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(,?\s+\d{4})?)\b/i;
+      var x = lab, own = (lab.innerText || '');
+      for (var n = 0; n < 5 && x; n++) {
+        var m = (x.innerText || '').split(own).join(' ').match(re);
+        if (m) return 'read:' + JSON.stringify({what: step.what, text: m[0]});
+        x = x.parentElement;
+      }
+      return 'missing';
+    }
     if (step.k === 'click') {
       var scope = step.pop ? popups() : [document];
       var els = [];
@@ -597,7 +668,7 @@ def fetch_line(status, **kw):
         raise ValueError(status)
     d = {'s': status}
     for k, v in kw.items():
-        if k in ('i', 'why', 'file'):
+        if k in ('i', 'why', 'file', 'what', 'val'):
             d[k] = v
     return 'fetch ' + json.dumps(d, separators=(',', ':'))
 
@@ -610,8 +681,10 @@ def parse_fetch_line(line):
         d = json.loads(line[6:])
     except ValueError:
         return None
-    if not isinstance(d, dict) or d.get('s') not in FETCH_STATUSES or set(d) - {'s', 'i', 'why', 'file'}:
+    if not isinstance(d, dict) or d.get('s') not in FETCH_STATUSES or set(d) - {'s', 'i', 'why', 'file', 'what', 'val'}:
         return None
+    if d['s'] == 'read' and (d.get('what') not in READ_WHAT or not isinstance(d.get('val'), str) or len(d['val']) > 40):
+        return None                       # item 68: a bill's figure, as the page showed it, and nothing else
     if d.get('why') is not None and d['why'] not in STOP_REASONS:
         return None
     return d
@@ -658,6 +731,14 @@ class Driver:
                     self.say(fetch_line('stopped', i=i, why='cancelled'))
                     return 'cancelled'
                 r = self._try(step)
+                if isinstance(r, str) and r.startswith('read:'):
+                    # Item 68 B3: a bill's figure, as the page shows it; Groundwork parses and shows it for a yes
+                    try:
+                        got = json.loads(r[5:])
+                        self.say(fetch_line('read', i=i, what=got.get('what'), val=str(got.get('text') or '')[:40]))
+                    except (ValueError, AttributeError):
+                        pass
+                    r = 'ok'
                 if isinstance(r, str) and r.startswith('frame:') and not framed:
                     # The sign-in lives in an embedded frame from another address; open that address as the page
                     # (https only, checked again here), then sign in there. Once per step.
@@ -787,7 +868,7 @@ def fetch_child_main():
     except ValueError:
         steps_ = []
     device = sys.stdin.readline().strip()
-    if bw.portal_url_problem(url) or not steps_ or not (key.startswith('account:') or key.startswith('card:')):
+    if bw.portal_url_problem(url) or not steps_ or not key.startswith(('account:', 'card:', 'bill:')):
         bw._say(bw.STATUS_REFUSED_URL)
         return 2
     platform_key = bw._platform_key()
@@ -818,7 +899,8 @@ def fetch_child_main():
         except Exception:
             pass
     driver = Driver(window, steps_, _read_login(key), lambda l: (sys.stdout.write(l + '\n'), sys.stdout.flush()),
-                    downloads=_downloads_lister(), open_url=_go_to, to_front=_front)
+                    downloads=None if key.startswith('bill:') else _downloads_lister(),   # a bill is read, not downloaded
+                    open_url=_go_to, to_front=_front)
 
     def _close_when_parent_goes():
         try:
@@ -947,6 +1029,8 @@ def fetch_words(ev, steps_):
         return 'Skipped (your bank didn\'t ask this time): ' + step_words(steps_[i])
     if s == 'signed_in':
         return 'Signed in with your saved login.'
+    if s == 'read':
+        return ('Read the amount due: ' if ev.get('what') == 'amount' else 'Read the due date: ') + str(ev.get('val') or '')
     if s == 'waiting_code':
         return 'Your bank is asking you something (a code, or something to agree to). Answer it in the window; Groundwork carries on after that.'
     if s == 'stopped':
@@ -1050,7 +1134,7 @@ def batch_words(it, live=None):
     if s == 'no_download':
         return 'The steps ran, but no file arrived'
     if s == 'done':
-        return 'Done'
+        return 'Read - confirm it on the Budget page' if str(it.get('key', '')).startswith('bill:') else 'Done'
     if s == 'skipped':
         return 'Skipped'
     return {'page_changed': "Stopped: the page didn't look as recorded",
@@ -1087,4 +1171,47 @@ def reset_batch_for_test():
     global _batch
     with _lock:
         _batch = None
+
+
+# ── Item 68 - reading a bill's figures (BILLS_AND_PAYING.md B3) ─────────────────
+_MONTHS = {m: n for n, m in enumerate(('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'), 1)}
+
+
+def parse_amount(text):
+    """'$1,142.37' -> 1142.37, or None. Only a dollar amount with cents, as a bill shows it."""
+    m = re.search(r'\$\s?(\d[\d,]*\.\d{2})\b', str(text or ''))
+    if not m:
+        return None
+    try:
+        return round(float(m.group(1).replace(',', '')), 2)
+    except ValueError:
+        return None
+
+
+def parse_due(text, today=None):
+    """A due date as a bill shows it -> a date, or None. 10/24/2026, 2026-10-24, Oct 24, 2026, October 24 (the next
+    Oct 24 on or after 60 days ago - a bill's due date is near). Anything else is None: named, never guessed."""
+    from datetime import date, timedelta
+    s = str(text or '').strip()
+    today = today or date.today()
+    try:
+        m = re.fullmatch(r'(\d{4})-(\d{2})-(\d{2})', s)
+        if m:
+            return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        m = re.fullmatch(r'(\d{1,2})/(\d{1,2})/(\d{2,4})', s)
+        if m:
+            y = int(m.group(3))
+            return date(y + 2000 if y < 100 else y, int(m.group(1)), int(m.group(2)))
+        m = re.fullmatch(r'([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2})(?:,?\s+(\d{4}))?', s)
+        if m and m.group(1).lower() in _MONTHS:
+            mo, d = _MONTHS[m.group(1).lower()], int(m.group(2))
+            if m.group(3):
+                return date(int(m.group(3)), mo, d)
+            for y in (today.year - 1, today.year, today.year + 1):
+                cand = date(y, mo, d)
+                if cand >= today - timedelta(days=60):
+                    return cand
+    except ValueError:
+        return None
+    return None
 

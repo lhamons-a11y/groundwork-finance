@@ -61,7 +61,7 @@ def vault_name():
 
 
 def _entry(key):
-    if not (key.startswith('account:') or key.startswith('card:')) or not key.split(':', 1)[1].isdigit():
+    if not key.startswith(('account:', 'card:', 'bill:')) or not key.split(':', 1)[1].isdigit():
         raise ValueError(f'not a vault key: {key!r}')
     return SERVICE, f'{SERVICE} - {key}'
 

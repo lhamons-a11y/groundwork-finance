@@ -68,7 +68,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from core.database import ( db_session, DATA_DIR, TripBooking,
     Account, Category, Transaction, BudgetItem,
-    DebtAccount, BudgetPlan, BudgetMonth, Achievement,
+    DebtAccount, BudgetPlan, BudgetMonth, Achievement, BillReading,
     AppSetting, BYBItem, NetWorthSnapshot,
     InvestmentTransaction, InvestmentLot, PriceCache,
     DebtBalanceHistory, PdfExtractCache,
@@ -2744,6 +2744,14 @@ def budget_month_amounts(session, fetch=False, today=None):
         words = _KIND_WORDS.get(kind)
         if kind == 'gasoline' and household.current(session, 'vehicle_fuel') == 'diesel':
             words = 'the diesel estimate'
+        bill = session.query(BillReading).filter(BillReading.budget_item_id == item.id, BillReading.use_for_month == True,   # noqa: E712
+                                                 BillReading.amount.isnot(None), BillReading.due_date.isnot(None)) \
+            .order_by(BillReading.id.desc()).first()
+        if bill and bill.due_date.strftime('%Y-%m') == this_month:
+            out[item.id] = {'month_amount': round(bill.amount, 2), 'month_source': 'bill', 'kind': None, 'month_why': None,
+                            'month_from': f"the bill read from {bill.source_host or 'its website'} on {bill.read_at:%b} {bill.read_at.day}",
+                            'month_for': None}
+            continue
         out[item.id] = {'month_amount': amt, 'month_source': src, 'kind': kind if followed else None,
                         'month_why': (f'{words} is followed, but {why}' if followed and src == 'saved' and why
                                       else None),
@@ -6476,6 +6484,13 @@ def _bank_agent_accounts(session):
         if d.portal_url and not d.linked_account_id:
             rows.append({'key': f'card:{d.id}', 'name': d.name})
     for r in rows:
+        r['kind'] = 'bank'
+    # item 68 B1/B4: bills with their own website, after the banks (Get my accounts visits them last)
+    for b in session.query(BudgetItem).filter(BudgetItem.is_active == True, BudgetItem.type == 'expense') \
+            .order_by(BudgetItem.sort_order, BudgetItem.id).all():   # noqa: E712
+        if _bank_agent_url(session, f'bill:{b.id}'):
+            rows.append({'key': f'bill:{b.id}', 'name': b.name, 'kind': 'bill'})
+    for r in rows:
         r['has_login'] = bank_vault.has_login(r['key'])
         r['has_steps'] = bool(((_bank_recipe(session, r['key']) or {}).get('steps')))
         r['remembered'] = (_get_setting(session, f"bank_device:{r['key']}") or AppSetting(value='')).value == 'yes'
@@ -6537,6 +6552,10 @@ def _bank_agent_url(session, key):
     if kind == 'card':
         d = session.get(DebtAccount, int(ident))
         return d.portal_url if d and not d.linked_account_id else None
+    if kind == 'bill':                         # item 68 B1: a bill's own website, on its budget line
+        b = session.get(BudgetItem, int(ident))
+        row = _get_setting(session, f'bill_site:{ident}') if b and b.is_active else None
+        return (row.value or None) if row else None
     return None
 
 
@@ -6669,9 +6688,30 @@ def _start_bank_fetch(key, batch=None, on_end=None):
 
     def _finished(k, events):
         _record_fetch(k, url, words, started, events, batch=batch)
+        if str(k).startswith('bill:'):
+            try:
+                _bill_pending(k, url, events)
+            except Exception:
+                logging.getLogger('groundwork').warning('a bill reading could not be kept for confirmation')
         if on_end:
             on_end(k, events)
     return bank_agent_window.start_fetch(key, url, steps_, device, on_finish=_finished), None
+
+
+def _bill_pending(key, url, events):
+    """Item 68 B3: what a bill's run read, waiting for the person's yes - nothing is used before it."""
+    import bank_agent_window
+    from urllib.parse import urlsplit
+    got = {e.get('what'): e.get('val') for e in events if e.get('s') == 'read'}
+    if not got:
+        return
+    due = bank_agent_window.parse_due(got.get('due'))
+    pending = {'amount': bank_agent_window.parse_amount(got.get('amount')), 'amount_text': got.get('amount'),
+               'due': due.isoformat() if due else None, 'due_text': got.get('due'),
+               'read_at': datetime.now().isoformat(timespec='seconds'), 'host': (urlsplit(url).hostname or '').lower()}
+    with db_session() as session:
+        _set_setting(session, f"bill_pending:{key.split(':', 1)[1]}", json.dumps(pending))
+        session.commit()
 
 
 def _record_fetch(key, url, words, started, events, folder=None, batch=None):
@@ -6868,6 +6908,106 @@ def _fetched_for(session, sha):
         if hit.id in ids:
             out['pos'], out['of'] = ids.index(hit.id) + 1, len(ids)
     return out
+
+
+# ── Item 68 - bills read from their own website (BILLS_AND_PAYING.md B1-B5) ───
+def _bill_reading_json(r):
+    return {'id': r.id, 'amount': r.amount, 'due': r.due_date.isoformat() if r.due_date else None,
+            'read_at': r.read_at.isoformat(timespec='seconds') if r.read_at else None, 'host': r.source_host,
+            'use_for_month': bool(r.use_for_month)}
+
+
+@settings_bp.route('/bank-agent/bills', methods=['GET'])
+def bank_agent_bills():
+    """B1/B3: every expense line, its website if set, what was last read (waiting for a yes) and last confirmed."""
+    out = []
+    with db_session() as session:
+        for b in session.query(BudgetItem).filter(BudgetItem.is_active == True, BudgetItem.type == 'expense') \
+                .order_by(BudgetItem.sort_order, BudgetItem.id).all():   # noqa: E712
+            site = _get_setting(session, f'bill_site:{b.id}')
+            pend = _get_setting(session, f'bill_pending:{b.id}')
+            last = session.query(BillReading).filter_by(budget_item_id=b.id).order_by(BillReading.id.desc()).first()
+            try:
+                pending = json.loads(pend.value) if pend and pend.value else None
+            except (TypeError, ValueError):
+                pending = None
+            out.append({'id': b.id, 'key': f'bill:{b.id}', 'name': b.name, 'category': b.category, 'planned': b.amount,
+                        'site': (site.value if site else '') or '', 'pending': pending,
+                        'confirmed': _bill_reading_json(last) if last else None})
+    return ok({'bills': out})
+
+
+@settings_bp.route('/bank-agent/bill-site', methods=['POST'])
+@require_json
+def bank_agent_bill_site():
+    """B1: {id, url}. The same https check as a bank's link; '' removes it (and the saved steps with it)."""
+    import bank_window
+    body = request.json or {}
+    try:
+        bid = int(body.get('id'))
+    except (TypeError, ValueError):
+        return err('Which bill?', 400)
+    url = str(body.get('url') or '').strip()
+    if url and bank_window.portal_url_problem(url):
+        return err(bank_window.portal_url_problem(url), 400)
+    with db_session() as session:
+        b = session.get(BudgetItem, bid)
+        if not b or not b.is_active or b.type != 'expense':
+            return err('That budget line was not found.', 404)
+        if url:
+            _set_setting(session, f'bill_site:{bid}', url)
+        else:
+            for k in (f'bill_site:{bid}', f'bank_recipe:bill:{bid}', f'bill_pending:{bid}'):
+                row = _get_setting(session, k)
+                if row:
+                    session.delete(row)
+        session.commit()
+    return ok({'id': bid, 'site': url})
+
+
+@settings_bp.route('/bank-agent/bill-read/confirm', methods=['POST'])
+@require_json
+def bank_agent_bill_confirm():
+    """B3: {id, yes}. Yes keeps what was read as a BillReading; no discards it. Either way the waiting reading goes."""
+    body = request.json or {}
+    try:
+        bid = int(body.get('id'))
+    except (TypeError, ValueError):
+        return err('Which bill?', 400)
+    with db_session() as session:
+        row = _get_setting(session, f'bill_pending:{bid}')
+        if not row or not row.value:
+            return err('Nothing is waiting for that bill.', 404)
+        pending = json.loads(row.value)
+        session.delete(row)
+        saved = None
+        if body.get('yes') is True:
+            r = BillReading(budget_item_id=bid, amount=pending.get('amount'),
+                            due_date=date.fromisoformat(pending['due']) if pending.get('due') else None,
+                            read_at=datetime.fromisoformat(pending['read_at']), source_host=pending.get('host') or '')
+            session.add(r)
+            session.flush()
+            log_historian_event(session, 'bill_confirmed', context={
+                'budget_item_id': bid, 'amount': r.amount, 'due_date': pending.get('due'), 'host': r.source_host,
+                'read_at': pending.get('read_at')})
+            saved = _bill_reading_json(r)
+        session.commit()
+    return ok({'id': bid, 'confirmed': saved})
+
+
+@settings_bp.route('/bank-agent/bill-read/use', methods=['POST'])
+@require_json
+def bank_agent_bill_use():
+    """B3 (a): {reading_id, use}. Use the confirmed bill's amount as this month's figure for its line - derived when
+    the month is read, the saved amount untouched."""
+    body = request.json or {}
+    with db_session() as session:
+        r = session.get(BillReading, int(body.get('reading_id') or 0))
+        if not r:
+            return err('That reading was not found.', 404)
+        r.use_for_month = bool(body.get('use'))
+        session.commit()
+        return ok(_bill_reading_json(r))
 
 
 @settings_bp.route('/bank-agent/fetch/stop', methods=['POST'])

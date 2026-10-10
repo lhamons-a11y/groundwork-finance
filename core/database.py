@@ -549,6 +549,23 @@ class FlightPriceCache(Base):
     fetched_at     = Column(DateTime, default=datetime.utcnow)
 
 
+class BillReading(Base):
+    """Item 68 B3: a bill's amount due and due date, read from the company's own website and CONFIRMED by the person.
+    Nothing is stored before the yes (an unconfirmed reading waits in a setting, bill_pending:<id>). The budget line's
+    saved amount is never changed by one: "use the bill's amount for this month" (use_for_month) is read when the
+    month's amount is derived (budget_month_amounts), never written."""
+    __tablename__ = 'bill_readings'
+    id             = Column(Integer, primary_key=True)
+    budget_item_id = Column(Integer, ForeignKey('budget_items.id'), nullable=False)
+    amount         = Column(Float, nullable=True)        # None: the page's figure would not read as an amount
+    due_date       = Column(Date, nullable=True)         # None: the page's figure would not read as a date
+    read_at        = Column(DateTime, nullable=False)
+    source_host    = Column(String(255), default='')
+    confirmed_at   = Column(DateTime, default=datetime.utcnow)
+    use_for_month  = Column(Boolean, default=False)
+    created_at     = Column(DateTime, default=datetime.utcnow)
+
+
 class BudgetPlan(Base):
     __tablename__ = 'budget_plans'
     id            = Column(Integer, primary_key=True)

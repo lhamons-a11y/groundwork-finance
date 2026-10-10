@@ -7620,6 +7620,7 @@ function renderBudget() {
   const cont = g('budgetContent');
   if (!cont) return;
   _loadUtilityPrices();
+  renderBudgetBills();   // item 68 B3
 
   const totalIncome = S.incomes.reduce((s,i) => s + i.amount, 0);
   const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
@@ -22827,6 +22828,33 @@ async function renderBankLogins() {
   box.innerHTML = bankLoginsHtml(d);
   _renderBankFetchHistory();
   refreshFetchAll();
+  renderBillSites();
+}
+
+// Item 68 B1: a bill's own website, on its budget line. Its login, steps and reading then appear in the list above.
+async function renderBillSites() {
+  const box = g('settingsBillSites');
+  if (!box) return;
+  let d;
+  try { d = await API.get('/api/settings/bank-agent/bills'); } catch (e) { _gwErr('renderBillSites')(e); return; }
+  box.innerHTML = billSitesHtml(d.bills || []);
+}
+
+function billSitesHtml(bills) {
+  if (!bills.length) return `<div style="font-size:12px;color:var(--slate-2)">Add your bills to the budget first.</div>`;
+  return `<div style="font-size:12px;color:var(--slate);line-height:1.6;margin-bottom:6px">Add the website where you see a bill (your electric company's, say). Groundwork can then sign in when you ask, read the amount due and the due date, and show them to you to confirm. It never pays anything. Groundwork doesn't check the address belongs to the company; make sure it does.</div>`
+    + bills.map(b => `<div style="display:flex;gap:6px;align-items:center;padding:4px 0;flex-wrap:wrap">
+      <span style="flex:1;min-width:120px;font-size:12px;color:var(--ink)">${esc(b.name)}</span>
+      <input type="url" id="billSite-${b.id}" value="${esc(b.site)}" placeholder="https://www.yourcompany.com" aria-label="Website for ${esc(b.name)}"
+        style="flex:2;min-width:180px;font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);font-family:var(--font-mono)">
+      <button class="btn btn-secondary btn-sm" onclick="saveBillSite(${b.id})">Save</button></div>`).join('');
+}
+
+async function saveBillSite(id) {
+  const v = (g(`billSite-${id}`)?.value || '').trim();
+  try { await API.post('/api/settings/bank-agent/bill-site', { id, url: v }); }
+  catch (e) { showToast('Not saved', e?.message || '', 'warning'); return; }
+  renderBankLogins();
 }
 
 function bankLoginsHtml(d) {
@@ -22843,7 +22871,7 @@ function bankLoginsHtml(d) {
       <div style="flex:1;min-width:140px;font-size:13px;color:var(--ink)">${esc(a.name)}
         <span style="font-size:11px;color:var(--slate-2)">${a.has_login ? ' · login saved in the vault' : ''}</span></div>
       ${a.has_login
-        ? `${a.has_steps ? `<button class="btn btn-primary btn-sm" onclick="startBankFetch('${esc(a.key)}')">Get my latest transactions</button>` : ''}
+        ? `${a.has_steps ? `<button class="btn btn-primary btn-sm" onclick="startBankFetch('${esc(a.key)}')">${a.kind === 'bill' ? 'Read my bill' : 'Get my latest transactions'}</button>` : ''}
            <button class="btn btn-secondary btn-sm" onclick="startBankRecording('${esc(a.key)}')">${a.has_steps ? 'Record the steps again' : 'Show me once'}</button>
            ${a.has_steps ? `<button class="btn btn-ghost btn-sm" onclick="deleteBankRecipe('${esc(a.key)}')">Delete steps</button>` : ''}
            <button class="btn btn-ghost btn-sm" onclick="forgetBankLogin('${esc(a.key)}')">Forget</button>
@@ -22911,7 +22939,9 @@ async function startBankRecording(key) {
     box.innerHTML = `<div style="font-size:12px;color:var(--ember);margin-top:6px">The window couldn't open (${esc(r.result)}).</div>`;
     return;
   }
-  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">In the window that opened, sign in and do your usual download. Groundwork notes each button and choice - never what you type.</div>
+  box.innerHTML = `<div style="font-size:12px;color:var(--slate);margin-top:6px">${key.startsWith('bill:')
+      ? 'In the window that opened, sign in and go to your bill. Then press <b>This is the amount due</b> and click the amount, and <b>This is the due date</b> and click the date. Groundwork notes where they are - never the figures, and never what you type.'
+      : 'In the window that opened, sign in and do your usual download. Groundwork notes each button and choice - never what you type.'}</div>
     <ol data-gw-rec-steps style="font-size:12px;color:var(--ink);margin:6px 0 6px 18px"></ol>
     <button class="btn btn-primary btn-sm" onclick="finishBankRecording('${esc(key)}')">Done</button>`;
   clearInterval(_bankRecTimer);
@@ -22947,6 +22977,76 @@ async function saveBankRecipe(key) {
   catch (e) { _gwErr('saveBankRecipe')(e); return; }
   window._bankRecSteps = null;
   renderBankLogins();
+}
+
+// Item 68 B3 (BILLS_AND_PAYING.md): bills read from their own website. What was read waits for a yes; a confirmed
+// bill sits beside its budget line and changes this month's figure only when the person ticks "use the bill's amount".
+function _billDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso.length === 10 ? iso + 'T12:00:00' : iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function budgetBillsHtml(bills) {
+  const withSite = (bills || []).filter(b => b.site || b.pending || b.confirmed);
+  if (!withSite.length) return '';
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const rows = withSite.map(b => {
+    const p = b.pending, c = b.confirmed;
+    if (p) {
+      const amt = p.amount != null ? fmt(p.amount) : `the amount didn't read as an amount ("${esc(p.amount_text || 'nothing')}")`;
+      const due = p.due ? _billDate(p.due) : `the due date didn't read as a date ("${esc(p.due_text || 'nothing')}")`;
+      return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:12px;line-height:1.6">
+        <b style="font-weight:600">${esc(b.name)}</b>: read from ${esc(p.host)} on ${_billDate(p.read_at)}: amount due ${amt}, due ${due}. Is that right?
+        <div style="margin-top:4px"><button class="btn btn-primary btn-sm" onclick="confirmBillReading(${b.id}, true)">Yes, that's right</button>
+        <button class="btn btn-ghost btn-sm" onclick="confirmBillReading(${b.id}, false)">Not right</button></div></div>`;
+    }
+    if (c) {
+      const inMonth = c.due && c.due.slice(0, 7) === thisMonth && c.amount != null;
+      return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:12px;line-height:1.6">
+        <b style="font-weight:600">${esc(b.name)}</b>: ${c.amount != null ? fmt(c.amount) : 'amount not read'} due ${c.due ? _billDate(c.due) : '(date not read)'}
+        <span style="color:var(--slate-2)">· read from ${esc(c.host)} on ${_billDate(c.read_at)}, confirmed · you planned ${fmt(b.planned || 0)}</span>
+        ${inMonth ? `<label style="display:block;color:var(--slate);margin-top:2px"><input type="checkbox" ${c.use_for_month ? 'checked' : ''} onchange="useBillReading(${c.id}, this.checked)">
+          Use the bill's amount for this month (your saved amount stays as it is)</label>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="startFetchAll(['${esc(b.key)}'])">⟳ Read it again</button></div>`;
+    }
+    return `<div style="padding:8px 0;border-top:1px solid var(--steel-2);font-size:12px">
+      <b style="font-weight:600">${esc(b.name)}</b>: not read yet. Save its login and show Groundwork where the bill is in Settings → Fetch my downloads, then
+      <button class="btn btn-ghost btn-sm" onclick="startFetchAll(['${esc(b.key)}'])">⟳ Read my bill</button></div>`;
+  }).join('');
+  return `<div class="card mt-5"><div class="card-label" style="margin-bottom:2px">Bills read from their own website</div>
+    <div style="font-size:12px;color:var(--slate);margin-bottom:4px">What each company's site said, and when. Nothing here is used until you confirm it.</div>${rows}</div>`;
+}
+
+async function renderBudgetBills() {
+  const box = g('budgetBillsCard');
+  if (!box) return;
+  let d;
+  try { d = await API.get('/api/settings/bank-agent/bills'); } catch (e) { return; }
+  box.innerHTML = budgetBillsHtml(d.bills);
+}
+
+async function _refreshBudgetMonth() {
+  try {
+    const m = await API.get('/api/budget/month-amounts');
+    (S.expenses || []).forEach(e => {
+      const r = e.id != null ? m[String(e.id)] : null;
+      if (r) Object.assign(e, { month_amount: r.month_amount, month_source: r.month_source, month_why: r.month_why, month_from: r.month_from, month_for: r.month_for });
+    });
+  } catch (e) { _gwErr('_refreshBudgetMonth')(e); }
+  renderBudget();
+}
+
+async function confirmBillReading(id, yes) {
+  try { await API.post('/api/settings/bank-agent/bill-read/confirm', { id, yes }); }
+  catch (e) { showToast('Not saved', e?.message || '', 'warning'); return; }
+  renderBudgetBills();
+}
+
+async function useBillReading(readingId, use) {
+  try { await API.post('/api/settings/bank-agent/bill-read/use', { reading_id: readingId, use }); }
+  catch (e) { showToast('Not saved', e?.message || '', 'warning'); return; }
+  _refreshBudgetMonth();
 }
 
 // Item 67 (GET_ALL_ACCOUNTS.md G1-G6): one press visits each account with saved steps, one at a time. Started by

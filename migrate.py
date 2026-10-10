@@ -12,9 +12,10 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261009-municipal-utilities'   # the Municipal Utilities leaf (MUNICIPAL_UTILITIES.md, item 56)
-# This bump carries no migrate.py code: a new CATEGORY_TREE leaf reaches an existing database through
-# _seed_child_categories, which runs only when the stored version differs. Before it, '20261008-trip-bookings'
+SCHEMA_VERSION = '20261010-bill-readings'   # bill readings confirmed from a bill's own website (BILLS_AND_PAYING.md, item 68)
+# This bump carries no migrate.py code: the new bill_readings table reaches an existing database through
+# init_db's create_all, which runs only when the stored version differs. Before it, '20261009-municipal-utilities'
+# added a CATEGORY_TREE leaf (through _seed_child_categories, likewise only on a version change); before that, '20261008-trip-bookings'
 # added the trip_bookings table (TRIP_BOOKED.md, item 50). The previous version, '20261002-household-facts', added the household_facts table and carried existing answers
 # over (ONBOARDING_REVISIT.md); before it, '20260928-willingness-declarations' added the willingness_declarations table;
 # before it,
@@ -33,7 +34,7 @@ SCHEMA_SPEC_SHA256 = '01adb2cf8f0101ad2fbe7d661d751ec2f7d5b0a67a58907014fa6df718
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = '378cad44942b03efb08b13393fd5285a9bd0674d5d6088e324ba88e4177f816f'
+SCHEMA_MODELS_SHA256 = '6eeccfd0c01fb831602e99112c9553828efb50d591ef28e50f628ad382c6a11d'
 
 
 def _stored_schema_version():

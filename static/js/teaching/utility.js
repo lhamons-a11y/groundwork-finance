@@ -171,7 +171,7 @@
       var old = row.querySelector('[data-gw-month-note]');
       if (old) old.remove();
       if (!e) return;
-      var text = e.month_source === 'estimate' && e.month_from
+      var text = (e.month_source === 'estimate' || e.month_source === 'bill') && e.month_from
         ? fmt(e.month_amount) + ' this month, from ' + e.month_from + ' \u00b7 you saved ' + fmt(parseFloat(e.amount) || 0)
         : e.month_why ? 'Using your saved ' + fmt(parseFloat(e.amount) || 0) + ': ' + e.month_why : '';
       if (!text) return;
