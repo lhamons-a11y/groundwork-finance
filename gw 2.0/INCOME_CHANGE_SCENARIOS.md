@@ -1,5 +1,7 @@
 # Item 71 — When income drops: scenarios that keep a goal in reach, and how the budget follows
 
+**ACCEPTED + CLOSED 2026-10-10** (Rob 2026-10-10: "i accept all").
+
 Opened 2026-10-10. Rob:
 
 > *"Scenario if Groundwork sees that income of one of the users appear to get less and less as their time is getting

@@ -1,5 +1,7 @@
 # Item 64 — Reports that stand on their own without AI; AI adds the teaching
 
+**ACCEPTED + CLOSED 2026-10-10** (Rob 2026-10-10: "i accept all").
+
 Opened 2026-10-09. Rob: *"if the software is running on a computer that the ai is running too slow can turn it off
 and still have a great experience. In fact we should off pre built reports for no AI usage and show graphs and data
 that help summarize what the ser would want to see in that report. Where an AI report will also offer the same data

@@ -35,15 +35,24 @@ def run(ctx):
             for e in lib['entries']}
     hits = {k: v for k, v in hits.items() if v}
     check(f's188 E10 no entry\'s words carry a verdict, command or judgement the voice rules block ({hits})', not hits)
-    check('s188 E6 nothing is offered until Rob accepts it: every shipped entry is a draft, with what it was checked against',
-          ev.accepted_ids() == [] and all(e['status'] == 'draft' and e.get('checked_against') for e in lib['entries']))
+    check('s188 E6 every shipped entry was accepted by Rob (2026-10-10, "i accept all"), with its date and what it was checked against',
+          ev.accepted_ids() == sorted(e['id'] for e in lib['entries'])
+          and all(e['status'] == 'accepted' and e.get('accepted_on') and e.get('checked_against') for e in lib['entries']))
+    real_lib = ev.library
+    ev.library = lambda: {'entries': [dict(lib['entries'][0], status='draft', accepted_on=None),
+                                      dict(lib['entries'][1], accepted_on=None)]}
+    try:
+        dropped = ev.accepted_ids()
+    finally:
+        ev.library = real_lib
+    check('s188 E6 a draft, or an acceptance with no date, is never offered or citable', dropped == [])
 
     # ── E2 / E6: selection, against a library with one accepted entry ──
     accepted = dict(lib['entries'][0], status='accepted', accepted_on='2026-10-10')
     debt_one = dict(lib['entries'][5], id='t_debt', status='accepted', accepted_on='2026-10-10')
     fd, path = tempfile.mkstemp(suffix='.json')
     with os.fdopen(fd, 'w', encoding='utf-8') as f:
-        json.dump({'version': 't', 'entries': [accepted, debt_one, lib['entries'][1]]}, f)
+        json.dump({'version': 't', 'entries': [accepted, debt_one, dict(lib['entries'][1], status='draft', accepted_on=None)]}, f)
     real = ev.LIBRARY
     ev.LIBRARY = type(real)(path)
     try:

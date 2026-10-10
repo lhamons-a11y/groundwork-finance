@@ -1,5 +1,7 @@
 # Item 60 — Bring in a whole itinerary and see the trip's budget
 
+**ACCEPTED + CLOSED 2026-10-10** (Rob 2026-10-10: "i accept all").
+
 Opened 2026-10-09. Rob: *"figure out a way to import from expedia and other travel groups plans that the agent can
 break apart and show the travel budget."* **I1–I7 RULED as recommended (Rob 2026-10-09: "I accept item 59, 60, 62"). BUILT 2026-10-10 on master** (Rob: "build all items that have been ruled on"); see §3.
 

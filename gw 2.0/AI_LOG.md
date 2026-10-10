@@ -1,5 +1,7 @@
 # Item 62 — The AI log: what was sent, kept in one place
 
+**ACCEPTED + CLOSED 2026-10-10** (Rob 2026-10-10: "i accept all").
+
 Opened 2026-10-09. Rob: *"should we have a page maybe in settings we have a page that shows the what was sent to ai
 log that they could select and view, That way we can clean up the look of the ui and still show the users what
 data was used."*, then *"yes"*. **G1–G8 RULED as recommended (Rob 2026-10-09: "I accept item 59, 60, 62"). BUILT 2026-10-10** (Rob: "build all items that have been ruled on"): the `ai_log` table (SCHEMA_VERSION 20261010-ai-log, pins, fixture), written by the chat route only - every attempt, streamed or not, finished, shortened, stopped or unanswered; each attempt's voice verdict reported back from the page; Settings -> AI features -> AI log (grouped by request, Keep the log, Clear); the panels' one line "Sent to AI on this computer · see it in the log"; backups scrub it (rows deleted, file compacted) and JSON exports leave it out unless ticked; 90 days; s184. The old "could search the web" line went with the fold-out. Two older Node tests (s170, s171) now pass their page code through a file: it had grown past Windows' command-line limit. Awaiting the gate and acceptance.

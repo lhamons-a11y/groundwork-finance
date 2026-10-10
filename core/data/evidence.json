@@ -11,8 +11,8 @@
       "applies_when": ["has_savings_goal"],
       "surfaces": ["goal", "willingness"],
       "offer": "Want a weekly reminder to look at your goals?",
-      "status": "draft",
-      "accepted_on": null,
+      "status": "accepted",
+      "accepted_on": "2026-10-10",
       "checked_against": "abstract and the accepted manuscript's record (White Rose eprints 91437)"
     },
     {
@@ -24,8 +24,8 @@
       "applies_when": [],
       "surfaces": ["willingness"],
       "offer": "Want a weekly reminder that comes whatever the week looked like?",
-      "status": "draft",
-      "accepted_on": null,
+      "status": "accepted",
+      "accepted_on": "2026-10-10",
       "checked_against": "abstract"
     },
     {
@@ -37,8 +37,8 @@
       "applies_when": [],
       "surfaces": ["willingness"],
       "offer": "Want a weekly reminder that comes whatever the week looked like?",
-      "status": "draft",
-      "accepted_on": null,
+      "status": "accepted",
+      "accepted_on": "2026-10-10",
       "checked_against": "abstract"
     },
     {
@@ -50,8 +50,8 @@
       "applies_when": ["has_savings_goal"],
       "surfaces": ["goal"],
       "offer": "Want to decide now how much of your next raise goes to a goal?",
-      "status": "draft",
-      "accepted_on": null,
+      "status": "accepted",
+      "accepted_on": "2026-10-10",
       "checked_against": "working-paper abstract and the Department of Labor CLEAR summary; the published abstract was not read"
     },
     {
@@ -63,8 +63,8 @@
       "applies_when": ["has_savings_goal"],
       "surfaces": ["goal"],
       "offer": "Want to set one monthly amount for this goal and leave it in place?",
-      "status": "draft",
-      "accepted_on": null,
+      "status": "accepted",
+      "accepted_on": "2026-10-10",
       "checked_against": "NBER working-paper abstract (w7682)"
     },
     {
@@ -76,8 +76,8 @@
       "applies_when": ["multiple_debts"],
       "surfaces": ["debt_plan"],
       "offer": "Want to see the plan that closes a debt soonest beside the one that costs the least interest?",
-      "status": "draft",
-      "accepted_on": null,
+      "status": "accepted",
+      "accepted_on": "2026-10-10",
       "checked_against": "Kellogg School research and news pages; the abstract itself was not read"
     },
     {
@@ -89,8 +89,8 @@
       "applies_when": ["has_card_balance"],
       "surfaces": ["debt_plan"],
       "offer": "Want to set your own monthly payment for each card, apart from the minimum?",
-      "status": "draft",
-      "accepted_on": null,
+      "status": "accepted",
+      "accepted_on": "2026-10-10",
       "checked_against": "abstract opening (Warwick repository) and the university's press release"
     },
     {
@@ -102,8 +102,8 @@
       "applies_when": ["has_savings_goal"],
       "surfaces": ["goal"],
       "offer": "Want a reminder that names this goal?",
-      "status": "draft",
-      "accepted_on": null,
+      "status": "accepted",
+      "accepted_on": "2026-10-10",
       "checked_against": "working-paper abstracts (NBER w16205 and the 2014 draft); the published abstract was not read"
     },
     {
@@ -115,8 +115,8 @@
       "applies_when": ["has_savings_goal"],
       "surfaces": ["goal"],
       "offer": "Want to give this goal a date and an amount to hold to?",
-      "status": "draft",
-      "accepted_on": null,
+      "status": "accepted",
+      "accepted_on": "2026-10-10",
       "checked_against": "abstract and the Yale ISPS record"
     }
   ]
