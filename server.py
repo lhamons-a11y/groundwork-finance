@@ -6485,6 +6485,13 @@ def trip_distance_estimate():
     return ok(trip_distance.get_drive_distance(origin, destination))
 
 
+def _label_old_ai_prices(saved):
+    """Item 59 P1: a budget saved by an earlier version with the model's figures keeps them, said for what they are."""
+    if isinstance(saved, dict) and saved.get('aiResult') is not None:
+        saved = {**saved, 'aiResult_label': 'estimated by the AI model in an earlier version, not a price'}
+    return saved
+
+
 @trip_bp.route('/budget', methods=['GET'])
 def get_trip_budget():
     """Return any saved trip budget from app_settings."""
@@ -6492,7 +6499,7 @@ def get_trip_budget():
         row = _get_setting(session, 'trip_budget')
         if row and row.value:
             try:
-                return ok(json.loads(row.value))
+                return ok(_label_old_ai_prices(json.loads(row.value)))
             except Exception:
                 logging.getLogger('groundwork').warning(
                     'trip_budget setting is corrupt JSON — returning None',
@@ -6507,6 +6514,7 @@ def save_trip_budget():
     body = request.json
     with db_session() as session:
         row = _get_setting(session, 'trip_budget')
+        body = {k: v for k, v in (body or {}).items() if k != 'aiResult'}   # item 59 P1: never the model's prices
         val = json.dumps(body)
         if row:
             row.value = val

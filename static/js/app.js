@@ -11047,166 +11047,19 @@ async function _tripLaunchAdvisorAI() {
   }
 }
 
-// ── Phase 10C: AI trip budget ─────────────────────────────────────────────────
+// ── Phase 10C: the trip budget (item 59 P1: no model prices any line, nothing is "live") ──
 async function generateTripBudget() {
   const output  = g('tripBudgetOutput');
   const content = g('tripBudgetContent');
   const badge   = g('tripAIBadge');
   if (!output || !content) return;
   if (!_tripBudgetData) { tripUpdateBudget(); if (!_tripBudgetData) return; }
-
   output.style.display = '';
-  content.innerHTML = `<div style="display:flex;align-items:center;gap:10px;color:var(--slate-2);padding:16px 0">
-    <div class="spinner"></div><span>Building your ${esc(_tripBudgetData.dest)} budget…</span></div>`;
-
-  const d       = _tripBudgetData;
-  const vehicle = g('tripVehicle')?.value?.trim() || 'your vehicle';
-  const mpg     = g('tripMPG')?.value || '28';
-  const airport = g('tripAirport')?.value?.trim() || '';
-  const origin  = g('tripOrigin')?.value?.trim() || 'your city';
-
-  if (!aiEnabled()) {
-    _renderTripBudgetFallback(content, badge, d);
-    return;
-  }
-
-  if (badge) badge.textContent = '✦ AI · live prices';
-
-  // Build prompt with web search enabled
-  const transportContext = _tripMode === 'drive'
-    ? `Driving from ${origin} to ${d.dest}. Vehicle: ${vehicle}, ${mpg} MPG highway. Need: distance in miles, current gas price estimate along the route, total fuel cost. Also check if an oil change is advisable (user's last was flagged in their ledger).`
-    : `Flying from ${airport || origin} to ${d.dest}. Need: current roundtrip flight price range for ${d.travelers} passenger${d.travelers!==1?'s':''}, departure ${d.depart}.`;
-
-  const prompt = `You are building a detailed trip budget. Use web search to find current prices.
-
-Trip details:
-  Destination: ${d.dest}
-  Dates: ${d.depart} to ${d.ret} (${d.nights} nights, ${d.days} days)
-  Travelers: ${d.travelers}
-  Transport: ${_tripMode === 'drive' ? 'driving' : 'flying'}
-
-Transport specifics:
-  ${transportContext}
-
-User's financial context:
-  Total trip budget available: ${fmt(d.total)}
-  Monthly surplus after debt: ${fmt(d.surplus)}
-
-Tasks:
-1. Search for current gas prices if driving, or flight prices if flying
-2. Search for hotel options in ${d.dest} for ${d.nights} nights around ${d.depart} — find options in the $90-$160/night range
-3. Estimate dining costs for ${d.dest} (${d.days} days, ${d.travelers} people) based on the city's typical restaurant prices
-4. Suggest 1-2 activities appropriate for ${d.dest}
-
-Return a complete line-item budget that stays within ${fmt(d.total)} total.
-Format your response as a JSON object with this exact structure:
-{
-  "transport": { "cost": number, "note": "string", "detail": "string" },
-  "hotel": { "cost": number, "note": "string", "options": ["string"] },
-  "dining": { "cost": number, "note": "string" },
-  "activities": { "cost": number, "note": "string", "suggestions": ["string"] },
-  "buffer": { "cost": number },
-  "total": number,
-  "verdict": "string (one sentence on whether this fits their budget)",
-  "tip": "string (one specific money-saving tip for this destination)",
-  ${_tripMode === 'drive' ? '"road_notes": "string (stops, traffic, anything useful)",' : '"flight_notes": "string (booking tips, best time to search)",'}
-  "within_budget": boolean
-}
-Respond with ONLY the JSON object. No markdown, no explanation.`;
-
-  try {
-    const result = await callAI({
-      max_tokens: 800,
-      system: 'You are a travel budget assistant. Always search for real current prices. Return only valid JSON.',
-      messages: [{ role:'user', content: prompt }],
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      // Strict-JSON output, not narrative prose — voice/R8 don't apply
-      // (prices come from a live web search, not pre-supplied findings).
-      skipGate: true,
-    });
-
-    if (result.ok) {
-      try {
-        const clean = result.text.replace(/```json|```/g, '').trim();
-        const data  = JSON.parse(clean);
-        _renderTripBudgetResult(content, badge, data, d, result.payload);
-        // Save to DB for tracking
-        API.post('/api/trip/budget', { ...d, aiResult: data, generatedAt: new Date().toISOString() })
-          .catch(_gwErr('generateTripBudget'));
-      } catch(e) {
-        // AI returned text not JSON — render as narrative
-        _renderTripBudgetNarrative(content, badge, result.text, d, result.payload);
-      }
-    } else {
-      _renderTripBudgetFallback(content, badge, d);
-    }
-  } catch(e) {
-    _renderTripBudgetFallback(content, badge, d);
-  }
-}
-
-function _renderTripBudgetResult(content, badge, data, d, payload) {
-  if (badge) badge.textContent = '✦ AI · live prices';
-
-  const withinBudget = data.within_budget !== false && data.total <= d.total * 1.05;
-  const statusColor  = withinBudget ? 'var(--pine)' : 'var(--ember)';
-  const statusIcon   = withinBudget ? '✓' : '⚠';
-
-  const rows = [
-    { cat: _tripMode==='drive' ? '🚗 Transport' : '✈ Flights', cost: data.transport?.cost, note: data.transport?.note },
-    { cat: '🏨 Hotel', cost: data.hotel?.cost, note: data.hotel?.note },
-    { cat: '🍽 Dining', cost: data.dining?.cost, note: data.dining?.note },
-    { cat: '🎯 Activities', cost: data.activities?.cost, note: data.activities?.note },
-    { cat: '🛡 Buffer', cost: data.buffer?.cost, note: '10% contingency' },
-  ].filter(r => r.cost > 0);
-
-  content.innerHTML = `
-    <div style="margin-bottom:16px">
-      ${rows.map(r => `
-        <div class="trip-budget-row">
-          <span class="trip-budget-cat">${r.cat}</span>
-          <span><span class="trip-budget-amt">${fmt(r.cost||0)}</span><span class="trip-budget-note">${esc(r.note||'')}</span></span>
-        </div>`).join('')}
-      <div class="trip-budget-row">
-        <span class="trip-budget-cat">Total</span>
-        <span class="trip-budget-amt">${fmt(data.total||0)}</span>
-      </div>
-    </div>
-
-    <div style="padding:10px 14px;border-radius:var(--r-md);border:0.5px solid ${statusColor};background:${withinBudget?'var(--pine-bg)':'var(--ember-bg)'};font-size:12px;color:var(--ink);margin-bottom:14px">
-      ${statusIcon} ${esc(data.verdict||'')}
-    </div>
-
-    ${data.hotel?.options?.length ? `
-    <div style="margin-bottom:14px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Hotel suggestions</div>
-      ${data.hotel.options.map(o => `<div style="font-size:12px;color:var(--ink);padding:4px 0;border-bottom:0.5px solid var(--steel)">${esc(o)}</div>`).join('')}
-    </div>` : ''}
-
-    ${data.activities?.suggestions?.length ? `
-    <div style="margin-bottom:14px">
-      <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Activities</div>
-      ${data.activities.suggestions.map(s => `<div style="font-size:12px;color:var(--ink);padding:4px 0;border-bottom:0.5px solid var(--steel)">${esc(s)}</div>`).join('')}
-    </div>` : ''}
-
-    ${data.road_notes || data.flight_notes ? `
-    <div style="padding:10px 14px;background:var(--mist);border-radius:var(--r-md);font-size:12px;color:var(--slate);margin-bottom:14px">
-      ${esc(data.road_notes || data.flight_notes || '')}
-    </div>` : ''}
-
-    ${data.tip ? `
-    <div style="padding:10px 14px;border-left:2px solid var(--sky);background:var(--sky-bg);border-radius:0 var(--r-md) var(--r-md) 0;font-size:12px;color:var(--ink)">
-      💡 <strong>Money tip:</strong> ${esc(data.tip)}
-    </div>` : ''}
-    ${_renderAIDisclosure(payload)}`;
-}
-
-function _renderTripBudgetNarrative(content, badge, text, d, payload) {
-  if (badge) badge.textContent = '✦ AI';
-  content.innerHTML = `
-    <div style="font-size:13px;color:var(--ink);line-height:1.75;margin-bottom:16px">${esc(text)}</div>
-    ${_tripBudgetFallbackHTML(d)}
-    ${_renderAIDisclosure(payload)}`;
+  const d = _tripBudgetData;
+  _renderTripBudgetFallback(content, badge, d);
+  // Saved for the trip history - the figures shown, never a model's
+  API.post('/api/trip/budget', { ...d, generatedAt: new Date().toISOString() })
+    .catch(_gwErr('generateTripBudget'));
 }
 
 function _renderTripBudgetFallback(content, badge, d) {
@@ -11225,7 +11078,6 @@ function _tripBudgetFallbackHTML(d) {
     <div class="trip-budget-row"><span class="trip-budget-cat">Total</span><span class="trip-budget-amt">${fmt(d.total)}</span></div>
     <div style="margin-top:12px;padding:10px 14px;border-radius:var(--r-md);border:0.5px solid ${withinBudget?'var(--pine)':'var(--gold)'};background:${withinBudget?'var(--pine-bg)':'var(--gold-bg)'};font-size:12px">
       ${withinBudget ? '✓ This trip fits within your budget.' : '⚠ Consider saving for this trip over 2–3 months.'}
-      Turn on AI in Settings for AI-powered live price estimates.
     </div>`;
 }
 
