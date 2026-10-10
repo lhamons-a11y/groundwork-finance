@@ -384,7 +384,9 @@ FETCH_STATUSES = ('step', 'skipped', 'signed_in', 'waiting_code', 'stopped', 'do
 STOP_REASONS = ('page_changed', 'bot_check', 'no_login', 'code_timeout', 'cancelled', 'sign_in_failed')
 STEP_WAIT = 15.0          # seconds for a step's control to appear after a page load
 SIGN_IN_SETTLE = 12.0     # seconds the old login page may still show after Sign In is pressed
-CLOSE_PAUSE = 3.0         # seconds the finished fetch window stays, so the file finishes writing, before it closes
+CLOSE_PAUSE = 8.0         # seconds the finished window stays before closing: the file finishes writing, and the
+                          # browser saves the bank page's own settings (it batches them ~5 s; a 3 s close lost a
+                          # "don't show this again" tick - Rob, 2026-10-10)
 _SIGN_IN_WORDS = re.compile(r'(^|[\s_])(sign ?in|log ?in|login|log on)([\s_]|$)', re.I)
 
 
