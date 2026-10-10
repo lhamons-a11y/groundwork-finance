@@ -9319,6 +9319,56 @@ def _label_old_ai_prices(saved):
     return saved
 
 
+@trip_bp.route('/itinerary/read', methods=['POST'])
+def trip_itinerary_read():
+    """Item 60 (TRIP_ITINERARY_IMPORT.md) I1/I5/I6: a pasted itinerary, a PDF or a saved email (.eml), read on this
+    computer. Confirmation numbers come out of the text first. A known sender's document is broken into its parts
+    here, without a model; anything else comes back for the local model to transcribe (then /itinerary/check).
+    Nothing is written and the file is not kept."""
+    from core import itinerary as it
+    try:
+        if 'file' in request.files:
+            up = request.files['file']
+            text = it.text_from_upload(up.filename, up.read())
+        else:
+            text = str((request.get_json(silent=True) or {}).get('text') or '')
+            if not text.strip():
+                return err('Paste the itinerary, or choose its PDF or saved email.')
+            if len(text) > it.MAX_BYTES:
+                return err('That is far longer than an itinerary.')
+    except ValueError as e:
+        return err(str(e))
+    except Exception:                                  # noqa: BLE001 - never the document's text in a log
+        logging.getLogger('groundwork').info('itinerary file could not be read')
+        return err('Could not read that file.')
+    text, codes = it.take_confirmations(text)
+    known = it.read_known(text)
+    if known:
+        return ok({**it.finish(known, text, codes), 'needs_model': False})
+    return ok({'needs_model': True, 'text': text, 'model_text': it.text_for_model(text), 'confirmations': codes,
+               'parts': [], 'warnings': []})
+
+
+@trip_bp.route('/itinerary/check', methods=['POST'])
+@require_json
+def trip_itinerary_check():
+    """Item 60 I2/I3: the local model's transcription of an itinerary, every figure checked against the document.
+    A figure the document doesn't contain is dropped and said; an answer that isn't the asked shape is refused whole
+    (fail closed). Nothing is written."""
+    from core import itinerary as it
+    body = request.json or {}
+    text = str(body.get('text') or '')
+    if not text.strip():
+        return err('The itinerary text is needed to check the figures against.')
+    text, codes = it.take_confirmations(text)
+    codes += [{'kind': c.get('kind') if c.get('kind') in it.KINDS else None, 'code': str(c.get('code') or '')[:25]}
+              for c in (body.get('confirmations') or [])[:10] if isinstance(c, dict) and c.get('code')]
+    out = it.from_model(body.get('raw'), text, codes)
+    if out is None:
+        return err("The reader's answer wasn't usable - nothing was taken from it.")
+    return ok({**out, 'needs_model': False})
+
+
 @trip_bp.route('/per-diem', methods=['GET'])
 def trip_per_diem():
     """P2: GSA's lodging and meals rate for a destination on a date - the federal travel rate, never a quote. Looked

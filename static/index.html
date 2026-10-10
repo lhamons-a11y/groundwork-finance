@@ -2449,7 +2449,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         </div>
 
         <!-- Phase 5D: Paste a quote / describe the trip -->
-        <div id="tripQuoteCard" class="card mb-5">
+        <div id="tripQuoteCard" class="card mb-5" ondragover="event.preventDefault()" ondrop="event.preventDefault(); const f = event.dataTransfer.files[0]; if (f) _readTripItinerary(f)">
           <div class="card-label">Have a quote, or just want to describe the trip?</div>
           <div style="font-size:12px;color:var(--slate);margin-bottom:12px;line-height:1.6">
             Paste a hotel, VRBO, or flight quote — or just describe the trip in plain English. Groundwork reads what's actually there; nothing is filled in without your OK.
@@ -2459,6 +2459,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               style="width:100%;padding:10px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:13px;font-family:var(--font-body);resize:vertical;background:var(--paper);color:var(--ink)"></textarea>
           </div>
           <button class="btn btn-secondary btn-sm" onclick="_readTripQuote()">Read it</button>
+          <button class="btn btn-ghost btn-sm" onclick="_readTripItinerary(null)">Read as a whole itinerary</button>
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer">Choose an itinerary file (PDF or saved email)
+            <input type="file" id="tripItineraryFile" accept=".pdf,.eml,.txt,.html,.htm" style="display:none"
+              onchange="if (this.files[0]) _readTripItinerary(this.files[0])">
+          </label>
+          <div style="font-size:11px;color:var(--slate-2);margin-top:6px;line-height:1.5">A whole itinerary (flight, hotel, car and the rest) can be pasted, chosen or dropped here. Expedia, Booking.com, airline receipts and hotel folios are read without AI. The file is read on this computer and never kept.</div>
           <div id="tripQuoteResult" style="margin-top:14px"></div>
         </div>
 

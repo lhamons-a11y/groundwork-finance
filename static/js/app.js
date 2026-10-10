@@ -10326,7 +10326,7 @@ async function _loadAirfareMarkets(checkForNewer) {
   if (checkForNewer) {
     try {
       const r = await API.post('/api/trip/airfare-refresh', {});
-      API.post('/api/trip/per-diem-refresh', {}).catch(() => {});   // item 59 P2: GSA's yearly file
+      API.post('/api/trip/per-diem-refresh', {}).catch(_gwErr('perDiemRefresh'));   // item 59 P2: GSA's yearly file
       if (r?.updated) _loadAirfareMarkets(false);
     } catch (e) {
       _gwErr('_loadAirfareMarkets refresh')(e);
@@ -11163,6 +11163,197 @@ function _clearTripQuote() {
   tripUpdateBudget();
 }
 
+// Item 60 (gw 2.0/TRIP_ITINERARY_IMPORT.md, I1-I7): a whole itinerary - pasted, a PDF or a saved email - broken
+// into its parts. A known sender's document is read on the server without the model (I5, so AI off works); anything
+// else is transcribed by the local model and every figure is checked against the document on the server (I3).
+// Nothing is used until the person ticks the parts and says yes (I4); the file itself is never kept (I6).
+let _tripItinerary = null;          // { sender, parts: [{ kind, vendor, start, end, status, amount, edited }] } once used
+let _tripItineraryPending = null;   // a read, waiting on "Use the ticked parts"
+const _ITIN_KIND = { flight: '✈ Flight', lodging: '🏨 Lodging', car: '🚗 Car', activity: '🎯 Activity',
+                     transfer: '🚐 Transfer', insurance: '🛡 Insurance', fees: '🧾 Fees' };
+const _ITIN_STATUS = { paid: 'paid', deposit: 'deposit paid', due_later: 'due later', unknown: 'payment not stated' };
+
+function _itinLabel(sender) {
+  return !sender || sender === 'your' ? 'your itinerary' : `your ${sender} itinerary`;
+}
+
+async function _readTripItinerary(file) {
+  const resultEl = g('tripQuoteResult');
+  const text = g('tripQuoteText')?.value?.trim();
+  if (!file && !text) { showToast('Paste an itinerary, or choose its PDF or saved email', '', 'warning'); return; }
+  const say = (html) => { if (resultEl) resultEl.innerHTML = html; };
+  say(`<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--slate)"><div class="spinner"></div>Reading the itinerary on this computer…</div>`);
+  let res;
+  try {
+    if (file) {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await _gwFetch('/api/trip/itinerary/read', { method: 'POST', body: fd });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || `Server error ${r.status}`);
+      res = j.data;
+    } else {
+      res = await API.post('/api/trip/itinerary/read', { text });
+    }
+  } catch (e) {
+    say(`<div style="font-size:12px;color:var(--ember)">${esc(e.message || 'Could not read that.')}</div>`);
+    return;
+  } finally {
+    if (g('tripItineraryFile')) g('tripItineraryFile').value = '';
+  }
+  if (res.needs_model) {
+    // I5 / A10: with AI off the known senders still read; this one needs the model, so it says so plainly.
+    if (!aiEnabled()) {
+      say(`<div style="font-size:12px;color:var(--slate);line-height:1.6">Groundwork reads Expedia, Booking.com, airline receipts and hotel folios on its own. This itinerary is from someone else, so reading it takes the AI model, which is off. You can enter the trip's figures in the form below.</div>`);
+      return;
+    }
+    res = await _readTripItineraryWithModel(res);
+    if (!res) { say(`<div style="font-size:12px;color:var(--ember)">Couldn't read that itinerary right now - nothing was taken from it.</div>`); return; }
+  }
+  if (!res.parts?.length) {
+    say(`<div style="font-size:12px;color:var(--slate)">No priced parts were found in that document.${res.warnings?.length ? ' ' + res.warnings.map(esc).join(' · ') : ''}</div>`);
+    return;
+  }
+  _tripItineraryPending = res;
+  _renderTripItinerary(res);
+}
+
+async function _readTripItineraryWithModel(read) {
+  const prompt = `Below are the lines of a travel itinerary that carry its parts (flights, lodging, car, activities, transfers, insurance, fees).
+
+ITINERARY:
+${read.model_text}
+
+Copy each part into this exact JSON shape. Copy every figure exactly as printed; null for anything not printed. Never add, estimate or compute a figure: if a part shows a price and taxes but no total, leave total null.
+{
+  "sender": "the company that sent it" or null,
+  "components": [
+    { "kind": "flight" | "lodging" | "car" | "activity" | "transfer" | "insurance" | "fees",
+      "vendor": "string", "start": "YYYY-MM-DD" or null, "end": "YYYY-MM-DD" or null,
+      "price": number or null, "taxes_fees": number or null, "total": number or null,
+      "status": "paid" | "deposit" | "due_later" | "unknown" }
+  ],
+  "printed_total": number or null
+}
+Respond with ONLY the JSON object.`;
+  let result;
+  try {
+    result = await callAI({
+      max_tokens: 700,
+      system: 'You are a strict travel-document transcriber. You copy only what is literally printed into JSON. You never invent, estimate, or compute numbers.',
+      messages: [{ role: 'user', content: prompt }],
+      skipGate: true,   // strict-JSON extraction, not narrative prose
+      surface: 'trip_itinerary_extract',
+    });
+  } catch (e) { return null; }
+  if (!result?.ok || !result.text) return null;
+  let raw;
+  try {
+    const c = result.text.replace(/```json|```/g, '').trim();
+    raw = JSON.parse(c.slice(c.indexOf('{'), c.lastIndexOf('}') + 1));
+  } catch (e) { return null; }          // not the asked shape: refused whole, never salvaged
+  try {
+    return await API.post('/api/trip/itinerary/check', { text: read.text, raw, confirmations: read.confirmations || [] });
+  } catch (e) { return null; }
+}
+
+function _renderTripItinerary(res) {
+  const el = g('tripQuoteResult');
+  if (!el) return;
+  const who = _itinLabel(res.sender);
+  const rows = res.parts.map(p => {
+    const when = p.start && p.end && p.end !== p.start ? `${p.start} to ${p.end}` : (p.start || '');
+    const figures = (p.lines || []).map(l => `${esc(l.label || l.role)} ${fmt(l.amount)}`).join(' · ');
+    return `
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:0.5px solid var(--steel)">
+      <input type="checkbox" id="itinUse${p.id}" ${p.amount != null ? 'checked' : ''} style="margin-top:3px" aria-label="Use ${esc(p.vendor)}">
+      <div style="flex:1;font-size:12px;line-height:1.5">
+        <div><strong>${_ITIN_KIND[p.kind] || esc(p.kind)}</strong> · ${esc(p.vendor)}</div>
+        <div style="color:var(--slate)">${[when, _ITIN_STATUS[p.status] || ''].filter(Boolean).map(esc).join(' · ')}</div>
+        <div style="color:var(--slate-2)">${figures || 'no figure kept'}${p.basis === 'sum' ? ' - added up by Groundwork' : ''}</div>
+        ${p.kind === 'flight' && p.status === 'paid' ? `<label style="display:flex;gap:6px;align-items:center;margin-top:4px"><input type="checkbox" id="itinBook${p.id}"> Also record it as a booking${p.confirmation ? ' (with its confirmation number)' : ''}, so its card charge is matched later</label>` : ''}
+      </div>
+      <input type="number" step="0.01" min="0" id="itinAmt${p.id}" value="${p.amount != null ? Number(p.amount).toFixed(2) : ''}" placeholder="amount" style="width:100px" aria-label="Amount for ${esc(p.vendor)}">
+    </div>`;
+  }).join('');
+  // I3: Groundwork's sum beside the document's own total - both shown when they differ, never reconciled.
+  const totals = res.printed_total == null
+    ? `The parts add up to <strong>${fmt(res.sum)}</strong>. The document shows no total of its own.`
+    : res.agree
+      ? `The parts add up to <strong>${fmt(res.sum)}</strong>, the same as the document's total.`
+      : `The parts add up to <strong>${fmt(res.sum)}</strong>; the document's own total is <strong>${fmt(res.printed_total)}</strong>. Both are shown - Groundwork doesn't guess which is right. Check the parts against the document.`;
+  el.innerHTML = `
+    <div style="background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);padding:14px">
+      <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px">${esc(who.charAt(0).toUpperCase() + who.slice(1))}: ${res.parts.length} part${res.parts.length !== 1 ? 's' : ''} found ${res.source === 'model' ? '(read by the AI model; every figure checked against the document)' : '(read without AI)'}</div>
+      <div style="font-size:11px;color:var(--slate);margin-bottom:6px">Untick a part to leave it out, or correct an amount. Nothing is used until you say so.</div>
+      ${rows}
+      <div style="font-size:12px;margin-top:10px;line-height:1.6">${totals}</div>
+      ${res.warnings?.length ? `<div style="font-size:11px;color:#92400e;background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-sm);padding:6px 10px;margin-top:8px">⚠️ ${res.warnings.map(esc).join(' · ')}</div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary btn-sm" onclick="_applyTripItinerary()">Use the ticked parts for this trip</button>
+        <button class="btn btn-ghost btn-sm" onclick="g('tripQuoteResult').innerHTML=''; _tripItineraryPending=null">Discard</button>
+      </div>
+    </div>`;
+}
+
+async function _applyTripItinerary() {
+  const res = _tripItineraryPending;
+  if (!res) return;
+  const parts = [], books = [];
+  for (const p of res.parts) {
+    if (!g(`itinUse${p.id}`)?.checked) continue;
+    const v = parseFloat(g(`itinAmt${p.id}`)?.value);
+    if (!(v >= 0)) continue;
+    const amount = tripExactTotal(v);
+    parts.push({ kind: p.kind, vendor: p.vendor, start: p.start, end: p.end, status: p.status, amount,
+                 edited: p.amount == null || Math.abs(amount - p.amount) >= 0.005 });
+    if (g(`itinBook${p.id}`)?.checked) books.push({ airline: p.vendor, amount, confirmation: p.confirmation || '' });
+  }
+  if (!parts.length) { showToast('Nothing is ticked - nothing was used', '', 'warning'); return; }
+  _tripItineraryPending = null;
+  _tripItinerary = { sender: res.sender, parts };
+  const starts = parts.map(p => p.start).filter(Boolean).sort();
+  const ends = parts.map(p => p.end || p.start).filter(Boolean).sort();
+  if (starts.length && g('tripDepart') && !g('tripDepart').value) g('tripDepart').value = starts[0];
+  if (ends.length && g('tripReturn') && !g('tripReturn').value) g('tripReturn').value = ends[ends.length - 1];
+  // I4 / item 50: a paid flight the person ticked becomes a booking, so its real charge is matched later.
+  let booked = 0, unbooked = 0;
+  for (const b of books) {
+    const label = tripBookingLabel();
+    if (!label) { unbooked++; continue; }
+    try {
+      await API.post('/api/trip/bookings', { trip_label: label, airline: b.airline, amount: b.amount,
+        booked_on: new Date().toISOString().slice(0, 10), paid_with_kind: 'other', confirmation: b.confirmation });
+      booked++;
+    } catch (e) { _gwErr('_applyTripItinerary')(e); }
+  }
+  if (booked) _tripBookingsKey = null;
+  const el = g('tripQuoteResult');
+  if (el) el.innerHTML = `<div style="font-size:12px;color:var(--pine)">✓ ${parts.length} part${parts.length !== 1 ? 's' : ''} from ${esc(_itinLabel(res.sender))} ${parts.length !== 1 ? 'are' : 'is'} in the trip budget below${booked ? `, and ${booked} flight${booked !== 1 ? 's are' : ' is'} recorded as booked` : ''}.${unbooked ? ' Fill in the destination to record a flight as booked.' : ''} <button onclick="_clearTripItinerary()" style="background:none;border:none;color:var(--sky);text-decoration:underline;cursor:pointer;font-size:12px;padding:0;margin-left:6px">Stop using the itinerary</button></div>`;
+  if (parts.some(p => p.kind === 'flight') && _tripMode !== 'fly') setTripMode('fly');
+  else tripUpdateBudget();
+}
+
+function _clearTripItinerary() {
+  _tripItinerary = null;
+  const el = g('tripQuoteResult');
+  if (el) el.innerHTML = '';
+  tripUpdateBudget();
+}
+
+// The used parts, by budget line: flights, lodging, activities, and the rest (car, transfers, insurance, fees).
+function _tripItineraryTotals() {
+  if (!_tripItinerary?.parts?.length) return null;
+  const OTHER = ['car', 'transfer', 'insurance', 'fees'];
+  const sum = kinds => {
+    const xs = _tripItinerary.parts.filter(p => kinds.includes(p.kind));
+    return xs.length ? tripExactTotal(xs.reduce((s, p) => s + p.amount, 0)) : null;
+  };
+  return { label: _itinLabel(_tripItinerary.sender), flight: sum(['flight']), lodging: sum(['lodging']),
+           activity: sum(['activity']), other: sum(OTHER),
+           otherWhat: [...new Set(_tripItinerary.parts.filter(p => OTHER.includes(p.kind)).map(p => p.kind))].join(', ') };
+}
+
 // Flight fares (gw 2.0/FLIGHT_FARES.md, item 40, Rob 2026-10-07). The old
 // "Search live flight prices" button needed a flight-search service key the user was told
 // to put in config.json — no user has one, so every click failed. Now the
@@ -11508,6 +11699,7 @@ function tripUpdateBudget() {
 
   const nights    = Math.max(1, Math.round((new Date(ret) - new Date(depart)) / 86400000));
   const days      = nights + 1;
+  const itin      = _tripItineraryTotals();   // item 60: the parts used from an itinerary
 
   // Transport cost estimate
   let transportCost = 0, transportNote = '';
@@ -11541,6 +11733,9 @@ function tripUpdateBudget() {
     transportNote = tc.label === 'charged'
       ? `${fmt(tc.amount)} charged by ${bk.airline}${tc.differs ? ` (booked ${fmt(tc.booked)})` : ''}`
       : `${fmt(tc.amount)} booked with ${bk.airline} — waiting for the charge`;
+  } else if (itin?.flight != null) {
+    transportCost = tripExactTotal(itin.flight);
+    transportNote = `${fmt(transportCost)} total (from ${itin.label})`;
   } else if (_tripQuoteData?.flightTotal != null) {
     // Phase 5D: a real pasted flight-quote total beats the $220/person guess.
     transportCost = tripExactTotal(_tripQuoteData.flightTotal);
@@ -11567,7 +11762,11 @@ function tripUpdateBudget() {
   // line is left out of the total and says so). The old $140-a-night default is gone.
   const perDiem = _tripPerDiemFor(dest, depart);
   let hotelCost = 0, hotelPerNight = 0, hotelSource = '';
-  if (_tripQuoteData?.hotelTotal != null) {
+  if (itin?.lodging != null) {
+    hotelCost = tripExactTotal(itin.lodging);
+    hotelPerNight = Math.round(hotelCost / nights);
+    hotelSource = `from ${itin.label}`;
+  } else if (_tripQuoteData?.hotelTotal != null) {
     hotelCost = tripExactTotal(_tripQuoteData.hotelTotal);
     hotelPerNight = Math.round(hotelCost / nights);
     hotelSource = 'you entered the quote';
@@ -11616,12 +11815,16 @@ function tripUpdateBudget() {
   const activitiesEntered = parseFloat(g('tripActivities')?.value);
   let activitiesCost = 0, activitiesSource = '';
   if (activitiesEntered > 0) { activitiesCost = Math.round(activitiesEntered); activitiesSource = 'you entered'; }
+  else if (itin?.activity != null) { activitiesCost = tripExactTotal(itin.activity); activitiesSource = `from ${itin.label}`; }
   else if (_tripLearnedBasis?.activitiesPerPersonDay != null) {
     activitiesCost = Math.round(_tripLearnedBasis.activitiesPerPersonDay * travelers * days); activitiesSource = 'your past trips';
   } else activitiesSource = 'Not included - add what you plan to spend.';
 
   // Buffer: 10%
-  const subtotal = transportCost + hotelCost + diningCost + activitiesCost;
+  // Item 60: a car, transfers, insurance and fees from an itinerary are their own line.
+  const otherCost   = itin?.other != null ? tripExactTotal(itin.other) : 0;
+  const otherSource = otherCost ? `${itin.otherWhat} from ${itin.label}` : '';
+  const subtotal = transportCost + hotelCost + diningCost + activitiesCost + otherCost;
   const buffer   = Math.round(subtotal * 0.1);
   const total    = subtotal + buffer;
 
@@ -11657,6 +11860,8 @@ function tripUpdateBudget() {
     hotel:      hotelCost,      hotelSource,
     dining:     diningCost,     diningSource,
     activities: activitiesCost, activitiesSource,
+    other:      otherCost,      otherSource,
+    itinerary:  _tripItinerary ? { sender: _tripItinerary.sender, parts: _tripItinerary.parts } : null,
     buffer,
     total,
     surplus,
@@ -11864,6 +12069,7 @@ function _tripBudgetFallbackHTML(d) {
     ${line('🏨 Hotel', d.hotel, d.hotelSource)}
     ${line('🍽 Dining', d.dining, d.diningSource)}
     ${line('🎯 Activities', d.activities, d.activitiesSource)}
+    ${d.other ? line('🧾 Other', d.other, d.otherSource) : ''}
     ${line('🛡 Cushion', d.buffer, "10% of the lines above (Groundwork's rule of thumb)")}
     <div class="trip-budget-row"><span class="trip-budget-cat">Total</span><span class="trip-budget-amt">${fmt(d.total)}</span></div>
     <div style="margin-top:12px;font-size:12px;color:var(--slate);line-height:1.6">The total counts only lines with a source. Your monthly surplus after debt is ${fmt(d.surplus)}.</div>`;
