@@ -2,7 +2,7 @@
 
 Opened 2026-10-10. Rob: *"lets look at gift budget and see how can that get improved?"*
 
-**Points G1–G9 for ruling. No code yet.**
+**G1–G9 RULED 2026-10-11 (Rob: "I accept on all items that need ruled on"), G1–G5 and G7–G9 as recommended; G6, offered without a recommendation, accepted under that "all". No code yet: the build needs its own go-ahead.**
 
 ## 1. What is true today (measured 2026-10-10, master 7479f50, and Rob's data read without changes)
 
