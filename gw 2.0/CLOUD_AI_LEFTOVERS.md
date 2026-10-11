@@ -1,7 +1,7 @@
 # Item 63 — The last cloud-AI leftovers
 
 Opened 2026-10-09. Rob: *"lets clear all former cloud ai referenced."* Cloud AI was removed from both lines in item
-21 (`CLOUD_AI_REMOVAL.md`, 2026-09-25) and Ollama in item 31. Measured 2026-10-09 on master, these remain. **L1–L6 RULED 2026-10-11 as recommended (L3: (a), keep the notices; L6: master), BUILT 2026-10-11, awaiting acceptance; see §3.**
+21 (`CLOUD_AI_REMOVAL.md`, 2026-09-25) and Ollama in item 31. Measured 2026-10-09 on master, these remain. **L1–L6 RULED 2026-10-11 as recommended (L3: (a), keep the notices; L6: master), BUILT 2026-10-11 (master 15c8f40, gate 3115/0); ACCEPTED + CLOSED 2026-10-11 (Rob: "I accept"); see §3.**
 
 ## 1. What remains
 
