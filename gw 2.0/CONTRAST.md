@@ -4,7 +4,7 @@ Opened 2026-10-11. Rob, on the AI analysis card: *"we need better contrasting on
 against that green."* That one card was fixed (a `--note` colour, #475569, about 7:1; commit 19954b8). Then: *"open
 an item to fix the contrast everywhere."*
 
-**Points K1–K8 for ruling. No code yet.**
+**K1–K8 RULED 2026-10-11 as recommended (Rob: "approve K1–K8 as recommended"). No code yet:** the build needs its own go-ahead.
 
 ## 1. What is true today (measured 2026-10-11, master)
 
