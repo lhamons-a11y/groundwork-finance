@@ -24321,23 +24321,22 @@ async function renderEvidence(surface, el) {
     try { rhythm = await API.get('/api/usage/rhythm'); } catch (e) { _gwErr('renderEvidence rhythm')(e); }
   }
   el.innerHTML = _rhythmHTML(rhythm) + ((d && d.entries) || []).map(_evidenceHTML).join('');
-  ((d && d.entries) || []).forEach(e => { if (!e.intro) _evidenceIntro(e, surface); });   // E3, AI on only
+  ((d && d.entries) || []).forEach(e => { if (!e.intro) _evidenceIntro(e, surface, d.surface_words); });   // E3, AI on only
 }
 
 // E3: the narrator may add one introducing sentence - written once per entry and surface, checked by the voice check
 // (R11: a research mention must carry the entry's tag), and shown as written with the tag taken out.
-const _EV_SURFACE_WORDS = { goal: 'a savings goal', debt_plan: 'a debt payoff plan', willingness: 'the working picture',
-                            card_payoff: 'a plan to pay a trip off a card' };
+// The surface's words come from the server (core/evidence.py SURFACE_WORDS), so this code names no layer (s129, s180).
 let _evIntroBusy = false;
-async function _evidenceIntro(e, surface) {
-  if (_evIntroBusy || !aiEnabled() || !_EV_SURFACE_WORDS[surface]) return;
+async function _evidenceIntro(e, surface, words) {
+  if (_evIntroBusy || !aiEnabled() || !words) return;
   _evIntroBusy = true;
   try {
     const r = await callAI({
       max_tokens: 80,
       max_sentences: 1,
       system: 'You introduce a research finding in one plain sentence, about 25 words. No advice, no commands, no numbers.',
-      messages: [{ role: 'user', content: `This research finding is shown next to ${_EV_SURFACE_WORDS[surface]}: "${e.finding}" (${(e.source || {}).authors}, ${(e.source || {}).year}). Write one sentence, about 25 words, saying why it is shown here. Put [ev:${e.id}] right after any mention of research or a study. Use no numbers. No advice, no commands, no question marks.` }],
+      messages: [{ role: 'user', content: `This research finding is shown next to ${words}: "${e.finding}" (${(e.source || {}).authors}, ${(e.source || {}).year}). Write one sentence, about 25 words, saying why it is shown here. Put [ev:${e.id}] right after any mention of research or a study. Use no numbers. No advice, no commands, no question marks.` }],
       surface: 'evidence_intro',
       findings_kinds: ['goal', 'debt'],
     });

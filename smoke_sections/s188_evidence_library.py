@@ -197,7 +197,7 @@ def run(ctx):
     check('s188 E9 the card payoff rows carry the debt entries',
           'card_payoff' in ev.SURFACES and all('card_payoff' in e['surfaces'] for e in lib['entries'] if e['id'] in ('stewart2009_anchor', 'gal2012_small_wins'))
           and 'data-evidence-surface="card_payoff"' in app and "renderEvidence('card_payoff'" in app)
-    intro = app.split('async function _evidenceIntro(e, surface) {')[1].split('\n}\n')[0]
+    intro = app.split('async function _evidenceIntro(e, surface, words) {')[1].split('\n}\n')[0]
     check('s188 E3 the intro sentence: AI on only, one sentence, research tagged for R11, saved only once it passed',
           'if (_evIntroBusy || !aiEnabled()' in intro and 'max_sentences: 1' in intro and '[ev:${e.id}]' in intro
           and "surface: 'evidence_intro'" in intro and "API.post('/api/evidence/intro'" in intro

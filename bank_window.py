@@ -221,9 +221,9 @@ def child_main():
     # Downloads here and only here: the main process keeps ALLOW_DOWNLOADS False.
     webview.settings['ALLOW_DOWNLOADS'] = True
     flights = window_title(url) == 'Google Flights'
-    hotels = window_title(url) == 'Google Hotels'
     if flights:
         keep_new_windows_in_engine(platform_key)
+    hotels = window_title(url) == 'Google Hotels'
 
     if flights:
         # Item 44 (FLIGHT_FARE_READ.md): the one page read, Google Flights only. It all lives in flights_window.py,

@@ -17,6 +17,9 @@ LIBRARY = Path(__file__).parent / 'data' / 'evidence.json'
 FIELDS = ('id', 'finding', 'limits', 'source', 'strength', 'applies_when', 'surfaces', 'offer', 'status')
 STRENGTHS = ('meta-analysis', 'randomized trial', 'field study', 'survey')
 SURFACES = ('goal', 'debt_plan', 'willingness', 'card_payoff')
+# E3: how the narrator names each surface ("shown next to ..."). Kept here, so the page's code names no layer.
+SURFACE_WORDS = {'goal': 'a savings goal', 'debt_plan': 'a debt payoff plan', 'willingness': 'the working picture',
+                 'card_payoff': 'a plan to pay a trip off a card'}
 STATUSES = ('draft', 'accepted')
 
 # E2: the facts an entry may apply to - each read from the person's own financial record.

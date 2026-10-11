@@ -1838,7 +1838,7 @@ def evidence_for_surface():
             last = next((a for a in reversed(answers) if a.get('id') == e['id']), None)
             intro = _setting_json(session, f"evidence_intro_{e['id']}_{surface}")
             out.append({**e, 'answer': last, 'intro': intro.get('text') if isinstance(intro, dict) else None})
-        return ok({'surface': surface, 'entries': out})
+        return ok({'surface': surface, 'surface_words': ev.SURFACE_WORDS.get(surface), 'entries': out})
 
 
 @evidence_bp.route('/intro', methods=['POST'])
