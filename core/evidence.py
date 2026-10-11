@@ -16,7 +16,7 @@ from pathlib import Path
 LIBRARY = Path(__file__).parent / 'data' / 'evidence.json'
 FIELDS = ('id', 'finding', 'limits', 'source', 'strength', 'applies_when', 'surfaces', 'offer', 'status')
 STRENGTHS = ('meta-analysis', 'randomized trial', 'field study', 'survey')
-SURFACES = ('goal', 'debt_plan', 'willingness')
+SURFACES = ('goal', 'debt_plan', 'willingness', 'card_payoff')
 STATUSES = ('draft', 'accepted')
 
 # E2: the facts an entry may apply to - each read from the person's own financial record.
@@ -25,7 +25,10 @@ FACTS = {
     'has_debt': 'at least one active debt with a balance',
     'multiple_debts': 'two or more active debts with a balance',
     'has_card_balance': 'a credit card with a balance',
+    'no_savings_goal': 'no active savings goal (sinking fund)',
 }
+# E5's follow-through on a yes: open the page where it is done, or the Sunday check-in names the goals / is the reminder
+ACT_KINDS = ('open', 'checkin_goals', 'checkin_weekly')
 
 
 def library():
@@ -48,6 +51,10 @@ def problems(e):
         out.append('accepted with no accepted_on date')
     if not str(e.get('offer') or '').rstrip().endswith('?'):
         out.append('the offer is not a question (E5)')
+    act = e.get('act')
+    if act is not None and (not isinstance(act, dict) or act.get('kind') not in ACT_KINDS
+                            or (act.get('kind') == 'open' and not (act.get('open') or {}).get('view'))):
+        out.append(f'act {act!r} is not one Groundwork can follow through')
     return out
 
 
@@ -69,6 +76,7 @@ def facts(session):
         'has_debt': len(debts) > 0,
         'multiple_debts': len(debts) >= 2,
         'has_card_balance': any((d.debt_type or 'credit') == 'credit' for d in debts),
+        'no_savings_goal': goals == 0,
     }
 
 

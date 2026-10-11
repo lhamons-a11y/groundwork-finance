@@ -230,3 +230,47 @@ working paper should be read against the full paper before it is accepted. Accep
 - **Strength:** randomized trial. **Applies when:** has_savings_goal. **Shown on:** goal.
 - **Offer:** Want to give this goal a date and an amount to hold to?
 - **Checked against:** abstract and the Yale ISPS record
+
+
+## 7. The rest of item 58, built 2026-10-11 (Rob: "build 58 and 59")
+
+- **E3, the narrator's introducing sentence.**
+  - With AI on, each entry on each surface gets one sentence (about 25 words, no numbers, no advice) saying why it is
+    shown there.
+  - It goes through the voice check: R11 requires the entry's `[ev:id]` tag after any mention of research.
+  - It is kept once it passes (`evidence_intro_<id>_<surface>`) and shown with the tag taken out.
+  - With AI off there is no sentence; the entry stands as written.
+- **E5, acting on a yes.** Each entry now has a follow-through (`act`):
+  - **Open it for me** (navigation only) for the monthly amount and the date and amount of a goal (Madrian, Ashraf,
+    and the emergency-savings draft), and for the debt plan and the cards (Gal, Stewart);
+  - **the Sunday check-in names your goals** and where each stands, with what a month gets there (Harkin, Karlan),
+    seen in s188;
+  - **the Sunday check-in is that reminder**, coming every Sunday whatever the week looked like (Karlsson,
+    Sicherman);
+  - **Thaler & Benartzi (a share of the next raise):** Groundwork can't act on this yet, because nothing notices a
+    raise. The answer is kept and it says so.
+
+  Adding `act` and a surface changes how an accepted entry is wired, not its accepted words.
+- **E9, the card payoff rows.** The debt entries (Gal, Stewart) now also show under the trip's card payoff plan (item
+  49), surface `card_payoff`.
+- **E7, the two topics not drafted before:**
+  - **Emergency savings: drafted.** `gjertson2016_emergency`, from the paper's abstract (the full text is paywalled).
+    It applies when the person has no savings goal and offers *"Want to start a small fund for emergencies?"*. **It
+    is a draft and shows nowhere until Rob accepts it (E6).**
+  - **Mental accounting (Thaler 1999): not drafted.** The abstract could only be read in part (its third component
+    was cut off in every copy found), and it is a research review, a kind of evidence E1's strengths don't list.
+    Drafting it would mean writing it partly from memory, which E6 forbids. It needs either the full paper, or a
+    specific mental-accounting experiment instead.
+
+### 6a. The new draft, for acceptance
+
+### gjertson2016_emergency - draft
+- **Finding:** Among low-income households in disadvantaged neighborhoods, those that set money aside for emergencies
+  reported somewhat less hardship three years later, such as going without enough food or losing phone service.
+- **What it doesn't show:** Low-income households in particular neighborhoods, not a national sample. It shows a link,
+  and the difference was modest; it does not show that saving caused the difference.
+- **Source:** Gjertson (2016). *Emergency saving and household hardship*. Journal of Family and Economic Issues
+  37(1), 1-17. https://doi.org/10.1007/s10834-014-9434-z
+- **Strength:** field study. **Applies when:** no savings goal. **Shown on:** goal, willingness.
+- **Offer:** Want to start a small fund for emergencies?
+- **Checked against:** the abstract (IDEAS/RePEc record); the full text is paywalled and was not read.

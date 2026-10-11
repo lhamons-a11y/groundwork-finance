@@ -35,9 +35,13 @@ def run(ctx):
             for e in lib['entries']}
     hits = {k: v for k, v in hits.items() if v}
     check(f's188 E10 no entry\'s words carry a verdict, command or judgement the voice rules block ({hits})', not hits)
-    check('s188 E6 every shipped entry was accepted by Rob (2026-10-10, "i accept all"), with its date and what it was checked against',
-          ev.accepted_ids() == sorted(e['id'] for e in lib['entries'])
-          and all(e['status'] == 'accepted' and e.get('accepted_on') and e.get('checked_against') for e in lib['entries']))
+    acc = [e for e in lib['entries'] if e['status'] == 'accepted']
+    drafts = [e for e in lib['entries'] if e['status'] == 'draft']
+    check(f's188 E6 every shipped entry is accepted with its date, or a draft that is never offered ({[e["id"] for e in drafts]})',
+          ev.accepted_ids() == sorted(e['id'] for e in acc) and len(acc) >= 9
+          and all(e.get('accepted_on') and e.get('checked_against') for e in acc)
+          and all(not e.get('accepted_on') and e.get('checked_against') for e in drafts)
+          and len(acc) + len(drafts) == len(lib['entries']))
     real_lib = ev.library
     ev.library = lambda: {'entries': [dict(lib['entries'][0], status='draft', accepted_on=None),
                                       dict(lib['entries'][1], accepted_on=None)]}
@@ -179,3 +183,38 @@ def run(ctx):
     check('s188 E4 the Python harness holds the same R11', a is False and b is True)
     check('s188 E4 the gate fails closed: with no accepted ids loaded, every research claim fails',
           'catch (e) { _EVIDENCE_IDS = new Set(); }' in app and "(typeof _EVIDENCE_IDS !== 'undefined' && _EVIDENCE_IDS) || new Set()" in app)
+
+    # ── 2026-10-11 (Rob: "build 58 and 59"): the follow-through on a yes, the card payoff rows, the intro sentence ──
+    acts = {e['id']: (e.get('act') or {}).get('kind') for e in lib['entries']}
+    check(f's188 E5 each entry has a follow-through Groundwork can do, or says it cannot yet ({acts})',
+          acts.get('madrian2001_defaults') == 'open' and acts.get('harkin2016_monitoring') == 'checkin_goals'
+          and acts.get('karlsson2009_ostrich') == 'checkin_weekly' and acts.get('thaler2004_smart') is None
+          and not ev.problems(dict(lib['entries'][0], act={'kind': 'open', 'open': {'view': 'budget'}}))
+          and ev.problems(dict(lib['entries'][0], act={'kind': 'pay_it'})))
+    follow = app.split('function _evidenceFollow(e) {')[1].split('\n}\n')[0]
+    check('s188 E5 "Open it for me" only navigates; the check-in follow-through is said; an entry without one says so',
+          'helpOpen(' in follow and "can't act on this one for you yet" in follow and 'API.' not in follow)
+    check('s188 E9 the card payoff rows carry the debt entries',
+          'card_payoff' in ev.SURFACES and all('card_payoff' in e['surfaces'] for e in lib['entries'] if e['id'] in ('stewart2009_anchor', 'gal2012_small_wins'))
+          and 'data-evidence-surface="card_payoff"' in app and "renderEvidence('card_payoff'" in app)
+    intro = app.split('async function _evidenceIntro(e, surface) {')[1].split('\n}\n')[0]
+    check('s188 E3 the intro sentence: AI on only, one sentence, research tagged for R11, saved only once it passed',
+          'if (_evIntroBusy || !aiEnabled()' in intro and 'max_sentences: 1' in intro and '[ev:${e.id}]' in intro
+          and "surface: 'evidence_intro'" in intro and "API.post('/api/evidence/intro'" in intro
+          and c.post('/api/evidence/intro', headers=HJ, data=json.dumps({'id': 'made_up', 'surface': 'goal', 'text': 'x'})).status_code == 400)
+    em = next((e for e in lib['entries'] if e['id'] == 'gjertson2016_emergency'), None)
+    check('s188 E7 the emergency-savings entry is drafted from its paper and waits for Rob (a draft, shown nowhere)',
+          em is not None and em['status'] == 'draft' and 'gjertson2016_emergency' not in ev.accepted_ids()
+          and em['applies_when'] == ['no_savings_goal'])
+
+    with db_session() as s:
+        s.add(SinkingFund(name='s188 vacation', target_amount=1200, current_amount=300, deadline='2099-06-01', is_active=True))
+        s.query(AppSetting).filter_by(key='evidence_answers').delete(); s.commit()
+    before = c.get('/api/checkin', headers=H).get_json()['data'].get('goals')
+    c.post('/api/evidence/answer', headers=HJ, data=json.dumps({'id': 'harkin2016_monitoring', 'answer': 'yes'}))
+    after = c.get('/api/checkin', headers=H).get_json()['data'].get('goals') or []
+    check(f's188 E5 a yes to a goal-progress entry makes the Sunday check-in name the goals and where each stands ({after})',
+          before == [] and any(gl['name'] == 's188 vacation' and gl['saved'] == 300 and gl['target'] == 1200 and gl['monthly'] for gl in after))
+    with db_session() as s:
+        s.query(SinkingFund).filter(SinkingFund.name.like('s188%')).delete(synchronize_session=False)
+        s.query(AppSetting).filter_by(key='evidence_answers').delete(); s.commit()

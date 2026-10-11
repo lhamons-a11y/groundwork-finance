@@ -10760,13 +10760,15 @@ function _renderCardFunding(detail) {
     if (_tripCardPlan && _tripCardPlanKey === `${_tripCardId}|${total}`) {
       const own = tripOwnSavingsRate(S.transactions);
       const income = own ? own.monthlyIncome : (S.incomes || []).reduce((s, i) => s + (i.amount || 0), 0);
-      html += tripCardDetailHTML(_tripCardPlan, _tripBudgetData.surplus, own, _tripSaveRatePick, income);
+      html += tripCardDetailHTML(_tripCardPlan, _tripBudgetData.surplus, own, _tripSaveRatePick, income)
+        + '<div id="evidenceCardPayoff" data-evidence-surface="card_payoff"></div>';   // item 58 E9
     } else {
       html += 'Working it out…';
       _tripLoadCardPlan(total);
     }
   }
   detail.innerHTML = html;
+  if (g('evidenceCardPayoff')) renderEvidence('card_payoff', g('evidenceCardPayoff'));
 }
 
 function _renderFundingDetail() {
@@ -12233,6 +12235,8 @@ function _checkinLines(f) {
   if (m.budget) lines.push(`This month so far: ${fmt(m.spent)} of the ${fmt(m.budget)} budgeted, ${m.left >= 0 ? `with ${fmt(m.left)} left` : `${fmt(Math.abs(m.left))} past it`} for the ${m.days_left} day${m.days_left !== 1 ? 's' : ''} that remain.`);
   if (f.interest && f.interest.week > 0) lines.push(`Your debts cost about ${fmt(f.interest.week)} in interest this week - about ${fmt(f.interest.month)} a month at these balances, whatever else is paid.`);
   if (f.bills && f.bills.length) lines.push('Due this week: ' + f.bills.map(b => `${b.name}${b.amount != null ? ` (${fmt(b.amount)})` : ''}, ${day(b.date)}`).join('; ') + '.');
+  if (f.goals && f.goals.length) lines.push('Your goals: ' + f.goals.map(gl => `${gl.name}, ${fmt(gl.saved)} of ${fmt(gl.target)}` +
+    (gl.deadline ? ` by ${day(gl.deadline)}` : '') + (gl.monthly ? ` (${fmt(gl.monthly)} a month gets there)` : '')).join('; ') + '.');
   if (f.pay && f.pay.length) {
     const names = [...new Set(f.pay.map(_checkinWho))];
     lines.push(`Groundwork expects ${names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0]} this week, from ${f.pay.length > 1 ? 'each one\'s' : 'its'} usual schedule.`);
@@ -24317,6 +24321,42 @@ async function renderEvidence(surface, el) {
     try { rhythm = await API.get('/api/usage/rhythm'); } catch (e) { _gwErr('renderEvidence rhythm')(e); }
   }
   el.innerHTML = _rhythmHTML(rhythm) + ((d && d.entries) || []).map(_evidenceHTML).join('');
+  ((d && d.entries) || []).forEach(e => { if (!e.intro) _evidenceIntro(e, surface); });   // E3, AI on only
+}
+
+// E3: the narrator may add one introducing sentence - written once per entry and surface, checked by the voice check
+// (R11: a research mention must carry the entry's tag), and shown as written with the tag taken out.
+const _EV_SURFACE_WORDS = { goal: 'a savings goal', debt_plan: 'a debt payoff plan', willingness: 'the working picture',
+                            card_payoff: 'a plan to pay a trip off a card' };
+let _evIntroBusy = false;
+async function _evidenceIntro(e, surface) {
+  if (_evIntroBusy || !aiEnabled() || !_EV_SURFACE_WORDS[surface]) return;
+  _evIntroBusy = true;
+  try {
+    const r = await callAI({
+      max_tokens: 80,
+      max_sentences: 1,
+      system: 'You introduce a research finding in one plain sentence, about 25 words. No advice, no commands, no numbers.',
+      messages: [{ role: 'user', content: `This research finding is shown next to ${_EV_SURFACE_WORDS[surface]}: "${e.finding}" (${(e.source || {}).authors}, ${(e.source || {}).year}). Write one sentence, about 25 words, saying why it is shown here. Put [ev:${e.id}] right after any mention of research or a study. Use no numbers. No advice, no commands, no question marks.` }],
+      surface: 'evidence_intro',
+      findings_kinds: ['goal', 'debt'],
+    });
+    if (r && r.ok && r.text && !r.stopped) {
+      await API.post('/api/evidence/intro', { id: e.id, surface, text: r.text });
+      const box = document.querySelector(`[data-evidence="${e.id}"] .gw-ev-intro`);
+      if (box) box.textContent = _evStripTags(r.text);
+    }
+  } catch (err) { _gwErr('_evidenceIntro')(err); } finally { _evIntroBusy = false; }
+}
+
+function _evStripTags(t) { return String(t || '').replace(/\s*\[ev:[a-z0-9_]+\]/g, ''); }
+
+function _evidenceFollow(e) {
+  const a = e.act || {};
+  if (a.kind === 'open') return ` <button class="btn btn-secondary btn-sm" onclick='helpOpen(${JSON.stringify(a.open)})'>Open it for me</button>`;
+  if (a.kind === 'checkin_goals') return ' Your Sunday check-in now names your goals and where each one stands.';
+  if (a.kind === 'checkin_weekly') return ' The Sunday check-in is that reminder: it comes every Sunday, whatever the week looked like.';
+  return " Groundwork can't act on this one for you yet; your answer is kept.";
 }
 
 // E8: the person's own rhythm, as a fact. Shown here; nothing in Groundwork reads it (ruling 6).
@@ -24332,12 +24372,13 @@ function _evidenceHTML(e) {
   const s = e.source || {};
   const ans = e.answer;
   const offer = ans
-    ? `<div style="font-size:12px;color:var(--slate);margin-top:8px">You said ${ans.answer === 'yes' ? 'yes' : 'no thanks'} on ${esc(String(ans.said_at || '').slice(0, 10))}.
+    ? `<div style="font-size:12px;color:var(--slate);margin-top:8px">You said ${ans.answer === 'yes' ? 'yes' : 'no thanks'} on ${esc(String(ans.said_at || '').slice(0, 10))}.${ans.answer === 'yes' ? _evidenceFollow(e) : ''}
         <button class="btn btn-ghost btn-sm" onclick="evidenceAnswer('${esc(e.id)}', '${ans.answer === 'yes' ? 'no' : 'yes'}')">Change to ${ans.answer === 'yes' ? 'no thanks' : 'yes'}</button></div>`
     : `<div style="font-size:12px;color:var(--ink);margin-top:8px">${esc(e.offer)}
         <button class="btn btn-secondary btn-sm" style="margin-left:6px" onclick="evidenceAnswer('${esc(e.id)}', 'yes')">Yes</button>
         <button class="btn btn-ghost btn-sm" onclick="evidenceAnswer('${esc(e.id)}', 'no')">No thanks</button></div>`;
   return `<div class="card mt-5" data-evidence="${esc(e.id)}"><div class="card-label">What research has found</div>
+    <div class="gw-ev-intro" style="font-size:12px;color:var(--slate);font-style:italic;margin-bottom:4px">${esc(_evStripTags(e.intro || ''))}</div>
     <div style="font-size:13px;color:var(--ink);line-height:1.6;margin:4px 0">${esc(e.finding)}</div>
     <div style="font-size:12px;color:var(--slate);line-height:1.6"><strong>What it doesn't show:</strong> ${esc(e.limits)}</div>
     <div style="font-size:11px;color:var(--slate-2);margin-top:6px">${esc(s.authors || '')} (${esc(String(s.year || ''))}). ${esc(s.title || '')}. ${esc(s.journal || '')}. ${esc(e.strength || '')}.${s.url ? ' ' + esc(s.url) : ''}</div>

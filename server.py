@@ -1836,8 +1836,25 @@ def evidence_for_surface():
         out = []
         for e in ev.select(session, surface):
             last = next((a for a in reversed(answers) if a.get('id') == e['id']), None)
-            out.append({**e, 'answer': last})
+            intro = _setting_json(session, f"evidence_intro_{e['id']}_{surface}")
+            out.append({**e, 'answer': last, 'intro': intro.get('text') if isinstance(intro, dict) else None})
         return ok({'surface': surface, 'entries': out})
+
+
+@evidence_bp.route('/intro', methods=['POST'])
+@require_json
+def evidence_intro():
+    """E3: the narrator's one introducing sentence for an entry on a surface, kept once it passed the voice check
+    (R11 included). Only for an accepted entry and a known surface."""
+    from core import evidence as ev
+    body = request.json or {}
+    eid, surface, text = str(body.get('id') or ''), str(body.get('surface') or ''), str(body.get('text') or '').strip()
+    if eid not in ev.accepted_ids() or surface not in ev.SURFACES or not text:
+        return err('Not an accepted entry on a known surface.', 400)
+    with db_session() as session:
+        _set_setting(session, f'evidence_intro_{eid}_{surface}', json.dumps({'text': text[:400], 'at': datetime.now().isoformat(timespec='seconds')}))
+        session.commit()
+        return ok({'saved': True})
 
 
 @evidence_bp.route('/ids', methods=['GET'])
@@ -1932,6 +1949,26 @@ def checkin_get():
         f = ck.facts(session, today, budget_month=budget, pay=_pay_state(session, today)['payers'],
                      payer_people=_setting_json(session, 'payer_people', {}) or {},
                      recurring=recurring if isinstance(recurring, list) else [])
+        # item 58 E5: a yes to a goal-progress entry makes the check-in name the goals and where they stand
+        from core import evidence as ev
+        acts = {e['id']: (e.get('act') or {}).get('kind') for e in ev.accepted()}
+        said = {}
+        for a in _setting_json(session, 'evidence_answers', []) or []:
+            if isinstance(a, dict):
+                said[a.get('id')] = a.get('answer')
+        f['goals'] = []
+        if any(acts.get(i) == 'checkin_goals' and v == 'yes' for i, v in said.items()):
+            from core.database import SinkingFund
+            for sf in session.query(SinkingFund).filter_by(is_active=True).all():
+                left = max(0.0, (sf.target_amount or 0) - (sf.current_amount or 0))
+                months = None
+                try:
+                    dl = date.fromisoformat(sf.deadline) if sf.deadline else None
+                    months = max(1, (dl.year - today.year) * 12 + dl.month - today.month) if dl and dl > today else None
+                except ValueError:
+                    dl = None
+                f['goals'].append({'name': sf.name, 'saved': round(sf.current_amount or 0, 2), 'target': round(sf.target_amount or 0, 2),
+                                   'deadline': sf.deadline, 'monthly': round(left / months, 2) if months and left > 0 else None})
         key = today.isoformat()
         return ok({**f, 'date': key, 'is_sunday': today.weekday() == 6,
                    'written': _setting_json(session, f'checkin_text_{key}'),
