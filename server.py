@@ -215,6 +215,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(why_bp,            url_prefix='/api/why')
     app.register_blueprint(help_bp,           url_prefix='/api/help')
     app.register_blueprint(review_bp,         url_prefix='/api/reports/review')
+    app.register_blueprint(checkin_bp,        url_prefix='/api/checkin')
     app.register_blueprint(usage_bp,          url_prefix='/api/usage')
     app.register_blueprint(dashboard_bp,      url_prefix='/api/dashboard')
 
@@ -1907,6 +1908,119 @@ def usage_rhythm():
     return ok({'opens_30d': len(recent), 'mostly': mostly})
 
 
+checkin_bp = Blueprint('checkin', __name__)
+
+
+# ── Item 76 - the Sunday check-in (SUNDAY_CHECKIN.md S1-S12) and the overnight narration rule (S1/S2) ───────────
+def _newest_import(session):
+    """When the newest imported records arrived (UTC) - hand-kept and Groundwork-written records never count."""
+    return session.query(func.max(Transaction.created_at)).filter(
+        Transaction.source.isnot(None), Transaction.source != '', Transaction.source != 'manual').scalar()
+
+
+@checkin_bp.route('', methods=['GET'])
+def checkin_get():
+    """S3-S8: the week behind, the month so far, the week ahead - every figure from the record - and this Sunday's
+    written part if one was written, and whether the person is done with it."""
+    from core import checkin as ck
+    with db_session() as session:
+        today = date.today()
+        amts = budget_month_amounts(session)
+        items = session.query(BudgetItem).filter_by(is_active=True, type='expense').all()
+        budget = sum((amts.get(i.id) or {}).get('month_amount', i.amount or 0) or 0 for i in items)
+        recurring = _setting_json(session, 'recurring_items_json', []) or []
+        f = ck.facts(session, today, budget_month=budget, pay=_pay_state(session, today)['payers'],
+                     payer_people=_setting_json(session, 'payer_people', {}) or {},
+                     recurring=recurring if isinstance(recurring, list) else [])
+        key = today.isoformat()
+        return ok({**f, 'date': key, 'is_sunday': today.weekday() == 6,
+                   'written': _setting_json(session, f'checkin_text_{key}'),
+                   'closed': bool(_setting_json(session, f'checkin_closed_{key}')),
+                   'people': [r.value for r in (_get_setting(session, 'household_user1'), _get_setting(session, 'household_user2'))
+                              if r is not None and (r.value or '').strip()]})
+
+
+@checkin_bp.route('/written', methods=['POST'])
+@require_json
+def checkin_written():
+    """S1/S9: this Sunday's written part, kept once it passed the checks."""
+    body = request.json or {}
+    key, text = str(body.get('date') or '')[:10], str(body.get('text') or '').strip()
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', key) or not text:
+        return err('date and text are required')
+    with db_session() as session:
+        _set_setting(session, f'checkin_text_{key}', json.dumps({'text': text[:4000], 'written_at': datetime.now().isoformat(timespec='seconds')}))
+        session.commit()
+        return ok({'saved': key})
+
+
+@checkin_bp.route('/close', methods=['POST'])
+@require_json
+def checkin_close():
+    """S12: the person is done with this Sunday's check-in; it stays closed for that day."""
+    key = str((request.json or {}).get('date') or date.today().isoformat())[:10]
+    with db_session() as session:
+        _set_setting(session, f'checkin_closed_{key}', 'true')
+        session.commit()
+        return ok({'closed': key})
+
+
+@checkin_bp.route('/whose', methods=['POST'])
+@require_json
+def checkin_whose():
+    """S7: whose pay an employer's deposits are - asked once, kept as the person's word, changeable."""
+    body = request.json or {}
+    payer = str(body.get('payer') or '').strip().lower()[:60]
+    person = str(body.get('person') or '').strip()[:40]
+    if not payer or not person:
+        return err('payer and person are required')
+    with db_session() as session:
+        people = _setting_json(session, 'payer_people', {}) or {}
+        people[payer] = person
+        _set_setting(session, 'payer_people', json.dumps(people))
+        session.commit()
+        return ok({'payer_people': people})
+
+
+def _narration_rule(newest, last, now):
+    """S1 (Rob's rule), as a pure function: (fresh, unwritten). Fresh: the newest import is under 48 hours old.
+    Unwritten: nothing has been written since it."""
+    fresh = bool(newest and now - newest < timedelta(hours=48))
+    unwritten = bool(newest and (last is None or newest > last))
+    return fresh, unwritten
+
+
+@checkin_bp.route('/narration-due', methods=['GET'])
+def narration_due():
+    """S1/S2 (Rob's rule): background narration runs only when the newest import is under 48 hours old and nothing
+    has been written since it. Then: this Sunday's check-in (if today is Sunday and none is written) and the one
+    monthly review that is due (item 75)."""
+    from core import monthly_review as mr
+    with db_session() as session:
+        newest = _newest_import(session)
+        last = _setting_json(session, 'narration_last_at')
+        try:
+            last_dt = datetime.fromisoformat(last) if last else None
+        except (TypeError, ValueError):
+            last_dt = None
+        fresh, unwritten = _narration_rule(newest, last_dt, datetime.utcnow())
+        ok_to_run = fresh and unwritten
+        today = date.today()
+        return ok({'run': ok_to_run, 'fresh': fresh, 'unwritten': unwritten,
+                   'checkin': ok_to_run and today.weekday() == 6 and not _setting_json(session, f'checkin_text_{today.isoformat()}'),
+                   'review': mr.due(session) if ok_to_run else None})
+
+
+@checkin_bp.route('/narration-done', methods=['POST'])
+def narration_done():
+    """S1: the night's narration is written - nothing more runs until a newer import arrives."""
+    with db_session() as session:
+        # full precision: an import in the same second as this must not read as newer than it
+        _set_setting(session, 'narration_last_at', json.dumps(datetime.utcnow().isoformat()))
+        session.commit()
+        return ok({'done': True})
+
+
 review_bp = Blueprint('review', __name__)
 
 
@@ -2323,8 +2437,9 @@ def stale_imports(session, today=None):
         Transaction.source.isnot(None), Transaction.source != '', Transaction.source != 'manual',
     ).group_by(Transaction.account_id).all()
     out = []
+    skip = set(_setting_json(session, 'review_skip_accounts', []) or [])     # item 75/76: "not needed" counts here too
     for account_id, last in rows:
-        if last is None:
+        if last is None or account_id in skip:
             continue
         days = (now - last).days
         if days < IMPORT_STALE_DAYS:
@@ -2351,8 +2466,9 @@ def imports_behind_this_month(session, today=None):
         Transaction.source.isnot(None), Transaction.source != '', Transaction.source != 'manual',
     ).group_by(Transaction.account_id).all()
     out = []
+    skip = set(_setting_json(session, 'review_skip_accounts', []) or [])     # item 75/76: "not needed" counts here too
     for account_id, last in rows:
-        if last is None or last >= start:
+        if last is None or last >= start or account_id in skip:
             continue
         acct = session.get(Account, account_id)
         if not acct or acct.is_active is False:

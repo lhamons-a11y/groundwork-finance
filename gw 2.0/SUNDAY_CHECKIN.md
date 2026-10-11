@@ -14,7 +14,7 @@ Opened 2026-10-11. Rob, with a screenshot of today's check-in:
 > to be deposited this week' ... if a deposit stops showing up like that Sunday check-in the following week does not
 > mention it. Until Deposits start happening again."*
 
-**Points S1–S10 for ruling. No code yet.**
+**S1–S10 RULED 2026-10-11 as recommended (Rob: "I agree with your recommendations and process them as approved"), with S11 and S12 added by Rob the same day. BUILT 2026-10-11 (Rob: "build 76"), awaiting acceptance; see §4.**
 
 ## 1. What is true today (measured 2026-10-11, master d339ac1; Rob's screenshot)
 
@@ -120,3 +120,66 @@ at $1,329.25. The debt cost $93.69 in interest this week."*
 
 - **A daily or mid-week check-in.** Not proposed.
 - **Notifications.** None. The check-in is on the dashboard when the person opens it (TM6).
+
+
+## 3a. Added by Rob, 2026-10-11
+
+**S11. The check-in is the lesson over the cards, not a copy of them.**
+- The cards ("This month", "What changed") hold the facts.
+- The check-in brings what only it can: the week, the week ahead, and what the figures mean together.
+- Its written part is told to explain, not recite.
+
+Rob: *"having something better narrated into a lesson will offer the same data in a different way."*
+
+**S12. At the top, Sundays, until the person is done.**
+- The check-in sits first under the greeting on Sundays.
+- A **Done** button closes it for that day.
+
+Rob: *"put that back up at the top … and then place a button that closes that card after the user is done with it."*
+
+**Also ruled (Rob: "use the same not needed list"):** the dashboard's completeness test (*"Nothing imported since
+October began for …"*) and its stale-import notices honour item 75's *Not needed for reviews* list.
+
+## 4. Built (2026-10-11)
+
+- **`core/checkin.py`** works out every figure from the record, through `/api/checkin`.
+  - **The week behind** is the last full Sunday–Saturday.
+  - **S3: transfers aren't spending.** A transfer-type category, or one under it, is named as *"moved between your
+    own accounts - not spending"*.
+  - **Card payments filed under a spending category** (Rob's "Debt") stay spending, because the budget budgets them:
+    like for like with the budget.
+- **S4:** the week against the week before, and the month so far against the month's budgeted spending (the same
+  figure the income card uses), with what is left and the days that remain.
+- **S5:** the debts' interest, as a week and as a month at these balances.
+- **S6:** bills due in the week ahead, from debt minimums by due day, recurring bills and bill readings, each with its
+  source.
+- **S7:** pay expected in the week ahead, from each employer's own schedule (item 71 D3).
+  - *"Whose pay is City of Millbrook?"* is asked once, with the household's names (`payer_people`), and its answer names
+    the pay: *"Rob's pay"*.
+- **S8:** an employer that is missing, unknown or not yet on record is never mentioned.
+- **S1 / S2:**
+  - While Groundwork is open, the page checks every 15 minutes. Between 1 and 4 a.m., if
+    `/api/checkin/narration-due` says the newest import is under 48 hours old and nothing has been written since,
+    it writes this Sunday's written part (on a Sunday) and the one due monthly review (item 75), then records the
+    time. The rule is `_narration_rule`, tested on fixed times.
+  - The import no longer writes the review (item 75 M1, as amended by S2).
+  - If Groundwork isn't open at night, nothing runs, and *Write it now* (check-in) or Reports (review) do it on a
+    tap.
+- **S9 / S11:**
+  - The facts are written by the engine and show with AI off.
+  - The written part, kept in `checkin_text_YYYY-MM-DD`, sits above them. It is held to item 12's ruled caps (200
+    tokens, two sentences, about 40 words), told to explain what the figures mean together without repeating them,
+    and allowed only the listed figures. It goes through the voice check.
+- **S12:** the card sits under the greeting on Sundays. **Done** (`/api/checkin/close`) closes it for the day.
+- **Dashboard (Rob's request, same day):**
+  - "This month" puts its month label in the heading row, so its paragraph fills the card.
+  - "What changed since last month" is now a card in the same style, with the months it compares in the heading row.
+  - The completeness and stale notices honour the *Not needed for reviews* list.
+- **Seen on a copy of Rob's data** (Sunday 2026-10-11):
+  - *"Last week (Sun, Oct 4 to Sat, Oct 10): $1,018.25 spent, $210.21 less than the week before ($1,228.46).
+    $1,329.25 moved between your own accounts - not spending. This month so far: $1,838.92 of the $10,018.90
+    budgeted, with $8,179.98 left for the 20 days that remain."*
+  - Then interest ($98.94 this week, about $429.92 a month), Harbor Amazon due Monday, and both employers' pay
+    expected.
+  - *Done* closed it.
+- **Tests:** s195, plus s194 updated for S2, s141's reader list, and s171's caps (kept as ruled).

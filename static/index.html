@@ -1262,13 +1262,23 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           </div>
         </div>
 
+        <!-- Item 76 S12 (Rob 2026-10-11): the Sunday check-in at the top, Sundays only, until the person is done with it -->
+        <div id="dashSundayCard" class="card mb-5" style="display:none;border-color:var(--sky)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+            <div class="card-label" style="margin-bottom:0;color:var(--sky);flex:1">Sunday check-in</div>
+            <span id="dashSundayBadge" style="font-size:10px;color:var(--slate-2)"></span>
+            <button class="btn btn-ghost btn-sm" onclick="closeSundayCard()" title="Done with this week's check-in">Done</button>
+          </div>
+          <div id="dashSundayContent" style="font-size:13px;color:var(--ink);line-height:1.75"></div>
+        </div>
+
         <!-- 1. Can I trust this picture? — quiet check-engine light -->
         <div id="dashRecordStatus"></div>
         <!-- Item 67 G3: when each account was last fetched, from the record; shown after the user's number of days -->
         <div id="dashFetchLine" style="display:none;font-size:12px;color:var(--slate);margin:-8px 0 14px;line-height:1.6"></div>
 
         <!-- 2. What moved? -->
-        <div id="dashWhatChanged"></div>
+        <div id="dashWhatChanged" class="card mb-5" style="display:none"></div>
 
         <!-- 3. What deserves attention? — the one accented focal point -->
         <div id="dashCurrentPriority"></div>
@@ -1288,28 +1298,18 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div id="gettingStartedSteps"></div>
         </div>
 
-        <!-- Sunday number card — visible Sundays only (AI extra, detail zone) -->
         <div id="dashReviewReady"></div>
-        <div id="dashSundayCard" class="card mb-5" style="display:none;border-color:var(--sky)">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <div class="card-label" style="margin-bottom:0;color:var(--sky)">Sunday check-in</div>
-            <span id="dashSundayBadge" style="font-size:10px;color:var(--slate-2)"></span>
-          </div>
-          <div id="dashSundayContent" style="font-size:13px;color:var(--ink);line-height:1.75"></div>
-        </div>
 
         <!-- Full-width: month health card (unchanged) -->
         <div class="card mb-5" id="dashHealthCard">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
-            <div style="flex:1;min-width:200px">
-              <div class="card-label" style="margin-bottom:6px">This month</div>
-              <div id="dashHealthVerdict" style="font-size:22px;font-weight:600;color:var(--pine)">On track</div>
-              <div id="dashHealthSub" style="font-size:13px;color:var(--slate);margin-top:4px;line-height:1.6"></div>
-            </div>
-            <div style="flex-shrink:0;text-align:right">
-              <span id="dashMonthLabel" style="font-size:12px;color:var(--slate-2);font-family:var(--font-mono)"></span>
-            </div>
+          <!-- One heading row (label, then the month on the right), then the text across the whole card - the
+               shared dashboard card style (Rob 2026-10-11) -->
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+            <div class="card-label" style="margin-bottom:6px;flex:1">This month</div>
+            <span id="dashMonthLabel" style="font-size:12px;color:var(--slate-2);font-family:var(--font-mono);white-space:nowrap"></span>
           </div>
+          <div id="dashHealthVerdict" style="font-size:22px;font-weight:600;color:var(--pine)">On track</div>
+          <div id="dashHealthSub" style="font-size:13px;color:var(--slate);margin-top:4px;line-height:1.6"></div>
           <!-- Pace bar -->
           <div id="dashPaceBar" style="margin:14px 0 4px">
             <div style="height:5px;background:var(--steel);border-radius:99px;overflow:hidden">

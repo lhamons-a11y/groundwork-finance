@@ -6341,7 +6341,7 @@ async function confirmImport() {
     await _refreshTransactionsFromServer();
     await _refreshDebtBalancesFromServer();  // debt balances stale after import
     buildFinancialProfile().catch(_gwErr('confirmImport')); // S.profile stale after new txns
-    monthlyReviewAfterImport().catch(_gwErr('monthlyReviewAfterImport'));   // item 75 M1: not awaited
+    // Item 75 M1 as amended by item 76 S2: the month's review is written overnight (_nightNarration), not here.
 
     // B6b: If the server wrote new historian records, refresh the local
     // history cache so freed-minimums, debt progress, and §7.9 are current.
@@ -12160,129 +12160,110 @@ function _checkStageTransition() {
 
 // ── Sunday number card ────────────────────────────────────────────────────────
 
+// Item 76 (gw 2.0/SUNDAY_CHECKIN.md S1-S12): the week behind, the week ahead, and one lesson. Every figure comes from
+// /api/checkin (the record); the written part, when there is one, was written overnight (S1) or on "Write it now", and
+// teaches with those figures (S11) - the cards on this page hold the facts, the check-in says what they mean.
+let _checkinFacts = null;
+
+function _checkinWho(p) {
+  const name = s => String(s || '').replace(/\b\w/g, c => c.toUpperCase());
+  return p.person ? `${p.person}'s pay` : `${name(p.payer)} pay`;
+}
+
+function _checkinLines(f) {
+  const day = iso => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const lines = [];
+  const w = f.week;
+  const ch = w.change;
+  lines.push(`Last week (${day(w.from)} to ${day(w.to)}): ${fmt(w.spent)} spent` +
+    (w.last_week > 0 ? `, ${ch === 0 ? 'the same as' : `${fmt(Math.abs(ch))} ${ch > 0 ? 'more than' : 'less than'}`} the week before (${fmt(w.last_week)}).` : '.'));
+  if (w.moved > 0) lines.push(`${fmt(w.moved)} moved between your own accounts - not spending.`);
+  const m = f.month;
+  if (m.budget) lines.push(`This month so far: ${fmt(m.spent)} of the ${fmt(m.budget)} budgeted, ${m.left >= 0 ? `with ${fmt(m.left)} left` : `${fmt(Math.abs(m.left))} past it`} for the ${m.days_left} day${m.days_left !== 1 ? 's' : ''} that remain.`);
+  if (f.interest && f.interest.week > 0) lines.push(`Your debts cost about ${fmt(f.interest.week)} in interest this week - about ${fmt(f.interest.month)} a month at these balances, whatever else is paid.`);
+  if (f.bills && f.bills.length) lines.push('Due this week: ' + f.bills.map(b => `${b.name}${b.amount != null ? ` (${fmt(b.amount)})` : ''}, ${day(b.date)}`).join('; ') + '.');
+  if (f.pay && f.pay.length) {
+    const names = [...new Set(f.pay.map(_checkinWho))];
+    lines.push(`Groundwork expects ${names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0]} this week, from ${f.pay.length > 1 ? 'each one\'s' : 'its'} usual schedule.`);
+  }
+  return lines;
+}
+
 async function renderSundayCard() {
   const card    = g('dashSundayCard');
   const content = g('dashSundayContent');
   const badge   = g('dashSundayBadge');
   if (!card || !content) return;
-
-  // Only show on Sundays
-  const today = new Date();
-  if (today.getDay() !== 0) { card.style.display = 'none'; return; }
-
+  if (new Date().getDay() !== 0) { card.style.display = 'none'; return; }   // Sundays only
+  let f;
+  try { f = await API.get('/api/checkin'); } catch (e) { _gwErr('renderSundayCard')(e); card.style.display = 'none'; return; }
+  _checkinFacts = f;
+  if (f.closed) { card.style.display = 'none'; return; }                    // S12: done for today
   card.style.display = '';
+  const facts = _checkinLines(f);
+  const written = f.written && f.written.text;
+  if (badge) badge.textContent = written ? '✦ written overnight on this computer' : '';
+  const whose = (f.ask_whose || []).slice(0, 1).map(p => `<div style="font-size:12px;color:var(--slate);margin-top:8px">Whose pay is ${esc(p.replace(/\b\w/g, c => c.toUpperCase()))}?
+      ${(f.people || []).map(n => `<button class="btn btn-ghost btn-sm" onclick="checkinWhose('${esc(p)}', '${esc(n)}')">${esc(n)}</button>`).join('')}
+      <button class="btn btn-ghost btn-sm" onclick="checkinWhose('${esc(p)}', 'Someone else')">Someone else</button></div>`).join('');
+  content.innerHTML = (written ? `<div style="margin-bottom:10px">${esc(written)}</div>` : '')
+    + `<div style="${written ? 'font-size:12px;color:var(--slate);border-top:0.5px solid var(--steel);padding-top:8px' : ''}">${facts.map(l => `<div>${esc(l)}</div>`).join('')}</div>`
+    + whose
+    + (!written && aiEnabled() ? `<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="writeSundayCheckin(true)">Write it now</button>
+        <span style="font-size:11px;color:var(--slate-2)">Normally written overnight after a new import.</span></div>` : '');
+}
 
-  // Gather this week's data
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - 6);
-  const weekStartStr = weekStart.toISOString().slice(0,10);
-  const todayStr     = today.toISOString().slice(0,10);
-
-  const weekTxns  = S.transactions.filter(t =>
-    t.date >= weekStartStr && t.date <= todayStr
-  );
-  const spent     = weekTxns.filter(t=>t.type==='debit').reduce((s,t)=>s+t.amount,0);
-  const income    = weekTxns.filter(t=>t.type==='credit').reduce((s,t)=>s+t.amount,0);
-  const totalIncome = S.incomes.reduce((s,i)=>s+i.amount,0);
-  const weeklyIncome = totalIncome / 4.33;
-  const onTrack   = spent <= weeklyIncome;
-
-  // Top category this week
-  const cats = {};
-  weekTxns.filter(t=>t.type==='debit').forEach(t=>{
-    cats[t.category||'Other'] = (cats[t.category||'Other']||0) + t.amount;
-  });
-  const topCat = Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];
-
-  // Daily interest
-  const daily = calcDailyInterest();
-  const weeklyInterest = daily * 7;
-
-  if (!aiEnabled()) {
-    _renderSundayFallback(content, badge, {
-      spent, weeklyIncome, onTrack, topCat, weeklyInterest, daily
-    });
-    return;
-  }
-
-  if (badge) badge.textContent = '✦ AI';
-  content.innerHTML = `<div style="display:flex;align-items:center;gap:10px;color:var(--slate-2)">
-    <div class="spinner"></div><span style="font-size:12px">Preparing your Sunday check-in…</span>
-  </div>`;
-
-  const stageCtx = _buildStageContext();
-  const householdNote = _householdIncomeNote();
-
-  // Couples vs solo framing
-  const isCouple    = S_household.enabled && S_household.user2Name;
-  const audienceNote = isCouple
-    ? `This check-in is for ${S_household.user1Name||'you'} and ${S_household.user2Name} reading together.`
-    : 'This check-in is for one person.';
-
-  const prompt = `${stageCtx.leanContext ? stageCtx.leanContext + '\n\n' : ''}You are writing a brief Sunday financial check-in. ${audienceNote} Keep it conversational and warm — not clinical.
-${householdNote}
-This week:
-  Spent: ${fmt(spent)} (weekly target: ~${fmt(weeklyIncome)})
-  ${onTrack ? 'Under target for the week.' : 'Over target for the week.'}
-  ${topCat ? `Biggest category: ${topCat[0]} (${fmt(topCat[1])})` : ''}
-  Interest paid this week: ${fmt(weeklyInterest)} ($${daily.toFixed(2)}/day)
-  ${stageCtx.stageNote}
-
-Write exactly 2 sentences:
-1. What happened this week with money — specific, honest, one number.
-2. One thing worth ${isCouple ? 'talking about together' : 'reflecting on'} today — state it as an observation, not a lecture and not a question.
-
-No greeting. No sign-off. No question marks. Write as if you're a trusted friend, not a financial advisor.`;
-
+// S1/S11: the written part - it teaches with the figures above, it doesn't recite them; checked like every narration.
+async function writeSundayCheckin(show) {
+  const f = _checkinFacts || await API.get('/api/checkin');
+  if (!f || !aiEnabled()) return false;
+  const lines = _checkinLines(f);
+  const isCouple = S_household.enabled && S_household.user2Name;
   try {
     const result = await callAI({
-      max_tokens: 200,   // item 12 step 2 K1: measured 100 of 100 used, twice
-      max_sentences: 2,  // after K7 (Rob: "a"): the model wrote 82-139 words for "two sentences"; the code keeps the promise
-      system: 'You write brief, warm, honest Sunday financial check-ins for couples. Two sentences, about 40 words. Conversational. Never preachy.',
-      messages: [{ role:'user', content: prompt }],
+      max_tokens: 200,   // item 12 K1, as ruled
+      max_sentences: 2,  // item 12 K7: the code keeps the promise
+      system: 'You write a short Sunday money check-in that explains what the week\'s figures mean together. Two sentences, about 40 words. Conversational. Never preachy.',
+      messages: [{ role: 'user', content: `The person ${isCouple ? 'and their partner read' : 'reads'} these facts below the paragraph you write:\n${lines.join('\n')}\n\nWrite 2 sentences, about 40 words, that explain what these figures mean together - how last week sits inside the month, and what the week ahead brings - without repeating them one by one. Use only figures listed above. No advice, no commands, no question marks, no greeting.` }],
       surface: 'sunday_checkin',
-      findings_kinds: ['income', 'total', 'category', 'debt', 'household_name'],
+      findings_kinds: ['income', 'total', 'category', 'debt', 'household_name', 'date'],
     });
-
-    if (result.ok) {
-      // d21: unified renderer
-      const sundayDataLines = [
-        `Spent this week: ${fmt(spent)}`,
-        `Weekly income: ${fmt(weeklyIncome)}`,
-        onTrack ? 'Under target for the week' : 'Over target for the week',
-        ...(topCat ? [`Biggest category: ${topCat[0]} (${fmt(topCat[1])})`] : []),
-        `Interest this week (estimated from APRs × balances): ${fmt(weeklyInterest)}`,
-      ];
-      _rcRenderAIPanel('sunday_checkin', result.text, content, sundayDataLines, null,
-        { compact: true, replace: true, payload: result.payload, title: 'Sunday check-in',
-          model: result.model, provider: result.provider });
-    } else {
-      _renderSundayFallback(content, badge, {
-        spent, weeklyIncome, onTrack, topCat, weeklyInterest, daily
-      });
-    }
-  } catch(e) {
-    _renderSundayFallback(content, badge, {
-      spent, weeklyIncome, onTrack, topCat, weeklyInterest, daily
-    });
-  }
+    if (!result || !result.ok || !result.text || result.stopped) return false;
+    await API.post('/api/checkin/written', { date: f.date, text: result.text });
+    if (show) renderSundayCard();
+    return true;
+  } catch (e) { _gwErr('writeSundayCheckin')(e); return false; }
 }
 
-function _renderSundayFallback(content, badge, d) {
-  if (badge) badge.textContent = '';
-  const direction = d.onTrack ? 'under' : 'over';
-  const diff      = Math.abs(d.spent - d.weeklyIncome);
-  const topLine   = `This week: ${fmt(d.spent)} spent — ${fmt(diff)} ${direction} your weekly pace.`;
-  const catLine   = d.topCat
-    ? `${d.topCat[0]} was the biggest category at ${fmt(d.topCat[1])}.`
-    : '';
-  const intLine   = `The debt cost ${fmt(d.weeklyInterest)} in interest this week.`;
-
-  content.innerHTML = [topLine, catLine, intLine]
-    .filter(Boolean)
-    .map(l => `<span style="display:block;margin-bottom:4px">${l}</span>`)
-    .join('');
+async function closeSundayCard() {
+  const card = g('dashSundayCard');
+  if (card) card.style.display = 'none';
+  try { await API.post('/api/checkin/close', { date: (_checkinFacts && _checkinFacts.date) || new Date().toISOString().slice(0, 10) }); }
+  catch (e) { _gwErr('closeSundayCard')(e); }
 }
+
+async function checkinWhose(payer, person) {
+  try { await API.post('/api/checkin/whose', { payer, person }); } catch (e) { _gwErr('checkinWhose')(e); }
+  renderSundayCard();
+}
+
+// S1/S2 (Rob's rule): narration in the middle of the night - only when the newest import is under 48 hours old and
+// nothing has been written since it. Checked every 15 minutes while Groundwork is open; runs between 1 and 4 a.m.
+let _nightRunDate = null;
+async function _nightNarration() {
+  const now = new Date();
+  if (now.getHours() < 1 || now.getHours() > 4) return;
+  const key = now.toISOString().slice(0, 10);
+  if (_nightRunDate === key) return;
+  let due;
+  try { due = await API.get('/api/checkin/narration-due'); } catch (e) { _gwErr('_nightNarration')(e); return; }
+  if (!due || !due.run) return;
+  _nightRunDate = key;
+  if (due.checkin) await writeSundayCheckin(false);
+  if (due.review) await monthlyReviewAfterImport();
+  try { await API.post('/api/checkin/narration-done', {}); } catch (e) { _gwErr('_nightNarration done')(e); }
+}
+setInterval(() => { _nightNarration().catch(_gwErr('_nightNarration')); }, 15 * 60 * 1000);
 
 
 // ─── Help System — Layers 1, 2, 3 ────────────────────────────────────────────
@@ -27426,8 +27407,10 @@ function _renderWhatChanged() {
   // First month / nothing to compare — stay silent rather than invent movement.
   if (!wc.hasComparison || (!wc.confirmed.length && !wc.evaluating.length)) {
     host.innerHTML = '';
+    host.style.display = 'none';
     return;
   }
+  host.style.display = '';
 
   const row = (item) => `
     <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;color:var(--ink)">
@@ -27435,11 +27418,15 @@ function _renderWhatChanged() {
       <span>${esc(item.label)}</span>
     </div>`;
 
+  // The shared dashboard card style (Rob 2026-10-11): the host is the card; a heading row with the months on the right.
   host.innerHTML = `
-    <div style="margin-bottom:24px">
-      <div class="card-label" style="margin-bottom:12px">What changed since last month</div>
+    <div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+        <div class="card-label" style="margin-bottom:12px;flex:1">What changed since last month</div>
+        ${wc.spendWindow ? `<span style="font-size:12px;color:var(--slate-2);font-family:var(--font-mono);white-space:nowrap">${esc(_monthLabel(wc.spendWindow.cur))} vs ${esc(_monthLabel(wc.spendWindow.prev))}</span>` : ''}
+      </div>
       ${wc.confirmed.length ? `
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine);margin-bottom:4px">Confirmed${wc.spendWindow ? ` · ${esc(_monthLabel(wc.spendWindow.cur))} vs ${esc(_monthLabel(wc.spendWindow.prev))}` : ''}</div>
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pine);margin-bottom:4px">Confirmed</div>
         ${wc.confirmed.map(row).join('')}` : ''}
       ${wc.evaluating.length ? `
         <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin:${wc.confirmed.length ? '14px' : '0'} 0 4px">Still being evaluated</div>

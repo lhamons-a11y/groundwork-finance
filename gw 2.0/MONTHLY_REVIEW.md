@@ -7,7 +7,7 @@ Opened 2026-10-10. Rob:
 > the cloud. Since the ai agent doesn't call home to a server then the worry that data is getting sent that the user
 > didn't give permission to."*
 
-**M1–M10 RULED 2026-10-10 as recommended (Rob: "approve M1–M10 as recommended"). BUILT 2026-10-11 (Rob: "build item 75"), awaiting acceptance; see §4. Item 76 S2 asks whether this moves overnight.**
+**M1–M10 RULED 2026-10-10 as recommended (Rob: "approve M1–M10 as recommended"). BUILT 2026-10-11 (Rob: "build item 75"), awaiting acceptance; see §4. M1/M6 AMENDED 2026-10-11 by item 76 S2 (ruled): the review is written overnight under the 48-hour rule, not right after the import.**
 
 ## 1. What is true today (measured 2026-10-10, master)
 

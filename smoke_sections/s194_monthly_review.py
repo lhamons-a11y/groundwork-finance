@@ -95,8 +95,8 @@ def run(ctx):
     refresh = app.split('function _rcMonthlyRefreshPreview() {')[1].split('\n}\n')[0]
     check('s194 M3 opening Reports writes nothing by itself', '_rcMonthlyGenerate()' not in refresh and '_rcMonthlyShowSaved(month)' in refresh)
     ci = app.split('async function confirmImport() {')[1].split('\nasync function ')[0]
-    check('s194 M1 every import ends by checking for the due review, without making the import wait',
-          "monthlyReviewAfterImport().catch(" in ci and 'await monthlyReviewAfterImport' not in ci)
+    check('s194 M1 as amended by item 76 S2: the due review is written by the night run, not by the import itself',
+          'monthlyReviewAfterImport()' not in ci and 'monthlyReviewAfterImport()' in app.split('async function _nightNarration() {')[1])
     check('s194 M5/M8 the dashboard line and the Settings words and switch are there',
           'id="dashReviewReady"' in html and 'Nothing is sent anywhere. Every request is in the AI log.' in html
           and 'id="settingsAutoReview"' in html and "s.auto_monthly_review !== 'false'" in app)
