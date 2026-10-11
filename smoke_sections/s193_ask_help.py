@@ -6,7 +6,7 @@ C7, C11; Rob 2026-10-10: "i accept item 72 stage 1, build stage 2").
     C11  a question the guide does not answer gets one fixed sentence; a partial match is not stretched; an
          instruction typed into the box is just words
     C7   unanswered questions are the person's own list: shown, deletable, read by nothing else
-    C1   no model in this stage
+    C1   no model for how-to answers (stage 3 adds the check-picking only after the guide finds nothing - s198)
 """
 import json
 import os
@@ -114,5 +114,10 @@ def run(ctx):
           holders == ['help_unanswered_add', 'help_unanswered_clear', 'help_unanswered_list'] and core_hits == [])
 
     ask = app.split('async function askGroundwork(')[1].split('\n}\n')[0] + app.split('function helpMatch(')[1].split('\n}\n')[0]
-    check('s193 C1 no model in this stage: the Ask box never calls the AI', 'callAI(' not in ask and 'aiEnabled' not in ask)
+    match = app.split('function helpMatch(')[1].split('\n}\n')[0]
+    body = app.split('async function askGroundwork(')[1].split('\n}\n')[0]
+    check('s193 C1 a how-to answer never involves the AI: the guide match uses no model, the Ask box never writes AI text, and '
+          'stage 3\'s check-picking is asked only after the guide found no answer',
+          'callAI(' not in ask and 'aiEnabled' not in match
+          and body.index('if (hit) {') < body.index('if (aiEnabled())'))
     check('s193 C1 the Ask box sits in the top bar, beside the ? button', 'id="gwAskBox"' in html and 'askGroundwork(this.value)' in html)

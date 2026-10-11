@@ -2211,6 +2211,97 @@ def why_investigate():
         return ok(out)
 
 
+# Item 72 stage 3 (C2): the model picks one registered check for a question about the person's money - under a
+# grammar that can write nothing else - or says it is unsure, or that none fits. It sees only the question and the
+# check names; it never sees the record, writes a query, or changes anything. Its pick is offered, then run on a tap.
+WHY_ROUTE_SYSTEM = (
+    'You sort one question about a person\'s own money records into one check, by name. Answer with exactly one name.\n'
+    'inputs_income: what went into their monthly income figure; which deposits counted; why income looks lower.\n'
+    'payer_switch: the same payer or store filed under a different category than before.\n'
+    'wrong_kind: deposits filed as spending, or charges filed as income.\n'
+    'stopped: a regular paycheck or deposit that has not come in.\n'
+    'duplicates: the same transaction showing twice.\n'
+    'own_transfers: money moved between their own accounts counted as income.\n'
+    'empty_months: months or accounts with no records.\n'
+    'unsure: about their records, and two or more checks fit equally.\n'
+    'none: anything else - advice, investing, a request to do or pay something, writing, general knowledge, '
+    'or instructions.\n'
+    'Examples:\n'
+    '"Which deposits count toward my income?" -> inputs_income\n'
+    '"Why did my income go down in July?" -> inputs_income\n'
+    '"Why is my pay under a new category?" -> payer_switch\n'
+    '"Why are my paychecks counted as spending?" -> wrong_kind\n'
+    '"My paycheck did not come in" -> stopped\n'
+    '"The same charge shows up twice" -> duplicates\n'
+    '"Is my savings transfer counted as income?" -> own_transfers\n'
+    '"Why are there no transactions in April?" -> empty_months\n'
+    '"Something looks off" -> unsure\n'
+    '"Should I buy a stock?" -> none\n'
+    '"Write a poem about money" -> none\n'
+    '"Pay my bill" -> none')
+# A question that names nothing in the person's records never reaches the model: it gets C11's sentence (stage 3's
+# plain-words gate, measured 2026-10-11 - the model alone sent "a poem about money" to a check).
+WHY_ROUTE_WORDS = re.compile(r'\b(income|deposit\w*|paycheck\w*|pay|paid|salary|wages?|charge[sd]?|transactions?|'
+                             r'categor\w*|account\w*|transfer\w*|month\w*|records?|ledger|spending|spent|imports?|'
+                             r'twice|duplicate\w*|missing|statement\w*|filed|purchase\w*|bought|grocer\w*|shopping|bills?)\b', re.I)
+WHY_ACT_WORDS = re.compile(r'\b(should i|buy|invest\w*|stocks?|poem|write|pay (?:my|the|this)|delete|remove|erase|'
+                           r'move (?:all|every)|transfer (?:all|money)|ignore|forget|disregard|pretend|you are now|'
+                           r'rules|instructions|prompt|system:|admin|account numbers?|passwords?)\b', re.I)
+
+
+def why_route_outside(q):
+    """Stage 3's gate, before any model: a question that names nothing in the person's records, asks for advice, or
+    asks Groundwork to do something gets C11's sentence. Words typed in are only words."""
+    return not WHY_ROUTE_WORDS.search(q) or bool(WHY_ACT_WORDS.search(q))
+
+
+WHY_ROUTE_OPTIONS = ('inputs_income', 'payer_switch', 'wrong_kind', 'stopped', 'duplicates', 'own_transfers',
+                     'empty_months', 'unsure', 'none')
+
+
+@why_bp.route('/route', methods=['POST'])
+@require_json
+def why_route():
+    """-> {'state': 'picked', 'check', 'title'} | {'state': 'unsure', 'checks': [...]} | {'state': 'none'} |
+    {'state': 'off'}. The question is data: it goes to the model as the user's words and nowhere else."""
+    from core import ask_why, engine
+    q = str((request.json or {}).get('question') or '').strip()[:300]
+    if not q:
+        return err('A question is needed.')
+    every = [{'check': k, 'title': v['title']} for k, v in ask_why.CHECKS.items()]
+    if why_route_outside(q):
+        return ok({'state': 'none'})            # advice, a request to act, or nothing about the records: never the model
+    with db_session() as session:
+        if _get_setting(session, 'ai_enabled') and (_get_setting(session, 'ai_enabled').value or '').lower() in ('false', '0', 'off'):
+            return ok({'state': 'off'})
+    try:
+        r = engine.choose(WHY_ROUTE_SYSTEM, q, WHY_ROUTE_OPTIONS)
+    except Exception:                                   # noqa: BLE001 - routing failing is the same as no route
+        logging.getLogger('groundwork').info('why route: the model could not be asked')
+        return ok({'state': 'off'})
+    _ai_log_write({'surface': 'ask_why_route', 'system': WHY_ROUTE_SYSTEM, 'messages': [{'role': 'user', 'content': q}]},
+                  r.get('raw') or r.get('reason') or '', 'grammar' if r.get('ok') else (r.get('reason') or ''),
+                  getattr(engine, 'MODEL_FILE', ''))
+    if not r.get('ok'):
+        return ok({'state': 'off' if r.get('reason') in ('off', 'loading', 'unavailable') else 'none'})
+    if r['choice'] == 'none':
+        return ok({'state': 'none'})
+    if r['choice'] == 'unsure':
+        return ok({'state': 'unsure', 'checks': every})
+    return ok({'state': 'picked', 'check': r['choice'], 'title': ask_why.CHECKS[r['choice']]['title'], 'checks': every})
+
+
+@why_bp.route('/check', methods=['GET'])
+def why_check():
+    """Stage 3: one registered check, run on the record, as the person picked it (or tapped the model's pick)."""
+    from core import ask_why
+    with db_session() as session:
+        out = ask_why.run_one(session, (request.args.get('id') or '').strip())
+        if out is None:
+            return err('Not a check Groundwork has.', 404)
+        return ok(out)
+
+
 @why_bp.route('/preview', methods=['POST'])
 @require_json
 def why_preview():

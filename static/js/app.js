@@ -24599,11 +24599,52 @@ async function askGroundwork(question) {
       <div style="font-size:11px;color:var(--slate-2);margin-top:10px">From Groundwork's guide - the same answers as the ? button.</div>`;
     return;
   }
+  // Item 72 stage 3 (C2): with AI on, a question about the person's records may fit one of the fixed checks. The
+  // model only names one (it cannot write anything else); the person taps to run it. Unsure: they choose.
+  if (aiEnabled()) {
+    let route = null;
+    try { route = await API.post('/api/why/route', { question: q }); } catch (e) { _gwErr('askGroundwork route')(e); }
+    if (route && route.state === 'picked') {
+      p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">This looks like a question for one of Groundwork's checks on your records:</div>
+        <div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="closeAsk(); openWhyCheck('${esc(route.check)}')">${esc(route.title)}</button></div>
+        <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Picked by the AI from Groundwork's fixed list - the answer comes from your records, not from the AI.
+          <button class="btn btn-ghost btn-sm" onclick="askWhyChoose()">Choose a different check</button></div>`;
+      window._askWhyChecks = route.checks || [];
+      return;
+    }
+    if (route && route.state === 'unsure') {
+      window._askWhyChecks = route.checks || [];
+      p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);margin-top:6px">More than one check could fit. Which one?</div>${_askWhyChoicesHTML()}`;
+      return;
+    }
+  }
   try { await API.post('/api/help/unanswered', { text: q }); } catch (e) { _gwErr('askGroundwork')(e); }
   p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">${esc(HELP_OUTSIDE)}</div>
     ${_helpWords(q).some(w => HELP_WHY_WORDS.has(w)) ? `<div style="margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); openWhy('records')">Check my records</button></div>` : ''}
     <div style="font-size:11px;color:var(--slate-2);margin-top:10px">Your question is kept in your own list of questions Groundwork couldn't answer.
       <button class="btn btn-ghost btn-sm" onclick="showUnanswered()">See the list</button></div>`;
+}
+
+function _askWhyChoicesHTML() {
+  return (window._askWhyChecks || []).map(c => `<div style="margin-top:6px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); openWhyCheck('${esc(c.check)}')">${esc(c.title)}</button></div>`).join('');
+}
+
+function askWhyChoose() {
+  const p = g('askPanel');
+  if (p) p.insertAdjacentHTML('beforeend', `<div style="margin-top:8px">${_askWhyChoicesHTML()}</div>`);
+}
+
+// Stage 3: one check, run on the record, in the same panel as "Why?" - fixes and Undo included.
+async function openWhyCheck(check) {
+  _whyFigure = 'records';
+  const p = _whyPanel();
+  p.innerHTML = '<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--slate)"><div class="spinner"></div>Checking your records…</div>';
+  let d;
+  try { d = await API.get('/api/why/check?id=' + encodeURIComponent(check)); }
+  catch (e) { _gwErr('openWhyCheck')(e); p.innerHTML = '<div style="font-size:12px;color:var(--ember)">The check could not run.</div>'; return; }
+  let fixes = [];
+  try { fixes = ((await API.get('/api/why/fixes')) || {}).fixes || []; } catch (e) { _gwErr('openWhyCheck fixes')(e); }
+  p.innerHTML = _whyHTML(d, fixes);
 }
 
 function askGroundworkPick(i) {
