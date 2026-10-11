@@ -29272,12 +29272,78 @@ async function bybReceiptDone(id) {
   renderBybReceipts();
 }
 
+// ── Item 73 stage 3 (BYB_AGENT.md Y3 + Y4): the full cost, and a financing offer read ──
+// Each part of the cost says where it came from; a part with no source is left out and named. A financing offer's
+// figures must be in the offer. Paying cash, financing and the person's own debt side by side - the choice is theirs.
+function renderBybCost() {
+  const el = g('bybCost');
+  if (!el) return;
+  const f = (id, label, ph) => `<label style="font-size:12px;display:inline-flex;flex-direction:column;margin:0 10px 6px 0">${label}
+    <input id="${id}" type="number" step="0.01" placeholder="${ph || ''}" style="width:120px;font-size:12px"></label>`;
+  el.innerHTML = `<div class="card mb-5"><div class="card-label">The full cost, and financing</div>
+    <div style="font-size:12px;color:var(--slate);margin-bottom:6px">What a car, a phone or a yearly charge costs each month, built from your own figures and what Groundwork already knows - each part with its source.</div>
+    <select id="bybCostKind" onchange="bybCostFields()" style="font-size:12px;margin-bottom:6px">
+      <option value="car">A car</option><option value="phone">A phone on a plan</option><option value="annual">A yearly charge</option></select>
+    <div id="bybCostFields"></div>
+    <button class="btn btn-secondary btn-sm" onclick="bybFullCost()">Work out the monthly cost</button>
+    <div id="bybCostResult" style="margin-top:8px"></div>
+    <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:10px;font-size:12px;color:var(--slate)">Paste a financing offer (a store card, a car loan, "no interest for 12 months"). Its rate, term, payment, fees and any deferred-interest terms are read - each figure must be in the offer.</div>
+    <textarea id="bybOfferText" rows="3" style="width:100%;padding:8px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:12px;background:var(--paper);color:var(--ink);margin-top:6px"></textarea>
+    <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="bybReadOffer()">Read the offer</button>
+    <div id="bybOfferResult" style="margin-top:8px"></div></div>`;
+  window._bybCostField = f;
+  bybCostFields();
+}
+
+function bybCostFields() {
+  const f = window._bybCostField, k = g('bybCostKind')?.value || 'car', el = g('bybCostFields');
+  if (!el || !f) return;
+  el.innerHTML = k === 'car'
+    ? f('bcPayment', 'Monthly payment') + f('bcInsurance', 'Insurance a month', 'from your bill if blank') + f('bcMiles', 'Miles a month') + f('bcMpg', 'MPG') + f('bcReg', 'Registration a year')
+    : k === 'phone' ? f('bcDevice', 'Device payment') + f('bcPlan', 'Plan change a month', 'e.g. 10 or -5')
+    : f('bcYearly', 'The yearly charge');
+}
+
+async function bybFullCost() {
+  const k = g('bybCostKind').value, v = id => g(id)?.value;
+  const inputs = k === 'car' ? { payment: v('bcPayment'), insurance: v('bcInsurance'), miles_per_month: v('bcMiles'), mpg: v('bcMpg'), registration_yearly: v('bcReg') }
+    : k === 'phone' ? { device_payment: v('bcDevice'), plan_change: v('bcPlan') } : { yearly: v('bcYearly') };
+  const out = g('bybCostResult');
+  let d;
+  try { d = await API.post('/api/byb/full-cost', { kind: k, inputs }); } catch (e) { out.innerHTML = `<div style="font-size:12px;color:var(--ember)">${esc(e.message)}</div>`; return; }
+  out.innerHTML = `<div style="font-size:12px;line-height:1.7">${d.parts.map(p => `<div><b>${esc(p.label)}</b>: ${fmt(p.monthly)} a month <span style="color:var(--slate-2)">(${esc(p.source)})</span></div>`).join('')}
+    <div style="margin-top:4px"><b>About ${fmt(d.monthly)} a month, ${fmt(d.yearly)} a year</b>, counting only the parts above.</div>
+    ${d.left_out.length ? `<div style="color:var(--slate-2);margin-top:2px">Not included: ${d.left_out.map(esc).join('; ')}.</div>` : ''}</div>`;
+}
+
+async function bybReadOffer() {
+  const text = g('bybOfferText')?.value?.trim(), out = g('bybOfferResult');
+  if (!text) { showToast('Paste the financing offer first', '', 'warning'); return; }
+  let d;
+  try { d = await API.post('/api/byb/financing', { text }); } catch (e) { out.innerHTML = `<div style="font-size:12px;color:var(--ember)">${esc(e.message)}</div>`; return; }
+  const o = d.offer, c = d.compare, read = [];
+  if (o.price != null) read.push(`price ${fmt(o.price)}`);
+  if (o.apr != null) read.push(`${o.apr}% APR`);
+  if (o.term_months) read.push(`${o.term_months} months`);
+  if (o.payment != null) read.push(`${fmt(o.payment)} a month`);
+  if (o.fees) read.push(`${fmt(o.fees)} in fees`);
+  out.innerHTML = `<div style="font-size:12px;line-height:1.7">
+    <div style="color:var(--slate)">Read from the offer: ${read.join(', ') || 'no figures'}.</div>
+    ${c.rows.map(r => `<div><b>${esc(r.label)}</b>: ${fmt(r.total)} <span style="color:var(--slate-2)">(${esc(r.how)})</span></div>`).join('')}
+    ${c.extra != null && c.extra > 0 ? `<div>Financing costs ${fmt(c.extra)} more than paying cash.</div>` : ''}
+    ${o.deferred ? `<div style="margin-top:6px;padding:6px 10px;border-left:2px solid var(--gold);background:var(--gold-bg)"><b>Deferred interest.</b> The offer says: "${esc(o.deferred_phrase || '')}"${c.deferred ? `<br>${esc(c.deferred.how)}.` : ''}</div>` : ''}
+    ${c.own_debt ? `<div style="margin-top:6px">Your ${esc(c.own_debt.name)} balance (${fmt(c.own_debt.balance)}) costs ${c.own_debt.rate}%${c.own_debt.offer_apr != null ? `; this offer's rate is ${c.own_debt.offer_apr}%` : ''}.${c.own_debt.year_interest_on_cash ? ` The same cash on that balance would save about ${fmt(c.own_debt.year_interest_on_cash)} of interest in a year (worked out by Groundwork).` : ''}</div>` : ''}
+    ${o.warnings.length ? `<div style="font-size:11px;color:#92400e;margin-top:4px">${o.warnings.map(esc).join(' · ')}</div>` : ''}
+    <div style="font-size:11px;color:var(--slate-2);margin-top:4px">Side by side, so you can weigh them. Nothing is saved.</div></div>`;
+}
+
 function renderBYB() {
   const cont = g('bybContent');
   if (!cont) return;
   _loadBYBItems();
   renderBybFromRecord();
   renderBybReceipts();
+  renderBybCost();
 }
 
 async function _loadBYBItems() {

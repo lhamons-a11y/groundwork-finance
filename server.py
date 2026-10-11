@@ -9902,6 +9902,56 @@ def byb_receipt_date_done(row_id):
         return ok(hit)
 
 
+# ── Item 73 stage 3 (BYB_AGENT.md Y3 + Y4): the full cost, and a financing offer read ──────────────────────
+def _insurance_reading(session):
+    """Y3: the latest bill reading the person confirmed for an insurance bill - {name, amount, date} or None."""
+    rows = (session.query(BillReading, BudgetItem).join(BudgetItem, BillReading.budget_item_id == BudgetItem.id)
+            .filter(BillReading.amount.isnot(None)).order_by(BillReading.read_at.desc()).all())
+    for r, b in rows:
+        if re.search(r'insur|geico|state farm|progressive|allstate|liberty mutual|nationwide|usaa',
+                     f'{b.name} {b.category or ""}', re.I):
+            return {'name': b.name, 'amount': float(r.amount), 'date': r.read_at.date().isoformat()}
+    return None
+
+
+@byb_bp.route('/full-cost', methods=['POST'])
+@require_json
+def byb_full_cost():
+    """Y3: a car's, phone's or yearly charge's monthly cost from the person's figures, their confirmed insurance bill
+    reading and EIA's national gas price (a fixed public query - nothing about the person is sent). A part with no
+    source is left out and named."""
+    from core import purchase_cost
+    body = request.json or {}
+    gas = None
+    if (body.get('kind') == 'car'):
+        try:
+            import gas_price
+            gas = gas_price.get_national_gas_price(_get_eia_api_key())
+        except Exception:                               # noqa: BLE001 - no published price: fuel is left out, said
+            gas = None
+    with db_session() as session:
+        res = purchase_cost.full_cost(body.get('kind'), body.get('inputs') or {}, _insurance_reading(session), gas)
+    if res is None:
+        return err("kind must be 'car', 'phone' or 'annual'")
+    return ok(res)
+
+
+@byb_bp.route('/financing', methods=['POST'])
+@require_json
+def byb_financing():
+    """Y4: a pasted financing offer read for its figures (each must be in the text) and laid beside paying cash and
+    the person's own highest-rate debt. Nothing is saved."""
+    from core import purchase_cost
+    text = str((request.json or {}).get('text') or '')[:20000]
+    if not text.strip():
+        return err('Paste the financing offer.')
+    offer = purchase_cost.read_offer(text)
+    with db_session() as session:
+        debts = [{'name': d.name, 'balance': float(d.current_balance or 0), 'rate': float(d.interest_rate or 0)}
+                 for d in session.query(DebtAccount).filter_by(is_active=True).all()]
+    return ok({'offer': offer, 'compare': purchase_cost.compare(offer, debts)})
+
+
 @byb_bp.route('', methods=['GET'])
 def list_byb_items():
     """Return all active BYB sandbox items."""
