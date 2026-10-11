@@ -93,6 +93,8 @@ def window_title(url):
     parts = urlsplit(url)
     if (parts.hostname or '').lower() == 'www.google.com' and parts.path.startswith('/travel/flights'):
         return 'Google Flights'
+    if (parts.hostname or '').lower() == 'www.google.com' and parts.path.startswith(('/travel/search', '/travel/hotels')):
+        return 'Google Hotels'      # item 59 P3 (it read "Bank website - www.google.com" before)
     return f'Bank website - {portal_host(url)}'
 
 
@@ -219,6 +221,7 @@ def child_main():
     # Downloads here and only here: the main process keeps ALLOW_DOWNLOADS False.
     webview.settings['ALLOW_DOWNLOADS'] = True
     flights = window_title(url) == 'Google Flights'
+    hotels = window_title(url) == 'Google Hotels'
     if flights:
         keep_new_windows_in_engine(platform_key)
 
@@ -227,6 +230,10 @@ def child_main():
         # so this file still reads nothing from any page.
         import flights_window
         window = flights_window.create_window(webview, url, window_title(url))
+    elif hotels:
+        # Item 59 P3: Google Hotels' one page read lives in hotels_window.py, as Google Flights' does in flights_window.
+        import hotels_window
+        window = hotels_window.create_window(webview, url, window_title(url))
     else:
         window = webview.create_window(
             title=window_title(url),

@@ -11775,7 +11775,7 @@ function tripUpdateBudget() {
   } else if (_tripQuoteData?.hotelTotal != null) {
     hotelCost = tripExactTotal(_tripQuoteData.hotelTotal);
     hotelPerNight = Math.round(hotelCost / nights);
-    hotelSource = 'you entered the quote';
+    hotelSource = _tripQuoteData.hotelLabel === 'Google Hotels' ? "Google Hotels' stay total with taxes and fees (you chose it)" : 'you entered the quote';
   } else if (_tripQuoteData?.hotelPerNight != null || _tripLearnedBasis?.hotelPerNight != null) {
     hotelPerNight = _tripQuoteData?.hotelPerNight ?? _tripLearnedBasis.hotelPerNight;
     hotelCost = Math.round(hotelPerNight * nights);
@@ -12045,8 +12045,59 @@ async function openHotelsWindow(mode) {
       guests: parseInt(g('tripTravelers')?.value) || 1, ...(mode ? { mode } : {}) });
     if (r.result === 'engine_unavailable') return openHotelsWindow('browser');
     if (r.result !== 'opened' && r.result !== 'already_open') showToast("Couldn't open Google Hotels", r.result, 'warning');
-    else showToast('Google Hotels is open', 'A price you find there is Google\'s; type it into the hotel quote to use it.', 'success');
+    else {
+      showToast('Google Hotels is open', 'Click "Visit site" on the price you want, and Groundwork offers its stay total here.', 'success');
+      if (mode !== 'browser') _watchGoogleHotel();
+    }
   } catch (e) { showToast("Couldn't open Google Hotels", e?.message || '', 'warning'); }
+}
+
+// P3's optional half (item 59): the stay total of the Google Hotels row the person clicks "Visit site" on, read in
+// Groundwork's window and offered here - named as Google's, used only on the tap. Mirrors item 44's fare read.
+let _googleHotelTimer = null;
+
+function _watchGoogleHotel() {
+  clearInterval(_googleHotelTimer);
+  const started = Date.now();
+  _googleHotelTimer = setInterval(async () => {
+    if (Date.now() - started > 30 * 60 * 1000) { clearInterval(_googleHotelTimer); return; }
+    try {
+      const r = await API.get('/api/trip/hotels-window/price');
+      if (r && typeof r.total === 'number' && r.total > 0) { clearInterval(_googleHotelTimer); _offerGoogleHotel(r.total, r.nights); }
+    } catch (e) { /* the window may have closed; keep the box as it is */ }
+  }, 2000);
+}
+
+function googleHotelMessage(total, nights, tripNights) {
+  return `Google Hotels showed ${fmt(total)} for ${nights} night${nights !== 1 ? 's' : ''}, with taxes and fees.` +
+    (tripNights && tripNights !== nights ? ` That is for ${nights} nights; this trip is ${tripNights}.` : '') +
+    ' The hotel\'s own checkout may differ.';
+}
+
+function _offerGoogleHotel(total, nights) {
+  const el = g('tripHotelSearchResult');
+  if (!el) return;
+  const tn = _tripBudgetData ? _tripBudgetData.nights : null;
+  el.style.color = 'var(--ink)';
+  el.innerHTML = `${esc(googleHotelMessage(total, nights, tn))}
+    <button class="btn btn-secondary btn-sm" style="margin-left:6px" onclick="tripUseGoogleHotel(${Number(total)})">Use ${fmt(total)}</button>
+    <button class="btn btn-ghost btn-sm" onclick="tripDeclineGoogleHotel()">Not this one</button>`;
+}
+
+function tripUseGoogleHotel(total) {
+  _tripQuoteData = { ..._tripQuoteData, hotelTotal: Number(total), hotelLabel: 'Google Hotels' };
+  const el = g('tripHotelSearchResult');
+  if (el) { el.style.color = 'var(--slate)'; el.textContent = "Using Google Hotels' stay total. If the hotel's checkout shows more, paste its quote above."; }
+  API.post('/api/trip/hotels-window/price/clear', {}).catch(_gwErr('googleHotelClear'));
+  tripUpdateBudget();
+  _watchGoogleHotel();          // a later click offers its price too
+}
+
+function tripDeclineGoogleHotel() {
+  const el = g('tripHotelSearchResult');
+  if (el) el.textContent = '';
+  API.post('/api/trip/hotels-window/price/clear', {}).catch(_gwErr('googleHotelClear'));
+  _watchGoogleHotel();
 }
 
 // P2: GSA's rate for the destination and month, fetched once per (destination, date) and then read from here

@@ -10011,9 +10011,30 @@ def trip_hotels_window():
         return err('Enter the destination first.', 400)
     if body.get('mode') == 'browser':
         return ok({'result': bank_window.open_in_browser(url)})
+    import hotels_window
     key = ('hotels', 0)
     bank_window.close_bank_window(key)        # a new search replaces the one on screen
-    return ok({'result': bank_window.open_bank_window(key, url)})
+    hotels_window.clear()                     # and its price with it
+    result = bank_window.open_bank_window(key, url)
+    if result == 'opened' and bank_window.process(key):
+        hotels_window.watch(bank_window.process(key))     # the stay total the person clicks, if they click one
+    return ok({'result': result})
+
+
+@trip_bp.route('/hotels-window/price', methods=['GET'])
+def trip_hotels_window_price():
+    """P3's optional half: the stay's total with taxes and fees from the Google Hotels row the person last clicked,
+    and its nights - or none. Shown to the person to confirm; nothing is written here."""
+    import hotels_window
+    return ok(hotels_window.latest())
+
+
+@trip_bp.route('/hotels-window/price/clear', methods=['POST'])
+def trip_hotels_window_price_clear():
+    """The person used the price or turned it down: forget it."""
+    import hotels_window
+    hotels_window.clear()
+    return ok({'cleared': True})
 
 
 @trip_bp.route('/airfare-refresh', methods=['POST'])

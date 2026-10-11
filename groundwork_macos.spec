@@ -70,6 +70,7 @@ a = Analysis(
         'utility_price',
         'trip_distance',
         'flights_window',
+        'hotels_window',
         'pdf_statement',
         # Flask
         'flask',
