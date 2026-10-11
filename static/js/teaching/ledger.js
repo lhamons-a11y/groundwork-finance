@@ -69,7 +69,7 @@
       <div style="font-size:12px;color:var(--slate);line-height:1.8">
         The <strong style="font-family:var(--font-mono)">${fmt(c.amount)}</strong> at
         <strong>${esc(c.name)}</strong>${when ? ` on ${when}` : ''}: had that money gone to the debt,
-        you would be debt-free <strong style="color:var(--pine)">${l.months_cost} month${l.months_cost !== 1 ? 's' : ''}</strong>
+        you would be debt-free <strong style="color:var(--pine-text)">${l.months_cost} month${l.months_cost !== 1 ? 's' : ''}</strong>
         sooner, with <strong style="font-family:var(--font-mono)">${fmt(l.interest_cost)}</strong> less interest.${back}
       </div>
     </div>`;

@@ -66,7 +66,7 @@
     } else {
       dateVal = `+${months} month${months !== 1 ? 's' : ''}`;
       dateSub = 'later than planned';
-      dateStyle = ' style="color:var(--gold)"';
+      dateStyle = ' style="color:var(--gold-text)"';
     }
 
     const hasInterest = typeof interest === 'number' && interest > 0;
@@ -78,7 +78,7 @@
         </div>
         <div class="trip-cell">
           <div class="trip-cell-label">Added interest</div>
-          <div class="trip-cell-value"${hasInterest ? ' style="color:var(--gold)"' : ''}>${hasInterest ? '+' + fmt(interest) : '—'}</div>
+          <div class="trip-cell-value"${hasInterest ? ' style="color:var(--gold-text)"' : ''}>${hasInterest ? '+' + fmt(interest) : '—'}</div>
           <div class="trip-cell-sub">${hasInterest ? 'over the payoff' : 'not calculated'}</div>
         </div>`;
   }

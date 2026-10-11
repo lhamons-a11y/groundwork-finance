@@ -151,7 +151,7 @@ def run(ctx):
     # heuristic had.
     i = view.find("dateVal = 'no change'")
     check('"no change" is not styled as a positive outcome',
-          i != -1 and 'var(--pine)' not in view[i:i + 400])
+          i != -1 and 'var(--pine' not in view[i:i + 400])   # the bright green or its text shade (item 77)
 
     # ── Pillar 2: the sentence ends in a lever ──────────────────────────────
     st, dl = impact(one_time_cost=2400)

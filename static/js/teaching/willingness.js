@@ -369,7 +369,7 @@
       var p = document.createElement('div');
       p.id = 'gwPicturePointer';
       p.style.cssText = 'font-size:12px;margin:-6px 0 14px';
-      p.innerHTML = '<a href="#" onclick="showView(\'' + VIEW + '\');return false" style="color:var(--pine)">'
+      p.innerHTML = '<a href="#" onclick="showView(\'' + VIEW + '\');return false" style="color:var(--pine-text)">'
         + 'What Groundwork has concluded about how you handle money →</a>';
       settingsHead.parentNode.insertBefore(p, settingsHead.nextSibling);
     }

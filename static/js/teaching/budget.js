@@ -46,7 +46,7 @@
       // debt-free date - the correction to the budget is the whole sentence.
       const cost = !o.priced ? ''
         : o.months_cost > 0
-        ? `That difference costs <strong style="color:var(--ember)">${o.months_cost} month${o.months_cost !== 1 ? 's' : ''}</strong>
+        ? `That difference costs <strong style="color:var(--ember-text)">${o.months_cost} month${o.months_cost !== 1 ? 's' : ''}</strong>
            on your debt-free date and <strong style="font-family:var(--font-mono)">${fmt(o.interest_cost)}</strong> in interest.`
         : `It costs <strong>${fmt(o.interest_cost)}</strong> in interest, and does not move your debt-free date.`;
       const fix = o.fix

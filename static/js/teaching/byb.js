@@ -170,7 +170,7 @@
     const worth = gl.months_sooner
       ? `, capacity worth <strong>${gl.months_sooner} month${gl.months_sooner !== 1 ? 's' : ''}</strong> on your date`
       : '';
-    return `<div style="font-size:12px;color:var(--pine);line-height:1.8;margin-bottom:10px">
+    return `<div style="font-size:12px;color:var(--pine-text);line-height:1.8;margin-bottom:10px">
       ${lead}${worth}. This <strong style="font-family:var(--font-mono)">${fmt(monthly)}/mo</strong>
       fits inside it, and uses <strong style="font-family:var(--font-mono)">${fmt(monthly)}</strong> of it.
     </div>`;
@@ -184,7 +184,7 @@
     if (m.honest_no && m.honest_no.unaffordable) {
       // Not a longer delay — a wall. The number is what makes it payable at all.
       const cap = m.honest_no.max_payable_monthly;
-      return `<div style="font-size:12px;color:var(--ember);line-height:1.7;margin-bottom:12px">`
+      return `<div style="font-size:12px;color:var(--ember-text);line-height:1.7;margin-bottom:12px">`
         + (cap
             ? `At <strong>${fmt(cap)}/mo</strong> or less this stays payable. Above that your `
               + `minimum payments stop being covered, which is not a later date — it is no date at all.`

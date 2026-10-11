@@ -35,7 +35,7 @@
       ? `would clear the last balance you carry — debt-free now instead of
          <strong>${_payoffDateLabel(d.base.months)}</strong>`
       : `would free <strong style="font-family:var(--font-mono)">${fmt(c.frees_monthly)}/mo</strong>
-         and bring your debt-free date <strong style="color:var(--pine)">${c.months_saved} month${c.months_saved !== 1 ? 's' : ''}</strong>
+         and bring your debt-free date <strong style="color:var(--pine-text)">${c.months_saved} month${c.months_saved !== 1 ? 's' : ''}</strong>
          sooner, with <strong style="font-family:var(--font-mono)">${fmt(c.interest_saved)}</strong> less interest`;
 
     return `<div class="card mb-5" id="nwCapacity">

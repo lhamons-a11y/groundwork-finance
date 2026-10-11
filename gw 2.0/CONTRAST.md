@@ -4,7 +4,7 @@ Opened 2026-10-11. Rob, on the AI analysis card: *"we need better contrasting on
 against that green."* That one card was fixed (a `--note` colour, #475569, about 7:1; commit 19954b8). Then: *"open
 an item to fix the contrast everywhere."*
 
-**K1–K8 RULED 2026-10-11 as recommended (Rob: "approve K1–K8 as recommended"). No code yet:** the build needs its own go-ahead.
+**K1–K8 RULED 2026-10-11 as recommended (Rob: "approve K1–K8 as recommended"). BUILT 2026-10-11 (Rob: "build item 77"), awaiting acceptance; §4.** Rob, seeing it: *"The entire program is easier to view with these changes."*
 
 ## 1. What is true today (measured 2026-10-11, master)
 
@@ -108,3 +108,39 @@ One build, one gate. Today's `--note` (#475569) folds into the new `--slate`.
 - **A dark theme.** Not proposed. If it comes, it gets its own pass with K6's test extended to its backgrounds.
 - **Larger default text size.** Most small print is 11–12px. Contrast is the fix asked for; size is a separate
   question.
+
+
+## 4. Built (2026-10-11)
+
+- **K6 first.** `s201_contrast.py`:
+  - computes every text colour against every light background and fails below 4.5:1;
+  - checks white text against each fill it sits on, and the dark-background shades against ink;
+  - scans the page code for green, gold or red used as text, white on the bright green, hard-coded text colours
+    outside a short allowed list (each checked against its background), and white below 50% on dark pages.
+
+  Run against the code from before the change, it failed six ways. After the change it passes.
+- **K2, the tokens.** `--slate` #64748b → **#526073**, and `--slate-2` #94a3b8 → **#5b6576**. Both pass on all eight
+  light backgrounds. Today's `--note` (#475569, from the AI card fix) folds into the new `--slate`, as K8 said.
+- **K3, text shades.**
+  - New `--pine-text` (#166534), `--gold-text` (#854d0e) and `--ember-text` (#b91c1c).
+  - Every use of green, gold or red as text, and every colour chosen in code (bar and verdict colours), moved to them:
+    green 284, gold 94, red 216.
+  - Fills and borders keep the bright colours.
+  - 23 places with white text on the bright green now use the deep green fill (7.1:1).
+- **K4.** 41 hard-coded dark text colours folded into the tokens. What's left is white on fills, black in print
+  styles, the blue badge, and the pale colours on the dark report, each with its background in s201.
+- **K5.** White text on the dark pages (the sidebar, the report, help cards) is raised to at least 62% wherever it
+  was under 50% (17 places).
+  - Found in the page, not in the colour table: the logo's "work" and the AI status line sit on the dark sidebar, where
+    the deep green and the blue fail.
+  - Two shades for dark backgrounds were added: `--pine-on-dark` (#22c55e, 8.3:1) and `--sky-on-dark` (#60a5fa,
+    7.4:1). "AI off" is 62% white.
+- **K7, seen in the page.** An audit run in the page measured every visible piece of text against the background
+  actually behind it, on a copy of Rob's data:
+  - **before**, seven pages had **703** pieces below the standard (debt 256, budget 174, ledger 122, Assistant 50,
+    dashboard 43, settings 43, Before You Buy 15);
+  - **after**, the same pages plus reports, trips, gifts, investments, net worth and the working picture had **none**.
+
+  Before and after screenshots of the Budget page's What's Left card were taken.
+- **Not changed:** `--sky` text on `--steel` (4.19:1) stays out of the table, because the page audit found no such
+  text in use.
