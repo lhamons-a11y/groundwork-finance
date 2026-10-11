@@ -1625,6 +1625,8 @@ function restoreFromBootstrap(data) {
     if (commToggle) commToggle.checked = S.lifeStage.commissionMode;
     const payFreqSel = g('settingsPayFrequency');
     if (payFreqSel) payFreqSel.value = S.lifeStage.payFrequency;
+    const autoReview = g('settingsAutoReview');           // item 75 M8
+    if (autoReview) autoReview.checked = s.auto_monthly_review !== 'false';
   }
 }
 
@@ -2262,6 +2264,7 @@ function renderDashboard() {
   // Sunday number card (Sundays only)
   if (typeof renderSundayCard === 'function') {
     renderSundayCard().catch(_gwErr('renderDashboard'));
+    renderReviewReady().catch(_gwErr('renderDashboard'));   // item 75 M5
   }
 
   // Getting-started checklist for new users
@@ -6338,6 +6341,7 @@ async function confirmImport() {
     await _refreshTransactionsFromServer();
     await _refreshDebtBalancesFromServer();  // debt balances stale after import
     buildFinancialProfile().catch(_gwErr('confirmImport')); // S.profile stale after new txns
+    monthlyReviewAfterImport().catch(_gwErr('monthlyReviewAfterImport'));   // item 75 M1: not awaited
 
     // B6b: If the server wrote new historian records, refresh the local
     // history cache so freed-minimums, debt progress, and §7.9 are current.
@@ -24571,6 +24575,117 @@ async function clearUnanswered(index) {
   showUnanswered();
 }
 
+// ── Item 75 (gw 2.0/MONTHLY_REVIEW.md M1-M10): the month's review, written when the month is complete ──
+// After an import, the one review that is due (the most recent complete month without one) is written on this
+// computer - the same report as the Reports page, through the same checks - and saved with what it was written from.
+// Nothing is sent anywhere; every AI request is in the AI log (item 62).
+let _monthlyReviewBusy = false;
+
+function _rcMonthFacts(month) {
+  const [yr, mo] = month.split('-').map(Number);
+  const start = `${yr}-${String(mo).padStart(2, '0')}-01`;
+  const end = new Date(yr, mo, 0).toISOString().slice(0, 10);
+  const txns = S.transactions.filter(t => t.date >= start && t.date <= end);
+  const monthName = new Date(yr, mo - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const spent = txns.filter(_isSpend).reduce((s, t) => s + t.amount, 0);
+  const income = S.incomes.reduce((s, i) => s + i.amount, 0);
+  const cats = {};
+  txns.filter(_isSpend).forEach(t => { const pn = _catParentName(t.category || 'Other') || 'Other'; cats[pn] = (cats[pn] || 0) + t.amount; });
+  const topCats = Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([c, a]) => `${c}: ${fmt(a)}`).join(', ');
+  return { monthName, spent, income, under: income - spent, topCats };
+}
+
+async function monthlyReviewAfterImport() {
+  if (_monthlyReviewBusy) return;                       // M6: one at a time
+  _monthlyReviewBusy = true;
+  try {
+    const due = ((await API.get('/api/reports/review/due')) || {}).month;
+    if (!due) return;
+    const f = _rcMonthFacts(due);
+    const summary = _rcMonthlyFallbackText(f.monthName, f.spent, f.income, f.under, f.topCats);
+    let text = summary, kind = 'summary';
+    if (aiEnabled()) {                                  // M9: AI off - the summary is the month's review
+      try {
+        const result = await callAI({
+          messages: [{ role: 'user', content: `Monthly report for ${f.monthName}. Spent: ${fmt(f.spent)}. Income: ${fmt(f.income)}. ${f.under >= 0 ? `Under budget by ${fmt(f.under)}.` : `Over by ${fmt(Math.abs(f.under))}.`} Top categories: ${f.topCats}. Write 3-4 paragraphs, about 300 words. Start with one punchy sentence. Follow with analysis. End by naming the single largest category above and its exact dollar amount, stated as a plain fact - not a command or suggestion, and never calculate a new number yourself. No bullets. No headings.` }],
+          system: 'You are writing a monthly financial report. Tone: direct, honest, like a trusted friend who knows their numbers. Never preachy.',
+          surface: 'monthly_report_v2',
+          findings_kinds: ['income', 'total', 'category', 'budget', 'date', 'price_benchmark', 'annotation'],
+          max_tokens: 1000,
+        });
+        if (result && result.ok && result.text && !result.stopped) { text = result.text; kind = 'written'; }
+        else kind = 'summary_failed';                   // M7: the written part didn't pass - the summary stands
+      } catch (e) { kind = 'summary_failed'; }
+    }
+    if (kind === 'summary_failed') text = summary + "\n\nThe written part of this review didn't pass Groundwork's checks, so only the summary is kept. You can write it again from Reports.";
+    await API.post('/api/reports/review', { month: due, text, kind });
+    renderReviewReady();
+  } catch (e) {
+    _gwErr('monthlyReviewAfterImport')(e);
+  } finally {
+    _monthlyReviewBusy = false;
+  }
+}
+
+// M2/M4 on the Reports page: the saved review, what it was written from, or what the month is waiting for.
+async function _rcMonthlyShowSaved(month, keepNarrative) {
+  const cont = g('rcMonthlyNarrative');
+  if (!cont) return;
+  let st;
+  try { st = await API.get('/api/reports/review/status?month=' + encodeURIComponent(month)); }
+  catch (e) { _gwErr('_rcMonthlyShowSaved')(e); return; }
+  if (g('rcMonthSel')?.value !== month) return;
+  const label = new Date(+month.slice(0, 4), +month.slice(5, 7) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const sv = st.saved;
+  let head = '';
+  if (sv) {
+    const m = sv.meta || {};
+    const when = m.written_at ? `Written ${new Date(m.written_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Written before reviews waited for a complete month';
+    const extra = m.missing && m.missing.length ? ` while still waiting for ${m.missing.map(esc).join(', ')}` : '';
+    const changed = sv.changed_since ? ` ${Math.abs(sv.changed_since.records_now - sv.changed_since.records_then) || 'Some'} record${Math.abs(sv.changed_since.records_now - sv.changed_since.records_then) === 1 ? '' : 's'} for ${esc(label)} have arrived or changed since. <button class="btn btn-ghost btn-sm" onclick="_rcMonthlyGenerate()">Write it again</button>` : '';
+    head = `<div style="font-size:12px;color:var(--slate);margin-bottom:8px">${esc(when)}${extra}.${changed}</div>`;
+    if (!keepNarrative) _rcMonthlyDisplayNarrative(sv.text, label, true);
+    if (m.seen === false) API.post('/api/reports/review/seen', { month }).then(() => renderReviewReady()).catch(_gwErr('review seen'));
+  } else if (st.state === 'waiting') {
+    head = `<div class="card" style="padding:14px;margin-bottom:10px;font-size:12px;color:var(--ink);line-height:1.7">${esc(label)}'s review waits for
+      ${st.waiting.map(w => `<b>${esc(w.account)}</b>: its records end ${w.records_end ? esc(new Date(w.records_end + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })) : 'before this month'}
+        <button class="btn btn-ghost btn-sm" onclick="_rcReviewSkipAccount(${w.account_id}, '${month}')">Not needed for reviews</button>`).join('; ')}.
+      <div style="margin-top:6px"><button class="btn btn-secondary btn-sm" onclick="_rcMonthlyGenerate()">Write it anyway</button>
+      <span style="color:var(--slate-2)">The review will name what it was missing.</span></div></div>`;
+  } else if (st.state === 'in_progress') {
+    head = `<div style="font-size:12px;color:var(--slate);margin-bottom:8px">${esc(label)} is still in progress. Its review is written once the month is complete; a look at it so far is not saved as its review.</div>`;
+  }
+  const box = g('rcMonthlyReviewHead') || (() => { const d = document.createElement('div'); d.id = 'rcMonthlyReviewHead'; cont.parentNode.insertBefore(d, cont); return d; })();
+  box.innerHTML = head;
+  if (!sv && !keepNarrative) cont.innerHTML = '';
+}
+
+async function _rcReviewSkipAccount(accountId, month) {
+  try { await API.post('/api/reports/review/skip-account', { account_id: accountId }); } catch (e) { _gwErr('_rcReviewSkipAccount')(e); }
+  _rcMonthlyShowSaved(month);
+}
+
+// M5: one quiet line on the dashboard when a review is written and not yet opened. No pop-up, no count.
+async function renderReviewReady() {
+  const el = g('dashReviewReady');
+  if (!el) return;
+  let m = null;
+  try { m = ((await API.get('/api/reports/review/ready')) || {}).month; } catch (e) { _gwErr('renderReviewReady')(e); }
+  if (!m) { el.innerHTML = ''; return; }
+  const label = new Date(+m.slice(0, 4), +m.slice(5, 7) - 1).toLocaleDateString('en-US', { month: 'long' });
+  el.innerHTML = `<div class="card mb-5" style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <span style="font-size:13px;color:var(--ink)">Your ${esc(label)} review is ready.</span>
+    <button class="btn btn-secondary btn-sm" onclick="_openMonthReview('${m}')">Read it</button></div>`;
+}
+
+function _openMonthReview(month) {
+  showView('reports');
+  setTimeout(() => {
+    const sel = g('rcMonthSel');
+    if (sel && [...sel.options].some(o => o.value === month)) { sel.value = month; _rcMonthlyRefreshPreview(); }
+  }, 300);
+}
+
 // Item 62 G1/G6: what the voice check said of one attempt, onto its log entry (fire and forget)
 function _aiLogVoice(logId, gate, shortened) {
   if (!logId || !gate) return;
@@ -25803,10 +25918,9 @@ function _rcMonthlyRefreshPreview() {
     ${topCats.map(([cat,amt])=>{const pct=spent>0?(amt/spent*100):0;const cs=_categoryStyle(cat);return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--steel-2)"><div style="flex:1;font-size:13px;color:var(--ink)">${esc(cat)}</div><div style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(amt)}</div><div style="width:40px;text-align:right;font-size:11px;color:var(--slate-2)">${pct.toFixed(0)}%</div></div>`;}).join('')}
     </div>`:''}`;
 
-  // AI is local, free and never leaves the machine, so there's no reason to
-  // make the user ask for it — generate immediately whenever there's a month
-  // with data to analyze, including right after the user switches months.
-  if (aiEnabled()) _rcMonthlyGenerate();
+  // Item 75 M3: opening Reports writes nothing by itself - a month in progress is never reviewed as if it were whole.
+  // The month's saved review shows, or what it is waiting for; writing is a tap (or follows an import, M1).
+  _rcMonthlyShowSaved(month);
 }
 
 async function _rcMonthlyLoadPastReports() {
@@ -25836,7 +25950,7 @@ async function _rcMonthlyLoadPast(key) {
   } catch(e) { _gwErr('_rcMonthlyLoadPast')(e); }
 }
 
-function _rcMonthlyDisplayNarrative(text, label, isSaved) {
+function _rcMonthlyDisplayNarrative(text, label, isSaved, note) {
   const cont = g('rcMonthlyNarrative');
   if (!cont) return;
   const paragraphs = text.split('\n\n').map(p=>p.trim()).filter(Boolean);
@@ -25845,7 +25959,7 @@ function _rcMonthlyDisplayNarrative(text, label, isSaved) {
   cont.innerHTML=`<div class="card" style="padding:24px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);font-weight:600">
-        Groundwork's analysis${isSaved?` · <span style="color:var(--slate-2)">Saved — ${esc(label)}</span>`:''}
+        Groundwork's analysis${isSaved?` · <span style="color:var(--slate-2)">Saved — ${esc(label)}</span>`:''}${note?` · <span style="color:var(--gold)">${esc(note)}</span>`:''}
       </div>
       <button onclick="window.print()" style="background:none;border:1px solid var(--steel);border-radius:var(--r-sm);padding:4px 10px;font-size:11px;cursor:pointer;color:var(--slate)">⎙ Print</button>
     </div>
@@ -25916,11 +26030,14 @@ async function _rcMonthlyGenerate() {
       return;
     }
     if (!result.ok || !result.text) throw new Error('empty');
-    if (stillCurrent()) {
-      _rcMonthlyDisplayNarrative(result.text,monthName,false);
-      _rcMonthlyLoadPastReports();
+    // Item 75 M3/M4: a month in progress is shown, labelled, and never saved; a past month is saved as its review
+    // (the earlier one kept), even when it is still waiting for an account - the review then names it.
+    const inProgress = month >= new Date().toISOString().slice(0, 7);
+    if (stillCurrent()) _rcMonthlyDisplayNarrative(result.text, monthName, false, inProgress ? 'Month in progress - not saved as its review' : '');
+    if (!inProgress) {
+      await API.post('/api/reports/review', { month, text: result.text, kind: 'written' }).catch(_gwErr('_rcMonthlyGenerate'));
+      if (stillCurrent()) { _rcMonthlyLoadPastReports(); _rcMonthlyShowSaved(month, true); }
     }
-    API.patch('/api/settings',{[`report_text_${month}`]:result.text}).catch(_gwErr('_rcMonthlyGenerate'));
   } catch(e) {
     if (stillCurrent()) _rcMonthlyDisplayNarrative(_rcMonthlyFallbackText(monthName,spent,income,under,topCats),monthName,false);
   } finally {

@@ -214,6 +214,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(evidence_bp,       url_prefix='/api/evidence')
     app.register_blueprint(why_bp,            url_prefix='/api/why')
     app.register_blueprint(help_bp,           url_prefix='/api/help')
+    app.register_blueprint(review_bp,         url_prefix='/api/reports/review')
     app.register_blueprint(usage_bp,          url_prefix='/api/usage')
     app.register_blueprint(dashboard_bp,      url_prefix='/api/dashboard')
 
@@ -1904,6 +1905,95 @@ def usage_rhythm():
         if n / len(recent) >= 0.4:
             mostly = top
     return ok({'opens_30d': len(recent), 'mostly': mostly})
+
+
+review_bp = Blueprint('review', __name__)
+
+
+# ── Item 75 - the month's review, written when the month is complete (MONTHLY_REVIEW.md M1-M10) ─────────────────
+@review_bp.route('/status', methods=['GET'])
+def review_status():
+    """M2/M4: a month's state (complete, in progress, waiting - and for which accounts) and its saved review."""
+    from core import monthly_review as mr
+    month = (request.args.get('month') or '').strip()
+    if not re.fullmatch(r'\d{4}-\d{2}', month):
+        return err('month (YYYY-MM) is required')
+    with db_session() as session:
+        return ok({**mr.status(session, month), 'saved': mr.saved(session, month)})
+
+
+@review_bp.route('/due', methods=['GET'])
+def review_due():
+    """M1/M6: the one month whose review should be written now, if any."""
+    from core import monthly_review as mr
+    with db_session() as session:
+        return ok({'month': mr.due(session)})
+
+
+@review_bp.route('', methods=['POST'])
+@require_json
+def review_save():
+    """M4: save a review as the month's; the earlier one is kept in its history. Never a month in progress."""
+    from core import monthly_review as mr
+    body = request.json or {}
+    month, text, kind = str(body.get('month') or ''), str(body.get('text') or '').strip(), body.get('kind')
+    if not re.fullmatch(r'\d{4}-\d{2}', month) or not text:
+        return err('month and text are required')
+    with db_session() as session:
+        try:
+            out = mr.save(session, month, text[:20000], kind)
+        except ValueError as e:
+            return err('A month in progress is never saved as its review.' if str(e) == 'in_progress' else 'kind is not one Groundwork keeps', 400)
+        session.commit()
+        return ok(out)
+
+
+@review_bp.route('/ready', methods=['GET'])
+def review_ready():
+    """M5: the newest review written but not yet opened - for one quiet line on the dashboard."""
+    with db_session() as session:
+        rows = session.query(AppSetting).filter(AppSetting.key.like('review_meta_%')).all()
+        best = None
+        for r in rows:
+            try:
+                meta = json.loads(r.value or '{}')
+            except ValueError:
+                continue
+            if not meta.get('seen'):
+                m = r.key.replace('review_meta_', '')
+                if not best or m > best:
+                    best = m
+        return ok({'month': best})
+
+
+@review_bp.route('/seen', methods=['POST'])
+@require_json
+def review_seen():
+    with db_session() as session:
+        key = f"review_meta_{str((request.json or {}).get('month') or '')[:7]}"
+        meta = _setting_json(session, key)
+        if meta:
+            meta['seen'] = True
+            _set_setting(session, key, json.dumps(meta))
+            session.commit()
+        return ok({'seen': bool(meta)})
+
+
+@review_bp.route('/skip-account', methods=['POST'])
+@require_json
+def review_skip_account():
+    """M2: the person says an account is not needed for reviews (closed, or never imported); a month stops waiting."""
+    try:
+        aid = int((request.json or {}).get('account_id'))
+    except (TypeError, ValueError):
+        return err('account_id is required')
+    with db_session() as session:
+        skip = _setting_json(session, 'review_skip_accounts', []) or []
+        if aid not in skip:
+            skip.append(aid)
+        _set_setting(session, 'review_skip_accounts', json.dumps(skip))
+        session.commit()
+        return ok({'skipped': skip})
 
 
 help_bp = Blueprint('help', __name__)

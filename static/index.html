@@ -1289,6 +1289,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         </div>
 
         <!-- Sunday number card — visible Sundays only (AI extra, detail zone) -->
+        <div id="dashReviewReady"></div>
         <div id="dashSundayCard" class="card mb-5" style="display:none;border-color:var(--sky)">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <div class="card-label" style="margin-bottom:0;color:var(--sky)">Sunday check-in</div>
@@ -2639,6 +2640,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div>
                 <div style="font-size:13px;font-weight:500">Enable AI features</div>
                 <div style="font-size:11px;color:var(--slate-2);margin-top:2px">Dashboard insights, smarter Before You Buy, monthly reports</div>
+                <div style="font-size:11px;color:var(--slate-2);margin-top:6px;line-height:1.5">Groundwork writes each month's review on this computer when your records show the month is complete. Nothing is sent anywhere. Every request is in the AI log.
+                  <label style="display:inline-flex;align-items:center;gap:4px;margin-left:4px;cursor:pointer"><input type="checkbox" id="settingsAutoReview" checked
+                    onchange="API.patch('/api/settings', { auto_monthly_review: this.checked ? 'true' : 'false' }).catch(_gwErr('settingsAutoReview'))"> Write the monthly review automatically</label></div>
               </div>
               <label style="position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0;cursor:pointer">
                 <input type="checkbox" id="settingsAiToggle" checked style="opacity:0;position:absolute;width:0;height:0"

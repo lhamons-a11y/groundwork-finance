@@ -7,7 +7,7 @@ Opened 2026-10-10. Rob:
 > the cloud. Since the ai agent doesn't call home to a server then the worry that data is getting sent that the user
 > didn't give permission to."*
 
-**M1–M10 RULED 2026-10-10 as recommended (Rob: "approve M1–M10 as recommended"). No code yet:** the build needs its own go-ahead.
+**M1–M10 RULED 2026-10-10 as recommended (Rob: "approve M1–M10 as recommended"). BUILT 2026-10-11 (Rob: "build item 75"), awaiting acceptance; see §4. Item 76 S2 asks whether this moves overnight.**
 
 ## 1. What is true today (measured 2026-10-10, master)
 
@@ -35,8 +35,10 @@ Opened 2026-10-10. Rob:
 *Recommended* (Rob's direction).
 
 **M2. Complete means every account has moved past the month.**
-- A month is complete when every account that had records in it also has a record dated after it, or the person
-  says an account is closed or not needed.
+- A month is complete when every account that had *imported* records in it also has an imported record dated
+  after it, or the person says an account is closed or not needed.
+- Records Groundwork writes itself (a recurring bill's auto-log) or the person types never hold a month. Found on
+  Rob's data at build: an auto-logged AEP bill held September.
 - Until then, Reports shows: *"September's review waits for Superior Savings: its records end September 12."* A
   *Write it anyway* button is there, and a review written that way says which accounts it was missing.
 
@@ -104,3 +106,35 @@ appears. *Recommended* (A10).
 - **Weekly or yearly reviews.** Not proposed. The Sunday check-in exists, and a year-end review could follow the
   same rule (complete before written).
 - **Sending the review anywhere** (email, print). Not proposed.
+
+
+## 4. Built (2026-10-11)
+
+- **`core/monthly_review.py`** handles each month's state, its saved review, the fingerprint of its records, and
+  which month is due.
+- **Routes:** `/api/reports/review`, plus `/status`, `/due`, `/ready`, `/seen` and `/skip-account`.
+- **M1/M6:** every import ends (`confirmImport`) by asking which review is due, without making the import wait. Only
+  **the most recent complete month** without a review is written automatically, one at a time.
+  - **This is a build call to accept:** written automatically, the nine unreviewed months on Rob's data would run
+    one after another on the next import. Earlier months are written from Reports on a tap.
+  - A review saved before this item, possibly mid-month, doesn't count, so last month is written again properly. The
+    old text is kept in the month's history.
+- **M2, refined at build:** only accounts with **imported** records in the month can hold it. On Rob's data,
+  September waited for an account called "Recurring", which holds only Groundwork's own monthly auto-log of the AEP
+  bill (source `manual`). Now, records Groundwork writes or the person types never hold a month. *"Not needed for
+  reviews"* lets the person release an account.
+- **M3:** opening Reports writes nothing by itself. It shows the month's saved review with its date, what the month
+  waits for (*Write it anyway*, *Not needed for reviews*), or that the month is in progress. A look at the current
+  month is labelled *Month in progress - not saved as its review*. The server refuses to save one.
+- **M4:** each review keeps the fingerprint of the records it was written from. Records that arrive or change later
+  are counted (*"4 records for September have arrived or changed since. Write it again"*). Writing again keeps the
+  earlier one in `review_history_YYYY-MM` (the last 10).
+- **M5:** the dashboard shows *"Your September review is ready."* with *Read it*, until the review is opened.
+- **M7/M9:** with AI off, the facts summary (item 64) is saved as the review. A written part that fails the checks is
+  replaced by the summary plus one plain line saying so.
+- **M8:** Settings → General → AI features says that reviews are written on this computer, that nothing is sent, and
+  that every request is in the AI log. It has the switch *Write the monthly review automatically*.
+- **On Rob's data** (a copy, 2026-10-11): August is complete, September is complete (after the M2 refinement), and
+  October is in progress. **September's review is due on the next import.**
+- **Tests:** s194 runs on a fixed past month, and runs the after-import writer in Node with AI off, AI on, AI
+  failing, nothing due, and two at once.

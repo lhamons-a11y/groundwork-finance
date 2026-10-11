@@ -212,7 +212,7 @@ def run(ctx):
           state['n'] == 1 and f.status_code == 500 and n_fix == 1 and all(x != ids['inc'] for x in still))
 
     # ── C1 / C2 / C8: where, and no model ──
-    js = app.split('async function openWhy(')[1].split('\n// Item 62 G1/G6')[0]
+    js = app.split('async function openWhy(')[1].split('\n// ── Item 72 stage 2')[0].split('\n// Item 62 G1/G6')[0]
     check('s189 C2 stage 1 uses no model: AI off changes nothing', 'callAI(' not in js and 'aiEnabled' not in js)
     check('s189 C1 "Why?" sits on the income card and "Check my records" on the Assistant page',
           "openWhy('income_month')" in app and "openWhy('records')" in html)
