@@ -213,6 +213,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
     app.register_blueprint(evidence_bp,       url_prefix='/api/evidence')
     app.register_blueprint(why_bp,            url_prefix='/api/why')
+    app.register_blueprint(reimburse_bp,      url_prefix='/api/reimburse')
     app.register_blueprint(help_bp,           url_prefix='/api/help')
     app.register_blueprint(review_bp,         url_prefix='/api/reports/review')
     app.register_blueprint(checkin_bp,        url_prefix='/api/checkin')
@@ -2366,6 +2367,78 @@ def why_fixes():
                         'label': c.get('label'), 'to': c.get('to'), 'count': len(c.get('changes') or []),
                         'total': c.get('total'), 'undone': c.get('undone')})
         return ok({'fixes': out})
+
+
+reimburse_bp = Blueprint('reimburse', __name__)
+
+
+# ── Item 72 stage 4 (ASK_WHY.md C5): purchases an employer pays back - told, never guessed ─────────────────────
+@reimburse_bp.route('', methods=['GET'])
+def reimburse_state():
+    from core import reimburse
+    with db_session() as session:
+        said = _setting_json(session, 'work_reimbursements_said')
+        return ok({'said': said, 'items': reimburse.state(session) if (said or {}).get('answer') == 'yes' else []})
+
+
+@reimburse_bp.route('/said', methods=['POST'])
+@require_json
+def reimburse_said():
+    """C5: the person's own word that they buy things for work and get paid back (or not). Changeable."""
+    answer = (request.json or {}).get('answer')
+    if answer not in ('yes', 'no'):
+        return err("answer must be 'yes' or 'no'")
+    with db_session() as session:
+        _set_setting(session, 'work_reimbursements_said',
+                     json.dumps({'answer': answer, 'at': datetime.now().isoformat(timespec='seconds')}))
+        session.commit()
+        return ok({'answer': answer})
+
+
+def _reimburse_do(fn, *args):
+    from core import reimburse
+    with db_session() as session:
+        if ((_setting_json(session, 'work_reimbursements_said') or {}).get('answer')) != 'yes':
+            return err('Say first that you buy things for work and get paid back.', 409)
+        res, problem = getattr(reimburse, fn)(session, *args)
+        if problem:
+            session.rollback()
+            return err(problem, 400)
+        session.commit()
+        return ok({'result': res if isinstance(res, dict) else {'id': getattr(res, 'id', None)},
+                   'items': reimburse.state(session)})
+
+
+@reimburse_bp.route('/mark', methods=['POST'])
+@require_json
+def reimburse_mark():
+    b = request.json or {}
+    return _reimburse_do('mark', int(b.get('transaction_id') or 0), str(b.get('employer') or ''))
+
+
+@reimburse_bp.route('/match', methods=['POST'])
+@require_json
+def reimburse_match():
+    b = request.json or {}
+    return _reimburse_do('match', int(b.get('item_id') or 0), int(b.get('credit_id') or 0))
+
+
+@reimburse_bp.route('/unmatch', methods=['POST'])
+@require_json
+def reimburse_unmatch():
+    return _reimburse_do('unmatch', int((request.json or {}).get('match_id') or 0))
+
+
+@reimburse_bp.route('/write-off', methods=['POST'])
+@require_json
+def reimburse_write_off():
+    return _reimburse_do('write_off', int((request.json or {}).get('item_id') or 0))
+
+
+@reimburse_bp.route('/unmark', methods=['POST'])
+@require_json
+def reimburse_unmark():
+    return _reimburse_do('unmark', int((request.json or {}).get('item_id') or 0))
 
 
 income_bp = Blueprint('income_change', __name__)

@@ -3727,6 +3727,7 @@ function ledgerSearchInput() {
 }
 
 function renderLedger() {
+  renderLedgerReimburse(true);   // item 72 stage 4: the Paid back by work card, and the state the row's ↩ reads
   const body     = g('ledgerBody');
   const countEl  = g('ledgerCount');
   if (!body) return;
@@ -4271,6 +4272,60 @@ function _catTintBorder(hex) {
   return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
 }
 
+// ── Item 72 stage 4 (ASK_WHY.md C5): purchases an employer pays back - told, never guessed ──
+// Asked once; only after a yes can a purchase be marked (the ↩ on a Ledger row), and only by the person. A marked
+// purchase and a repayment that is all repayment sit under "Paid back by work" (inside Transfer), so neither is
+// spending or income. Matching, undoing and "it won't be paid back" are all the person's taps.
+let _reimburseState = null, _reimburseLoaded = false;
+
+async function renderLedgerReimburse(fromLedger) {
+  const el = g('ledgerReimburse');
+  if (!el) return;
+  try { _reimburseState = await API.get('/api/reimburse'); } catch (e) { _gwErr('renderLedgerReimburse')(e); return; }
+  const st = _reimburseState || {};
+  const said = st.said && st.said.answer;
+  const first = !_reimburseLoaded;
+  _reimburseLoaded = true;
+  if (first && fromLedger && said === 'yes') renderLedger();   // the rows pick up their ↩ once the answer is known
+  if (!said) {
+    el.innerHTML = `<div class="card mb-4" style="font-size:12px;color:var(--ink)">Do you buy things for work and get paid back by your employer?
+      <button class="btn btn-secondary btn-sm" onclick="reimburseSaid('yes')">Yes</button>
+      <button class="btn btn-ghost btn-sm" onclick="reimburseSaid('no')">No</button>
+      <div style="font-size:11px;color:var(--slate-2);margin-top:2px">With a yes, a purchase can be marked "my employer pays this back", so it isn't counted as your spending.</div></div>`;
+    return;
+  }
+  if (said !== 'yes') { el.innerHTML = ''; return; }
+  const items = st.items || [];
+  const waiting = items.filter(i => i.status === 'waiting');
+  const paid = items.filter(i => i.status === 'paid');
+  el.innerHTML = `<div class="card mb-4"><div class="card-label">Paid back by work</div>
+    <div style="font-size:11px;color:var(--slate-2);margin-bottom:6px">Mark a purchase with ↩ on its row. Marked purchases and the repayments for them aren't counted as spending or income.
+      <button class="btn btn-ghost btn-sm" onclick="reimburseSaid('no')">I don't do this</button></div>
+    ${waiting.length ? waiting.map(i => `<div style="padding:8px 0;border-top:1px solid var(--steel);font-size:12px">
+      <b>${esc(i.name)}</b>, ${fmt(i.amount)} on ${_billDate(i.date)}${i.paid_back ? ` - ${fmt(i.paid_back)} paid back so far, ${fmt(i.left)} to go` : ' - waiting to be paid back'}
+      ${(i.candidates || []).length ? `<div style="margin-top:4px;color:var(--slate)">Is it one of these deposits?</div>${i.candidates.map(c => `<div style="margin-top:2px">
+        <button class="btn btn-secondary btn-sm" onclick="reimburseMatch(${i.id}, ${c.id})">Match ${fmt(c.would_apply)}</button>
+        ${fmt(c.amount)} on ${_billDate(c.date)} from ${esc(c.name)}${c.carries_more ? ' <span style="color:var(--slate-2)">(this deposit carries other money too, so it stays where it is; the paid-back part is recorded against this purchase)</span>' : ''}</div>`).join('')}` : '<div style="color:var(--slate-2);margin-top:2px">No deposit on record yet that could be the repayment.</div>'}
+      <div style="margin-top:4px">${i.matches.length ? '' : `<button class="btn btn-ghost btn-sm" onclick="reimburseUnmark(${i.id})">Not a work purchase</button>`}
+        <button class="btn btn-ghost btn-sm" onclick="reimburseWriteOff(${i.id})">It won't be paid back</button></div></div>`).join('')
+      : '<div style="font-size:12px;color:var(--slate)">Nothing waiting to be paid back.</div>'}
+    ${paid.length ? `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--sky);cursor:pointer">Paid back (${paid.length})</summary>${paid.map(i => `<div style="font-size:12px;padding:3px 0">${esc(i.name)}, ${fmt(i.amount)}: paid back ${i.matches.map(m => `${fmt(m.amount)} on ${_billDate(m.date)} <button class="btn btn-ghost btn-sm" onclick="reimburseUnmatch(${m.id})">Undo</button>`).join(', ')}</div>`).join('')}</details>` : ''}
+  </div>`;
+}
+
+async function _reimburse(path, body, done) {
+  try { await API.post(path, body); if (done) showToast(done, '', 'success'); }
+  catch (e) { _gwErr('reimburse')(e); showToast(e.message || 'That did not take', '', 'warning'); return; }
+  try { await bootFromDB(); } catch (e) { _gwErr('reimburse reload')(e); }
+  renderLedger();
+}
+function reimburseSaid(answer) { _reimburse('/api/reimburse/said', { answer }); }
+function reimburseMark(transactionId) { _reimburse('/api/reimburse/mark', { transaction_id: transactionId }, 'Marked: your employer pays this back'); }
+function reimburseMatch(itemId, creditId) { _reimburse('/api/reimburse/match', { item_id: itemId, credit_id: creditId }, 'Matched'); }
+function reimburseUnmatch(matchId) { _reimburse('/api/reimburse/unmatch', { match_id: matchId }, 'Match undone'); }
+function reimburseWriteOff(itemId) { _reimburse('/api/reimburse/write-off', { item_id: itemId }, 'Put back as your spending'); }
+function reimburseUnmark(itemId) { _reimburse('/api/reimburse/unmark', { item_id: itemId }, 'Unmarked'); }
+
 function _ledgerRowHTML(t) {
   const catStyle = _categoryStyle(t.category);  // {color, icon} from Settings (with fallback)
   const acctName = t.account || '';
@@ -4327,6 +4382,8 @@ function _ledgerRowHTML(t) {
     ? `<span title="Linked to a debt payment — click to view" style="cursor:pointer;margin-left:5px" onclick="event.stopPropagation();jumpToLinkedDebtEntry(${t.linked_debt_entry_id})">💳</span>`
     : (t.type === 'debit'
         ? `<span title="Link to a debt account" style="cursor:pointer;margin-left:5px;opacity:.3" onclick="event.stopPropagation();openLinkToDebtPicker(${t.id})">🔗</span>`
+          + (t.type === 'debit' && ((_reimburseState || {}).said || {}).answer === 'yes' && t.category !== 'Paid back by work'
+             ? `<span title="My employer pays this back" style="cursor:pointer;margin-left:5px;opacity:.45" onclick="event.stopPropagation();reimburseMark(${t.id})">↩</span>` : '')
         : '');
 
   return `<div class="row" data-id="${t.id}" ondblclick="ledgerRowDblClick(${t.id})">

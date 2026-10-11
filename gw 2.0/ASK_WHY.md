@@ -9,7 +9,7 @@ filed under a new category:
 > bill to the user can talk with the agent to fix. Also if the user had questions on how to do things in groundwork
 > it explains where and could even open that section for them."*
 
-**C1–C10 as revised in §5: go-ahead given 2026-10-10 (Rob: "build"). STAGE 1 ACCEPTED 2026-10-10 (Rob: "i accept item 72 stage 1, build stage 2"). STAGE 2 BUILT and ACCEPTED 2026-10-10 (Rob: "I accept Stage 2"). STAGE 3 (the AI picking checks) BUILT 2026-10-11 (Rob: "Please proceed item 71- 73") and ACCEPTED 2026-10-11 (Rob: "i accept item 72 stage 3"); §9. Stage 4 (work reimbursements) after it (C9).**
+**C1–C10 as revised in §5: go-ahead given 2026-10-10 (Rob: "build"). STAGE 1 ACCEPTED 2026-10-10 (Rob: "i accept item 72 stage 1, build stage 2"). STAGE 2 BUILT and ACCEPTED 2026-10-10 (Rob: "I accept Stage 2"). STAGE 3 (the AI picking checks) BUILT 2026-10-11 (Rob: "Please proceed item 71- 73") and ACCEPTED 2026-10-11 (Rob: "i accept item 72 stage 3"); §9. STAGE 4 (work reimbursements) BUILT 2026-10-11 (Rob: "build item 72 stage 4"), awaiting acceptance; §10. All four stages built.**
 
 ## 1. What happened, and why it's the model for this
 
@@ -407,3 +407,42 @@ Stage 1 takes no typed questions, so C11 is built with stage 2.
   - the model never reading the record.
 
   s193's "no model" check now reads: no model for how-to answers.
+
+
+## 10. Stage 4, built (2026-10-11)
+
+- **C5, told, never guessed.**
+  - The Ledger asks once: *"Do you buy things for work and get paid back by your employer?"*. The answer is kept
+    (`work_reimbursements_said`) and can be changed (*I don't do this*).
+  - Until a yes, nothing can be marked (409) and nothing is offered.
+- **Marking.** After a yes, each purchase row in the Ledger has a ↩ (*My employer pays this back*). A marked purchase
+  moves under **"Paid back by work"**, a category inside Transfer. That is the rule every spending and income figure
+  already follows (`_isSpend` / `_isEarn` on the page, the `transfer` type on the server), so no figure needed its
+  own new rule. Its original category is kept.
+- **Matching.** The *Paid back by work* card lists each waiting purchase with the deposits that could be its
+  repayment: on or after the purchase, within six months, with money not already matched, the employer's name
+  first. The person taps *Match*.
+  - **A deposit that the matches use up entirely** moves under *Paid back by work*, so it isn't income.
+  - **A deposit that carries other money too** (a repayment added to a paycheck) stays where it is, because one
+    transaction can't be split. The paid-back part is recorded against the purchase, and the card says so.
+  - Partial repayments add up, and the purchase is *paid* when they cover it.
+- **Changes of mind:**
+  - *Undo* on a match puts the deposit back and the purchase back to waiting.
+  - *It won't be paid back* puts the purchase, and every deposit moved for it, back where they were.
+  - *Not a work purchase* works only before a repayment is matched.
+- **Recorded.** Every step is in the Historian (`reimbursement_marked`, `_matched`, `_unmatched`, `_written_off`,
+  `_unmarked`).
+- **Schema.** `20261011-work-reimbursements` adds the `reimbursable_items` and `reimbursement_matches` tables, with
+  the models' fingerprint pinned (s51) and the schema fixture saved (s67).
+- **Known limit, said in the card:** a repayment inside a paycheck still counts in that paycheck's income. Splitting
+  a transaction is a separate piece of work.
+- **Tests:** s199 covers:
+  - nothing before the yes;
+  - the move, keeping the original category;
+  - refusals (a second mark, a deposit);
+  - candidates with the employer first;
+  - a full deposit moved;
+  - a paycheck left in place with $50 recorded;
+  - the server's spending and income, and the page's own tests in Node;
+  - undo, write-off and unmark;
+  - the Historian.
