@@ -7,7 +7,7 @@ Opened 2026-10-10. Rob:
 > the cloud. Since the ai agent doesn't call home to a server then the worry that data is getting sent that the user
 > didn't give permission to."*
 
-**Points M1–M10 for ruling. No code yet.**
+**M1–M10 RULED 2026-10-10 as recommended (Rob: "approve M1–M10 as recommended"). No code yet:** the build needs its own go-ahead.
 
 ## 1. What is true today (measured 2026-10-10, master)
 
