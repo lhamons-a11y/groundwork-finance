@@ -1,5 +1,7 @@
 # Item 75 — The month's review, written when the month is complete
 
+**ACCEPTED 2026-10-11** (Rob 2026-10-11: "all items are accepted").
+
 Opened 2026-10-10. Rob:
 
 > *"when ledger gets a bank transcript that shows a new moth the moth report ai can then start to generate its

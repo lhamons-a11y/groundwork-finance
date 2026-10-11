@@ -57,14 +57,14 @@ def run(ctx):
     try:
         st, cut = ask('length')
         check('/api/ai/chat (local) reports stop_reason max_tokens when the engine stops at the length cap',
-              st == 200 and cut.get('stop_reason') == 'max_tokens' and cut.get('provider') == 'local')
+              st == 200 and cut.get('stop_reason') == 'max_tokens' and 'provider' not in cut)
         st, fin = ask('stop')
         check('/api/ai/chat (local) reports stop_reason end_turn when the engine finishes the answer',
               st == 200 and fin.get('stop_reason') == 'end_turn')
         st, unk = ask(None)
         check('a missing finish reason is reported as unknown - never as finished, never as cut',
               st == 200 and unk.get('stop_reason') == 'unknown')
-        check('the carry changed nothing else in the response shape (content, model, provider intact)',
+        check('the carry changed nothing else in the response shape (content and model intact; no provider - item 63 L2)',
               cut.get('content') == [{'type': 'text', 'text': 'Income was $4,280.00 this month'}]
               and cut.get('model') == engine.MODEL_FILE)
     finally:

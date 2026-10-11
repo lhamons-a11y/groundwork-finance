@@ -23655,7 +23655,7 @@ function updateAIFeatureVisibility() {
 
 }
 
-// ── Phase 2A: Settings → AI provider pane ─────────────────────────────────────
+// ── Phase 2A: Settings → AI features pane ───────────────────────────────────────
 // Local AI only (CLOUD_AI_REMOVAL.md), run by the in-app engine (ENGINE_REPLACEMENT.md). Fed by /api/ai/status:
 // off / loading / ready / unavailable, with the engine's own honest message.
 
@@ -23734,7 +23734,7 @@ function toggleAI(checkbox) {
   API.patch('/api/settings', { ai_enabled: String(on) }).catch(_gwErr('toggleAI'));
   // The server loads or releases the model on this change; show its state as it settles.
   setTimeout(_loadAiLocalStatus, 300);
-  // updateAIFeatureVisibility() already sets the provider-aware status
+  // updateAIFeatureVisibility() already sets the engine's status
   // message on #settingsApiKeyStatus — no need to duplicate that logic here.
   updateAIFeatureVisibility();
 }
@@ -24964,9 +24964,7 @@ async function callAI(payload) {
       // 'max_tokens' is the one stop reason that means the answer was cut; the
       // server maps the engine's 'length' onto it (the internal format, ruling 2).
       const truncated = data.stop_reason === 'max_tokens';
-      // 'provider' comes verbatim from _ai_chat_local()'s response ('local');
-      // it is the only provider there is.
-      return { ok:true, text, model:data.model||'', provider:data.provider||'', truncated, logId:data.log_id };
+      return { ok:true, text, model:data.model||'', truncated, logId:data.log_id };
     } catch(e) {
       return { ok:false, text:'' };
     }
@@ -24981,23 +24979,23 @@ async function callAI(payload) {
     if (s.logId) _aiLogVoice(s.logId, s.gate, !!s.shortened);
     if (s.stopped) return { ok:false, stopped:true, text:s.shown, payload };
     if (s.unavailable) return { ok:false, text:'', payload };
-    if (s.pass) return _gwLimit(payload, { ok:true, text:s.text, payload, model:'', provider:'local', streamed:true, shortened:!!s.shortened });
+    if (s.pass) return _gwLimit(payload, { ok:true, text:s.text, payload, model:'', streamed:true, shortened:!!s.shortened });
     if (typeof payload.onReset === 'function') payload.onReset('Rewording…');
-    result = { ok:true, text:s.text, model:'', provider:'local', truncated:s.truncated };
+    result = { ok:true, text:s.text, model:'', truncated:s.truncated };
     gate = s.gate;
   } else {
     result = await attempt(baseSystem);
     if (!result.ok) return { ok:false, text:'', payload };
-    if (skipGate) return { ok:true, text:result.text, payload, model:result.model, provider:result.provider, truncated:result.truncated };
+    if (skipGate) return { ok:true, text:result.text, payload, model:result.model, truncated:result.truncated };
     gate = _voiceGateCheck(result.text, findings, result.truncated);
     _aiLogVoice(result.logId, gate);
-    if (gate.pass) return _gwLimit(payload, { ok:true, text:result.text, payload, model:result.model, provider:result.provider });
+    if (gate.pass) return _gwLimit(payload, { ok:true, text:result.text, payload, model:result.model });
     // K3: cut at the cap - keep what finished, if it passes on its own
     if (result.truncated) {
       const kept = _gwKeepFinished(result.text);
       if (kept && _voiceGateCheck(kept, findings, false).pass) {
         _aiLogVoice(result.logId, { failedRules: [] }, true);
-        return _gwLimit(payload, { ok:true, text: kept + '\n\n' + GW_SHORTENED, payload, model:result.model, provider:result.provider, shortened:true });
+        return _gwLimit(payload, { ok:true, text: kept + '\n\n' + GW_SHORTENED, payload, model:result.model, shortened:true });
       }
     }
   }
@@ -25025,13 +25023,13 @@ async function callAI(payload) {
     if (!result.ok) return { ok:false, text:'', payload };
     gate = _voiceGateCheck(result.text, findings, result.truncated);
     _aiLogVoice(result.logId, gate);
-    if (gate.pass) return _gwLimit(payload, { ok:true, text:result.text, payload, model:result.model, provider:result.provider });
+    if (gate.pass) return _gwLimit(payload, { ok:true, text:result.text, payload, model:result.model });
     // K3: cut at the cap - keep what finished, if it passes on its own
     if (result.truncated) {
       const kept = _gwKeepFinished(result.text);
       if (kept && _voiceGateCheck(kept, findings, false).pass) {
         _aiLogVoice(result.logId, { failedRules: [] }, true);
-        return _gwLimit(payload, { ok:true, text: kept + '\n\n' + GW_SHORTENED, payload, model:result.model, provider:result.provider, shortened:true });
+        return _gwLimit(payload, { ok:true, text: kept + '\n\n' + GW_SHORTENED, payload, model:result.model, shortened:true });
       }
     }
   }
@@ -25129,7 +25127,7 @@ async function _renderProjectionAI(content, badge, d) {
       ];
       _rcRenderAIPanel('projection', result.text, content, projDataLines, null,
         { compact:true, replace:true, payload:result.payload, title:'Projection',
-          model: result.model, provider: result.provider });
+          model: result.model });
     }
     else _renderProjectionFallback(content,badge,d);
   } catch(e){_renderProjectionFallback(content,badge,d);}
@@ -25192,9 +25190,9 @@ async function _rcTryPersistedCache(reportId, dataLines, buildPrompt, target) {
 
     if (!(ageHours < _RC_CACHE_STALE_HOURS) || !cached.text) return false;
     _rcAICache[reportId] = cached.text;
-    _rcAIModelCache[reportId] = { model: cached.model, provider: cached.provider };
+    _rcAIModelCache[reportId] = { model: cached.model };
     _rcRenderAIPanel(reportId, cached.text, target, dataLines, buildPrompt,
-      { model: cached.model, provider: cached.provider });
+      { model: cached.model });
     return true;
   } catch (e) {
     return false;
@@ -25300,12 +25298,12 @@ Use the actual dollar amounts provided. Up to 3 short paragraphs, about 200 word
     _rcAIThread[reportId].push({ role: 'assistant', content: result.text });
     _rcAICache[reportId] = result.text;
     _rcRenderAIPanel(reportId, result.text, target, dataLines, buildPrompt,
-      { model: result.model, provider: result.provider });
+      { model: result.model });
     // Persist across restarts — same mechanism Monthly Report already uses.
     // Fire-and-forget: a failed save just means the next visit regenerates,
     // never a broken report.
     API.patch('/api/settings', {
-      [`ai_report_${reportId}`]: JSON.stringify({ text: result.text, model: result.model, provider: result.provider, ts: Date.now() }),
+      [`ai_report_${reportId}`]: JSON.stringify({ text: result.text, model: result.model, ts: Date.now() }),
     }).catch(_gwErr('_rcSendAI:persist'));
   } else {
     // The AI narrative failed (unreachable, or the voice gate rejected all
@@ -25383,19 +25381,19 @@ function _rcAttributionText(reportId) {
 // One renderer = one place for the voice header, the dataLines disclosure
 // ("The numbers behind this analysis"), the prompt disclosure, Copy, and
 // attribution — no more per-surface rendering with per-surface gaps.
-// opts: { compact, title, pullquoteFirst, payload, replace, model, provider }
+// opts: { compact, title, pullquoteFirst, payload, replace, model }
 //   compact        — no follow-up thread, no Regenerate (surfaces w/o thread machinery)
 //   title          — header label (default "Groundwork's analysis")
 //   pullquoteFirst — first paragraph renders as the report pullquote
 //   payload        — the callAI payload; appends the "what was sent" disclosure
 //   replace        — clear the target container before appending
-//   model, provider — from callAI()'s result; drive the attribution line
+//   model          — from callAI()'s result; drives the attribution line
 //                     ("Analyzed on your machine · phi3.5")
 function _rcRenderAIPanel(reportId, responseText, target, dataLines, buildPrompt, opts = {}) {
   g(`rcAIResponse-${reportId}`)?.remove();
   if (opts.replace && target) target.innerHTML = '';
   _rcAICache[reportId] = responseText;   // Copy works on every surface
-  if (opts.provider !== undefined) _rcAIModelCache[reportId] = { model: opts.model, provider: opts.provider };
+  if (opts.model !== undefined) _rcAIModelCache[reportId] = { model: opts.model };
 
   const rawParas = responseText.split('\n\n').map(p => p.trim()).filter(Boolean);
   const paragraphs = rawParas
@@ -27563,9 +27561,8 @@ function _renderFinancialSnapshot(container) {
   if (!aiEnabled()) {
     const aiSlot = g('snapshotAI');
     if (aiSlot) {
-      // Two distinct reasons AI isn't on, two distinct fixes — never assume
-      // the cloud-key case when the real gap is just the toggle being off
-      // (the default local-mode state needs no key at all).
+      // Two distinct reasons AI isn't on: the toggle is off, or this computer
+      // can't run the engine. Neither needs a key - there is none.
       const toggledOff = S.prefs?.aiEnabled === false;
       const msg = 'Everything above is computed on your own machine. Groundwork can also add a written read of what it means — turn AI on in Settings to add this (free, and it runs on your own computer).';
       const btnLabel = 'Turn on AI';
@@ -28379,7 +28376,7 @@ async function _rcRenderDebtPayoff() {
              <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Runs on your own machine — debt balances, APRs, payoff sequence, and interest data never leave your computer.</div>`
           : `<div style="font-size:13px;color:var(--slate)">${S.prefs?.aiEnabled === false
                 ? 'Turn AI on in Settings to enable Groundwork\'s analysis.'
-                : 'Add an API key in Settings to enable Groundwork\'s analysis, or switch to local AI (free, no key needed).'}</div>`}
+                : 'AI is off. Turn it on in Settings to get Groundwork\'s analysis; everything else works without it.'}</div>`}
       </div>
     </div>
   `;

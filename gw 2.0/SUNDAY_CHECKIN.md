@@ -1,5 +1,7 @@
 # Item 76 — The Sunday check-in: the week behind, the week ahead, and why it matters
 
+**ACCEPTED 2026-10-11** (Rob 2026-10-11: "all items are accepted").
+
 Opened 2026-10-11. Rob, with a screenshot of today's check-in:
 
 > *"when it comes to AI narration like sunday check-in we should have the agent run those processes at midnight or

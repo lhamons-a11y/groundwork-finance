@@ -5542,7 +5542,7 @@ def get_debt_history(debt_id):
 
 def _ai_complete_text(system: str, user: str, max_tokens: int = 4000):
     """
-    Call the active AI provider directly — no HTTP round-trip through
+    Call the in-app AI engine directly — no HTTP round-trip through
     /api/ai/chat — for server-side pipelines (like PDF extraction) that need
     a model call but aren't themselves handling a chat request. Returns the
     response text, or None if AI is disabled/unreachable/unavailable.
@@ -10819,7 +10819,7 @@ def _ai_chat_stream(body: dict):
             elif kind == 'done':
                 stop_reason = 'max_tokens' if val == 'length' else 'end_turn' if val == 'stop' else 'unknown'
                 log_id = _ai_log_write(body, ''.join(said), stop_reason, engine.MODEL_FILE)
-                yield 'data: ' + json.dumps({'done': True, 'stop_reason': stop_reason, 'provider': 'local', 'log_id': log_id}) + '\n\n'
+                yield 'data: ' + json.dumps({'done': True, 'stop_reason': stop_reason, 'log_id': log_id}) + '\n\n'
             elif kind == 'stopped':
                 _ai_log_write(body, ''.join(said), 'stopped', engine.MODEL_FILE, stopped=True)
                 yield 'data: ' + json.dumps({'stopped': True}) + '\n\n'
@@ -10875,7 +10875,7 @@ def _ai_chat_local(body: dict):
     stop_reason = 'max_tokens' if finish == 'length' else 'end_turn' if finish == 'stop' else 'unknown'
     log_id = _ai_log_write(body, r['text'], stop_reason, engine.MODEL_FILE)
     return jsonify({'content': [{'type': 'text', 'text': r['text']}], 'model': engine.MODEL_FILE,
-                    'provider': 'local', 'finish': finish, 'stop_reason': stop_reason, 'log_id': log_id})
+                    'finish': finish, 'stop_reason': stop_reason, 'log_id': log_id})
 
 
 def engine_launch():
@@ -10942,7 +10942,7 @@ def ai_status():
     """The engine's state for Settings -> AI: off / loading / ready / unavailable, with an honest message."""
     from core import engine
     st = engine.status()
-    return ok({'enabled': _ai_is_enabled(), 'provider': 'local', 'engine': st['state'], 'reason': st['reason'],
+    return ok({'enabled': _ai_is_enabled(), 'engine': st['state'], 'reason': st['reason'],
                'message': st['message'], 'model_file': st['model_file'],
                'ready': st['state'] == 'ready', 'available': st['state'] in ('loading', 'ready'),
                'load_seconds': st['load_seconds']})

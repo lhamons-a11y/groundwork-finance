@@ -1,5 +1,7 @@
 # Item 71 — When income drops: scenarios that keep a goal in reach, and how the budget follows
 
+**ACCEPTED 2026-10-11** (Rob 2026-10-11: "all items are accepted").
+
 **ACCEPTED + CLOSED 2026-10-10** (Rob 2026-10-10: "i accept all").
 
 Opened 2026-10-10. Rob:

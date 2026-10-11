@@ -73,7 +73,7 @@ def run(ctx):
         body = r.get_json() or {}
         check('a chat reaches the engine and comes back in the shape callAI() reads',
               r.status_code == 200 and body.get('content') == [{'type': 'text', 'text': 'A plain answer.'}]
-              and body.get('provider') == 'local' and body.get('model') == engine.MODEL_FILE
+              and 'provider' not in body and body.get('model') == engine.MODEL_FILE
               and body.get('finish') == 'stop' and body.get('stop_reason') == 'end_turn')
         sent = m.seen[-1]
         check('the system prompt goes first and content blocks are flattened to text',

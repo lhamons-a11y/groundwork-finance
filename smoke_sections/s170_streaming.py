@@ -61,7 +61,7 @@ def run(ctx):
         check('s170 S3/S4 the route streams the model\'s pieces as events, then its finish reason',
               r.mimetype == 'text/event-stream' and [e['t'] for e in ev if 't' in e] == ['Income was ', '$4,280.00', ' this month.']
               # item 62: the end event also names its AI log entry
-              and {k: v for k, v in ev[-1].items() if k != 'log_id'} == {'done': True, 'stop_reason': 'end_turn', 'provider': 'local'}
+              and {k: v for k, v in ev[-1].items() if k != 'log_id'} == {'done': True, 'stop_reason': 'end_turn'}
               and 'log_id' in ev[-1])
         ev = _sse(ask(_Streamer(['Income was ', '$4,280'], 'length')))
         check('s170 S3 a stream cut at the length cap ends as max_tokens - never as finished (R10 reads it)',

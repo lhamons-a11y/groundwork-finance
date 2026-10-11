@@ -242,8 +242,8 @@ def run(ctx):
         and c.get('/api/settings', headers=H).get_json()['data'].get('ai_provider') is None))
     check('s52 the key route is gone', c.post('/api/settings/api-key', headers=HJ,
                                                 data=json.dumps({'key': 'sk-ant-x'})).status_code in (404, 405))
-    check('s52 ai/status names local as the only provider',
-          c.get('/api/ai/status', headers=H).get_json()['data'].get('provider') == 'local')
+    check('s52 ai/status names no provider at all - item 63 L2: there is only this computer',
+          'provider' not in c.get('/api/ai/status', headers=H).get_json()['data'])
 
     for name, ok in _crossover_checks(dbs, DATA_DIR).items():
         check(f's52 crossover: {name}', ok)
@@ -317,3 +317,14 @@ def run(ctx):
         finally:
             migrate._remove_cloud_ai = real_step
         check(f's52 mutation caught: {label}', caught)
+
+    # ── Item 63 L5 (CLOUD_AI_LEFTOVERS.md): the last leftovers cannot return ──
+    app_src, srv_src = ctx.app_src, ctx.server_src
+    words = [w for w in ('Add an API key', 'search the web', 'web_search', 'live prices', 'switch to local AI')
+             if w in app_src or w in ctx.html_src]
+    check(f's52 L5 no AI text speaks of an API key, a web search, live prices or a switch to local AI ({words})', not words)
+    st = c.get('/api/ai/status', headers=H).get_json().get('data') or {}
+    check('s52 L5 no AI reply names a provider: there is only this computer',
+          'provider' not in st and "'provider'" not in srv_src.split('def _ai_chat_local')[1].split('\ndef ')[0]
+          and not re.search(r"\bprovider\s*:\s*(data|result|cached)\.provider", app_src))
+
