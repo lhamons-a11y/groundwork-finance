@@ -394,7 +394,7 @@ def main():
     a = c.get('/api/ai/status', headers=H)
     ad = (a.get_json() or {}).get('data') or {}
     check('/api/ai/status responds 200', a.status_code == 200)
-    check('ai/status reports the only provider there is - local', ad.get('provider') == 'local')
+    check('ai/status names no provider - item 63 L2: there is only this computer', 'provider' not in ad)
     check("ai/status reports the engine's state, one of four",
           ad.get('engine') in ('off', 'loading', 'ready', 'unavailable') and isinstance(ad.get('ready'), bool))
     check('ai/status never claims ready without a loaded model, and says why when not ready',
