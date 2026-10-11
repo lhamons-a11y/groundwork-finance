@@ -9,7 +9,7 @@ filed under a new category:
 > bill to the user can talk with the agent to fix. Also if the user had questions on how to do things in groundwork
 > it explains where and could even open that section for them."*
 
-**C1–C10 as revised in §5: go-ahead given 2026-10-10 (Rob: "build"). STAGE 1 ACCEPTED 2026-10-10 (Rob: "i accept item 72 stage 1, build stage 2"). STAGE 2 BUILT and ACCEPTED 2026-10-10 (Rob: "I accept Stage 2"). STAGE 3 (the AI picking checks) BUILT 2026-10-11 (Rob: "Please proceed item 71- 73"), awaiting acceptance; §9. Stage 4 (work reimbursements) after it (C9).**
+**C1–C10 as revised in §5: go-ahead given 2026-10-10 (Rob: "build"). STAGE 1 ACCEPTED 2026-10-10 (Rob: "i accept item 72 stage 1, build stage 2"). STAGE 2 BUILT and ACCEPTED 2026-10-10 (Rob: "I accept Stage 2"). STAGE 3 (the AI picking checks) BUILT 2026-10-11 (Rob: "Please proceed item 71- 73") and ACCEPTED 2026-10-11 (Rob: "i accept item 72 stage 3"); §9. Stage 4 (work reimbursements) after it (C9).**
 
 ## 1. What happened, and why it's the model for this
 

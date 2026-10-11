@@ -4,7 +4,7 @@ Opened 2026-10-10. Rob: *"while we are utilizing the agent in the program how wo
 You can offer any idea not the idea that you think I would like."* Then, on the eight ideas offered: *"open it as an
 item with #1 through #8 I like this."*
 
-**Y1–Y10 RULED 2026-10-10 as recommended (Rob: "approve Y1–Y10 as recommended"). STAGE 1 (Y1 + Y6) BUILT 2026-10-10 (Rob: "build stage 1") and ACCEPTED 2026-10-11 (Rob: "Please proceed item 71- 73", read as acceptance and the go-ahead for stage 2); §3. STAGE 2 (Y2) BUILT 2026-10-11, awaiting acceptance; §4.**
+**Y1–Y10 RULED 2026-10-10 as recommended (Rob: "approve Y1–Y10 as recommended"). STAGE 1 (Y1 + Y6) BUILT 2026-10-10 (Rob: "build stage 1") and ACCEPTED 2026-10-11 (Rob: "Please proceed item 71- 73", read as acceptance and the go-ahead for stage 2); §3. STAGE 2 (Y2) BUILT 2026-10-11 and ACCEPTED 2026-10-11 (Rob: "i accept ... item 73 stage 2"); §4. Stage 3 (Y3 + Y4) needs its own go-ahead.**
 
 ## 1. What is true today (measured 2026-10-10, master + the unpushed item 71 amendment)
 
