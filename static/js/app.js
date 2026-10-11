@@ -24128,8 +24128,8 @@ let _aiDisclosureCounter = 0;
 // Item 62 G2: the panel keeps "The numbers behind this analysis"; what was sent lives in the AI log, one line away.
 function _renderAIDisclosure(payload) {
   if (!payload || !payload.logCall) return '';
-  return `<div style="margin-top:10px;font-size:11px;color:var(--slate-2)">Sent to AI on this computer ·
-    <a href="#" onclick="openAiLog('${esc(payload.logCall)}');return false" style="color:var(--slate-2);text-decoration:underline">see it in the log</a></div>`;
+  return `<div style="margin-top:10px;font-size:11px;color:var(--note)">Sent to AI on this computer ·
+    <a href="#" onclick="openAiLog('${esc(payload.logCall)}');return false" style="color:var(--note);text-decoration:underline">see it in the log</a></div>`;
 }
 
 // The old fold-out, kept only so nothing that still calls it breaks; nothing renders it now.
@@ -25609,7 +25609,7 @@ function _rcRenderAIPanel(reportId, responseText, target, dataLines, buildPrompt
     <div style="padding:16px 20px 4px" id="rcAIText-${reportId}">${paragraphs}</div>
     ${(dataLines && dataLines.length) ? `
     <details style="margin:0 20px 12px">
-      <summary style="cursor:pointer;color:var(--slate-2);font-size:11px;user-select:none">The numbers behind this analysis</summary>
+      <summary style="cursor:pointer;color:var(--note);font-size:11px;user-select:none">The numbers behind this analysis</summary>
       <div style="margin-top:8px;padding:10px 12px;background:var(--paper);border:1px solid var(--pine-border);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;line-height:1.8;color:var(--slate);white-space:pre-wrap">${dataLines.map(l => esc(l)).join('\n')}</div>
     </details>` : ''}
     ${canFollowUp ? `
@@ -25625,9 +25625,9 @@ function _rcRenderAIPanel(reportId, responseText, target, dataLines, buildPrompt
     </div>` : (opts.compact ? '' : `<div style="padding:0 20px 14px;font-size:11px;color:var(--slate)">Maximum follow-up exchanges reached.</div>`)}
     ${opts.payload ? `<div style="padding:0 20px 10px">${_renderAIDisclosure(opts.payload)}</div>` : ''}
     <div style="padding:8px 20px 12px;border-top:1px solid var(--pine-border);display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:10px;color:var(--slate-2)">${esc(_rcAttributionText(reportId))}</div>
+      <div style="font-size:11px;color:var(--note)">${esc(_rcAttributionText(reportId))}</div>
       ${opts.compact ? '' : `<button onclick="_rcRegenerateAI('${reportId}')"
-        style="font-size:11px;background:none;border:none;padding:0;color:var(--slate-2);cursor:pointer;text-decoration:underline">Regenerate</button>`}
+        style="font-size:11px;background:none;border:none;padding:0;color:var(--note);cursor:pointer;text-decoration:underline">Regenerate</button>`}
     </div>`;
   target.appendChild(panel);
 }
