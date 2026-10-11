@@ -4,7 +4,7 @@ Opened 2026-10-10. Rob: *"while we are utilizing the agent in the program how wo
 You can offer any idea not the idea that you think I would like."* Then, on the eight ideas offered: *"open it as an
 item with #1 through #8 I like this."*
 
-**Y1–Y10 RULED 2026-10-10 as recommended (Rob: "approve Y1–Y10 as recommended"). STAGE 1 (Y1 + Y6) BUILT 2026-10-10 (Rob: "build stage 1"), awaiting acceptance; §3.** Later stages each need their own go-ahead.
+**Y1–Y10 RULED 2026-10-10 as recommended (Rob: "approve Y1–Y10 as recommended"). STAGE 1 (Y1 + Y6) BUILT 2026-10-10 (Rob: "build stage 1") and ACCEPTED 2026-10-11 (Rob: "Please proceed item 71- 73", read as acceptance and the go-ahead for stage 2); §3. STAGE 2 (Y2) BUILT 2026-10-11, awaiting acceptance; §4.**
 
 ## 1. What is true today (measured 2026-10-10, master + the unpushed item 71 amendment)
 
@@ -169,3 +169,32 @@ Tests for each:
   - an answer changing nothing else;
   - no model and no verdict words;
   - the offers never reading usage.
+
+
+## 4. Stage 2, built (2026-10-11)
+
+- **Y2** (`core/receipt_dates.py`, `/api/byb/receipt/read`, `/api/byb/receipt-dates`).
+  - A confirmation is pasted, or chosen as a PDF, saved email or text file, and read on this computer by item 60's
+    reader. Confirmation numbers are taken out first.
+  - It finds a free trial's end with the price after it, the last day to return, and the last day to cancel.
+  - A date must be written with its year. One without is left out and said, unless the same date was already read
+    with its year.
+  - A price after a trial must appear in the receipt. The receipt's own line is shown beside each date.
+  - Reading keeps nothing. The person ticks what to keep, and each kept date is checked again (a known kind, a real
+    date) before it is stored in `receipt_dates`. The receipt itself is never kept.
+- **The dashboard.** A fourth kind of *Needs attention* item, `date_ends`, is the ruled addition Y2 makes to the
+  three of 2026-09-27. It shows from seven days before, soonest first, with *Handled* and *Dismiss*, and says
+  Groundwork doesn't cancel or return anything; the person does.
+- **Before You Buy.** A *Trials and return windows* card: paste or choose, read, tick, keep. The kept dates are
+  listed with *Handled*.
+- **Tests:** s197 covers:
+  - trial, return, label-then-date and no-year cases;
+  - a price that isn't in the receipt never being filled in;
+  - reading keeping nothing;
+  - the pick checked again;
+  - Handled;
+  - the dashboard kind run in Node (seven days, soonest first, no past or handled dates);
+  - no model;
+  - never cancelling.
+
+  s131 now lists the fourth kind and the kept-dates endpoint.

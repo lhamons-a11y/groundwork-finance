@@ -9653,6 +9653,91 @@ def byb_offer_answer():
         return ok({'key': key, 'said': said})
 
 
+# ── Item 73 stage 2 (BYB_AGENT.md Y2): trial and return dates, read from a receipt ───────────────────────────
+def _receipt_dates(session):
+    return [x for x in (_setting_json(session, 'receipt_dates', []) or []) if isinstance(x, dict)]
+
+
+@byb_bp.route('/receipt/read', methods=['POST'])
+def byb_receipt_read():
+    """Y2: a pasted or dropped confirmation (PDF, saved email, text), read on this computer for the dates it
+    states. Nothing is saved and the file is not kept; the person picks what to keep."""
+    from core import itinerary, receipt_dates
+    try:
+        if 'file' in request.files:
+            up = request.files['file']
+            text = itinerary.text_from_upload(up.filename, up.read())
+        else:
+            text = str((request.get_json(silent=True) or {}).get('text') or '')
+            if not text.strip():
+                return err('Paste the receipt, or choose its PDF or saved email.')
+            if len(text) > itinerary.MAX_BYTES:
+                return err('That is far longer than a receipt.')
+    except ValueError as e:
+        return err(str(e))
+    except Exception:                                  # noqa: BLE001 - never the document's text in a log
+        logging.getLogger('groundwork').info('receipt file could not be read')
+        return err('Could not read that file.')
+    return ok(receipt_dates.read(text))
+
+
+@byb_bp.route('/receipt-dates', methods=['GET'])
+def byb_receipt_dates_list():
+    """Y2: the dates the person kept, soonest first, with whether they marked each handled."""
+    with db_session() as session:
+        rows = sorted(_receipt_dates(session), key=lambda x: x.get('date') or '')
+        return ok({'dates': rows})
+
+
+@byb_bp.route('/receipt-dates', methods=['POST'])
+@require_json
+def byb_receipt_dates_save():
+    """Y2: keep the dates the person ticked. Each is checked again - a kind Groundwork knows, a full date - before it
+    is kept; the receipt itself never is."""
+    from core.receipt_dates import KINDS
+    body = request.json or {}
+    merchant = str(body.get('merchant') or '').strip()[:80]
+    picked = body.get('dates') or []
+    with db_session() as session:
+        rows = _receipt_dates(session)
+        added = []
+        for d in picked[:20]:
+            if not isinstance(d, dict) or d.get('kind') not in KINDS:
+                continue
+            try:
+                when = date.fromisoformat(str(d.get('date'))[:10]).isoformat()
+            except ValueError:
+                continue
+            price = d.get('price_after')
+            row = {'id': int(datetime.now().timestamp() * 1000) + len(added), 'merchant': merchant or 'A purchase',
+                   'kind': d['kind'], 'date': when,
+                   'price_after': round(float(price), 2) if isinstance(price, (int, float)) else None,
+                   'every': d.get('every') if d.get('every') in ('month', 'year', 'week') else None,
+                   'phrase': str(d.get('phrase') or '')[:160], 'added_at': datetime.now().isoformat(timespec='seconds'),
+                   'done': None}
+            rows.append(row)
+            added.append(row)
+        if not added:
+            return err('Nothing to keep - pick at least one date.')
+        _set_setting(session, 'receipt_dates', json.dumps(rows[-200:]))
+        session.commit()
+        return ok({'added': added})
+
+
+@byb_bp.route('/receipt-dates/<int:row_id>/done', methods=['POST'])
+def byb_receipt_date_done(row_id):
+    """Y2: the person says they have handled it (cancelled, returned, or kept it). It leaves the dashboard."""
+    with db_session() as session:
+        rows = _receipt_dates(session)
+        hit = next((r for r in rows if r.get('id') == row_id), None)
+        if not hit:
+            return err('Not one of your saved dates.', 404)
+        hit['done'] = datetime.now().isoformat(timespec='seconds')
+        _set_setting(session, 'receipt_dates', json.dumps(rows))
+        session.commit()
+        return ok(hit)
+
+
 @byb_bp.route('', methods=['GET'])
 def list_byb_items():
     """Return all active BYB sandbox items."""

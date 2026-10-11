@@ -160,6 +160,13 @@
         + ', not yet recorded as paid this month.';
       source = 'From this card\'s due day and minimum, and this month\'s payments in Debt Payoff.';
       action = '<button class="btn btn-sm btn-secondary" onclick="showView(\'debt\')">Open Debt Payoff</button>';
+    } else if (i.kind === 'date_ends') {
+      var what = { trial_ends: 'free trial ends', return_by: 'last day to return', cancel_by: 'last day to cancel' }[i.what] || 'date';
+      var when = i.days === 0 ? ' (today)' : i.days === 1 ? ' (tomorrow)' : ' (in ' + i.days + ' days)';
+      fact = '<strong>' + esc(i.title) + '</strong>: ' + what + ' ' + _date(i.due) + when
+        + (i.price_after ? ', then ' + fmt(i.price_after) + (i.every ? ' a ' + esc(i.every) : '') : '') + '.';
+      source = 'From the receipt you added in Before You Buy. Groundwork doesn\'t cancel or return anything; you do.';
+      action = '<button class="btn btn-sm btn-secondary" data-gw-receipt-done="' + esc(String(i.rowId)) + '">Handled</button>';
     } else if (i.kind === 'import_stale') {
       fact = '<strong>' + esc(i.title) + '</strong>: last imported ' + _date(i.last_import) + ', ' + i.days + ' days ago.';
       source = 'From when this account\'s transactions were last imported. An account kept by hand is never listed.';
@@ -199,10 +206,13 @@
       var m = parseFloat(c.minimum) || 0;
       return _debtPaidThisMonth({ id: c.id, name: c.name, minimum: m, total: m }, month).paid;
     });
+    var kept = [];
+    try { kept = ((await API.get('/api/byb/receipt-dates')) || {}).dates || []; } catch (e) { _gwErr('dashboard receipt dates')(e); }
     var items = A.build({
       payments: payments,
       imports: A.importsStale(stale),
-      blocked: A.blockedConclusions(conf, hasRecord)
+      blocked: A.blockedConclusions(conf, hasRecord),
+      dates: A.datesEnding(kept, new Date())
     }, (_prefs && _prefs.dismissed) || []);
     var head = '<div class="card-label" style="margin-bottom:4px">Needs attention</div>';
     try { _tiles(imports, items, payments); } catch (e) { _gwErr('dashboard tiles')(e); }
@@ -227,6 +237,13 @@
     if (!t || !t.closest) return;
     var d = t.closest('[data-gw-dismiss]');
     if (d) { ev.preventDefault(); _dismiss(d.getAttribute('data-gw-dismiss')); return; }
+    var rd = t.closest('[data-gw-receipt-done]');            // item 73 Y2: the person handled a trial or return date
+    if (rd) {
+      ev.preventDefault();
+      API.post('/api/byb/receipt-dates/' + encodeURIComponent(rd.getAttribute('data-gw-receipt-done')) + '/done', {})
+        .then(_renderAttention).catch(_gwErr('dashboard receipt done'));
+      return;
+    }
     var a = t.closest('[data-gw-arrange]');
     if (a) { ev.preventDefault(); _arrange(a.getAttribute('data-gw-arrange'), a.getAttribute('data-gw-tile')); return; }
     if (t.id === 'gwArrangeToggle') { ev.preventDefault(); _arranging = !_arranging; _applyLayout(); }

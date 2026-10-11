@@ -29102,11 +29102,84 @@ async function bybOfferAnswer(key, said) {
   renderBybFromRecord();
 }
 
+// ── Item 73 stage 2 (BYB_AGENT.md Y2): trial and return dates, read from a receipt ──
+// Read on this computer (item 60's reader); only dates written with a year, only a price the receipt states. The
+// person picks what to keep; the dashboard shows each from a week before. Groundwork never cancels or returns.
+let _bybReceiptRead = null;
+const _RECEIPT_WHAT = { trial_ends: 'Free trial ends', return_by: 'Last day to return', cancel_by: 'Last day to cancel' };
+
+async function renderBybReceipts() {
+  const el = g('bybReceipts');
+  if (!el) return;
+  let kept = [];
+  try { kept = ((await API.get('/api/byb/receipt-dates')) || {}).dates || []; } catch (e) { _gwErr('renderBybReceipts')(e); }
+  const open = kept.filter(r => !r.done);
+  el.innerHTML = `<div class="card mb-5"><div class="card-label">Trials and return windows</div>
+    <div style="font-size:12px;color:var(--slate);margin-bottom:8px">Paste a confirmation, or choose its PDF or saved email. Groundwork reads the dates it states, and shows each on your dashboard a week before. The receipt is read on this computer and not kept.</div>
+    <textarea id="bybReceiptText" rows="3" placeholder="Paste the receipt or confirmation" style="width:100%;padding:8px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:12px;background:var(--paper);color:var(--ink)"></textarea>
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+      <button class="btn btn-secondary btn-sm" onclick="bybReadReceipt(null)">Read it</button>
+      <label class="btn btn-ghost btn-sm" style="cursor:pointer">Choose a file
+        <input type="file" id="bybReceiptFile" accept=".pdf,.eml,.txt,.html,.htm" style="display:none" onchange="if (this.files[0]) bybReadReceipt(this.files[0])"></label>
+    </div>
+    <div id="bybReceiptResult" style="margin-top:8px"></div>
+    ${open.length ? `<div style="margin-top:10px;font-size:12px;color:var(--ink);line-height:1.8">${open.map(r =>
+      `<div>${esc(_RECEIPT_WHAT[r.kind] || r.kind)}: <b>${esc(r.merchant)}</b>, ${_billDate(r.date)}${r.price_after ? `, then ${fmt(r.price_after)}${r.every ? ' a ' + esc(r.every) : ''}` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="bybReceiptDone(${r.id})">Handled</button></div>`).join('')}</div>` : ''}
+  </div>`;
+}
+
+async function bybReadReceipt(file) {
+  const out = g('bybReceiptResult');
+  const text = g('bybReceiptText')?.value?.trim();
+  if (!file && !text) { showToast('Paste a receipt, or choose its file', '', 'warning'); return; }
+  try {
+    if (file) {
+      const fd = new FormData(); fd.append('file', file);
+      const r = await _gwFetch('/api/byb/receipt/read', { method: 'POST', body: fd });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || `Server error ${r.status}`);
+      _bybReceiptRead = j.data;
+    } else {
+      _bybReceiptRead = await API.post('/api/byb/receipt/read', { text });
+    }
+  } catch (e) { if (out) out.innerHTML = `<div style="font-size:12px;color:var(--ember)">${esc(e.message)}</div>`; return; }
+  const d = _bybReceiptRead;
+  if (!d.dates.length) {
+    out.innerHTML = `<div style="font-size:12px;color:var(--slate)">No trial, return or cancel date with its year was found.${d.warnings.length ? ' ' + d.warnings.map(esc).join(' · ') : ''}</div>`;
+    return;
+  }
+  out.innerHTML = `<div style="font-size:12px;color:var(--ink)">From <input id="bybReceiptMerchant" value="${esc(d.merchant)}" style="font-size:12px;width:180px">:</div>
+    ${d.dates.map((x, i) => `<label style="display:flex;gap:6px;align-items:flex-start;font-size:12px;margin-top:4px"><input type="checkbox" id="bybRd${i}" checked>
+      <span><b>${esc(_RECEIPT_WHAT[x.kind])}: ${_billDate(x.date)}</b>${x.price_after ? `, then ${fmt(x.price_after)}${x.every ? ' a ' + esc(x.every) : ''}` : ''}
+      <span style="color:var(--slate-2)">- "${esc(x.phrase)}"</span></span></label>`).join('')}
+    ${d.warnings.length ? `<div style="font-size:11px;color:#92400e;margin-top:4px">${d.warnings.map(esc).join(' · ')}</div>` : ''}
+    <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="bybKeepReceiptDates()">Keep the ticked dates</button>`;
+}
+
+async function bybKeepReceiptDates() {
+  const d = _bybReceiptRead;
+  if (!d) return;
+  const dates = d.dates.filter((x, i) => g(`bybRd${i}`)?.checked);
+  try {
+    await API.post('/api/byb/receipt-dates', { merchant: g('bybReceiptMerchant')?.value || d.merchant, dates });
+    showToast('Kept', 'Each shows on your dashboard a week before.', 'success');
+  } catch (e) { _gwErr('bybKeepReceiptDates')(e); showToast(e.message || 'Not kept', '', 'warning'); return; }
+  _bybReceiptRead = null;
+  renderBybReceipts();
+}
+
+async function bybReceiptDone(id) {
+  try { await API.post('/api/byb/receipt-dates/' + id + '/done', {}); } catch (e) { _gwErr('bybReceiptDone')(e); return; }
+  renderBybReceipts();
+}
+
 function renderBYB() {
   const cont = g('bybContent');
   if (!cont) return;
   _loadBYBItems();
   renderBybFromRecord();
+  renderBybReceipts();
 }
 
 async function _loadBYBItems() {
