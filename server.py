@@ -1910,7 +1910,7 @@ help_bp = Blueprint('help', __name__)
 
 
 # ── Item 72 stage 2 C7/C11: the questions the Ask box could not answer - the person's own words, kept only to be shown
-# back to them and cleared. The three routes below are the only code that touches them (s192).
+# back to them and cleared. The three routes below are the only code that touches them (s193).
 @help_bp.route('/unanswered', methods=['GET'])
 def help_unanswered_list():
     with db_session() as session:
@@ -9314,6 +9314,100 @@ def byb_memory():
             records.append({'decision': cxt.get('decision'),
                             'variance_pct': e.variance_pct})
         return ok(decision_memory(records))
+
+
+def _byb_offers_said(session):
+    """Y1: the person's answers to offers made from the record - {key: {'said', 'at'}}, the latest wins."""
+    out = {}
+    for x in _setting_json(session, 'byb_offers_said', []) or []:
+        if isinstance(x, dict) and x.get('key') and x.get('said') in ('meant', 'cancel', 'dismiss'):
+            out[x['key']] = {'said': x['said'], 'at': x.get('at')}
+    return out
+
+
+def _byb_impact(session, monthly=0.0, one_time=0.0, cards=None, budget=None, strategy=None, months_cost=None):
+    """Y1/Y6: what a purchase does, as if Before You Buy had been asked first - what is left each month, the
+    payoff date, and each savings goal's date - with the assumption in words."""
+    from core import byb_offer
+    from core.consequence import simulate_payoff
+    from core.database import SinkingFund
+    today = date.today()
+    month_amts = budget_month_amounts(session)
+    items = session.query(BudgetItem).filter_by(is_active=True).all()
+    income = sum(float(i.amount or 0) for i in items if i.type == 'income')
+    outflow = sum((month_amts.get(i.id) or {}).get('month_amount', i.amount or 0) or 0 for i in items if i.type == 'expense')
+    left_now = round(income - outflow, 2)
+    kw = dict(strategy=strategy, today_key=today.strftime('%Y-%m'), start_month=today.strftime('%Y-%m'))
+    payoff_now = payoff_with = None
+    if cards:
+        try:
+            r0 = simulate_payoff(cards, budget, **kw)
+            payoff_now = r0['months'] if r0 else None
+            if monthly:
+                r1 = simulate_payoff(cards, max(0.0, budget - monthly), **kw)
+                payoff_with = r1['months'] if r1 else None
+            elif months_cost is not None and payoff_now is not None:
+                payoff_with = payoff_now + months_cost
+        except Exception:                               # noqa: BLE001 - a payoff the engine can't price is left out
+            payoff_now = payoff_with = None
+    goals = [{'id': f['id'], 'name': f['name'], 'target': f['target_amount'], 'saved': f['current_amount'],
+              'contribution': f.get('monthly_needed') or f.get('monthly_contribution') or 0}
+             for f in (_serialize_sinking_fund(x) for x in session.query(SinkingFund).filter_by(is_active=True).all())]
+    return {'left_now': left_now, 'left_with': round(left_now - monthly, 2) if monthly else None,
+            'payoff_months_now': payoff_now, 'payoff_months_with': payoff_with,
+            'goals': byb_offer.goal_dates(goals, today, monthly=monthly, one_time=one_time),
+            'assumption': byb_offer.assumption(monthly, one_time)}
+
+
+@byb_bp.route('/offers', methods=['GET'])
+def byb_offers():
+    """Item 73 Y1 + Y6: purchases that never came through Before You Buy, brought to it from the record - a new
+    repeating charge, or a charge that moved the payoff date a month or more - each with what it does. An offer the
+    person answered or dismissed is not offered again."""
+    from core import byb_offer
+    today = date.today()
+    window = today - timedelta(days=365)
+    with db_session() as session:
+        said = _byb_offers_said(session)
+        rows = session.query(Transaction.id, Transaction.date, Transaction.amount, Transaction.merchant).filter(
+            Transaction.type == 'debit', Transaction.date >= window).all()
+        budgeted = [b.name for b in session.query(BudgetItem).filter_by(is_active=True).all()]
+        cards, budget, strategy, _undated = _consequence_inputs(session)
+        offers = []
+        for o in byb_offer.new_recurring(rows, budgeted, today, window):
+            if o['key'] in said:
+                continue
+            offers.append({**o, 'impact': _byb_impact(session, monthly=o['monthly'], cards=cards, budget=budget,
+                                                       strategy=strategy)})
+        charge = large_charge_lesson(session, cards, budget, strategy) if cards else None
+        if charge:
+            ch = charge['charge']
+            key = f"charge:{ch['date']}:{ch['amount']:.2f}:{(ch['name'] or '').strip().lower()[:40]}"
+            if key not in said:
+                offers.append({'key': key, 'kind': 'large_charge', 'name': ch['name'], 'amount': ch['amount'],
+                               'monthly': 0, 'since': ch['date'], 'months_cost': charge['lesson']['months_cost'],
+                               'impact': _byb_impact(session, one_time=ch['amount'], cards=cards, budget=budget,
+                                                     strategy=strategy, months_cost=charge['lesson']['months_cost'])})
+        answered = [{'key': k, **v} for k, v in said.items() if v['said'] != 'dismiss']
+        return ok({'offers': offers, 'answered': answered[-20:]})
+
+
+@byb_bp.route('/offers/answer', methods=['POST'])
+@require_json
+def byb_offer_answer():
+    """Y1: the person's word on a purchase brought from the record - 'meant' (I meant to), 'cancel' (I'll cancel it)
+    or 'dismiss'. Kept as their statement; the offer is not made again. Nothing else changes: it is not a budget
+    edit, and it is not read as anything about the person."""
+    body = request.json or {}
+    key, said = str(body.get('key') or '')[:120], body.get('said')
+    if not key or said not in ('meant', 'cancel', 'dismiss'):
+        return err("a key and said = 'meant', 'cancel' or 'dismiss' are needed")
+    with db_session() as session:
+        rows = _setting_json(session, 'byb_offers_said', []) or []
+        rows.append({'key': key, 'said': said, 'at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'byb_offers_said', json.dumps(rows[-500:]))
+        session.commit()
+        return ok({'key': key, 'said': said})
 
 
 @byb_bp.route('', methods=['GET'])

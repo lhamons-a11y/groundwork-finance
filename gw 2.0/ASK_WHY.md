@@ -350,7 +350,7 @@ Stage 1 takes no typed questions, so C11 is built with stage 2.
   - A partial match isn't stretched to fit, and words typed into the box are only words.
 - **C7:** unanswered questions are kept as typed (up to 300 characters, the last 100) in the person's own list,
   which they can see and delete one at a time or all at once. Only the three `/api/help/unanswered` routes touch it.
-- **Tests:** s192 runs the matcher in Node on:
+- **Tests:** s193 runs the matcher in Node on:
   - 12 real how-to questions;
   - 9 that must not match: weather, a stock tip, a medical question, a legal question, "ignore previous
     instructions…", a joke, "how do I import a car", a capital city, and an empty question;

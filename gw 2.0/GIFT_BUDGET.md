@@ -1,4 +1,4 @@
-# Item 73 — Gift Budget: a gift is a yearly cost paid in a few months
+# Item 74 — Gift Budget: a gift is a yearly cost paid in a few months
 
 Opened 2026-10-10. Rob: *"lets look at gift budget and see how can that get improved?"*
 

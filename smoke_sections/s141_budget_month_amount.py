@@ -172,7 +172,7 @@ def run(ctx):
              and any(isinstance(x, ast.Call) and getattr(x.func, 'id', None) == 'budget_month_amounts' for x in ast.walk(n))}
     check('s141 M3 on the server only this-month readers use it - not variance, reallocation, willingness, merge, export',
           # item 71: the income check compares this month's budgeted spending with the new income
-          calls <= {'budget_month_amounts_route', 'budget_utility_estimate', 'debt_capacity', 'bootstrap', '_income_change_state'}
+          calls <= {'budget_month_amounts_route', 'budget_utility_estimate', 'debt_capacity', 'bootstrap', '_income_change_state', '_byb_impact'}
           and 'debt_capacity' in calls and 'bootstrap' in calls)
 
     # ── M4 / M6 / M7 in Node ─────────────────────────────────────────────────
