@@ -116,7 +116,7 @@ def run(ctx):
           card.index('a month less') < card.index('Your checks were about') and 'st.left_now' in card)
     check('s190 D7/D8/D10 a missing paycheck is a question, hourly pay shows its ordinary week and overtime, and the kind of pay is asked',
           "hasn't come in since" in facts and 'Is it filed somewhere else, or did it stop?' in facts
-          and 'Overtime added' in facts and 'Is this job hourly, with overtime?' in facts
+          and 'Overtime added' in facts and 'Does this job pay overtime or holiday pay that can change the paycheck amount?' in facts
           and "incomePayKind(" in facts and "'/api/income-change/pay-kind'" in app)
     check('s190 D7 never zero, never a verdict: no "lost", "fell", "missing income" or "you should" on the card',
           not re.search(r'\b(lost|fell|missing income|you should|you need)\b', card + facts, re.I))

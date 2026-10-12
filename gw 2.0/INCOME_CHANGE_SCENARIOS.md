@@ -294,6 +294,10 @@ only four checks. Salary keeps D4/D5, two checks in a row against the typical ch
 - The answer picks the rule for that payer: hourly uses D8, salary uses D4/D5.
 - With no answer yet, the payer gets no alarm, only the facts. The answer is kept as the person's statement and can
   be changed.
+- **Reworded 2026-10-11 (Rob: "I think this should only ask if this work pays out overtime, holiday pay that can
+  change the paycheck amount? That should be easier for users to answer and feel less intrusive").** The question is
+  now *"Does this job pay overtime or holiday pay that can change the paycheck amount?"*, answered *Yes, it can* (the
+  D8 rule) or *No, it's the same each time* (D4/D5). Only the words changed: the same two answers, kept the same way.
 
 *Recommended.*
 
