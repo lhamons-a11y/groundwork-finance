@@ -47,7 +47,7 @@ questions for that later ruling:
 
 ---
 
-## Opened for ruling 2026-10-12 (Rob 2026-10-11: "build ... all of item 61")
+## Opened for ruling 2026-10-12 (Rob 2026-10-11: "build ... all of item 61") - T1-T9 RULED 2026-10-12 (Rob: "I was going to add that we allow multiple cards but T5 is brilliant.. I accept T1 - T9")
 
 Items 59 and 60 are built and accepted, so the trip's figures are real. This section measures what exists, answers
 the three open questions above with recommendations, and asks for rulings. **No code until ruled.**
