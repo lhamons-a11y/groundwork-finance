@@ -334,6 +334,37 @@ def chat_stream(system, messages, max_tokens=1000, temperature=0.3):
         yield ('done', finish)
 
 
+def choice_grammar(options):
+    """Item 72 stage 3 (ASK_WHY.md C2): a GBNF grammar whose only sentences are the given option names. Each name is
+    lowercase letters and underscores, so nothing in it needs escaping."""
+    import re as _re
+    names = [o for o in options if _re.fullmatch(r'[a-z_]{2,40}', o)]
+    if len(names) != len(options) or not names:
+        raise ValueError('options must be lowercase names')
+    return 'root ::= ' + ' | '.join(f'"{n}"' for n in names)
+
+
+def choose(system, question, options):
+    """Item 72 stage 3 (C2): one of `options`, picked by the model under a grammar that cannot write anything else.
+    {'ok': True, 'choice', 'raw'} or {'ok': False, 'reason', 'message'}. A raw answer outside the options - which the
+    grammar should make impossible - is refused, never salvaged (capable is not admissible)."""
+    from llama_cpp import LlamaGrammar
+    grammar = LlamaGrammar.from_string(choice_grammar(options), verbose=False)
+    if _state['state'] == 'loading':
+        _ready.wait(LOADING_WAIT_SECONDS)
+    with _lock:
+        if _model is None:
+            st = _state['state']
+            reason = _state['reason'] if st == 'unavailable' else st
+            return {'ok': False, 'reason': reason, 'message': MESSAGES.get(reason, MESSAGES['off'])}
+        msgs = ([{'role': 'system', 'content': system}] if system else []) + [{'role': 'user', 'content': question}]
+        out = _model.create_chat_completion(messages=msgs, max_tokens=16, temperature=0.0, grammar=grammar)
+    raw = (((out.get('choices') or [{}])[0].get('message') or {}).get('content') or '').strip()
+    if raw not in options:
+        return {'ok': False, 'reason': 'refused', 'message': 'The answer was not one of the choices.', 'raw': raw}
+    return {'ok': True, 'choice': raw, 'raw': raw}
+
+
 def chat(system, messages, max_tokens=1000, temperature=0.3):
     """One completion. {'ok': True, 'text', 'finish', 'tokens'} or {'ok': False, 'reason', 'message'}."""
     if _state['state'] == 'loading':

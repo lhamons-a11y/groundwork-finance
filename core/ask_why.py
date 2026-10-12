@@ -378,6 +378,18 @@ def investigate(session, figure, today=None):
                                             'nothing else on record stands out.'}
 
 
+def run_one(session, check, today=None):
+    """Stage 3: a single check, as the person's question asked for it - with its finding, or the plain line that it
+    found nothing."""
+    if check not in RUN:
+        return None
+    today = today or date.today()
+    results = RUN[check](session, today, _load(session, today))
+    return {'figure': None, 'check': check, 'label': CHECKS[check]['title'], 'results': results,
+            'explained': bool(results),
+            'none_text': None if results else f'{CHECKS[check]["title"]}: nothing on record matches. ' + CHECKS[check]['cannot']}
+
+
 # ── C4: fixes ─────────────────────────────────────────────────────────────────
 def _recat_fix(label, ids, to_category_id, rule_payer, direction):
     return {'kind': 'recategorize', 'label': label, 'ids': list(ids), 'to_category_id': to_category_id,

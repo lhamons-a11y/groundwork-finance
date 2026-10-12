@@ -14,7 +14,7 @@
 (function (root) {
   'use strict';
 
-  var KINDS = ['payment_due', 'import_stale', 'blocked_conclusion'];
+  var KINDS = ['payment_due', 'import_stale', 'blocked_conclusion', 'date_ends'];   // date_ends: item 73 Y2, ruled 2026-10-10
   var DUE_WITHIN_DAYS = 7;                                  // ruling 4
 
   function _iso(d) {
@@ -78,6 +78,23 @@
       });
   }
 
+  /* Kind 4 (item 73 Y2): a trial's end, a return or a cancel-by date the person kept from a receipt, from seven
+   * days before. `rows` [{id, merchant, kind, date, price_after, every, done}] - the person's own kept dates. */
+  function datesEnding(rows, today) {
+    var t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    var out = [];
+    (rows || []).forEach(function (r) {
+      if (r.done || !r.date) return;
+      var p = String(r.date).split('-').map(Number);
+      var d = new Date(p[0], p[1] - 1, p[2]);
+      var days = Math.round((d - t) / 86400000);
+      if (days < 0 || days > DUE_WITHIN_DAYS) return;
+      out.push({ kind: 'date_ends', subject: String(r.id), title: r.merchant, what: r.kind, due: r.date, days: days,
+                 price_after: r.price_after, every: r.every, rowId: r.id, fact: r.kind + '|' + r.date });
+    });
+    return out;
+  }
+
   function fingerprint(item) {
     return item.kind + '|' + item.subject + '|' + item.fact;
   }
@@ -87,20 +104,20 @@
   function build(parts, dismissed) {
     var gone = {};
     (dismissed || []).forEach(function (f) { gone[f] = true; });
-    var items = [].concat(parts.payments || [], parts.imports || [], parts.blocked || []);
+    var items = [].concat(parts.payments || [], parts.imports || [], parts.blocked || [], parts.dates || []);
     items.forEach(function (i) {
       if (KINDS.indexOf(i.kind) < 0) throw new Error('attention: "' + i.kind + '" is not a ruled kind');
     });
     return items.filter(function (i) { return !gone[fingerprint(i)]; }).sort(function (a, b) {
       var k = KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind);
       if (k) return k;
-      if (a.kind === 'payment_due') return a.days - b.days;
+      if (a.kind === 'payment_due' || a.kind === 'date_ends') return a.days - b.days;
       if (a.kind === 'import_stale') return b.days - a.days;
       return 0;
     });
   }
 
-  var api = { KINDS: KINDS, DUE_WITHIN_DAYS: DUE_WITHIN_DAYS, paymentsDue: paymentsDue,
+  var api = { KINDS: KINDS, DUE_WITHIN_DAYS: DUE_WITHIN_DAYS, paymentsDue: paymentsDue, datesEnding: datesEnding,
               importsStale: importsStale, blockedConclusions: blockedConclusions,
               fingerprint: fingerprint, build: build };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

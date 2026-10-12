@@ -4,7 +4,7 @@ Opened 2026-10-10. Rob: *"while we are utilizing the agent in the program how wo
 You can offer any idea not the idea that you think I would like."* Then, on the eight ideas offered: *"open it as an
 item with #1 through #8 I like this."*
 
-**Y1–Y10 RULED 2026-10-10 as recommended (Rob: "approve Y1–Y10 as recommended"). STAGE 1 (Y1 + Y6) BUILT 2026-10-10 (Rob: "build stage 1"), awaiting acceptance; §3.** Later stages each need their own go-ahead.
+**Y1–Y10 RULED 2026-10-10 as recommended (Rob: "approve Y1–Y10 as recommended"). STAGE 1 (Y1 + Y6) BUILT 2026-10-10 (Rob: "build stage 1") and ACCEPTED 2026-10-11 (Rob: "Please proceed item 71- 73", read as acceptance and the go-ahead for stage 2); §3. STAGE 2 (Y2) BUILT 2026-10-11 and ACCEPTED 2026-10-11 (Rob: "i accept ... item 73 stage 2"); §4. STAGE 3 (Y3 + Y4) BUILT 2026-10-11 (Rob: "build ... item 73 stage 3"), awaiting acceptance; §5.**
 
 ## 1. What is true today (measured 2026-10-10, master + the unpushed item 71 amendment)
 
@@ -169,3 +169,68 @@ Tests for each:
   - an answer changing nothing else;
   - no model and no verdict words;
   - the offers never reading usage.
+
+
+## 4. Stage 2, built (2026-10-11)
+
+- **Y2** (`core/receipt_dates.py`, `/api/byb/receipt/read`, `/api/byb/receipt-dates`).
+  - A confirmation is pasted, or chosen as a PDF, saved email or text file, and read on this computer by item 60's
+    reader. Confirmation numbers are taken out first.
+  - It finds a free trial's end with the price after it, the last day to return, and the last day to cancel.
+  - A date must be written with its year. One without is left out and said, unless the same date was already read
+    with its year.
+  - A price after a trial must appear in the receipt. The receipt's own line is shown beside each date.
+  - Reading keeps nothing. The person ticks what to keep, and each kept date is checked again (a known kind, a real
+    date) before it is stored in `receipt_dates`. The receipt itself is never kept.
+- **The dashboard.** A fourth kind of *Needs attention* item, `date_ends`, is the ruled addition Y2 makes to the
+  three of 2026-09-27. It shows from seven days before, soonest first, with *Handled* and *Dismiss*, and says
+  Groundwork doesn't cancel or return anything; the person does.
+- **Before You Buy.** A *Trials and return windows* card: paste or choose, read, tick, keep. The kept dates are
+  listed with *Handled*.
+- **Tests:** s197 covers:
+  - trial, return, label-then-date and no-year cases;
+  - a price that isn't in the receipt never being filled in;
+  - reading keeping nothing;
+  - the pick checked again;
+  - Handled;
+  - the dashboard kind run in Node (seven days, soonest first, no past or handled dates);
+  - no model;
+  - never cancelling.
+
+  s131 now lists the fourth kind and the kept-dates endpoint.
+
+
+## 5. Stage 3, built (2026-10-11)
+
+- **Y3, the full cost** (`core/purchase_cost.full_cost`, `/api/byb/full-cost`). Each part names its source.
+  - **A car:**
+    - the payment (the person's figure);
+    - insurance: their own figure, or the latest insurance bill reading they confirmed (item 68), marked as
+      today's policy;
+    - fuel: their miles and mpg at EIA's national gas price, used only when that price is live, never a placeholder;
+    - registration: a yearly fee shown a month at a time.
+  - **A phone:** the device payment plus the plan change. A cheaper plan counts as less.
+  - **A yearly charge:** shown monthly and yearly.
+  - Anything without a source is listed under *Not included*: repairs, insurance with no bill and no figure, fuel
+    with no published price. The total counts only the sourced parts.
+- **Y4, a financing offer** (`read_offer`, `compare`, `/api/byb/financing`).
+  - The pasted offer is read for its APR, term, monthly payment, price and fees, each figure checked against the
+    text. A deferred-interest clause is kept in the offer's own words, with the promotion's length.
+  - Side by side:
+    - **pay cash**;
+    - **finance it**: payment × term + fees, or, for a no-interest promotion, the price if it's all paid in time;
+    - **the deferred-interest cost** if it isn't paid in time: simple interest back to the purchase date, worked out
+      by Groundwork, with the offer's terms deciding the exact figure;
+    - **the person's highest-rate debt**, and what the same cash would save on it in a year.
+  - An offer with no price or payment gives no totals rather than invented ones. Nothing is saved.
+- **Where:** a *The full cost, and financing* card on Before You Buy.
+- **Tests:** s200 covers:
+  - a car's four parts and their sources;
+  - what isn't included;
+  - a phone and a yearly charge;
+  - a deferred-interest promotion;
+  - the person's own debt beside it;
+  - a loan's total;
+  - no invented totals;
+  - the routes reading a real bill reading and a stubbed EIA price;
+  - no model or verdict words on the page.

@@ -12,8 +12,11 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261010-ai-log'   # the AI log (AI_LOG.md, item 62)
-# This bump carries no migrate.py code: the new ai_log table reaches an existing database through init_db's
+SCHEMA_VERSION = '20261011-work-reimbursements'   # purchases an employer pays back (ASK_WHY.md C5, item 72 stage 4)
+# This bump carries no migrate.py code: the new reimbursable_items and reimbursement_matches tables reach an existing
+# database through init_db's create_all, which runs only when the stored version differs. Before it, '20261010-ai-log'
+# added the ai_log table the same way.
+# Earlier: the new ai_log table reaches an existing database through init_db's
 # create_all, which runs only when the stored version differs. Before it, '20261010-bill-readings' added the
 # bill_readings table the same way; before that, '20261009-municipal-utilities'
 # added a CATEGORY_TREE leaf (through _seed_child_categories, likewise only on a version change); before that, '20261008-trip-bookings'
@@ -35,7 +38,7 @@ SCHEMA_SPEC_SHA256 = '01adb2cf8f0101ad2fbe7d661d751ec2f7d5b0a67a58907014fa6df718
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = '1b45cba95cf88f4e5873713d99a3571e9b16388e45bab10177e910d8882d6263'
+SCHEMA_MODELS_SHA256 = '0d4eb66fa5f0444d0bd2ac581f36f93fce81ef7f898ec30f44dbfe3ab70ca5c4'
 
 
 def _stored_schema_version():

@@ -3727,6 +3727,7 @@ function ledgerSearchInput() {
 }
 
 function renderLedger() {
+  renderLedgerReimburse(true);   // item 72 stage 4: the Paid back by work card, and the state the row's ↩ reads
   const body     = g('ledgerBody');
   const countEl  = g('ledgerCount');
   if (!body) return;
@@ -4271,6 +4272,60 @@ function _catTintBorder(hex) {
   return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
 }
 
+// ── Item 72 stage 4 (ASK_WHY.md C5): purchases an employer pays back - told, never guessed ──
+// Asked once; only after a yes can a purchase be marked (the ↩ on a Ledger row), and only by the person. A marked
+// purchase and a repayment that is all repayment sit under "Paid back by work" (inside Transfer), so neither is
+// spending or income. Matching, undoing and "it won't be paid back" are all the person's taps.
+let _reimburseState = null, _reimburseLoaded = false;
+
+async function renderLedgerReimburse(fromLedger) {
+  const el = g('ledgerReimburse');
+  if (!el) return;
+  try { _reimburseState = await API.get('/api/reimburse'); } catch (e) { _gwErr('renderLedgerReimburse')(e); return; }
+  const st = _reimburseState || {};
+  const said = st.said && st.said.answer;
+  const first = !_reimburseLoaded;
+  _reimburseLoaded = true;
+  if (first && fromLedger && said === 'yes') renderLedger();   // the rows pick up their ↩ once the answer is known
+  if (!said) {
+    el.innerHTML = `<div class="card mb-4" style="font-size:12px;color:var(--ink)">Do you buy things for work and get paid back by your employer?
+      <button class="btn btn-secondary btn-sm" onclick="reimburseSaid('yes')">Yes</button>
+      <button class="btn btn-ghost btn-sm" onclick="reimburseSaid('no')">No</button>
+      <div style="font-size:11px;color:var(--slate-2);margin-top:2px">With a yes, a purchase can be marked "my employer pays this back", so it isn't counted as your spending.</div></div>`;
+    return;
+  }
+  if (said !== 'yes') { el.innerHTML = ''; return; }
+  const items = st.items || [];
+  const waiting = items.filter(i => i.status === 'waiting');
+  const paid = items.filter(i => i.status === 'paid');
+  el.innerHTML = `<div class="card mb-4"><div class="card-label">Paid back by work</div>
+    <div style="font-size:11px;color:var(--slate-2);margin-bottom:6px">Mark a purchase with ↩ on its row. Marked purchases and the repayments for them aren't counted as spending or income.
+      <button class="btn btn-ghost btn-sm" onclick="reimburseSaid('no')">I don't do this</button></div>
+    ${waiting.length ? waiting.map(i => `<div style="padding:8px 0;border-top:1px solid var(--steel);font-size:12px">
+      <b>${esc(i.name)}</b>, ${fmt(i.amount)} on ${_billDate(i.date)}${i.paid_back ? ` - ${fmt(i.paid_back)} paid back so far, ${fmt(i.left)} to go` : ' - waiting to be paid back'}
+      ${(i.candidates || []).length ? `<div style="margin-top:4px;color:var(--slate)">Is it one of these deposits?</div>${i.candidates.map(c => `<div style="margin-top:2px">
+        <button class="btn btn-secondary btn-sm" onclick="reimburseMatch(${i.id}, ${c.id})">Match ${fmt(c.would_apply)}</button>
+        ${fmt(c.amount)} on ${_billDate(c.date)} from ${esc(c.name)}${c.carries_more ? ' <span style="color:var(--slate-2)">(this deposit carries other money too, so it stays where it is; the paid-back part is recorded against this purchase)</span>' : ''}</div>`).join('')}` : '<div style="color:var(--slate-2);margin-top:2px">No deposit on record yet that could be the repayment.</div>'}
+      <div style="margin-top:4px">${i.matches.length ? '' : `<button class="btn btn-ghost btn-sm" onclick="reimburseUnmark(${i.id})">Not a work purchase</button>`}
+        <button class="btn btn-ghost btn-sm" onclick="reimburseWriteOff(${i.id})">It won't be paid back</button></div></div>`).join('')
+      : '<div style="font-size:12px;color:var(--slate)">Nothing waiting to be paid back.</div>'}
+    ${paid.length ? `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--sky);cursor:pointer">Paid back (${paid.length})</summary>${paid.map(i => `<div style="font-size:12px;padding:3px 0">${esc(i.name)}, ${fmt(i.amount)}: paid back ${i.matches.map(m => `${fmt(m.amount)} on ${_billDate(m.date)} <button class="btn btn-ghost btn-sm" onclick="reimburseUnmatch(${m.id})">Undo</button>`).join(', ')}</div>`).join('')}</details>` : ''}
+  </div>`;
+}
+
+async function _reimburse(path, body, done) {
+  try { await API.post(path, body); if (done) showToast(done, '', 'success'); }
+  catch (e) { _gwErr('reimburse')(e); showToast(e.message || 'That did not take', '', 'warning'); return; }
+  try { await bootFromDB(); } catch (e) { _gwErr('reimburse reload')(e); }
+  renderLedger();
+}
+function reimburseSaid(answer) { _reimburse('/api/reimburse/said', { answer }); }
+function reimburseMark(transactionId) { _reimburse('/api/reimburse/mark', { transaction_id: transactionId }, 'Marked: your employer pays this back'); }
+function reimburseMatch(itemId, creditId) { _reimburse('/api/reimburse/match', { item_id: itemId, credit_id: creditId }, 'Matched'); }
+function reimburseUnmatch(matchId) { _reimburse('/api/reimburse/unmatch', { match_id: matchId }, 'Match undone'); }
+function reimburseWriteOff(itemId) { _reimburse('/api/reimburse/write-off', { item_id: itemId }, 'Put back as your spending'); }
+function reimburseUnmark(itemId) { _reimburse('/api/reimburse/unmark', { item_id: itemId }, 'Unmarked'); }
+
 function _ledgerRowHTML(t) {
   const catStyle = _categoryStyle(t.category);  // {color, icon} from Settings (with fallback)
   const acctName = t.account || '';
@@ -4327,6 +4382,8 @@ function _ledgerRowHTML(t) {
     ? `<span title="Linked to a debt payment — click to view" style="cursor:pointer;margin-left:5px" onclick="event.stopPropagation();jumpToLinkedDebtEntry(${t.linked_debt_entry_id})">💳</span>`
     : (t.type === 'debit'
         ? `<span title="Link to a debt account" style="cursor:pointer;margin-left:5px;opacity:.3" onclick="event.stopPropagation();openLinkToDebtPicker(${t.id})">🔗</span>`
+          + (t.type === 'debit' && ((_reimburseState || {}).said || {}).answer === 'yes' && t.category !== 'Paid back by work'
+             ? `<span title="My employer pays this back" style="cursor:pointer;margin-left:5px;opacity:.45" onclick="event.stopPropagation();reimburseMark(${t.id})">↩</span>` : '')
         : '');
 
   return `<div class="row" data-id="${t.id}" ondblclick="ledgerRowDblClick(${t.id})">
@@ -24071,8 +24128,8 @@ let _aiDisclosureCounter = 0;
 // Item 62 G2: the panel keeps "The numbers behind this analysis"; what was sent lives in the AI log, one line away.
 function _renderAIDisclosure(payload) {
   if (!payload || !payload.logCall) return '';
-  return `<div style="margin-top:10px;font-size:11px;color:var(--slate-2)">Sent to AI on this computer ·
-    <a href="#" onclick="openAiLog('${esc(payload.logCall)}');return false" style="color:var(--slate-2);text-decoration:underline">see it in the log</a></div>`;
+  return `<div style="margin-top:10px;font-size:11px;color:var(--note)">Sent to AI on this computer ·
+    <a href="#" onclick="openAiLog('${esc(payload.logCall)}');return false" style="color:var(--note);text-decoration:underline">see it in the log</a></div>`;
 }
 
 // The old fold-out, kept only so nothing that still calls it breaks; nothing renders it now.
@@ -24599,11 +24656,52 @@ async function askGroundwork(question) {
       <div style="font-size:11px;color:var(--slate-2);margin-top:10px">From Groundwork's guide - the same answers as the ? button.</div>`;
     return;
   }
+  // Item 72 stage 3 (C2): with AI on, a question about the person's records may fit one of the fixed checks. The
+  // model only names one (it cannot write anything else); the person taps to run it. Unsure: they choose.
+  if (aiEnabled()) {
+    let route = null;
+    try { route = await API.post('/api/why/route', { question: q }); } catch (e) { _gwErr('askGroundwork route')(e); }
+    if (route && route.state === 'picked') {
+      p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">This looks like a question for one of Groundwork's checks on your records:</div>
+        <div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="closeAsk(); openWhyCheck('${esc(route.check)}')">${esc(route.title)}</button></div>
+        <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Picked by the AI from Groundwork's fixed list - the answer comes from your records, not from the AI.
+          <button class="btn btn-ghost btn-sm" onclick="askWhyChoose()">Choose a different check</button></div>`;
+      window._askWhyChecks = route.checks || [];
+      return;
+    }
+    if (route && route.state === 'unsure') {
+      window._askWhyChecks = route.checks || [];
+      p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);margin-top:6px">More than one check could fit. Which one?</div>${_askWhyChoicesHTML()}`;
+      return;
+    }
+  }
   try { await API.post('/api/help/unanswered', { text: q }); } catch (e) { _gwErr('askGroundwork')(e); }
   p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">${esc(HELP_OUTSIDE)}</div>
     ${_helpWords(q).some(w => HELP_WHY_WORDS.has(w)) ? `<div style="margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); openWhy('records')">Check my records</button></div>` : ''}
     <div style="font-size:11px;color:var(--slate-2);margin-top:10px">Your question is kept in your own list of questions Groundwork couldn't answer.
       <button class="btn btn-ghost btn-sm" onclick="showUnanswered()">See the list</button></div>`;
+}
+
+function _askWhyChoicesHTML() {
+  return (window._askWhyChecks || []).map(c => `<div style="margin-top:6px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); openWhyCheck('${esc(c.check)}')">${esc(c.title)}</button></div>`).join('');
+}
+
+function askWhyChoose() {
+  const p = g('askPanel');
+  if (p) p.insertAdjacentHTML('beforeend', `<div style="margin-top:8px">${_askWhyChoicesHTML()}</div>`);
+}
+
+// Stage 3: one check, run on the record, in the same panel as "Why?" - fixes and Undo included.
+async function openWhyCheck(check) {
+  _whyFigure = 'records';
+  const p = _whyPanel();
+  p.innerHTML = '<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--slate)"><div class="spinner"></div>Checking your records…</div>';
+  let d;
+  try { d = await API.get('/api/why/check?id=' + encodeURIComponent(check)); }
+  catch (e) { _gwErr('openWhyCheck')(e); p.innerHTML = '<div style="font-size:12px;color:var(--ember)">The check could not run.</div>'; return; }
+  let fixes = [];
+  try { fixes = ((await API.get('/api/why/fixes')) || {}).fixes || []; } catch (e) { _gwErr('openWhyCheck fixes')(e); }
+  p.innerHTML = _whyHTML(d, fixes);
 }
 
 function askGroundworkPick(i) {
@@ -25511,7 +25609,7 @@ function _rcRenderAIPanel(reportId, responseText, target, dataLines, buildPrompt
     <div style="padding:16px 20px 4px" id="rcAIText-${reportId}">${paragraphs}</div>
     ${(dataLines && dataLines.length) ? `
     <details style="margin:0 20px 12px">
-      <summary style="cursor:pointer;color:var(--slate-2);font-size:11px;user-select:none">The numbers behind this analysis</summary>
+      <summary style="cursor:pointer;color:var(--note);font-size:11px;user-select:none">The numbers behind this analysis</summary>
       <div style="margin-top:8px;padding:10px 12px;background:var(--paper);border:1px solid var(--pine-border);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;line-height:1.8;color:var(--slate);white-space:pre-wrap">${dataLines.map(l => esc(l)).join('\n')}</div>
     </details>` : ''}
     ${canFollowUp ? `
@@ -25527,9 +25625,9 @@ function _rcRenderAIPanel(reportId, responseText, target, dataLines, buildPrompt
     </div>` : (opts.compact ? '' : `<div style="padding:0 20px 14px;font-size:11px;color:var(--slate)">Maximum follow-up exchanges reached.</div>`)}
     ${opts.payload ? `<div style="padding:0 20px 10px">${_renderAIDisclosure(opts.payload)}</div>` : ''}
     <div style="padding:8px 20px 12px;border-top:1px solid var(--pine-border);display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:10px;color:var(--slate-2)">${esc(_rcAttributionText(reportId))}</div>
+      <div style="font-size:11px;color:var(--note)">${esc(_rcAttributionText(reportId))}</div>
       ${opts.compact ? '' : `<button onclick="_rcRegenerateAI('${reportId}')"
-        style="font-size:11px;background:none;border:none;padding:0;color:var(--slate-2);cursor:pointer;text-decoration:underline">Regenerate</button>`}
+        style="font-size:11px;background:none;border:none;padding:0;color:var(--note);cursor:pointer;text-decoration:underline">Regenerate</button>`}
     </div>`;
   target.appendChild(panel);
 }
@@ -29102,11 +29200,150 @@ async function bybOfferAnswer(key, said) {
   renderBybFromRecord();
 }
 
+// ── Item 73 stage 2 (BYB_AGENT.md Y2): trial and return dates, read from a receipt ──
+// Read on this computer (item 60's reader); only dates written with a year, only a price the receipt states. The
+// person picks what to keep; the dashboard shows each from a week before. Groundwork never cancels or returns.
+let _bybReceiptRead = null;
+const _RECEIPT_WHAT = { trial_ends: 'Free trial ends', return_by: 'Last day to return', cancel_by: 'Last day to cancel' };
+
+async function renderBybReceipts() {
+  const el = g('bybReceipts');
+  if (!el) return;
+  let kept = [];
+  try { kept = ((await API.get('/api/byb/receipt-dates')) || {}).dates || []; } catch (e) { _gwErr('renderBybReceipts')(e); }
+  const open = kept.filter(r => !r.done);
+  el.innerHTML = `<div class="card mb-5"><div class="card-label">Trials and return windows</div>
+    <div style="font-size:12px;color:var(--slate);margin-bottom:8px">Paste a confirmation, or choose its PDF or saved email. Groundwork reads the dates it states, and shows each on your dashboard a week before. The receipt is read on this computer and not kept.</div>
+    <textarea id="bybReceiptText" rows="3" placeholder="Paste the receipt or confirmation" style="width:100%;padding:8px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:12px;background:var(--paper);color:var(--ink)"></textarea>
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+      <button class="btn btn-secondary btn-sm" onclick="bybReadReceipt(null)">Read it</button>
+      <label class="btn btn-ghost btn-sm" style="cursor:pointer">Choose a file
+        <input type="file" id="bybReceiptFile" accept=".pdf,.eml,.txt,.html,.htm" style="display:none" onchange="if (this.files[0]) bybReadReceipt(this.files[0])"></label>
+    </div>
+    <div id="bybReceiptResult" style="margin-top:8px"></div>
+    ${open.length ? `<div style="margin-top:10px;font-size:12px;color:var(--ink);line-height:1.8">${open.map(r =>
+      `<div>${esc(_RECEIPT_WHAT[r.kind] || r.kind)}: <b>${esc(r.merchant)}</b>, ${_billDate(r.date)}${r.price_after ? `, then ${fmt(r.price_after)}${r.every ? ' a ' + esc(r.every) : ''}` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="bybReceiptDone(${r.id})">Handled</button></div>`).join('')}</div>` : ''}
+  </div>`;
+}
+
+async function bybReadReceipt(file) {
+  const out = g('bybReceiptResult');
+  const text = g('bybReceiptText')?.value?.trim();
+  if (!file && !text) { showToast('Paste a receipt, or choose its file', '', 'warning'); return; }
+  try {
+    if (file) {
+      const fd = new FormData(); fd.append('file', file);
+      const r = await _gwFetch('/api/byb/receipt/read', { method: 'POST', body: fd });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || `Server error ${r.status}`);
+      _bybReceiptRead = j.data;
+    } else {
+      _bybReceiptRead = await API.post('/api/byb/receipt/read', { text });
+    }
+  } catch (e) { if (out) out.innerHTML = `<div style="font-size:12px;color:var(--ember)">${esc(e.message)}</div>`; return; }
+  const d = _bybReceiptRead;
+  if (!d.dates.length) {
+    out.innerHTML = `<div style="font-size:12px;color:var(--slate)">No trial, return or cancel date with its year was found.${d.warnings.length ? ' ' + d.warnings.map(esc).join(' · ') : ''}</div>`;
+    return;
+  }
+  out.innerHTML = `<div style="font-size:12px;color:var(--ink)">From <input id="bybReceiptMerchant" value="${esc(d.merchant)}" style="font-size:12px;width:180px">:</div>
+    ${d.dates.map((x, i) => `<label style="display:flex;gap:6px;align-items:flex-start;font-size:12px;margin-top:4px"><input type="checkbox" id="bybRd${i}" checked>
+      <span><b>${esc(_RECEIPT_WHAT[x.kind])}: ${_billDate(x.date)}</b>${x.price_after ? `, then ${fmt(x.price_after)}${x.every ? ' a ' + esc(x.every) : ''}` : ''}
+      <span style="color:var(--slate-2)">- "${esc(x.phrase)}"</span></span></label>`).join('')}
+    ${d.warnings.length ? `<div style="font-size:11px;color:#92400e;margin-top:4px">${d.warnings.map(esc).join(' · ')}</div>` : ''}
+    <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="bybKeepReceiptDates()">Keep the ticked dates</button>`;
+}
+
+async function bybKeepReceiptDates() {
+  const d = _bybReceiptRead;
+  if (!d) return;
+  const dates = d.dates.filter((x, i) => g(`bybRd${i}`)?.checked);
+  try {
+    await API.post('/api/byb/receipt-dates', { merchant: g('bybReceiptMerchant')?.value || d.merchant, dates });
+    showToast('Kept', 'Each shows on your dashboard a week before.', 'success');
+  } catch (e) { _gwErr('bybKeepReceiptDates')(e); showToast(e.message || 'Not kept', '', 'warning'); return; }
+  _bybReceiptRead = null;
+  renderBybReceipts();
+}
+
+async function bybReceiptDone(id) {
+  try { await API.post('/api/byb/receipt-dates/' + id + '/done', {}); } catch (e) { _gwErr('bybReceiptDone')(e); return; }
+  renderBybReceipts();
+}
+
+// ── Item 73 stage 3 (BYB_AGENT.md Y3 + Y4): the full cost, and a financing offer read ──
+// Each part of the cost says where it came from; a part with no source is left out and named. A financing offer's
+// figures must be in the offer. Paying cash, financing and the person's own debt side by side - the choice is theirs.
+function renderBybCost() {
+  const el = g('bybCost');
+  if (!el) return;
+  const f = (id, label, ph) => `<label style="font-size:12px;display:inline-flex;flex-direction:column;margin:0 10px 6px 0">${label}
+    <input id="${id}" type="number" step="0.01" placeholder="${ph || ''}" style="width:120px;font-size:12px"></label>`;
+  el.innerHTML = `<div class="card mb-5"><div class="card-label">The full cost, and financing</div>
+    <div style="font-size:12px;color:var(--slate);margin-bottom:6px">What a car, a phone or a yearly charge costs each month, built from your own figures and what Groundwork already knows - each part with its source.</div>
+    <select id="bybCostKind" onchange="bybCostFields()" style="font-size:12px;margin-bottom:6px">
+      <option value="car">A car</option><option value="phone">A phone on a plan</option><option value="annual">A yearly charge</option></select>
+    <div id="bybCostFields"></div>
+    <button class="btn btn-secondary btn-sm" onclick="bybFullCost()">Work out the monthly cost</button>
+    <div id="bybCostResult" style="margin-top:8px"></div>
+    <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:10px;font-size:12px;color:var(--slate)">Paste a financing offer (a store card, a car loan, "no interest for 12 months"). Its rate, term, payment, fees and any deferred-interest terms are read - each figure must be in the offer.</div>
+    <textarea id="bybOfferText" rows="3" style="width:100%;padding:8px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:12px;background:var(--paper);color:var(--ink);margin-top:6px"></textarea>
+    <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="bybReadOffer()">Read the offer</button>
+    <div id="bybOfferResult" style="margin-top:8px"></div></div>`;
+  window._bybCostField = f;
+  bybCostFields();
+}
+
+function bybCostFields() {
+  const f = window._bybCostField, k = g('bybCostKind')?.value || 'car', el = g('bybCostFields');
+  if (!el || !f) return;
+  el.innerHTML = k === 'car'
+    ? f('bcPayment', 'Monthly payment') + f('bcInsurance', 'Insurance a month', 'from your bill if blank') + f('bcMiles', 'Miles a month') + f('bcMpg', 'MPG') + f('bcReg', 'Registration a year')
+    : k === 'phone' ? f('bcDevice', 'Device payment') + f('bcPlan', 'Plan change a month', 'e.g. 10 or -5')
+    : f('bcYearly', 'The yearly charge');
+}
+
+async function bybFullCost() {
+  const k = g('bybCostKind').value, v = id => g(id)?.value;
+  const inputs = k === 'car' ? { payment: v('bcPayment'), insurance: v('bcInsurance'), miles_per_month: v('bcMiles'), mpg: v('bcMpg'), registration_yearly: v('bcReg') }
+    : k === 'phone' ? { device_payment: v('bcDevice'), plan_change: v('bcPlan') } : { yearly: v('bcYearly') };
+  const out = g('bybCostResult');
+  let d;
+  try { d = await API.post('/api/byb/full-cost', { kind: k, inputs }); } catch (e) { out.innerHTML = `<div style="font-size:12px;color:var(--ember)">${esc(e.message)}</div>`; return; }
+  out.innerHTML = `<div style="font-size:12px;line-height:1.7">${d.parts.map(p => `<div><b>${esc(p.label)}</b>: ${fmt(p.monthly)} a month <span style="color:var(--slate-2)">(${esc(p.source)})</span></div>`).join('')}
+    <div style="margin-top:4px"><b>About ${fmt(d.monthly)} a month, ${fmt(d.yearly)} a year</b>, counting only the parts above.</div>
+    ${d.left_out.length ? `<div style="color:var(--slate-2);margin-top:2px">Not included: ${d.left_out.map(esc).join('; ')}.</div>` : ''}</div>`;
+}
+
+async function bybReadOffer() {
+  const text = g('bybOfferText')?.value?.trim(), out = g('bybOfferResult');
+  if (!text) { showToast('Paste the financing offer first', '', 'warning'); return; }
+  let d;
+  try { d = await API.post('/api/byb/financing', { text }); } catch (e) { out.innerHTML = `<div style="font-size:12px;color:var(--ember)">${esc(e.message)}</div>`; return; }
+  const o = d.offer, c = d.compare, read = [];
+  if (o.price != null) read.push(`price ${fmt(o.price)}`);
+  if (o.apr != null) read.push(`${o.apr}% APR`);
+  if (o.term_months) read.push(`${o.term_months} months`);
+  if (o.payment != null) read.push(`${fmt(o.payment)} a month`);
+  if (o.fees) read.push(`${fmt(o.fees)} in fees`);
+  out.innerHTML = `<div style="font-size:12px;line-height:1.7">
+    <div style="color:var(--slate)">Read from the offer: ${read.join(', ') || 'no figures'}.</div>
+    ${c.rows.map(r => `<div><b>${esc(r.label)}</b>: ${fmt(r.total)} <span style="color:var(--slate-2)">(${esc(r.how)})</span></div>`).join('')}
+    ${c.extra != null && c.extra > 0 ? `<div>Financing costs ${fmt(c.extra)} more than paying cash.</div>` : ''}
+    ${o.deferred ? `<div style="margin-top:6px;padding:6px 10px;border-left:2px solid var(--gold);background:var(--gold-bg)"><b>Deferred interest.</b> The offer says: "${esc(o.deferred_phrase || '')}"${c.deferred ? `<br>${esc(c.deferred.how)}.` : ''}</div>` : ''}
+    ${c.own_debt ? `<div style="margin-top:6px">Your ${esc(c.own_debt.name)} balance (${fmt(c.own_debt.balance)}) costs ${c.own_debt.rate}%${c.own_debt.offer_apr != null ? `; this offer's rate is ${c.own_debt.offer_apr}%` : ''}.${c.own_debt.year_interest_on_cash ? ` The same cash on that balance would save about ${fmt(c.own_debt.year_interest_on_cash)} of interest in a year (worked out by Groundwork).` : ''}</div>` : ''}
+    ${o.warnings.length ? `<div style="font-size:11px;color:#92400e;margin-top:4px">${o.warnings.map(esc).join(' · ')}</div>` : ''}
+    <div style="font-size:11px;color:var(--slate-2);margin-top:4px">Side by side, so you can weigh them. Nothing is saved.</div></div>`;
+}
+
 function renderBYB() {
   const cont = g('bybContent');
   if (!cont) return;
   _loadBYBItems();
   renderBybFromRecord();
+  renderBybReceipts();
+  renderBybCost();
 }
 
 async function _loadBYBItems() {

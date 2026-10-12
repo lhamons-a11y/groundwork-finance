@@ -401,6 +401,9 @@ class HistorianEntry(Base):
       'budget_reviewed'                   — user opened the Budget page. Client signal on navigation
                                              (showView('budget')), not on the re-renders renderBudget()
                                              does elsewhere. Purely categorical.
+      'reimbursement_marked' / '_matched' / '_unmatched' / '_written_off' / '_unmarked'
+                                          — item 72 stage 4 (C5): a purchase the person said their employer pays
+                                             back, a repayment they matched to it, and their changes of mind.
       'record_fix'                        — Ask why (item 72 C4): a fix the person previewed and approved - the
                                              exact rows moved (id, from, to), the total, any import rule added.
       'record_fix_undone'                 — its Undo: the rows reverted, and any rows left as edited since.
@@ -550,6 +553,37 @@ class FlightPriceCache(Base):
     airline        = Column(String(120), nullable=True)
     raw_json       = Column(Text, nullable=True)
     fetched_at     = Column(DateTime, default=datetime.utcnow)
+
+
+class ReimbursableItem(Base):
+    """Item 72 stage 4 (ASK_WHY.md C5): a purchase the person says their employer pays back - never inferred (AP4,
+    TM5). While it waits, and once paid, the purchase sits under "Paid back by work" (inside Transfer), so it is not
+    spending; `original_category_id` puts it back if the person says it won't be paid back after all.
+
+      status   'waiting' -> 'paid' (matched repayments cover it) ; 'written_off' (not coming: categories restored)
+    """
+    __tablename__ = 'reimbursable_items'
+    id                   = Column(Integer, primary_key=True)
+    transaction_id       = Column(Integer, ForeignKey('transactions.id'), nullable=False)
+    employer             = Column(String(120), default='')
+    amount               = Column(Float, nullable=False)
+    original_category_id = Column(Integer, ForeignKey('categories.id'), nullable=True)
+    status               = Column(String(12), nullable=False, default='waiting')
+    marked_at            = Column(DateTime, default=datetime.utcnow)
+    closed_at            = Column(DateTime, nullable=True)
+
+
+class ReimbursementMatch(Base):
+    """Item 72 stage 4 (C5): part or all of a repayment deposit, matched by the person to a waiting purchase. One
+    deposit can pay back several purchases; one purchase can be paid back in parts. The deposit moves under "Paid back
+    by work" too, so it is not income; `original_category_id` restores it if the match is undone or written off."""
+    __tablename__ = 'reimbursement_matches'
+    id                    = Column(Integer, primary_key=True)
+    item_id               = Column(Integer, ForeignKey('reimbursable_items.id'), nullable=False)
+    credit_transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
+    amount                = Column(Float, nullable=False)
+    original_category_id  = Column(Integer, ForeignKey('categories.id'), nullable=True)
+    matched_at            = Column(DateTime, default=datetime.utcnow)
 
 
 class AiLog(Base):

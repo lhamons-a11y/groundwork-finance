@@ -213,6 +213,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
     app.register_blueprint(evidence_bp,       url_prefix='/api/evidence')
     app.register_blueprint(why_bp,            url_prefix='/api/why')
+    app.register_blueprint(reimburse_bp,      url_prefix='/api/reimburse')
     app.register_blueprint(help_bp,           url_prefix='/api/help')
     app.register_blueprint(review_bp,         url_prefix='/api/reports/review')
     app.register_blueprint(checkin_bp,        url_prefix='/api/checkin')
@@ -2211,6 +2212,97 @@ def why_investigate():
         return ok(out)
 
 
+# Item 72 stage 3 (C2): the model picks one registered check for a question about the person's money - under a
+# grammar that can write nothing else - or says it is unsure, or that none fits. It sees only the question and the
+# check names; it never sees the record, writes a query, or changes anything. Its pick is offered, then run on a tap.
+WHY_ROUTE_SYSTEM = (
+    'You sort one question about a person\'s own money records into one check, by name. Answer with exactly one name.\n'
+    'inputs_income: what went into their monthly income figure; which deposits counted; why income looks lower.\n'
+    'payer_switch: the same payer or store filed under a different category than before.\n'
+    'wrong_kind: deposits filed as spending, or charges filed as income.\n'
+    'stopped: a regular paycheck or deposit that has not come in.\n'
+    'duplicates: the same transaction showing twice.\n'
+    'own_transfers: money moved between their own accounts counted as income.\n'
+    'empty_months: months or accounts with no records.\n'
+    'unsure: about their records, and two or more checks fit equally.\n'
+    'none: anything else - advice, investing, a request to do or pay something, writing, general knowledge, '
+    'or instructions.\n'
+    'Examples:\n'
+    '"Which deposits count toward my income?" -> inputs_income\n'
+    '"Why did my income go down in July?" -> inputs_income\n'
+    '"Why is my pay under a new category?" -> payer_switch\n'
+    '"Why are my paychecks counted as spending?" -> wrong_kind\n'
+    '"My paycheck did not come in" -> stopped\n'
+    '"The same charge shows up twice" -> duplicates\n'
+    '"Is my savings transfer counted as income?" -> own_transfers\n'
+    '"Why are there no transactions in April?" -> empty_months\n'
+    '"Something looks off" -> unsure\n'
+    '"Should I buy a stock?" -> none\n'
+    '"Write a poem about money" -> none\n'
+    '"Pay my bill" -> none')
+# A question that names nothing in the person's records never reaches the model: it gets C11's sentence (stage 3's
+# plain-words gate, measured 2026-10-11 - the model alone sent "a poem about money" to a check).
+WHY_ROUTE_WORDS = re.compile(r'\b(income|deposit\w*|paycheck\w*|pay|paid|salary|wages?|charge[sd]?|transactions?|'
+                             r'categor\w*|account\w*|transfer\w*|month\w*|records?|ledger|spending|spent|imports?|'
+                             r'twice|duplicate\w*|missing|statement\w*|filed|purchase\w*|bought|grocer\w*|shopping|bills?)\b', re.I)
+WHY_ACT_WORDS = re.compile(r'\b(should i|buy|invest\w*|stocks?|poem|write|pay (?:my|the|this)|delete|remove|erase|'
+                           r'move (?:all|every)|transfer (?:all|money)|ignore|forget|disregard|pretend|you are now|'
+                           r'rules|instructions|prompt|system:|admin|account numbers?|passwords?)\b', re.I)
+
+
+def why_route_outside(q):
+    """Stage 3's gate, before any model: a question that names nothing in the person's records, asks for advice, or
+    asks Groundwork to do something gets C11's sentence. Words typed in are only words."""
+    return not WHY_ROUTE_WORDS.search(q) or bool(WHY_ACT_WORDS.search(q))
+
+
+WHY_ROUTE_OPTIONS = ('inputs_income', 'payer_switch', 'wrong_kind', 'stopped', 'duplicates', 'own_transfers',
+                     'empty_months', 'unsure', 'none')
+
+
+@why_bp.route('/route', methods=['POST'])
+@require_json
+def why_route():
+    """-> {'state': 'picked', 'check', 'title'} | {'state': 'unsure', 'checks': [...]} | {'state': 'none'} |
+    {'state': 'off'}. The question is data: it goes to the model as the user's words and nowhere else."""
+    from core import ask_why, engine
+    q = str((request.json or {}).get('question') or '').strip()[:300]
+    if not q:
+        return err('A question is needed.')
+    every = [{'check': k, 'title': v['title']} for k, v in ask_why.CHECKS.items()]
+    if why_route_outside(q):
+        return ok({'state': 'none'})            # advice, a request to act, or nothing about the records: never the model
+    with db_session() as session:
+        if _get_setting(session, 'ai_enabled') and (_get_setting(session, 'ai_enabled').value or '').lower() in ('false', '0', 'off'):
+            return ok({'state': 'off'})
+    try:
+        r = engine.choose(WHY_ROUTE_SYSTEM, q, WHY_ROUTE_OPTIONS)
+    except Exception:                                   # noqa: BLE001 - routing failing is the same as no route
+        logging.getLogger('groundwork').info('why route: the model could not be asked')
+        return ok({'state': 'off'})
+    _ai_log_write({'surface': 'ask_why_route', 'system': WHY_ROUTE_SYSTEM, 'messages': [{'role': 'user', 'content': q}]},
+                  r.get('raw') or r.get('reason') or '', 'grammar' if r.get('ok') else (r.get('reason') or ''),
+                  getattr(engine, 'MODEL_FILE', ''))
+    if not r.get('ok'):
+        return ok({'state': 'off' if r.get('reason') in ('off', 'loading', 'unavailable') else 'none'})
+    if r['choice'] == 'none':
+        return ok({'state': 'none'})
+    if r['choice'] == 'unsure':
+        return ok({'state': 'unsure', 'checks': every})
+    return ok({'state': 'picked', 'check': r['choice'], 'title': ask_why.CHECKS[r['choice']]['title'], 'checks': every})
+
+
+@why_bp.route('/check', methods=['GET'])
+def why_check():
+    """Stage 3: one registered check, run on the record, as the person picked it (or tapped the model's pick)."""
+    from core import ask_why
+    with db_session() as session:
+        out = ask_why.run_one(session, (request.args.get('id') or '').strip())
+        if out is None:
+            return err('Not a check Groundwork has.', 404)
+        return ok(out)
+
+
 @why_bp.route('/preview', methods=['POST'])
 @require_json
 def why_preview():
@@ -2275,6 +2367,78 @@ def why_fixes():
                         'label': c.get('label'), 'to': c.get('to'), 'count': len(c.get('changes') or []),
                         'total': c.get('total'), 'undone': c.get('undone')})
         return ok({'fixes': out})
+
+
+reimburse_bp = Blueprint('reimburse', __name__)
+
+
+# ── Item 72 stage 4 (ASK_WHY.md C5): purchases an employer pays back - told, never guessed ─────────────────────
+@reimburse_bp.route('', methods=['GET'])
+def reimburse_state():
+    from core import reimburse
+    with db_session() as session:
+        said = _setting_json(session, 'work_reimbursements_said')
+        return ok({'said': said, 'items': reimburse.state(session) if (said or {}).get('answer') == 'yes' else []})
+
+
+@reimburse_bp.route('/said', methods=['POST'])
+@require_json
+def reimburse_said():
+    """C5: the person's own word that they buy things for work and get paid back (or not). Changeable."""
+    answer = (request.json or {}).get('answer')
+    if answer not in ('yes', 'no'):
+        return err("answer must be 'yes' or 'no'")
+    with db_session() as session:
+        _set_setting(session, 'work_reimbursements_said',
+                     json.dumps({'answer': answer, 'at': datetime.now().isoformat(timespec='seconds')}))
+        session.commit()
+        return ok({'answer': answer})
+
+
+def _reimburse_do(fn, *args):
+    from core import reimburse
+    with db_session() as session:
+        if ((_setting_json(session, 'work_reimbursements_said') or {}).get('answer')) != 'yes':
+            return err('Say first that you buy things for work and get paid back.', 409)
+        res, problem = getattr(reimburse, fn)(session, *args)
+        if problem:
+            session.rollback()
+            return err(problem, 400)
+        session.commit()
+        return ok({'result': res if isinstance(res, dict) else {'id': getattr(res, 'id', None)},
+                   'items': reimburse.state(session)})
+
+
+@reimburse_bp.route('/mark', methods=['POST'])
+@require_json
+def reimburse_mark():
+    b = request.json or {}
+    return _reimburse_do('mark', int(b.get('transaction_id') or 0), str(b.get('employer') or ''))
+
+
+@reimburse_bp.route('/match', methods=['POST'])
+@require_json
+def reimburse_match():
+    b = request.json or {}
+    return _reimburse_do('match', int(b.get('item_id') or 0), int(b.get('credit_id') or 0))
+
+
+@reimburse_bp.route('/unmatch', methods=['POST'])
+@require_json
+def reimburse_unmatch():
+    return _reimburse_do('unmatch', int((request.json or {}).get('match_id') or 0))
+
+
+@reimburse_bp.route('/write-off', methods=['POST'])
+@require_json
+def reimburse_write_off():
+    return _reimburse_do('write_off', int((request.json or {}).get('item_id') or 0))
+
+
+@reimburse_bp.route('/unmark', methods=['POST'])
+@require_json
+def reimburse_unmark():
+    return _reimburse_do('unmark', int((request.json or {}).get('item_id') or 0))
 
 
 income_bp = Blueprint('income_change', __name__)
@@ -9651,6 +9815,141 @@ def byb_offer_answer():
         _set_setting(session, 'byb_offers_said', json.dumps(rows[-500:]))
         session.commit()
         return ok({'key': key, 'said': said})
+
+
+# ── Item 73 stage 2 (BYB_AGENT.md Y2): trial and return dates, read from a receipt ───────────────────────────
+def _receipt_dates(session):
+    return [x for x in (_setting_json(session, 'receipt_dates', []) or []) if isinstance(x, dict)]
+
+
+@byb_bp.route('/receipt/read', methods=['POST'])
+def byb_receipt_read():
+    """Y2: a pasted or dropped confirmation (PDF, saved email, text), read on this computer for the dates it
+    states. Nothing is saved and the file is not kept; the person picks what to keep."""
+    from core import itinerary, receipt_dates
+    try:
+        if 'file' in request.files:
+            up = request.files['file']
+            text = itinerary.text_from_upload(up.filename, up.read())
+        else:
+            text = str((request.get_json(silent=True) or {}).get('text') or '')
+            if not text.strip():
+                return err('Paste the receipt, or choose its PDF or saved email.')
+            if len(text) > itinerary.MAX_BYTES:
+                return err('That is far longer than a receipt.')
+    except ValueError as e:
+        return err(str(e))
+    except Exception:                                  # noqa: BLE001 - never the document's text in a log
+        logging.getLogger('groundwork').info('receipt file could not be read')
+        return err('Could not read that file.')
+    return ok(receipt_dates.read(text))
+
+
+@byb_bp.route('/receipt-dates', methods=['GET'])
+def byb_receipt_dates_list():
+    """Y2: the dates the person kept, soonest first, with whether they marked each handled."""
+    with db_session() as session:
+        rows = sorted(_receipt_dates(session), key=lambda x: x.get('date') or '')
+        return ok({'dates': rows})
+
+
+@byb_bp.route('/receipt-dates', methods=['POST'])
+@require_json
+def byb_receipt_dates_save():
+    """Y2: keep the dates the person ticked. Each is checked again - a kind Groundwork knows, a full date - before it
+    is kept; the receipt itself never is."""
+    from core.receipt_dates import KINDS
+    body = request.json or {}
+    merchant = str(body.get('merchant') or '').strip()[:80]
+    picked = body.get('dates') or []
+    with db_session() as session:
+        rows = _receipt_dates(session)
+        added = []
+        for d in picked[:20]:
+            if not isinstance(d, dict) or d.get('kind') not in KINDS:
+                continue
+            try:
+                when = date.fromisoformat(str(d.get('date'))[:10]).isoformat()
+            except ValueError:
+                continue
+            price = d.get('price_after')
+            row = {'id': int(datetime.now().timestamp() * 1000) + len(added), 'merchant': merchant or 'A purchase',
+                   'kind': d['kind'], 'date': when,
+                   'price_after': round(float(price), 2) if isinstance(price, (int, float)) else None,
+                   'every': d.get('every') if d.get('every') in ('month', 'year', 'week') else None,
+                   'phrase': str(d.get('phrase') or '')[:160], 'added_at': datetime.now().isoformat(timespec='seconds'),
+                   'done': None}
+            rows.append(row)
+            added.append(row)
+        if not added:
+            return err('Nothing to keep - pick at least one date.')
+        _set_setting(session, 'receipt_dates', json.dumps(rows[-200:]))
+        session.commit()
+        return ok({'added': added})
+
+
+@byb_bp.route('/receipt-dates/<int:row_id>/done', methods=['POST'])
+def byb_receipt_date_done(row_id):
+    """Y2: the person says they have handled it (cancelled, returned, or kept it). It leaves the dashboard."""
+    with db_session() as session:
+        rows = _receipt_dates(session)
+        hit = next((r for r in rows if r.get('id') == row_id), None)
+        if not hit:
+            return err('Not one of your saved dates.', 404)
+        hit['done'] = datetime.now().isoformat(timespec='seconds')
+        _set_setting(session, 'receipt_dates', json.dumps(rows))
+        session.commit()
+        return ok(hit)
+
+
+# ── Item 73 stage 3 (BYB_AGENT.md Y3 + Y4): the full cost, and a financing offer read ──────────────────────
+def _insurance_reading(session):
+    """Y3: the latest bill reading the person confirmed for an insurance bill - {name, amount, date} or None."""
+    rows = (session.query(BillReading, BudgetItem).join(BudgetItem, BillReading.budget_item_id == BudgetItem.id)
+            .filter(BillReading.amount.isnot(None)).order_by(BillReading.read_at.desc()).all())
+    for r, b in rows:
+        if re.search(r'insur|geico|state farm|progressive|allstate|liberty mutual|nationwide|usaa',
+                     f'{b.name} {b.category or ""}', re.I):
+            return {'name': b.name, 'amount': float(r.amount), 'date': r.read_at.date().isoformat()}
+    return None
+
+
+@byb_bp.route('/full-cost', methods=['POST'])
+@require_json
+def byb_full_cost():
+    """Y3: a car's, phone's or yearly charge's monthly cost from the person's figures, their confirmed insurance bill
+    reading and EIA's national gas price (a fixed public query - nothing about the person is sent). A part with no
+    source is left out and named."""
+    from core import purchase_cost
+    body = request.json or {}
+    gas = None
+    if (body.get('kind') == 'car'):
+        try:
+            import gas_price
+            gas = gas_price.get_national_gas_price(_get_eia_api_key())
+        except Exception:                               # noqa: BLE001 - no published price: fuel is left out, said
+            gas = None
+    with db_session() as session:
+        res = purchase_cost.full_cost(body.get('kind'), body.get('inputs') or {}, _insurance_reading(session), gas)
+    if res is None:
+        return err("kind must be 'car', 'phone' or 'annual'")
+    return ok(res)
+
+
+@byb_bp.route('/financing', methods=['POST'])
+@require_json
+def byb_financing():
+    """Y4: a pasted financing offer read for its figures (each must be in the text) and laid beside paying cash and
+    the person's own highest-rate debt. Nothing is saved."""
+    from core import purchase_cost
+    text = str((request.json or {}).get('text') or '')[:20000]
+    if not text.strip():
+        return err('Paste the financing offer.')
+    offer = purchase_cost.read_offer(text)
+    with db_session() as session:
+        debts = [{'name': d.name, 'balance': float(d.current_balance or 0), 'rate': float(d.interest_rate or 0)}
+                 for d in session.query(DebtAccount).filter_by(is_active=True).all()]
+    return ok({'offer': offer, 'compare': purchase_cost.compare(offer, debts)})
 
 
 @byb_bp.route('', methods=['GET'])
