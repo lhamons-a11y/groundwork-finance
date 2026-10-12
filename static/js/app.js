@@ -1756,7 +1756,7 @@ function showView(name) {
   // Lazy init each view
   if (name === 'dashboard') renderDashboard();
   if (name === 'ledger')    { renderLedger(); updateLedgerStats(); renderRecentWin('ledger','ledgerRecentWin'); loadRecurringDetection(); }
-  if (name === 'budget')    { renderBudget(); renderRecentWin('budget','budgetRecentWin'); loadSinkingFunds(); renderSubscriptionAudit();
+  if (name === 'budget')    { renderBudget(); renderRecentWin('budget','budgetRecentWin'); loadSinkingFunds(); renderSubscriptionAudit(); renderPriceChanges();
                               // Historian: user opened the budget page (a navigation, not
                               // a re-render — renderBudget() is called directly elsewhere).
                               API.post('/api/historian/engagement', { event: 'budget_reviewed' }).catch(_gwErr('budget_reviewed')); }
@@ -2685,6 +2685,40 @@ function _renderDashSpendingDonut(txns) {
 
 // ── Phase I: Upcoming bills ───────────────────────────────────────────────────
 // Shows recurring items + debt cards due within 7 days. Max 5. 
+// ── Item 65 W2 (AGENT_W_ITEMS.md): price changes on recurring charges - facts from the record, one tap with Undo ──
+let _priceChanges = [];
+async function renderPriceChanges() {
+  const box = g('budgetPriceChanges');
+  if (!box) return;
+  try { _priceChanges = (await API.get('/api/price-changes')).changes || []; } catch (e) { _gwErr('renderPriceChanges')(e); box.innerHTML = ''; return; }
+  if (!_priceChanges.length) { box.innerHTML = ''; return; }
+  const day = iso => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  box.innerHTML = `<div class="card mt-5"><div class="card-label">Price changes</div>
+    <div style="font-size:12px;color:var(--slate);margin-bottom:8px">Recurring charges that moved to a new amount and stayed there for at least two charges. Groundwork shows what the charges say; it doesn't know why a price changed.</div>`
+    + _priceChanges.map((c, i) => `<div style="padding:8px 0;border-bottom:0.5px solid var(--steel-2)">
+        <div style="font-size:13px;color:var(--ink)">${esc(c.sentence)}</div>
+        <details style="font-size:11px;color:var(--slate);margin-top:4px"><summary style="cursor:pointer">The charges</summary>
+          ${c.records.map(r => `<div style="font-family:var(--font-mono)">${day(r.date)} &nbsp; ${fmt(r.amount)}</div>`).join('')}</details>
+        ${c.line && !c.line_matches ? `<div style="margin-top:6px;font-size:12px;color:var(--slate)">Your budget line <b style="color:var(--ink)">${esc(c.line.name)}</b> is ${fmt(c.line.amount)} a month.
+          <button class="btn btn-secondary btn-sm" onclick="applyPriceChange(${i})">Change it to ${fmt(c.after)}</button></div>`
+        : c.line ? `<div style="margin-top:6px;font-size:12px;color:var(--slate)">Your budget line ${esc(c.line.name)} already says ${fmt(c.line.amount)}.</div>` : ''}
+      </div>`).join('') + '</div>';
+}
+
+async function applyPriceChange(i) {
+  const c = _priceChanges[i];
+  if (!c) return;
+  try {
+    const r = await API.post('/api/price-changes/apply', { payee: c.payee });
+    showToast(`${r.line}: ${fmt(r.from)} to ${fmt(r.to)}`, '', 'success', async () => {
+      try { await API.post('/api/price-changes/undo', { kind: r.kind, id: r.id, amount: r.from }); showToast(`${r.line} is back to ${fmt(r.from)}`, '', 'info'); }
+      catch (e) { showToast('Undo failed', e.message || '', 'error'); }
+      renderBudget(); renderPriceChanges();
+    });
+    renderBudget(); renderPriceChanges();
+  } catch (e) { showToast('Could not change the line', e.message || '', 'error'); }
+}
+
 // ── Item 65 W3 (AGENT_W_ITEMS.md): the Calendar page - one source for every upcoming date ─────────────────────
 const _CAL_KIND = { debt: '💳', recurring: '📋', bill: '🧾', gift: '🎁', trip: '✈', fund: '◎', pay: '💵', charge: '🔁', yearly: '📅' };
 const _CAL_CERT = { confirmed: 'Confirmed', expected: 'Expected', possible: 'Possible' };
@@ -12544,6 +12578,8 @@ function _checkinLines(f) {
   if (f.bills && f.bills.length) lines.push('Due this week: ' + f.bills.map(b => `${b.name}${b.amount != null ? ` (${fmt(b.amount)})` : ''}, ${day(b.date)}`).join('; ') + '.');
   if (f.goals && f.goals.length) lines.push('Your goals: ' + f.goals.map(gl => `${gl.name}, ${fmt(gl.saved)} of ${fmt(gl.target)}` +
     (gl.deadline ? ` by ${day(gl.deadline)}` : '') + (gl.monthly ? ` (${fmt(gl.monthly)} a month gets there)` : '')).join('; ') + '.');
+  // W2-c: a price that changed this week, named once, here - the Budget page keeps the list
+  (f.price_changes || []).forEach(p => lines.push(p.sentence + ' The Budget page can update the line.'));
   if (f.pay && f.pay.length) {
     const names = [...new Set(f.pay.map(_checkinWho))];
     lines.push(`Groundwork expects ${names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0]} this week, from ${f.pay.length > 1 ? 'each one\'s' : 'its'} usual schedule.`);

@@ -219,6 +219,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(futures_bp,        url_prefix='/api/futures')
     app.register_blueprint(trips_bp,          url_prefix='/api/trips')
     app.register_blueprint(calendar_bp,       url_prefix='/api/calendar')
+    app.register_blueprint(price_changes_bp,  url_prefix='/api/price-changes')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
@@ -2371,6 +2372,117 @@ def trips_in_month():
 
 
 # ── Item 65 W3 (AGENT_W_ITEMS.md): the one calendar of what's coming ──────────────────────────────────────────
+# ── Item 65 W2 (AGENT_W_ITEMS.md): price changes on recurring charges ──────────────────────────────────────────
+price_changes_bp = Blueprint('price_changes', __name__)
+
+
+def _norm_payee(s):
+    return ''.join(ch for ch in (s or '').lower() if ch.isalnum())
+
+
+def _price_line(session, payee):
+    """The budget line this payee's price lives on, by name: a budget item first, then a recurring bill. None when no
+    line names it - then the change is shown as a fact only, with nothing to update."""
+    n = _norm_payee(payee)
+    if len(n) < 4:
+        return None
+    hit = lambda name: (lambda m: len(m) >= 4 and (m in n or n in m))(_norm_payee(name))
+    for b in session.query(BudgetItem).filter_by(is_active=True, type='expense').all():
+        if hit(b.name):
+            return {'kind': 'budget', 'id': b.id, 'name': b.name, 'amount': round(b.amount or 0, 2)}
+    for r in _setting_json(session, 'recurring_items_json', []) or []:
+        if isinstance(r, dict) and hit(r.get('name')):
+            return {'kind': 'recurring', 'id': r.get('id'), 'name': r.get('name'), 'amount': round(float(r.get('amount') or 0), 2)}
+    return None
+
+
+def _price_changes(session, today=None):
+    """W2: every recurring charge whose price stepped in the last 13 months, from the ledger (core/price_change.py).
+    Derived on every read - nothing about a finding is stored (no silent learning)."""
+    from core import price_change as pc
+    today = today or date.today()
+    rows = session.query(Transaction.merchant, Transaction.date, Transaction.amount, Category.name).outerjoin(
+        Category, Category.id == Transaction.category_id).filter(
+        Transaction.type == 'debit', Transaction.merchant != '', Transaction.date >= today - timedelta(days=396),
+        Transaction.date <= today).all()
+    by, cat = {}, {}
+    for m, d, a, c in rows:
+        if m and d:
+            by.setdefault(m, []).append((d, a))
+            cat[m] = c or ''
+    out = []
+    for m, xs in by.items():
+        s = pc.step(xs, cat[m])
+        if not s:
+            continue
+        after = sorted(d for d, _ in xs if d >= s['first_after'])
+        line = _price_line(session, m)
+        out.append({'payee': m, 'category': cat[m], 'before': s['before'], 'after': s['after'],
+                    'last_before': s['last_before'].isoformat(), 'first_after': s['first_after'].isoformat(),
+                    'seen_on': after[pc.MIN_AFTER - 1].isoformat(),   # the charge that made it a step (W2-a)
+                    'after_count': s['after_count'], 'kind': s['kind'], 'sentence': pc.sentence(m, s),
+                    'records': s['records'], 'line': line,
+                    'line_matches': bool(line and abs(line['amount'] - s['after']) < 0.01)})
+    out.sort(key=lambda x: x['seen_on'], reverse=True)
+    return out
+
+
+@price_changes_bp.route('', methods=['GET'])
+def price_changes_get():
+    with db_session() as session:
+        return ok({'changes': _price_changes(session)})
+
+
+def _set_line_amount(session, kind, line_id, amount):
+    if kind == 'budget':
+        b = session.get(BudgetItem, int(line_id))
+        if not b:
+            return None
+        old, b.amount = round(b.amount or 0, 2), amount
+        return old
+    items = _setting_json(session, 'recurring_items_json', []) or []
+    for r in items:
+        if isinstance(r, dict) and str(r.get('id')) == str(line_id):
+            old, r['amount'] = round(float(r.get('amount') or 0), 2), amount
+            _set_setting(session, 'recurring_items_json', json.dumps(items))
+            return old
+    return None
+
+
+@price_changes_bp.route('/apply', methods=['POST'])
+@require_json
+def price_changes_apply():
+    """W2: the person's one tap - the budget line takes the new price. The amount is the record's, worked out again
+    here, never the page's; the reply carries the old amount for Undo."""
+    payee = (request.get_json() or {}).get('payee')
+    with db_session() as session:
+        f = next((x for x in _price_changes(session) if x['payee'] == payee), None)
+        if not f or not f['line']:
+            return err('No price change with a budget line was found for that payee.', 404)
+        old = _set_line_amount(session, f['line']['kind'], f['line']['id'], f['after'])
+        if old is None:
+            return err('That budget line is gone.', 404)
+        session.commit()
+        return ok({'line': f['line']['name'], 'kind': f['line']['kind'], 'id': f['line']['id'], 'from': old, 'to': f['after']})
+
+
+@price_changes_bp.route('/undo', methods=['POST'])
+@require_json
+def price_changes_undo():
+    b = request.get_json() or {}
+    try:
+        amount = round(float(b.get('amount')), 2)
+    except (TypeError, ValueError):
+        return err('An amount is needed.', 400)
+    if amount < 0 or b.get('kind') not in ('budget', 'recurring'):
+        return err('That is not a line Groundwork changed.', 400)
+    with db_session() as session:
+        if _set_line_amount(session, b['kind'], b.get('id'), amount) is None:
+            return err('That budget line is gone.', 404)
+        session.commit()
+        return ok({'restored': amount})
+
+
 calendar_bp = Blueprint('calendar', __name__)
 
 
@@ -2544,6 +2656,9 @@ def checkin_get():
                     dl = None
                 f['goals'].append({'name': sf.name, 'saved': round(sf.current_amount or 0, 2), 'target': round(sf.target_amount or 0, 2),
                                    'deadline': sf.deadline, 'monthly': round(left / months, 2) if months and left > 0 else None})
+        w0, w1 = ck.week_bounds(today)
+        f['price_changes'] = [{'sentence': x['sentence'], 'payee': x['payee']} for x in _price_changes(session, today)
+                              if w0.isoformat() <= x['seen_on'] <= w1.isoformat()]
         key = today.isoformat()
         return ok({**f, 'date': key, 'is_sunday': today.weekday() == 6,
                    'written': _setting_json(session, f'checkin_text_{key}'),

@@ -192,3 +192,56 @@ Each would be its own build, gated and accepted before the next, as items 74–8
   - s210 checks that the check-in's week and the calendar's week are the same.
 - **W3-c.** No notification, timer or model call on the page.
 - **Tests:** s210, 9 checks. s195 (the check-in) still passes on the shared source.
+
+## W2 null model (2026-10-12, `scripts/w2_null_model.py`, before the rule shipped)
+
+4,000 synthetic series per row, seeded. The bar: no more than 2% false alarms on any trend-free series, and steps of
+8% or more found at least 95% of the time.
+
+**First rule, FAILED.** A step was 3%+, 3x the payee's own swing, and every new charge nearer the new level.
+- Steady subscriptions passed (0-2.5% false alarms).
+- Seasonal usage bills fired on **18-30%** of trend-free years.
+- Variable monthly spending fired on 7%.
+- The multiple split points the rule tries find a "step" in noise.
+
+**Fix 1, the decisive one: a price only steps from a steady charge.** The old level's typical swing, and every new
+charge's distance from the new level, are within 3%. A bill whose amount follows use has no one price to step from, so
+a seasonal utility is never read as a price change.
+
+**Fix 2: the old level must be most of the charges** (75%), not two odd ones. Two odd charges at the start had been
+taken as the old price.
+
+**Result, PASSED.**
+- Worst false-alarm rate: **1.0%**. That is two identical odd charges at the very end, which is exactly what "2
+  charges at the new level" means.
+- Every step from 5% to 25%, up or down, with 2, 3 or 6 charges since: **100%** found, including a step after a
+  prorated first charge and an odd month.
+- A slow 1%-a-month drift is not read as a step (0.0%).
+
+**On the live ledger** (read-only, 273 payees, 13 months), the first version found two:
+- **Netflix:** $23.23 through April, $25.09 since May.
+- **A card's interest charge.** That moves with the balance; it is not a price. Interest, fees, debt payments,
+  transfers, savings, refunds and ATM are now not prices (`NOT_PRICES`), so only Netflix remains.
+
+## Built: W2, price changes (2026-10-12), awaiting acceptance
+
+- **`core/price_change.py`:** arithmetic only, with no database and no clock. It finds the latest step in one payee's
+  charges and writes the sentence.
+- **W2-a:**
+  - 3+ steady charges at the old level, 2+ at the new;
+  - a change of at least 3% and 50 cents, and at least 3 times the payee's own swing;
+  - the charges before it were a recurring rhythm (weekly to yearly).
+- **W2-b:** the sentence states the old and new amounts and their months, and nothing else. *"Netflix: $23.23 through
+  April, $25.09 since May (6 charges)."* It adds only what the record itself shows:
+  - the charges moved from monthly to yearly (the gaps);
+  - a usage bill, whose amount follows use as well as price (the category).
+- **W2-c:**
+  - **Budget page, Price changes:** each change with its charges (open *The charges*), and the budget line it lives on.
+    A budget item or recurring bill is matched by name.
+  - **One tap:** the button shows the change first (*"Change it to $25.09"*). The new amount is worked out again on
+    the server, never taken from the page. The toast has Undo.
+  - **The Sunday check-in** names a change in the week its second new-level charge arrived, and says the Budget page
+    can update the line.
+  - Nothing about a finding is stored: it is derived from the ledger on every read (no silent learning). The only
+    write is the person's tap.
+- **Tests:** s211, 8 checks, including the null model run in the gate.
