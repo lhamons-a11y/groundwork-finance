@@ -124,7 +124,7 @@ first.
 - **Which existing engines each scenario reuses.** That's decided in the build, after the ruling.
 - **Assistant** asking about scenarios by voice: later, through the same surface.
 
-## 4. Built 2026-10-12 (Rob 2026-10-11: "build ... 66"): the rest of SC1-SC7
+## 4. Built 2026-10-12 (Rob 2026-10-11: "build ... 66"): the rest of SC1-SC7 - ACCEPTED + CLOSED 2026-10-12 (Rob: "I accept")
 
 A **Possible futures** card on the Budget page, below "Your pay", for every household, not only after an income
 drop. `core/futures.py` does plain arithmetic over the record plus the one payoff engine (its new `path` argument
