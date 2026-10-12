@@ -4898,7 +4898,7 @@ function _showRecurringPrompt(merchant, category, recurHint = null, alreadyHasRu
     animation:slideUp .18s ease;
   `;
 
-  const ruleSection = alreadyHasRule ? '' : `
+  const ruleSection = alreadyHasRule ? '' : `<div id="rrpRule" style="display:flex;flex-direction:column;gap:10px">
     <div style="font-size:13px;color:var(--ink);line-height:1.5">
       <b style="font-weight:600">${esc(merchant)}</b> was changed to
       <b style="font-weight:600">${esc(category)}</b>.
@@ -4911,7 +4911,7 @@ function _showRecurringPrompt(merchant, category, recurHint = null, alreadyHasRu
                font-weight:500">
         Yes, always
       </button>
-      <button onclick="document.getElementById('recurringRulePrompt')?.remove()"
+      <button onclick="_rrpClose('rule')"
         style="font-size:12px;font-family:inherit;background:none;
                border:1px solid var(--steel-2);border-radius:var(--r-md);
                padding:6px 14px;cursor:pointer;color:var(--ink)">
@@ -4923,12 +4923,12 @@ function _showRecurringPrompt(merchant, category, recurHint = null, alreadyHasRu
                text-decoration:underline">
         Never ask for this merchant
       </button>
-    </div>`;
+    </div></div>`;
 
   // Item 1: recurring-bill offer — shown when the merchant has a monthly
   // pattern and isn't already a recurring transaction.
-  const billSection = recurHint ? `
-    <div style="${alreadyHasRule ? '' : 'border-top:1px solid var(--steel);padding-top:10px;'}
+  const billSection = recurHint ? `<div id="rrpBill" style="display:flex;flex-direction:column;gap:10px">
+    <div id="rrpBillText" style="${alreadyHasRule ? '' : 'border-top:1px solid var(--steel);padding-top:10px;'}
                 font-size:13px;color:var(--ink);line-height:1.5">
       This looks like a monthly bill — about <b style="font-weight:600;font-family:var(--font-mono)">${fmt(recurHint.amount)}</b>
       around day ${recurHint.day}. Add it to recurring transactions so it shows in Upcoming?
@@ -4940,7 +4940,7 @@ function _showRecurringPrompt(merchant, category, recurHint = null, alreadyHasRu
                font-weight:500">
         Add recurring bill
       </button>
-      <button onclick="document.getElementById('recurringRulePrompt')?.remove()"
+      <button onclick="_rrpClose('bill')"
         style="font-size:12px;font-family:inherit;background:none;
                border:1px solid var(--steel-2);border-radius:var(--r-md);
                padding:6px 14px;cursor:pointer;color:var(--ink)">
@@ -4953,7 +4953,7 @@ function _showRecurringPrompt(merchant, category, recurHint = null, alreadyHasRu
                text-decoration:underline">
         Never ask for this merchant
       </button>` : ''}
-    </div>` : '';
+    </div></div>` : '';
 
   el.innerHTML = ruleSection + billSection;
 
@@ -4967,14 +4967,31 @@ function _showRecurringPrompt(merchant, category, recurHint = null, alreadyHasRu
 
   document.body.appendChild(el);
 
-  // Auto-dismiss after 12 seconds if no action taken
-  setTimeout(() => {
+  _rrpTimer(el);
+}
+
+// Each question in the prompt is answered on its own: an answer closes only its own section, and the prompt goes
+// when both are answered. The 12-second auto-close restarts after an answer, so the question left isn't snatched away
+// mid-read. (Fixed 2026-10-11: answering one used to remove both - Rob.)
+function _rrpTimer(el) {
+  clearTimeout(el._rrpT);
+  el._rrpT = setTimeout(() => {
     if (document.getElementById('recurringRulePrompt') === el) el.remove();
   }, 12000);
 }
 
+function _rrpClose(part) {
+  const el = document.getElementById('recurringRulePrompt');
+  if (!el) return;
+  document.getElementById(part === 'rule' ? 'rrpRule' : 'rrpBill')?.remove();
+  if (!document.getElementById('rrpRule') && !document.getElementById('rrpBill')) { el.remove(); return; }
+  const billText = document.getElementById('rrpBillText');
+  if (billText && !document.getElementById('rrpRule')) { billText.style.borderTop = 'none'; billText.style.paddingTop = '0'; }
+  _rrpTimer(el);
+}
+
 async function _acceptRecurringRule(merchant, category) {
-  document.getElementById('recurringRulePrompt')?.remove();
+  _rrpClose('rule');
   // Create the import rule
   _importRules.push({
     id:       Date.now(),
@@ -5004,7 +5021,7 @@ function _promptSuppressMerchant() {
 }
 async function _promptAcceptBill() {
   const c = _recurringPromptCtx;
-  document.getElementById('recurringRulePrompt')?.remove();
+  _rrpClose('bill');
   if (!c || !c.hint) return;
   _recurringItems.push({
     id: Date.now(),
