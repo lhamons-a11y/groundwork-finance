@@ -2736,9 +2736,68 @@ async function applyPriceChange(i) {
 const _CAL_KIND = { debt: '💳', recurring: '📋', bill: '🧾', gift: '🎁', trip: '✈', fund: '◎', pay: '💵', charge: '🔁', yearly: '📅' };
 const _CAL_CERT = { confirmed: 'Confirmed', expected: 'Expected', possible: 'Possible' };
 
+// ── Item 65 W1 (AGENT_W_ITEMS.md): patterns a long history shows - each one asked about, nothing assumed ────────
+let _lookThrough = null, _lookThroughOpen = false;
+async function renderLookThrough() {
+  const box = g('calendarLookThrough');
+  if (!box) return;
+  try { _lookThrough = await API.get('/api/first-import'); } catch (e) { _gwErr('renderLookThrough')(e); box.innerHTML = ''; return; }
+  const f = _lookThrough;
+  const card = inner => `<div class="card mb-4"><div class="card-label">Yearly bills and heavy months</div>${inner}</div>`;
+  if (!f.enough) { box.innerHTML = card(`<div style="font-size:12px;color:var(--slate)">${esc(f.message)}</div>`); return; }
+  const all = [...f.renewals.map(x => ({ ...x, kind: 'renewal' })), ...f.heavy.map(x => ({ ...x, kind: 'heavy' }))];
+  const open = all.filter(x => !x.answer);
+  if (!_lookThroughOpen) {
+    box.innerHTML = card(`<div style="font-size:12px;color:var(--slate);line-height:1.6">Your record covers ${f.months} full months.
+      Groundwork can look through it for bills that come once or twice a year and months that run heavy.
+      Each one is shown with its records and asked about; nothing changes unless you say yes.</div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="_lookThroughOpen = true; renderLookThrough()">Look through it${open.length ? ` (${open.length})` : ''}</button>`);
+    return;
+  }
+  const day = iso => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const ask = (x, i) => {
+    const q = x.kind === 'renewal' ? 'Is this a regular bill?' : 'Does this happen every year?';
+    const btn = (a, label) => `<button class="btn ${x.answer === a ? 'btn-primary' : 'btn-ghost'} btn-sm" onclick="answerLookThrough(${i}, '${a}')">${label}</button>`;
+    const recs = x.kind === 'renewal'
+      ? x.records.map(r => `<div style="font-family:var(--font-mono)">${day(r.date)} &nbsp; ${fmt(r.amount)}</div>`).join('')
+      : x.categories.map(c => `<div>${esc(c.category)}: ${fmt(c.amount)} that month, against a usual ${fmt(c.usual)}</div>`).join('');
+    return `<div style="padding:8px 0;border-bottom:0.5px solid var(--steel-2)">
+      <div style="font-size:13px;color:var(--ink)">${esc(x.sentence)}</div>
+      <details style="font-size:11px;color:var(--slate);margin-top:4px"><summary style="cursor:pointer">${x.kind === 'renewal' ? 'The charges' : 'What stood above its usual month'}</summary>${recs}</details>
+      <div style="margin-top:6px;font-size:12px;color:var(--slate);display:flex;gap:6px;align-items:center;flex-wrap:wrap">${q}
+        ${btn('yes', 'Yes')}${btn('no', 'No')}${btn('not_sure', 'Not sure')}</div></div>`;
+  };
+  box.innerHTML = card(`<div style="font-size:12px;color:var(--slate);margin-bottom:6px">A yes puts a yearly bill on this calendar and in your possible futures. No and Not sure are kept, so Groundwork doesn't ask again.</div>`
+    + (all.length ? all.map(ask).join('') : '<div style="font-size:12px;color:var(--slate)">Nothing in the record comes once or twice a year at the same amount.</div>')
+    + (f.heavy_note ? `<div style="font-size:11px;color:var(--slate);margin-top:8px">${esc(f.heavy_note)}</div>` : ''));
+}
+
+async function answerLookThrough(i, answer) {
+  const f = _lookThrough;
+  const x = [...f.renewals.map(r => ({ ...r, kind: 'renewal' })), ...f.heavy.map(h => ({ ...h, kind: 'heavy' }))][i];
+  if (!x) return;
+  try {
+    await API.post('/api/first-import/answer', x.kind === 'renewal' ? { kind: 'renewal', payee: x.payee, answer } : { kind: 'heavy', month: x.month, answer });
+    _lookThroughOpen = true;
+    renderCalendar();
+  } catch (e) { showToast('Could not save the answer', e.message || '', 'error'); }
+}
+
+// W1: after an import, offered once for this length of history - only when there is something not yet asked
+async function _offerLookThrough() {
+  let o;
+  try { o = await API.get('/api/first-import/offer'); } catch (e) { _gwErr('_offerLookThrough')(e); return; }
+  if (!o.offer) return;
+  API.post('/api/first-import/offered', {}).catch(_gwErr('_offerLookThrough:offered'));
+  confirmAction('Look through your history?',
+    `<div style="font-size:13px;line-height:1.6;color:var(--slate)">Your record now covers ${o.months} full months. Groundwork can look through it for bills that come once or twice a year, and show you what it finds with the records. Nothing changes unless you say yes.</div>`,
+    () => { _lookThroughOpen = true; showView('calendar'); }, 'Look through it', false);
+}
+
 async function renderCalendar() {
   const box = g('calendarContent');
   if (!box) return;
+  renderLookThrough();
   let d;
   try { d = await API.get('/api/calendar?days=365'); } catch (e) { _gwErr('renderCalendar')(e); box.innerHTML = ''; return; }
   const items = d.entries || [];
@@ -6608,6 +6667,7 @@ async function confirmImport() {
     showToast(`Imported ${added} transactions`, dupes ? `${dupes} duplicates skipped` : '');
   }
 
+  _offerLookThrough();   // item 65 W1: a long enough history is offered one look-through
   _importRecords = []; _importBank = ''; _importFile = null;
   _importIsPdf = false; _importPdfSummary = null; _importPdfSourceHash = ''; _importPdfWarnings = [];
 }

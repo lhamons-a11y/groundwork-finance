@@ -220,6 +220,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(trips_bp,          url_prefix='/api/trips')
     app.register_blueprint(calendar_bp,       url_prefix='/api/calendar')
     app.register_blueprint(price_changes_bp,  url_prefix='/api/price-changes')
+    app.register_blueprint(first_import_bp,   url_prefix='/api/first-import')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
@@ -1964,7 +1965,8 @@ def _going_trip_possibilities(session):
 def _futures_state(session):
     from core import futures as fu
     inputs = _futures_inputs(session)
-    poss = (_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+    poss = ((_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+            + _first_import_possibilities(session))
     answers = _setting_json(session, 'future_answers', []) or []
     out = fu.build(inputs, poss, answers)
     out['fingerprint'] = fu.fingerprint(inputs, poss, answers)
@@ -1991,7 +1993,8 @@ def futures_fingerprint():
     from core import futures as fu
     with db_session() as session:
         inputs = _futures_inputs(session)
-        poss = (_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+        poss = ((_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+                + _first_import_possibilities(session))
         return ok({'fingerprint': fu.fingerprint(inputs, poss, _setting_json(session, 'future_answers', []) or [])})
 
 
@@ -2481,6 +2484,158 @@ def price_changes_undo():
             return err('That budget line is gone.', 404)
         session.commit()
         return ok({'restored': amount})
+
+
+# ── Item 65 W1 (AGENT_W_ITEMS.md): patterns a long history shows - asked about, never assumed ────────────────────
+first_import_bp = Blueprint('first_import', __name__)
+_MONTH_NAMES = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
+                'November', 'December')
+
+
+def _first_import_findings(session):
+    """W1: yearly / twice-yearly bills and months that run heavy every year, from the whole ledger
+    (core/first_import.py). Derived on every read; the person's answers are the only thing kept (W1-b), and an
+    answered finding is not asked about again."""
+    from core import checkin as ck
+    from statistics import median
+    from core import first_import as fi
+    rows = session.query(Transaction.merchant, Transaction.date, Transaction.amount, Transaction.category_id,
+                         Category.name).outerjoin(Category, Category.id == Transaction.category_id).filter(
+        Transaction.type == 'debit').all()
+    dates = [r[1] for r in rows if r[1]]
+    months = fi.complete_months(dates)
+    if len(months) < fi.MIN_MONTHS:
+        return {'enough': False, 'months': len(months),
+                'message': f'Groundwork needs about a year of history to see yearly bills. Your record covers '
+                           f'{len(months)} full month{"s" if len(months) != 1 else ""} so far.'}
+    said_b = [e for e in _setting_json(session, 'yearly_bills_json', []) or [] if isinstance(e, dict)]
+    said_h = [e for e in _setting_json(session, 'heavy_months_json', []) or [] if isinstance(e, dict)]
+    by, cat = {}, {}
+    for m, d, a, _, c in rows:
+        if m and d:
+            by.setdefault(m, []).append((d, a))
+            cat[m] = c or ''
+    answered = {_norm_payee(e.get('payee')): e.get('answer') for e in said_b}
+    ren = []
+    for f in fi.renewals(by, cat, (min(dates), max(dates))):
+        f['sentence'] = fi.sentence(f)
+        f['answer'] = answered.get(_norm_payee(f['payee']))
+        ren.append(f)
+    # heavy months: spending by complete month (transfers are not spending), and each category's usual month
+    tr = ck._transfer_ids(session)
+    keep = set(months)
+    totals, cats = {k: 0.0 for k in months}, {}
+    for _, d, a, cid, c in rows:
+        k = d.strftime('%Y-%m') if d else None
+        if k in keep and cid not in tr:
+            totals[k] += abs(float(a or 0))
+            cats.setdefault(k, {}).setdefault(c or 'Uncategorized', 0.0)
+            cats[k][c or 'Uncategorized'] += abs(float(a or 0))
+    names = {c for v in cats.values() for c in v}
+    usual = {c: median([cats.get(k, {}).get(c, 0.0) for k in months]) for c in names}
+    h_answered = {int(e.get('month') or 0): e.get('answer') for e in said_h}
+    heavy = []
+    for h in fi.heavy_months(totals):
+        latest = h['years'][-1]['month']
+        mo = lambda k: f"{_MONTH_NAMES[int(k[5:7]) - 1][:3]} {k[:4]}"
+        h['name'] = _MONTH_NAMES[h['month'] - 1]
+        h['sentence'] = (f"{h['name']} ran above your usual month in each of the last {len(h['years'])} years: "
+                         + '; '.join(f"${y['total']:,.0f} in {mo(y['month'])}, against a middle month of ${y['median']:,.0f}"
+                                     for y in h['years']) + '.')
+        h['categories'] = [{'category': c, 'amount': v, 'usual': u}
+                           for c, v, u in fi.biggest_categories(cats.get(latest, {}), usual)]
+        h['answer'] = h_answered.get(h['month'])
+        heavy.append(h)
+    return {'enough': True, 'months': len(months), 'renewals': ren, 'heavy': heavy,
+            'heavy_note': None if len(months) >= 24 else
+            'Seeing a month that runs high every year takes two full years of history.'}
+
+
+@first_import_bp.route('', methods=['GET'])
+def first_import_get():
+    with db_session() as session:
+        return ok(_first_import_findings(session))
+
+
+@first_import_bp.route('/offer', methods=['GET'])
+def first_import_offer():
+    """W1: after an import, offer the look-through once for this length of history - when there is something unasked."""
+    with db_session() as session:
+        f = _first_import_findings(session)
+        fresh = f['enough'] and any(x['answer'] is None for x in f['renewals'] + f['heavy'])
+        offered = _setting_json(session, 'first_import_offered', 0) or 0
+        return ok({'offer': bool(fresh and f['months'] != offered), 'months': f['months']})
+
+
+@first_import_bp.route('/offered', methods=['POST'])
+def first_import_offered():
+    with db_session() as session:
+        _set_setting(session, 'first_import_offered', json.dumps(_first_import_findings(session)['months']))
+        session.commit()
+        return ok({'saved': True})
+
+
+@first_import_bp.route('/answer', methods=['POST'])
+@require_json
+def first_import_answer():
+    """W1-b: the person's answer - yes / no / not sure - kept so the same finding isn't asked again. Only a yes changes
+    anything: a yearly bill reaches the calendar (possible) and the futures (a known cost); a heavy month the futures.
+    The finding is worked out again here, never taken from the page."""
+    b = request.get_json() or {}
+    answer = b.get('answer')
+    if answer not in ('yes', 'no', 'not_sure'):
+        return err('Answer yes, no or not sure.')
+    now = datetime.now().isoformat(timespec='seconds')
+    with db_session() as session:
+        f = _first_import_findings(session)
+        if not f['enough']:
+            return err('There is not enough history yet.', 409)
+        if b.get('kind') == 'renewal':
+            hit = next((x for x in f['renewals'] if x['payee'] == b.get('payee')), None)
+            if not hit:
+                return err('That finding is not in the record.', 404)
+            said = [e for e in _setting_json(session, 'yearly_bills_json', []) or []
+                    if isinstance(e, dict) and _norm_payee(e.get('payee')) != _norm_payee(hit['payee'])]
+            said.append({'payee': hit['payee'], 'amount': hit['amount'], 'months': hit['months'], 'day': hit['day'],
+                         'rhythm': hit['rhythm'], 'answer': answer, 'at': now})
+            _set_setting(session, 'yearly_bills_json', json.dumps(said))
+        elif b.get('kind') == 'heavy':
+            hit = next((x for x in f['heavy'] if x['month'] == b.get('month')), None)
+            if not hit:
+                return err('That finding is not in the record.', 404)
+            said = [e for e in _setting_json(session, 'heavy_months_json', []) or []
+                    if isinstance(e, dict) and int(e.get('month') or 0) != hit['month']]
+            said.append({'month': hit['month'], 'over': hit['over'], 'answer': answer, 'at': now})
+            _set_setting(session, 'heavy_months_json', json.dumps(said))
+        else:
+            return err('A finding is needed.')
+        session.commit()
+        return ok({'saved': answer})
+
+
+def _first_import_possibilities(session):
+    """W1: a yes, as a known cost in the futures (SCENARIOS.md SC3, the person's own word) - each yearly bill in its
+    next date(s) - the calendar's own dates, so a bill already charged this month is next year's - and each heavy
+    month at its usual excess, the next time that month starts. The futures count what falls in their horizon."""
+    from core import upcoming
+    today = date.today()
+    ahead = [(today.year + (today.month + i) // 12, (today.month + i) % 12 + 1) for i in range(12)]   # from next month
+    out = []
+    for e in _setting_json(session, 'yearly_bills_json', []) or []:
+        if isinstance(e, dict) and e.get('answer') == 'yes' and (e.get('amount') or 0) > 0:
+            for d in upcoming._yearly_dates(e, today + timedelta(days=1), today + timedelta(days=365)):
+                y, m = d.year, d.month
+                out.append({'id': f"yb-{_norm_payee(e.get('payee'))}-{y}{m:02d}", 'kind': 'cost',
+                            'amount': round(float(e['amount']), 2), 'month': f'{y}-{m:02d}',
+                            'label': f"{e.get('payee')} (a yearly bill you confirmed)", 'said_at': e.get('at')})
+    for e in _setting_json(session, 'heavy_months_json', []) or []:
+        if isinstance(e, dict) and e.get('answer') == 'yes' and (e.get('over') or 0) > 0:
+            y, m = next(((y, m) for y, m in ahead if m == int(e.get('month') or 0)), (None, None))
+            if y:
+                out.append({'id': f'hm-{y}{m:02d}', 'kind': 'cost', 'amount': round(float(e['over']), 2),
+                            'month': f'{y}-{m:02d}', 'label': f'{_MONTH_NAMES[m - 1]} usually runs this much above your usual month',
+                            'said_at': e.get('at')})
+    return out
 
 
 calendar_bp = Blueprint('calendar', __name__)
