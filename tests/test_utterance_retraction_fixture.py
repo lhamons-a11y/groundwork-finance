@@ -86,7 +86,7 @@ def run(db):
     household = rob.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'},
                db.UTTERANCE_RETRACTION: {'person', 'institution'},   # even if a caller supplies one...
-               'servicing': {'person'}, 'eob_amount': {'institution'}}
+               'servicing': {'person'}, 'x': {'institution'}}   # 'x': the neutral kind G2 is exercised under (DOCUMENT_LINE_KIND s16)
 
     def utter(text, when='2026-03-10T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -214,8 +214,8 @@ def run(db):
     r_eob = db.Reading(artefact_id=eob.id, reader_process='pdf-parser/5', read_at=datetime(2026, 3, 11))
     s.add(r_eob)
     s.commit()
-    e_amt = evidence(prop('eob_amount', object_state=db.PARTICIPANT_NONE, subject_artefact_id=eob.id, content='$412'),
-                     reading=r_eob)
+    e_amt = evidence(prop(db.DOCUMENT_LINE, object_state=db.PARTICIPANT_NONE, subject_party_id=aetna.id, content='$412'),
+                     reading=r_eob)   # G1 -> B (DOCUMENT_LINE_KIND s16): the artefact carries the provenance; the line is Aetna's
     check('a reading of the EOB derives undetermined - the origin is multiple, and the retraction did not pick Mercy',
           db.derived_strength(s, e_amt, KNOWING) == db.STRENGTH_UNDETERMINED)
 
@@ -276,10 +276,10 @@ def run(db):
 
     print('\n8. Not kinds, not built, stated so it is not assumed\n')
     u_false = utter('That is false.', '2026-09-06T09:00:00')
-    p_neg = prop('eob_amount', object_state=db.PARTICIPANT_NONE, subject_artefact_id=eob.id, content='not $412')
+    p_neg = prop('x', object_state=db.PARTICIPANT_NONE, subject_artefact_id=eob.id, content='not $412')   # G2 -> C (s16): the artefact is the subject matter
     evidence(p_neg, utterance=u_false)
     check('"that is false" is a domain proposition with negative content - not contradiction(U)',
-          p_neg.kind == 'eob_amount' and p_neg.subject_artefact_id == eob.id
+          p_neg.kind == 'x' and p_neg.subject_artefact_id == eob.id
           and 'contradiction' not in db.RULED_KINDS
           and s.query(db.Proposition).filter(db.Proposition.kind.in_(('contradiction', 'contradicts'))).count() == 0)
     u_again = utter('My servicer is Acme.', '2026-09-07T09:00:00')

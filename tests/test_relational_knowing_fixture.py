@@ -85,7 +85,7 @@ def run(db):
                db.PROPOSITION_CONCERNS: {'person', 'institution'},
                db.PROPOSITION_CORRESPONDS: {'person', 'institution'},
                db.ARTEFACT_ORIGIN: {'person', 'institution'},
-               'eob_amount': {'institution'}, 'was_health': {'person'}, 'occurred_on': set()}
+               'was_health': {'person'}, 'occurred_on': set()}   # the EOB line: document_line (Stage 2), knowing by the relation
 
     def utter(text, when='2026-03-10T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -163,7 +163,7 @@ def run(db):
     check('Rob (who minted O1) asserting "this statement concerns O1" derives KNOWING; Kim asserting it derives NOT KNOWING',
           st(e_c_rob) == db.STRENGTH_KNOWING and st(e_c_kim) == db.STRENGTH_NOT_KNOWING)
     rA = read(A)
-    P = prop('eob_amount', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=chase.id, content='$1,925')
+    P = prop(db.DOCUMENT_LINE, object_state=db.PARTICIPANT_NONE, subject_party_id=chase.id, content='$1,925')   # Stage 2 A
     evidence(P, reading=rA)
     e_pc = evidence(prop(db.PROPOSITION_CONCERNS, subject_proposition_id=P.id, object_obligation_id=o1.id),
                     utterance=utter('That line is the mortgage.', '2026-04-02T09:00:00'))
@@ -198,16 +198,23 @@ def run(db):
                       utterance=utter('I paid Mercy on July 1.', origin=mother)), {}) == db.STRENGTH_NOT_KNOWING)
 
     print('\n4. Kn5 / Kn8 / Kn10 - origin of an utterance or artefact is not knowing for what it relays\n')
-    e_relay = evidence(prop('eob_amount', object_state=db.PARTICIPANT_NONE, subject_artefact_id=A.id, content='$412'),
+    # Stage 2 B (DOCUMENT_LINE_KIND s9 / s15): the line is the insurer's; Rob relays it. Subject Aetna, origin Rob.
+    aetna, _ = mint_party('Aetna, my insurer.')
+    e_relay = evidence(prop(db.DOCUMENT_LINE, object_state=db.PARTICIPANT_NONE, subject_party_id=aetna.id, content='$412'),
                        utterance=utter('The EOB says $412.', '2026-03-05T18:00:00'))
-    check('Kn5: Rob asserting the EOB\'s figure is NOT KNOWING - he originates the utterance, not the adjudication (stand-in: institution only)',
+    check('Kn5: Rob asserting the EOB\'s figure is NOT KNOWING - he originates the utterance, not the adjudication (by the relation: the line is Aetna\'s, and Rob is not Aetna)',
           st(e_relay) == db.STRENGTH_NOT_KNOWING)
     sheet = held('h-sheet', household, utter('My spreadsheet.'))
     r_sheet = read(sheet)
     e_health = evidence(prop('was_health', object_state=db.PARTICIPANT_NONE, subject_artefact_id=sheet.id, content='yes'), reading=r_sheet)
-    e_fig = evidence(prop('eob_amount', object_state=db.PARTICIPANT_NONE, subject_artefact_id=sheet.id, content='$412'), reading=r_sheet)
-    check('Kn8: one sheet, two kinds - Rob knowing for "it was health", not for the insurer\'s figure (C1 through a document)',
+    e_fig = evidence(prop(db.DOCUMENT_LINE, object_state=db.PARTICIPANT_NONE, subject_party_id=aetna.id, content='$412'), reading=r_sheet)   # Stage 2 B: subject Aetna, origin Rob's sheet
+    check('Kn8: one sheet, two kinds - Rob knowing for "it was health", not for the insurer\'s figure (C1 through a document; by the relation - the sheet\'s origin is Rob, the line is Aetna\'s)',
           st(e_health) == db.STRENGTH_KNOWING and st(e_fig) == db.STRENGTH_NOT_KNOWING)
+    hostile = {**KNOWING, db.DOCUMENT_LINE: {'person', 'institution'}}   # a map saying everyone knows the line
+    check('Eo2 / Eo3 (DOCUMENT_LINE_KIND Stage 2, the Kn8 class corrected): Kn8 and Kn5 stay NOT KNOWING by the relation alone - a map saying everyone knows the line changes neither, and neither reads undetermined',
+          st(e_fig, hostile) == db.STRENGTH_NOT_KNOWING and st(e_relay, hostile) == db.STRENGTH_NOT_KNOWING
+          and s.get(db.Proposition, e_fig.proposition_id).subject_party_id == aetna.id
+          and s.get(db.Proposition, e_relay.proposition_id).subject_party_id == aetna.id)
     e_bank_health = evidence(prop('was_health', object_state=db.PARTICIPANT_NONE, subject_artefact_id=A.id, content='yes'), reading=rA)
     check('Kn10: Chase is the origin of the statement and NOT knowing for "was_health" - provenance is not epistemic standing',
           st(e_bank_health) == db.STRENGTH_NOT_KNOWING)
@@ -231,8 +238,8 @@ def run(db):
 
     print('\n6. The boundary table; proposition_corresponds; no generic resolver\n')
     e_pcorr = evidence(prop(db.PROPOSITION_CORRESPONDS, subject_proposition_id=P.id,
-                            object_proposition_id=prop('eob_amount', object_state=db.PARTICIPANT_CANDIDATES,
-                                                       subject_party_id=chase.id, content='$1,952').id),
+                            object_proposition_id=prop(db.DOCUMENT_LINE, object_state=db.PARTICIPANT_NONE,
+                                                       subject_party_id=chase.id, content='$1,952').id),   # Stage 2 A
                        utterance=utter('Those two parses are one line.'))
     check('proposition_corresponds has no named relation and derives UNDETERMINED - a correctly fenced unknown, not custody-as-knowledge',
           db.RULED_KINDS[db.PROPOSITION_CORRESPONDS].get('knowing_relation') is None

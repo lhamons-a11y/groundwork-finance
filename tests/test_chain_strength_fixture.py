@@ -99,7 +99,7 @@ def run(db):
     s.add_all([rob, kim])
     s.commit()
     household, kim_party = rob.party, kim.party
-    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'statement_figure': {'institution'}, 'balance': {'institution'}, 'eob_amount': {'institution'},
+    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'statement_figure': {'institution'}, 'balance': {'institution'},
                'date_of_service': {'person', 'institution'}}   # movement: the ruled kind (BANK_LINE_KIND.md) - knowing by the relation, not by the map
     # 'acknowledgment' deliberately absent: its relation (the entitled party) is unruled -> undetermined
 
@@ -146,8 +146,9 @@ def run(db):
         s.commit()
         return r
 
-    def line(reading, kind, content, party, **slot):
-        pr = db.Proposition(kind=kind, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES,
+    def line(reading, kind, content, party, object_state=db.PARTICIPANT_CANDIDATES, **slot):
+        # the default keeps the statement family's stand-in calls unchanged (Stage 3); the ruled document_line passes NONE
+        pr = db.Proposition(kind=kind, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=object_state,
                             subject_party_id=party.id, content=content, as_of='2026-03-31', **slot)
         s.add(pr)
         s.commit()
@@ -294,7 +295,7 @@ def run(db):
           and links(ch2[0]) == [(db.CHAIN_LINK_EVIDENCE, db.STRENGTH_KNOWING), (db.ARTEFACT_CONCERNS, db.STRENGTH_NOT_KNOWING)]
           and rep2['evidence'][0]['class'] == db.derived_strength(s, s.get(db.EvidentiaryRelationship, rep2['evidence'][0]['relationship']), KNOWING))
     SP = held('h-spreadsheet', '2026-03-31', household, utter('My spreadsheet.'))
-    L3 = line(read(SP), 'eob_amount', '$412 (Aetna EOB)', aetna)
+    L3 = line(read(SP), db.DOCUMENT_LINE, '$412 (Aetna EOB)', aetna, object_state=db.PARTICIPANT_NONE)   # Stage 2 A: the insurer's line on Rob's sheet
     p_concerns(L3, utterance=utter('That row is the Feb 14 visit.'), object_expense_id=x1.id)
     rep3 = cs(L3)
     ch3 = chains(rep3, x1.id, 'expense', provenance=db.ABOUT_ASSERTED)
@@ -445,7 +446,7 @@ def run(db):
           classes(ch16) == [db.STRENGTH_UNDETERMINED] and len(ch16[0]['links']) == 1
           and not any(v == 'services' for _, v in _walk(rep16)))
     CAP = held('h-capture', '2026-04-15', aetna, utter('That screenshot is from the Aetna portal.'))
-    V = line(read(CAP, 'capture/1'), 'eob_amount', '$412', aetna)
+    V = line(read(CAP, 'capture/1'), db.DOCUMENT_LINE, '$412', aetna, object_state=db.PARTICIPANT_NONE)   # Stage 2 A
     rep17 = cs(V)
     ch17 = chains(rep17, o1.id) + chains(rep17, x1.id, 'expense')
     check('Ms17 (O4): a captured portal - L0 KNOWING (Aetna is origin and knowing for the kind; the origin claim graded inside slice 3); no faithfulness link added or claimed - the evidence lists one relationship and no chain carries a "capture" link',

@@ -265,12 +265,13 @@ def run(db):
     e12, p12 = stance(db.PATIENT_RESPONSIBILITY, X, '$1', None, origin=aetna)
     check('Xs12 (F7): an undated PR stance by the insurer -> UNDETERMINED (no date to place the role against); 7H disqualifies it',
           st(e12) == db.STRENGTH_UNDETERMINED and [c['qualifies'] for c in rec(X, '2026-03-31')['stances']['patient_responsibility']['claims'] if c['claim'] == p12.id] == [False])
-    check('Xs13 (F2-i): an EOB line figure whose subject is the INSURER and whose thing is a candidate is REFUSED under the ruled name; it keeps its shape under the eob_amount stand-in (7E\'s; expense-identity, plan-identity, C renamed theirs)',
+    check('Xs13 (F2-i): an EOB line figure whose subject is the INSURER and whose thing is a candidate is REFUSED under the ruled name; it keeps its place as the insurer\'s document line, with no object (DOCUMENT_LINE_KIND Stage 2; the tie is a separate claim)',
           _refused(s, db.Proposition(kind=db.PATIENT_RESPONSIBILITY, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES,
                                      subject_party_id=aetna.id, content='$412 | claim #A77', as_of='2026-03-10'))
-          and not _refused(s, db.Proposition(kind='eob_amount', subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES,
+          and not _refused(s, db.Proposition(kind=db.DOCUMENT_LINE, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_NONE,
                                              subject_party_id=aetna.id, content='$412 | claim #A77', as_of='2026-03-10'))
-          and 'eob_amount' not in db.RULED_KINDS)
+          and _refused(s, db.Proposition(kind=db.DOCUMENT_LINE, subject_state=db.PARTICIPANT_ESTABLISHED, object_state=db.PARTICIPANT_CANDIDATES,
+                                         subject_party_id=aetna.id, content='$412 | claim #A77', as_of='2026-03-10')))
     X14 = mint(db.Expense, 'A visit with no role in the record.')
     humana = mint(db.Party, 'Humana - an institution, no role on X14.')
     e14, _ = stance(db.PATIENT_RESPONSIBILITY, X14, '$50', '2026-03-01', origin=humana)

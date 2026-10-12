@@ -93,8 +93,9 @@ def run(db):
     s.add_all([rob, kim])
     s.commit()
     household, kim_party = rob.party, kim.party
-    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'nature_health': {'person'},
-               'eob_amount': {'institution'}}   # patient_responsibility / billed: ruled stances since 9D-ii - knowing by the role, not by the map
+    KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'}, 'nature_health': {'person'}}
+    # patient_responsibility / billed: ruled stances since 9D-ii - knowing by the role, not by the map;
+    # the EOB line: document_line since DOCUMENT_LINE_KIND Stage 2 - knowing by the relation, so its map entry retired
 
     def utter(text, when='2026-02-15T09:00:00', origin=None):
         u = db.Utterance(origin_party_id=(origin or household).id, asserted_at=when, content=text)
@@ -223,15 +224,20 @@ def run(db):
     print('\n4. Ex3 / Ex4 - the EOB and the bill concern X; the obligation is separate; O <-> X is not built\n')
     eob = held('h-eob', '2026-03-10', aetna, u_aetna)
     r_eob = read(eob)
-    p_pr, e_pr = line(eob, r_eob, 'eob_amount', '$412 | claim #A77', aetna)   # 9D-ii F2(i): the EOB line figure (subject the insurer), not the ruled stance
+    p_pr, e_pr = line(eob, r_eob, db.DOCUMENT_LINE, '$412 | claim #A77', aetna, object_state=db.PARTICIPANT_NONE)   # 9D-ii F2(i): the EOB line figure (subject the insurer), not the ruled stance - document_line since Stage 2
     evidence(prop(db.ARTEFACT_CONCERNS, subject_artefact_id=eob.id, object_expense_id=X.id), utterance=utter("Aetna's EOB for the ER visit."))
     check('Ex3: the EOB concerns X; claim #A77 is content of a read line - never an identity or a slot',
           s.query(db.Proposition).filter_by(kind=db.ARTEFACT_CONCERNS, object_expense_id=X.id).count() == 1
           and 'A77' in p_pr.content and not any('claim' in c.name for c in db.Proposition.__table__.columns))
     p_world = prop('patient_responsibility', object_state=db.PARTICIPANT_NONE, subject_expense_id=X.id, content='$412', as_of='2026-03-10')
     evidence(p_world, utterance=utter('Aetna says I owe $412 for the ER.', '2026-03-11T09:00:00'))
-    check('D3 has its subject: the P-world value claim takes X; the P-subject line keeps the artefact/party and its candidates',
-          p_world.subject_expense_id == X.id and p_pr.subject_party_id == aetna.id and p_pr.object_state == db.PARTICIPANT_CANDIDATES)
+    check('Eo1 (DOCUMENT_LINE_KIND Stage 2): the insurer\'s line on its own EOB, read, is KNOWING by the relation - the artefact\'s origin is the line\'s subject party - and a hostile map entry for the kind changes nothing',
+          db.derived_strength(s, e_pr, KNOWING) == db.STRENGTH_KNOWING
+          and db.derived_strength(s, e_pr, {**KNOWING, db.DOCUMENT_LINE: set()}) == db.STRENGTH_KNOWING
+          and p_pr.kind == db.DOCUMENT_LINE and p_pr.object_state == db.PARTICIPANT_NONE)
+    # Stage 2 (F7: object (), CANDIDATES -> NONE): the line no longer names X as a candidate; its tie to X is a separate claim
+    check('D3 has its subject: the P-world value claim takes X; the P-subject line keeps its party subject and names no object',
+          p_world.subject_expense_id == X.id and p_pr.subject_party_id == aetna.id and p_pr.object_state == db.PARTICIPANT_NONE)
     bill = held('h-bill', '2026-03-05', mercy, u_mercy)
     u_owe = utter("That's the ER visit - I owe Mercy for it.", '2026-03-06T09:00:00')
     O = db.Obligation(minted_by_id=u_owe.id)

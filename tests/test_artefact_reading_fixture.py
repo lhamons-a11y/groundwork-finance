@@ -109,7 +109,7 @@ def run(db):
           r1.artefact is eob and r1.reader_process == 'pdf-parser/4E' and r1.reader_party_id is None)
     check('read_at is the observation time - neither as_of nor encountered_at',
           r1.read_at.isoformat()[:10] != eob.as_of and r1.read_at != eob.encountered_at)
-    p_412 = db.Proposition(kind='eob_amount', subject_state=db.PARTICIPANT_ESTABLISHED,
+    p_412 = db.Proposition(kind='x', subject_state=db.PARTICIPANT_ESTABLISHED,
                            subject_artefact_id=eob.id, content='$412')
     s.add(p_412)
     s.commit()
@@ -124,7 +124,7 @@ def run(db):
                     read_at=datetime(2026, 3, 2, 9, 0))
     s.add(r2)
     s.commit()
-    p_4_12 = db.Proposition(kind='eob_amount', subject_state=db.PARTICIPANT_ESTABLISHED,
+    p_4_12 = db.Proposition(kind='x', subject_state=db.PARTICIPANT_ESTABLISHED,
                             subject_artefact_id=eob.id, content='$4.12')
     s.add(p_4_12)
     s.commit()
@@ -134,7 +134,7 @@ def run(db):
           s.query(db.Reading).filter_by(artefact_id=eob.id).count() == 2
           and s.query(db.Artefact).count() == 2)
     disputed = (s.query(db.Proposition)
-                 .filter_by(kind='eob_amount', subject_artefact_id=eob.id).all())
+                 .filter_by(kind='x', subject_artefact_id=eob.id).all())
     check('the parse dispute is computable by structure: same kind + subject, two contents, both remain',
           len(disputed) == 2 and {p.content for p in disputed} == {'$412', '$4.12'})
     check('no column on artefact, reading or relationship names a winner',
@@ -155,7 +155,7 @@ def run(db):
     r_twin = db.Reading(artefact_id=twin.id, reader_process='pdf-parser/5', read_at=datetime(2026, 3, 3))
     s.add(r_twin)
     s.commit()
-    p_twin = db.Proposition(kind='eob_amount', subject_state=db.PARTICIPANT_ESTABLISHED,
+    p_twin = db.Proposition(kind='x', subject_state=db.PARTICIPANT_ESTABLISHED,
                             subject_artefact_id=twin.id, content='$412')
     s.add(p_twin)
     s.commit()
@@ -200,7 +200,7 @@ def run(db):
                           content='The EOB says $412.')
     s.add(u_says)
     s.commit()
-    p_said = db.Proposition(kind='eob_amount', subject_state=db.PARTICIPANT_ESTABLISHED,
+    p_said = db.Proposition(kind='x', subject_state=db.PARTICIPANT_ESTABLISHED,
                             subject_artefact_id=eob.id, content='$412')
     s.add(p_said)
     s.commit()
@@ -222,7 +222,7 @@ def run(db):
           s.query(db.EvidentiaryRelationship).filter(db.EvidentiaryRelationship.reading_id.isnot(None)).count() == 3
           and s.query(db.EvidentiaryRelationship).filter(db.EvidentiaryRelationship.utterance_id.isnot(None)).count() == 1)
     # The same sentence about the UNHELD March statement can only be an utterance.
-    p_march = db.Proposition(kind='eob_amount', subject_state=db.PARTICIPANT_ESTABLISHED,
+    p_march = db.Proposition(kind='x', subject_state=db.PARTICIPANT_ESTABLISHED,
                              subject_artefact_id=march.id, content='$412')
     s.add(p_march)
     s.commit()
@@ -252,8 +252,8 @@ def run(db):
           and db.reading_violations(db.Reading(artefact_id=eob.id, reader_process='x'), True) == [])
 
     print('\n9. Strength -> undetermined for every reading-sourced relation in this slice\n')
-    knowing = {'eob_amount': {'person', 'institution'}}
-    p_member = db.Proposition(kind='eob_amount', subject_state=db.PARTICIPANT_ESTABLISHED,
+    knowing = {'x': {'person', 'institution'}}
+    p_member = db.Proposition(kind='x', subject_state=db.PARTICIPANT_ESTABLISHED,
                               subject_artefact_id=eob.id, content='$412')
     s.add(p_member)
     s.commit()
@@ -267,7 +267,7 @@ def run(db):
     check('the same member ASSERTING the value is a different event with its own strength',
           db.derived_strength(s, e_said, knowing) == db.STRENGTH_KNOWING)
     check('the not-knowing case still derives from the utterance side only',
-          db.derived_strength(s, e_said, {'eob_amount': {'institution'}}) == db.STRENGTH_NOT_KNOWING)
+          db.derived_strength(s, e_said, {'x': {'institution'}}) == db.STRENGTH_NOT_KNOWING)
 
     print('\n10. Exactly one source; absences\n')
     check('a relationship naming both a reading and an utterance is refused',

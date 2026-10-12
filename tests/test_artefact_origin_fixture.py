@@ -83,7 +83,7 @@ def run(db):
     s.commit()
     household = rob.party
     KNOWING = {db.ARTEFACT_ORIGIN: {'person', 'institution'},   # the one ruled entry
-               'eob_amount': {'institution'},                     # an insurer's figure
+               'x': {'institution'},          # the neutral kind (DOCUMENT_LINE_KIND s15 S2-F2): these cases are about an artefact-subject proposition
                'was_health': {'person'}}                          # the user was there
 
     def utter(text, when='2026-03-10T09:00:00', origin=None):
@@ -151,14 +151,14 @@ def run(db):
     check('and it is derived, not stored - the artefact has no origin column',
           not any('origin' in c.name or 'party' in c.name for c in db.Artefact.__table__.columns))
     r_eob = read(eob)
-    p_amt = claim('eob_amount', eob, content='$412')
+    p_amt = claim('x', eob, content='$412')
     e_amt = evidence(p_amt, reading=r_eob)
     check('a reading of the EOB now derives to KNOWING for an insurer\'s figure - through the origin, one link',
           db.derived_strength(s, e_amt, KNOWING) == db.STRENGTH_KNOWING)
     check('but not for a kind the insurer is not knowing for',
-          db.derived_strength(s, e_amt, {**KNOWING, 'eob_amount': {'person'}}) == db.STRENGTH_NOT_KNOWING)
+          db.derived_strength(s, e_amt, {**KNOWING, 'x': {'person'}}) == db.STRENGTH_NOT_KNOWING)
     check('and stays undetermined when the origin kind itself has no rule - the link cannot be scored',
-          db.derived_strength(s, e_amt, {'eob_amount': {'institution'}}) == db.STRENGTH_UNDETERMINED)
+          db.derived_strength(s, e_amt, {'x': {'institution'}}) == db.STRENGTH_UNDETERMINED)
 
     print('\n3. O2 - the parser reads the letterhead: a document cannot establish its own origin\n')
     eob2 = db.Artefact(held=True, content_hash='h-eob-2', as_of='2026-04-01')
@@ -170,7 +170,7 @@ def run(db):
     check('a reading-sourced origin claim is a candidate, never establishing',
           db.artefact_origin(s, eob2) == (db.ORIGIN_CANDIDATES, [aetna.id]))
     r2 = read(eob2)
-    e2 = evidence(claim('eob_amount', eob2, content='$90'), reading=r2)
+    e2 = evidence(claim('x', eob2, content='$90'), reading=r2)
     check('so a reading of that artefact stays undetermined - the circle is not closed',
           db.derived_strength(s, e2, KNOWING) == db.STRENGTH_UNDETERMINED)
     evidence(o2, utterance=utter('Yes, that one is from Aetna too.'))
@@ -202,7 +202,7 @@ def run(db):
     r_shot = db.Reading(artefact_id=shot.id, reader_party_id=household.id, read_at=datetime(2026, 6, 2))
     s.add(r_shot)
     s.commit()
-    e_shot = evidence(claim('eob_amount', shot, content='$1,925'), reading=r_shot)
+    e_shot = evidence(claim('x', shot, content='$1,925'), reading=r_shot)
     check('the origin is Aetna - whose statement the capture is - not Rob who captured it',
           db.artefact_origin(s, shot) == (db.ORIGIN_ESTABLISHED, [aetna.id]))
     check('a member READING the capture derives through Aetna, not through the member (C2)',
@@ -216,7 +216,7 @@ def run(db):
     s.commit()
     evidence(claim(db.ARTEFACT_ORIGIN, sheet, household), utterance=utter('My spreadsheet of medical bills.'))
     r_sheet = read(sheet, 'csv-import/1')
-    e_relayed = evidence(claim('eob_amount', sheet, content='$412 (Aetna EOB)'), reading=r_sheet)
+    e_relayed = evidence(claim('x', sheet, content='$412 (Aetna EOB)'), reading=r_sheet)
     e_first_hand = evidence(claim('was_health', sheet, content='yes'), reading=r_sheet)
     check('origin of the spreadsheet is Rob - his statement',
           db.artefact_origin(s, sheet) == (db.ORIGIN_ESTABLISHED, [household.id]))
@@ -264,7 +264,7 @@ def run(db):
     evidence(claim(db.ARTEFACT_ORIGIN, ltr, aetna), utterance=utter('From Aetna, I am sure.', '2026-09-06T09:00:00'))
     check('saying one of them twice does not choose it - count is history, not resolution',
           db.artefact_origin(s, ltr)[0] == db.ORIGIN_MULTIPLE)
-    e_ltr = evidence(claim('eob_amount', ltr, content='$50'), reading=read(ltr))
+    e_ltr = evidence(claim('x', ltr, content='$50'), reading=read(ltr))
     check('a reading of it derives to UNDETERMINED - nothing chosen among the parties',
           db.derived_strength(s, e_ltr, KNOWING) == db.STRENGTH_UNDETERMINED)
     check('both claims remain - the correction is about, not a removal',

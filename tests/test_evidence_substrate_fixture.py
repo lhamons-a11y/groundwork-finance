@@ -227,6 +227,11 @@ def run(db):
                                                    object_state=db.PARTICIPANT_NONE)) == [])
     # Slice 3 retired the institution absence in place; tests/test_artefact_origin_fixture.py
     # exercises institution origins.
+    # DOCUMENT_LINE_KIND s15 S2-F2 / s17 (2): the record's ONE permanent absence pin. 'x' means deliberately
+    # neutral / unruled FOR THIS PURPOSE - the kind a substrate or mechanism case is exercised under when the case is
+    # about the substrate itself - never "not yet classified". It is never ruled.
+    check("PERMANENT: 'x', the neutral kind, is never in RULED_KINDS - deliberately unruled, not a drawer for the unclassified",
+          'x' not in db.RULED_KINDS)
     check('the institution anchor arrived additively - the household anchor is untouched by it',
           'minted_by_id' in {c.name for c in db.Party.__table__.columns}
           and all(p.minted_by_id is None for p in s.query(db.Party).all()))
