@@ -62,31 +62,13 @@ def facts(session, today=None, budget_month=None, pay=None, payer_people=None, r
     debts = [d for d in session.query(DebtAccount).filter_by(is_active=True).all() if (d.current_balance or 0) > 0]
     daily = sum((d.current_balance or 0) * (d.interest_rate or 0) / 100 / 365 for d in debts)
     out['interest'] = {'week': round(daily * 7, 2), 'month': round(daily * 365 / 12, 2), 'debts': len(debts)}
-    # S6: bills due in the week ahead (today through the next six days)
+    # S6 / S7 / S8: the week ahead (today through the next six days), from the one calendar (W3-b, core/upcoming.py),
+    # so the check-in, the Upcoming card and the Calendar page cannot disagree
+    from core import upcoming
     a0, a1 = today, today + timedelta(days=6)
-
-    def next_day(day):
-        try:
-            d = today.replace(day=min(int(day), 28 if today.month == 2 else 30 if today.month in (4, 6, 9, 11) else 31))
-        except (TypeError, ValueError):
-            return None
-        if d < today:
-            d = (d.replace(day=1) + timedelta(days=32)).replace(day=min(int(day), 28))
-        return d
-    bills = []
-    for d in debts:
-        when = next_day(d.due_day) if d.due_day else None
-        if when and a0 <= when <= a1 and (d.minimum_payment or 0) > 0:
-            bills.append({'name': d.name, 'amount': round(d.minimum_payment, 2), 'date': when.isoformat(), 'source': 'its minimum and due day'})
-    for r in recurring or []:
-        when = next_day(r.get('dayOfMonth') or 1)
-        if when and a0 <= when <= a1:
-            bills.append({'name': r.get('name') or r.get('description') or 'A recurring bill', 'amount': round(float(r.get('amount') or 0), 2),
-                          'date': when.isoformat(), 'source': 'your recurring bills'})
-    for b in session.query(BillReading).filter(BillReading.due_date >= a0, BillReading.due_date <= a1).all():
-        item = session.get(BudgetItem, b.budget_item_id)
-        bills.append({'name': item.name if item else 'A bill', 'amount': round(b.amount, 2) if b.amount is not None else None,
-                      'date': b.due_date.isoformat(), 'source': "read from the bill's own page"})
+    week_ahead = upcoming.entries(session, a0, a1, pay=pay, recurring=recurring, people=payer_people, include_detected=False)
+    bills = [{'name': e['title'], 'amount': e['amount'], 'date': e['date'], 'source': e['source']}
+             for e in week_ahead if e['kind'] in ('debt', 'recurring', 'bill') and (e['kind'] != 'debt' or e['amount'])]
     seen, uniq = set(), []
     for b in sorted(bills, key=lambda x: x['date']):
         k = (b['name'].lower(), b['date'])
@@ -94,19 +76,8 @@ def facts(session, today=None, budget_month=None, pay=None, payer_people=None, r
             seen.add(k)
             uniq.append(b)
     out['bills'] = uniq
-    # S7 / S8: pay expected in the week ahead - never a payer that is overdue
     people = payer_people or {}
-    expected = []
-    for p in pay or []:
-        if p.get('state') in ('missing', 'unknown', 'not_on_record_yet') or not p.get('every') or not p.get('last'):
-            continue
-        last = date.fromisoformat(p['last'])
-        n = last
-        while n < a0:
-            n += timedelta(days=p['every'])
-        if n <= a1:
-            expected.append({'payer': p['payer'], 'person': people.get(p['payer']), 'date': n.isoformat()})
-    out['pay'] = expected
+    out['pay'] = [{'payer': e['payer'], 'person': e.get('person'), 'date': e['date']} for e in week_ahead if e['kind'] == 'pay']
     out['ask_whose'] = sorted({p['payer'] for p in (pay or []) if p.get('state') not in ('missing', 'unknown')
                                and p['payer'] not in people})
     return out

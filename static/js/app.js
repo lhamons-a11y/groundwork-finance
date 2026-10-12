@@ -1710,6 +1710,7 @@ const VIEW_LABELS = {
   networth: 'Net Worth', trophy: 'Trophy Room', settings: 'Settings', trip: 'Trip Planner', automation: 'Assistant',
   reports: 'Reports',
   gifts: 'Gift Budget',
+  calendar: 'Calendar',
 };
 
 // Stops the investment price auto-refresh timer when leaving the investments view
@@ -1768,6 +1769,7 @@ function showView(name) {
   if (name === 'automation') renderBankLogins();   // item 69 P1
   if (name === 'trip')      { try { renderTripPlanner();  } catch(e) { console.error('Trip render:', e); _showViewError(name, e); } }
   if (name === 'gifts')     { try { renderGiftBudget();   } catch(e) { console.error('Gift Budget render:', e); _showViewError(name, e); } }
+  if (name === 'calendar')  { try { renderCalendar();     } catch(e) { console.error('Calendar render:', e); _showViewError(name, e); } }
   if (name === 'reports')   { try { renderReportCenter(); } catch(e) { console.error('Reports render:', e); _showViewError(name, e); } }
 
   // Catch day-rollover for sessions left open across midnight — idempotent
@@ -2683,13 +2685,56 @@ function _renderDashSpendingDonut(txns) {
 
 // ── Phase I: Upcoming bills ───────────────────────────────────────────────────
 // Shows recurring items + debt cards due within 7 days. Max 5. 
+// ── Item 65 W3 (AGENT_W_ITEMS.md): the Calendar page - one source for every upcoming date ─────────────────────
+const _CAL_KIND = { debt: '💳', recurring: '📋', bill: '🧾', gift: '🎁', trip: '✈', fund: '◎', pay: '💵', charge: '🔁', yearly: '📅' };
+const _CAL_CERT = { confirmed: 'Confirmed', expected: 'Expected', possible: 'Possible' };
+
+async function renderCalendar() {
+  const box = g('calendarContent');
+  if (!box) return;
+  let d;
+  try { d = await API.get('/api/calendar?days=365'); } catch (e) { _gwErr('renderCalendar')(e); box.innerHTML = ''; return; }
+  const items = d.entries || [];
+  if (!items.length) { box.innerHTML = '<div class="card"><div style="font-size:13px;color:var(--slate)">Nothing dated is on record yet. Due days on your debts, your recurring bills, gift occasions, trips and fund dates all show up here.</div></div>'; return; }
+  const today = new Date(d.from + 'T12:00:00');
+  const weekStart = dt => { const x = new Date(dt); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+  const groups = [];
+  const byKey = {};
+  for (const e of items) {
+    const dt = new Date(e.date + 'T12:00:00');
+    const days = Math.round((dt - today) / 864e5);
+    let key, label;
+    if (days <= 90) { const w = weekStart(dt); key = 'w' + w.toISOString().slice(0, 10); label = 'Week of ' + w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
+    else { key = 'm' + e.date.slice(0, 7); label = dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); }
+    if (!byKey[key]) { byKey[key] = { label, rows: [] }; groups.push(byKey[key]); }
+    byKey[key].rows.push(e);
+  }
+  const legend = `<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--slate);margin-bottom:12px">
+      <span><b style="color:var(--ink)">Confirmed</b>: a date you entered or a biller stated</span>
+      <span><b style="color:var(--ink)">Expected</b>: worked out from your record</span>
+      <span><b style="color:var(--ink)">Possible</b>: a yearly bill you confirmed, in its usual month</span></div>`;
+  box.innerHTML = legend + groups.map(gp => `<div class="card mb-4"><div class="card-label">${esc(gp.label)}</div>` + gp.rows.map(e => `
+      <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--steel-2);cursor:${e.view ? 'pointer' : 'default'}" ${e.view ? `onclick="showView('${e.view}')"` : ''}>
+        <span style="width:22px;text-align:center">${_CAL_KIND[e.kind] || '•'}</span>
+        <span style="font-family:var(--font-mono);font-size:12px;color:var(--slate);min-width:64px">${new Date(e.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+        <span style="flex:1;font-size:13px;color:var(--ink)">${esc(e.title)}${e.person ? ` <span style="color:var(--slate)">(${esc(e.person)})</span>` : ''}
+          <span style="display:block;font-size:11px;color:var(--slate)">${esc(e.source)}</span></span>
+        ${e.amount ? `<span style="font-family:var(--font-mono);font-size:12px">${fmt(e.amount)}</span>` : ''}
+        <span style="font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid var(--steel);color:${e.certainty === 'confirmed' ? 'var(--pine-text)' : 'var(--slate)'}">${_CAL_CERT[e.certainty]}</span>
+      </div>`).join('') + '</div>').join('');
+}
+
 // Item 74 G5: an occasion with a budget, 30 days out, appears next to bills - from the record's own dates.
-let _dashGiftUpcoming = [];
+// Item 65 W3-b: the card now reads the one calendar (bills and debts 7 days out, gifts 30), so it cannot disagree with
+// the Calendar page or the Sunday check-in.
+let _dashGiftUpcoming = [], _dashCalendar = null;
 async function _loadDashGiftUpcoming() {
   try {
     const r = await API.get('/api/gifts/upcoming');
     _dashGiftUpcoming = (r.data || r).occasions || [];
   } catch(e) { _gwErr('_loadDashGiftUpcoming')(e); _dashGiftUpcoming = []; }
+  try { _dashCalendar = (await API.get('/api/calendar?days=7')).entries || []; }
+  catch(e) { _gwErr('_loadDashGiftUpcoming:calendar')(e); _dashCalendar = null; }
   _renderDashUpcoming();
 }
 
@@ -2701,43 +2746,23 @@ function _renderDashUpcoming() {
   const today = new Date();
   const items  = [];
 
-  // Debt cards due within 7 days
-  _activeDebtCards().forEach(c => {
-    const day = parseInt(c.dueDay);
-    if (!day) return;
-    const due  = new Date(today.getFullYear(), today.getMonth(), day);
-    const diff = Math.round((due - today) / 86400000);
+  // Bills, debts and recurring bills in the next 7 days - from the one calendar (item 65 W3-b), so the card, the
+  // Calendar page and the Sunday check-in cannot disagree. A debt already paid this month stays off, as before.
+  const moKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const debtsById = Object.fromEntries(_activeDebtCards().map(c => [c.id, c]));
+  (_dashCalendar || []).filter(e => ['debt', 'recurring', 'bill'].includes(e.kind)).forEach(e => {
+    const diff = Math.round((new Date(e.date + 'T12:00:00') - new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12)) / 86400000);
     if (diff < 0 || diff > 7) return;
-    const moKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
-    const paid  = _debtPaidThisMonth({ id:c.id, name:c.name,
-      minimum:parseFloat(c.minimum)||0, total:parseFloat(c.minimum)||0 }, moKey);
-    if (paid.paid) return; // already paid — don't show
-    const color = diff <= 2 ? 'var(--ember-text)' : 'var(--gold-text)';
+    if (e.kind === 'debt') {
+      const c = debtsById[e.debt_id];
+      if (c && _debtPaidThisMonth({ id:c.id, name:c.name, minimum:parseFloat(c.minimum)||0, total:parseFloat(c.minimum)||0 }, moKey).paid) return;
+    }
     items.push({
-      icon: '💳', label: c.name, amount: parseFloat(c.minimum)||0,
+      icon: e.kind === 'debt' ? '💳' : e.kind === 'bill' ? '🧾' : '📋', label: e.title, amount: e.amount || 0,
       dateLabel: diff === 0 ? 'today' : diff === 1 ? 'tomorrow' : `in ${diff}d`,
-      color, diff,
+      color: diff <= 2 ? 'var(--ember-text)' : e.kind === 'debt' ? 'var(--gold-text)' : 'var(--slate-2)', diff,
     });
   });
-
-  // Recurring items — stored in _recurringItems with a dayOfMonth field.
-  // (Previously read S.recurringItems + nextDate, neither of which was ever
-  // set, so recurring bills never appeared here.)
-  if (_recurringItems?.length) {
-    _recurringItems.forEach(r => {
-      const day = parseInt(r.dayOfMonth) || 1;
-      // Next occurrence: this month if the day hasn't passed, else next month
-      const rDate = new Date(today.getFullYear(), today.getMonth(), day);
-      if (rDate < today) rDate.setMonth(rDate.getMonth() + 1);
-      const diff  = Math.round((rDate - today) / 86400000);
-      if (diff < 0 || diff > 7) return;
-      items.push({
-        icon: '📋', label: r.name || r.description, amount: r.amount || 0,
-        dateLabel: diff === 0 ? 'today' : diff === 1 ? 'tomorrow' : `in ${diff}d`,
-        color: diff <= 2 ? 'var(--ember-text)' : 'var(--slate-2)', diff,
-      });
-    });
-  }
 
   (_dashGiftUpcoming || []).forEach(o => {
     items.push({

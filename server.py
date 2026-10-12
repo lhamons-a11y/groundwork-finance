@@ -218,6 +218,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(gifts_bp,          url_prefix='/api/gifts')
     app.register_blueprint(futures_bp,        url_prefix='/api/futures')
     app.register_blueprint(trips_bp,          url_prefix='/api/trips')
+    app.register_blueprint(calendar_bp,       url_prefix='/api/calendar')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
@@ -2367,6 +2368,31 @@ def trips_in_month():
     with db_session() as session:
         rows = [t for t in session.query(Trip).filter_by(status='going').all() if tr.in_month(t, month)]
         return ok({'month': month, 'trips': [_trip_json(session, t) for t in rows]})
+
+
+# ── Item 65 W3 (AGENT_W_ITEMS.md): the one calendar of what's coming ──────────────────────────────────────────
+calendar_bp = Blueprint('calendar', __name__)
+
+
+def _calendar_entries(session, start, end, include_detected=True):
+    from core import upcoming
+    recurring = _setting_json(session, 'recurring_items_json', []) or []
+    return upcoming.entries(session, start, end, pay=_pay_state(session, start)['payers'],
+                            recurring=recurring if isinstance(recurring, list) else [],
+                            people=_setting_json(session, 'payer_people', {}) or {}, include_detected=include_detected)
+
+
+@calendar_bp.route('', methods=['GET'])
+def calendar_get():
+    """W3: every upcoming date, from today, each confirmed / expected / possible. `days` defaults to the rest of a year."""
+    try:
+        days = max(1, min(int(request.args.get('days', 365)), 400))
+    except ValueError:
+        days = 365
+    today = date.today()
+    with db_session() as session:
+        return ok({'from': today.isoformat(), 'to': (today + timedelta(days=days)).isoformat(),
+                   'entries': _calendar_entries(session, today, today + timedelta(days=days))})
 
 
 evidence_bp = Blueprint('evidence', __name__)

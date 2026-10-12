@@ -165,3 +165,30 @@ Each would be its own build, gated and accepted before the next, as items 74–8
 - No inferring life events, people or reasons from purchases (TM5).
 - Nothing that moves or pays money (TM1).
 - No tax advice.
+
+## Built: W3, the calendar (2026-10-12), awaiting acceptance
+
+- **`core/upcoming.py`** is the one calendar. Each entry has a date, a kind, a title, an amount, a certainty and a
+  source.
+  - **Confirmed:**
+    - each debt's due day, as entered;
+    - the person's own recurring bills;
+    - bills read from their page (item 68);
+    - every gift occasion (item 74);
+    - trips the person is going on (item 61);
+    - savings funds' dates.
+  - **Expected:**
+    - pay from each employer's own schedule (never a payer that is overdue);
+    - steady monthly charges the ledger shows and no budget line names: 3 or more, within 5%, about a month apart.
+      These say *"about the 9th, from the last 6 months"*. A weekly purchase is not a monthly bill.
+  - **Possible:** yearly bills the person said yes to (W1's answer, in `yearly_bills_json`), in their usual month.
+- **The Calendar page** (Track → Calendar): the next 90 days by week, then month by month for the year. Each entry
+  shows its icon, date, title, where it came from, the amount, and a *Confirmed / Expected / Possible* tag, and links
+  to the page it lives on.
+- **W3-b, one source.**
+  - The Sunday check-in's week ahead now reads the calendar, not its own date arithmetic.
+  - The dashboard's Upcoming card reads it too (`/api/calendar?days=7`). Confirmed bill readings now reach the card,
+    which they never did. A debt already paid this month still stays off.
+  - s210 checks that the check-in's week and the calendar's week are the same.
+- **W3-c.** No notification, timer or model call on the page.
+- **Tests:** s210, 9 checks. s195 (the check-in) still passes on the shared source.

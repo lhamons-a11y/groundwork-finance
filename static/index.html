@@ -806,6 +806,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="nav-item" data-view="budget" onclick="showView('budget')">
           <span class="nav-item-icon">◎</span>Budget
         </div>
+        <div class="nav-item" data-view="calendar" onclick="showView('calendar')">
+          <span class="nav-item-icon">▦</span>Calendar
+        </div>
       </div>
 
       <div class="nav-section">
@@ -2562,6 +2565,15 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div id="tripTripsCard"></div>
         <div id="tripAdvisorCard" class="card mb-5" style="display:none"></div>
 
+      </div>
+
+      <!-- CALENDAR (item 65 W3): every upcoming date, confirmed / expected / possible -->
+      <div id="view-calendar" class="view">
+        <div class="section-header">
+          <div class="section-title">Calendar</div>
+          <div class="section-sub">What's coming, from your own record. Nothing here reminds or pushes; it's here when you look.</div>
+        </div>
+        <div id="calendarContent"></div>
       </div>
 
       <!-- GIFT BUDGET -->
