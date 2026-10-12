@@ -326,7 +326,7 @@ script, for Rob to accept or reject.**
 
 The function is now kept and called (`_runToastUndo`); s211 checks it. The 1.x line has the same code.
 
-## Built: W5, the what-if panel (2026-10-12), awaiting acceptance
+## Built: W5, the what-if panel (2026-10-12), ACCEPTED 2026-10-12
 
 - **`core/futures.py` `what_if`:** the person's own figures moved together, through the futures' own `run()` and the
   one payoff engine (W5-a). There is no second calculation:
