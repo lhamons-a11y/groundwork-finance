@@ -127,7 +127,7 @@ The tests, as §7 lists them:
 - a **derived-disclosure** case: a pharmacy transaction's merchant must not reach any sink, even though the
   transaction names no person.
 
-## 6. Built 2026-10-12 (P1-P9 as ruled), awaiting acceptance
+## 6. Built 2026-10-12 (P1-P9 as ruled) - ACCEPTED 2026-10-12 (Rob: "I accept items 45 and 81"); H6 is complete
 
 - **P1. `core/health_boundary.py`.**
   - The health terms are the protected list's health block, sliced from `NECESSITY_FLOOR`; there is no second list.

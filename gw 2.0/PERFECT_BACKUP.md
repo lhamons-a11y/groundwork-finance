@@ -154,7 +154,7 @@ Google push approval: *"I don't know if it ever would work like that."*
 - **1.x:** master only, unless Rob rules that unencrypted backups are a security fix under L1. That is his call; it
   would then ship as a 1.1.x release.
 
-## 5. Built 2026-10-12: B1-B9 (B10 next, with Rob's security key), awaiting acceptance
+## 5. Built 2026-10-12: B1-B9 - ACCEPTED 2026-10-12 (Rob: "I accept items 45 and 81"); B10 next, with Rob's security key
 
 - **`core/backup_crypto.py`.**
   - **The seal:** one random 256-bit backup key seals each backup with AES-256-GCM, with the header bound in.
