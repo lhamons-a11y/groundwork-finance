@@ -79,5 +79,9 @@ def run(ctx):
     check('s206 W1 the home page carries the ruled sentence: the whole picture, explained, nothing to sell',
           'Your whole financial picture' in home and 'nothing to sell you' in home.lower()
           and 'for everyone' in ' '.join(home.split()).lower())
+    about = src.split("@app.route('/about')", 1)[1].split('@app.route', 1)[0]
+    check('s206 the horizon (Rob 2026-10-12): financial independence for every user, on the home, About and 2.0 pages - stated as the goal, never a promise',
+          'Financial independence, for every user' in home and 'Our horizon' in about
+          and "can't promise anyone gets there" in ' '.join(about.split()) and 'financial independence for every user' in ' '.join(coming.split()))
     check('s206 the 2.0 page is in both sitemaps', "('/coming'," in src
           and '/coming</loc>' in (BASE / 'Website' / 'sitemap.xml').read_text(encoding='utf-8'))

@@ -464,3 +464,16 @@ Recorded for this pass, not yet a point for ruling:
 - **A forum is public.** The site's short posting guidance asks users not to include amounts, names or account
   details, since a description is all a bug report needs.
 - **Who hosts it,** and what that host can see, is part of the site's privacy statement (W-points on privacy).
+
+## 4b. The horizon (Rob, 2026-10-12)
+
+Rob: *"we do need to make sure for the website and groundwork the goal of our software is to help every user become
+finically independent. That's our horizon."*
+- **Home:** a band right after the hero, *"Our horizon: Financial independence, for every user"*.
+- **About:** opens with *Our horizon*. It says plainly that Groundwork can't promise anyone gets there, and what it
+  does do.
+- **Coming in 2.0:** the headline paragraph ends on the horizon.
+- **Footer:** the one-line description carries it.
+
+It is the goal, stated as a goal: no claim that a user will reach it, which W5 would remove. s206 holds the three
+pages to it.

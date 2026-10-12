@@ -546,7 +546,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
   <div class="foot-grid">
     <div>
       <div class="foot-brand">Groundwork</div>
-      <p style="max-width:300px">Your whole financial picture, explained, with nothing to sell you. Free, and it runs on your own computer.</p>
+      <p style="max-width:300px">Your whole financial picture, explained, with nothing to sell you, toward one horizon: financial independence for every user. Free, and it runs on your own computer.</p>
     </div>
     <div>
       <h4>Product</h4>
@@ -731,6 +731,16 @@ HOME_CONTENT = _icons("""
       </div>
       <div class="sample-tag">Illustration · sample figures</div>
     </div>
+  </div>
+</section>
+
+<section class="band band-mist" style="padding:72px 24px">
+  <div class="narrow center reveal">
+    <div class="section-label">Our horizon</div>
+    <h2 class="section-title">Financial independence, for every user</h2>
+    <p class="section-sub">That's what Groundwork is for. Not one budget or one payoff date, but the long road to
+      the point where your money supports the life you choose, one understood decision at a time. Every feature is a
+      step toward it, and every step is yours to take.</p>
   </div>
 </section>
 
@@ -1232,6 +1242,12 @@ def about():
   <p>A free personal finance app with nothing to sell you, and why it exists.</p>
 </section>
 <div class="narrow prose">
+  <h2>Our horizon</h2>
+  <p>The goal of Groundwork is to help every person who uses it become financially independent: to reach the point
+    where their money supports the life they choose. Groundwork can't promise anyone gets there. What it can do is
+    show you where you stand, explain how each number was made, and help you see the next step, whatever your
+    starting point.</p>
+
   <h2>Why Groundwork exists</h2>
   <p>Most finance apps are built around something they want to sell: a card, a loan, a premium tier, or your
     attention. The advice and the product come from the same place, and it's hard to tell which one is talking.</p>
@@ -1539,7 +1555,8 @@ def coming():
     <div class="beta-badge"><b></b> Being built and tested now</div>
     <h1>Coming in <em>Groundwork 2.0</em></h1>
     <p class="lead">The biggest update we've ever built. Groundwork 2.0 does more of the work for you, explains more of
-      what it finds, and still keeps every number on your own computer. Here's what's on the way.</p>
+      what it finds, and still keeps every number on your own computer, all toward one horizon: financial
+      independence for every user. Here's what's on the way.</p>
     <div class="hero-btns"><a href="#signup" class="btn btn-gold">Tell me when it ships</a>
       <a href="/download" class="btn btn-ghost-light">Get """ + SITE_VERSION + """ today</a></div>
   </div>
