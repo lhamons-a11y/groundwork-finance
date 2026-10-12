@@ -147,7 +147,9 @@ def run(ctx):
           "API.get('/api/futures/fingerprint')" in app and 'id="futStale"' in app and 'Does this reflect your situation?' in app
           and 'Unlikely for me' in app and "_futChart('Cash on hand'" in app
           and 'callAI' not in app.split('async function renderFutures()')[1].split('async function _incomeChangePost')[0]
-          and 'id="budgetFutures"' in ctx.html_src)
+          and 'id="budgetFutures"' in ctx.html_src
+          # a chosen future that is no longer offered (its change is now the plan) still shows the choice and its Undo
+          and "That future isn't shown now" in app)
 
     with db_session() as s:
         for k, v in keep.items():

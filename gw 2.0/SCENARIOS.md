@@ -123,3 +123,60 @@ first.
   scenarios.
 - **Which existing engines each scenario reuses.** That's decided in the build, after the ruling.
 - **Assistant** asking about scenarios by voice: later, through the same surface.
+
+## 4. Built 2026-10-12 (Rob 2026-10-11: "build ... 66"): the rest of SC1-SC7
+
+A **Possible futures** card on the Budget page, below "Your pay", for every household, not only after an income
+drop. `core/futures.py` does plain arithmetic over the record plus the one payoff engine (its new `path` argument
+gives the total still owed each month; nothing else in it changed). Routes are under `/api/futures`. Tests: s204.
+
+- **The baseline** comes from the record:
+  - income is the middle of the last three complete months with income on record (at least two are needed, or no
+    futures are offered and the card says why);
+  - spending is this month's budget, with debt payments apart;
+  - the debt payment and the cards are the payoff engine's own inputs;
+  - cash is what checking and savings hold above the person's own floors, the same figure item 71 uses (it starts at
+    $0, said, when no balance is known).
+- **SC1.** Each future is measured on the goal: debt-free months for *debt*, cash in 12 months for *savings* and a
+  *goal*, what's left over for *invest*, and nothing ranked for *unsure*. Each future also shows its lowest cash and
+  anything borrowed. When cash would go below $0, the shortfall is borrowed and counted, never hidden.
+- **SC2.** Every future the record can support is offered:
+  - **"What is left goes to the debt"** (debt goal, money left after the budget);
+  - **"Your costliest months come again"** (the three costliest of the last 12 complete months, above a middle
+    month, over the next three; needs six complete months on record);
+  - **"A month without income"**;
+  - **"Minimum payments only"** (only when the payment is above the minimums);
+  - **"Known costs ahead land"** (gift occasions budgeted in the next 90 days; W3's calendar isn't built, so these
+    are the costs on record).
+
+  Each one the record can't support is listed under *Not shown, and why*.
+- **SC3.** Every figure is tagged *Recorded*, *Projected* or *You said*. What the person says is kept append-only in
+  `future_possibilities`, withdrawals included: another income, a known cost in a month, or hours being cut. It
+  counts in every future and is never a transaction, a budget line or a balance; s204 checks the counts.
+- **SC4.** Each adverse future, and the baseline, asks *"Does this reflect your situation?"*:
+  - **Partly** and **Explore something else** open the one prompt for what's missing;
+  - **Unlikely for me** hides it, with *Show ... again*.
+
+  Answers are kept append-only in `future_answers`.
+- **SC5.** Computed on every read, nothing derived stored. A fingerprint of the inputs is checked when the window
+  regains focus; if it moved, the card says the figures were worked out from older records and offers
+  *Recalculate*. No background runner: the arithmetic is instant.
+- **SC6.** Two charts over 12 months show *Cash on hand* and *What you owe, with anything borrowed*, one line per
+  future, each of which can be unticked. Each future carries its assumptions in words and its figures with their
+  kinds. The four questions are answered from the figures:
+  - what would put me behind;
+  - which upcoming expense changes the outcome most;
+  - how much room I actually have;
+  - which correction would change this result.
+
+  No verdicts and no fear words (s204 scans for them). There is no AI call. *Choose this path* only notes the choice;
+  only *"What is left goes to the debt"* can change a figure, through its own *Set my debt payment to $X* button,
+  with the old figure kept for *Undo*. A chosen future that is no longer offered, because its change is now the plan,
+  still shows the choice and its Undo.
+- **SC7.** *A starting budget from your record* lists what the record commits each month, each row with its
+  source and kind, then the recorded income and what remains:
+  - committed: the minimum debt payments, and budget lines set by a contract (item 71 D11);
+  - recurring: recurring charges in the ledger (the solution engine's own list);
+  - set aside: what each savings fund takes a month.
+
+  It is a starting point to correct, not a form.

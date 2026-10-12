@@ -28,7 +28,7 @@ GOALS = ('debt', 'savings', 'goal', 'invest', 'unsure')
 
 
 def _fmt(x):
-    return f'${x:,.0f}'
+    return f'-${-x:,.0f}' if x < 0 else f'${x:,.0f}'
 
 
 def _months_after(month_key, n):

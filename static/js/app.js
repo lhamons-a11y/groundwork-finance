@@ -12720,6 +12720,7 @@ const HELP_FAQ = [
   {"q": "A number looks wrong. How do I find out why?", "a": "On the Budget page, the income card has \"Why does it say this?\". On the Assistant page, \"Check my records\" runs every check: a payer filed under two categories, deposits in a spending category, a regular deposit that stopped, doubles, and months with no records. Each finding shows the records behind it and says what it can and can't tell. A fix is shown as an exact list first, and changes nothing until you apply it.", "keys": ["wrong", "why", "number", "figure", "looks", "off", "check", "records", "mistake", "income", "dropped", "drop"], "open": {"view": "automation"}, "labels": ["Check my records"]},
   {"q": "How do I undo a fix I made with \"Check my records\"?", "a": "Open \"Check my records\" (Assistant page) or \"Why does it say this?\" again. Under \"Changes made here\", each fix has Undo. It puts back the records the fix changed - any you edited since are left as they are.", "keys": ["undo", "fix", "revert", "back", "change", "records"], "open": {"view": "automation"}, "labels": ["Changes made here"]},
   {"q": "What is the \"Your pay\" card on the Budget page?", "a": "It reads each employer's paychecks on their own. If a job's pay changes a lot from check to check, it asks once whether the job pays overtime or holiday pay that can change the paycheck amount; once answered, it shows your ordinary week and the overtime as facts. If a regular paycheck hasn't come in while your account kept recording, it asks whether it's filed elsewhere or stopped.", "keys": ["pay", "paycheck", "hourly", "overtime", "employer", "wages", "salary"], "open": {"view": "budget", "el": "budgetIncomeChange"}, "labels": ["Your pay"]},
+  {"q": "What is \"Possible futures\" on the Budget page?", "a": "Your next 12 months worked out from your record, side by side: as things are, and futures such as your costliest months coming again, a month without income, minimum payments only, or known costs landing. Each one says what it assumes and is compared on your goal. \"Does this reflect your situation?\" lets you correct it: \"Partly\" asks what's missing (another income, a known cost, hours being cut), and \"Unlikely for me\" hides it. Nothing you say there becomes a transaction or a budget line, and nothing changes your plan unless you tap to set it. \"A starting budget from your record\" lists what your record already commits each month.", "keys": ["future", "futures", "scenario", "scenarios", "what if", "simulation", "possible", "starting budget"], "open": {"view": "budget", "el": "budgetFutures"}, "labels": ["Possible futures", "A starting budget from your record"]},
   {"q": "What does \"Make this my budget\" on the income card do?", "a": "It changes the budget lines shown in that option, and only on your tap. It never cuts the necessity floor, a category you protected, or a payment set by a contract (a loan, lease, debt or insurance payment). \"Undo\" right there puts every line back.", "keys": ["make", "budget", "income", "card", "changed", "lines", "undo", "follows"], "open": {"view": "budget", "el": "budgetIncomeChange"}, "labels": ["Make this my budget"]},
   {"h": "AI and privacy"},
   {"q": "How do I turn the AI features on or off?", "a": "Settings → General → AI features. Everything in Groundwork works with AI off; with it on, reports and some cards add a written explanation.", "keys": ["ai", "turn", "off", "on", "disable", "enable", "features"], "open": {"view": "settings", "tab": "general"}, "labels": ["AI features"]},
@@ -23561,7 +23562,8 @@ function _futChart(title, key, scens, months) {
   const shown = scens.filter(s => !_futOff.has(s.key));
   const vals = shown.flatMap(s => s[key] || []);
   if (!vals.length) return '';
-  const W = 320, H = 130, L = 46, B = 18, T = 8;
+  const W = 320, H = 130, L = 52, B = 18, T = 8;
+  const axis = v => (v < 0 ? '-$' : '$') + Math.round(Math.abs(v)).toLocaleString('en-US');
   const max = Math.max(1, ...vals), min = Math.min(0, ...vals);
   const x = i => L + (W - L - 6) * (i / Math.max(1, months.length - 1));
   const y = v => T + (H - T - B) * (1 - (v - min) / (max - min || 1));
@@ -23571,12 +23573,12 @@ function _futChart(title, key, scens, months) {
     return `<polyline points="${pts}" fill="none" stroke="${c}" stroke-width="2"><title>${esc(s.title)}</title></polyline>`;
   }).join('');
   const lab = m => new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short' });
-  return `<div style="flex:1;min-width:260px">
+  return `<div style="flex:1 1 260px;min-width:0">
     <div style="font-size:11px;color:var(--slate);margin-bottom:4px">${title}</div>
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="${esc(title)}">
       <line x1="${L}" y1="${y(0)}" x2="${W - 6}" y2="${y(0)}" stroke="var(--steel)" stroke-width="1"/>
-      <text x="${L - 4}" y="${y(max) + 4}" text-anchor="end" font-size="9" fill="var(--slate)">${fmt(max).replace('.00', '')}</text>
-      <text x="${L - 4}" y="${y(min) + 4}" text-anchor="end" font-size="9" fill="var(--slate)">${fmt(min).replace('.00', '')}</text>
+      <text x="${L - 4}" y="${y(max) + 4}" text-anchor="end" font-size="9" fill="var(--slate)">${axis(max)}</text>
+      <text x="${L - 4}" y="${y(min) + 4}" text-anchor="end" font-size="9" fill="var(--slate)">${axis(min)}</text>
       <text x="${x(0)}" y="${H - 4}" font-size="9" fill="var(--slate)">${lab(months[0])}</text>
       <text x="${x(months.length - 1)}" y="${H - 4}" text-anchor="end" font-size="9" fill="var(--slate)">${lab(months[months.length - 1])}</text>
       ${lines}
@@ -23630,11 +23632,11 @@ function _futScenarioCard(s, i, st) {
         ${s.kind === 'adverse' ? `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${s.key}','unlikely')">Unlikely for me</button>` : ''}
         <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${s.key}','explore')">Explore something else</button>
       </div></div>` : '';
-  return `<div style="border:1px solid var(--steel);border-left:4px solid ${c};border-radius:var(--r-md);padding:12px;min-width:250px;flex:1">
+  return `<div style="border:1px solid var(--steel);border-left:4px solid ${c};border-radius:var(--r-md);padding:12px;min-width:0;flex:1 1 250px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
       <label style="font-size:13px;font-weight:600;color:var(--ink);display:flex;gap:6px;align-items:center">
         <input type="checkbox" ${_futOff.has(s.key) ? '' : 'checked'} onchange="futuresToggle('${s.key}')" title="Show on the charts">${esc(s.title)}</label>
-      <span style="font-size:10px;color:var(--slate-2)">${_FUT_GROUP_WORDS[s.kind] || ''}</span>
+      <span style="font-size:10px;color:var(--slate-2)">${s.kind === 'baseline' ? '' : (_FUT_GROUP_WORDS[s.kind] || '')}</span>
     </div>
     ${_futMeasure(s.measure)}${behind}
     <div style="font-size:11px;color:var(--slate);margin-top:2px">Lowest cash ${_futMoney(s.lowest_cash)} · borrowed over the year ${_futMoney(s.borrowed)}${s.covers_minimums ? '' : ' · this budget does not cover the minimum payments'}</div>
@@ -23669,6 +23671,8 @@ function futuresHtml(st) {
     <div style="font-size:12px;color:var(--slate);margin-top:4px">From your record, over the next 12 months. Each one names what it assumes, and you can correct it.</div>
     <div id="futStale" style="display:none;margin-top:8px;padding:8px;border-radius:var(--r-sm);background:var(--mist);font-size:12px;color:var(--ink)">
       These figures were worked out from older records. <button class="btn btn-secondary btn-sm" style="font-size:11px" onclick="renderFutures()">Recalculate</button></div>
+    ${st.choice && !scens.some(s => s.key === st.choice.key) ? `<div style="margin-top:8px;font-size:12px;color:var(--ink)">You chose "${esc(st.choice.title)}" on ${new Date(st.choice.at).toLocaleDateString()}${st.choice.applied ? `, and your debt payment was set to ${fmt(parseFloat(st.choice.applied.after))}` : ''}. That future isn't shown now because the figures it changed are part of your plan.
+      <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresUndoChoice()">Undo</button></div>` : ''}
     ${charts}
     <div style="display:flex;gap:10px;flex-wrap:wrap">${scens.map((s, i) => _futScenarioCard(s, i, st)).join('')}</div>
     ${qs ? `<div style="margin-top:12px;border-top:1px solid var(--steel);padding-top:8px">${qs}</div>` : ''}
