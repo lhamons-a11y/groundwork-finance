@@ -6,6 +6,15 @@ user locked out because they took a backup don't remember the password and they 
 need something that the user would be able to do to restore their data but keep it uncompromised. The perfect
 backup."*
 
+**B1-B10 RULED 2026-10-12** (Rob: *"I agree adding a B10 would do it. I do have a one to test with. I approve b1-b10
+if a user never uses the health they may not care about the extra protection."*):
+- B1-B9 as recommended.
+- **B10 stays optional.** It is offered to everyone, and suggested when the person has health spending or records.
+  Someone who never uses health tracking may skip it.
+- Rob has a security key to test it with.
+- 1.x was asked and not answered, so it stays master only, the default, until Rob says otherwise.
+- **Builds after item 45 stage 1 (H6) is accepted.**
+
 ## 1. What is true today (measured 2026-10-12, master)
 
 - **A backup is a plain copy of the database:** `shutil.copy2(DB_PATH, ...)` in `/api/backup/create`. Anyone who has
