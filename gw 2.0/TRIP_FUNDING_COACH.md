@@ -171,7 +171,7 @@ month, tagged *You said* (SC3). The futures' **"Known costs ahead"** includes it
 - **Sharing a trip's cost with other people** (who owes whom).
 - **Booking or paying anything.** Never (TM1).
 
-## Built 2026-10-12 (Rob: "I accept T1 - T9"), awaiting acceptance
+## Built 2026-10-12 (Rob: "I accept T1 - T9") - ACCEPTED + CLOSED 2026-10-12 (Rob: "I love the new tools that we are adding to 2.0 ... I accept Item 61")
 
 - **T1.** A `trips` table, at SCHEMA `20261012-trips`. The old `trip_budget` setting is carried in once as a
   *planning* trip with its lines, and the setting is kept. **"I'm going on this trip"** under the trip budget is the
