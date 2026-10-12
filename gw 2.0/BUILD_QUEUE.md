@@ -1,5 +1,9 @@
 # The build queue after the substrate run — Rob's ordering, 2026-09-14
 
+> **The horizon (Rob, 2026-10-12):** *"the goal of our software is to help every user become financially
+> independent. That's our horizon."* Every item in this queue is a step toward it, measured on the person's own goal
+> and never promised. Financial independence has no ruled number in Groundwork yet; defining one is its own item.
+
 > Every slice opened in the run that began at `SMALLEST_SCHEMA.md` §12 is closed: the evidence
 > substrate · artefact + reading · origin + institution anchor · correspondence ·
 > `utterance_retraction` · domain proposition (ruled, no code) · obligation identity ·
