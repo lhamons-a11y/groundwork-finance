@@ -18567,6 +18567,8 @@ async function loadGiftData() {
 }
 
 async function renderGiftBudget() {
+  // G2: the month's contributions first (once a month, server-side), so gift funds are read already filled.
+  await API.post('/api/sinking-funds/auto-credit', {}).catch(_gwErr('renderGiftBudget:auto-credit'));
   await loadGiftData();
   _renderGiftPage();
 }

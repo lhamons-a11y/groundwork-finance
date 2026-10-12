@@ -76,6 +76,11 @@ def last_occurrence(occ_type, date_str, today):
     return one if one <= today else None
 
 
+def _short(iso):
+    d = date.fromisoformat(iso)
+    return f'{d.strftime("%b")} {d.day}'
+
+
 def months_until(today, when):
     """Monthly set-asides before a date: one per month boundary, at least one."""
     return max(1, (when.year - today.year) * 12 + (when.month - today.month))
@@ -215,7 +220,7 @@ def year_plan(session, today):
         if to_cover > steady and tightest:
             working.append(
                 f'To have each one covered by its own date, counting the ${held:,.2f} the gift funds hold now: '
-                f'${to_cover:,.2f} a month. The tightest is {tightest["label"]} on {tightest["date"]}: '
+                f'${to_cover:,.2f} a month. The tightest is {tightest["label"]} on {_short(tightest["date"])}: '
                 f'${tightest["to_save"]:,.2f} to set aside in {tightest["months"]} '
                 f'month{"s" if tightest["months"] != 1 else ""}.')
     line = set_aside_line(session)
