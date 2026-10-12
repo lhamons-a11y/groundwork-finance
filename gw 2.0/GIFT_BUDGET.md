@@ -120,3 +120,32 @@ rule L1.
   from shopping.
 - **Reminders by notification.** Upcoming occasions show where upcoming facts already show (G5). Nothing pushes or
   counts down (TM6).
+
+## 4. Built 2026-10-11 (Rob: "build 74") - ACCEPTED + CLOSED 2026-10-11 (Rob: "i accept item 74")
+
+- **G8, G7.** People, occasions, shared occasions' people, and each "Mark spent" now live in tables (`gift_people`,
+  `gift_occasions`, `gift_shares`, `fund_spends`), plus `sinking_funds.purpose`, at SCHEMA `20261011-gift-tables`.
+  The old `gift_people_json` is carried in once, on first read, with new whole-number ids; each old id is kept as
+  `legacy_id`, and the setting itself is left as it was. Rob's birthday occasion can be changed again.
+- **G1.** "The year's gifts" totals the next 12 months' budgeted occasions and shows its working. It offers
+  *Set aside for gifts* at the total ÷ 12, and, when a date comes before 12 months of setting aside (always so in a
+  first year), a second amount that covers each occasion by its own date, counting what the gift funds hold. The
+  person picks. Either way it is one line, *Gifts (set aside)*; any other amount is refused. "Budget it" is gone.
+- **G2.** A gift fund is a sinking fund marked `gift`. It adds its monthly amount itself through the existing
+  monthly auto-credit, and shows on the Budget page with every fund. The old seasonal funds are listed first, with
+  a *Move them to gift funds* button. Each keeps its target, date and what it held, and the setting records which
+  fund each became.
+- **G3.** *Mark spent* asks what was spent and keeps it with the target (`fund_spends`, and the Historian's
+  `gift_fund_spent`). The fund shows *"Last time: target $800.00, spent $1,140.00 (Dec 2026)"*.
+- **G4.** For an occasion up to 45 days past, or up to 30 days ahead, the receipt button lists the charges filed
+  under Gifts (or its subcategories, or a category named in `gift_charge_category_ids`) from the six weeks before
+  it to three days after. The page says Groundwork can't tell who a purchase was for, and the person unticks any
+  that weren't for this occasion. Only charges that were offered are accepted, only on the yes. A charge given to
+  one occasion isn't offered for another.
+- **G5.** Budgeted occasions within 30 days join the dashboard's Upcoming card, next to bills, as one sentence:
+  *"Mom's birthday, Nov 12: $60.00 budgeted; the gift fund holds $140.00."*
+- **G6.** *+ Shared occasion* gives one total for many people. Fixed amounts are taken first, and the rest is split
+  evenly to the cent. The page shows what's left to assign, or that the fixed amounts are over the total.
+- **G9.** s203, 23 checks. The old `/api/gift` routes and their helpers were removed once nothing called them (s50 route reachability); the old settings stay as data, and their Historian entries stay.
+- **Not changed:** the occasion "$" still takes a typed amount. The AI advisor reads the same figures the page
+  shows.

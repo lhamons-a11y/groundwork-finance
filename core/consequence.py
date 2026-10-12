@@ -59,7 +59,7 @@ def _prepare(cards):
 
 
 def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
-                    today_key=None, start_month=None, one_time_extra=0.0):
+                    today_key=None, start_month=None, one_time_extra=0.0, path=None):
     """Months until every balance clears, or None if the budget cannot cover
     the minimums — the JS returns null there and so do we, rather than a
     fabricated large number.
@@ -76,6 +76,9 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
     a charge already on a card this slightly understates the cost, because the
     interest that has accrued since the charge is not unwound — understating is
     the right direction for a number attached to something already done.
+
+    path, when a list is passed, receives the total still owed at the end of
+    each month (SCENARIOS.md SC6's charts). It changes nothing else.
     """
     data = _prepare(cards)
     if today_key is not None:
@@ -159,6 +162,8 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
                                       and month >= c.forgive_after_months}
                 if first_cleared_month is None:
                     first_cleared_month, first_cleared_name = month, c.name
+        if path is not None:
+            path.append(round(sum(bals), 2))
 
     undated = [c.name for c in data if c.is_pslf and c.forgive_after_months is None]
     return {

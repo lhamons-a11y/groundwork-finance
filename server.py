@@ -207,7 +207,8 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(proactive_bp,     url_prefix='/api/proactive')
     app.register_blueprint(trophies_bp,      url_prefix='/api/trophies')
     app.register_blueprint(college_funds_bp,  url_prefix='/api/college-funds')
-    app.register_blueprint(gift_bp,           url_prefix='/api/gift')
+    app.register_blueprint(gifts_bp,          url_prefix='/api/gifts')
+    app.register_blueprint(futures_bp,        url_prefix='/api/futures')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
@@ -1787,16 +1788,9 @@ def _income_change_state(session):
     lines = [{'id': i.id, 'name': i.name, 'category': i.category or i.name, 'amount': float(i.amount or 0)} for i in items]
     effective = willingness_state(session)['effective']
     cards, debt_budget, strategy, _undated = _consequence_inputs(session)
-    cushion, known = 0.0, False
-    for a in session.query(Account).filter_by(is_active=True).all():
-        if (a.type or '').lower() not in ('checking', 'savings'):
-            continue
-        bal, _asof, _last, _tx = _account_balance_facts(session, a.id)
-        if bal is None:
-            continue
-        floor = (_setting_json(session, f'bank_buffer:account:{a.id}') or {}).get('amount') or 0
-        cushion += max(0.0, bal - floor)
-        known = True
+    cushion = _cash_above_floors(session)
+    known = cushion is not None
+    cushion = cushion or 0.0
     today = date.today().strftime('%Y-%m')
     # D11: payments set by a contract are never cut; one that may be waits for the person's answer
     from core.contracts import classify
@@ -1819,6 +1813,265 @@ def _income_change_state(session):
             'applied': applied, 'payers': pay['payers'],
             # D9: the money first - what is left after the budgeted spending, before and now
             'left_before': round(change['from'] - outflow, 2), 'left_now': round(change['to'] - outflow, 2), **sc}
+
+
+# ── Item 66 - possible futures (SCENARIOS.md SC1-SC7) ──────────────────────────────────────────────────────────
+# Computed on every read (SC5). Kept: the person's possibilities (SC3, append-only, each with when), their answers to
+# "Does this reflect your situation?" (SC4), and a path they chose (SC6). Nothing derived is stored.
+futures_bp = Blueprint('futures', __name__)
+
+
+def _cash_above_floors(session):
+    """Cash in checking and savings above the person's own floors, or None when no balance is known."""
+    cushion, known = 0.0, False
+    for a in session.query(Account).filter_by(is_active=True).all():
+        if (a.type or '').lower() not in ('checking', 'savings'):
+            continue
+        bal, _asof, _last, _tx = _account_balance_facts(session, a.id)
+        if bal is None:
+            continue
+        floor = (_setting_json(session, f'bank_buffer:account:{a.id}') or {}).get('amount') or 0
+        cushion += max(0.0, bal - floor)
+        known = True
+    return round(cushion, 2) if known else None
+
+
+def _complete_months(today, n):
+    first = today.replace(day=1)
+    out, y, m = [], first.year, first.month
+    for _ in range(n):
+        y, m = (y - 1, 12) if m == 1 else (y, m - 1)
+        out.append(f'{y}-{m:02d}')
+    return list(reversed(out))
+
+
+def _futures_inputs(session, today=None):
+    from core import futures as fu
+    from core.income_def import income_category_ids
+    from core import household
+    from core import gifts as gf
+    from statistics import median
+    today = today or date.today()
+    months12 = _complete_months(today, 12)
+    start = date(int(months12[0][:4]), int(months12[0][5:7]), 1)
+    end = today.replace(day=1)
+    # months with anything on record; a month with nothing is unknown, never zero (absence is not zero)
+    ledger = {m for (m,) in session.query(func.strftime('%Y-%m', Transaction.date)).filter(
+        Transaction.date >= start, Transaction.date < end).distinct().all()}
+    inc_ids = income_category_ids(session)
+    inc = dict(session.query(func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)).filter(
+        Transaction.type == 'credit', Transaction.category_id.in_(inc_ids),
+        Transaction.date >= start, Transaction.date < end).group_by(func.strftime('%Y-%m', Transaction.date)).all())
+    inc_months = [m for m in months12[-6:] if m in ledger and (inc.get(m) or 0) > 0][-3:]
+    income = round(median(float(inc[m]) for m in inc_months), 2) if len(inc_months) >= fu.MIN_INCOME_MONTHS else None
+    spend_rows = session.query(Category.type, func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)) \
+        .outerjoin(Category, Transaction.category_id == Category.id).filter(
+        Transaction.type == 'debit', Transaction.date >= start, Transaction.date < end) \
+        .group_by(Category.type, func.strftime('%Y-%m', Transaction.date)).all()
+    spent = {}
+    for ctype, m, total in spend_rows:
+        if (ctype or '').lower() == 'transfer' or not m:
+            continue
+        spent[m] = spent.get(m, 0.0) + abs(float(total or 0))
+    spend_record = [(m, round(spent.get(m, 0.0), 2)) for m in months12 if m in ledger]
+
+    month_amts = budget_month_amounts(session)
+    debt_names = {(d.name or '').strip().lower() for d in session.query(DebtAccount).filter_by(is_active=True).all()}
+    spend, debt_lines = 0.0, 0.0
+    for i in session.query(BudgetItem).filter_by(is_active=True, type='expense').all():
+        amt = float((month_amts.get(i.id) or {}).get('month_amount', i.amount or 0) or 0)
+        if (i.category or '').strip().lower() == 'debt' or (i.name or '').strip().lower() in debt_names \
+                or (i.category or '').strip().lower() in debt_names:
+            debt_lines += amt
+        else:
+            spend += amt
+    cards, debt_budget, strategy, _undated = _consequence_inputs(session)
+    known = []
+    for o in gf.upcoming(session, today, days=fu.KNOWN_COST_DAYS):
+        known.append({'label': o['label'], 'month': o['date'][:7], 'amount': o['budget'], 'source': 'gift'})
+    return {
+        'income': income, 'income_months': len(inc_months), 'spend': round(spend, 2),
+        'debt_lines': round(debt_lines, 2), 'debt_pay': round(float(debt_budget or 0), 2) if cards else 0.0,
+        'minimums': round(sum(c.minimum for c in cards), 2), 'owed': round(sum(c.balance for c in cards), 2),
+        'cards': cards, 'strategy': strategy, 'cash': _cash_above_floors(session),
+        'goal': household.current(session, 'surplus_goal') or 'unsure', 'start_month': today.strftime('%Y-%m'),
+        'spend_record': spend_record, 'known_costs': known,
+    }
+
+
+def _pre_budget(session, inputs):
+    """SC7: committed money, recurring charges and what is set aside, from the record - a starting point."""
+    from core import futures as fu
+    from core.contracts import classify
+    rows = []
+    if inputs['minimums']:
+        rows.append({'label': 'Minimum debt payments', 'amount': inputs['minimums'], 'kind': 'observed',
+                     'source': 'your debt accounts', 'group': 'committed'})
+    said = {x.get('line_id'): x['answer'] for x in (_setting_json(session, 'contract_lines', []) or [])
+            if isinstance(x, dict) and x.get('answer') in ('yes', 'no')}
+    items = session.query(BudgetItem).filter_by(is_active=True, type='expense').all()
+    lines = [{'id': i.id, 'name': i.name, 'category': i.category or i.name, 'amount': float(i.amount or 0)} for i in items]
+    debt_names = [d.name for d in session.query(DebtAccount).filter_by(is_active=True).all()]
+    by_id = {ln['id']: ln for ln in lines}
+    for lid, k in classify(lines, debt_names, said).items():
+        if k['kind'] == 'contract' and (by_id[lid]['category'] or '').strip().lower() != 'debt' \
+                and by_id[lid]['name'] not in debt_names:
+            rows.append({'label': by_id[lid]['name'], 'amount': round(by_id[lid]['amount'], 2), 'kind': 'observed',
+                         'source': 'a payment set by a contract, in your budget', 'group': 'committed'})
+    seen = {r['label'].strip().lower() for r in rows}
+    for r in trim_candidates(session):
+        if r['name'].strip().lower() in seen:
+            continue
+        rows.append({'label': r['name'], 'amount': r['monthly'], 'kind': 'observed',
+                     'source': 'a recurring charge in your ledger' + (f" ({r['category']})" if r.get('category') else ''),
+                     'group': 'recurring'})
+    from core.database import SinkingFund
+    for f in session.query(SinkingFund).filter_by(is_active=True).all():
+        need = _serialize_sinking_fund(f)['monthly_needed']
+        if need > 0:
+            rows.append({'label': f.name, 'amount': round(need, 2), 'kind': 'projected',
+                         'source': 'what this fund takes a month to reach its target by its date', 'group': 'set_aside'})
+    return fu.pre_budget(inputs['income'], rows)
+
+
+def _futures_state(session):
+    from core import futures as fu
+    inputs = _futures_inputs(session)
+    poss = _setting_json(session, 'future_possibilities', []) or []
+    answers = _setting_json(session, 'future_answers', []) or []
+    out = fu.build(inputs, poss, answers)
+    out['fingerprint'] = fu.fingerprint(inputs, poss, answers)
+    out['computed_at'] = datetime.now().isoformat(timespec='seconds')
+    out['pre_budget'] = _pre_budget(session, inputs)
+    out['choice'] = _setting_json(session, 'future_choice')
+    out['debt_lines'] = inputs['debt_lines']
+    # charts and figures only: the engine's Card objects stay server-side
+    for s in out.get('scenarios', []):
+        s.pop('cards', None)
+    return out, inputs
+
+
+@futures_bp.route('', methods=['GET'])
+def futures_get():
+    with db_session() as session:
+        out, _ = _futures_state(session)
+        return ok(out)
+
+
+@futures_bp.route('/fingerprint', methods=['GET'])
+def futures_fingerprint():
+    """SC5: what the figures on screen were computed from; a different answer means they are stale."""
+    from core import futures as fu
+    with db_session() as session:
+        inputs = _futures_inputs(session)
+        return ok({'fingerprint': fu.fingerprint(inputs, _setting_json(session, 'future_possibilities', []) or [],
+                                                 _setting_json(session, 'future_answers', []) or [])})
+
+
+@futures_bp.route('/answer', methods=['POST'])
+@require_json
+def futures_answer():
+    """SC4: the person's word on a scenario - yes / partly / unlikely (hides it) / explore / show (undoes unlikely)."""
+    from core import futures as fu
+    b = request.json or {}
+    key, answer = str(b.get('key') or ''), b.get('answer')
+    if not key or answer not in fu.ANSWERS:
+        return err('A scenario and one of the answers are needed.')
+    with db_session() as session:
+        said = _setting_json(session, 'future_answers', []) or []
+        said.append({'key': key, 'answer': answer, 'at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'future_answers', json.dumps(said[-500:]))
+        session.commit()
+        return ok({'saved': True})
+
+
+@futures_bp.route('/possibility', methods=['POST'])
+@require_json
+def futures_possibility():
+    """SC3/SC4 "Partly": a possibility the person states. Kept as theirs - never a transaction, line or balance."""
+    from core import futures as fu
+    b = request.json or {}
+    kind = b.get('kind')
+    try:
+        amount = round(float(b.get('amount')), 2)
+    except (TypeError, ValueError):
+        return err('Enter an amount.')
+    month = (b.get('month') or '').strip()[:7]
+    if kind not in fu.POSSIBILITY_KINDS or amount <= 0:
+        return err('Enter what it is and an amount.')
+    if month and not re.fullmatch(r'\d{4}-\d{2}', month):
+        return err('Use a month like 2027-03.')
+    if kind == 'cost' and not month:
+        return err('A known cost needs its month.')
+    with db_session() as session:
+        said = _setting_json(session, 'future_possibilities', []) or []
+        pid = f'p{len(said) + 1}-{int(datetime.now().timestamp())}'
+        said.append({'id': pid, 'kind': kind, 'amount': amount, 'month': month or None,
+                     'label': str(b.get('label') or '').strip()[:80], 'said_at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'future_possibilities', json.dumps(said))
+        session.commit()
+        return ok({'id': pid})
+
+
+@futures_bp.route('/possibility/<pid>/withdraw', methods=['POST'])
+def futures_withdraw(pid):
+    """The person takes a possibility back. Its history stays; the latest statement is the withdrawal."""
+    from core import futures as fu
+    with db_session() as session:
+        said = _setting_json(session, 'future_possibilities', []) or []
+        cur = next((p for p in fu.possibilities_in_force(said) if p['id'] == pid), None)
+        if not cur:
+            return err('Not found.', 404)
+        said.append({**cur, 'withdrawn': True, 'said_at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'future_possibilities', json.dumps(said))
+        session.commit()
+        return ok({'withdrawn': pid})
+
+
+@futures_bp.route('/choose', methods=['POST'])
+@require_json
+def futures_choose():
+    """SC6: a path is chosen only on the person's word. "What is left goes to the debt" can also set the monthly debt
+    payment - on its own tap, with the old figure kept for Undo. Nothing else changes the plan."""
+    b = request.json or {}
+    key = str(b.get('key') or '')
+    with db_session() as session:
+        out, inputs = _futures_state(session)
+        s = next((x for x in out.get('scenarios', []) if x['key'] == key), None)
+        if not s:
+            return err('That future is not shown now.', 404)
+        choice = {'key': key, 'title': s['title'], 'at': datetime.now().isoformat(timespec='seconds')}
+        if b.get('apply'):
+            if key != 'surplus_to_goal' or not s.get('new_debt_pay'):
+                return err('Only "What is left goes to the debt" changes a figure.')
+            row = _get_setting(session, 'monthly_budget')
+            choice['applied'] = {'setting': 'monthly_budget', 'before': row.value if row else None,
+                                 'after': str(s['new_debt_pay'])}
+            _set_setting(session, 'monthly_budget', str(s['new_debt_pay']))
+        _set_setting(session, 'future_choice', json.dumps(choice))
+        session.commit()
+        return ok(choice)
+
+
+@futures_bp.route('/choose/undo', methods=['POST'])
+def futures_choose_undo():
+    with db_session() as session:
+        choice = _setting_json(session, 'future_choice')
+        if not choice:
+            return err('Nothing to undo.', 404)
+        ap = choice.get('applied')
+        if ap:
+            if ap.get('before') is None:
+                row = _get_setting(session, 'monthly_budget')
+                if row:
+                    session.delete(row)
+            else:
+                _set_setting(session, 'monthly_budget', ap['before'])
+        row = _get_setting(session, 'future_choice')
+        if row:
+            session.delete(row)
+        session.commit()
+        return ok({'undone': True})
 
 
 evidence_bp = Blueprint('evidence', __name__)
@@ -6985,85 +7238,6 @@ def get_college_fund_confidence(session, fund_id, months: int = 12) -> dict:
     }
 
 
-def _log_gift_season_contribution_variance(session, season_id, target: float, saved_before: float,
-                                            deadline: str, actual_amount: float):
-    """
-    Gift seasons' Historian write-hook, called from POST
-    .../gift/seasons/<id>/contribute. Unlike sinking/college funds, a gift
-    season has no monthly_contribution/monthlyContrib field at all — only
-    target + deadline — so "expected" is computed the same way the
-    client's own _giftSeasonCard already displays it ("$X/mo for N
-    months"): (target - saved) / months_left, using the balance BEFORE
-    this deposit is applied. Skipped when there's no deadline, no target,
-    no months remaining, or the season is already funded — nothing
-    meaningful to compare against in any of those cases.
-    """
-    if not deadline or not target:
-        return
-    try:
-        d = datetime.strptime(deadline, '%Y-%m-%d').date()
-    except (ValueError, TypeError):
-        return
-    today = datetime.utcnow().date()
-    months_left = max(0, (d.year - today.year) * 12 + (d.month - today.month))
-    remaining = target - saved_before
-    if months_left <= 0 or remaining <= 0:
-        return
-    expected = remaining / months_left
-    log_historian_event(
-        session, 'gift_season_contribution_variance',
-        expected_value=round(expected, 2), actual_value=round(actual_amount, 2),
-        context={'gift_season_id': season_id},
-    )
-
-
-def get_gift_season_confidence(session, season_id, months: int = 12) -> dict:
-    """0-100 pace confidence for a gift season — identical shape and
-    scoring to get_sinking_fund_confidence/get_college_fund_confidence."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
-    entries = session.query(HistorianEntry).filter(
-        HistorianEntry.event_category == 'gift_season_contribution_variance',
-        HistorianEntry.created_at >= cutoff,
-    ).all()
-    matched = []
-    for e in entries:
-        try:
-            ctx = json.loads(e.context_json or '{}')
-        except (json.JSONDecodeError, TypeError):
-            continue
-        if str(ctx.get('gift_season_id')) == str(season_id):
-            matched.append(e)
-    if not matched:
-        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
-                'samples': 0, 'reasoning': 'No contribution history yet for this fund.'}
-    variances = [e.variance_pct for e in matched if e.variance_pct is not None]
-    if not variances:
-        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
-                'samples': len(matched), 'reasoning': 'No variance data yet.'}
-    avg_variance = sum(variances) / len(variances)
-    confidence = max(0, min(100, round(100 + min(0, avg_variance) * 2)))
-    trend = 'ahead' if avg_variance > 5 else 'behind' if avg_variance < -5 else 'on_pace'
-    return {
-        'confidence_pct': confidence, 'trend': trend,
-        'avg_variance_pct': round(avg_variance, 1), 'samples': len(matched),
-        'reasoning': f'{len(matched)} contribution(s) tracked, {trend.replace("_", " ")}',
-    }
-
-
-def _log_gift_occasion_variance(session, person_id, occasion_id, budget: float, actual_spent: float):
-    """Occasions' Historian write-hook — logged once an occasion's actual
-    spend is recorded (see log_gift_occasion_spend below). expected=budget,
-    actual=actual_spent; skipped when no budget was ever set (nothing to
-    compare an unplanned gift against)."""
-    if not budget or budget <= 0:
-        return
-    log_historian_event(
-        session, 'gift_occasion_variance',
-        expected_value=round(budget, 2), actual_value=round(actual_spent, 2),
-        context={'gift_person_id': person_id, 'occasion_id': occasion_id},
-    )
-
-
 def get_payment_variance_for_account(session, debt_account_id: int, months: int = 12) -> dict:
     """Payment compliance metrics for a debt account from real historian
     events (payment_confirmed / payment_amount_variance), over a trailing
@@ -8061,6 +8235,7 @@ def bank_agent_bill_from():
         b = session.get(BudgetItem, int(body.get('id') or 0))
         if not b:
             return err('That bill was not found.', 404)
+        bid = b.id      # read before the commit: the reply is built after the session closes
         acct = body.get('account_id')
         if acct in (None, ''):
             row = _get_setting(session, f'bill_from:{b.id}')
@@ -8071,7 +8246,7 @@ def bank_agent_bill_from():
                 return err('That account was not found.', 404)
             _set_setting(session, f'bill_from:{b.id}', str(int(acct)))
         session.commit()
-    return ok({'id': b.id, 'account_id': acct})
+    return ok({'id': bid, 'account_id': acct})
 
 
 @settings_bp.route('/bank-agent/bill-paid', methods=['POST'])
@@ -11967,6 +12142,7 @@ def _serialize_sinking_fund(f) -> dict:
         'note':                 f.note or '',
         'is_active':            f.is_active,
         'last_contributed_month': f.last_contributed_month or '',
+        'purpose':              f.purpose or '',
         'pct_funded':           round((saved / target * 100) if target > 0 else 0, 1),
         # Legacy aliases for old JS code paths
         'balance':              saved,
@@ -12281,81 +12457,385 @@ def college_fund_confidence(fund_id):
         return ok(get_college_fund_confidence(session, fund_id))
 
 
-# ── Gift seasons + occasions (Historian logging — same pattern as
-# college_funds_bp: gift_seasons_json/gift_people_json stay client-managed
-# blobs, these routes exist so "expected" always comes from that
-# server-held blob, never a client-passed number) ──────────────────────────
-gift_bp = Blueprint('gift', __name__)
+# ── Gift Budget in tables (GIFT_BUDGET.md, item 74) ──────────────────────────
+# The page reads and writes here. The old /api/gift routes, which read the settings, were removed once nothing called
+# them; the settings themselves are kept as the record of what was carried over (G8).
+gifts_bp = Blueprint('gifts', __name__)
 
 
-@gift_bp.route('/seasons/<season_id>/contribute', methods=['POST'])
-@require_json
-def log_gift_season_contribution(season_id):
-    """Body: { amount: float }. expected is computed from the season's own
-    target/deadline/saved in gift_seasons_json — gift seasons have no
-    monthly_contribution field, so this reproduces the same deadline-pace
-    math the client already displays, using the balance as of THIS
-    request (before the client applies the deposit)."""
-    amount = float(request.json.get('amount', 0) or 0)
-    if amount <= 0:
-        return err('Amount must be positive')
+def _gift_today():
+    return date.today()
+
+
+def _gift_occasion_dict(session, o, people, today):
+    from core import gifts as gf
+    from core.database import GiftShare
+    nxt = gf.next_occurrence(o.type, o.date, today)
+    d = {'id': o.id, 'person_id': o.person_id, 'type': o.type, 'name': o.name or '', 'date': o.date or '',
+         'budget': round(float(o.budget or 0), 2), 'note': o.note or '', 'shared': bool(o.shared),
+         'actual_spent': o.actual_spent, 'spent_at': o.spent_at,
+         'label': gf.occasion_label(o, people.get(o.person_id)),
+         'next': nxt.isoformat() if nxt else None, 'days': (nxt - today).days if nxt else None,
+         'offer_date': (lambda w: w.isoformat() if w else None)(gf.offer_date(o, today))}
+    if o.shared:
+        shares = session.query(GiftShare).filter_by(occasion_id=o.id).order_by(GiftShare.id).all()
+        split = gf.split_shared(o.budget, [(s.person_id, s.fixed_amount) for s in shares])
+        d['shares'] = [{'id': s.id, 'person_id': s.person_id,
+                        'name': people[s.person_id].name if s.person_id in people else '',
+                        'fixed_amount': s.fixed_amount, 'amount': split['per_person'].get(s.person_id, 0.0)}
+                       for s in shares]
+        d['split'] = {k: v for k, v in split.items() if k != 'per_person'}
+    return d
+
+
+def _gift_fund_dict(session, f):
+    from core import gifts as gf
+    d = _serialize_sinking_fund(f)
+    d['last_spend'] = gf.last_spend(session, f.id)
+    return d
+
+
+@gifts_bp.route('', methods=['GET'])
+def gifts_state():
+    """Everything the Gift page shows: people with their occasions, shared occasions, gift funds, the seasonal
+    funds still to move, and the year's plan with its working."""
+    from core import gifts as gf
+    from core.database import GiftPerson, GiftOccasion
+    today = _gift_today()
     with db_session() as session:
-        row = session.query(AppSetting).filter_by(key='gift_seasons_json').first()
-        try:
-            seasons = json.loads(row.value) if row and row.value else []
-        except (json.JSONDecodeError, TypeError):
-            seasons = []
-        season = next((s for s in seasons if str(s.get('id')) == str(season_id)), None)
-        if not season:
-            return err('Season not found', 404)
-        target = float(season.get('target', 0) or 0)
-        saved_before = float(season.get('saved', 0) or 0)
-        deadline = season.get('deadline', '')
-        _log_gift_season_contribution_variance(session, season_id, target, saved_before, deadline, amount)
+        gf.ensure_imported(session)
         session.commit()
-        return ok({'logged': True})
+        people = {p.id: p for p in session.query(GiftPerson).order_by(GiftPerson.id).all()}
+        occs = session.query(GiftOccasion).order_by(GiftOccasion.id).all()
+        out_people = []
+        for p in people.values():
+            out_people.append({'id': p.id, 'name': p.name, 'relationship': p.relationship or 'other',
+                               'occasions': [_gift_occasion_dict(session, o, people, today)
+                                             for o in occs if o.person_id == p.id and not o.shared]})
+        return ok({
+            'people': out_people,
+            'shared': [_gift_occasion_dict(session, o, people, today) for o in occs if o.shared],
+            'funds': [_gift_fund_dict(session, f) for f in gf.gift_funds(session)],
+            'seasons_to_move': [{'id': s.get('id'), 'name': s.get('name'), 'target': s.get('target'),
+                                 'saved': s.get('saved'), 'deadline': s.get('deadline')}
+                                for s in gf.seasons_to_move(session)],
+            'plan': gf.year_plan(session, today),
+        })
 
 
-@gift_bp.route('/seasons/<season_id>/confidence', methods=['GET'])
-def gift_season_confidence(season_id):
-    """Gift seasons' mirror of the sinking/college-fund confidence
-    routes — thin read of get_gift_season_confidence."""
-    with db_session() as session:
-        return ok(get_gift_season_confidence(session, season_id))
-
-
-@gift_bp.route('/occasions/<person_id>/<occasion_id>/spend', methods=['POST'])
+@gifts_bp.route('/people', methods=['POST'])
 @require_json
-def log_gift_occasion_spend(person_id, occasion_id):
-    """
-    Body: { actual_spent: float }. Records what was actually spent on an
-    occasion (gift_people_json has no such field today — only the
-    budgeted amount) and logs the variance against that budget. Updates
-    the occasion in place in the settings blob, same as it always
-    persisted budget/note, rather than only living in the historian log.
-    """
-    actual_spent = request.json.get('actual_spent')
-    if actual_spent is None:
-        return err('actual_spent is required')
-    actual_spent = float(actual_spent)
+def gifts_add_person():
+    from core import gifts as gf
+    from core.database import GiftPerson
+    name = (request.json.get('name') or '').strip()
+    if not name:
+        return err('Enter a name')
+    rel = request.json.get('relationship')
     with db_session() as session:
-        row = session.query(AppSetting).filter_by(key='gift_people_json').first()
-        try:
-            people = json.loads(row.value) if row and row.value else []
-        except (json.JSONDecodeError, TypeError):
-            people = []
-        person = next((p for p in people if str(p.get('id')) == str(person_id)), None)
-        occasion = next((o for o in (person.get('occasions') or [])
-                          if str(o.get('id')) == str(occasion_id)), None) if person else None
-        if not occasion:
+        gf.ensure_imported(session)
+        p = GiftPerson(name=name[:120], relationship=rel if rel in gf.RELATIONSHIPS else 'other')
+        session.add(p)
+        session.commit()
+        return ok({'id': p.id})
+
+
+@gifts_bp.route('/people/<int:pid>', methods=['PATCH'])
+@require_json
+def gifts_edit_person(pid):
+    from core import gifts as gf
+    from core.database import GiftPerson
+    with db_session() as session:
+        p = session.get(GiftPerson, pid)
+        if not p:
+            return err('Person not found', 404)
+        if 'name' in request.json and (request.json['name'] or '').strip():
+            p.name = request.json['name'].strip()[:120]
+        if 'relationship' in request.json:
+            rel = request.json['relationship']
+            p.relationship = rel if rel in gf.RELATIONSHIPS else 'other'
+        session.commit()
+        return ok({'id': p.id})
+
+
+@gifts_bp.route('/people/<int:pid>', methods=['DELETE'])
+def gifts_delete_person(pid):
+    from core.database import GiftPerson, GiftOccasion, GiftShare
+    with db_session() as session:
+        p = session.get(GiftPerson, pid)
+        if not p:
+            return err('Person not found', 404)
+        own = [o.id for o in session.query(GiftOccasion).filter_by(person_id=pid).all()]
+        if own:
+            session.query(GiftShare).filter(GiftShare.occasion_id.in_(own)).delete(synchronize_session=False)
+            session.query(GiftOccasion).filter(GiftOccasion.id.in_(own)).delete(synchronize_session=False)
+        session.query(GiftShare).filter_by(person_id=pid).delete(synchronize_session=False)
+        session.delete(p)
+        session.commit()
+        return ok({'deleted': pid})
+
+
+@gifts_bp.route('/occasions', methods=['POST'])
+@require_json
+def gifts_add_occasion():
+    """A person's occasion ({person_id, type, date}) or a shared one ({shared: true, name, type, date})."""
+    from core import gifts as gf
+    from core.database import GiftPerson, GiftOccasion
+    b = request.json
+    typ = b.get('type') if b.get('type') in gf.TYPE_LABELS else 'other'
+    date_s = (b.get('date') or '').strip()[:10]
+    if date_s and gf._parse(date_s) is None:
+        return err('Use a date like 2026-12-25')
+    with db_session() as session:
+        gf.ensure_imported(session)
+        if b.get('shared'):
+            name = (b.get('name') or '').strip() or gf.TYPE_LABELS[typ].capitalize()
+            o = GiftOccasion(person_id=None, shared=True, type=typ, name=name[:120], date=date_s,
+                             budget=max(0.0, float(b.get('budget') or 0)))
+        else:
+            p = session.get(GiftPerson, int(b.get('person_id') or 0))
+            if not p:
+                return err('Person not found', 404)
+            if typ != 'other' and session.query(GiftOccasion).filter_by(person_id=p.id, type=typ).first():
+                return err(f'{gf.TYPE_LABELS[typ].capitalize()} is already added')
+            o = GiftOccasion(person_id=p.id, type=typ, name=(b.get('name') or '').strip()[:120], date=date_s)
+        session.add(o)
+        session.commit()
+        return ok({'id': o.id})
+
+
+@gifts_bp.route('/occasions/<int:oid>', methods=['PATCH'])
+@require_json
+def gifts_edit_occasion(oid):
+    from core import gifts as gf
+    from core.database import GiftOccasion
+    b = request.json
+    with db_session() as session:
+        o = session.get(GiftOccasion, oid)
+        if not o:
             return err('Occasion not found', 404)
-        budget = float(occasion.get('budget', 0) or 0)
-        occasion['actual_spent'] = actual_spent
-        occasion['spent_at'] = datetime.utcnow().date().isoformat()
-        row.value = json.dumps(people)
-        _log_gift_occasion_variance(session, person_id, occasion_id, budget, actual_spent)
+        if 'budget' in b:
+            o.budget = max(0.0, float(b.get('budget') or 0))
+        if 'date' in b:
+            ds = (b.get('date') or '').strip()[:10]
+            if ds and gf._parse(ds) is None:
+                return err('Use a date like 2026-12-25')
+            o.date = ds
+        if 'name' in b:
+            o.name = (b.get('name') or '').strip()[:120]
+        if 'note' in b:
+            o.note = b.get('note') or ''
         session.commit()
-        return ok({'logged': True, 'actual_spent': actual_spent})
+        return ok({'id': o.id})
+
+
+@gifts_bp.route('/occasions/<int:oid>', methods=['DELETE'])
+def gifts_delete_occasion(oid):
+    from core.database import GiftOccasion, GiftShare
+    with db_session() as session:
+        o = session.get(GiftOccasion, oid)
+        if not o:
+            return err('Occasion not found', 404)
+        session.query(GiftShare).filter_by(occasion_id=oid).delete(synchronize_session=False)
+        session.delete(o)
+        session.commit()
+        return ok({'deleted': oid})
+
+
+def _log_gift_spend(session, o, actual, from_ledger=False, charges=0):
+    if not o.budget or o.budget <= 0:
+        return
+    log_historian_event(session, 'gift_occasion_variance', expected_value=round(float(o.budget), 2),
+                        actual_value=round(float(actual), 2),
+                        context={'gift_occasion_id': o.id, 'gift_person_id': o.person_id,
+                                 'occasion_id': o.legacy_id or o.id, 'from_ledger': from_ledger,
+                                 'charges': charges})
+
+
+@gifts_bp.route('/occasions/<int:oid>/spend', methods=['POST'])
+@require_json
+def gifts_occasion_spend(oid):
+    """The "$" button: what the occasion cost, typed by the person."""
+    from core.database import GiftOccasion
+    actual = request.json.get('actual_spent')
+    try:
+        actual = round(float(actual), 2)
+    except (TypeError, ValueError):
+        return err('actual_spent is required')
+    if actual < 0:
+        return err('actual_spent is required')
+    with db_session() as session:
+        o = session.get(GiftOccasion, oid)
+        if not o:
+            return err('Occasion not found', 404)
+        o.actual_spent = actual
+        o.spent_at = _gift_today().isoformat()
+        o.spent_txn_ids = ''
+        _log_gift_spend(session, o, actual)
+        session.commit()
+        return ok({'actual_spent': actual})
+
+
+@gifts_bp.route('/occasions/<int:oid>/charges', methods=['GET'])
+def gifts_occasion_charges(oid):
+    """G4: the gift charges in the weeks before the occasion, listed for the person to pick from."""
+    from core import gifts as gf
+    from core.database import GiftOccasion, GiftPerson
+    today = _gift_today()
+    with db_session() as session:
+        o = session.get(GiftOccasion, oid)
+        if not o:
+            return err('Occasion not found', 404)
+        out = gf.charges_for(session, o, today)
+        out['label'] = gf.occasion_label(o, session.get(GiftPerson, o.person_id) if o.person_id else None)
+        return ok(out)
+
+
+@gifts_bp.route('/occasions/<int:oid>/charges', methods=['POST'])
+@require_json
+def gifts_occasion_use_charges(oid):
+    """G4, on the person's yes: the charges they picked become what the occasion cost."""
+    from core import gifts as gf
+    from core.database import GiftOccasion
+    with db_session() as session:
+        o = session.get(GiftOccasion, oid)
+        if not o:
+            return err('Occasion not found', 404)
+        ids = request.json.get('txn_ids') or []
+        spent, why = gf.use_charges(session, o, ids, _gift_today())
+        if why:
+            return err(why)
+        _log_gift_spend(session, o, spent, from_ledger=True, charges=len(ids))
+        session.commit()
+        return ok({'actual_spent': spent})
+
+
+@gifts_bp.route('/occasions/<int:oid>/shares', methods=['POST'])
+@require_json
+def gifts_add_share(oid):
+    """G6: a person under a shared occasion, with a fixed amount or none (an even part of the rest)."""
+    from core.database import GiftOccasion, GiftPerson, GiftShare
+    b = request.json
+    with db_session() as session:
+        o = session.get(GiftOccasion, oid)
+        if not o or not o.shared:
+            return err('Shared occasion not found', 404)
+        p = session.get(GiftPerson, int(b.get('person_id') or 0))
+        if not p:
+            return err('Person not found', 404)
+        if session.query(GiftShare).filter_by(occasion_id=oid, person_id=p.id).first():
+            return err(f'{p.name} is already in it')
+        fixed = b.get('fixed_amount')
+        s = GiftShare(occasion_id=oid, person_id=p.id,
+                      fixed_amount=None if fixed in (None, '') else max(0.0, float(fixed)))
+        session.add(s)
+        session.commit()
+        return ok({'id': s.id})
+
+
+@gifts_bp.route('/shares/<int:sid>', methods=['PATCH'])
+@require_json
+def gifts_edit_share(sid):
+    from core.database import GiftShare
+    with db_session() as session:
+        s = session.get(GiftShare, sid)
+        if not s:
+            return err('Not found', 404)
+        fixed = request.json.get('fixed_amount')
+        s.fixed_amount = None if fixed in (None, '') else max(0.0, float(fixed))
+        session.commit()
+        return ok({'id': s.id})
+
+
+@gifts_bp.route('/shares/<int:sid>', methods=['DELETE'])
+def gifts_delete_share(sid):
+    from core.database import GiftShare
+    with db_session() as session:
+        s = session.get(GiftShare, sid)
+        if not s:
+            return err('Not found', 404)
+        session.delete(s)
+        session.commit()
+        return ok({'deleted': sid})
+
+
+@gifts_bp.route('/set-aside', methods=['POST'])
+@require_json
+def gifts_set_aside():
+    """G1, on a tap: one "Gifts (set aside)" budget line at one of the plan's amounts."""
+    from core import gifts as gf
+    with db_session() as session:
+        line, why = gf.apply_set_aside(session, request.json.get('monthly'), _gift_today())
+        if why:
+            return err(why)
+        session.commit()
+        return ok({'id': line.id, 'name': line.name, 'amount': round(float(line.amount), 2)})
+
+
+@gifts_bp.route('/funds', methods=['POST'])
+@require_json
+def gifts_add_fund():
+    """G2: a gift fund is a sinking fund marked 'gift'; its monthly amount adds itself like every fund's."""
+    from core import gifts as gf
+    from core.database import SinkingFund
+    b = request.json
+    name = (b.get('name') or '').strip()
+    target = float(b.get('target_amount') or 0)
+    if not name:
+        return err('Enter a fund name')
+    if target <= 0:
+        return err('Enter a target amount')
+    with db_session() as session:
+        f = SinkingFund(name=name[:120], target_amount=target, current_amount=0.0,
+                        deadline=(b.get('deadline') or None), monthly_contribution=float(b.get('monthly_contribution') or 0),
+                        purpose=gf.GIFT_PURPOSE)
+        session.add(f)
+        session.commit()
+        return ok(_gift_fund_dict(session, f))
+
+
+@gifts_bp.route('/funds/<int:fid>/spent', methods=['POST'])
+@require_json
+def gifts_fund_spent(fid):
+    """G3: "Mark spent" records the target and what was spent, then sets the fund back to $0 for next time."""
+    from core import gifts as gf
+    from core.database import SinkingFund
+    try:
+        spent = round(float(request.json.get('spent')), 2)
+    except (TypeError, ValueError):
+        return err('Enter what was spent')
+    if spent < 0:
+        return err('Enter what was spent')
+    with db_session() as session:
+        f = session.get(SinkingFund, fid)
+        if not f:
+            return err('Fund not found', 404)
+        target = float(f.target_amount or 0)
+        gf.mark_fund_spent(session, f, spent, _gift_today())
+        log_historian_event(session, 'gift_fund_spent', expected_value=round(target, 2), actual_value=spent,
+                            context={'sinking_fund_id': f.id})
+        session.commit()
+        return ok(_gift_fund_dict(session, f))
+
+
+@gifts_bp.route('/seasons/move', methods=['POST'])
+def gifts_move_seasons():
+    """G2, on a tap: the old seasonal funds become gift funds, keeping what each held."""
+    from core import gifts as gf
+    with db_session() as session:
+        moved = gf.move_seasons(session)
+        session.commit()
+        return ok({'moved': moved})
+
+
+@gifts_bp.route('/upcoming', methods=['GET'])
+def gifts_upcoming():
+    """G5: budgeted occasions in the next 30 days, for the dashboard's coming-up list."""
+    from core import gifts as gf
+    with db_session() as session:
+        gf.ensure_imported(session)
+        session.commit()
+        return ok({'occasions': gf.upcoming(session, _gift_today())})
 
 
 # ── Quicken import endpoint ───────────────────────────────────────────────────

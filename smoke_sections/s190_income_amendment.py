@@ -78,11 +78,16 @@ def run(ctx):
     check('s190 D2 an income line\'s new category is an income category under Income, never a spending one',
           new is not None and new.type == 'income' and new.parent_id == made['inc'])
 
-    # D2: the repair, through Ask why - previewed, applied, undone
+    # D2: a category named for an income line already counts as income, so Check my records no longer offers to
+    # retype it (Rob 2026-10-11: "make check my records skip it"); the fix still works when asked for directly.
     inv = c.get('/api/why?figure=records', headers=H).get_json()['data']
-    f = next((r for r in inv['results'] if r.get('retype') and r.get('category') == "s190 Sam's pay"), None)
-    check('s190 D2 a category named for an income line but set up for spending is found, with a fix that says exactly what it does',
-          f is not None and f['fixes'][0]['kind'] == 'retype_category' and 'named for one of your budget' in f['text'])
+    from core.income_def import income_category_ids
+    with db_session() as s:
+        counted = made['old'] in income_category_ids(s)
+    check('s190 D2 a category named for an income line counts as income, and Check my records does not offer to retype it',
+          counted and not any(r.get('category') == "s190 Sam's pay" for r in inv['results']))
+    f = {'fixes': [{'kind': 'retype_category', 'label': "Make \"s190 Sam's pay\" an income category under \"Income\"",
+                    'category_id': made['old'], 'to_type': 'income', 'to_parent_id': made['inc']}]}
     if f:
         pv = c.post('/api/why/preview', headers=HJ, data=json.dumps({'fix': f['fixes'][0]})).get_json()['data']
         ap = c.post('/api/why/apply', headers=HJ, data=json.dumps({'fix': pv['fix'], 'fingerprint': pv['fingerprint']}))
@@ -116,7 +121,7 @@ def run(ctx):
           card.index('a month less') < card.index('Your checks were about') and 'st.left_now' in card)
     check('s190 D7/D8/D10 a missing paycheck is a question, hourly pay shows its ordinary week and overtime, and the kind of pay is asked',
           "hasn't come in since" in facts and 'Is it filed somewhere else, or did it stop?' in facts
-          and 'Overtime added' in facts and 'Is this job hourly, with overtime?' in facts
+          and 'Overtime added' in facts and 'Does this job pay overtime or holiday pay that can change the paycheck amount?' in facts
           and "incomePayKind(" in facts and "'/api/income-change/pay-kind'" in app)
     check('s190 D7 never zero, never a verdict: no "lost", "fell", "missing income" or "you should" on the card',
           not re.search(r'\b(lost|fell|missing income|you should|you need)\b', card + facts, re.I))

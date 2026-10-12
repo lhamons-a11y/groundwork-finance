@@ -173,8 +173,9 @@ def run(ctx):
     check('s141 M3 on the server only this-month readers use it - not variance, reallocation, willingness, merge, export',
           # item 71: the income check compares this month's budgeted spending with the new income
           # item 76: the Sunday check-in compares this month's spending so far with this month's budgeted spending
+          # item 66: possible futures start from this month's budgeted spending
           calls <= {'budget_month_amounts_route', 'budget_utility_estimate', 'debt_capacity', 'bootstrap', '_income_change_state', '_byb_impact',
-                    'checkin_get'}
+                    'checkin_get', '_futures_inputs'}
           and 'debt_capacity' in calls and 'bootstrap' in calls)
 
     # ── M4 / M6 / M7 in Node ─────────────────────────────────────────────────

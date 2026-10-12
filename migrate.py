@@ -12,8 +12,10 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261011-work-reimbursements'   # purchases an employer pays back (ASK_WHY.md C5, item 72 stage 4)
-# This bump carries no migrate.py code: the new reimbursable_items and reimbursement_matches tables reach an existing
+SCHEMA_VERSION = '20261011-gift-tables'   # gift people, occasions, shares and fund spends (GIFT_BUDGET.md G2/G3/G8, item 74)
+# This bump adds sinking_funds.purpose (_NEW_SINKING_FUND_COLUMNS) and four tables through init_db's create_all. The
+# gift_people_json setting is carried into the tables by core/gifts.py on first read, not here, and is kept.
+# Before it, '20261011-work-reimbursements': this bump carries no migrate.py code: the new reimbursable_items and reimbursement_matches tables reach an existing
 # database through init_db's create_all, which runs only when the stored version differs. Before it, '20261010-ai-log'
 # added the ai_log table the same way.
 # Earlier: the new ai_log table reaches an existing database through init_db's
@@ -33,12 +35,12 @@ SCHEMA_VERSION = '20261011-work-reimbursements'   # purchases an employer pays b
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = '01adb2cf8f0101ad2fbe7d661d751ec2f7d5b0a67a58907014fa6df718f53ebe'
+SCHEMA_SPEC_SHA256 = 'a21e20a9c216add4141cba358a53667b83207478ba28eff75e8337451dd7ded5'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = '0d4eb66fa5f0444d0bd2ac581f36f93fce81ef7f898ec30f44dbfe3ab70ca5c4'
+SCHEMA_MODELS_SHA256 = '72d2234ecbc5079e91f752611b0c9ddb5568322c6790ecee6a11894b88277a94'
 
 
 def _stored_schema_version():
@@ -198,6 +200,11 @@ _NEW_PROPOSITION_COLUMNS = [
 
 _NEW_FUNDING_ALLOCATION_COLUMNS = [
     ('occurred_on', "VARCHAR(10)"),
+]
+
+_NEW_SINKING_FUND_COLUMNS = [
+    # GIFT_BUDGET.md G2: 'gift' marks a gift fund. Existing funds stay '' - ordinary funds.
+    ('purpose', "VARCHAR(20) DEFAULT ''"),
 ]
 
 
@@ -502,6 +509,8 @@ def run_migration_if_needed():
             )
         '''))
         conn.commit()
+    # After the raw CREATE above, so a database that only just got sinking_funds gets the column too.
+    _add_missing_columns('sinking_funds',        _NEW_SINKING_FUND_COLUMNS)
 
     from core.database import db_session as _sess
     _seed_ok = False
