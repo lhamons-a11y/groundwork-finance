@@ -300,7 +300,7 @@ def run(ctx):
     check('s129 F.4 no line sets the user\'s word against their behaviour as a failing', not stick)
     if stick:
         print(f'        found: {stick}')
-    empty = js.split('if (!claims.length && !answered.length && !history.length && !strat && !inc) {', 1)[-1].split('var out = head;', 1)[0]
+    empty = js.split('if (!claims.length && !answered.length && !history.length && !strat && !inc) {', 1)[-1].split('// Item 78 (WORKING_PICTURE_TABS.md', 1)[0]   # the tabs begin there (item 78)
     check('s129 Wl1 the empty state offers no controls - nothing to dispute, nothing to set (F.3)',
           'return head' in empty and '_control(' not in empty and 'data-gw-declare' not in empty)
     check('s129 the empty state says it never learns from pages opened or suggestions dismissed',

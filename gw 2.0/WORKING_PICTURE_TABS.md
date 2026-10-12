@@ -3,8 +3,7 @@
 Opened 2026-10-11. Rob: *"working picture is looking a little too busy. Should we tab the sections out to keep the
 pages cleaner?"* On the tabs proposed: *"I agree with those tabs."*
 
-**T1–T6 RULED 2026-10-11 by agreement (Rob: "I agree with those tabs"). No code yet:** the build needs its own
-go-ahead.
+**T1–T6 RULED 2026-10-11 by agreement (Rob: "I agree with those tabs"). BUILT 2026-10-11 (Rob: "build 78"), awaiting acceptance; §3.**
 
 ## 1. What is true today (2026-10-11, master a2c89f3)
 
@@ -44,3 +43,25 @@ change as item 69's amendment. The chosen tab is remembered for the session only
 
 **T6. Nothing is lost.** Every control and every piece of text stays; only its place changes. The empty state stays as
 it is. s129's checks keep passing, and a test proves each section still renders in its tab.
+
+
+## 3. Built (2026-10-11)
+
+- `_pictureHTML` now draws a tab bar and four panels in place of the stack. Each panel holds exactly the cards it
+  stacked before, with their text and controls unchanged.
+- **Needs you** holds the contradiction questions, the strategy card and the income card, with a plain count when
+  any are there.
+- The page opens on *Needs you* if anything waits there; otherwise on *What your record shows*.
+- The chosen tab lives in memory for the session. Switching fetches, stores and counts nothing.
+- *How Groundwork reaches these conclusions* is one line that opens in place.
+- The empty state is unchanged. The evidence and rhythm render inside *Research and rhythm*, or below the empty state
+  as before.
+- s129's empty-state check now ends where the tabs begin.
+- **Tests:** s202 checks T1–T6.
+- **Seen in the page** on a copy of Rob's data, with no page errors:
+  - nothing was waiting, so it opened on *What your record shows*;
+  - switching to *Research and rhythm* showed only that panel, with the rhythm line.
+- **Found while looking (not changed here):** *What your record shows* lists about 33 readings of the form "you
+  lowered its budget … then set it back … Groundwork reads it as something you keep". They all come from one tap of
+  *Make this my budget* on the false income card (2026-10-10) and its Undo the same day. An Undo is not 33
+  decisions. This needs its own ruling (the Willingness Layer's edit history).
