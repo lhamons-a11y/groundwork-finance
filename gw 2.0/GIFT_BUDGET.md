@@ -121,7 +121,7 @@ rule L1.
 - **Reminders by notification.** Upcoming occasions show where upcoming facts already show (G5). Nothing pushes or
   counts down (TM6).
 
-## 4. Built 2026-10-11 (Rob: "build 74")
+## 4. Built 2026-10-11 (Rob: "build 74") - ACCEPTED + CLOSED 2026-10-11 (Rob: "i accept item 74")
 
 - **G8, G7.** People, occasions, shared occasions' people, and each "Mark spent" now live in tables (`gift_people`,
   `gift_occasions`, `gift_shares`, `fund_spends`), plus `sinking_funds.purpose`, at SCHEMA `20261011-gift-tables`.
