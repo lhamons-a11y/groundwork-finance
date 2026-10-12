@@ -239,7 +239,8 @@ Then: *"make it appear that I have a marketing team that is pushing the new stuf
 - **The voice is a polished launch page:** a confident "we", a banner, and benefit-first headlines. That is how a
   marketed product reads. **It does not say there is a marketing team.** That would be a factual claim W5 would have
   to remove, and it would be the one untrue line on a site whose point is honesty. (Claude's reading of the
-  direction, for Rob to confirm or overrule.)
+  direction.) **Rob, 2026-10-12: *"We as in me and my laptop."*** So the "we" is true as written: the site speaks
+  as the people who build Groundwork, without claiming more of them than there are.
 
 The draft is §6.1, for Rob's ruling on its wording. **W1, W2 and W4–W9 are not ruled yet.**
 
