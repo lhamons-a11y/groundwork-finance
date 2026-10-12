@@ -8,7 +8,7 @@ menu. Five are already built through other items:
 - **W8** (refunds followed through): items 50 and 72 stage 4.
 - **W10** (a monthly reflection): item 75.
 
-This opens the other five for ruling. **No code until ruled.** Each one is held to the rules in force:
+**RULED 2026-10-12 (Rob: "approve as recommended"): every point, and the order (W3, W2, W1, W5, W9).** Building is authorised by Rob's 2026-10-11 "build ... item 65": each item is built, gated and accepted before the next. Each one is held to the rules in force:
 - the agent principles (AP1–AP11, TM1–TM8, RG1–RG6);
 - no silent learning: an observation persists only once it has been shown;
 - absence is not zero;
