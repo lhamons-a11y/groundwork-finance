@@ -159,6 +159,15 @@ def run(ctx):
               'Protect your backups' in app and 'Groundwork will not show it again and does not keep it' in app
               and 'backupPrintWords' in app and 'Check that you saved it' in app and "slice(0, 3)" in app
               and 'id="backupProtect"' in ctx.html_src and 'accept=".db,.gwbk"' in ctx.html_src)
+        # Rob 2026-10-12: Print came out blank - the app-wide print rule hides every window that is not a report, and
+        # the words were inside the Backups window. They print from their own sheet at the top of the page now.
+        html = ctx.html_src
+        body_level = html.rsplit('<div id="bkPrintSheet"></div>', 1)
+        check('s209 B3 the recovery key prints: from its own sheet outside every window, which the print rules let through',
+              len(body_level) == 2 and '</body>' in body_level[1] and body_level[1].index('</body>') < 200
+              and 'body.bk-printing > *:not(#bkPrintSheet){display:none!important}' in html
+              and ':not(#gwFeedbackModal):not(#bkPrintSheet){display:none!important}' in html
+              and "const sheet = g('bkPrintSheet');" in app and "sheet.innerHTML = ''" in app)
         for f in server._backups_dir().glob('*.gwbk'):
             if f.name in (made['filename'], made2['filename'], made3['filename']) or f.name.startswith('restored_'):
                 f.unlink()

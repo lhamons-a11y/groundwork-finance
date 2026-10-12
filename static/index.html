@@ -200,8 +200,16 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .report-ai-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:rgba(255,255,255,.62);letter-spacing:.08em;text-transform:uppercase;margin-top:24px}
 
 /* Print styles */
+/* Item 81: the recovery key prints from its own sheet, outside every window - the app-wide rule below hides
+   everything that is not a report, so a sheet inside the Backups window printed blank (Rob 2026-10-12). */
+#bkPrintSheet{display:none}
 @media print {
-  body > *:not(#reportModal):not(#view-reports):not(#gwFeedbackModal){display:none!important}
+  body.bk-printing > *:not(#bkPrintSheet){display:none!important}
+  body.bk-printing #bkPrintSheet{display:block!important;color:#000;background:#fff;font-family:Inter,Arial,sans-serif;padding:24px}
+  #bkPrintSheet h1{font-size:20px;margin:0 0 6px}
+  #bkPrintSheet p{font-size:12px;line-height:1.5;margin:0 0 10px}
+  #bkPrintSheet ol{columns:3;column-gap:28px;font-family:'Courier New',monospace;font-size:15px;line-height:2.1;padding-left:28px;margin:12px 0}
+  body > *:not(#reportModal):not(#view-reports):not(#gwFeedbackModal):not(#bkPrintSheet){display:none!important}
   #reportModal{position:static!important;background:#fff!important;overflow:visible!important}
   #reportToolbar,#reportModal > div:nth-child(2){display:none!important}
   #reportContent{padding:0!important;max-width:100%!important}
@@ -3432,6 +3440,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 </div><!-- end .app -->
 
 <div class="toast-stack" id="toastStack"></div>
+<!-- Item 81: the recovery key's print sheet - filled only while printing, then emptied -->
+<div id="bkPrintSheet"></div>
 <script src="/js/app.js?v=20261008-d25"></script>
 </body>
 </html>

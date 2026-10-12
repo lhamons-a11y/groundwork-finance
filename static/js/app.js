@@ -24749,14 +24749,23 @@ function _bkWordsHTML() {
       <div class="bk-noprint" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
         <button class="btn btn-secondary btn-sm" onclick="backupPrintWords()">Print</button>
         <button class="btn btn-primary btn-sm" onclick="backupWroteItDown()">I've written it down</button></div>
-      <style>@media print { body.bk-printing * { visibility:hidden } body.bk-printing #bkWords, body.bk-printing #bkWords * { visibility:visible }
-        body.bk-printing #bkWords { position:absolute; left:0; top:0; width:100% } body.bk-printing .bk-noprint { display:none } }</style>
     </div>`;
 }
 
+// The words print from their own sheet at the top of the page (index.html #bkPrintSheet), because the app-wide print
+// rule hides every window that is not a report. The sheet is emptied again as soon as printing is done.
 function backupPrintWords() {
+  const sheet = g('bkPrintSheet');
+  if (!sheet || !_bkWords) return;
+  sheet.innerHTML = `<h1>Groundwork backup recovery key</h1>
+    <p>Made ${esc(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }))}. These 24 words open your Groundwork backups on any computer if you forget the backup password.
+      Keep this page somewhere safe and private. Anyone holding it and a backup file can open that backup. Groundwork does not keep these words and cannot show them again.</p>
+    <ol>${_bkWords.map(w => `<li>${esc(w)}</li>`).join('')}</ol>`;
+  const done = () => { document.body.classList.remove('bk-printing'); sheet.innerHTML = ''; window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
   document.body.classList.add('bk-printing');
-  try { window.print(); } finally { setTimeout(() => document.body.classList.remove('bk-printing'), 500); }
+  window.print();
+  setTimeout(() => { if (!window.matchMedia('print').matches) done(); }, 60000);   // if afterprint never comes
 }
 function backupWroteItDown() {
   const idx = [...Array(24).keys()].sort(() => Math.random() - 0.5).slice(0, 3).sort((a, b) => a - b);
