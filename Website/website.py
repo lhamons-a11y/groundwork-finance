@@ -165,181 +165,334 @@ def send_confirmation_email(email, name, token):
 SITE_CSS = """
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --ink:    #1a1a2e;
-  --pine:   #2d6a4f;
-  --gold:   #e9c46a;
-  --ember:  #e76f51;
-  --paper:  #fafaf7;
-  --mist:   #f0f0eb;
-  --steel:  #e0e0d8;
-  --slate:  #666;
-  --r:      8px;
+  --ink:    #0f1b2d;
+  --ink-2:  #16263d;
+  --pine:   #1f7a5c;
+  --pine-d: #17604a;
+  --mint:   #3ddc97;
+  --gold:   #f2c14e;
+  --ember:  #e4572e;
+  --paper:  #fbfaf6;
+  --mist:   #f1f0ea;
+  --steel:  #e3e1d8;
+  --slate:  #4a5568;
+  --muted:  #6b7280;
+  --r:      12px;
+  --shadow: 0 1px 2px rgba(15,27,45,.06), 0 8px 24px rgba(15,27,45,.06);
+  --shadow-lg: 0 2px 4px rgba(15,27,45,.06), 0 24px 48px rgba(15,27,45,.12);
 }
-body { font-family: 'Inter', sans-serif; background: var(--paper); color: var(--ink); line-height: 1.6; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Inter', system-ui, sans-serif; background: var(--paper); color: var(--ink); line-height: 1.65;
+       -webkit-font-smoothing: antialiased; }
+h1, h2, h3, .display { font-family: 'Fraunces', Georgia, serif; letter-spacing: -.02em; }
 a { color: var(--pine); text-decoration: none; }
 a:hover { text-decoration: underline; }
-.container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+.container { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+.narrow { max-width: 760px; margin: 0 auto; padding: 0 24px; }
 .btn {
-  display: inline-block; padding: 14px 28px; border-radius: var(--r);
-  font-weight: 600; font-size: 15px; cursor: pointer; border: none;
-  transition: opacity .15s;
+  display: inline-flex; align-items: center; gap: 8px; padding: 14px 26px; border-radius: 999px;
+  font-weight: 600; font-size: 15px; cursor: pointer; border: none; font-family: inherit;
+  transition: transform .15s, box-shadow .15s, background .15s;
 }
-.btn:hover { opacity: .88; text-decoration: none; }
-.btn-primary { background: var(--pine); color: #fff; }
-.btn-ghost { background: transparent; color: var(--pine); border: 2px solid var(--pine); }
+.btn:hover { text-decoration: none; transform: translateY(-1px); }
+.btn-primary { background: var(--pine); color: #fff; box-shadow: 0 6px 18px rgba(31,122,92,.28); }
+.btn-primary:hover { background: var(--pine-d); }
+.btn-light { background: #fff; color: var(--ink); box-shadow: var(--shadow); }
+.btn-ghost { background: transparent; color: var(--pine); border: 1.5px solid var(--pine); }
+.btn-ghost-light { background: rgba(255,255,255,.08); color: #fff; border: 1.5px solid rgba(255,255,255,.28); }
 .btn-gold { background: var(--gold); color: var(--ink); }
 
-/* Nav — scoped to .site-nav; a bare `nav` selector also hit the KB sidebar
-   (<nav class="kb-nav">), giving it a dark background under dark link text. */
-.site-nav { background: var(--ink); padding: 0 24px; position: sticky; top: 0; z-index: 100; }
-.nav-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center;
-             justify-content: space-between; height: 64px; }
-.nav-logo { color: #fff; font-size: 20px; font-weight: 700; letter-spacing: -.5px; }
-.nav-logo span { color: var(--gold); }
-.nav-links { display: flex; gap: 32px; }
-.nav-links a { color: rgba(255,255,255,.8); font-size: 14px; font-weight: 500; }
-.nav-links a:hover { color: #fff; text-decoration: none; }
-.nav-cta { background: var(--gold); color: var(--ink) !important;
-           padding: 8px 18px; border-radius: var(--r); font-weight: 600 !important; }
+/* Announcement bar */
+.beta-bar { background: linear-gradient(90deg, #12324a, #1f7a5c); color: #fff; padding: 10px 24px;
+            text-align: center; font-size: 14px; }
+.beta-bar a { color: var(--gold); font-weight: 600; }
+
+/* Nav */
+.site-nav { background: rgba(251,250,246,.86); backdrop-filter: saturate(160%) blur(12px);
+            -webkit-backdrop-filter: saturate(160%) blur(12px); border-bottom: 1px solid var(--steel);
+            position: sticky; top: 0; z-index: 100; padding: 0 24px; }
+.nav-inner { max-width: 1160px; margin: 0 auto; display: flex; align-items: center;
+             justify-content: space-between; height: 68px; gap: 16px; }
+.nav-logo { font-family: 'Fraunces', Georgia, serif; font-style: italic; color: var(--ink); font-size: 24px;
+            font-weight: 700; letter-spacing: -.5px; display: flex; align-items: center; gap: 10px; }
+.nav-logo:hover { text-decoration: none; }
+.nav-logo em { color: var(--pine); font-style: italic; }
+.nav-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--ink); display: inline-flex;
+            align-items: flex-end; justify-content: center; gap: 3px; padding: 6px; }
+.nav-mark i { display: block; width: 4px; border-radius: 2px; background: var(--mint); }
+.nav-links { display: flex; gap: 28px; align-items: center; }
+.nav-links a { color: var(--slate); font-size: 14.5px; font-weight: 500; }
+.nav-links a:hover { color: var(--ink); text-decoration: none; }
+.nav-links a.nav-new { color: var(--pine); font-weight: 600; }
+.nav-cta { background: var(--ink); color: #fff !important; padding: 9px 18px; border-radius: 999px; font-weight: 600 !important; }
+.nav-cta:hover { background: var(--ink-2); }
 
 /* Hero */
-.hero { background: var(--ink); color: #fff; padding: 100px 24px 80px; text-align: center; }
-.beta-badge {
-  display: inline-block; background: var(--gold); color: var(--ink);
-  font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-  padding: 4px 12px; border-radius: 20px; margin-bottom: 24px;
-}
-.hero h1 { font-size: clamp(32px, 5vw, 60px); font-weight: 800; line-height: 1.15;
-           letter-spacing: -.5px; margin-bottom: 20px; max-width: 800px; margin-inline: auto; }
-.hero h1 em { color: var(--gold); font-style: normal; }
-.hero p { font-size: 18px; color: rgba(255,255,255,.75); max-width: 560px;
-          margin: 0 auto 40px; }
-.hero-btns { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.hero { position: relative; overflow: hidden; color: #fff; padding: 96px 24px 88px;
+        background: radial-gradient(1200px 600px at 85% -10%, rgba(61,220,151,.22), transparent 60%),
+                    radial-gradient(900px 500px at -10% 110%, rgba(242,193,78,.16), transparent 60%),
+                    linear-gradient(160deg, #0f1b2d 0%, #12324a 55%, #134b44 100%); }
+.hero-inner { max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: 1.05fr .95fr;
+              gap: 56px; align-items: center; }
+.hero-center { text-align: center; max-width: 820px; margin: 0 auto; }
+.beta-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.1);
+              border: 1px solid rgba(255,255,255,.18); color: #fff; font-size: 13px; font-weight: 600;
+              padding: 6px 14px; border-radius: 999px; margin-bottom: 26px; }
+.beta-badge b { width: 8px; height: 8px; border-radius: 50%; background: var(--mint); display: inline-block; }
+.hero h1 { font-size: clamp(36px, 5.4vw, 64px); font-weight: 600; line-height: 1.06; margin-bottom: 22px; }
+.hero h1 em { color: var(--mint); font-style: italic; }
+.hero p.lead { font-size: 19px; color: rgba(255,255,255,.82); max-width: 560px; margin-bottom: 34px; }
+.hero-center p.lead { margin-left: auto; margin-right: auto; }
+.hero-btns { display: flex; gap: 14px; flex-wrap: wrap; }
+.hero-center .hero-btns { justify-content: center; }
+.hero-note { margin-top: 18px; font-size: 13px; color: rgba(255,255,255,.6); }
 
-/* Beta banner */
-.beta-bar { background: #fff3cd; border-bottom: 1px solid #ffc107;
-            padding: 12px 24px; text-align: center; font-size: 14px; color: #856404; }
+/* Hero app window (an illustration with sample figures) */
+.appwin { background: #f7f6f1; border-radius: 16px; box-shadow: 0 40px 80px rgba(0,0,0,.35);
+          overflow: hidden; transform: perspective(1400px) rotateY(-6deg) rotateX(3deg); color: var(--ink); }
+.appwin-bar { background: #e9e7df; height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 14px; }
+.appwin-bar i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+.appwin-body { display: grid; grid-template-columns: 120px 1fr; min-height: 320px; }
+.appwin-side { background: var(--ink); padding: 16px 12px; display: flex; flex-direction: column; gap: 9px; }
+.appwin-side span { height: 8px; border-radius: 4px; background: rgba(255,255,255,.14); }
+.appwin-side span.on { background: var(--mint); width: 70%; }
+.appwin-main { padding: 18px; display: grid; gap: 12px; }
+.tile { background: #fff; border: 1px solid var(--steel); border-radius: 10px; padding: 12px 14px; }
+.tile-l { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tile-n { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 600; margin-top: 2px; }
+.tile-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tile-bars { display: flex; align-items: flex-end; gap: 5px; height: 54px; margin-top: 8px; }
+.tile-bars i { flex: 1; border-radius: 3px 3px 0 0; background: var(--pine); opacity: .8; display: block; }
+.tile-bars i.hi { background: var(--gold); opacity: 1; }
+.tile-why { font-size: 11.5px; color: var(--slate); margin-top: 6px; }
+.tile-why b { color: var(--pine); }
+.sample-tag { text-align: right; font-size: 11px; color: rgba(255,255,255,.5); margin-top: 10px; }
 
-/* Features */
-.features { padding: 80px 24px; }
-.section-label { font-size: 12px; font-weight: 700; letter-spacing: .12em;
-                 text-transform: uppercase; color: var(--pine); margin-bottom: 12px; }
-.section-title { font-size: clamp(24px, 4vw, 42px); font-weight: 800;
-                 letter-spacing: -.5px; margin-bottom: 16px; }
-.section-sub { font-size: 17px; color: var(--slate); max-width: 560px; }
-.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                 gap: 24px; margin-top: 56px; }
-.feature-card { background: #fff; border: 1px solid var(--steel); border-radius: 12px;
-                padding: 28px; transition: box-shadow .2s; }
-.feature-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,.08); }
-.feature-icon { font-size: 32px; margin-bottom: 16px; }
-.feature-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-.feature-card p { font-size: 14px; color: var(--slate); line-height: 1.7; }
+/* Sections */
+section { scroll-margin-top: 80px; }
+.band { padding: 96px 24px; }
+.band-mist { background: var(--mist); }
+.band-ink { background: var(--ink); color: #fff; }
+.section-label { display: inline-block; font-size: 12.5px; font-weight: 700; letter-spacing: .12em;
+                 text-transform: uppercase; color: var(--pine); margin-bottom: 14px; }
+.band-ink .section-label { color: var(--mint); }
+.section-title { font-size: clamp(28px, 4vw, 46px); font-weight: 600; line-height: 1.12; margin-bottom: 16px; }
+.section-sub { font-size: 18px; color: var(--slate); max-width: 640px; }
+.band-ink .section-sub { color: rgba(255,255,255,.75); }
+.center { text-align: center; }
+.center .section-sub { margin: 0 auto; }
 
-/* Screenshots */
-.screenshots { background: var(--mist); padding: 80px 24px; }
-.screenshot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                   gap: 20px; margin-top: 48px; }
-.screenshot-item { background: var(--ink); border-radius: 12px; overflow: hidden;
-                   aspect-ratio: 16/10; display: flex; align-items: center;
-                   justify-content: center; position: relative; }
-.screenshot-mock { width: 100%; height: 100%; padding: 16px; }
-.mock-bar { height: 28px; background: rgba(255,255,255,.05); border-radius: 6px 6px 0 0;
-            display: flex; align-items: center; padding: 0 12px; gap: 6px; margin-bottom: 8px; }
-.mock-dot { width: 8px; height: 8px; border-radius: 50%; }
-.mock-content { display: flex; flex-direction: column; gap: 8px; }
-.mock-row { height: 8px; background: rgba(255,255,255,.1); border-radius: 4px; }
-.mock-card { background: rgba(255,255,255,.05); border-radius: 6px; padding: 10px;
-             border: 1px solid rgba(255,255,255,.08); }
-.mock-num { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 600; color: var(--gold); }
-.mock-lbl { font-size: 10px; color: rgba(255,255,255,.4); margin-bottom: 4px; }
-.mock-bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 40px; margin-top: 8px; }
-.mock-bar-item { flex: 1; background: var(--pine); border-radius: 2px 2px 0 0; opacity: .7; }
-.screenshot-label { text-align: center; margin-top: 12px; font-size: 13px;
-                    font-weight: 600; color: var(--ink); }
+/* Pillars */
+.pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 52px; }
+.pillar { background: #fff; border: 1px solid var(--steel); border-radius: 18px; padding: 28px 24px;
+          box-shadow: var(--shadow); }
+.pillar h3 { font-size: 21px; font-weight: 600; margin: 16px 0 8px; line-height: 1.25; }
+.pillar p { font-size: 15px; color: var(--slate); }
+.chip { width: 46px; height: 46px; border-radius: 12px; display: inline-flex; align-items: center;
+        justify-content: center; }
+.chip svg { width: 24px; height: 24px; }
+.chip-pine { background: #e3f3ec; color: var(--pine); }
+.chip-gold { background: #fdf3d8; color: #9a6b00; }
+.chip-ember { background: #fde7df; color: #b33a14; }
+.chip-ink { background: #e6ebf3; color: var(--ink); }
 
-/* Mission */
-.mission { padding: 80px 24px; display: grid;
-           grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
-.mission-text h2 { font-size: clamp(24px, 3vw, 36px); font-weight: 800; margin-bottom: 20px; }
-.mission-text p { color: var(--slate); line-height: 1.8; margin-bottom: 16px; }
-.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.stat-card { background: var(--ink); color: #fff; padding: 24px; border-radius: 12px; }
-.stat-num { font-size: 36px; font-weight: 800; color: var(--gold); }
-.stat-lbl { font-size: 13px; color: rgba(255,255,255,.6); margin-top: 4px; }
+/* Feature grid */
+.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                 gap: 18px; margin-top: 52px; }
+.feature-card { background: #fff; border: 1px solid var(--steel); border-radius: 16px; padding: 26px;
+                transition: box-shadow .2s, transform .2s; }
+.feature-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+.feature-card h3 { font-family: 'Inter', sans-serif; letter-spacing: -.01em; font-size: 17px;
+                   font-weight: 700; margin: 14px 0 6px; }
+.feature-card p { font-size: 15px; color: var(--slate); line-height: 1.65; }
+
+/* Split rows */
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+.split p { color: var(--slate); font-size: 17px; margin-bottom: 14px; }
+.band-ink .split p { color: rgba(255,255,255,.78); }
+.checklist { list-style: none; margin-top: 18px; display: grid; gap: 12px; }
+.checklist li { padding-left: 32px; position: relative; font-size: 16px; color: var(--slate); }
+.band-ink .checklist li { color: rgba(255,255,255,.82); }
+.checklist li::before { content: ''; position: absolute; left: 0; top: 4px; width: 20px; height: 20px;
+                        border-radius: 50%; background: var(--pine) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E") center/12px no-repeat; }
+.panel { background: #fff; border: 1px solid var(--steel); border-radius: 20px; padding: 30px; box-shadow: var(--shadow-lg); }
+.band-ink .panel { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); box-shadow: none; }
+.panel-row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--steel); font-size: 15px; }
+.band-ink .panel-row { border-color: rgba(255,255,255,.1); }
+.panel-row:last-child { border-bottom: none; }
+.panel-row b { font-weight: 600; }
+.panel-row span { color: var(--slate); text-align: right; }
+.band-ink .panel-row span { color: rgba(255,255,255,.7); }
+
+/* Coming in 2.0 */
+.next-hero { padding: 88px 24px 72px; }
+.next-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 48px; }
+.next-card { background: #fff; border: 1px solid var(--steel); border-radius: 18px; padding: 28px; box-shadow: var(--shadow); }
+.next-card h3 { font-size: 22px; font-weight: 600; margin: 14px 0 8px; line-height: 1.25; }
+.next-card p { color: var(--slate); font-size: 15.5px; }
+.next-card.design { background: var(--mist); border-style: dashed; box-shadow: none; }
+.tag { display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+       padding: 3px 10px; border-radius: 999px; background: #e3f3ec; color: var(--pine); margin-left: 8px; vertical-align: middle; }
+.tag-design { background: #fdf3d8; color: #8a5d00; }
+.teaser-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 44px; }
+.teaser { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 24px; }
+.teaser h3 { font-family: 'Inter', sans-serif; letter-spacing: -.01em; font-size: 17px; font-weight: 700; margin-bottom: 6px; color: #fff; }
+.teaser p { font-size: 14.5px; color: rgba(255,255,255,.72); }
 
 /* Signup */
-.signup-section { background: var(--pine); padding: 80px 24px; text-align: center; color: #fff; }
-.signup-section h2 { font-size: clamp(24px, 4vw, 40px); font-weight: 800; margin-bottom: 12px; }
-.signup-section p { color: rgba(255,255,255,.8); margin-bottom: 32px; font-size: 16px; }
-.signup-form { display: flex; gap: 12px; max-width: 500px; margin: 0 auto; flex-wrap: wrap; }
-.signup-form input {
-  flex: 1; min-width: 200px; padding: 14px 18px; border-radius: var(--r);
-  border: none; font-size: 15px; font-family: inherit;
-}
+.signup-section { padding: 88px 24px; text-align: center; color: #fff;
+                  background: radial-gradient(800px 400px at 50% 0%, rgba(61,220,151,.22), transparent 70%), var(--pine-d); }
+.signup-section h2 { font-size: clamp(28px, 4vw, 42px); font-weight: 600; margin-bottom: 12px; }
+.signup-section p { color: rgba(255,255,255,.85); margin-bottom: 30px; font-size: 17px; }
+.signup-form { display: flex; gap: 10px; max-width: 540px; margin: 0 auto; flex-wrap: wrap; justify-content: center; }
+.signup-form input { flex: 1; min-width: 180px; padding: 14px 18px; border-radius: 999px; border: none;
+                     font-size: 15px; font-family: inherit; }
 .signup-form .btn { background: var(--gold); color: var(--ink); }
 .signup-msg { margin-top: 16px; font-size: 14px; min-height: 20px; }
 
 /* Footer */
-footer { background: var(--ink); color: rgba(255,255,255,.5); padding: 48px 24px;
-         text-align: center; font-size: 13px; }
-footer a { color: rgba(255,255,255,.6); }
-.footer-links { display: flex; justify-content: center; gap: 24px; margin-bottom: 20px; flex-wrap: wrap; }
+footer { background: var(--ink); color: rgba(255,255,255,.62); padding: 56px 24px 40px; font-size: 14px; }
+footer a { color: rgba(255,255,255,.78); }
+.foot-grid { max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 32px; }
+.foot-grid h4 { color: #fff; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 12px; font-family: 'Inter', sans-serif; }
+.foot-grid ul { list-style: none; display: grid; gap: 8px; }
+.foot-brand { font-family: 'Fraunces', Georgia, serif; font-style: italic; color: #fff; font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.foot-base { max-width: 1160px; margin: 36px auto 0; padding-top: 22px; border-top: 1px solid rgba(255,255,255,.1);
+             display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 13px; }
+
+/* Page heads */
+.page-head { padding: 80px 24px 56px; color: #fff; text-align: center;
+             background: radial-gradient(900px 400px at 80% -20%, rgba(61,220,151,.2), transparent 60%),
+                         linear-gradient(160deg, #0f1b2d, #12324a); }
+.page-head h1 { font-size: clamp(32px, 4.6vw, 54px); font-weight: 600; margin-bottom: 12px; }
+.page-head p { color: rgba(255,255,255,.78); font-size: 18px; max-width: 640px; margin: 0 auto; }
+.prose { padding: 64px 24px; }
+.prose h2 { font-size: 28px; font-weight: 600; margin: 40px 0 14px; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { color: var(--slate); font-size: 17px; line-height: 1.85; margin-bottom: 16px; }
+.prose ul { color: var(--slate); font-size: 16.5px; line-height: 1.8; padding-left: 22px; margin-bottom: 16px; }
+.prose li { margin-bottom: 6px; }
+.callout { background: #e3f3ec; border-left: 4px solid var(--pine); padding: 16px 20px; border-radius: 0 12px 12px 0;
+           margin: 20px 0; color: var(--ink); font-size: 15.5px; }
 
 /* Download page */
-.download-hero { background: var(--ink); color: #fff; padding: 80px 24px; text-align: center; }
-.download-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                 gap: 24px; margin-top: 48px; padding: 60px 24px; }
-.download-card { background: #fff; border: 2px solid var(--steel); border-radius: 12px;
-                 padding: 32px; text-align: center; transition: border-color .2s; }
-.download-card:hover { border-color: var(--pine); }
-.download-card .os-icon { font-size: 48px; margin-bottom: 16px; }
-.download-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
-.download-card p { color: var(--slate); font-size: 14px; margin-bottom: 24px; }
-.requirements { background: var(--mist); border-radius: var(--r); padding: 16px;
-                font-size: 13px; color: var(--slate); margin-top: 16px; text-align: left; }
+.download-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                 gap: 22px; padding: 48px 24px 24px; }
+.download-card { background: #fff; border: 1px solid var(--steel); border-radius: 20px; padding: 30px;
+                 box-shadow: var(--shadow); display: flex; flex-direction: column; }
+.download-card:hover { box-shadow: var(--shadow-lg); }
+.download-card .os-icon { font-size: 40px; margin-bottom: 12px; }
+.download-card h3 { font-size: 24px; font-weight: 600; margin-bottom: 6px; }
+.download-card p { color: var(--slate); font-size: 15px; margin-bottom: 20px; }
+.download-card .btn { justify-content: center; }
+.requirements { background: var(--mist); border-radius: 12px; padding: 16px; font-size: 13.5px;
+                color: var(--slate); margin-top: 18px; text-align: left; line-height: 1.7; }
 
 /* KB */
-.kb-grid { display: grid; grid-template-columns: 240px 1fr; gap: 40px;
-           padding: 60px 24px; max-width: 1100px; margin: 0 auto; }
-.kb-nav { position: sticky; top: 84px; align-self: start; }
-.kb-nav h3 { font-size: 12px; font-weight: 700; letter-spacing: .1em;
-             text-transform: uppercase; color: var(--slate); margin-bottom: 12px; }
-.kb-nav a { display: block; padding: 8px 12px; border-radius: 6px; font-size: 14px;
-            color: var(--ink); margin-bottom: 2px; }
+.kb-grid { display: grid; grid-template-columns: 250px 1fr; gap: 48px; padding: 56px 24px; max-width: 1160px; margin: 0 auto; }
+.kb-grid > * { min-width: 0; }
+.kb-article p, .kb-article li { overflow-wrap: anywhere; }
+footer a { overflow-wrap: anywhere; }
+.kb-nav { position: sticky; top: 92px; align-self: start; background: #fff; border: 1px solid var(--steel);
+          border-radius: 16px; padding: 18px; }
+.kb-nav h3 { font-family: 'Inter', sans-serif; letter-spacing: .1em; font-size: 12px; font-weight: 700;
+             text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.kb-nav a { display: block; padding: 7px 10px; border-radius: 8px; font-size: 14px; color: var(--ink); }
 .kb-nav a:hover, .kb-nav a.active { background: var(--mist); text-decoration: none; }
-.kb-content h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
-.kb-content .kb-sub { color: var(--slate); margin-bottom: 40px; }
-.kb-article { margin-bottom: 48px; padding-bottom: 48px; border-bottom: 1px solid var(--steel); }
-.kb-article h2 { font-size: 22px; font-weight: 700; margin-bottom: 12px; color: var(--ink); }
-.kb-article h3 { font-size: 16px; font-weight: 600; margin: 20px 0 8px; }
+.kb-content h1 { font-size: 34px; font-weight: 600; margin-bottom: 8px; }
+.kb-content .kb-sub { color: var(--slate); margin-bottom: 40px; font-size: 17px; }
+.kb-article { margin-bottom: 44px; padding-bottom: 44px; border-bottom: 1px solid var(--steel); }
+.kb-article h2 { font-size: 24px; font-weight: 600; margin-bottom: 12px; }
+.kb-article h3 { font-family: 'Inter', sans-serif; letter-spacing: -.01em; font-size: 16px; font-weight: 700; margin: 20px 0 8px; }
+.kb-article h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
 .kb-article p { color: var(--slate); line-height: 1.8; margin-bottom: 12px; }
-.kb-article ul { color: var(--slate); padding-left: 20px; line-height: 2; }
-.kb-tip { background: #e8f5e9; border-left: 3px solid var(--pine); padding: 12px 16px;
-          border-radius: 0 6px 6px 0; font-size: 14px; margin: 16px 0; }
+.kb-article ul { color: var(--slate); padding-left: 20px; line-height: 1.9; }
+.kb-tip { background: #e3f3ec; border-left: 3px solid var(--pine); padding: 12px 16px; color: var(--ink);
+          border-radius: 0 10px 10px 0; font-size: 14.5px; margin: 16px 0; }
 
 /* Admin */
 .admin-wrap { max-width: 700px; margin: 60px auto; padding: 0 24px; }
 .admin-card { background: #fff; border: 1px solid var(--steel); border-radius: 12px; padding: 32px; }
 .field { margin-bottom: 20px; }
 .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-.field input, .field textarea {
-  width: 100%; padding: 10px 14px; border: 1px solid var(--steel);
-  border-radius: var(--r); font-size: 14px; font-family: inherit;
-}
+.field input, .field textarea { width: 100%; padding: 10px 14px; border: 1px solid var(--steel);
+  border-radius: 8px; font-size: 14px; font-family: inherit; }
 .field textarea { min-height: 200px; resize: vertical; }
 .stats-row { display: flex; gap: 20px; margin-bottom: 24px; }
-.stat-pill { background: var(--mist); border-radius: var(--r); padding: 16px 20px; flex: 1; }
+.stat-pill { background: var(--mist); border-radius: 8px; padding: 16px 20px; flex: 1; }
 .stat-pill .n { font-size: 28px; font-weight: 800; color: var(--pine); }
 .stat-pill .l { font-size: 12px; color: var(--slate); }
 
-@media (max-width: 768px) {
-  .mission { grid-template-columns: 1fr; gap: 40px; }
+/* Reveal on scroll */
+.reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+.reveal.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } .appwin { transform: none; } }
+
+@media (max-width: 980px) {
+  .hero-inner, .split { grid-template-columns: 1fr; gap: 40px; }
+  .pillars { grid-template-columns: 1fr 1fr; }
+  .teaser-grid { grid-template-columns: 1fr; }
+  .foot-grid { grid-template-columns: 1fr 1fr; }
+  .appwin { transform: none; }
+}
+@media (max-width: 720px) {
+  .nav-links a:not(.nav-cta) { display: none; }
+  .pillars { grid-template-columns: 1fr; }
   .kb-grid { grid-template-columns: 1fr; }
   .kb-nav { position: static; }
-  .nav-links { display: none; }
+  .foot-grid { grid-template-columns: 1fr; }
+  .band { padding: 72px 20px; }
+  .appwin-body { grid-template-columns: 1fr; }
+  .appwin-side { display: none; }
 }
 """
+
+# ── Icons (inline, so the site loads nothing extra) ──────────────────────────
+_ICON_PATHS = {
+    'chart':  '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+    'book':   '<path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2z"/><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8z"/>',
+    'heart':  '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>',
+    'shield': '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+    'wallet': '<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M16 13h2"/><path d="M2 10h20"/>',
+    'card':   '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/>',
+    'list':   '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
+    'trend':  '<path d="M22 7l-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',
+    'gift':   '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v9H5v-9"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>',
+    'plane':  '<path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>',
+    'cart':   '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/>',
+    'file':   '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+    'spark':  '<path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/><path d="M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z"/>',
+    'lock':   '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    'import': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>',
+    'bank':   '<path d="M3 21h18"/><path d="M5 21V10"/><path d="M19 21V10"/><path d="M9 21V10"/><path d="M15 21V10"/><path d="M2 10l10-7 10 7"/>',
+    'bill':   '<path d="M4 2v20l3-2 3 2 2-2 2 2 3-2 3 2V2l-3 2-3-2-2 2-2-2-3 2z"/><path d="M8 9h8"/><path d="M8 13h6"/>',
+    'ask':    '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+    'pay':    '<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+    'fork':   '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><path d="M6 9v1a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4V9"/><path d="M12 14v1"/>',
+    'cal':    '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+    'flame':  '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.4-2.3 1-3.3.4 1.4 1.4 2.8 2.5 2.8z"/>',
+    'micro':  '<path d="M9 2v6l-5 9a3 3 0 0 0 2.6 4.5h10.8A3 3 0 0 0 20 17l-5-9V2"/><path d="M8 2h8"/><path d="M7 15h10"/>',
+    'cpu':    '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3"/><path d="M15 1v3"/><path d="M9 20v3"/><path d="M15 20v3"/><path d="M20 9h3"/><path d="M20 14h3"/><path d="M1 9h3"/><path d="M1 14h3"/>',
+    'math':   '<path d="M4 4h16v16H4z"/><path d="M8 8h3"/><path d="M9.5 6.5v3"/><path d="M13 8h3"/><path d="M8 15l2 2"/><path d="M10 15l-2 2"/><path d="M13 15h3"/><path d="M13 17h3"/>',
+    'eye':    '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+    'pulse':  '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    'arrow':  '<path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>',
+}
+
+
+def _icon(name):
+    return ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" '
+            'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + _ICON_PATHS[name] + '</svg>')
+
+
+def _icons(html):
+    """Swap each [[name]] in a page for its inline icon."""
+    for name in _ICON_PATHS:
+        html = html.replace('[[' + name + ']]', _icon(name))
+    return html
+
+
+SITE_VERSION = '1.1.1'   # the version offered for download; s205 holds it to the changelog's newest entry
 
 BASE_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -348,6 +501,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }} — Groundwork</title>
   <meta name="description" content="{{ description }}">
+  <meta name="theme-color" content="#0f1b2d">
   <link rel="canonical" href="{{ canonical }}">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Groundwork">
@@ -361,25 +515,27 @@ BASE_TEMPLATE = """<!DOCTYPE html>
   <meta name="twitter:image" content="https://groundworkfinance.app/static/groundwork_256.png">
   {{ structured_data|default('')|safe }}
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>""" + SITE_CSS + """</style>
 </head>
 <body>
 
 <div class="beta-bar">
-  🎉 <strong>Groundwork 1.1 is here</strong> — free to download and use.
-  <a href="/download">Get the latest version</a>.
+  <strong>Groundwork """ + SITE_VERSION + """ is here</strong>: free for Windows, macOS and Linux.
+  &nbsp;·&nbsp; <a href="/coming">See what's coming in 2.0 →</a>
 </div>
 
 <nav class="site-nav">
   <div class="nav-inner">
-    <a href="/" class="nav-logo">Ground<span>work</span></a>
+    <a href="/" class="nav-logo"><span class="nav-mark"><i style="height:7px"></i><i style="height:12px"></i><i style="height:17px"></i></span><span class="nav-word">Ground<em>work</em></span></a>
     <div class="nav-links">
       <a href="/features">Features</a>
-      <a href="/download">Download</a>
+      <a href="/coming" class="nav-new">Coming in 2.0</a>
       <a href="/knowledge-base">Help</a>
       <a href="/about">About</a>
-      <a href="/download" class="nav-cta">Download Free</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/download" class="nav-cta">Download free</a>
     </div>
   </div>
 </nav>
@@ -387,18 +543,43 @@ BASE_TEMPLATE = """<!DOCTYPE html>
 {% block content %}{% endblock %}
 
 <footer>
-  <div class="footer-links">
-    <a href="/">Home</a>
-    <a href="/features">Features</a>
-    <a href="/download">Download</a>
-    <a href="/knowledge-base">Knowledge Base</a>
-    <a href="/changelog">Changelog</a>
-    <a href="/about">About</a>
-    <a href="/privacy">Privacy</a>
-    <a href="/terms">Terms</a>
+  <div class="foot-grid">
+    <div>
+      <div class="foot-brand">Groundwork</div>
+      <p style="max-width:300px">Your whole financial picture, explained, with nothing to sell you. Free, and it runs on your own computer.</p>
+    </div>
+    <div>
+      <h4>Product</h4>
+      <ul>
+        <li><a href="/features">Features</a></li>
+        <li><a href="/coming">Coming in 2.0</a></li>
+        <li><a href="/download">Download</a></li>
+        <li><a href="/changelog">Changelog</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Help</h4>
+      <ul>
+        <li><a href="/knowledge-base">Knowledge base</a></li>
+        <li><a href="/knowledge-base#install">Installing</a></li>
+        <li><a href="/knowledge-base#report-bug">Reporting a problem</a></li>
+        <li><a href="/signup">Email updates</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Groundwork</h4>
+      <ul>
+        <li><a href="/about">About</a></li>
+        <li><a href="/privacy">Privacy</a></li>
+        <li><a href="/terms">Terms</a></li>
+        <li><a href="mailto:hello@groundworkfinance.app">hello@groundworkfinance.app</a></li>
+      </ul>
+    </div>
   </div>
-  <p>© 2026 Groundwork · Free personal finance software · Your data stays on your machine</p>
-  <p style="margin-top:8px">Questions? <a href="mailto:hello@groundworkfinance.app">hello@groundworkfinance.app</a></p>
+  <div class="foot-base">
+    <span>© 2026 Groundwork · Free personal finance software</span>
+    <span>No account · No subscription · No ads · Your data stays on your computer</span>
+  </div>
 </footer>
 
 <script>
@@ -425,6 +606,16 @@ BASE_TEMPLATE = """<!DOCTYPE html>
   if (!label) return;
   els.forEach(function (el) { el.textContent = label; });
 })();
+// Sections fade in as they scroll into view; with reduced motion, or no
+// IntersectionObserver, everything is simply shown.
+(function () {
+  var els = document.querySelectorAll('.reveal');
+  if (!('IntersectionObserver' in window)) { els.forEach(function (e) { e.classList.add('in'); }); return; }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
+  }, { threshold: 0.12 });
+  els.forEach(function (e) { io.observe(e); });
+})();
 </script>
 </body>
 </html>"""
@@ -437,10 +628,11 @@ _HOME_STRUCTURED_DATA = '<script type="application/ld+json">' + json.dumps({
     'name': 'Groundwork',
     'applicationCategory': 'FinanceApplication',
     'operatingSystem': 'Windows, macOS, Linux',
-    'description': 'Free personal finance app for budgeting, debt payoff, and net worth tracking. '
-                   'No account, no subscription — your data stays on your machine.',
+    'description': 'A free personal finance app that tracks your whole financial picture, explains it, and has '
+                   'nothing to sell you. No account, no subscription, no ads; your data stays on your computer.',
     'url': SITE_URL,
     'downloadUrl': SITE_URL + '/download',
+    'softwareVersion': SITE_VERSION,
     'offers': {'@type': 'Offer', 'price': '0', 'priceCurrency': 'USD'},
 }) + '</script>'
 
@@ -449,232 +641,13 @@ _HOME_STRUCTURED_DATA = '<script type="application/ld+json">' + json.dumps({
 def home():
     return render_template_string(BASE_TEMPLATE.replace(
         '{% block content %}{% endblock %}', HOME_CONTENT
-    ), title='Stop living paycheck to paycheck',
-       description='Groundwork is a free personal finance app that helps you stop living paycheck to paycheck and build a real plan to get out of debt.',
+    ), title='Your whole financial picture, explained',
+       description='Groundwork is a free personal finance app that tracks your whole financial picture, explains it, '
+                   'and has nothing to sell you. No account, no subscription, no ads. Your data stays on your computer.',
        canonical=SITE_URL + '/',
        structured_data=_HOME_STRUCTURED_DATA)
 
-HOME_CONTENT = """
-<section class="hero">
-  <div class="beta-badge">Version 1.1 — Free Download</div>
-  <h1>Stop living <em>paycheck to paycheck.</em><br>Groundwork gives you a real plan.</h1>
-  <p>A free personal finance app that shows exactly where your money goes and builds a step-by-step path out of debt — no subscription, no cloud, no nonsense.</p>
-  <div class="hero-btns">
-    <a href="/download" class="btn btn-primary" style="font-size:17px;padding:16px 36px">
-      ⬇ Download Free for <span class="os-download-label">Windows</span>
-    </a>
-    <a href="/features" class="btn btn-ghost" style="color:#fff;border-color:rgba(255,255,255,.4)">
-      See what it does →
-    </a>
-  </div>
-</section>
-
-<section class="behavior-focus" style="background: var(--mist); padding: 80px 24px; text-align: center;">
-  <div class="container">
-    <div class="section-label">Why Groundwork is Different</div>
-    <h2 class="section-title" style="margin-bottom: 48px;">Groundwork learns from your actual behavior, not your perfect plan.</h2>
-
-    <div style="max-width: 720px; margin: 0 auto; text-align: left; line-height: 1.8; color: var(--slate); font-size: 16px;">
-      <p style="margin-bottom: 20px;">
-        Most finance apps assume you'll follow their budget perfectly. <strong>Groundwork assumes you won't—because people don't.</strong>
-      </p>
-
-      <p style="margin-bottom: 20px;">
-        Instead, it watches what you actually do (when you pay, how you adjust budgets, how quickly you recover from mistakes), learns the patterns, and adapts. It rewards progress, not perfection.
-      </p>
-
-      <p>
-        <strong>The goal isn't to optimize your money.</strong> It's to help you become the kind of person who naturally makes good financial decisions.
-      </p>
-    </div>
-  </div>
-</section>
-
-<section class="features">
-  <div class="container">
-    <div class="section-label">What Groundwork does</div>
-    <h2 class="section-title">Everything you need to get out of debt</h2>
-    <p class="section-sub">Built for real people who are tired of not knowing where their money went.</p>
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">📊</div>
-        <h3>Budget that actually works</h3>
-        <p>Import your bank transactions and see exactly where every dollar went. No manual entry, no spreadsheets.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">💳</div>
-        <h3>Debt payoff planner</h3>
-        <p>Snowball or avalanche — Groundwork builds your payoff schedule and shows your debt-free date.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">📈</div>
-        <h3>Net worth tracker</h3>
-        <p>Watch your number go up every month. Balances update automatically as your transactions import.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🎁</div>
-        <h3>Gift & seasonal budgeting</h3>
-        <p>Never get caught off guard by Christmas or birthdays again. Plan ahead with sinking funds.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">✦</div>
-        <h3>AI monthly report</h3>
-        <p>Plain-English summary of how your month went and one concrete thing to do differently — runs privately on your own machine by default.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🔒</div>
-        <h3>Your data stays on your machine</h3>
-        <p>No account needed. No cloud sync. No subscription. Your finances are nobody else's business.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="screenshots">
-  <div class="container">
-    <div class="section-label">See it in action</div>
-    <h2 class="section-title">Built for clarity, not complexity</h2>
-    <div class="screenshot-grid">
-      <div>
-        <div class="screenshot-item">
-          <div class="screenshot-mock">
-            <div class="mock-bar">
-              <div class="mock-dot" style="background:#e76f51"></div>
-              <div class="mock-dot" style="background:#e9c46a"></div>
-              <div class="mock-dot" style="background:#2d6a4f"></div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-              <div class="mock-card">
-                <div class="mock-lbl">Monthly Income</div>
-                <div class="mock-num">$4,200</div>
-              </div>
-              <div class="mock-card">
-                <div class="mock-lbl">Spent So Far</div>
-                <div class="mock-num" style="color:#e76f51">$3,180</div>
-              </div>
-            </div>
-            <div class="mock-card">
-              <div class="mock-lbl">Left to spend</div>
-              <div class="mock-num" style="color:#2d6a4f">$1,020</div>
-              <div class="mock-bar-chart">
-                <div class="mock-bar-item" style="height:80%"></div>
-                <div class="mock-bar-item" style="height:45%"></div>
-                <div class="mock-bar-item" style="height:65%"></div>
-                <div class="mock-bar-item" style="height:30%"></div>
-                <div class="mock-bar-item" style="height:90%"></div>
-                <div class="mock-bar-item" style="height:55%"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="screenshot-label">Dashboard — your money at a glance</div>
-      </div>
-      <div>
-        <div class="screenshot-item">
-          <div class="screenshot-mock">
-            <div class="mock-bar">
-              <div class="mock-dot" style="background:#e76f51"></div>
-              <div class="mock-dot" style="background:#e9c46a"></div>
-              <div class="mock-dot" style="background:#2d6a4f"></div>
-            </div>
-            <div class="mock-content">
-              <div class="mock-card" style="border-left:3px solid #e76f51">
-                <div class="mock-lbl">Credit Card A · 19.9% APR</div>
-                <div class="mock-num">$3,400</div>
-                <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:6px">
-                  <div style="width:68%;height:100%;background:#e76f51;border-radius:2px"></div>
-                </div>
-              </div>
-              <div class="mock-card" style="border-left:3px solid #e9c46a">
-                <div class="mock-lbl">Car Loan · 6.9% APR</div>
-                <div class="mock-num">$8,200</div>
-                <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:6px">
-                  <div style="width:40%;height:100%;background:#e9c46a;border-radius:2px"></div>
-                </div>
-              </div>
-              <div class="mock-card">
-                <div class="mock-lbl">Debt-free date</div>
-                <div class="mock-num" style="color:#2d6a4f;font-size:14px">March 2027 ✓</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="screenshot-label">Debt page — snowball or avalanche</div>
-      </div>
-      <div>
-        <div class="screenshot-item">
-          <div class="screenshot-mock">
-            <div class="mock-bar">
-              <div class="mock-dot" style="background:#e76f51"></div>
-              <div class="mock-dot" style="background:#e9c46a"></div>
-              <div class="mock-dot" style="background:#2d6a4f"></div>
-            </div>
-            <div class="mock-content">
-              <div style="color:rgba(255,255,255,.4);font-size:10px;margin-bottom:4px">NET WORTH</div>
-              <div class="mock-num" style="font-size:28px;margin-bottom:8px">$12,450</div>
-              <div style="display:flex;align-items:flex-end;gap:3px;height:50px">
-                <div style="flex:1;background:var(--pine);opacity:.5;height:30%;border-radius:2px 2px 0 0"></div>
-                <div style="flex:1;background:var(--pine);opacity:.6;height:45%;border-radius:2px 2px 0 0"></div>
-                <div style="flex:1;background:var(--pine);opacity:.7;height:55%;border-radius:2px 2px 0 0"></div>
-                <div style="flex:1;background:var(--pine);opacity:.8;height:70%;border-radius:2px 2px 0 0"></div>
-                <div style="flex:1;background:var(--pine);opacity:.9;height:85%;border-radius:2px 2px 0 0"></div>
-                <div style="flex:1;background:var(--gold);height:100%;border-radius:2px 2px 0 0"></div>
-              </div>
-              <div style="color:rgba(255,255,255,.4);font-size:10px;margin-top:4px">6-month trend ↑ 34%</div>
-            </div>
-          </div>
-        </div>
-        <div class="screenshot-label">Net worth — watch it grow</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="mission container">
-  <div class="mission-text">
-    <div class="section-label">Why Groundwork exists</div>
-    <h2>Built for people who are tired of being broke</h2>
-    <p>Most personal finance apps are built for people who already have money. They're beautiful, expensive, and completely useless if you're trying to figure out how to make rent and pay off $12,000 in credit card debt at the same time.</p>
-    <p>Groundwork is different. It was built by someone who's been there — who knows that what you need isn't another budgeting philosophy, but a concrete plan with real numbers and a real date when things get better.</p>
-    <p>It's free. Always will be.</p>
-    <a href="/about" class="btn btn-ghost" style="margin-top:8px">Our story →</a>
-  </div>
-  <div class="stat-grid">
-    <div class="stat-card">
-      <div class="stat-num">78%</div>
-      <div class="stat-lbl">of Americans live paycheck to paycheck</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num">$0</div>
-      <div class="stat-lbl">Cost of Groundwork. Free forever.</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num">100%</div>
-      <div class="stat-lbl">of your data stays on your machine</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num">1 app</div>
-      <div class="stat-lbl">Budget · Debt · Net worth · Reports</div>
-    </div>
-  </div>
-</section>
-
-<section class="signup-section">
-  <div class="container">
-    <h2>Get notified when we update</h2>
-    <p>New features ship regularly. Drop your email and we'll let you know.</p>
-    <div class="signup-form">
-      <input type="text" id="signup-name" placeholder="Your name" style="max-width:160px">
-      <input type="email" id="signup-email" placeholder="Your email address">
-      <button class="btn" onclick="submitSignup()">Notify me →</button>
-    </div>
-    <div class="signup-msg" id="signup-msg"></div>
-    <p style="margin-top:16px;font-size:12px;color:rgba(255,255,255,.5)">
-      No spam. We send one email when something worth knowing ships.
-    </p>
-  </div>
-</section>
-
+SIGNUP_SCRIPT = """
 <script>
 async function submitSignup() {
   const name  = document.getElementById('signup-name').value.trim();
@@ -701,6 +674,194 @@ async function submitSignup() {
 </script>
 """
 
+SIGNUP_BAND = """
+<section class="signup-section">
+  <div class="container">
+    <h2>Be first to hear about 2.0</h2>
+    <p>One email when something worth knowing ships. No spam, and every email has a one-click unsubscribe.</p>
+    <div class="signup-form">
+      <input type="text" id="signup-name" placeholder="Your name" style="max-width:170px" aria-label="Your name">
+      <input type="email" id="signup-email" placeholder="Your email address" aria-label="Your email address">
+      <button class="btn" onclick="submitSignup()">Notify me →</button>
+    </div>
+    <div class="signup-msg" id="signup-msg"></div>
+  </div>
+</section>
+""" + SIGNUP_SCRIPT
+
+HOME_CONTENT = _icons("""
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="beta-badge"><b></b> Version """ + SITE_VERSION + """ · Free for Windows, macOS and Linux</div>
+      <h1>Your whole financial picture, <em>explained.</em> And nothing to sell you.</h1>
+      <p class="lead">Groundwork is a free personal finance app that tracks your money, explains what it shows you,
+        and never tries to sell you a loan, a card or a subscription. It runs on your own computer, and it's built for
+        everyone: whether you're paying down $12,000 or deciding where your first $10,000 goes.</p>
+      <div class="hero-btns">
+        <a href="/download" class="btn btn-primary" style="font-size:16px;padding:15px 30px">
+          Download free for <span class="os-download-label">Windows</span>
+        </a>
+        <a href="/coming" class="btn btn-ghost-light">See what's coming in 2.0 →</a>
+      </div>
+      <div class="hero-note">No account. No subscription. No ads. Your data never leaves your computer.</div>
+    </div>
+    <div>
+      <div class="appwin" role="img" aria-label="An illustration of the Groundwork dashboard, with sample figures">
+        <div class="appwin-bar"><i style="background:#e4572e"></i><i style="background:#f2c14e"></i><i style="background:#3ddc97"></i></div>
+        <div class="appwin-body">
+          <div class="appwin-side"><span class="on"></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="appwin-main">
+            <div class="tile-row">
+              <div class="tile"><div class="tile-l">Income this month</div><div class="tile-n">$5,200</div></div>
+              <div class="tile"><div class="tile-l">Spent so far</div><div class="tile-n" style="color:#b33a14">$3,916</div></div>
+            </div>
+            <div class="tile">
+              <div class="tile-l">Left this month</div>
+              <div class="tile-n" style="color:#1f7a5c">$1,284</div>
+              <div class="tile-why"><b>How:</b> $5,200 income − $3,916 spent. Nothing estimated.</div>
+              <div class="tile-bars"><i style="height:52%"></i><i style="height:70%"></i><i style="height:44%"></i><i style="height:82%"></i><i style="height:60%"></i><i class="hi" style="height:96%"></i></div>
+            </div>
+            <div class="tile-row">
+              <div class="tile"><div class="tile-l">Net worth</div><div class="tile-n">$18,450</div></div>
+              <div class="tile"><div class="tile-l">Debt-free</div><div class="tile-n" style="font-size:16px">Mar 2028</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sample-tag">Illustration · sample figures</div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="container center reveal">
+    <div class="section-label">What Groundwork stands for</div>
+    <h2 class="section-title">Four promises, kept in every screen</h2>
+    <p class="section-sub">Groundwork is a full finance app, not a debt app with extras. Debt payoff is one tool in it:
+      front and center if you're in debt, and never the definition of who you are.</p>
+  </div>
+  <div class="container pillars reveal">
+    <div class="pillar">
+      <span class="chip chip-pine">[[chart]]</span>
+      <h3>It tracks everything</h3>
+      <p>Budget, ledger, net worth, investments, debt and health care spending, built from your own bank files.</p>
+    </div>
+    <div class="pillar">
+      <span class="chip chip-gold">[[book]]</span>
+      <h3>It explains what it shows</h3>
+      <p>What a term means and how a number was worked out, so the next decision is easier to make on your own.</p>
+    </div>
+    <div class="pillar">
+      <span class="chip chip-ember">[[heart]]</span>
+      <h3>Health care is a cost, not a failure</h3>
+      <p>Health care spending is tracked as its own category, and Groundwork doesn't suggest cutting it.</p>
+    </div>
+    <div class="pillar">
+      <span class="chip chip-ink">[[shield]]</span>
+      <h3>It has nothing to sell you</h3>
+      <p>No loan, no card, no subscription, no ads, and no product behind the advice. The software is the product, not you.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band band-mist">
+  <div class="container reveal">
+    <div class="section-label">In Groundwork today</div>
+    <h2 class="section-title">Everything in one place, on your own computer</h2>
+    <p class="section-sub">These all work in the version you can download right now.</p>
+    <div class="features-grid">
+      <div class="feature-card"><span class="chip chip-pine">[[import]]</span><h3>Import from your bank</h3>
+        <p>Bring in the CSV, OFX, QFX or QIF file your bank already gives you. Groundwork sorts it into categories and skips duplicates: no retyping.</p></div>
+      <div class="feature-card"><span class="chip chip-pine">[[wallet]]</span><h3>A budget that follows your spending</h3>
+        <p>See each budget line next to what you've actually spent this month, from your imported transactions.</p></div>
+      <div class="feature-card"><span class="chip chip-ember">[[card]]</span><h3>Debt payoff planner</h3>
+        <p>Snowball or avalanche: Groundwork lays out the payoff order and shows your debt-free date.</p></div>
+      <div class="feature-card"><span class="chip chip-gold">[[trend]]</span><h3>Net worth and investments</h3>
+        <p>Everything you own minus everything you owe, tracked month by month, with your holdings at their prices.</p></div>
+      <div class="feature-card"><span class="chip chip-gold">[[gift]]</span><h3>Gift and seasonal planning</h3>
+        <p>Every person and occasion in one list, with savings funds for the big ones, so the holidays aren't a surprise.</p></div>
+      <div class="feature-card"><span class="chip chip-ink">[[plane]]</span><h3>Trip planner</h3>
+        <p>Price a trip from your own numbers: your car's mileage and gas prices if you drive, Google Flights if you fly.</p></div>
+      <div class="feature-card"><span class="chip chip-ink">[[cart]]</span><h3>Before You Buy</h3>
+        <p>See what a big purchase does to your budget and your debt-free date before you decide. No lecture, just the numbers.</p></div>
+      <div class="feature-card"><span class="chip chip-pine">[[file]]</span><h3>Reports you can print</h3>
+        <p>Monthly spending, budget against actual, debt progress, net worth over time and more, each with a Print button.</p></div>
+      <div class="feature-card"><span class="chip chip-gold">[[spark]]</span><h3>Local AI, if you want it</h3>
+        <p>Optional plain-English write-ups of your month, from an AI model that runs on your own computer. Nothing is sent anywhere.</p></div>
+    </div>
+    <div style="text-align:center;margin-top:44px"><a href="/features" class="btn btn-ghost">See every feature →</a></div>
+  </div>
+</section>
+
+<section class="band band-ink">
+  <div class="container split reveal">
+    <div>
+      <div class="section-label">Private by design</div>
+      <h2 class="section-title" style="color:#fff">Your money stays on your computer</h2>
+      <p>Groundwork is a desktop app. Your transactions, balances, budgets and debts live in one file on your own
+        machine. There's no account to make and no server holding your finances.</p>
+      <ul class="checklist">
+        <li>No account and no login</li>
+        <li>No telemetry, no analytics, no usage tracking in the app</li>
+        <li>No cloud AI: the AI runs on your computer or not at all</li>
+        <li>Uninstalling never deletes your data</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <div style="font-weight:700;margin-bottom:6px">What does leave your computer, and why</div>
+      <div style="font-size:14px;color:rgba(255,255,255,.65);margin-bottom:10px">None of these carries a balance, a transaction or an amount.</div>
+      <div class="panel-row"><b>Update check</b><span>asks whether there's a new version, and sends nothing about you</span></div>
+      <div class="panel-row"><b>Investment prices</b><span>ticker symbols, to Yahoo Finance</span></div>
+      <div class="panel-row"><b>Utility and fuel prices</b><span>your state, to the U.S. Energy Information Administration</span></div>
+      <div class="panel-row"><b>Trip distances</b><span>the places you type, to OpenStreetMap</span></div>
+      <div style="margin-top:14px"><a href="/privacy" style="color:var(--mint)">Read the privacy policy →</a></div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="container center reveal">
+    <div class="section-label">Coming in Groundwork 2.0</div>
+    <h2 class="section-title">The biggest update we've ever built</h2>
+    <p class="section-sub">Groundwork 2.0 is being built and tested right now. It does more of the work for you,
+      explains more of what it finds, and still keeps every number on your computer.</p>
+  </div>
+  <div class="container reveal">
+    <div class="teaser-grid" style="margin-top:44px">
+      <div class="feature-card"><span class="chip chip-pine">[[bank]]</span><h3>Your statements, with one press</h3><p>When you ask, Groundwork opens your bank's site and brings your statements back for you to review.</p></div>
+      <div class="feature-card"><span class="chip chip-gold">[[ask]]</span><h3>Ask why</h3><p>A number looks wrong? Groundwork checks your records, tells you what it found, and shows any fix before it happens.</p></div>
+      <div class="feature-card"><span class="chip chip-ink">[[fork]]</span><h3>Possible futures</h3><p>Your next twelve months side by side, including the rough ones, each saying exactly what it assumes.</p></div>
+      <div class="feature-card"><span class="chip chip-ember">[[bill]]</span><h3>Bills, read from the biller</h3><p>The amount and due date from the company's own site, next to your budget. Groundwork never presses Pay.</p></div>
+      <div class="feature-card"><span class="chip chip-pine">[[pay]]</span><h3>Your pay, employer by employer</h3><p>If a paycheck stops or drops, Groundwork says so plainly, without mistaking overtime for a raise.</p></div>
+      <div class="feature-card"><span class="chip chip-gold">[[cal]]</span><h3>A Sunday check-in</h3><p>A short look at the week behind you and the week ahead: a paycheck due, a bill coming up.</p></div>
+    </div>
+    <div style="text-align:center;margin-top:44px"><a href="/coming" class="btn btn-primary">See everything coming in 2.0 →</a></div>
+  </div>
+</section>
+
+<section class="band band-mist">
+  <div class="container split reveal">
+    <div>
+      <div class="section-label">Who it's for</div>
+      <h2 class="section-title">For wherever you're starting from</h2>
+      <p>Most finance apps are built for one kind of person. Groundwork is built for anyone who wants to understand
+        their money: whether you're working out how to make rent and pay down a card, or deciding where your first
+        $10,000 should go.</p>
+      <p>It started as one family's tool for getting their finances under control. It's free, and it will stay free.</p>
+      <a href="/about" class="btn btn-ghost" style="margin-top:6px">Our story →</a>
+    </div>
+    <div class="panel">
+      <div class="panel-row"><b>Price</b><span>$0, always</span></div>
+      <div class="panel-row"><b>Account needed</b><span>None</span></div>
+      <div class="panel-row"><b>Where your data lives</b><span>On your computer</span></div>
+      <div class="panel-row"><b>Ads, upsells, partner offers</b><span>None</span></div>
+      <div class="panel-row"><b>Works on</b><span>Windows, macOS and Linux</span></div>
+    </div>
+  </div>
+</section>
+""") + SIGNUP_BAND
+
 # ── Download counter ──────────────────────────────────────────────────────────
 # The download buttons point here so each click is counted by platform, then
 # redirected to the real file (still served straight from /static in prod).
@@ -723,29 +884,25 @@ def download_file(platform):
 @app.route('/download')
 def download():
     content = """
-<section class="download-hero">
-  <h1 style="font-size:clamp(28px,4vw,48px);font-weight:800;margin-bottom:12px">
-    Download Groundwork
-  </h1>
-  <p style="color:rgba(255,255,255,.7);font-size:16px">
-    Free. No account. No subscription. Your data stays on your machine.
-  </p>
-  <div class="beta-badge" style="margin-top:20px">Version 1.1 — Now available</div>
+<section class="page-head">
+  <div class="beta-badge"><b></b> Version """ + SITE_VERSION + """ · Now available</div>
+  <h1>Download Groundwork</h1>
+  <p>Free. No account. No subscription. Your data stays on your computer.</p>
 </section>
 
-<p class="container" style="font-size:14px;color:var(--slate, #64748b);line-height:1.6;margin-bottom:16px">
-  <strong>Use a system that still gets security updates.</strong> Groundwork holds your financial data, and an
-  up-to-date operating system is the first thing protecting it - so we suggest running it on one that is still
-  supported. Groundwork doesn't refuse an older system: on an older computer that stays offline, that's perfectly fine.
-</p>
+<div class="container" style="padding-top:40px">
+  <div class="callout" style="max-width:860px;margin:0 auto">
+    <strong>Use a system that still gets security updates.</strong> Groundwork holds your financial data, and an
+    up-to-date operating system is the first thing protecting it - so we suggest running it on one that is still
+    supported. Groundwork doesn't refuse an older system: on an older computer that stays offline, that's perfectly fine.
+  </div>
+</div>
 <div class="download-grid container">
   <div class="download-card">
     <div class="os-icon">🪟</div>
     <h3>Windows</h3>
-    <p>Windows 11 suggested. Double-click the installer and you're done in 60 seconds.</p>
-    <a href="/dl/windows" class="btn btn-primary" style="width:100%;text-align:center">
-      ⬇ Download for Windows
-    </a>
+    <p>Windows 11 suggested. Double-click the installer and you're done in about a minute.</p>
+    <a href="/dl/windows" class="btn btn-primary">⬇ Download for Windows</a>
     <div class="requirements">
       <strong>Requirements:</strong><br>
       Windows 11 (64-bit) suggested; Windows 10 still works<br>
@@ -753,7 +910,7 @@ def download():
       ~2.5GB disk space (includes the built-in local AI model)<br>
       4GB RAM (8GB+ for the optional local AI)
     </div>
-    <div style="margin-top:12px;font-size:12px;color:var(--slate)">
+    <div style="margin-top:12px;font-size:13px;color:var(--slate)">
       Every Windows installer includes the local AI model (about 2.2GB of the
       download), so there is nothing to download later. The
       <a href="/dl/windows-offline">offline installer</a> is the same file,
@@ -765,9 +922,7 @@ def download():
     <div class="os-icon">🍎</div>
     <h3>macOS</h3>
     <p>Apple Silicon and Intel Macs. Unzip and drag Groundwork into Applications.</p>
-    <a href="/dl/macos" class="btn btn-primary" style="width:100%;text-align:center">
-      ⬇ Download for macOS
-    </a>
+    <a href="/dl/macos" class="btn btn-primary">⬇ Download for macOS</a>
     <div class="requirements">
       <strong>Requirements:</strong><br>
       macOS 12 Monterey or later (a version Apple still updates is suggested)<br>
@@ -781,9 +936,7 @@ def download():
     <div class="os-icon">🐧</div>
     <h3>Linux</h3>
     <p>Prebuilt x86_64 binary — no Python or system packages required. Extract and run.</p>
-    <a href="/dl/linux" class="btn btn-primary" style="width:100%;text-align:center">
-      ⬇ Download for Linux
-    </a>
+    <a href="/dl/linux" class="btn btn-primary">⬇ Download for Linux</a>
     <div class="requirements">
       <strong>Requirements:</strong><br>
       Ubuntu 22.04+, Debian 12+, Fedora, or similar (x86_64), on a release that still gets security updates<br>
@@ -795,9 +948,9 @@ def download():
   </div>
 </div>
 
-<div class="container" style="padding:40px 24px;text-align:center">
-  <h3 style="margin-bottom:16px">Having trouble installing?</h3>
-  <p style="color:var(--slate);margin-bottom:20px">
+<div class="container center" style="padding:40px 24px 80px">
+  <h3 style="font-size:24px;margin-bottom:10px">Having trouble installing?</h3>
+  <p style="color:var(--slate)">
     Check the <a href="/knowledge-base#install">installation guide</a> or
     email <a href="mailto:support@groundworkfinance.app">support@groundworkfinance.app</a>
   </p>
@@ -806,7 +959,7 @@ def download():
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
         title='Download',
-        description='Download Groundwork free for Windows, macOS, or Linux. No account, no subscription — your financial data stays on your machine.',
+        description='Download Groundwork free for Windows, macOS, or Linux. No account, no subscription — your financial data stays on your computer.',
         canonical=SITE_URL + '/download'
     )
 
@@ -814,10 +967,10 @@ def download():
 @app.route('/knowledge-base')
 def knowledge_base():
     content = """
-<div style="background:var(--ink);padding:48px 24px;color:#fff;text-align:center">
-  <h1 style="font-size:36px;font-weight:800;margin-bottom:8px">Knowledge Base</h1>
-  <p style="color:rgba(255,255,255,.7)">Everything you need to get started and get the most out of Groundwork</p>
-</div>
+<section class="page-head">
+  <h1>Knowledge Base</h1>
+  <p>Everything you need to get started and get the most out of Groundwork</p>
+</section>
 
 <div class="kb-grid">
   <nav class="kb-nav">
@@ -846,7 +999,7 @@ def knowledge_base():
 
   <div class="kb-content">
     <h1>Help & Documentation</h1>
-    <p class="kb-sub">Groundwork is designed to be simple — but we've documented everything just in case.</p>
+    <p class="kb-sub">This guide describes Groundwork """ + SITE_VERSION + """, the version offered for download. For what's on the way, see <a href="/coming">Coming in 2.0</a>.</p>
 
     <div class="kb-article" id="install">
       <h2>Installing Groundwork on Windows</h2>
@@ -885,7 +1038,7 @@ def knowledge_base():
       <p>2. In Groundwork, click the <strong>Import</strong> button in the Ledger or top toolbar.</p>
       <p>3. Select your account, choose the file, and click Import.</p>
       <p>4. Groundwork automatically categorizes transactions and removes duplicates.</p>
-      <div class="kb-tip">💡 Groundwork remembers your categorization choices. The more you use it, the smarter it gets.</div>
+      <div class="kb-tip">💡 Groundwork remembers the categories you choose and applies them to similar transactions in later imports.</div>
     </div>
 
     <div class="kb-article" id="linux">
@@ -988,7 +1141,7 @@ python3 launch.py</pre>
 
     <div class="kb-article" id="reports">
       <h2>Reports</h2>
-      <p>The Report Center has ten built-in reports, several of which can include an AI-written narrative.</p>
+      <p>The Report Center has built-in reports, several of which can include an AI-written narrative.</p>
       <ul>
         <li><strong>Distance Traveled</strong> — the ground you've covered: principal paid down, debts retired, cash flow freed, and how much closer your debt-free date has moved</li>
         <li><strong>Monthly Spending Summary</strong> — income, expenses, budget vs. actual, and how the month stacks up</li>
@@ -1046,7 +1199,7 @@ python3 launch.py</pre>
         <li>No account required. No login.</li>
         <li>No telemetry, no analytics, no usage tracking.</li>
         <li>The app runs on localhost — only your machine can access it.</li>
-        <li>AI reports send aggregated numbers only — no names, no account details.</li>
+        <li>AI runs only on your machine: nothing is sent to an AI service. See <a href="/privacy">the privacy policy</a> for the few requests the app does make, and what each one sends.</li>
         <li>Uninstalling Groundwork does not delete your data — it stays in AppData until you delete it yourself.</li>
       </ul>
     </div>
@@ -1056,7 +1209,7 @@ python3 launch.py</pre>
       <p>Groundwork is actively maintained. If something breaks:</p>
       <p>1. In the app, click <strong>⚑ Report</strong> in the top bar.</p>
       <p>2. Describe what you were doing when it broke.</p>
-      <p>3. Click <strong>Open in mail app</strong> — the report goes to support@groundworkfinance.app with your error log attached.</p>
+      <p>3. Click <strong>Open in mail app</strong>. Your email app opens with the report filled in, addressed to support@groundworkfinance.app. Read it over and send it yourself: nothing is sent without you.</p>
       <p>Or just email <a href="mailto:support@groundworkfinance.app">support@groundworkfinance.app</a> directly.</p>
     </div>
 
@@ -1074,42 +1227,41 @@ python3 launch.py</pre>
 @app.route('/about')
 def about():
     content = """
-<section class="hero" style="padding:80px 24px 60px">
-  <h1 style="font-size:clamp(28px,4vw,48px)">About Groundwork</h1>
-  <p>Why a free personal finance app exists — and who built it.</p>
+<section class="page-head">
+  <h1>About Groundwork</h1>
+  <p>A free personal finance app with nothing to sell you, and why it exists.</p>
 </section>
-<div class="container" style="max-width:700px;padding:60px 24px">
-  <h2 style="font-size:28px;font-weight:800;margin-bottom:20px">The problem with most finance apps</h2>
-  <p style="color:var(--slate);line-height:1.9;margin-bottom:16px">
-    Most personal finance apps are built for people who already have money. They're beautiful, 
-    expensive, and assume you have a surplus to manage. If you're living paycheck to paycheck 
-    — trying to figure out how to pay off $8,000 in credit card debt while keeping the lights 
-    on — they're not built for you.
-  </p>
-  <p style="color:var(--slate);line-height:1.9;margin-bottom:16px">
-    Groundwork was built from scratch for that situation. It started as a tool for one family 
-    trying to get their finances under control — track spending, build a debt payoff plan, and 
-    actually see a date when things would be different. It grew from there.
-  </p>
-  <h2 style="font-size:28px;font-weight:800;margin:40px 0 20px">Why it's free</h2>
-  <p style="color:var(--slate);line-height:1.9;margin-bottom:16px">
-    Because the people who need it most can't afford a subscription. Simple as that.
-    Groundwork will always be free to download and use. Your data stays on your machine. 
-    No account, no subscription, no ads.
-  </p>
-  <h2 style="font-size:28px;font-weight:800;margin:40px 0 20px">Feedback</h2>
-  <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
-    Groundwork 1.1 is here and people are using it every day. It's actively maintained, and
-    if something breaks, the ⚑ Report button in the app sends us the error log directly.
-    We read every one.
-  </p>
-  <a href="/download" class="btn btn-primary">Download Groundwork free →</a>
+<div class="narrow prose">
+  <h2>Why Groundwork exists</h2>
+  <p>Most finance apps are built around something they want to sell: a card, a loan, a premium tier, or your
+    attention. The advice and the product come from the same place, and it's hard to tell which one is talking.</p>
+  <p>Groundwork has nothing behind the advice. It tracks your money, explains what it shows you, and leaves the
+    decisions to you. The software is the product, not you.</p>
+
+  <h2>Where it started</h2>
+  <p>Groundwork started as a tool for one family trying to get their finances under control: track the spending,
+    build a plan for the debt, and see a date when things would be different. It grew into a full finance app:
+    budget, ledger, net worth, investments, gifts, trips, reports, and the planning that ties them together.</p>
+  <p>It's built for everyone, whatever their situation, whether you're paying down a card or deciding where your
+    savings should go.</p>
+
+  <h2>Why it's free</h2>
+  <p>Because the people who need it most shouldn't have to pay for it. Groundwork is free to download and use, with no
+    account, no subscription and no ads. Your data stays on your computer.</p>
+
+  <h2>Telling us something's wrong</h2>
+  <p>Groundwork sends no telemetry, so we only hear about a problem if you tell us. In the app, the
+    <strong>⚑ Report</strong> button opens your own email app with a report filled in; you read it over and send it
+    yourself. Nothing is sent without you. You can also email
+    <a href="mailto:support@groundworkfinance.app">support@groundworkfinance.app</a> directly.</p>
+  <p>We read every one.</p>
+  <p style="margin-top:28px"><a href="/download" class="btn btn-primary">Download Groundwork free →</a></p>
 </div>
 """
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
         title='About',
-        description='Groundwork is a free, privacy-first personal finance app built to help you get out of debt and stop living paycheck to paycheck.',
+        description='Groundwork is a free personal finance app that tracks your whole financial picture, explains it, and has nothing to sell you.',
         canonical=SITE_URL + '/about'
     )
 
@@ -1117,46 +1269,67 @@ def about():
 @app.route('/privacy')
 def privacy():
     content = """
-<div class="container" style="max-width:700px;padding:60px 24px">
-  <h1 style="font-size:36px;font-weight:800;margin-bottom:8px">Privacy Policy</h1>
-  <p style="color:var(--slate);margin-bottom:40px">Last updated: October 2026</p>
-  <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">Your data stays on your machine</h2>
-  <p style="color:var(--slate);line-height:1.9;margin-bottom:20px">
-    Groundwork is a desktop application. Your financial data — transactions, balances, 
-    budgets, debt information — is stored in a SQLite database on your computer. 
-    We have no access to it. It never leaves your machine unless you explicitly export it.
-  </p>
-  <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">This website</h2>
-  <p style="color:var(--slate);line-height:1.9;margin-bottom:20px">
-    If you sign up for email updates on this website, we store your email address and name 
-    to send you product updates. We use SendGrid to deliver emails. We never sell or share 
-    your email address. You can unsubscribe at any time by emailing hello@groundworkfinance.app.
-  </p>
-  <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">AI features</h2>
-  <p style="color:var(--slate);line-height:1.9;margin-bottom:20px">
-    Groundwork's AI features are optional and run <strong>only on your own machine</strong>: the
-    model comes with Groundwork and runs inside it, so nothing is sent to an AI service and no API
-    key exists. There is no cloud AI option.
-  </p>
-  <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">Websites opened inside Groundwork</h2>
-  <p style="color:var(--slate);line-height:1.9;margin-bottom:20px">
-    Groundwork can open your bank's website, and Google Flights, in a separate private window. That
+<section class="page-head">
+  <h1>Privacy Policy</h1>
+  <p>What stays on your computer, what leaves it, and why.</p>
+</section>
+<div class="narrow prose">
+  <p style="color:var(--muted)">Last updated: October 12, 2026. This page describes Groundwork """ + SITE_VERSION + """, the version offered for download.</p>
+
+  <h2>Your data stays on your machine</h2>
+  <p>Groundwork is a desktop application. Your financial data — transactions, balances,
+    budgets, debt information — is stored in a SQLite database on your computer.
+    We have no access to it. It never leaves your machine unless you explicitly export it.</p>
+  <p>The app sends no telemetry, no analytics and no usage tracking.</p>
+
+  <h2>What Groundwork sends, and why</h2>
+  <p>A few features need a fact from outside your computer. None of these requests carries your balances,
+    transactions, amounts, names or account details:</p>
+  <ul>
+    <li><strong>The update check</strong> asks this website whether a newer version exists. It sends no version
+      number and nothing about you.</li>
+    <li><strong>Investment prices</strong> send the ticker symbols you hold (for example VOO) to Yahoo Finance.</li>
+    <li><strong>Utility and fuel prices</strong> send your state to the U.S. Energy Information Administration, which
+      publishes the prices. Groundwork asks for your state; it never looks up your location.</li>
+    <li><strong>Trip distances</strong> send the places you type into the trip planner to OpenStreetMap, to work out
+      the driving distance.</li>
+  </ul>
+
+  <h2>Websites opened inside Groundwork</h2>
+  <p>Groundwork can open your bank's website, and Google Flights, in a separate private window. That
     window keeps no sign-in after it closes, and anything you type there goes to that website under
     its own privacy policy, not to us. Groundwork does not read those pages, with one exception: in
     the Google Flights window, when you click <em>Continue</em> to choose a fare, Groundwork reads the
     price on that button and asks whether to use it in your trip budget. Nothing else on the page is
-    read or kept, the price stays on your computer, and it is used only if you say yes.
-  </p>
-  <h2 style="font-size:20px;font-weight:700;margin-bottom:12px">Contact</h2>
-  <p style="color:var(--slate);line-height:1.9">
-    Questions about privacy? Email <a href="mailto:hello@groundworkfinance.app">hello@groundworkfinance.app</a>
-  </p>
+    read or kept, the price stays on your computer, and it is used only if you say yes.</p>
+
+  <h2>AI features</h2>
+  <p>Groundwork's AI features are optional and run <strong>only on your own machine</strong>: the
+    model comes with Groundwork and runs inside it, so nothing is sent to an AI service and no API
+    key exists. There is no cloud AI option.</p>
+
+  <h2>The Report button</h2>
+  <p>The <strong>⚑ Report</strong> button opens your own email app with a report filled in. Nothing is sent unless
+    you send that email yourself.</p>
+
+  <h2>This website</h2>
+  <ul>
+    <li><strong>Counters, not tracking.</strong> The site keeps one count per page per day, and one count per
+      download platform per day. It stores no IP address, no cookie and no browser details.</li>
+    <li><strong>Email updates.</strong> If you sign up, we store your name and email address to send you product
+      updates, delivered through SendGrid. We never sell or share your email address.</li>
+    <li><strong>Unsubscribing.</strong> Every update email carries a one-click unsubscribe link. You can also email
+      <a href="mailto:hello@groundworkfinance.app">hello@groundworkfinance.app</a>.</li>
+  </ul>
+
+  <h2>Contact</h2>
+  <p>Questions about privacy? Email <a href="mailto:hello@groundworkfinance.app">hello@groundworkfinance.app</a></p>
 </div>
 """
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
         title='Privacy Policy',
-        description='Groundwork stores your financial data locally on your machine. No account, no cloud, no telemetry. Read our full privacy policy.',
+        description='Groundwork stores your financial data on your computer: no account, no cloud, no telemetry. Here is exactly what leaves your computer, and why.',
         canonical=SITE_URL + '/privacy'
     )
 
@@ -1166,8 +1339,11 @@ def privacy():
 @app.route('/terms')
 def terms():
     content = """
+<section class="page-head">
+  <h1>Terms of Use &amp; License</h1>
+  <p>The licence for Groundwork, the same text the installer and the app show.</p>
+</section>
 <div class="container" style="max-width:760px;padding:60px 24px">
-  <h1 style="font-size:36px;font-weight:800;margin-bottom:4px">Terms of Use &amp; License</h1>
   <p style="color:var(--slate);margin-bottom:8px">End User License Agreement · Version 1.2 · Effective October 8, 2026</p>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:32px">
     By installing, accessing, or using Groundwork (the "Software"), you agree to this
@@ -1303,52 +1479,138 @@ def terms():
 # ── Features page ─────────────────────────────────────────────────────────────
 @app.route('/features')
 def features():
-    content = """
-<section class="hero" style="padding:80px 24px 60px">
-  <h1 style="font-size:clamp(28px,4vw,48px)">Everything in Groundwork</h1>
-  <p>One app. Every tool you need to get out of debt and start building wealth.</p>
+    content = _icons("""
+<section class="page-head">
+  <h1>Everything in Groundwork</h1>
+  <p>One app for your whole financial picture, in the version you can download today.</p>
 </section>
-<div class="features" style="padding-top:40px">
+<div class="band" style="padding-top:56px">
   <div class="container">
-    <div class="features-grid">
-      <div class="feature-card"><div class="feature-icon">📊</div><h3>Budget</h3>
-        <p>Monthly income and expense tracking. See what you have left in real time as transactions import from your bank.</p></div>
-      <div class="feature-card"><div class="feature-icon">💳</div><h3>Debt Tracker</h3>
-        <p>Snowball or avalanche payoff plans. See your debt-free date and watch it get closer every month.</p></div>
-      <div class="feature-card"><div class="feature-icon">📒</div><h3>Ledger</h3>
-        <p>Full transaction history with auto-categorization, search, split transactions, and reconciliation.</p></div>
-      <div class="feature-card"><div class="feature-icon">📈</div><h3>Net Worth</h3>
-        <p>Track assets and liabilities over time. Your checking and savings balance automatically.</p></div>
-      <div class="feature-card"><div class="feature-icon">🎁</div><h3>Gift Budget</h3>
-        <p>Plan gifts for every person and occasion. Never get caught off guard by birthdays or Christmas again.</p></div>
-      <div class="feature-card"><div class="feature-icon">✈️</div><h3>Trip Planner</h3>
-        <p>Plan a vacation with a target budget and deadline. Groundwork builds the monthly savings plan automatically.</p></div>
-      <div class="feature-card"><div class="feature-icon">🏦</div><h3>Investments</h3>
-        <p>Track your portfolio holdings, cost basis, and performance. Import investment account transactions.</p></div>
-      <div class="feature-card"><div class="feature-icon">📋</div><h3>Reports</h3>
-        <p>Ten built-in reports, several with AI-written narratives. Print any report with one click.</p></div>
-      <div class="feature-card"><div class="feature-icon">🛒</div><h3>Before You Buy</h3>
-        <p>Evaluate a big purchase before committing. See exactly what it does to your budget and debt-free date.</p></div>
-      <div class="feature-card"><div class="feature-icon">✦</div><h3>AI Analysis</h3>
-        <p>Optional AI monthly report — runs on your own machine (no key, nothing sent out). Plain English, one concrete suggestion per month.</p></div>
-      <div class="feature-card"><div class="feature-icon">🔒</div><h3>Private by design</h3>
-        <p>Runs on your machine. No account. No cloud. No subscription. Your data is yours.</p></div>
-      <div class="feature-card"><div class="feature-icon">💾</div><h3>Import from Quicken</h3>
-        <p>QIF, QFX, OFX, and CSV import. Bring your history over from Quicken, Mint, or any bank export.</p></div>
+    <div class="features-grid" style="margin-top:0">
+      <div class="feature-card"><span class="chip chip-pine">[[wallet]]</span><h3>Budget</h3>
+        <p>Monthly income and expense lines, each shown against what you've actually spent this month from your imported transactions.</p></div>
+      <div class="feature-card"><span class="chip chip-pine">[[list]]</span><h3>Ledger</h3>
+        <p>Your full transaction history, sorted into categories, searchable, with split transactions and reconciliation.</p></div>
+      <div class="feature-card"><span class="chip chip-pine">[[import]]</span><h3>Import from your bank</h3>
+        <p>CSV, OFX, QFX and QIF files from your bank, or your history from Quicken. Duplicates are skipped and categories are remembered.</p></div>
+      <div class="feature-card"><span class="chip chip-ember">[[card]]</span><h3>Debt payoff</h3>
+        <p>Snowball or avalanche. Groundwork lays out the payoff order and your debt-free date, and logs charges and payments on each debt.</p></div>
+      <div class="feature-card"><span class="chip chip-gold">[[trend]]</span><h3>Net worth</h3>
+        <p>Everything you own minus everything you owe, saved month by month so you can see the trend.</p></div>
+      <div class="feature-card"><span class="chip chip-gold">[[chart]]</span><h3>Investments</h3>
+        <p>Your holdings with what you paid and what they're worth at their latest price, rolled into your net worth.</p></div>
+      <div class="feature-card"><span class="chip chip-ember">[[heart]]</span><h3>Health care spending</h3>
+        <p>Pharmacy, doctor, dental and similar costs are tracked as their own category, and Groundwork doesn't suggest cutting them.</p></div>
+      <div class="feature-card"><span class="chip chip-gold">[[gift]]</span><h3>Gift budget</h3>
+        <p>Every person and occasion in one list, with seasonal funds for the big ones.</p></div>
+      <div class="feature-card"><span class="chip chip-ink">[[plane]]</span><h3>Trip planner</h3>
+        <p>A trip priced from your own numbers: your car's mileage and gas prices if you drive, Google Flights if you fly.</p></div>
+      <div class="feature-card"><span class="chip chip-ink">[[cart]]</span><h3>Before You Buy</h3>
+        <p>What a big purchase does to your budget and your debt-free date, before you commit.</p></div>
+      <div class="feature-card"><span class="chip chip-pine">[[file]]</span><h3>Reports</h3>
+        <p>Built-in reports on spending, budget against actual, debt progress and net worth over time. Print any of them.</p></div>
+      <div class="feature-card"><span class="chip chip-gold">[[spark]]</span><h3>Local AI, optional</h3>
+        <p>Plain-English write-ups of your month from a model that runs on your own computer. No key, nothing sent out.</p></div>
+      <div class="feature-card"><span class="chip chip-ink">[[lock]]</span><h3>Private by design</h3>
+        <p>No account, no cloud, no subscription, no telemetry. Your data lives in one file on your computer.</p></div>
     </div>
-    <div style="text-align:center;margin-top:60px">
-      <a href="/download" class="btn btn-primary" style="font-size:17px;padding:16px 36px">
-        Download free for <span class="os-download-label">Windows</span> →
-      </a>
+    <div class="center" style="margin-top:56px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
+      <a href="/download" class="btn btn-primary">Download free for <span class="os-download-label">Windows</span> →</a>
+      <a href="/coming" class="btn btn-ghost">See what's coming in 2.0 →</a>
     </div>
   </div>
 </div>
-"""
+""")
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
         title='Features',
-        description='Budgeting, debt payoff, net worth tracking, gift planning, and more — see everything Groundwork does to help you take control of your money.',
+        description='Budget, ledger, debt payoff, net worth, investments, health care spending, gifts, trips and reports: everything Groundwork does, in one free app.',
         canonical=SITE_URL + '/features'
+    )
+
+
+# ── Coming in 2.0 (WEBSITE_MESSAGE.md W3, §6.1) ────────────────────────────────
+# Every card describes something built and accepted in 2.0 (W5); the one thing only designed says so.
+@app.route('/coming')
+def coming():
+    content = _icons("""
+<section class="hero next-hero">
+  <div class="hero-center">
+    <div class="beta-badge"><b></b> Being built and tested now</div>
+    <h1>Coming in <em>Groundwork 2.0</em></h1>
+    <p class="lead">The biggest update we've ever built. Groundwork 2.0 does more of the work for you, explains more of
+      what it finds, and still keeps every number on your own computer. Here's what's on the way.</p>
+    <div class="hero-btns"><a href="#signup" class="btn btn-gold">Tell me when it ships</a>
+      <a href="/download" class="btn btn-ghost-light">Get """ + SITE_VERSION + """ today</a></div>
+  </div>
+</section>
+
+<section class="band" style="padding-top:64px">
+  <div class="container">
+    <div class="next-grid" style="margin-top:0">
+      <div class="next-card reveal"><span class="chip chip-pine">[[bank]]</span><h3>Your statements, with one press</h3>
+        <p>No more logging in to download files. Tell Groundwork which bank you use, and when you ask, it opens your bank's
+        website in a window inside Groundwork and brings your statements back for you to review. It only goes when you ask,
+        never on its own or on a schedule. Your password stays in your computer's own secure vault, not in Groundwork.</p></div>
+      <div class="next-card reveal"><span class="chip chip-ember">[[bill]]</span><h3>Your bills, read straight from the biller</h3>
+        <p>Groundwork can read what a bill says on the company's own website, like the amount and the due date, and put it
+        right next to that line in your budget. You confirm it before it's used. And Groundwork never presses a Pay button:
+        paying is always yours.</p></div>
+      <div class="next-card reveal"><span class="chip chip-gold">[[ask]]</span><h3>Ask why</h3>
+        <p>A number looks wrong? Ask. Groundwork checks your own records and tells you what it found: a payment filed in the
+        wrong place, a deposit that isn't counted as income, a month with nothing imported. If there's a fix, you see exactly
+        what would change before anything does, and every fix can be undone.</p></div>
+      <div class="next-card reveal"><span class="chip chip-pine">[[pay]]</span><h3>Your pay, employer by employer</h3>
+        <p>Groundwork reads each paycheck on its own. If one stops showing up or drops, it tells you plainly and shows a few
+        ways the month could go from there. If your pay changes with overtime or holiday pay, it asks once, so a slow week is
+        never mistaken for a pay cut.</p></div>
+      <div class="next-card reveal"><span class="chip chip-ink">[[fork]]</span><h3>Possible futures</h3>
+        <p>See your next twelve months side by side: as things are, and what happens if your most expensive months come back,
+        a month goes by without income, or you pay only the minimums. Every future says what it assumes. If one doesn't fit
+        your life, tell it what's missing and they all recalculate.</p></div>
+      <div class="next-card reveal"><span class="chip chip-gold">[[cal]]</span><h3>A monthly review and a Sunday check-in</h3>
+        <p>When a month's records are complete, Groundwork writes up what happened: what came in, what went out, and how it
+        compares. Every Sunday, a short check-in looks back at your week and ahead to the next one: a paycheck due, a bill
+        coming up.</p></div>
+      <div class="next-card reveal"><span class="chip chip-ink">[[cart]]</span><h3>Before You Buy, with the whole cost</h3>
+        <p>Thinking about a big purchase? See what it really costs each month, interest included, and whether financing it
+        costs more than paying down what you already owe. We're not here to talk you out of anything. We show you the
+        numbers.</p></div>
+      <div class="next-card reveal"><span class="chip chip-ink">[[plane]]</span><h3>Trips, priced from real fares</h3>
+        <p>The trip planner opens Google Flights and Google Hotels right inside Groundwork and uses the price you pick.
+        Haven't picked one yet? It uses the government's average fare for that route instead of a guess.</p></div>
+      <div class="next-card reveal"><span class="chip chip-gold">[[gift]]</span><h3>Gifts, as the yearly cost they are</h3>
+        <p>Birthdays and holidays come every year. Groundwork adds up the next twelve months of them and shows what to set
+        aside each month, so December never arrives as a surprise.</p></div>
+      <div class="next-card reveal"><span class="chip chip-ember">[[flame]]</span><h3>Utilities and fuel, from public prices</h3>
+        <p>Groundwork estimates your gas, electric, propane, heating oil and gasoline costs from the U.S. government's
+        published prices for your state. It asks which state you're in and never looks up your location.</p></div>
+      <div class="next-card reveal"><span class="chip chip-pine">[[micro]]</span><h3>Research, shown honestly</h3>
+        <p>Where a well-known study backs up an idea, like saving automatically, Groundwork shows you what the study found
+        and what it doesn't show.</p></div>
+      <div class="next-card reveal"><span class="chip chip-ink">[[cpu]]</span><h3>An assistant that lives on your computer</h3>
+        <p>The AI ships inside Groundwork and runs on your own machine. Nothing you ask it is sent anywhere. Every page still
+        works with the AI turned off, and a log shows you exactly what the assistant was given.</p></div>
+      <div class="next-card reveal"><span class="chip chip-gold">[[math]]</span><h3>Every number shows its working</h3>
+        <p>Groundwork shows where its figures come from: the inputs, the math, and any assumption behind them. If it can't
+        show how it got a number, it doesn't show you the number.</p></div>
+      <div class="next-card reveal"><span class="chip chip-pine">[[eye]]</span><h3>Easier on the eyes</h3>
+        <p>We checked every piece of text against every background, so nothing in Groundwork is too faint to read.</p></div>
+      <div class="next-card design reveal"><span class="chip chip-ember">[[pulse]]</span><h3>Health care costs <span class="tag tag-design">In design</span></h3>
+        <p>We're designing a health care section that tracks your bills against your insurance statements and follows your
+        deductible through the year. It's in design, not built yet, and it will follow the same rule as the rest of
+        Groundwork: nothing about your health leaves your computer.</p></div>
+    </div>
+    <p class="center" style="margin-top:44px;color:var(--slate)"><em>Groundwork 2.0 isn't in the download yet. When it is, you'll see it here first.</em></p>
+  </div>
+</section>
+<div id="signup"></div>
+""") + SIGNUP_BAND
+    return render_template_string(
+        BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
+        title='Coming in Groundwork 2.0',
+        description='Groundwork 2.0 is being built now: statements with one press, bills read from the biller, Ask why, possible futures, a Sunday check-in and more, all on your own computer.',
+        canonical=SITE_URL + '/coming'
     )
 
 
@@ -1357,51 +1619,23 @@ def features():
 @app.route('/signup')
 def signup():
     content = """
-<section class="signup-section" style="min-height:60vh;display:flex;align-items:center">
+<section class="signup-section" style="min-height:62vh;display:flex;align-items:center">
   <div class="container">
     <h2>Get Groundwork updates</h2>
-    <p>New features ship regularly. Drop your email and we'll let you know when something worth knowing ships.</p>
+    <p>One email when something worth knowing ships, including Groundwork 2.0. No spam, and every email has a one-click unsubscribe.</p>
     <div class="signup-form">
-      <input type="text" id="signup-name" placeholder="Your name" style="max-width:160px">
-      <input type="email" id="signup-email" placeholder="Your email address">
+      <input type="text" id="signup-name" placeholder="Your name" style="max-width:170px" aria-label="Your name">
+      <input type="email" id="signup-email" placeholder="Your email address" aria-label="Your email address">
       <button class="btn" onclick="submitSignup()">Notify me →</button>
     </div>
     <div class="signup-msg" id="signup-msg"></div>
-    <p style="margin-top:16px;font-size:12px;color:rgba(255,255,255,.5)">
-      No spam. One email when something ships. Unsubscribe anytime.
-    </p>
   </div>
 </section>
-
-<script>
-async function submitSignup() {
-  const name  = document.getElementById('signup-name').value.trim();
-  const email = document.getElementById('signup-email').value.trim();
-  const msg   = document.getElementById('signup-msg');
-  if (!email) { msg.textContent = 'Enter your email address.'; return; }
-  msg.textContent = 'Signing you up…';
-  try {
-    const r = await fetch('/api/signup', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({name, email}),
-    });
-    const d = await r.json();
-    msg.textContent = d.message;
-    if (d.ok) {
-      document.getElementById('signup-name').value = '';
-      document.getElementById('signup-email').value = '';
-    }
-  } catch(e) {
-    msg.textContent = 'Something went wrong. Try again.';
-  }
-}
-</script>
-"""
+""" + SIGNUP_SCRIPT
     return render_template_string(
         BASE_TEMPLATE.replace('{% block content %}{% endblock %}', content),
         title='Sign up for updates',
-        description="Get notified about new Groundwork releases, including macOS and Linux availability. No spam, unsubscribe any time.",
+        description="Get notified about new Groundwork releases, including Groundwork 2.0. No spam, unsubscribe any time.",
         canonical=SITE_URL + '/signup'
     )
 
@@ -1483,7 +1717,7 @@ def changelog():
         body = f"""
 <div class="container" style="max-width:720px;padding:60px 24px">
   <div class="section-label">What's changed</div>
-  <h1 style="font-size:32px;font-weight:800;margin-bottom:8px">Changelog</h1>
+  <h1 style="font-size:40px;font-weight:600;margin-bottom:8px">Changelog</h1>
   <p style="color:var(--slate);margin-bottom:36px">
     Every release, shipped honest and dated.
     <a href="/download">Download</a> the latest to get all of the below.
@@ -1509,6 +1743,7 @@ _SITEMAP_PAGES = [
     ('/download',       'weekly',  '0.9'),
     ('/signup',         'monthly', '0.9'),
     ('/features',       'monthly', '0.8'),
+    ('/coming',         'weekly',  '0.8'),
     ('/knowledge-base', 'weekly',  '0.7'),
     ('/about',          'monthly', '0.6'),
     ('/changelog',      'weekly',  '0.5'),

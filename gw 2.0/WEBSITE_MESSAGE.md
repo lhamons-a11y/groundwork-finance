@@ -242,7 +242,82 @@ Then: *"make it appear that I have a marketing team that is pushing the new stuf
   direction.) **Rob, 2026-10-12: *"We as in me and my laptop."*** So the "we" is true as written: the site speaks
   as the people who build Groundwork, without claiming more of them than there are.
 
-The draft is §6.1, for Rob's ruling on its wording. **W1, W2 and W4–W9 are not ruled yet.**
+**W1–W9 RULED (Rob, 2026-10-12: "I accept W1 - W9"):**
+- **W1 (a):** one sentence, the whole picture explained with nothing to sell, for everyone.
+- **W2:** the four pillars.
+- **W3:** as directed above.
+- **W4:** the who-it's-for wording.
+- **W5:** the proof rule.
+- **W6 (a):** the website's own gate section.
+- **W7 (a):** correct the false claims first; done in the same build, below.
+- **W8:** health care on the site.
+- **W9:** the Privacy page's coverage.
+
+**With it, a widened scope (Rob: "Make the website look amazing and fresh"):** a visual redesign, which §7 had left
+out of this pass.
+
+## 4a. Built 2026-10-12: stages 2–5 in one pass, awaiting Rob's acceptance
+
+Rob asked for the site itself, so the correction pass, the claims check, the copy and the build were done together on
+branch `website-message`. Nothing is published; stage 6 is Rob's.
+
+- **The design.** New typography (Fraunces for headings, Inter for text) and the app's ink, pine and gold palette,
+  refreshed. The page uses:
+  - a frosted sticky nav and a gradient hero;
+  - a sample-figure illustration of the dashboard, labelled *"Illustration · sample figures"*;
+  - inline line icons, card grids, a dark privacy band, and fade-in sections (off under *reduced motion*);
+  - a four-column footer.
+
+  It is laid out for phones: every page was measured at 375px with no sideways scroll.
+- **The pages.**
+  - **Home:** W1's sentence, W2's four pillars, *In Groundwork today* (1.1.1 only), the privacy band with what does
+    leave the computer, W3's labelled 2.0 section, and W4's who-it's-for.
+  - **New `/coming`:** §6.1 in full, in nav, footer and both sitemaps.
+  - **Features:** 1.1.1's features, health care spending included.
+  - **About:** rewritten, nothing to sell; the Report button as it behaves.
+  - **Privacy:** W9, below.
+  - **Download / Terms / Knowledge base / Changelog / Signup:** the new look. Their wording is unchanged except
+    what was untrue.
+- **Corrected (W7), each now pinned by s206:**
+  - the "watches... learns the patterns" passage (removed);
+  - AI "by default";
+  - "AI reports send aggregated numbers";
+  - the Report button "sends us the error log" and "error log attached";
+  - the unsourced 78%;
+  - "No manual entry", which is now "no retyping";
+  - "one concrete thing / suggestion";
+  - "tired of being broke";
+  - "the smarter it gets";
+  - "ten built-in reports";
+  - "Version 1.1", which is now 1.1.1, the changelog's newest.
+- **W9's Privacy page,** re-measured against `lts/1.x` (the download) on 2026-10-12. The app's code contacts:
+  - the update check (`groundworkfinance.app`);
+  - Yahoo Finance (ticker symbols);
+  - the EIA (your state);
+  - OpenStreetMap (the places typed into the trip planner).
+
+  The bank and Google Flights windows open only on the person's click, and their section is unchanged (s156 pins
+  it). The page also states the website's counters (one per page per day, one per download platform per day, no IP
+  address, cookie or browser details), the one-click unsubscribe, and the Report button as it behaves. *"Last
+  updated"* is now a true date.
+- **W6:** `s206_website_claims.py`.
+  - None of the untrue sentences comes back.
+  - The version matches the changelog.
+  - Every outside service the code contacts is named on the Privacy page.
+  - The AI wording agrees with the app and EULA.
+  - 2.0 appears only on its page and the home page's labelled section.
+  - No title or description leads with debt.
+  - W1's sentence is on the home page.
+- **Untouched:**
+  - the Terms text (EULA rule: s52 and s156 pin it);
+  - the download page's platform and AI lines (s61 pins them);
+  - the analytics, signup, admin and `version.json` code.
+- **To check before publishing:**
+  - the pillar *"It explains what it shows"* rests on 1.1.1's help answers and figures' working, and a full stage 3
+    inventory would trace each one;
+  - the three lines §6.1 flags;
+  - which branch the live site deploys from (§3's open question; the build is on master's line).
+
 
 ## 5. Claims inventory
 
@@ -370,7 +445,7 @@ words and short sentences, with no figures that could go stale and no dates.
 - The EULA and terms text. Those follow their own rule: GW_TERMS_VERSION, three texts kept in step.
 - Any 2.0 feature itself. This pass only describes features; it never builds them.
 
-OPENED 2026-10-04. No code. W3 ruled by direction 2026-10-12 (§4), its section drafted (§6.1); W1, W2, W4–W9 awaiting Rob's rulings.
+OPENED 2026-10-04. W1–W9 RULED 2026-10-12. Stages 2–5 BUILT 2026-10-12 (§4a): the redesigned site on branch website-message, awaiting Rob's acceptance; publishing is Rob's.
 
 ## Direction from Rob, 2026-10-05: a user forum for reporting problems
 
