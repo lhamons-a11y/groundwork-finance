@@ -2949,6 +2949,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               Download JSON
             </button>
           </div>
+          <label style="display:block;font-size:11px;color:var(--slate-2);margin-top:8px"><input type="checkbox" id="exportIncludeHealth">
+            Include health spending (pharmacy, doctor, dental and other care). Left out unless ticked.</label>
           <label style="display:block;font-size:11px;color:var(--slate-2);margin-top:8px"><input type="checkbox" id="exportIncludeAiLog">
             Include the AI log in a JSON export (it holds the financial summaries sent to the AI on this computer)</label>
           <div id="exportStatus" style="font-size:11px;color:var(--slate);margin-top:10px;display:none"></div>
@@ -3218,6 +3220,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           </button>
           <label style="font-size:11px;color:var(--slate-2);align-self:center"><input type="checkbox" id="backupIncludeAiLog"> Include the AI log</label>
         </div>
+        <div style="font-size:11px;color:var(--slate);margin-top:8px">A backup contains everything, including health spending and records. Keep it somewhere private.</div>
       </div>
       <div id="backupList"></div>
     </div>

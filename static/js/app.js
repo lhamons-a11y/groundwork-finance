@@ -24426,10 +24426,11 @@ async function exportData(format) {
   // the success line below reports the path the server actually wrote to.
   if (status) { status.textContent = 'Saving export…'; status.style.display = ''; }
   try {
-    const res  = await API.post('/api/settings/export-to-file', { format, include_ai_log: !!g('exportIncludeAiLog')?.checked });
+    const res  = await API.post('/api/settings/export-to-file', { format, include_ai_log: !!g('exportIncludeAiLog')?.checked,
+                                                                  include_health: !!g('exportIncludeHealth')?.checked });
     const data = res.data || res;
     if (data.saved) {
-      const msg = `Saved to: ${data.path}`;
+      const msg = `Saved to: ${data.path}` + (data.health_left_out ? ` (${data.health_left_out} health spending transaction${data.health_left_out === 1 ? '' : 's'} left out)` : '');
       if (status) {
         status.innerHTML = data.warning
           ? `<span style="color:var(--gold-text)">⚠</span> ${esc(msg)} — ${esc(data.warning)}`
@@ -24603,7 +24604,7 @@ async function loadBackupList() {
 async function createBackup() {
   try {
     const res = await API.post('/api/backup/create', { include_ai_log: !!g('backupIncludeAiLog')?.checked });
-    showToast('Backup created', (res.data||res).filename||'', 'success');
+    showToast('Backup created', `${(res.data||res).filename||''}. ${(res.data||res).statement||''}`, 'success');
     loadBackupList();
   } catch(e) { showToast('Backup failed', e.message||'', 'error'); }
 }

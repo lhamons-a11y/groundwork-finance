@@ -113,6 +113,14 @@ def create_app(static_folder: str = None) -> Flask:
         root.addHandler(fh)
         if root.level > logging.INFO:
             root.setLevel(logging.INFO)
+    # Item 45 H6 P2: every log record passes the health scrubber, on every handler (HEALTH_PRIVACY_H6.md)
+    from core import health_boundary
+    health_boundary.install_log_filter()
+    try:
+        with db_session() as _hs:
+            health_boundary.refresh(_hs)
+    except Exception:
+        pass               # a database not migrated yet: refreshed on the first import or AI call
     logging.getLogger('groundwork').info('Groundwork %s starting', GW_VERSION)
 
     @app.errorhandler(Exception)
@@ -7158,7 +7166,7 @@ def log_historian_event(session, event_category: str, debt_account_id=None, cate
         actual_value=actual_value,
         variance_pct=variance_pct,
         variance_amount=variance_amount,
-        context_json=json.dumps(context) if context else None,
+        context_json=json.dumps(__import__('core.health_boundary', fromlist=['scrub_obj']).scrub_obj(context)) if context else None,   # H6 P8
     )
     session.add(entry)
     return entry
@@ -11502,6 +11510,13 @@ def export_to_file():
         # turns out to be, it degrades to "one row skipped" instead of
         # "nobody's export works."
         txns        = session.query(Transaction).order_by(desc(Transaction.date)).all()
+        # Item 45 H6 P3: health spending stays out of an export unless the person ticks it in
+        from core import health_boundary
+        health_left_out = 0
+        if not body.get('include_health'):
+            _hids = health_boundary.health_category_ids(session)
+            health_left_out = sum(1 for t in txns if t.category_id in _hids)
+            txns = [t for t in txns if t.category_id not in _hids]
         txn_rows, txn_skipped = [], 0
         for t in txns:
             try:
@@ -11547,6 +11562,8 @@ def export_to_file():
                 import csv
                 output = io.StringIO()
                 w = csv.writer(output)
+                if health_left_out:
+                    w.writerow([f'{health_left_out} health spending transaction(s) left out; tick "Include health spending" to include them'])
                 w.writerow(['--- TRANSACTIONS ---'])
                 if txn_rows:
                     w.writerow(txn_rows[0].keys())
@@ -11563,6 +11580,8 @@ def export_to_file():
             else:
                 payload = {
                     'exported_at':   datetime.utcnow().isoformat(),
+                    'health_left_out': (f'{health_left_out} health spending transaction(s) left out; tick "Include '
+                                        'health spending" to include them') if health_left_out else None,
                     'transactions':  txn_rows,
                     'budget':        budget_rows,
                     'debt_accounts': debt_rows,
@@ -11573,7 +11592,7 @@ def export_to_file():
                     payload['ai_log'] = [_ai_log_json(r, full=True) for r in session.query(AiLog).order_by(AiLog.id).all()]
                 dest.write_text(json.dumps(payload, indent=2, default=str), encoding='utf-8')
 
-            resp = {'saved': True, 'path': str(dest), 'filename': filename}
+            resp = {'saved': True, 'path': str(dest), 'filename': filename, 'health_left_out': health_left_out}
             total_skipped = txn_skipped + debt_skipped + nw_skipped
             if total_skipped:
                 resp['skipped'] = total_skipped
@@ -11608,10 +11627,27 @@ def ai_chat():
             'message':      'AI features are turned off. You can enable them in Settings.',
         })
 
-    body = request.json or {}
+    body = _health_scrub_prompt(request.json or {})
     if body.get('stream'):
         return _ai_chat_stream(body)
     return _ai_chat_local(body)
+
+
+def _health_scrub_prompt(body):
+    """Item 45 H6 P5: what the model is given passes the health scrubber - a category and an amount stay; a merchant,
+    a description or a health record's text does not. Learned fresh, so a just-imported pharmacy is caught."""
+    from core import health_boundary
+    try:
+        with db_session() as _hs:
+            health_boundary.refresh(_hs)
+    except Exception:
+        pass
+    out = dict(body)
+    if 'system' in out:
+        out['system'] = health_boundary.scrub(out.get('system'))
+    if 'messages' in out:
+        out['messages'] = health_boundary.scrub_obj(out.get('messages') or [])
+    return out
 
 
 @ai_bp.route('/stop', methods=['POST'])
@@ -11669,9 +11705,11 @@ def _ai_log_write(body, response='', stop_reason='', model='', stopped=False):
                 return None
             session.query(AiLog).filter(AiLog.created_at < datetime.utcnow() - timedelta(days=AI_LOG_DAYS)) \
                 .delete(synchronize_session=False)
+            from core import health_boundary as _hb      # item 45 H6 P6: scrubbed again, whoever called
             row = AiLog(call_id=str(body.get('log_call') or '')[:64], attempt=int(body.get('log_attempt') or 1),
-                        surface=str(body.get('surface') or '')[:80], system=str(body.get('system') or '')[:40000],
-                        messages=json.dumps(body.get('messages') or [])[:80000], response=str(response or '')[:40000],
+                        surface=str(body.get('surface') or '')[:80], system=_hb.scrub(str(body.get('system') or ''))[:40000],
+                        messages=json.dumps(_hb.scrub_obj(body.get('messages') or []))[:80000],
+                        response=_hb.scrub(str(response or ''))[:40000],
                         stop_reason=str(stop_reason or '')[:20], stopped=bool(stopped), model=str(model or '')[:120])
             session.add(row)
             session.commit()
@@ -11973,7 +12011,7 @@ def ai_voice_miss():
         'surface': str(body.get('surface', 'unknown'))[:80],
         'model':   str(body.get('model', ''))[:80],
         'rules':   body.get('rules') if isinstance(body.get('rules'), list) else [],
-        'text':    str(body.get('text', ''))[:2000],
+        'text':    __import__('core.health_boundary', fromlist=['scrub']).scrub(str(body.get('text', '')))[:2000],   # H6
     }
     try:
         log_path = DATA_DIR / 'voice_miss_log.jsonl'
@@ -12250,6 +12288,11 @@ def set_backup_location():
         return ok({'path': str(p), 'is_custom': True, 'is_default': False})
 
 
+# Item 45 H6 P4: a backup copies everything, because it exists to restore everything - so it says so.
+BACKUP_STATEMENT = ('A backup contains everything, including health spending and records. '
+                    'Keep it somewhere private.')
+
+
 @backup_bp.route('', methods=['POST'])
 @backup_bp.route('/create', methods=['POST'])
 def create_backup():
@@ -12265,7 +12308,7 @@ def create_backup():
         shutil.copy2(DB_PATH, backup_path)
         if not (request.get_json(silent=True) or {}).get('include_ai_log'):
             _scrub_ai_log(backup_path)        # item 62 G5: left out unless the person includes it
-        return ok({'filename': backup_name, 'size': backup_path.stat().st_size})
+        return ok({'filename': backup_name, 'size': backup_path.stat().st_size, 'statement': BACKUP_STATEMENT})
     except Exception as e:
         return err(f'Backup failed: {e}', 500)
 

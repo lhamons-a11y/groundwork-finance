@@ -126,3 +126,47 @@ The tests, as §7 lists them:
   (P5), the AI log regression (P6), outbound fences (P7), Historian context (P8);
 - a **derived-disclosure** case: a pharmacy transaction's merchant must not reach any sink, even though the
   transaction names no person.
+
+## 6. Built 2026-10-12 (P1-P9 as ruled), awaiting acceptance
+
+- **P1. `core/health_boundary.py`.**
+  - The health terms are the protected list's health block, sliced from `NECESSITY_FLOOR`; there is no second list.
+    Health categories and their children are covered.
+  - `refresh()` learns the text to remove: each health transaction's merchant and description, plus the health
+    record tables' plan names and reasons.
+  - `scrub()` replaces that text with `[health: <Category>]` or `[health record]`. It never touches the database, so
+    a log line can't recurse into it.
+- **P2.**
+  - `HealthLogFilter` sits on the root logger and on every handler. It is installed at startup, and the text to
+    remove is learned at the same time.
+  - A rule test fails the gate if any logging call formats a `.merchant` or `.description`. None does today.
+  - The Report button sends the log text, so it is covered.
+- **P3.** Export-to-file has a new tick, *"Include health spending"*, off by default.
+  - Unticked, health transactions are left out.
+  - The JSON and CSV say how many were left out, and the page's message says so too.
+  - The class A tables were never exported.
+- **P4.** The backup panel states *"A backup contains everything, including health spending and records. Keep it
+  somewhere private."* It also comes back with every backup made.
+- **P5.** `/api/ai/chat` scrubs the system prompt and the messages (`_health_scrub_prompt`) before the model gets
+  them. The voice-check miss log, found by the scan because it keeps the model's text, is scrubbed too.
+- **P6.** `_ai_log_write` scrubs the system, messages and response again before storing, whoever called it. s208
+  writes a pharmacy name and finds none stored: the named regression case.
+- **P7.** s208 checks the innermost function around every outbound call: none reads a transaction, a merchant or a
+  health record.
+- **P8.** `log_historian_event` scrubs its context: the category id and amount stay, the merchant goes.
+- **P9.** `core/health_sinks_scan.py` finds every sink by file, function and kind:
+  - logs and prints;
+  - file writes, copies and backups;
+  - downloads to the page;
+  - outbound URL calls and windows;
+  - AI-log writes.
+
+  `HEALTH_SINKS` registers all 47 with how each is enforced. s208 fails on any unregistered sink or any registered
+  one that is gone, and shows that the scanner catches a planted new outbound path.
+- **The derived-disclosure case:** a pharmacy charge that names no person is checked against the logs, the export,
+  the model's context, the AI log, the miss log and the Historian. It reaches none of them.
+- **Tests:** s208, 14 checks.
+- **Found while testing, not changed:** two exports made within the same second share a file name, so the second
+  replaces the first. It is minor, and the test reads each file at once.
+- **H6 complete** once this is accepted. Per H7, that authorises nothing named; plan-year tracking is next only on
+  its own ruling.
