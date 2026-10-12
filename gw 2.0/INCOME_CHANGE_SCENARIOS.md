@@ -397,3 +397,7 @@ What can't be closed from the remaining lines is said, never forced (I3).
   - asked: Auto Finance A, Car Insurer, Dept of Education;
   - "Apple" is not mistaken for the Apple Master Card account.
 - s191 tests it, including a check that would fail if the rule were removed (it shows the 2026-10-10 halving).
+
+- **D2 amended 2026-10-11 (Rob: "make check my records skip it").** Asked whether the retype was redundant: a category
+  named for a budget income line already counts as income (core/income_def.py), so retyping changes no figure.
+  Check my records no longer offers it; the fix stays available when asked for directly. s190 checks both.

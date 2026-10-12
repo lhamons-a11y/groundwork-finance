@@ -202,20 +202,9 @@ def check_wrong_kind(session, today, data):
             by[t.category_id][t.type].append(t)
     income_cats = [c for c in cats.values() if (c.type or '') == 'income']
     out = []
-    # D2: a category counted as income (named for a budget income line) that is still a spending category
-    from core.database import BudgetItem
-    lines = {(b.name or '').strip().lower() for b in session.query(BudgetItem).filter_by(type='income').all()}
-    root = next((c for c in cats.values() if (c.name or '').strip().lower() == 'income'), None)
-    for c in cats.values():
-        if (c.name or '').strip().lower() in lines and (c.type or 'expense') != 'income' and root:
-            held = by.get(c.id, {'credit': [], 'debit': []})
-            text = (f'"{c.name}" is named for one of your budget\'s income lines, so its deposits count as income, but it '
-                    f'is set up as a spending category. It holds {len(held["credit"])} deposits and {len(held["debit"])} '
-                    f'charges.')
-            out.append(_finding('wrong_kind', text, [_row(t, cats, accts) for t in held['credit'] + held['debit']],
-                                [{'kind': 'retype_category', 'label': f'Make "{c.name}" an income category under "{root.name}"',
-                                  'category_id': c.id, 'to_type': 'income', 'to_parent_id': root.id}],
-                                {'category': c.name, 'retype': True}))
+    # D2: a category named for a budget income line already counts as income (core/income_def.py), so the check no
+    # longer offers to retype it - nothing in the figures would change (Rob 2026-10-11: "make check my records skip
+    # it"). The retype_category fix itself stays, for a caller that asks for it.
     for cid, d in by.items():
         c = cats[cid]
         cr, db = d['credit'], d['debit']
