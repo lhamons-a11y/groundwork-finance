@@ -62,15 +62,28 @@ def run(ctx):
             old = s.query(AiLog).filter_by(call_id='call-old').count()
         check('s184 G4 entries older than 90 days are deleted', old == 0)
 
-        # G5: backups
+        # G5: backups (sealed since item 81 - opened here with the stand-in vault's key to count the rows)
+        from core import backup_crypto as _bc
+        _old_vault = _bc.test_protect(c, HJ)
         made = c.post('/api/backup/create', headers=HJ, data='{}').get_json()['data']
         import time
         time.sleep(1.1)                    # backups are named by the second
         kept = c.post('/api/backup/create', headers=HJ, data=json.dumps({'include_ai_log': True})).get_json()['data']
         bdir = server._backups_dir()
-        n1 = sqlite3.connect(str(bdir / made['filename'])).execute('SELECT COUNT(*) FROM ai_log').fetchone()[0]
-        n2 = sqlite3.connect(str(bdir / kept['filename'])).execute('SELECT COUNT(*) FROM ai_log').fetchone()[0]
-        raw = (bdir / made['filename']).read_bytes()
+
+        def _rows(name):
+            data, _ = _bc.decrypt((bdir / name).read_bytes(), vault_key=_bc.VAULT.get())
+            tmp = bdir / f'.s184_{name}.db'
+            tmp.write_bytes(data)
+            con = sqlite3.connect(str(tmp))
+            try:
+                return con.execute('SELECT COUNT(*) FROM ai_log').fetchone()[0], data
+            finally:
+                con.close()
+                tmp.unlink()
+        n1, raw = _rows(made['filename'])
+        n2, _ = _rows(kept['filename'])
+        _bc.test_unprotect(_old_vault)
         check('s184 G5 a backup leaves the AI log out - rows gone and the file compacted - unless the person includes it',
               n1 == 0 and n2 >= 2 and b'Dining was $412.' not in raw)
         srv = ctx.server_src

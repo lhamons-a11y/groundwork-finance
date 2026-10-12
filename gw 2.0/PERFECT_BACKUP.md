@@ -153,3 +153,38 @@ Google push approval: *"I don't know if it ever would work like that."*
 - **Cloud backup** of any kind. Not proposed: no third party sees the data.
 - **1.x:** master only, unless Rob rules that unencrypted backups are a security fix under L1. That is his call; it
   would then ship as a 1.1.x release.
+
+## 5. Built 2026-10-12: B1-B9 (B10 next, with Rob's security key), awaiting acceptance
+
+- **`core/backup_crypto.py`.**
+  - **The seal:** one random 256-bit backup key seals each backup with AES-256-GCM, with the header bound in.
+  - **The format:** `GWBK1\n | header length | header JSON | nonce | ciphertext`.
+  - **The header** carries the key wrapped twice: by the password (scrypt, n=2^15, about 0.1 s) and by the recovery
+    words (HKDF over their 24 bytes). The key itself sits in this computer's vault (Windows Credential Manager, the
+    macOS Keychain, or a Linux Secret Service), as item 57's bank logins do.
+  - **The recovery words:** 24 from a fixed list of 256 plain words, so 192 bits. The list's order is pinned by s209,
+    because every key ever written down depends on it.
+- **Routes** (`/api/backup/...`):
+  - `protect` (state), `protect/setup`, `protect/confirm`, `protect/password`, `protect/recovery`, and
+    `protect/reset` (this computer only);
+  - `check`, `encrypt-old`, `delete`.
+  - `create` requires protection (409 until it is set up, which is B1), and uses this computer's key, or the password
+    where the vault holds none.
+  - `restore` and `restore-upload` open plain or sealed backups. They touch the live database only after the backup
+    has opened in full and its seal has checked out.
+- **Safety copies before a delete** are sealed once protection is on, and are never blocked when it isn't (a plain
+  copy beats no copy).
+- **The page.** The Backups window gains a *Protect your backups* panel:
+  - the password twice;
+  - the 24 words, shown once, with **Print** and *"I've written it down"*;
+  - three of the words, chosen at random, typed back to confirm.
+
+  It also has *Change password*, *New recovery key*, and (on this computer) *Forgot the password and lost the
+  words?*. Each backup shows 🔒 or *not protected*, with **Check**, **Re-save protected** (old ones), **Delete** and
+  **Recover**. A locked backup asks for the password or the words.
+- **H6:** the new file writers are registered in its sink registry, so `_write_backup` and `backup_encrypt_old` are
+  reconciled by s208.
+- **Tests:** s209, 13 checks. s55, s184 and s208 now set protection up on a stand-in vault, never the real one, and
+  read their backups through the seal.
+- **`cryptography`** is now named in `requirements.txt`. It was already bundled, because the PDF reader needs it.
+- **B10, the optional security key:** next. It needs the `fido2` library and Rob's key in hand to build against.

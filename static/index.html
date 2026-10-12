@@ -3222,12 +3222,13 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         </div>
         <div style="font-size:11px;color:var(--slate);margin-top:8px">A backup contains everything, including health spending and records. Keep it somewhere private.</div>
       </div>
+      <div id="backupProtect"></div>
       <div id="backupList"></div>
     </div>
   </div>
 </div>
 
-<input type="file" id="restoreUploadInput" accept=".db" onchange="handleRestoreUpload(event)" style="display:none">
+<input type="file" id="restoreUploadInput" accept=".db,.gwbk" onchange="handleRestoreUpload(event)" style="display:none">
 
 <!-- REPORT — full-screen magazine layout -->
 <div id="reportModal" class="hidden" style="

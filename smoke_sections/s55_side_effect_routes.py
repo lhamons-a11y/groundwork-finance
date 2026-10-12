@@ -40,6 +40,10 @@ def run(ctx):
         body = resp.get_json() or {}
         return body.get('data') or body
 
+    # Item 81: a backup is protected, always - so protection is set up first, on a stand-in vault (never the real one)
+    from core import backup_crypto as _bc
+    _old_vault = _bc.test_protect(c, HJ)
+
     # The restore point. Everything below can be as destructive as the route
     # it is testing, because this comes back at the end.
     _made = c.post('/api/backup/create', headers=H)
@@ -47,9 +51,9 @@ def run(ctx):
     check('a backup can be created, and it names the file it wrote',
           _made.status_code == 200 and bool(_restore_point))
     _backup_file = _backups_dir() / (_restore_point or 'missing')
-    check('and the file is on disk and is a real SQLite database, not an empty one',
+    check('and the file is on disk, sealed (item 81: not readable as a database), and not an empty one',
           _backup_file.exists()
-          and _backup_file.read_bytes()[:15] == b'SQLite format 3'
+          and _backup_file.read_bytes()[:5] == b'GWBK1' and b'SQLite format 3' not in _backup_file.read_bytes()[:4096]
           and _backup_file.stat().st_size > 4096)
     check('the backup list reports the file that was just written',
           any(row.get('filename') == _restore_point
@@ -273,6 +277,7 @@ def run(ctx):
         # Back to exactly what this section walked in on, whatever happened
         # above - including the probe rows, the settings key and the snapshot.
         c.post('/api/backup/restore', headers=HJ, json={'filename': _restore_point})
+        _bc.test_unprotect(_old_vault)
 
     with db_session() as session:
         _left = session.query(Transaction).filter(

@@ -24556,6 +24556,7 @@ function openBackupModal()  { g('backupModal')?.classList.remove('hidden'); load
 function closeBackupModal() { g('backupModal')?.classList.add('hidden'); }
 
 async function loadBackupList() {
+  renderBackupProtect();   // item 81
   const list = g('backupList');
   if (!list) return;
   try {
@@ -24581,19 +24582,24 @@ async function loadBackupList() {
         : `${(b.size/1024/1024).toFixed(1)} MB`) : '';
 
       return `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;gap:8px;flex-wrap:wrap;
                   border-bottom:0.5px solid var(--steel-2)">
         <div>
-          <div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(dateStr)}</div>
+          <div style="font-size:13px;font-weight:500;color:var(--ink)">${b.encrypted ? '🔒 ' : ''}${esc(dateStr)}</div>
           <div style="font-size:11px;color:var(--slate);margin-top:2px">
-            ${esc(filename)}${sizeStr ? ` · ${sizeStr}` : ''}
+            ${esc(filename)}${sizeStr ? ` · ${sizeStr}` : ''}${b.encrypted ? ' · protected' : ' · <span style="color:var(--gold-text)">not protected - anyone with the file can open it</span>'}
           </div>
         </div>
-        <button class="btn btn-secondary btn-sm"
-          onclick="restoreFromBackup('${esc(filename)}')"
-          style="color:var(--pine-text);border-color:var(--pine)">
-          ↩ Recover
-        </button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="backupCheck('${esc(filename)}')">Check</button>
+          ${b.encrypted ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="backupEncryptOld('${esc(filename)}')">Re-save protected</button>`}
+          <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="backupDelete('${esc(filename)}')">Delete</button>
+          <button class="btn btn-secondary btn-sm"
+            onclick="restoreFromBackup('${esc(filename)}')"
+            style="color:var(--pine-text);border-color:var(--pine)">
+            ↩ Recover
+          </button>
+        </div>
       </div>`;
     }).join('');
   } catch(e) {
@@ -24601,15 +24607,21 @@ async function loadBackupList() {
   }
 }
 
-async function createBackup() {
+async function createBackup(password) {
   try {
-    const res = await API.post('/api/backup/create', { include_ai_log: !!g('backupIncludeAiLog')?.checked });
+    const res = await API.post('/api/backup/create', { include_ai_log: !!g('backupIncludeAiLog')?.checked, ...(password ? { password } : {}) });
     showToast('Backup created', `${(res.data||res).filename||''}. ${(res.data||res).statement||''}`, 'success');
     loadBackupList();
-  } catch(e) { showToast('Backup failed', e.message||'', 'error'); }
+  } catch(e) {
+    // Item 81 B1: a backup is protected, always - set protection up first, or give the password on a computer without the key
+    if (/Set up backup protection/i.test(e.message || '')) { showToast('Set up protection first', 'A password and a recovery key, once.', 'info'); g('backupProtect')?.scrollIntoView({ behavior: 'smooth' }); return; }
+    if (/enter the backup password/i.test(e.message || '')) { _bkPrompt('Backup password', { note: "This computer doesn't hold the backup key.", inputs: [{ id: 'bkCPw', ph: 'Backup password' }] }, v => createBackup(v.bkCPw), 'Make the backup'); return; }
+    showToast('Backup failed', e.message||'', 'error');
+  }
 }
 
-async function restoreFromBackup(filename) {
+async function restoreFromBackup(filename, keys) {
+  if (keys) { return _bkRestore(filename, keys); }
   confirmAction(
     'Restore from backup?',
     `<div style="line-height:1.7;font-size:13px">
@@ -24623,18 +24635,21 @@ async function restoreFromBackup(filename) {
          Tip: Create a backup of your current data first if you want to be able to go back.
        </div>
      </div>`,
-    async () => {
-      try {
-        await API.post('/api/backup/restore', { filename });
-        showToast('Backup restored', 'Reloading Groundwork…', 'success');
-        setTimeout(() => window.location.reload(), 1500);
-      } catch(e) {
-        showToast('Restore failed', e.message || 'Check that the backup file is valid', 'error');
-      }
-    },
+    () => _bkRestore(filename, {}),
     'Restore backup',
     true   // danger button
   );
+}
+
+async function _bkRestore(filename, keys) {
+  try {
+    await API.post('/api/backup/restore', { filename, ...keys });
+    showToast('Backup restored', 'Reloading Groundwork…', 'success');
+    setTimeout(() => window.location.reload(), 1500);
+  } catch(e) {
+    if (/password|recovery|another computer/i.test(e.message || '')) { _bkUnlock(k => _bkRestore(filename, k)); return; }
+    showToast('Restore failed', e.message || 'Check that the backup file is valid', 'error');
+  }
 }
 
 async function handleRestoreUpload(evt) {
@@ -24657,13 +24672,19 @@ async function handleRestoreUpload(evt) {
      </div>`,
     async () => {
       try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const r   = await fetch('/api/backup/restore-upload', { method:'POST', body: formData });
-        const res = await r.json().catch(_gwErrVal('handleRestoreUpload', {}));
-        if (!r.ok || res.error) throw new Error(res.error || `Server error ${r.status}`);
-        showToast('Backup restored', 'Reloading Groundwork…', 'success');
-        setTimeout(() => window.location.reload(), 1500);
+        const send = async (keys) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          if (keys?.password) formData.append('password', keys.password);
+          if (keys?.words) formData.append('words', keys.words.join(' '));
+          const r   = await fetch('/api/backup/restore-upload', { method:'POST', body: formData });
+          const res = await r.json().catch(_gwErrVal('handleRestoreUpload', {}));
+          if (r.status === 403) { _bkUnlock(send); return; }      // item 81: a protected backup from another computer
+          if (!r.ok || res.error) throw new Error(res.error || `Server error ${r.status}`);
+          showToast('Backup restored', 'Reloading Groundwork…', 'success');
+          setTimeout(() => window.location.reload(), 1500);
+        };
+        await send(null);
       } catch(e) {
         showToast('Restore failed', e.message || 'Check that the file is a valid Groundwork backup', 'error');
       }
@@ -24671,6 +24692,150 @@ async function handleRestoreUpload(evt) {
     'Restore backup',
     true   // danger button
   );
+}
+
+// ── Item 81 (PERFECT_BACKUP.md B1-B9): protected backups ─────────────────────────────────────────────────────
+// Three keys to one lock: this computer's vault (nothing to type here), the backup password (any computer), and the
+// 24-word recovery key (when the password is forgotten). The words are shown once and never kept by Groundwork.
+let _bkWords = null, _bkAsk = null;
+
+async function renderBackupProtect() {
+  const box = g('backupProtect');
+  if (!box) return;
+  let st;
+  try { st = await API.get('/api/backup/protect'); } catch (e) { _gwErr('renderBackupProtect')(e); return; }
+  if (_bkWords) { box.innerHTML = _bkWordsHTML(st); return; }
+  if (!st.confirmed) {
+    box.innerHTML = `<div style="background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px">Protect your backups</div>
+      <div style="font-size:12px;color:var(--slate);line-height:1.6;margin-bottom:10px">
+        A protected backup can't be opened by anyone who finds the file. Three things open it:
+        <b>this computer</b> (nothing to type here)${st.vault_available ? '' : ' - not available here, because this system has no password vault'},
+        <b>your backup password</b> (any computer), and <b>a 24-word recovery key</b> you write down, for when the password is forgotten.
+        Groundwork never sends any of them anywhere, so nobody else can open your backups - and nobody can reset them for you.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="bkPw1" type="password" class="field-input" placeholder="Backup password (${st.min_password}+ characters)" style="flex:1;min-width:180px;font-size:12px;padding:6px 10px">
+        <input id="bkPw2" type="password" class="field-input" placeholder="Same password again" style="flex:1;min-width:160px;font-size:12px;padding:6px 10px">
+        <button class="btn btn-primary btn-sm" onclick="backupSetup()">Set up protection</button>
+      </div></div>`;
+    return;
+  }
+  box.innerHTML = `<div style="background:var(--mist);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--ink);line-height:1.6">
+      🔒 <b>Your backups are protected.</b> ${st.key_on_this_computer ? 'This computer opens them with nothing to type.' : "This computer doesn't hold the backup key, so making or opening a backup asks for the password."}
+      On another computer: your backup password, or your 24-word recovery key.
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="backupChangePassword()">Change password</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="backupNewRecovery()">New recovery key</button>
+        ${st.key_on_this_computer ? '<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="backupReset()">Forgot the password and lost the words?</button>' : ''}
+      </div></div>`;
+}
+
+function _bkWordsHTML() {
+  const w = _bkWords || [];
+  if (_bkAsk) {
+    return `<div style="background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px">Check that you saved it</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:8px">Type these words from your recovery key.</div>
+      ${_bkAsk.map(i => `<label style="display:flex;align-items:center;gap:8px;font-size:12px;margin:4px 0">Word ${i + 1}
+        <input class="field-input bk-ask" data-i="${i}" style="width:160px;font-size:12px;padding:5px 8px" autocomplete="off"></label>`).join('')}
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-primary btn-sm" onclick="backupConfirmWords()">Confirm</button>
+        <button class="btn btn-ghost btn-sm" onclick="_bkAsk=null;renderBackupProtect()">Show the words again</button></div></div>`;
+  }
+  return `<div id="bkWords" style="background:var(--paper);border:2px solid var(--ink);border-radius:var(--r-md);padding:16px;margin-bottom:14px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">Your Groundwork backup recovery key</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:10px">Write these 24 words down, in order, or print this. Keep it somewhere safe and private.
+        It opens your backups on any computer if you forget the password. <b>Groundwork will not show it again and does not keep it.</b></div>
+      <ol style="columns:3;font-family:var(--font-mono);font-size:13px;line-height:1.9;padding-left:24px;margin:0">${w.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
+      <div class="bk-noprint" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn btn-secondary btn-sm" onclick="backupPrintWords()">Print</button>
+        <button class="btn btn-primary btn-sm" onclick="backupWroteItDown()">I've written it down</button></div>
+      <style>@media print { body.bk-printing * { visibility:hidden } body.bk-printing #bkWords, body.bk-printing #bkWords * { visibility:visible }
+        body.bk-printing #bkWords { position:absolute; left:0; top:0; width:100% } body.bk-printing .bk-noprint { display:none } }</style>
+    </div>`;
+}
+
+function backupPrintWords() {
+  document.body.classList.add('bk-printing');
+  try { window.print(); } finally { setTimeout(() => document.body.classList.remove('bk-printing'), 500); }
+}
+function backupWroteItDown() {
+  const idx = [...Array(24).keys()].sort(() => Math.random() - 0.5).slice(0, 3).sort((a, b) => a - b);
+  _bkAsk = idx;
+  renderBackupProtect();
+}
+async function backupConfirmWords() {
+  const ok = [...document.querySelectorAll('.bk-ask')].every(el => el.value.trim().toLowerCase() === (_bkWords || [])[+el.dataset.i]);
+  if (!ok) { showToast("Those words don't match", 'Check your recovery key and try again, or show the words again.', 'warning'); return; }
+  try { await API.post('/api/backup/protect/confirm', {}); }
+  catch (e) { _gwErr('backupConfirmWords')(e); showToast('Not saved', e?.message || '', 'warning'); return; }
+  _bkWords = null; _bkAsk = null;
+  showToast('Backups are protected', 'Keep the recovery key safe.', 'success');
+  renderBackupProtect();
+}
+async function backupSetup() {
+  const a = g('bkPw1')?.value || '', b = g('bkPw2')?.value || '';
+  if (a !== b) { showToast("The passwords don't match", '', 'warning'); return; }
+  try { _bkWords = (await API.post('/api/backup/protect/setup', { password: a })).words; }
+  catch (e) { _gwErr('backupSetup')(e); showToast('Not set up', e?.message || '', 'warning'); return; }
+  _bkAsk = null;
+  renderBackupProtect();
+}
+function _bkPrompt(title, fields, done, label) {
+  confirmAction(title, `<div style="font-size:12px;color:var(--slate);margin-bottom:8px">${fields.note || ''}</div>`
+    + fields.inputs.map(f => `<input id="${f.id}" type="${f.type || 'password'}" class="field-input" placeholder="${esc(f.ph)}" style="width:100%;margin-bottom:6px;font-size:12px;padding:6px 10px" autocomplete="off">`).join(''),
+    () => done(Object.fromEntries(fields.inputs.map(f => [f.id, g(f.id)?.value || '']))), label || 'Continue', false);
+}
+function backupChangePassword() {
+  _bkPrompt('Change the backup password', { note: 'New backups use the new password. Older backups still open with the old one, or your recovery key.',
+    inputs: [{ id: 'bkOld', ph: 'Current password (not needed on this computer)' }, { id: 'bkNew1', ph: 'New password' }, { id: 'bkNew2', ph: 'New password again' }] },
+    async v => {
+      if (v.bkNew1 !== v.bkNew2) { showToast("The passwords don't match", '', 'warning'); return; }
+      try { await API.post('/api/backup/protect/password', { password: v.bkOld, new_password: v.bkNew1 }); showToast('Password changed', '', 'success'); }
+      catch (e) { _gwErr('backupChangePassword')(e); showToast('Not changed', e?.message || '', 'warning'); }
+    }, 'Change it');
+}
+function backupNewRecovery() {
+  _bkPrompt('Make a new recovery key', { note: 'Use this if the paper was lost. Older backups still need the old key, or the password.',
+    inputs: [{ id: 'bkOldR', ph: 'Backup password (not needed on this computer)' }] },
+    async v => {
+      try { _bkWords = (await API.post('/api/backup/protect/recovery', { password: v.bkOldR })).words; _bkAsk = null; renderBackupProtect(); }
+      catch (e) { _gwErr('backupNewRecovery')(e); showToast('Not made', e?.message || '', 'warning'); }
+    }, 'Make a new key');
+}
+function backupReset() {
+  _bkPrompt('Set a new password and recovery key', { note: 'This computer holds the backup key, so it can set a new password and new words. Older backups still open here.',
+    inputs: [{ id: 'bkR1', ph: 'New password' }, { id: 'bkR2', ph: 'New password again' }] },
+    async v => {
+      if (v.bkR1 !== v.bkR2) { showToast("The passwords don't match", '', 'warning'); return; }
+      try { _bkWords = (await API.post('/api/backup/protect/reset', { new_password: v.bkR1 })).words; _bkAsk = null; renderBackupProtect(); }
+      catch (e) { _gwErr('backupReset')(e); showToast('Not reset', e?.message || '', 'warning'); }
+    }, 'Set them');
+}
+// A locked backup (made on another computer, or this computer has no key) asks for the password or the words.
+function _bkUnlock(then) {
+  _bkPrompt('Open this backup', { note: 'This backup was protected on another computer. Enter its backup password, or its 24-word recovery key.',
+    inputs: [{ id: 'bkUPw', ph: 'Backup password' }, { id: 'bkUWords', ph: 'Or the 24 recovery words, separated by spaces', type: 'text' }] },
+    v => then({ password: v.bkUPw || undefined, words: v.bkUWords ? v.bkUWords.trim().split(/\s+/) : undefined }), 'Open it');
+}
+async function backupCheck(filename, keys) {
+  try {
+    const r = await API.post('/api/backup/check', { filename, ...(keys || {}) });
+    showToast('This backup opens', `Checked with ${r.opened_with}. Nothing was restored.`, 'success');
+  } catch (e) {
+    if (/password|recovery|another computer/i.test(e.message || '')) _bkUnlock(k => backupCheck(filename, k));
+    else showToast("This backup doesn't check out", e?.message || '', 'error');
+  }
+}
+async function backupEncryptOld(filename) {
+  try { const r = await API.post('/api/backup/encrypt-old', { filename }); showToast('Saved protected', `${r.filename}. The plain copy is still there until you delete it.`, 'success'); loadBackupList(); }
+  catch (e) { _gwErr('backupEncryptOld')(e); showToast('Not saved', e?.message || '', 'warning'); }
+}
+function backupDelete(filename) {
+  confirmAction('Delete this backup?', `<div style="font-size:13px;color:var(--slate)">${esc(filename)} will be deleted from this computer. This can't be undone.</div>`,
+    async () => {
+      try { await API.post('/api/backup/delete', { filename }); loadBackupList(); }
+      catch (e) { _gwErr('backupDelete')(e); showToast('Not deleted', e?.message || '', 'warning'); }
+    }, 'Delete', true);
 }
 
 // ─── AI transparency (Phase 11) ─────────────────────────────────────────────

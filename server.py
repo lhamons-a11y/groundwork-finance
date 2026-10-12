@@ -735,9 +735,7 @@ def delete_all_transactions():
 
     try:
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_name = f'groundwork_backup_pre-delete-all_{ts}.db'
-        backup_path = _backups_dir() / backup_name
-        shutil.copy2(DB_PATH, backup_path)
+        backup_name = _write_backup(f'groundwork_backup_pre-delete-all_{ts}')   # item 81: sealed when protection is on
     except Exception as e:
         return err(f'Could not create a safety backup, aborting (nothing was deleted): {e}', 500)
 
@@ -6152,8 +6150,7 @@ def delete_debt_added_by_mistake(debt_id):
 
     try:
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_name = f'groundwork_backup_pre-delete-debt-{debt_id}_{ts}.db'
-        shutil.copy2(DB_PATH, _backups_dir() / backup_name)
+        backup_name = _write_backup(f'groundwork_backup_pre-delete-debt-{debt_id}_{ts}')   # item 81
     except Exception as e:
         return err(f'Could not create a safety backup, aborting (nothing was deleted): {e}', 500)
 
@@ -12240,6 +12237,52 @@ def _backups_dir() -> Path:
     return default
 
 
+# ── Item 81 (PERFECT_BACKUP.md B1-B9): encrypted backups, three keys to one lock ──────────────────────────────
+# The backup key lives in this computer's vault; each backup's header carries it wrapped by the backup password and by
+# the 24-word recovery key. Groundwork sends no key anywhere and logs none (H6). core/backup_crypto.py does the sealing.
+
+def _protection(session):
+    return _setting_json(session, 'backup_protection')
+
+
+def _vault_backup_key(prot):
+    """This computer's copy of the backup key, if it is the one the protection was set up with."""
+    from core import backup_crypto as bc
+    if not prot:
+        return None
+    k = bc.VAULT.get()
+    return k if k is not None and bc.key_id(k) == prot.get('key_id') else None
+
+
+def _write_backup(stem, include_ai_log=True, key=None):
+    """Copy the live database to the backups folder - sealed when protection is set up and a key is at hand (B1),
+    plain only when it is not (a safety copy before a delete is never blocked for want of a key). Returns the name."""
+    import shutil
+    from core import backup_crypto as bc
+    from core.database import DB_PATH
+    folder = _backups_dir()
+    tmp = folder / f'.{stem}.tmp'
+    shutil.copy2(DB_PATH, tmp)
+    try:
+        if not include_ai_log:
+            _scrub_ai_log(tmp)
+        with db_session() as session:
+            prot = _protection(session)
+        key = key or _vault_backup_key(prot)
+        if prot and prot.get('confirmed') and key is not None:
+            name = f'{stem}.gwbk'
+            (folder / name).write_bytes(bc.encrypt_db(tmp.read_bytes(), key, prot))
+            return name
+        name = f'{stem}.db'
+        shutil.copy2(tmp, folder / name)
+        return name
+    finally:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+
+
 @backup_bp.route('/location', methods=['GET'])
 def get_backup_location():
     """Return the effective backup directory and whether it's custom."""
@@ -12300,15 +12343,26 @@ def create_backup():
     import shutil
     from core.database import DB_PATH
 
+    from core import backup_crypto as bc
+    body = request.get_json(silent=True) or {}
     ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_name = f'groundwork_backup_{ts}.db'
-    backup_path = _backups_dir() / backup_name
+    # Item 81 B1: a backup is sealed, always - so protection is set up first, and the key must be at hand
+    with db_session() as session:
+        prot = _protection(session)
+    if not (prot and prot.get('confirmed')):
+        return err('Set up backup protection first: a password and a recovery key.', 409)
+    key = _vault_backup_key(prot)
+    if key is None:
+        try:
+            key = bc.unwrap(prot, password=body.get('password'))[0]
+        except bc.BackupLocked:
+            return err('This computer does not hold the backup key: enter the backup password.', 403)
 
     try:
-        shutil.copy2(DB_PATH, backup_path)
-        if not (request.get_json(silent=True) or {}).get('include_ai_log'):
-            _scrub_ai_log(backup_path)        # item 62 G5: left out unless the person includes it
-        return ok({'filename': backup_name, 'size': backup_path.stat().st_size, 'statement': BACKUP_STATEMENT})
+        backup_name = _write_backup(f'groundwork_backup_{ts}', include_ai_log=bool(body.get('include_ai_log')), key=key)
+        backup_path = _backups_dir() / backup_name
+        return ok({'filename': backup_name, 'size': backup_path.stat().st_size, 'statement': BACKUP_STATEMENT,
+                   'encrypted': backup_name.endswith('.gwbk')})
     except Exception as e:
         return err(f'Backup failed: {e}', 500)
 
@@ -12343,12 +12397,15 @@ def restore_backup():
     if not backup_path.exists():
         return err('Backup file not found', 404)
 
-    # Validate it's a real SQLite file (not something malicious)
+    # Item 81: a sealed backup opens by this computer's key, the password or the recovery words; a plain one is
+    # checked as before. Either way, nothing touches the live database until the backup has opened in full.
+    from core import backup_crypto as bc
     try:
-        with open(backup_path, 'rb') as f:
-            magic = f.read(16)
-        if not magic.startswith(b'SQLite format 3'):
-            return err('File does not appear to be a valid Groundwork backup', 400)
+        data, _how = _open_backup_bytes(backup_path.read_bytes(), body)
+    except bc.BackupLocked as e:
+        return err(str(e), 403)
+    except bc.BackupDamaged as e:
+        return err(str(e) if 'valid Groundwork backup' in str(e) else str(e), 400)
     except OSError as e:
         return err(f'Could not read backup file: {e}', 500)
 
@@ -12357,8 +12414,8 @@ def restore_backup():
         db_session.remove()
         engine.dispose()
 
-        # Copy backup over the live database
-        shutil.copy2(str(backup_path), str(DB_PATH))
+        # Write the opened backup over the live database
+        DB_PATH.write_bytes(data)
 
         # Reinitialize — reconnects SQLAlchemy to the restored database, and
         # runs migrations in case the restored backup predates a schema
@@ -12399,22 +12456,31 @@ def restore_backup_upload():
     except OSError as e:
         return err(f'Could not read uploaded file: {e}', 500)
 
-    if not header.startswith(b'SQLite format 3'):
+    from core import backup_crypto as bc
+    if not (header.startswith(b'SQLite format 3') or bc.is_encrypted(header)):
         return err('That file does not look like a Groundwork backup', 400)
+    blob = upload.stream.read()
+    try:
+        data, _how = _open_backup_bytes(blob, {'password': request.form.get('password'),
+                                               'words': request.form.get('words')})
+    except bc.BackupLocked as e:
+        return err(str(e), 403)
+    except bc.BackupDamaged as e:
+        return err(str(e), 400)
 
     ts          = datetime.now().strftime('%Y%m%d_%H%M%S')
-    safe_name   = f'restored_{ts}.db'
+    safe_name   = f'restored_{ts}' + ('.gwbk' if bc.is_encrypted(blob) else '.db')
     backup_path = _backups_dir() / safe_name
 
     try:
-        upload.save(str(backup_path))
+        backup_path.write_bytes(blob)          # kept as it came: sealed stays sealed
 
         # Close all active sessions and release file locks
         db_session.remove()
         engine.dispose()
 
-        # Copy uploaded backup over the live database
-        shutil.copy2(str(backup_path), str(DB_PATH))
+        # Write the opened backup over the live database
+        DB_PATH.write_bytes(data)
 
         # Reinitialize — reconnects SQLAlchemy to the restored database, and
         # runs migrations in case the restored backup predates a schema
@@ -12431,13 +12497,225 @@ def restore_backup_upload():
 def list_backups():
     backup_dir = _backups_dir()
     files = []
-    for f in sorted(backup_dir.glob('*.db'), reverse=True):
+    for f in sorted(list(backup_dir.glob('*.db')) + list(backup_dir.glob('*.gwbk')),
+                    key=lambda x: x.stat().st_mtime, reverse=True):
         files.append({
             'filename': f.name,
             'size':     f.stat().st_size,
             'modified': datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
+            'encrypted': f.suffix == '.gwbk',
         })
     return ok(files)
+
+
+@backup_bp.route('/protect', methods=['GET'])
+def backup_protect_state():
+    """B2-B4: whether backups are protected, whether this computer holds the key, and the vault's name."""
+    from core import backup_crypto as bc, bank_vault
+    with db_session() as session:
+        prot = _protection(session)
+        return ok({'set_up': bool(prot), 'confirmed': bool(prot and prot.get('confirmed')),
+                   'key_on_this_computer': _vault_backup_key(prot) is not None,
+                   'vault_available': bc.VAULT.available(), 'vault_name': bank_vault.vault_name() if bc.VAULT.available() else None,
+                   'set_at': (prot or {}).get('set_at'), 'recovery_set_at': (prot or {}).get('recovery_set_at'),
+                   'min_password': bc.MIN_PASSWORD})
+
+
+def _check_password(p):
+    from core import backup_crypto as bc
+    if not isinstance(p, str) or len(p) < bc.MIN_PASSWORD:
+        return f'The backup password needs at least {bc.MIN_PASSWORD} characters.'
+    return None
+
+
+@backup_bp.route('/protect/setup', methods=['POST'])
+@require_json
+def backup_protect_setup():
+    """B3: a backup key made once, kept in this computer's vault, wrapped by the password and the recovery words. The
+    words are returned this once and never stored by Groundwork."""
+    import os as _os
+    from core import backup_crypto as bc
+    pw = (request.json or {}).get('password')
+    why = _check_password(pw)
+    if why:
+        return err(why)
+    with db_session() as session:
+        if (_protection(session) or {}).get('confirmed'):
+            return err('Backups are already protected. Change the password or make a new recovery key instead.')
+        key = _os.urandom(32)
+        words = bc.new_recovery_words()
+        prot = bc.wrap(key, pw, words)
+        stored = bc.VAULT.put(key)
+        prot.update(confirmed=False, set_at=datetime.now().isoformat(timespec='seconds'),
+                    recovery_set_at=datetime.now().isoformat(timespec='seconds'), in_vault=bool(stored))
+        _set_setting(session, 'backup_protection', json.dumps(prot))
+        session.commit()
+        return ok({'words': words, 'key_on_this_computer': bool(stored)})
+
+
+@backup_bp.route('/protect/confirm', methods=['POST'])
+def backup_protect_confirm():
+    """B3: the person showed they saved the words (the page checks three of them); backups are protected from here."""
+    with db_session() as session:
+        prot = _protection(session)
+        if not prot:
+            return err('Set up backup protection first.', 404)
+        prot['confirmed'] = True
+        _set_setting(session, 'backup_protection', json.dumps(prot))
+        session.commit()
+        return ok({'confirmed': True})
+
+
+def _key_for_change(prot, body):
+    """The backup key, from this computer's vault or the current password - never from anywhere else."""
+    from core import backup_crypto as bc
+    k = _vault_backup_key(prot)
+    if k is not None:
+        return k
+    try:
+        return bc.unwrap(prot, password=body.get('password'))[0]
+    except bc.BackupLocked:
+        return None
+
+
+@backup_bp.route('/protect/password', methods=['POST'])
+@require_json
+def backup_protect_password():
+    """B6: a new password for new backups. Older backups still open with the old one, or the recovery key."""
+    from core import backup_crypto as bc
+    body = request.json or {}
+    why = _check_password(body.get('new_password'))
+    if why:
+        return err(why)
+    with db_session() as session:
+        prot = _protection(session)
+        if not prot:
+            return err('Set up backup protection first.', 404)
+        key = _key_for_change(prot, body)
+        if key is None:
+            return err('Enter the current backup password.', 403)
+        prot = bc.rewrap_password(prot, key, body['new_password'])
+        prot['password_set_at'] = datetime.now().isoformat(timespec='seconds')
+        _set_setting(session, 'backup_protection', json.dumps(prot))
+        session.commit()
+        return ok({'changed': True, 'note': 'New backups use the new password. Older backups still open with the old '
+                                            'password, or with your recovery key.'})
+
+
+@backup_bp.route('/protect/recovery', methods=['POST'])
+def backup_protect_recovery():
+    """B6: a new recovery key (the paper was lost). Shown once; older backups still need the old one or the password."""
+    from core import backup_crypto as bc
+    body = request.get_json(silent=True) or {}
+    with db_session() as session:
+        prot = _protection(session)
+        if not prot:
+            return err('Set up backup protection first.', 404)
+        key = _key_for_change(prot, body)
+        if key is None:
+            return err('Enter the backup password.', 403)
+        words = bc.new_recovery_words()
+        prot = bc.rewrap_recovery(prot, key, words)
+        prot.update(confirmed=False, recovery_set_at=datetime.now().isoformat(timespec='seconds'))
+        _set_setting(session, 'backup_protection', json.dumps(prot))
+        session.commit()
+        return ok({'words': words, 'note': 'Older backups still need your old recovery key, or the backup password.'})
+
+
+@backup_bp.route('/protect/reset', methods=['POST'])
+@require_json
+def backup_protect_reset():
+    """B8: password forgotten and paper lost, but this is the computer: its vault opens the key, so a new password
+    and new words are set. Nowhere else can do this."""
+    from core import backup_crypto as bc
+    body = request.json or {}
+    why = _check_password(body.get('new_password'))
+    if why:
+        return err(why)
+    with db_session() as session:
+        prot = _protection(session)
+        key = _vault_backup_key(prot)
+        if key is None:
+            return err('Only the computer that holds the backup key can reset its password.', 403)
+        words = bc.new_recovery_words()
+        prot = bc.rewrap_recovery(bc.rewrap_password(prot, key, body['new_password']), key, words)
+        prot.update(confirmed=False, password_set_at=datetime.now().isoformat(timespec='seconds'),
+                    recovery_set_at=datetime.now().isoformat(timespec='seconds'))
+        _set_setting(session, 'backup_protection', json.dumps(prot))
+        session.commit()
+        return ok({'words': words})
+
+
+def _backup_file(filename):
+    """A file inside the backups folder, or None (no path climbs out)."""
+    p = (_backups_dir() / (filename or '')).resolve()
+    if not filename or not str(p).startswith(str(_backups_dir().resolve())) or not p.exists():
+        return None
+    return p
+
+
+def _open_backup_bytes(blob, body):
+    """The database bytes in a backup: plain (an old one) or sealed (by the vault, the password or the words)."""
+    from core import backup_crypto as bc
+    if not bc.is_encrypted(blob):
+        if not blob.startswith(b'SQLite format 3'):
+            raise bc.BackupDamaged('File does not appear to be a valid Groundwork backup')
+        return blob, 'not encrypted'
+    with db_session() as session:
+        vk = _vault_backup_key(_protection(session))
+    words = body.get('words')
+    return bc.decrypt(blob, password=body.get('password') or None, words=words or None, vault_key=vk)
+
+
+@backup_bp.route('/check', methods=['POST'])
+@require_json
+def backup_check():
+    """B5: proves a backup opens and is undamaged, without restoring it."""
+    from core import backup_crypto as bc
+    body = request.json or {}
+    p = _backup_file(body.get('filename'))
+    if p is None:
+        return err('Backup file not found', 404)
+    try:
+        data, how = _open_backup_bytes(p.read_bytes(), body)
+    except bc.BackupLocked as e:
+        return err(str(e), 403)
+    except bc.BackupDamaged as e:
+        return err(str(e), 422)
+    return ok({'opens': True, 'opened_with': how, 'size': len(data)})
+
+
+@backup_bp.route('/encrypt-old', methods=['POST'])
+@require_json
+def backup_encrypt_old():
+    """B7: an old plain backup re-saved sealed, next to it. The plain one stays until the person deletes it."""
+    from core import backup_crypto as bc
+    p = _backup_file((request.json or {}).get('filename'))
+    if p is None or p.suffix != '.db':
+        return err('Backup file not found', 404)
+    blob = p.read_bytes()
+    if not blob.startswith(b'SQLite format 3'):
+        return err('File does not appear to be a valid Groundwork backup', 400)
+    with db_session() as session:
+        prot = _protection(session)
+        key = _vault_backup_key(prot)
+    if not (prot and prot.get('confirmed')) or key is None:
+        return err('Set up backup protection on this computer first.', 409)
+    out = p.with_suffix('.gwbk')
+    out.write_bytes(bc.encrypt_db(blob, key, prot))
+    return ok({'filename': out.name, 'plain_kept': p.name})
+
+
+@backup_bp.route('/delete', methods=['POST'])
+@require_json
+def backup_delete():
+    """B7: deleting a backup is the person's tap, one file at a time; Groundwork never does it on its own."""
+    p = _backup_file((request.json or {}).get('filename'))
+    if p is None or p.suffix not in ('.db', '.gwbk'):
+        return err('Backup file not found', 404)
+    p.unlink()
+    return ok({'deleted': p.name})
+
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

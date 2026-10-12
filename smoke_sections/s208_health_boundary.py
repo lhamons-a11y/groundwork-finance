@@ -94,7 +94,10 @@ def run(ctx):
         s.query(AppSetting).filter_by(key='export_dir').delete(); s.commit()
 
     # P4: backups
+    from core import backup_crypto as _bc
+    _old_vault = _bc.test_protect(c, HJ)
     b = c.post('/api/backup/create', headers=HJ, data='{}').get_json()['data']
+    _bc.test_unprotect(_old_vault)
     check('s208 P4 a backup copies everything and says so, on the page and in its answer',
           b.get('statement') == server.BACKUP_STATEMENT and 'health' in server.BACKUP_STATEMENT
           and server.BACKUP_STATEMENT in ctx.html_src)
