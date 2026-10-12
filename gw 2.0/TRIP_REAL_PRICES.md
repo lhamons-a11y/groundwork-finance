@@ -1,5 +1,7 @@
 # Item 59 — The trip budget uses real prices, or says it has none
 
+**ITEM 59 ACCEPTED + CLOSED 2026-10-11** (Rob: "i accept items 58 and 59 and the draft").
+
 **ACCEPTED + CLOSED 2026-10-10** (Rob 2026-10-10: "i accept all").
 
 Opened 2026-10-09. Rob: *"can we add that web search capability?"*, then, on the way set out below, *"Lets approach
