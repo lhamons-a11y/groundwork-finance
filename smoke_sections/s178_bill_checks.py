@@ -73,7 +73,11 @@ def run(ctx):
             rd = BillReading(budget_item_id=b.id, amount=142.37, due_date=today + timedelta(days=10), read_at=datetime.now(), source_host='aep.example.com')
             s.add(rd); s.commit(); made['r'].append(rd.id)
             aid, bid = a.id, b.id
-        c.post('/api/settings/bank-agent/bill-from', headers=HJ, data=json.dumps({'id': bid, 'account_id': aid}))
+        bf = c.post('/api/settings/bank-agent/bill-from', headers=HJ, data=json.dumps({'id': bid, 'account_id': aid}))
+        # It used to save the choice and then fail building the reply (the bill read after its session closed), so
+        # the page said it had failed. Seen on Rob's machine 2026-10-11.
+        check('s178 B6 choosing the account a bill is paid from answers with what was saved',
+              bf.status_code == 200 and bf.get_json()['data'] == {'id': bid, 'account_id': aid})
         k = c.get('/api/settings/bank-agent/bill-checks', headers=H).get_json()['data']
         mine = next(x for x in k['bills'] if x['id'] == bid)
         check('s178 B6 with no floor set, the route gives no answer and asks for one',

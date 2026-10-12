@@ -8062,6 +8062,7 @@ def bank_agent_bill_from():
         b = session.get(BudgetItem, int(body.get('id') or 0))
         if not b:
             return err('That bill was not found.', 404)
+        bid = b.id      # read before the commit: the reply is built after the session closes
         acct = body.get('account_id')
         if acct in (None, ''):
             row = _get_setting(session, f'bill_from:{b.id}')
@@ -8072,7 +8073,7 @@ def bank_agent_bill_from():
                 return err('That account was not found.', 404)
             _set_setting(session, f'bill_from:{b.id}', str(int(acct)))
         session.commit()
-    return ok({'id': b.id, 'account_id': acct})
+    return ok({'id': bid, 'account_id': acct})
 
 
 @settings_bp.route('/bank-agent/bill-paid', methods=['POST'])
