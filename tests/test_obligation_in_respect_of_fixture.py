@@ -340,10 +340,10 @@ def run(db):
     print("\n9. C10 / C11 - the EOB's PR line and the bill concerning both: candidates at most; nothing derived\n")
     n_obl = s.query(db.Obligation).count()
     n_rel = rel().count()
-    p_line = prop('eob_amount', object_state=db.PARTICIPANT_CANDIDATES, subject_party_id=aetna.id, content='$412 | claim #A77', as_of='2026-03-10')   # 9D-ii F2(i): the EOB line figure, not the ruled stance
+    p_line = prop(db.DOCUMENT_LINE, object_state=db.PARTICIPANT_NONE, subject_party_id=aetna.id, content='$412 | claim #A77', as_of='2026-03-10')   # 9D-ii F2(i): the EOB line figure, not the ruled stance - document_line since Stage 2
     evidence(p_line, reading=r_eob)
     concerns(eob, utter("Aetna's EOB for the ER visit.", '2026-03-11T09:00:00'), x=X)
-    check('C10: the EOB\'s PR line is the insurer\'s stance with X as a candidates participant; the EOB concerns X; no obligation minted, no relation asserted',
+    check('C10: the EOB\'s PR line is the insurer\'s document line, with no object (its tie to X is a separate claim, never assumed); the EOB concerns X; no obligation minted, no relation asserted',
           s.query(db.Obligation).count() == n_obl and rel().count() == n_rel)
     c_line = prop(db.OBLIGATION_IN_RESPECT_OF, subject_obligation_id=O.id, object_expense_id=X.id, content='matcher: account 4471 on the bill matches the visit')
     e_cand = evidence(c_line, reading=r_stmt)

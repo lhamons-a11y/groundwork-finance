@@ -206,7 +206,7 @@ def run(db):
           and not any(hasattr(db, n) for n in ('deductible_of', 'plan_terms', 'current_terms', 'terms_of')))
     eob = held('h-eob', '2026-03-10', aetna, u_aetna)
     r_eob = read(eob)
-    p_eob_line, _ = line(eob, r_eob, 'eob_amount', '$412 | Group 12345 | claim #A77', aetna)   # 9D-ii F2(i): the EOB line figure, not the ruled stance
+    p_eob_line, _ = line(eob, r_eob, db.DOCUMENT_LINE, '$412 | Group 12345 | claim #A77', aetna, object_state=db.PARTICIPANT_NONE)   # 9D-ii F2(i): the EOB line figure, not the ruled stance - document_line since Stage 2
     c16 = prop(db.PROPOSITION_CORRESPONDS, subject_proposition_id=p_eob_line.id, object_proposition_id=p_card.id, content='basis: group 12345')
     evidence(c16, reading=r_eob)
     check('Pl16: the same group number on the EOB is reading-sourced evidence for a correspondence candidate - one evidence row, no party, nothing established',

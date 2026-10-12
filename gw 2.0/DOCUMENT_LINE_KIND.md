@@ -761,3 +761,81 @@ bank-window files whatsoever.** **Stage 3 remains inheritance plus its three ide
 decisions, and is not authorised by this ruling.**
 
 ---
+
+## 18. Stage 2 (the EOB) — built — 2026-10-12
+
+*Rob, 2026-10-11: "build ... item 18". The build is Stage 2 on exactly §17's boundary. Stage 3 is not authorised:
+it inherits the mechanics plus three new decisions of its own.*
+
+**Files touched, all inside the boundary:**
+- the ten fixtures: artefact origin, artefact reading, chain strength, correspondence, expense identity, expense
+  stances, obligation-in-respect-of, plan identity, relational knowing, utterance retraction;
+- `test_evidence_substrate_fixture.py`, for the single permanent `'x'` pin;
+- `s97` and `s87`.
+
+Nothing in `core/`, `server.py`, the page or any bank-window file changed.
+
+**The staged sequence, measured after each step.** Each fixture's pass count is shown as baseline → after.
+
+| fixture | baseline | after |
+|---|---|---|
+| artefact origin | 43 | 43 |
+| artefact reading | 43 | 43 |
+| chain strength | 37 | 37 |
+| correspondence | 46 | 46 |
+| expense identity | 32 | **33** |
+| expense stances | 18 | 18 |
+| obligation-in-respect-of | 43 | 43 |
+| plan identity | 41 | 41 |
+| relational knowing | 23 | **24** |
+| utterance retraction | 32 | 32 |
+| evidence substrate | 31 | **32** |
+
+1. **C/D rename (13 + 3 sites, plus the two files' map entries renamed).** Every count was identical.
+2. **A migration (8 sites).** Each line became `document_line` with `object NONE`. Chain strength's helper keeps
+   `CANDIDATES` as its default for the statement family, as Stage 1 did for plan identity's. The E map entries of
+   files with no stand-in user left were retired. **Chain strength stayed 37/37, so 7E's L3 and V are unchanged: the
+   null model's requirement (Eo9).**
+3. **B correction (Kn5, Kn8, G1).** Each became subject Lakeview Health with its assertion unchanged: not knowing for Kn5 and
+   Kn8 by the relation, and undetermined for G1 by the multiple origin. Relational knowing's map entry retired.
+4. **Cases.**
+   - **Eo1:** the insurer's line on its own EOB is knowing by the relation, and a hostile entry changes nothing.
+   - **Eo2/Eo3:** Kn8 and Kn5 stay not knowing under a map saying everyone knows the line.
+   - **The permanent pin:** `'x'` is never in `RULED_KINDS`, with S2-F2's commitment in the comment.
+5. **Mutations, all caught on the first run.**
+   - **s97:** a corrected line reads undetermined (the Kn8 guard), and the line admitted as a ruled stance (L1
+     crossed). s97's other five mutations were still caught.
+   - **s87:** `'x'` ruled (caught by the pin), and the map restored for `document_line` (F4 reversed). The second
+     runs in the relational-knowing fixture, because the substrate fixture holds no line; it is the corrected lines'
+     own mechanism.
+   - **s99's** Stage 1 mutations were still caught.
+
+**One consequence of the ruling, not a reinterpretation.** Expense identity's D3 asserted that *"the P-subject line
+keeps ... its candidates"*. F7's `object ()` moves the line from `CANDIDATES` to `NONE`, so that clause now reads
+*names no object*. The case's point, that the world claim takes X and the line keeps its party subject, is
+unchanged.
+
+**`PARTICIPANT_CANDIDATES`, reported and not pinned.**
+- Raw mentions across tests and smoke sections: **56 → 52**.
+- `object_state=CANDIDATES` constructions: **34 → 31**.
+- `eob_amount` mentions in tests: **39 → 3**.
+
+**A finding brought back, not built: correspondence's *said* (population B in §14.2).** It is a testimony, in X5/X6,
+about artefact 9, an asserted, unheld Harbor statement. Two checks use its **artefact subject as the case**:
+- `:252`: *"the testimony about 9 keeps its subject - reading it as about 30's referent is a consumer's derivation,
+  not a rewrite"*, which asserts `subject_artefact_id == a9.id`;
+- `:337`: *"re-pointing a proposition's subject is refused"*, which re-points that same subject to artefact 30.
+
+Under a party subject neither assertion can stay unchanged, which is the condition §15 sets for B. By §15's own
+discriminator, this is the artefact as **subject matter** (C), not as provenance carrier (B). The same reading moved
+G2 to C in §16.
+
+*Reading:* C, so it moves to `'x'` with its assertions unchanged, and correspondence's map entry is renamed rather
+than retired. **Not done:** §17 lists it in B, so the site, its two checks and the map entry are left exactly as
+they were for Rob's ruling. That leaves the three `eob_amount` mentions above.
+
+**Untouched, by name:**
+- `statement_figure` and the statement family; Pd4 / 7A;
+- `services`, `applied`, `disbursement`;
+- `MOVEMENT`, the ruled stances, the matcher, and `PARTICIPANT_CANDIDATES`' meaning;
+- `core/database.py`, and every bank-window file.

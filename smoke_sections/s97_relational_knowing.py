@@ -143,7 +143,23 @@ def _mutations(db):
             db._KNOWING_RELATIONS.update(orig)
         return restore
 
+    def corrected_line_undetermined():
+        # DOCUMENT_LINE_KIND Stage 2: the Kn8 guard made executable - the corrected B sites (Kn5 / Kn8) must stay
+        # evidence-based not_knowing; with the line's relation unnamed they would read undetermined
+        saved = db.RULED_KINDS[db.DOCUMENT_LINE]
+        db.RULED_KINDS[db.DOCUMENT_LINE] = dict(saved, knowing_relation=None)
+        return lambda: db.RULED_KINDS.__setitem__(db.DOCUMENT_LINE, saved)
+
+    def line_admitted_as_ruled_stance():
+        # DOCUMENT_LINE_KIND Stage 2 / L1: the line is its own kind, never the ruled stance merely because both can carry
+        # the same figure - here the line kind takes a ruled stance's entry
+        saved = db.RULED_KINDS[db.DOCUMENT_LINE]
+        db.RULED_KINDS[db.DOCUMENT_LINE] = dict(db.RULED_KINDS[db.PATIENT_RESPONSIBILITY])
+        return lambda: db.RULED_KINDS.__setitem__(db.DOCUMENT_LINE, saved)
+
     return [
+        ('a corrected document line (Kn5 / Kn8) reads undetermined instead of not_knowing (DOCUMENT_LINE_KIND Stage 2)', corrected_line_undetermined),
+        ('the migrated document line is admitted as a ruled stance (DOCUMENT_LINE_KIND Stage 2, L1 crossed)', line_admitted_as_ruled_stance),
         ('a generic resolver - any relation to any participant confers knowing', generic_resolver),
         ('minting confers knowing for an event property (Kn7)', minting_confers_knowing),
         ('the foundation map scores a relational kind', foundation_map_scores),

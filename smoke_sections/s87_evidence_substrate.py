@@ -56,10 +56,27 @@ def _mutations(db):
         db.derived_strength = broken
         return lambda: setattr(db, 'derived_strength', orig)
 
+    def neutral_kind_ruled():
+        # DOCUMENT_LINE_KIND s15 S2-F2: 'x' is deliberately unruled; ruling it is the drift its permanent pin guards
+        db.RULED_KINDS['x'] = dict(db.RULED_KINDS[db.DOCUMENT_LINE])
+        return lambda: db.RULED_KINDS.pop('x', None)
+
     return [
         ('a proposition may claim an established participant with no referent', validator_removed),
         ('strength is read from the row instead of derived from the knowing relation', strength_stored),
+        ("the neutral kind 'x' is ruled (DOCUMENT_LINE_KIND s15, its permanent pin)", neutral_kind_ruled),
     ]
+
+
+def _line_map_restored(db):
+    # DOCUMENT_LINE_KIND Stage 2 / F4 reversed: the line kind reads the foundation map again. The evidence substrate's
+    # own fixture has no document line, so this crossing runs the fixture that holds the corrected lines (Eo2 / Eo3).
+    saved = db.RULED_KINDS[db.DOCUMENT_LINE]
+    db.RULED_KINDS[db.DOCUMENT_LINE] = dict(saved, relational_knowing=False, knowing_relation=None)
+
+    def undo():
+        db.RULED_KINDS[db.DOCUMENT_LINE] = saved
+    return undo
 
 
 def run(ctx):
@@ -102,3 +119,18 @@ def run(ctx):
     restored, restored_failures, restored_err = _run_fixture(fx, db)
     check('the module is left exactly as it was found',
           restored == passed and not restored_failures and not restored_err)
+
+    path = BASE / 'tests' / 'test_relational_knowing_fixture.py'
+    spec = importlib.util.spec_from_file_location('test_relational_knowing_fixture', path)
+    rk = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rk)
+    rk_passed, rk_fail, rk_err = _run_fixture(rk, db)
+    undo = _line_map_restored(db)
+    try:
+        _, mutated, mutated_err = _run_fixture(rk, db)
+    finally:
+        undo()
+    after, after_fail, after_err = _run_fixture(rk, db)
+    check('caught: the foundation map restored for the document line (DOCUMENT_LINE_KIND Stage 2, F4 reversed) - in the corrected lines\' fixture',
+          not rk_fail and not rk_err and (bool(mutated) or bool(mutated_err))
+          and after == rk_passed and not after_fail and not after_err)
