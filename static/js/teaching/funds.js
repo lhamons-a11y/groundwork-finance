@@ -44,7 +44,7 @@
     if (p.on_track === true) {
       verdict = `— ahead of the deadline`;
     } else if (p.on_track === false) {
-      verdict = `— <span style="color:var(--gold)">past the deadline</span>`;
+      verdict = `— <span style="color:var(--gold-text)">past the deadline</span>`;
     } else {
       verdict = '';                                // no deadline: a date, nothing missed
     }

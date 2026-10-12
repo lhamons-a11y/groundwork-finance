@@ -95,7 +95,7 @@
         <div style="font-size:12px;color:var(--slate);line-height:1.7">
           Nothing in your record moves it further than the plan you already have.
           Your ${esc(o.strategy)} order clears you
-          <strong style="color:var(--pine)">${o.months_better} month${o.months_better !== 1 ? 's' : ''}</strong>
+          <strong style="color:var(--pine-text)">${o.months_better} month${o.months_better !== 1 ? 's' : ''}</strong>
           sooner than ${esc(o.alternative)} would.
         </div>
       </div>`;
@@ -108,7 +108,7 @@
           <div style="font-size:11px;color:var(--slate-2);line-height:1.6">${esc(a.detail)}</div>
         </div>
         <div style="text-align:right;white-space:nowrap">
-          <div style="font-family:var(--font-mono);font-size:13px;color:var(--pine)">${a.months_saved} mo sooner</div>
+          <div style="font-family:var(--font-mono);font-size:13px;color:var(--pine-text)">${a.months_saved} mo sooner</div>
           <div style="font-family:var(--font-mono);font-size:11px;color:var(--slate-2)">${fmt(a.interest_saved)} less interest</div>
         </div>
       </div>`;
