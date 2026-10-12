@@ -24541,14 +24541,32 @@ async function loadBackupLocation() {
   try {
     const res  = await API.get('/api/backup/location');
     const data = res.data || res;
-    const el = g('backupLocationPath');
-    if (el) el.textContent = data.path;
-    const resetBtn = g('resetBackupFolderBtn');
-    if (resetBtn) resetBtn.classList.toggle('hidden', !data.is_custom);
+    // Settings and the Backups window show the same location (Rob 2026-10-12: the two had drifted apart)
+    document.querySelectorAll('.bk-loc-path').forEach(el => { el.textContent = data.path; });
+    document.querySelectorAll('.bk-loc-reset').forEach(b => b.classList.toggle('hidden', !data.is_custom));
   } catch(e) {
-    const el = g('backupLocationPath');
-    if (el) el.textContent = 'Could not load';
+    document.querySelectorAll('.bk-loc-path').forEach(el => { el.textContent = 'Could not load'; });
   }
+  renderSettingsBackupStatus();
+}
+
+// Settings' Data & Backup card: the same protection state and newest backup the Backups window shows.
+async function renderSettingsBackupStatus() {
+  const box = g('settingsBackupStatus');
+  if (!box) return;
+  try {
+    const [st, items] = await Promise.all([API.get('/api/backup/protect'), API.get('/api/backup/list')]);
+    const list = (items.data || items || []);
+    const newest = list[0] ? (list[0].filename || list[0]) : null;
+    const m = newest && newest.match(/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})/);
+    const when = m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;
+    const plain = list.filter(b => b.encrypted === false).length;
+    box.innerHTML = (st.confirmed
+        ? '🔒 <b style="color:var(--ink)">Your backups are protected.</b>'
+        : '<b style="color:var(--ink)">Backups are not protected yet.</b> Set up a password and recovery key once, in Manage backups, before the first backup.')
+      + `<br>${list.length ? `${list.length} backup${list.length === 1 ? '' : 's'} here; the newest ${when ? 'from ' + when : newest}.` : 'No backups on this computer yet.'}`
+      + (plain ? ` ${plain} older one${plain === 1 ? ' is' : 's are'} not protected; Manage backups can re-save ${plain === 1 ? 'it' : 'them'}.` : '');
+  } catch (e) { _gwErr('renderSettingsBackupStatus')(e); box.textContent = ''; }
 }
 
 async function chooseBackupFolder() {
@@ -24577,11 +24595,12 @@ async function resetBackupFolder() {
   }
 }
 
-function openBackupModal()  { g('backupModal')?.classList.remove('hidden'); loadBackupList(); }
+function openBackupModal()  { g('backupModal')?.classList.remove('hidden'); loadBackupList(); loadBackupLocation(); }
 function closeBackupModal() { g('backupModal')?.classList.add('hidden'); }
 
 async function loadBackupList() {
   renderBackupProtect();   // item 81
+  renderSettingsBackupStatus();
   const list = g('backupList');
   if (!list) return;
   try {
@@ -24639,7 +24658,7 @@ async function createBackup(password) {
     loadBackupList();
   } catch(e) {
     // Item 81 B1: a backup is protected, always - set protection up first, or give the password on a computer without the key
-    if (/Set up backup protection/i.test(e.message || '')) { showToast('Set up protection first', 'A password and a recovery key, once.', 'info'); g('backupProtect')?.scrollIntoView({ behavior: 'smooth' }); return; }
+    if (/Set up backup protection/i.test(e.message || '')) { showToast('Set up protection first', 'A password and a recovery key, once.', 'info'); openBackupModal(); setTimeout(() => g('backupProtect')?.scrollIntoView({ behavior: 'smooth' }), 150); return; }
     if (/enter the backup password/i.test(e.message || '')) { _bkPrompt('Backup password', { note: "This computer doesn't hold the backup key.", inputs: [{ id: 'bkCPw', ph: 'Backup password' }] }, v => createBackup(v.bkCPw), 'Make the backup'); return; }
     showToast('Backup failed', e.message||'', 'error');
   }

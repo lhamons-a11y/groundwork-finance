@@ -168,6 +168,16 @@ def run(ctx):
               and 'body.bk-printing > *:not(#bkPrintSheet){display:none!important}' in html
               and ':not(#gwFeedbackModal):not(#bkPrintSheet){display:none!important}' in html
               and "const sheet = g('bkPrintSheet');" in app and "sheet.innerHTML = ''" in app)
+        # Rob 2026-10-12: Settings' backup card and the top bar's Backups window had drifted apart. One window holds
+        # everything; Settings shows the same protection state, and its Create opens that window when setup is needed.
+        settings = html.split('id="settingsPanel-data"')[1].split('Danger Zone')[0]
+        modal = html.split('id="backupModal"')[1].split('</div>\n</div>')[0]
+        sbs = app.split('async function renderSettingsBackupStatus() {')[1].split('\n}\n')[0]
+        cb = app.split('async function createBackup(password) {')[1].split('\n}\n')[0]
+        check('s209 Settings and the Backups window agree: the same protection state, the same location in both, and Create opens the window when protection is needed',
+              'id="settingsBackupStatus"' in settings and "/api/backup/protect" in sbs and 'st.confirmed' in sbs
+              and 'bk-loc-path' in settings and 'bk-loc-path' in modal and 'id="backupLocationPath"' not in html
+              and 'openBackupModal();' in cb and 'renderSettingsBackupStatus();' in app.split('async function loadBackupList() {')[1][:200])
         for f in server._backups_dir().glob('*.gwbk'):
             if f.name in (made['filename'], made2['filename'], made3['filename']) or f.name.startswith('restored_'):
                 f.unlink()

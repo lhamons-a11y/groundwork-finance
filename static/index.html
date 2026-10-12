@@ -2862,6 +2862,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div class="card">
             <div class="card-label">Data &amp; Backup</div>
             <div style="display:flex;flex-direction:column;gap:12px">
+              <div id="settingsBackupStatus" style="font-size:12px;color:var(--slate);line-height:1.6">Loading…</div>
               <button class="btn btn-secondary" onclick="createBackup()">Create backup now</button>
               <button class="btn btn-secondary" onclick="openBackupModal()">Manage backups</button>
             </div>
@@ -2869,12 +2870,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <strong style="color:var(--ink)">Auto-import from Downloads</strong><br>
               Save any bank statement (.csv, .ofx, .qfx, .qif) to your Downloads folder — Groundwork detects it and offers a one-click import.
             </div>
-            <div style="margin-top:10px;padding:10px 12px;background:var(--mist);border-radius:var(--r-md);font-size:12px;color:var(--slate);line-height:1.6">
+            <div class="bk-location" style="margin-top:10px;padding:10px 12px;background:var(--mist);border-radius:var(--r-md);font-size:12px;color:var(--slate);line-height:1.6">
               <strong style="color:var(--ink)">Backup location</strong><br>
-              <span id="backupLocationPath" style="font-family:var(--font-mono);font-size:11px;word-break:break-all">Loading…</span>
+              <span class="bk-loc-path" style="font-family:var(--font-mono);font-size:11px;word-break:break-all">Loading…</span>
               <div style="display:flex;gap:8px;margin-top:8px">
                 <button class="btn btn-secondary btn-sm" onclick="chooseBackupFolder()">Choose folder…</button>
-                <button class="btn btn-ghost btn-sm hidden" id="resetBackupFolderBtn" onclick="resetBackupFolder()">Use default</button>
+                <button class="btn btn-ghost btn-sm hidden bk-loc-reset" onclick="resetBackupFolder()">Use default</button>
               </div>
             </div>
           </div>
@@ -3244,6 +3245,14 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
       </div>
       <div id="backupProtect"></div>
       <div id="backupList"></div>
+      <div class="bk-location" style="margin-top:10px;padding:10px 12px;background:var(--mist);border-radius:var(--r-md);font-size:12px;color:var(--slate);line-height:1.6">
+              <strong style="color:var(--ink)">Backup location</strong><br>
+              <span class="bk-loc-path" style="font-family:var(--font-mono);font-size:11px;word-break:break-all">Loading…</span>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn btn-secondary btn-sm" onclick="chooseBackupFolder()">Choose folder…</button>
+                <button class="btn btn-ghost btn-sm hidden bk-loc-reset" onclick="resetBackupFolder()">Use default</button>
+              </div>
+            </div>
     </div>
   </div>
 </div>
