@@ -26747,6 +26747,15 @@ const _REPORT_CATALOG = [
     action:    () => _rcOpenReport('annual'),
   },
   {
+    id:        'year_end',
+    section:   'Spending',
+    title:     'Year-end packet',
+    sub:       'A year in one place for you or your tax preparer: income by payer, categories, interest, donations, gains. Never tax advice.',
+    icon:      '▤',
+    aiUtility: 'low',
+    action:    () => _rcOpenReport('year_end'),
+  },
+  {
     id:        'debt_payoff',
     section:   'Debt',
     title:     'Debt Payoff Analysis',
@@ -26955,6 +26964,7 @@ function _rcRenderReport(reportId) {
     case 'category':        _rcRenderCategoryDeepDive(); break;
     case 'spending_breakdown': _rcRenderCategoryDeepDive(); break;  // alias from dashboard donut
     case 'annual':          _rcRenderAnnualSummary(); break;
+    case 'year_end':        _rcRenderYearEnd(); break;
     case 'budget_vs_actual':_rcRenderBudgetVsActual(); break;
     case 'income_savings':  _rcRenderIncomeSavings(); break;
     case 'net_worth':       _rcRenderNetWorthTimeline(); break;
@@ -27446,6 +27456,57 @@ function _rcUpdateCategoryDeepDive() {
     const aiId = `category_${cat.replace(/[^a-z0-9]/gi,'_')}_${from}_${to}`;
     _rcAnalyzeWithAI(aiId, dataLines, buildPrompt, res);
   }
+}
+
+// ── Item 65 W9 (AGENT_W_ITEMS.md): the year-end packet - a summary of the year's records, never tax advice ─────
+let _yeYear = null, _yeHealth = false;
+async function _rcRenderYearEnd() {
+  const body = g('rcReportBody');
+  if (!body) return;
+  let p;
+  try { p = await API.get(`/api/year-end?year=${_yeYear || ''}&include_health=${_yeHealth ? 1 : 0}`); }
+  catch (e) { body.innerHTML = `<div style="font-size:13px;color:var(--slate)">${esc(e.message || 'Could not gather the year.')}</div>`; return; }
+  _yeYear = p.year;
+  const money = v => `<span style="font-family:var(--font-mono)">${fmt(v)}</span>`;
+  const table = (rows, a, b) => rows.length ? `<table style="width:100%;font-size:12px;border-collapse:collapse">${rows.map(r =>
+      `<tr><td style="padding:3px 0;border-bottom:0.5px solid var(--steel-2)">${esc(r[a])}${r.deposits ? ` <span style="color:var(--slate)">(${r.deposits} deposits)</span>` : ''}</td>
+       <td style="text-align:right;border-bottom:0.5px solid var(--steel-2)">${money(r[b])}</td></tr>`).join('')}</table>`
+    : '<div style="font-size:12px;color:var(--slate)">None in the record for this year.</div>';
+  const sec = (title, total, inner) => `<div class="card mb-4"><div style="display:flex;justify-content:space-between;align-items:baseline">
+      <div class="card-label" style="margin:0">${title}</div>${total != null ? money(total) : ''}</div><div style="margin-top:8px">${inner}</div></div>`;
+  const miss = p.missing_months.length || p.account_gaps.length;
+  const gn = p.gains;
+  body.innerHTML = `
+    <div style="margin-bottom:16px">
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Year-end packet, ${p.year}</h2>
+      <div style="font-size:13px;color:var(--ink)">${esc(p.statement)}</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+        <select onchange="_yeYear = +this.value; _rcRenderYearEnd()" class="field-input" style="width:auto;font-size:12px;padding:4px 8px">
+          ${p.years.map(y => `<option value="${y}" ${y === p.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
+        <label style="font-size:12px;color:var(--slate)"><input type="checkbox" ${p.include_health ? 'checked' : ''} onchange="_yeHealth = this.checked; _rcRenderYearEnd()"> Include health spending</label>
+        <button class="btn btn-secondary btn-sm" onclick="window.print()">Print or save as PDF</button>
+        <button class="btn btn-secondary btn-sm" onclick="yearEndCsv()">Save as CSV</button>
+      </div>
+      ${p.health_left_out ? `<div style="font-size:12px;color:var(--slate);margin-top:6px">${p.health_left_out} health spending transaction${p.health_left_out === 1 ? ' is' : 's are'} left out. Tick "Include health spending" to include ${p.health_left_out === 1 ? 'it' : 'them'}.</div>` : ''}
+    </div>
+    ${miss ? sec('Missing from the record', null, `<div style="font-size:12px;color:var(--ink);line-height:1.6">These are not counted as zero. The totals below cover only what was imported.
+        ${p.missing_months.length ? `<div>No records at all: ${p.missing_months.map(esc).join(', ')}.</div>` : ''}
+        ${p.account_gaps.map(gp => `<div>${esc(gp.account)}: ${esc(gp.note)}${gp.months.length < 12 ? ` (${gp.months.map(esc).join(', ')})` : ''}.</div>`).join('')}</div>`)
+      : `<div style="font-size:12px;color:var(--slate);margin-bottom:12px">Every month of ${p.year} on record has transactions in every account that had any.</div>`}
+    ${sec('Income by payer', p.income_total, table(p.income, 'payer', 'total'))}
+    ${sec('Spending by category', p.spending_total, table(p.categories, 'name', 'total'))}
+    ${sec('Interest and fees, from your categories for them', p.interest_total, table(p.interest, 'name', 'total'))}
+    ${sec('Charitable donations', p.donations_total, table(p.donations, 'name', 'total'))}
+    ${sec('Realized investment gains and losses', gn.total, gn.lots ? `<div style="font-size:12px">Short term ${money(gn.short_term)} · Long term ${money(gn.long_term)} · from ${gn.lots} closed lot${gn.lots === 1 ? '' : 's'}</div>` : '<div style="font-size:12px;color:var(--slate)">No lots closed in the record for this year.</div>')}
+    ${sec('Statements and documents Groundwork holds', null, p.documents.length ? `<div style="font-size:12px">${p.documents.length} document${p.documents.length === 1 ? '' : 's'} dated ${p.year}: ${p.documents.map(d => `#${d.id} (${esc(d.as_of)})`).join(', ')}</div>` : `<div style="font-size:12px;color:var(--slate)">Groundwork holds no statements or documents dated ${p.year}.</div>`)}
+    ${sec('What this does not include', null, `<ul style="font-size:12px;color:var(--ink);margin:0 0 0 18px;padding:0;line-height:1.6">${p.not_included.map(n => `<li>${esc(n)}</li>`).join('')}</ul>`)}`;
+}
+
+async function yearEndCsv() {
+  try {
+    const r = await API.post('/api/year-end/export', { year: _yeYear, include_health: _yeHealth });
+    showToast('Year-end packet saved', r.path, 'success');
+  } catch (e) { showToast('Could not save the packet', e.message || '', 'error'); }
 }
 
 // ── §7.6 Annual Summary ───────────────────────────────────────────────────────

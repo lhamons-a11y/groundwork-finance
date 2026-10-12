@@ -358,3 +358,31 @@ The function is now kept and called (`_runToastUndo`); s211 checks it. The 1.x l
   - Because budgeted spending ($8,714) is above income ($8,471), that $300 is borrowed: $11,380 over the year
     against $8,248. The panel shows both.
 - **Tests:** s214, 9 checks.
+
+## Built: W9, the year-end packet (2026-10-12), awaiting acceptance
+
+**Reports → Year-end packet**, for a chosen year (`/api/year-end`, `_year_end`).
+- **Contents:**
+  - income by payer (deposits in income categories);
+  - spending by category, with transfers left out;
+  - interest and fees, from the person's own categories for them (named so because Rob's *Interest / Fees* category
+    holds a BMV kiosk and TaxSlayer, which are not interest);
+  - charitable donations;
+  - realized investment gains and losses (closed lots, short and long term);
+  - the statements and documents Groundwork holds that are dated that year (held artefacts);
+  - a section on what it does not include.
+- **W9-a.** It opens with *"These are the year's figures from your records. Your tax preparer decides how they are
+  treated."* It never says what is deductible or how anything is taxed. The words appear only where it says it does
+  not decide them.
+- **W9-b.** Health spending is left out and counted (*"19 health spending transactions are left out"* on Rob's 2026)
+  until *Include health spending* is ticked. The same holds in the CSV. The CSV is a registered H6 sink
+  (`year_end_export`).
+- **W9-c.** Missing data is listed, never counted as zero:
+  - a month with no records at all;
+  - each account's months with nothing imported, from its first month;
+  - an active account with nothing imported for the year.
+
+  On Rob's 2026 ledger: Superior Savings is missing 4 months, Rob's Apple Card 3, and TJ Max 2.
+- **Print or save as PDF** uses the Reports page's print rules. **Save as CSV** writes to the exports folder on this
+  computer.
+- **Tests:** s215, 7 checks.

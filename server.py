@@ -221,6 +221,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(calendar_bp,       url_prefix='/api/calendar')
     app.register_blueprint(price_changes_bp,  url_prefix='/api/price-changes')
     app.register_blueprint(first_import_bp,   url_prefix='/api/first-import')
+    app.register_blueprint(year_end_bp,       url_prefix='/api/year-end')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
@@ -2760,6 +2761,155 @@ def _first_import_possibilities(session):
                             'month': f'{y}-{m:02d}', 'label': f'{_MONTH_NAMES[m - 1]} usually runs this much above your usual month',
                             'said_at': e.get('at')})
     return out
+
+
+# ── Item 65 W9 (AGENT_W_ITEMS.md): the year-end packet - the year's figures in one place, never tax advice ──────
+year_end_bp = Blueprint('year_end', __name__)
+YEAR_END_STATEMENT = "These are the year's figures from your records. Your tax preparer decides how they are treated."
+YEAR_END_NOT_INCLUDED = (
+    'Anything not in your records: cash paid by hand and never entered, accounts never imported, and paper receipts.',
+    'Tax forms. Groundwork does not have your W-2s, 1099s, 1098s or brokerage statements unless you gave them to it, '
+    'and these figures are not a substitute for them.',
+    'Whether anything is deductible, taxable or reportable. Groundwork does not decide how any figure is treated.',
+    'Investment gains on lots Groundwork has no cost basis for, and anything sold in an account it does not track.',
+    'Interest that was never charged as its own line (for example, mortgage interest inside a payment).',
+)
+
+
+def _year_end(session, year, include_health=False):
+    """W9: one year from the record. W9-a facts only; W9-b health only on its tick (H6 P3); W9-c a month or an
+    account with nothing imported is listed as missing, never counted as zero."""
+    from core import checkin as ck
+    from core import health_boundary
+    from core.database import Account, Artefact, InvestmentLot
+    from core.income_def import income_category_ids
+    y0, y1 = date(year, 1, 1), date(year, 12, 31)
+    today = date.today()
+    last_month = 12 if year < today.year else (today.month - 1 if year == today.year else 0)
+    txns = session.query(Transaction).filter(Transaction.date >= y0, Transaction.date <= y1).all()
+    cats = {c.id: c for c in session.query(Category).all()}
+    cname = lambda t: (cats[t.category_id].name if t.category_id in cats else 'Uncategorized')
+    tr, inc_ids = ck._transfer_ids(session), set(income_category_ids(session))
+    hids = health_boundary.health_category_ids(session)
+    health_left_out = 0 if include_health else sum(1 for t in txns if t.category_id in hids)
+    if not include_health:
+        txns = [t for t in txns if t.category_id not in hids]
+    income, spend, interest, donations = {}, {}, {}, {}
+    for t in txns:
+        amt = abs(float(t.amount or 0))
+        if t.category_id in tr:
+            continue
+        if t.type == 'credit' and t.category_id in inc_ids:
+            k = (t.merchant or t.description or 'Unnamed').strip()
+            income.setdefault(k, [0.0, 0])
+            income[k][0] += amt; income[k][1] += 1
+        elif t.type == 'debit':
+            n = cname(t)
+            spend[n] = spend.get(n, 0.0) + amt
+            low = n.strip().lower()
+            if 'interest' in low or low in ('fees', 'interest / fees'):    # the person's own categories for them
+                k = (t.merchant or t.description or n).strip()
+                interest[k] = interest.get(k, 0.0) + amt
+            if 'charit' in low or low in ('donations', 'gifts & donations'):
+                k = (t.merchant or t.description or n).strip()
+                donations[k] = donations.get(k, 0.0) + amt
+    rows = lambda d: [{'name': k, 'total': round(v, 2)} for k, v in sorted(d.items(), key=lambda x: -x[1])]
+    lots = [l for l in session.query(InvestmentLot).filter_by(is_closed=True).all() if l.closed_date and l.closed_date.year == year]
+    st = round(sum(l.realized_gain or 0 for l in lots if (l.holding_period_days or 0) < 366), 2)
+    lt = round(sum(l.realized_gain or 0 for l in lots if (l.holding_period_days or 0) >= 366), 2)
+    docs = [{'id': a.id, 'as_of': a.as_of} for a in session.query(Artefact).filter(Artefact.held.is_(True)).all()
+            if (a.as_of or '').startswith(str(year))]
+    # W9-c: every month and every account the record should speak for
+    months = [f'{year}-{m:02d}' for m in range(1, last_month + 1)]
+    all_rows = session.query(Transaction.account_id, Transaction.date).filter(Transaction.date >= y0, Transaction.date <= y1).all()
+    seen_any = {d.strftime('%Y-%m') for _, d in all_rows if d}
+    by_acct = {}
+    for a, d in all_rows:
+        if d:
+            by_acct.setdefault(a, set()).add(d.strftime('%Y-%m'))
+    accts = {a.id: a for a in session.query(Account).all()}
+    missing_months = [m for m in months if m not in seen_any]
+    gaps = []
+    for aid, a in accts.items():
+        had = by_acct.get(aid, set())
+        if not had:
+            if a.is_active:
+                gaps.append({'account': a.name, 'months': months, 'note': f'nothing imported for {year}'})
+            continue
+        first = min(had)
+        miss = [m for m in months if m >= first and m not in had]
+        if miss:
+            gaps.append({'account': a.name, 'months': miss, 'note': f"{len(miss)} month{'s' if len(miss) != 1 else ''} with nothing imported"})
+    return {'year': year, 'statement': YEAR_END_STATEMENT, 'months_covered': months,
+            'income': [{'payer': k, 'total': round(v[0], 2), 'deposits': v[1]} for k, v in sorted(income.items(), key=lambda x: -x[1][0])],
+            'income_total': round(sum(v[0] for v in income.values()), 2),
+            'categories': rows(spend), 'spending_total': round(sum(spend.values()), 2),
+            'interest': rows(interest), 'interest_total': round(sum(interest.values()), 2),
+            'donations': rows(donations), 'donations_total': round(sum(donations.values()), 2),
+            'gains': {'short_term': st, 'long_term': lt, 'total': round(st + lt, 2), 'lots': len(lots)},
+            'documents': docs, 'include_health': bool(include_health), 'health_left_out': health_left_out,
+            'missing_months': missing_months, 'account_gaps': gaps, 'not_included': list(YEAR_END_NOT_INCLUDED),
+            'complete': not missing_months and not gaps}
+
+
+def _year_end_args():
+    b = request.get_json(silent=True) or {}
+    src = {**request.args.to_dict(), **b}
+    try:
+        year = int(src.get('year') or date.today().year - 1)
+    except (TypeError, ValueError):
+        year = date.today().year - 1
+    return year, str(src.get('include_health', '')).lower() in ('1', 'true', 'yes')
+
+
+@year_end_bp.route('', methods=['GET'])
+def year_end_get():
+    year, inc = _year_end_args()
+    with db_session() as session:
+        years = sorted({d.year for (d,) in session.query(Transaction.date).distinct().all() if d}, reverse=True)
+        return ok({**_year_end(session, year, inc), 'years': years})
+
+
+@year_end_bp.route('/export', methods=['POST'])
+def year_end_export():
+    """W9: the packet as a CSV in the exports folder - on this computer, health only on its tick (H6 P3)."""
+    import csv
+    import io
+    year, inc = _year_end_args()
+    with db_session() as session:
+        p = _year_end(session, year, inc)
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow([f'Groundwork year-end packet, {year}'])
+    w.writerow([p['statement']])
+    if p['health_left_out']:
+        w.writerow([f"{p['health_left_out']} health spending transaction(s) left out; tick \"Include health spending\" to include them"])
+    for title, key, cols in (('INCOME BY PAYER', 'income', ('payer', 'total', 'deposits')),
+                             ('SPENDING BY CATEGORY', 'categories', ('name', 'total')),
+                             ('INTEREST AND FEES (your categories for them)', 'interest', ('name', 'total')),
+                             ('CHARITABLE DONATIONS', 'donations', ('name', 'total'))):
+        w.writerow([]); w.writerow([f'--- {title} ---']); w.writerow(cols)
+        for r in p[key]:
+            w.writerow([r[c] for c in cols])
+    g = p['gains']
+    w.writerow([]); w.writerow(['--- REALIZED INVESTMENT GAINS AND LOSSES ---'])
+    w.writerow(['short_term', 'long_term', 'total', 'lots']); w.writerow([g['short_term'], g['long_term'], g['total'], g['lots']])
+    w.writerow([]); w.writerow(['--- DOCUMENTS GROUNDWORK HOLDS FOR THE YEAR ---'])
+    for d in p['documents']:
+        w.writerow([d['id'], d['as_of']])
+    if not p['documents']:
+        w.writerow(['none'])
+    w.writerow([]); w.writerow(['--- MISSING FROM THE RECORD (not counted as zero) ---'])
+    for m in p['missing_months']:
+        w.writerow(['no records at all', m])
+    for gp in p['account_gaps']:
+        w.writerow([gp['account'], gp['note'], ' '.join(gp['months'])])
+    w.writerow([]); w.writerow(['--- WHAT THIS DOES NOT INCLUDE ---'])
+    for n in p['not_included']:
+        w.writerow([n])
+    dest = _exports_dir() / f"groundwork_year_end_{year}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    dest.write_text(out.getvalue(), encoding='utf-8')
+    return ok({'path': str(dest), 'health_left_out': p['health_left_out']})
 
 
 calendar_bp = Blueprint('calendar', __name__)
