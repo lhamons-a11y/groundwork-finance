@@ -27491,7 +27491,7 @@ async function _rcRenderYearEnd() {
     </div>
     ${miss ? sec('Missing from the record', null, `<div style="font-size:12px;color:var(--ink);line-height:1.6">These are not counted as zero. The totals below cover only what was imported.
         ${p.missing_months.length ? `<div>No records at all: ${p.missing_months.map(esc).join(', ')}.</div>` : ''}
-        ${p.account_gaps.map(gp => `<div>${esc(gp.account)}: ${esc(gp.note)}${gp.months.length < 12 ? ` (${gp.months.map(esc).join(', ')})` : ''}.</div>`).join('')}</div>`)
+        ${p.account_gaps.map(gp => `<div>${esc(gp.account)}: ${esc(gp.note)}${gp.note.startsWith('nothing imported') ? '' : ` (${gp.months.map(esc).join(', ')})`}.</div>`).join('')}</div>`)
       : `<div style="font-size:12px;color:var(--slate);margin-bottom:12px">Every month of ${p.year} on record has transactions in every account that had any.</div>`}
     ${sec('Income by payer', p.income_total, table(p.income, 'payer', 'total'))}
     ${sec('Spending by category', p.spending_total, table(p.categories, 'name', 'total'))}
