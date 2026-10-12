@@ -2094,10 +2094,23 @@ function showToast(title, sub = '', type = 'success', undoFn = null) {
       <div class="toast-title">${title}</div>
       ${sub ? `<div class="toast-sub">${sub}</div>` : ''}
     </div>
-    ${undoFn ? `<button class="toast-undo" onclick="(${undoFn.toString()})(); this.closest('.toast').remove()">Undo</button>` : ''}`;
+    ${undoFn ? `<button class="toast-undo" onclick="_runToastUndo(${++_toastUndoN}, this)">Undo</button>` : ''}`;
+  // The Undo function is kept and called, never copied into the button as text: copied, it lost every variable it
+  // closed over - the Ledger's delete Undo looked up `id`, found the button's own empty id, and the row was deleted
+  // anyway (found 2026-10-12, item 65 W2's Undo)
+  if (undoFn) _toastUndo[_toastUndoN] = undoFn;
+  const key = _toastUndoN;
   stack.appendChild(el);
   const delay = undoFn ? 5000 : 3500;
-  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, delay);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => { el.remove(); if (undoFn) delete _toastUndo[key]; }, 300); }, delay);
+}
+var _toastUndo = {};      // var: showToast may run before this line is reached
+var _toastUndoN = 0;
+function _runToastUndo(k, btn) {
+  const fn = _toastUndo[k];
+  delete _toastUndo[k];
+  btn?.closest('.toast')?.remove();
+  if (fn) fn();
 }
 
 // ─── Confirm dialog ───────────────────────────────────────────────────────────

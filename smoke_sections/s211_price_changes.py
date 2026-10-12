@@ -83,6 +83,13 @@ def run(ctx):
           and 'The charges' in page and 'Change it to ${fmt(c.after)}' in page and "doesn't know why a price changed" in page
           and "'/api/price-changes/undo'" in app and 'p.sentence' in app.split('function _checkinLines(f) {')[1].split('\n}\n')[0])
 
+    # found building W1, 2026-10-12: showToast copied the Undo function into the button as text, so it lost the
+    # variables it closed over - this Undo threw, and the Ledger's delete Undo silently did nothing (row deleted anyway)
+    toast = app.split('function showToast(')[1].split('\n}\n')[0]
+    check('s211 Undo keeps its function: showToast calls the one it was given, never a copy of its text',
+          'toString()' not in toast and '_runToastUndo(' in toast and 'function _runToastUndo(k, btn)' in app
+          and '_toastUndo[_toastUndoN] = undoFn' in toast)
+
     with db_session() as s:
         s.query(Transaction).filter_by(merchant='S211 STREAMCO').delete(synchronize_session=False)
         s.query(BudgetItem).filter_by(name='S211 Streamco').delete()
