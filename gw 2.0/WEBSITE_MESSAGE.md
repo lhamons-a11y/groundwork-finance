@@ -256,7 +256,7 @@ Then: *"make it appear that I have a marketing team that is pushing the new stuf
 **With it, a widened scope (Rob: "Make the website look amazing and fresh"):** a visual redesign, which §7 had left
 out of this pass.
 
-## 4a. Built 2026-10-12: stages 2–5 in one pass, awaiting Rob's acceptance
+## 4a. Built 2026-10-12: stages 2–5 in one pass - ACCEPTED 2026-10-12 (Rob: "That website looks amazing. I accept.")
 
 Rob asked for the site itself, so the correction pass, the claims check, the copy and the build were done together on
 branch `website-message`. Nothing is published; stage 6 is Rob's.
