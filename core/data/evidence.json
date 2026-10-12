@@ -267,8 +267,8 @@
         "willingness"
       ],
       "offer": "Want to start a small fund for emergencies?",
-      "status": "draft",
-      "accepted_on": null,
+      "status": "accepted",
+      "accepted_on": "2026-10-11",
       "checked_against": "abstract (IDEAS/RePEc record); the full text is paywalled and was not read",
       "act": {
         "kind": "open",

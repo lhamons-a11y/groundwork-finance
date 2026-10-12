@@ -203,9 +203,9 @@ def run(ctx):
           and "surface: 'evidence_intro'" in intro and "API.post('/api/evidence/intro'" in intro
           and c.post('/api/evidence/intro', headers=HJ, data=json.dumps({'id': 'made_up', 'surface': 'goal', 'text': 'x'})).status_code == 400)
     em = next((e for e in lib['entries'] if e['id'] == 'gjertson2016_emergency'), None)
-    check('s188 E7 the emergency-savings entry is drafted from its paper and waits for Rob (a draft, shown nowhere)',
-          em is not None and em['status'] == 'draft' and 'gjertson2016_emergency' not in ev.accepted_ids()
-          and em['applies_when'] == ['no_savings_goal'])
+    check('s188 E7 the emergency-savings entry, drafted from its paper, accepted by Rob 2026-10-11, offered where no savings goal exists',
+          em is not None and em['status'] == 'accepted' and em['accepted_on'] == '2026-10-11'
+          and 'gjertson2016_emergency' in ev.accepted_ids() and em['applies_when'] == ['no_savings_goal'])
 
     with db_session() as s:
         s.add(SinkingFund(name='s188 vacation', target_amount=1200, current_amount=300, deadline='2099-06-01', is_active=True))
