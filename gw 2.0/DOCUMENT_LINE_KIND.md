@@ -839,3 +839,10 @@ they were for Rob's ruling. That leaves the three `eob_amount` mentions above.
 - `services`, `applied`, `disbursement`;
 - `MOVEMENT`, the ruled stances, the matcher, and `PARTICIPANT_CANDIDATES`' meaning;
 - `core/database.py`, and every bank-window file.
+
+**The full gate, after its baseline (§17).**
+- **Baseline:** a clean worktree at master `28cb7a9` passed **3228 / 0**.
+- **Stage 2:** `cae41d8` passed **3232 / 0**.
+
+The +4 is exactly the four new gate-level checks: s97's two mutations, s87's `'x'` mutation, and s87's
+map-restored crossing. The fixtures' own new cases count inside each section's single *passes in full* check.
