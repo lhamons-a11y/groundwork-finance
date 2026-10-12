@@ -12,7 +12,10 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261011-gift-tables'   # gift people, occasions, shares and fund spends (GIFT_BUDGET.md G2/G3/G8, item 74)
+SCHEMA_VERSION = '20261012-trips'   # trips the person plans or is going on (TRIP_FUNDING_COACH.md T1, item 61)
+# This bump carries no migrate.py code: the trips table reaches an existing database through init_db's create_all.
+# The old trip_budget setting is carried in as the first trip by core/trips.py on first read, and kept.
+# Before it, '20261011-gift-tables':
 # This bump adds sinking_funds.purpose (_NEW_SINKING_FUND_COLUMNS) and four tables through init_db's create_all. The
 # gift_people_json setting is carried into the tables by core/gifts.py on first read, not here, and is kept.
 # Before it, '20261011-work-reimbursements': this bump carries no migrate.py code: the new reimbursable_items and reimbursement_matches tables reach an existing
@@ -40,7 +43,7 @@ SCHEMA_SPEC_SHA256 = 'a21e20a9c216add4141cba358a53667b83207478ba28eff75e8337451d
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = '72d2234ecbc5079e91f752611b0c9ddb5568322c6790ecee6a11894b88277a94'
+SCHEMA_MODELS_SHA256 = 'e42fcf83a6f3e891928aabce126d7f15667836cf185e2f3414052a66f43d0b0f'
 
 
 def _stored_schema_version():

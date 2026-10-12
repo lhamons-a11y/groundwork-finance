@@ -7723,6 +7723,7 @@ function renderBudget() {
   renderBudgetBills();   // item 68 B3
   renderIncomeChange();  // item 71
   renderFutures();       // item 66
+  renderBudgetTrips();   // item 61 T2
 
   const totalIncome = S.incomes.reduce((s,i) => s + i.amount, 0);
   const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
@@ -10588,6 +10589,7 @@ function renderTripPlanner() {
   // Check oil change history
   _checkOilChange();
   setTripMode('drive');
+  renderTrips();   // item 61
 }
 
 // ── Vehicle profile ───────────────────────────────────────────────────────────
@@ -12225,7 +12227,193 @@ function _tripBudgetFallbackHTML(d) {
     ${d.other ? line('🧾 Other', d.other, d.otherSource) : ''}
     ${line('🛡 Cushion', d.buffer, "10% of the lines above (Groundwork's rule of thumb)")}
     <div class="trip-budget-row"><span class="trip-budget-cat">Total</span><span class="trip-budget-amt">${fmt(d.total)}</span></div>
-    <div style="margin-top:12px;font-size:12px;color:var(--slate);line-height:1.6">The total counts only lines with a source. Your monthly surplus after debt is ${fmt(d.surplus)}.</div>`;
+    <div style="margin-top:12px;font-size:12px;color:var(--slate);line-height:1.6">The total counts only lines with a source. Your monthly surplus after debt is ${fmt(d.surplus)}.</div>
+    <div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="tripImGoing()">I'm going on this trip</button>
+      <span style="font-size:11px;color:var(--slate);margin-left:6px">Then say where the money comes from and see the way back. Nothing is booked or paid.</span></div>`;
+}
+
+
+// ── Item 61 (TRIP_FUNDING_COACH.md T1-T9): a trip you commit to becomes part of the plan ──────────────────────
+// "I'm going" is only ever this tap (TM5); Groundwork never moves or pays money (TM1). Every figure comes from the
+// server: the record and the one payoff engine. The page asks and draws; it decides nothing.
+let _trips = null, _tripSrcs = null;
+const _TRIP_KIND_WORDS = { checking: 'Checking', savings: 'Savings', fund: 'A savings fund', card: 'A credit card', save_ahead: 'Save ahead, in a trip fund' };
+
+function tripImGoing() {
+  const d = _tripBudgetData;
+  if (!d || !(d.total > 0)) { showToast('Work out the trip budget first', '', 'warning'); return; }
+  confirmAction(`Going to ${d.dest}?`,
+    `<div style="font-size:13px;color:var(--slate);line-height:1.6">Groundwork saves this trip, ${fmt(d.total)}, as one you're going on.
+      Then you can say where the money comes from and see the way back. Nothing is booked, paid or moved.</div>`,
+    async () => {
+      try { await API.post('/api/trips', d); }
+      catch (e) { _gwErr('tripImGoing')(e); showToast('Not saved', e?.message || '', 'warning'); return; }
+      showToast(`Going to ${d.dest}`, 'Now say where the money comes from, below.', 'success');
+      await renderTrips();
+      g('tripTripsCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, "I'm going", false);
+}
+
+async function renderTrips() {
+  const box = g('tripTripsCard');
+  if (!box) return;
+  try {
+    _trips = (await API.get('/api/trips')).trips || [];
+    if (!_tripSrcs) _tripSrcs = await API.get('/api/trips/sources-available');
+  } catch (e) { _gwErr('renderTrips')(e); box.innerHTML = ''; return; }
+  if (!_trips.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="card mb-5"><div class="card-label">Your trips</div>${_trips.map(_tripCardHTML).join('')}</div>`;
+}
+
+function _tripDates(t) {
+  const f = s => s ? new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+  return t.depart ? `${f(t.depart)}${t.ret && t.ret !== t.depart ? '–' + f(t.ret) : ''}` : 'No dates';
+}
+
+function _tripSourceName(s) {
+  const src = _tripSrcs || {};
+  if (s.kind === 'card') return (src.cards || []).find(c => c.id === s.ref_id)?.name || 'A card';
+  if (s.kind === 'checking' || s.kind === 'savings') return (src.accounts || []).find(a => a.id === s.ref_id)?.name || 'An account';
+  if (s.kind === 'fund') return (src.funds || []).find(f => f.id === s.ref_id)?.name || 'A fund';
+  return 'A trip fund';
+}
+
+function _tripCardHTML(t) {
+  const going = t.status === 'going', done = t.status === 'done';
+  const head = `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
+      <div><div style="font-size:14px;font-weight:600;color:var(--ink)">${esc(t.label)}</div>
+        <div style="font-size:11px;color:var(--slate)">${_tripDates(t)} · ${done ? 'done' : going ? "you're going" : 'planning'}</div></div>
+      <div style="font-family:var(--font-mono);font-size:14px;color:var(--ink)">${fmt(t.total)}${done && t.actual_spent != null ? ` <span style="font-size:11px;color:var(--slate)">planned · spent ${fmt(t.actual_spent)}</span>` : ''}</div>
+    </div>`;
+  if (!going) {
+    const act = t.status === 'planning'
+      ? `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="tripSetStatus(${t.id},'going')">I'm going on this trip</button>` : '';
+    return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:12px;margin-bottom:8px">${head}${act ? `<div style="margin-top:8px">${act}</div>` : ''}</div>`;
+  }
+  const p = t.plan || {};
+  const srcRows = (t.sources || []).map((s, i) => {
+    const left = (p.left || [])[i] || {};
+    let after = '';
+    if (s.kind === 'card') after = left.available_after == null ? "its limit isn't entered, so Groundwork can't say what's left" : `${fmt(left.available_after)} of credit left after`;
+    else if (s.kind === 'checking' || s.kind === 'savings') after = left.balance_after == null ? 'its balance is not known'
+      : left.floor == null ? `${fmt(left.balance_after)} left after; no "always leave" amount is set for it` : `${fmt(left.above_floor_after)} above your "always leave" amount after`;
+    else if (s.kind === 'fund') after = left.fund_after == null ? '' : `${fmt(left.fund_after)} left in it after`;
+    else after = 'set aside before the trip, filling itself each month';
+    return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:0.5px solid var(--steel-2)">
+        <span><b>${esc(_TRIP_KIND_WORDS[s.kind])}</b>: ${esc(_tripSourceName(s))} <span style="color:var(--slate)">· ${esc(after)}</span></span>
+        <span style="white-space:nowrap"><span style="font-family:var(--font-mono)">${fmt(s.amount)}</span>
+        <button class="row-del" onclick="tripRemoveSource(${t.id},${i})" title="Remove">×</button></span></div>`;
+  }).join('');
+  const leftNote = t.left_to_assign > 0.004 ? `<span style="color:var(--gold-text)">${fmt(t.left_to_assign)} left to assign</span>`
+    : `<span style="color:var(--pine-text)">All ${fmt(t.total)} assigned</span>`;
+  const addRow = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">
+      <select id="tripSrcKind-${t.id}" class="field-input" style="width:auto;font-size:12px;padding:4px 8px" onchange="tripSrcKindChange(${t.id})">
+        ${Object.entries(_TRIP_KIND_WORDS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
+      <select id="tripSrcRef-${t.id}" class="field-input" style="width:auto;font-size:12px;padding:4px 8px">${_tripRefOptions('checking')}</select>
+      <input id="tripSrcAmt-${t.id}" class="field-input" type="number" min="0" step="0.01" placeholder="Amount" value="${t.left_to_assign > 0 ? t.left_to_assign : ''}" style="width:100px;font-size:12px;padding:4px 8px">
+      <button class="btn btn-secondary btn-sm" style="font-size:11px" onclick="tripAddSource(${t.id})">+ Add</button>
+    </div>`;
+  const orders = p.orders || {};
+  const ordRow = (k, label) => orders[k] ? `<tr><td>${label}</td><td>${esc(orders[k].debt_label || '-')}</td><td>${esc(orders[k].rebuild_label || (p.cash_total > 0 ? '-' : 'nothing to rebuild'))}</td></tr>` : '';
+  const ordersTable = Object.keys(orders).length ? `<table style="width:100%;font-size:12px;margin-top:6px">
+      <tr style="color:var(--slate)"><td>Order</td><td>Debt-free</td><td>Checking and savings back</td></tr>
+      ${ordRow('debt_first', 'Debt first, then rebuild')}${ordRow('rebuild_first', 'Rebuild first, then debt')}${ordRow('split', `Split, ${t.split_pct}% to debt`)}</table>`
+    : `<div style="font-size:12px;color:var(--slate)">${p.surplus == null ? "Your record doesn't show enough income to know what's left each month, so the orders can't be priced yet." : 'Nothing is left after your budget and debt payments each month, so the trip comes back only through the debt plan\'s own payments.'}</div>`;
+  const pick = (k, label) => `<button class="btn ${t.pay_order === k ? 'btn-primary' : 'btn-ghost'} btn-sm" style="font-size:11px" onclick="tripSetOrder(${t.id},'${k}')">${label}</button>`;
+  const rebuild = Object.entries(p.rebuild || {}).map(([k, r]) => `<div style="font-size:12px">${k === 'fund' ? 'The fund' : k[0].toUpperCase() + k.slice(1)}: ${fmt(r.amount)} back in ${r.months} months is ${fmt(r.monthly)} a month.</div>`).join('');
+  const cards = (p.left || []).filter(x => x.kind === 'card' && x.payoff).map(x => `<div style="font-size:12px;margin-top:4px"><b>${esc(x.name)}</b>, ${fmt(x.amount)}: `
+      + x.payoff.map(r => `${r.months} months at ${fmt(r.payment)}/mo (${fmt(r.interest)} interest)`).join(' · ') + '</div>').join('');
+  const coach = p.coach ? `<div style="font-size:13px;color:var(--ink);margin-top:10px">${esc(p.coach)}</div>`
+    : (p.coach_both || []).filter(Boolean).length ? `<div style="font-size:12px;color:var(--ink);margin-top:10px">Debt first: ${esc(p.coach_both[0] || '')}<br>Rebuild first: ${esc(p.coach_both[1] || '')}</div>` : '';
+  const after = t.ret && new Date(t.ret + 'T23:59:59') < new Date()
+    ? `<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" style="font-size:11px" onclick="tripAfter(${t.id})">The trip's over: what did it cost?</button></div>` : '';
+  return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:12px;margin-bottom:8px">${head}
+    <div style="font-size:12px;font-weight:600;margin-top:12px">Where the money comes from</div>
+    ${srcRows || '<div style="font-size:12px;color:var(--slate)">Not said yet. Add checking, savings, a fund, one or more cards, or saving ahead.</div>'}
+    <div style="font-size:11px;margin-top:4px">${leftNote}</div>${addRow}
+    ${p.card_total > 0 || p.cash_total > 0 ? `
+    <div style="font-size:12px;font-weight:600;margin-top:14px">The way back</div>
+    ${p.card_total > 0 ? `<div style="font-size:12px">On your cards: ${fmt(p.card_total)}, added to your one debt plan until the real charge arrives. Your debt-free date as things are: ${esc(p.base_debt_label || '-')}; with the trip at your current payments: ${esc(p.with_trip_debt_label || '-')}.</div>${cards}` : ''}
+    ${p.cash_total > 0 ? `<div style="font-size:12px;margin-top:6px">Rebuild over
+      ${[3, 6, 12].map(m => `<button class="btn ${t.rebuild_months === m ? 'btn-primary' : 'btn-ghost'} btn-sm" style="font-size:11px" onclick="tripSetRebuild(${t.id},${m})">${m} months</button>`).join(' ')}</div>${rebuild}` : ''}
+    <div style="font-size:12px;font-weight:600;margin-top:12px">What's left each month goes…</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0">${pick('debt_first', 'Debt first')}${pick('rebuild_first', 'Rebuild first')}
+      ${pick('split', 'A split')}<input id="tripSplit-${t.id}" type="number" min="1" max="99" step="1" placeholder="% to debt" value="${t.split_pct ?? ''}" style="width:80px;font-size:12px;padding:3px 6px;border:1px solid var(--steel);border-radius:var(--r-sm)"></div>
+    ${!t.pay_order ? '<div style="font-size:11px;color:var(--slate)">Not chosen, so both are shown.</div>' : ''}
+    ${ordersTable}${coach}
+    <details style="margin-top:8px"><summary style="font-size:11px;color:var(--slate);cursor:pointer">What these figures assume</summary>
+      <ul style="font-size:11px;color:var(--ink);margin:6px 0 0 16px;line-height:1.6">${(p.assumptions || []).map(a => `<li>${esc(a)}</li>`).join('')}</ul></details>` : ''}
+    ${after}
+    <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="tripSetStatus(${t.id},'cancelled')">Not going after all</button></div>
+  </div>`;
+}
+
+function _tripRefOptions(kind) {
+  const src = _tripSrcs || {};
+  if (kind === 'card') return (src.cards || []).map(c => `<option value="${c.id}">${esc(c.name)}${c.available == null ? ' · limit not entered' : ' · ' + fmt(c.available) + ' available'}</option>`).join('') || '<option value="">No credit card on record</option>';
+  if (kind === 'checking' || kind === 'savings') return (src.accounts || []).filter(a => a.type === kind).map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('') || `<option value="">No ${kind} account on record</option>`;
+  if (kind === 'fund') return (src.funds || []).map(f => `<option value="${f.id}">${esc(f.name)} · ${fmt(f.current)}</option>`).join('') || '<option value="">No savings fund yet</option>';
+  return '<option value="">A new trip fund</option>';
+}
+function tripSrcKindChange(id) { const k = g(`tripSrcKind-${id}`)?.value; const r = g(`tripSrcRef-${id}`); if (r) r.innerHTML = _tripRefOptions(k); }
+
+async function _tripPatch(id, body) {
+  try { await API.patch(`/api/trips/${id}`, body); }
+  catch (e) { _gwErr('_tripPatch')(e); showToast('Not saved', e?.message || '', 'warning'); return; }
+  await renderTrips();
+}
+function tripAddSource(id) {
+  const t = (_trips || []).find(x => x.id === id); if (!t) return;
+  const kind = g(`tripSrcKind-${id}`)?.value, ref = g(`tripSrcRef-${id}`)?.value, amount = parseFloat(g(`tripSrcAmt-${id}`)?.value);
+  if (!(amount > 0)) { showToast('Enter an amount', '', 'warning'); return; }
+  if (kind !== 'save_ahead' && !ref) { showToast('Pick which one', '', 'warning'); return; }
+  _tripPatch(id, { sources: [...t.sources, { kind, ref_id: ref ? parseInt(ref) : null, amount }] });
+}
+function tripRemoveSource(id, i) {
+  const t = (_trips || []).find(x => x.id === id); if (!t) return;
+  _tripPatch(id, { sources: t.sources.filter((_, j) => j !== i) });
+}
+function tripSetRebuild(id, m) { _tripPatch(id, { rebuild_months: m }); }
+function tripSetOrder(id, k) {
+  if (k === 'split') {
+    const pct = parseFloat(g(`tripSplit-${id}`)?.value);
+    if (!(pct > 0 && pct < 100)) { showToast('Type the % that goes to debt', '', 'warning'); return; }
+    _tripPatch(id, { pay_order: 'split', split_pct: pct });
+  } else _tripPatch(id, { pay_order: k });
+}
+function tripSetStatus(id, status) {
+  if (status === 'cancelled') {
+    confirmAction('Not going after all?', '<div style="font-size:13px;color:var(--slate)">The trip leaves your plan. Its fund, if it has one, keeps what it holds.</div>',
+      () => _tripPatch(id, { status }), 'Not going', false);
+  } else _tripPatch(id, { status });
+}
+
+// T7: after the trip, its bookings and Travel charges are offered; only the ones the person ticks count.
+async function tripAfter(id) {
+  let d;
+  try { d = await API.get(`/api/trips/${id}/charges`); } catch (e) { _gwErr('tripAfter')(e); return; }
+  if (!(d.charges || []).length) { showToast('No trip charges found', 'Nothing filed under Travel in the trip\'s dates, and no linked booking.', 'info'); return; }
+  const rows = d.charges.map(c => `<label style="display:flex;gap:8px;font-size:12px;padding:3px 0"><input type="checkbox" class="trip-charge" value="${esc(c.id)}" checked>
+      <span style="flex:1">${esc(c.description)} <span style="color:var(--slate)">· ${esc(c.date)}</span></span><span style="font-family:var(--font-mono)">${fmt(c.amount)}</span></label>`).join('');
+  confirmAction('What the trip cost', `<div style="font-size:13px;margin-bottom:6px">These came to ${fmt(d.total)}. Untick any that weren't part of the trip.</div>${rows}`, async () => {
+    const ids = [...document.querySelectorAll('.trip-charge:checked')].map(x => x.value);
+    if (!ids.length) return;
+    try { await API.post(`/api/trips/${id}/charges`, { ids }); } catch (e) { _gwErr('tripAfter:use')(e); showToast('Not saved', e?.message || '', 'warning'); return; }
+    await renderTrips();
+  }, 'Use them', false);
+}
+
+// T2: on the Budget page, a going trip shows in the months it touches - derived, never a budget line.
+async function renderBudgetTrips() {
+  const box = g('budgetTripsMonth');
+  if (!box) return;
+  let d;
+  try { d = await API.get('/api/trips/in-month'); } catch (e) { _gwErr('renderBudgetTrips')(e); box.innerHTML = ''; return; }
+  if (!(d.trips || []).length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="card mb-5"><div class="card-label">Trips this month</div>` + d.trips.map(t => `
+      <div style="font-size:13px;color:var(--ink);padding:4px 0">Trip to <b>${esc(t.label)}</b>, ${_tripDates(t)}: ${fmt(t.total)} planned
+        <span style="font-size:11px;color:var(--slate)">${(t.lines || []).map(l => `${esc(l.label)} ${fmt(l.amount)}`).join(' · ')}</span></div>`).join('')
+    + `<div style="font-size:11px;color:var(--slate);margin-top:4px">Shown from your trip plan; it isn't a budget line, so it never repeats in other months.</div></div>`;
 }
 
 
@@ -23676,7 +23864,7 @@ function futuresHtml(st) {
       <span style="color:var(--ink)"> ${esc(q.a)}</span></div>`).join('');
   const poss = (st.possibilities || []).map(p => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0">
       <span>${esc(p.label || '')} ${fmt(p.amount)}${p.kind !== 'cost' ? ' a month' : ''}${p.month ? ` · ${esc(p.month)}` : ''} <span style="font-size:10px;color:var(--slate-2)">You said</span></span>
-      <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresWithdraw('${esc(p.id)}')">Take back</button></div>`).join('');
+      ${p.from_trip ? `<span style="font-size:11px;color:var(--slate)">a trip you're going on</span>` : `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresWithdraw('${esc(p.id)}')">Take back</button>`}</div>`).join('');
   const hidden = (st.hidden || []).map(h => `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${h.key}','show')">Show "${esc(h.title)}" again</button>`).join(' ');
   const gaps = (st.gaps || []).map(x => `<li>${esc(x)}</li>`).join('');
   const goalWords = { debt: 'the debt-free date', savings: 'cash saved', goal: 'cash saved toward your goal', invest: 'what is left over', unsure: '' }[st.goal] || '';

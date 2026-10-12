@@ -209,6 +209,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(college_funds_bp,  url_prefix='/api/college-funds')
     app.register_blueprint(gifts_bp,          url_prefix='/api/gifts')
     app.register_blueprint(futures_bp,        url_prefix='/api/futures')
+    app.register_blueprint(trips_bp,          url_prefix='/api/trips')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
@@ -1934,10 +1935,28 @@ def _pre_budget(session, inputs):
     return fu.pre_budget(inputs['income'], rows)
 
 
+def _going_trip_possibilities(session):
+    """Item 61 T8: each going trip, as a known cost in its departure month - the part paid from cash (checking,
+    savings, funds), or the whole trip when no split is entered. Tagged as the person's own statement (SC3)."""
+    from core import trips as tr
+    from core.database import Trip
+    out = []
+    for t in session.query(Trip).filter_by(status='going').all():
+        if not t.depart:
+            continue
+        parts = tr.cash_parts(t)
+        amount = round(sum(parts.values()), 2) if tr.sources(t) else round(float(t.total or 0), 2)
+        if amount > 0:
+            out.append({'id': f'trip{t.id}', 'kind': 'cost', 'amount': amount, 'month': t.depart[:7],
+                        'label': f'Trip to {t.label}', 'from_trip': t.id,
+                        'said_at': (t.going_at or t.created_at).isoformat(timespec='seconds')})
+    return out
+
+
 def _futures_state(session):
     from core import futures as fu
     inputs = _futures_inputs(session)
-    poss = _setting_json(session, 'future_possibilities', []) or []
+    poss = (_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
     answers = _setting_json(session, 'future_answers', []) or []
     out = fu.build(inputs, poss, answers)
     out['fingerprint'] = fu.fingerprint(inputs, poss, answers)
@@ -1964,8 +1983,8 @@ def futures_fingerprint():
     from core import futures as fu
     with db_session() as session:
         inputs = _futures_inputs(session)
-        return ok({'fingerprint': fu.fingerprint(inputs, _setting_json(session, 'future_possibilities', []) or [],
-                                                 _setting_json(session, 'future_answers', []) or [])})
+        poss = (_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+        return ok({'fingerprint': fu.fingerprint(inputs, poss, _setting_json(session, 'future_answers', []) or [])})
 
 
 @futures_bp.route('/answer', methods=['POST'])
@@ -2072,6 +2091,276 @@ def futures_choose_undo():
             session.delete(row)
         session.commit()
         return ok({'undone': True})
+
+
+# ── Item 61 (TRIP_FUNDING_COACH.md T1-T9): a trip you commit to becomes part of the plan ──────────────────────
+# Groundwork never moves or pays money (TM1) and never decides a trip is happening (TM5). The split and the payback
+# choices are the person's statements; every figure is the record and the one payoff engine, computed on read.
+trips_bp = Blueprint('trips', __name__)
+
+
+def _trip_json(session, t, plan=False):
+    from core import trips as tr
+    tot, left = tr.assigned(t)
+    d = {'id': t.id, 'label': t.label, 'depart': t.depart, 'ret': t.ret, 'total': round(float(t.total or 0), 2),
+         'lines': tr.lines(t), 'status': t.status, 'sources': tr.sources(t), 'assigned': tot, 'left_to_assign': left,
+         'rebuild_months': t.rebuild_months or 6, 'pay_order': t.pay_order or '', 'split_pct': t.split_pct,
+         'fund_id': t.fund_id, 'actual_spent': t.actual_spent}
+    if plan and t.status == 'going':
+        d['plan'] = _trip_plan(session, t)
+    return d
+
+
+def _trip_plan(session, t):
+    """T3-T6, computed on read: what each source leaves, the way back, the two orders, the coach line."""
+    from core import trips as tr
+    from core.database import SinkingFund
+    from core.trip_card import plan as card_plan
+    from core import household
+    today = date.today()
+    start = today.strftime('%Y-%m')
+    cards, budget, strategy, _undated = _consequence_inputs(session)
+    credit = {c['id']: c for c in _trip_credit_cards(session)}
+    ids_by_name = {c['name']: c['id'] for c in credit.values()}
+    matched = {}
+    for b in session.query(TripBooking).filter(TripBooking.trip_label == t.label,
+                                               TripBooking.paid_with_kind == 'card').all():
+        if b.debt_account_id and (b.matched_debt_entry_id or b.matched_transaction_id):
+            matched[b.debt_account_id] = matched.get(b.debt_account_id, 0.0) + float(b.charged_amount or b.amount or 0)
+    shares = tr.card_shares(t, matched)
+    cash = tr.cash_parts(t)
+    cash_total = round(sum(cash.values()), 2)
+    card_total = round(sum(s['projected'] for s in shares.values()), 2)
+    # what each source leaves (T3)
+    left = []
+    for s in tr.sources(t):
+        amt = float(s['amount'])
+        row = {'kind': s['kind'], 'ref_id': s.get('ref_id'), 'amount': round(amt, 2)}
+        if s['kind'] == 'card':
+            c = credit.get(int(s.get('ref_id') or 0))
+            row['name'] = c['name'] if c else 'A card no longer on record'
+            row['available_after'] = None if not c or c.get('available') is None else round(c['available'] - amt, 2)
+            if c:
+                row['payoff'] = card_plan(amt, c, cards, budget, strategy, c['index'])['rows']
+        elif s['kind'] in ('checking', 'savings'):
+            a = session.get(Account, int(s.get('ref_id') or 0))
+            row['name'] = a.name if a else 'An account no longer on record'
+            bal = _account_balance_facts(session, a.id)[0] if a else None
+            floor = ((_setting_json(session, f'bank_buffer:account:{a.id}') or {}).get('amount') if a else None)
+            row['balance_after'] = None if bal is None else round(bal - amt, 2)
+            row['floor'] = floor
+            row['above_floor_after'] = None if bal is None or floor is None else round(bal - amt - float(floor), 2)
+        elif s['kind'] in ('fund', 'save_ahead'):
+            f = session.get(SinkingFund, int(s.get('ref_id') or 0)) if s.get('ref_id') else None
+            row['name'] = f.name if f else ('A trip fund' if s['kind'] == 'save_ahead' else 'A fund no longer on record')
+            if f:
+                row['fund_after'] = round(float(f.current_amount or 0) - amt, 2) if s['kind'] == 'fund' else None
+                row['target'] = round(float(f.target_amount or 0), 2)
+        left.append(row)
+    # the way back (T4)
+    m = t.rebuild_months or 6
+    rebuild = {k: {'amount': v, 'months': m, 'monthly': round(v / m, 2)} for k, v in cash.items() if v > 0}
+    # one plan, two orders (T5)
+    fi = _futures_inputs(session)
+    surplus = round((fi['income'] or 0) - fi['spend'] - fi['debt_pay'], 2) if fi['income'] is not None else None
+    cards_plus = tr._with_shares(cards, ids_by_name, shares)
+    base_months = tr._months(cards, budget, strategy, start) if cards else None
+    with_months = tr._months(cards_plus, budget, strategy, start) if cards else None
+    ords = tr.orders(cards_plus, budget, strategy, start, surplus or 0, card_total, cash_total, t.split_pct) if surplus else {}
+    for k, v in ords.items():
+        v['debt_label'] = tr.month_label(start, v['debt_months'])
+        v['rebuild_label'] = tr.month_label(start, v['rebuild_months']) if v['rebuild_months'] else None
+    chosen = ords.get(t.pay_order) if t.pay_order else None
+    goal = household.current(session, 'surplus_goal') or 'unsure'
+    assumptions = [
+        'Each card\'s share is added to that card in your one debt plan, as a projected charge, until the real charge is '
+        'imported and linked to the booking; then the record carries it and the projection drops.',
+        'The payback orders use what is left each month after your budget and debt payments'
+        + (f' ({fmt_money(surplus)} a month).' if surplus is not None else '. Your record does not show enough income to know it.'),
+        'Debt first: that money goes toward the debt until the trip\'s card amount has been paid in extra, then to '
+        'rebuilding. Rebuild first: the other way round.',
+    ]
+    return {'left': left, 'card_total': card_total, 'cash_total': cash_total, 'shares': shares,
+            'rebuild': rebuild, 'surplus': surplus, 'base_debt_months': base_months,
+            'base_debt_label': tr.month_label(start, base_months), 'with_trip_debt_months': with_months,
+            'with_trip_debt_label': tr.month_label(start, with_months), 'orders': ords,
+            'coach': tr.coach_line(goal, base_months, chosen, start, cash_total) if chosen else None,
+            'coach_both': None if chosen else [tr.coach_line(goal, base_months, ords[k], start, cash_total)
+                                               for k in ('debt_first', 'rebuild_first') if k in ords],
+            'goal': goal, 'assumptions': assumptions}
+
+
+def fmt_money(x):
+    return f'${x:,.0f}' if x >= 0 else f'-${-x:,.0f}'
+
+
+@trips_bp.route('', methods=['GET'])
+def trips_list():
+    from core import trips as tr
+    from core.database import Trip
+    with db_session() as session:
+        tr.carry_setting(session)
+        session.commit()
+        rows = session.query(Trip).filter(Trip.status != 'cancelled').order_by(Trip.depart, Trip.id).all()
+        return ok({'trips': [_trip_json(session, t, plan=True) for t in rows]})
+
+
+@trips_bp.route('', methods=['POST'])
+@require_json
+def trips_commit():
+    """T1: "I'm going on this trip" - the planner's current trip, saved as going. Only this tap does it."""
+    from core import trips as tr
+    from core.database import Trip
+    b = request.json or {}
+    label = str(b.get('dest') or b.get('label') or '').strip()[:160]
+    try:
+        total = round(float(b.get('total')), 2)
+    except (TypeError, ValueError):
+        return err('The trip needs its total.')
+    if not label or total <= 0:
+        return err('The trip needs a destination and a total.')
+    with db_session() as session:
+        tr.carry_setting(session)
+        t = Trip(label=label, depart=(b.get('depart') or '')[:10] or None, ret=(b.get('ret') or '')[:10] or None,
+                 total=total, lines_json=json.dumps(tr.lines_from_budget(b)), status='going', going_at=datetime.utcnow())
+        session.add(t)
+        session.commit()
+        return ok(_trip_json(session, t, plan=True))
+
+
+@trips_bp.route('/<int:tid>', methods=['PATCH'])
+@require_json
+def trips_edit(tid):
+    """T3-T5: the person's split, rebuild months and payback order. Sources must name a source of theirs."""
+    from core import trips as tr
+    from core.database import SinkingFund, Trip
+    b = request.json or {}
+    with db_session() as session:
+        t = session.get(Trip, tid)
+        if not t:
+            return err('Trip not found', 404)
+        if 'status' in b:
+            if b['status'] not in ('going', 'cancelled', 'planning'):
+                return err('A trip can be going, planning or cancelled here; "done" comes after it, on a yes.')
+            t.status = b['status']
+            if b['status'] == 'going' and not t.going_at:
+                t.going_at = datetime.utcnow()
+        if 'sources' in b:
+            clean = []
+            for s in b.get('sources') or []:
+                kind = (s or {}).get('kind')
+                try:
+                    amt = round(float(s.get('amount')), 2)
+                except (TypeError, ValueError):
+                    return err('Each source needs an amount.')
+                if kind not in tr.SOURCE_KINDS or amt <= 0:
+                    return err('Each source needs what it is and an amount.')
+                ref = s.get('ref_id')
+                if kind == 'card' and not any(c['id'] == int(ref or 0) for c in _trip_credit_cards(session)):
+                    return err('That card is not one of your credit cards.')
+                if kind in ('checking', 'savings') and not session.get(Account, int(ref or 0)):
+                    return err('That account was not found.')
+                if kind == 'fund' and not session.get(SinkingFund, int(ref or 0)):
+                    return err('That fund was not found.')
+                clean.append({'kind': kind, 'ref_id': int(ref) if ref not in (None, '') else None, 'amount': amt})
+            if round(sum(x['amount'] for x in clean), 2) > round(float(t.total or 0), 2) + 0.005:
+                return err('The sources add up to more than the trip.')
+            t.sources_json = json.dumps(clean)
+            # T2: saving ahead makes (or resizes) the trip's own fund, which fills itself monthly until the trip
+            ahead = round(sum(x['amount'] for x in clean if x['kind'] == 'save_ahead'), 2)
+            if ahead > 0:
+                f = session.get(SinkingFund, t.fund_id) if t.fund_id else None
+                if f is None:
+                    f = SinkingFund(name=f'Trip: {t.label}'[:120], target_amount=ahead, current_amount=0.0,
+                                    deadline=t.depart, monthly_contribution=0.0, purpose=tr.TRIP_PURPOSE,
+                                    note='Set aside ahead for this trip (item 61)')
+                    session.add(f)
+                    session.flush()
+                    t.fund_id = f.id
+                else:
+                    f.target_amount = ahead
+                    f.deadline = t.depart
+                for x in clean:
+                    if x['kind'] == 'save_ahead':
+                        x['ref_id'] = t.fund_id
+                t.sources_json = json.dumps(clean)
+        if 'rebuild_months' in b:
+            if int(b['rebuild_months']) not in tr.REBUILD_MONTHS:
+                return err('Rebuild over 3, 6 or 12 months.')
+            t.rebuild_months = int(b['rebuild_months'])
+        if 'pay_order' in b:
+            if b['pay_order'] not in ('', *tr.ORDERS):
+                return err('Pick debt first, rebuild first, or a split.')
+            t.pay_order = b['pay_order']
+            if b['pay_order'] == 'split':
+                try:
+                    pct = float(b.get('split_pct'))
+                except (TypeError, ValueError):
+                    return err('A split needs the share that goes to debt.')
+                if not 0 < pct < 100:
+                    return err('A split needs the share that goes to debt.')
+                t.split_pct = pct
+        session.commit()
+        return ok(_trip_json(session, t, plan=True))
+
+
+@trips_bp.route('/sources-available', methods=['GET'])
+def trips_sources_available():
+    """T3: what a trip can be paid from - checking and savings accounts, savings funds, credit cards."""
+    from core.database import SinkingFund
+    with db_session() as session:
+        accts = [{'id': a.id, 'name': a.name, 'type': (a.type or '').lower()} for a in
+                 session.query(Account).filter_by(is_active=True).all() if (a.type or '').lower() in ('checking', 'savings')]
+        funds = [{'id': f.id, 'name': f.name, 'current': round(float(f.current_amount or 0), 2)} for f in
+                 session.query(SinkingFund).filter_by(is_active=True).all() if (f.purpose or '') != 'trip']
+        return ok({'accounts': accts, 'funds': funds, 'cards': _trip_credit_cards(session)})
+
+
+@trips_bp.route('/<int:tid>/charges', methods=['GET'])
+def trips_after_charges(tid):
+    """T7: after the trip, its bookings and the Travel charges in its dates - listed, not used."""
+    from core import trips as tr
+    from core.database import Trip
+    with db_session() as session:
+        t = session.get(Trip, tid)
+        if not t:
+            return err('Trip not found', 404)
+        return ok(tr.after_charges(session, t, date.today()))
+
+
+@trips_bp.route('/<int:tid>/charges', methods=['POST'])
+@require_json
+def trips_use_charges(tid):
+    """T7, on the person's yes: the charges they picked are what the trip cost, and the trip is done."""
+    from core import trips as tr
+    from core.database import Trip
+    with db_session() as session:
+        t = session.get(Trip, tid)
+        if not t:
+            return err('Trip not found', 404)
+        offered = {c['id']: c for c in tr.after_charges(session, t, date.today())['charges']}
+        picked = [str(x) for x in (request.json.get('ids') or [])]
+        if not picked or any(p not in offered for p in picked):
+            return err('Pick charges from the list.')
+        t.actual_spent = round(sum(offered[p]['amount'] for p in picked), 2)
+        t.actual_txn_ids = ','.join(picked)
+        t.status = 'done'
+        t.done_at = datetime.utcnow()
+        log_historian_event(session, 'trip_actual', expected_value=round(float(t.total or 0), 2),
+                            actual_value=t.actual_spent, context={'trip_id': t.id})
+        session.commit()
+        return ok(_trip_json(session, t))
+
+
+@trips_bp.route('/in-month', methods=['GET'])
+def trips_in_month():
+    """T2: going trips that touch a month, for the Budget page - derived, never a budget line."""
+    from core import trips as tr
+    from core.database import Trip
+    month = (request.args.get('month') or date.today().strftime('%Y-%m'))[:7]
+    with db_session() as session:
+        rows = [t for t in session.query(Trip).filter_by(status='going').all() if tr.in_month(t, month)]
+        return ok({'month': month, 'trips': [_trip_json(session, t) for t in rows]})
 
 
 evidence_bp = Blueprint('evidence', __name__)

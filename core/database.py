@@ -390,6 +390,8 @@ class HistorianEntry(Base):
                                              field like sinking funds do, so expected is computed
                                              server-side the same way the client's own "$X/mo" display
                                              already is: (target - saved) / months_left)
+      'trip_actual'                       — a trip's cost after it, on the person's yes (TRIP_FUNDING_COACH.md T7):
+                                             expected = the planned total, actual = the charges they picked
       'gift_fund_spent'                   — a gift fund's "Mark spent" (GIFT_BUDGET.md G3): expected = its target,
                                              actual = what was spent; context sinking_fund_id
       'gift_occasion_variance'            — a gift occasion's actual spend vs. its budgeted amount,
@@ -462,6 +464,30 @@ class HistorianEntry(Base):
         Index('ix_hist_debt_created',     'debt_account_id', 'created_at'),
         Index('ix_hist_category_created', 'event_category', 'created_at'),
     )
+
+
+class Trip(Base):
+    """A trip the person is planning or going on (TRIP_FUNDING_COACH.md T1). Only their tap on "I'm going" makes it
+    'going'; nothing infers a trip from purchases (TM5). The money split (T3) and the payback choices (T4/T5) are the
+    person's own statements, kept as JSON. A trip is never a budget line (T2): its months show it, derived."""
+    __tablename__ = 'trips'
+    id             = Column(Integer, primary_key=True)
+    label          = Column(String(160), nullable=False)
+    depart         = Column(String(10), nullable=True)      # YYYY-MM-DD
+    ret            = Column(String(10), nullable=True)
+    total          = Column(Float, default=0.0)
+    lines_json     = Column(Text, default='[]')             # [{label, amount, source}] - the planner's own lines
+    status         = Column(String(12), default='planning') # planning | going | done | cancelled
+    sources_json   = Column(Text, default='[]')             # T3: [{kind, ref_id, amount}]
+    rebuild_months = Column(Integer, default=6)             # T4: 3 | 6 | 12
+    pay_order      = Column(String(16), default='')         # T5: '' (not chosen) | debt_first | rebuild_first | split
+    split_pct      = Column(Float, nullable=True)           # T5: the share of the monthly surplus that goes to debt
+    fund_id        = Column(Integer, ForeignKey('sinking_funds.id'), nullable=True)   # T2: the trip's own fund
+    actual_spent   = Column(Float, nullable=True)           # T7: on the person's yes
+    actual_txn_ids = Column(Text, default='')
+    going_at       = Column(DateTime, nullable=True)
+    done_at        = Column(DateTime, nullable=True)
+    created_at     = Column(DateTime, default=datetime.utcnow)
 
 
 class TripBooking(Base):

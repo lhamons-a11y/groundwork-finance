@@ -170,3 +170,43 @@ month, tagged *You said* (SC3). The futures' **"Known costs ahead"** includes it
   definition of it. T6 uses the goal contract that exists. Defining it is its own item.
 - **Sharing a trip's cost with other people** (who owes whom).
 - **Booking or paying anything.** Never (TM1).
+
+## Built 2026-10-12 (Rob: "I accept T1 - T9"), awaiting acceptance
+
+- **T1.** A `trips` table, at SCHEMA `20261012-trips`. The old `trip_budget` setting is carried in once as a
+  *planning* trip with its lines, and the setting is kept. **"I'm going on this trip"** under the trip budget is the
+  only way a trip becomes *going*: a confirmed tap, `POST /api/trips`.
+- **T2.**
+  - *Save ahead, in a trip fund* creates the trip's own sinking fund (purpose `trip`, its date the departure). It
+    fills itself monthly like every fund.
+  - The Budget page shows **Trips this month**, derived, saying it isn't a budget line. s207 checks that no budget
+    item is added.
+- **T3.**
+  - **Sources:** checking, savings, a savings fund, one or more credit cards, or saving ahead.
+  - **Validation:** each must be the person's own, and they may not add up to more than the trip. The panel shows
+    what's left to assign.
+  - **What each source leaves:**
+    - a card: its credit left, or *its limit isn't entered*;
+    - checking or savings: what's above the person's *always leave* amount, or that none is set;
+    - a fund: what is left in it.
+- **T4.**
+  - **Each card:** item 49's 3/6/12-month rows, now per card.
+  - **Checking, savings and funds:** rebuilt over 3, 6 or 12 months, with the monthly amount.
+- **T5.**
+  - **Counted once.** A card's share joins the one debt plan as a projected charge. Once a booking for that trip on
+    that card has its charge linked (item 50), the projection drops.
+  - **One engine.** `simulate_payoff` gained `extra_schedule`, an extra per month. With it, *debt first*, *rebuild
+    first* and a *split* the person sets are each priced by the one engine. Left unchosen, both are shown.
+  - **The surplus** is item 66's: income minus the budget minus debt payments. With none, the panel says so.
+- **T6.** The coach line, in facts: *"Your debt-free date stays October 2028, and the money from checking and savings
+  is back by December 2026."*, or *"Going moves your debt-free date from ... to ..."*. It is measured on the person's
+  goal, and both orders are shown when none is chosen.
+- **T7.** After the return date, *"The trip's over: what did it cost?"* offers the trip's bookings and its Travel
+  charges, up to 3 days after. Only ticked ones count. The trip becomes *done*, with a Historian `trip_actual`
+  (expected the plan, actual the charges).
+- **T8.** Each going trip is a known cost in its departure month in every possible future: its cash part, or the
+  whole trip when no split is entered. It is tagged *You said*, marked *a trip you're going on*, and isn't taken back
+  from there.
+- **T9.** s207, 17 checks.
+
+Never: booking, paying or moving money (TM1); a trip inferred from purchases (TM5); a budget line for a trip.

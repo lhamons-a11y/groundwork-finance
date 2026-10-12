@@ -59,7 +59,7 @@ def _prepare(cards):
 
 
 def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
-                    today_key=None, start_month=None, one_time_extra=0.0, path=None):
+                    today_key=None, start_month=None, one_time_extra=0.0, path=None, extra_schedule=None):
     """Months until every balance clears, or None if the budget cannot cover
     the minimums — the JS returns null there and so do we, rather than a
     fabricated large number.
@@ -79,6 +79,11 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
 
     path, when a list is passed, receives the total still owed at the end of
     each month (SCENARIOS.md SC6's charts). It changes nothing else.
+
+    extra_schedule, when a list is passed, adds its month's amount to that
+    month's budget (month 1 is the first entry); months past its end add
+    nothing. It is how a trip's payback order is priced (TRIP_FUNDING_COACH.md
+    T5) without a second engine.
     """
     data = _prepare(cards)
     if today_key is not None:
@@ -115,6 +120,8 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
         month += 1
         sim_key = _month_key(start_month, month)
         extra = float(budget) + (float(one_time_extra or 0) if month == 1 else 0.0)
+        if extra_schedule and month <= len(extra_schedule):
+            extra += float(extra_schedule[month - 1] or 0)
 
         for i, c in enumerate(data):
             if bals[i] <= 0:
