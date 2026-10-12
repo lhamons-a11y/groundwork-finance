@@ -477,3 +477,16 @@ finically independent. That's our horizon."*
 
 It is the goal, stated as a goal: no claim that a user will reach it, which W5 would remove. s206 holds the three
 pages to it.
+
+**Wording settled (Rob, 2026-10-12):**
+- **The headline:** *"Financial independence, for everyone"* (option 1). "Everyone" replaces "every user": it is
+  warmer, and it echoes W1's *for everyone*.
+- **Option 2 as the closing statement:** *"Financial independence for everyone, one understood decision at a
+  time."* (Rob: *"That is perfect to be placed in the website somewhere that will hit the user like yes this software
+  that I have never seen seems like the software that I want to use."*) It appears:
+  - on the home page, as a full-width closing band just before the sign-up, with *"That's why Groundwork explains
+    every number it shows you, and has nothing to sell you."*;
+  - as the last line of About;
+  - at the foot of the 2.0 page.
+
+  s206 holds both.

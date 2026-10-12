@@ -339,6 +339,14 @@ section { scroll-margin-top: 80px; }
 .teaser h3 { font-family: 'Inter', sans-serif; letter-spacing: -.01em; font-size: 17px; font-weight: 700; margin-bottom: 6px; color: #fff; }
 .teaser p { font-size: 14.5px; color: rgba(255,255,255,.72); }
 
+/* The closing statement */
+.statement { padding: 104px 24px; color: #fff; background:
+  radial-gradient(700px 360px at 50% 0%, rgba(242,193,78,.18), transparent 70%),
+  linear-gradient(160deg, #0f1b2d, #12324a); }
+.statement-line { font-family: 'Fraunces', Georgia, serif; font-style: italic; font-weight: 600;
+  font-size: clamp(30px, 4.6vw, 54px); line-height: 1.15; letter-spacing: -.02em; }
+.statement-sub { margin-top: 18px; font-size: 18px; color: rgba(255,255,255,.75); }
+
 /* Signup */
 .signup-section { padding: 88px 24px; text-align: center; color: #fff;
                   background: radial-gradient(800px 400px at 50% 0%, rgba(61,220,151,.22), transparent 70%), var(--pine-d); }
@@ -546,7 +554,7 @@ BASE_TEMPLATE = """<!DOCTYPE html>
   <div class="foot-grid">
     <div>
       <div class="foot-brand">Groundwork</div>
-      <p style="max-width:300px">Your whole financial picture, explained, with nothing to sell you, toward one horizon: financial independence for every user. Free, and it runs on your own computer.</p>
+      <p style="max-width:300px">Your whole financial picture, explained, with nothing to sell you, toward one horizon: financial independence, for everyone. Free, and it runs on your own computer.</p>
     </div>
     <div>
       <h4>Product</h4>
@@ -737,10 +745,10 @@ HOME_CONTENT = _icons("""
 <section class="band band-mist" style="padding:72px 24px">
   <div class="narrow center reveal">
     <div class="section-label">Our horizon</div>
-    <h2 class="section-title">Financial independence, for every user</h2>
+    <h2 class="section-title">Financial independence, for everyone</h2>
     <p class="section-sub">That's what Groundwork is for. Not one budget or one payoff date, but the long road to
-      the point where your money supports the life you choose, one understood decision at a time. Every feature is a
-      step toward it, and every step is yours to take.</p>
+      the point where your money supports the life you choose. Every feature is a step toward it, and every step is
+      yours to take.</p>
   </div>
 </section>
 
@@ -868,6 +876,14 @@ HOME_CONTENT = _icons("""
       <div class="panel-row"><b>Ads, upsells, partner offers</b><span>None</span></div>
       <div class="panel-row"><b>Works on</b><span>Windows, macOS and Linux</span></div>
     </div>
+  </div>
+</section>
+
+<section class="statement">
+  <div class="narrow center reveal">
+    <p class="statement-line">Financial independence for everyone,<br> one understood decision at a time.</p>
+    <p class="statement-sub">That's why Groundwork explains every number it shows you, and has nothing to sell you.</p>
+    <a href="/download" class="btn btn-gold" style="margin-top:26px">Start with Groundwork, free</a>
   </div>
 </section>
 """) + SIGNUP_BAND
@@ -1243,8 +1259,8 @@ def about():
 </section>
 <div class="narrow prose">
   <h2>Our horizon</h2>
-  <p>The goal of Groundwork is to help every person who uses it become financially independent: to reach the point
-    where their money supports the life they choose. Groundwork can't promise anyone gets there. What it can do is
+  <p>The goal of Groundwork is financial independence, for everyone who uses it: to reach the point where their
+    money supports the life they choose. Groundwork can't promise anyone gets there. What it can do is
     show you where you stand, explain how each number was made, and help you see the next step, whatever your
     starting point.</p>
 
@@ -1271,7 +1287,8 @@ def about():
     yourself. Nothing is sent without you. You can also email
     <a href="mailto:support@groundworkfinance.app">support@groundworkfinance.app</a> directly.</p>
   <p>We read every one.</p>
-  <p style="margin-top:28px"><a href="/download" class="btn btn-primary">Download Groundwork free →</a></p>
+  <p class="callout" style="font-family:'Fraunces',Georgia,serif;font-style:italic;font-size:22px;margin-top:36px">Financial independence for everyone, one understood decision at a time.</p>
+  <p style="margin-top:20px"><a href="/download" class="btn btn-primary">Download Groundwork free →</a></p>
 </div>
 """
     return render_template_string(
@@ -1556,7 +1573,7 @@ def coming():
     <h1>Coming in <em>Groundwork 2.0</em></h1>
     <p class="lead">The biggest update we've ever built. Groundwork 2.0 does more of the work for you, explains more of
       what it finds, and still keeps every number on your own computer, all toward one horizon: financial
-      independence for every user. Here's what's on the way.</p>
+      independence, for everyone. Here's what's on the way.</p>
     <div class="hero-btns"><a href="#signup" class="btn btn-gold">Tell me when it ships</a>
       <a href="/download" class="btn btn-ghost-light">Get """ + SITE_VERSION + """ today</a></div>
   </div>
@@ -1618,7 +1635,8 @@ def coming():
         deductible through the year. It's in design, not built yet, and it will follow the same rule as the rest of
         Groundwork: nothing about your health leaves your computer.</p></div>
     </div>
-    <p class="center" style="margin-top:44px;color:var(--slate)"><em>Groundwork 2.0 isn't in the download yet. When it is, you'll see it here first.</em></p>
+    <p class="center" style="margin-top:52px;font-family:'Fraunces',Georgia,serif;font-style:italic;font-size:clamp(22px,3vw,30px);color:var(--ink)">Financial independence for everyone, one understood decision at a time.</p>
+    <p class="center" style="margin-top:14px;color:var(--slate)"><em>Groundwork 2.0 isn't in the download yet. When it is, you'll see it here first.</em></p>
   </div>
 </section>
 <div id="signup"></div>
