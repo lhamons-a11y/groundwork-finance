@@ -209,6 +209,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(college_funds_bp,  url_prefix='/api/college-funds')
     app.register_blueprint(gift_bp,           url_prefix='/api/gift')
     app.register_blueprint(gifts_bp,          url_prefix='/api/gifts')
+    app.register_blueprint(futures_bp,        url_prefix='/api/futures')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
@@ -1788,16 +1789,9 @@ def _income_change_state(session):
     lines = [{'id': i.id, 'name': i.name, 'category': i.category or i.name, 'amount': float(i.amount or 0)} for i in items]
     effective = willingness_state(session)['effective']
     cards, debt_budget, strategy, _undated = _consequence_inputs(session)
-    cushion, known = 0.0, False
-    for a in session.query(Account).filter_by(is_active=True).all():
-        if (a.type or '').lower() not in ('checking', 'savings'):
-            continue
-        bal, _asof, _last, _tx = _account_balance_facts(session, a.id)
-        if bal is None:
-            continue
-        floor = (_setting_json(session, f'bank_buffer:account:{a.id}') or {}).get('amount') or 0
-        cushion += max(0.0, bal - floor)
-        known = True
+    cushion = _cash_above_floors(session)
+    known = cushion is not None
+    cushion = cushion or 0.0
     today = date.today().strftime('%Y-%m')
     # D11: payments set by a contract are never cut; one that may be waits for the person's answer
     from core.contracts import classify
@@ -1820,6 +1814,265 @@ def _income_change_state(session):
             'applied': applied, 'payers': pay['payers'],
             # D9: the money first - what is left after the budgeted spending, before and now
             'left_before': round(change['from'] - outflow, 2), 'left_now': round(change['to'] - outflow, 2), **sc}
+
+
+# ── Item 66 - possible futures (SCENARIOS.md SC1-SC7) ──────────────────────────────────────────────────────────
+# Computed on every read (SC5). Kept: the person's possibilities (SC3, append-only, each with when), their answers to
+# "Does this reflect your situation?" (SC4), and a path they chose (SC6). Nothing derived is stored.
+futures_bp = Blueprint('futures', __name__)
+
+
+def _cash_above_floors(session):
+    """Cash in checking and savings above the person's own floors, or None when no balance is known."""
+    cushion, known = 0.0, False
+    for a in session.query(Account).filter_by(is_active=True).all():
+        if (a.type or '').lower() not in ('checking', 'savings'):
+            continue
+        bal, _asof, _last, _tx = _account_balance_facts(session, a.id)
+        if bal is None:
+            continue
+        floor = (_setting_json(session, f'bank_buffer:account:{a.id}') or {}).get('amount') or 0
+        cushion += max(0.0, bal - floor)
+        known = True
+    return round(cushion, 2) if known else None
+
+
+def _complete_months(today, n):
+    first = today.replace(day=1)
+    out, y, m = [], first.year, first.month
+    for _ in range(n):
+        y, m = (y - 1, 12) if m == 1 else (y, m - 1)
+        out.append(f'{y}-{m:02d}')
+    return list(reversed(out))
+
+
+def _futures_inputs(session, today=None):
+    from core import futures as fu
+    from core.income_def import income_category_ids
+    from core import household
+    from core import gifts as gf
+    from statistics import median
+    today = today or date.today()
+    months12 = _complete_months(today, 12)
+    start = date(int(months12[0][:4]), int(months12[0][5:7]), 1)
+    end = today.replace(day=1)
+    # months with anything on record; a month with nothing is unknown, never zero (absence is not zero)
+    ledger = {m for (m,) in session.query(func.strftime('%Y-%m', Transaction.date)).filter(
+        Transaction.date >= start, Transaction.date < end).distinct().all()}
+    inc_ids = income_category_ids(session)
+    inc = dict(session.query(func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)).filter(
+        Transaction.type == 'credit', Transaction.category_id.in_(inc_ids),
+        Transaction.date >= start, Transaction.date < end).group_by(func.strftime('%Y-%m', Transaction.date)).all())
+    inc_months = [m for m in months12[-6:] if m in ledger and (inc.get(m) or 0) > 0][-3:]
+    income = round(median(float(inc[m]) for m in inc_months), 2) if len(inc_months) >= fu.MIN_INCOME_MONTHS else None
+    spend_rows = session.query(Category.type, func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.amount)) \
+        .outerjoin(Category, Transaction.category_id == Category.id).filter(
+        Transaction.type == 'debit', Transaction.date >= start, Transaction.date < end) \
+        .group_by(Category.type, func.strftime('%Y-%m', Transaction.date)).all()
+    spent = {}
+    for ctype, m, total in spend_rows:
+        if (ctype or '').lower() == 'transfer' or not m:
+            continue
+        spent[m] = spent.get(m, 0.0) + abs(float(total or 0))
+    spend_record = [(m, round(spent.get(m, 0.0), 2)) for m in months12 if m in ledger]
+
+    month_amts = budget_month_amounts(session)
+    debt_names = {(d.name or '').strip().lower() for d in session.query(DebtAccount).filter_by(is_active=True).all()}
+    spend, debt_lines = 0.0, 0.0
+    for i in session.query(BudgetItem).filter_by(is_active=True, type='expense').all():
+        amt = float((month_amts.get(i.id) or {}).get('month_amount', i.amount or 0) or 0)
+        if (i.category or '').strip().lower() == 'debt' or (i.name or '').strip().lower() in debt_names \
+                or (i.category or '').strip().lower() in debt_names:
+            debt_lines += amt
+        else:
+            spend += amt
+    cards, debt_budget, strategy, _undated = _consequence_inputs(session)
+    known = []
+    for o in gf.upcoming(session, today, days=fu.KNOWN_COST_DAYS):
+        known.append({'label': o['label'], 'month': o['date'][:7], 'amount': o['budget'], 'source': 'gift'})
+    return {
+        'income': income, 'income_months': len(inc_months), 'spend': round(spend, 2),
+        'debt_lines': round(debt_lines, 2), 'debt_pay': round(float(debt_budget or 0), 2) if cards else 0.0,
+        'minimums': round(sum(c.minimum for c in cards), 2), 'owed': round(sum(c.balance for c in cards), 2),
+        'cards': cards, 'strategy': strategy, 'cash': _cash_above_floors(session),
+        'goal': household.current(session, 'surplus_goal') or 'unsure', 'start_month': today.strftime('%Y-%m'),
+        'spend_record': spend_record, 'known_costs': known,
+    }
+
+
+def _pre_budget(session, inputs):
+    """SC7: committed money, recurring charges and what is set aside, from the record - a starting point."""
+    from core import futures as fu
+    from core.contracts import classify
+    rows = []
+    if inputs['minimums']:
+        rows.append({'label': 'Minimum debt payments', 'amount': inputs['minimums'], 'kind': 'observed',
+                     'source': 'your debt accounts', 'group': 'committed'})
+    said = {x.get('line_id'): x['answer'] for x in (_setting_json(session, 'contract_lines', []) or [])
+            if isinstance(x, dict) and x.get('answer') in ('yes', 'no')}
+    items = session.query(BudgetItem).filter_by(is_active=True, type='expense').all()
+    lines = [{'id': i.id, 'name': i.name, 'category': i.category or i.name, 'amount': float(i.amount or 0)} for i in items]
+    debt_names = [d.name for d in session.query(DebtAccount).filter_by(is_active=True).all()]
+    by_id = {ln['id']: ln for ln in lines}
+    for lid, k in classify(lines, debt_names, said).items():
+        if k['kind'] == 'contract' and (by_id[lid]['category'] or '').strip().lower() != 'debt' \
+                and by_id[lid]['name'] not in debt_names:
+            rows.append({'label': by_id[lid]['name'], 'amount': round(by_id[lid]['amount'], 2), 'kind': 'observed',
+                         'source': 'a payment set by a contract, in your budget', 'group': 'committed'})
+    seen = {r['label'].strip().lower() for r in rows}
+    for r in trim_candidates(session):
+        if r['name'].strip().lower() in seen:
+            continue
+        rows.append({'label': r['name'], 'amount': r['monthly'], 'kind': 'observed',
+                     'source': 'a recurring charge in your ledger' + (f" ({r['category']})" if r.get('category') else ''),
+                     'group': 'recurring'})
+    from core.database import SinkingFund
+    for f in session.query(SinkingFund).filter_by(is_active=True).all():
+        need = _serialize_sinking_fund(f)['monthly_needed']
+        if need > 0:
+            rows.append({'label': f.name, 'amount': round(need, 2), 'kind': 'projected',
+                         'source': 'what this fund takes a month to reach its target by its date', 'group': 'set_aside'})
+    return fu.pre_budget(inputs['income'], rows)
+
+
+def _futures_state(session):
+    from core import futures as fu
+    inputs = _futures_inputs(session)
+    poss = _setting_json(session, 'future_possibilities', []) or []
+    answers = _setting_json(session, 'future_answers', []) or []
+    out = fu.build(inputs, poss, answers)
+    out['fingerprint'] = fu.fingerprint(inputs, poss, answers)
+    out['computed_at'] = datetime.now().isoformat(timespec='seconds')
+    out['pre_budget'] = _pre_budget(session, inputs)
+    out['choice'] = _setting_json(session, 'future_choice')
+    out['debt_lines'] = inputs['debt_lines']
+    # charts and figures only: the engine's Card objects stay server-side
+    for s in out.get('scenarios', []):
+        s.pop('cards', None)
+    return out, inputs
+
+
+@futures_bp.route('', methods=['GET'])
+def futures_get():
+    with db_session() as session:
+        out, _ = _futures_state(session)
+        return ok(out)
+
+
+@futures_bp.route('/fingerprint', methods=['GET'])
+def futures_fingerprint():
+    """SC5: what the figures on screen were computed from; a different answer means they are stale."""
+    from core import futures as fu
+    with db_session() as session:
+        inputs = _futures_inputs(session)
+        return ok({'fingerprint': fu.fingerprint(inputs, _setting_json(session, 'future_possibilities', []) or [],
+                                                 _setting_json(session, 'future_answers', []) or [])})
+
+
+@futures_bp.route('/answer', methods=['POST'])
+@require_json
+def futures_answer():
+    """SC4: the person's word on a scenario - yes / partly / unlikely (hides it) / explore / show (undoes unlikely)."""
+    from core import futures as fu
+    b = request.json or {}
+    key, answer = str(b.get('key') or ''), b.get('answer')
+    if not key or answer not in fu.ANSWERS:
+        return err('A scenario and one of the answers are needed.')
+    with db_session() as session:
+        said = _setting_json(session, 'future_answers', []) or []
+        said.append({'key': key, 'answer': answer, 'at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'future_answers', json.dumps(said[-500:]))
+        session.commit()
+        return ok({'saved': True})
+
+
+@futures_bp.route('/possibility', methods=['POST'])
+@require_json
+def futures_possibility():
+    """SC3/SC4 "Partly": a possibility the person states. Kept as theirs - never a transaction, line or balance."""
+    from core import futures as fu
+    b = request.json or {}
+    kind = b.get('kind')
+    try:
+        amount = round(float(b.get('amount')), 2)
+    except (TypeError, ValueError):
+        return err('Enter an amount.')
+    month = (b.get('month') or '').strip()[:7]
+    if kind not in fu.POSSIBILITY_KINDS or amount <= 0:
+        return err('Enter what it is and an amount.')
+    if month and not re.fullmatch(r'\d{4}-\d{2}', month):
+        return err('Use a month like 2027-03.')
+    if kind == 'cost' and not month:
+        return err('A known cost needs its month.')
+    with db_session() as session:
+        said = _setting_json(session, 'future_possibilities', []) or []
+        pid = f'p{len(said) + 1}-{int(datetime.now().timestamp())}'
+        said.append({'id': pid, 'kind': kind, 'amount': amount, 'month': month or None,
+                     'label': str(b.get('label') or '').strip()[:80], 'said_at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'future_possibilities', json.dumps(said))
+        session.commit()
+        return ok({'id': pid})
+
+
+@futures_bp.route('/possibility/<pid>/withdraw', methods=['POST'])
+def futures_withdraw(pid):
+    """The person takes a possibility back. Its history stays; the latest statement is the withdrawal."""
+    from core import futures as fu
+    with db_session() as session:
+        said = _setting_json(session, 'future_possibilities', []) or []
+        cur = next((p for p in fu.possibilities_in_force(said) if p['id'] == pid), None)
+        if not cur:
+            return err('Not found.', 404)
+        said.append({**cur, 'withdrawn': True, 'said_at': datetime.now().isoformat(timespec='seconds')})
+        _set_setting(session, 'future_possibilities', json.dumps(said))
+        session.commit()
+        return ok({'withdrawn': pid})
+
+
+@futures_bp.route('/choose', methods=['POST'])
+@require_json
+def futures_choose():
+    """SC6: a path is chosen only on the person's word. "What is left goes to the debt" can also set the monthly debt
+    payment - on its own tap, with the old figure kept for Undo. Nothing else changes the plan."""
+    b = request.json or {}
+    key = str(b.get('key') or '')
+    with db_session() as session:
+        out, inputs = _futures_state(session)
+        s = next((x for x in out.get('scenarios', []) if x['key'] == key), None)
+        if not s:
+            return err('That future is not shown now.', 404)
+        choice = {'key': key, 'title': s['title'], 'at': datetime.now().isoformat(timespec='seconds')}
+        if b.get('apply'):
+            if key != 'surplus_to_goal' or not s.get('new_debt_pay'):
+                return err('Only "What is left goes to the debt" changes a figure.')
+            row = _get_setting(session, 'monthly_budget')
+            choice['applied'] = {'setting': 'monthly_budget', 'before': row.value if row else None,
+                                 'after': str(s['new_debt_pay'])}
+            _set_setting(session, 'monthly_budget', str(s['new_debt_pay']))
+        _set_setting(session, 'future_choice', json.dumps(choice))
+        session.commit()
+        return ok(choice)
+
+
+@futures_bp.route('/choose/undo', methods=['POST'])
+def futures_choose_undo():
+    with db_session() as session:
+        choice = _setting_json(session, 'future_choice')
+        if not choice:
+            return err('Nothing to undo.', 404)
+        ap = choice.get('applied')
+        if ap:
+            if ap.get('before') is None:
+                row = _get_setting(session, 'monthly_budget')
+                if row:
+                    session.delete(row)
+            else:
+                _set_setting(session, 'monthly_budget', ap['before'])
+        row = _get_setting(session, 'future_choice')
+        if row:
+            session.delete(row)
+        session.commit()
+        return ok({'undone': True})
 
 
 evidence_bp = Blueprint('evidence', __name__)

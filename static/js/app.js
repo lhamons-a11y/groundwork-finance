@@ -7705,6 +7705,7 @@ function renderBudget() {
   _loadUtilityPrices();
   renderBudgetBills();   // item 68 B3
   renderIncomeChange();  // item 71
+  renderFutures();       // item 66
 
   const totalIncome = S.incomes.reduce((s,i) => s + i.amount, 0);
   const totalExpenses = S.expenses.reduce((s,e) => s + _rowMonth(e), 0);
@@ -23523,6 +23524,220 @@ async function renderIncomeChange() {
   let st;
   try { st = await API.get('/api/income-change'); } catch (e) { return; }
   box.innerHTML = incomeChangeHtml(st);
+}
+
+// ── Item 66 (SCENARIOS.md SC1-SC7): possible futures, side by side, which the person can correct ─────────────────
+// Every figure comes from the server with its kind (recorded / projected / you said). The page draws and asks; it
+// computes nothing. A result computed from older records is marked stale until it is recalculated (SC5).
+let _fut = null;
+let _futOff = new Set();          // scenarios the person unticked from the charts (this view only)
+let _futAsk = null;               // the scenario whose "Partly" or "Explore" prompt is open
+const _FUT_COLORS = ['var(--ink)', 'var(--pine-text)', 'var(--gold-text)', 'var(--ember-text)', 'var(--slate)', '#7c3aed', '#0e7490'];
+const _FUT_KIND_WORDS = { observed: 'Recorded', projected: 'Projected', user_supplied: 'You said' };
+const _FUT_GROUP_WORDS = { baseline: 'As things are', goal: 'Toward your goal', adverse: 'If things go worse' };
+
+async function renderFutures() {
+  const box = g('budgetFutures');
+  if (!box) return;
+  try { _fut = await API.get('/api/futures'); }
+  catch (e) { _gwErr('renderFutures')(e); box.innerHTML = ''; return; }
+  box.innerHTML = futuresHtml(_fut);
+}
+
+// SC5: figures computed from older inputs are marked stale, never shown as current.
+async function futuresCheckStale() {
+  const box = g('budgetFutures');
+  if (!_fut || !box || !box.innerHTML) return;
+  let fp;
+  try { fp = (await API.get('/api/futures/fingerprint')).fingerprint; } catch (e) { _gwErr('futuresCheckStale')(e); return; }
+  const banner = g('futStale');
+  if (banner) banner.style.display = fp !== _fut.fingerprint ? '' : 'none';
+}
+window.addEventListener('focus', () => { if (document.querySelector('#view-budget.active')) futuresCheckStale(); });
+
+function _futMoney(v) { return v == null ? '—' : fmt(v); }
+
+function _futChart(title, key, scens, months) {
+  const shown = scens.filter(s => !_futOff.has(s.key));
+  const vals = shown.flatMap(s => s[key] || []);
+  if (!vals.length) return '';
+  const W = 320, H = 130, L = 46, B = 18, T = 8;
+  const max = Math.max(1, ...vals), min = Math.min(0, ...vals);
+  const x = i => L + (W - L - 6) * (i / Math.max(1, months.length - 1));
+  const y = v => T + (H - T - B) * (1 - (v - min) / (max - min || 1));
+  const lines = shown.map(s => {
+    const c = _FUT_COLORS[scens.indexOf(s) % _FUT_COLORS.length];
+    const pts = (s[key] || []).map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    return `<polyline points="${pts}" fill="none" stroke="${c}" stroke-width="2"><title>${esc(s.title)}</title></polyline>`;
+  }).join('');
+  const lab = m => new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short' });
+  return `<div style="flex:1;min-width:260px">
+    <div style="font-size:11px;color:var(--slate);margin-bottom:4px">${title}</div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="${esc(title)}">
+      <line x1="${L}" y1="${y(0)}" x2="${W - 6}" y2="${y(0)}" stroke="var(--steel)" stroke-width="1"/>
+      <text x="${L - 4}" y="${y(max) + 4}" text-anchor="end" font-size="9" fill="var(--slate)">${fmt(max).replace('.00', '')}</text>
+      <text x="${L - 4}" y="${y(min) + 4}" text-anchor="end" font-size="9" fill="var(--slate)">${fmt(min).replace('.00', '')}</text>
+      <text x="${x(0)}" y="${H - 4}" font-size="9" fill="var(--slate)">${lab(months[0])}</text>
+      <text x="${x(months.length - 1)}" y="${H - 4}" text-anchor="end" font-size="9" fill="var(--slate)">${lab(months[months.length - 1])}</text>
+      ${lines}
+    </svg></div>`;
+}
+
+function _futMeasure(m) {
+  if (!m || !m.label) return '';
+  if (m.value == null) return `<div style="font-size:12px;color:var(--slate)">${esc(m.label)}: can't be dated on this budget</div>`;
+  const v = m.unit === 'months' ? `${m.value} month${m.value === 1 ? '' : 's'}` : fmt(m.value);
+  return `<div style="font-size:13px;color:var(--ink)">${esc(m.label)}: <b style="font-family:var(--font-mono)">${v}</b></div>`;
+}
+
+function _futPossibilityForm(key) {
+  return `<div style="background:var(--mist);border-radius:var(--r-md);padding:10px;margin-top:8px">
+    <div style="font-size:12px;color:var(--ink);margin-bottom:6px">What's missing? Groundwork keeps it as something you said, never as a transaction or a budget line, and every future counts it.</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <select id="futPKind" class="field-input" style="width:auto;font-size:12px;padding:4px 8px">
+        <option value="income">Another income continues</option>
+        <option value="cost">A known cost</option>
+        <option value="cut">Hours or pay being cut</option>
+      </select>
+      <input id="futPLabel" class="field-input" type="text" placeholder="What it is" style="width:140px;font-size:12px;padding:4px 8px">
+      <input id="futPAmount" class="field-input" type="number" min="0" step="0.01" placeholder="Amount" style="width:90px;font-size:12px;padding:4px 8px">
+      <input id="futPMonth" class="field-input" type="month" style="width:auto;font-size:12px;padding:4px 8px" title="For a known cost, its month; otherwise from when">
+      <button class="btn btn-secondary btn-sm" onclick="futuresAddPossibility('${esc(key)}')">Add it</button>
+      <button class="btn btn-ghost btn-sm" onclick="_futAsk=null;g('budgetFutures').innerHTML=futuresHtml(_fut)">Cancel</button>
+    </div></div>`;
+}
+
+function _futScenarioCard(s, i, st) {
+  const c = _FUT_COLORS[i % _FUT_COLORS.length];
+  const figs = (s.figures || []).filter(f => f.value != null).map(f => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:1px 0">
+      <span style="color:var(--slate)">${esc(f.label)}</span>
+      <span><span style="font-family:var(--font-mono);color:var(--ink)">${typeof f.value === 'number' ? fmt(f.value) : esc(String(f.value))}</span>
+      <span style="font-size:10px;color:var(--slate-2);margin-left:4px">${_FUT_KIND_WORDS[f.kind] || ''}</span></span></div>`).join('');
+  const behind = (s.behind != null && s.behind !== 0 && st.goal !== 'unsure')
+    ? `<div style="font-size:11px;color:var(--slate)">${st.goal === 'debt'
+        ? `${Math.abs(s.behind)} month${Math.abs(s.behind) === 1 ? '' : 's'} ${s.behind > 0 ? 'later' : 'sooner'} than as things are`
+        : `${fmt(Math.abs(s.behind))} ${s.behind > 0 ? 'less' : 'more'} than as things are`}</div>` : '';
+  const chosen = st.choice && st.choice.key === s.key;
+  const choose = s.kind === 'baseline' ? '' : chosen
+    ? `<span style="font-size:11px;color:var(--pine-text)">You chose this${st.choice.applied ? `; debt payment set to ${fmt(parseFloat(st.choice.applied.after))}` : ''}</span>
+       <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresUndoChoice()">Undo</button>`
+    : `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresChoose('${s.key}', false)">Choose this path</button>`
+      + (s.new_debt_pay ? `<button class="btn btn-secondary btn-sm" style="font-size:11px" onclick="futuresChoose('${s.key}', true)">Set my debt payment to ${fmt(s.new_debt_pay)}</button>` : '');
+  const ask = s.kind === 'adverse' || s.kind === 'baseline' ? `<div style="margin-top:8px;font-size:11px;color:var(--ink)">Does this reflect your situation?
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${s.key}','yes')">Yes, a reasonable scenario</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${s.key}','partly')">Partly, something's missing</button>
+        ${s.kind === 'adverse' ? `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${s.key}','unlikely')">Unlikely for me</button>` : ''}
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${s.key}','explore')">Explore something else</button>
+      </div></div>` : '';
+  return `<div style="border:1px solid var(--steel);border-left:4px solid ${c};border-radius:var(--r-md);padding:12px;min-width:250px;flex:1">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <label style="font-size:13px;font-weight:600;color:var(--ink);display:flex;gap:6px;align-items:center">
+        <input type="checkbox" ${_futOff.has(s.key) ? '' : 'checked'} onchange="futuresToggle('${s.key}')" title="Show on the charts">${esc(s.title)}</label>
+      <span style="font-size:10px;color:var(--slate-2)">${_FUT_GROUP_WORDS[s.kind] || ''}</span>
+    </div>
+    ${_futMeasure(s.measure)}${behind}
+    <div style="font-size:11px;color:var(--slate);margin-top:2px">Lowest cash ${_futMoney(s.lowest_cash)} · borrowed over the year ${_futMoney(s.borrowed)}${s.covers_minimums ? '' : ' · this budget does not cover the minimum payments'}</div>
+    <details style="margin-top:6px"><summary style="font-size:11px;color:var(--slate);cursor:pointer">What it assumes, and its figures</summary>
+      <ul style="margin:6px 0 6px 16px;padding:0;font-size:11px;color:var(--ink);line-height:1.6">${(s.assumptions || []).map(a => `<li>${esc(a)}</li>`).join('')}</ul>${figs}</details>
+    ${ask}
+    ${_futAsk === s.key ? _futPossibilityForm(s.key) : ''}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">${choose}</div>
+  </div>`;
+}
+
+function futuresHtml(st) {
+  if (!st) return '';
+  if (!st.offered) return `<div class="card mb-5"><div class="card-label">Possible futures</div>
+    <div style="font-size:12px;color:var(--slate)">${esc(st.why || '')}</div></div>`;
+  const scens = st.scenarios || [];
+  const charts = `<div style="display:flex;gap:16px;flex-wrap:wrap;margin:10px 0">
+      ${_futChart('Cash on hand', 'cash', scens, st.months)}${_futChart('What you owe, with anything borrowed', 'owed', scens, st.months)}</div>`;
+  const qs = (st.questions || []).map(q => `<div style="font-size:12px;padding:4px 0"><b style="color:var(--ink)">${esc(q.q)}</b>
+      <span style="color:var(--ink)"> ${esc(q.a)}</span></div>`).join('');
+  const poss = (st.possibilities || []).map(p => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0">
+      <span>${esc(p.label || '')} ${fmt(p.amount)}${p.kind !== 'cost' ? ' a month' : ''}${p.month ? ` · ${esc(p.month)}` : ''} <span style="font-size:10px;color:var(--slate-2)">You said</span></span>
+      <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresWithdraw('${esc(p.id)}')">Take back</button></div>`).join('');
+  const hidden = (st.hidden || []).map(h => `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="futuresAnswer('${h.key}','show')">Show "${esc(h.title)}" again</button>`).join(' ');
+  const gaps = (st.gaps || []).map(x => `<li>${esc(x)}</li>`).join('');
+  const goalWords = { debt: 'the debt-free date', savings: 'cash saved', goal: 'cash saved toward your goal', invest: 'what is left over', unsure: '' }[st.goal] || '';
+  return `<div class="card mb-5">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+      <div class="card-label" style="margin:0">Possible futures</div>
+      <div style="font-size:11px;color:var(--slate)">${goalWords ? `Compared on ${goalWords}, your goal` : 'Side by side: your goal is not set, so none is ranked'}</div>
+    </div>
+    <div style="font-size:12px;color:var(--slate);margin-top:4px">From your record, over the next 12 months. Each one names what it assumes, and you can correct it.</div>
+    <div id="futStale" style="display:none;margin-top:8px;padding:8px;border-radius:var(--r-sm);background:var(--mist);font-size:12px;color:var(--ink)">
+      These figures were worked out from older records. <button class="btn btn-secondary btn-sm" style="font-size:11px" onclick="renderFutures()">Recalculate</button></div>
+    ${charts}
+    <div style="display:flex;gap:10px;flex-wrap:wrap">${scens.map((s, i) => _futScenarioCard(s, i, st)).join('')}</div>
+    ${qs ? `<div style="margin-top:12px;border-top:1px solid var(--steel);padding-top:8px">${qs}</div>` : ''}
+    ${poss ? `<div style="margin-top:10px"><div style="font-size:11px;color:var(--slate);margin-bottom:2px">What you've told Groundwork</div>${poss}</div>` : ''}
+    ${_futAsk === '__explore' ? _futPossibilityForm('__explore') : ''}
+    ${hidden ? `<div style="margin-top:8px">${hidden}</div>` : ''}
+    ${gaps ? `<details style="margin-top:8px"><summary style="font-size:11px;color:var(--slate);cursor:pointer">Not shown, and why</summary><ul style="font-size:11px;color:var(--ink);margin:6px 0 0 16px;padding:0;line-height:1.6">${gaps}</ul></details>` : ''}
+    <div style="font-size:10px;color:var(--slate-2);margin-top:8px">Worked out ${new Date(st.computed_at).toLocaleString()}. Recorded = your records; Projected = what follows if the stated assumptions hold; You said = something you told Groundwork.</div>
+  </div>${preBudgetHtml(st.pre_budget)}`;
+}
+
+// SC7: a starting point from the record, for the person to correct - never a form to fill first.
+function preBudgetHtml(pb) {
+  if (!pb || !(pb.rows || []).length) return '';
+  const groups = { committed: 'Committed', recurring: 'Recurring charges', set_aside: 'Set aside' };
+  const body = Object.entries(groups).map(([k, label]) => {
+    const rows = pb.rows.filter(r => r.group === k);
+    if (!rows.length) return '';
+    return `<div style="font-size:11px;color:var(--slate);margin:8px 0 2px">${label}</div>` + rows.map(r => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:2px 0">
+        <span style="color:var(--ink)">${esc(r.label)} <span style="font-size:10px;color:var(--slate-2)">${esc(r.source)}</span></span>
+        <span style="font-family:var(--font-mono)">${fmt(r.amount)} <span style="font-size:10px;color:var(--slate-2)">${_FUT_KIND_WORDS[r.kind] || ''}</span></span></div>`).join('');
+  }).join('');
+  return `<div class="card mb-5"><div class="card-label">A starting budget from your record</div>
+    <div style="font-size:12px;color:var(--slate)">What your record already commits each month. A starting point you correct, not a claim that Groundwork knows your whole life.</div>
+    ${body}
+    <div style="display:flex;justify-content:space-between;font-size:12px;border-top:1px solid var(--steel);margin-top:8px;padding-top:6px"><span>Together</span><span style="font-family:var(--font-mono)">${fmt(pb.total)}</span></div>
+    ${pb.income != null ? `<div style="display:flex;justify-content:space-between;font-size:12px;padding-top:2px"><span>Income a month (recorded)</span><span style="font-family:var(--font-mono)">${fmt(pb.income)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;padding-top:2px"><span>What remains for everything else</span><span style="font-family:var(--font-mono)">${fmt(pb.remains)}</span></div>` : ''}
+  </div>`;
+}
+
+function futuresToggle(key) { _futOff.has(key) ? _futOff.delete(key) : _futOff.add(key); g('budgetFutures').innerHTML = futuresHtml(_fut); }
+
+async function futuresAnswer(key, answer) {
+  try { await API.post('/api/futures/answer', { key, answer }); }
+  catch (e) { _gwErr('futuresAnswer')(e); showToast('Not saved', e?.message || '', 'warning'); return; }
+  _futAsk = answer === 'partly' ? key : answer === 'explore' ? '__explore' : null;
+  await renderFutures();
+}
+
+async function futuresAddPossibility(key) {
+  const body = { kind: g('futPKind')?.value, label: g('futPLabel')?.value || '', amount: parseFloat(g('futPAmount')?.value), month: g('futPMonth')?.value || '' };
+  try { await API.post('/api/futures/possibility', body); }
+  catch (e) { _gwErr('futuresAddPossibility')(e); showToast('Not added', e?.message || '', 'warning'); return; }
+  _futAsk = null;
+  await renderFutures();
+}
+
+async function futuresWithdraw(id) {
+  try { await API.post(`/api/futures/possibility/${encodeURIComponent(id)}/withdraw`, {}); }
+  catch (e) { _gwErr('futuresWithdraw')(e); return; }
+  await renderFutures();
+}
+
+function futuresChoose(key, apply) {
+  const s = (_fut?.scenarios || []).find(x => x.key === key);
+  if (!s) return;
+  const what = apply ? `Your monthly debt payment becomes ${fmt(s.new_debt_pay)}. Undo puts it back.` : 'Groundwork notes your choice. Nothing in your budget or plan changes.';
+  confirmAction(`Choose "${s.title}"?`, `<div style="font-size:13px;color:var(--slate)">${what}</div>`, async () => {
+    try { await API.post('/api/futures/choose', { key, apply }); }
+    catch (e) { _gwErr('futuresChoose')(e); showToast('Not saved', e?.message || '', 'warning'); return; }
+    await renderFutures();
+  }, apply ? 'Set it' : 'Choose', false);
+}
+
+async function futuresUndoChoice() {
+  try { await API.post('/api/futures/choose/undo', {}); }
+  catch (e) { _gwErr('futuresUndoChoice')(e); return; }
+  await renderFutures();
 }
 
 async function _incomeChangePost(call) {
