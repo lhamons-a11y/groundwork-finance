@@ -390,6 +390,8 @@ class HistorianEntry(Base):
                                              field like sinking funds do, so expected is computed
                                              server-side the same way the client's own "$X/mo" display
                                              already is: (target - saved) / months_left)
+      'gift_fund_spent'                   — a gift fund's "Mark spent" (GIFT_BUDGET.md G3): expected = its target,
+                                             actual = what was spent; context sinking_fund_id
       'gift_occasion_variance'            — a gift occasion's actual spend vs. its budgeted amount,
                                              logged once the occasion date has passed
       'session_start'                     — app open. Logged server-side in bootstrap() — the one
@@ -739,6 +741,61 @@ class SinkingFund(Base):
     is_active            = Column(Boolean, default=True)
     last_contributed_month = Column(String(7), default='')     # YYYY-MM — for auto-credit
     created_at           = Column(DateTime, default=datetime.utcnow)
+    # 'gift' for a gift fund (GIFT_BUDGET.md G2): the Gift page lists these; every other reader sees an ordinary fund.
+    purpose              = Column(String(20), default='')
+
+
+class FundSpend(Base):
+    """One "Mark spent" on a fund (GIFT_BUDGET.md G3): the target it had and what was spent, so next year's
+    target can be set beside last year's. Kept, never edited; the fund itself goes back to $0."""
+    __tablename__ = 'fund_spends'
+    id         = Column(Integer, primary_key=True)
+    fund_id    = Column(Integer, ForeignKey('sinking_funds.id'), nullable=False)
+    target     = Column(Float, default=0.0)
+    spent      = Column(Float, nullable=False)
+    spent_on   = Column(Date, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class GiftPerson(Base):
+    """Someone the household gives gifts to (GIFT_BUDGET.md G8). Was the gift_people_json setting, which is
+    kept as it was, as the backup of what was carried over."""
+    __tablename__ = 'gift_people'
+    id           = Column(Integer, primary_key=True)
+    name         = Column(String(120), nullable=False)
+    relationship = Column(String(20), default='family')
+    legacy_id    = Column(String(40), nullable=True)    # the id it had in gift_people_json (Historian context)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+
+class GiftOccasion(Base):
+    """A birthday, an anniversary, Christmas... with its date and budget (GIFT_BUDGET.md G8).
+
+    One person's occasion has person_id set. A shared occasion (G6) has person_id empty, shared set, and its
+    people in gift_shares. date is 'YYYY-MM-DD' or 'MM-DD'; a yearly kind comes round every year."""
+    __tablename__ = 'gift_occasions'
+    id           = Column(Integer, primary_key=True)
+    person_id    = Column(Integer, ForeignKey('gift_people.id'), nullable=True)
+    type         = Column(String(20), default='other')
+    name         = Column(String(120), default='')
+    date         = Column(String(10), default='')
+    budget       = Column(Float, default=0.0)
+    note         = Column(Text, default='')
+    shared       = Column(Boolean, default=False)
+    actual_spent = Column(Float, nullable=True)
+    spent_at     = Column(String(10), nullable=True)
+    spent_txn_ids = Column(Text, default='')        # G4: the ledger charges the person said were this occasion's
+    legacy_id    = Column(String(40), nullable=True)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+
+class GiftShare(Base):
+    """A person under a shared occasion (G6): a fixed amount, or empty to take an even part of what is left."""
+    __tablename__ = 'gift_shares'
+    id           = Column(Integer, primary_key=True)
+    occasion_id  = Column(Integer, ForeignKey('gift_occasions.id'), nullable=False)
+    person_id    = Column(Integer, ForeignKey('gift_people.id'), nullable=False)
+    fixed_amount = Column(Float, nullable=True)
 
 
 class InvestmentTransaction(Base):

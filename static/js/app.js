@@ -2256,6 +2256,7 @@ function renderDashboard() {
   _dashRenderFreedMinimums();              // CP5 freed minimums — now in left column
   _renderDashSpendingDonut(txns);          // Phase I: right column spending donut
   _renderDashUpcoming();                   // Phase I: right column upcoming bills
+  _loadDashGiftUpcoming();                 // Item 74 G5: gifts 30 days out join the list, then it re-renders
   _renderDashSeasonalAlert();              // Phase I: right column seasonal alert (B6d)
   renderDashAchievementStrip();
   _renderCheckInStreak();                  // Historian-backed daily check-in streak (self-gating)
@@ -2682,6 +2683,16 @@ function _renderDashSpendingDonut(txns) {
 
 // ── Phase I: Upcoming bills ───────────────────────────────────────────────────
 // Shows recurring items + debt cards due within 7 days. Max 5. 
+// Item 74 G5: an occasion with a budget, 30 days out, appears next to bills - from the record's own dates.
+let _dashGiftUpcoming = [];
+async function _loadDashGiftUpcoming() {
+  try {
+    const r = await API.get('/api/gifts/upcoming');
+    _dashGiftUpcoming = (r.data || r).occasions || [];
+  } catch(e) { _gwErr('_loadDashGiftUpcoming')(e); _dashGiftUpcoming = []; }
+  _renderDashUpcoming();
+}
+
 function _renderDashUpcoming() {
   const card    = g('dashUpcomingCard');
   const content = g('dashUpcomingContent');
@@ -2728,6 +2739,14 @@ function _renderDashUpcoming() {
     });
   }
 
+  (_dashGiftUpcoming || []).forEach(o => {
+    items.push({
+      icon: '🎁', label: o.text, amount: o.budget || 0,
+      dateLabel: o.days === 0 ? 'today' : o.days === 1 ? 'tomorrow' : `in ${o.days}d`,
+      color: o.days <= 7 ? 'var(--gold-text)' : 'var(--slate-2)', diff: o.days,
+    });
+  });
+
   if (!items.length) { card.style.display = 'none'; return; }
 
   items.sort((a,b) => a.diff - b.diff);
@@ -2738,7 +2757,7 @@ function _renderDashUpcoming() {
                 border-bottom:1px solid var(--steel)">
       <span style="font-size:14px;flex-shrink:0">${item.icon}</span>
       <span style="flex:1;font-size:12px;color:var(--ink);
-                   white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.label)}</span>
+                   white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(item.label)}">${esc(item.label)}</span>
       <span style="font-family:var(--font-mono);font-size:12px;color:var(--slate);flex-shrink:0">${item.amount>0?fmt(item.amount):''}</span>
       <span style="font-family:var(--font-mono);font-size:11px;color:${item.color};flex-shrink:0">${item.dateLabel}</span>
     </div>`).join('');
@@ -12662,7 +12681,7 @@ const HELP_FAQ = [
   {"q": "What is lean budget mode?", "a": "Activates automatically when your monthly surplus is under $200. In lean mode the app uses plain, specific language and focuses on your emergency buffer instead of aspirational goals. It meets you where you are.", "keys": ["lean", "mode", "surplus", "tight"]},
   {"q": "Why build a $500 emergency buffer before paying extra on debt?", "a": "Without a buffer, one unexpected expense forces you to stop extra payments or go further into debt. A $500 buffer absorbs that shock so your momentum continues. Build it first, then accelerate.", "keys": ["emergency", "buffer", "500"]},
   {"q": "What does the subscription audit show?", "a": "The app analyzes your transaction history for merchants appearing monthly at consistent amounts — likely forgotten recurring charges. It shows the full list and the annual total. Most users find $100–$300/year in subscriptions they no longer use.", "keys": ["subscription", "subscriptions", "audit", "recurring", "charges"], "open": {"view": "budget", "el": "subscriptionAuditCard"}},
-  {"q": "What is commission or variable income mode?", "a": "Turn on \"Commission or irregular income\" in Settings → Automation → Income & pay settings. When on, budgets use your 6-month rolling average instead of a fixed monthly figure, so a slow month isn't read as a shortfall. For pay that changes week to week, the Budget page's \"Your pay\" card also asks once whether a job is hourly with overtime.", "keys": ["commission", "variable", "irregular", "income", "mode", "hourly", "overtime"], "open": {"view": "settings", "tab": "automation", "el": "settingsCommissionMode"}, "labels": ["Commission or irregular income", "Income &amp; pay settings"]},
+  {"q": "What is commission or variable income mode?", "a": "Turn on \"Commission or irregular income\" in Settings → Automation → Income & pay settings. When on, budgets use your 6-month rolling average instead of a fixed monthly figure, so a slow month isn't read as a shortfall. For pay that changes week to week, the Budget page's \"Your pay\" card also asks once whether a job pays overtime or holiday pay that can change the paycheck amount.", "keys": ["commission", "variable", "irregular", "income", "mode", "hourly", "overtime"], "open": {"view": "settings", "tab": "automation", "el": "settingsCommissionMode"}, "labels": ["Commission or irregular income", "Income &amp; pay settings"]},
   {"h": "AI & reports"},
   {"q": "What does the monthly report show?", "a": "Each report shows its summary - every computed figure as a plain line - whether AI is on or off. With AI on, a written part follows that explains what the figures mean; it never lists them again. Add a note before generating and the written part takes it into account.", "keys": ["report", "reports", "monthly", "summary", "narrative"], "open": {"view": "reports"}},
   {"q": "How does the AI know my patterns?", "a": "It doesn't learn on its own. Groundwork's engines work out every figure from your records each time - income, spending by category, debt pace, net worth - and the AI is handed those figures to explain. It never adds a number of its own: a written part with a figure that isn't in what it was given is held back.", "keys": ["ai", "patterns", "profile", "know", "learn"]},
@@ -12670,7 +12689,7 @@ const HELP_FAQ = [
   {"h": "Tools"},
   {"q": "How does the Before You Buy tool work?", "a": "Enter the name and cost of something you're considering. The app shows what that purchase does to your monthly budget and your debt-free date. Not there to say no — there to make sure you know the real cost before you decide.", "keys": ["before", "buy", "purchase", "afford", "cost"], "open": {"view": "byb"}},
   {"q": "What are sinking funds?", "a": "Money set aside monthly for a known future expense — car maintenance, vacation, holiday gifts. You set a monthly contribution and a target. When the expense arrives, the money is already there. Prevents irregular expenses from derailing your budget.", "keys": ["sinking", "fund", "funds", "goal", "goals", "save", "saving"], "open": {"view": "budget", "el": "sinkingFundsCard"}},
-  {"q": "How does Gift Budget work?", "a": "Add the people you give gifts to with \"+ Person\", then open each one to add their occasions - a birthday, an anniversary, Christmas and others - with a date and a budget for each. \"Coming up\" lists the next 90 days. The \"$\" on an occasion records what it actually cost. \"Seasonal funds\" save toward a date: \"+ Fund\" sets a target and a funded-by date, and \"+ Add\" records money as you set it aside.", "keys": ["gift", "gifts", "christmas", "birthday", "present", "pool"], "open": {"view": "gifts"}, "labels": ["+ Person", "+ Fund", "Seasonal funds", "Coming up"]},
+  {"q": "How does Gift Budget work?", "a": "Add the people you give gifts to with \"+ Person\", then open each one to add their occasions - a birthday, an anniversary, Christmas and others - with a date and a budget for each. \"The year's gifts\" adds up the next 12 months and shows what that takes a month; \"Set aside for gifts\" puts that in your budget as one line. \"Coming up\" lists the next 90 days. The \"$\" on an occasion records what it actually cost, or the receipt button offers the charges filed under Gifts in the weeks before it, for you to pick from. \"+ Shared occasion\" is one total for many people, with fixed amounts for some and the rest split. \"Gift funds\" save toward a date and add their monthly amount themselves; \"Mark spent\" keeps what was spent beside the target.", "keys": ["gift", "gifts", "christmas", "birthday", "present", "pool", "shared"], "open": {"view": "gifts"}, "labels": ["+ Person", "+ Fund", "Gift funds", "Coming up", "+ Shared occasion"]},
   {"q": "What is the Sunday check-in?", "a": "Every Sunday a two-sentence summary appears on the dashboard: what happened financially this week, and one thing worth reflecting on. In household mode it's written for two people reading together.", "keys": ["sunday", "check", "weekly", "summary"]},
   {"q": "What does the Trip Planner calculate?", "a": "Getting there: for a drive, your car's mpg and the national gas price; for a flight, the government's average fare for the route, or the fare you enter or read from Google Flights. Lodging and meals: a quote you enter, your own past trips, or the federal travel rate for the place and month - said as such, never as a quote. Activities: your own figure. \"Look up hotels (Google Hotels)\" opens real prices in Groundwork's window, and a whole itinerary can be pasted, chosen or dropped in. Every line says where its figure came from.", "keys": ["trip", "travel", "vacation", "planner", "flight", "hotel", "cost", "budget"], "open": {"view": "trip"}, "labels": ["Look up hotels (Google Hotels)"]},
   {"h": "Net worth & retirement"},
@@ -12699,7 +12718,7 @@ const HELP_FAQ = [
   {"h": "When something looks wrong"},
   {"q": "A number looks wrong. How do I find out why?", "a": "On the Budget page, the income card has \"Why does it say this?\". On the Assistant page, \"Check my records\" runs every check: a payer filed under two categories, deposits in a spending category, a regular deposit that stopped, doubles, and months with no records. Each finding shows the records behind it and says what it can and can't tell. A fix is shown as an exact list first, and changes nothing until you apply it.", "keys": ["wrong", "why", "number", "figure", "looks", "off", "check", "records", "mistake", "income", "dropped", "drop"], "open": {"view": "automation"}, "labels": ["Check my records"]},
   {"q": "How do I undo a fix I made with \"Check my records\"?", "a": "Open \"Check my records\" (Assistant page) or \"Why does it say this?\" again. Under \"Changes made here\", each fix has Undo. It puts back the records the fix changed - any you edited since are left as they are.", "keys": ["undo", "fix", "revert", "back", "change", "records"], "open": {"view": "automation"}, "labels": ["Changes made here"]},
-  {"q": "What is the \"Your pay\" card on the Budget page?", "a": "It reads each employer's paychecks on their own. If a job's pay changes a lot from check to check, it asks once whether the job is hourly with overtime; once answered, it shows your ordinary week and the overtime as facts. If a regular paycheck hasn't come in while your account kept recording, it asks whether it's filed elsewhere or stopped.", "keys": ["pay", "paycheck", "hourly", "overtime", "employer", "wages", "salary"], "open": {"view": "budget", "el": "budgetIncomeChange"}, "labels": ["Your pay"]},
+  {"q": "What is the \"Your pay\" card on the Budget page?", "a": "It reads each employer's paychecks on their own. If a job's pay changes a lot from check to check, it asks once whether the job pays overtime or holiday pay that can change the paycheck amount; once answered, it shows your ordinary week and the overtime as facts. If a regular paycheck hasn't come in while your account kept recording, it asks whether it's filed elsewhere or stopped.", "keys": ["pay", "paycheck", "hourly", "overtime", "employer", "wages", "salary"], "open": {"view": "budget", "el": "budgetIncomeChange"}, "labels": ["Your pay"]},
   {"q": "What does \"Make this my budget\" on the income card do?", "a": "It changes the budget lines shown in that option, and only on your tap. It never cuts the necessity floor, a category you protected, or a payment set by a contract (a loan, lease, debt or insurance payment). \"Undo\" right there puts every line back.", "keys": ["make", "budget", "income", "card", "changed", "lines", "undo", "follows"], "open": {"view": "budget", "el": "budgetIncomeChange"}, "labels": ["Make this my budget"]},
   {"h": "AI and privacy"},
   {"q": "How do I turn the AI features on or off?", "a": "Settings → General → AI features. Everything in Groundwork works with AI off; with it on, reports and some cards add a written explanation.", "keys": ["ai", "turn", "off", "on", "disable", "enable", "features"], "open": {"view": "settings", "tab": "general"}, "labels": ["AI features"]},
@@ -18528,45 +18547,39 @@ const GIFT_OCCASION_TYPES = {
   other:       { label: 'Other',        icon: '🎁', annual: false },
 };
 
-let _giftPeople  = [];
-let _giftSeasons = [];
+// Item 74 (GIFT_BUDGET.md): the page reads /api/gifts, which keeps people, occasions, shared occasions and gift
+// funds in tables. A gift is a yearly cost paid in a few months: the year's total becomes one monthly set-aside
+// (G1), gift funds are sinking funds that fill themselves (G2), "Mark spent" keeps its record (G3), and gift
+// charges from the ledger are offered, never assumed (G4).
+let _gift = { people: [], shared: [], funds: [], seasons_to_move: [], plan: {} };
 let _giftFilterRel  = 'all';
 let _giftFilterType = 'all';
 let _giftExpandedPerson = null;
 
 async function loadGiftData() {
   try {
-    const res = await API.get('/api/settings');
-    const s   = res.data || res;
-    _giftPeople  = JSON.parse(s.gift_people_json  || '[]');
-    _giftSeasons = JSON.parse(s.gift_seasons_json || '[]');
-    if (!_giftPeople.length && s.gift_recipients_json) {
-      try {
-        const old = JSON.parse(s.gift_recipients_json || '[]');
-        _giftPeople = old.map(r => ({
-          id: r.id, name: r.name, relationship: 'family',
-          occasions: r.birthday ? [{id:Date.now()+Math.random(),type:'birthday',date:r.birthday,budget:0,note:''}] : [],
-        }));
-      } catch(e) { _gwErr('loadGiftData')(e); }
-    }
-  } catch(e) { _giftPeople = []; _giftSeasons = []; }
+    const res = await API.get('/api/gifts');
+    _gift = res.data || res;
+  } catch(e) {
+    _gwErr('loadGiftData')(e);
+    _gift = { people: [], shared: [], funds: [], seasons_to_move: [], plan: {} };
+  }
 }
-function _saveGiftPeople()  { API.patch('/api/settings',{gift_people_json: JSON.stringify(_giftPeople)}).catch(_gwErr('_saveGiftPeople')); }
-function _saveGiftSeasons() { API.patch('/api/settings',{gift_seasons_json:JSON.stringify(_giftSeasons)}).catch(_gwErr('_saveGiftSeasons')); }
 
 async function renderGiftBudget() {
-  await loadSinkingFunds();
   await loadGiftData();
   _renderGiftPage();
 }
 
+async function _giftReload() { await loadGiftData(); _renderGiftPage(); }
+
 function _renderGiftPage() {
   const cont = g('giftContent');
   if (!cont) return;
-  _applySeasonalContributions();
-  cont.innerHTML = _renderGiftFilterBar() + _renderGiftComingUp() + _renderGiftPeopleSection() + _renderGiftSeasonsSection();
+  cont.innerHTML = _renderGiftFilterBar() + _renderGiftPlan() + _renderGiftComingUp() + _renderGiftPeopleSection()
+    + _renderGiftSharedSection() + _renderGiftFundsSection();
   cont.onclick = _giftClickHandler;
-  _giftLoadSeasonConfidence();
+  _giftLoadFundConfidence();
   _giftRenderAdvisorEntry();
 }
 
@@ -18590,42 +18603,77 @@ function _renderGiftFilterBar() {
 }
 
 function _filteredPeople() {
-  return _giftPeople.filter(p => {
+  return (_gift.people||[]).filter(p => {
     if (_giftFilterRel!=='all' && p.relationship!==_giftFilterRel) return false;
     if (_giftFilterType!=='all' && !p.occasions.some(o=>o.type===_giftFilterType)) return false;
     return true;
   });
 }
 
+function _giftDateLabel(iso) {
+  if (!iso) return '—';
+  return new Date(iso+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+// G1: the year's gift plan, as a fact and an option. Two amounts when a date comes before the months to save
+// for it; the person picks. The line is written only on the tap.
+function _renderGiftPlan() {
+  const plan = _gift.plan || {};
+  const occs = plan.occasions || [];
+  if (!occs.length) {
+    return `<div class="card mb-5"><div class="card-label">The year's gifts</div>
+      <div style="font-size:12px;color:var(--slate);line-height:1.7">Give an occasion a budget and it is counted here: the next 12 months of gifts, and what that takes a month.</div></div>`;
+  }
+  const line = plan.line;
+  const amounts = [plan.steady, plan.to_cover].filter(a => a > 0);
+  const lineNote = line
+    ? (amounts.some(a => Math.abs(a - line.amount) < 0.005)
+        ? `Your budget's <b>Gifts (set aside)</b> line is ${fmt(line.amount)} a month.`
+        : `Your budget's <b>Gifts (set aside)</b> line is ${fmt(line.amount)} a month; the occasions now come to the amounts below.`)
+    : `Nothing is set aside for gifts in your budget yet.`;
+  const btn = (amt, what) => `<button class="btn btn-secondary btn-sm" data-action="set-aside" data-amt="${amt}">Set aside for gifts: ${fmt(amt)}/mo</button>
+    <span style="font-size:11px;color:var(--slate)">${what}</span>`;
+  const buttons = [btn(plan.steady, 'the year spread evenly')];
+  if (plan.to_cover) buttons.push(btn(plan.to_cover, 'each one covered by its date'));
+  const rows = occs.map(o => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:var(--ink)">
+      <span>${esc(o.label)} <span style="color:var(--slate)">· ${_giftDateLabel(o.date)}</span></span><span style="font-family:var(--font-mono)">${fmt(o.budget)}</span></div>`).join('');
+  return `<div class="card mb-5">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+      <div class="card-label" style="margin:0">The year's gifts</div>
+      <div style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--ink)">${fmt(plan.total)} <span style="font-size:11px;font-weight:400;color:var(--slate)">next 12 months</span></div>
+    </div>
+    <div style="font-size:12px;color:var(--slate);line-height:1.7;margin:8px 0">${(plan.working||[]).map(esc).join('<br>')}</div>
+    <details style="margin-bottom:10px"><summary style="font-size:12px;color:var(--slate);cursor:pointer">The occasions behind it (${occs.length})</summary><div style="margin-top:6px">${rows}</div></details>
+    <div style="font-size:12px;color:var(--ink);margin-bottom:8px">${lineNote}</div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">${buttons.map(b=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${b}</div>`).join('')}</div>
+  </div>`;
+}
+
+function _giftAllOccasions() {
+  const out = [];
+  (_gift.people||[]).forEach(p => p.occasions.forEach(o => out.push({person:p, occ:o})));
+  (_gift.shared||[]).forEach(o => out.push({person:null, occ:o}));
+  return out;
+}
+
 function _renderGiftComingUp() {
-  const today  = new Date();
-  const cutoff = new Date(today); cutoff.setDate(cutoff.getDate()+90);
-  const items  = [];
-  const people = _giftFilterRel==='all'&&_giftFilterType==='all' ? _giftPeople : _filteredPeople();
-  people.forEach(p => {
-    p.occasions.forEach(o => {
-      if (_giftFilterType!=='all'&&o.type!==_giftFilterType) return;
-      const next = _nextOccurrenceDate(o);
-      if (!next) return;
-      const diff = Math.round((next-today)/86400000);
-      if (diff<0||diff>90) return;
-      items.push({person:p,occ:o,next,diff});
-    });
-  });
-  items.sort((a,b)=>a.diff-b.diff);
+  const relOk = p => _giftFilterRel==='all' || (p && p.relationship===_giftFilterRel);
+  const items = _giftAllOccasions().filter(({person,occ}) =>
+    occ.days!=null && occ.days<=90 && (_giftFilterType==='all'||occ.type===_giftFilterType) && (person ? relOk(person) : _giftFilterRel==='all'));
+  items.sort((a,b)=>a.occ.days-b.occ.days);
   if (!items.length) return '';
-  const rows = items.map(({person,occ,next,diff}) => {
+  const rows = items.map(({person,occ}) => {
     const oct   = GIFT_OCCASION_TYPES[occ.type]||GIFT_OCCASION_TYPES.other;
+    const diff  = occ.days;
     const color = diff<=7?'var(--ember-text)':diff<=30?'var(--gold-text)':'var(--slate)';
-    const when  = diff===0?'Today!':diff===1?'Tomorrow':`${diff} days`;
-    const ds    = next.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    const when  = diff===0?'Today':diff===1?'Tomorrow':`${diff} days`;
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--steel-2)">
       <div style="font-size:20px;width:28px;text-align:center">${oct.icon}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(person.name)}</div>
-      <div style="font-size:11px;color:var(--slate)">${oct.label} · ${ds}</div></div>
-      ${occ.budget>0?`<div style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(occ.budget)}</div>`:`<button class="btn btn-ghost btn-sm" style="font-size:11px" data-action="set-budget" data-pid="${person.id}" data-oid="${occ.id}">Set budget</button>`}
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(occ.label)}</div>
+      <div style="font-size:11px;color:var(--slate)">${_giftDateLabel(occ.next)}</div></div>
+      ${occ.budget>0?`<div style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(occ.budget)}</div>`:(person?`<button class="btn btn-ghost btn-sm" style="font-size:11px" data-action="set-budget" data-pid="${person.id}" data-oid="${occ.id}">Set budget</button>`:'')}
       <div style="font-size:11px;font-weight:600;color:${color};min-width:60px;text-align:right">${when}</div>
-      <button class="btn btn-secondary btn-sm" style="font-size:11px;white-space:nowrap" data-action="budget-it" data-pid="${person.id}" data-oid="${occ.id}">Budget it</button>
+      ${occ.offer_date?`<button class="btn btn-ghost btn-sm" style="font-size:11px;white-space:nowrap" data-action="charges-occ" data-oid="${occ.id}">Gift charges?</button>`:''}
     </div>`;
   }).join('');
   return `<div class="card mb-5"><div class="card-label">Coming up <span style="font-weight:400;color:var(--slate-2)">(next 90 days)</span></div>${rows}</div>`;
@@ -18633,7 +18681,7 @@ function _renderGiftComingUp() {
 
 function _renderGiftPeopleSection() {
   const people = _filteredPeople();
-  const total  = _giftPeople.length;
+  const total  = (_gift.people||[]).length;
   const addForm = `<div id="giftPersonForm" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:12px">
     <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:10px;margin-bottom:10px">
       <div class="field" style="margin:0"><label>Name</label><input class="field-input" type="text" id="gpName" placeholder="e.g. Mom"></div>
@@ -18648,29 +18696,30 @@ function _renderGiftPeopleSection() {
   return `<div class="card mb-5"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div class="card-label" style="margin:0">People${total?` (${total})`:''}</div></div>${addForm}${filterNote}${list}</div>`;
 }
 
+function _giftOccasionRow(o, pid) {
+  const oct  = GIFT_OCCASION_TYPES[o.type]||GIFT_OCCASION_TYPES.other;
+  const ds   = o.next ? _giftDateLabel(o.next) : (o.date||'—');
+  const spentNote = o.actual_spent != null
+    ? `<span style="font-size:10px;color:var(--slate-2)" title="Logged ${o.spent_at||''}">spent ${fmt(o.actual_spent)}</span>` : '';
+  return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--steel-2)">
+    <span style="font-size:16px;width:22px;text-align:center">${oct.icon}</span>
+    <div style="flex:1;font-size:12px;color:var(--ink)">${o.type==='other'&&o.name?esc(o.name):oct.label}</div>
+    ${spentNote}
+    <div style="font-size:11px;color:var(--slate);min-width:60px;text-align:right">${ds}</div>
+    <input type="number" value="${o.budget||''}" min="0" step="0.01" placeholder="$0" data-budget-oid="${o.id}"
+      style="width:72px;font-family:var(--font-mono);font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
+      onchange="_giftSetOccasionBudget('${o.id}',this.value)">
+    ${o.offer_date?`<button class="row-del" data-action="charges-occ" data-oid="${o.id}" title="Gift charges from the ledger">🧾</button>`:''}
+    <button class="row-del" data-action="spend-occ" data-oid="${o.id}" title="Log actual spend">$</button>
+    <button class="row-del" data-action="del-occ" data-oid="${o.id}" title="Remove">×</button>
+  </div>`;
+}
+
 function _giftPersonCard(p) {
   const rel    = GIFT_RELATIONSHIPS[p.relationship]||GIFT_RELATIONSHIPS.other;
   const isOpen = _giftExpandedPerson===p.id;
   const total  = p.occasions.reduce((s,o)=>s+(o.budget||0),0);
   const occs   = _giftFilterType!=='all' ? p.occasions.filter(o=>o.type===_giftFilterType) : p.occasions;
-  const occasionRows = occs.map(o => {
-    const oct  = GIFT_OCCASION_TYPES[o.type]||GIFT_OCCASION_TYPES.other;
-    const next = _nextOccurrenceDate(o);
-    const ds   = o.date?(next?next.toLocaleDateString('en-US',{month:'short',day:'numeric'}):o.date):'—';
-    const spentNote = o.actual_spent != null
-      ? `<span style="font-size:10px;color:var(--slate-2)" title="Logged ${o.spent_at||''}">spent ${fmt(o.actual_spent)}</span>` : '';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--steel-2)">
-      <span style="font-size:16px;width:22px;text-align:center">${oct.icon}</span>
-      <div style="flex:1;font-size:12px;color:var(--ink)">${oct.label}</div>
-      ${spentNote}
-      <div style="font-size:11px;color:var(--slate);min-width:60px;text-align:right">${ds}</div>
-      <input type="number" value="${o.budget||''}" min="0" step="0.01" placeholder="$0"
-        style="width:72px;font-family:var(--font-mono);font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
-        onchange="_giftSetOccasionBudget('${p.id}','${o.id}',this.value)">
-      <button class="row-del" data-action="spend-occ" data-pid="${p.id}" data-oid="${o.id}" title="Log actual spend">$</button>
-      <button class="row-del" data-action="del-occ" data-pid="${p.id}" data-oid="${o.id}" title="Remove">×</button>
-    </div>`;
-  }).join('');
   const addOccForm = isOpen ? `<div style="display:flex;gap:8px;margin-top:10px;align-items:flex-end;flex-wrap:wrap">
     <select id="newOccType-${p.id}" class="field-input" style="font-size:12px;padding:5px 8px;flex:1;min-width:140px">${Object.entries(GIFT_OCCASION_TYPES).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select>
     <input type="date" id="newOccDate-${p.id}" class="field-input" style="font-size:12px;padding:5px 8px;flex:1;min-width:130px">
@@ -18693,13 +18742,81 @@ function _giftPersonCard(p) {
           ${Object.entries(GIFT_RELATIONSHIPS).map(([k,v])=>`<option value="${k}" ${p.relationship===k?'selected':''}>${v.icon} ${v.label}</option>`).join('')}
         </select>
       </div>
-      ${occs.length?occasionRows:'<div style="font-size:12px;color:var(--slate);padding:4px 0">No occasions yet — add one below.</div>'}
+      ${occs.length?occs.map(o=>_giftOccasionRow(o, p.id)).join(''):'<div style="font-size:12px;color:var(--slate);padding:4px 0">No occasions yet — add one below.</div>'}
       ${addOccForm}
     </div>`:''}
   </div>`;
 }
 
-function _renderGiftSeasonsSection() {
+// G6: one occasion, one total, the people under it. A fixed amount is theirs; the rest is split evenly among the
+// others; what nobody takes yet is shown as left to assign.
+function _renderGiftSharedSection() {
+  if (_giftFilterRel!=='all') return '';
+  const shared = (_gift.shared||[]).filter(o => _giftFilterType==='all' || o.type===_giftFilterType);
+  const addForm = `<div id="giftSharedForm" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:12px">
+    <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="field" style="margin:0"><label>Name</label><input class="field-input" type="text" id="gshName" placeholder="e.g. Family Christmas"></div>
+      <div class="field" style="margin:0"><label>Kind</label><select class="field-input" id="gshType">${Object.entries(GIFT_OCCASION_TYPES).map(([k,v])=>`<option value="${k}" ${k==='christmas'?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select></div>
+      <div class="field" style="margin:0"><label>Date</label><input class="field-input" type="date" id="gshDate"></div>
+      <div class="field" style="margin:0"><label>Total ($)</label><input class="field-input" type="number" step="0.01" min="0" id="gshTotal" placeholder="e.g. 400"></div>
+    </div>
+    <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" data-action="save-shared">Add shared occasion</button><button class="btn btn-ghost btn-sm" data-action="cancel-shared">Cancel</button></div>
+  </div>`;
+  const cards = shared.map(o => {
+    const inIt = new Set((o.shares||[]).map(s=>s.person_id));
+    const others = (_gift.people||[]).filter(p=>!inIt.has(p.id));
+    const sp = o.split||{};
+    const left = sp.left_to_assign||0;
+    const leftNote = left>0.004 ? `<span style="color:var(--gold-text)">${fmt(left)} left to assign</span>`
+      : left<-0.004 ? `<span style="color:var(--ember-text)">The fixed amounts are ${fmt(-left)} over the total</span>`
+      : (o.shares||[]).length ? `<span style="color:var(--pine-text)">All ${fmt(o.budget)} assigned</span>` : '';
+    const shareRows = (o.shares||[]).map(s => `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:0.5px solid var(--steel-2)">
+        <div style="flex:1;font-size:12px;color:var(--ink)">${esc(s.name)}</div>
+        <input type="number" min="0" step="0.01" placeholder="even part" value="${s.fixed_amount??''}"
+          style="width:90px;font-family:var(--font-mono);font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
+          onchange="_giftSetShareFixed('${s.id}',this.value)" title="A fixed amount, or blank for an even part of the rest">
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--slate);min-width:70px;text-align:right">${fmt(s.amount)}</div>
+        <button class="row-del" data-action="del-share" data-shid="${s.id}" title="Take out">×</button>
+      </div>`).join('');
+    return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:16px">${(GIFT_OCCASION_TYPES[o.type]||GIFT_OCCASION_TYPES.other).icon}</span>
+        <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--ink)">${esc(o.label)}</div>
+          <div style="font-size:11px;color:var(--slate-2)">${o.next?_giftDateLabel(o.next):(o.date||'No date')} · ${(o.shares||[]).length} ${(o.shares||[]).length===1?'person':'people'}${o.actual_spent!=null?` · spent ${fmt(o.actual_spent)}`:''}</div></div>
+        <input type="number" value="${o.budget||''}" min="0" step="0.01" placeholder="Total" data-budget-oid="${o.id}"
+          style="width:84px;font-family:var(--font-mono);font-size:12px;padding:4px 6px;border:1px solid var(--steel);border-radius:var(--r-sm);text-align:right"
+          onchange="_giftSetOccasionBudget('${o.id}',this.value)" title="The total for everyone">
+        ${o.offer_date?`<button class="row-del" data-action="charges-occ" data-oid="${o.id}" title="Gift charges from the ledger">🧾</button>`:''}
+        <button class="row-del" data-action="spend-occ" data-oid="${o.id}" title="Log actual spend">$</button>
+        <button class="row-del" data-action="del-occ" data-oid="${o.id}" title="Remove">×</button>
+      </div>
+      ${shareRows}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <span style="font-size:11px">${leftNote}</span>
+        ${others.length?`<div style="display:flex;gap:6px;align-items:center">
+          <select id="shareAdd-${o.id}" class="field-input" style="font-size:12px;padding:4px 8px;width:auto">${others.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px" data-action="add-share" data-oid="${o.id}">+ Add to it</button></div>`
+          : ((_gift.people||[]).length ? '' : `<span style="font-size:11px;color:var(--slate)">Add people above, then add them here.</span>`)}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="card mb-5">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div><div class="card-label" style="margin-bottom:2px">Shared occasions</div>
+      <div style="font-size:12px;color:var(--slate)">One total for many people, such as Christmas or a family exchange.</div></div>
+      <button class="btn btn-secondary btn-sm" data-action="add-shared">+ Shared occasion</button>
+    </div>${addForm}${cards || ''}</div>`;
+}
+
+// G2/G3: gift funds are sinking funds marked for gifts. They fill themselves each month like every fund, and
+// the Budget page, goals and Ask why see them too. The old seasonal funds are moved over on a tap, listed first.
+function _renderGiftFundsSection() {
+  const toMove = _gift.seasons_to_move||[];
+  const moveBox = toMove.length ? `<div style="background:var(--mist);border-radius:var(--r-md);padding:12px;margin-bottom:12px">
+      <div style="font-size:12px;color:var(--ink);margin-bottom:6px">${toMove.length===1?'This seasonal fund':'These seasonal funds'} from before can become gift funds, keeping what each holds. A gift fund adds its monthly amount itself, and shows on the Budget page with your other funds.</div>
+      ${toMove.map(s=>`<div style="font-size:12px;color:var(--slate)">${esc(s.name||'')}: ${fmt(parseFloat(s.saved)||0)} of ${fmt(parseFloat(s.target)||0)}${s.deadline?` by ${esc(s.deadline)}`:''}</div>`).join('')}
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px" data-action="move-seasons">Move ${toMove.length===1?'it':'them'} to gift funds</button>
+    </div>` : '';
   const addForm = `<div id="giftSeasonForm" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:14px;margin-bottom:12px">
     <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="field" style="margin:0"><label>Name</label><input class="field-input" type="text" id="gsName" placeholder="e.g. Christmas Fund"></div>
@@ -18708,65 +18825,57 @@ function _renderGiftSeasonsSection() {
     </div>
     <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" data-action="save-season">Create fund</button><button class="btn btn-ghost btn-sm" data-action="cancel-season">Cancel</button></div>
   </div>`;
-  const list = _giftBuildSeasonsListHTML();
   return `<div class="card mb-5">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div><div class="card-label" style="margin-bottom:2px">Seasonal funds</div>
-      <div style="font-size:12px;color:var(--slate)">Save toward Christmas, vacations, and recurring occasions — with a deadline so the math is automatic.</div></div>
+      <div><div class="card-label" style="margin-bottom:2px">Gift funds</div>
+      <div style="font-size:12px;color:var(--slate)">Save toward a date. Each month the fund adds what it takes to reach its target by then.</div></div>
       <button class="btn btn-secondary btn-sm" data-action="add-season">+ Fund</button>
-    </div><div id="giftSeasonsListWrap">${list}</div></div>`;
+    </div>${moveBox}${addForm}<div id="giftSeasonsListWrap">${_giftBuildFundsListHTML()}</div></div>`;
 }
 
-function _giftBuildSeasonsListHTML(confMap) {
-  return _giftSeasons.length ? _giftSeasons.map(s=>_giftSeasonCard(s, confMap?.[s.id])).join('')
-    : `<div style="font-size:12px;color:var(--slate);padding:8px 0;line-height:1.7">No seasonal funds yet. Add one for Christmas, vacations, or any recurring occasion.</div>`;
+function _giftBuildFundsListHTML(confMap) {
+  const funds = _gift.funds||[];
+  return funds.length ? funds.map(f=>_giftFundCard(f, confMap?.[f.id])).join('')
+    : `<div style="font-size:12px;color:var(--slate);padding:8px 0;line-height:1.7">No gift funds yet. Add one for Christmas or any date you save toward.</div>`;
 }
 
-// Pace confidence, Historian-backed (mirrors sinking/college funds) —
-// fetched after the synchronous page render since _renderGiftPage builds
-// the whole page as one template-string concatenation, not each section
-// independently. Patches just the seasons list once confidences resolve.
-async function _giftLoadSeasonConfidence() {
-  if (!_giftSeasons.length) return;
-  const wrap = g('giftSeasonsListWrap');
-  if (!wrap) return;
-  const results = await Promise.all(_giftSeasons.map(s =>
-    API.get(`/api/gift/seasons/${s.id}/confidence`).catch(() => ({confidence_pct: null}))
+async function _giftLoadFundConfidence() {
+  const funds = _gift.funds||[];
+  if (!funds.length || !g('giftSeasonsListWrap')) return;
+  const results = await Promise.all(funds.map(f =>
+    API.get(`/api/sinking-funds/${f.id}/confidence`).then(r => r.data || r).catch(e => { _gwErr('_giftLoadFundConfidence')(e); return {confidence_pct: null}; })
   ));
   const confMap = {};
-  _giftSeasons.forEach((s, i) => { confMap[s.id] = results[i]; });
-  const freshWrap = g('giftSeasonsListWrap');   // page may have re-rendered while awaiting
-  if (freshWrap) freshWrap.innerHTML = _giftBuildSeasonsListHTML(confMap);
+  funds.forEach((f, i) => { confMap[f.id] = results[i]; });
+  const wrap = g('giftSeasonsListWrap');   // page may have re-rendered while awaiting
+  if (wrap) wrap.innerHTML = _giftBuildFundsListHTML(confMap);
 }
 
-function _giftSeasonCard(s, conf) {
-  const today    = new Date();
-  const deadline = s.deadline?new Date(s.deadline+'T00:00:00'):null;
-  const target   = parseFloat(s.target)||0;
-  const saved    = parseFloat(s.saved)||0;
-  const pct      = target>0?Math.min(100,(saved/target)*100):0;
-  const filled   = saved>=target&&target>0;
-  let monthsLeft=0,monthlyNeeded=0,statusNote='';
-  if (deadline&&!filled) {
-    monthsLeft    = Math.max(0,(deadline.getFullYear()-today.getFullYear())*12+(deadline.getMonth()-today.getMonth()));
-    monthlyNeeded = monthsLeft>0?Math.ceil((target-saved)/monthsLeft):(target-saved);
-    const daysLeft = Math.round((deadline-today)/86400000);
-    statusNote = daysLeft<0?`<span style="color:var(--ember-text)">Deadline passed</span>`
-      :daysLeft<=30?`<span style="color:var(--gold-text)">Due in ${daysLeft} days</span>`
-      :`${fmt(monthlyNeeded)}/mo for ${monthsLeft} month${monthsLeft!==1?'s':''} · due ${deadline.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
-  } else if (filled) statusNote=`<span style="color:var(--pine-text)">✓ Fully funded</span>`;
+function _giftFundCard(f, conf) {
+  const target = parseFloat(f.target_amount)||0;
+  const saved  = parseFloat(f.current_amount)||0;
+  const pct    = target>0?Math.min(100,(saved/target)*100):0;
+  const filled = saved>=target&&target>0;
+  const deadline = f.deadline?new Date(f.deadline+'T00:00:00'):null;
+  let statusNote = '';
+  if (filled) statusNote = `<span style="color:var(--pine-text)">✓ Fully funded</span>`;
+  else if (deadline) {
+    const daysLeft = Math.round((deadline-new Date())/86400000);
+    statusNote = daysLeft<0 ? `<span style="color:var(--ember-text)">Its date has passed</span>`
+      : `Adds ${fmt(f.monthly_needed||0)} a month on its own · by ${deadline.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
+  }
   const barColor = filled?'var(--pine-text)':pct>=80?'var(--pine-text)':pct>=40?'var(--gold-text)':'var(--ember-text)';
-  const confPct   = conf && conf.confidence_pct;
+  const confPct  = conf && conf.confidence_pct;
   const confBadge = (confPct != null)
-    ? `<span style="font-size:10px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine-text)':confPct>=40?'var(--gold-text)':'var(--ember-text)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>`
-    : '';
+    ? `<span style="font-size:10px;font-family:var(--font-mono);color:${confPct>=70?'var(--pine-text)':confPct>=40?'var(--gold-text)':'var(--ember-text)'}" title="${esc(conf.reasoning||'')}">${confPct}% on pace</span>` : '';
   return `<div style="border:1px solid var(--steel);border-radius:var(--r-md);padding:14px;margin-bottom:8px">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px">
-      <div><div style="font-size:14px;font-weight:600;color:var(--ink);margin-bottom:2px">${esc(s.name)}</div>${confBadge}</div>
+      <div><div style="font-size:14px;font-weight:600;color:var(--ink);margin-bottom:2px">${esc(f.name)}</div>${confBadge}
+        ${f.last_spend?`<div style="font-size:11px;color:var(--slate);margin-top:2px">${esc(f.last_spend.text)}</div>`:''}</div>
       <div style="display:flex;align-items:center;gap:8px">
         <div style="text-align:right"><div style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:${barColor}">${fmt(saved)}</div>
         <div style="font-size:10px;color:var(--slate-2)">of ${fmt(target)}</div></div>
-        <button class="row-del" data-action="del-season" data-sid="${s.id}" title="Remove">×</button>
+        <button class="row-del" data-action="del-season" data-sid="${f.id}" title="Remove">×</button>
       </div>
     </div>
     <div style="height:6px;background:var(--steel);border-radius:99px;overflow:hidden;margin-bottom:6px">
@@ -18775,42 +18884,11 @@ function _giftSeasonCard(s, conf) {
     <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
       <span style="color:var(--slate)">${statusNote}</span>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" style="font-size:11px" data-action="deposit-season" data-sid="${s.id}">+ Add</button>
-        ${filled?`<button class="btn btn-ghost btn-sm" style="font-size:11px" data-action="spend-season" data-sid="${s.id}">Mark spent</button>`:''}
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" data-action="deposit-season" data-sid="${f.id}">+ Add</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" data-action="spend-season" data-sid="${f.id}">Mark spent</button>
       </div>
     </div>
   </div>`;
-}
-
-function _applySeasonalContributions() {
-  const thisMonth = new Date().toISOString().slice(0,7);
-  let changed = false;
-  _giftSeasons.forEach(s => {
-    if (!s._lastMonth) s._lastMonth='';
-    if (s._monthlyContrib>0&&s._lastMonth!==thisMonth) {
-      s.saved = Math.min(s.target||0,(parseFloat(s.saved)||0)+s._monthlyContrib);
-      s._lastMonth = thisMonth; changed = true;
-    }
-  });
-  if (changed) _saveGiftSeasons();
-}
-
-function _nextOccurrenceDate(occ) {
-  if (!occ.date) return null;
-  const today = new Date();
-  try {
-    let d;
-    if (occ.date.length===10) {
-      d = new Date(occ.date+'T00:00:00');
-      const oct = GIFT_OCCASION_TYPES[occ.type];
-      if (oct?.annual) { d.setFullYear(today.getFullYear()); if(d<today) d.setFullYear(today.getFullYear()+1); }
-    } else {
-      const [m,day] = occ.date.split('-').map(Number);
-      d = new Date(today.getFullYear(),m-1,day);
-      if (d<today) d.setFullYear(today.getFullYear()+1);
-    }
-    return d;
-  } catch(e) { return null; }
 }
 
 function _giftClickHandler(e) {
@@ -18818,88 +18896,88 @@ function _giftClickHandler(e) {
   if (tab) { _giftSetRelFilter(tab.dataset.rel||'all'); return; }
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
-  const {action,pid,oid,sid} = btn.dataset;
+  const {action,pid,oid,sid,shid,amt} = btn.dataset;
+  const toggle = id => { const f=g(id); if(f) f.style.display=f.style.display==='none'||!f.style.display?'block':'none'; };
   switch(action) {
-    case 'add-person':    { const f=g('giftPersonForm'); if(f) f.style.display=f.style.display==='none'||!f.style.display?'block':'none'; return; }
+    case 'add-person':    toggle('giftPersonForm'); return;
     case 'cancel-person': { const f=g('giftPersonForm'); if(f) f.style.display='none'; return; }
     case 'save-person':   _giftSavePerson(); return;
     case 'toggle-person': _giftTogglePerson(pid); return;
     case 'del-person':    _giftDeletePerson(pid); return;
     case 'add-occ':       _giftAddOccasion(pid); return;
-    case 'del-occ':       _giftDeleteOccasion(pid,oid); return;
-    case 'spend-occ':     _giftLogOccasionSpend(pid,oid); return;
-    case 'budget-it':     _giftBudgetIt(pid,oid); return;
+    case 'del-occ':       _giftDeleteOccasion(oid); return;
+    case 'spend-occ':     _giftLogOccasionSpend(oid); return;
+    case 'charges-occ':   _giftOfferCharges(oid); return;
     case 'set-budget':    _giftExpandAndFocusBudget(pid,oid); return;
-    case 'add-season':    { const f=g('giftSeasonForm'); if(f) f.style.display=f.style.display==='none'||!f.style.display?'block':'none'; return; }
+    case 'set-aside':     _giftSetAside(parseFloat(amt)); return;
+    case 'add-shared':    toggle('giftSharedForm'); return;
+    case 'cancel-shared': { const f=g('giftSharedForm'); if(f) f.style.display='none'; return; }
+    case 'save-shared':   _giftSaveShared(); return;
+    case 'add-share':     _giftAddShare(oid); return;
+    case 'del-share':     _giftDeleteShare(shid); return;
+    case 'add-season':    toggle('giftSeasonForm'); return;
     case 'cancel-season': { const f=g('giftSeasonForm'); if(f) f.style.display='none'; return; }
     case 'save-season':   _giftSaveSeason(); return;
     case 'del-season':    _giftDeleteSeason(sid); return;
     case 'deposit-season':_giftDepositSeason(sid); return;
     case 'spend-season':  _giftSpendSeason(sid); return;
+    case 'move-seasons':  _giftMoveSeasons(); return;
   }
 }
 function _giftSetTypeFilter(val) { _giftFilterType=val; _renderGiftPage(); }
 function _giftSetRelFilter(rel)  { _giftFilterRel=rel;  _renderGiftPage(); }
+function _giftFail(where, title) {
+  return e => { _gwErr(where)(e); showToast(title, e?.message||'', 'warning'); };
+}
 function _giftSavePerson() {
   const name=g('gpName')?.value?.trim(); const rel=g('gpRel')?.value||'family';
   if (!name) { showToast('Enter a name','','warning'); return; }
-  _giftPeople.push({id:Date.now(),name,relationship:rel,occasions:[]});
-  _saveGiftPeople(); _giftExpandedPerson=_giftPeople[_giftPeople.length-1].id; _renderGiftPage();
+  API.post('/api/gifts/people',{name,relationship:rel}).then(res=>{
+    _giftExpandedPerson=(res.data||res).id; _giftReload();
+  }).catch(_giftFail('_giftSavePerson','Could not add'));
 }
 // Test script 6.6 (d21): relationship was add-form-only with no edit path.
 // Bloom-style inline select in the expanded card — no edit button, per design system.
 function _giftSetRelationship(pid, rel) {
-  const p=_giftPeople.find(x=>x.id===parseInt(pid)); if(!p) return;
-  p.relationship = GIFT_RELATIONSHIPS[rel] ? rel : 'other';
-  _saveGiftPeople(); _renderGiftPage();
+  API.patch(`/api/gifts/people/${parseInt(pid)}`,{relationship:rel}).then(_giftReload).catch(_giftFail('_giftSetRelationship','Could not change'));
 }
 function _giftTogglePerson(pid) { const id=parseInt(pid); _giftExpandedPerson=_giftExpandedPerson===id?null:id; _renderGiftPage(); }
 function _giftDeletePerson(pid) {
-  const p=_giftPeople.find(x=>x.id===parseInt(pid)); if(!p) return;
+  const p=(_gift.people||[]).find(x=>x.id===parseInt(pid)); if(!p) return;
   confirmAction(`Remove ${p.name}?`,`<div style="font-size:13px;color:var(--slate)">Removes ${esc(p.name)} and all their gift occasions.</div>`,()=>{
-    _giftPeople=_giftPeople.filter(x=>x.id!==parseInt(pid)); _saveGiftPeople(); _renderGiftPage();
+    API.delete(`/api/gifts/people/${p.id}`).then(_giftReload).catch(_giftFail('_giftDeletePerson','Could not remove'));
   },'Remove',true);
 }
 function _giftAddOccasion(pid) {
-  const p=_giftPeople.find(x=>x.id===parseInt(pid)); if(!p) return;
   const type=g(`newOccType-${pid}`)?.value||'birthday'; const date=g(`newOccDate-${pid}`)?.value||'';
-  if (p.occasions.some(o=>o.type===type)&&type!=='other') { showToast(`${GIFT_OCCASION_TYPES[type]?.label} already added`,'','warning'); return; }
-  p.occasions.push({id:Date.now(),type,date,budget:0,note:''}); _saveGiftPeople(); _renderGiftPage();
+  API.post('/api/gifts/occasions',{person_id:parseInt(pid),type,date}).then(_giftReload).catch(_giftFail('_giftAddOccasion','Could not add'));
 }
-function _giftDeleteOccasion(pid,oid) {
-  const p=_giftPeople.find(x=>x.id===parseInt(pid)); if(!p) return;
-  p.occasions=p.occasions.filter(o=>o.id!==parseInt(oid)); _saveGiftPeople(); _renderGiftPage();
+function _giftDeleteOccasion(oid) {
+  API.delete(`/api/gifts/occasions/${parseInt(oid)}`).then(_giftReload).catch(_giftFail('_giftDeleteOccasion','Could not remove'));
 }
-function _giftSetOccasionBudget(pid,oid,val) {
-  const p=_giftPeople.find(x=>x.id===parseInt(pid)); const o=p?.occasions?.find(x=>x.id===parseInt(oid)); if(!o) return;
-  o.budget=Math.max(0,parseFloat(val)||0); _saveGiftPeople();
+function _giftSetOccasionBudget(oid,val) {
+  API.patch(`/api/gifts/occasions/${parseInt(oid)}`,{budget:Math.max(0,parseFloat(val)||0)}).then(_giftReload).catch(_giftFail('_giftSetOccasionBudget','Could not save'));
 }
 function _giftExpandAndFocusBudget(pid,oid) {
   _giftExpandedPerson=parseInt(pid); _renderGiftPage();
-  setTimeout(()=>{ const inp=document.querySelector(`[data-action="del-occ"][data-pid="${pid}"][data-oid="${oid}"]`)?.closest('div')?.querySelector('input[type="number"]'); if(inp){inp.focus();inp.select();} },50);
+  setTimeout(()=>{ const inp=document.querySelector(`input[data-budget-oid="${oid}"]`); if(inp){inp.focus();inp.select();} },50);
 }
-function _giftBudgetIt(pid,oid) {
-  const p=_giftPeople.find(x=>x.id===parseInt(pid)); const o=p?.occasions?.find(x=>x.id===parseInt(oid)); if(!o) return;
-  const budget=o.budget||0;
-  if (budget<=0) { _giftExpandAndFocusBudget(pid,oid); showToast('Set a budget first','','info'); return; }
-  const oct=GIFT_OCCASION_TYPES[o.type]||GIFT_OCCASION_TYPES.other;
-  const label=`${p.name}'s ${oct.label}`;
-  if (S.expenses.find(e=>e.name===label)) { showToast('Already in budget',`${label} is already in your budget`,'info'); return; }
-  API.post('/api/budget/items',{name:label,amount:budget,category:'Gifts',type:'expense'}).then(res=>{
-    const d=res.data||res; S.expenses.push({id:d.id,name:label,amount:budget,cat:'Gifts'});
-    showToast(`${fmt(budget)} added to budget`,`${label} · this month`,'success');
+function _giftSetAside(monthly) {
+  if (!(monthly>0)) return;
+  API.post('/api/gifts/set-aside',{monthly}).then(res=>{
+    const d=res.data||res;
+    const i=S.expenses.findIndex(e=>e.id===d.id);
+    if (i>=0) S.expenses[i].amount=d.amount; else S.expenses.push({id:d.id,name:d.name,amount:d.amount,cat:'Gifts'});
+    showToast(`Gifts (set aside): ${fmt(d.amount)} a month`,'In your budget','success');
     if(document.querySelector('#view-budget.active')) renderBudget();
-  }).catch(()=>showToast('Could not add to budget','','warning'));
+    _giftReload();
+  }).catch(_giftFail('_giftSetAside','Could not set aside'));
 }
 
-// Occasions had a budgeted amount but nothing ever recorded what was
-// actually spent — the same gap BYB had before its resolve flow. Logs
-// 'gift_occasion_variance' (Historian) and persists actual_spent/spent_at
-// on the occasion itself, same pattern as college funds/sinking funds.
-function _giftLogOccasionSpend(pid,oid) {
-  const p=_giftPeople.find(x=>x.id===parseInt(pid)); const o=p?.occasions?.find(x=>x.id===parseInt(oid)); if(!o) return;
-  const oct=GIFT_OCCASION_TYPES[o.type]||GIFT_OCCASION_TYPES.other;
-  confirmAction(`Log actual spend — ${p.name}'s ${oct.label}`,
+// "$": what an occasion cost, typed. Logs 'gift_occasion_variance' (Historian) against its budget.
+function _giftLogOccasionSpend(oid) {
+  const o=_giftAllOccasions().map(x=>x.occ).find(x=>x.id===parseInt(oid)); if(!o) return;
+  confirmAction(`Log actual spend — ${o.label}`,
     `<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">Budgeted: ${fmt(o.budget||0)}</div>
      <input type="number" id="giftActualSpend" placeholder="What it actually cost ($)" min="0" step="0.01"
        value="${o.actual_spent ?? o.budget ?? ''}"
@@ -18908,11 +18986,9 @@ function _giftLogOccasionSpend(pid,oid) {
       const amt = parseFloat(g('giftActualSpend')?.value);
       if (!(amt >= 0)) return;
       try {
-        await API.post(`/api/gift/occasions/${pid}/${oid}/spend`, { actual_spent: amt });
-        o.actual_spent = amt;
-        o.spent_at = new Date().toISOString().slice(0,10);
-        _renderGiftPage();
-        showToast('Logged', `${fmt(amt)} spent on ${p.name}'s ${oct.label}`, 'success');
+        await API.post(`/api/gifts/occasions/${o.id}/spend`, { actual_spent: amt });
+        await _giftReload();
+        showToast('Logged', `${fmt(amt)} spent on ${o.label}`, 'success');
       } catch(e) {
         _gwErr('_giftLogOccasionSpend')(e);
         showToast('Could not log spend', e.message||'', 'error');
@@ -18921,16 +18997,62 @@ function _giftLogOccasionSpend(pid,oid) {
   );
 }
 
+// G4: the gift charges in the weeks before an occasion, offered. Groundwork never decides who a purchase was
+// for (TM5); the person ticks the ones that were this occasion's, and only then do they become what it cost.
+async function _giftOfferCharges(oid) {
+  let d;
+  try { const r = await API.get(`/api/gifts/occasions/${parseInt(oid)}/charges`); d = r.data || r; }
+  catch(e) { _gwErr('_giftOfferCharges')(e); showToast('Could not read the ledger', e.message||'', 'warning'); return; }
+  const charges = d.charges||[];
+  if (!charges.length) {
+    showToast('No gift charges found', `Nothing filed under Gifts in the six weeks before ${d.label}.`, 'info');
+    return;
+  }
+  const rows = charges.map(c => `<label style="display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0">
+      <input type="checkbox" class="gift-charge" value="${c.id}" checked>
+      <span style="flex:1">${esc(c.description||'')} <span style="color:var(--slate)">· ${_giftDateLabel(c.date)}</span></span>
+      <span style="font-family:var(--font-mono)">${fmt(c.amount)}</span></label>`).join('');
+  confirmAction(`Gift charges before ${d.label}`,
+    `<div style="font-size:13px;color:var(--ink);margin-bottom:8px">These ${charges.length} charge${charges.length!==1?'s':''} before ${esc(d.label)} came to ${fmt(d.total)}. Use them as what it cost?</div>
+     <div style="font-size:11px;color:var(--slate);margin-bottom:8px">They were filed under Gifts. Groundwork can't tell who a purchase was for, so untick any that weren't for this.</div>${rows}`,
+    async ()=>{
+      const ids=[...document.querySelectorAll('.gift-charge:checked')].map(x=>parseInt(x.value));
+      if (!ids.length) return;
+      try {
+        const r = await API.post(`/api/gifts/occasions/${parseInt(oid)}/charges`, { txn_ids: ids });
+        await _giftReload();
+        showToast('Logged', `${fmt((r.data||r).actual_spent)} spent on ${d.label}`, 'success');
+      } catch(e) { _gwErr('_giftOfferCharges:use')(e); showToast('Could not log spend', e.message||'', 'error'); }
+    }, 'Use them', false);
+}
+
+function _giftSaveShared() {
+  const name=g('gshName')?.value?.trim(); const type=g('gshType')?.value||'christmas';
+  const date=g('gshDate')?.value||''; const budget=parseFloat(g('gshTotal')?.value)||0;
+  API.post('/api/gifts/occasions',{shared:true,name,type,date,budget}).then(_giftReload).catch(_giftFail('_giftSaveShared','Could not add'));
+}
+function _giftAddShare(oid) {
+  const pid=parseInt(g(`shareAdd-${oid}`)?.value); if(!pid) return;
+  API.post(`/api/gifts/occasions/${parseInt(oid)}/shares`,{person_id:pid}).then(_giftReload).catch(_giftFail('_giftAddShare','Could not add'));
+}
+function _giftSetShareFixed(shid,val) {
+  const v = String(val).trim()==='' ? null : Math.max(0,parseFloat(val)||0);
+  API.patch(`/api/gifts/shares/${parseInt(shid)}`,{fixed_amount:v}).then(_giftReload).catch(_giftFail('_giftSetShareFixed','Could not save'));
+}
+function _giftDeleteShare(shid) {
+  API.delete(`/api/gifts/shares/${parseInt(shid)}`).then(_giftReload).catch(_giftFail('_giftDeleteShare','Could not remove'));
+}
+
 // Gift advisor — mirrors _invRenderAdvisorEntry/_sfRenderAdvisorEntry's
 // one-time "Generate" entry point, delegating to the shared
 // _rcAnalyzeWithAI flow. dataLines only restate numbers already shown on
-// the page (occasion budgets/actuals, season targets/pace).
+// the page (occasion budgets/actuals, fund targets).
 let _giftAdvisorAICache = false;
 
 function _giftRenderAdvisorEntry() {
   const card = g('giftAdvisorCard');
   if (!card) return;
-  const hasData = _giftPeople.some(p => (p.occasions||[]).some(o => o.budget > 0)) || _giftSeasons.length > 0;
+  const hasData = _giftAllOccasions().some(({occ}) => occ.budget > 0) || (_gift.funds||[]).length > 0;
   if (!hasData) { card.style.display = 'none'; return; }
   if (_giftAdvisorAICache || g('giftAdvisorAIEntry')) return;
 
@@ -18939,7 +19061,7 @@ function _giftRenderAdvisorEntry() {
     <div id="giftAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
       <div>
         <div style="font-size:13px;font-weight:500;color:var(--ink)">Groundwork's gift-budget analysis</div>
-        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered read of what's coming up and how your seasonal funds are pacing</div>
+        <div style="font-size:12px;color:var(--slate);margin-top:2px">AI-powered read of what's coming up and how your gift funds are pacing</div>
       </div>
       <button onclick="_giftLaunchAdvisorAI()"
         style="font-size:12px;padding:7px 16px;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;font-weight:500">
@@ -18952,26 +19074,20 @@ async function _giftLaunchAdvisorAI() {
   g('giftAdvisorAIEntry')?.remove();
   const dataLines = [];
 
-  const upcoming = [];
-  _giftPeople.forEach(p => (p.occasions||[]).forEach(o => {
-    if (!(o.budget > 0)) return;
-    const next = _nextOccurrenceDate(o);
-    const oct  = GIFT_OCCASION_TYPES[o.type] || GIFT_OCCASION_TYPES.other;
-    upcoming.push({
-      when: next, text: `${p.name}'s ${oct.label}${next ? ` (${next.toLocaleDateString('en-US',{month:'short',day:'numeric'})})` : ''}: budgeted ${fmt(o.budget)}${o.actual_spent!=null ? `, actually spent ${fmt(o.actual_spent)} last time` : ''}`,
-    });
-  }));
-  upcoming.sort((a,b) => (a.when||0) - (b.when||0));
+  const upcoming = _giftAllOccasions().filter(({occ}) => occ.budget > 0 && occ.next)
+    .sort((a,b) => a.occ.days - b.occ.days)
+    .map(({occ}) => `${occ.label} (${_giftDateLabel(occ.next)}): budgeted ${fmt(occ.budget)}${occ.actual_spent!=null ? `, actually spent ${fmt(occ.actual_spent)} last time` : ''}`);
   if (upcoming.length) {
     dataLines.push('UPCOMING OCCASIONS:');
-    upcoming.slice(0, 8).forEach(u => dataLines.push(u.text));
+    upcoming.slice(0, 8).forEach(u => dataLines.push(u));
   }
+  const plan = _gift.plan || {};
+  if (plan.total) dataLines.push('---', `NEXT 12 MONTHS: ${fmt(plan.total)} budgeted, ${fmt(plan.steady)} a month spread evenly`);
 
-  if (_giftSeasons.length) {
-    dataLines.push('---', 'SEASONAL FUNDS:');
-    _giftSeasons.forEach(s => {
-      const target = parseFloat(s.target)||0, saved = parseFloat(s.saved)||0;
-      dataLines.push(`${s.name}: ${fmt(saved)} of ${fmt(target)}${s.deadline ? `, due ${s.deadline}` : ''}`);
+  if ((_gift.funds||[]).length) {
+    dataLines.push('---', 'GIFT FUNDS:');
+    _gift.funds.forEach(f => {
+      dataLines.push(`${f.name}: ${fmt(f.current_amount||0)} of ${fmt(f.target_amount||0)}${f.deadline ? `, due ${f.deadline}` : ''}`);
     });
   }
 
@@ -18984,7 +19100,7 @@ async function _giftLaunchAdvisorAI() {
     dataLines.join('\n'),
     stageCtx?.stageNote || '',
     '',
-    'Rules: Lead with whichever occasion is soonest, or whichever seasonal fund is furthest behind pace — a plain fact from the numbers above. Name dollar amounts. Never invent a number. 2-3 short paragraphs. No headers, no bullets.',
+    'Rules: Lead with whichever occasion is soonest, or whichever gift fund is furthest from its target — a plain fact from the numbers above. Name dollar amounts. Never invent a number. 2-3 short paragraphs. No headers, no bullets.',
   ].filter(Boolean).join('\n').trim();
 
   const target = g('giftAdvisorCard');
@@ -18999,34 +19115,46 @@ function _giftSaveSeason() {
   if (!name) { showToast('Enter a fund name','','warning'); return; }
   if (!target) { showToast('Enter a target amount','','warning'); return; }
   if (!deadline) { showToast('Set a funded-by date','','warning'); return; }
-  _giftSeasons.push({id:Date.now(),name,target,deadline,saved:0,_lastMonth:''}); _saveGiftSeasons();
-  const f=g('giftSeasonForm'); if(f) f.style.display='none'; _renderGiftPage(); showToast(`${name} created`,'','success');
+  API.post('/api/gifts/funds',{name,target_amount:target,deadline}).then(()=>{
+    showToast(`${name} created`,'','success'); _giftReload(); loadSinkingFunds();
+  }).catch(_giftFail('_giftSaveSeason','Could not create'));
 }
 function _giftDeleteSeason(sid) {
-  const s=_giftSeasons.find(x=>x.id===parseInt(sid)); if(!s) return;
-  confirmAction(`Remove ${s.name}?`,`<div style="font-size:13px;color:var(--slate)">${fmt(s.saved||0)} saved will be lost.</div>`,()=>{
-    _giftSeasons=_giftSeasons.filter(x=>x.id!==parseInt(sid)); _saveGiftSeasons(); _renderGiftPage();
+  const f=(_gift.funds||[]).find(x=>x.id===parseInt(sid)); if(!f) return;
+  confirmAction(`Remove ${f.name}?`,`<div style="font-size:13px;color:var(--slate)">${fmt(f.current_amount||0)} saved will no longer be tracked.</div>`,()=>{
+    API.delete(`/api/sinking-funds/${f.id}`).then(()=>{ _giftReload(); loadSinkingFunds(); }).catch(_giftFail('_giftDeleteSeason','Could not remove'));
   },'Remove',true);
 }
 function _giftDepositSeason(sid) {
-  const s=_giftSeasons.find(x=>x.id===parseInt(sid)); if(!s) return;
-  const remaining=Math.max(0,(s.target||0)-(s.saved||0));
-  confirmAction(`Add to ${s.name}`,`<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">Target: ${fmt(s.target)} · Saved: ${fmt(s.saved||0)} · Remaining: ${fmt(remaining)}</div>
+  const f=(_gift.funds||[]).find(x=>x.id===parseInt(sid)); if(!f) return;
+  const remaining=Math.max(0,(f.target_amount||0)-(f.current_amount||0));
+  confirmAction(`Add to ${f.name}`,`<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">Target: ${fmt(f.target_amount)} · Saved: ${fmt(f.current_amount||0)} · Remaining: ${fmt(remaining)}</div>
     <input type="number" id="gsDepositAmt" placeholder="Amount to add" min="1" step="0.01" style="width:100%;padding:8px;border-radius:var(--r-md);border:1px solid var(--steel);font-family:var(--font-mono)">`,
   async ()=>{ const amt=parseFloat(g('gsDepositAmt')?.value)||0; if(amt<=0) return;
-    // Log against the pre-deposit balance first — the server computes
-    // "expected" from the season's current target/deadline/saved in the
-    // settings blob, so this has to happen before _saveGiftSeasons()
-    // overwrites that blob with the new total.
-    await API.post(`/api/gift/seasons/${s.id}/contribute`, { amount: amt }).catch(_gwErr('_giftDepositSeason:historian'));
-    s.saved=Math.min(s.target||0,(parseFloat(s.saved)||0)+amt); await _saveGiftSeasons(); await _renderGiftPage(); showToast(`${fmt(amt)} added to ${s.name}`,'','success');
+    try {
+      await API.post(`/api/sinking-funds/${f.id}/deposit`, { amount: amt });
+      await _giftReload(); loadSinkingFunds(); showToast(`${fmt(amt)} added to ${f.name}`,'','success');
+    } catch(e) { _gwErr('_giftDepositSeason')(e); showToast('Could not add', e.message||'', 'warning'); }
   },'Add funds',false);
 }
+// G3: "Mark spent" asks what was spent, keeps it beside the target, and sets the fund back to $0 for next time.
 function _giftSpendSeason(sid) {
-  const s=_giftSeasons.find(x=>x.id===parseInt(sid)); if(!s) return;
-  confirmAction(`Mark ${s.name} as spent?`,`<div style="font-size:13px;color:var(--slate)">Resets the balance to $0 for next year.</div>`,()=>{
-    s.saved=0; s._lastMonth=''; _saveGiftSeasons(); _renderGiftPage(); showToast(`${s.name} reset for next year`,'','success');
+  const f=(_gift.funds||[]).find(x=>x.id===parseInt(sid)); if(!f) return;
+  confirmAction(`Mark ${f.name} as spent?`,`<div style="font-size:13px;color:var(--slate);margin-bottom:8px">What was spent is kept beside its target of ${fmt(f.target_amount||0)}, so next time you can see both. The fund then starts again from $0.</div>
+    <input type="number" id="gsSpentAmt" placeholder="What was spent ($)" min="0" step="0.01" value="${f.current_amount||''}" style="width:100%;padding:8px;border-radius:var(--r-md);border:1px solid var(--steel);font-family:var(--font-mono)">`,
+  async ()=>{ const amt=parseFloat(g('gsSpentAmt')?.value); if(!(amt>=0)) return;
+    try {
+      await API.post(`/api/gifts/funds/${f.id}/spent`, { spent: amt });
+      await _giftReload(); loadSinkingFunds(); showToast(`${f.name}: ${fmt(amt)} spent, kept on record`,'','success');
+    } catch(e) { _gwErr('_giftSpendSeason')(e); showToast('Could not mark spent', e.message||'', 'warning'); }
   },'Mark spent',false);
+}
+function _giftMoveSeasons() {
+  API.post('/api/gifts/seasons/move',{}).then(res=>{
+    const n=((res.data||res).moved||[]).length;
+    showToast(`${n} fund${n!==1?'s':''} moved`,'Now gift funds, on the Budget page too','success');
+    _giftReload(); loadSinkingFunds();
+  }).catch(_giftFail('_giftMoveSeasons','Could not move'));
 }
 
 // ── Retirement Readiness ───────────────────────────────────────────────────────
@@ -23297,13 +23425,13 @@ function _payFactsHtml(st) {
   const rows = ps.map(p => {
     if (p.state === 'missing') return `<div style="padding:6px 0">Your ${name(p)} pay hasn't come in since ${_billDate(p.since)}. Is it filed somewhere else, or did it stop?
       <button class="btn btn-ghost btn-sm" onclick="openWhy('income_month')">Check my records</button></div>`;
-    if (p.state === 'ask') return `<div style="padding:6px 0">${name(p)}: your checks have ranged from ${fmt(p.low)} to ${fmt(p.high)}. Is this job hourly, with overtime?
-      <button class="btn btn-secondary btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'hourly')">Hourly, with overtime</button>
-      <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'salary')">Salary or steady pay</button>
+    if (p.state === 'ask') return `<div style="padding:6px 0">${name(p)}: your checks have ranged from ${fmt(p.low)} to ${fmt(p.high)}. Does this job pay overtime or holiday pay that can change the paycheck amount?
+      <button class="btn btn-secondary btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'hourly')">Yes, it can</button>
+      <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'salary')">No, it's the same each time</button>
       <div style="font-size:11px;color:var(--slate-2)">Your answer picks how Groundwork reads this pay. Until then it watches nothing here.</div></div>`;
     if (p.rule === 'hourly' && p.ordinary != null) return `<div style="padding:6px 0">${name(p)}: your ordinary ${_PAY_EVERY[p.every] || 'check'} is about ${fmt(p.ordinary)}.
       Overtime added ${fmt(p.overtime.recent)} over the last ${p.overtime.weeks} weeks; ${fmt(p.overtime.before)} the ${p.overtime.weeks} weeks before.
-      <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'salary')">It's not hourly</button></div>`;
+      <button class="btn btn-ghost btn-sm" onclick="incomePayKind('${esc(p.payer)}', 'salary')">It doesn't pay overtime</button></div>`;
     return '';
   }).filter(Boolean);
   return rows.length ? `<div class="card mt-5"><div class="card-label">Your pay</div><div style="font-size:12px;color:var(--ink);line-height:1.6">${rows.join('')}</div></div>` : '';

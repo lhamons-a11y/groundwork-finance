@@ -208,6 +208,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(trophies_bp,      url_prefix='/api/trophies')
     app.register_blueprint(college_funds_bp,  url_prefix='/api/college-funds')
     app.register_blueprint(gift_bp,           url_prefix='/api/gift')
+    app.register_blueprint(gifts_bp,          url_prefix='/api/gifts')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
@@ -11967,6 +11968,7 @@ def _serialize_sinking_fund(f) -> dict:
         'note':                 f.note or '',
         'is_active':            f.is_active,
         'last_contributed_month': f.last_contributed_month or '',
+        'purpose':              f.purpose or '',
         'pct_funded':           round((saved / target * 100) if target > 0 else 0, 1),
         # Legacy aliases for old JS code paths
         'balance':              saved,
@@ -12356,6 +12358,387 @@ def log_gift_occasion_spend(person_id, occasion_id):
         _log_gift_occasion_variance(session, person_id, occasion_id, budget, actual_spent)
         session.commit()
         return ok({'logged': True, 'actual_spent': actual_spent})
+
+
+# ── Gift Budget in tables (GIFT_BUDGET.md, item 74) ──────────────────────────
+# The page reads and writes here. The /api/gift routes above stay for the old settings, which are kept as the
+# record of what was carried over (G8).
+gifts_bp = Blueprint('gifts', __name__)
+
+
+def _gift_today():
+    return date.today()
+
+
+def _gift_occasion_dict(session, o, people, today):
+    from core import gifts as gf
+    from core.database import GiftShare
+    nxt = gf.next_occurrence(o.type, o.date, today)
+    d = {'id': o.id, 'person_id': o.person_id, 'type': o.type, 'name': o.name or '', 'date': o.date or '',
+         'budget': round(float(o.budget or 0), 2), 'note': o.note or '', 'shared': bool(o.shared),
+         'actual_spent': o.actual_spent, 'spent_at': o.spent_at,
+         'label': gf.occasion_label(o, people.get(o.person_id)),
+         'next': nxt.isoformat() if nxt else None, 'days': (nxt - today).days if nxt else None,
+         'offer_date': (lambda w: w.isoformat() if w else None)(gf.offer_date(o, today))}
+    if o.shared:
+        shares = session.query(GiftShare).filter_by(occasion_id=o.id).order_by(GiftShare.id).all()
+        split = gf.split_shared(o.budget, [(s.person_id, s.fixed_amount) for s in shares])
+        d['shares'] = [{'id': s.id, 'person_id': s.person_id,
+                        'name': people[s.person_id].name if s.person_id in people else '',
+                        'fixed_amount': s.fixed_amount, 'amount': split['per_person'].get(s.person_id, 0.0)}
+                       for s in shares]
+        d['split'] = {k: v for k, v in split.items() if k != 'per_person'}
+    return d
+
+
+def _gift_fund_dict(session, f):
+    from core import gifts as gf
+    d = _serialize_sinking_fund(f)
+    d['last_spend'] = gf.last_spend(session, f.id)
+    return d
+
+
+@gifts_bp.route('', methods=['GET'])
+def gifts_state():
+    """Everything the Gift page shows: people with their occasions, shared occasions, gift funds, the seasonal
+    funds still to move, and the year's plan with its working."""
+    from core import gifts as gf
+    from core.database import GiftPerson, GiftOccasion
+    today = _gift_today()
+    with db_session() as session:
+        gf.ensure_imported(session)
+        session.commit()
+        people = {p.id: p for p in session.query(GiftPerson).order_by(GiftPerson.id).all()}
+        occs = session.query(GiftOccasion).order_by(GiftOccasion.id).all()
+        out_people = []
+        for p in people.values():
+            out_people.append({'id': p.id, 'name': p.name, 'relationship': p.relationship or 'other',
+                               'occasions': [_gift_occasion_dict(session, o, people, today)
+                                             for o in occs if o.person_id == p.id and not o.shared]})
+        return ok({
+            'people': out_people,
+            'shared': [_gift_occasion_dict(session, o, people, today) for o in occs if o.shared],
+            'funds': [_gift_fund_dict(session, f) for f in gf.gift_funds(session)],
+            'seasons_to_move': [{'id': s.get('id'), 'name': s.get('name'), 'target': s.get('target'),
+                                 'saved': s.get('saved'), 'deadline': s.get('deadline')}
+                                for s in gf.seasons_to_move(session)],
+            'plan': gf.year_plan(session, today),
+        })
+
+
+@gifts_bp.route('/people', methods=['POST'])
+@require_json
+def gifts_add_person():
+    from core import gifts as gf
+    from core.database import GiftPerson
+    name = (request.json.get('name') or '').strip()
+    if not name:
+        return err('Enter a name')
+    rel = request.json.get('relationship')
+    with db_session() as session:
+        gf.ensure_imported(session)
+        p = GiftPerson(name=name[:120], relationship=rel if rel in gf.RELATIONSHIPS else 'other')
+        session.add(p)
+        session.commit()
+        return ok({'id': p.id})
+
+
+@gifts_bp.route('/people/<int:pid>', methods=['PATCH'])
+@require_json
+def gifts_edit_person(pid):
+    from core import gifts as gf
+    from core.database import GiftPerson
+    with db_session() as session:
+        p = session.get(GiftPerson, pid)
+        if not p:
+            return err('Person not found', 404)
+        if 'name' in request.json and (request.json['name'] or '').strip():
+            p.name = request.json['name'].strip()[:120]
+        if 'relationship' in request.json:
+            rel = request.json['relationship']
+            p.relationship = rel if rel in gf.RELATIONSHIPS else 'other'
+        session.commit()
+        return ok({'id': p.id})
+
+
+@gifts_bp.route('/people/<int:pid>', methods=['DELETE'])
+def gifts_delete_person(pid):
+    from core.database import GiftPerson, GiftOccasion, GiftShare
+    with db_session() as session:
+        p = session.get(GiftPerson, pid)
+        if not p:
+            return err('Person not found', 404)
+        own = [o.id for o in session.query(GiftOccasion).filter_by(person_id=pid).all()]
+        if own:
+            session.query(GiftShare).filter(GiftShare.occasion_id.in_(own)).delete(synchronize_session=False)
+            session.query(GiftOccasion).filter(GiftOccasion.id.in_(own)).delete(synchronize_session=False)
+        session.query(GiftShare).filter_by(person_id=pid).delete(synchronize_session=False)
+        session.delete(p)
+        session.commit()
+        return ok({'deleted': pid})
+
+
+@gifts_bp.route('/occasions', methods=['POST'])
+@require_json
+def gifts_add_occasion():
+    """A person's occasion ({person_id, type, date}) or a shared one ({shared: true, name, type, date})."""
+    from core import gifts as gf
+    from core.database import GiftPerson, GiftOccasion
+    b = request.json
+    typ = b.get('type') if b.get('type') in gf.TYPE_LABELS else 'other'
+    date_s = (b.get('date') or '').strip()[:10]
+    if date_s and gf._parse(date_s) is None:
+        return err('Use a date like 2026-12-25')
+    with db_session() as session:
+        gf.ensure_imported(session)
+        if b.get('shared'):
+            name = (b.get('name') or '').strip() or gf.TYPE_LABELS[typ].capitalize()
+            o = GiftOccasion(person_id=None, shared=True, type=typ, name=name[:120], date=date_s,
+                             budget=max(0.0, float(b.get('budget') or 0)))
+        else:
+            p = session.get(GiftPerson, int(b.get('person_id') or 0))
+            if not p:
+                return err('Person not found', 404)
+            if typ != 'other' and session.query(GiftOccasion).filter_by(person_id=p.id, type=typ).first():
+                return err(f'{gf.TYPE_LABELS[typ].capitalize()} is already added')
+            o = GiftOccasion(person_id=p.id, type=typ, name=(b.get('name') or '').strip()[:120], date=date_s)
+        session.add(o)
+        session.commit()
+        return ok({'id': o.id})
+
+
+@gifts_bp.route('/occasions/<int:oid>', methods=['PATCH'])
+@require_json
+def gifts_edit_occasion(oid):
+    from core import gifts as gf
+    from core.database import GiftOccasion
+    b = request.json
+    with db_session() as session:
+        o = session.get(GiftOccasion, oid)
+        if not o:
+            return err('Occasion not found', 404)
+        if 'budget' in b:
+            o.budget = max(0.0, float(b.get('budget') or 0))
+        if 'date' in b:
+            ds = (b.get('date') or '').strip()[:10]
+            if ds and gf._parse(ds) is None:
+                return err('Use a date like 2026-12-25')
+            o.date = ds
+        if 'name' in b:
+            o.name = (b.get('name') or '').strip()[:120]
+        if 'note' in b:
+            o.note = b.get('note') or ''
+        session.commit()
+        return ok({'id': o.id})
+
+
+@gifts_bp.route('/occasions/<int:oid>', methods=['DELETE'])
+def gifts_delete_occasion(oid):
+    from core.database import GiftOccasion, GiftShare
+    with db_session() as session:
+        o = session.get(GiftOccasion, oid)
+        if not o:
+            return err('Occasion not found', 404)
+        session.query(GiftShare).filter_by(occasion_id=oid).delete(synchronize_session=False)
+        session.delete(o)
+        session.commit()
+        return ok({'deleted': oid})
+
+
+def _log_gift_spend(session, o, actual, from_ledger=False, charges=0):
+    if not o.budget or o.budget <= 0:
+        return
+    log_historian_event(session, 'gift_occasion_variance', expected_value=round(float(o.budget), 2),
+                        actual_value=round(float(actual), 2),
+                        context={'gift_occasion_id': o.id, 'gift_person_id': o.person_id,
+                                 'occasion_id': o.legacy_id or o.id, 'from_ledger': from_ledger,
+                                 'charges': charges})
+
+
+@gifts_bp.route('/occasions/<int:oid>/spend', methods=['POST'])
+@require_json
+def gifts_occasion_spend(oid):
+    """The "$" button: what the occasion cost, typed by the person."""
+    from core.database import GiftOccasion
+    actual = request.json.get('actual_spent')
+    try:
+        actual = round(float(actual), 2)
+    except (TypeError, ValueError):
+        return err('actual_spent is required')
+    if actual < 0:
+        return err('actual_spent is required')
+    with db_session() as session:
+        o = session.get(GiftOccasion, oid)
+        if not o:
+            return err('Occasion not found', 404)
+        o.actual_spent = actual
+        o.spent_at = _gift_today().isoformat()
+        o.spent_txn_ids = ''
+        _log_gift_spend(session, o, actual)
+        session.commit()
+        return ok({'actual_spent': actual})
+
+
+@gifts_bp.route('/occasions/<int:oid>/charges', methods=['GET'])
+def gifts_occasion_charges(oid):
+    """G4: the gift charges in the weeks before the occasion, listed for the person to pick from."""
+    from core import gifts as gf
+    from core.database import GiftOccasion, GiftPerson
+    today = _gift_today()
+    with db_session() as session:
+        o = session.get(GiftOccasion, oid)
+        if not o:
+            return err('Occasion not found', 404)
+        out = gf.charges_for(session, o, today)
+        out['label'] = gf.occasion_label(o, session.get(GiftPerson, o.person_id) if o.person_id else None)
+        return ok(out)
+
+
+@gifts_bp.route('/occasions/<int:oid>/charges', methods=['POST'])
+@require_json
+def gifts_occasion_use_charges(oid):
+    """G4, on the person's yes: the charges they picked become what the occasion cost."""
+    from core import gifts as gf
+    from core.database import GiftOccasion
+    with db_session() as session:
+        o = session.get(GiftOccasion, oid)
+        if not o:
+            return err('Occasion not found', 404)
+        ids = request.json.get('txn_ids') or []
+        spent, why = gf.use_charges(session, o, ids, _gift_today())
+        if why:
+            return err(why)
+        _log_gift_spend(session, o, spent, from_ledger=True, charges=len(ids))
+        session.commit()
+        return ok({'actual_spent': spent})
+
+
+@gifts_bp.route('/occasions/<int:oid>/shares', methods=['POST'])
+@require_json
+def gifts_add_share(oid):
+    """G6: a person under a shared occasion, with a fixed amount or none (an even part of the rest)."""
+    from core.database import GiftOccasion, GiftPerson, GiftShare
+    b = request.json
+    with db_session() as session:
+        o = session.get(GiftOccasion, oid)
+        if not o or not o.shared:
+            return err('Shared occasion not found', 404)
+        p = session.get(GiftPerson, int(b.get('person_id') or 0))
+        if not p:
+            return err('Person not found', 404)
+        if session.query(GiftShare).filter_by(occasion_id=oid, person_id=p.id).first():
+            return err(f'{p.name} is already in it')
+        fixed = b.get('fixed_amount')
+        s = GiftShare(occasion_id=oid, person_id=p.id,
+                      fixed_amount=None if fixed in (None, '') else max(0.0, float(fixed)))
+        session.add(s)
+        session.commit()
+        return ok({'id': s.id})
+
+
+@gifts_bp.route('/shares/<int:sid>', methods=['PATCH'])
+@require_json
+def gifts_edit_share(sid):
+    from core.database import GiftShare
+    with db_session() as session:
+        s = session.get(GiftShare, sid)
+        if not s:
+            return err('Not found', 404)
+        fixed = request.json.get('fixed_amount')
+        s.fixed_amount = None if fixed in (None, '') else max(0.0, float(fixed))
+        session.commit()
+        return ok({'id': s.id})
+
+
+@gifts_bp.route('/shares/<int:sid>', methods=['DELETE'])
+def gifts_delete_share(sid):
+    from core.database import GiftShare
+    with db_session() as session:
+        s = session.get(GiftShare, sid)
+        if not s:
+            return err('Not found', 404)
+        session.delete(s)
+        session.commit()
+        return ok({'deleted': sid})
+
+
+@gifts_bp.route('/set-aside', methods=['POST'])
+@require_json
+def gifts_set_aside():
+    """G1, on a tap: one "Gifts (set aside)" budget line at one of the plan's amounts."""
+    from core import gifts as gf
+    with db_session() as session:
+        line, why = gf.apply_set_aside(session, request.json.get('monthly'), _gift_today())
+        if why:
+            return err(why)
+        session.commit()
+        return ok({'id': line.id, 'name': line.name, 'amount': round(float(line.amount), 2)})
+
+
+@gifts_bp.route('/funds', methods=['POST'])
+@require_json
+def gifts_add_fund():
+    """G2: a gift fund is a sinking fund marked 'gift'; its monthly amount adds itself like every fund's."""
+    from core import gifts as gf
+    from core.database import SinkingFund
+    b = request.json
+    name = (b.get('name') or '').strip()
+    target = float(b.get('target_amount') or 0)
+    if not name:
+        return err('Enter a fund name')
+    if target <= 0:
+        return err('Enter a target amount')
+    with db_session() as session:
+        f = SinkingFund(name=name[:120], target_amount=target, current_amount=0.0,
+                        deadline=(b.get('deadline') or None), monthly_contribution=float(b.get('monthly_contribution') or 0),
+                        purpose=gf.GIFT_PURPOSE)
+        session.add(f)
+        session.commit()
+        return ok(_gift_fund_dict(session, f))
+
+
+@gifts_bp.route('/funds/<int:fid>/spent', methods=['POST'])
+@require_json
+def gifts_fund_spent(fid):
+    """G3: "Mark spent" records the target and what was spent, then sets the fund back to $0 for next time."""
+    from core import gifts as gf
+    from core.database import SinkingFund
+    try:
+        spent = round(float(request.json.get('spent')), 2)
+    except (TypeError, ValueError):
+        return err('Enter what was spent')
+    if spent < 0:
+        return err('Enter what was spent')
+    with db_session() as session:
+        f = session.get(SinkingFund, fid)
+        if not f:
+            return err('Fund not found', 404)
+        target = float(f.target_amount or 0)
+        gf.mark_fund_spent(session, f, spent, _gift_today())
+        log_historian_event(session, 'gift_fund_spent', expected_value=round(target, 2), actual_value=spent,
+                            context={'sinking_fund_id': f.id})
+        session.commit()
+        return ok(_gift_fund_dict(session, f))
+
+
+@gifts_bp.route('/seasons/move', methods=['POST'])
+def gifts_move_seasons():
+    """G2, on a tap: the old seasonal funds become gift funds, keeping what each held."""
+    from core import gifts as gf
+    with db_session() as session:
+        moved = gf.move_seasons(session)
+        session.commit()
+        return ok({'moved': moved})
+
+
+@gifts_bp.route('/upcoming', methods=['GET'])
+def gifts_upcoming():
+    """G5: budgeted occasions in the next 30 days, for the dashboard's coming-up list."""
+    from core import gifts as gf
+    with db_session() as session:
+        gf.ensure_imported(session)
+        session.commit()
+        return ok({'occasions': gf.upcoming(session, _gift_today())})
 
 
 # ── Quicken import endpoint ───────────────────────────────────────────────────
