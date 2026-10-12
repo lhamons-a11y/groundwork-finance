@@ -228,7 +228,20 @@ identical, so it has not mattered.
 
 ## 4. Rulings
 
-*(none yet)*
+**W3, ruled by direction (Rob, 2026-10-12):** *"lets add a readable but very readable and simple overview but use more
+than a sentence or two to describe many of the new features that is coming that we have in 2.0 that's being built."*
+Then: *"make it appear that I have a marketing team that is pushing the new stuff."*
+- The site keeps describing the downloadable version. A clearly labelled section describes 2.0.
+- That section is a **simple, very readable overview**: a short paragraph for each of the main new features, not a
+  line each.
+- It covers what is built in 2.0 now. Anything only designed is said to be in design.
+- No dates (W3 (a)'s reason stands: a public date becomes a promise).
+- **The voice is a polished launch page:** a confident "we", a banner, and benefit-first headlines. That is how a
+  marketed product reads. **It does not say there is a marketing team.** That would be a factual claim W5 would have
+  to remove, and it would be the one untrue line on a site whose point is honesty. (Claude's reading of the
+  direction, for Rob to confirm or overrule.)
+
+The draft is §6.1, for Rob's ruling on its wording. **W1, W2 and W4–W9 are not ruled yet.**
 
 ## 5. Claims inventory
 
@@ -236,7 +249,118 @@ identical, so it has not mattered.
 
 ## 6. Copy draft
 
-*(stage 4)*
+*(The full stage 4 draft waits for W1, W2 and W4. §6.1 is drafted ahead of it because W3 is ruled.)*
+
+### 6.1 Coming in Groundwork 2.0 (draft, 2026-10-12, for ruling)
+
+Each paragraph traces to a built, accepted item (W5); the table after the draft gives each one. The draft uses plain
+words and short sentences, with no figures that could go stale and no dates.
+
+> ## Coming in Groundwork 2.0
+>
+> **The biggest update we've ever built, and it's being tested right now.**
+>
+> Groundwork 2.0 does more of the work for you, explains more of what it finds, and still keeps every number on your
+> own computer. Here's what's on the way.
+>
+> ### Your statements, with one press
+> No more logging in to download files. Tell Groundwork which bank you use, and when you ask, it opens your bank's
+> website in a window inside Groundwork and brings your statements back for you to review. It only goes when you ask,
+> never on its own or on a schedule. Your password stays in your computer's own secure vault, not in Groundwork.
+>
+> ### Your bills, read straight from the biller
+> Groundwork can read what a bill says on the company's own website, like the amount and the due date, and put it
+> right next to that line in your budget. You confirm it before it's used. And Groundwork never presses a Pay button:
+> paying is always yours.
+>
+> ### Ask why
+> A number looks wrong? Ask. Groundwork checks your own records and tells you what it found: a payment filed in the
+> wrong place, a deposit that isn't counted as income, a month with nothing imported. If there's a fix, you see
+> exactly what would change before anything does, and every fix can be undone.
+>
+> ### Your pay, employer by employer
+> Groundwork reads each paycheck on its own. If one stops showing up or drops, it tells you plainly and shows a few
+> ways the month could go from there. If your pay changes with overtime or holiday pay, it asks once, so a slow week
+> is never mistaken for a pay cut.
+>
+> ### Possible futures
+> See your next twelve months side by side: as things are, and what happens if your most expensive months come back,
+> a month goes by without income, or you pay only the minimums. Every future says what it assumes. If one doesn't fit
+> your life, tell it what's missing and they all recalculate.
+>
+> ### A monthly review and a Sunday check-in
+> When a month's records are complete, Groundwork writes up what happened: what came in, what went out, and how it
+> compares. Every Sunday, a short check-in looks back at your week and ahead to the next one: a paycheck due, a bill
+> coming up.
+>
+> ### Before You Buy, with the whole cost
+> Thinking about a big purchase? See what it really costs each month, interest included, and whether financing it
+> costs more than paying down what you already owe. We're not here to talk you out of anything. We show you the
+> numbers.
+>
+> ### Trips, priced from real fares
+> The trip planner opens Google Flights and Google Hotels right inside Groundwork and uses the price you pick. Haven't
+> picked one yet? It uses the government's average fare for that route instead of a guess.
+>
+> ### Gifts, as the yearly cost they are
+> Birthdays and holidays come every year. Groundwork adds up the next twelve months of them and shows what to set
+> aside each month, so December never arrives as a surprise.
+>
+> ### Utilities and fuel, from public prices
+> Groundwork estimates your gas, electric, propane, heating oil and gasoline costs from the U.S. government's
+> published prices for your state. It asks which state you're in and never looks up your location.
+>
+> ### Research, shown honestly
+> Where a well-known study backs up an idea, like saving automatically, Groundwork shows you what the study found and
+> what it doesn't show.
+>
+> ### An assistant that lives on your computer
+> The AI ships inside Groundwork and runs on your own machine. Nothing you ask it is sent anywhere. Every page still
+> works with the AI turned off, and a log shows you exactly what the assistant was given.
+>
+> ### Every number shows its working
+> Groundwork shows where its figures come from: the inputs, the math, and any assumption behind them. If it can't
+> show how it got a number, it doesn't show you the number.
+>
+> ### Easier on the eyes
+> We checked every piece of text against every background, so nothing in Groundwork is too faint to read.
+>
+> ### On the drawing board: health care costs
+> We're designing a health care section that tracks your bills against your insurance statements and follows your
+> deductible through the year. It's in design, not built yet, and it will follow the same rule as the rest of
+> Groundwork: nothing about your health leaves your computer.
+>
+> *Groundwork 2.0 isn't in the download yet. When it is, you'll see it here first.*
+
+**What each paragraph rests on (W5).** Every row is ACCEPTED in `BUILD_QUEUE.md`, and each is re-verified at stage
+3 before publishing:
+
+| Paragraph | Items |
+|---|---|
+| Statements with one press | 57, 67, 70 (user-started, no schedule; the OS vault) |
+| Bills from the biller | 68 (B1-B7; TM1: never presses Pay) |
+| Ask why | 72 stages 1-4 |
+| Pay, employer by employer | 71 and its amendment D1-D11 |
+| Possible futures | 66 |
+| Monthly review, Sunday check-in | 75, 76 |
+| Before You Buy | 73 |
+| Trips | 40-44, 59 (fares and hotels read on the person's click), 41 (the DOT average) |
+| Gifts | 74 |
+| Utilities and fuel | 26, 34, 30 (state asked, never geolocated) |
+| Research | 58 |
+| An assistant on your computer | 31, 21, 62, 64, 30 A10 (every surface works AI-off) |
+| Every number shows its working | 39 U7 (the transparency standard) |
+| Easier on the eyes | 77 |
+| Health care, in design | 45 (H1-H7 ruled, design only; stage 1 is H6 enforcement, not built) |
+
+**Three things to check before stage 5.**
+- **The health care promise.** *"Nothing about your health leaves your computer"* is true of every call the app makes
+  today (W9's list), and it is worded as the general rule, so it stays inside W8. Rob may prefer to hold it until
+  H6 is enforced.
+- **"Nothing you ask it is sent anywhere."** This is about the assistant only. The update check and the price lookups
+  still go out, and W9's Privacy page says so.
+- **"You'll see it here first."** This is a promise about the site itself: the 2.0 announcement goes on this page
+  before anywhere else. Rob keeps it or drops it.
 
 ## 7. Not in this pass
 
@@ -245,7 +369,7 @@ identical, so it has not mattered.
 - The EULA and terms text. Those follow their own rule: GW_TERMS_VERSION, three texts kept in step.
 - Any 2.0 feature itself. This pass only describes features; it never builds them.
 
-OPENED 2026-10-04. No code. Awaiting Rob's rulings on W1–W9.
+OPENED 2026-10-04. No code. W3 ruled by direction 2026-10-12 (§4), its section drafted (§6.1); W1, W2, W4–W9 awaiting Rob's rulings.
 
 ## Direction from Rob, 2026-10-05: a user forum for reporting problems
 
