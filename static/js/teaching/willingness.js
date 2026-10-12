@@ -213,6 +213,8 @@
         : '<strong>' + esc(d.category) + '</strong> ' + what) + '</div>';
   }
 
+  var _tab = null;   // item 78 T5: the open tab, for this session only - never stored, never read as a signal
+
   function _pictureHTML(s) {
     var readings = (s.readings || []).filter(function (r) {
       return r.stance === 'flexible' || r.stance === 'sacred' || r.reason === 'probation' || r.reason === 'break';
@@ -247,23 +249,25 @@
         + ' categories, you can answer it there, and what you say will appear here.</div></div>';
     }
 
-    var out = head;
+    // Item 78 (WORKING_PICTURE_TABS.md T1-T6): the same sections, in four tabs. Nothing is dropped - each keeps its
+    // text and controls, only its place changes.
+    var needs = [], record = '', saidHtml = '';
     if (asks) {
-      out += '<div class="card" style="border-left:3px solid var(--gold)"><div class="card-label">A question about what you said</div>'
+      needs.push('<div class="card" style="border-left:3px solid var(--gold)"><div class="card-label">A question about what you said</div>'
         + '<div style="font-size:12px;color:var(--slate);margin-bottom:4px">Your word stands until you change it. These ask which you mean - nothing has been changed.</div>'
-        + asks + '</div>';
+        + asks + '</div>');
     }
-    if (strat) out += strat;
-    if (inc) out += inc;
+    if (strat) needs.push(strat);
+    if (inc) needs.push(inc);
     if (claims.length) {
-      out += '<div class="card"><div class="card-label">What your record shows</div>'
+      record = '<div class="card"><div class="card-label">What your record shows</div>'
         + claims.map(function (r) {
           return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.8">'
             + _claimText(r) + '<div>' + _claimControls(r) + '</div></div>';
         }).join('') + '</div>';
     }
     if ((s.current || []).length) {
-      out += '<div class="card mt-5"><div class="card-label">What you have told Groundwork</div>'
+      saidHtml += '<div class="card"><div class="card-label">What you have told Groundwork</div>'
         + '<div style="font-size:12px;color:var(--slate);margin-bottom:4px">Your word stands over anything'
         + ' Groundwork reads from your record, and it stays until you change it.</div>'
         + s.current.map(function (d) {
@@ -278,10 +282,32 @@
         }).join('') + '</div>';
     }
     if (history.length) {
-      out += '<details class="card mt-5"><summary class="card-label" style="cursor:pointer">Everything you have said, in order</summary>'
+      saidHtml += '<details class="card mt-5"><summary class="card-label" style="cursor:pointer">Everything you have said, in order</summary>'
         + history.slice().reverse().map(_historyRow).join('') + '</details>';
     }
-    return out + '<div class="card mt-5">' + how + '</div>';
+    // T2: a question is never buried - the page opens on Needs you when anything waits there
+    if (!_tab || (_tab === 'needs' && !needs.length)) _tab = needs.length ? 'needs' : 'record';
+    var tabs = [['needs', 'Needs you' + (needs.length ? ' (' + needs.length + ')' : '')],   // T3: a plain count
+                ['record', 'What your record shows'], ['said', 'What you\'ve said'], ['research', 'Research and rhythm']];
+    var bar = '<div role="tablist" aria-label="Working picture" style="display:flex;flex-wrap:wrap;border-bottom:1px solid var(--steel);margin:4px 0 14px">'
+      + tabs.map(function (x) {
+        var on = x[0] === _tab;
+        return '<button id="wpTab-' + x[0] + '" role="tab" aria-selected="' + on + '" aria-controls="wpPanel-' + x[0] + '" data-gw-wtab="' + x[0] + '"'
+          + ' style="background:none;border:none;border-bottom:2px solid ' + (on ? 'var(--pine-text)' : 'transparent') + ';padding:8px 14px;margin-bottom:-1px;'
+          + 'font-size:13px;cursor:pointer;color:' + (on ? 'var(--pine-text)' : 'var(--slate)') + ';font-weight:' + (on ? '500' : 'normal') + '">' + esc(x[1]) + '</button>';
+      }).join('') + '</div>';
+    var panel = function (id, html, none) {
+      return '<div id="wpPanel-' + id + '" role="tabpanel" aria-labelledby="wpTab-' + id + '"' + (id === _tab ? '' : ' style="display:none"') + '>'
+        + (html || '<div class="card" style="font-size:12px;color:var(--slate)">' + none + '</div>') + '</div>';
+    };
+    // T4: how Groundwork concludes, one line that opens in place
+    var howLine = '<details style="margin:-4px 0 6px;font-size:12px;color:var(--slate)"><summary style="cursor:pointer">How Groundwork reaches these conclusions</summary>'
+      + '<div style="margin-top:6px">' + how + '</div></details>';
+    return head + howLine + bar
+      + panel('needs', needs.join('<div class="mt-5"></div>'), 'Nothing is waiting for your answer.')
+      + panel('record', record, 'Nothing concluded from your record yet.')
+      + panel('said', saidHtml, 'You haven\'t told Groundwork anything here yet.')
+      + panel('research', '<div id="evidenceWillingness" data-evidence-surface="willingness" data-evidence-rhythm></div>', '');
   }
 
   async function render() {
@@ -290,8 +316,9 @@
     try {
       var s = await API.get('/api/willingness');
       try { s.income = await API.get('/api/income-change'); } catch (e) { s.income = null; }
-      view.innerHTML = _pictureHTML(s || {})
-        + '<div id="evidenceWillingness" data-evidence-surface="willingness" data-evidence-rhythm></div>';
+      var html = _pictureHTML(s || {});
+      view.innerHTML = html.indexOf('id="evidenceWillingness"') !== -1 ? html
+        : html + '<div id="evidenceWillingness" data-evidence-surface="willingness" data-evidence-rhythm></div>';
       renderEvidence('willingness', g('evidenceWillingness'));   // item 58 E8/E9
     } catch (e) {
       _gwErr('willingness render')(e);
@@ -326,6 +353,24 @@
     try { await API.post('/api/willingness/strategy', { use: b.getAttribute('data-gw-strategy') === 'true' }); }
     catch (e) { _gwErr('willingness strategy')(e); return; }
     render();
+  });
+
+  // Item 78: switching tabs shows its panel; nothing is fetched, written or counted
+  document.addEventListener('click', function (ev) {
+    var b = ev.target && ev.target.closest && ev.target.closest('[data-gw-wtab]');
+    if (!b) return;
+    ev.preventDefault();
+    _tab = b.getAttribute('data-gw-wtab');
+    ['needs', 'record', 'said', 'research'].forEach(function (id) {
+      var on = id === _tab, btn = g('wpTab-' + id), pan = g('wpPanel-' + id);
+      if (btn) {
+        btn.setAttribute('aria-selected', String(on));
+        btn.style.color = on ? 'var(--pine-text)' : 'var(--slate)';
+        btn.style.borderBottomColor = on ? 'var(--pine-text)' : 'transparent';
+        btn.style.fontWeight = on ? '500' : 'normal';
+      }
+      if (pan) pan.style.display = on ? '' : 'none';
+    });
   });
 
   document.addEventListener('click', function (ev) {

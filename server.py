@@ -207,7 +207,6 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(proactive_bp,     url_prefix='/api/proactive')
     app.register_blueprint(trophies_bp,      url_prefix='/api/trophies')
     app.register_blueprint(college_funds_bp,  url_prefix='/api/college-funds')
-    app.register_blueprint(gift_bp,           url_prefix='/api/gift')
     app.register_blueprint(gifts_bp,          url_prefix='/api/gifts')
     app.register_blueprint(futures_bp,        url_prefix='/api/futures')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
@@ -7239,85 +7238,6 @@ def get_college_fund_confidence(session, fund_id, months: int = 12) -> dict:
     }
 
 
-def _log_gift_season_contribution_variance(session, season_id, target: float, saved_before: float,
-                                            deadline: str, actual_amount: float):
-    """
-    Gift seasons' Historian write-hook, called from POST
-    .../gift/seasons/<id>/contribute. Unlike sinking/college funds, a gift
-    season has no monthly_contribution/monthlyContrib field at all — only
-    target + deadline — so "expected" is computed the same way the
-    client's own _giftSeasonCard already displays it ("$X/mo for N
-    months"): (target - saved) / months_left, using the balance BEFORE
-    this deposit is applied. Skipped when there's no deadline, no target,
-    no months remaining, or the season is already funded — nothing
-    meaningful to compare against in any of those cases.
-    """
-    if not deadline or not target:
-        return
-    try:
-        d = datetime.strptime(deadline, '%Y-%m-%d').date()
-    except (ValueError, TypeError):
-        return
-    today = datetime.utcnow().date()
-    months_left = max(0, (d.year - today.year) * 12 + (d.month - today.month))
-    remaining = target - saved_before
-    if months_left <= 0 or remaining <= 0:
-        return
-    expected = remaining / months_left
-    log_historian_event(
-        session, 'gift_season_contribution_variance',
-        expected_value=round(expected, 2), actual_value=round(actual_amount, 2),
-        context={'gift_season_id': season_id},
-    )
-
-
-def get_gift_season_confidence(session, season_id, months: int = 12) -> dict:
-    """0-100 pace confidence for a gift season — identical shape and
-    scoring to get_sinking_fund_confidence/get_college_fund_confidence."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
-    entries = session.query(HistorianEntry).filter(
-        HistorianEntry.event_category == 'gift_season_contribution_variance',
-        HistorianEntry.created_at >= cutoff,
-    ).all()
-    matched = []
-    for e in entries:
-        try:
-            ctx = json.loads(e.context_json or '{}')
-        except (json.JSONDecodeError, TypeError):
-            continue
-        if str(ctx.get('gift_season_id')) == str(season_id):
-            matched.append(e)
-    if not matched:
-        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
-                'samples': 0, 'reasoning': 'No contribution history yet for this fund.'}
-    variances = [e.variance_pct for e in matched if e.variance_pct is not None]
-    if not variances:
-        return {'confidence_pct': None, 'trend': None, 'avg_variance_pct': None,
-                'samples': len(matched), 'reasoning': 'No variance data yet.'}
-    avg_variance = sum(variances) / len(variances)
-    confidence = max(0, min(100, round(100 + min(0, avg_variance) * 2)))
-    trend = 'ahead' if avg_variance > 5 else 'behind' if avg_variance < -5 else 'on_pace'
-    return {
-        'confidence_pct': confidence, 'trend': trend,
-        'avg_variance_pct': round(avg_variance, 1), 'samples': len(matched),
-        'reasoning': f'{len(matched)} contribution(s) tracked, {trend.replace("_", " ")}',
-    }
-
-
-def _log_gift_occasion_variance(session, person_id, occasion_id, budget: float, actual_spent: float):
-    """Occasions' Historian write-hook — logged once an occasion's actual
-    spend is recorded (see log_gift_occasion_spend below). expected=budget,
-    actual=actual_spent; skipped when no budget was ever set (nothing to
-    compare an unplanned gift against)."""
-    if not budget or budget <= 0:
-        return
-    log_historian_event(
-        session, 'gift_occasion_variance',
-        expected_value=round(budget, 2), actual_value=round(actual_spent, 2),
-        context={'gift_person_id': person_id, 'occasion_id': occasion_id},
-    )
-
-
 def get_payment_variance_for_account(session, debt_account_id: int, months: int = 12) -> dict:
     """Payment compliance metrics for a debt account from real historian
     events (payment_confirmed / payment_amount_variance), over a trailing
@@ -12537,86 +12457,9 @@ def college_fund_confidence(fund_id):
         return ok(get_college_fund_confidence(session, fund_id))
 
 
-# ── Gift seasons + occasions (Historian logging — same pattern as
-# college_funds_bp: gift_seasons_json/gift_people_json stay client-managed
-# blobs, these routes exist so "expected" always comes from that
-# server-held blob, never a client-passed number) ──────────────────────────
-gift_bp = Blueprint('gift', __name__)
-
-
-@gift_bp.route('/seasons/<season_id>/contribute', methods=['POST'])
-@require_json
-def log_gift_season_contribution(season_id):
-    """Body: { amount: float }. expected is computed from the season's own
-    target/deadline/saved in gift_seasons_json — gift seasons have no
-    monthly_contribution field, so this reproduces the same deadline-pace
-    math the client already displays, using the balance as of THIS
-    request (before the client applies the deposit)."""
-    amount = float(request.json.get('amount', 0) or 0)
-    if amount <= 0:
-        return err('Amount must be positive')
-    with db_session() as session:
-        row = session.query(AppSetting).filter_by(key='gift_seasons_json').first()
-        try:
-            seasons = json.loads(row.value) if row and row.value else []
-        except (json.JSONDecodeError, TypeError):
-            seasons = []
-        season = next((s for s in seasons if str(s.get('id')) == str(season_id)), None)
-        if not season:
-            return err('Season not found', 404)
-        target = float(season.get('target', 0) or 0)
-        saved_before = float(season.get('saved', 0) or 0)
-        deadline = season.get('deadline', '')
-        _log_gift_season_contribution_variance(session, season_id, target, saved_before, deadline, amount)
-        session.commit()
-        return ok({'logged': True})
-
-
-@gift_bp.route('/seasons/<season_id>/confidence', methods=['GET'])
-def gift_season_confidence(season_id):
-    """Gift seasons' mirror of the sinking/college-fund confidence
-    routes — thin read of get_gift_season_confidence."""
-    with db_session() as session:
-        return ok(get_gift_season_confidence(session, season_id))
-
-
-@gift_bp.route('/occasions/<person_id>/<occasion_id>/spend', methods=['POST'])
-@require_json
-def log_gift_occasion_spend(person_id, occasion_id):
-    """
-    Body: { actual_spent: float }. Records what was actually spent on an
-    occasion (gift_people_json has no such field today — only the
-    budgeted amount) and logs the variance against that budget. Updates
-    the occasion in place in the settings blob, same as it always
-    persisted budget/note, rather than only living in the historian log.
-    """
-    actual_spent = request.json.get('actual_spent')
-    if actual_spent is None:
-        return err('actual_spent is required')
-    actual_spent = float(actual_spent)
-    with db_session() as session:
-        row = session.query(AppSetting).filter_by(key='gift_people_json').first()
-        try:
-            people = json.loads(row.value) if row and row.value else []
-        except (json.JSONDecodeError, TypeError):
-            people = []
-        person = next((p for p in people if str(p.get('id')) == str(person_id)), None)
-        occasion = next((o for o in (person.get('occasions') or [])
-                          if str(o.get('id')) == str(occasion_id)), None) if person else None
-        if not occasion:
-            return err('Occasion not found', 404)
-        budget = float(occasion.get('budget', 0) or 0)
-        occasion['actual_spent'] = actual_spent
-        occasion['spent_at'] = datetime.utcnow().date().isoformat()
-        row.value = json.dumps(people)
-        _log_gift_occasion_variance(session, person_id, occasion_id, budget, actual_spent)
-        session.commit()
-        return ok({'logged': True, 'actual_spent': actual_spent})
-
-
 # ── Gift Budget in tables (GIFT_BUDGET.md, item 74) ──────────────────────────
-# The page reads and writes here. The /api/gift routes above stay for the old settings, which are kept as the
-# record of what was carried over (G8).
+# The page reads and writes here. The old /api/gift routes, which read the settings, were removed once nothing called
+# them; the settings themselves are kept as the record of what was carried over (G8).
 gifts_bp = Blueprint('gifts', __name__)
 
 

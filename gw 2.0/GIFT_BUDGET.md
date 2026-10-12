@@ -146,6 +146,6 @@ rule L1.
   *"Mom's birthday, Nov 12: $60.00 budgeted; the gift fund holds $140.00."*
 - **G6.** *+ Shared occasion* gives one total for many people. Fixed amounts are taken first, and the rest is split
   evenly to the cent. The page shows what's left to assign, or that the fixed amounts are over the total.
-- **G9.** s202, 23 checks. The old `/api/gift` routes stay, for the settings kept as backup.
+- **G9.** s203, 23 checks. The old `/api/gift` routes and their helpers were removed once nothing called them (s50 route reachability); the old settings stay as data, and their Historian entries stay.
 - **Not changed:** the occasion "$" still takes a typed amount. The AI advisor reads the same figures the page
   shows.
