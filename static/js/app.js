@@ -20658,6 +20658,7 @@ function _renderMortgageComparison() {
   content.innerHTML = `
     ${breakdownHtml}
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+      <a href="#" style="font-size:11px;color:var(--sky);white-space:nowrap" onclick="openWhatIf({ add_debt: _mortgageWhatIfExtra });return false">Move more than one figure →</a>
       <label style="font-size:12px;color:var(--slate);white-space:nowrap">Extra toward principal</label>
       <input type="range" id="mortgageExtraSlider" min="0" max="${sliderMax}" step="25" value="${_mortgageWhatIfExtra}"
         oninput="_mortgageOnSliderChange(this.value)" style="flex:1">
@@ -23876,12 +23877,107 @@ const _FUT_COLORS = ['var(--ink)', 'var(--pine-text)', 'var(--gold-text)', 'var(
 const _FUT_KIND_WORDS = { observed: 'Recorded', projected: 'Projected', user_supplied: 'You said' };
 const _FUT_GROUP_WORDS = { baseline: 'As things are', goal: 'Toward your goal', adverse: 'If things go worse' };
 
+// ── Item 65 W5 (AGENT_W_ITEMS.md): a What if panel on the futures card - several figures at once, one engine ────
+// Nothing is saved while the sliders move; "Make this my plan" says exactly what it changes first, with Undo.
+let _wiOpen = false, _wi = {}, _wiRes = null, _wiTimer = null;
+function _wiBase() {
+  const f = _fut || {};
+  const b = (f.scenarios || []).find(s => s.key === 'baseline') || {};
+  const fig = l => ((b.figures || []).find(x => x.label === l) || {}).value;
+  return { income: fig('Income a month (recorded)') || 0, spend: fig('Budgeted spending a month, debt payments apart') || 0,
+           debt_pay: fig('Debt payments a month') || 0 };
+}
+function openWhatIf(preset) {
+  _wiOpen = true;
+  _wi = { ...(preset || {}) };
+  if (document.querySelector('#view-budget.active')) { g('budgetFutures').innerHTML = futuresHtml(_fut); whatIfRun(); return; }
+  showView('budget');
+  setTimeout(() => { g('whatIfPanel')?.scrollIntoView({ behavior: 'smooth' }); whatIfRun(); }, 900);
+}
+function whatIfHtml() {
+  if (!_wiOpen) return `<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="openWhatIf()">What if… move your own figures</button></div>`;
+  const b = _wiBase();
+  const v = k => _wi[k] != null ? _wi[k] : b[k];
+  const months = (_fut && _fut.months) || [];
+  const row = (k, label, min, max, step) => `<div style="display:flex;align-items:center;gap:10px;font-size:12px;margin:4px 0">
+      <label style="width:190px;color:var(--slate)">${label}</label>
+      <input type="range" min="${min}" max="${max}" step="${step}" value="${v(k)}" oninput="whatIfSet('${k}', this.value)" style="flex:1">
+      <span id="wiVal_${k}" style="font-family:var(--font-mono);min-width:80px;text-align:right">${fmt(v(k))}</span></div>`;
+  const hi = x => Math.max(500, Math.round(x * 2 / 50) * 50);
+  return `<div id="whatIfPanel" style="margin-top:12px;border-top:1px solid var(--steel);padding-top:10px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
+      <div style="font-size:13px;font-weight:600;color:var(--ink)">What if</div>
+      <div style="font-size:11px;color:var(--slate)">A what-if, not a prediction. Nothing is saved unless you make it your plan.</div></div>
+    ${row('income', 'Income a month', 0, hi(b.income), 25)}
+    ${row('spend', 'Spending a month', 0, hi(b.spend), 25)}
+    ${row('debt_pay', 'Debt payment a month', 0, hi(b.debt_pay), 10)}
+    ${row('save', 'Set aside each month', 0, 2000, 25)}
+    <div style="display:flex;align-items:center;gap:10px;font-size:12px;margin:4px 0">
+      <label style="width:190px;color:var(--slate)">A one-time cost</label>
+      <input type="number" min="0" step="50" value="${(_wi.one_time || {}).amount || ''}" placeholder="Amount" class="field-input" style="width:110px;font-size:12px;padding:4px 8px" oninput="whatIfOne('amount', this.value)">
+      <select class="field-input" style="width:auto;font-size:12px;padding:4px 8px" onchange="whatIfOne('month', this.value)">
+        ${months.map(m => `<option value="${m}" ${(_wi.one_time || {}).month === m ? 'selected' : ''}>${new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</option>`).join('')}</select></div>
+    <div id="whatIfResult" style="margin-top:8px"></div>
+    <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="_wi = {}; g('budgetFutures').innerHTML = futuresHtml(_fut); whatIfRun()">Back to as things are</button>
+      <button class="btn btn-ghost btn-sm" onclick="_wiOpen = false; g('budgetFutures').innerHTML = futuresHtml(_fut)">Close</button></div></div>`;
+}
+function whatIfSet(k, val) { _wi[k] = parseFloat(val) || 0; setText('wiVal_' + k, fmt(_wi[k])); clearTimeout(_wiTimer); _wiTimer = setTimeout(whatIfRun, 200); }
+function whatIfOne(k, val) { _wi.one_time = { ...(_wi.one_time || {}), [k]: k === 'amount' ? (parseFloat(val) || 0) : val }; clearTimeout(_wiTimer); _wiTimer = setTimeout(whatIfRun, 300); }
+async function whatIfRun() {
+  const box = g('whatIfResult');
+  if (!box) return;
+  if (_wi.add_debt != null && _fut) {   // from the Debt page's slider: today's payment plus its extra
+    _wi.debt_pay = _wiBase().debt_pay + _wi.add_debt; delete _wi.add_debt;
+    g('budgetFutures').innerHTML = futuresHtml(_fut); return whatIfRun();
+  }
+  try { _wiRes = await API.post('/api/futures/what-if', { changes: _wi }); }
+  catch (e) { box.innerHTML = `<div style="font-size:12px;color:var(--slate)">${esc(e.message || '')}</div>`; return; }
+  const r = _wiRes, a = r.as_things_are, w = r.what_if;
+  const debt = x => x.debt_months == null ? "can't be dated" : `${x.debt_months} month${x.debt_months === 1 ? '' : 's'}`;
+  const line = (label, f) => `<tr><td style="color:var(--slate);padding:2px 8px 2px 0">${label}</td>
+      <td style="font-family:var(--font-mono);text-align:right;padding:2px 8px">${f(a)}</td>
+      <td style="font-family:var(--font-mono);text-align:right;padding:2px 0;color:var(--ink)"><b>${f(w)}</b></td></tr>`;
+  box.innerHTML = `<table style="font-size:12px;border-collapse:collapse;width:100%;max-width:520px">
+      <tr><td></td><td style="text-align:right;font-size:11px;color:var(--slate);padding:0 8px">As things are</td><td style="text-align:right;font-size:11px;color:var(--slate)">What if</td></tr>
+      ${line('Debt-free in', debt)}
+      ${line('Cash in a year', x => fmt(x.cash[x.cash.length - 1]))}
+      ${w.set_aside ? line('Set aside over the year', x => fmt(x.set_aside)) : ''}
+      ${line('Borrowed to get through', x => fmt(x.borrowed))}
+      ${line('Lowest cash', x => fmt(x.lowest_cash))}</table>
+    ${r.below_minimums ? `<div style="font-size:12px;color:var(--ember-text);margin-top:4px">That debt payment is below the minimums (${fmt(r.minimums)} a month), so no payoff date can be worked out.</div>` : ''}
+    <div style="font-size:11px;color:var(--slate);margin-top:6px">${r.changed.length ? 'Changed: ' + r.changed.map(c => `${esc(c.label)} ${fmt(c.from)} → ${fmt(c.to)}${c.month ? ` in ${esc(c.month)}` : ''}`).join('; ') + '.' : 'Nothing changed yet: move a figure.'}</div>
+    ${r.changed.length ? `<button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="whatIfPlan()">Make this my plan</button>` : ''}`;
+}
+async function whatIfPlan() {
+  let p;
+  try { p = await API.post('/api/futures/what-if/plan', { changes: _wi }); } catch (e) { showToast('Could not work out the plan', e.message || '', 'error'); return; }
+  const rows = p.changes.map(c => `<li>${esc(c.what)}: ${c.before == null ? 'none' : fmt(parseFloat(c.before))} → <b>${fmt(c.after)}</b></li>`).join('');
+  const notes = p.not_changed.map(n => `<li style="color:var(--slate)">${esc(n)}</li>`).join('');
+  if (!rows) { showToast('Nothing here changes your plan', p.not_changed.join(' '), 'info'); return; }
+  confirmAction('Make this my plan?', `<div style="font-size:13px;line-height:1.6">This changes exactly:<ul style="margin:6px 0 6px 18px;padding:0">${rows}</ul>
+      ${notes ? `It doesn't change:<ul style="margin:6px 0 0 18px;padding:0">${notes}</ul>` : ''}<div style="font-size:12px;color:var(--slate);margin-top:6px">You can undo it.</div></div>`,
+    async () => {
+      try {
+        await API.post('/api/futures/what-if/plan', { changes: _wi, apply: true });
+        showToast('Your plan now follows the what-if', '', 'success', whatIfUndo);
+        _wi = {}; _wiOpen = false; renderFutures(); renderBudget();
+      } catch (e) { showToast('Could not change the plan', e.message || '', 'error'); }
+    }, 'Make it my plan', false);
+}
+async function whatIfUndo() {
+  try { await API.post('/api/futures/what-if/undo', {}); showToast('Put back as it was', '', 'info'); }
+  catch (e) { showToast('Undo failed', e.message || '', 'error'); }
+  renderFutures(); renderBudget();
+}
+
 async function renderFutures() {
   const box = g('budgetFutures');
   if (!box) return;
   try { _fut = await API.get('/api/futures'); }
   catch (e) { _gwErr('renderFutures')(e); box.innerHTML = ''; return; }
   box.innerHTML = futuresHtml(_fut);
+  if (_wiOpen) whatIfRun();
 }
 
 // SC5: figures computed from older inputs are marked stale, never shown as current.
@@ -24017,6 +24113,7 @@ function futuresHtml(st) {
     ${qs ? `<div style="margin-top:12px;border-top:1px solid var(--steel);padding-top:8px">${qs}</div>` : ''}
     ${poss ? `<div style="margin-top:10px"><div style="font-size:11px;color:var(--slate);margin-bottom:2px">What you've told Groundwork</div>${poss}</div>` : ''}
     ${_futAsk === '__explore' ? _futPossibilityForm('__explore') : ''}
+    ${whatIfHtml()}
     ${hidden ? `<div style="margin-top:8px">${hidden}</div>` : ''}
     ${gaps ? `<details style="margin-top:8px"><summary style="font-size:11px;color:var(--slate);cursor:pointer">Not shown, and why</summary><ul style="font-size:11px;color:var(--ink);margin:6px 0 0 16px;padding:0;line-height:1.6">${gaps}</ul></details>` : ''}
     <div style="font-size:10px;color:var(--slate-2);margin-top:8px">Worked out ${new Date(st.computed_at).toLocaleString()}. Recorded = your records; Projected = what follows if the stated assumptions hold; You said = something you told Groundwork.</div>

@@ -325,3 +325,36 @@ script, for Rob to accept or reject.**
 - **W2's price-change Undo** threw.
 
 The function is now kept and called (`_runToastUndo`); s211 checks it. The 1.x line has the same code.
+
+## Built: W5, the what-if panel (2026-10-12), awaiting acceptance
+
+- **`core/futures.py` `what_if`:** the person's own figures moved together, through the futures' own `run()` and the
+  one payoff engine (W5-a). There is no second calculation:
+  - with nothing moved, it equals *As things are*, figure for figure;
+  - with the debt payment moved to what is left, it equals the card's own *What is left goes to the debt*, to the
+    month;
+  - both are checked in s214.
+- **The panel** (Budget page, Possible futures card, *What if… move your own figures*).
+  - **Sliders for:** income a month, spending a month, the debt payment, a monthly amount to set aside, and a one-time
+    cost with its month.
+  - **The comparison:** *As things are* beside *What if* for debt-free in, cash in a year, set aside over the year,
+    borrowed to get through, and lowest cash.
+  - Every changed input is named with its from and to. It is labelled *"A what-if, not a prediction."*
+  - A debt payment below the minimums says so, and gives no payoff date.
+  - Money set aside leaves the cash (so borrowing counts it) but is counted back in the year's total: it is still the
+    person's.
+- **W5-b.** Nothing is saved while figures move. *Make this my plan* first lists exactly what it changes, with before
+  and after:
+  - the monthly debt payment setting;
+  - the Savings budget line (or a new Savings line);
+  - a one-time cost, kept as something the person said.
+
+  It also lists what it does not change: income is read from deposits, and spending changes line by line on the
+  Budget page. Applying keeps every before, and Undo puts each one back.
+- **W5-c.** The Debt page's *What if you paid extra?* slider and the mortgage's extra-principal slider both stay. Each
+  gains *Move more than one figure →*, which opens the panel with its figure already in it.
+- **On Rob's record (2026-10-12):**
+  - $300 more a month to debt brings debt-free from 19 to 15 months.
+  - Because budgeted spending ($8,714) is above income ($8,471), that $300 is borrowed: $11,380 over the year
+    against $8,248. The panel shows both.
+- **Tests:** s214, 9 checks.

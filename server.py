@@ -2083,6 +2083,130 @@ def futures_choose():
         return ok(choice)
 
 
+# ── Item 65 W5 (AGENT_W_ITEMS.md): cause and effect you can move - several figures, one engine, nothing saved ────
+@futures_bp.route('/what-if', methods=['POST'])
+@require_json
+def futures_what_if():
+    """W5-a: the person's figures moved together, through the futures' own run() and the one payoff engine."""
+    from core import futures as fu
+    changes = (request.get_json() or {}).get('changes') or {}
+    with db_session() as session:
+        inputs = _futures_inputs(session)
+        if inputs['income'] is None:
+            return err(f'Groundwork needs at least {fu.MIN_INCOME_MONTHS} complete months of income on record for a what-if.', 409)
+        poss = ((_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+                + _first_import_possibilities(session))
+        return ok(fu.what_if(inputs, poss, changes))
+
+
+def _savings_line(session):
+    for b in session.query(BudgetItem).filter_by(is_active=True, type='expense').all():
+        if (b.category or '').strip().lower() == 'savings' or (b.name or '').strip().lower() == 'savings':
+            return b
+    return None
+
+
+def _what_if_plan(session, changes):
+    """W5-b: exactly what "Make this my plan" would change, each with its before and after - and what it would not."""
+    from core import futures as fu
+    inputs = _futures_inputs(session)
+    poss = ((_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+            + _first_import_possibilities(session))
+    w = fu.what_if(inputs, poss, changes)
+    items, notes = [], []
+    for c in w['changed']:
+        if c['key'] == 'debt_pay':
+            row = _get_setting(session, 'monthly_budget')
+            items.append({'key': 'debt_pay', 'what': 'Your monthly debt payment', 'before': row.value if row else None,
+                          'after': c['to']})
+        elif c['key'] == 'save':
+            line = _savings_line(session)
+            items.append({'key': 'save', 'what': f'Your budget line {line.name}' if line else 'A new budget line, Savings',
+                          'line_id': line.id if line else None, 'before': round(line.amount or 0, 2) if line else None,
+                          'after': round((line.amount or 0) + c['to'], 2) if line else c['to']})
+        elif c['key'] == 'one_time':
+            items.append({'key': 'one_time', 'what': f"A known cost in {c['month']}, kept as something you said",
+                          'before': None, 'after': c['to'], 'month': c['month']})
+        elif c['key'] == 'income':
+            notes.append("Income isn't changed: Groundwork reads it from your deposits.")
+        elif c['key'] == 'spend':
+            notes.append(f"Spending isn't changed here: this what-if moved it to {c['to']:,.2f} a month in total, "
+                         f"and your budget changes line by line on the Budget page.")
+    return w, items, notes
+
+
+@futures_bp.route('/what-if/plan', methods=['POST'])
+@require_json
+def futures_what_if_plan():
+    """W5-b: "Make this my plan". Without apply it only says what would change; with apply it changes exactly that,
+    keeps the before for Undo, and nothing else."""
+    b = request.get_json() or {}
+    with db_session() as session:
+        if _futures_inputs(session)['income'] is None:
+            return err('There is no what-if without income on record.', 409)
+        w, items, notes = _what_if_plan(session, b.get('changes') or {})
+        if not b.get('apply'):
+            return ok({'changes': items, 'not_changed': notes})
+        if not items:
+            return err('Nothing here changes your plan.')
+        now = datetime.now().isoformat(timespec='seconds')
+        done = []
+        for it in items:
+            if it['key'] == 'debt_pay':
+                _set_setting(session, 'monthly_budget', str(it['after']))
+                done.append(it)
+            elif it['key'] == 'save':
+                if it['line_id']:
+                    session.get(BudgetItem, it['line_id']).amount = it['after']
+                    done.append(it)
+                else:
+                    line = BudgetItem(name='Savings', category='Savings', amount=it['after'], type='expense', is_active=True)
+                    session.add(line); session.flush()
+                    done.append({**it, 'line_id': line.id, 'created': True})
+            elif it['key'] == 'one_time':
+                said = _setting_json(session, 'future_possibilities', []) or []
+                pid = f'p{len(said) + 1}-{int(datetime.now().timestamp())}'
+                said.append({'id': pid, 'kind': 'cost', 'amount': it['after'], 'month': it['month'],
+                             'label': 'A one-time cost (from a what-if)', 'said_at': now})
+                _set_setting(session, 'future_possibilities', json.dumps(said))
+                done.append({**it, 'possibility': pid})
+        _set_setting(session, 'what_if_applied', json.dumps({'at': now, 'items': done}))
+        session.commit()
+        return ok({'applied': done, 'not_changed': notes})
+
+
+@futures_bp.route('/what-if/undo', methods=['POST'])
+def futures_what_if_undo():
+    """W5-b: Undo puts back exactly what "Make this my plan" changed."""
+    with db_session() as session:
+        rec = _setting_json(session, 'what_if_applied')
+        if not rec:
+            return err('Nothing to undo.', 404)
+        for it in rec.get('items', []):
+            if it['key'] == 'debt_pay':
+                if it.get('before') is None:
+                    row = _get_setting(session, 'monthly_budget')
+                    if row:
+                        session.delete(row)
+                else:
+                    _set_setting(session, 'monthly_budget', it['before'])
+            elif it['key'] == 'save' and it.get('line_id'):
+                line = session.get(BudgetItem, it['line_id'])
+                if line and it.get('created'):
+                    session.delete(line)
+                elif line:
+                    line.amount = it['before']
+            elif it['key'] == 'one_time' and it.get('possibility'):
+                said = _setting_json(session, 'future_possibilities', []) or []
+                cur = next((p for p in said if p.get('id') == it['possibility'] and not p.get('withdrawn')), None)
+                if cur:
+                    said.append({**cur, 'withdrawn': True, 'said_at': datetime.now().isoformat(timespec='seconds')})
+                    _set_setting(session, 'future_possibilities', json.dumps(said))
+        session.delete(_get_setting(session, 'what_if_applied'))
+        session.commit()
+        return ok({'undone': True})
+
+
 @futures_bp.route('/choose/undo', methods=['POST'])
 def futures_choose_undo():
     with db_session() as session:
