@@ -15,7 +15,7 @@
 button{cursor:pointer;font-family:inherit}
 input,select,textarea{font-family:inherit}
 html,body{height:100%}
-body{font-family:'Inter',system-ui,sans-serif;font-size:14px;color:#0d1117;background:#f8fafc;line-height:1.5;-webkit-font-smoothing:antialiased}
+body{font-family:'Inter',system-ui,sans-serif;font-size:14px;color:var(--ink);background:#f8fafc;line-height:1.5;-webkit-font-smoothing:antialiased}
 
 /* ── Splash screen ──────────────────────────────────────────────────────────── */
 #splashScreen{position:fixed;inset:0;z-index:99999;background:#12141f;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s ease}
@@ -44,12 +44,11 @@ body{font-family:'Inter',system-ui,sans-serif;font-size:14px;color:#0d1117;backg
   --paper:#ffffff;
   --mist:#f8fafc; --mist-2:#f0f4f8;
   --steel:#e2e8f0; --steel-2:#cbd5e1;
-  --slate:#64748b; --slate-2:#94a3b8;
-  --note:#475569;   /* small print on tinted cards: about 7:1 on the green, blue and white backgrounds (--slate-2 is 2.4:1) */
-  --pine:#16a34a; --pine-bg:#f0fdf4; --pine-border:#bbf7d0;
-  --ember:#dc2626; --ember-bg:#fef2f2; --ember-border:#fecaca;
-  --gold:#d97706; --gold-bg:#fffbeb; --gold-border:#fde68a;
-  --sky:#2563eb; --sky-bg:#eff6ff; --sky-border:#bfdbfe;
+  --slate:#526073; --slate-2:#5b6576;   /* item 77 K2: each at least 4.5:1 on every background */
+  --pine:#16a34a; --pine-text:#166534; --pine-on-dark:#22c55e; --pine-bg:#f0fdf4; --pine-border:#bbf7d0;
+  --ember:#dc2626; --ember-text:#b91c1c; --ember-bg:#fef2f2; --ember-border:#fecaca;
+  --gold:#d97706; --gold-text:#854d0e; --gold-bg:#fffbeb; --gold-border:#fde68a;
+  --sky:#2563eb; --sky-on-dark:#60a5fa; --sky-bg:#eff6ff; --sky-border:#bfdbfe;
   /* Category colors are NOT stored as CSS tokens anymore — they're stored
      on each Category row in the database and applied per-row at render
      time via _categoryStyle(). This means whatever color the user picks
@@ -71,8 +70,8 @@ body{font-family:'Inter',system-ui,sans-serif;font-size:14px;color:#0d1117;backg
 .sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--ink);display:flex;flex-direction:column;height:100vh}
 .sidebar-logo{display:flex;align-items:center;gap:10px;padding:20px 16px 16px;border-bottom:1px solid rgba(255,255,255,.07)}
 .sidebar-wordmark-text{font-family:var(--font-display);font-style:italic;font-weight:700;font-size:18px;color:#fff;letter-spacing:-.3px;line-height:1}
-.sidebar-wordmark-text span{color:var(--pine)}
-.sidebar-wordmark-sub{font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
+.sidebar-wordmark-text span{color:var(--pine-on-dark)}
+.sidebar-wordmark-sub{font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,.62);letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
 .sidebar-nav{flex:1;overflow-y:auto;padding:16px 0}
 .nav-section{margin-bottom:20px}
 .gw-auto-row{border-top:1px solid var(--steel-2)}
@@ -86,14 +85,14 @@ body{font-family:'Inter',system-ui,sans-serif;font-size:14px;color:#0d1117;backg
 .gw-auto-inner{overflow:hidden;min-height:0}
 .gw-auto-details.open .gw-auto-inner{padding:2px 0 12px}
 @media (prefers-reduced-motion: reduce){.gw-auto-details,.gw-auto-chev,.gw-auto-head{transition:none}}
-.nav-section-label{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.25);padding:0 16px;margin-bottom:6px}
+.nav-section-label{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.62);padding:0 16px;margin-bottom:6px}
 .nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:13px;color:rgba(255,255,255,.5);cursor:pointer;border-left:2px solid transparent;transition:color .12s,background .12s;user-select:none}
 .nav-item:hover{color:rgba(255,255,255,.85);background:rgba(255,255,255,.05)}
 .nav-item.active{color:#fff;background:rgba(37,99,235,.18);border-left-color:var(--sky)}
 .nav-item-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0;opacity:.7}
 .nav-badge{margin-left:auto;background:var(--ember);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;min-width:16px;text-align:center}
 .sidebar-footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.07)}
-.ai-status{display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,.35)}
+.ai-status{display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,.62)}
 .ai-status-dot{width:6px;height:6px;border-radius:50%;background:var(--slate-2);flex-shrink:0;transition:background .3s}
 .ai-status-dot.ready{background:var(--pine);box-shadow:0 0 6px var(--pine)}
 /* Toggle switch */
@@ -116,7 +115,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .topbar-date{font-family:var(--font-mono);font-size:11px;color:var(--slate-2)}
 /* Trip Planner — Phase 10 */
 .trip-mode-btn.active{background:var(--sky);color:#fff;border-color:var(--sky)}
-.trip-fund-btn.active{background:var(--pine);color:#fff;border-color:var(--pine)}
+.trip-fund-btn.active{background:var(--pine-text);color:#fff;border-color:var(--pine)}
 .trip-budget-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--steel);font-size:13px}
 .trip-budget-row:last-child{border-bottom:none;font-weight:600;font-size:14px;padding-top:10px}
 .trip-budget-cat{color:var(--ink)}
@@ -143,8 +142,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .ob-back-link:hover{color:var(--sky)}
 
 /* Phase 9 dashboard additions */
-.dash-interest-burn{font-size:11px;color:var(--ember);font-family:var(--font-mono);margin-top:3px}
-.dash-payoff-date{font-size:11px;color:var(--pine);margin-top:3px}
+.dash-interest-burn{font-size:11px;color:var(--ember-text);font-family:var(--font-mono);margin-top:3px}
+.dash-payoff-date{font-size:11px;color:var(--pine-text);margin-top:3px}
 
 /* ── Help system — Layer 1, 2, 3 ── */
 .help-icon{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--steel);color:var(--slate);font-size:9px;font-weight:700;cursor:pointer;margin-left:4px;vertical-align:middle;flex-shrink:0;transition:background .15s}
@@ -152,7 +151,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .help-card{position:fixed;z-index:9500;background:var(--ink);border:1px solid rgba(255,255,255,.15);border-radius:var(--r-lg);padding:16px 18px;max-width:280px;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:helpIn .15s ease}
 .help-card-title{font-size:12px;font-weight:600;color:#fff;margin-bottom:6px}
 .help-card-body{font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;white-space:pre-line}
-.help-card-close{position:absolute;top:10px;right:12px;color:rgba(255,255,255,.3);cursor:pointer;font-size:14px;line-height:1}
+.help-card-close{position:absolute;top:10px;right:12px;color:rgba(255,255,255,.62);cursor:pointer;font-size:14px;line-height:1}
 .help-card-close:hover{color:#fff}
 @keyframes helpIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .first-visit-banner{background:linear-gradient(135deg,rgba(96,165,250,.08),rgba(96,165,250,.03));border:1px solid rgba(96,165,250,.2);border-radius:var(--r-md);padding:14px 16px;margin-bottom:20px;display:flex;gap:14px;align-items:flex-start}
@@ -169,19 +168,19 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
 /* ── Magazine report layout ── */
 .report-cover{margin-bottom:48px;padding-bottom:32px;border-bottom:1px solid rgba(255,255,255,.1)}
-.report-wordmark{font-family:var(--font-display);font-style:italic;font-size:14px;color:rgba(255,255,255,.35);letter-spacing:.08em;margin-bottom:20px;display:block}
+.report-wordmark{font-family:var(--font-display);font-style:italic;font-size:14px;color:rgba(255,255,255,.62);letter-spacing:.08em;margin-bottom:20px;display:block}
 .report-month{font-family:var(--font-display);font-style:italic;font-size:clamp(42px,6vw,72px);font-weight:400;color:#fff;line-height:1;margin-bottom:8px}
 .report-status{font-size:13px;color:rgba(255,255,255,.5);letter-spacing:.12em;text-transform:uppercase;margin-bottom:32px}
 .report-hero-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:hidden;margin-bottom:48px}
 .report-hero-cell{padding:20px 24px;background:rgba(255,255,255,.03)}
-.report-hero-label{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px}
+.report-hero-label{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.62);margin-bottom:8px}
 .report-hero-value{font-family:var(--font-mono);font-size:26px;font-weight:500;color:#fff;line-height:1}
 .report-hero-delta{font-size:11px;margin-top:5px}
 .report-hero-delta.good{color:#4ade80}
 .report-hero-delta.bad{color:#f87171}
-.report-hero-delta.neutral{color:rgba(255,255,255,.4)}
+.report-hero-delta.neutral{color:rgba(255,255,255,.62)}
 .report-section{margin-bottom:40px}
-.report-section-label{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:20px;display:flex;align-items:center;gap:12px}
+.report-section-label{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.62);margin-bottom:20px;display:flex;align-items:center;gap:12px}
 .report-section-label::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.08)}
 .report-narrative{font-size:15px;color:rgba(255,255,255,.82);line-height:1.85;font-family:var(--font-body)}
 .report-narrative p{margin-bottom:20px}
@@ -194,11 +193,11 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .report-bva-fill{height:100%;border-radius:99px;background:rgba(255,255,255,.4)}
 .report-bva-fill.over{background:#f87171}
 .report-bva-fill.good{background:#4ade80}
-.report-bva-amt{font-family:var(--font-mono);font-size:11px;color:rgba(255,255,255,.4);min-width:80px;text-align:right}
+.report-bva-amt{font-family:var(--font-mono);font-size:11px;color:rgba(255,255,255,.62);min-width:80px;text-align:right}
 .report-interest-block{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:20px 24px;margin-bottom:32px;display:flex;align-items:center;gap:20px}
 .report-interest-num{font-family:var(--font-mono);font-size:32px;font-weight:500;color:#f87171}
 .report-interest-label{font-size:12px;color:rgba(255,255,255,.5);line-height:1.5}
-.report-ai-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.08em;text-transform:uppercase;margin-top:24px}
+.report-ai-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:rgba(255,255,255,.62);letter-spacing:.08em;text-transform:uppercase;margin-top:24px}
 
 /* Print styles */
 @media print {
@@ -220,15 +219,15 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
   #rcReportBody button,#rcReportBody select,.rc-back-btn{display:none!important}
   #view-reports [onclick="_rcBackToCatalog()"]{display:none!important}
   .report-month{color:#000!important;font-size:48px!important}
-  .report-wordmark,.report-status,.report-hero-label,.report-section-label,.report-bva-amt,.report-hero-delta{color:#555!important}
+  .report-wordmark,.report-status,.report-hero-label,.report-section-label,.report-bva-amt,.report-hero-delta{color:var(--slate)!important}
   .report-hero-cell{background:#f5f5f5!important}
   .report-hero-value,.report-bva-cat{color:#000!important}
-  .report-hero-delta.good{color:#166534!important}
-  .report-hero-delta.bad{color:#991b1b!important}
-  .report-narrative p{color:#222!important}
+  .report-hero-delta.good{color:var(--pine-text)!important}
+  .report-hero-delta.bad{color:var(--ember-text)!important}
+  .report-narrative p{color:var(--ink)!important}
   .report-pullquote{color:#000!important;border-color:#ccc!important}
   .report-interest-block{background:#fff5f5!important;border-color:#fca5a5!important}
-  .report-interest-num{color:#dc2626!important}
+  .report-interest-num{color:var(--ember-text)!important}
   .report-bva-fill{background:#374151!important}
   .report-bva-fill.over{background:#dc2626!important}
   .report-bva-fill.good{background:#166534!important}
@@ -247,7 +246,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .view.active{display:block}
 
 /* Recent win strip */
-.recent-win{display:flex;align-items:center;gap:10px;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-md);padding:10px 14px;margin-bottom:20px;font-size:12px;color:#166534}
+.recent-win{display:flex;align-items:center;gap:10px;background:var(--pine-bg);border:1px solid var(--pine-border);border-radius:var(--r-md);padding:10px 14px;margin-bottom:20px;font-size:12px;color:var(--pine-text)}
 .recent-win-icon{font-size:16px}
 .recent-win-time{font-family:var(--font-mono);font-size:10px;opacity:.6;margin-left:auto}
 
@@ -270,8 +269,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .stat-card.warning::after{background:var(--gold)}
 .stat-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px}
 .stat-value{font-family:var(--font-mono);font-size:26px;font-weight:500;color:var(--ink);letter-spacing:-.5px;line-height:1}
-.stat-value.positive{color:var(--pine)}
-.stat-value.negative{color:var(--ember)}
+.stat-value.positive{color:var(--pine-text)}
+.stat-value.negative{color:var(--ember-text)}
 .stat-value.muted{color:var(--slate)}
 .stat-delta{font-size:11px;color:var(--slate-2);margin-top:5px}
 
@@ -290,8 +289,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .data-table tbody tr:hover td{background:var(--mist)}
 .data-table .mono{font-family:var(--font-mono)}
 .data-table .amount{text-align:right;font-family:var(--font-mono);font-weight:500}
-.data-table .debit{color:var(--ember)}
-.data-table .credit{color:var(--pine)}
+.data-table .debit{color:var(--ember-text)}
+.data-table .credit{color:var(--pine-text)}
 
 /* Fields */
 .field{display:flex;flex-direction:column;gap:5px}
@@ -310,9 +309,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .btn-secondary:hover{background:var(--mist)}
 .btn-ghost{background:transparent;color:var(--slate);border-color:transparent}
 .btn-ghost:hover{background:var(--mist);color:var(--ink)}
-.btn-danger{background:var(--paper);color:var(--ember);border-color:var(--ember-border)}
+.btn-danger{background:var(--paper);color:var(--ember-text);border-color:var(--ember-border)}
 .btn-danger:hover{background:var(--ember-bg)}
-.btn-pine{background:var(--pine);color:#fff;border-color:var(--pine)}
+.btn-pine{background:var(--pine-text);color:#fff;border-color:var(--pine)}
 .btn-pine:hover{background:#15803d}
 .btn-sm{padding:5px 10px;font-size:12px}
 .btn-lg{padding:11px 22px;font-size:14px}
@@ -337,7 +336,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .ledger-head-stat{text-align:right}
 .ledger-head-stat .lbl{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:4px}
 .ledger-head-stat .val{font-family:var(--font-mono);font-size:16px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
-.ledger-head-stat .val.pos{color:var(--pine)} .ledger-head-stat .val.neg{color:var(--ember)}
+.ledger-head-stat .val.pos{color:var(--pine-text)} .ledger-head-stat .val.neg{color:var(--ember-text)}
 
 /* New toolbar — month left, account+search+actions right */
 .ledger-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
@@ -374,7 +373,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .tb-btn:hover{border-color:var(--steel-2);background:var(--mist)}
 .tb-btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
 .tb-btn.primary:hover{background:#000}
-.tb-btn.danger{color:var(--ember)}
+.tb-btn.danger{color:var(--ember-text)}
 .tb-btn.danger:hover{border-color:var(--ember);background:var(--ember-bg)}
 
 /* The table — divs not rows so the bloom can sit between siblings */
@@ -389,7 +388,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .col-head .ch.c{text-align:center}
 .col-head .ch .sort-mark{font-family:var(--font-mono);margin-left:3px;opacity:.5}
 .col-head .ch.sort-active{color:var(--ink)}
-.col-head .ch.sort-active .sort-mark{opacity:1;color:var(--pine)}
+.col-head .ch.sort-active .sort-mark{opacity:1;color:var(--pine-text)}
 .col-resize{position:absolute;top:6px;right:-3px;bottom:6px;width:6px;cursor:col-resize;z-index:2}
 .col-resize::after{content:'';position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--steel-2);transition:background .12s}
 .col-resize:hover::after,.col-resize.resizing::after{background:var(--pine)}
@@ -406,7 +405,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .day-head .dh-meta{color:var(--slate-2);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px}
 .day-head .dh-spacer{flex:1}
 .day-head .dh-net{font-family:var(--font-mono);font-size:12px;font-weight:500;letter-spacing:0;text-transform:none}
-.day-head .dh-net.pos{color:var(--pine)} .day-head .dh-net.neg{color:var(--ember)}
+.day-head .dh-net.pos{color:var(--pine-text)} .day-head .dh-net.neg{color:var(--ember-text)}
 .day-rows{overflow:hidden;max-height:8000px;transition:max-height .25s ease}
 .day-group.collapsed .day-rows{max-height:0}
 
@@ -433,7 +432,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--slate-2)}
 .cell-cat .cat-name{font-size:13px;color:var(--slate);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cell-amount{font-family:var(--font-mono);font-size:14px;font-weight:500;text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
-.cell-amount.neg{color:var(--ember)} .cell-amount.pos{color:var(--pine)}
+.cell-amount.neg{color:var(--ember-text)} .cell-amount.pos{color:var(--pine-text)}
 .cell-balance{font-family:var(--font-mono);font-size:13px;text-align:right;color:var(--slate);font-variant-numeric:tabular-nums}
 .cell-cleared{text-align:center}
 .cell-cleared input{margin:0;accent-color:var(--pine);width:14px;height:14px}
@@ -471,7 +470,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .edit-bloom .cleared-toggle input{margin:0;accent-color:var(--pine);width:16px;height:16px}
 .edit-bloom .bloom-actions{margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .edit-bloom .bloom-actions .danger{background:none;border:none;color:var(--slate-2);font-size:12px;font-family:inherit;cursor:pointer;padding:6px 0;transition:color .12s}
-.edit-bloom .bloom-actions .danger:hover{color:var(--ember)}
+.edit-bloom .bloom-actions .danger:hover{color:var(--ember-text)}
 .edit-bloom .bloom-actions-right{display:flex;gap:8px}
 /* Defensive: kill any inherited pseudo-elements, force buttons to paint
    above the pine border-left strip of the bloom, replace browser-default
@@ -481,8 +480,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .edit-bloom .edit-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r-md);font-size:12.5px;font-weight:500;font-family:inherit;cursor:pointer;border:1px solid var(--steel-2);background:var(--paper);color:var(--ink);transition:all .12s;position:relative;z-index:1;outline:none;-webkit-appearance:none;appearance:none}
 .edit-bloom .edit-btn::before,.edit-bloom .edit-btn::after{content:none !important;display:none !important;background:none !important}
 .edit-bloom .edit-btn:focus-visible{box-shadow:0 0 0 2px rgba(22,163,74,.25)}
-.edit-bloom .edit-btn.cancel:hover{border-color:var(--ember);color:var(--ember)}
-.edit-bloom .edit-btn.save{background:var(--pine);border-color:var(--pine);color:#fff}
+.edit-bloom .edit-btn.cancel:hover{border-color:var(--ember);color:var(--ember-text)}
+.edit-bloom .edit-btn.save{background:var(--pine-text);border-color:var(--pine);color:#fff}
 .edit-bloom .edit-btn.save:hover{background:#15803d}
 .edit-bloom .edit-btn .kbd{font-family:var(--font-mono);font-size:10px;opacity:.7;margin-left:4px}
 
@@ -492,13 +491,13 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .switch-left{display:flex;align-items:center;gap:4px}
 .switch-month{font-size:15px;font-weight:600;min-width:118px;text-align:center}
 .switch-arrow{background:var(--mist);border:1px solid var(--steel);border-radius:var(--r-md);width:28px;height:28px;font-size:14px;color:var(--slate);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
-.switch-arrow:hover:not(:disabled){border-color:var(--pine);color:var(--pine)}
+.switch-arrow:hover:not(:disabled){border-color:var(--pine);color:var(--pine-text)}
 .switch-arrow:disabled{opacity:.35;cursor:default}
 .switch-allmonths{font-size:12px;color:var(--slate-2);font-style:italic}
 .sum{display:flex;gap:22px;align-items:baseline;flex-wrap:wrap}
 .sum .it{font-size:11px;color:var(--slate)}
 .sum .it b{font-family:var(--font-mono);font-weight:500;font-size:13px;color:var(--ink);margin-left:5px}
-.sum .it b.pos{color:var(--pine)} .sum .it b.neg{color:var(--ember)}
+.sum .it b.pos{color:var(--pine-text)} .sum .it b.neg{color:var(--ember-text)}
 
 /* ── Category icon gallery (Settings → Categories) ──────────────────────
    Visual picker that replaces the typed-slug input. Collapsed by default;
@@ -528,15 +527,15 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
 /* Badges */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
-.badge-green{background:var(--pine-bg);color:#166534;border:1px solid var(--pine-border)}
-.badge-red{background:var(--ember-bg);color:#991b1b;border:1px solid var(--ember-border)}
+.badge-green{background:var(--pine-bg);color:var(--pine-text);border:1px solid var(--pine-border)}
+.badge-red{background:var(--ember-bg);color:var(--ember-text);border:1px solid var(--ember-border)}
 .badge-blue{background:var(--sky-bg);color:#1e40af;border:1px solid var(--sky-border)}
-.badge-gold{background:var(--gold-bg);color:#92400e;border:1px solid var(--gold-border)}
+.badge-gold{background:var(--gold-bg);color:var(--gold-text);border:1px solid var(--gold-border)}
 .badge-neutral{background:var(--mist-2);color:var(--slate);border:1px solid var(--steel)}
 
 /* Achievement badges */
 .ach-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;background:var(--mist-2);border:1px solid var(--steel);color:var(--slate)}
-.ach-badge.earned{background:var(--pine-bg);border-color:var(--pine-border);color:#166534}
+.ach-badge.earned{background:var(--pine-bg);border-color:var(--pine-border);color:var(--pine-text)}
 
 /* Toast */
 .toast-stack{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:9999;pointer-events:none}
@@ -582,7 +581,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 #budgetContent .ledger-row:last-child{border-bottom:none}
 .budget-bloom input:focus,.budget-bloom select:focus{outline:2px solid var(--pine);outline-offset:1px}
 .row-del{background:none;border:none;color:var(--slate-2);font-size:14px;padding:3px 6px;border-radius:4px;transition:color .12s;flex-shrink:0}
-.row-del:hover{color:var(--ember)}
+.row-del:hover{color:var(--ember-text)}
 .row-type{font-size:10px;color:var(--slate-2);min-width:62px;font-weight:500;letter-spacing:.04em}
 
 /* Debt card rows */
@@ -634,7 +633,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .trophy-card-name{font-size:13px;font-weight:600;color:var(--ink)}
 .trophy-card-desc{font-size:11px;color:var(--slate);line-height:1.45}
 .trophy-card-hint{font-size:10px;color:var(--slate-2);font-style:italic;line-height:1.4;margin-top:2px}
-.trophy-card-date{font-size:10px;font-family:var(--font-mono);color:var(--pine);margin-top:4px}
+.trophy-card-date{font-size:10px;font-family:var(--font-mono);color:var(--pine-text);margin-top:4px}
 .trophy-card.mastery.earned .trophy-card-date{color:var(--sky)}
 .trophy-prog{height:2px;background:var(--steel);border-radius:99px;margin-top:6px;overflow:hidden}
 .trophy-prog-fill{height:100%;border-radius:99px;background:var(--pine);transition:width .4s ease}
@@ -652,8 +651,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .nw-hero{text-align:center;padding:32px}
 .nw-label{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--slate-2);margin-bottom:8px}
 .nw-value{font-family:var(--font-mono);font-size:52px;font-weight:500;letter-spacing:-2px;color:var(--ink);line-height:1}
-.nw-value.positive{color:var(--pine)}
-.nw-value.negative{color:var(--ember)}
+.nw-value.positive{color:var(--pine-text)}
+.nw-value.negative{color:var(--ember-text)}
 .nw-delta{font-size:13px;color:var(--slate);margin-top:8px}
 
 /* DFM banner */
@@ -675,9 +674,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 /* Utilities */
 .text-mono{font-family:var(--font-mono)}
 .text-right{text-align:right}
-.text-pine{color:var(--pine)}
-.text-ember{color:var(--ember)}
-.text-gold{color:var(--gold)}
+.text-pine{color:var(--pine-text)}
+.text-ember{color:var(--ember-text)}
+.text-gold{color:var(--gold-text)}
 .text-sky{color:var(--sky)}
 .text-muted{color:var(--slate-2)}
 .text-sm{font-size:12px}
@@ -744,14 +743,14 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
   </svg>
   <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:30px;
               color:#fff;letter-spacing:-.5px;margin-bottom:6px">Groundwork</div>
-  <div style="font-size:12px;color:rgba(255,255,255,.35);letter-spacing:.06em;
+  <div style="font-size:12px;color:rgba(255,255,255,.62);letter-spacing:.06em;
               text-transform:uppercase;margin-bottom:36px">Personal Finance</div>
   <div style="display:flex;gap:10px">
     <div class="splash-dot" style="animation-delay:0s"></div>
     <div class="splash-dot" style="animation-delay:.2s"></div>
     <div class="splash-dot" style="animation-delay:.4s"></div>
   </div>
-  <div id="splashStatus" style="font-size:11px;color:rgba(255,255,255,.2);
+  <div id="splashStatus" style="font-size:11px;color:rgba(255,255,255,.62);
        margin-top:20px;letter-spacing:.04em">Starting up…</div>
 </div>
 <div class="app">
@@ -1114,11 +1113,11 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div id="obDebtSummary" style="margin-top:16px;padding:14px;background:var(--mist);border-radius:var(--r-md);display:none">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="font-size:12px;color:var(--slate)">Total debt</span>
-              <span style="font-family:var(--font-mono);font-size:18px;font-weight:500;color:var(--ember)" id="obTotalDebt">$0</span>
+              <span style="font-family:var(--font-mono);font-size:18px;font-weight:500;color:var(--ember-text)" id="obTotalDebt">$0</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
               <span style="font-size:12px;color:var(--slate)">Interest at minimums only</span>
-              <span style="font-family:var(--font-mono);font-size:14px;color:var(--ember)" id="obMinInterest">$0</span>
+              <span style="font-family:var(--font-mono);font-size:14px;color:var(--ember-text)" id="obMinInterest">$0</span>
             </div>
             <div style="font-size:11px;color:var(--slate-2);margin-top:6px" id="obMinDebtFree"></div>
           </div>
@@ -1201,9 +1200,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
       <div class="topbar-right">
         <div class="topbar-date" id="topbarDate"></div>
         <button class="btn btn-ghost btn-sm" onclick="openFeedbackModal()" style="font-size:11px;color:var(--slate);border-color:var(--steel)" title="Report a problem">⚑ Report</button>
-        <span id="gwSaveIndicator" style="display:none;font-size:11px;color:var(--ember);padding:3px 8px"></span>
+        <span id="gwSaveIndicator" style="display:none;font-size:11px;color:var(--ember-text);padding:3px 8px"></span>
         <span id="gwErrorIndicator" onclick="showGwErrors()" title="JS errors detected — click to view"
-          style="display:none;font-size:11px;color:var(--ember);cursor:pointer;padding:3px 8px;
+          style="display:none;font-size:11px;color:var(--ember-text);cursor:pointer;padding:3px 8px;
                  border:1px solid var(--ember-border);border-radius:20px;background:var(--ember-bg)"></span>
         <button id="gwFetchAllBtn" class="btn btn-sm btn-secondary" style="display:none" onclick="startFetchAll()"
           title="Visit each bank you showed Groundwork, one at a time. Each file still waits for your review.">⟳ Get my accounts</button>
@@ -1228,7 +1227,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <!-- Item 69 amendment (Rob 2026-10-10): Accounts and Bills on their own tabs -->
         <div role="tablist" aria-label="Assistant" style="display:flex;border-bottom:1px solid var(--steel);margin:20px 0 0">
           <button id="autoTab-accounts" role="tab" aria-selected="true" aria-controls="autoPanel-accounts" onclick="_autoShowTab('accounts')"
-            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid var(--pine);color:var(--pine);font-weight:500">Accounts</button>
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid var(--pine);color:var(--pine-text);font-weight:500">Accounts</button>
           <button id="autoTab-bills" role="tab" aria-selected="false" aria-controls="autoPanel-bills" onclick="_autoShowTab('bills')"
             style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Bills</button>
         </div>
@@ -1309,7 +1308,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <div class="card-label" style="margin-bottom:6px;flex:1">This month</div>
             <span id="dashMonthLabel" style="font-size:12px;color:var(--slate-2);font-family:var(--font-mono);white-space:nowrap"></span>
           </div>
-          <div id="dashHealthVerdict" style="font-size:22px;font-weight:600;color:var(--pine)">On track</div>
+          <div id="dashHealthVerdict" style="font-size:22px;font-weight:600;color:var(--pine-text)">On track</div>
           <div id="dashHealthSub" style="font-size:13px;color:var(--slate);margin-top:4px;line-height:1.6"></div>
           <!-- Pace bar -->
           <div id="dashPaceBar" style="margin:14px 0 4px">
@@ -1318,7 +1317,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             </div>
             <div style="display:flex;justify-content:space-between;margin-top:4px">
               <span style="font-size:10px;color:var(--slate-2)">$0</span>
-              <span id="dashPaceMarker" style="font-size:10px;font-family:var(--font-mono);color:var(--pine)"></span>
+              <span id="dashPaceMarker" style="font-size:10px;font-family:var(--font-mono);color:var(--pine-text)"></span>
               <span id="dashPaceIncome" style="font-size:10px;color:var(--slate-2)"></span>
             </div>
           </div>
@@ -1363,7 +1362,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
                 <div class="card-label" style="margin-bottom:0">Upcoming</div>
                 <span onclick="showView('ledger')"
-                  style="font-size:11px;color:var(--pine);cursor:pointer;text-decoration:underline;
+                  style="font-size:11px;color:var(--pine-text);cursor:pointer;text-decoration:underline;
                          text-underline-offset:2px">View all →</span>
               </div>
               <div id="dashUpcomingContent"></div>
@@ -1478,7 +1477,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <div style="font-size:12px;color:var(--slate)">Cleared total: <span id="reconClearedTotal" style="font-family:var(--font-mono);font-weight:600;color:var(--ink)">$0.00</span></div>
             <div style="font-size:12px;color:var(--slate)">Difference: <span id="reconDifference" style="font-family:var(--font-mono);font-weight:600">—</span></div>
             <div id="reconMatch" style="font-size:12px;display:none"></div>
-            <button onclick="markVisibleCleared()" style="font-size:12px;font-family:inherit;background:var(--pine);color:#fff;border:none;border-radius:var(--r-md);padding:6px 12px;cursor:pointer;margin-left:auto">
+            <button onclick="markVisibleCleared()" style="font-size:12px;font-family:inherit;background:var(--pine-text);color:#fff;border:none;border-radius:var(--r-md);padding:6px 12px;cursor:pointer;margin-left:auto">
               ✓ Mark all visible cleared
             </button>
           </div>
@@ -1533,7 +1532,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div class="card-label" style="margin-bottom:2px">Recurring charges detected</div>
               <div style="font-size:12px;color:var(--slate)">Based on merchants that appear monthly at consistent amounts.</div>
             </div>
-            <div id="subscriptionAuditTotal" style="font-family:var(--font-mono);font-size:18px;font-weight:500;color:var(--ember)"></div>
+            <div id="subscriptionAuditTotal" style="font-family:var(--font-mono);font-size:18px;font-weight:500;color:var(--ember-text)"></div>
           </div>
           <div id="subscriptionAuditList" style="margin-top:12px"></div>
         </div>
@@ -1595,7 +1594,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div id="debtHeroBand" class="card mb-4" style="border:1px solid var(--steel);position:relative;overflow:hidden">
           <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px" id="debtHeroEyebrow">YOUR PATH TO ZERO</div>
           <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:4px">
-            <div id="debtHeroDate" style="font-family:var(--font-serif);font-style:italic;font-size:28px;color:var(--pine);transition:color 0.3s ease;line-height:1.1">—</div>
+            <div id="debtHeroDate" style="font-family:var(--font-serif);font-style:italic;font-size:28px;color:var(--pine-text);transition:color 0.3s ease;line-height:1.1">—</div>
             <div id="debtHeroDuration" style="font-family:var(--font-mono);font-size:13px;color:var(--slate)"></div>
           </div>
           <div id="debtHeroStats" style="font-family:var(--font-mono);font-size:12px;color:var(--slate-2);margin-bottom:10px"></div>
@@ -1604,7 +1603,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div id="debtHeroWhatIf" style="margin-bottom:10px">
             <span id="debtHeroWhatIfToggle"
               onclick="_debtToggleWhatIf()"
-              style="font-size:12px;color:var(--pine);cursor:pointer;user-select:none">▸ What if you paid extra?</span>
+              style="font-size:12px;color:var(--pine-text);cursor:pointer;user-select:none">▸ What if you paid extra?</span>
             <div id="debtHeroWhatIfPanel" style="display:none;margin-top:8px">
               <div style="display:flex;align-items:center;gap:12px">
                 <label style="font-size:12px;color:var(--slate);white-space:nowrap">Extra / month</label>
@@ -1634,7 +1633,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <div style="background:var(--steel);border-radius:9999px;height:5px;overflow:hidden;margin-bottom:4px">
               <div id="debtHeroBarFill" style="height:100%;background:var(--pine);border-radius:9999px;width:0%;transition:width 0.5s ease"></div>
             </div>
-            <div id="debtHeroBarLabel" style="font-family:var(--font-mono);font-size:11px;color:var(--pine);text-align:right"></div>
+            <div id="debtHeroBarLabel" style="font-family:var(--font-mono);font-size:11px;color:var(--pine-text);text-align:right"></div>
           </div>
         </div>
 
@@ -1642,7 +1641,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div style="display:flex;align-items:center;gap:0;border-bottom:1px solid var(--steel);margin-bottom:20px;position:relative">
           <div style="display:flex;align-items:center;flex:1;gap:0">
             <button id="debtTab-setup" onclick="_debtShowTab('setup')"
-              style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;color:var(--pine);border-bottom:2px solid var(--pine);margin-bottom:-1px;font-family:var(--font-sans);font-weight:500">Setup</button>
+              style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;color:var(--pine-text);border-bottom:2px solid var(--pine);margin-bottom:-1px;font-family:var(--font-sans);font-weight:500">Setup</button>
             <button id="debtTab-tracker" onclick="_debtShowTab('tracker')"
               style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;color:var(--slate);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--font-sans)">Month Tracker</button>
             <button id="debtTab-advisor" onclick="_debtShowTab('advisor')"
@@ -1998,7 +1997,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <div>
               <div style="font-weight:600;margin-bottom:12px;font-size:13px">Assets</div>
               <div class="field mb-4"><label>Checking &amp; savings ($)</label><input type="number" step="0.01" id="nwSavings" placeholder="0" oninput="updateNetWorth()"></div>
-              <div class="field mb-4"><label>Investment accounts ($) <span style="font-weight:400;font-size:10px;color:var(--slate-2)">brokerage, taxable</span></label><input type="number" step="0.01" id="nwInvestments" placeholder="0" oninput="updateNetWorth(); this.dataset.portfolioSync='';"><div id="nwInvSyncBadge" style="font-size:10px;color:var(--pine);margin-top:3px;display:none"></div></div>
+              <div class="field mb-4"><label>Investment accounts ($) <span style="font-weight:400;font-size:10px;color:var(--slate-2)">brokerage, taxable</span></label><input type="number" step="0.01" id="nwInvestments" placeholder="0" oninput="updateNetWorth(); this.dataset.portfolioSync='';"><div id="nwInvSyncBadge" style="font-size:10px;color:var(--pine-text);margin-top:3px;display:none"></div></div>
               <!-- Retirement accounts — Phase 11 -->
               <div class="field mb-4">
                 <label>401(k) / 403(b) ($) <span class="help-icon" onclick="showHelp('retirement_account',this)" title="What is this?">i</span></label>
@@ -2024,7 +2023,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div class="field mb-4"><label>Mortgage balance ($)</label><input type="number" step="0.01" id="nwMortgage" placeholder="0" oninput="updateNetWorth()"></div>
               <div class="card mb-4" style="background:var(--mist);border-color:var(--steel)">
                 <div class="text-xs text-muted mb-3" style="letter-spacing:.06em;text-transform:uppercase">Credit card &amp; loan debt</div>
-                <div class="text-mono" style="font-size:20px;color:var(--ember)" id="nwDebtFromCards">$0</div>
+                <div class="text-mono" style="font-size:20px;color:var(--ember-text)" id="nwDebtFromCards">$0</div>
                 <div class="text-xs text-muted mt-3">Auto-calculated from Debt Payoff</div>
               </div>
             </div>
@@ -2570,7 +2569,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div style="display:flex;align-items:center;gap:0;border-bottom:1px solid var(--steel);margin-bottom:20px;position:relative">
           <div style="display:flex;align-items:center;flex:1;gap:0;flex-wrap:wrap">
             <button id="settingsTab-general" onclick="_settingsShowTab('general')"
-              style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;color:var(--pine);border-bottom:2px solid var(--pine);margin-bottom:-1px;font-family:var(--font-sans);font-weight:500">General</button>
+              style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;color:var(--pine-text);border-bottom:2px solid var(--pine);margin-bottom:-1px;font-family:var(--font-sans);font-weight:500">General</button>
             <button id="settingsTab-automation" onclick="_settingsShowTab('automation')"
               style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;color:var(--slate);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--font-sans)">Automation</button>
             <button id="settingsTab-categories" onclick="_settingsShowTab('categories')"
@@ -2826,7 +2825,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
         <!-- Item 69 P1: logins and downloads moved to Coach -> Assistant; this line points there -->
         <div class="card mt-5" id="settingsAutomationPointer" style="font-size:13px;color:var(--slate)">
-          Bank and bill logins, and getting your downloads, are in <a href="#" onclick="showView('automation');return false" style="color:var(--pine)">Coach → Assistant →</a>
+          Bank and bill logins, and getting your downloads, are in <a href="#" onclick="showView('automation');return false" style="color:var(--pine-text)">Coach → Assistant →</a>
         </div>
 
         </div><!-- end settingsPanel-accounts -->
@@ -2885,7 +2884,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <button class="btn btn-sm" onclick="runSmartBackfill(false)"
-              style="background:var(--pine);color:#fff;border:none">
+              style="background:var(--pine-text);color:#fff;border:none">
               Re-categorize now
             </button>
             <button class="btn btn-sm" onclick="runSmartBackfill(true)"
@@ -2906,7 +2905,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <button class="btn btn-sm" onclick="runIncomeReclassify(false)"
-              style="background:var(--pine);color:#fff;border:none">
+              style="background:var(--pine-text);color:#fff;border:none">
               Fix now
             </button>
             <button class="btn btn-sm" onclick="runIncomeReclassify(true)"
@@ -3060,12 +3059,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <input type="number" id="bybCreditTerm" class="field-input" placeholder="60" step="1" oninput="_bybComputeCreditPayment()">
             </div>
           </div>
-          <div id="bybCreditPaymentPreview" style="font-size:12px;color:var(--pine);margin-top:6px;min-height:16px"></div>
+          <div id="bybCreditPaymentPreview" style="font-size:12px;color:var(--pine-text);margin-top:6px;min-height:16px"></div>
         </div>
         <div id="bybStep1Preview" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:10px 14px;margin-bottom:16px;font-size:12px">
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">
             <span style="color:var(--slate)">What's Left change</span>
-            <span id="bybPrevWL" style="font-family:var(--font-mono);color:var(--ember)"></span>
+            <span id="bybPrevWL" style="font-family:var(--font-mono);color:var(--ember-text)"></span>
           </div>
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">
             <span style="color:var(--slate)">DTI</span>
@@ -3091,14 +3090,14 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             <div style="font-size:12px;font-weight:600;color:var(--ink)" id="bybSandboxNewName">New purchase</div>
             <div style="font-size:10px;color:var(--slate-2)">The item you're evaluating</div>
           </div>
-          <div style="font-family:var(--font-mono);font-size:14px;color:var(--gold);font-weight:600" id="bybSandboxNewAmt"></div>
+          <div style="font-family:var(--font-mono);font-size:14px;color:var(--gold-text);font-weight:600" id="bybSandboxNewAmt"></div>
         </div>
         <div id="bybSandboxRows" style="margin-bottom:14px"></div>
         <div style="position:sticky;bottom:0;background:var(--paper);padding:10px 0;border-top:1px solid var(--steel)">
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
             <div>
               <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">What's Left</div>
-              <div id="bybScoreWL" style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine)">—</div>
+              <div id="bybScoreWL" style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine-text)">—</div>
             </div>
             <div>
               <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">DTI</div>
@@ -3125,7 +3124,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <button class="btn btn-secondary" onclick="_bybGoStep(2)" style="flex:1">← Adjust</button>
         </div>
         <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
-          <div id="bybCommitNeeds" style="display:none;font-size:12px;color:var(--ember);line-height:1.5"></div>
+          <div id="bybCommitNeeds" style="display:none;font-size:12px;color:var(--ember-text);line-height:1.5"></div>
           <button class="btn btn-primary" id="bybCommitBtn" onclick="_bybCommit('commit')" style="width:100%">Commit — update my budget</button>
           <button class="btn btn-secondary" onclick="_bybCommit('track')" style="width:100%">Track it — add to history only</button>
           <button onclick="_bybCommit('walkaway')" style="width:100%;background:none;border:none;font-size:12px;color:var(--slate);cursor:pointer;padding:8px">Walk away — not buying it</button>
@@ -3159,7 +3158,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
       <div class="field mb-4">
         <label>Account</label>
         <select id="importAccount" onchange="toggleImportFileReady(); _importAccountLinkedNote(this)"><option value="">Select account…</option></select>
-        <div id="importLinkedNote" style="display:none;font-size:12px;color:var(--pine);margin-top:5px;padding:6px 8px;background:var(--pine-bg);border-radius:var(--r-sm)"></div>
+        <div id="importLinkedNote" style="display:none;font-size:12px;color:var(--pine-text);margin-top:5px;padding:6px 8px;background:var(--pine-bg);border-radius:var(--r-sm)"></div>
         <div style="font-size:11px;color:var(--slate-2);margin-top:4px">To add a new account, go to Settings → Accounts first.</div>
       </div>
       <div class="field mb-4">
@@ -3253,23 +3252,23 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
       <!-- Annotation bar -->
       <div style="background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.07);
                   padding:10px 24px;display:flex;align-items:center;gap:12px">
-        <span style="font-size:11px;color:rgba(255,255,255,.4);white-space:nowrap;
+        <span style="font-size:11px;color:rgba(255,255,255,.62);white-space:nowrap;
                      letter-spacing:.06em;text-transform:uppercase">Anything unusual?</span>
         <input type="text" id="reportAnnotation"
           placeholder="car repair, holiday spending, medical bill…"
           oninput="saveReportAnnotation()"
           style="flex:1;background:transparent;border:none;outline:none;
                  color:rgba(255,255,255,.7);font-size:12px;font-family:var(--font-body)">
-        <span style="font-size:10px;color:rgba(255,255,255,.25)">AI reads this</span>
+        <span style="font-size:10px;color:rgba(255,255,255,.62)">AI reads this</span>
       </div>
 
       <!-- Past reports sidebar strip -->
       <div style="background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.07);
                   padding:10px 24px;display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
-        <span style="font-size:11px;color:rgba(255,255,255,.4);white-space:nowrap;padding-top:2px;
+        <span style="font-size:11px;color:rgba(255,255,255,.62);white-space:nowrap;padding-top:2px;
                      letter-spacing:.06em;text-transform:uppercase;flex-shrink:0">Past reports</span>
         <div id="pastReportsList" style="display:flex;gap:8px;flex-wrap:wrap;flex:1;
-             font-size:12px;color:rgba(255,255,255,.35)">Loading…</div>
+             font-size:12px;color:rgba(255,255,255,.62)">Loading…</div>
       </div>
 
       <!-- Report content area -->

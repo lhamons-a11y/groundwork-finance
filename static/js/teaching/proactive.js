@@ -75,7 +75,7 @@
       return '';
     }
 
-    var accent = green ? 'var(--pine)' : 'var(--gold)';
+    var accent = green ? 'var(--pine-text)' : 'var(--gold-text)';
     var tint = green ? 'var(--pine-bg)' : 'var(--gold-bg)';
     return '<div class="card mb-4" id="dashProactiveCard"'
       + ' style="border-left:3px solid ' + accent + ';background:' + tint + '">'

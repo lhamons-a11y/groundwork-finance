@@ -64,7 +64,7 @@
       }).join(' · ');
 
     if (v.earned === true) {
-      return `<div style="font-size:10px;font-family:var(--font-mono);color:var(--pine);margin-top:5px">
+      return `<div style="font-size:10px;font-family:var(--font-mono);color:var(--pine-text);margin-top:5px">
         ${proof || 'proved by your ledger'}
       </div>`;
     }
