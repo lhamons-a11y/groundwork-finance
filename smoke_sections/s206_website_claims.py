@@ -86,6 +86,12 @@ def run(ctx):
           and "can't promise anyone gets there" in ' '.join(about.split()) and 'financial independence, for everyone' in ' '.join(coming.split())
           and 'every user' not in flat)
     check('s206 the closing statement (Rob 2026-10-12): "one understood decision at a time" closes the home, About and 2.0 pages',
-          'Financial independence for everyone,<br> one understood decision at a time.' in home and line2 in about and line2 in coming)
+          'Financial independence for everyone,</span><br><span class="nobr">one understood decision at a time.' in home
+          and line2 in re.sub(r'<[^>]+>', '', about) and line2 in re.sub(r'<[^>]+>', '', coming))
+    # Rob 2026-10-12: "everyone should never be wrapped into the next line" - every occurrence is one unbreakable unit
+    bare = [m.start() for m in re.finditer(r'(?i)financial independence,? for everyone', src)
+            if not src[max(0, m.start() - 40):m.start()].rstrip().endswith(('class="fi">', 'class="nobr">'))]
+    check(f's206 "Financial independence, for everyone" never breaks across lines: every occurrence is held together ({len(bare)} loose)',
+          not bare and '.fi { white-space: nowrap; }' in src and '.statement-line .nobr { white-space: nowrap; }' in src)
     check('s206 the 2.0 page is in both sitemaps', "('/coming'," in src
           and '/coming</loc>' in (BASE / 'Website' / 'sitemap.xml').read_text(encoding='utf-8'))
