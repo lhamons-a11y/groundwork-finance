@@ -4,7 +4,7 @@ Opened 2026-10-11. Found while building item 78: the working picture's *What you
 readings like *"ATM: you lowered its budget from $90.48 to $45.24 on Oct 10, 2026, then set it back to $90.48 on Oct
 10, 2026. Groundwork reads it as something you keep."* Rob: *"yes open it as an item."*
 
-**E1–E6 RULED 2026-10-11 as recommended (Rob: "approve E1–E6 as recommended"). BUILT 2026-10-12 (Rob: "build 80"), awaiting acceptance; §3.**
+**E1–E6 RULED 2026-10-11 as recommended (Rob: "approve E1–E6 as recommended"). BUILT 2026-10-12 (Rob: "build 80"; master 92797fc, gate 3349 / 0); ACCEPTED + CLOSED (Rob: "Accept item 80"); §3.**
 
 ## 1. What is true today (measured 2026-10-11)
 
