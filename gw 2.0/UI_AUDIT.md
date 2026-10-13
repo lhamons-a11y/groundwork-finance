@@ -170,7 +170,7 @@ its working and its source; only where things sit changes. Nothing is removed.
   - Measured on a copy of Rob's data: the first screen is now the budget itself (income, out, left; the income
     lines), not the futures charts.
 - **U2-U8 RULED 2026-10-13** (Rob: *"I agree with the UI proposals u2-u8"*). Each is built, gated and shown before the next.
-- **U2-U7 BUILT 2026-10-13** (s222), awaiting acceptance.
+- **U2-U7 BUILT 2026-10-13** (s222), **ACCEPTED 2026-10-13** (Rob: *"yes I accept"*).
   - **U2:** each debt starts as its one-line summary: name, balance, APR and minimum, payoff month, ▾ Show. A debt just
     added opens; paid-off debts sit at the end under *Paid off (n)*.
   - **U3:** the Calendar's next four weeks are open. Every month after is one line (*"November 2026: 10 dates,

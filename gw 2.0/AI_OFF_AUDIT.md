@@ -76,7 +76,7 @@ writes no check-in and falls back to the plain review.
 2. **The Monthly Report counts transfers as spending.** September 2026's top category is *Transfer $5,877.29 (40%)*,
    and the transfers are inside SPENT.
 
-Both are offered to Rob as separate tasks. Neither is AI.
+Neither is AI. **Both fixed 2026-10-13 and ACCEPTED** (s221): the lever is this calendar month only, its usual month the three before, never a category that is not a lever; the reports count transfers on neither side (September 2026: spent $7,829.97, net +$864.88).
 
 ## 5. The gate
 
