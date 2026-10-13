@@ -3396,19 +3396,25 @@ def why_route():
     every = [{'check': k, 'title': v['title']} for k, v in ask_why.CHECKS.items()]
     if why_route_outside(q):
         return ok({'state': 'none'})            # advice, a request to act, or nothing about the records: never the model
+    # AI-off audit F6 (item 32 L4): with AI off or unable to run, a question about the records still reaches the
+    # checks - the person chooses one from the fixed list, exactly as when the model is unsure. Never the model.
     with db_session() as session:
         if _get_setting(session, 'ai_enabled') and (_get_setting(session, 'ai_enabled').value or '').lower() in ('false', '0', 'off'):
-            return ok({'state': 'off'})
+            return ok({'state': 'off', 'checks': every})
     try:
         r = engine.choose(WHY_ROUTE_SYSTEM, q, WHY_ROUTE_OPTIONS)
     except Exception:                                   # noqa: BLE001 - routing failing is the same as no route
         logging.getLogger('groundwork').info('why route: the model could not be asked')
-        return ok({'state': 'off'})
+        return ok({'state': 'off', 'checks': every})
     _ai_log_write({'surface': 'ask_why_route', 'system': WHY_ROUTE_SYSTEM, 'messages': [{'role': 'user', 'content': q}]},
                   r.get('raw') or r.get('reason') or '', 'grammar' if r.get('ok') else (r.get('reason') or ''),
                   getattr(engine, 'MODEL_FILE', ''))
     if not r.get('ok'):
-        return ok({'state': 'off' if r.get('reason') in ('off', 'loading', 'unavailable') else 'none'})
+        # the model did not answer (off, loading, or unable to run here - a processor, a missing or mismatched file, a
+        # failed load: the engine names which); only a refused answer means the question fits no check
+        if r.get('reason') not in ('refused', 'too_long'):
+            return ok({'state': 'off', 'checks': every})
+        return ok({'state': 'none'})
     if r['choice'] == 'none':
         return ok({'state': 'none'})
     if r['choice'] == 'unsure':

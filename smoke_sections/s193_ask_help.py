@@ -119,5 +119,5 @@ def run(ctx):
     check('s193 C1 a how-to answer never involves the AI: the guide match uses no model, the Ask box never writes AI text, and '
           'stage 3\'s check-picking is asked only after the guide found no answer',
           'callAI(' not in ask and 'aiEnabled' not in match
-          and body.index('if (hit) {') < body.index('if (aiEnabled())'))
+          and body.index('if (hit) {') < body.index("'/api/why/route'"))     # AI-off audit F6: the route itself says off
     check('s193 C1 the Ask box sits in the top bar, beside the ? button', 'id="gwAskBox"' in html and 'askGroundwork(this.value)' in html)

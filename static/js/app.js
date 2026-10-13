@@ -1586,6 +1586,7 @@ function restoreFromBootstrap(data) {
     if (!_cloudPending) _ollamaNotice();
     S.homeState     = data.settings['home_state']     || '';
     updateAIFeatureVisibility();
+    _checkAiCanRun();   // AI-off audit F5
 
     // ── Life stage flags ────────────────────────────────────────────────
     const s = data.settings;
@@ -11234,6 +11235,11 @@ function _tripNumberCandidates(val) {
 }
 
 async function _readTripQuote() {
+  if (!aiEnabled()) {      // AI-off audit F3
+    const el = g('tripQuoteResult');
+    if (el) el.innerHTML = `<div style="font-size:12px;color:var(--slate)">Reading a pasted quote needs AI, which is ${_aiCannotRun ? 'unavailable on this computer' : 'off'}. A whole itinerary (Expedia, Booking.com, airline receipts, hotel folios) is read without AI: use Read as a whole itinerary.</div>`;
+    return;
+  }
   const text     = g('tripQuoteText')?.value?.trim();
   const resultEl = g('tripQuoteResult');
   if (!text) { showToast('Paste a quote or describe your trip first', '', 'warning'); return; }
@@ -21030,6 +21036,14 @@ function _trophyRenderAdvisorEntry(earnedN) {
   if (_trophyAdvisorAICache || g('trophyAdvisorAIEntry')) return;
 
   card.style.display = '';
+  if (!aiEnabled()) {      // AI-off audit F1: the facts, complete; the written recap is what AI adds
+    const latest = _getLatestEarnedId && _getLatestEarnedId();
+    const a = latest && ACH_MAP[latest];
+    const when = a && S.achievementDates?.[latest] ? new Date(S.achievementDates[latest]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    card.innerHTML = `<div style="font-size:13px;font-weight:500;color:var(--ink)">Your money story so far</div>
+      <div style="font-size:12px;color:var(--slate);margin-top:2px">${earnedN} of ${ACHIEVEMENTS.length} achievements earned${a ? `. The most recent: ${esc(a.name)}${when ? `, ${when}` : ''}` : ''}.</div>`;
+    return;
+  }
   card.innerHTML = `
     <div id="trophyAdvisorAIEntry" style="display:flex;align-items:center;justify-content:space-between;gap:16px">
       <div>
@@ -24538,7 +24552,8 @@ function updateAIFeatureVisibility() {
   if (status) {
     status.textContent = enabled
       ? '✦ AI enabled · on your machine'
-      : 'AI off';
+      : (_aiCannotRun ? 'AI unavailable on this computer' : 'AI off');
+    status.title = _aiCannotRun || '';
     status.style.color = enabled ? 'var(--sky-on-dark)' : 'rgba(255,255,255,.62)';   // on the dark sidebar (item 77)
   }
 
@@ -24610,11 +24625,25 @@ async function _loadAiLocalStatus() {
 }
 
 function aiEnabled() {
-  // The user's AI toggle is the only gate. AI is local-only, so there is no
-  // key to check; an engine that is loading or unavailable is handled
-  // downstream by callAI()'s ok:false -> fallback path, not gated here.
+  // The user's AI toggle, and (AI-off audit F5, item 32 L4) whether the model can run on this computer at all: an
+  // engine that can never load here - the processor, a missing or mismatched model file, a failed load - makes every
+  // surface behave exactly as with AI off, which is the complete version. A model still loading is not unavailable:
+  // callAI() waits for it and falls back on its own.
   if (S.prefs?.aiEnabled === false) return false;
+  if (_aiCannotRun) return false;
   return true;
+}
+
+// AI-off audit F5: the engine's own reason when it can never run here, from /api/ai/status; null while it can.
+let _aiCannotRun = null;
+async function _checkAiCanRun() {
+  if (S.prefs?.aiEnabled === false) { _aiCannotRun = null; return; }
+  let st;
+  try { st = await API.get('/api/ai/status'); } catch (e) { return; }
+  if (st.enabled && st.engine === 'loading') { setTimeout(_checkAiCanRun, 3000); return; }
+  const was = _aiCannotRun;
+  _aiCannotRun = (st.enabled && st.engine === 'unavailable') ? (st.message || 'Local AI is unavailable on this computer.') : null;
+  if (was !== _aiCannotRun) updateAIFeatureVisibility();
 }
 
 function updateSoundToggle(on) {
@@ -24631,6 +24660,8 @@ function toggleAI(checkbox) {
   API.patch('/api/settings', { ai_enabled: String(on) }).catch(_gwErr('toggleAI'));
   // The server loads or releases the model on this change; show its state as it settles.
   setTimeout(_loadAiLocalStatus, 300);
+  _aiCannotRun = null;
+  setTimeout(_checkAiCanRun, 600);
   // updateAIFeatureVisibility() already sets the engine's status
   // message on #settingsApiKeyStatus — no need to duplicate that logic here.
   updateAIFeatureVisibility();
@@ -25637,9 +25668,17 @@ async function askGroundwork(question) {
   }
   // Item 72 stage 3 (C2): with AI on, a question about the person's records may fit one of the fixed checks. The
   // model only names one (it cannot write anything else); the person taps to run it. Unsure: they choose.
-  if (aiEnabled()) {
+  // AI-off audit F6: with AI off or unable to run, the server never asks a model; a question about the records is
+  // answered with the same fixed list to choose from.
+  {
     let route = null;
     try { route = await API.post('/api/why/route', { question: q }); } catch (e) { _gwErr('askGroundwork route')(e); }
+    if (route && route.state === 'off' && (route.checks || []).length) {
+      window._askWhyChecks = route.checks;
+      p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);margin-top:6px">If this is about your records, Groundwork has these checks. Which one?</div>${_askWhyChoicesHTML()}
+        <div style="font-size:11px;color:var(--slate-2);margin-top:8px">With AI ${_aiCannotRun ? 'unavailable on this computer' : 'off'}, you choose the check. The answer comes from your records either way.</div>`;
+      return;
+    }
     if (route && route.state === 'picked') {
       p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">This looks like a question for one of Groundwork's checks on your records:</div>
         <div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="closeAsk(); openWhyCheck('${esc(route.check)}')">${esc(route.title)}</button></div>
@@ -27014,7 +27053,7 @@ function _rcRenderMonthlyReport() {
         </select>
       </div>
       <div style="flex:1;min-width:200px">
-        <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Anything unusual? <span style="font-weight:400;color:var(--slate-2)">(AI reads this)</span></label>
+        <label style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);display:block;margin-bottom:4px">Anything unusual? <span style="font-weight:400;color:var(--slate-2)">${aiEnabled() ? '(AI reads this)' : '(kept with this report)'}</span></label>
         <input type="text" id="rcMonthAnnotation" placeholder="car repair, holiday spending, medical bill…"
           oninput="_rcMonthlyAnnotationInput()"
           style="width:100%;padding:6px 10px;border:1px solid var(--steel);border-radius:var(--r-sm);font-size:13px;background:var(--paper);color:var(--ink)">

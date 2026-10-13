@@ -92,8 +92,12 @@ def run(ctx):
           one.status_code == 200 and d['check'] == 'payer_switch' and (d['results'] or d['none_text']) and nope.status_code == 404)
 
     ask = app.split('async function askGroundwork(')[1].split('\nfunction _askWhyChoicesHTML(')[0]
-    check('C2 / A10 the page asks the model only with AI on, only after the guide found no how-to answer, and runs a check only on a tap',
-          ask.index('const hit = helpMatch(q);') < ask.index("'/api/why/route'") and 'if (aiEnabled())' in ask
+    # The AI-off audit (2026-10-12, AI_OFF_AUDIT.md F6) moved "only with AI on" to the server: the page now asks the route
+    # with AI off too, and the route answers 'off' with the fixed checks BEFORE any model is asked (s217 runs it).
+    _route = ctx.server_src.split('def why_route():')[1].split('\n@')[0]
+    check('C2 / A10 the model is asked only with AI on (the route says off before any model), only after the guide found no how-to answer, and a check runs only on a tap',
+          ask.index('const hit = helpMatch(q);') < ask.index("'/api/why/route'")
+          and _route.index("return ok({'state': 'off', 'checks': every})") < _route.index('engine.choose(')
           and "onclick=\"closeAsk(); openWhyCheck(" in ask)
     check('C8 the page says the answer comes from the records, not from the AI', 'the answer comes from your records, not from the AI' in ask)
     srv = ctx.server_src.split('def why_route():')[1].split('\n@')[0]
