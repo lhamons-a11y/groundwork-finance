@@ -85,7 +85,7 @@ def run(ctx):
         check('s161 node is available to run the renderer (skip the rest if not)', bool(node))
         if not node:
             return
-        src = ''.join(_fn(app, n) for n in ('_catParentName', '_isSpend', '_isEarn', 'tripOwnSavingsRate', 'tripCardDetailHTML'))
+        src = ''.join(_fn(app, n) for n in ('_catParentName', '_catByName', '_isTransferCat', '_isSpend', '_isEarn', 'tripOwnSavingsRate', 'tripCardDetailHTML'))
         runner = r'''
 const esc = s => String(s); const fmt = n => '$' + Number(n).toFixed(2);
 const S = {categories: []};

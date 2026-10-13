@@ -90,7 +90,7 @@ def run(ctx):
     node = shutil.which('node')
     out = None
     if node:
-        fns = ''.join(re.search(r'\nfunction ' + n + r'\(.*?\n\}\n', app, re.S).group(0) for n in ('_isSpend', '_isEarn', '_catParentName'))
+        fns = ''.join(re.search(r'\nfunction ' + n + r'\(.*?\n\}\n', app, re.S).group(0) for n in ('_isSpend', '_isEarn', '_catParentName', '_catByName', '_isTransferCat'))
         js = ('const S = {categories: [{id: 1, name: "Transfer", type: "transfer"}, {id: 2, name: "Paid back by work", type: "transfer", parent_id: 1},'
               '{id: 3, name: "Supplies", type: "expense"}]};\n' + fns +
               'console.log(JSON.stringify([_isSpend({type: "debit", category: "Paid back by work"}), _isEarn({type: "credit", category: "Paid back by work"}),'
