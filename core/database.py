@@ -408,6 +408,8 @@ class HistorianEntry(Base):
       'reimbursement_marked' / '_matched' / '_unmatched' / '_written_off' / '_unmarked'
                                           — item 72 stage 4 (C5): a purchase the person said their employer pays
                                              back, a repayment they matched to it, and their changes of mind.
+      'plan_edits_marked'                 — item 80 E4: the person marked old "Make this my budget" + Undo entries
+                                             as the plan's (context: the two times, how many entries).
       'record_fix'                        — Ask why (item 72 C4): a fix the person previewed and approved - the
                                              exact rows moved (id, from, to), the total, any import rule added.
       'record_fix_undone'                 — its Undo: the rows reverted, and any rows left as edited since.

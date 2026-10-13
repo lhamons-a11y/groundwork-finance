@@ -4,7 +4,7 @@ Opened 2026-10-11. Found while building item 78: the working picture's *What you
 readings like *"ATM: you lowered its budget from $90.48 to $45.24 on Oct 10, 2026, then set it back to $90.48 on Oct
 10, 2026. Groundwork reads it as something you keep."* Rob: *"yes open it as an item."*
 
-**E1–E6 RULED 2026-10-11 as recommended (Rob: "approve E1–E6 as recommended"). No code yet:** the build needs its own go-ahead.
+**E1–E6 RULED 2026-10-11 as recommended (Rob: "approve E1–E6 as recommended"). BUILT 2026-10-12 (Rob: "build 80"), awaiting acceptance; §3.**
 
 ## 1. What is true today (measured 2026-10-11)
 
@@ -57,3 +57,31 @@ held for three months, and is read as *sacred* if they later restore it themselv
 - A plan undone after the person edited one line leaves that line's edit as theirs.
 
 *Recommended.*
+
+
+## 3. Built (2026-10-12)
+
+- **E1.** `income_change_apply` and `income_change_undo` write `source` and `plan_at` into each `budget_adjusted`
+  entry (`core/plan_edits.plan_context`). One time is shared by the whole plan and by its `income_change_applied`
+  record.
+- **E2/E3.** `_willingness_inputs` leaves out exactly the entries `plan_edits.leave_out` names: a plan's cut together
+  with its Undo's restore, line by line. A line the Undo left alone, because the person changed it after the plan,
+  keeps the plan's cut as theirs. Hand edits read as before.
+- **E4.**
+  - `GET /api/willingness/plan-repair` finds old unmarked pairs by their shape: three or more lines written in one
+    second, then a later group restoring exactly those lines to exactly their old amounts.
+  - The working picture shows each pair on *Needs you* as *Changes that weren't your decisions*, with every line
+    listed.
+  - *Mark them as the plan's* (`POST .../plan-repair/mark`) adds the marker to exactly those entries, deletes nothing,
+    and records `plan_edits_marked` in the Historian.
+- **E5.** `plan_edits.plan_context` is the one way a future plan marks its edits.
+- **On a copy of Rob's data:**
+  - one pair was found, 2026-10-10 22:02:30 UTC and 23:19:03 UTC, 33 lines;
+  - marking added the marker to 66 entries;
+  - the *restored, you keep it* readings went from 22 to 0. Floor and protected lines never had a reading.
+- **Tests:** s210 covers:
+  - the reader rule, including a line edited after the plan;
+  - finding pairs by shape, while near-misses and un-undone groups stay unmarked;
+  - the apply and Undo marking, end to end;
+  - the routes, with nothing deleted;
+  - hand edits unchanged.

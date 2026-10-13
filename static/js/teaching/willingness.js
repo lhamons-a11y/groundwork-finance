@@ -257,6 +257,17 @@
         + '<div style="font-size:12px;color:var(--slate);margin-bottom:4px">Your word stands until you change it. These ask which you mean - nothing has been changed.</div>'
         + asks + '</div>');
     }
+    // Item 80 E4: old "Make this my budget" + Undo entries read as the person's own decisions - shown, then marked
+    (s.planRepair || []).forEach(function (pr) {
+      needs.push('<div class="card" style="border-left:3px solid var(--gold)"><div class="card-label">Changes that weren\'t your decisions</div>'
+        + '<div style="font-size:12px;color:var(--ink);line-height:1.7">On ' + esc(pr.apply_at.slice(0, 16)) + ', "Make this my budget" changed '
+        + pr.lines.length + ' budget lines, and Undo put them back on ' + esc(pr.undo_at.slice(0, 16)) + '. Groundwork has been reading each one'
+        + ' as you choosing to keep that budget. Marked as the plan\'s, an undone plan counts for nothing.</div>'
+        + '<details style="margin-top:6px;font-size:12px;color:var(--slate)"><summary style="cursor:pointer">The ' + pr.lines.length + ' lines</summary>'
+        + pr.lines.map(function (l) { return '<div>' + esc(l.name) + ': ' + fmt(l.old) + ' &rarr; ' + fmt(l.new) + ' &rarr; ' + fmt(l.old) + '</div>'; }).join('')
+        + '</details><div style="margin-top:8px"><button class="btn btn-secondary btn-sm" data-gw-planmark="' + esc(pr.apply_at) + '">Mark them as the plan\'s</button>'
+        + '<span style="font-size:11px;color:var(--slate-2);margin-left:8px">Nothing is deleted - the record keeps every change.</span></div></div>');
+    });
     if (strat) needs.push(strat);
     if (inc) needs.push(inc);
     if (claims.length) {
@@ -316,6 +327,7 @@
     try {
       var s = await API.get('/api/willingness');
       try { s.income = await API.get('/api/income-change'); } catch (e) { s.income = null; }
+      try { s.planRepair = ((await API.get('/api/willingness/plan-repair')) || {}).pairs || []; } catch (e) { s.planRepair = []; }
       var html = _pictureHTML(s || {});
       view.innerHTML = html.indexOf('id="evidenceWillingness"') !== -1 ? html
         : html + '<div id="evidenceWillingness" data-evidence-surface="willingness" data-evidence-rhythm></div>';
@@ -352,6 +364,18 @@
     ev.preventDefault();
     try { await API.post('/api/willingness/strategy', { use: b.getAttribute('data-gw-strategy') === 'true' }); }
     catch (e) { _gwErr('willingness strategy')(e); return; }
+    render();
+  });
+
+  // Item 80 E4: mark one shown pair as the plan's
+  document.addEventListener('click', async function (ev) {
+    var b = ev.target && ev.target.closest && ev.target.closest('[data-gw-planmark]');
+    if (!b) return;
+    ev.preventDefault();
+    try {
+      var r = await API.post('/api/willingness/plan-repair/mark', { apply_at: b.getAttribute('data-gw-planmark') });
+      showToast('Marked ' + r.marked + ' changes as the plan\'s', 'The working picture no longer reads them as yours.');
+    } catch (e) { _gwErr('willingness plan mark')(e); return; }
     render();
   });
 

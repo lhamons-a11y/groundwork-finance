@@ -1609,9 +1609,15 @@ def _willingness_inputs(session, months: int = 12) -> dict:
     # The user's own budget edits. The category is the item's category as it stands now: budget items key
     # category by name, and an edit made to "Dining" is about whatever that item is today.
     edits = []
-    for e in session.query(HistorianEntry).filter(
-            HistorianEntry.event_category == 'budget_adjusted').order_by(HistorianEntry.created_at, HistorianEntry.id):
-        c = json.loads(e.context_json or '{}')
+    from core import plan_edits                         # item 80: a plan's Undo is not the person's decisions
+    adj = session.query(HistorianEntry).filter(
+        HistorianEntry.event_category == 'budget_adjusted').order_by(HistorianEntry.created_at, HistorianEntry.id).all()
+    ctxs = {e.id: json.loads(e.context_json or '{}') for e in adj}
+    undone = plan_edits.leave_out([(e.id, ctxs[e.id]) for e in adj])
+    for e in adj:
+        if e.id in undone:
+            continue
+        c = ctxs[e.id]
         item = by_id.get(c.get('budget_item_id'))
         if (not item or not item.category or c.get('item_type', 'expense') != 'expense'
                 or e.expected_value is None or e.actual_value is None or e.created_at is None):
@@ -3170,15 +3176,17 @@ def income_change_apply():
         if not st.get('change') or not plan or not plan['changes']:
             return err('There is nothing to apply.', 409)
         done = []
+        from core import plan_edits
+        plan_at = datetime.now().isoformat(timespec='seconds')   # item 80 E1: one time for the plan
         for ch in plan['changes']:
             item = session.get(BudgetItem, ch['id'])
             if not item or abs((item.amount or 0) - ch['old']) > 0.005:
                 continue                      # the line changed since the plan was shown: left as it is
             item.amount = ch['new']
             log_historian_event(session, 'budget_adjusted', expected_value=ch['old'], actual_value=ch['new'],
-                                context={'budget_item_id': item.id, 'name': item.name, 'item_type': item.type})
+                                context=plan_edits.plan_context(item, 'income_change_apply', plan_at))
             done.append({'id': item.id, 'name': item.name, 'old': ch['old'], 'new': ch['new']})
-        _set_setting(session, 'income_change_applied', json.dumps({'at': datetime.now().isoformat(timespec='seconds'),
+        _set_setting(session, 'income_change_applied', json.dumps({'at': plan_at,
                                                                    'month': st['change']['month'], 'changes': done}))
         session.commit()
         return ok(_income_change_state(session))
@@ -3193,13 +3201,14 @@ def income_change_undo():
         applied = _setting_json(session, 'income_change_applied')
         if not applied:
             return err('There is nothing to undo.', 409)
+        from core import plan_edits
         for ch in applied.get('changes', []):
             item = session.get(BudgetItem, ch['id'])
             if not item or abs((item.amount or 0) - ch['new']) > 0.005:
                 continue                      # changed again since: the person's later edit stands
             item.amount = ch['old']
             log_historian_event(session, 'budget_adjusted', expected_value=ch['new'], actual_value=ch['old'],
-                                context={'budget_item_id': item.id, 'name': item.name, 'item_type': item.type})
+                                context=plan_edits.plan_context(item, 'income_change_undo', applied.get('at')))
         row = _get_setting(session, 'income_change_applied')
         if row:
             session.delete(row)
@@ -3246,6 +3255,39 @@ def income_contract_line():
         _set_setting(session, 'contract_lines', json.dumps(said[-500:]))
         session.commit()
         return ok(_income_change_state(session))
+
+
+def _plan_repair_rows(session):
+    rows = session.query(HistorianEntry).filter(HistorianEntry.event_category == 'budget_adjusted') \
+        .order_by(HistorianEntry.created_at, HistorianEntry.id).all()
+    return [(e.id, e.created_at, json.loads(e.context_json or '{}'), e.expected_value, e.actual_value) for e in rows]
+
+
+@willingness_bp.route('/plan-repair', methods=['GET'])
+def willingness_plan_repair():
+    """Item 80 E4: budget changes written by "Make this my budget" and its Undo before they were marked - found by
+    their shape, shown to the person line by line before anything is changed."""
+    from core import plan_edits
+    with db_session() as session:
+        return ok({'pairs': plan_edits.unmarked_pairs(_plan_repair_rows(session))})
+
+
+@willingness_bp.route('/plan-repair/mark', methods=['POST'])
+@require_json
+def willingness_plan_repair_mark():
+    """Item 80 E4: mark exactly one shown pair as the plan's and its Undo's. Nothing is deleted; the record keeps
+    every change as it happened, and the working picture stops reading them as the person's own decisions."""
+    from core import plan_edits
+    apply_at = str((request.json or {}).get('apply_at') or '')
+    with db_session() as session:
+        pair = next((x for x in plan_edits.unmarked_pairs(_plan_repair_rows(session)) if x['apply_at'] == apply_at), None)
+        if not pair:
+            return err('Nothing to mark for that time.', 404)
+        n = plan_edits.mark(session, pair)
+        log_historian_event(session, 'plan_edits_marked', context={'apply_at': pair['apply_at'], 'undo_at': pair['undo_at'],
+                                                                    'entries': n})
+        session.commit()
+        return ok({'marked': n})
 
 
 @income_bp.route('/snooze', methods=['POST'])
