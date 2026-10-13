@@ -160,7 +160,7 @@ its working and its source; only where things sit changes. Nothing is removed.
 
 ## 7. Ruled and built
 
-- **U1 RULED 2026-10-12** (Rob: *"I accept u1"*) and **BUILT 2026-10-12** (s219), awaiting acceptance.
+- **U1 RULED 2026-10-12** (Rob: *"I accept u1"*) and **BUILT 2026-10-12** (s219), **ACCEPTED 2026-10-13** (Rob: *"I accept both"*).
   - The Budget page now has three tabs, using the Assistant's tab bar: *Your budget* (opens first: income-change
     scenarios, trips this month, the budget), *Possible futures* (the futures card and the what-if), and *Bills and
     charges* (bills read, price changes, recurring charges, savings funds).
