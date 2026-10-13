@@ -79,7 +79,7 @@ held for three months, and is read as *sacred* if they later restore it themselv
   - one pair was found, 2026-10-10 22:02:30 UTC and 23:19:03 UTC, 33 lines;
   - marking added the marker to 66 entries;
   - the *restored, you keep it* readings went from 22 to 0. Floor and protected lines never had a reading.
-- **Tests:** s210 covers:
+- **Tests:** s220 covers:
   - the reader rule, including a line edited after the plan;
   - finding pairs by shape, while near-misses and un-undone groups stay unmarked;
   - the apply and Undo marking, end to end;
