@@ -245,3 +245,144 @@ taken as the old price.
   - Nothing about a finding is stored: it is derived from the ledger on every read (no silent learning). The only
     write is the person's tap.
 - **Tests:** s211, 8 checks, including the null model run in the gate.
+
+## W1 null model (2026-10-12, `scripts/w1_null_model.py`, before either rule shipped)
+
+20,000 synthetic histories per row, seeded. **The bar, set before the first run:** no more than 5% false alarms on any
+case where nothing is there (each finding is asked about, never assumed), and real patterns found at least 90% of the
+time.
+
+**Renewals (yearly and twice-a-year bills).** The false alarms come from an occasional payee in a category that isn't
+everyday spending, visited at random.
+- **First rule:** 2-4 charges, every gap a year (355-375 days) or six months (175-190), amounts within 15%, and not
+  everyday spending.
+  - Varied amounts gave 0.4-1.6% false alarms.
+  - A fixed price (a copay) visited twice in 13 months gave **5.2%**.
+- **Fixes:**
+  - The six-month window narrowed to 176-189 days.
+  - Several gaps may each wander 6 days when their middle gap is in the window.
+  - **A rhythm the history contradicts is not one:** when the record runs past the next charge's date (plus 20 days)
+    and it never came, the charges were a coincidence, or the bill stopped. Either way, nothing is coming.
+  - The start of the record is not checked. A bill begins some time, and a new policy in a long record is still a
+    yearly bill.
+- **Result, meets the bar:**
+  - Worst false alarm 4.67% (the copay case).
+  - Yearly bills found 100%, twice-a-year bills 96-98%.
+
+**Heavy months.** One year cannot tell a heavy month from an ordinary bumpy one. The first rule was a month 25% and
+3.5 robust deviations above the year's median.
+- It flagged **5-26%** of trend-free years.
+- It found a real +40% December only **20-55%** of the time.
+- That is the coin flip W1-a forbids.
+
+So a heavy month now needs **two full years**, and means *this month runs heavy every year*:
+- each month's distance from its own year's median is averaged over the years;
+- the average is judged against the spread of every other month (the month judged is never its own yardstick);
+- it must be at least 20% above on average, and at least 10% above in every single year, so one freak year can't
+  carry it.
+
+**Result: against the bar set first, this does not fully meet it.** The settings tried (thresholds 3.0 and 3.5,
+every-year floors from 0 to 20%) all traded one side for the other. None reached both 5% and 90% with two years of
+months.
+
+At the chosen setting:
+- **false alarms:** at most **4.67%** (heavy-tailed noise; 1.2-2.4% otherwise);
+- **found:** **81-85%** of strong patterns (December +40% at 10% noise, +60% at 15%);
+- **weak patterns:** mostly missed (+40% at 20% noise: 20%; three years at 15% noise: 55%).
+
+A miss costs nothing, because nothing is assumed. A false alarm costs one question. So heavy months are held to the
+false-alarm bar and a find bar of 80%. **That find bar was lowered after seeing the data. It is stated here and in the
+script, for Rob to accept or reject.**
+
+## Built: W1, patterns from a long history (2026-10-12), awaiting acceptance
+
+- **`core/first_import.py`:** arithmetic only. It covers complete months (a partial first or last month is not a
+  small month), renewals, heavy months, and each one's sentence.
+- **W1-c:** under 10 complete months it says *"Groundwork needs about a year of history to see yearly bills. Your
+  record covers N full months so far."*
+  - On Rob's ledger today (January to October 2026) that is 8 full months, so it says so and finds nothing.
+  - Heavy months need 24 complete months, and say so below that.
+- **The offer:** after an import, when the history is long enough and something has not been asked yet, one question
+  is shown: *"Look through your history?"* It is shown once for each length of history, not on every import.
+- **The look-through (Calendar page, on a tap):** each finding is shown with its records.
+  - **Renewals:** the charges themselves.
+  - **Heavy months:** the categories that stood above their usual month.
+  - Each is asked about: *"Is this a regular bill?"* or *"Does this happen every year?"*, with Yes / No / Not sure.
+- **W1-b, only a yes changes anything:**
+  - A yearly-bill yes is kept in `yearly_bills_json`. The calendar shows it as *Possible* (W3), and the futures card
+    counts it as a known cost on its next date. A bill already charged this month counts next year.
+  - A heavy-month yes is kept in `heavy_months_json`, and the futures card counts its usual excess.
+  - **No** and **Not sure** are kept as the person's answer, shown as answered, and not asked again.
+  - The finding is worked out again on the server for every answer, never taken from the page.
+- **Tests:** s212, 9 checks, including the null model run in the gate (4,000 runs per case there; 20,000 by hand).
+
+## Found while building W1: Undo on toasts (fixed, on its own branch)
+
+`showToast` copied the Undo function into the button as text. Each Undo therefore lost every variable it closed over.
+- **The Ledger's delete Undo** looked up `id`. Inside an inline handler that resolves to the button's own empty `id`,
+  so Undo did nothing and the transaction was deleted five seconds later. It was confirmed in the running app: the
+  probe Undo received `""`, not the id.
+- **W2's price-change Undo** threw.
+
+The function is now kept and called (`_runToastUndo`); s211 checks it. The 1.x line has the same code.
+
+## Built: W5, the what-if panel (2026-10-12), ACCEPTED 2026-10-12
+
+- **`core/futures.py` `what_if`:** the person's own figures moved together, through the futures' own `run()` and the
+  one payoff engine (W5-a). There is no second calculation:
+  - with nothing moved, it equals *As things are*, figure for figure;
+  - with the debt payment moved to what is left, it equals the card's own *What is left goes to the debt*, to the
+    month;
+  - both are checked in s214.
+- **The panel** (Budget page, Possible futures card, *What if… move your own figures*).
+  - **Sliders for:** income a month, spending a month, the debt payment, a monthly amount to set aside, and a one-time
+    cost with its month.
+  - **The comparison:** *As things are* beside *What if* for debt-free in, cash in a year, set aside over the year,
+    borrowed to get through, and lowest cash.
+  - Every changed input is named with its from and to. It is labelled *"A what-if, not a prediction."*
+  - A debt payment below the minimums says so, and gives no payoff date.
+  - Money set aside leaves the cash (so borrowing counts it) but is counted back in the year's total: it is still the
+    person's.
+- **W5-b.** Nothing is saved while figures move. *Make this my plan* first lists exactly what it changes, with before
+  and after:
+  - the monthly debt payment setting;
+  - the Savings budget line (or a new Savings line);
+  - a one-time cost, kept as something the person said.
+
+  It also lists what it does not change: income is read from deposits, and spending changes line by line on the
+  Budget page. Applying keeps every before, and Undo puts each one back.
+- **W5-c.** The Debt page's *What if you paid extra?* slider and the mortgage's extra-principal slider both stay. Each
+  gains *Move more than one figure →*, which opens the panel with its figure already in it.
+- **On Rob's record (2026-10-12):**
+  - $300 more a month to debt brings debt-free from 19 to 15 months.
+  - Because budgeted spending ($8,714) is above income ($8,471), that $300 is borrowed: $11,380 over the year
+    against $8,248. The panel shows both.
+- **Tests:** s214, 9 checks.
+
+## Built: W9, the year-end packet (2026-10-12), ACCEPTED 2026-10-12
+
+**Reports → Year-end packet**, for a chosen year (`/api/year-end`, `_year_end`).
+- **Contents:**
+  - income by payer (deposits in income categories);
+  - spending by category, with transfers left out;
+  - interest and fees, from the person's own categories for them (named so because Rob's *Interest / Fees* category
+    holds a BMV kiosk and TaxSlayer, which are not interest);
+  - charitable donations;
+  - realized investment gains and losses (closed lots, short and long term);
+  - the statements and documents Groundwork holds that are dated that year (held artefacts);
+  - a section on what it does not include.
+- **W9-a.** It opens with *"These are the year's figures from your records. Your tax preparer decides how they are
+  treated."* It never says what is deductible or how anything is taxed. The words appear only where it says it does
+  not decide them.
+- **W9-b.** Health spending is left out and counted (*"19 health spending transactions are left out"* on Rob's 2026)
+  until *Include health spending* is ticked. The same holds in the CSV. The CSV is a registered H6 sink
+  (`year_end_export`).
+- **W9-c.** Missing data is listed, never counted as zero:
+  - a month with no records at all;
+  - each account's months with nothing imported, from its first month;
+  - an active account with nothing imported for the year.
+
+  On Rob's 2026 ledger: Superior Savings is missing 4 months, Rob's Apple Card 3, and TJ Max 2.
+- **Print or save as PDF** uses the Reports page's print rules. **Save as CSV** writes to the exports folder on this
+  computer.
+- **Tests:** s215, 7 checks.

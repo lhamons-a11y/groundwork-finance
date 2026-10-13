@@ -305,6 +305,58 @@ def questions(goal, base, scens, inputs, surplus, poss, effects):
     return q
 
 
+WHAT_IF_LABELS = {'income': 'Income a month', 'spend': 'Spending a month, debt payments apart',
+                  'debt_pay': 'Debt payment a month', 'save': 'Set aside each month', 'one_time': 'A one-time cost'}
+
+
+def what_if(inputs, possibilities, changes):
+    """Item 65 W5 (AGENT_W_ITEMS.md): the person's own figures moved together, through the same run() and the one
+    payoff engine every future uses (W5-a) - never a second calculation. Nothing is stored here (W5-b).
+
+    changes: any of income, spend, debt_pay, save (a month), one_time {amount, month}. Returns as things are and the
+    what-if side by side, each with its goal measure, and every changed input named with its from and to."""
+    sm = inputs['start_month']
+    goal = inputs['goal'] if inputs['goal'] in GOALS else 'unsure'
+    poss = possibilities_in_force(possibilities)
+    inc, costs = _apply_possibilities([inputs['income']] * HORIZON, [0.0] * HORIZON, sm, poss)
+    base = run(inputs, {'income': inc, 'costs': costs, 'debt_pay': inputs['debt_pay']})
+
+    def num(k, default):
+        try:
+            v = float(changes.get(k, default))
+        except (TypeError, ValueError):
+            return default
+        return max(0.0, round(v, 2))
+    income, spend = num('income', inputs['income']), num('spend', inputs['spend'])
+    debt_pay, save = num('debt_pay', inputs['debt_pay']), num('save', 0.0)
+    one = changes.get('one_time') or {}
+    try:
+        one_amt = max(0.0, round(float(one.get('amount') or 0), 2))
+    except (TypeError, ValueError):
+        one_amt = 0.0
+    one_month = str(one.get('month') or sm)[:7]
+    months = [_months_after(sm, i) for i in range(HORIZON)]
+    inc2 = [x + (income - inputs['income']) for x in inc]
+    costs2 = [c + save + (one_amt if months[i] == one_month else 0.0) for i, c in enumerate(costs)]
+    r = run({**inputs, 'spend': spend}, {'income': inc2, 'costs': costs2, 'debt_pay': debt_pay})
+    # what is set aside is still the person's: borrowing counts it as spent (it left the cash), the total counts it back
+    r['set_aside'] = round(save * HORIZON, 2)
+    r['cash_with_set_aside'] = round(r['cash'][-1] + r['set_aside'], 2)
+    base['set_aside'], base['cash_with_set_aside'] = 0.0, base['cash'][-1]
+    m = lambda x: measure(goal, {**x, 'cash': x['cash'][:-1] + [x['cash_with_set_aside']]})
+    changed = []
+    for k, frm, to in (('income', inputs['income'], income), ('spend', inputs['spend'], spend),
+                       ('debt_pay', inputs['debt_pay'], debt_pay), ('save', 0.0, save)):
+        if abs(to - frm) >= 0.005:
+            changed.append({'key': k, 'label': WHAT_IF_LABELS[k], 'from': round(frm, 2), 'to': to})
+    if one_amt > 0:
+        changed.append({'key': 'one_time', 'label': WHAT_IF_LABELS['one_time'], 'from': 0.0, 'to': one_amt,
+                        'month': one_month if one_month in months else months[0]})
+    return {'goal': goal, 'months': months, 'note': 'A what-if, not a prediction.',
+            'as_things_are': {**base, 'measure': m(base)}, 'what_if': {**r, 'measure': m(r)}, 'changed': changed,
+            'minimums': inputs['minimums'], 'below_minimums': bool(inputs['cards']) and debt_pay < inputs['minimums'] - 0.005}
+
+
 def fingerprint(inputs, possibilities, answers):
     """SC5: what a result was computed from. A page holding an older fingerprint marks its figures stale."""
     raw = {k: v for k, v in inputs.items() if k != 'cards'}

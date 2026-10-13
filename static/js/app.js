@@ -2736,9 +2736,68 @@ async function applyPriceChange(i) {
 const _CAL_KIND = { debt: '💳', recurring: '📋', bill: '🧾', gift: '🎁', trip: '✈', fund: '◎', pay: '💵', charge: '🔁', yearly: '📅' };
 const _CAL_CERT = { confirmed: 'Confirmed', expected: 'Expected', possible: 'Possible' };
 
+// ── Item 65 W1 (AGENT_W_ITEMS.md): patterns a long history shows - each one asked about, nothing assumed ────────
+let _lookThrough = null, _lookThroughOpen = false;
+async function renderLookThrough() {
+  const box = g('calendarLookThrough');
+  if (!box) return;
+  try { _lookThrough = await API.get('/api/first-import'); } catch (e) { _gwErr('renderLookThrough')(e); box.innerHTML = ''; return; }
+  const f = _lookThrough;
+  const card = inner => `<div class="card mb-4"><div class="card-label">Yearly bills and heavy months</div>${inner}</div>`;
+  if (!f.enough) { box.innerHTML = card(`<div style="font-size:12px;color:var(--slate)">${esc(f.message)}</div>`); return; }
+  const all = [...f.renewals.map(x => ({ ...x, kind: 'renewal' })), ...f.heavy.map(x => ({ ...x, kind: 'heavy' }))];
+  const open = all.filter(x => !x.answer);
+  if (!_lookThroughOpen) {
+    box.innerHTML = card(`<div style="font-size:12px;color:var(--slate);line-height:1.6">Your record covers ${f.months} full months.
+      Groundwork can look through it for bills that come once or twice a year and months that run heavy.
+      Each one is shown with its records and asked about; nothing changes unless you say yes.</div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="_lookThroughOpen = true; renderLookThrough()">Look through it${open.length ? ` (${open.length})` : ''}</button>`);
+    return;
+  }
+  const day = iso => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const ask = (x, i) => {
+    const q = x.kind === 'renewal' ? 'Is this a regular bill?' : 'Does this happen every year?';
+    const btn = (a, label) => `<button class="btn ${x.answer === a ? 'btn-primary' : 'btn-ghost'} btn-sm" onclick="answerLookThrough(${i}, '${a}')">${label}</button>`;
+    const recs = x.kind === 'renewal'
+      ? x.records.map(r => `<div style="font-family:var(--font-mono)">${day(r.date)} &nbsp; ${fmt(r.amount)}</div>`).join('')
+      : x.categories.map(c => `<div>${esc(c.category)}: ${fmt(c.amount)} that month, against a usual ${fmt(c.usual)}</div>`).join('');
+    return `<div style="padding:8px 0;border-bottom:0.5px solid var(--steel-2)">
+      <div style="font-size:13px;color:var(--ink)">${esc(x.sentence)}</div>
+      <details style="font-size:11px;color:var(--slate);margin-top:4px"><summary style="cursor:pointer">${x.kind === 'renewal' ? 'The charges' : 'What stood above its usual month'}</summary>${recs}</details>
+      <div style="margin-top:6px;font-size:12px;color:var(--slate);display:flex;gap:6px;align-items:center;flex-wrap:wrap">${q}
+        ${btn('yes', 'Yes')}${btn('no', 'No')}${btn('not_sure', 'Not sure')}</div></div>`;
+  };
+  box.innerHTML = card(`<div style="font-size:12px;color:var(--slate);margin-bottom:6px">A yes puts a yearly bill on this calendar and in your possible futures. No and Not sure are kept, so Groundwork doesn't ask again.</div>`
+    + (all.length ? all.map(ask).join('') : '<div style="font-size:12px;color:var(--slate)">Nothing in the record comes once or twice a year at the same amount.</div>')
+    + (f.heavy_note ? `<div style="font-size:11px;color:var(--slate);margin-top:8px">${esc(f.heavy_note)}</div>` : ''));
+}
+
+async function answerLookThrough(i, answer) {
+  const f = _lookThrough;
+  const x = [...f.renewals.map(r => ({ ...r, kind: 'renewal' })), ...f.heavy.map(h => ({ ...h, kind: 'heavy' }))][i];
+  if (!x) return;
+  try {
+    await API.post('/api/first-import/answer', x.kind === 'renewal' ? { kind: 'renewal', payee: x.payee, answer } : { kind: 'heavy', month: x.month, answer });
+    _lookThroughOpen = true;
+    renderCalendar();
+  } catch (e) { showToast('Could not save the answer', e.message || '', 'error'); }
+}
+
+// W1: after an import, offered once for this length of history - only when there is something not yet asked
+async function _offerLookThrough() {
+  let o;
+  try { o = await API.get('/api/first-import/offer'); } catch (e) { _gwErr('_offerLookThrough')(e); return; }
+  if (!o.offer) return;
+  API.post('/api/first-import/offered', {}).catch(_gwErr('_offerLookThrough:offered'));
+  confirmAction('Look through your history?',
+    `<div style="font-size:13px;line-height:1.6;color:var(--slate)">Your record now covers ${o.months} full months. Groundwork can look through it for bills that come once or twice a year, and show you what it finds with the records. Nothing changes unless you say yes.</div>`,
+    () => { _lookThroughOpen = true; showView('calendar'); }, 'Look through it', false);
+}
+
 async function renderCalendar() {
   const box = g('calendarContent');
   if (!box) return;
+  renderLookThrough();
   let d;
   try { d = await API.get('/api/calendar?days=365'); } catch (e) { _gwErr('renderCalendar')(e); box.innerHTML = ''; return; }
   const items = d.entries || [];
@@ -6608,6 +6667,7 @@ async function confirmImport() {
     showToast(`Imported ${added} transactions`, dupes ? `${dupes} duplicates skipped` : '');
   }
 
+  _offerLookThrough();   // item 65 W1: a long enough history is offered one look-through
   _importRecords = []; _importBank = ''; _importFile = null;
   _importIsPdf = false; _importPdfSummary = null; _importPdfSourceHash = ''; _importPdfWarnings = [];
 }
@@ -20598,6 +20658,7 @@ function _renderMortgageComparison() {
   content.innerHTML = `
     ${breakdownHtml}
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+      <a href="#" style="font-size:11px;color:var(--sky);white-space:nowrap" onclick="openWhatIf({ add_debt: _mortgageWhatIfExtra });return false">Move more than one figure →</a>
       <label style="font-size:12px;color:var(--slate);white-space:nowrap">Extra toward principal</label>
       <input type="range" id="mortgageExtraSlider" min="0" max="${sliderMax}" step="25" value="${_mortgageWhatIfExtra}"
         oninput="_mortgageOnSliderChange(this.value)" style="flex:1">
@@ -23816,12 +23877,107 @@ const _FUT_COLORS = ['var(--ink)', 'var(--pine-text)', 'var(--gold-text)', 'var(
 const _FUT_KIND_WORDS = { observed: 'Recorded', projected: 'Projected', user_supplied: 'You said' };
 const _FUT_GROUP_WORDS = { baseline: 'As things are', goal: 'Toward your goal', adverse: 'If things go worse' };
 
+// ── Item 65 W5 (AGENT_W_ITEMS.md): a What if panel on the futures card - several figures at once, one engine ────
+// Nothing is saved while the sliders move; "Make this my plan" says exactly what it changes first, with Undo.
+let _wiOpen = false, _wi = {}, _wiRes = null, _wiTimer = null;
+function _wiBase() {
+  const f = _fut || {};
+  const b = (f.scenarios || []).find(s => s.key === 'baseline') || {};
+  const fig = l => ((b.figures || []).find(x => x.label === l) || {}).value;
+  return { income: fig('Income a month (recorded)') || 0, spend: fig('Budgeted spending a month, debt payments apart') || 0,
+           debt_pay: fig('Debt payments a month') || 0 };
+}
+function openWhatIf(preset) {
+  _wiOpen = true;
+  _wi = { ...(preset || {}) };
+  if (document.querySelector('#view-budget.active')) { g('budgetFutures').innerHTML = futuresHtml(_fut); whatIfRun(); return; }
+  showView('budget');
+  setTimeout(() => { g('whatIfPanel')?.scrollIntoView({ behavior: 'smooth' }); whatIfRun(); }, 900);
+}
+function whatIfHtml() {
+  if (!_wiOpen) return `<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="openWhatIf()">What if… move your own figures</button></div>`;
+  const b = _wiBase();
+  const v = k => _wi[k] != null ? _wi[k] : b[k];
+  const months = (_fut && _fut.months) || [];
+  const row = (k, label, min, max, step) => `<div style="display:flex;align-items:center;gap:10px;font-size:12px;margin:4px 0">
+      <label style="width:190px;color:var(--slate)">${label}</label>
+      <input type="range" min="${min}" max="${max}" step="${step}" value="${v(k)}" oninput="whatIfSet('${k}', this.value)" style="flex:1">
+      <span id="wiVal_${k}" style="font-family:var(--font-mono);min-width:80px;text-align:right">${fmt(v(k))}</span></div>`;
+  const hi = x => Math.max(500, Math.round(x * 2 / 50) * 50);
+  return `<div id="whatIfPanel" style="margin-top:12px;border-top:1px solid var(--steel);padding-top:10px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
+      <div style="font-size:13px;font-weight:600;color:var(--ink)">What if</div>
+      <div style="font-size:11px;color:var(--slate)">A what-if, not a prediction. Nothing is saved unless you make it your plan.</div></div>
+    ${row('income', 'Income a month', 0, hi(b.income), 25)}
+    ${row('spend', 'Spending a month', 0, hi(b.spend), 25)}
+    ${row('debt_pay', 'Debt payment a month', 0, hi(b.debt_pay), 10)}
+    ${row('save', 'Set aside each month', 0, 2000, 25)}
+    <div style="display:flex;align-items:center;gap:10px;font-size:12px;margin:4px 0">
+      <label style="width:190px;color:var(--slate)">A one-time cost</label>
+      <input type="number" min="0" step="50" value="${(_wi.one_time || {}).amount || ''}" placeholder="Amount" class="field-input" style="width:110px;font-size:12px;padding:4px 8px" oninput="whatIfOne('amount', this.value)">
+      <select class="field-input" style="width:auto;font-size:12px;padding:4px 8px" onchange="whatIfOne('month', this.value)">
+        ${months.map(m => `<option value="${m}" ${(_wi.one_time || {}).month === m ? 'selected' : ''}>${new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</option>`).join('')}</select></div>
+    <div id="whatIfResult" style="margin-top:8px"></div>
+    <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="_wi = {}; g('budgetFutures').innerHTML = futuresHtml(_fut); whatIfRun()">Back to as things are</button>
+      <button class="btn btn-ghost btn-sm" onclick="_wiOpen = false; g('budgetFutures').innerHTML = futuresHtml(_fut)">Close</button></div></div>`;
+}
+function whatIfSet(k, val) { _wi[k] = parseFloat(val) || 0; setText('wiVal_' + k, fmt(_wi[k])); clearTimeout(_wiTimer); _wiTimer = setTimeout(whatIfRun, 200); }
+function whatIfOne(k, val) { _wi.one_time = { ...(_wi.one_time || {}), [k]: k === 'amount' ? (parseFloat(val) || 0) : val }; clearTimeout(_wiTimer); _wiTimer = setTimeout(whatIfRun, 300); }
+async function whatIfRun() {
+  const box = g('whatIfResult');
+  if (!box) return;
+  if (_wi.add_debt != null && _fut) {   // from the Debt page's slider: today's payment plus its extra
+    _wi.debt_pay = _wiBase().debt_pay + _wi.add_debt; delete _wi.add_debt;
+    g('budgetFutures').innerHTML = futuresHtml(_fut); return whatIfRun();
+  }
+  try { _wiRes = await API.post('/api/futures/what-if', { changes: _wi }); }
+  catch (e) { box.innerHTML = `<div style="font-size:12px;color:var(--slate)">${esc(e.message || '')}</div>`; return; }
+  const r = _wiRes, a = r.as_things_are, w = r.what_if;
+  const debt = x => x.debt_months == null ? "can't be dated" : `${x.debt_months} month${x.debt_months === 1 ? '' : 's'}`;
+  const line = (label, f) => `<tr><td style="color:var(--slate);padding:2px 8px 2px 0">${label}</td>
+      <td style="font-family:var(--font-mono);text-align:right;padding:2px 8px">${f(a)}</td>
+      <td style="font-family:var(--font-mono);text-align:right;padding:2px 0;color:var(--ink)"><b>${f(w)}</b></td></tr>`;
+  box.innerHTML = `<table style="font-size:12px;border-collapse:collapse;width:100%;max-width:520px">
+      <tr><td></td><td style="text-align:right;font-size:11px;color:var(--slate);padding:0 8px">As things are</td><td style="text-align:right;font-size:11px;color:var(--slate)">What if</td></tr>
+      ${line('Debt-free in', debt)}
+      ${line('Cash in a year', x => fmt(x.cash[x.cash.length - 1]))}
+      ${w.set_aside ? line('Set aside over the year', x => fmt(x.set_aside)) : ''}
+      ${line('Borrowed to get through', x => fmt(x.borrowed))}
+      ${line('Lowest cash', x => fmt(x.lowest_cash))}</table>
+    ${r.below_minimums ? `<div style="font-size:12px;color:var(--ember-text);margin-top:4px">That debt payment is below the minimums (${fmt(r.minimums)} a month), so no payoff date can be worked out.</div>` : ''}
+    <div style="font-size:11px;color:var(--slate);margin-top:6px">${r.changed.length ? 'Changed: ' + r.changed.map(c => `${esc(c.label)} ${fmt(c.from)} → ${fmt(c.to)}${c.month ? ` in ${esc(c.month)}` : ''}`).join('; ') + '.' : 'Nothing changed yet: move a figure.'}</div>
+    ${r.changed.length ? `<button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="whatIfPlan()">Make this my plan</button>` : ''}`;
+}
+async function whatIfPlan() {
+  let p;
+  try { p = await API.post('/api/futures/what-if/plan', { changes: _wi }); } catch (e) { showToast('Could not work out the plan', e.message || '', 'error'); return; }
+  const rows = p.changes.map(c => `<li>${esc(c.what)}: ${c.before == null ? 'none' : fmt(parseFloat(c.before))} → <b>${fmt(c.after)}</b></li>`).join('');
+  const notes = p.not_changed.map(n => `<li style="color:var(--slate)">${esc(n)}</li>`).join('');
+  if (!rows) { showToast('Nothing here changes your plan', p.not_changed.join(' '), 'info'); return; }
+  confirmAction('Make this my plan?', `<div style="font-size:13px;line-height:1.6">This changes exactly:<ul style="margin:6px 0 6px 18px;padding:0">${rows}</ul>
+      ${notes ? `It doesn't change:<ul style="margin:6px 0 0 18px;padding:0">${notes}</ul>` : ''}<div style="font-size:12px;color:var(--slate);margin-top:6px">You can undo it.</div></div>`,
+    async () => {
+      try {
+        await API.post('/api/futures/what-if/plan', { changes: _wi, apply: true });
+        showToast('Your plan now follows the what-if', '', 'success', whatIfUndo);
+        _wi = {}; _wiOpen = false; renderFutures(); renderBudget();
+      } catch (e) { showToast('Could not change the plan', e.message || '', 'error'); }
+    }, 'Make it my plan', false);
+}
+async function whatIfUndo() {
+  try { await API.post('/api/futures/what-if/undo', {}); showToast('Put back as it was', '', 'info'); }
+  catch (e) { showToast('Undo failed', e.message || '', 'error'); }
+  renderFutures(); renderBudget();
+}
+
 async function renderFutures() {
   const box = g('budgetFutures');
   if (!box) return;
   try { _fut = await API.get('/api/futures'); }
   catch (e) { _gwErr('renderFutures')(e); box.innerHTML = ''; return; }
   box.innerHTML = futuresHtml(_fut);
+  if (_wiOpen) whatIfRun();
 }
 
 // SC5: figures computed from older inputs are marked stale, never shown as current.
@@ -23957,6 +24113,7 @@ function futuresHtml(st) {
     ${qs ? `<div style="margin-top:12px;border-top:1px solid var(--steel);padding-top:8px">${qs}</div>` : ''}
     ${poss ? `<div style="margin-top:10px"><div style="font-size:11px;color:var(--slate);margin-bottom:2px">What you've told Groundwork</div>${poss}</div>` : ''}
     ${_futAsk === '__explore' ? _futPossibilityForm('__explore') : ''}
+    ${whatIfHtml()}
     ${hidden ? `<div style="margin-top:8px">${hidden}</div>` : ''}
     ${gaps ? `<details style="margin-top:8px"><summary style="font-size:11px;color:var(--slate);cursor:pointer">Not shown, and why</summary><ul style="font-size:11px;color:var(--ink);margin:6px 0 0 16px;padding:0;line-height:1.6">${gaps}</ul></details>` : ''}
     <div style="font-size:10px;color:var(--slate-2);margin-top:8px">Worked out ${new Date(st.computed_at).toLocaleString()}. Recorded = your records; Projected = what follows if the stated assumptions hold; You said = something you told Groundwork.</div>
@@ -26590,6 +26747,15 @@ const _REPORT_CATALOG = [
     action:    () => _rcOpenReport('annual'),
   },
   {
+    id:        'year_end',
+    section:   'Spending',
+    title:     'Year-end packet',
+    sub:       'A year in one place for you or your tax preparer: income by payer, categories, interest, donations, gains. Never tax advice.',
+    icon:      '▤',
+    aiUtility: 'low',
+    action:    () => _rcOpenReport('year_end'),
+  },
+  {
     id:        'debt_payoff',
     section:   'Debt',
     title:     'Debt Payoff Analysis',
@@ -26798,6 +26964,7 @@ function _rcRenderReport(reportId) {
     case 'category':        _rcRenderCategoryDeepDive(); break;
     case 'spending_breakdown': _rcRenderCategoryDeepDive(); break;  // alias from dashboard donut
     case 'annual':          _rcRenderAnnualSummary(); break;
+    case 'year_end':        _rcRenderYearEnd(); break;
     case 'budget_vs_actual':_rcRenderBudgetVsActual(); break;
     case 'income_savings':  _rcRenderIncomeSavings(); break;
     case 'net_worth':       _rcRenderNetWorthTimeline(); break;
@@ -27289,6 +27456,57 @@ function _rcUpdateCategoryDeepDive() {
     const aiId = `category_${cat.replace(/[^a-z0-9]/gi,'_')}_${from}_${to}`;
     _rcAnalyzeWithAI(aiId, dataLines, buildPrompt, res);
   }
+}
+
+// ── Item 65 W9 (AGENT_W_ITEMS.md): the year-end packet - a summary of the year's records, never tax advice ─────
+let _yeYear = null, _yeHealth = false;
+async function _rcRenderYearEnd() {
+  const body = g('rcReportBody');
+  if (!body) return;
+  let p;
+  try { p = await API.get(`/api/year-end?year=${_yeYear || ''}&include_health=${_yeHealth ? 1 : 0}`); }
+  catch (e) { body.innerHTML = `<div style="font-size:13px;color:var(--slate)">${esc(e.message || 'Could not gather the year.')}</div>`; return; }
+  _yeYear = p.year;
+  const money = v => `<span style="font-family:var(--font-mono)">${fmt(v)}</span>`;
+  const table = (rows, a, b) => rows.length ? `<table style="width:100%;font-size:12px;border-collapse:collapse">${rows.map(r =>
+      `<tr><td style="padding:3px 0;border-bottom:0.5px solid var(--steel-2)">${esc(r[a])}${r.deposits ? ` <span style="color:var(--slate)">(${r.deposits} deposits)</span>` : ''}</td>
+       <td style="text-align:right;border-bottom:0.5px solid var(--steel-2)">${money(r[b])}</td></tr>`).join('')}</table>`
+    : '<div style="font-size:12px;color:var(--slate)">None in the record for this year.</div>';
+  const sec = (title, total, inner) => `<div class="card mb-4"><div style="display:flex;justify-content:space-between;align-items:baseline">
+      <div class="card-label" style="margin:0">${title}</div>${total != null ? money(total) : ''}</div><div style="margin-top:8px">${inner}</div></div>`;
+  const miss = p.missing_months.length || p.account_gaps.length;
+  const gn = p.gains;
+  body.innerHTML = `
+    <div style="margin-bottom:16px">
+      <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Year-end packet, ${p.year}</h2>
+      <div style="font-size:13px;color:var(--ink)">${esc(p.statement)}</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+        <select onchange="_yeYear = +this.value; _rcRenderYearEnd()" class="field-input" style="width:auto;font-size:12px;padding:4px 8px">
+          ${p.years.map(y => `<option value="${y}" ${y === p.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
+        <label style="font-size:12px;color:var(--slate)"><input type="checkbox" ${p.include_health ? 'checked' : ''} onchange="_yeHealth = this.checked; _rcRenderYearEnd()"> Include health spending</label>
+        <button class="btn btn-secondary btn-sm" onclick="window.print()">Print or save as PDF</button>
+        <button class="btn btn-secondary btn-sm" onclick="yearEndCsv()">Save as CSV</button>
+      </div>
+      ${p.health_left_out ? `<div style="font-size:12px;color:var(--slate);margin-top:6px">${p.health_left_out} health spending transaction${p.health_left_out === 1 ? ' is' : 's are'} left out. Tick "Include health spending" to include ${p.health_left_out === 1 ? 'it' : 'them'}.</div>` : ''}
+    </div>
+    ${miss ? sec('Missing from the record', null, `<div style="font-size:12px;color:var(--ink);line-height:1.6">These are not counted as zero. The totals below cover only what was imported.
+        ${p.missing_months.length ? `<div>No records at all: ${p.missing_months.map(esc).join(', ')}.</div>` : ''}
+        ${p.account_gaps.map(gp => `<div>${esc(gp.account)}: ${esc(gp.note)}${gp.note.startsWith('nothing imported') ? '' : ` (${gp.months.map(esc).join(', ')})`}.</div>`).join('')}</div>`)
+      : `<div style="font-size:12px;color:var(--slate);margin-bottom:12px">Every month of ${p.year} on record has transactions in every account that had any.</div>`}
+    ${sec('Income by payer', p.income_total, table(p.income, 'payer', 'total'))}
+    ${sec('Spending by category', p.spending_total, table(p.categories, 'name', 'total'))}
+    ${sec('Interest and fees, from your categories for them', p.interest_total, table(p.interest, 'name', 'total'))}
+    ${sec('Charitable donations', p.donations_total, table(p.donations, 'name', 'total'))}
+    ${sec('Realized investment gains and losses', gn.total, gn.lots ? `<div style="font-size:12px">Short term ${money(gn.short_term)} · Long term ${money(gn.long_term)} · from ${gn.lots} closed lot${gn.lots === 1 ? '' : 's'}</div>` : '<div style="font-size:12px;color:var(--slate)">No lots closed in the record for this year.</div>')}
+    ${sec('Statements and documents Groundwork holds', null, p.documents.length ? `<div style="font-size:12px">${p.documents.length} document${p.documents.length === 1 ? '' : 's'} dated ${p.year}: ${p.documents.map(d => `#${d.id} (${esc(d.as_of)})`).join(', ')}</div>` : `<div style="font-size:12px;color:var(--slate)">Groundwork holds no statements or documents dated ${p.year}.</div>`)}
+    ${sec('What this does not include', null, `<ul style="font-size:12px;color:var(--ink);margin:0 0 0 18px;padding:0;line-height:1.6">${p.not_included.map(n => `<li>${esc(n)}</li>`).join('')}</ul>`)}`;
+}
+
+async function yearEndCsv() {
+  try {
+    const r = await API.post('/api/year-end/export', { year: _yeYear, include_health: _yeHealth });
+    showToast('Year-end packet saved', r.path, 'success');
+  } catch (e) { showToast('Could not save the packet', e.message || '', 'error'); }
 }
 
 // ── §7.6 Annual Summary ───────────────────────────────────────────────────────

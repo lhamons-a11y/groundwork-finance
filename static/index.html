@@ -1628,6 +1628,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
                   oninput="runWhatIf(this.value);_debtSyncWhatIfHero(this.value)" style="flex:1">
                 <span class="text-mono" style="font-size:13px;font-weight:500;min-width:48px;text-align:right" id="whatIfSliderVal">$0</span>
               </div>
+              <!-- Item 65 W5-c: this slider stays, and opens the What if panel on the Budget page with its figure in -->
+              <a href="#" style="font-size:11px;color:var(--sky)" onclick="openWhatIf({ add_debt: _debtWhatIfExtra || 0 });return false">Move more than one figure (income, spending, savings) →</a>
               <div class="grid-3 mt-3" id="whatIfStats">
                 <div class="stat-card">
                   <div class="stat-label">Debt-free</div>
@@ -2575,6 +2577,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div class="section-title">Calendar</div>
           <div class="section-sub">What's coming, from your own record. Nothing here reminds or pushes; it's here when you look.</div>
         </div>
+        <!-- Item 65 W1: yearly bills and heavy months a long history shows - asked about, on the person's tap -->
+        <div id="calendarLookThrough"></div>
         <div id="calendarContent"></div>
       </div>
 

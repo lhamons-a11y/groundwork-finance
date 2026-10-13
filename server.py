@@ -220,6 +220,8 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(trips_bp,          url_prefix='/api/trips')
     app.register_blueprint(calendar_bp,       url_prefix='/api/calendar')
     app.register_blueprint(price_changes_bp,  url_prefix='/api/price-changes')
+    app.register_blueprint(first_import_bp,   url_prefix='/api/first-import')
+    app.register_blueprint(year_end_bp,       url_prefix='/api/year-end')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
     app.register_blueprint(willingness_bp,    url_prefix='/api/willingness')
     app.register_blueprint(income_bp,         url_prefix='/api/income-change')
@@ -1970,7 +1972,8 @@ def _going_trip_possibilities(session):
 def _futures_state(session):
     from core import futures as fu
     inputs = _futures_inputs(session)
-    poss = (_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+    poss = ((_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+            + _first_import_possibilities(session))
     answers = _setting_json(session, 'future_answers', []) or []
     out = fu.build(inputs, poss, answers)
     out['fingerprint'] = fu.fingerprint(inputs, poss, answers)
@@ -1997,7 +2000,8 @@ def futures_fingerprint():
     from core import futures as fu
     with db_session() as session:
         inputs = _futures_inputs(session)
-        poss = (_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+        poss = ((_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+                + _first_import_possibilities(session))
         return ok({'fingerprint': fu.fingerprint(inputs, poss, _setting_json(session, 'future_answers', []) or [])})
 
 
@@ -2084,6 +2088,130 @@ def futures_choose():
         _set_setting(session, 'future_choice', json.dumps(choice))
         session.commit()
         return ok(choice)
+
+
+# ── Item 65 W5 (AGENT_W_ITEMS.md): cause and effect you can move - several figures, one engine, nothing saved ────
+@futures_bp.route('/what-if', methods=['POST'])
+@require_json
+def futures_what_if():
+    """W5-a: the person's figures moved together, through the futures' own run() and the one payoff engine."""
+    from core import futures as fu
+    changes = (request.get_json() or {}).get('changes') or {}
+    with db_session() as session:
+        inputs = _futures_inputs(session)
+        if inputs['income'] is None:
+            return err(f'Groundwork needs at least {fu.MIN_INCOME_MONTHS} complete months of income on record for a what-if.', 409)
+        poss = ((_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+                + _first_import_possibilities(session))
+        return ok(fu.what_if(inputs, poss, changes))
+
+
+def _savings_line(session):
+    for b in session.query(BudgetItem).filter_by(is_active=True, type='expense').all():
+        if (b.category or '').strip().lower() == 'savings' or (b.name or '').strip().lower() == 'savings':
+            return b
+    return None
+
+
+def _what_if_plan(session, changes):
+    """W5-b: exactly what "Make this my plan" would change, each with its before and after - and what it would not."""
+    from core import futures as fu
+    inputs = _futures_inputs(session)
+    poss = ((_setting_json(session, 'future_possibilities', []) or []) + _going_trip_possibilities(session)
+            + _first_import_possibilities(session))
+    w = fu.what_if(inputs, poss, changes)
+    items, notes = [], []
+    for c in w['changed']:
+        if c['key'] == 'debt_pay':
+            row = _get_setting(session, 'monthly_budget')
+            items.append({'key': 'debt_pay', 'what': 'Your monthly debt payment', 'before': row.value if row else None,
+                          'after': c['to']})
+        elif c['key'] == 'save':
+            line = _savings_line(session)
+            items.append({'key': 'save', 'what': f'Your budget line {line.name}' if line else 'A new budget line, Savings',
+                          'line_id': line.id if line else None, 'before': round(line.amount or 0, 2) if line else None,
+                          'after': round((line.amount or 0) + c['to'], 2) if line else c['to']})
+        elif c['key'] == 'one_time':
+            items.append({'key': 'one_time', 'what': f"A known cost in {c['month']}, kept as something you said",
+                          'before': None, 'after': c['to'], 'month': c['month']})
+        elif c['key'] == 'income':
+            notes.append("Income isn't changed: Groundwork reads it from your deposits.")
+        elif c['key'] == 'spend':
+            notes.append(f"Spending isn't changed here: this what-if moved it to {c['to']:,.2f} a month in total, "
+                         f"and your budget changes line by line on the Budget page.")
+    return w, items, notes
+
+
+@futures_bp.route('/what-if/plan', methods=['POST'])
+@require_json
+def futures_what_if_plan():
+    """W5-b: "Make this my plan". Without apply it only says what would change; with apply it changes exactly that,
+    keeps the before for Undo, and nothing else."""
+    b = request.get_json() or {}
+    with db_session() as session:
+        if _futures_inputs(session)['income'] is None:
+            return err('There is no what-if without income on record.', 409)
+        w, items, notes = _what_if_plan(session, b.get('changes') or {})
+        if not b.get('apply'):
+            return ok({'changes': items, 'not_changed': notes})
+        if not items:
+            return err('Nothing here changes your plan.')
+        now = datetime.now().isoformat(timespec='seconds')
+        done = []
+        for it in items:
+            if it['key'] == 'debt_pay':
+                _set_setting(session, 'monthly_budget', str(it['after']))
+                done.append(it)
+            elif it['key'] == 'save':
+                if it['line_id']:
+                    session.get(BudgetItem, it['line_id']).amount = it['after']
+                    done.append(it)
+                else:
+                    line = BudgetItem(name='Savings', category='Savings', amount=it['after'], type='expense', is_active=True)
+                    session.add(line); session.flush()
+                    done.append({**it, 'line_id': line.id, 'created': True})
+            elif it['key'] == 'one_time':
+                said = _setting_json(session, 'future_possibilities', []) or []
+                pid = f'p{len(said) + 1}-{int(datetime.now().timestamp())}'
+                said.append({'id': pid, 'kind': 'cost', 'amount': it['after'], 'month': it['month'],
+                             'label': 'A one-time cost (from a what-if)', 'said_at': now})
+                _set_setting(session, 'future_possibilities', json.dumps(said))
+                done.append({**it, 'possibility': pid})
+        _set_setting(session, 'what_if_applied', json.dumps({'at': now, 'items': done}))
+        session.commit()
+        return ok({'applied': done, 'not_changed': notes})
+
+
+@futures_bp.route('/what-if/undo', methods=['POST'])
+def futures_what_if_undo():
+    """W5-b: Undo puts back exactly what "Make this my plan" changed."""
+    with db_session() as session:
+        rec = _setting_json(session, 'what_if_applied')
+        if not rec:
+            return err('Nothing to undo.', 404)
+        for it in rec.get('items', []):
+            if it['key'] == 'debt_pay':
+                if it.get('before') is None:
+                    row = _get_setting(session, 'monthly_budget')
+                    if row:
+                        session.delete(row)
+                else:
+                    _set_setting(session, 'monthly_budget', it['before'])
+            elif it['key'] == 'save' and it.get('line_id'):
+                line = session.get(BudgetItem, it['line_id'])
+                if line and it.get('created'):
+                    session.delete(line)
+                elif line:
+                    line.amount = it['before']
+            elif it['key'] == 'one_time' and it.get('possibility'):
+                said = _setting_json(session, 'future_possibilities', []) or []
+                cur = next((p for p in said if p.get('id') == it['possibility'] and not p.get('withdrawn')), None)
+                if cur:
+                    said.append({**cur, 'withdrawn': True, 'said_at': datetime.now().isoformat(timespec='seconds')})
+                    _set_setting(session, 'future_possibilities', json.dumps(said))
+        session.delete(_get_setting(session, 'what_if_applied'))
+        session.commit()
+        return ok({'undone': True})
 
 
 @futures_bp.route('/choose/undo', methods=['POST'])
@@ -2487,6 +2615,307 @@ def price_changes_undo():
             return err('That budget line is gone.', 404)
         session.commit()
         return ok({'restored': amount})
+
+
+# ── Item 65 W1 (AGENT_W_ITEMS.md): patterns a long history shows - asked about, never assumed ────────────────────
+first_import_bp = Blueprint('first_import', __name__)
+_MONTH_NAMES = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
+                'November', 'December')
+
+
+def _first_import_findings(session):
+    """W1: yearly / twice-yearly bills and months that run heavy every year, from the whole ledger
+    (core/first_import.py). Derived on every read; the person's answers are the only thing kept (W1-b), and an
+    answered finding is not asked about again."""
+    from core import checkin as ck
+    from statistics import median
+    from core import first_import as fi
+    rows = session.query(Transaction.merchant, Transaction.date, Transaction.amount, Transaction.category_id,
+                         Category.name).outerjoin(Category, Category.id == Transaction.category_id).filter(
+        Transaction.type == 'debit').all()
+    dates = [r[1] for r in rows if r[1]]
+    months = fi.complete_months(dates)
+    if len(months) < fi.MIN_MONTHS:
+        return {'enough': False, 'months': len(months),
+                'message': f'Groundwork needs about a year of history to see yearly bills. Your record covers '
+                           f'{len(months)} full month{"s" if len(months) != 1 else ""} so far.'}
+    said_b = [e for e in _setting_json(session, 'yearly_bills_json', []) or [] if isinstance(e, dict)]
+    said_h = [e for e in _setting_json(session, 'heavy_months_json', []) or [] if isinstance(e, dict)]
+    by, cat = {}, {}
+    for m, d, a, _, c in rows:
+        if m and d:
+            by.setdefault(m, []).append((d, a))
+            cat[m] = c or ''
+    answered = {_norm_payee(e.get('payee')): e.get('answer') for e in said_b}
+    ren = []
+    for f in fi.renewals(by, cat, (min(dates), max(dates))):
+        f['sentence'] = fi.sentence(f)
+        f['answer'] = answered.get(_norm_payee(f['payee']))
+        ren.append(f)
+    # heavy months: spending by complete month (transfers are not spending), and each category's usual month
+    tr = ck._transfer_ids(session)
+    keep = set(months)
+    totals, cats = {k: 0.0 for k in months}, {}
+    for _, d, a, cid, c in rows:
+        k = d.strftime('%Y-%m') if d else None
+        if k in keep and cid not in tr:
+            totals[k] += abs(float(a or 0))
+            cats.setdefault(k, {}).setdefault(c or 'Uncategorized', 0.0)
+            cats[k][c or 'Uncategorized'] += abs(float(a or 0))
+    names = {c for v in cats.values() for c in v}
+    usual = {c: median([cats.get(k, {}).get(c, 0.0) for k in months]) for c in names}
+    h_answered = {int(e.get('month') or 0): e.get('answer') for e in said_h}
+    heavy = []
+    for h in fi.heavy_months(totals):
+        latest = h['years'][-1]['month']
+        mo = lambda k: f"{_MONTH_NAMES[int(k[5:7]) - 1][:3]} {k[:4]}"
+        h['name'] = _MONTH_NAMES[h['month'] - 1]
+        h['sentence'] = (f"{h['name']} ran above your usual month in each of the last {len(h['years'])} years: "
+                         + '; '.join(f"${y['total']:,.0f} in {mo(y['month'])}, against a middle month of ${y['median']:,.0f}"
+                                     for y in h['years']) + '.')
+        h['categories'] = [{'category': c, 'amount': v, 'usual': u}
+                           for c, v, u in fi.biggest_categories(cats.get(latest, {}), usual)]
+        h['answer'] = h_answered.get(h['month'])
+        heavy.append(h)
+    return {'enough': True, 'months': len(months), 'renewals': ren, 'heavy': heavy,
+            'heavy_note': None if len(months) >= 24 else
+            'Seeing a month that runs high every year takes two full years of history.'}
+
+
+@first_import_bp.route('', methods=['GET'])
+def first_import_get():
+    with db_session() as session:
+        return ok(_first_import_findings(session))
+
+
+@first_import_bp.route('/offer', methods=['GET'])
+def first_import_offer():
+    """W1: after an import, offer the look-through once for this length of history - when there is something unasked."""
+    with db_session() as session:
+        f = _first_import_findings(session)
+        fresh = f['enough'] and any(x['answer'] is None for x in f['renewals'] + f['heavy'])
+        offered = _setting_json(session, 'first_import_offered', 0) or 0
+        return ok({'offer': bool(fresh and f['months'] != offered), 'months': f['months']})
+
+
+@first_import_bp.route('/offered', methods=['POST'])
+def first_import_offered():
+    with db_session() as session:
+        _set_setting(session, 'first_import_offered', json.dumps(_first_import_findings(session)['months']))
+        session.commit()
+        return ok({'saved': True})
+
+
+@first_import_bp.route('/answer', methods=['POST'])
+@require_json
+def first_import_answer():
+    """W1-b: the person's answer - yes / no / not sure - kept so the same finding isn't asked again. Only a yes changes
+    anything: a yearly bill reaches the calendar (possible) and the futures (a known cost); a heavy month the futures.
+    The finding is worked out again here, never taken from the page."""
+    b = request.get_json() or {}
+    answer = b.get('answer')
+    if answer not in ('yes', 'no', 'not_sure'):
+        return err('Answer yes, no or not sure.')
+    now = datetime.now().isoformat(timespec='seconds')
+    with db_session() as session:
+        f = _first_import_findings(session)
+        if not f['enough']:
+            return err('There is not enough history yet.', 409)
+        if b.get('kind') == 'renewal':
+            hit = next((x for x in f['renewals'] if x['payee'] == b.get('payee')), None)
+            if not hit:
+                return err('That finding is not in the record.', 404)
+            said = [e for e in _setting_json(session, 'yearly_bills_json', []) or []
+                    if isinstance(e, dict) and _norm_payee(e.get('payee')) != _norm_payee(hit['payee'])]
+            said.append({'payee': hit['payee'], 'amount': hit['amount'], 'months': hit['months'], 'day': hit['day'],
+                         'rhythm': hit['rhythm'], 'answer': answer, 'at': now})
+            _set_setting(session, 'yearly_bills_json', json.dumps(said))
+        elif b.get('kind') == 'heavy':
+            hit = next((x for x in f['heavy'] if x['month'] == b.get('month')), None)
+            if not hit:
+                return err('That finding is not in the record.', 404)
+            said = [e for e in _setting_json(session, 'heavy_months_json', []) or []
+                    if isinstance(e, dict) and int(e.get('month') or 0) != hit['month']]
+            said.append({'month': hit['month'], 'over': hit['over'], 'answer': answer, 'at': now})
+            _set_setting(session, 'heavy_months_json', json.dumps(said))
+        else:
+            return err('A finding is needed.')
+        session.commit()
+        return ok({'saved': answer})
+
+
+def _first_import_possibilities(session):
+    """W1: a yes, as a known cost in the futures (SCENARIOS.md SC3, the person's own word) - each yearly bill in its
+    next date(s) - the calendar's own dates, so a bill already charged this month is next year's - and each heavy
+    month at its usual excess, the next time that month starts. The futures count what falls in their horizon."""
+    from core import upcoming
+    today = date.today()
+    ahead = [(today.year + (today.month + i) // 12, (today.month + i) % 12 + 1) for i in range(12)]   # from next month
+    out = []
+    for e in _setting_json(session, 'yearly_bills_json', []) or []:
+        if isinstance(e, dict) and e.get('answer') == 'yes' and (e.get('amount') or 0) > 0:
+            for d in upcoming._yearly_dates(e, today + timedelta(days=1), today + timedelta(days=365)):
+                y, m = d.year, d.month
+                out.append({'id': f"yb-{_norm_payee(e.get('payee'))}-{y}{m:02d}", 'kind': 'cost',
+                            'amount': round(float(e['amount']), 2), 'month': f'{y}-{m:02d}',
+                            'label': f"{e.get('payee')} (a yearly bill you confirmed)", 'said_at': e.get('at')})
+    for e in _setting_json(session, 'heavy_months_json', []) or []:
+        if isinstance(e, dict) and e.get('answer') == 'yes' and (e.get('over') or 0) > 0:
+            y, m = next(((y, m) for y, m in ahead if m == int(e.get('month') or 0)), (None, None))
+            if y:
+                out.append({'id': f'hm-{y}{m:02d}', 'kind': 'cost', 'amount': round(float(e['over']), 2),
+                            'month': f'{y}-{m:02d}', 'label': f'{_MONTH_NAMES[m - 1]} usually runs this much above your usual month',
+                            'said_at': e.get('at')})
+    return out
+
+
+# ── Item 65 W9 (AGENT_W_ITEMS.md): the year-end packet - the year's figures in one place, never tax advice ──────
+year_end_bp = Blueprint('year_end', __name__)
+YEAR_END_STATEMENT = "These are the year's figures from your records. Your tax preparer decides how they are treated."
+YEAR_END_NOT_INCLUDED = (
+    'Anything not in your records: cash paid by hand and never entered, accounts never imported, and paper receipts.',
+    'Tax forms. Groundwork does not have your W-2s, 1099s, 1098s or brokerage statements unless you gave them to it, '
+    'and these figures are not a substitute for them.',
+    'Whether anything is deductible, taxable or reportable. Groundwork does not decide how any figure is treated.',
+    'Investment gains on lots Groundwork has no cost basis for, and anything sold in an account it does not track.',
+    'Interest that was never charged as its own line (for example, mortgage interest inside a payment).',
+)
+
+
+def _year_end(session, year, include_health=False):
+    """W9: one year from the record. W9-a facts only; W9-b health only on its tick (H6 P3); W9-c a month or an
+    account with nothing imported is listed as missing, never counted as zero."""
+    from core import checkin as ck
+    from core import health_boundary
+    from core.database import Account, Artefact, InvestmentLot
+    from core.income_def import income_category_ids
+    y0, y1 = date(year, 1, 1), date(year, 12, 31)
+    today = date.today()
+    last_month = 12 if year < today.year else (today.month - 1 if year == today.year else 0)
+    txns = session.query(Transaction).filter(Transaction.date >= y0, Transaction.date <= y1).all()
+    cats = {c.id: c for c in session.query(Category).all()}
+    cname = lambda t: (cats[t.category_id].name if t.category_id in cats else 'Uncategorized')
+    tr, inc_ids = ck._transfer_ids(session), set(income_category_ids(session))
+    hids = health_boundary.health_category_ids(session)
+    health_left_out = 0 if include_health else sum(1 for t in txns if t.category_id in hids)
+    if not include_health:
+        txns = [t for t in txns if t.category_id not in hids]
+    income, spend, interest, donations = {}, {}, {}, {}
+    for t in txns:
+        amt = abs(float(t.amount or 0))
+        if t.category_id in tr:
+            continue
+        if t.type == 'credit' and t.category_id in inc_ids:
+            k = (t.merchant or t.description or 'Unnamed').strip()
+            income.setdefault(k, [0.0, 0])
+            income[k][0] += amt; income[k][1] += 1
+        elif t.type == 'debit':
+            n = cname(t)
+            spend[n] = spend.get(n, 0.0) + amt
+            low = n.strip().lower()
+            if 'interest' in low or low in ('fees', 'interest / fees'):    # the person's own categories for them
+                k = (t.merchant or t.description or n).strip()
+                interest[k] = interest.get(k, 0.0) + amt
+            if 'charit' in low or low in ('donations', 'gifts & donations'):
+                k = (t.merchant or t.description or n).strip()
+                donations[k] = donations.get(k, 0.0) + amt
+    rows = lambda d: [{'name': k, 'total': round(v, 2)} for k, v in sorted(d.items(), key=lambda x: -x[1])]
+    lots = [l for l in session.query(InvestmentLot).filter_by(is_closed=True).all() if l.closed_date and l.closed_date.year == year]
+    st = round(sum(l.realized_gain or 0 for l in lots if (l.holding_period_days or 0) < 366), 2)
+    lt = round(sum(l.realized_gain or 0 for l in lots if (l.holding_period_days or 0) >= 366), 2)
+    docs = [{'id': a.id, 'as_of': a.as_of} for a in session.query(Artefact).filter(Artefact.held.is_(True)).all()
+            if (a.as_of or '').startswith(str(year))]
+    # W9-c: every month and every account the record should speak for
+    months = [f'{year}-{m:02d}' for m in range(1, last_month + 1)]
+    all_rows = session.query(Transaction.account_id, Transaction.date).filter(Transaction.date >= y0, Transaction.date <= y1).all()
+    seen_any = {d.strftime('%Y-%m') for _, d in all_rows if d}
+    by_acct = {}
+    for a, d in all_rows:
+        if d:
+            by_acct.setdefault(a, set()).add(d.strftime('%Y-%m'))
+    accts = {a.id: a for a in session.query(Account).all()}
+    missing_months = [m for m in months if m not in seen_any]
+    gaps = []
+    for aid, a in accts.items():
+        had = by_acct.get(aid, set())
+        if not had:
+            if a.is_active:
+                gaps.append({'account': a.name, 'months': months, 'note': f'nothing imported for {year}'})
+            continue
+        first = min(had)
+        miss = [m for m in months if m >= first and m not in had]
+        if miss:
+            gaps.append({'account': a.name, 'months': miss, 'note': f"{len(miss)} month{'s' if len(miss) != 1 else ''} with nothing imported"})
+    return {'year': year, 'statement': YEAR_END_STATEMENT, 'months_covered': months,
+            'income': [{'payer': k, 'total': round(v[0], 2), 'deposits': v[1]} for k, v in sorted(income.items(), key=lambda x: -x[1][0])],
+            'income_total': round(sum(v[0] for v in income.values()), 2),
+            'categories': rows(spend), 'spending_total': round(sum(spend.values()), 2),
+            'interest': rows(interest), 'interest_total': round(sum(interest.values()), 2),
+            'donations': rows(donations), 'donations_total': round(sum(donations.values()), 2),
+            'gains': {'short_term': st, 'long_term': lt, 'total': round(st + lt, 2), 'lots': len(lots)},
+            'documents': docs, 'include_health': bool(include_health), 'health_left_out': health_left_out,
+            'missing_months': missing_months, 'account_gaps': gaps, 'not_included': list(YEAR_END_NOT_INCLUDED),
+            'complete': not missing_months and not gaps}
+
+
+def _year_end_args():
+    b = request.get_json(silent=True) or {}
+    src = {**request.args.to_dict(), **b}
+    try:
+        year = int(src.get('year') or date.today().year - 1)
+    except (TypeError, ValueError):
+        year = date.today().year - 1
+    return year, str(src.get('include_health', '')).lower() in ('1', 'true', 'yes')
+
+
+@year_end_bp.route('', methods=['GET'])
+def year_end_get():
+    year, inc = _year_end_args()
+    with db_session() as session:
+        years = sorted({d.year for (d,) in session.query(Transaction.date).distinct().all() if d}, reverse=True)
+        return ok({**_year_end(session, year, inc), 'years': years})
+
+
+@year_end_bp.route('/export', methods=['POST'])
+def year_end_export():
+    """W9: the packet as a CSV in the exports folder - on this computer, health only on its tick (H6 P3)."""
+    import csv
+    import io
+    year, inc = _year_end_args()
+    with db_session() as session:
+        p = _year_end(session, year, inc)
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow([f'Groundwork year-end packet, {year}'])
+    w.writerow([p['statement']])
+    if p['health_left_out']:
+        w.writerow([f"{p['health_left_out']} health spending transaction(s) left out; tick \"Include health spending\" to include them"])
+    for title, key, cols in (('INCOME BY PAYER', 'income', ('payer', 'total', 'deposits')),
+                             ('SPENDING BY CATEGORY', 'categories', ('name', 'total')),
+                             ('INTEREST AND FEES (your categories for them)', 'interest', ('name', 'total')),
+                             ('CHARITABLE DONATIONS', 'donations', ('name', 'total'))):
+        w.writerow([]); w.writerow([f'--- {title} ---']); w.writerow(cols)
+        for r in p[key]:
+            w.writerow([r[c] for c in cols])
+    g = p['gains']
+    w.writerow([]); w.writerow(['--- REALIZED INVESTMENT GAINS AND LOSSES ---'])
+    w.writerow(['short_term', 'long_term', 'total', 'lots']); w.writerow([g['short_term'], g['long_term'], g['total'], g['lots']])
+    w.writerow([]); w.writerow(['--- DOCUMENTS GROUNDWORK HOLDS FOR THE YEAR ---'])
+    for d in p['documents']:
+        w.writerow([d['id'], d['as_of']])
+    if not p['documents']:
+        w.writerow(['none'])
+    w.writerow([]); w.writerow(['--- MISSING FROM THE RECORD (not counted as zero) ---'])
+    for m in p['missing_months']:
+        w.writerow(['no records at all', m])
+    for gp in p['account_gaps']:
+        w.writerow([gp['account'], gp['note'], ' '.join(gp['months'])])
+    w.writerow([]); w.writerow(['--- WHAT THIS DOES NOT INCLUDE ---'])
+    for n in p['not_included']:
+        w.writerow([n])
+    dest = _exports_dir() / f"groundwork_year_end_{year}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    dest.write_text(out.getvalue(), encoding='utf-8')
+    return ok({'path': str(dest), 'health_left_out': p['health_left_out']})
 
 
 calendar_bp = Blueprint('calendar', __name__)

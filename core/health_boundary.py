@@ -172,6 +172,7 @@ HEALTH_SINKS.update({
     ('server.py', '_write_backup', 'file'): 'every backup and safety copy: sealed with the backup key once protection is on (item 81 B1), with BACKUP_STATEMENT (P4)',
     ('server.py', 'backup_encrypt_old', 'file'): 'an old plain backup re-saved sealed (item 81 B7)',
     ('server.py', 'export_to_file', 'file'): 'health spending left out unless include_health (P3)',
+    ('server.py', 'year_end_export', 'file'): 'item 65 W9: health spending left out unless include_health (P3)',
     ('server.py', 'restore_backup', 'file'): 'restores the person\'s own backup, after a safety copy (P4)',
     ('server.py', 'restore_backup_upload', 'file'): 'restores the person\'s own backup file, after a safety copy (P4)',
     ('server.py', 'auto_import_statement_bytes', 'download'): 'serves the person\'s own downloaded statement back to the page, on the computer',
