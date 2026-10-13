@@ -2920,6 +2920,41 @@ def year_end_export():
     return ok({'path': str(dest), 'health_left_out': p['health_left_out']})
 
 
+# ── The dashboard projection's levers (found in the AI-off audit, 2026-10-12; fixed 2026-10-13) ────────────────
+NOT_SPENDING_WORDS = ('transfer', 'savings', 'interest', 'fees', 'refund', 'atm', 'income', 'paycheck', 'salary')
+
+
+def not_levers(names, income_names=()):
+    """The categories never offered as spending to cut: the necessity floor (`is_protected`, the one list), payments
+    set by a contract (a loan, lease, debt or insurance payment - `contracts.CONTRACT_WORDS`), and money that is not
+    spending at all (transfers, savings, interest and fees, refunds, cash withdrawals, income)."""
+    from core.contracts import CONTRACT_WORDS
+    from core.solution import is_protected
+    out = set()
+    for n in names:
+        low = (n or '').strip().lower()
+        if not low:
+            continue
+        words = set(low.replace('/', ' ').replace('&', ' ').split())
+        if (is_protected(n) or CONTRACT_WORDS.search(n) or words & set(NOT_SPENDING_WORDS)
+                or low in {x.strip().lower() for x in income_names}):
+            out.add(n)
+    return sorted(out)
+
+
+@budget_bp.route('/not-levers', methods=['GET'])
+def budget_not_levers():
+    """For the dashboard projection: which of the person's categories may never be proposed as the one to cut."""
+    from core.income_def import income_category_ids
+    with db_session() as session:
+        cats = session.query(Category).all()
+        inc = income_category_ids(session)
+        names = {c.name for c in cats} | {b.category for b in session.query(BudgetItem).all() if b.category} | \
+                {b.name for b in session.query(BudgetItem).filter_by(type='expense').all() if b.name}
+        income_names = [c.name for c in cats if c.id in inc or (c.type or '') in ('income', 'transfer')]
+        return ok({'not_levers': not_levers(names, income_names)})
+
+
 calendar_bp = Blueprint('calendar', __name__)
 
 

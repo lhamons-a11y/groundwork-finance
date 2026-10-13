@@ -247,8 +247,16 @@ function _catChildIds(parentName) {
 // the dashboard sums spending.
 function _isSpend(t) {
   if (!t || t.type !== 'debit') return false;
-  const parent = _catParentName(t.category) || t.category;
-  return parent !== 'Transfer';
+  return !_isTransferCat(t.category);
+}
+
+// A transfer category: named Transfer, typed transfer, or under one - the same test as the server's
+// core/checkin._transfer_ids, so the page and the server never disagree about what moved
+function _isTransferCat(name) {
+  const parent = _catParentName(name) || name;
+  if (parent === 'Transfer' || name === 'Transfer') return true;
+  const c = _catByName(name), p = c && c.parent_id ? (S.categories || []).find(x => x.id === c.parent_id) : null;
+  return (c && c.type === 'transfer') || (p && p.type === 'transfer');
 }
 
 // The credit-side mirror of _isSpend: money that actually arrived from outside,
@@ -257,8 +265,7 @@ function _isSpend(t) {
 // transfers inflate the numerator and denominator by different amounts.
 function _isEarn(t) {
   if (!t || t.type !== 'credit') return false;
-  const parent = _catParentName(t.category) || t.category;
-  return parent !== 'Transfer';
+  return !_isTransferCat(t.category);
 }
 
 function _catParentName(catName) {  const cat = (S.categories || []).find(c => c.name === catName);
@@ -24751,8 +24758,8 @@ function updateReportPreview() {
   const start   = `${month}-01`;
   const end     = new Date(yr,mo,0).toISOString().slice(0,10);
   const txns    = S.transactions.filter(t => t.date>=start && t.date<=end);
-  const income  = txns.filter(t=>t.type==='credit').reduce((s,t)=>s+t.amount,0);
-  const spent   = txns.filter(t=>t.type==='debit').reduce((s,t)=>s+t.amount,0);
+  const income  = txns.filter(_isEarn).reduce((s,t)=>s+t.amount,0);    // transfers on neither side (2026-10-13)
+  const spent   = txns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
   const budgetInc = S.incomes.reduce((s,i)=>s+i.amount,0);
   const totalDebt = S.debtCards.filter(c=>!c.paidInFull).reduce((s,c)=>s+(_cardBal(c)),0);
   const daily     = calcDailyInterest();
@@ -26308,6 +26315,7 @@ async function _loadDashProjection(totalIncome, spent, projected, txns, totalDeb
   // contradict the Record Status card / hero. (Consistency: one voice.)
   const _conf = (typeof _computeClaimConfidence === 'function') ? _computeClaimConfidence() : null;
   if (_conf && _conf.claims.debt && _conf.claims.debt.status === 'insufficient') { card.style.display='none'; return; }
+  await _loadNotLevers();
   const leverage = _findHighLeverageCategory(txns);
   if (!leverage) { card.style.display='none'; return; }
   card.style.display='';
@@ -26328,27 +26336,44 @@ async function _loadDashProjection(totalIncome, spent, projected, txns, totalDeb
   else _renderProjectionFallback(content, badge, projData);
 }
 
+// Fixed 2026-10-13 (found in the AI-off audit): "this month" was every transaction the dashboard's period held - on a
+// year view the whole year, so Debt read $18,540 against a $1,811 month and was offered as a $16,729 cut. And only
+// Other and Transfer were left out, so a debt payment, rent or savings could be "the category to cut". Now: this
+// calendar month's own transactions, and never a category the server names as not a lever (the necessity floor,
+// a contract payment, or money that is not spending).
+let _notLevers = null;
+async function _loadNotLevers() {
+  if (_notLevers) return _notLevers;
+  try { _notLevers = new Set(((await API.get('/api/budget/not-levers')).not_levers || []).map(n => n.trim().toLowerCase())); }
+  catch (e) { _gwErr('_loadNotLevers')(e); _notLevers = null; }
+  return _notLevers;
+}
 function _findHighLeverageCategory(txns) {
-  const currentMonth={};
-  txns.filter(t=>t.type==='debit').forEach(t=>{const cat=t.category||'Other';currentMonth[cat]=(currentMonth[cat]||0)+t.amount;});
+  if (!_notLevers) return null;            // the one list is not loaded: offer nothing rather than guess
   const now=new Date(), thisMonth=now.toISOString().slice(0,7);
+  const lever = cat => cat !== 'Other' && !_notLevers.has(String(cat).trim().toLowerCase());
+  const currentMonth={};
+  S.transactions.filter(t=>t.type==='debit'&&(t.date||'').slice(0,7)===thisMonth).forEach(t=>{const cat=t.category||'Other';currentMonth[cat]=(currentMonth[cat]||0)+t.amount;});
   const monthly={};
   S.transactions.filter(t=>t.type==='debit'&&t.date.slice(0,7)<thisMonth).forEach(t=>{
     const cat=t.category||'Other', mon=t.date.slice(0,7);
     if(!monthly[cat])monthly[cat]={};
     monthly[cat][mon]=(monthly[cat][mon]||0)+t.amount;
   });
+  // the usual month: the three calendar months before this one, counting only months with records (absence is not
+  // zero) - not "the last three stored", which mixed in a month from a year ago (fixed 2026-10-13)
+  const prev3 = [1,2,3].map(k=>{const d=new Date(now.getFullYear(), now.getMonth()-k, 1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;});
   const avgs={};
-  for(const[cat,months]of Object.entries(monthly)){const vals=Object.values(months).slice(-3);if(vals.length)avgs[cat]=vals.reduce((s,v)=>s+v,0)/vals.length;}
+  for(const[cat,months]of Object.entries(monthly)){const vals=prev3.filter(m=>m in months).map(m=>months[m]);if(vals.length)avgs[cat]=vals.reduce((s,v)=>s+v,0)/vals.length;}
   S.expenses.forEach(e=>{const cat=e.cat||e.name;if(!avgs[cat])avgs[cat]=e.amount;});
   let best=null;
   for(const[cat,curr]of Object.entries(currentMonth)){
-    if(cat==='Other'||cat==='Transfer')continue;
+    if(!lever(cat))continue;
     const avg=avgs[cat]||0,over=curr-avg;
     if(over>=20&&(!best||over>best.over))best={category:cat,currentSpend:curr,avgSpend:avg,over:Math.round(over),surplus:Math.round(over)};
   }
   if(!best){const disc=['Dining','Entertainment','Shopping','Subscriptions','Personal'];
-    for(const cat of disc){if(currentMonth[cat]&&currentMonth[cat]>50){const potential=Math.round(currentMonth[cat]*0.2);if(potential>=20){best={category:cat,currentSpend:currentMonth[cat],avgSpend:avgs[cat]||currentMonth[cat],over:0,surplus:potential};break;}}}}
+    for(const cat of disc){if(lever(cat)&&currentMonth[cat]&&currentMonth[cat]>50){const potential=Math.round(currentMonth[cat]*0.2);if(potential>=20){best={category:cat,currentSpend:currentMonth[cat],avgSpend:avgs[cat]||currentMonth[cat],over:0,surplus:potential};break;}}}}
   return best;
 }
 
@@ -27136,12 +27161,15 @@ function _rcMonthlyRefreshPreview() {
   const start = `${yr}-${String(mo).padStart(2,'0')}-01`;
   const end   = new Date(yr, mo, 0).toISOString().slice(0,10);
   const txns  = S.transactions.filter(t => t.date >= start && t.date <= end);
-  const spent = txns.filter(t=>t.type==='debit').reduce((s,t)=>s+t.amount,0);
-  const earned= txns.filter(t=>t.type==='credit').reduce((s,t)=>s+t.amount,0);
+  // Transfers are money moving between the person's own accounts, never spending or earning (_isSpend / _isEarn, as
+  // the dashboard and Annual Summary count them; fixed 2026-10-13 - September 2026's top "spending" was a transfer)
+  const spent = txns.filter(_isSpend).reduce((s,t)=>s+t.amount,0);
+  const earned= txns.filter(_isEarn).reduce((s,t)=>s+t.amount,0);
+  const moved = txns.filter(t=>t.type==='debit' && !_isSpend(t)).reduce((s,t)=>s+t.amount,0);
   const net   = earned - spent;
   const monthName = new Date(yr,mo-1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
   const cats = {};
-  txns.filter(t=>t.type==='debit').forEach(t=>{
+  txns.filter(_isSpend).forEach(t=>{
     const pn = _catParentName(t.category||'Other')||'Other';
     cats[pn]=(cats[pn]||0)+t.amount;
   });
@@ -27159,6 +27187,7 @@ function _rcMonthlyRefreshPreview() {
       <div class="card" style="padding:14px;${net>=0?'border-color:var(--pine-border)':'border-color:var(--ember-border)'}"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Net</div><div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:${net>=0?'var(--pine-text)':'var(--ember-text)'}">${net>=0?'+':''}${fmt(net)}</div></div>
       <div class="card" style="padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Transactions</div><div style="font-family:var(--font-mono);font-size:22px;font-weight:600;color:var(--ink)">${txns.length}</div></div>
     </div>
+    ${moved > 0 ? `<div style="font-size:12px;color:var(--slate);margin:-6px 0 14px">${fmt(moved)} moved between your own accounts this month - not spending, so not in Spent.</div>` : ''}
     ${topCats.length?`<div class="card" style="padding:16px"><div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:12px">Top spending</div>
     ${topCats.map(([cat,amt])=>{const pct=spent>0?(amt/spent*100):0;const cs=_categoryStyle(cat);return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--steel-2)"><div style="flex:1;font-size:13px;color:var(--ink)">${esc(cat)}</div><div style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(amt)}</div><div style="width:40px;text-align:right;font-size:11px;color:var(--slate-2)">${pct.toFixed(0)}%</div></div>`;}).join('')}
     </div>`:''}`;
@@ -29308,9 +29337,10 @@ function _rcRenderIncomeSavings() {
   }
   const budgetInc = S.incomes.reduce((s,i) => s+i.amount, 0);
   const moData = months.map(mo => {
-    const inc  = S.transactions.filter(t=>t.type==='credit'&&(t.date||'').startsWith(mo)).reduce((s,t)=>s+t.amount,0);
+    // transfers on neither side (_isEarn / _isSpend; fixed 2026-10-13)
+    const inc  = S.transactions.filter(t=>_isEarn(t)&&(t.date||'').startsWith(mo)).reduce((s,t)=>s+t.amount,0);
     const effI = inc>0?inc:budgetInc;
-    const exp  = S.transactions.filter(t=>t.type==='debit'&&(t.date||'').startsWith(mo)).reduce((s,t)=>s+t.amount,0);
+    const exp  = S.transactions.filter(t=>_isSpend(t)&&(t.date||'').startsWith(mo)).reduce((s,t)=>s+t.amount,0);
     const saved = effI-exp, rate = effI>0?Math.round((saved/effI)*100):0;
     const [y,m] = mo.split('-').map(Number);
     return { mo, lbl:new Date(y,m-1,1).toLocaleDateString('en-US',{month:'short'}), inc:effI, exp, saved, rate };
