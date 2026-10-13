@@ -39,7 +39,7 @@
   };
   // Item 56 U3: where each service is filed when the city doesn't cover it
   var SERVICE_LEAF = { water: 'Water / Sewer', sewer: 'Water / Sewer', trash: 'Trash', electricity: 'Electric',
-                       natural_gas: 'Gas' };
+                       natural_gas: 'Natural Gas' };   // item 84: was 'Gas'
   var FUEL = { natural_gas: 'natural gas', propane: 'propane', heating_oil: 'heating oil', wood_pellets: 'wood or pellets',
                other: 'other fuel' };
 
@@ -159,8 +159,8 @@
     if (f === 'propane') return { cat: 'Propane', name: 'Propane' };
     if (f === 'heating_oil') return { cat: 'Heating Oil', name: 'Heating oil' };
     if (f === 'wood_pellets' || f === 'other') return { cat: 'Home Heating', name: 'Home heating' };
-    if (f === 'natural_gas') return { cat: 'Gas', name: 'Natural gas' };
-    return catOriginal ? catOriginal(a) : { cat: 'Gas', name: 'Home heating fuel' };
+    if (f === 'natural_gas') return { cat: 'Natural Gas', name: 'Natural gas' };
+    return catOriginal ? catOriginal(a) : { cat: 'Natural Gas', name: 'Home heating fuel' };
   };
 
   // O7: what each 2.0 answer turned on, in the summary - every line true of what item 26 now does.

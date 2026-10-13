@@ -20,11 +20,11 @@ def run(ctx):
           rt.twin('Restaurant', 'Restaurants') and rt.twin('Hobby', 'Hobbies') and rt.twin('Fastfood', 'Fast Food / Takeout')
           and rt.twin('Interest', 'Interest / Fees') and rt.twin('Insurance:Auto', 'Auto Insurance')
           and not rt.twin('Streaming Music', 'Streaming Video') and not rt.twin('Health Insurance', 'Healthcare')
-          and not rt.twin('Personal', 'Personal Care') and not rt.twin('Gas', 'Gas / Fuel') and not rt.twin('Home', 'Home Improvement'))
-    own = ['Restaurants', 'Gas / Fuel', 'Auto Insurance', 'Groceries']
+          and not rt.twin('Personal', 'Personal Care') and not rt.twin('Gas', 'Gasoline / Diesel') and not rt.twin('Home', 'Home Improvement'))
+    own = ['Restaurants', 'Gasoline / Diesel', 'Auto Insurance', 'Groceries']
     check('s223 T4 an imported Quicken name finds the person\'s own: whole, child, then parent; nothing when it means none',
           rt.near_twin('Dining:Restaurant', own) == 'Restaurants' and rt.near_twin('Insurance:Auto', own) == 'Auto Insurance'
-          and rt.near_twin('Auto:Fuel', own) == 'Gas / Fuel' and rt.near_twin('Groceries', own) == 'Groceries'
+          and rt.near_twin('Auto:Fuel', own) == 'Gasoline / Diesel' and rt.near_twin('Groceries', own) == 'Groceries'
           and rt.near_twin('Auto:Service', own) is None)
 
     data = lambda r: (r.get_json() or {}).get('data') or {}

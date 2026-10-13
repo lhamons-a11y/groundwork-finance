@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261012-trips'   # trips the person plans or is going on (TRIP_FUNDING_COACH.md T1, item 61)
+SCHEMA_VERSION = '20261013-fuel-names'   # item 84: Gasoline / Diesel, Natural Gas, EV Charging (data only; models unchanged)
 # This bump carries no migrate.py code: the trips table reaches an existing database through init_db's create_all.
 # The old trip_budget setting is carried in as the first trip by core/trips.py on first read, and kept.
 # Before it, '20261011-gift-tables':
@@ -38,7 +38,7 @@ SCHEMA_VERSION = '20261012-trips'   # trips the person plans or is going on (TRI
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = 'a21e20a9c216add4141cba358a53667b83207478ba28eff75e8337451dd7ded5'
+SCHEMA_SPEC_SHA256 = '51e7a4fa94c4928ea72a6176b5bfe90c4e296a4d9c03b4d4b561aab813fe2eff'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
@@ -209,6 +209,59 @@ _NEW_SINKING_FUND_COLUMNS = [
     # GIFT_BUDGET.md G2: 'gift' marks a gift fund. Existing funds stay '' - ordinary funds.
     ('purpose', "VARCHAR(20) DEFAULT ''"),
 ]
+
+
+# Item 84 (FUEL_NAMES_2.md, Rob 2026-10-13): fill-ups are "Gasoline / Diesel", the natural-gas utility is "Natural Gas",
+# and public charging has its own "EV Charging" under Transportation. Every stored copy of a renamed name follows it.
+_V84_JSON_KEYS = ('import_rules_json', 'category_map_json', 'app_snapshot', 'category_aliases_json', 'tidy_answers_json')
+
+
+def _v84_rename_refs(conn, old, new):
+    conn.execute(text('UPDATE budget_items SET category = :n WHERE category = :o'), {'n': new, 'o': old})
+    conn.execute(text('UPDATE budget_items SET name = :n WHERE name = :o'), {'n': new, 'o': old})
+    for table in ('willingness_declarations', 'debt_ledger_entries', 'byb_items'):
+        has = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name=:t"), {'t': table}).fetchone()
+        if has:
+            conn.execute(text(f'UPDATE {table} SET category = :n WHERE category = :o'), {'n': new, 'o': old})
+    for key in _V84_JSON_KEYS:
+        row = conn.execute(text('SELECT id, value FROM app_settings WHERE key = :k'), {'k': key}).fetchone()
+        if row and row[1] and f'"{old}"' in row[1]:
+            conn.execute(text('UPDATE app_settings SET value = :v WHERE id = :i'),
+                         {'v': row[1].replace(f'"{old}"', f'"{new}"'), 'i': row[0]})
+
+
+def _v84_merge_or_rename(conn, old_id, old, new):
+    """Rename the category, or - when the new name is already taken - move what the old one holds into it."""
+    taken = conn.execute(text('SELECT id FROM categories WHERE name = :n'), {'n': new}).fetchone()
+    if taken:
+        conn.execute(text('UPDATE transactions SET category_id = :t WHERE category_id = :o'), {'t': taken[0], 'o': old_id})
+        conn.execute(text('UPDATE categories SET parent_id = :t WHERE parent_id = :o'), {'t': taken[0], 'o': old_id})
+        conn.execute(text('DELETE FROM categories WHERE id = :o'), {'o': old_id})
+    else:
+        conn.execute(text('UPDATE categories SET name = :n WHERE id = :o'), {'n': new, 'o': old_id})
+    _v84_rename_refs(conn, old, new)
+
+
+def _fuel_names_v84():
+    """Idempotent: a second run finds nothing to rename and EV Charging already there."""
+    with engine.connect() as conn:
+        has = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='categories'")).fetchone()
+        if not has:
+            return
+        fuel = conn.execute(text("SELECT id FROM categories WHERE name = 'Gas / Fuel'")).fetchone()
+        if fuel:
+            _v84_merge_or_rename(conn, fuel[0], 'Gas / Fuel', 'Gasoline / Diesel')
+        util = conn.execute(text("SELECT id FROM categories WHERE name = 'Utilities' AND parent_id IS NULL")).fetchone()
+        if util:
+            gas = conn.execute(text("SELECT id FROM categories WHERE name = 'Gas' AND parent_id = :u"), {'u': util[0]}).fetchone()
+            if gas:                                       # only the utility's own "Gas"; a stray top-level one is left
+                _v84_merge_or_rename(conn, gas[0], 'Gas', 'Natural Gas')
+        trans = conn.execute(text("SELECT id FROM categories WHERE name = 'Transportation' AND parent_id IS NULL")).fetchone()
+        ev = conn.execute(text("SELECT id FROM categories WHERE name = 'EV Charging'")).fetchone()
+        if trans and not ev:
+            conn.execute(text("INSERT INTO categories (name, type, color, icon, parent_id, sort_order, is_system, is_optional, is_enabled) "
+                              "VALUES ('EV Charging', 'expense', '#22c55e', 'zap', :p, 0, 1, 0, 1)"), {'p': trans[0]})
+        conn.commit()
 
 
 def _drop_reserve_contributions():
@@ -482,6 +535,7 @@ def run_migration_if_needed():
     _add_missing_columns('propositions',         _NEW_PROPOSITION_COLUMNS)
     _add_missing_columns('parties',              _NEW_PARTY_COLUMNS)
     _drop_reserve_contributions()
+    _fuel_names_v84()
     _ensure_indexes()
 
     # Audit note (d20 deferred → d21): debt_balance_history used to be defined

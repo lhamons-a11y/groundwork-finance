@@ -14,8 +14,8 @@ import shutil
 import subprocess
 
 EXPECT = {
-    'AEP OHIO BILL PAY': 'Electric', 'OHIO EDISON 12': 'Electric', 'DOMINION ENERGY GAS': 'Gas', 'COLUMBIA GAS OF OHIO': 'Gas',
-    'ENBRIDGE GAS 44': 'Gas', 'CITY WATER DEPT': 'Water / Sewer', 'RUMPKE TRASH PICKUP': 'Trash',
+    'AEP OHIO BILL PAY': 'Electric', 'OHIO EDISON 12': 'Electric', 'DOMINION ENERGY GAS': 'Natural Gas', 'COLUMBIA GAS OF OHIO': 'Natural Gas',
+    'ENBRIDGE GAS 44': 'Natural Gas', 'CITY WATER DEPT': 'Water / Sewer', 'RUMPKE TRASH PICKUP': 'Trash',
     'DUKE ENERGY 1234': 'Other', 'DOMINION ENERGY 123': 'Other', 'NATIONAL GRID 7': 'Other', 'PGE WEB PAY': 'Other',
     'CITY UTILITY BILL': 'Municipal Utilities',   # item 56 U4: a city's utility bill
     'GEICO AUTO': 'Auto Insurance', 'STATE FARM 1234': 'Auto Insurance', 'ANTHEM INSURANCE': 'Other',
@@ -80,7 +80,7 @@ def run(ctx):
             cid = {cc.name: cc.id for cc in s.query(Category).all()}
             a = Account(name='s166 Checking', type='checking', is_active=True)
             s.add(a); s.flush()
-            spec = [('AEP OHIO BILL PAY S166', 'Utilities', 121.40), ('UBER TRIP S166', 'Gas / Fuel', 18.25),
+            spec = [('AEP OHIO BILL PAY S166', 'Utilities', 121.40), ('UBER TRIP S166', 'Gasoline / Diesel', 18.25),
                     ('JOES DINER S166', 'Groceries', 34.10), ('GEICO AUTO S166', 'Health Insurance', 96.00),
                     ('KROGER #234 S166', 'Groceries', 88.00), ('IRS PAYMENT S166', 'Interest / Fees', 400.00)]
             rows = [Transaction(date=date.today(), description=d, amount=amt, type='debit', account_id=a.id, category_id=cid[cat])
@@ -95,13 +95,13 @@ def run(ctx):
                 if 'S166' in x['description']:
                     offered[x['id']] = (gp['from'], gp['to'], x['amount'])
         check('s166 M6 the review offers each row saved under an old answer, from -> to, with its amount',
-              offered == {aep: ('Utilities', 'Electric', 121.40), uber: ('Gas / Fuel', 'Rideshare / Transit', 18.25),
+              offered == {aep: ('Utilities', 'Electric', 121.40), uber: ('Gasoline / Diesel', 'Rideshare / Transit', 18.25),
                           diner: ('Groceries', 'Restaurants', 34.10), geico: ('Health Insurance', 'Auto Insurance', 96.00)})
         check('s166 M6 a row the rules agree with (Kroger in Groceries) and a row with no leaf to go to (a tax payment) are not offered',
               kroger not in offered and irs not in offered)
         with db_session() as s:
             before = {i: s.get(Transaction, i).category_id for i in made_t}
-        check('s166 M6 looking moves nothing', before[aep] == cid['Utilities'] and before[uber] == cid['Gas / Fuel'])
+        check('s166 M6 looking moves nothing', before[aep] == cid['Utilities'] and before[uber] == cid['Gasoline / Diesel'])
         mv = c.post('/api/categories/label-review/move', headers=HJ, data=json.dumps({'ids': [aep, uber, kroger, irs]})).get_json()['data']
         with db_session() as s:
             after = {i: s.get(Transaction, i).category_id for i in made_t}

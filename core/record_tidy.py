@@ -15,9 +15,9 @@ proposal first; only the person's tap changes anything, and every change has Und
 import re
 
 NEVER_HIDE = {'other', 'transfer', 'income', 'uncategorized'}
-# Names that look like one but are two on purpose. Gas is the natural-gas utility and Gas / Fuel is fill-ups:
+# Names that look like one but are two on purpose. Gas is the natural-gas utility and Gasoline / Diesel is fill-ups:
 # item 52 (CATEGORY_LABELS.md) separated them because fuel was counted as a gas bill. Found measuring item 83 on Rob's
-# data, where the alternatives rule offered Gas -> Gas / Fuel.
+# data, where the alternatives rule offered Gas -> Gasoline / Diesel.
 NOT_TWINS = {frozenset(('gas', 'gasfuel'))}
 
 
@@ -70,7 +70,17 @@ def near_twin(name, names):
         tw = [n for n in own if twin(cand, n)]
         if len(tw) == 1:
             return tw[0]
+        syn = SYNONYMS.get(norm(cand))                   # item 84: names that mean a category without sharing a word
+        if syn and syn in own:
+            return syn
     return None
+
+
+# Item 84 (2026-10-13): "Gas / Fuel" became "Gasoline / Diesel", so Quicken's "Auto:Fuel" no longer shares a word with
+# it. Only words with one meaning for a household: "gas" alone is left out (the utility or the pump).
+SYNONYMS = {'fuel': 'Gasoline / Diesel', 'gasoline': 'Gasoline / Diesel', 'diesel': 'Gasoline / Diesel',
+            'petrol': 'Gasoline / Diesel', 'autofuel': 'Gasoline / Diesel', 'evcharging': 'EV Charging',
+            'charging': 'EV Charging', 'electricvehiclecharging': 'EV Charging'}
 
 
 def hideable(cats, used, budgeted, ruled):

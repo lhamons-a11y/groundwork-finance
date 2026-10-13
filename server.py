@@ -4718,7 +4718,7 @@ def gas_estimate(session, fetch=True, today=None):
     this_month = today.strftime('%Y-%m')
     next_service = this_month                       # the bill paid next month pays for this month
     prev_service = _month_add(this_month, -1)
-    item = session.query(BudgetItem).filter(func.lower(BudgetItem.category) == 'gas', BudgetItem.is_active == True).first()  # noqa: E712
+    item = session.query(BudgetItem).filter(func.lower(BudgetItem.category) == 'natural gas', BudgetItem.is_active == True).first()  # noqa: E712  (item 84: was 'gas')
     out = {'kind': 'gas', 'region': reg, 'optin': optin, 'lag': lag,
            'saved_amount': round(float(item.amount), 2) if item and item.amount is not None else None,
            'bills': len(bills), 'has_eia': bool(prices and hdds)}
@@ -4833,9 +4833,9 @@ def gasoline_estimate(session, fetch=True, today=None):
     weekly = _eia_weekly_gas(session, area['duoarea'], fetch, product=ue.EIA_PRODUCT[fuel])
     fills = [{'date': d.isoformat(), 'amount': float(a)} for d, a in session.query(Transaction.date, Transaction.amount).join(
         Category, Transaction.category_id == Category.id).filter(
-        func.lower(Category.name) == 'gas / fuel', Transaction.type == 'debit').order_by(Transaction.date).all() if d and a]
+        func.lower(Category.name) == 'gasoline / diesel', Transaction.type == 'debit').order_by(Transaction.date).all() if d and a]
     months = ue.fuel_months(fills, weekly, today.strftime('%Y-%m')) if weekly else {}
-    item = session.query(BudgetItem).filter(func.lower(BudgetItem.category) == 'gas / fuel', BudgetItem.is_active == True).first()  # noqa: E712
+    item = session.query(BudgetItem).filter(func.lower(BudgetItem.category) == 'gasoline / diesel', BudgetItem.is_active == True).first()  # noqa: E712  (item 84)
     est = ue.estimate_gasoline(months, weekly)
     return {'kind': 'gasoline', 'fuel': fuel, 'region': reg, 'area': area, 'optin': optin, 'lag': 0,
             'saved_amount': round(float(item.amount), 2) if item and item.amount is not None else None,
@@ -5034,12 +5034,12 @@ def utility_applies(session, kind):
                                              'gasoline only, so there is no estimate for it.'}
         if v is None:
             return {'applies': True, 'ask': ask + ['vehicle_fuel'],
-                    'assumes': 'Reading your Gas / Fuel fill-ups as regular gasoline. Tell us what your vehicle uses to be sure.'}
+                    'assumes': 'Reading your Gasoline / Diesel fill-ups as regular gasoline. Tell us what your vehicle uses to be sure.'}
         return {'applies': True, 'ask': ask}
     return {'applies': True, 'ask': ask}
 
 
-_UTILITY_CATEGORY = {'gas': 'gas', 'electric': 'electric', 'gasoline': 'gas / fuel', 'propane': 'propane',
+_UTILITY_CATEGORY = {'gas': 'natural gas', 'electric': 'electric', 'gasoline': 'gasoline / diesel', 'propane': 'propane',   # item 84
                      'heating_oil': 'heating oil'}
 _KIND_WORDS = {'gas': 'the natural gas estimate', 'electric': 'the electricity estimate', 'gasoline': 'the gasoline estimate',
                'propane': 'the propane estimate', 'heating_oil': 'the heating oil estimate'}
@@ -9960,19 +9960,19 @@ def _label_review(session):
     cats = session.query(Category).all()
     by = {c.name: c for c in cats}
     parent = {c.id: c.name for c in cats}
-    gas = next((c for c in cats if c.name == 'Gas' and parent.get(c.parent_id) == 'Utilities'), None)
-    fuel, gym = by.get('Gas / Fuel'), by.get('Gym / Fitness')
+    gas = next((c for c in cats if c.name in ('Natural Gas', 'Gas') and parent.get(c.parent_id) == 'Utilities'), None)   # item 84
+    fuel, gym = by.get('Gasoline / Diesel'), by.get('Gym / Fitness')
     rows, groc_rows = [], []
     if gas and fuel:
         for t in session.query(Transaction).filter(Transaction.category_id == gas.id, Transaction.type == 'debit').all():
-            if bi.auto_category(t.description or '', t.mcc or '') == 'Gas / Fuel':
+            if bi.auto_category(t.description or '', t.mcc or '') == 'Gasoline / Diesel':
                 rows.append(t)
     # Item 53 G7 (FUEL_NAMES.md): warehouse-club and grocery fuel (Costco Gas, Meijer Express) that older imports
     # saved under Groceries, offered the same way.
     groc = by.get('Groceries')
     if groc and fuel:
         for t in session.query(Transaction).filter(Transaction.category_id == groc.id, Transaction.type == 'debit').all():
-            if bi.auto_category(t.description or '', t.mcc or '') == 'Gas / Fuel':
+            if bi.auto_category(t.description or '', t.mcc or '') == 'Gasoline / Diesel':
                 groc_rows.append(t)
     stray = next((c for c in cats if c.name.lower() == 'fitness' and not c.is_system), None)
     return gas, fuel, gym, rows, stray, groc_rows
@@ -9983,7 +9983,7 @@ def _label_review(session):
 # leaf is offered, grouped by from -> to. Gas and Groceries rows that are fuel are item 52/53's own blocks.
 _OLD_MATCHER_ANSWERS = ('Utilities', 'Insurance', 'Transportation', 'Food', 'Healthcare', 'Entertainment', 'Education',
                         'Personal', 'Subscriptions', 'Income', 'Property Taxes',
-                        'Gas / Fuel', 'Groceries', 'Health Insurance', 'Electric', 'Doctor / Co-pays',
+                        'Gasoline / Diesel', 'Groceries', 'Health Insurance', 'Electric', 'Doctor / Co-pays',
                         'Interest / Fees', 'Other Subscriptions',
                         # Item 55 C5: the page's card-code leaves that are now wrong for some codes
                         'Personal Care', 'Tuition / Courses')
@@ -10007,11 +10007,21 @@ def _regroup_review(session):
         to = bi.auto_category(t.description or '', t.mcc or '')
         if to in ('Other', src) or to not in by_name:
             continue
-        if to == 'Gas / Fuel' and src in ('Gas', 'Groceries'):
+        if to == 'Gasoline / Diesel' and src in ('Natural Gas', 'Gas', 'Groceries'):
             continue                  # item 52/53's blocks
         if src in _MUNICIPAL_FROM and src not in _OLD_MATCHER_ANSWERS and to != 'Municipal Utilities':
             continue                  # item 56 U6: from Other or Water / Sewer, only to Municipal Utilities
         groups.setdefault((src, to), []).append(t)
+    # Item 84: a charging row is offered from wherever older rules left it (Rob's sat in Car Maintenance and Car Lease
+    # Payment, card code 5552) - shown first, moved only on the person's yes, like every row here
+    ev = by_name.get('EV Charging')
+    if ev:
+        seen = {t.id for rs in groups.values() for t in rs}
+        for t in session.query(Transaction).filter(Transaction.type == 'debit', Transaction.category_id != ev.id).all():
+            if t.id in seen or t.category_id not in by_id:
+                continue
+            if bi.auto_category(t.description or '', t.mcc or '') == 'EV Charging':
+                groups.setdefault((by_id[t.category_id].name, 'EV Charging'), []).append(t)
     return groups
 
 
@@ -10022,10 +10032,10 @@ def category_label_review():
 
         def block(src, rs):
             rs.sort(key=lambda t: t.date, reverse=True)
-            return {'from': src, 'to': 'Gas / Fuel', 'count': len(rs), 'total': round(sum(float(t.amount) for t in rs), 2),
+            return {'from': src, 'to': 'Gasoline / Diesel', 'count': len(rs), 'total': round(sum(float(t.amount) for t in rs), 2),
                     'rows': [{'id': t.id, 'date': t.date.isoformat(), 'description': t.description or '',
                               'amount': float(t.amount)} for t in rs]}
-        out = {'fuel': block('Gas', rows) if rows else None,
+        out = {'fuel': block(gas.name if gas else 'Natural Gas', rows) if rows else None,
                'fuel_groceries': block('Groceries', groc_rows) if groc_rows else None, 'fitness': None}
         out['regroup'] = [{**block(src, rs), 'to': to} for (src, to), rs in sorted(_regroup_review(session).items())]
         if stray and gym:

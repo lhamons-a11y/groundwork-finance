@@ -1,10 +1,10 @@
 """Imported purchases land in the right category (gw 2.0/CATEGORY_LABELS.md, item 52; Rob 2026-10-09: "approve L1-L7
 as recommended").
 
-    L1  fuel is Gas / Fuel (Transportation), never Gas (the natural-gas utility); gyms are Gym / Fitness
+    L1  fuel is Gasoline / Diesel (Transportation), never Gas (the natural-gas utility); gyms are Gym / Fitness
     L3  every name an importer can return is a real category in the tree - the drift can't come back silently
     L4  re-categorising never creates a category: a name the user's categories don't hold leaves the row as it is
-    L2  (master) every Apple Card name is a real category; Apple's Gas is Gas / Fuel
+    L2  (master) every Apple Card name is a real category; Apple's Gas is Gasoline / Diesel
     L5  (master) rows already saved under the old names are offered with their amounts, and move only on a yes
 """
 import json
@@ -26,17 +26,17 @@ def run(ctx):
 
     # L1
     got = {d: bi.auto_category(d) for d in ('SHELL OIL 57444', 'CLARK GAS 12', 'MEIJER FUEL 0042', 'PLANET FITNESS 33')}
-    check('s164 L1 fill-ups are Gas / Fuel and gyms are Gym / Fitness',
-          got == {'SHELL OIL 57444': 'Gas / Fuel', 'CLARK GAS 12': 'Gas / Fuel', 'MEIJER FUEL 0042': 'Gas / Fuel',
+    check('s164 L1 fill-ups are Gasoline / Diesel and gyms are Gym / Fitness',
+          got == {'SHELL OIL 57444': 'Gasoline / Diesel', 'CLARK GAS 12': 'Gasoline / Diesel', 'MEIJER FUEL 0042': 'Gasoline / Diesel',
                   'PLANET FITNESS 33': 'Gym / Fitness'})
     check('s164 L1 the fuel-station and fitness card codes follow',
-          [bi.auto_category('X', m) for m in ('5541', '5542', '5172', '7997')] == ['Gas / Fuel'] * 3 + ['Gym / Fitness'])
+          [bi.auto_category('X', m) for m in ('5541', '5542', '5172', '7997')] == ['Gasoline / Diesel'] * 3 + ['Gym / Fitness'])
     check('s164 L1 natural-gas bills never go to fuel (item 54: a gas company is the Gas leaf; item 55: code 4900 names no guess)',
-          bi.auto_category('DOMINION ENERGY GAS') != 'Gas / Fuel' and bi.auto_category('COLUMBIA GAS OF OHIO') != 'Gas / Fuel'
+          bi.auto_category('DOMINION ENERGY GAS') != 'Gasoline / Diesel' and bi.auto_category('COLUMBIA GAS OF OHIO') != 'Gasoline / Diesel'
           and bi.auto_category('X', '4900') == 'Other')
-    tree_gas = [r for r in CATEGORY_TREE if r[0] in ('Gas', 'Gas / Fuel')]
-    check('s164 L1 the tree is unchanged: Gas is the utility leaf, Gas / Fuel the Transportation leaf',
-          sorted((r[0], r[4]) for r in tree_gas) == [('Gas', 'Utilities'), ('Gas / Fuel', 'Transportation')])
+    tree_gas = [r for r in CATEGORY_TREE if r[0] in ('Natural Gas', 'Gasoline / Diesel')]   # item 84 names
+    check('s164 L1 the tree is unchanged: Natural Gas (item 84; was Gas) is the utility leaf, Gasoline / Diesel the Transportation leaf',
+          sorted((r[0], r[4]) for r in tree_gas) == [('Gasoline / Diesel', 'Transportation'), ('Natural Gas', 'Utilities')])
 
     # L3 - every name the importers can return
     pats = {p[0] for p in bi._CATEGORY_PATTERNS}
@@ -54,8 +54,8 @@ def run(ctx):
     # L7: the Apple Card map is fixed on master only (2.0 carries the utility estimates; 1.x does not)
     if (ctx.BASE / 'core/utility_estimate.py').exists():
         apple_names = set(re.findall(r"return '([^']+)'", apple)) | set(re.findall(r"\|\| '([^']+)'", apple))
-        check('s164 L2/L3 every name the Apple Card import returns is a real category, and fuel is Gas / Fuel',
-              apple_names and sorted(apple_names - tree) == [] and "case 'gas':               return 'Gas / Fuel'" in apple)
+        check('s164 L2/L3 every name the Apple Card import returns is a real category, and fuel is Gasoline / Diesel',
+              apple_names and sorted(apple_names - tree) == [] and "case 'gas':               return 'Gasoline / Diesel'" in apple)
 
     # L4 - the smart backfill never mints a category. The route reloads bank_importer, so the case is built in the
     # data: the user's categories don't hold the name the matcher returns (Gym / Fitness renamed for the check).
@@ -133,8 +133,8 @@ def run(ctx):
         with db_session() as s:
             cats = s.query(Category).all()
             pid = {c.id: c.name for c in cats}
-            gas_id = next(c.id for c in cats if c.name == 'Gas' and pid.get(c.parent_id) == 'Utilities')
-            fuel_id = next(c.id for c in cats if c.name == 'Gas / Fuel')
+            gas_id = next(c.id for c in cats if c.name == 'Natural Gas' and pid.get(c.parent_id) == 'Utilities')
+            fuel_id = next(c.id for c in cats if c.name == 'Gasoline / Diesel')
             gym_id = next(c.id for c in cats if c.name == 'Gym / Fitness')
             a = Account(name='s164 L5 Checking', type='checking', is_active=True)
             stray = Category(name='Fitness', is_system=False)

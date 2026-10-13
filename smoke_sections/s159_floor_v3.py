@@ -42,11 +42,14 @@ def run(ctx):
         return any(t in n or n in t for t in s.NECESSITY_FLOOR[:44])
     changed = sorted((r[0], p(r[0])) for r in CATEGORY_TREE if p(r[0]) != old(r[0]))
     check('s159 F3 every built-in keeps its verdict except Long-term Care (now protected) and Rental Income (income)',
-          changed == [('Long-term Care', True), ('Rental Income', False)])
+          # item 84 (2026-10-13) renamed Gas / Fuel and Gas and added EV Charging: protected as the names they
+          # replace were, and absent from version 2's tree, so its matching does not know them
+          changed == [('EV Charging', True), ('Gasoline / Diesel', True), ('Long-term Care', True), ('Natural Gas', True),
+                      ('Rental Income', False)])
     check('s159 F3 every built-in health and necessity category is protected',
           all(p(n) for n in ('Healthcare', 'Doctor / Co-pays', 'Prescriptions', 'Dental', 'Vision', 'Health Insurance',
                              'Rent / Mortgage', 'Utilities', 'Electric', 'Gas', 'Water / Sewer', 'Groceries',
-                             'Gas / Fuel', 'Childcare / Daycare', 'Long-term Care')))
+                             'Gasoline / Diesel', 'Childcare / Daycare', 'Long-term Care')))
 
     check('s159 F4 the floor is version 3', s.NECESSITY_FLOOR_VERSION == '3')
     v = s._overspend([{'name': 'Insulin', 'budgeted': 50, 'min_observed': 120, 'months_observed': 6}])

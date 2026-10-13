@@ -11,15 +11,16 @@ import re
 import shutil
 import subprocess
 
-LEAF = {'5552': 'Gas / Fuel', '4121': 'Rideshare / Transit', '7523': 'Parking / Tolls', '5912': 'Prescriptions',
+LEAF = {'5552': 'EV Charging',   # item 84: charging is not fuel
+         '4121': 'Rideshare / Transit', '7523': 'Parking / Tolls', '5912': 'Prescriptions',
         '8021': 'Dental', '8042': 'Vision', '8062': 'Doctor / Co-pays', '5818': 'Software / Apps',
         '5968': 'Other Subscriptions', '5651': 'Clothing', '7832': 'Activities / Events', '8211': 'School / Tuition',
         '8220': 'Tuition / Courses', '8351': 'Childcare / Daycare'}
 NO_GUESS = ('4900', '4901', '5960', '6300', '6381', '4816', '8999', '5921', '9311')
 # C4: (description, code) -> expected. The code wins when it names a leaf; when it names Other, the words decide.
-CASES = [('AEP OHIO 123', '4900', 'Electric'), ('DOMINION ENERGY GAS', '4900', 'Gas'), ('CITY OF MILLBROOK', '4900', 'Other'),
+CASES = [('AEP OHIO 123', '4900', 'Electric'), ('DOMINION ENERGY GAS', '4900', 'Natural Gas'), ('CITY OF MILLBROOK', '4900', 'Other'),
          ('GEICO AUTO', '6300', 'Auto Insurance'), ('ANTHEM', '6300', 'Other'), ('KIDS CARE CENTER', '8351', 'Childcare / Daycare'),
-         ('SHELL OIL 5744', '5541', 'Gas / Fuel'), ('UBER TRIP', '5541', 'Gas / Fuel'), ('ACME', '9311', 'Other')]
+         ('SHELL OIL 5744', '5541', 'Gasoline / Diesel'), ('UBER TRIP', '5541', 'Gasoline / Diesel'), ('ACME', '9311', 'Other')]
 
 
 def _fn(src, name):

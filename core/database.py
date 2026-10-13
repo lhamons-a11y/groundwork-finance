@@ -5588,7 +5588,7 @@ CATEGORY_TREE = [
     # ── Utilities ─────────────────────────────────────────────────────────────
     ('Utilities',               'expense','#06b6d4','bolt',        None,   1,  True, False),
     ('Electric',                'expense','#06b6d4','bolt',        'Utilities', 0, True, False),
-    ('Gas',                     'expense','#06b6d4','flame',       'Utilities', 1, True, False),
+    ('Natural Gas',             'expense','#06b6d4','flame',       'Utilities', 1, True, False),   # item 84: was 'Gas'
     ('Water / Sewer',           'expense','#06b6d4','droplet',     'Utilities', 2, True, False),
     ('Internet',                'expense','#06b6d4','wifi',        'Utilities', 3, True, False),
     ('Phone / Cell',            'expense','#06b6d4','phone',       'Utilities', 4, True, False),
@@ -5608,7 +5608,8 @@ CATEGORY_TREE = [
 
     # ── Transportation ────────────────────────────────────────────────────────
     ('Transportation',          'expense','#8b5cf6','car',         None,   3,  True, False),
-    ('Gas / Fuel',              'expense','#8b5cf6','fuel',        'Transportation', 0, True, False),
+    ('Gasoline / Diesel',              'expense','#8b5cf6','fuel',        'Transportation', 0, True, False),
+    ('EV Charging',             'expense','#22c55e','zap',         'Transportation', 0, True, False),   # item 84
     ('Auto Insurance',          'expense','#8b5cf6','shield',      'Transportation', 1, True, False),
     ('Car Maintenance',         'expense','#8b5cf6','wrench',      'Transportation', 2, True, False),
     ('Car Registration',        'expense','#8b5cf6','file-text',   'Transportation', 3, True, False),

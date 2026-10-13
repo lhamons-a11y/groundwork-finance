@@ -103,7 +103,7 @@ MAX_FLIP_RATE = 0.10 # share of repeat pairs allowed to change answer on identic
 CORPUS = [
     # plain - controls
     ("KROGER 0421 MILLBROOK OH",                         "debit",  "Groceries",            "plain"),
-    ("SHELL OIL 57442 MILLBROOK OH",               "debit",  "Gas / Fuel",           "plain"),
+    ("SHELL OIL 57442 MILLBROOK OH",               "debit",  "Gasoline / Diesel",           "plain"),
     ("NETFLIX.COM",                                 "debit",  "Streaming Video",      "plain"),
     ("CVS/PHARMACY #6110",                          "debit",  "Prescriptions",        "plain"),
     ("PLANET FITNESS 555-2201",                     "debit",  "Gym / Fitness",        "plain"),
@@ -124,7 +124,7 @@ CORPUS = [
     ("SHAWNEE LAWN CARE LLC",                       "debit",  "Lawn / Landscaping",   "blindspot"),
     ("ADT SECURITY SVCS",                           "debit",  "Security System",      "blindspot"),
     ("BOB EVANS #0221",                             "debit",  "Restaurants",          "blindspot"),
-    ("MEIJER FUEL 233",                             "debit",  "Gas / Fuel",           "blindspot"),
+    ("MEIJER FUEL 233",                             "debit",  "Gasoline / Diesel",           "blindspot"),
     ("CLEAR VISION OPTICAL",                        "debit",  "Vision",               "blindspot"),
     ("FIRST BAPTIST CHURCH",                        "debit",  "Charitable Donations", "blindspot"),
     ("ROVER.COM PET SITTING",                       "debit",  "Boarding / Pet Sitting","blindspot"),

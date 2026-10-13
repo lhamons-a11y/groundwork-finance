@@ -1498,7 +1498,7 @@ def main():
     check('normalize_qif_category is case-insensitive',
           _bi.normalize_qif_category('GROCERIES') == 'Groceries')
     check('normalize_qif_category maps "Parent:Child" by trying the child first',
-          _bi.normalize_qif_category('Auto & Transport:Gas & Fuel') == 'Gas / Fuel')
+          _bi.normalize_qif_category('Auto & Transport:Gas & Fuel') == 'Gasoline / Diesel')
     check('normalize_qif_category falls back to the parent when the child is unmapped',
           _bi.normalize_qif_category('Bills & Utilities:Some Unmapped Child') == 'Utilities')
     check('normalize_qif_category returns unmapped input unchanged (never blanks or guesses)',

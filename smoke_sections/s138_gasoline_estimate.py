@@ -2,7 +2,7 @@
 
     area      EIA's weekly regular-gasoline price for the user's own state where EIA publishes one (nine states),
               else their PADD region, else the U.S. - all confirmed against EIA, 2026-10-01
-    gallons   each fill-up (Gas / Fuel) / that week's average price; a fill-up with no weekly price within two weeks is
+    gallons   each fill-up (Gasoline / Diesel) / that week's average price; a fill-up with no weekly price within two weeks is
               not converted; a month without fill-ups is absent, never zero; the current month is left out
     estimate  the median of the last six months with fill-ups x EIA's latest weekly price; under three months it says
               what it needs
@@ -103,5 +103,5 @@ console.log(JSON.stringify(out));
               and o['ok']['statement'] == "EIA's latest weekly regular-gasoline price for the West Coast (PADD 5) is $4.25/gal "
                                           "(week of 2026-09-28), up from $3.80 a year earlier; the gasoline estimate on your Budget page uses it.")
         check('s138 the saved amount still sets the totals; without enough fill-ups, it says what it needs',
-              any('Your saved Gas / Fuel budget of $160.00 sets the budget totals. Follow this estimate' in l for l in L)
+              any('Your saved Gasoline / Diesel budget of $160.00 sets the budget totals. Follow this estimate' in l for l in L)
               and o['none']['lines'][-1] == 'A gasoline estimate needs fill-ups in at least three months.')

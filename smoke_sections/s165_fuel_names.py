@@ -4,7 +4,7 @@ recommended").
     G1  BP#8823 and EXXONMOBIL are fuel
     G2  the missing brands, whole words; a name that is also a word or another business counts only with a store
         number or a station word (Holiday Inn, Pilot Pen, Gulf Coast Bank and a race entry stay out)
-    G3  warehouse-club and grocery fuel is Gas / Fuel; an ordinary Costco or Kroger trip stays Groceries
+    G3  warehouse-club and grocery fuel is Gasoline / Diesel; an ordinary Costco or Kroger trip stays Groceries
     G4  a card code still wins over the name (a food code at Casey's is food)
     G5  tested both ways. The lines below are WRITTEN TO LOOK LIKE bank descriptions - they are not taken from real
         statements
@@ -41,28 +41,28 @@ def run(ctx):
     from core.database import Category, Transaction, Account, db_session
 
     got = {d: bi.auto_category(d) for d in FUEL}
-    missed = [d for d, cat in got.items() if cat != 'Gas / Fuel']
-    check(f's165 G1/G2/G3 every station line is Gas / Fuel ({len(FUEL)} lines){" - missed: " + ", ".join(missed) if missed else ""}',
+    missed = [d for d, cat in got.items() if cat != 'Gasoline / Diesel']
+    check(f's165 G1/G2/G3 every station line is Gasoline / Diesel ({len(FUEL)} lines){" - missed: " + ", ".join(missed) if missed else ""}',
           missed == [])
-    caught = [d for d in NOT_FUEL if bi.auto_category(d) == 'Gas / Fuel']
+    caught = [d for d in NOT_FUEL if bi.auto_category(d) == 'Gasoline / Diesel']
     check(f's165 G2/G3 no non-fuel line is fuel ({len(NOT_FUEL)} lines){" - caught: " + ", ".join(caught) if caught else ""}',
           caught == [])
     check('s165 G3 an ordinary warehouse-club or grocery trip stays Groceries',
           [bi.auto_category(d) for d in ('COSTCO WHSE #123', 'KROGER #234', 'SAMS CLUB #44')] == ['Groceries'] * 3)
     check('s165 G4 a card code still wins over the name (a food code at Casey\'s is food; a fuel code anywhere is fuel)',
-          bi.auto_category("CASEY'S #123", '5814') == 'Fast Food / Takeout' and bi.auto_category('ANY STORE', '5541') == 'Gas / Fuel')
+          bi.auto_category("CASEY'S #123", '5814') == 'Fast Food / Takeout' and bi.auto_category('ANY STORE', '5541') == 'Gasoline / Diesel')
 
     # G6: the same text on both sides
-    py = next(p for cat, p in bi._CATEGORY_PATTERNS if cat == 'Gas / Fuel')
+    py = next(p for cat, p in bi._CATEGORY_PATTERNS if cat == 'Gasoline / Diesel')
     client = _fn(app, 'clientAutoCategory')
-    m = re.search(r"\n  if \(/(.*?)/\.test\(d\)\) return 'Gas / Fuel';", client)
+    m = re.search(r"\n  if \(/(.*?)/\.test\(d\)\) return 'Gasoline / Diesel';", client)
     check('s165 G6 the page\'s fuel pattern is the same text as the server\'s', bool(m) and m.group(1) == py)
 
     node = shutil.which('node')
     if node and client:
         js = client + 'const L = ' + json.dumps({'fuel': FUEL, 'not': NOT_FUEL}) + ''';
-console.log(JSON.stringify({fuel: L.fuel.filter(d => clientAutoCategory(d) !== 'Gas / Fuel'),
-                            not: L.not.filter(d => clientAutoCategory(d) === 'Gas / Fuel')}));'''
+console.log(JSON.stringify({fuel: L.fuel.filter(d => clientAutoCategory(d) !== 'Gasoline / Diesel'),
+                            not: L.not.filter(d => clientAutoCategory(d) === 'Gasoline / Diesel')}));'''
         p = subprocess.run([node, '-e', js], capture_output=True, text=True, encoding='utf-8', timeout=60)
         out = json.loads(p.stdout.strip() or '{}') if p.returncode == 0 else {}
         check('s165 G5/G6 the page reads the same lines the same way', out == {'fuel': [], 'not': []})
@@ -73,7 +73,7 @@ console.log(JSON.stringify({fuel: L.fuel.filter(d => clientAutoCategory(d) !== '
         from datetime import date
         with db_session() as s:
             groc = s.query(Category).filter(Category.name == 'Groceries').first().id
-            fuel = s.query(Category).filter(Category.name == 'Gas / Fuel').first().id
+            fuel = s.query(Category).filter(Category.name == 'Gasoline / Diesel').first().id
             a = Account(name='s165 Checking', type='checking', is_active=True)
             s.add(a); s.flush()
             rows = [Transaction(date=date.today(), description='COSTCO GAS #123 S165', amount=52.40, type='debit', account_id=a.id, category_id=groc),
@@ -88,7 +88,7 @@ console.log(JSON.stringify({fuel: L.fuel.filter(d => clientAutoCategory(d) !== '
         mv = c.post('/api/categories/label-review/move', headers=HJ, data=json.dumps({'ids': [gas_row, shop_row]})).get_json()['data']
         with db_session() as s:
             after = (s.get(Transaction, gas_row).category_id, s.get(Transaction, shop_row).category_id)
-        check('s165 G7 on a yes the fill-up moves to Gas / Fuel; the shopping trip cannot be moved by the review',
+        check('s165 G7 on a yes the fill-up moves to Gasoline / Diesel; the shopping trip cannot be moved by the review',
               mv['moved'] == 1 and after == (fuel, groc))
         if node:
             js = _fn(app, '_labelReviewFuelBlock') + _fn(app, 'labelReviewHTML') + r'''

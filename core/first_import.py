@@ -17,7 +17,7 @@ RHYTHMS = (('yearly', 355, 375, 12), ('twice a year', 176, 189, 6))
 AMOUNT_TOL = 0.15
 # a payee with everyday spending is not a bill: two coffees a year apart are a coincidence, not a renewal
 EVERYDAY = {'groceries', 'food', 'restaurant', 'restaurants', 'fast food / takeout', 'fastfood', 'coffee shops',
-            'gas', 'gas / fuel', 'shopping', 'clothing', 'personal', 'other', 'household supplies', 'entertainment',
+            'gas', 'gas / fuel', 'gasoline / diesel', 'ev charging', 'shopping', 'clothing', 'personal', 'other', 'household supplies', 'entertainment',
             'hobbies', 'hobby', 'gifts', 'work lunches', 'parking / tolls', 'rideshare / transit', 'atm', 'transfer',
             'refund', 'interest', 'interest / fees', 'fees', 'debt', 'savings', 'income', 'beauty', 'personal care'}
 GRACE = 20                  # days of slack before a missing renewal counts against the rhythm

@@ -137,9 +137,9 @@ def run(ctx):
         server._steo = fake_steo
         server._gas_bills = lambda session, lag: [{'month': b['month'], 'paid_month': b['month'], 'amount': b['amount']} for b in bills]
         with ctx.dbs() as s:
-            item = s.query(BudgetItem).filter(BudgetItem.category == 'Gas').first()
+            item = s.query(BudgetItem).filter(BudgetItem.category == 'Natural Gas').first()
             if not item:
-                item = BudgetItem(name='Gas', category='Gas', amount=120.0, type='expense', is_active=True)
+                item = BudgetItem(name='Natural Gas', category='Natural Gas', amount=120.0, type='expense', is_active=True)
                 s.add(item)
                 s.commit()
             saved = item.amount
@@ -147,7 +147,7 @@ def run(ctx):
         r = ctx.c.post('/api/budget/utility-estimate/optin', headers=ctx.HJ, data=json.dumps({'kind': 'gas', 'on': True, 'lag': 1}))
         g = (ctx.c.get('/api/budget/utility-estimate/gas', headers=ctx.HJ).get_json() or {}).get('data') or {}
         with ctx.dbs() as s:
-            after = s.query(BudgetItem).filter(BudgetItem.category == 'Gas').first().amount
+            after = s.query(BudgetItem).filter(BudgetItem.category == 'Natural Gas').first().amount
             adj_after = s.query(HistorianEntry).filter_by(event_category='budget_adjusted').count()
     finally:
         server._steo, server._gas_bills = real

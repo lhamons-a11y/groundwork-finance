@@ -162,7 +162,7 @@
         + ' a year earlier; the ' + kw + ' estimate on your Budget page uses it.';
     }
     if (d.saved_amount !== null && d.saved_amount !== undefined) {
-      lines.push('Your saved Gas / Fuel budget of ' + f.money(d.saved_amount) + ' still sets the budget totals; this estimate is shown beside it.');
+      lines.push('Your saved Gasoline / Diesel budget of ' + f.money(d.saved_amount) + ' still sets the budget totals; this estimate is shown beside it.');
     }
     return { lines: lines, statement: statement,
              source: 'From the U.S. Energy Information Administration\'s weekly retail prices and your own fill-ups.' };

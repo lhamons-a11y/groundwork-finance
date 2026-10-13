@@ -105,6 +105,8 @@ NECESSITY_FLOOR = (
     # longer catches by accident, and "gas", which was only ever matched as part
     # of "gas / electric".
     'electricity', 'grocery', 'gasoline', 'gas',
+    # item 84 (2026-10-13): the renamed fuel leaf and public charging - appended, so the version-2 terms keep their places
+    'gasoline / diesel', 'ev charging',
 )
 
 # Names that are on the floor only when they are the WHOLE name. "Health" alone

@@ -434,7 +434,7 @@ def split_electric(choice, est, bills, prices, hdds, cdds):
 
 # ── Gasoline (U8's third slice): no weather - gallons from the user's own fill-ups ───────────────────────────────
 #
-# Each fill-up (a debit in Gas / Fuel) divided by EIA's weekly retail price for that week, in the user's area, gives
+# Each fill-up (a debit in Gasoline / Diesel) divided by EIA's weekly retail price for that week, in the user's area, gives
 # the gallons bought - at the area's AVERAGE price, which the card says, because what the user paid at the pump is
 # not in the record. A month's gallons are summed; the typical month is the median of the last six complete months
 # that have fill-ups (a month without one may be a month without driving, or a month paid in cash - it is absent,
@@ -517,7 +517,7 @@ def estimate_gasoline(months, weekly):
     recent = list(months.items())[-TYPICAL_OF:]
     if len(recent) < MIN_FUEL_MONTHS:
         return {'method': 'none', 'months': len(recent),
-                'needs': 'fill-ups in at least three months (Gas / Fuel purchases in your ledger)'}
+                'needs': 'fill-ups in at least three months (Gasoline / Diesel purchases in your ledger)'}
     gal = sorted(r['gallons'] for _, r in recent)
     typical = gal[len(gal) // 2] if len(gal) % 2 else (gal[len(gal) // 2 - 1] + gal[len(gal) // 2]) / 2
     price = weekly[latest]

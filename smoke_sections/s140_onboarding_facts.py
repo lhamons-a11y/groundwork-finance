@@ -127,9 +127,9 @@ def run(ctx):
     # ── O4: labels change; the ledger's category names do not ────────────────
     check('s140 O4 the bills screen says home heating fuel and vehicle fuel, not "Gas" twice',
           'Home heating fuel ($/month)' in html and 'Vehicle fuel (gasoline or diesel) ($/month)' in html
-          and '<label>Gas ($/month)</label>' not in html and '<label>Gas / Fuel ($/month)</label>' not in html)
-    check('s140 O4 the categories keep their names: Gas / Fuel for vehicles, Gas for natural gas (and unanswered)',
-          "_obExp('obExpFuel',      'Gas / Fuel'," in app and "return { cat: 'Gas', name: 'Home heating fuel' };" in app)
+          and '<label>Gas ($/month)</label>' not in html and '<label>Gasoline / Diesel ($/month)</label>' not in html)
+    check('s140 O4 the categories keep their names: Gasoline / Diesel for vehicles, Gas for natural gas (and unanswered)',
+          "_obExp('obExpFuel',      'Gasoline / Diesel'," in app and "return { cat: 'Natural Gas', name: 'Home heating fuel' };" in app)
     check('s140 O4 propane and heating oil get their own categories, so they never feed the natural gas estimate',
           "if (f === 'propane') return { cat: 'Propane'" in hh_js and "if (f === 'heating_oil') return { cat: 'Heating Oil'" in hh_js)
     check('s140 O9 the 2.0 questions live in the teaching layer; app.js names none of them',

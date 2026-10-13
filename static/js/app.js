@@ -6850,7 +6850,7 @@ function clientParseCSV(text) {
 // Apple categories: Food and Drink, Shopping, Entertainment, Health,
 // Transportation, Travel, Services, Other, Interest, Payment
 // Item 52 L2 (CATEGORY_LABELS.md): every name returned here is a real category
-// in the tree - Apple's "Gas" is fuel (Gas / Fuel, under Transportation), not
+// in the tree - Apple's "Gas" is fuel (Gasoline / Diesel, under Transportation), not
 // the natural-gas utility; the tree has no Shopping, so it is Personal.
 function _mapAppleCardCategory(appleCategory, description) {
   const ac = (appleCategory || '').toLowerCase().trim();
@@ -6864,7 +6864,7 @@ function _mapAppleCardCategory(appleCategory, description) {
     case 'health':            return 'Healthcare';
     case 'fitness':           return 'Gym / Fitness';
     case 'transportation':    return clientAutoCategory(description) || 'Transportation';
-    case 'gas':               return 'Gas / Fuel';
+    case 'gas':               return 'Gasoline / Diesel';
     case 'travel':            return clientAutoCategory(description) || 'Vacation / Travel';
     case 'hotel':             return 'Vacation / Travel';
     case 'flights':           return 'Vacation / Travel';
@@ -6942,7 +6942,7 @@ function clientAutoCategory(desc='') {
   if (/\bnyt(imes)?\b|\bwashington post\b|\bsubscription\b/.test(d)) return 'Other Subscriptions';
   if (/\bat\s*&?\s*t\b|\battinternet\b|\battpayment\b|\bverizon\b|\bt-?mobile\b|\bsprint\b|\bmint mobile\b|\bus cellular\b|\bcricket wireless\b|\bvisible\b/.test(d)) return 'Phone / Cell';
   if (/\b(city|village|town|township|borough)\b[a-z .\-]{0,40}?\butilit|\bmunicipal utilit|\bpublic utilit/.test(d)) return 'Municipal Utilities';
-  if (/\benbridge\b|\bdominion (energy )?gas\b|\bcolumbia gas\b|\bgas (company|utility)\b/.test(d)) return 'Gas';
+  if (/\benbridge\b|\bdominion (energy )?gas\b|\bcolumbia gas\b|\bgas (company|utility)\b/.test(d)) return 'Natural Gas';   // item 84
   if (/\baep\b|\bohio edison\b|\bdominion power\b|\bsce\b|\bsouthern california edison\b|\belectric (bill|company)\b/.test(d)) return 'Electric';
   if (/\bwater (dept|utility|bill)\b|\bsewer\b|\bsewage\b/.test(d)) return 'Water / Sewer';
   if (/\btrash (service|pickup)\b/.test(d)) return 'Trash';
@@ -6950,7 +6950,8 @@ function clientAutoCategory(desc='') {
   if (/\bnationwide\s+pet\b|\bpetco\b|\bchewy\b|\bbanfield\b|\bvet (clinic|hospital|services)\b|\bveterinary\b|\bpetsmart\b|\bpet supplies\b|\bflying fur pets\b/.test(d)) return 'Pet Food / Supplies';
   if (/\bgeico\b|\bprogressive\b|\bstate farm\b|\ballstate\b|\bnationwide\b|\bliberty mutual\b|\busaa\b|\bfarmers\b/.test(d)) return 'Auto Insurance';
   if (/\binsurance\b/.test(d)) return 'Other';
-  if (/\bclark (gas|oil|station)?\b|\bbp(\s|#|\d)|\bexxon|\bmobil\b|\bshell\b|\bspeedway\b|\bcircle k\b|\bsunoco\b|\bchevron\b|\b76\s+(gas|fuel)\b|\bbuc.ee|\bsheetz\b|\bwawa\b|\bphillips 66\b|\bconoco\b|\bcitgo\b|\bvalero\b|\bquik ?trip\b|\bracetrac\b|\bkwik trip\b|\bmurphy (usa|express)\b|\bthorntons\b|\bta travel\b|\bget ?go\b|\bspeedy q\b|\bcumberland farms\b|\bflying j\b|\bmarathon(\s+petro|\s*#|\s+\d)|\bpilot(\s*#|\s+\d|\s+travel)|\blove\x27?s(\s*#|\s+\d|\s+travel|\s+country)|\bholiday(\s+stations?|\s+oil|\s*#|\s+\d)|\bgulf(\s+oil|\s*#|\s+\d)|\barco(\s*#|\s+\d)|\bqt(\s*#|\s+\d)|\bcasey\x27?s(\s+gen|\s*#|\s+\d)|\bsinclair(\s+oil|\s*#|\s+\d)|\b(costco|sam\x27?s(\s+club)?)\s+(gas|fuel)\b|\bmeijer express\b|\bfuel|\bgas station\b/.test(d)) return 'Gas / Fuel';
+  if (/\bchargepoint\b|\belectrify america\b|\bsupercharg|\btesla (supercharger|charging)\b|\bevgo\b|\bblink charg|\bnayax ev\b|\bev ?charg|\bcharging station\b|\bvolta charg|\bflo charg/.test(d)) return 'EV Charging';   // item 84: public charging, before fuel - the same text as bank_importer.py
+  if (/\bclark (gas|oil|station)?\b|\bbp(\s|#|\d)|\bexxon|\bmobil\b|\bshell\b|\bspeedway\b|\bcircle k\b|\bsunoco\b|\bchevron\b|\b76\s+(gas|fuel)\b|\bbuc.ee|\bsheetz\b|\bwawa\b|\bphillips 66\b|\bconoco\b|\bcitgo\b|\bvalero\b|\bquik ?trip\b|\bracetrac\b|\bkwik trip\b|\bmurphy (usa|express)\b|\bthorntons\b|\bta travel\b|\bget ?go\b|\bspeedy q\b|\bcumberland farms\b|\bflying j\b|\bmarathon(\s+petro|\s*#|\s+\d)|\bpilot(\s*#|\s+\d|\s+travel)|\blove\x27?s(\s*#|\s+\d|\s+travel|\s+country)|\bholiday(\s+stations?|\s+oil|\s*#|\s+\d)|\bgulf(\s+oil|\s*#|\s+\d)|\barco(\s*#|\s+\d)|\bqt(\s*#|\s+\d)|\bcasey\x27?s(\s+gen|\s*#|\s+\d)|\bsinclair(\s+oil|\s*#|\s+\d)|\b(costco|sam\x27?s(\s+club)?)\s+(gas|fuel)\b|\bmeijer express\b|\bfuel|\bgas station\b/.test(d)) return 'Gasoline / Diesel';
   if (/\bjiffy lube\b|\bvalvoline\b|\bmidas\b|\bfirestone\b|\bpep boys\b|\bmechanic\b|\bauto (service|repair|parts)\b|\boil change\b|\bcar wash\b|\btire (shop|store|center)\b/.test(d)) return 'Car Maintenance';
   if (/\buber\b(?!\s+eats)|\blyft\b|\bmetro (transit|card)\b|\bbus pass\b|\bbart\b|\bmta\b|\bamtrak\b|\bgreyhound\b/.test(d)) return 'Rideshare / Transit';
   if (/\bparking\b|\btoll\b/.test(d)) return 'Parking / Tolls';
@@ -6984,8 +6985,8 @@ function clientAutoCategory(desc='') {
 const CLIENT_MCC_CATEGORY_MAP = {
   '5812': 'Restaurants', '5813': 'Restaurants', '5814': 'Fast Food / Takeout', '5499': 'Groceries',
   '5411': 'Groceries', '5422': 'Groceries', '5441': 'Groceries', '5451': 'Groceries',
-  '5462': 'Groceries', '5541': 'Gas / Fuel', '5542': 'Gas / Fuel', '5552': 'Gas / Fuel',
-  '5172': 'Gas / Fuel', '7542': 'Car Maintenance', '7538': 'Car Maintenance', '5511': 'Car Maintenance',
+  '5462': 'Groceries', '5541': 'Gasoline / Diesel', '5542': 'Gasoline / Diesel', '5552': 'EV Charging',
+  '5172': 'Gasoline / Diesel', '7542': 'Car Maintenance', '7538': 'Car Maintenance', '5511': 'Car Maintenance',
   '5531': 'Car Maintenance', '5532': 'Car Maintenance', '5533': 'Car Maintenance', '4111': 'Rideshare / Transit',
   '4121': 'Rideshare / Transit', '4131': 'Rideshare / Transit', '4789': 'Rideshare / Transit', '7523': 'Parking / Tolls',
   '5200': 'Rent / Mortgage', '5211': 'Rent / Mortgage', '5231': 'Home Maintenance', '5251': 'Rent / Mortgage',
@@ -7829,9 +7830,9 @@ async function _loadUtilityPrices() {
 // the real cause is the commodity price itself.
 function _utilityPriceContext(catName) {
   let data, unit, label, priceFmt;
-  if (catName === 'Gas')          { data = _naturalGasPriceData; unit = '/MCF'; label = 'natural gas'; priceFmt = p => `$${p.toFixed(2)}/MCF`; }
+  if (catName === 'Natural Gas' || catName === 'Gas') { data = _naturalGasPriceData; unit = '/MCF'; label = 'natural gas'; priceFmt = p => `$${p.toFixed(2)}/MCF`; }   // item 84: 'Gas' is the old name
   else if (catName === 'Electric') { data = _electricityPriceData; unit = 'kWh';  label = 'electricity'; priceFmt = p => `${p}¢/kWh`; }
-  else if (catName === 'Gas / Fuel') { data = _gasPriceData; unit = '/gal'; label = 'gasoline'; priceFmt = p => `$${p.toFixed(2)}/gal`; }
+  else if (catName === 'Gasoline / Diesel') { data = _gasPriceData; unit = '/gal'; label = 'gasoline'; priceFmt = p => `$${p.toFixed(2)}/gal`; }
   else return null;
   if (!data || !data.live) return null;
   return {
@@ -13468,7 +13469,7 @@ async function obHomeNext() {
 // Where the home heating line's bill is filed. Gas, as always: the category keeps its name (labels change, the
 // ledger's names do not).
 function _obHeatingCategory() {
-  return { cat: 'Gas', name: 'Home heating fuel' };
+  return { cat: 'Natural Gas', name: 'Home heating fuel' };
 }
 
 // O3: the priority's reader. The user's own choice and its arithmetic from what they entered - no verdict, no date.
@@ -14039,7 +14040,7 @@ async function obNext(step) {
       _obExp('obExpGroceries', 'Groceries',           'Groceries');
       _obExp('obExpDining',    'Restaurants',         'Dining Out / Takeout');
       // Transportation
-      _obExp('obExpFuel',      'Gas / Fuel',          'Vehicle fuel');
+      _obExp('obExpFuel',      'Gasoline / Diesel',          'Vehicle fuel');
       _obExp('obExpCarLease',  'Transportation',      'Car Lease');
     }
     S.expenses = newExpenses;
@@ -22906,7 +22907,7 @@ let _labelReview = null;
 
 function _labelReviewFuelBlock(f, key, intro, why, ask) {
   const n = f.count;
-  const q = ask || `look${n === 1 ? 's like a' : ' like'} fill-up${n !== 1 ? 's' : ''} — ${fmt(f.total)} in all. Move ${n === 1 ? 'it' : 'them'} to <strong>Gas / Fuel</strong> (Transportation)?`;
+  const q = ask || `look${n === 1 ? 's like a' : ' like'} fill-up${n !== 1 ? 's' : ''} — ${fmt(f.total)} in all. Move ${n === 1 ? 'it' : 'them'} to <strong>Gasoline / Diesel</strong> (Transportation)?`;
   return `<div id="lrBlock_${key}" style="margin-bottom:14px"><div style="font-size:13px;color:var(--ink);margin-bottom:6px">${n} purchase${n !== 1 ? 's' : ''} in ${intro} ${q}</div>
       <div style="font-size:11px;color:var(--slate-2);margin-bottom:6px">${why}</div>
       <div style="max-height:220px;overflow:auto;margin-bottom:8px">${f.rows.map(x => `
@@ -22960,7 +22961,7 @@ async function labelReviewMove(key, all) {
   if (!ids.length) { showToast('Nothing checked', '', 'warning'); return; }
   try {
     const r = await API.post('/api/categories/label-review/move', { ids });
-    showToast(`Moved to ${src?.to || 'Gas / Fuel'}`, `${r.moved} purchase${r.moved !== 1 ? 's' : ''}`, 'success');
+    showToast(`Moved to ${src?.to || 'Gasoline / Diesel'}`, `${r.moved} purchase${r.moved !== 1 ? 's' : ''}`, 'success');
   } catch (e) { showToast('Could not move them', e.message || '', 'error'); return; }
   await renderCategoryManager();
   renderLedger(); renderDashboard(); _refreshBudgetIfActive();

@@ -28,7 +28,7 @@ from datetime import datetime
 GROUNDWORK_CATEGORIES = [
     # Core
     'Food', 'Groceries', 'Coffee Shops', 'Restaurants', 'Fast Food / Takeout',
-    'Transportation', 'Gas / Fuel', 'Car Maintenance',
+    'Transportation', 'Gasoline / Diesel', 'EV Charging', 'Car Maintenance',
     'Rent / Mortgage', 'Home Maintenance',
     'Utilities', 'Phone / Cell',
     'Clothing', 'Personal',
@@ -68,12 +68,12 @@ MCC_CATEGORY_MAP = {
     '5451': 'Groceries',      # Dairy products
     '5462': 'Groceries',      # Bakeries
 
-    # ── Transportation: split between Gas / Fuel, Car Maintenance, Transportation
-    # (item 52: 'Gas / Fuel' is the Transportation leaf; bare 'Gas' is the natural-gas utility)
-    '5541': 'Gas / Fuel',     # Service stations w/ pumps (Clark Gas, BP, Marathon)
-    '5542': 'Gas / Fuel',     # Automated fuel dispensers
-    '5552': 'Gas / Fuel', # Electric vehicle charging (NAYAX EV in his data)
-    '5172': 'Gas / Fuel',     # Petroleum and petroleum products
+    # ── Transportation: split between Gasoline / Diesel, Car Maintenance, Transportation
+    # (item 52: 'Gasoline / Diesel' is the Transportation leaf; bare 'Gas' is the natural-gas utility)
+    '5541': 'Gasoline / Diesel',     # Service stations w/ pumps (Clark Gas, BP, Marathon)
+    '5542': 'Gasoline / Diesel',     # Automated fuel dispensers
+    '5552': 'EV Charging',       # Electric vehicle charging (NAYAX EV in his data) - item 84: was counted as fuel
+    '5172': 'Gasoline / Diesel',     # Petroleum and petroleum products
     '7542': 'Car Maintenance',    # Car washes (Whitewater Car Wash)
     '7538': 'Car Maintenance',    # Auto service shops
     '5511': 'Car Maintenance',    # Car/truck dealers
@@ -300,7 +300,7 @@ _CATEGORY_PATTERNS = [
     # 'utilit' is required, so a city parking ticket or court fee is not filed here.
     ('Municipal Utilities', r'\b(city|village|town|township|borough)\b[a-z .\-]{0,40}?\butilit|'
                             r'\bmunicipal utilit|\bpublic utilit'),
-    ('Gas', r'\benbridge\b|\bdominion (energy )?gas\b|\bcolumbia gas\b|\bgas (company|utility)\b'),
+    ('Natural Gas', r'\benbridge\b|\bdominion (energy )?gas\b|\bcolumbia gas\b|\bgas (company|utility)\b'),   # item 84: was 'Gas'
     ('Electric', r'\baep\b|\bohio edison\b|\bdominion power\b|\bsce\b|\bsouthern california edison\b|'
                  r'\belectric (bill|company)\b'),
     ('Water / Sewer', r'\bwater (dept|utility|bill)\b|\bsewer\b|\bsewage\b'),
@@ -319,12 +319,16 @@ _CATEGORY_PATTERNS = [
                   r'\bnationwide\b|\bliberty mutual\b|\busaa\b|\bfarmers\b'),
     ('Other', r'\binsurance\b'),
 
-    # ── GAS / FUEL (must come before Transportation). Item 52: 'Gas / Fuel' is the
+    # ── EV CHARGING (item 84, Rob 2026-10-13: "we do not have a Charging Station category"): public charging,
+    # before fuel - kilowatt-hours are not gallons. Charging at home is part of the electricity bill.
+    ('EV Charging', r"\bchargepoint\b|\belectrify america\b|\bsupercharg|\btesla (supercharger|charging)\b|\bevgo\b|\bblink charg|\bnayax ev\b|\bev ?charg|\bcharging station\b|\bvolta charg|\bflo charg"),
+
+    # ── GAS / FUEL (must come before Transportation). Item 52: 'Gasoline / Diesel' is the
     # Transportation leaf; bare 'Gas' is the natural-gas UTILITY leaf, where fuel used to land.
     # Item 53 (FUEL_NAMES.md): the station names. G6 - this is the same text as the fuel test in
     # clientAutoCategory() in app.js; s165 fails if they differ. A name that is also a word or another
     # business (Pilot, Holiday, Gulf, Marathon ...) counts only with a store number or a station word.
-    ('Gas / Fuel', (
+    ('Gasoline / Diesel', (
         r"\bclark (gas|oil|station)?\b|"
         r"\bbp(\s|#|\d)|"
         r"\bexxon|"
@@ -1348,7 +1352,8 @@ _QIF_DATE_FORMATS = ['%m/%d/%Y', '%m/%d/%y', '%Y-%m-%d', "%m/%d'%Y", "%m/%d'%y"]
 # real categories instead of mostly "Other".
 _QIF_CATEGORY_MAP = {
     'auto & transport':     'Transportation', 'auto insurance':    'Auto Insurance',
-    'auto payment':         'Transportation', 'gas & fuel':        'Gas / Fuel',
+    'auto payment':         'Transportation', 'gas & fuel':        'Gasoline / Diesel',
+    'ev charging':          'EV Charging',    'electric vehicle charging': 'EV Charging', 'charging': 'EV Charging',
     'parking':              'Parking / Tolls', 'parking & tolls':  'Parking / Tolls',
     'public transportation':'Rideshare / Transit', 'ride share':   'Rideshare / Transit',
     'service & parts':      'Car Maintenance', 'auto maintenance': 'Car Maintenance',
