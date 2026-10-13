@@ -6690,6 +6690,7 @@ async function confirmImport() {
   }
 
   _offerLookThrough();   // item 65 W1: a long enough history is offered one look-through
+  _offerRecordTidy();    // item 83 T5
   _importRecords = []; _importBank = ''; _importFile = null;
   _importIsPdf = false; _importPdfSummary = null; _importPdfSourceHash = ''; _importPdfWarnings = [];
 }
@@ -22672,6 +22673,81 @@ function _categoryNames(type = 'all') {
 }
 
 
+// ── Item 83 (RECORD_TIDY.md, ruled 2026-10-13): the agent keeps the record tidy - it proposes, the person decides ──
+// Every proposal is the record's own (no AI, so it works the same with AI off), shown before anything changes, and
+// every tap has Undo. Nothing here runs on its own.
+let _tidy = null;
+async function renderRecordTidy() {
+  const box = g('recordTidy');
+  if (!box) return;
+  try { _tidy = await API.get('/api/tidy'); } catch (e) { _gwErr('renderRecordTidy')(e); box.innerHTML = ''; return; }
+  const t = _tidy, n = t.counts;
+  const total = n.hide + n.twins + n.splits + n.unmatched + n.show_again;
+  if (!total && !t.undo) { box.innerHTML = ''; return; }
+  const sec = (title, inner) => `<div style="margin-top:12px"><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px">${title}</div>${inner}</div>`;
+  const cats = c => c.categories.map(x => `${esc(x.name)} (${x.count})`).join(', ');
+  let html = `<div class="card mb-4"><div class="card-label">Tidy your categories</div>
+    <div style="font-size:12px;color:var(--slate);line-height:1.6">Groundwork looked over your categories and found these. Nothing changes until you choose, and each change can be undone.</div>`;
+  if (t.undo) html += `<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="tidyUndo()">Undo the last change</button></div>`;
+  if (t.unmatched.length) html += sec(`Imported categories that matched none of yours (${n.unmatched})`, t.unmatched.map((u, i) =>
+    `<div style="font-size:12px;padding:4px 0">"${esc(u.name)}": ${u.ids.length} transaction${u.ids.length === 1 ? '' : 's'}, now in Other. Which of yours is it?
+      <select id="tidyU${i}" class="field-input" style="width:auto;font-size:12px;padding:3px 6px">${(S.categories || []).filter(c => c.is_enabled !== false).map(c => `<option>${esc(c.name)}</option>`).join('')}</select>
+      <button class="btn btn-secondary btn-sm" onclick="tidyUnmatched(${i}, 'move')">Use it</button>
+      <button class="btn btn-ghost btn-sm" onclick="tidyUnmatched(${i}, 'leave')">Leave in Other</button></div>`).join(''));
+  if (t.show_again.length) html += sec('Hidden, but in use again', t.show_again.map(b =>
+    `<div style="font-size:12px;padding:3px 0">${esc(b.name)}: ${b.transactions} transactions. <button class="btn btn-secondary btn-sm" onclick="tidyShow(${b.id})">Show it again</button></div>`).join(''));
+  if (t.twins.length) html += sec('The same category under two names', t.twins.map(w =>
+    `<div style="font-size:12px;padding:4px 0">"${esc(w.source.name)}" is empty; "${esc(w.target.name)}" has ${w.target.transactions} transactions.
+      ${w.line ? `Its budget line (${fmt(w.line.amount)} a month) ${w.target_line ? `is added into ${esc(w.target_line.name)}: ${fmt(w.target_line.amount)} → ${fmt(w.target_line.amount + w.line.amount)}. Your total budget stays the same.` : `moves to "${esc(w.target.name)}".`}` : ''}
+      <button class="btn btn-secondary btn-sm" onclick="tidyTwin(${w.source.id}, 'yes')">Merge into ${esc(w.target.name)}</button>
+      <button class="btn btn-ghost btn-sm" onclick="tidyTwin(${w.source.id}, 'no')">They're different</button></div>`).join(''));
+  if (t.hide.length) html += sec(`Categories with nothing in them (${n.hide})`,
+    `<div style="font-size:12px;color:var(--slate)">No transactions, no budget line, no import rule. Hiding takes them out of every list; they come back with one tap, and if anything lands in one later it is offered back here.</div>
+     <details style="font-size:12px;margin-top:4px"><summary style="cursor:pointer">See them</summary>${t.hide.map(h => esc(h.name)).join(', ')}</details>
+     <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="tidyHide()">Hide these ${n.hide}</button>`);
+  if (t.splits.length) html += sec(`One store, several categories (${n.splits})`,
+    `<div style="font-size:12px;color:var(--slate);margin-bottom:4px">Often right: one store sells different things, and paying a store card is a transfer beside its purchases. Groundwork asks; it never decides.</div>`
+    + t.splits.slice(0, 8).map((s, i) => `<div style="font-size:12px;padding:4px 0;border-bottom:0.5px solid var(--steel-2)"><b style="color:var(--ink)">${esc(s.merchant)}</b>: ${cats(s)}.
+      ${s.transfer ? '<span style="color:var(--slate)">The Transfer ones may be payments on a store card.</span>' : ''}
+      <div style="margin-top:3px"><button class="btn btn-ghost btn-sm" onclick="tidySplit(${i}, 'keep')">Keep as they are</button>
+      ${s.categories.filter(c => c.name !== 'Transfer').map(c => `<button class="btn btn-ghost btn-sm" onclick="tidySplit(${i}, 'move', '${esc(c.name).replace(/'/g, "\\'")}')">All ${esc(c.name)}</button>`).join('')}</div></div>`).join('')
+    + (t.splits.length > 8 ? `<div style="font-size:11px;color:var(--slate);margin-top:4px">${n.splits - 8} more after these.</div>` : ''));
+  box.innerHTML = html + '</div>';
+}
+
+async function _tidyDo(path, body, done) {
+  try { const r = await API.post(path, body); showToast(done(r), 'Undo is at the top of the card.', 'success'); }
+  catch (e) { showToast('Could not change it', e.message || '', 'error'); }
+  await loadCategories();
+  await loadImportIntelligence();   // a rule Groundwork added on the server is now in the page's list
+  renderRecordTidy(); renderCategoryManager();
+}
+function tidyHide() { _tidyDo('/api/tidy/hide', { ids: _tidy.hide.map(h => h.id) }, r => `${r.hidden.length} empty categories hidden`); }
+function tidyShow(id) { _tidyDo('/api/tidy/show', { id }, () => 'Shown again'); }
+function tidyTwin(id, answer) { _tidyDo('/api/tidy/twin', { source_id: id, answer }, r => r.merged ? `${r.merged} merged into ${r.into}` : `Kept ${r.kept} as its own`); }
+function tidySplit(i, answer, category) {
+  const s = _tidy.splits[i];
+  _tidyDo('/api/tidy/split', { merchant: s.merchant, answer, category }, r => r.into ? `${s.merchant}: ${r.moved} moved to ${r.into}, and new ones go there too` : `${s.merchant} kept as it is`);
+}
+function tidyUnmatched(i, answer) {
+  const u = _tidy.unmatched[i];
+  _tidyDo('/api/tidy/unmatched', { name: u.name, answer, category: g('tidyU' + i)?.value }, r => r.into ? `"${u.name}" is now ${r.into}, here and on later imports` : `"${u.name}" left in Other`);
+}
+async function tidyUndo() {
+  try { await API.post('/api/tidy/undo', {}); showToast('Put back as it was', '', 'info'); } catch (e) { showToast('Undo failed', e.message || '', 'error'); }
+  await loadCategories();
+  await loadImportIntelligence();   // a rule Groundwork added on the server is now in the page's list
+  renderRecordTidy(); renderCategoryManager();
+}
+
+// T5: after an import, offered once when there is something new to look at - never run on its own
+async function _offerRecordTidy() {
+  let t;
+  try { t = await API.get('/api/tidy'); } catch (e) { _gwErr('_offerRecordTidy')(e); return; }
+  if (!t.counts.unmatched && !t.counts.show_again) return;      // only what this import brought
+  showToast('Some imported categories need you', `${t.counts.unmatched + t.counts.show_again} to look at in Settings, Categories.`, 'info');
+}
+
 function renderCategoryManager() {
   const cont = g('settingsCategoryManager');
   if (!cont) return Promise.resolve();
@@ -23402,6 +23478,7 @@ function _settingsShowTab(tab) {
     }
     if (panel) panel.style.display = active ? '' : 'none';
   });
+  if (tab === 'categories') renderRecordTidy();   // item 83: what the agent proposes, each time the tab opens
 
   // §12's dial reflects the stored setting whenever settings are opened.
   _renderProactiveDial();

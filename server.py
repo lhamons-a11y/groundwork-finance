@@ -221,6 +221,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(futures_bp,        url_prefix='/api/futures')
     app.register_blueprint(trips_bp,          url_prefix='/api/trips')
     app.register_blueprint(calendar_bp,       url_prefix='/api/calendar')
+    app.register_blueprint(tidy_bp,           url_prefix='/api/tidy')
     app.register_blueprint(price_changes_bp,  url_prefix='/api/price-changes')
     app.register_blueprint(first_import_bp,   url_prefix='/api/first-import')
     app.register_blueprint(year_end_bp,       url_prefix='/api/year-end')
@@ -2953,6 +2954,251 @@ def budget_not_levers():
                 {b.name for b in session.query(BudgetItem).filter_by(type='expense').all() if b.name}
         income_names = [c.name for c in cats if c.id in inc or (c.type or '') in ('income', 'transfer')]
         return ok({'not_levers': not_levers(names, income_names)})
+
+
+# ── Item 83 (RECORD_TIDY.md): the agent keeps the record tidy - it proposes, the person decides, Undo for each ─────
+tidy_bp = Blueprint('tidy', __name__)
+
+
+def _tidy_inputs(session):
+    cats = session.query(Category).all()
+    used = dict(session.query(Transaction.category_id, func.count(Transaction.id)).group_by(Transaction.category_id).all())
+    lines = [{'id': b.id, 'name': b.name, 'amount': round(b.amount or 0, 2), 'category': b.category}
+             for b in session.query(BudgetItem).filter_by(is_active=True).all()]
+    rules = _setting_json(session, 'import_rules_json', []) or []
+    ruled = {(r.get('category') or '').strip().lower() for r in rules if isinstance(r, dict)}
+    budgeted = {(b['category'] or '').strip().lower() for b in lines} | {(b['name'] or '').strip().lower() for b in lines}
+    plain = [{'id': c.id, 'name': c.name, 'parent_id': c.parent_id, 'is_system': bool(c.is_system),
+              'is_enabled': c.is_enabled is not False, 'type': c.type or 'expense'} for c in cats]
+    return plain, used, lines, budgeted, ruled
+
+
+def _tidy_state(session):
+    """T1-T4: what the agent proposes now, less what the person already answered. Derived on every read."""
+    from core import record_tidy as rt
+    cats, used, lines, budgeted, ruled = _tidy_inputs(session)
+    said = _setting_json(session, 'tidy_answers_json', {}) or {}
+    tw = [t for t in rt.twins(cats, used, lines) if f"twin:{t['source']['name']}" not in said]
+    twin_ids = {t['source']['id'] for t in tw}
+    hide = [h for h in rt.hideable(cats, used, budgeted, ruled) if h['id'] not in twin_ids and f"hide:{h['name']}" not in said]
+    tr = _transfer_category_ids(session)
+    rows = session.query(Transaction.merchant, Category.name, Transaction.amount, Transaction.date).join(
+        Category, Category.id == Transaction.category_id).filter(Transaction.type == 'debit', Transaction.merchant != '').all()
+    sp = [s for s in rt.splits([(m, c, a, d.isoformat() if d else '') for m, c, a, d in rows]) if f"split:{s['merchant']}" not in said]
+    unmatched = [u for u in (_setting_json(session, 'import_unmatched_json', []) or []) if not u.get('answer')]
+    # a hidden category that now holds transactions (the importer files into it by name) is offered back
+    back = [{'id': c['id'], 'name': c['name'], 'transactions': used[c['id']]} for c in cats
+            if not c['is_enabled'] and used.get(c['id'], 0)]
+    return {'hide': hide, 'twins': tw, 'splits': sp[:25], 'unmatched': unmatched, 'show_again': back,
+            'counts': {'hide': len(hide), 'twins': len(tw), 'splits': len(sp), 'unmatched': len(unmatched), 'show_again': len(back)},
+            'undo': bool(_setting_json(session, 'tidy_last')), 'transfer_ids': sorted(tr)}
+
+
+def _transfer_category_ids(session):
+    from core import checkin as ck
+    return ck._transfer_ids(session)
+
+
+def _tidy_said(session, key, answer):
+    said = _setting_json(session, 'tidy_answers_json', {}) or {}
+    said[key] = {'answer': answer, 'at': datetime.now().isoformat(timespec='seconds')}
+    _set_setting(session, 'tidy_answers_json', json.dumps(said))
+
+
+@tidy_bp.route('', methods=['GET'])
+def tidy_get():
+    with db_session() as session:
+        return ok(_tidy_state(session))
+
+
+@tidy_bp.route('/hide', methods=['POST'])
+@require_json
+def tidy_hide():
+    """T1, on the tap: the listed empty categories leave every picker. Hidden, never deleted; Undo shows them again."""
+    ids = [int(i) for i in (request.get_json() or {}).get('ids') or []]
+    with db_session() as session:
+        ok_ids = {h['id'] for h in _tidy_state(session)['hide']}
+        done = []
+        for cid in ids:
+            c = session.get(Category, cid)
+            if c and cid in ok_ids:                     # re-checked here: still empty, still unused
+                c.is_enabled = False
+                done.append({'id': c.id, 'name': c.name})
+        _set_setting(session, 'tidy_last', json.dumps({'kind': 'hide', 'ids': [d['id'] for d in done]}))
+        session.commit()
+        return ok({'hidden': done})
+
+
+@tidy_bp.route('/show', methods=['POST'])
+@require_json
+def tidy_show():
+    """A hidden category that holds transactions again, shown in the pickers again on the tap."""
+    cid = int((request.get_json() or {}).get('id') or 0)
+    with db_session() as session:
+        if cid not in {b['id'] for b in _tidy_state(session)['show_again']}:
+            return err('That category is not hidden with transactions.', 404)
+        session.get(Category, cid).is_enabled = True
+        session.commit()
+        return ok({'shown': cid})
+
+
+@tidy_bp.route('/twin', methods=['POST'])
+@require_json
+def tidy_twin():
+    """T2, on the tap: the empty twin merges into the used one. A budget line it held is added into the target's line
+    (Rob 2026-10-13), so the total budget never changes. Everything needed to undo it is kept."""
+    b = request.get_json() or {}
+    with db_session() as session:
+        t = next((x for x in _tidy_state(session)['twins'] if x['source']['id'] == int(b.get('source_id') or 0)), None)
+        if not t:
+            return err('That pair is not proposed now.', 404)
+        if b.get('answer') == 'no':
+            _tidy_said(session, f"twin:{t['source']['name']}", 'no')
+            session.commit()
+            return ok({'kept': t['source']['name']})
+        src = session.get(Category, t['source']['id'])
+        undo = {'kind': 'twin', 'category': {'name': src.name, 'type': src.type, 'color': src.color, 'icon': src.icon,
+                                             'parent_id': src.parent_id, 'sort_order': src.sort_order}}
+        if t['line']:
+            line = session.get(BudgetItem, t['line']['id'])
+            undo['line'] = {'name': line.name, 'amount': line.amount, 'type': line.type, 'category': line.category}
+            if t['target_line']:
+                tl = session.get(BudgetItem, t['target_line']['id'])
+                undo['target_line'] = {'id': tl.id, 'amount': tl.amount}
+                # folding a duplicate line into its twin is not a decision about the category, so it writes no
+                # budget_adjusted entry for the Willingness Layer to read (as W2's and W5's taps write none)
+                tl.amount = round((tl.amount or 0) + (line.amount or 0), 2)
+                session.delete(line)
+            else:
+                line.category = t['target']['name']
+                undo['line_moved'] = line.id
+        session.delete(src)
+        _set_setting(session, 'tidy_last', json.dumps(undo))
+        session.commit()
+        return ok({'merged': t['source']['name'], 'into': t['target']['name']})
+
+
+@tidy_bp.route('/split', methods=['POST'])
+@require_json
+def tidy_split():
+    """T3, the person's answer about a merchant in several categories: keep them as they are (not asked again), or
+    all of them belong in one - moved, and an import rule so new ones land there too. Undo puts each back."""
+    b = request.get_json() or {}
+    merchant, answer = b.get('merchant'), b.get('answer')
+    with db_session() as session:
+        s = next((x for x in _tidy_state(session)['splits'] if x['merchant'] == merchant), None)
+        if not s:
+            return err('That merchant is not asked about now.', 404)
+        if answer == 'keep':
+            _tidy_said(session, f'split:{merchant}', 'keep')
+            session.commit()
+            return ok({'kept': merchant})
+        target = session.query(Category).filter(func.lower(Category.name) == str(b.get('category') or '').lower()).first()
+        if answer != 'move' or not target or target.name not in [c['name'] for c in s['categories']]:
+            return err('Choose one of the categories it is already in.')
+        moved = []
+        for t in session.query(Transaction).filter(Transaction.merchant == merchant, Transaction.type == 'debit',
+                                                   Transaction.category_id != target.id).all():
+            moved.append([t.id, t.category_id])
+            t.category_id = target.id
+        rules = _setting_json(session, 'import_rules_json', []) or []
+        rule = {'id': int(datetime.now().timestamp() * 1000), 'type': 'contains', 'value': merchant,
+                'category': target.name, 'direction': 'debit', 'source': 'record_tidy'}
+        rules.append(rule)
+        _set_setting(session, 'import_rules_json', json.dumps(rules))
+        _tidy_said(session, f'split:{merchant}', f'move:{target.name}')
+        _set_setting(session, 'tidy_last', json.dumps({'kind': 'split', 'merchant': merchant, 'moved': moved, 'rule_id': rule['id']}))
+        session.commit()
+        return ok({'moved': len(moved), 'into': target.name, 'rule': rule})
+
+
+@tidy_bp.route('/unmatched', methods=['POST'])
+@require_json
+def tidy_unmatched():
+    """T4, the person's answer for an imported category name that matched none of theirs: its transactions move from
+    Other to the category they choose, and the name is remembered for the next import. Or it is left as it is."""
+    b = request.get_json() or {}
+    with db_session() as session:
+        items = _setting_json(session, 'import_unmatched_json', []) or []
+        u = next((x for x in items if x.get('name') == b.get('name') and not x.get('answer')), None)
+        if not u:
+            return err('That imported name is not asked about now.', 404)
+        if b.get('answer') == 'leave':
+            u['answer'] = 'leave'
+            _set_setting(session, 'import_unmatched_json', json.dumps(items))
+            session.commit()
+            return ok({'left': u['name']})
+        target = session.query(Category).filter(func.lower(Category.name) == str(b.get('category') or '').lower()).first()
+        if not target:
+            return err('Choose one of your categories.')
+        other = session.query(Category).filter(func.lower(Category.name) == 'other').first()
+        moved = []
+        for t in session.query(Transaction).filter(Transaction.id.in_(u.get('ids') or [])).all():
+            if other is None or t.category_id == other.id:          # only rows still where the import left them
+                moved.append([t.id, t.category_id])
+                t.category_id = target.id
+        aliases = _setting_json(session, 'category_aliases_json', {}) or {}
+        aliases[u['name'].strip().lower()] = target.name
+        _set_setting(session, 'category_aliases_json', json.dumps(aliases))
+        u['answer'] = target.name
+        _set_setting(session, 'import_unmatched_json', json.dumps(items))
+        _set_setting(session, 'tidy_last', json.dumps({'kind': 'unmatched', 'name': u['name'], 'moved': moved}))
+        session.commit()
+        return ok({'moved': len(moved), 'into': target.name})
+
+
+@tidy_bp.route('/undo', methods=['POST'])
+def tidy_undo():
+    """Undo puts back exactly what the last tidy tap changed."""
+    with db_session() as session:
+        last = _setting_json(session, 'tidy_last')
+        if not last:
+            return err('Nothing to undo.', 404)
+        k = last.get('kind')
+        if k == 'hide':
+            for cid in last.get('ids', []):
+                c = session.get(Category, cid)
+                if c:
+                    c.is_enabled = True
+        elif k == 'twin':
+            meta = last['category']
+            c = Category(name=meta['name'], type=meta.get('type'), color=meta.get('color'), icon=meta.get('icon'),
+                         parent_id=meta.get('parent_id'), sort_order=meta.get('sort_order') or 0)
+            session.add(c)
+            if last.get('target_line'):
+                tl = session.get(BudgetItem, last['target_line']['id'])
+                if tl:
+                    tl.amount = last['target_line']['amount']
+            if last.get('line') and not last.get('line_moved'):
+                ln = last['line']
+                session.add(BudgetItem(name=ln['name'], amount=ln['amount'], type=ln['type'], category=ln['category'], is_active=True))
+            if last.get('line_moved'):
+                lm = session.get(BudgetItem, last['line_moved'])
+                if lm:
+                    lm.category = meta['name']
+        elif k in ('split', 'unmatched'):
+            for tid, cid in last.get('moved', []):
+                t = session.get(Transaction, tid)
+                if t:
+                    t.category_id = cid
+            if k == 'split':
+                rules = [r for r in (_setting_json(session, 'import_rules_json', []) or []) if r.get('id') != last.get('rule_id')]
+                _set_setting(session, 'import_rules_json', json.dumps(rules))
+                said = _setting_json(session, 'tidy_answers_json', {}) or {}
+                said.pop(f"split:{last['merchant']}", None)
+                _set_setting(session, 'tidy_answers_json', json.dumps(said))
+            else:
+                items = _setting_json(session, 'import_unmatched_json', []) or []
+                for x in items:
+                    if x.get('name') == last['name']:
+                        x.pop('answer', None)
+                _set_setting(session, 'import_unmatched_json', json.dumps(items))
+                aliases = _setting_json(session, 'category_aliases_json', {}) or {}
+                aliases.pop(last['name'].strip().lower(), None)
+                _set_setting(session, 'category_aliases_json', json.dumps(aliases))
+        session.delete(_get_setting(session, 'tidy_last'))
+        session.commit()
+        return ok({'undone': k})
 
 
 calendar_bp = Blueprint('calendar', __name__)
@@ -14423,6 +14669,12 @@ def bank_import_commit():
                 session.flush()
             account_id = acct.id
 
+        # Item 83 T4: the person's own category names, their remembered answers for imported names, and the names
+        # that matched nothing (kept, with their rows, to ask about - never left silently in Other)
+        _tidy_names = [c.name for c in session.query(Category).all()]
+        _tidy_aliases = _setting_json(session, 'category_aliases_json', {}) or {}
+        _tidy_unmatched = {}
+
         for rec in records:
             try:
                 txn_date    = date.fromisoformat(rec['date'])
@@ -14489,6 +14741,15 @@ def bank_import_commit():
                 cat = session.query(Category).filter(
                     func.lower(Category.name) == cat_name.lower()
                 ).first()
+                if not cat and cat_name and cat_name.strip().lower() not in ('other', ''):
+                    # item 83 T4: the person's remembered answer for this imported name, then a near-twin of their own
+                    from core import record_tidy as _rt
+                    _alias = (_tidy_aliases.get(cat_name.strip().lower()) if _tidy_aliases is not None else None)
+                    _hit = _alias or _rt.near_twin(cat_name, _tidy_names)
+                    if _hit:
+                        cat = session.query(Category).filter(func.lower(Category.name) == _hit.lower()).first()
+                    if not cat:
+                        _tidy_unmatched.setdefault(cat_name.strip(), [])
                 if not cat:
                     cat = session.query(Category).filter(
                         func.lower(Category.name) == 'other'
@@ -14501,7 +14762,7 @@ def bank_import_commit():
                 posted_date_raw = rec.get('posted_date')
                 posted_date = date.fromisoformat(posted_date_raw) if posted_date_raw else txn_date
 
-                session.add(Transaction(
+                _new_txn = Transaction(
                     account_id=account_id,
                     category_id=cat.id,
                     date=txn_date,
@@ -14518,7 +14779,11 @@ def bank_import_commit():
                     import_id=fitid,   # FITID from QFX — enables exact dedup on reimport
                     source=rec.get('source', 'csv'),
                     check_number=rec.get('check_number', ''),
-                ))
+                )
+                session.add(_new_txn)
+                if cat_name and cat_name.strip() in _tidy_unmatched:
+                    session.flush()
+                    _tidy_unmatched[cat_name.strip()].append(_new_txn.id)
                 new_txn_deltas.append((amount, txn_type))
                 created += 1
 
@@ -14532,6 +14797,15 @@ def bank_import_commit():
         # A fact ABOUT the file - never its bytes, never an Artefact (C3).
         _log_import_committed(session, source, account_id, acct_name, records,
                               created, duplicates, errors)
+        if _tidy_unmatched:                              # item 83 T4: asked about on the tidy card, never silent
+            _kept = _setting_json(session, 'import_unmatched_json', []) or []
+            for _n, _ids in _tidy_unmatched.items():
+                _e = next((x for x in _kept if x.get('name') == _n and not x.get('answer')), None)
+                if _e:
+                    _e['ids'] = sorted(set((_e.get('ids') or []) + _ids))
+                elif _ids:
+                    _kept.append({'name': _n, 'ids': _ids, 'at': datetime.now().isoformat(timespec='seconds')})
+            _set_setting(session, 'import_unmatched_json', json.dumps(_kept))
         session.commit()
 
     # B3.5: Auto-update linked debt card current_balance from the most recent
