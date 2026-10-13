@@ -359,7 +359,7 @@ The function is now kept and called (`_runToastUndo`); s211 checks it. The 1.x l
     against $8,248. The panel shows both.
 - **Tests:** s214, 9 checks.
 
-## Built: W9, the year-end packet (2026-10-12), awaiting acceptance
+## Built: W9, the year-end packet (2026-10-12), ACCEPTED 2026-10-12
 
 **Reports → Year-end packet**, for a chosen year (`/api/year-end`, `_year_end`).
 - **Contents:**
