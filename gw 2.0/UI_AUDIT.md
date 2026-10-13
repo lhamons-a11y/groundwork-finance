@@ -170,3 +170,33 @@ its working and its source; only where things sit changes. Nothing is removed.
   - Measured on a copy of Rob's data: the first screen is now the budget itself (income, out, left; the income
     lines), not the futures charts.
 - **U2-U8 RULED 2026-10-13** (Rob: *"I agree with the UI proposals u2-u8"*). Each is built, gated and shown before the next.
+- **U2-U7 BUILT 2026-10-13** (s222), awaiting acceptance.
+  - **U2:** each debt starts as its one-line summary: name, balance, APR and minimum, payoff month, ▾ Show. A debt just
+    added opens; paid-off debts sit at the end under *Paid off (n)*.
+  - **U3:** the Calendar's next four weeks are open. Every month after is one line (*"November 2026: 10 dates,
+    $609.03"*, the first one *"Rest of …"*), opening on a tap.
+  - **U4:** the AI gate's statistics are one line under AI features (*"No AI answers held back in the last 30 days.
+    Details"*), with the table on a tap.
+  - **U5:** Needs attention puts stale imports in one row (*"3 accounts haven't been imported for 93+ days"*, with
+    the list on a tap and each item keeping its own Dismiss). Conclusions answered by the one Verify step are one row,
+    naming each one's own missing input.
+  - **U6:** one rule for a recurring charge (`core/upcoming.recurring_charges`: 3+ months of the last 6, about a month
+    apart, within 5%). The Budget card (`/api/calendar/recurring`) and the Calendar both read it.
+    - Debt payments, interest, fees, transfers and savings are not recurring charges: a debt is on the calendar by
+      its own due day.
+    - On Rob's data: Auto Finance A, Heidt Veterinary and Netflix. The old card's own detector listed loan payments and
+      interest charges.
+  - **U7:** the cards with their own heading style now use the card label: Investments' three, Debt Payoff's *Your
+    path to zero*, Net Worth's *Current net worth*, and Trophies' money story.
+  - **U8:** no change, as ruled.
+- **Measured after, on a copy of Rob's data at 1280 x 800:**
+
+  | Page | Before (screens / buttons) | After |
+  |---|---|---|
+  | Debt Payoff | 11.1 / 143 | **1.9 / 32** |
+  | Calendar | 11.4 / 24 cards | **2.4** |
+  | Budget | 10.7, opening on futures | 7.6, opening on the budget (U1) |
+  | Dashboard | 2.0 / 14 | 1.6 / 9 |
+  | Settings | 2.2 | 2.2, the gate statistics one line |
+
+  There were no errors on any page.

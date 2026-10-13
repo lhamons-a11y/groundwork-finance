@@ -2966,6 +2966,14 @@ def _calendar_entries(session, start, end, include_detected=True):
                             people=_setting_json(session, 'payer_people', {}) or {}, include_detected=include_detected)
 
 
+@calendar_bp.route('/recurring', methods=['GET'])
+def calendar_recurring():
+    """Item 79 U6: the recurring charges, by the Calendar's own rule, for the Budget page's card - budgeted or not."""
+    from core import upcoming
+    with db_session() as session:
+        return ok({'charges': upcoming.recurring_charges(session, date.today(), include_budgeted=True)})
+
+
 @calendar_bp.route('', methods=['GET'])
 def calendar_get():
     """W3: every upcoming date, from today, each confirmed / expected / possible. `days` defaults to the rest of a year."""

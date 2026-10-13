@@ -2814,22 +2814,27 @@ async function renderCalendar() {
   if (!items.length) { box.innerHTML = '<div class="card"><div style="font-size:13px;color:var(--slate)">Nothing dated is on record yet. Due days on your debts, your recurring bills, gift occasions, trips and fund dates all show up here.</div></div>'; return; }
   const today = new Date(d.from + 'T12:00:00');
   const weekStart = dt => { const x = new Date(dt); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+  // Item 79 U3 (UI_AUDIT.md, ruled 2026-10-13): the next four weeks open, week by week; everything after them folded
+  // by month into one line each ("November 2026: 14 dates, $3,210"), opening on a tap. It was 24 cards, 11 screens.
+  const fourWeeks = new Date(weekStart(today)); fourWeeks.setDate(fourWeeks.getDate() + 28);
   const groups = [];
   const byKey = {};
   for (const e of items) {
     const dt = new Date(e.date + 'T12:00:00');
-    const days = Math.round((dt - today) / 864e5);
-    let key, label;
-    if (days <= 90) { const w = weekStart(dt); key = 'w' + w.toISOString().slice(0, 10); label = 'Week of ' + w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
-    else { key = 'm' + e.date.slice(0, 7); label = dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); }
-    if (!byKey[key]) { byKey[key] = { label, rows: [] }; groups.push(byKey[key]); }
+    let key, label, folded = false;
+    if (dt < fourWeeks) { const w = weekStart(dt); key = 'w' + w.toISOString().slice(0, 10); label = 'Week of ' + w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
+    else {
+      key = 'm' + e.date.slice(0, 7); folded = true;
+      label = (e.date.slice(0, 7) === fourWeeks.toISOString().slice(0, 7) ? 'Rest of ' : '') + dt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+    if (!byKey[key]) { byKey[key] = { label, rows: [], folded }; groups.push(byKey[key]); }
     byKey[key].rows.push(e);
   }
   const legend = `<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--slate);margin-bottom:12px">
       <span><b style="color:var(--ink)">Confirmed</b>: a date you entered or a biller stated</span>
       <span><b style="color:var(--ink)">Expected</b>: worked out from your record</span>
       <span><b style="color:var(--ink)">Possible</b>: a yearly bill you confirmed, in its usual month</span></div>`;
-  box.innerHTML = legend + groups.map(gp => `<div class="card mb-4"><div class="card-label">${esc(gp.label)}</div>` + gp.rows.map(e => `
+  const rowsHTML = gp => gp.rows.map(e => `
       <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--steel-2);cursor:${e.view ? 'pointer' : 'default'}" ${e.view ? `onclick="showView('${e.view}')"` : ''}>
         <span style="width:22px;text-align:center">${_CAL_KIND[e.kind] || '•'}</span>
         <span style="font-family:var(--font-mono);font-size:12px;color:var(--slate);min-width:64px">${new Date(e.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
@@ -2837,7 +2842,14 @@ async function renderCalendar() {
           <span style="display:block;font-size:11px;color:var(--slate)">${esc(e.source)}</span></span>
         ${e.amount ? `<span style="font-family:var(--font-mono);font-size:12px">${fmt(e.amount)}</span>` : ''}
         <span style="font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid var(--steel);color:${e.certainty === 'confirmed' ? 'var(--pine-text)' : 'var(--slate)'}">${_CAL_CERT[e.certainty]}</span>
-      </div>`).join('') + '</div>').join('');
+      </div>`).join('');
+  const total = gp => gp.rows.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  box.innerHTML = legend + groups.map(gp => gp.folded
+    ? `<details class="card mb-4"><summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:10px;align-items:baseline">
+         <span class="card-label" style="margin:0">${esc(gp.label)}</span>
+         <span style="font-size:12px;color:var(--slate)">${gp.rows.length} date${gp.rows.length === 1 ? '' : 's'}${total(gp) ? `, ${fmt(total(gp))}` : ''} ▸</span></summary>
+         <div style="margin-top:8px">${rowsHTML(gp)}</div></details>`
+    : `<div class="card mb-4"><div class="card-label">${esc(gp.label)}</div>${rowsHTML(gp)}</div>`).join('');
 }
 
 // Item 74 G5: an occasion with a budget, 30 days out, appears next to bills - from the record's own dates.
@@ -9974,6 +9986,7 @@ function addCard(name='',beginBal='',startDate='',rate='',minimum='',currentBal=
                 creditLimit: creditLimit,
                };
   S.debtCards.push(card);
+  if (!_dbId) _openCards.add(id);      // U2: a debt the person just added opens, to be filled in
   _renderCardList();
 }
 
@@ -14851,12 +14864,13 @@ function _paymentPlanHTML() {
 }
 
 
-// Cards collapsed to a compact summary row (in-memory; resets on reload)
-let _collapsedCards = new Set();
+// Item 79 U2 (UI_AUDIT.md, ruled 2026-10-13): every debt starts as its one-line summary and opens on a tap - the
+// list was 8,280px of forms with 143 buttons. A debt is open only when the person opened it, or just added it.
+let _openCards = new Set();
 
 function toggleCardCollapse(id) {
-  if (_collapsedCards.has(id)) _collapsedCards.delete(id);
-  else _collapsedCards.add(id);
+  if (_openCards.has(id)) _openCards.delete(id);
+  else _openCards.add(id);
   _renderCardList();
   renderLoanFlags();
 }
@@ -14955,9 +14969,12 @@ function _renderCardList() {
   const _planNote = _plan
     ? `<div class="debt-plan-note" style="font-size:12px;color:var(--slate);padding:4px 16px 8px;line-height:1.5">Payoff dates are from ${_planScenario()}. Change the plan and they change.</div>`
     : '';
-  cont.innerHTML = _planNote + S.debtCards
-    .filter(c => !_pslfIsFlagged(c._dbId || c.id))
-    .map(c => _debtCardRowHTML(c)).join('');
+  // U2: debts still owed first; those paid in full at the end, under their own line
+  const shown = S.debtCards.filter(c => !_pslfIsFlagged(c._dbId || c.id));
+  const owed = shown.filter(c => !c.paidInFull), paid = shown.filter(c => c.paidInFull);
+  cont.innerHTML = _planNote + owed.map(c => _debtCardRowHTML(c)).join('')
+    + (paid.length ? `<div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate);padding:14px 16px 4px">Paid off (${paid.length})</div>`
+        + paid.map(c => _debtCardRowHTML(c)).join('') : '');
 
   // Event delegation for debt type buttons — more reliable than inline onclick
   // on dynamically injected content, especially in pywebview.
@@ -15100,8 +15117,8 @@ function _debtCardRowHTML(c, opts={}) {
   const flagged = _pslfIsFlagged(pslfKey);
   const _dds    = _debtDueDateStatus(c);
 
-  // ── Collapsed: compact summary row ──────────────────────────────────────
-  if (_collapsedCards.has(c.id)) {
+  // ── Collapsed: compact summary row (U2: the default) ────────────────────
+  if (!_openCards.has(c.id)) {
     const programLabel = flagged ? (PSLF_PROGRAMS[_pslfData(pslfKey)?.program || 'pslf']?.label || 'PSLF') : '';
     return `
     <div class="debt-card-row" id="dc-${c.id}" style="display:flex;align-items:center;gap:10px;padding:10px 16px;${c.paidInFull ? 'opacity:.6' : ''}">
@@ -15117,6 +15134,7 @@ function _debtCardRowHTML(c, opts={}) {
              <span style="font-size:10px;font-weight:600;color:var(--pine-text);margin-left:6px">Paid in full</span>
            </div>`
         : `<div class="text-mono" style="font-size:13px;color:var(--slate);flex-shrink:0">${fmt(_cardBal(c))}</div>`}
+      ${c.paidInFull ? '' : `<span style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);flex-shrink:0;white-space:nowrap">${c.rate !== '' && c.rate != null ? `${c.rate}% APR` : 'APR ?'} · ${c.minimum !== '' && c.minimum != null ? `${fmt(parseFloat(c.minimum) || 0)} min` : 'min ?'}</span>`}
       ${(!c.paidInFull && _dds) ? `<span style="font-size:10px;font-family:var(--font-mono);color:${_dds.color};flex-shrink:0">${_dds.label}</span>` : ''}
       ${(() => {
         // Lease / loan end date countdown
@@ -15557,7 +15575,7 @@ async function jumpToLinkedDebtEntry(entryId) {
   showView('debt');
   const card = S.debtCards.find(c => c._dbId === entry.debt_account_id);
   if (!card) return;
-  _collapsedCards.delete(card.id);
+  _openCards.add(card.id);
   _renderCardList();
   await loadDebtLedger(card._dbId);
   setTimeout(() => _flashHighlight(g(`dle-${entryId}`)), 150);
@@ -18696,13 +18714,18 @@ async function removePension(idx) {
 }
 
 // ── Subscription audit — surfaces recurring charges from S.profile ────────────
-function renderSubscriptionAudit() {
+// Item 79 U6 (UI_AUDIT.md, ruled 2026-10-13): the card reads the Calendar's rule (/api/calendar/recurring:
+// 3+ months, about a month apart, a steady amount), so the Budget page and the Calendar never disagree about what
+// recurs. It had its own detector (2 months, by description), which listed loan payments and interest charges.
+async function renderSubscriptionAudit() {
   const card  = g('subscriptionAuditCard');
   const list  = g('subscriptionAuditList');
   const total = g('subscriptionAuditTotal');
   if (!card || !list) return;
 
-  const subs = S.profile?.spending?.subscriptionCandidates || [];
+  let subs = [];
+  try { subs = ((await API.get('/api/calendar/recurring')).charges || []).map(r => ({ merchant: r.merchant, amount: r.amount, monthsActive: r.months, budgeted: r.budgeted })); }
+  catch (e) { _gwErr('renderSubscriptionAudit')(e); card.style.display = 'none'; return; }
   if (subs.length < 2) { card.style.display = 'none'; return; }
 
   card.style.display = '';
@@ -18725,7 +18748,8 @@ function renderSubscriptionAudit() {
 
   list.innerHTML += `<div style="padding:8px 0;font-size:12px;color:var(--slate);
                                   border-top:0.5px solid var(--steel-2);margin-top:4px">
-    ${fmt(monthlyTotal)}/month \xb7 ${fmt(monthlyTotal*12)}/year in recurring charges
+    ${fmt(monthlyTotal)}/month \xb7 ${fmt(monthlyTotal*12)}/year in recurring charges.
+    <a href="#" onclick="showView('calendar');return false" style="color:var(--sky)">See when each comes on the Calendar →</a>
   </div>`;
 }
 
@@ -21049,7 +21073,7 @@ function _trophyRenderAdvisorEntry(earnedN) {
     const latest = _getLatestEarnedId && _getLatestEarnedId();
     const a = latest && ACH_MAP[latest];
     const when = a && S.achievementDates?.[latest] ? new Date(S.achievementDates[latest]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-    card.innerHTML = `<div style="font-size:13px;font-weight:500;color:var(--ink)">Your money story so far</div>
+    card.innerHTML = `<div class="card-label" style="margin-bottom:6px">Your money story so far</div>
       <div style="font-size:12px;color:var(--slate);margin-top:2px">${earnedN} of ${ACHIEVEMENTS.length} achievements earned${a ? `. The most recent: ${esc(a.name)}${when ? `, ${when}` : ''}` : ''}.</div>`;
     return;
   }
@@ -24597,6 +24621,10 @@ async function _loadGateHealth() {
     const data = await API.get('/api/ai/miss-log?days=30');
     const counts = data.gate_flag_count_by_type || {};
     const total = Object.values(counts).reduce((s,n) => s+n, 0);
+    const sum = g('gateHealthSummary');   // item 79 U4: the one line
+    if (sum) sum.textContent = total
+      ? `${total} AI answer${total !== 1 ? 's' : ''} held back before you saw ${total !== 1 ? 'them' : 'it'}, in the last 30 days. Details`
+      : 'No AI answers held back in the last 30 days. Details';
     if (!total) {
       panel.innerHTML = `<span style="color:var(--pine-text)">●</span> No gate rejections in the last 30 days.`;
       return;

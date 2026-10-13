@@ -1562,7 +1562,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
             <div>
               <div class="card-label" style="margin-bottom:2px">Recurring charges detected</div>
-              <div style="font-size:12px;color:var(--slate)">Based on merchants that appear monthly at consistent amounts.</div>
+              <div style="font-size:12px;color:var(--slate)">Charged in 3 or more months of the last 6, about a month apart, at a steady amount - the same rule the Calendar uses.</div>
             </div>
             <div id="subscriptionAuditTotal" style="font-family:var(--font-mono);font-size:18px;font-weight:500;color:var(--ember-text)"></div>
           </div>
@@ -1625,7 +1625,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
         <!-- ── HERO BAND ─────────────────────────────────────────────────── -->
         <div id="debtHeroBand" class="card mb-4" style="border:1px solid var(--steel);position:relative;overflow:hidden">
-          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px" id="debtHeroEyebrow">YOUR PATH TO ZERO</div>
+          <div class="card-label" style="margin-bottom:6px" id="debtHeroEyebrow">Your path to zero</div>
           <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:4px">
             <div id="debtHeroDate" style="font-family:var(--font-serif);font-style:italic;font-size:28px;color:var(--pine-text);transition:color 0.3s ease;line-height:1.1">—</div>
             <div id="debtHeroDuration" style="font-family:var(--font-mono);font-size:13px;color:var(--slate)"></div>
@@ -1928,7 +1928,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <!-- Positions table -->
         <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
           <div style="padding:14px 18px;border-bottom:1px solid var(--steel);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2)">Positions</div>
+            <div class="card-label" style="margin:0">Positions</div>
             <button class="btn btn-ghost btn-sm" id="invRefreshBtn" onclick="refreshPrices()" style="font-size:11px">↺ Refresh prices</button>
             <button class="btn btn-ghost btn-sm" onclick="showSetTargetsPanel()" style="font-size:11px">Set targets</button>
           </div>
@@ -1956,7 +1956,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <!-- Transaction history -->
         <div class="card" style="padding:0;overflow:hidden">
           <div style="padding:14px 18px;border-bottom:1px solid var(--steel);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2)">Transaction history</div>
+            <div class="card-label" style="margin:0">Transaction history</div>
             <select class="filter-select" id="invTxnTickerFilter" onchange="filterInvTransactions()" style="font-size:11px">
               <option value="">All tickers</option>
             </select>
@@ -1984,7 +1984,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="card mt-5" id="realizedGainsCard" style="padding:0;overflow:hidden">
           <div style="padding:14px 18px;border-bottom:1px solid var(--steel);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
             <div>
-              <div style="font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--slate-2)">Realized gains &amp; tax summary</div>
+              <div class="card-label" style="margin:0">Realized gains &amp; tax summary</div>
               <div style="font-size:11px;color:var(--slate);margin-top:2px">Closed positions — for planning, not tax advice.</div>
             </div>
             <select class="filter-select" id="realizedGainsYear" onchange="_onRealizedGainsYearChange()" style="font-size:12px">
@@ -2005,7 +2005,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="section-header"><div class="section-title">Net Worth</div><div class="section-sub">Assets minus liabilities.</div></div>
         <div class="card mb-5">
           <div class="nw-hero">
-            <div class="nw-label">Current net worth</div>
+            <div class="card-label nw-label" style="margin-bottom:8px">Current net worth</div>
             <div class="nw-value" id="nwTotal">$0</div>
             <div class="nw-delta" id="nwDelta"></div>
           </div>
@@ -2716,11 +2716,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           </div>
           <!-- Phase H2 Feature 6: LLM gate health — surfaces Phase H1's
                get_llm_miss_log() so gate flags can actually be reviewed. -->
-          <div class="card mb-4">
-            <div class="card-label">AI narrative gate health</div>
-            <div class="text-xs text-muted mb-4">How often generated narratives get rejected before you see them, and why — the validation gate that keeps invented numbers off the screen.</div>
+          <!-- Item 79 U4 (UI_AUDIT.md, ruled 2026-10-13): a measurement, not a setting - one line, the table on a tap -->
+          <details class="card mb-4" style="padding-top:10px;padding-bottom:10px">
+            <summary id="gateHealthSummary" style="cursor:pointer;font-size:12px;color:var(--slate)">AI answers held back: loading…</summary>
+            <div class="text-xs text-muted" style="margin:8px 0">How often generated narratives get rejected before you see them, and why — the validation gate that keeps invented numbers off the screen.</div>
             <div id="gateHealthPanel" style="font-size:12px;color:var(--slate)">Loading…</div>
-          </div>
+          </details>
           <div class="card">
             <div class="card-label">Budget settings</div>
             <div class="field mb-4"><label>Default savings target (%)</label><input type="number" id="settingsSavingsPct" placeholder="10" min="0" max="50"></div>

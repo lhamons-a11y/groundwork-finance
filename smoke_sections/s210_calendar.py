@@ -84,7 +84,7 @@ def run(ctx):
           and "API.get('/api/calendar?days=7')" in app and '_dashCalendar' in dash
           and 'const due  = new Date(today.getFullYear(), today.getMonth(), day)' not in dash)
     cal_js = app.split('async function renderCalendar() {')[1].split('\n}\n')[0]
-    check('s210 W3 the Calendar page: in the sidebar, by week for 90 days then by month, each entry labelled, linked to where it lives',
+    check('s210 W3 the Calendar page: in the sidebar, by week for four weeks then folded by month (item 79 U3), each entry labelled, linked to where it lives',
           'data-view="calendar"' in ctx.html_src and 'id="calendarContent"' in ctx.html_src and "calendar: 'Calendar'" in app
           and "'Week of '" in cal_js and "_CAL_CERT[e.certainty]" in cal_js and "showView('${e.view}')" in cal_js)
     check('s210 W3-c nothing reminds or pushes, and no model is called',

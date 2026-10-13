@@ -182,6 +182,52 @@
       + ' <button class="btn btn-sm btn-secondary" data-gw-dismiss="' + esc(A.fingerprint(i)) + '">Dismiss</button></div></div>';
   }
 
+  // Item 79 U5 (UI_AUDIT.md, ruled 2026-10-13): the same message six times made the one different item easy to miss.
+  // Two or more stale imports are one row that opens to the list; conclusions blocked by the same missing input are
+  // one row naming each. Nothing is dropped: every item keeps its date, source and its own Dismiss.
+  function _rowHTML(fact, source, action, dismissFps) {
+    return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.7">'
+      + fact + '<div style="font-size:11px;color:var(--slate-2)">' + source + '</div>'
+      + '<div style="margin-top:4px">' + action
+      + ' <button class="btn btn-sm btn-secondary" data-gw-dismiss-all="' + esc(JSON.stringify(dismissFps)) + '">Dismiss</button></div></div>';
+  }
+
+  function _groupedHTML(items) {
+    var stale = items.filter(function (i) { return i.kind === 'import_stale'; });
+    var blocked = items.filter(function (i) { return i.kind !== 'import_stale' && i.kind !== 'payment_due' && i.kind !== 'date_ends'; });
+    var sameMissing = blocked.length > 1;      // every blocked conclusion is answered by the one Verify step
+    var out = [], staleDone = false, blockedDone = false;
+    items.forEach(function (i) {
+      if (i.kind === 'import_stale' && stale.length > 1) {
+        if (staleDone) return;
+        staleDone = true;
+        var least = Math.min.apply(null, stale.map(function (s) { return s.days; }));
+        out.push(_rowHTML('<strong>' + stale.length + ' accounts</strong> haven\'t been imported for ' + least + '+ days.'
+            + '<details style="margin-top:2px"><summary style="cursor:pointer;font-size:11px">Which ones</summary>'
+            + stale.map(function (s) {
+              return '<div>' + esc(s.title) + ': last imported ' + _date(s.last_import) + ', ' + s.days + ' days ago'
+                + ' <button class="btn btn-ghost btn-sm" style="font-size:11px" data-gw-dismiss="' + esc(A.fingerprint(s)) + '">Dismiss</button></div>';
+            }).join('') + '</details>',
+          'From when each account\'s transactions were last imported. An account kept by hand is never listed.',
+          '<button class="btn btn-sm btn-secondary" onclick="showView(\'ledger\')">Import</button>',
+          stale.map(function (s) { return A.fingerprint(s); })));
+        return;
+      }
+      if (blocked.indexOf(i) !== -1 && sameMissing) {
+        if (blockedDone) return;
+        blockedDone = true;
+        var names = blocked.map(function (b) { return '<strong>' + esc(b.title) + '</strong>'; });
+        out.push(_rowHTML(names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + ' can\'t be assessed yet. Missing: '
+            + blocked.map(function (b) { return esc(b.missing.join('; ')) + ' (' + esc(b.title) + ')'; }).join('; ') + '.',
+          'From what your Financial Record holds so far. One step answers all of them.',
+          '<button class="btn btn-sm btn-secondary" onclick="_recordStatusAction()">Verify account balances →</button>',
+          blocked.map(function (b) { return A.fingerprint(b); })));
+        return;
+      }
+      out.push(_itemHTML(i));
+    });
+    return out.join('');
+  }
 
   // Item 27's tile text lives in tiles.js (SUMMARY_TILES_STANDARD.md). Looked up when the tiles render,
   // not at load: modules load in file-name order and tiles.js comes after this file.
@@ -221,13 +267,14 @@
         + ' attention.' + (conf.overall === 'ready' ? ' Financial Record: up to date.' : '') + '</div></div>';
       return;
     }
-    host.innerHTML = '<div class="card mb-5">' + head + items.map(_itemHTML).join('') + '</div>';
+    host.innerHTML = '<div class="card mb-5">' + head + _groupedHTML(items) + '</div>';
   }
 
-  async function _dismiss(fp) {
+  async function _dismiss(fps) {          // one fingerprint, or a group's list (item 79 U5)
     try {
-      var r = await API.post('/api/dashboard/dismiss', { fingerprint: fp });
-      if (_prefs) _prefs.dismissed = r.dismissed || [];
+      var r = null;
+      for (var fp of [].concat(fps)) r = await API.post('/api/dashboard/dismiss', { fingerprint: fp });
+      if (_prefs && r) _prefs.dismissed = r.dismissed || [];
     } catch (e) { _gwErr('dashboard dismiss')(e); return; }
     _renderAttention();
   }
@@ -237,6 +284,8 @@
     if (!t || !t.closest) return;
     var d = t.closest('[data-gw-dismiss]');
     if (d) { ev.preventDefault(); _dismiss(d.getAttribute('data-gw-dismiss')); return; }
+    var da = t.closest('[data-gw-dismiss-all]');
+    if (da) { ev.preventDefault(); try { _dismiss(JSON.parse(da.getAttribute('data-gw-dismiss-all'))); } catch (e) { _gwErr('dashboard dismiss all')(e); } return; }
     var rd = t.closest('[data-gw-receipt-done]');            // item 73 Y2: the person handled a trial or return date
     if (rd) {
       ev.preventDefault();
