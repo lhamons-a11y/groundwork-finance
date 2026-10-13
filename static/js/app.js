@@ -2706,6 +2706,7 @@ async function renderPriceChanges() {
   const box = g('budgetPriceChanges');
   if (!box) return;
   try { _priceChanges = (await API.get('/api/price-changes')).changes || []; } catch (e) { _gwErr('renderPriceChanges')(e); box.innerHTML = ''; return; }
+  _budTabCount('bills', _priceChanges.filter(c => c.line && !c.line_matches).length);   // item 79 U1
   if (!_priceChanges.length) { box.innerHTML = ''; return; }
   const day = iso => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   box.innerHTML = `<div class="card mt-5"><div class="card-label">Price changes</div>
@@ -23905,6 +23906,7 @@ function _wiBase() {
 function openWhatIf(preset) {
   _wiOpen = true;
   _wi = { ...(preset || {}) };
+  _budShowTab('futures');   // item 79 U1: the what-if lives on the futures tab
   if (document.querySelector('#view-budget.active')) { g('budgetFutures').innerHTML = futuresHtml(_fut); whatIfRun(); return; }
   showView('budget');
   setTimeout(() => { g('whatIfPanel')?.scrollIntoView({ behavior: 'smooth' }); whatIfRun(); }, 900);
@@ -25745,12 +25747,42 @@ function askGroundworkPick(i) {
 }
 
 // "Open it for me" (C6): goes to the page, the Settings tab and the spot - it never presses anything there.
+// ── Item 79 U1 (UI_AUDIT.md): the Budget page in three tabs - Your budget / Possible futures / Bills and charges ──
+// Switching shows a panel; nothing is fetched, written or counted. A link to a card inside a panel opens that panel
+// first (_budReveal), so the guide's "Open it for me" and the what-if shortcuts still land where they point.
+let _budTab = 'plan';
+function _budShowTab(id) {
+  _budTab = id;
+  ['plan', 'futures', 'bills'].forEach(t => {
+    const on = t === id, b = g('budTab-' + t), p = g('budPanel-' + t);
+    if (b) {
+      b.setAttribute('aria-selected', String(on));
+      b.style.color = on ? 'var(--pine-text)' : 'var(--slate)';
+      b.style.borderBottomColor = on ? 'var(--pine)' : 'transparent';
+      b.style.fontWeight = on ? '500' : 'normal';
+    }
+    if (p) p.style.display = on ? '' : 'none';
+  });
+}
+function _budReveal(el) {
+  const panel = el && el.closest && el.closest('[id^="budPanel-"]');
+  if (panel) _budShowTab(panel.id.slice('budPanel-'.length));
+}
+// U1: something waiting on the person shows as a plain count on its tab, as "Needs you" does - no badge, no motion
+function _budTabCount(id, n) {
+  const b = g('budTab-' + id);
+  if (!b) return;
+  const base = { plan: 'Your budget', futures: 'Possible futures', bills: 'Bills and charges' }[id];
+  b.textContent = n ? `${base} (${n})` : base;
+}
+
 function helpOpen(open) {
   if (!open || !open.view) return;
   closeAsk();
   showView(open.view);
   if (open.tab) _settingsShowTab(open.tab);
   if (open.el === 'autoTab-bills') _autoShowTab('bills');
+  _budReveal(open.el && g(open.el));   // item 79 U1
   setTimeout(() => {
     const el = open.el && g(open.el);
     if (!el) return;

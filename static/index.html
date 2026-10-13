@@ -1530,13 +1530,28 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
       <div id="view-budget" class="view">
         <div id="fvb-budget"></div>
         <div id="budgetRecentWin"></div>
+        <!-- Item 79 U1 (UI_AUDIT.md, ruled 2026-10-12): the page's three jobs in three tabs - the budget first, as the
+             page people open most should open on what they came for. Every card is kept; only where it sits changes. -->
+        <div role="tablist" aria-label="Budget" style="display:flex;border-bottom:1px solid var(--steel);margin:4px 0 16px">
+          <button id="budTab-plan" role="tab" aria-selected="true" aria-controls="budPanel-plan" onclick="_budShowTab('plan')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid var(--pine);color:var(--pine-text);font-weight:500">Your budget</button>
+          <button id="budTab-futures" role="tab" aria-selected="false" aria-controls="budPanel-futures" onclick="_budShowTab('futures')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Possible futures</button>
+          <button id="budTab-bills" role="tab" aria-selected="false" aria-controls="budPanel-bills" onclick="_budShowTab('bills')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Bills and charges</button>
+        </div>
+        <div id="budPanel-plan" role="tabpanel" aria-labelledby="budTab-plan">
         <!-- Item 71: when recorded income drops - the scenarios, and the budget that would follow, on the person's tap -->
         <div id="budgetIncomeChange"></div>
-        <!-- Item 66: possible futures side by side, from the record, correctable; and a starting budget from the record -->
-        <div id="budgetFutures"></div>
         <!-- Item 61 T2: a going trip in the months it touches, derived - never a budget line -->
         <div id="budgetTripsMonth"></div>
         <div id="budgetContent"></div>
+        </div>
+        <div id="budPanel-futures" role="tabpanel" aria-labelledby="budTab-futures" style="display:none">
+        <!-- Item 66: possible futures side by side, from the record, correctable; and a starting budget from the record -->
+        <div id="budgetFutures"></div>
+        </div>
+        <div id="budPanel-bills" role="tabpanel" aria-labelledby="budTab-bills" style="display:none">
         <!-- Item 68 B3: bills read from their own website - confirmed before use, shown beside the plan -->
         <div id="budgetBillsCard"></div>
         <!-- Item 65 W2: recurring charges whose price stepped, from the ledger - a fact, and a tap to update the line -->
@@ -1600,6 +1615,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             </div>
           </div>
         </div>
+        </div><!-- end budPanel-bills -->
       </div>
 
       <!-- DEBT -->

@@ -157,3 +157,16 @@ its working and its source; only where things sit changes. Nothing is removed.
 
 - **Measured 2026-10-12. U1-U8 for Rob's ruling.** No code changes until each is ruled.
 - Before screenshots were taken in the audit. They are retaken after each change, so before and after can be compared.
+
+## 7. Ruled and built
+
+- **U1 RULED 2026-10-12** (Rob: *"I accept u1"*) and **BUILT 2026-10-12** (s219), awaiting acceptance.
+  - The Budget page now has three tabs, using the Assistant's tab bar: *Your budget* (opens first: income-change
+    scenarios, trips this month, the budget), *Possible futures* (the futures card and the what-if), and *Bills and
+    charges* (bills read, price changes, recurring charges, savings funds).
+  - Every card is kept.
+  - The guide's *Open it for me* and the what-if shortcuts open the right tab first.
+  - A price change waiting for a tap is a plain count on its tab.
+  - Measured on a copy of Rob's data: the first screen is now the budget itself (income, out, left; the income
+    lines), not the futures charts.
+- **U2-U8:** not yet ruled.
