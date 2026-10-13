@@ -1587,6 +1587,7 @@ function restoreFromBootstrap(data) {
     S.homeState     = data.settings['home_state']     || '';
     updateAIFeatureVisibility();
     _checkAiCanRun();   // AI-off audit F5
+    _preUpgradeNotice();   // item 82 R3
 
     // ── Life stage flags ────────────────────────────────────────────────
     const s = data.settings;
@@ -24636,6 +24637,22 @@ function aiEnabled() {
 
 // AI-off audit F5: the engine's own reason when it can never run here, from /api/ai/status; null while it can.
 let _aiCannotRun = null;
+// Item 82 R3 (L3b): said once - the copy written before this update, where it is, and that nothing was deleted.
+async function _preUpgradeNotice() {
+  let r;
+  try { r = await API.get('/api/backup/pre-upgrade'); } catch (e) { _gwErr('_preUpgradeNotice')(e); return; }
+  if (!r || r.shown || !(r.name || r.error)) return;
+  const body = r.name
+    ? `<div style="font-size:13px;line-height:1.6;color:var(--ink)">Before updating your records to this version, Groundwork saved a copy of them as they were:</div>
+       <div style="font-family:var(--font-mono);font-size:12px;margin:8px 0;word-break:break-all">${esc(r.folder)}<br>${esc(r.name)}</div>
+       <div style="font-size:12px;color:var(--slate);line-height:1.6">${r.sealed ? 'It is protected like your other backups.' : 'It is not protected yet: set up backup protection in Backups, and it can be re-saved protected.'}
+         Groundwork never deletes it. The update only goes one way, so this copy is how to go back.</div>`
+    : `<div style="font-size:13px;line-height:1.6;color:var(--ember-text)">Groundwork tried to save a copy of your records before updating them, and could not (${esc(r.error)}). Your records were updated. Make a backup now from Backups.</div>`;
+  confirmAction(r.name ? 'A copy was saved before this update' : 'The copy before this update could not be saved', body,
+    () => {}, 'OK', false);
+  API.post('/api/backup/pre-upgrade', {}).catch(_gwErr('_preUpgradeNotice:shown'));
+}
+
 async function _checkAiCanRun() {
   if (S.prefs?.aiEnabled === false) { _aiCannotRun = null; return; }
   let st;

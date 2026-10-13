@@ -191,6 +191,8 @@ def create_app(static_folder: str = None) -> Flask:
     # existing DB) in addition to creating any missing tables. Previously
     # this called bare init_db(), which only creates tables that don't
     # exist yet and silently never alters a table that's already on disk.
+    # Item 82 R3 (L3b): a dated copy first, whenever the database is about to be migrated.
+    _backup_before_migration()
     run_migration_if_needed()
 
     # Register all blueprints
@@ -12872,6 +12874,49 @@ def _vault_backup_key(prot):
     return k if k is not None and bc.key_id(k) == prot.get('key_id') else None
 
 
+def _backup_before_migration():
+    """Item 82 R3 (item 32 L3b, ruled 2026-10-04): before a database whose recorded schema differs from this build's
+    is migrated - 1.1 opened by 2.0, or any later upgrade - a dated copy is written through the backup function: sealed
+    when backup protection is set up (item 81 B1), plain only when it is not, exactly as every safety copy is (a copy
+    is never blocked for want of a key). It is never deleted. A database holding no records has nothing to lose and
+    gets no copy. The copy's name, folder and versions are kept so the app can say once where it is. Returns the
+    record, or None when no copy was needed."""
+    import sqlite3
+    import migrate
+    from core.database import DB_PATH
+    stored = migrate._stored_schema_version()
+    if stored == migrate.SCHEMA_VERSION:
+        return None
+    try:
+        if not Path(DB_PATH).exists() or Path(DB_PATH).stat().st_size == 0:
+            return None
+        con = sqlite3.connect(f'file:{DB_PATH}?mode=ro', uri=True)
+        try:
+            present = [r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table' AND name IN "
+                                                 "('transactions', 'debt_accounts', 'budget_items', 'accounts')")]
+            held = sum(con.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in present)
+        finally:
+            con.close()
+        if not held:
+            return None
+    except Exception:                                     # noqa: BLE001 - unreadable here: copy it anyway, the safe way
+        logging.getLogger('groundwork').warning('pre-upgrade backup: could not read the database first; copying anyway')
+    rec = {'at': datetime.now().isoformat(timespec='seconds'), 'from': stored, 'to': migrate.SCHEMA_VERSION, 'shown': False}
+    try:
+        name = _write_backup(f"groundwork_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}_before_upgrade")
+        rec.update(name=name, folder=str(_backups_dir()), sealed=name.endswith('.gwbk'))
+    except Exception as e:                                # noqa: BLE001 - said, never silent; the upgrade still runs
+        logging.getLogger('groundwork').exception('pre-upgrade backup failed')
+        rec.update(error=str(e)[:200])
+    try:
+        with db_session() as session:
+            _set_setting(session, 'pre_upgrade_backup', json.dumps(rec))
+            session.commit()
+    except Exception:                                     # noqa: BLE001
+        logging.getLogger('groundwork').warning('pre-upgrade backup: the note of it could not be saved')
+    return rec
+
+
 def _write_backup(stem, include_ai_log=True, key=None):
     """Copy the live database to the backups folder - sealed when protection is set up and a key is at hand (B1),
     plain only when it is not (a safety copy before a delete is never blocked for want of a key). Returns the name."""
@@ -12899,6 +12944,19 @@ def _write_backup(stem, include_ai_log=True, key=None):
             tmp.unlink()
         except OSError:
             pass
+
+
+@backup_bp.route('/pre-upgrade', methods=['GET', 'POST'])
+def backup_pre_upgrade():
+    """Item 82 R3: the copy written before the last upgrade, so the app says once where it is (GET), and that it was
+    shown (POST). The copy itself is never touched here."""
+    with db_session() as session:
+        rec = _setting_json(session, 'pre_upgrade_backup')
+        if request.method == 'POST' and rec:
+            rec['shown'] = True
+            _set_setting(session, 'pre_upgrade_backup', json.dumps(rec))
+            session.commit()
+        return ok(rec or {})
 
 
 @backup_bp.route('/location', methods=['GET'])
