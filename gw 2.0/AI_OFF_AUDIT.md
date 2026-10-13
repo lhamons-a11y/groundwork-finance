@@ -94,6 +94,6 @@ repeated before release (item 82).
 
 ## 6. Status
 
-- **Built 2026-10-12, awaiting acceptance.**
+- **Built 2026-10-12. ACCEPTED 2026-10-12** (Rob: *"Yes audit ai notes"*).
 - **L4b's exit criterion:** the audit passes on master with every surface listed. It will be met when this is pushed.
 - **L4e:** the *Ruling* column above is Rob's.
