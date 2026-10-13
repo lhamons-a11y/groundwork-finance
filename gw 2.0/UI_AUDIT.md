@@ -169,4 +169,4 @@ its working and its source; only where things sit changes. Nothing is removed.
   - A price change waiting for a tap is a plain count on its tab.
   - Measured on a copy of Rob's data: the first screen is now the budget itself (income, out, left; the income
     lines), not the futures charts.
-- **U2-U8:** not yet ruled.
+- **U2-U8 RULED 2026-10-13** (Rob: *"I agree with the UI proposals u2-u8"*). Each is built, gated and shown before the next.
