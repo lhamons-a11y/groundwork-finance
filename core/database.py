@@ -5610,6 +5610,7 @@ CATEGORY_TREE = [
     ('Transportation',          'expense','#8b5cf6','car',         None,   3,  True, False),
     ('Gasoline / Diesel',              'expense','#8b5cf6','fuel',        'Transportation', 0, True, False),
     ('EV Charging',             'expense','#22c55e','zap',         'Transportation', 0, True, False),   # item 84
+    ('Shopping',                'expense','#ec4899','bag',         'Personal',       0, True, False),   # item 85: general retailers
     ('Auto Insurance',          'expense','#8b5cf6','shield',      'Transportation', 1, True, False),
     ('Car Maintenance',         'expense','#8b5cf6','wrench',      'Transportation', 2, True, False),
     ('Car Registration',        'expense','#8b5cf6','file-text',   'Transportation', 3, True, False),

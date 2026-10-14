@@ -74,7 +74,7 @@ def run(ctx):
           and bl == {1: 'Gasoline / Diesel', 2: 'Natural Gas'} and wd == 'Gasoline / Diesel'
           and rules[0]['category'] == 'Gasoline / Diesel')
     check('s224 F4 the schema version moved with the update, so existing databases run it',
-          migrate.SCHEMA_VERSION == '20261013-fuel-names' and '_fuel_names_v84()' in ctx.BASE.joinpath('migrate.py').read_text(encoding='utf-8'))
+          migrate.SCHEMA_VERSION >= '20261013-fuel-names' and '_fuel_names_v84()' in ctx.BASE.joinpath('migrate.py').read_text(encoding='utf-8'))
 
     src = ctx.server_src.split('def _regroup_review(session):')[1].split('\n@')[0]
     check("s224 F5 charging rows are offered to EV Charging from wherever older rules left them - in the review that moves nothing without a yes",

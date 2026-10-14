@@ -6933,7 +6933,7 @@ function clientAutoCategory(desc='') {
   if (/\bcapital one\b|\bapple\s*card\b|\bchase credit\b|\bbarclay|\bcomenity\b|\bonemain\b|\bsynchrony\b|\bsyncb\b|\bford motor (cr|credit)\b|\bstellantis\b|\bdept(\.|\s)+education\b|\bdoe payment\b|\bsallie mae\b|\bnavient\b|\bnelnet\b|\bdiscover\b.*(payment|card)|\bcredit card payment\b|\bcard payment.*thank you\b|\bthank you.*payment\b|\bminimum payment\b|\bcc payment\b/.test(d)) return 'Debt';
   if (/\bpayroll\b|\bdirect dep(osit)?\b|\bsalary\b|\bach credit.*deposit\b/.test(d)) return 'Paycheck / Salary';
   if (/\birs\s*treas\s*310\b|\btax refund\b/.test(d)) return 'Other';
-  if (/\btransfer (to|from)\b|\bach transfer\b|\binternal transfer\b|\bonline transfer\b|\bvenmo\b|\bcash app\b|\bzelle\b|\bpaypal\s+(transfer|p2p)\b|\bwithdrawal\b|\batm\s+(eft|withdraw)\b|\bat atm\b|\beft withdrawal\b|\bdraft\s+\d|\bcheck received\b|\bdeposit\b|\btransactor:\b/.test(d)) return 'Transfer';
+  if (/\btransfer (to|from)\b|\bach transfer\b|\binternal transfer\b|\bonline transfer\b|\bvenmo\b|\bcash app\b|\bzelle\b|\bpaypal\s+(transfer|p2p)\b|\batm\s+(eft|withdraw)\b|\bat atm\b|\beft withdrawal\b|\batm withdrawal\b|\bdraft\s+\d|\bcheck received\b|\bdeposit\b|\btransactor:\b/.test(d)) return 'Transfer';
   if (/\brefund\b|\breversal\b|\bchargeback\b|\bcredit memo\b|\breturn.{0,10}(credit|merch)|\bmerchandise return\b/.test(d)) return 'Transfer';
   if (/\btransfer (to|from)\b|\bach transfer\b|\binternal transfer\b|\bonline transfer\b/.test(d)) return 'Transfer';
   if (/\btransfer.{0,10}sav\b|\bsavings (account|deposit)\b|\bfidelity\b|\bvanguard\b|\bschwab\b|\b401\s*k\b|\broth ira\b|\bbrokerage\b/.test(d)) return 'Transfer';
@@ -6975,7 +6975,8 @@ function clientAutoCategory(desc='') {
   if (/\btuition\b|\buniversity (of|payment)\b|\bcollege payment\b|\bschool (district|fees|payment)\b|\btextbook\b/.test(d)) return 'Tuition / Courses';
   if (/\bservice (fee|charge)\b|\bnsf fee\b|\boverdraft\b|\batm fee\b|\bforeign transaction fee\b|\blate (fee|charge)\b|\bmaintenance fee\b|\battempt fee\b|\bohio bmv\b|\bdmv\b|\btaxslayer\b/.test(d)) return 'Interest / Fees';
   if (/\birs (payment|tax)\b|\bstate tax\b|\bfederal tax\b|\btreasury\b/.test(d)) return 'Other';
-  if (/\bamazon|\bamzn\b|\btj\s*maxx|\btjx\b|\bjcpenney|\bkohl.?s|\btarget\b|\bmacy.?s|\bdollar\s*tree|\bdollartree|\bdollar.general|\bross\b|\bnordstrom|\bmarshall.?s|\bbest buy\b|\bcostco\.com|\bwayfair|\bindian lake outfitters|\bfamily dollar|\bfamilydollar|\btractor.?supply|\bharbor freight/.test(d)) return 'Clothing';
+  if (/\bamazon|\bamzn\b|\btarget\b|\bdollar\s*tree|\bdollartree|\bdollar.general|\bbest buy\b|\bcostco\.com|\bwayfair|\bfamily dollar|\bfamilydollar|\btractor.?supply|\bharbor freight|\bwalmart|\bwal-mart|\btemu\b|\bfive ?below|\bfivebelow/.test(d)) return 'Shopping';   // item 85: general retailers - the same text as bank_importer.py
+  if (/\btj\s*maxx|\btjx\b|\bjcpenney|\bkohl.?s|\bmacy.?s|\bross\b|\bnordstrom|\bmarshall.?s|\bindian lake outfitters/.test(d)) return 'Clothing';
   if (/\bfrancesca\b|\bdry clean(er)?\b|\blaundromat\b|\btailor\b|\bcobbler\b/.test(d)) return 'Personal Care';
   return 'Other';
 }
@@ -6989,20 +6990,20 @@ const CLIENT_MCC_CATEGORY_MAP = {
   '5172': 'Gasoline / Diesel', '7542': 'Car Maintenance', '7538': 'Car Maintenance', '5511': 'Car Maintenance',
   '5531': 'Car Maintenance', '5532': 'Car Maintenance', '5533': 'Car Maintenance', '4111': 'Rideshare / Transit',
   '4121': 'Rideshare / Transit', '4131': 'Rideshare / Transit', '4789': 'Rideshare / Transit', '7523': 'Parking / Tolls',
-  '5200': 'Rent / Mortgage', '5211': 'Rent / Mortgage', '5231': 'Home Maintenance', '5251': 'Rent / Mortgage',
-  '5712': 'Rent / Mortgage', '5713': 'Rent / Mortgage', '5722': 'Rent / Mortgage', '1520': 'Home Maintenance',
+  '5200': 'Home Improvement', '5211': 'Home Improvement', '5231': 'Home Maintenance', '5251': 'Home Maintenance',
+  '5712': 'Furniture / Decor', '5713': 'Home Improvement', '5722': 'Home Improvement', '1520': 'Home Maintenance',
   '1711': 'Home Maintenance', '4814': 'Phone / Cell', '4815': 'Phone / Cell', '4812': 'Phone / Cell',
   '4816': 'Other', '4899': 'Streaming Video', '4900': 'Other', '4901': 'Other',
   '0742': 'Pet Food / Supplies', '0743': 'Pet Food / Supplies', '5995': 'Pet Food / Supplies', '5912': 'Prescriptions',
   '5122': 'Prescriptions', '8011': 'Doctor / Co-pays', '8021': 'Dental', '8031': 'Doctor / Co-pays',
   '8041': 'Doctor / Co-pays', '8042': 'Vision', '8043': 'Charitable Donations', '8050': 'Doctor / Co-pays',
   '8062': 'Doctor / Co-pays', '8071': 'Doctor / Co-pays', '8099': 'Doctor / Co-pays', '5047': 'Doctor / Co-pays',
-  '5960': 'Other', '6300': 'Other', '6381': 'Other', '5311': 'Clothing',
-  '5310': 'Clothing', '5300': 'Groceries', '5331': 'Clothing', '5399': 'Clothing',
+  '5960': 'Other', '6300': 'Other', '6381': 'Other', '5311': 'Other',
+  '5310': 'Other', '5300': 'Groceries', '5331': 'Other', '5399': 'Other',
   '5621': 'Clothing', '5651': 'Clothing', '5661': 'Clothing', '5691': 'Clothing',
-  '5732': 'Clothing', '5734': 'Software / Apps', '5942': 'Clothing', '5970': 'Hobbies',
-  '5945': 'Hobbies', '5947': 'Clothing', '5968': 'Other Subscriptions', '5969': 'Clothing',
-  '5818': 'Software / Apps', '5999': 'Clothing', '5932': 'Clothing', '5921': 'Other',
+  '5732': 'Other', '5734': 'Software / Apps', '5942': 'Other', '5970': 'Hobbies',
+  '5945': 'Hobbies', '5947': 'Gifts', '5968': 'Other Subscriptions', '5969': 'Other',
+  '5818': 'Software / Apps', '5999': 'Other', '5932': 'Other', '5921': 'Other',
   '7230': 'Haircut / Salon', '7297': 'Haircut / Salon', '7298': 'Haircut / Salon', '7261': 'Other',
   '7311': 'Other', '7372': 'Software / Apps', '5977': 'Haircut / Salon', '7832': 'Activities / Events',
   '7841': 'Streaming Video', '7922': 'Activities / Events', '7929': 'Activities / Events', '7991': 'Activities / Events',

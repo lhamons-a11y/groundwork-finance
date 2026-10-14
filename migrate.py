@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261013-fuel-names'   # item 84: Gasoline / Diesel, Natural Gas, EV Charging (data only; models unchanged)
+SCHEMA_VERSION = '20261014-home-codes'   # item 85: a Shopping leaf (data only; models unchanged); item 84 before it
 # This bump carries no migrate.py code: the trips table reaches an existing database through init_db's create_all.
 # The old trip_budget setting is carried in as the first trip by core/trips.py on first read, and kept.
 # Before it, '20261011-gift-tables':
@@ -38,7 +38,7 @@ SCHEMA_VERSION = '20261013-fuel-names'   # item 84: Gasoline / Diesel, Natural G
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = '51e7a4fa94c4928ea72a6176b5bfe90c4e296a4d9c03b4d4b561aab813fe2eff'
+SCHEMA_SPEC_SHA256 = '989e36eebc43fea8f5fef28b836f75ea8f781b991e89acb111346e9d6f85b91d'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
@@ -258,6 +258,12 @@ def _fuel_names_v84():
                 _v84_merge_or_rename(conn, gas[0], 'Gas', 'Natural Gas')
         trans = conn.execute(text("SELECT id FROM categories WHERE name = 'Transportation' AND parent_id IS NULL")).fetchone()
         ev = conn.execute(text("SELECT id FROM categories WHERE name = 'EV Charging'")).fetchone()
+        # item 85: a leaf for general retailers, under Personal - created only where no "Shopping" exists already
+        pers = conn.execute(text("SELECT id FROM categories WHERE name = 'Personal' AND parent_id IS NULL")).fetchone()
+        shop = conn.execute(text("SELECT id FROM categories WHERE name = 'Shopping'")).fetchone()
+        if pers and not shop:
+            conn.execute(text("INSERT INTO categories (name, type, color, icon, parent_id, sort_order, is_system, is_optional, is_enabled) "
+                              "VALUES ('Shopping', 'expense', '#ec4899', 'bag', :p, 0, 1, 0, 1)"), {'p': pers[0]})
         if trans and not ev:
             conn.execute(text("INSERT INTO categories (name, type, color, icon, parent_id, sort_order, is_system, is_optional, is_enabled) "
                               "VALUES ('EV Charging', 'expense', '#22c55e', 'zap', :p, 0, 1, 0, 1)"), {'p': trans[0]})

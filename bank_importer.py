@@ -31,7 +31,7 @@ GROUNDWORK_CATEGORIES = [
     'Transportation', 'Gasoline / Diesel', 'EV Charging', 'Car Maintenance',
     'Rent / Mortgage', 'Home Maintenance',
     'Utilities', 'Phone / Cell',
-    'Clothing', 'Personal',
+    'Clothing', 'Shopping', 'Personal',
     'Entertainment', 'Streaming Video', 'Subscriptions', 'Hobbies',
     'Healthcare', 'Pet Food / Supplies',
     'Insurance',
@@ -87,13 +87,15 @@ MCC_CATEGORY_MAP = {
     '7523': 'Parking / Tolls', # Parking lots
 
     # ── Housing & home services ──
-    '5200': 'Rent / Mortgage',        # Home supply warehouses (Lowe's, Menards)
-    '5211': 'Rent / Mortgage',        # Lumber/building materials
+    # Item 85 (2026-10-13): home stores were filed as Rent / Mortgage and general merchandise as Clothing - every
+    # Lowe's purchase read as a housing payment. Fixed under item 55's C2 / C3 (CARD_CODES_HOME.md).
+    '5200': 'Home Improvement',        # Home supply warehouses (Lowe's, Menards)
+    '5211': 'Home Improvement',        # Lumber/building materials
     '5231': 'Home Maintenance',   # Glass/paint/wallpaper (Sherwin-Williams)
-    '5251': 'Rent / Mortgage',        # Hardware stores
-    '5712': 'Rent / Mortgage',        # Furniture/home furnishings
-    '5713': 'Rent / Mortgage',        # Floor covering / carpets (Masland Carpets)
-    '5722': 'Rent / Mortgage',        # Household appliances
+    '5251': 'Home Maintenance',        # Hardware stores
+    '5712': 'Furniture / Decor',        # Furniture/home furnishings
+    '5713': 'Home Improvement',        # Floor covering / carpets (Masland Carpets)
+    '5722': 'Home Improvement',        # Household appliances
     '1520': 'Home Maintenance',   # General contractors
     '1711': 'Home Maintenance',   # Plumbing/heating/AC
 
@@ -130,26 +132,26 @@ MCC_CATEGORY_MAP = {
     '6381': 'Other',
 
     # ── Shopping (specific stores)
-    '5311': 'Clothing',       # Department stores (JCPenney)
-    '5310': 'Clothing',       # Discount stores (TJ Maxx)
+    '5311': 'Other',       # Department stores (JCPenney)
+    '5310': 'Other',       # Discount stores (TJ Maxx)
     '5300': 'Groceries',      # Wholesale clubs (Sam's Club — primarily groceries here)
-    '5331': 'Clothing',       # Variety stores (Dollar Tree, Dollar General)
-    '5399': 'Clothing',       # Misc general merch
+    '5331': 'Other',       # Variety stores (Dollar Tree, Dollar General)
+    '5399': 'Other',       # Misc general merch
     '5621': 'Clothing',       # Women's ready-to-wear (Francesca's)
     '5651': 'Clothing',       # Family clothing
     '5661': 'Clothing',       # Shoe stores
     '5691': 'Clothing',
-    '5732': 'Clothing',       # Electronics
+    '5732': 'Other',       # Electronics
     '5734': 'Software / Apps',   # Computer software stores (Anthropic — software subscription)
-    '5942': 'Clothing',       # Book stores (Amazon historical MCC)
+    '5942': 'Other',  # item 85: Amazon's historical code - it covers everything Amazon sells (C3), so the words decide       # Book stores (Amazon historical MCC)
     '5970': 'Hobbies',          # Artist supplies (Cricut, Michaels)
     '5945': 'Hobbies',          # Hobby/toy/game shops (Hobby Lobby, Build-A-Bear)
-    '5947': 'Clothing',       # Gift shops
+    '5947': 'Gifts',       # Gift shops
     '5968': 'Other Subscriptions',   # Direct marketing — subscription merchants
-    '5969': 'Clothing',
+    '5969': 'Other',
     '5818': 'Software / Apps',   # Digital goods (Apple subscriptions)
-    '5999': 'Clothing',       # Misc specialty retail (Harbor Freight)
-    '5932': 'Clothing',       # Antique shops (Indian Lake Outfitters in his data)
+    '5999': 'Other',       # Misc specialty retail (Harbor Freight)
+    '5932': 'Other',       # Antique shops (Indian Lake Outfitters in his data)
     '5921': 'Other',       # Package stores - liquor
 
     # ── Personal services
@@ -259,7 +261,9 @@ _CATEGORY_PATTERNS = [
     ('Transfer', r'\btransfer (to|from)\b|\bach transfer\b|'
                  r'\binternal transfer\b|\bonline transfer\b|'
                  r'\bvenmo\b|\bcash app\b|\bzelle\b|\bpaypal\s+(transfer|p2p)\b|'
-                 r'\bwithdrawal\b|\batm\s+(eft|withdraw)\b|\bat atm\b|\beft withdrawal\b|'
+                 # item 85: not bare "withdrawal" - Rob's bank starts EVERY debit with it, so purchases were read as
+                 # transfers (out of spending) whenever their card code did not decide
+                 r'\batm\s+(eft|withdraw)\b|\bat atm\b|\beft withdrawal\b|\batm withdrawal\b|'
                  r'\bdraft\s+\d|\bcheck received\b|\bdeposit\b|'
                  r''
                  r'\btransactor:\b'),
@@ -485,12 +489,10 @@ _CATEGORY_PATTERNS = [
     # ── SHOPPING (catches Amazon, dept stores, TJ Maxx, etc.)
     # Trailing \b omitted on brand names that often appear smushed
     # (DOLLARTREE, TJMAXX, JCPENNEY) without word boundaries.
-    ('Clothing', r'\bamazon|\bamzn\b|\btj\s*maxx|\btjx\b|\bjcpenney|'
-                 r'\bkohl.?s|\btarget\b|\bmacy.?s|\bdollar\s*tree|\bdollartree|'
-                 r'\bdollar.general|\bross\b|\bnordstrom|\bmarshall.?s|'
-                 r'\bbest buy\b|\bcostco\.com|\bwayfair|'
-                 r'\bindian lake outfitters|\bfamily dollar|\bfamilydollar|'
-                 r'\btractor.?supply|\bharbor freight'),
+    # Item 85 (2026-10-13): this rule was one list labelled Clothing - Amazon, Target, Dollar Tree, Best Buy, Harbor
+    # Freight - because the tree had no leaf for general shopping. General retailers are Shopping; clothing stores stay.
+    ('Shopping', r"\bamazon|\bamzn\b|\btarget\b|\bdollar\s*tree|\bdollartree|\bdollar.general|\bbest buy\b|\bcostco\.com|\bwayfair|\bfamily dollar|\bfamilydollar|\btractor.?supply|\bharbor freight|\bwalmart|\bwal-mart|\btemu\b|\bfive ?below|\bfivebelow"),
+    ('Clothing', r"\btj\s*maxx|\btjx\b|\bjcpenney|\bkohl.?s|\bmacy.?s|\bross\b|\bnordstrom|\bmarshall.?s|\bindian lake outfitters"),
 
     # ── PERSONAL (specific small-business / boutique clothing & services)
     ('Personal Care', r'\bfrancesca\b|\bdry clean(er)?\b|\blaundromat\b|'

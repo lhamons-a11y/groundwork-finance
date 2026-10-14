@@ -10012,6 +10012,17 @@ def _regroup_review(session):
         if src in _MUNICIPAL_FROM and src not in _OLD_MATCHER_ANSWERS and to != 'Municipal Utilities':
             continue                  # item 56 U6: from Other or Water / Sewer, only to Municipal Utilities
         groups.setdefault((src, to), []).append(t)
+    # Item 85: a row whose card code item 85 corrected (home stores were Rent / Mortgage) is offered to its new leaf,
+    # when the code now names one - never to Other: those rows stay where they are, as before
+    fixed = ['5200', '5211', '5251', '5310', '5311', '5331', '5399', '5712', '5713', '5722', '5732', '5932', '5942', '5947', '5969', '5999']
+    seen = {t.id for rs in groups.values() for t in rs}
+    for t in session.query(Transaction).filter(Transaction.type == 'debit', (Transaction.mcc.in_(list(fixed))) |
+                                               (Transaction.category_id.in_([c.id for c in cats if c.name in ('Clothing', 'Rent / Mortgage')]))).all():
+        if t.id in seen or t.category_id not in by_id:
+            continue
+        src, to = by_id[t.category_id].name, bi.auto_category(t.description or '', t.mcc or '')
+        if to not in ('Other', src) and to in by_name:
+            groups.setdefault((src, to), []).append(t)
     # Item 84: a charging row is offered from wherever older rules left it (Rob's sat in Car Maintenance and Car Lease
     # Payment, card code 5552) - shown first, moved only on the person's yes, like every row here
     ev = by_name.get('EV Charging')
