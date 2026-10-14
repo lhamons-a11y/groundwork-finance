@@ -172,5 +172,5 @@ def run(ctx):
         check('s168 U3 each service: on the municipal bill, or its own company and the category its charge is filed under',
               'Water: on your municipal utility bill' in out[0] and 'Trash: on your municipal utility bill' in out[0]
               and "Electricity: not on your municipal bill. If you pay for it, its own company's charge is filed under Electric." in out[0]
-              and "Natural gas: not on your municipal bill. If you pay for it, its own company's charge is filed under Gas." in out[0]
+              and "Natural gas: not on your municipal bill. If you pay for it, its own company's charge is filed under Natural Gas." in out[0]   # item 84: was Gas
               and out[1] == '' and out[2] == '')
