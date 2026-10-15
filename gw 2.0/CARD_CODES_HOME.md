@@ -60,4 +60,4 @@ corrected, and his rows offered for moving with a yes.
 
 ## 4. Status
 
-Built 2026-10-14. Awaiting Rob's acceptance and push word.
+Built 2026-10-14. **ACCEPTED 2026-10-14** (Rob: *"yes I accept item 85, push it"*); gate 3400 / 0.
