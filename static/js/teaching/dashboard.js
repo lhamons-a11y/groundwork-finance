@@ -167,6 +167,11 @@
         + (i.price_after ? ', then ' + fmt(i.price_after) + (i.every ? ' a ' + esc(i.every) : '') : '') + '.';
       source = 'From the receipt you added in Before You Buy. Groundwork doesn\'t cancel or return anything; you do.';
       action = '<button class="btn btn-sm btn-secondary" data-gw-receipt-done="' + esc(String(i.rowId)) + '">Handled</button>';
+    } else if (i.kind === 'fsa_deadline') {
+      var left = i.days === 0 ? ' Today is the last day.' : i.days === 1 ? ' One day left.' : ' ' + i.days + ' days left.';
+      fact = '<strong>' + esc(i.title) + '</strong>: ' + esc(i.sentence) + left;
+      source = 'From this FSA\'s balance and the plan terms you entered. Groundwork doesn\'t spend or claim anything; you decide.';
+      action = '<button class="btn btn-sm btn-secondary" onclick="showView(\'settings\');_settingsShowTab(\'accounts\')">Open Accounts</button>';
     } else if (i.kind === 'import_stale') {
       fact = '<strong>' + esc(i.title) + '</strong>: last imported ' + _date(i.last_import) + ', ' + i.days + ' days ago.';
       source = 'From when this account\'s transactions were last imported. An account kept by hand is never listed.';
@@ -194,7 +199,7 @@
 
   function _groupedHTML(items) {
     var stale = items.filter(function (i) { return i.kind === 'import_stale'; });
-    var blocked = items.filter(function (i) { return i.kind !== 'import_stale' && i.kind !== 'payment_due' && i.kind !== 'date_ends'; });
+    var blocked = items.filter(function (i) { return i.kind === 'blocked_conclusion'; });
     var sameMissing = blocked.length > 1;      // every blocked conclusion is answered by the one Verify step
     var out = [], staleDone = false, blockedDone = false;
     items.forEach(function (i) {
@@ -254,11 +259,16 @@
     });
     var kept = [];
     try { kept = ((await API.get('/api/byb/receipt-dates')) || {}).dates || []; } catch (e) { _gwErr('dashboard receipt dates')(e); }
+    var fsa = [];                                            // item 86 F5: only when an HSA or FSA account exists
+    if ((S.accounts || []).some(function (a) { return a.type === 'fsa'; })) {
+      try { fsa = ((await API.get('/api/accounts/hsa-fsa')) || {}).attention || []; } catch (e) { _gwErr('dashboard fsa')(e); }
+    }
     var items = A.build({
       payments: payments,
       imports: A.importsStale(stale),
       blocked: A.blockedConclusions(conf, hasRecord),
-      dates: A.datesEnding(kept, new Date())
+      dates: A.datesEnding(kept, new Date()),
+      fsa: A.fsaDeadlines(fsa)
     }, (_prefs && _prefs.dismissed) || []);
     var head = '<div class="card-label" style="margin-bottom:4px">Needs attention</div>';
     try { _tiles(imports, items, payments); } catch (e) { _gwErr('dashboard tiles')(e); }

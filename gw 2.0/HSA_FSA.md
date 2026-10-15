@@ -1,6 +1,6 @@
 # Item 86 — HSA and FSA balances (item 45 H5, the first slice of the health module)
 
-**OPENED 2026-10-14 (Rob: "Health H5: HSA/FSA"). For ruling; no code, no schema, no authorisation.**
+**OPENED 2026-10-14 (Rob: "Health H5: HSA/FSA"). RULED + BUILD AUTHORISED 2026-10-14 (Rob: "I approve F1-F7 as recommended (60 days for the attention item). Build item 86.").**
 
 ## Summary
 
@@ -106,3 +106,32 @@ Of all the health pieces, this is the one that can be built now. It needs no nam
 plan, and it sits behind the privacy layer that is already accepted. Its only real risk is the FSA warning, and F5
 keeps that warning to facts the user gave. F1, F2 and F6 are the rulings that shape the code. F3 to F5 and F7 set
 what the user reads.
+
+## Built 2026-10-14 (s226; SCHEMA 20261014-hsa-fsa)
+
+- **F1:** `hsa` and `fsa` account types (`static/js/app.js` `ACCOUNT_TYPES`). The balance is the newer of the
+  statement's own balance and a typed one, each with its date, and never the sum of imported activity. Net Worth
+  counts these balances as their own asset line, "HSA / FSA (from your accounts)". A note there says to take them out
+  of the typed Savings figure if they're already included, so nothing is counted twice. The monthly snapshot uses the
+  same total.
+- **F2:** the `health_account_terms` table. Every save adds a row and the newest row for a plan year is current, so
+  earlier terms stay as history (`GET /api/accounts/<id>/terms`). Blank means unknown, and a wrong value is refused.
+  `core/plan_year.py` stays unwired.
+- **F3:** `core/hsa_fsa.py` `LIMITS` for 2025 and 2026, each figure with its IRS revenue procedure. HSA 2026 is
+  $4,400 / $7,613 plus $1,000 at 55+ (Rev. Proc. 2025-19). The health FSA in 2026 is $2,958 with a $680 most carryover
+  (Rev. Proc. 2025-32; checked against published summaries 2026-10-14). A year not in the table says so.
+- **F4:** deposits into the account's own rows. Interest and earnings rows are left out, and the card says how many.
+  Every month so far with nothing imported is named. With no rows the total is unknown, and a typed total wins,
+  labelled as typed.
+- **F5:** the over-limit sentence and the FSA sentence, both built only from entered terms; otherwise the card says
+  Groundwork "can't tell". A fifth ruled attention kind, `fsa_deadline`, appears from 60 days before the deadline,
+  with Dismiss and an "Open Accounts" button. While there, the server's dismiss list now accepts `date_ends` too
+  (item 73's Dismiss had been refused).
+- **F6:** `health_boundary.health_rows` puts every HSA / FSA row on the health side in both exports and the year-end
+  packet. `refresh` learns the account's spending (debits) as scrub markers, never descriptions made only of money
+  words, so "Interest" is not scrubbed from other text.
+- **F7:** the sentences and the "How an HSA / FSA works" help carry no advice. s226 checks a list of banned words,
+  including "bigger shovel".
+- Verified in the running app (throwaway database): the FSA item on the dashboard, the Accounts panels, the terms form
+  (a save adds a history row and the sentence follows the new rule), and the Net Worth line. Found and fixed there: an
+  unescaped apostrophe that stopped `dashboard.js` loading. s226 now parses each edited script with `node --check`.

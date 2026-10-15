@@ -18121,7 +18121,8 @@ function updateNetWorth() {
   // also a liability, which took the mortgage off net worth twice.
   const _m               = _nwMortgageInfo(mortgage);
   const homeEquity       = Math.max(0, homeValue - _m.amount);
-  const totalAssets      = savings + totalInvestments + cash + homeValue + pensionTotal;
+  const hsaFsa           = _hsaFsaTotal();      // item 86 F1: HSA / FSA balances from their accounts, like savings
+  const totalAssets      = savings + totalInvestments + cash + homeValue + pensionTotal + hsaFsa;
   const totalLiab        = debtBals + _m.counted;
   const netWorth         = totalAssets - totalLiab;
   _nwMortgageFieldState(_m);
@@ -18156,11 +18157,15 @@ function updateNetWorth() {
       ['Pension (est. value)',      pensionTotal],
       ['Cash',                     cash],
       ['Home value',               homeValue],
+      ['HSA / FSA (from your accounts)', hsaFsa],
     ].filter(([,v]) => v > 0);
     assetEl.innerHTML = rows.map(([label,val]) => `
       <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--steel);font-size:13px">
         <span>${label}</span><span style="font-family:var(--font-mono);color:var(--pine-text)">${fmt(val)}</span>
       </div>`).join('')
+      // Item 86: counted from the HSA / FSA accounts, so a figure typed into Savings above must not include it too.
+      + (hsaFsa > 0 ? `
+      <div style="font-size:11px;color:var(--slate);padding:4px 0">HSA / FSA: the balances shown in Settings, Accounts. If your Savings figure above already includes them, take them out there so they are counted once.</div>` : '')
       // V9: equity is information, not a second asset - the value and the mortgage are already counted.
       + (homeValue > 0 ? `
       <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:12px;color:var(--slate)">
@@ -18253,7 +18258,7 @@ async function autoSnapshotNetWorthIfDue(extraNote) {
     const totalInvestments = investments + retirement401k + retirementIRA;
     // V9: home value as the asset, the mortgage once as a liability.
     const _m                = _nwMortgageInfo(mortgage);
-    const totalAssets       = savings + totalInvestments + cash + homeValue + pensionTotal;
+    const totalAssets       = savings + totalInvestments + cash + homeValue + pensionTotal + _hsaFsaTotal();   // item 86
     const totalLiab         = debtBals + _m.counted;
 
     // Nothing entered yet (new user) — don't record a meaningless $0 snapshot. A payoff is still noted on the
@@ -22362,8 +22367,21 @@ const ACCOUNT_TYPES = {
   savings:     'Savings',
   credit_card: 'Credit card',
   cash:        'Cash',
+  hsa:         'HSA',      // item 86 F1: HSA and FSA are kinds of account (HSA_FSA.md)
+  fsa:         'FSA',
   other:       'Other',
 };
+
+// Item 86 (HSA_FSA.md): the HSA and FSA accounts with their working, from /api/accounts/hsa-fsa. Loaded with the
+// accounts so net worth can count their balances.
+S.hsaFsa = [];
+async function _loadHsaFsa() {
+  try { S.hsaFsa = ((await API.get('/api/accounts/hsa-fsa')) || {}).accounts || []; }
+  catch (e) { _gwErr('hsa/fsa load')(e); }
+}
+function _hsaFsaTotal() {
+  return (S.hsaFsa || []).reduce((s, a) => s + (a.balance && a.balance.amount != null ? a.balance.amount : 0), 0);
+}
 
 // S.accounts is the single in-memory mirror of the Account DB table — every
 // view (Ledger, Add/Edit transaction, Settings, import) reads from it
@@ -22377,6 +22395,7 @@ async function loadAccounts() {
     const res = await API.get('/api/accounts/with-balances');
     S.accounts    = Array.isArray(res) ? res : (res?.data || []);
     _accountsCache = S.accounts; // alias for back-compat
+    if (S.accounts.some(a => a.type === 'hsa' || a.type === 'fsa')) await _loadHsaFsa(); else S.hsaFsa = [];
     return true;
   } catch(e) { return false; }
 }
@@ -22417,19 +22436,102 @@ function _accountRowHTML(a) {
   const typeLabel = ACCOUNT_TYPES[a.type] || 'Other';
   const meta = [typeLabel, a.institution, `${a.transaction_count} txn${a.transaction_count!==1?'s':''}`]
     .filter(Boolean).join(' · ');
+  // Item 86 F1: an HSA's or FSA's balance is the bank's or the typed one, never the sum of imported activity.
+  const hf = (S.hsaFsa || []).find(x => x.account_id === a.id);
+  const bal = hf ? hf.balance.amount : a.balance;
   return `
-    <div class="account-row" data-id="${a.id}" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--steel-2)">
+    <div class="account-row" data-id="${a.id}" style="display:flex;align-items:center;gap:10px;padding:10px 0;${hf ? '' : 'border-bottom:0.5px solid var(--steel-2)'}">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(a.name)}</div>
         <div style="font-size:11px;color:var(--slate);margin-top:2px">${esc(meta)}</div>
       </div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:${a.balance>=0?'var(--pine-text)':'var(--ember-text)'};text-align:right;flex-shrink:0">
-        ${fmt(a.balance)}
+      <div style="font-family:var(--font-mono);font-size:13px;color:${bal == null ? 'var(--slate)' : bal>=0?'var(--pine-text)':'var(--ember-text)'};text-align:right;flex-shrink:0">
+        ${bal == null ? 'no balance yet' : fmt(bal)}
       </div>
       ${a.has_portal ? _portalButtonsHTML('account', a.id) : ''}
       <button class="row-del" onclick="editAccount(${a.id})" title="Edit" style="font-size:13px">✎</button>
       <button class="row-del" onclick="archiveAccount(${a.id})" title="Archive">×</button>
+    </div>${hf ? _hsaFsaPanelHTML(hf) : ''}`;
+}
+
+// ── Item 86: HSA and FSA (gw 2.0/HSA_FSA.md, F1-F7 ruled 2026-10-14) ──────────────────────────────────────────
+// Facts with their working, from the server. Every term not entered stays unknown. No advice, no judgement (F7).
+const _HSA_FSA_HELP = {
+  hsa: 'How an HSA works: money put in, up to the IRS limit for your coverage, can be spent on qualified health care. '
+     + 'What is not spent stays in the account from year to year, and many custodians let it be held as cash or invested. '
+     + 'Groundwork shows what is there and the limit; what you do with it is yours to decide.',
+  fsa: 'How an FSA works: you choose an election for the plan year, and the plan sets what happens to money not spent '
+     + 'by its deadline - a grace period, a carryover up to an amount, or neither. Those rules are your plan\'s, so '
+     + 'Groundwork uses only the terms you enter here.',
+};
+
+function _hsaFsaPanelHTML(s) {
+  const line = (label, text) => `<div style="margin-top:4px"><span style="color:var(--ink)">${label}</span> ${esc(text)}</div>`;
+  const warn = s.warning ? 'border-left:3px solid var(--gold-text);padding-left:8px' : '';
+  let body = line('Balance:', s.balance.working);
+  if (s.kind === 'hsa') {
+    body += line('Contributions:', s.contributions.working) + line('Limit:', s.limit.working);
+  } else {
+    body += line('IRS figures:', s.limit.working);
+  }
+  return `
+    <div class="hsa-fsa-panel" data-hsa-fsa="${s.account_id}" style="padding:4px 0 12px;border-bottom:0.5px solid var(--steel-2);font-size:12px;color:var(--slate);line-height:1.6">
+      ${s.sentence ? `<div style="font-size:13px;color:var(--ink);${warn}">${esc(s.sentence)}</div>` : ''}
+      ${body}
+      <details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">How ${s.kind === 'hsa' ? 'an HSA' : 'an FSA'} works</summary>
+        <div style="margin-top:4px">${esc(_HSA_FSA_HELP[s.kind])}</div></details>
+      <div id="hsaFsaForm-${s.account_id}"></div>
+      <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="showHsaFsaTerms(${s.account_id})">${s.kind === 'hsa' ? 'Coverage and balance' : 'Plan terms and balance'}</button>
     </div>`;
+}
+
+function showHsaFsaTerms(id) {
+  const s = (S.hsaFsa || []).find(x => x.account_id === id);
+  const slot = g('hsaFsaForm-' + id);
+  if (!s || !slot) return;
+  const t = s.terms || {};
+  const v = x => (x == null ? '' : esc(String(x)));
+  const sel = (key, opts) => `<select id="hf-${key}-${id}" style="font-size:12px;padding:3px 6px">`
+    + opts.map(([val, lab]) => `<option value="${val}" ${(t[key] || '') === val ? 'selected' : ''}>${lab}</option>`).join('') + '</select>';
+  const inp = (key, type, ph) => `<input id="hf-${key}-${id}" type="${type}" value="${v(t[key])}" placeholder="${ph}" step="0.01" min="0" style="font-size:12px;padding:3px 6px;width:130px">`;
+  const row = (label, field) => `<label style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="width:190px">${label}</span>${field}</label>`;
+  const year = s.year || new Date().getFullYear();
+  const fields = s.kind === 'hsa'
+    ? row('Coverage', sel('coverage', [['', 'I don\'t know'], ['self', 'Self-only'], ['family', 'Family']]))
+      + row('55 or older this year', sel('catch_up', [['', 'Not answered'], ['yes', 'Yes'], ['no', 'No']]))
+      + row(`Contributions so far in ${year} (only if you'd rather type it)`, inp('typed_contributions', 'number', 'from the record'))
+    : row('Plan year ends', inp('year_end', 'date', ''))
+      + row('Unspent money', sel('rule', [['', 'I don\'t know'], ['grace', 'Grace period'], ['carryover', 'Carries over, up to an amount'], ['none', 'Neither: it is lost']]))
+      + row('Grace period ends', inp('grace_until', 'date', ''))
+      + row('Most that carries over', inp('carryover_max', 'number', ''))
+      + row('Last day to submit claims', inp('claims_by', 'date', ''))
+      + row('This year\'s election', inp('election', 'number', ''));
+  slot.innerHTML = `<div style="margin-top:8px;padding:8px;background:var(--mist);border-radius:var(--r-sm)">
+      ${s.kind === 'fsa' ? row('Plan year (the year it ends in)', `<input id="hf-plan_year-${id}" type="number" value="${year}" style="font-size:12px;padding:3px 6px;width:90px">`) : ''}
+      ${fields}
+      ${row('Balance (if you type it)', inp('typed_balance', 'number', 'from a statement'))}
+      <div style="font-size:11px;margin-top:6px">Leave anything you don't know blank. Saving keeps the earlier terms as history.</div>
+      <button class="btn btn-sm btn-primary" style="margin-top:6px" onclick="saveHsaFsaTerms(${id})">Save</button>
+      <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="g('hsaFsaForm-${id}').innerHTML=''">Cancel</button>
+    </div>`;
+}
+
+async function saveHsaFsaTerms(id) {
+  const s = (S.hsaFsa || []).find(x => x.account_id === id);
+  if (!s) return;
+  const val = key => { const el = g(`hf-${key}-${id}`); return el ? el.value : (s.terms || {})[key]; };
+  const body = { plan_year: s.kind === 'fsa' ? val('plan_year') : (s.year || new Date().getFullYear()) };
+  ['coverage', 'catch_up', 'year_end', 'rule', 'grace_until', 'carryover_max', 'claims_by', 'election',
+   'typed_contributions', 'typed_balance'].forEach(k => { body[k] = val(k); });
+  // A typed balance is dated today; an unchanged one keeps its own date.
+  const t = s.terms || {};
+  if (String(body.typed_balance ?? '') === String(t.typed_balance ?? '')) body.typed_balance_on = t.typed_balance_on || '';
+  try {
+    await API.post(`/api/accounts/${id}/terms`, body);
+  } catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  await loadAccounts();
+  _drawAccountManager();
+  if (typeof updateNetWorth === 'function' && g('nwTotal')) updateNetWorth();
 }
 
 function _accountFormHTML(a) {

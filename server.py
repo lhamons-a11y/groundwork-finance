@@ -987,6 +987,55 @@ def archive_account(account_id):
     return ok({'archived': account_id, 'transactions_preserved': txn_count})
 
 
+# ── HSA and FSA (gw 2.0/HSA_FSA.md, item 86 = item 45 H5; ruled 2026-10-14) ──────────────────────────────────────
+# Money only. The figures and sentences come from core/hsa_fsa.py with their working; every term the person did not
+# enter stays unknown. No advice (F7).
+
+@accounts_bp.route('/hsa-fsa', methods=['GET'])
+def hsa_fsa_list():
+    from core import hsa_fsa
+    with db_session() as session:
+        rows = hsa_fsa.states(session, _resolve_bank_anchor)
+        return ok({'accounts': rows, 'attention': hsa_fsa.attention(rows), 'warn_days': hsa_fsa.FSA_WARN_DAYS,
+                   'limit_years': sorted(hsa_fsa.LIMITS)})
+
+
+@accounts_bp.route('/<int:account_id>/terms', methods=['GET'])
+def hsa_fsa_terms_history(account_id):
+    from core import hsa_fsa
+    with db_session() as session:
+        acct = session.get(Account, account_id)
+        if not acct or acct.type not in hsa_fsa.TYPES:
+            return err('That HSA or FSA account was not found.', 404)
+        return ok({'account_id': acct.id, 'kind': acct.type, 'history': hsa_fsa.history(session, acct.id)})
+
+
+@accounts_bp.route('/<int:account_id>/terms', methods=['POST'])
+@require_json
+def hsa_fsa_terms_save(account_id):
+    """F2: {plan_year, coverage, catch_up, year_end, rule, grace_until, carryover_max, claims_by, election,
+    typed_contributions, typed_balance, typed_balance_on}. Adds a row; the old terms stay as history."""
+    from core import hsa_fsa
+    body = request.json or {}
+    try:
+        year = int(body.get('plan_year') or date.today().year)
+    except (TypeError, ValueError):
+        return err('plan_year must be a year')
+    if not 2000 <= year <= 2100:
+        return err('plan_year must be a year')
+    with db_session() as session:
+        acct = session.get(Account, account_id)
+        if not acct or acct.type not in hsa_fsa.TYPES:
+            return err('That HSA or FSA account was not found.', 404)
+        row, problem = hsa_fsa.save_terms(session, acct, year, body)
+        if problem:
+            return err(problem)
+        session.commit()
+        txns = session.query(Transaction).filter_by(account_id=acct.id).all()
+        state = (hsa_fsa.hsa_state if acct.type == 'hsa' else hsa_fsa.fsa_state)(session, acct, txns, _resolve_bank_anchor)
+        return ok({'saved': row.id, 'state': state})
+
+
 # ── The bank window's link (gw 2.0/BANK_BROWSER.md) ───────────────────────────
 # These routes are the ONLY readers and writers of portal_url. The link is
 # launch configuration for a webpage, not financial evidence or model context:
@@ -2799,10 +2848,10 @@ def _year_end(session, year, include_health=False):
     cats = {c.id: c for c in session.query(Category).all()}
     cname = lambda t: (cats[t.category_id].name if t.category_id in cats else 'Uncategorized')
     tr, inc_ids = ck._transfer_ids(session), set(income_category_ids(session))
-    hids = health_boundary.health_category_ids(session)
-    health_left_out = 0 if include_health else sum(1 for t in txns if t.category_id in hids)
+    is_health = health_boundary.health_rows(session)       # by category, or an HSA / FSA account's row (item 86 F6)
+    health_left_out = 0 if include_health else sum(1 for t in txns if is_health(t))
     if not include_health:
-        txns = [t for t in txns if t.category_id not in hids]
+        txns = [t for t in txns if not is_health(t)]
     income, spend, interest, donations = {}, {}, {}, {}
     for t in txns:
         amt = abs(float(t.amount or 0))
@@ -4187,7 +4236,7 @@ def dashboard_dismiss():
     """
     fp = (request.json or {}).get('fingerprint')
     if not isinstance(fp, str) or not fp or len(fp) > 300 or fp.split('|', 1)[0] not in (
-            'payment_due', 'import_stale', 'blocked_conclusion'):
+            'payment_due', 'import_stale', 'blocked_conclusion', 'date_ends', 'fsa_deadline'):   # item 86 F5
         return err('a fingerprint of a ruled attention kind is required')
     with db_session() as session:
         dismissed = [d for d in _dashboard_json(session, 'dashboard_dismissed', []) if d != fp]
@@ -12441,9 +12490,9 @@ def export_to_file():
         from core import health_boundary
         health_left_out = 0
         if not body.get('include_health'):
-            _hids = health_boundary.health_category_ids(session)
-            health_left_out = sum(1 for t in txns if t.category_id in _hids)
-            txns = [t for t in txns if t.category_id not in _hids]
+            _is_health = health_boundary.health_rows(session)   # item 86 F6: an HSA / FSA account's rows too
+            health_left_out = sum(1 for t in txns if _is_health(t))
+            txns = [t for t in txns if not _is_health(t)]
         txn_rows, txn_skipped = [], 0
         for t in txns:
             try:

@@ -46,6 +46,25 @@ def health_category_ids(session):
     return ids
 
 
+# Item 86 F6 (HSA_FSA.md, ruled 2026-10-14): every row of an HSA or FSA account is health, whatever its category -
+# its statement names the pharmacy, the doctor, the lab. The balance and the limit stay ordinary money.
+HEALTH_ACCOUNT_TYPES = ('hsa', 'fsa')
+_MONEY_WORDS = frozenset(('fee', 'fees', 'monthly', 'maintenance', 'service', 'charge', 'distribution', 'withdrawal',
+                          'transfer', 'payment', 'interest', 'contribution', 'deposit', 'dividend', 'account', 'hsa',
+                          'fsa', 'card', 'debit', 'adjustment', 'reversal', 'to', 'from', 'the', 'of', 'a'))
+
+
+def health_account_ids(session):
+    from core.database import Account
+    return {a.id for a in session.query(Account.id).filter(Account.type.in_(HEALTH_ACCOUNT_TYPES)).all()}
+
+
+def health_rows(session):
+    """A test for one transaction: health by its category (P1) or by its account (item 86 F6)."""
+    cids, aids = health_category_ids(session), health_account_ids(session)
+    return lambda t: t.category_id in cids or t.account_id in aids
+
+
 # ── P1: the scrubber ────────────────────────────────────────────────────────
 MIN_MARKER = 4                 # shorter text is too common to stand for a place ("CVS" is 3 - kept by its whole word)
 _lock = threading.Lock()
@@ -74,6 +93,19 @@ def refresh(session):
                 k = _key(t)
                 if len(k) >= MIN_MARKER or (k and k.isalpha() and len(k) >= 3):
                     found[k] = label
+    # Item 86 F6: an HSA's or FSA's spending names where the care was. Its deposits, interest and fees do not, and a
+    # generic word learned as a marker ("Interest") would be scrubbed from every log and prompt - so only the debits,
+    # and never a description made only of money words.
+    aids = health_account_ids(session)
+    if aids:
+        for merchant, desc in session.query(Transaction.merchant, Transaction.description) \
+                .filter(Transaction.account_id.in_(aids), Transaction.type == 'debit').all():
+            for t in (merchant, desc):
+                k = _key(t)
+                if set(re.findall(r'[a-z]+', k)) <= _MONEY_WORDS:
+                    continue
+                if len(k) >= MIN_MARKER or (k and k.isalpha() and len(k) >= 3):
+                    found.setdefault(k, '[health: HSA/FSA]')
     for table, cols in (('health_plans', ('name',)), ('person_assignments', ('reason', 'source')),
                         ('health_plan_term_versions', ('reason', 'source'))):
         try:

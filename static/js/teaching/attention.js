@@ -14,7 +14,8 @@
 (function (root) {
   'use strict';
 
-  var KINDS = ['payment_due', 'import_stale', 'blocked_conclusion', 'date_ends'];   // date_ends: item 73 Y2, ruled 2026-10-10
+  var KINDS = ['payment_due', 'import_stale', 'blocked_conclusion', 'date_ends',    // date_ends: item 73 Y2, ruled 2026-10-10
+               'fsa_deadline'];                                                    // item 86 F5, ruled 2026-10-14
   var DUE_WITHIN_DAYS = 7;                                  // ruling 4
 
   function _iso(d) {
@@ -95,6 +96,15 @@
     return out;
   }
 
+  /* Kind 5 (item 86 F5): FSA money at risk, from 60 days before the plan's deadline. `rows` - the server's
+   * /api/accounts/hsa-fsa `attention` list, built only from terms the person entered (never a guessed deadline). */
+  function fsaDeadlines(rows) {
+    return (rows || []).map(function (r) {
+      return { kind: 'fsa_deadline', subject: String(r.account_id), title: r.account, due: r.deadline, days: r.days,
+               at_risk: r.at_risk, sentence: r.sentence, fact: r.deadline + '|' + Number(r.at_risk).toFixed(2) };
+    });
+  }
+
   function fingerprint(item) {
     return item.kind + '|' + item.subject + '|' + item.fact;
   }
@@ -104,21 +114,22 @@
   function build(parts, dismissed) {
     var gone = {};
     (dismissed || []).forEach(function (f) { gone[f] = true; });
-    var items = [].concat(parts.payments || [], parts.imports || [], parts.blocked || [], parts.dates || []);
+    var items = [].concat(parts.payments || [], parts.imports || [], parts.blocked || [], parts.dates || [],
+                          parts.fsa || []);
     items.forEach(function (i) {
       if (KINDS.indexOf(i.kind) < 0) throw new Error('attention: "' + i.kind + '" is not a ruled kind');
     });
     return items.filter(function (i) { return !gone[fingerprint(i)]; }).sort(function (a, b) {
       var k = KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind);
       if (k) return k;
-      if (a.kind === 'payment_due' || a.kind === 'date_ends') return a.days - b.days;
+      if (a.kind === 'payment_due' || a.kind === 'date_ends' || a.kind === 'fsa_deadline') return a.days - b.days;
       if (a.kind === 'import_stale') return b.days - a.days;
       return 0;
     });
   }
 
   var api = { KINDS: KINDS, DUE_WITHIN_DAYS: DUE_WITHIN_DAYS, paymentsDue: paymentsDue, datesEnding: datesEnding,
-              importsStale: importsStale, blockedConclusions: blockedConclusions,
+              importsStale: importsStale, blockedConclusions: blockedConclusions, fsaDeadlines: fsaDeadlines,
               fingerprint: fingerprint, build: build };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root && root.GWTeaching) root.GWTeaching.register('attention', api);

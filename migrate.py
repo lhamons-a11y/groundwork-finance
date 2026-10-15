@@ -12,7 +12,8 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261014-home-codes'   # item 85: a Shopping leaf (data only; models unchanged); item 84 before it
+SCHEMA_VERSION = '20261014-hsa-fsa'   # item 86: the health_account_terms table (HSA_FSA.md F2), through init_db's create_all
+# Before it, '20261014-home-codes' (item 85: a Shopping leaf, data only; models unchanged); item 84 before that.
 # This bump carries no migrate.py code: the trips table reaches an existing database through init_db's create_all.
 # The old trip_budget setting is carried in as the first trip by core/trips.py on first read, and kept.
 # Before it, '20261011-gift-tables':
@@ -43,7 +44,7 @@ SCHEMA_SPEC_SHA256 = '989e36eebc43fea8f5fef28b836f75ea8f781b991e89acb111346e9d6f
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = 'e42fcf83a6f3e891928aabce126d7f15667836cf185e2f3414052a66f43d0b0f'
+SCHEMA_MODELS_SHA256 = '2a16423c02d25f33da98c420c17dc30a04c57a87093ef363d1063d874a3c879b'
 
 
 def _stored_schema_version():

@@ -492,6 +492,29 @@ class Trip(Base):
     created_at     = Column(DateTime, default=datetime.utcnow)
 
 
+class HealthAccountTerms(Base):
+    """An HSA's or FSA's terms for one plan year, as the person entered them (gw 2.0/HSA_FSA.md F2, item 86). Never
+    edited: a change adds a row and the newest row for (account, plan year) is current, so the old terms stay as
+    history. Every term may be unknown (NULL / ''), and stays unknown - nothing fills it in. These are the account's
+    own rules; the insurance plan year and deductibles are item 45 H7 stage 2 and live elsewhere."""
+    __tablename__ = 'health_account_terms'
+    id               = Column(Integer, primary_key=True)
+    account_id       = Column(Integer, ForeignKey('accounts.id'), nullable=False)
+    plan_year        = Column(Integer, nullable=False)        # the year the plan year ends in (HSA: the tax year)
+    coverage         = Column(String(8), default='')          # HSA: self | family | '' (unknown)
+    catch_up         = Column(String(8), default='')          # HSA 55+: yes | no | '' (unknown) - asked, never guessed
+    year_end         = Column(String(10), nullable=True)      # FSA: YYYY-MM-DD, the plan year's last day
+    rule             = Column(String(10), default='')         # FSA: grace | carryover | none | '' (unknown)
+    grace_until      = Column(String(10), nullable=True)      # FSA grace period: the last day to spend
+    carryover_max    = Column(Float, nullable=True)           # FSA carryover: the most that carries over
+    claims_by        = Column(String(10), nullable=True)      # FSA: the last day to submit claims
+    election         = Column(Float, nullable=True)           # FSA: the year's election
+    typed_contributions = Column(Float, nullable=True)        # HSA: a total the person typed (F4, labelled typed)
+    typed_balance    = Column(Float, nullable=True)           # a balance the person typed, with its date (F1)
+    typed_balance_on = Column(String(10), nullable=True)
+    created_at       = Column(DateTime, default=datetime.utcnow)
+
+
 class TripBooking(Base):
     """
     A booking the user says they made (gw 2.0/TRIP_BOOKED.md, item 50; Rob 2026-10-08, B1-B8). A PLANNED record, not
