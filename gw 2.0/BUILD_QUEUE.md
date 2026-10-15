@@ -9,6 +9,14 @@
 > traditional job."* Kept simple on purpose: it is the purpose of the application as a whole, not a separate number or
 > feature. The whole program is built on three steps toward it - **1. get out of debt, 2. budget wisely, 3. invest and
 > build net worth** - and the tools for each are already offered; anything missing is added as its own item when found.
+>
+> **The user decides what it is (Rob, 2026-10-14):** *"I actually would let the user decide what financial
+> independence is. It may be different for me as it would be for someone else. Whatever the user wants it to be then
+> it is and we only can help them get there."* The definition above is the general sense, never a standard the user
+> is held to. Groundwork does not compute or show an "are you independent yet" figure (investments against future
+> expenses, a withdrawal rate, a target number) unasked: future expenses are unknown, and it would put a burden on
+> someone working out of debt or just covering their costs. No one-size plan, no scolding, no prescribed steps
+> (Rob: it must never become "Dave Ramsey" advice). Not ruled, held: a figure the user asks for, on their own terms.
 
 > Every slice opened in the run that began at `SMALLEST_SCHEMA.md` §12 is closed: the evidence
 > substrate · artefact + reading · origin + institution anchor · correspondence ·
