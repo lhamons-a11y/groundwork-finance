@@ -70,7 +70,7 @@ console.log(JSON.stringify(out));
 
     upd = _extract(app_js, 'updateNetWorth')
     check('the Net Worth page counts the full home value as the asset, not equity',
-          'const totalAssets      = savings + totalInvestments + cash + homeValue + pensionTotal;' in upd
+          'const totalAssets      = savings + totalInvestments + cash + homeValue + pensionTotal + hsaFsa;' in upd   # item 86: + HSA / FSA
           and 'cash + homeEquity + pensionTotal' not in upd)
     check('and the mortgage once as a liability (not again when it is on the Debt page)',
           'const totalLiab        = debtBals + _m.counted;' in upd and 'debtBals + mortgage;' not in upd)

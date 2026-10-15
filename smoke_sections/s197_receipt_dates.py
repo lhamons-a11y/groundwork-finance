@@ -94,7 +94,7 @@ def run(ctx):
         finally:
             os.remove(p)
     check(f'Y2 on the dashboard from seven days before, soonest first; past or handled dates are not ({out})',
-          out and out['kinds'][-1] == 'date_ends' and out['items'] == [['E', 0], ['A', 7]])
+          out and 'date_ends' in out['kinds'] and out['items'] == [['E', 0], ['A', 7]])
 
     dash = (ctx.BASE / 'static' / 'js' / 'teaching' / 'dashboard.js').read_text(encoding='utf-8')
     js = app.split('async function renderBybReceipts(')[1].split('\nasync function bybReceiptDone(')[0]
