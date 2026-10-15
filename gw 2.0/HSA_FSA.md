@@ -1,6 +1,6 @@
 # Item 86 — HSA and FSA balances (item 45 H5, the first slice of the health module)
 
-**OPENED 2026-10-14 (Rob: "Health H5: HSA/FSA"). RULED + BUILD AUTHORISED 2026-10-14 (Rob: "I approve F1-F7 as recommended (60 days for the attention item). Build item 86.").**
+**OPENED 2026-10-14 (Rob: "Health H5: HSA/FSA"). RULED + BUILD AUTHORISED 2026-10-14 (Rob: "I approve F1-F7 as recommended (60 days for the attention item). Build item 86."). BUILT 2026-10-14 (gate 3437 / 0), ACCEPTED + CLOSED 2026-10-15 (Rob: "I accept item 86, push it").**
 
 ## Summary
 
