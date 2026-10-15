@@ -166,8 +166,10 @@ month, tagged *You said* (SC3). The futures' **"Known costs ahead"** includes it
 
 ### 3. Not decided here
 
-- **Financial independence as its own number** (for example, "years to independence"). Groundwork has no ruled
-  definition of it. T6 uses the goal contract that exists. Defining it is its own item.
+- **Financial independence as its own number** (for example, "years to independence"). Settled 2026-10-14
+  (Rob): financial independence is defined as the purpose of the whole application (out of debt, budget wisely,
+  invest and build net worth), not as a separate number (`BUILD_QUEUE.md` horizon note). T6 uses the goal contract
+  that exists.
 - **Sharing a trip's cost with other people** (who owes whom).
 - **Booking or paying anything.** Never (TM1).
 

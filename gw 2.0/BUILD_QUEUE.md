@@ -2,7 +2,13 @@
 
 > **The horizon (Rob, 2026-10-12):** *"the goal of our software is to help every user become financially
 > independent. That's our horizon."* Every item in this queue is a step toward it, measured on the person's own goal
-> and never promised. Financial independence has no ruled number in Groundwork yet; defining one is its own item.
+> and never promised.
+>
+> **Financial independence, defined (Rob, 2026-10-14):** *"Financial independence means having enough accumulated
+> wealth, investments, or passive income to cover your living expenses for the rest of your life without relying on a
+> traditional job."* Kept simple on purpose: it is the purpose of the application as a whole, not a separate number or
+> feature. The whole program is built on three steps toward it - **1. get out of debt, 2. budget wisely, 3. invest and
+> build net worth** - and the tools for each are already offered; anything missing is added as its own item when found.
 
 > Every slice opened in the run that began at `SMALLEST_SCHEMA.md` §12 is closed: the evidence
 > substrate · artefact + reading · origin + institution anchor · correspondence ·
