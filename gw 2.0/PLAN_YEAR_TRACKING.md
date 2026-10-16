@@ -1,7 +1,7 @@
 # Item 87 — Plan year and deductible tracking (item 45 H7 stage 2)
 
 **OPENED 2026-10-15 (Rob: "besides the ubi key lets continue to build"; the next stage in H7's ruled order). RULED +
-BUILD AUTHORISED 2026-10-15 (Rob: "I approve P1-P9 as recommended. Build item 87.").**
+BUILD AUTHORISED 2026-10-15 (Rob: "I approve P1-P9 as recommended. Build item 87."). BUILT 2026-10-15 (gate 3461 / 0), ACCEPTED + CLOSED 2026-10-15 (Rob: "I accept item 87, push it").**
 
 ## Summary
 
