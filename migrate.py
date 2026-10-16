@@ -12,7 +12,8 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261014-hsa-fsa'   # item 86: the health_account_terms table (HSA_FSA.md F2), through init_db's create_all
+SCHEMA_VERSION = '20261015-plan-year'   # item 87: health_plan_readings (create_all) + health_plan_term_versions.tier (PLAN_YEAR_TRACKING.md P2/P3)
+# Before it, '20261014-hsa-fsa' (item 86: the health_account_terms table, through init_db's create_all).
 # Before it, '20261014-home-codes' (item 85: a Shopping leaf, data only; models unchanged); item 84 before that.
 # This bump carries no migrate.py code: the trips table reaches an existing database through init_db's create_all.
 # The old trip_budget setting is carried in as the first trip by core/trips.py on first read, and kept.
@@ -39,12 +40,12 @@ SCHEMA_VERSION = '20261014-hsa-fsa'   # item 86: the health_account_terms table 
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = '989e36eebc43fea8f5fef28b836f75ea8f781b991e89acb111346e9d6f85b91d'
+SCHEMA_SPEC_SHA256 = 'bef63ba131ea8bea303f4075879ef3d8b63979c76604496a7737dfe37dbca416'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = '2a16423c02d25f33da98c420c17dc30a04c57a87093ef363d1063d874a3c879b'
+SCHEMA_MODELS_SHA256 = 'e8228499ccbe537af5680dc22c7b71805e081c1841948a7148bccefece3db2df'
 
 
 def _stored_schema_version():
@@ -204,6 +205,11 @@ _NEW_PROPOSITION_COLUMNS = [
 
 _NEW_FUNDING_ALLOCATION_COLUMNS = [
     ('occurred_on', "VARCHAR(10)"),
+]
+
+# PLAN_YEAR_TRACKING.md P2 (item 87): the coverage tier is a term, so it is versioned with the deductible.
+_NEW_PLAN_TERM_COLUMNS = [
+    ('tier', "VARCHAR(8) DEFAULT ''"),
 ]
 
 _NEW_SINKING_FUND_COLUMNS = [
@@ -538,6 +544,7 @@ def run_migration_if_needed():
     _add_missing_columns('byb_items',            _NEW_BYB_COLUMNS)
     _add_missing_columns('historian_entries',    _NEW_HISTORIAN_COLUMNS)
     _add_missing_columns('expense_funding_allocations', _NEW_FUNDING_ALLOCATION_COLUMNS)
+    _add_missing_columns('health_plan_term_versions', _NEW_PLAN_TERM_COLUMNS)
     _add_missing_columns('evidence',             _NEW_EVIDENCE_COLUMNS)
     _add_missing_columns('propositions',         _NEW_PROPOSITION_COLUMNS)
     _add_missing_columns('parties',              _NEW_PARTY_COLUMNS)

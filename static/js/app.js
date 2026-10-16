@@ -22429,7 +22429,9 @@ function _drawAccountManager() {
   cont.innerHTML = `
     ${_accountsCache.length ? rows : empty}
     <div id="accountFormSlot"></div>
-    <button class="btn-add" onclick="showAddAccountForm()">+ Add account</button>`;
+    <button class="btn-add" onclick="showAddAccountForm()">+ Add account</button>
+    <div id="healthPlanCard" style="margin-top:12px"></div>`;
+  renderHealthPlanCard();      // item 87: the health plan, beside the HSA and FSA (P6)
 }
 
 function _accountRowHTML(a) {
@@ -22532,6 +22534,97 @@ async function saveHsaFsaTerms(id) {
   await loadAccounts();
   _drawAccountManager();
   if (typeof updateNetWorth === 'function' && g('nwTotal')) updateNetWorth();
+}
+
+// ── Item 87: the health plan (gw 2.0/PLAN_YEAR_TRACKING.md, P1-P9 ruled 2026-10-15) ───────────────────────────
+// The figures are what the insurer reports, entered with their date (P1); every sentence comes from the server with
+// its working. Teaches the terms and gives no advice about care or timing (P7).
+let _hpState = null;
+async function renderHealthPlanCard() {
+  const host = g('healthPlanCard');
+  if (!host) return;
+  try { _hpState = await API.get('/api/accounts/health-plans'); }
+  catch (e) { host.innerHTML = '<div style="font-size:12px;color:var(--slate)">Could not load the health plan.</div>'; return; }
+  const cur = _hpState.current;
+  const others = (_hpState.plans || []).filter(p => !cur || p.id !== cur.id);
+  const help = `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">What these terms mean</summary>
+      <div style="margin-top:4px">${esc(_hpState.help)}</div></details>`;
+  const planHTML = p => `
+      <div style="font-size:13px;font-weight:500;color:var(--ink)">${esc(p.name)}</div>
+      <div style="font-size:11px;color:var(--slate)">${esc(p.from)} to ${p.to ? esc(p.to) : 'no end date entered'}${p.tier ? ' · ' + (p.tier === 'self' ? 'self-only' : 'family') : ''}</div>
+      ${p.lines.map(l => `<div style="font-size:13px;color:var(--ink);margin-top:4px">${esc(l)}</div>`).join('')}
+      ${p.notes.map(n => `<div style="font-size:12px;color:var(--slate);margin-top:4px">${esc(n)}</div>`).join('')}
+      ${p.readings.length > 1 ? `<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px">Earlier readings</summary>${
+        p.readings.slice(1).map(r => `<div style="font-size:11px">${esc(r.as_of)}: deductible ${r.deductible_met == null ? 'not entered' : fmt(r.deductible_met)}, out-of-pocket ${r.oop_met == null ? 'not entered' : fmt(r.oop_met)}</div>`).join('')}</details>` : ''}`;
+  host.innerHTML = `
+    <div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)">
+      <div class="card-label" style="margin-bottom:6px">Health plan</div>
+      ${cur ? planHTML(cur) + `
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-secondary" onclick="showHealthPlanForm('reading', ${cur.id})">Enter what your insurer shows</button>
+          <button class="btn btn-sm btn-secondary" onclick="showHealthPlanForm('terms', ${cur.id})">Change the deductible or maximum</button>
+          <button class="btn btn-sm btn-secondary" onclick="showHealthPlanForm('plan')">Add the next plan</button>
+        </div>`
+      : `<div style="font-size:12px;color:var(--slate)">No health plan entered for today.${others.length ? ' Other plans are listed below.' : ''}</div>
+         <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="showHealthPlanForm('plan')">Add your health plan</button>`}
+      <div id="healthPlanForm"></div>
+      ${help}
+      ${others.length ? `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">Other plans (${others.length})</summary>${
+        others.map(p => `<div style="margin-top:6px">${planHTML(p)}</div>`).join('')}</details>` : ''}
+    </div>`;
+}
+
+function showHealthPlanForm(kind, id) {
+  const slot = g('healthPlanForm');
+  if (!slot) return;
+  const p = (_hpState?.plans || []).find(x => x.id === id) || {};
+  const row = (label, field) => `<label style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="width:210px">${label}</span>${field}</label>`;
+  const num = (k, v) => `<input id="hp-${k}" type="number" step="0.01" min="0" value="${v == null ? '' : esc(String(v))}" style="font-size:12px;padding:3px 6px;width:130px">`;
+  const dt = (k, v) => `<input id="hp-${k}" type="date" value="${v ? esc(v) : ''}" style="font-size:12px;padding:3px 6px">`;
+  const tier = v => `<select id="hp-tier" style="font-size:12px;padding:3px 6px">${[['', 'I don\'t know'], ['self', 'Self-only'], ['family', 'Family']]
+    .map(([a, b]) => `<option value="${a}" ${(v || '') === a ? 'selected' : ''}>${b}</option>`).join('')}</select>`;
+  let fields = '', note = '';
+  if (kind === 'plan') {
+    fields = row('Name (your own words)', `<input id="hp-name" type="text" style="font-size:12px;padding:3px 6px;width:200px">`)
+      + row('Starts', dt('effective_from')) + row('Ends (plan year end)', dt('effective_to')) + row('Coverage', tier(''))
+      + row('Deductible', num('deductible')) + row('Out-of-pocket maximum', num('oop_max'));
+    note = 'Leave anything you don\'t know blank. A plan can\'t share dates with another one.';
+  } else if (kind === 'reading') {
+    fields = row('Deductible met so far', num('deductible_met')) + row('Out-of-pocket so far', num('oop_met'))
+      + row('As of', dt('as_of', new Date().toISOString().slice(0, 10)));
+    note = 'From your insurer\'s website or your latest statement. Earlier readings are kept.';
+  } else {
+    fields = `<div style="margin-top:6px">Did it change from a date, or was it always this?</div>
+      <label style="display:block;margin-top:4px"><input type="radio" name="hp-mode" value="correction" checked onchange="g('hp-from-row').style.display='none'"> It was always this (a correction)</label>
+      <label style="display:block"><input type="radio" name="hp-mode" value="change" onchange="g('hp-from-row').style.display=''"> It changed from a date</label>
+      <div id="hp-from-row" style="display:none">${row('Changed on', dt('from'))}</div>`
+      + row('Coverage', tier(p.tier)) + row('Deductible', num('deductible', p.deductible)) + row('Out-of-pocket maximum', num('oop_max', p.oop_max));
+    note = 'A correction keeps the old figure and names it. A change ends this plan the day before and starts the rest of the year with the new figures; earlier months stay as they were.';
+  }
+  slot.innerHTML = `<div style="margin-top:8px;padding:8px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--slate)">
+      ${fields}<div style="font-size:11px;margin-top:6px">${note}</div>
+      <button class="btn btn-sm btn-primary" style="margin-top:6px" onclick="saveHealthPlanForm('${kind}', ${id || 'null'})">Save</button>
+      <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="g('healthPlanForm').innerHTML=''">Cancel</button></div>`;
+}
+
+async function saveHealthPlanForm(kind, id) {
+  const v = k => (g('hp-' + k) || {}).value;
+  let path, body;
+  if (kind === 'plan') {
+    path = '/api/accounts/health-plans';
+    body = { name: v('name'), effective_from: v('effective_from'), effective_to: v('effective_to'), tier: v('tier'),
+             deductible: v('deductible'), oop_max: v('oop_max') };
+  } else if (kind === 'reading') {
+    path = `/api/accounts/health-plans/${id}/readings`;
+    body = { deductible_met: v('deductible_met'), oop_met: v('oop_met'), as_of: v('as_of') };
+  } else {
+    const mode = (document.querySelector('input[name="hp-mode"]:checked') || {}).value;
+    path = `/api/accounts/health-plans/${id}/terms`;
+    body = { mode, from: v('from'), tier: v('tier'), deductible: v('deductible'), oop_max: v('oop_max') };
+  }
+  try { await API.post(path, body); }
+  catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  renderHealthPlanCard();
 }
 
 function _accountFormHTML(a) {

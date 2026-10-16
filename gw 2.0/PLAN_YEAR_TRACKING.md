@@ -1,7 +1,7 @@
 # Item 87 — Plan year and deductible tracking (item 45 H7 stage 2)
 
-**OPENED 2026-10-15 (Rob: "besides the ubi key lets continue to build"; the next stage in H7's ruled order). For
-ruling; no code, no schema, no authorisation.**
+**OPENED 2026-10-15 (Rob: "besides the ubi key lets continue to build"; the next stage in H7's ruled order). RULED +
+BUILD AUTHORISED 2026-10-15 (Rob: "I approve P1-P9 as recommended. Build item 87.").**
 
 ## Summary
 
@@ -117,3 +117,32 @@ It would be gated in its own worktree and accepted before push.
 This stage turns an unused, tested module into something you can see, and keeps it honest about what Groundwork can
 know. The one decision that shapes everything else is P1. With it, every figure on the card is either something you
 entered from your insurer, with its date, or a subtraction from it.
+
+
+## Built 2026-10-15 (s227; SCHEMA 20261015-plan-year)
+
+- **P1:** `health_plan_readings` holds what the insurer reports, typed and dated. The card says *"From your
+  insurer, as you entered it. Groundwork doesn't work these out from your spending."* s227 puts a health payment on
+  record and checks that nothing is summed from it.
+- **P2:** `core/health_plan.py` keeps `plan_year.py`'s rules over the existing tables.
+  - Every term edit must say whether it is a correction or a change; the route refuses one that says neither.
+  - A correction keeps the earlier figure and the card names it (*"Corrected on Oct 15, 2026: it was deductible
+    $3,000.00 before"*).
+  - A change closes the plan the day before and starts a new one to the old end date. The earlier plan keeps its
+    terms and readings, under "Other plans".
+  - Two plans on one date are refused when saved.
+  - The coverage tier is a versioned term (`health_plan_term_versions.tier`).
+- **P3:** each figure's newest reading is current, and earlier ones are listed. A future date is refused. A
+  reading older than the last health payment on record says so, and makes no guess.
+- **P4:** "Deductible: not entered." / "Met so far: not entered yet." No "left" is shown without a reading.
+- **P5:** a family plan says per-person amounts aren't tracked yet.
+- **P6:** the Health plan card sits on the Accounts tab of Settings, below the accounts, the HSA and the FSA.
+- **P7:** "What these terms mean" covers the deductible, coinsurance, copays and the out-of-pocket maximum, and says
+  the insurer decides what counts. The reset is stated as a fact (*"These figures start over on Jan 1, 2027 (78
+  days)."*). s227 checks a list of advice and timing words.
+- **P8:** every save refreshes the H6 scrubber, so the plan's name is scrubbed at once. Plans leave the JSON and CSV
+  exports only on the health tick.
+- **P9:** no attention kind was added.
+- Verified in the running app (dev database). Found and fixed there:
+  - the "Corrected on" date was the UTC date (Oct 16 at 8:50 pm on Oct 15) and is now the local one;
+  - the card first sat above "+ Add account" and now sits below it.

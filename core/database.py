@@ -5374,10 +5374,24 @@ class HealthPlanTermVersion(Base):
     oop_max             = Column(Float, nullable=True)
     previous_deductible = Column(Float, nullable=True)
     previous_oop_max    = Column(Float, nullable=True)
+    tier                = Column(String(8), default='')      # self | family | '' (unknown) - item 87 P2
     reason              = Column(String(200), nullable=True)
     source              = Column(String(40), nullable=True)
     seq                 = Column(Integer, nullable=False)
     recorded_at         = Column(DateTime, default=datetime.utcnow)
+
+
+class HealthPlanReading(Base):
+    """What the insurer reports as applied so far, as the person typed it, with the date it was as of
+    (gw 2.0/PLAN_YEAR_TRACKING.md P1/P3, item 87). Never derived from spending: a payment shows what was paid, not
+    what the insurer applied. Kept, never edited; the newest by as_of is current. NULL is not entered, never $0."""
+    __tablename__ = 'health_plan_readings'
+    id             = Column(Integer, primary_key=True)
+    plan_id        = Column(Integer, ForeignKey('health_plans.id'), nullable=False)
+    deductible_met = Column(Float, nullable=True)
+    oop_met        = Column(Float, nullable=True)
+    as_of          = Column(String(10), nullable=False)
+    created_at     = Column(DateTime, default=datetime.utcnow)
 
 
 class HealthPlanOperation(Base):

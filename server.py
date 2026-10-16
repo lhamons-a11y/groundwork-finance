@@ -1000,6 +1000,75 @@ def hsa_fsa_list():
                    'limit_years': sorted(hsa_fsa.LIMITS)})
 
 
+# ── The health plan (gw 2.0/PLAN_YEAR_TRACKING.md, item 87 = item 45 H7 stage 2; ruled 2026-10-15) ──────────────
+# Progress is what the insurer reports, typed with its date - never summed from spending (P1). Every write refreshes
+# the H6 scrubber, so a plan's name is health text from the moment it is saved (P8).
+
+def _health_plan_done(session, out):
+    from core import health_boundary
+    session.commit()
+    health_boundary.refresh(session)
+    from core import health_plan
+    return ok(health_plan.states(session) | ({'saved': out} if out is not None else {}))
+
+
+@accounts_bp.route('/health-plans', methods=['GET'])
+def health_plans_list():
+    from core import health_plan
+    with db_session() as session:
+        return ok(health_plan.states(session))
+
+
+@accounts_bp.route('/health-plans', methods=['POST'])
+@require_json
+def health_plans_add():
+    from core import health_plan
+    with db_session() as session:
+        plan, problem = health_plan.add_plan(session, request.json or {})
+        if problem:
+            return err(problem)
+        return _health_plan_done(session, plan.id)
+
+
+@accounts_bp.route('/health-plans/<int:plan_id>/terms', methods=['POST'])
+@require_json
+def health_plans_terms(plan_id):
+    """P2: {mode: 'correction' | 'change', deductible, oop_max, tier, from (a change), reason}."""
+    from core import health_plan
+    from core.database import HealthPlan
+    body = request.json or {}
+    with db_session() as session:
+        plan = session.get(HealthPlan, plan_id)
+        if not plan:
+            return err('That plan was not found.', 404)
+        mode = body.get('mode')
+        if mode == 'correction':
+            row, problem = health_plan.correct_terms(session, plan, body)
+        elif mode == 'change':
+            row, problem = health_plan.change_terms(session, plan, body)
+        else:
+            return err('Say whether the figure changed from a date, or was always this (mode: change or correction).')
+        if problem:
+            return err(problem)
+        return _health_plan_done(session, row.id)
+
+
+@accounts_bp.route('/health-plans/<int:plan_id>/readings', methods=['POST'])
+@require_json
+def health_plans_reading(plan_id):
+    """P1/P3: {deductible_met, oop_met, as_of} - what the insurer reports, as typed."""
+    from core import health_plan
+    from core.database import HealthPlan
+    with db_session() as session:
+        plan = session.get(HealthPlan, plan_id)
+        if not plan:
+            return err('That plan was not found.', 404)
+        row, problem = health_plan.add_reading(session, plan, request.json or {})
+        if problem:
+            return err(problem)
+        return _health_plan_done(session, row.id)
+
+
 @accounts_bp.route('/<int:account_id>/terms', methods=['GET'])
 def hsa_fsa_terms_history(account_id):
     from core import hsa_fsa
@@ -12552,6 +12621,12 @@ def export_to_file():
                 if nw_rows:
                     w.writerow(nw_rows[0].keys())
                     for r in nw_rows: w.writerow(r.values())
+                if body.get('include_health'):    # item 87 P8: the health plans only on the health tick
+                    from core import health_plan as _hp
+                    w.writerow([]); w.writerow(['--- HEALTH PLANS ---'])
+                    w.writerow(['name', 'from', 'to', 'tier', 'deductible', 'oop_max', 'deductible_met', 'oop_met'])
+                    for r in _hp.export_rows(session):
+                        w.writerow([r[k] for k in ('name', 'from', 'to', 'tier', 'deductible', 'oop_max', 'deductible_met', 'oop_met')])
                 dest.write_text(output.getvalue(), encoding='utf-8')
             else:
                 payload = {
@@ -12564,6 +12639,9 @@ def export_to_file():
                     'net_worth':     nw_rows,
                     'settings':      all_settings,
                 }
+                if body.get('include_health'):    # item 87 P8: the health plans only on the health tick
+                    from core import health_plan as _hp
+                    payload['health_plans'] = _hp.export_rows(session)
                 if body.get('include_ai_log'):    # item 62 G5: only when the person ticks it
                     payload['ai_log'] = [_ai_log_json(r, full=True) for r in session.query(AiLog).order_by(AiLog.id).all()]
                 dest.write_text(json.dumps(payload, indent=2, default=str), encoding='utf-8')
