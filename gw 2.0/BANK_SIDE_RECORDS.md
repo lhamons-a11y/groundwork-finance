@@ -1,7 +1,8 @@
 # Item 93 — Bank-side record creation: what an import is, and what may come of it
 
 **OPENED 2026-10-17 (Rob: "Open item 93 — Bank-side record creation"; ahead of stage 6). A design and ruling item for
-the general import model, not only for health. For ruling; no code, no schema, no authorisation.**
+the general import model, not only for health. RULED 2026-10-17 (Rob: "I approve item 93 b1 - b12"). B5 and B7 count as data-loss fixes for
+1.x under L1 (Rob: "they may count as data loss in 1.x"). No build authorised: each stage is authorised separately.**
 
 ## Summary
 
@@ -175,3 +176,11 @@ Each stage would have its own smoke section, with mutation checks for:
 The rules were settled in September. What was left fenced was the importer contract, the one place a household lends
 its word to a pipeline. B3 rules it narrowly: explicit, scoped, listed, withdrawable and never invented. The rest of
 the item makes the import keep those rules, starting with the two places it loses data today.
+
+## Ruling — Rob, 2026-10-17
+
+- **B1–B12 approved as written.**
+- **B5** (a fuzzy duplicate held and shown, never dropped) and **B7** (deleting hides, never destroys) **count as
+  data-loss fixes**. Under item 32 L1 they go to 1.x as well as master, shipping as a 1.1.x release.
+- **Stage 1 (B5 + B7) is the first build, once authorised.** Stages 2–4 follow, each with its own go-ahead.
+- Item 94 stays dependent on stages 3 and 4 (payments and expenses).
