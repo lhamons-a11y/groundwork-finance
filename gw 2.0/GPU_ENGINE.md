@@ -1,4 +1,6 @@
-# Item 93 — The AI engine on the graphics card, fitted to each computer
+# Item 95 — The AI engine on the graphics card, fitted to each computer
+
+*Numbered 93 when opened; renumbered 95 on 2026-10-17 because master had opened its own item 93 (BANK_SIDE_RECORDS.md) and 94 the same day. The commits before the renumbering say "item 93".*
 
 **OPENED 2026-10-17 (Rob: "lets add the gpu support"; "Could we have groundwork run benchmarks in the background to
 optimize the settings per machine"). G0 RULED 2026-10-17 (below). G1-G9 RULED 2026-10-17 as recommended (Rob: "I
@@ -198,7 +200,7 @@ proofs that close it need hardware this laptop isn't: no Vulkan driver, 8 GB, an
 
 The build is not yet authorised.
 
-## G1 proven — 2026-10-17 (build authorised by Rob: "Build item 93. Start with G1")
+## G1 proven — 2026-10-17 (build authorised by Rob: "Build item 95. Start with G1")
 
 **The build.** llama-cpp-python 0.3.35 from source:
 `CMAKE_ARGS=-DGGML_VULKAN=ON -DGGML_BACKEND_DL=ON -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON

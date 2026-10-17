@@ -2,7 +2,7 @@
 
 Rob, 2026-10-02: Ollama is gone from both lines. llama-cpp-python and the exact tested quantized phi3.5 file are the
 one engine. The model ships inside Groundwork, loads at launch only when AI is enabled (R-a), and is released when
-Groundwork closes. CPU always; a graphics chip only when fitting chose it (item 93, core/engine_fit.py). A machine that cannot run the model gets
+Groundwork closes. CPU always; a graphics chip only when fitting chose it (item 95, core/engine_fit.py). A machine that cannot run the model gets
 AI unavailable, said honestly - never a fallback service, never a crash of the rest of the app.
 
     Groundwork -> local engine -> model          (no port, no second process, no network)
@@ -247,7 +247,7 @@ def _load(gen):
 
 
 def _fitted_choice(gen):
-    """Item 93: the device to load on - fitting first when needed (G5 (a): visible, as the 'fitting' state). The
+    """Item 95: the device to load on - fitting first when needed (G5 (a): visible, as the 'fitting' state). The
     processor whenever this build has no graphics backend, and for this launch only when the chosen graphics chip
     failed to start at the last one (G6). Returns (choice, the fit record or None)."""
     cpu = {'device': 'cpu', 'name': "this computer's processor", 'kind': 'cpu', 'layers': 0}

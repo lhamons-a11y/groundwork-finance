@@ -1,4 +1,4 @@
-"""Item 93 (gw 2.0/GPU_ENGINE.md; Rob 2026-10-17: G0-G9 as recommended, G4' (a)): the engine fitted to this computer.
+"""Item 95 (gw 2.0/GPU_ENGINE.md; Rob 2026-10-17: G0-G9 as recommended, G4' (a)): the engine fitted to this computer.
 
     G0  the software chooses: no route or control sets the device; AI on/off stays the user's
     G1  the graphics backend is loaded at run time, only if it loads; this build without one fits nothing

@@ -25091,7 +25091,7 @@ function _aiEngineLine(data) {
     + (data.device_line ? `<div style="margin-top:6px">${esc(data.device_line)}</div>` : '')
     + (data.device_tried || []).map(t => `<div style="margin-top:2px;color:var(--slate)">${esc(t)}</div>`).join('');
   if (data.engine === 'loading') return `<span style="color:var(--gold-text)">●</span> Local AI is loading…`;
-  // Item 93 G5 (a): fitting is a visible step, once per computer; the result is shown when it finishes (G7).
+  // Item 95 G5 (a): fitting is a visible step, once per computer; the result is shown when it finishes (G7).
   if (data.engine === 'fitting') return `<span style="color:var(--gold-text)">●</span> ${esc(data.message || 'Fitting the local AI to this computer…')}`;
   return `<span style="color:var(--ember-text)">●</span> ${esc(data.message || 'Local AI is not running.')}`;
 }

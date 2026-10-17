@@ -13101,7 +13101,7 @@ def ai_status():
     from core import engine
     st = engine.status()
     dev = st.get('device') or {}
-    # Item 93 G7: where the AI runs and how that was measured - shown, never a control (G0: the software chooses).
+    # Item 95 G7: where the AI runs and how that was measured - shown, never a control (G0: the software chooses).
     return ok({'enabled': _ai_is_enabled(), 'engine': st['state'], 'reason': st['reason'],
                'message': st['message'], 'model_file': st['model_file'],
                'ready': st['state'] == 'ready', 'available': st['state'] in ('loading', 'fitting', 'ready'),

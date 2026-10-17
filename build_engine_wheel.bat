@@ -1,5 +1,5 @@
 @echo off
-rem Item 93 (gw 2.0/GPU_ENGINE.md, "G1 proven"): the engine wheel Groundwork ships on Windows.
+rem Item 95 (gw 2.0/GPU_ENGINE.md, "G1 proven"): the engine wheel Groundwork ships on Windows.
 rem llama-cpp-python 0.3.35 from source with the Vulkan backend loaded at run time (GGML_BACKEND_DL), so a computer
 rem with no Vulkan driver still runs the model on the processor. GGML_NATIVE off with the AVX2 floor the engine
 rem already checks for: a native build would carry this machine's instructions and crash on older processors.

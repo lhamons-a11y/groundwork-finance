@@ -195,7 +195,7 @@ for _f, _fn in (('bank_agent_window.py', 'child_main'), ('bank_agent_window.py',
                 ('utility_price.py', '_fetch_natural_gas')):
     HEALTH_SINKS[(_f, _fn, 'network')] = _NO_HEALTH_INPUT
 HEALTH_SINKS.update({
-    ('core/engine_fit.py', 'write_fit', 'file'): ('item 93: device timings, R8 figure lists from the fixed voice cases '
+    ('core/engine_fit.py', 'write_fit', 'file'): ('item 95: device timings, R8 figure lists from the fixed voice cases '
                                                   'and graphics chip names - no transaction or health record'),
     ('core/airfare.py', '_write', 'file'): 'public fare tables only (DOT), no personal data',
     ('core/airfare.py', 'refresh', 'file'): 'public fare tables only (DOT), no personal data',

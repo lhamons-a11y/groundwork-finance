@@ -1,4 +1,4 @@
-"""Fitting the local AI engine to this computer (item 93, gw 2.0/GPU_ENGINE.md; Rob 2026-10-17: G0-G9, G4' (a)).
+"""Fitting the local AI engine to this computer (item 95, gw 2.0/GPU_ENGINE.md; Rob 2026-10-17: G0-G9, G4' (a)).
 
 The engine can run the model on the processor or on a graphics chip (Vulkan: NVIDIA, AMD, Intel). Which is fastest
 depends on the computer, so Groundwork measures it here, once, and uses the result:
@@ -74,7 +74,7 @@ def lib_dir():
 
 
 def has_graphics_backend():
-    """True when this build of the engine carries the Vulkan backend (the item 93 build); the CPU wheel doesn't."""
+    """True when this build of the engine carries the Vulkan backend (the item 95 build); the CPU wheel doesn't."""
     try:
         return any(f.name.startswith('ggml-vulkan') for f in lib_dir().iterdir())
     except Exception:
