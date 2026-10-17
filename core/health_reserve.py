@@ -207,7 +207,69 @@ def state(session, anchor_fn, balance_fn):
                         'choice': _setting(session, 'reserve_order_json', [])}}
 
 
+def _gap_now(session, anchor_fn):
+    target, _basis, _line = _target(session)
+    if target is None:
+        return None
+    from core.database import ReserveAllocation
+    hsa, _names = _hsa(session, anchor_fn)
+    alloc = session.query(ReserveAllocation).order_by(ReserveAllocation.seq.desc()).first()
+    has_acct = bool((_setting(session, 'reserve_account_json', []) or [{}])[-1].get('account_id'))
+    reserved = alloc.amount if (alloc and has_acct) else 0.0
+    return round(max(0.0, target - hsa - reserved), 2)
+
+
+def request_plan(session, anchor_fn):
+    """Item 90 D2: what the engine needs for this request - the choice and the gap still to fill - or None when
+    nothing should change (no choice, "after", no target, a full reserve). Worked out fresh; nothing stored."""
+    ch = (_setting(session, 'reserve_order_json', []) or [None])[-1] or {}
+    if ch.get('choice') not in ('before', 'alongside'):
+        return None
+    gap = _gap_now(session, anchor_fn)
+    if not gap:
+        return None
+    return {'choice': ch['choice'], 'monthly': ch.get('monthly'), 'gap': gap}
+
+
+def applied(plan, cards, budget, today=None):
+    """Item 90 D4: the line a reserve-aware date carries - how much, until when - for these cards and budget."""
+    from core.consequence import extra_above_minimums, no_reserve, reserve_schedule, RESERVE_PLAN
+    if not plan or not cards:
+        return None
+    extra = extra_above_minimums(cards, budget)
+    if not extra:
+        return None
+    tok = RESERVE_PLAN.set(plan)
+    try:
+        sched = reserve_schedule(extra)
+    finally:
+        RESERVE_PLAN.reset(tok)
+    if not sched:
+        return None
+    x, n = -sched[0], len(sched)
+    return {'monthly': round(x, 2), 'months': n, 'until': month_label(n, today), 'choice': plan['choice'],
+            'line': f'Includes your health reserve: {money(x)} a month until {month_label(n, today)}.',
+            'input': f'Health reserve: {money(x)} a month for {n} month{"s" if n != 1 else ""} (your choice).'}
+
+
+def input_line(cards, budget):
+    """Item 90 D4: the input line a surface that lists its inputs adds while the reserve shapes its dates."""
+    from core.consequence import RESERVE_PLAN
+    plan = RESERVE_PLAN.get()
+    if callable(plan):
+        plan = plan()
+    a = applied(plan, cards, budget)
+    return {'label': a['input'], 'value': a['monthly'], 'kind': 'user_supplied'} if a else None
+
+
 def options(cards, budget, strategy, gap, monthly=None, today=None):
+    """Item 90 D5: asked of the engine without the household's choice, so the three stay comparable."""
+    from core.consequence import no_reserve
+    with no_reserve():
+        return _options(cards, budget, strategy, gap, monthly, today)
+
+
+def _options(cards, budget, strategy, gap, monthly=None, today=None):
     """R1 / R5: the three timings through the same engine. Minimums are always paid in full (the engine pays them
     first); a schedule takes only from the extra above them. Stated assumptions: 'before' sends the extra the
     budget has today (cards freed later add more, so its dates are on the late side); after the last debt the

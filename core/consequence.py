@@ -18,7 +18,43 @@ when the driver is surplus over minimums.
 randomised portfolios; they must agree to the month.
 """
 
+import contextlib
+import contextvars
+import math
 from dataclasses import dataclass
+
+# ── Item 90: the health reserve's schedule (gw 2.0/RESERVE_AWARE_DATES.md, ruled 2026-10-16) ─────────────────────
+# The household's plan - {'choice': 'before' | 'alongside', 'monthly', 'gap'} or None - is set once per request by the
+# server (core/health_reserve.request_plan). Outside a request (tests, scripts) it is None and nothing changes.
+RESERVE_PLAN = contextvars.ContextVar('reserve_plan', default=None)
+_NO_RESERVE = contextvars.ContextVar('no_reserve', default=False)
+
+
+@contextlib.contextmanager
+def no_reserve():
+    """Item 88's own comparison asks the engine without the household's choice, so "after" stays its comparison
+    point (D5). The only sanctioned opt-out; s230 lists its callers."""
+    tok = _NO_RESERVE.set(True)
+    try:
+        yield
+    finally:
+        _NO_RESERVE.reset(tok)
+
+
+def reserve_schedule(extra):
+    """The months of money going to the reserve, from THIS calculation's own extra above the minimums (D2):
+    before = all of it, alongside = the person's amount capped at it, for as many months as the gap needs."""
+    if _NO_RESERVE.get():
+        return None
+    plan = RESERVE_PLAN.get()
+    if callable(plan):
+        plan = plan()
+    if not plan or not plan.get('gap') or extra <= 0:
+        return None
+    x = extra if plan['choice'] == 'before' else min(float(plan.get('monthly') or 0), extra)
+    if x <= 0:
+        return None
+    return [-x] * math.ceil(plan['gap'] / x)
 
 MAX_MONTHS = 360          # matches the JS loop cap
 SETTLED = 0.01            # a balance at or under this is cleared, as in the JS
@@ -94,6 +130,14 @@ def simulate_payoff(cards, budget, strategy='avalanche', one_time_cost=0.0,
     total_min = sum(c.minimum for c in data)
     if budget < total_min:
         return None
+    # Item 90 (RESERVE_AWARE_DATES.md D1-D3): the household's health reserve choice, when there is one, reaches every
+    # payoff date here, in the one engine - both sides of every what-if alike. Minimums are untouched: the schedule
+    # only takes from the money above them. No choice, "after", no target or a full reserve: nothing changes.
+    sched = reserve_schedule(float(budget) - total_min)
+    if sched:
+        base = list(extra_schedule or [])
+        extra_schedule = [(base[i] if i < len(base) else 0.0) + (sched[i] if i < len(sched) else 0.0)
+                          for i in range(max(len(base), len(sched)))]
 
     # Extra payment skips leases (fixed end date, cannot be paid early) and PSLF
     # loans (headed for forgiveness — extra principal there is money burned).

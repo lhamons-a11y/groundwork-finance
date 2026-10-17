@@ -157,6 +157,9 @@ def build(inputs, possibilities=(), answers=()):
            {'label': 'Budgeted spending a month, debt payments apart', 'value': inputs['spend'], 'kind': 'observed'},
            {'label': 'Debt payments a month', 'value': inputs['debt_pay'], 'kind': 'observed'},
            {'label': 'Cash above your own floors', 'value': inputs['cash'], 'kind': 'observed'}]
+    _res = __import__('core.health_reserve', fromlist=['input_line']).input_line(inputs.get('cards'), inputs['debt_pay'])
+    if _res:
+        obs.append(_res)            # item 90 D4: the reserve shapes these dates, so it is listed with the inputs
     common = [f"Income stays at about {_fmt(inputs['income'])} a month, the middle of your last "
               f"{inputs['income_months']} complete months on record.",
               f"Spending follows your budget: {_fmt(inputs['spend'])} a month, plus {_fmt(inputs['debt_pay'])} to debt."]

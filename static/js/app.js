@@ -22626,6 +22626,7 @@ async function saveHealthPlanForm(kind, id) {
   }
   try { await API.post(path, body); }
   catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  _engineSims = {};            // item 90: a plan's maximum can move the reserve's target, and so the dates
   renderHealthPlanCard();
 }
 
@@ -22676,6 +22677,7 @@ async function _reserveSave(kind) {
                                  : { amount: g('resAmount').value, account_id: g('resAccount').value };
   try { await API.post('/api/accounts/health-reserve/' + kind, body); }
   catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  _engineSims = {};            // item 90: the gap changed, so the dates did
   renderHealthReserveCard();
 }
 
@@ -22683,6 +22685,7 @@ async function _reserveLower(by) {
   const st = _resState || {};
   try { await API.post('/api/accounts/health-reserve/reserved', { amount: Math.max(0, (st.reserved || 0) - by), reason: 'health payment' }); }
   catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  _engineSims = {};
   renderHealthReserveCard();
 }
 
@@ -22693,6 +22696,7 @@ async function renderReserveChoice() {
   let host = g('reserveChoiceCard');
   if (!host) { host = document.createElement('div'); host.id = 'reserveChoiceCard'; hero.insertAdjacentElement('afterend', host); }
   const st = await _loadReserve();
+  _reserveHeroLine(st);
   if (!st || (st.target == null && !st.reserved)) { host.innerHTML = ''; return; }
   const o = st.options || {};
   const label = { after: 'After the last debt', before: 'Before the last debt', alongside: 'Alongside the debt' };
@@ -22709,8 +22713,31 @@ async function renderReserveChoice() {
   host.innerHTML = `<div class="card mb-4">
       <div class="card-label" style="margin-bottom:4px">The health reserve and your debt</div>
       <div style="font-size:12px;color:var(--slate)">When the reserve fills is your choice. Each option comes from the same payoff engine and your own numbers; minimum payments never change.
-        ${mine ? '' : ' Until you choose, the payoff plan stays as it is.'} The payoff date above doesn't include the reserve yet.</div>
+        ${mine && mine !== 'after' ? ' The payoff dates elsewhere in Groundwork follow your choice.' : ' Until you choose before or alongside, the payoff plan stays as it is.'}</div>
       ${rows}</div>`;
+}
+
+// Item 90 D4 (RESERVE_AWARE_DATES.md): a payoff date that includes the reserve says so, under the date itself.
+function _reserveHeroLine(st) {
+  const date = g('debtHeroDate');
+  if (!date) return;
+  let el = g('debtReserveLine');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'debtReserveLine';
+    el.style.cssText = 'font-size:12px;color:var(--slate);margin-top:4px';
+    (date.parentNode || date).insertAdjacentElement('afterend', el);
+  }
+  const a = st && st.applied;
+  el.textContent = a ? a.line : '';
+  el.style.display = a ? '' : 'none';
+}
+
+// The page's dates are cached by portfolio; a reserve change makes them stale, so they are asked again (item 90).
+function _reserveDatesChanged() {
+  _engineSims = {};
+  try { if (S.currentView === 'debt' || g('view-debt')?.classList.contains('active')) calculate(); } catch (e) { _gwErr('reserve dates')(e); }
+  renderReserveChoice();
 }
 
 async function _reserveChoose(choice) {
@@ -22718,7 +22745,7 @@ async function _reserveChoose(choice) {
   if (choice === 'alongside') body.monthly = (g('resMonthly') || {}).value;
   try { await API.post('/api/accounts/health-reserve/choice', body); }
   catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
-  renderReserveChoice();
+  _reserveDatesChanged();
 }
 
 function _accountFormHTML(a) {

@@ -245,6 +245,9 @@ def scenarios(change, outflow, lines, effective, cards, debt_budget, cushion, an
     obs = [{'label': 'Recorded income now', 'value': level, 'kind': 'observed'},
            {'label': 'Recorded income before', 'value': before, 'kind': 'observed'},
            {'label': 'Budgeted spending', 'value': round(outflow, 2), 'kind': 'observed'}]
+    _res = __import__('core.health_reserve', fromlist=['input_line']).input_line(cards, debt_budget)
+    if _res:
+        obs.append(_res)            # item 90 D4
     out = []
 
     # 1. Nothing changes - the gap is borrowed

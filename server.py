@@ -400,6 +400,40 @@ def create_app(static_folder: str = None) -> Flask:
 
         return None  # allow through
 
+    # Item 90 (RESERVE_AWARE_DATES.md D1-D3): the household's health reserve plan, for every payoff date this request
+    # computes. Lazy - read the first time the engine asks, once per request - so a request that dates nothing pays
+    # nothing; reset when the request ends.
+    @app.before_request
+    def _reserve_plan_for_request():
+        if not request.path.startswith('/api/'):
+            return None
+        from flask import g as _flask_g
+        from core.consequence import RESERVE_PLAN
+        from core import health_reserve
+        memo = {}
+
+        def plan():
+            if 'p' not in memo:
+                try:
+                    with db_session() as _s:
+                        memo['p'] = health_reserve.request_plan(_s, _resolve_bank_anchor)
+                except Exception:
+                    memo['p'] = None          # a database without the tables: the plan as today
+            return memo['p']
+        _flask_g._reserve_tok = RESERVE_PLAN.set(plan)
+        return None
+
+    @app.teardown_request
+    def _reserve_plan_done(_exc):
+        from flask import g as _flask_g
+        from core.consequence import RESERVE_PLAN
+        tok = getattr(_flask_g, '_reserve_tok', None)
+        if tok is not None:
+            try:
+                RESERVE_PLAN.reset(tok)
+            except ValueError:
+                RESERVE_PLAN.set(None)
+
     @app.route('/api/health')
     def health_check():
         """Lightweight health check — used by client heartbeat to detect
@@ -1050,6 +1084,7 @@ def _reserve_payload(session):
     cards, budget, strategy, _undated = _consequence_inputs(session)
     ch = st.get('choice') or {}
     st['options'] = hr.options(cards, budget, strategy, st['gap'], monthly=ch.get('monthly'))
+    st['applied'] = hr.applied(hr.request_plan(session, _resolve_bank_anchor), cards, budget)   # item 90 D4
     return st
 
 

@@ -1,7 +1,7 @@
 # Item 90 — Payoff dates that follow the health reserve choice (item 88 follow-up)
 
-**OPENED 2026-10-16 (Rob: "Do this task here: Make payoff dates reserve-aware (item 88 follow-up)"). For ruling; no
-code, no schema, no authorisation.**
+**OPENED 2026-10-16 (Rob: "Do this task here: Make payoff dates reserve-aware (item 88 follow-up)"). RULED + BUILD
+AUTHORISED 2026-10-16 (Rob: "I approve D1-D7 as recommended. Build item 90.").**
 
 ## Summary
 
@@ -99,3 +99,30 @@ The smoke section checks:
 
 All of the page's dates already go through one route, which is why this is small. It completes item 88's R1: once
 you choose, Groundwork's dates follow your choice and show that they do. Until then, nothing moves.
+
+
+## Built 2026-10-16 (s230; no schema change)
+
+- **D1–D3, one door instead of two.** Measuring the code showed a simpler place than the two doors in section 4:
+  the engine itself. `core/consequence.simulate_payoff` reads the household's reserve plan from a per-request
+  context (`RESERVE_PLAN`). The server sets it at the start of each `/api/` request, lazily: the database is read
+  only if the request computes a date, then reset.
+  - Every payoff date gets the schedule, on both sides of every what-if: all 32 page calculations through
+    `/api/debt/simulate`, and every server engine. A new caller can't bypass it.
+  - Outside a request (tests, scripts) there is no plan, so nothing changes.
+  - With no choice, "after", no target or a full reserve, the plan is None and every date is identical. s230
+    compares against the bare engine.
+- **D2:** `reserve_schedule(extra)` uses this calculation's own extra above the minimums: all of it for "before",
+  the person's amount capped at it for "alongside", for as many months as the gap needs. The gap is worked out
+  fresh (`health_reserve.request_plan`), so raising the reserve shortens the schedule by itself.
+- **D4:**
+  - The line under the Debt Payoff date: *"Includes your health reserve: $300.00 a month until Jun 2028."*
+  - Possible futures and income changes list *"Health reserve: $X a month for N months (your choice)"* with their
+    inputs.
+  - The page's cached dates are cleared when the reserve, the choice or the plan changes, so the dates update.
+- **D5:** item 88's card asks with `no_reserve()`, the only sanctioned opt-out (s230 lists its callers). Its note now
+  reads *"The payoff dates elsewhere in Groundwork follow your choice."*
+- **D6:** the hook writes nothing; trophies read no projected date.
+- **Verified in the running app:** choosing "before" moved the Debt Payoff date from Oct 2028 to Oct 2029, the same
+  date the card shows for "before", with the line under it. Choosing "after" restored Oct 2028 and removed the
+  line.
