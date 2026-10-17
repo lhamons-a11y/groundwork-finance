@@ -211,3 +211,6 @@ the item makes the import keep those rules, starting with the two places it lose
   - A smoke check picked up orphan rows under a reused account id; s233 now selects its own rows by name.
 - **Verified in the running app (master):** look-alike held; original deleted and set aside; restored with the same
   id; "It's the same" left one line.
+
+Note 2026-10-17: on master the section is **s234** (`s234_import_custody.py`), because item 95 (the GPU engine,
+pushed by another session the same day) took s233. On 1.x it stays s233. Same checks.

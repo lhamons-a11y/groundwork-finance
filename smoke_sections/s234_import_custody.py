@@ -30,30 +30,30 @@ def run(ctx):
         r1 = data(post('/api/import/commit', {'account_id': aid, 'records': [
             rec('2026-03-03', 'S233 CLARK GAS STATION 4471 MILLBROOK OH', 42.10),
             rec('2026-03-04', 'S233 BISTRO', 18.00, fitid='FIT-1')]}))
-        check('s233 B7 every imported line carries its import batch',
+        check('s234 B7 every imported line carries its import batch',
               r1['created'] == 2 and r1['batch'])
         with db_session() as s:
             # by the section's own rows: an earlier section's deleted account can leave rows under a reused id
             b1 = {t.import_batch for t in s.query(Transaction).filter(Transaction.account_id == aid,
                                                                       Transaction.description.like('S233%')).all()}
-        check('s233 B7 the batch is on the rows', b1 == {r1['batch']})
+        check('s234 B7 the batch is on the rows', b1 == {r1['batch']})
         r2 = data(post('/api/import/commit', {'account_id': aid, 'records': [
             rec('2026-03-03', 'Withdrawal S233 CLARK GAS STATION 4471 MILLBROOK OH', 42.10),   # CSV prefix: looks alike
             rec('2026-03-04', 'S233 BISTRO', 18.00, fitid='FIT-1'),                  # the bank's own id: same line
             rec('2026-03-04', 'S233 BISTRO', 18.00, fitid='FIT-2')]}))               # two bank ids: two lines
-        check('s233 B5 the bank\'s own id still says "the same line" (skipped); two different bank ids import as two',
+        check('s234 B5 the bank\'s own id still says "the same line" (skipped); two different bank ids import as two',
               r2['duplicates'] == 1 and r2['created'] == 1)
-        check('s233 B5 a look-alike is held back and shown with what it looks like - never dropped',
+        check('s234 B5 a look-alike is held back and shown with what it looks like - never dropped',
               len(r2.get('held') or []) == 1 and r2['held'][0]['looks_like']['description'] == 'S233 CLARK GAS STATION 4471 MILLBROOK OH')
         hid = r2['held'][0]['id']
         listed = data(c.get('/api/import/held', headers=H))['held']
-        check('s233 B5 held lines stay listed until the person decides', any(h['id'] == hid for h in listed))
+        check('s234 B5 held lines stay listed until the person decides', any(h['id'] == hid for h in listed))
         bad = post(f'/api/import/held/{hid}', {'answer': 'maybe'})
         r3 = data(post(f'/api/import/held/{hid}', {'answer': 'bring_in'}))
         with db_session() as s:
             brought = s.get(Transaction, r3['brought_in_id'])
             kept = s.get(ImportHeldLine, hid)
-        check('s233 B5 "bring it in" imports it as its own line, and the held record keeps the decision',
+        check('s234 B5 "bring it in" imports it as its own line, and the held record keeps the decision',
               bad.status_code == 400 and brought is not None and brought.amount == 42.10 and kept.resolved == 'bring_in'
               and not any(h['id'] == hid for h in r3['held']))
         r4 = data(post('/api/import/commit', {'account_id': aid, 'records': [
@@ -64,20 +64,20 @@ def run(ctx):
             n_clark = s.query(Transaction).filter(Transaction.account_id == aid, Transaction.amount == 42.10,
                                                   Transaction.description.like('%S233 CLARK%')).count()
             same = s.get(ImportHeldLine, hid2)
-        check('s233 B5 "it\'s the same" adds nothing, and the line stays on record as decided', n_clark == 2 and same.resolved == 'same')
+        check('s234 B5 "it\'s the same" adds nothing, and the line stays on record as decided', n_clark == 2 and same.resolved == 'same')
 
         r6 = data(post('/api/import/commit', {'account_id': aid, 'records': [
             rec('2026-03-03', 'Withdrawal S233 CLARK GAS STATION 4471 MILLBROOK OH', 42.10),
             rec('2026-03-04', 'Purchase S233 BISTRO AND GRILL MILLBROOK OHIO', 18.00)]}))
         nb_held = len(r6.get('held') or [])
         rb = data(post('/api/import/held/batch', {'batch': r6['batch'], 'answer': 'same'}))
-        check("s233 B5 one decision covers a whole import's held lines (a file imported twice), each kept on record",
+        check("s234 B5 one decision covers a whole import's held lines (a file imported twice), each kept on record",
               nb_held >= 1 and rb['resolved'] == nb_held and not any(h['batch'] == r6['batch'] for h in rb['held']))
 
         # ── B5: the page's bot ────────────────────────────────────────────────
         bot = app.split('async function _runDedupBot(')[1].split('\n}\n')[0]
         silent_part = bot.split('if (silent) {')[1].split('return;')[0] if 'if (silent) {' in bot else ''
-        check('s233 B5 after an import the duplicate bot only says what it found - it removes nothing by itself',
+        check('s234 B5 after an import the duplicate bot only says what it found - it removes nothing by itself',
               silent_part and 'API.delete' not in silent_part and 'Nothing was removed' in silent_part
               and bot.index('if (silent) {') < bot.index('S.transactions = S.transactions.filter'))
 
@@ -95,11 +95,11 @@ def run(ctx):
             gone = s.get(Transaction, tid) is None
             sa = s.get(SetAsideTransaction, dr['set_aside'])
             unlinked = s.get(DebtLedgerEntry, eid).linked_checking_transaction_id is None
-        check('s233 B7 deleting sets the line aside whole - out of the ledger, kept with its debt link',
+        check('s234 B7 deleting sets the line aside whole - out of the ledger, kept with its debt link',
               gone and sa is not None and sa.original_id == tid and 'S233 BISTRO' in sa.row_json and 'debt_ledger_entry_id' in sa.links_json
               and unlinked)
         lst = data(c.get('/api/transactions/set-aside', headers=H))
-        check('s233 B7 set-aside lines are listed to restore', any(x['id'] == sa.id for x in lst['set_aside']))
+        check('s234 B7 set-aside lines are listed to restore', any(x['id'] == sa.id for x in lst['set_aside']))
         # the id guard: the newest line set aside, a new line must not take its id
         with db_session() as s:
             top = s.query(Transaction).order_by(Transaction.id.desc()).first()
@@ -109,17 +109,17 @@ def run(ctx):
             fresh = Transaction(date=date(2026, 3, 9), description='S233 NEW', amount=1.0, type='debit', account_id=aid)
             s.add(fresh); s.commit(); fresh_id = fresh.id
             top_sa = s.query(SetAsideTransaction).filter_by(original_id=top_id).first()
-        check('s233 B7 no new line can take a set-aside id', fresh_id > top_id)
+        check('s234 B7 no new line can take a set-aside id', fresh_id > top_id)
         rr = post(f'/api/transactions/set-aside/{sa.id}/restore', {})
         post(f'/api/transactions/set-aside/{top_sa.id}/restore', {})
         with db_session() as s:
             back = s.get(Transaction, tid)
             relinked = s.get(DebtLedgerEntry, eid).linked_checking_transaction_id == tid \
                 and [x.link_indicator for x in s.query(CheckingTransactionLink).filter_by(checking_transaction_id=tid).all()] == ['payment_to_card']
-        check('s233 B7 a restore brings back the same id, every column, and its debt link',
+        check('s234 B7 a restore brings back the same id, every column, and its debt link',
               rr.status_code == 200 and back is not None and back.import_id == 'FIT-2' and back.amount == 18.0 and relinked)
         again = post(f'/api/transactions/set-aside/{sa.id}/restore', {})
-        check('s233 B7 a line restores once', again.status_code == 400)
+        check('s234 B7 a line restores once', again.status_code == 400)
 
         # ── B7: a mistaken import, as a batch ─────────────────────────────────
         r5 = data(post('/api/import/commit', {'account_id': aid, 'records': [
@@ -129,11 +129,11 @@ def run(ctx):
         with db_session() as s:
             left = s.query(Transaction).filter(Transaction.import_batch == r5['batch']).count()
             kept_n = s.query(SetAsideTransaction).filter_by(batch=r5['batch'], restored_at=None).count()
-        check('s233 B7 a mistaken import is listed and set aside as a batch, each line kept to restore',
+        check('s234 B7 a mistaken import is listed and set aside as a batch, each line kept to restore',
               any(b['batch'] == r5['batch'] and b['lines'] == 2 for b in batches) and nb['set_aside'] == 2 and left == 0 and kept_n == 2)
         srv = ctx.server_src
         dt = srv.split('def delete_transaction(')[1].split('\n@')[0]
-        check('s233 B7 the Ledger\'s delete route destroys nothing (no session.delete of the row there)',
+        check('s234 B7 the Ledger\'s delete route destroys nothing (no session.delete of the row there)',
               'session.delete(' not in dt and 'set_aside' in dt)
     finally:
         with db_session() as s:
