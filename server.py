@@ -991,6 +991,28 @@ def archive_account(account_id):
 # Money only. The figures and sentences come from core/hsa_fsa.py with their working; every term the person did not
 # enter stays unknown. No advice (F7).
 
+# ── Item 89 U4 (CARE_NEVER_A_LEVER.md): "Is this health care?" - only the person's answer is stored ─────────────
+
+@accounts_bp.route('/care-questions', methods=['GET'])
+def care_questions():
+    from core import care_status
+    with db_session() as session:
+        return ok({'questions': care_status.questions(session), 'answered': care_status.answered(session)})
+
+
+@accounts_bp.route('/care-questions', methods=['POST'])
+@require_json
+def care_answer():
+    from core import care_status
+    body = request.json or {}
+    with db_session() as session:
+        row, problem = care_status.answer(session, body.get('category_id'), str(body.get('answer') or '').lower())
+        if problem:
+            return err(problem)
+        session.commit()
+        return ok({'saved': row.id, 'questions': care_status.questions(session), 'answered': care_status.answered(session)})
+
+
 @accounts_bp.route('/hsa-fsa', methods=['GET'])
 def hsa_fsa_list():
     from core import hsa_fsa
@@ -3048,14 +3070,14 @@ def not_levers(names, income_names=()):
     set by a contract (a loan, lease, debt or insurance payment - `contracts.CONTRACT_WORDS`), and money that is not
     spending at all (transfers, savings, interest and fees, refunds, cash withdrawals, income)."""
     from core.contracts import CONTRACT_WORDS
-    from core.solution import is_protected
+    from core.care_status import never_lever
     out = set()
     for n in names:
         low = (n or '').strip().lower()
         if not low:
             continue
         words = set(low.replace('/', ' ').replace('&', ' ').split())
-        if (is_protected(n) or CONTRACT_WORDS.search(n) or words & set(NOT_SPENDING_WORDS)
+        if (never_lever(n) or CONTRACT_WORDS.search(n) or words & set(NOT_SPENDING_WORDS)     # item 89: + uncertain
                 or low in {x.strip().lower() for x in income_names}):
             out.add(n)
     return sorted(out)
@@ -5854,7 +5876,8 @@ def large_charge_lesson(session, cards, budget, strategy, days: int = 60,
     and manufacturing a lesson from the largest available row would be teaching
     for its own sake.
     """
-    from core.solution import past_charge_lesson, is_protected
+    from core.solution import past_charge_lesson
+    from core.care_status import never_lever, row_never_lever      # item 89
 
     cutoff = date.today() - timedelta(days=days)
     linked = {r[0] for r in session.query(
@@ -5881,7 +5904,9 @@ def large_charge_lesson(session, cards, budget, strategy, days: int = 60,
         # one whose merchant or description reads like the necessity floor
         # ("CVS Pharmacy", "St. Mary's Hospital") - over-protecting loses one
         # lesson, under-protecting prices someone's surgery in months.
-        if (cat and is_protected(cat.name)) or (not cat and (is_protected(t.merchant) or is_protected(t.description))):
+        # Item 89 (CARE_NEVER_A_LEVER.md U3): uncertain too - a category with a health signal, or an uncategorised
+        # row the classification reads as possibly care.
+        if (cat and never_lever(cat.name)) or (not cat and row_never_lever(t.merchant, t.description, t.mcc)):
             continue
         priced += 1
         lesson = past_charge_lesson(cards, budget, t.amount, strategy=strategy,

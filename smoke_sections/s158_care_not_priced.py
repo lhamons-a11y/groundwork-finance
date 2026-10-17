@@ -170,7 +170,7 @@ def run(ctx):
         # ── mutations: each must break a check above ──
         sp = (BASE / 'server.py').read_text(encoding='utf-8')
         sol = (BASE / 'core/solution.py').read_text(encoding='utf-8')
-        guard = "if (cat and is_protected(cat.name)) or (not cat and (is_protected(t.merchant) or is_protected(t.description))):"
+        guard = "if (cat and never_lever(cat.name)) or (not cat and row_never_lever(t.merchant, t.description, t.mcc)):"   # item 89
         brake = "if o['priced']][:1]:"
         price = "priced = not over['protected']"
         page = "const cost = !o.priced ? ''"

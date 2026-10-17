@@ -131,3 +131,39 @@ Most of the review was already answered by what has been built since it was writ
 reach, not rules: the rules exist, but the proof covers the surfaces of 2026-10-08, and an unclear name falls the
 wrong way. C2 and C3 make the proof cover every surface and keep it current as surfaces are added. U1 to U5 make an
 unclear name fall the safe way, using a module that was written for exactly this and never connected.
+
+
+## Built 2026-10-16 (s228; SCHEMA 20261016-care-answers)
+
+- **C1 / U3:** `core/care_status.py` `never_lever` (protected or uncertain) replaces the floor-only test at every
+  lever decision:
+  - `solution.py`'s `_flexible_named`, `_headroom`, `_trims` and `_overspend`. An uncertain overspend is described
+    and never priced.
+  - `willingness.py`'s readings and `income_change.py`'s `budget_follows`.
+  - `server.py`'s `not_levers`, the one list the page reads.
+  - The large-charge lesson, where an uncategorised row now uses `classification.py`'s row-level test.
+
+  `is_protected` remains only where it labels the floor.
+- **C2:** `LEVER_SURFACES` (21 functions, each with how C1 holds there) is reconciled by an AST scan in s228. A
+  function that calls the lever machinery without being listed fails the gate, and so does a listed one that no
+  longer calls it.
+- **C3:** s228 seeds an uncertain category as the biggest, most flexible overspend. It checks the engine helpers and
+  the real routes: not-levers, Budget pressure, the Ledger lesson, Before You Buy offers, the dashboard brake and the
+  debt teaching. A mutation that lets the category back into the lever set is caught.
+- **C4:** the narrator's findings (`/api/debt/teaching`) carry no months for it.
+- **U1 / U2:** three outcomes. Category-level signals are `classification.py`'s strong counterparty signals
+  (health merchant terms, health card codes) and its health category terms on a name the floor doesn't take.
+  - **Measured on Rob's record** (104 categories, 1,492 payments): a supermarket with a pharmacy counter would have
+    made Shopping uncertain from 41 rows, so that weak signal works on single rows only, as the module describes it.
+    The strong signals flag three categories, all false positives each settled by one "No": Goodwill under card code
+    8043 in Charitable Donations, and a recycler under 8011 in Home Maintenance and HomeServices.
+  - **Found in the app:** a clinic payment auto-filed under **Other** asked "Is Other health care?". Catch-all
+    categories are now judged row by row only, like uncategorised payments.
+- **U4:** "Is this health care?" sits at the top of Settings → Categories, with the reason and Yes / No buttons.
+  Until the person answers, the category is never offered as a cut. Answers are kept, newest current, and listed
+  under "Your answers about health care" with a Change button. (The first draft said answers could be changed
+  without a way to change them; found in the app, fixed.) An answer never takes a category off the floor.
+- **U5:** `care_answers` holds only category, answer and date. The uncertain reading and its reason are worked out
+  on read, held in memory and never logged. s228 also proves that with no health signals `never_lever` equals the
+  floor exactly, as before item 89.
+- **Pins:** s158's charge-guard pin follows the new line.

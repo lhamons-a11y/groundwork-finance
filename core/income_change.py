@@ -197,7 +197,7 @@ def budget_follows(lines, gap, effective, fixed=()):
     pool = []
     for ln in lines:
         cat = (ln.get('category') or ln.get('name') or '').strip()
-        if is_protected(cat) or float(ln.get('amount') or 0) <= 0 or ln['id'] in fixed:
+        if __import__('core.care_status', fromlist=['never_lever']).never_lever(cat) or float(ln.get('amount') or 0) <= 0 or ln['id'] in fixed:   # item 89
             continue
         w = (effective or {}).get(cat.lower()) or {'stance': 'unclassified', 'source': None}
         if w['stance'] == 'protected':

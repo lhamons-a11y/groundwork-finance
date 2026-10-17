@@ -5381,6 +5381,17 @@ class HealthPlanTermVersion(Base):
     recorded_at         = Column(DateTime, default=datetime.utcnow)
 
 
+class CareAnswer(Base):
+    """The person's answer to "Is this health care?" for a category Groundwork could not classify (gw 2.0/
+    CARE_NEVER_A_LEVER.md U4, item 89). Kept, never edited; the newest for a category is current. Only the answer is
+    stored - the uncertain reading that prompted the question is worked out on read and never written (U5)."""
+    __tablename__ = 'care_answers'
+    id          = Column(Integer, primary_key=True)
+    category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
+    answer      = Column(String(4), nullable=False)       # yes | no
+    created_at  = Column(DateTime, default=datetime.utcnow)
+
+
 class HealthPlanReading(Base):
     """What the insurer reports as applied so far, as the person typed it, with the date it was as of
     (gw 2.0/PLAN_YEAR_TRACKING.md P1/P3, item 87). Never derived from spending: a payment shows what was paid, not

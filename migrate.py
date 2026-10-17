@@ -12,7 +12,8 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261015-plan-year'   # item 87: health_plan_readings (create_all) + health_plan_term_versions.tier (PLAN_YEAR_TRACKING.md P2/P3)
+SCHEMA_VERSION = '20261016-care-answers'   # item 89: the care_answers table (CARE_NEVER_A_LEVER.md U4), through init_db's create_all
+# Before it, '20261015-plan-year' (item 87: health_plan_readings + health_plan_term_versions.tier).
 # Before it, '20261014-hsa-fsa' (item 86: the health_account_terms table, through init_db's create_all).
 # Before it, '20261014-home-codes' (item 85: a Shopping leaf, data only; models unchanged); item 84 before that.
 # This bump carries no migrate.py code: the trips table reaches an existing database through init_db's create_all.
@@ -45,7 +46,7 @@ SCHEMA_SPEC_SHA256 = 'bef63ba131ea8bea303f4075879ef3d8b63979c76604496a7737dfe37d
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = 'e8228499ccbe537af5680dc22c7b71805e081c1841948a7148bccefece3db2df'
+SCHEMA_MODELS_SHA256 = '996ed227dd3d1490f9c9837f7542b47365b15188038818c675fd9b869ac41ac0'
 
 
 def _stored_schema_version():

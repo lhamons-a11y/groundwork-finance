@@ -219,12 +219,24 @@ def _carry(c):
     return {'willingness': c['willingness']} if c.get('willingness') else {}
 
 
+def _never_lever(name):
+    """Item 89 (CARE_NEVER_A_LEVER.md): protected or uncertain - never a cut, never priced. Imported late, because
+    core/care_status.py builds on is_protected here."""
+    from core.care_status import never_lever
+    return never_lever(name)
+
+
+def _row_never_lever(name, category):
+    from core.care_status import row_never_lever
+    return row_never_lever(merchant=name, category=category)
+
+
 def _flexible_named(categories):
     """Categories the user has shown or said are flexible, with how - the only ones a generic lever may name."""
     out = []
     for c in categories or []:
         w = (c or {}).get('willingness') or {}
-        if w.get('stance') == 'flexible' and c.get('name') and not is_protected(c['name']):
+        if w.get('stance') == 'flexible' and c.get('name') and not _never_lever(c['name']):   # item 89 C1/U3
             out.append({'name': c['name'], 'source': w.get('source')})
     return out
 
@@ -264,7 +276,7 @@ def _headroom(categories):
     out = []
     for c in categories or []:
         name = (c or {}).get('name')
-        if not name or is_protected(name):
+        if not name or _never_lever(name):              # item 89: protected or uncertain
             continue
         budgeted, worst = c.get('budgeted'), c.get('max_observed')
         if budgeted is None or worst is None:
@@ -297,7 +309,7 @@ def _trims(recurring):
     for r in recurring or []:
         name = (r or {}).get('name')
         category = r.get('category')
-        if not name or not category or is_protected(category):
+        if not name or not category or _row_never_lever(name, category):    # item 89: the row's own signal too
             continue
         monthly = r.get('monthly')
         if monthly is None or float(monthly) < MIN_MATERIAL_MONTHLY:
@@ -1182,7 +1194,7 @@ def _overspend(categories):
             # runs over every month is not a spending problem to be corrected;
             # it is a budget set below what the thing actually costs, and the
             # honest correction is to the number, not to the groceries.
-            'protected': is_protected(name),
+            'protected': _never_lever(name),       # item 89 U3: uncertain is described, never priced, like protected
             # Which rule said so. A verdict without its rule version cannot be
             # reproduced once the rule moves, and the rule has moved before.
             'protected_rule_version': NECESSITY_FLOOR_VERSION,

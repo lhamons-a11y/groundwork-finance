@@ -200,7 +200,7 @@ def observed_readings(categories, edits, spend, ledger_months, income, debits):
     found = breaks(categories, edits, spend, ledger_months, income, debits)
     out = []
     for name in sorted({c for c in categories if c}, key=_key):
-        if is_protected(name):
+        if __import__('core.care_status', fromlist=['never_lever']).never_lever(name):      # item 89: protected or uncertain
             continue
         mine = sorted((e for e in edits if _key(e['category']) == _key(name)), key=lambda e: (e['date'], e['id']))
         whole = _reading(name, mine, spend, ledger_months, income)

@@ -22953,9 +22953,49 @@ function renderCategoryManager() {
     _drawCategoryManager();
     _renderCategoryCleanup();
     _renderLabelReview();
+    _renderCareQuestions();
   }).catch(() => {
     cont.innerHTML = '<div style="font-size:12px;color:var(--slate)">Could not load categories.</div>';
   });
+}
+
+// ── Item 89 U4 (CARE_NEVER_A_LEVER.md): "Is this health care?" ─────────────────────────────────────────────
+// A category with a health signal Groundwork can't settle is never offered as a cut until the person answers. The
+// reason is shown here and stored nowhere (U5); only the answer is kept.
+async function _renderCareQuestions() {
+  const cont = g('settingsCategoryManager');
+  if (!cont) return;
+  let host = g('careQuestions');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'careQuestions';
+    cont.parentNode.insertBefore(host, cont);
+  }
+  let qs = [], done = [];
+  try { const r = (await API.get('/api/accounts/care-questions')) || {}; qs = r.questions || []; done = r.answered || []; }
+  catch (e) { _gwErr('care questions')(e); host.innerHTML = ''; return; }
+  const answers = done.length ? `<details style="margin:-6px 0 12px;font-size:11px;color:var(--slate)"><summary style="cursor:pointer">Your answers about health care (${done.length})</summary>
+    ${done.map(a => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+        <span style="flex:1">${esc(a.name)}: ${a.answer === 'yes' ? 'health care' : 'not health care'}</span>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_answerCare(${a.category_id}, '${a.answer === 'yes' ? 'no' : 'yes'}')">Change to ${a.answer === 'yes' ? 'not health care' : 'health care'}</button>
+      </div>`).join('')}</details>` : '';
+  if (!qs.length) { host.innerHTML = answers; return; }
+  host.innerHTML = answers + `<div style="padding:10px;margin-bottom:12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--slate)">
+    <div style="font-size:13px;color:var(--ink);margin-bottom:4px">Is this health care?</div>
+    <div style="margin-bottom:6px">Until you answer, Groundwork never offers ${qs.length === 1 ? 'this category' : 'these categories'} as spending to cut. Your answer is kept; you can change it later.</div>
+    ${qs.map(q => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--steel)">
+        <div style="flex:1"><strong style="color:var(--ink)">${esc(q.name)}</strong><div style="font-size:11px">Asked because of ${esc(q.why)}.</div></div>
+        <button class="btn btn-sm btn-secondary" onclick="_answerCare(${q.category_id}, 'yes')">Yes, health care</button>
+        <button class="btn btn-sm btn-secondary" onclick="_answerCare(${q.category_id}, 'no')">No</button>
+      </div>`).join('')}
+  </div>`;
+}
+
+async function _answerCare(id, answer) {
+  try { await API.post('/api/accounts/care-questions', { category_id: id, answer }); }
+  catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  _notLevers = null;               // the one list changes with the answer
+  _renderCareQuestions();
 }
 
 function _drawCategoryManager() {
