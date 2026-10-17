@@ -1,6 +1,6 @@
 # Item 92 — Named people (item 45 H7 stage 5)
 
-**OPENED 2026-10-16 (Rob: "open stage 5"). For ruling; no code, no schema, no authorisation.**
+**OPENED 2026-10-16 (Rob: "open stage 5"). RULED + BUILD AUTHORISED 2026-10-16 (Rob: "I approve N1-N8 as recommended. Build item 92.").**
 
 ## Summary
 
@@ -124,3 +124,13 @@ This is the stage the privacy gate was built for. The rules that make it safe al
 expense identity ruling and "a joint account has no author". This item connects them. The one decision with
 consequences beyond health is N3: Groundwork doesn't hide one person's data from another in this stage, and says so
 where it matters.
+
+## N8 measured 2026-10-16 - no existing link fits; brought back as N8 says
+
+- The 1.x layer: `person_assignments` points at `healthcare_expenses` (id, incurred_on). Neither it nor
+  `expense_funding_allocations` has any reference to a bank row.
+- The 2.0 layer: `expenses` and `payments` are each minted by a Person's utterance. `incurred_by` (party → expense) is
+  the ruled way to say whom care was for, and `payment_in_respect_of` (payment → expense) is ruled. A Person row
+  carries its Party anchor. But **a bank row → payment link does not exist**: "A bank line ... can produce a candidate
+  but cannot mint it", and a statement line's about-ness (Ab7) is a separate, unruled question.
+- So N4's "Who was this for?" on a bank row has no faithful place to land. The options are put to Rob before any code.
