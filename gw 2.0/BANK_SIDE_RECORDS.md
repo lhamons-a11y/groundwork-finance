@@ -185,7 +185,7 @@ the item makes the import keep those rules, starting with the two places it lose
 - **Stage 1 (B5 + B7) is the first build, once authorised.** Stages 2–4 follow, each with its own go-ahead.
 - Item 94 stays dependent on stages 3 and 4 (payments and expenses).
 
-## Stage 1 built — 2026-10-17 (B5 + B7; s233; 1.x first, under L2)
+## Stage 1 built — 2026-10-17 (B5 + B7; s233; 1.x first, under L2) — ACCEPTED 2026-10-17 (Rob: "I accept item 93 stage 1. Push 1.x and master.")
 
 - **1.x:** branch `lts-b5b7` `4f2492e`, SCHEMA `20261017-lts-import-custody`, gate 1031 / 0.
 - **Master:** merged in (`aa52fe4`, `a6e646b`), SCHEMA `20261017-import-custody`, gate 3579 / 0. Master's own
