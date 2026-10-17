@@ -1,7 +1,7 @@
 # Item 88 — The health reserve (item 45 H7 stage 3)
 
 **OPENED 2026-10-16 (Rob: "Continue"; the next stage in H7's ruled order). RULED 2026-10-16 (Rob: "I approve", on R1-R9 as
-recommended); build not yet authorised.**
+recommended). BUILD AUTHORISED 2026-10-16 (Rob: "Build item 88.").**
 
 ## Summary
 
@@ -122,3 +122,36 @@ A new smoke section would check:
 The before / alongside / after question is the kind of choice you said yesterday belongs to the user. R1 builds it
 that way: three sets of dates from the user's own numbers, and Groundwork's own payoff plan unchanged until they
 choose. The rest connects pieces already built, ruled and tested.
+
+
+## Built 2026-10-16 (s229; no schema change: reserve.py's two tables and two dated settings)
+
+- **R1:** on Debt Payoff, under the payoff date, a card shows "After the last debt", "Before the last debt" and
+  "Alongside the debt". Each has its debt-free month, total interest and the month the reserve would be full, from
+  `core/consequence.simulate_payoff`, with a "Choose this" button. No option is ranked. "After" is the payoff plan
+  exactly as today (s229 pins it, and in the app it matched the page's own date, Oct 2028). The choice is kept with
+  its date, earlier choices stay in history, and saving one leaves the engine's own inputs untouched.
+- **Not yet:** the payoff date at the top of the page and the rest of Groundwork's payoff dates don't include the
+  reserve. The card says so in one line. That needs the page's own JavaScript simulator to take the schedule and is
+  left as its own follow-up.
+- **R2:** with no target chosen, a current plan's out-of-pocket maximum is the target, read from the plan and never
+  copied (s229: a correction from $8,000 to $7,000 moves it). A figure of your own is labelled as yours. With
+  neither there is no target, and no "three to six months".
+- **R3:** the reserve is a level (`reserve_allocations`, superseding; $500 then $700 is $700). The account that holds
+  it is recorded beside it, dated (`reserve_account_json`). The allocation rows keep no account, as the frozen rule's
+  table was written. Available is the bank-reported balance less the reserve, worked out on read; with no reported
+  balance it says the balance isn't known (never the activity sum, d21). A balance below the reserve is named and
+  never lowered by itself.
+- **R4:** HSA balances (item 86) count on their own line; FSA money doesn't.
+- **R5:** `extra_schedule` only, with minimums paid first by the engine.
+  - "Before" sends the extra above minimums that the budget has today. Cards freed later would add more, so its
+    dates are on the late side, as the card says.
+  - "Alongside" caps an amount above that extra and says so.
+  - After the last debt, the whole debt budget fills the reserve.
+- **R6:** a health payment from the reserve's account that arrived after the reserve was last set is offered:
+  *"Lower the reserve by $120.00?"*. The reserve changes only on that yes.
+- **R7 / R9:** a reserve is ordinary money. The purpose is one line (*"Money set aside so a medical bill can be paid
+  without a card."*). s229 checks a list of advice and ranking words.
+- Verified in the running app (dev database): the reserve under the Health plan card ($8,000 target from Anthem
+  Gold PPO, HSA $1,240, $800 reserved, $5,185 to go) and the three options on Debt Payoff. Found there and fixed: a
+  route check that couldn't see parameterised routes (now three explicit routes), and "Savings's" wording.

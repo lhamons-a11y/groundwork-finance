@@ -1769,7 +1769,7 @@ function showView(name) {
                               // Historian: user opened the budget page (a navigation, not
                               // a re-render — renderBudget() is called directly elsewhere).
                               API.post('/api/historian/engagement', { event: 'budget_reviewed' }).catch(_gwErr('budget_reviewed')); }
-  if (name === 'debt')      { try { _renderCardList(); calculate(); renderDebtAchievements(); renderRecentWin('debt','debtRecentWin'); renderLoanFlags(); _debtShowTab(_debtActiveTab); loadPendingDrafts(); } catch(e) { _gwLogError('debt',e); } }
+  if (name === 'debt')      { try { _renderCardList(); calculate(); renderDebtAchievements(); renderRecentWin('debt','debtRecentWin'); renderLoanFlags(); _debtShowTab(_debtActiveTab); loadPendingDrafts(); renderReserveChoice(); } catch(e) { _gwLogError('debt',e); } }
   if (name === 'byb')       renderBYB();
   if (name === 'investments') { try { initInvestments();      } catch(e) { console.error('Investments render:', e); _showViewError(name, e); } }
   if (name === 'networth')  { renderNetWorth(); renderPensionList(); _retirementToolsExpanded = false; const s = g('retirementToolsSection'); if(s) s.style.display='none'; const ch = g('retirementToolsChevron'); if(ch) ch.style.transform=''; }
@@ -22430,8 +22430,10 @@ function _drawAccountManager() {
     ${_accountsCache.length ? rows : empty}
     <div id="accountFormSlot"></div>
     <button class="btn-add" onclick="showAddAccountForm()">+ Add account</button>
-    <div id="healthPlanCard" style="margin-top:12px"></div>`;
+    <div id="healthPlanCard" style="margin-top:12px"></div>
+    <div id="healthReserveCard"></div>`;
   renderHealthPlanCard();      // item 87: the health plan, beside the HSA and FSA (P6)
+  renderHealthReserveCard();   // item 88: the reserve, under the plan (R8)
 }
 
 function _accountRowHTML(a) {
@@ -22625,6 +22627,98 @@ async function saveHealthPlanForm(kind, id) {
   try { await API.post(path, body); }
   catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
   renderHealthPlanCard();
+}
+
+// ── Item 88: the health reserve (gw 2.0/HEALTH_RESERVE.md, R1-R9 ruled 2026-10-16) ─────────────────────────────
+// A level of a named account's balance, never a movement (R3). The timing choice is the person's: three options
+// through the same engine, none labelled best (R1). Every sentence comes from the server with its working.
+let _resState = null;
+async function _loadReserve() {
+  try { _resState = await API.get('/api/accounts/health-reserve'); } catch (e) { _gwErr('reserve load')(e); _resState = null; }
+  return _resState;
+}
+
+async function renderHealthReserveCard() {
+  const host = g('healthReserveCard');
+  if (!host) return;
+  const st = await _loadReserve();
+  if (!st) { host.innerHTML = ''; return; }
+  const accts = (S.accounts || []).filter(a => ['checking', 'savings', 'cash', 'other'].includes(a.type));
+  host.innerHTML = `
+    <div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)">
+      <div class="card-label" style="margin-bottom:4px">Health reserve</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:6px">${esc(st.purpose)}</div>
+      ${st.lines.map(l => `<div style="font-size:13px;color:var(--ink);margin-top:3px">${esc(l)}</div>`).join('')}
+      ${st.notes.map(n => `<div style="font-size:12px;color:var(--slate);margin-top:3px">${esc(n)}</div>`).join('')}
+      ${st.offer ? `<div style="font-size:12px;margin-top:6px;padding:6px 8px;background:var(--mist);border-radius:var(--r-sm)">${esc(st.offer.sentence)}
+          <button class="btn btn-sm btn-secondary" style="margin-left:6px" onclick="_reserveLower(${st.offer.amount})">Yes, lower it</button></div>` : ''}
+      <details style="margin-top:8px"><summary style="cursor:pointer;font-size:11px">Change the target or the reserve</summary>
+        <div style="margin-top:6px;font-size:12px;color:var(--slate)">
+          <label style="display:flex;gap:8px;align-items:center;margin-top:4px"><span style="width:150px">Target</span>
+            <select id="resBasis" style="font-size:12px;padding:3px 6px">
+              <option value="oop_max" ${st.basis === 'oop_max' ? 'selected' : ''}>My plan's out-of-pocket maximum</option>
+              <option value="custom" ${st.basis === 'custom' ? 'selected' : ''}>A figure of my own</option>
+              <option value="" ${st.basis === 'none' ? 'selected' : ''}>No target</option></select>
+            <input id="resTarget" type="number" step="0.01" min="0" placeholder="amount" value="${st.basis === 'custom' && st.target != null ? st.target : ''}" style="font-size:12px;padding:3px 6px;width:110px"></label>
+          <button class="btn btn-sm btn-secondary" style="margin-top:4px" onclick="_reserveSave('target')">Save target</button>
+          <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><span style="width:150px">Held in</span>
+            <select id="resAccount" style="font-size:12px;padding:3px 6px">${accts.map(a => `<option value="${a.id}" ${a.id === st.account_id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label>
+          <label style="display:flex;gap:8px;align-items:center;margin-top:4px"><span style="width:150px">Reserved (the whole amount)</span>
+            <input id="resAmount" type="number" step="0.01" min="0" value="${st.reserved || ''}" style="font-size:12px;padding:3px 6px;width:110px"></label>
+          <div style="font-size:11px;margin-top:4px">This is how much of that account's balance is the reserve. The balance itself doesn't change, and $700 after $500 means $700.</div>
+          <button class="btn btn-sm btn-secondary" style="margin-top:4px" onclick="_reserveSave('reserved')">Save reserve</button>
+        </div></details>
+    </div>`;
+}
+
+async function _reserveSave(kind) {
+  const body = kind === 'target' ? { basis: g('resBasis').value, amount: g('resTarget').value }
+                                 : { amount: g('resAmount').value, account_id: g('resAccount').value };
+  try { await API.post('/api/accounts/health-reserve/' + kind, body); }
+  catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  renderHealthReserveCard();
+}
+
+async function _reserveLower(by) {
+  const st = _resState || {};
+  try { await API.post('/api/accounts/health-reserve/reserved', { amount: Math.max(0, (st.reserved || 0) - by), reason: 'health payment' }); }
+  catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  renderHealthReserveCard();
+}
+
+// R1 / R8: on Debt Payoff, the three timings and the person's choice. Shown only once a reserve exists to plan for.
+async function renderReserveChoice() {
+  const hero = g('debtHeroBand');
+  if (!hero) return;
+  let host = g('reserveChoiceCard');
+  if (!host) { host = document.createElement('div'); host.id = 'reserveChoiceCard'; hero.insertAdjacentElement('afterend', host); }
+  const st = await _loadReserve();
+  if (!st || (st.target == null && !st.reserved)) { host.innerHTML = ''; return; }
+  const o = st.options || {};
+  const label = { after: 'After the last debt', before: 'Before the last debt', alongside: 'Alongside the debt' };
+  const mine = (st.choice || {}).choice;
+  const rows = o.available ? o.options.map(r => `
+      <div style="padding:8px 0;border-top:1px solid var(--steel);font-size:12px;color:var(--slate)">
+        <div style="font-size:13px;color:var(--ink)">${label[r.key]}${mine === r.key ? ' <span style="font-size:11px;color:var(--pine-text)">· your choice since ' + esc(st.choice.said) + '</span>' : ''}</div>
+        ${r.unavailable ? `<div>${esc(r.unavailable)}</div>` : `
+        <div>Debt-free ${esc(r.debt_free)} · interest ${fmt(r.interest)} · reserve full ${esc(r.reserve_full)}</div>
+        <div style="font-size:11px">${esc(r.note)}</div>`}
+        ${r.key === 'alongside' ? `<input id="resMonthly" type="number" step="1" min="0" placeholder="$ a month" value="${(st.choice || {}).monthly || ''}" style="font-size:12px;padding:3px 6px;width:100px;margin-top:4px">` : ''}
+        ${mine === r.key ? '' : `<button class="btn btn-sm btn-secondary" style="margin-top:4px" onclick="_reserveChoose('${r.key}')">Choose this</button>`}
+      </div>`).join('') : `<div style="font-size:12px;color:var(--slate)">${esc(o.why || '')}</div>`;
+  host.innerHTML = `<div class="card mb-4">
+      <div class="card-label" style="margin-bottom:4px">The health reserve and your debt</div>
+      <div style="font-size:12px;color:var(--slate)">When the reserve fills is your choice. Each option comes from the same payoff engine and your own numbers; minimum payments never change.
+        ${mine ? '' : ' Until you choose, the payoff plan stays as it is.'} The payoff date above doesn't include the reserve yet.</div>
+      ${rows}</div>`;
+}
+
+async function _reserveChoose(choice) {
+  const body = { choice };
+  if (choice === 'alongside') body.monthly = (g('resMonthly') || {}).value;
+  try { await API.post('/api/accounts/health-reserve/choice', body); }
+  catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  renderReserveChoice();
 }
 
 function _accountFormHTML(a) {

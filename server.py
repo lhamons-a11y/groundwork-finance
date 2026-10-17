@@ -1034,6 +1034,49 @@ def _health_plan_done(session, out):
     return ok(health_plan.states(session) | ({'saved': out} if out is not None else {}))
 
 
+# ── The health reserve (gw 2.0/HEALTH_RESERVE.md, item 88 = item 45 H7 stage 3; ruled 2026-10-16) ───────────────
+# A level of a named account's balance, never a movement (R3). The before / alongside / after choice is the
+# person's, each shown through the same engine with no option labelled best (R1).
+
+def _reserve_balance(session, account_id):
+    """The bank's own reported balance and its date, or unknown - never the sum of imported activity (d21)."""
+    bal, as_of, _last, _txns = _account_balance_facts(session, account_id)
+    return (bal, as_of.strftime('%b %d, %Y')) if as_of is not None else (None, None)
+
+
+def _reserve_payload(session):
+    from core import health_reserve as hr
+    st = hr.state(session, _resolve_bank_anchor, _reserve_balance)
+    cards, budget, strategy, _undated = _consequence_inputs(session)
+    ch = st.get('choice') or {}
+    st['options'] = hr.options(cards, budget, strategy, st['gap'], monthly=ch.get('monthly'))
+    return st
+
+
+@accounts_bp.route('/health-reserve', methods=['GET'])
+def health_reserve_get():
+    with db_session() as session:
+        return ok(_reserve_payload(session))
+
+
+@accounts_bp.route('/health-reserve/target', methods=['POST'], defaults={'what': 'target'})
+@accounts_bp.route('/health-reserve/reserved', methods=['POST'], defaults={'what': 'reserved'})
+@accounts_bp.route('/health-reserve/choice', methods=['POST'], defaults={'what': 'choice'})
+@require_json
+def health_reserve_set(what):
+    """target {basis, amount} | reserved {amount, account_id, reason} | choice {choice, monthly}"""
+    from core import health_reserve as hr
+    fn = {'target': hr.set_target, 'reserved': hr.set_reserved, 'choice': hr.set_choice}.get(what)
+    if not fn:
+        return err('Unknown setting.', 404)
+    with db_session() as session:
+        _row, problem = fn(session, request.json or {})
+        if problem:
+            return err(problem)
+        session.commit()
+        return ok(_reserve_payload(session))
+
+
 @accounts_bp.route('/health-plans', methods=['GET'])
 def health_plans_list():
     from core import health_plan
