@@ -103,6 +103,12 @@ def run(ctx):
     check('s233 G3 a probe that hangs is stopped at its time limit and failed', hung['ok'] is False
           and 'within 2 s' in hung['error'])
 
+    probe_src = ((BASE / 'core/engine_fit.py').read_text(encoding='utf-8'))
+    body = probe_src[probe_src.index('def _probe('):probe_src.index('def r8_on_voice_cases(')]
+    check('s233 G3 a graphics chip is warmed up before it is timed (its first-run shader compile, 17.9 s against '
+          '0.83 s, is paid once per install, not charged to the chip)',
+          body.index("if mode == 'gpu':") < body.index('max_tokens=8') < body.index('t = time.time()'))
+
     # ── G6: when to fit again ───────────────────────────────────────────────────────────────────────────────────
     fp = {'fit_version': ef.FIT_VERSION, 'engine': '0.3.35', 'graphics_build': True, 'model': engine.MODEL_SHA256,
           'machine': 'AMD64', 'processor': 'x', 'graphics': ['Chip A|1.0', 'Chip B|2.0']}

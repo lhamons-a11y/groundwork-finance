@@ -187,6 +187,13 @@ def _probe(mode):
             errors.append(repr(e)[:120])
     if model is None:
         return {'ok': False, 'error': 'the model did not load: ' + '; '.join(errors)}
+    if mode == 'gpu':
+        # The driver compiles its shaders the first time a program uses the chip: measured on the packaged build,
+        # first word 17.9 s on that first run, 0.83 s on every run after. Timed cold, a chip would be charged a cost
+        # paid once per install (and could lose to the processor for it). So a short warm-up first, with a prompt
+        # longer than one batch so the reading and the writing paths are both compiled; it is not timed.
+        model.create_chat_completion(messages=[{'role': 'user', 'content': TIMING_USER[:1500]}],
+                                     max_tokens=8, temperature=0.0, seed=R8_SEED)
     t = time.time()
     first = None
     for ch in model.create_chat_completion(messages=[{'role': 'system', 'content': TIMING_SYSTEM},

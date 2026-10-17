@@ -323,3 +323,15 @@ Continue the build."*
    (Rob, 2026-10-09).
 4. **The dev environment** still has the CPU wheel, so `python launch.py` here runs as before. Running
    `build_engine_wheel.bat` installs the Vulkan engine into the Python it's given.
+
+## Found while checking the packaged build, 2026-10-17 — a cold chip was charged its shader compile
+
+The frozen `Groundwork.exe --engine-probe gpu 1` from the new installer bundle worked end to end: it listed both
+chips, ran on the NVIDIA card and passed R8 on all six cases, so the bundled voice cases and rules file are found. But
+its first run took **17.9 s to the first word (27.5 s whole)**, against **0.83 s (9.6 s)** on every run after. The
+driver compiles its shaders the first time a program uses the chip. Fitting runs once, on a fresh install, so it
+would have charged that one-time cost to the chip. A close call could then go to the processor, and Settings would
+show the wrong time.
+
+**Fixed:** a graphics probe now runs a short, untimed warm-up answer (a prompt longer than one batch, 8 tokens) before
+the timed one. s233 checks the order.
