@@ -254,3 +254,22 @@ this section. Each is taken up when its slice is opened.
 - **H4:** remains an open design question.
 
 Item 57's work is separate and does not affect either.
+
+## 8. Q6 and Q7 ruled — Rob, 2026-10-17
+
+**Q6 — Approved.** Groundwork states what the available evidence does and does not establish. It does not direct
+the user to call someone, and it does not suggest an action as the default. It may name the party a question relates
+to only when the records establish that relationship.
+Example: *"The bill doesn't show whether financial assistance was applied."*
+
+**Q7 — Approved.** The card-free date is the projected date when the included credit-card balances reach zero. It is
+labelled **"card balances only"** and follows the user's existing reserve choice and payoff rules (item 90). The
+definition is not reopened for another design pass.
+
+**Still open, for stage 6 (item 94):** a separate all-obligations date: what it includes, what evidence supports it,
+and what Groundwork says when it can't be calculated reliably.
+
+**Sequence, as ruled:**
+- Item 93 (bank-side record creation, the general import model) is opened ahead of stage 6.
+- Item 94 (the bill that lands) depends on item 93.
+- No implementation until each design is reviewed and separately authorised.
