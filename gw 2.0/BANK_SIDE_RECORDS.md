@@ -184,3 +184,30 @@ the item makes the import keep those rules, starting with the two places it lose
   data-loss fixes**. Under item 32 L1 they go to 1.x as well as master, shipping as a 1.1.x release.
 - **Stage 1 (B5 + B7) is the first build, once authorised.** Stages 2–4 follow, each with its own go-ahead.
 - Item 94 stays dependent on stages 3 and 4 (payments and expenses).
+
+## Stage 1 built — 2026-10-17 (B5 + B7; s233; 1.x first, under L2)
+
+- **1.x:** branch `lts-b5b7` `4f2492e`, SCHEMA `20261017-lts-import-custody`, gate 1031 / 0.
+- **Master:** merged in (`aa52fe4`, `a6e646b`), SCHEMA `20261017-import-custody`, gate 3579 / 0. Master's own
+  `server.py` and `migrate.py` were re-applied with the same changes, because its import insert differs from 1.x.
+- **B5:**
+  - A look-alike line (same account, date, type, amount, similar text) is held in `import_held_lines`, shown after
+    the import, and listed in Settings → Data. "Bring it in" uses the importer's own insert; "It's the same" adds
+    nothing. Either way the decision stays on record.
+  - One decision can cover everything one import held: a file imported twice once meant about 880 look-alikes.
+  - The bank's own id (FITID) still says "same line". Two different bank ids now import as two lines.
+  - The page's duplicate bot only reports after an import; its toolbar button asks once and sets aside.
+  - On master, the `import_committed` event also records how many lines were held.
+- **B7:**
+  - The Ledger's delete moves the row whole to `set_aside_transactions`, with its full debt-link rows. It is
+    restorable with the same id, and a `before_insert` guard keeps any new row (one or a whole batch) from taking a
+    set-aside id.
+  - Every import line carries `import_batch`, and a mistaken import is set aside together from Settings → Data.
+  - Not covered: "Delete all transactions", which takes a full database backup first, and investment transactions,
+    which are holdings records, not bank lines.
+- **Fixed during the build:**
+  - The id guard first gave a whole batch one id.
+  - The import summary read held rows after their session closed (a 500 on any held line).
+  - A smoke check picked up orphan rows under a reused account id; s233 now selects its own rows by name.
+- **Verified in the running app (master):** look-alike held; original deleted and set aside; restored with the same
+  id; "It's the same" left one line.
