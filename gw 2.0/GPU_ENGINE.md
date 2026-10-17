@@ -1,8 +1,8 @@
 # Item 93 — The AI engine on the graphics card, fitted to each computer
 
 **OPENED 2026-10-17 (Rob: "lets add the gpu support"; "Could we have groundwork run benchmarks in the background to
-optimize the settings per machine"). G0 RULED 2026-10-17 (below). G1-G9 for ruling. Documents only; no code in the
-repo has changed.**
+optimize the settings per machine"). G0 RULED 2026-10-17 (below). G1-G9 RULED 2026-10-17 as recommended (Rob: "I
+approve G1-G9 as recommended."). Build not yet authorised. Documents only; no code in the repo has changed.**
 
 ## Summary
 
@@ -179,3 +179,21 @@ The evidence supports doing this: a separate card is a large, measured gain in b
 graphics is a smaller gain that the fitting step will either confirm or reject on each machine. The two risks are
 known and both have recommended answers: the hard Vulkan dependency (G1) and words that differ by device (G4). The
 proofs that close it need hardware this laptop isn't: no Vulkan driver, 8 GB, and an older card.
+
+## G1-G9 ruled — Rob, 2026-10-17
+
+*"I approve G1-G9 as recommended."*
+
+- **G1:** one library with the graphics backend loaded at run time. Measured first; if llama-cpp-python 0.3.35 can't
+  do it, the two-copy option comes back for ruling.
+- **G2:** Vulkan only.
+- **G3:** fitting per device, each in its own process, shortest whole-answer time wins.
+- **G4:** only among devices that pass the voice A/B before release and the `check()` case during fitting.
+- **G5 (a):** once, as a visible step the first time AI starts on a computer.
+- **G6:** fit again only on a hardware, driver, engine or model change. If the chosen device fails, the processor is
+  used and the next launch fits again.
+- **G7:** the result is shown in Settings, with no control to change it.
+- **G8:** AI off fits nothing.
+- **G9:** 2048 everywhere. The 4096 question stays with item 31's 8 GB test.
+
+The build is not yet authorised.
