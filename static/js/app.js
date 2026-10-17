@@ -27334,6 +27334,15 @@ const _REPORT_CATALOG = [
     action:    () => _rcOpenReport('year_end'),
   },
   {
+    id:        'visit_report',
+    section:   'Spending',
+    title:     'Visit report',
+    sub:       'What you have paid one provider, and where your plan year stands, to take to an appointment. Payments, not prices.',
+    icon:      '▤',
+    aiUtility: 'low',
+    action:    () => _rcOpenReport('visit_report'),
+  },
+  {
     id:        'debt_payoff',
     section:   'Debt',
     title:     'Debt Payoff Analysis',
@@ -27543,6 +27552,7 @@ function _rcRenderReport(reportId) {
     case 'spending_breakdown': _rcRenderCategoryDeepDive(); break;  // alias from dashboard donut
     case 'annual':          _rcRenderAnnualSummary(); break;
     case 'year_end':        _rcRenderYearEnd(); break;
+    case 'visit_report':    _rcRenderVisitReport(); break;      // item 91
     case 'budget_vs_actual':_rcRenderBudgetVsActual(); break;
     case 'income_savings':  _rcRenderIncomeSavings(); break;
     case 'net_worth':       _rcRenderNetWorthTimeline(); break;
@@ -28081,7 +28091,79 @@ async function _rcRenderYearEnd() {
     ${sec('Charitable donations', p.donations_total, table(p.donations, 'name', 'total'))}
     ${sec('Realized investment gains and losses', gn.total, gn.lots ? `<div style="font-size:12px">Short term ${money(gn.short_term)} · Long term ${money(gn.long_term)} · from ${gn.lots} closed lot${gn.lots === 1 ? '' : 's'}</div>` : '<div style="font-size:12px;color:var(--slate)">No lots closed in the record for this year.</div>')}
     ${sec('Statements and documents Groundwork holds', null, p.documents.length ? `<div style="font-size:12px">${p.documents.length} document${p.documents.length === 1 ? '' : 's'} dated ${p.year}: ${p.documents.map(d => `#${d.id} (${esc(d.as_of)})`).join(', ')}</div>` : `<div style="font-size:12px;color:var(--slate)">Groundwork holds no statements or documents dated ${p.year}.</div>`)}
+    ${_yeHealthSection(p, sec, money)}
     ${sec('What this does not include', null, `<ul style="font-size:12px;color:var(--ink);margin:0 0 0 18px;padding:0;line-height:1.6">${p.not_included.map(n => `<li>${esc(n)}</li>`).join('')}</ul>`)}`;
+}
+
+// ── Item 91 (VISIT_REPORT_YEAR_REVIEW.md): the year in review's Schedule A section, and the visit report ─────────
+// Templated: every sentence comes from the server with its figures. Neither is sent anywhere - print or save is the
+// person's own act (Q3). Never tax advice; the preparer decides.
+function _yeHealthSection(p, sec, money) {
+  const sa = p.health_schedule_a;
+  if (!sa) return '';
+  const rows = xs => xs.length ? `<table style="width:100%;font-size:12px;border-collapse:collapse">${xs.map(r =>
+      `<tr><td style="padding:3px 0;border-bottom:0.5px solid var(--steel-2)">${esc(r.date)} · ${esc(r.name)} <span style="color:var(--slate)">(${esc(r.category)}${r.account ? ', ' + esc(r.account) : ''})</span></td>
+       <td style="text-align:right;border-bottom:0.5px solid var(--steel-2)">${money(r.amount)}</td></tr>`).join('')}</table>`
+    : '<div style="font-size:12px;color:var(--slate)">None in the record for this year.</div>';
+  const h = sa.hsa_8889;
+  return sec('Health care, for Schedule A', sa.total, `
+      ${sa.lines.map(l => `<div style="font-size:12px;color:var(--ink);line-height:1.6">${esc(l)}</div>`).join('')}
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--slate)">
+        Your AGI for ${p.year}: <input id="yeAgi" type="number" step="1" min="0" value="${sa.agi != null ? sa.agi : ''}" placeholder="from your return" class="field-input" style="width:130px;font-size:12px;padding:3px 6px">
+        <button class="btn btn-secondary btn-sm" onclick="_yeSaveAgi()">Save</button></div>
+      <div style="margin-top:10px;font-size:12px;color:var(--ink)">Counted</div>${rows(sa.counted)}
+      ${sa.refunds.length ? `<div style="margin-top:10px;font-size:12px;color:var(--ink)">Refunds, taken off the total</div>${rows(sa.refunds)}` : ''}
+      ${sa.set_aside.map(gp => `<div style="margin-top:10px;font-size:12px;color:var(--ink)">Set aside: ${esc(gp.reason)}</div>${rows(gp.rows)}`).join('')}
+      ${h ? `<div style="margin-top:10px;font-size:12px;color:var(--ink)">HSA, for Form 8889</div>
+        ${h.contributions.map(c => `<div style="font-size:12px">${esc(c)}</div>`).join('')}
+        <div style="font-size:12px">Payments out of the HSA: ${h.distributions == null ? `not known - nothing imported into it for ${p.year}` : money(h.distributions)}.</div>
+        <div style="font-size:11px;color:var(--slate)">${esc(h.note)}</div>` : ''}
+      <div style="font-size:12px;color:var(--slate);margin-top:10px">${esc(sa.statement)}</div>`);
+}
+
+async function _yeSaveAgi() {
+  try { await API.post('/api/year-end/agi', { year: _yeYear, value: (g('yeAgi') || {}).value }); }
+  catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  _rcRenderYearEnd();
+}
+
+let _vrPicked = [];
+async function _rcRenderVisitReport() {
+  const body = g('rcReportBody');
+  if (!body) return;
+  let ps = [];
+  try { ps = ((await API.get('/api/accounts/health-providers')) || {}).providers || []; }
+  catch (e) { body.innerHTML = `<div style="font-size:13px;color:var(--slate)">${esc(e.message || 'Could not load.')}</div>`; return; }
+  body.innerHTML = `
+    <h2 style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px">Visit report</h2>
+    <div style="font-size:13px;color:var(--ink)">What you have paid one provider, and where your plan year stands, to take to an appointment. Pick the names on your record that are this provider. Nothing is sent anywhere, and your pick isn't saved.</div>
+    ${ps.length ? `<div style="margin-top:10px;max-height:220px;overflow:auto;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px">
+      ${ps.map((p, i) => `<label style="display:block;font-size:12px;padding:2px 0"><input type="checkbox" data-vr="${i}" ${_vrPicked.includes(p.name) ? 'checked' : ''}> ${esc(p.name)} <span style="color:var(--slate)">(${p.payments} payment${p.payments === 1 ? '' : 's'}, last ${esc(p.last || '')})</span></label>`).join('')}
+    </div>
+    <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="_vrMake()">Make the report</button>`
+    : '<div style="font-size:12px;color:var(--slate);margin-top:10px">No health payments on your record yet.</div>'}
+    <div id="vrOut" style="margin-top:16px"></div>`;
+  body._vrProviders = ps;
+}
+
+async function _vrMake() {
+  const body = g('rcReportBody');
+  const ps = body._vrProviders || [];
+  _vrPicked = [...body.querySelectorAll('input[data-vr]:checked')].map(x => ps[+x.dataset.vr].name);
+  let r;
+  try { r = await API.post('/api/accounts/visit-report', { names: _vrPicked }); }
+  catch (e) { showToast('No report', e.message || '', 'warning'); return; }
+  const list = (title, xs) => xs && xs.length ? `<div class="card mb-4"><div class="card-label">${title}</div>${xs.map(x => `<div style="font-size:12px;line-height:1.6">${esc(x)}</div>`).join('')}</div>` : '';
+  g('vrOut').innerHTML = `
+    <div class="card mb-4"><div class="card-label">${esc(r.provider.join(', '))} · as of ${esc(r.as_of)}</div>
+      <div style="font-size:13px;color:var(--ink);margin-bottom:6px">${esc(r.summary)}</div>
+      ${r.payments.map(p => `<div style="font-size:12px">${esc(p.line)}</div>`).join('')}
+      <div style="font-size:11px;color:var(--slate);margin-top:6px">${esc(r.not_a_price)}</div></div>
+    ${list('Your plan year', r.plan)}
+    ${list('HSA and FSA', r.accounts)}
+    ${list('Health reserve', r.reserve)}
+    <div style="font-size:11px;color:var(--slate);margin-bottom:10px">${esc(r.not_included)}</div>
+    <button class="btn btn-secondary btn-sm" onclick="window.print()">Print or save as PDF</button>`;
 }
 
 async function yearEndCsv() {

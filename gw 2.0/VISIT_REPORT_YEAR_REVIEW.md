@@ -1,6 +1,7 @@
 # Item 91 — The visit report and the year in review (item 45 H7 stage 4)
 
-**OPENED 2026-10-16 (Rob: "open stage 4"). For ruling; no code, no schema, no authorisation.**
+**OPENED 2026-10-16 (Rob: "open stage 4"). RULED + BUILD AUTHORISED 2026-10-16 (Rob: "I approve Q3, V1-V4 and Y1-Y7 as
+recommended. Build item 91.").**
 
 ## Summary
 
@@ -126,3 +127,30 @@ A new smoke section checks:
 Both documents turn the record into something a person can carry into a room, without letting the record claim more
 than it holds. Q3 and V1 set the visit report's limits. Y2 to Y4 decide whether the year in review is honest, and
 each says what Groundwork can't see instead of guessing.
+
+
+## Built 2026-10-16 (s231; no schema change)
+
+- **Q3 / V1–V4:** Reports → **Visit report**. You tick the payee names on your record that are this provider. The
+  names come from `core/health_documents.providers`, exact and never matched loosely.
+  - The report shows each payment with its date and account, the total and date range, and *"A record of payments,
+    not a price list…"*.
+  - It adds the plan year's figures (item 87), HSA and FSA balances (item 86) and the reserve (item 88).
+  - It says what it leaves out: the person, medications and unpaid bills.
+  - The pick isn't saved, and the route writes nothing. Print or save is the browser's own, the person's act.
+- **Y1–Y7:** the year-end packet gains **"Health care, for Schedule A"** on the "Include health spending" tick only,
+  on screen and in the CSV.
+  - **Counted:** payments in health categories from ordinary accounts, less refunds back into them.
+  - **Set aside, with reasons:** payments from an HSA or FSA, and insurance premiums (after-tax unknown, listed for
+    the preparer).
+  - **The 7.5% floor:** only with the AGI you type (kept by year with its date). Otherwise it says it can't be known.
+  - **Also shown:** the itemising note, what can't be seen, no mileage, and the HSA detail for Form 8889 with the
+    custodian's forms named as authoritative.
+  - **Incomplete record:** missing months or accounts mark it "may be low".
+- **Verified in the running app (dev database):**
+  - The visit report for "MILLBROOK MAPLE CLINIC": 2 payments, $440, plan year, HSA / FSA and reserve.
+  - The packet section: $440 counted, $140 above the 7.5% floor at a $4,000 AGI.
+- **Found there and fixed:**
+  - With nothing imported into the HSA for the year, "Payments out of the HSA" said $0.00. It now says not known
+    (absence is not zero), and s231 checks it.
+  - The "Counted" line repeated its total when there were no refunds.

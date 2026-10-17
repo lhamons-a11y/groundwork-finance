@@ -1027,6 +1027,28 @@ def archive_account(account_id):
 
 # ── Item 89 U4 (CARE_NEVER_A_LEVER.md): "Is this health care?" - only the person's answer is stored ─────────────
 
+# ── Item 91 (VISIT_REPORT_YEAR_REVIEW.md V1-V4): the visit report - per provider, templated, nothing stored ───────
+
+@accounts_bp.route('/health-providers', methods=['GET'])
+def health_providers():
+    from core import health_documents as hd
+    with db_session() as session:
+        return ok({'providers': hd.providers(session)})
+
+
+@accounts_bp.route('/visit-report', methods=['POST'])
+@require_json
+def visit_report():
+    """V1: {names: [exact payee names]} -> the report. Q3: it leaves only by the person's own print or save."""
+    from core import health_documents as hd
+    with db_session() as session:
+        rep, problem = hd.visit_report(session, (request.json or {}).get('names') or [], _resolve_bank_anchor,
+                                       _reserve_balance)
+        if problem:
+            return err(problem)
+        return ok(rep)
+
+
 @accounts_bp.route('/care-questions', methods=['GET'])
 def care_questions():
     from core import care_status
@@ -3076,7 +3098,11 @@ def _year_end(session, year, include_health=False):
             'gains': {'short_term': st, 'long_term': lt, 'total': round(st + lt, 2), 'lots': len(lots)},
             'documents': docs, 'include_health': bool(include_health), 'health_left_out': health_left_out,
             'missing_months': missing_months, 'account_gaps': gaps, 'not_included': list(YEAR_END_NOT_INCLUDED),
-            'complete': not missing_months and not gaps}
+            'complete': not missing_months and not gaps,
+            # Item 91 Y1: the Schedule A section, on the health tick only (H6 P3)
+            'health_schedule_a': (__import__('core.health_documents', fromlist=['schedule_a'])
+                                  .schedule_a(session, year, complete=not missing_months and not gaps)
+                                  if include_health else None)}
 
 
 def _year_end_args():
@@ -3095,6 +3121,20 @@ def year_end_get():
     with db_session() as session:
         years = sorted({d.year for (d,) in session.query(Transaction.date).distinct().all() if d}, reverse=True)
         return ok({**_year_end(session, year, inc), 'years': years})
+
+
+@year_end_bp.route('/agi', methods=['POST'])
+@require_json
+def year_end_agi():
+    """Item 91 Y4: {year, value} - the person's own AGI for a year, kept with its date; blank withdraws it."""
+    from core import health_documents as hd
+    body = request.json or {}
+    with db_session() as session:
+        problem = hd.set_agi(session, body.get('year'), body.get('value'))
+        if problem:
+            return err(problem)
+        session.commit()
+        return ok({'year': int(body.get('year')), 'agi': hd.agi(session, int(body.get('year')))})
 
 
 @year_end_bp.route('/export', methods=['POST'])
@@ -3131,6 +3171,26 @@ def year_end_export():
         w.writerow(['no records at all', m])
     for gp in p['account_gaps']:
         w.writerow([gp['account'], gp['note'], ' '.join(gp['months'])])
+    sa = p.get('health_schedule_a')
+    if sa:                                  # item 91 Y1: on the health tick only
+        w.writerow([]); w.writerow(['--- HEALTH CARE, FOR SCHEDULE A ---'])
+        for ln in sa['lines'] + [sa['statement']]:
+            w.writerow([ln])
+        w.writerow(['date', 'payee', 'category', 'account', 'amount'])
+        for r in sa['counted']:
+            w.writerow([r['date'], r['name'], r['category'], r['account'], r['amount']])
+        for r in sa['refunds']:
+            w.writerow([r['date'], r['name'], r['category'], r['account'], -r['amount']])
+        for grp in sa['set_aside']:
+            w.writerow([]); w.writerow(['SET ASIDE: ' + grp['reason']])
+            for r in grp['rows']:
+                w.writerow([r['date'], r['name'], r['category'], r['account'], r['amount']])
+        if sa['hsa_8889']:
+            w.writerow([]); w.writerow(['HSA (Form 8889 detail): ' + sa['hsa_8889']['note']])
+            for ln in sa['hsa_8889']['contributions']:
+                w.writerow([ln])
+            w.writerow(['payments out of the HSA', sa['hsa_8889']['distributions'] if sa['hsa_8889']['distributions'] is not None
+                        else f'not known - nothing imported into it for {year}'])
     w.writerow([]); w.writerow(['--- WHAT THIS DOES NOT INCLUDE ---'])
     for n in p['not_included']:
         w.writerow([n])
