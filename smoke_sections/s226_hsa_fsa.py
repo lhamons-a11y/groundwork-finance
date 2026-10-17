@@ -202,7 +202,9 @@ def run(ctx):
           and 'SUNRISE PHARMACY' in j2)
     srv = ctx.server_src
     check('s226 F6 both exports and the year-end packet use the one test (category or HSA / FSA account)',
-          srv.count('health_boundary.health_rows(session)') == 2 and 'health_category_ids(session)' not in srv)
+          # Each export path uses the one test; item 92 added another (legitimate) caller, so not a count.
+          all('health_boundary.health_rows(session)' in srv.split(f'def {fn}(')[1].split('\n@')[0].split('\ndef ')[0]
+              for fn in ('_year_end', 'export_to_file')) and 'health_category_ids(session)' not in srv)
 
     # ── F7 ────────────────────────────────────────────────────────────────────
     said = ' '.join(str(x) for x in (st['sentence'], f0['sentence'], f2['sentence'], f5['sentence'], f6['sentence'],
