@@ -3752,6 +3752,18 @@ async function _runDedupBot(silent = false) {
     if (!silent) showToast('No duplicates found', 'Your ledger is clean', 'success');
     return;
   }
+  // Item 93 B5: similarity proposes, it never decides. After an import it only says what it found; the toolbar's
+  // Dedup asks once for the listed lines, and they are set aside (restorable), never destroyed (B7).
+  if (silent) {
+    showToast(`${toDelete.length} line${toDelete.length !== 1 ? 's' : ''} look${toDelete.length === 1 ? 's' : ''} like duplicates`,
+      'Nothing was removed. Use Dedup in the Ledger toolbar to review them.', 'info');
+    return;
+  }
+  const ok = await new Promise(res => confirmAction(
+    `Set aside ${toDelete.length} look-alike line${toDelete.length !== 1 ? 's' : ''}?`,
+    'Each matches an earlier line on account, date, type, amount and description. They leave every total and can be restored in Settings, Data.',
+    () => res(true), 'Set aside', false));   // cancelled: nothing happens
+  if (!ok) return;
 
   // Remove from local state immediately
   S.transactions = S.transactions.filter(t => !toDelete.includes(t.id));
@@ -5689,7 +5701,7 @@ function deleteTransaction(id) {
 
   _pendingDeletes[id] = { timer, snapshot };
 
-  showToast('Transaction deleted', snapshot.description || '', 'info', () => {
+  showToast('Transaction set aside', (snapshot.description || '') + ' - restorable in Settings, Data.', 'info', () => {
     // Undo: cancel the timer and restore
     if (_pendingDeletes[id]) {
       clearTimeout(_pendingDeletes[id].timer);
@@ -6561,6 +6573,7 @@ async function confirmImport() {
     // this, every imported transaction silently failed to delete/edit/
     // toggle-cleared afterward.
     const refreshed = await _refreshTransactionsFromServer();
+    _showHeldAfterImport(data && data.held);   // item 93 B5: held back, never dropped
     if (refreshed) {
       // Auto-run dedup bot silently after every import — catches any
       // duplicates that slipped through the server-side dedup check
@@ -23832,8 +23845,79 @@ function _renderProactiveDial() {
   setText('dialNote', PROACTIVE_DIAL_NOTES[value]);
 }
 
+// ── Item 93 stage 1 (BANK_SIDE_RECORDS.md B5/B7): nothing an import brings in is lost ────────────────────────────
+// Held lines: an import holds back a line that only LOOKS like one already here, and the person decides.
+// Set-aside lines: a deleted line is kept whole and can be restored. A mistaken import can be set aside as a batch.
+async function renderImportCustody() {
+  const host = g('importCustodyCard');
+  if (!host) return;
+  let held = [], st = { set_aside: [], batches: [] };
+  try { held = ((await API.get('/api/import/held')) || {}).held || []; } catch (e) { _gwErr('held lines')(e); }
+  try { st = (await API.get('/api/transactions/set-aside')) || st; } catch (e) { _gwErr('set aside')(e); }
+  const line = (x, btns) => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--steel-2);font-size:12px">
+      <span style="flex:1;color:var(--ink)">${esc(x.date || '')} · ${esc(x.description || '')} <span style="font-family:var(--font-mono)">${fmt(x.amount || 0)}</span>
+        ${x.account ? `<span style="color:var(--slate)"> · ${esc(x.account)}</span>` : ''}
+        ${x.looks_like ? `<div style="font-size:11px;color:var(--slate)">Looks like: ${esc(x.looks_like.date || '')} · ${esc(x.looks_like.description || '')} ${fmt(x.looks_like.amount || 0)}</div>` : ''}</span>${btns}</div>`;
+  host.innerHTML = `<div class="card mb-4">
+      <div class="card-label">Lines kept safe</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:8px">Nothing an import brings in is thrown away. A line that only looks like one already here is held for you to decide, and a deleted line is set aside, not destroyed.</div>
+      <div style="font-size:12px;color:var(--ink);margin-top:6px">Held back by an import (${held.length})</div>
+      ${(() => {             // one decision for a whole import's held lines, e.g. a file imported twice
+        const by = {}; held.forEach(h => { if (h.batch) by[h.batch] = (by[h.batch] || 0) + 1; });
+        return Object.entries(by).filter(([, n]) => n > 1).map(([b, n]) => `<div style="font-size:12px;padding:4px 0">All ${n} from one import:
+          <button class="btn btn-sm btn-ghost" onclick="_heldResolveBatch('${esc(b)}', 'same')">They're all the same</button>
+          <button class="btn btn-sm btn-ghost" onclick="_heldResolveBatch('${esc(b)}', 'bring_in')">Bring them all in</button></div>`).join('');
+      })()}
+      ${held.length ? held.map(h => line(h, `<button class="btn btn-sm btn-secondary" onclick="_heldResolve(${h.id}, 'bring_in')">Bring it in</button>
+          <button class="btn btn-sm btn-ghost" onclick="_heldResolve(${h.id}, 'same')">It's the same</button>`)).join('')
+        : '<div style="font-size:12px;color:var(--slate)">None.</div>'}
+      <div style="font-size:12px;color:var(--ink);margin-top:12px">Set aside (${(st.set_aside || []).length})</div>
+      ${(st.set_aside || []).length ? st.set_aside.map(x => line(x, `<button class="btn btn-sm btn-secondary" onclick="_setAsideRestore(${x.id})">Restore</button>`)).join('')
+        : '<div style="font-size:12px;color:var(--slate)">None.</div>'}
+      <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;color:var(--ink)">Recent imports</summary>
+        ${(st.batches || []).length ? st.batches.map(b => `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">
+            <span style="flex:1">${esc(b.imported_at || '')} · ${esc(b.account)} · ${b.lines} line${b.lines === 1 ? '' : 's'}</span>
+            <button class="btn btn-sm btn-ghost" onclick="_batchSetAside('${esc(b.batch)}', ${b.lines})">Set this import aside</button></div>`).join('')
+          : '<div style="font-size:12px;color:var(--slate)">Imports from before this change have no batch.</div>'}
+      </details></div>`;
+}
+
+async function _heldResolve(id, answer) {
+  try { await API.post(`/api/import/held/${id}`, { answer }); } catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  if (answer === 'bring_in') { await _refreshTransactionsFromServer(); renderLedger(); updateLedgerStats(); }
+  renderImportCustody();
+}
+
+async function _heldResolveBatch(batch, answer) {
+  try { await API.post('/api/import/held/batch', { batch, answer }); } catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  if (answer === 'bring_in') { await _refreshTransactionsFromServer(); renderLedger(); updateLedgerStats(); }
+  renderImportCustody();
+}
+
+async function _setAsideRestore(id) {
+  try { await API.post(`/api/transactions/set-aside/${id}/restore`, {}); } catch (e) { showToast('Not restored', e.message || '', 'warning'); return; }
+  await _refreshTransactionsFromServer(); renderLedger(); updateLedgerStats();
+  showToast('Restored', 'The line is back in the ledger.', 'success');
+  renderImportCustody();
+}
+
+function _batchSetAside(batch, n) {
+  confirmAction(`Set this import aside?`, `${n} line${n === 1 ? '' : 's'} leave the ledger and every total. Each can be restored here.`, async () => {
+    try { await API.post(`/api/transactions/import-batches/${batch}/set-aside`, {}); } catch (e) { showToast('Not changed', e.message || '', 'warning'); return; }
+    await _refreshTransactionsFromServer(); renderLedger(); updateLedgerStats();
+    renderImportCustody();
+  });
+}
+
+function _showHeldAfterImport(held) {
+  if (!held || !held.length) return;
+  showToast(`${held.length} line${held.length === 1 ? '' : 's'} held back`,
+    `They look like ones already in the ledger. Nothing was dropped: decide in Settings, Data.`, 'info');
+}
+
 function _settingsShowTab(tab) {
   _settingsActiveTab = tab;
+  if (tab === 'data') renderImportCustody();   // item 93 B5/B7
   ['general', 'automation', 'categories', 'accounts', 'data'].forEach(t => {
     const btn   = g(`settingsTab-${t}`);
     const panel = g(`settingsPanel-${t}`);
