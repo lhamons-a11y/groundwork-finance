@@ -1,7 +1,7 @@
 # Item 91 — The visit report and the year in review (item 45 H7 stage 4)
 
 **OPENED 2026-10-16 (Rob: "open stage 4"). RULED + BUILD AUTHORISED 2026-10-16 (Rob: "I approve Q3, V1-V4 and Y1-Y7 as
-recommended. Build item 91.").**
+recommended. Build item 91."). ACCEPTED + CLOSED 2026-10-17 (Rob: "i accept push when test pass"; gate 3561 / 0).**
 
 ## Summary
 

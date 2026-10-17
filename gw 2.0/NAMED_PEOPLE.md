@@ -1,6 +1,6 @@
 # Item 92 — Named people (item 45 H7 stage 5)
 
-**OPENED 2026-10-16 (Rob: "open stage 5"). RULED + BUILD AUTHORISED 2026-10-16 (Rob: "I approve N1-N8 as recommended. Build item 92.").**
+**OPENED 2026-10-16 (Rob: "open stage 5"). RULED + BUILD AUTHORISED 2026-10-16 (Rob: "I approve N1-N8 as recommended. Build item 92."). ACCEPTED + CLOSED 2026-10-17 (Rob: "i accept push when test pass"; gate 3561 / 0).**
 
 ## Summary
 
