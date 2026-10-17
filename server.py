@@ -427,11 +427,11 @@ def create_app(static_folder: str = None) -> Flask:
     def _reserve_plan_done(_exc):
         from flask import g as _flask_g
         from core.consequence import RESERVE_PLAN
-        tok = getattr(_flask_g, '_reserve_tok', None)
+        tok = _flask_g.pop('_reserve_tok', None)     # once: a streamed response can tear down twice (s170)
         if tok is not None:
             try:
                 RESERVE_PLAN.reset(tok)
-            except ValueError:
+            except (ValueError, RuntimeError):         # a different context, or the token already used
                 RESERVE_PLAN.set(None)
 
     @app.route('/api/health')

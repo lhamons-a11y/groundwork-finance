@@ -1,7 +1,7 @@
 # Item 88 — The health reserve (item 45 H7 stage 3)
 
 **OPENED 2026-10-16 (Rob: "Continue"; the next stage in H7's ruled order). RULED 2026-10-16 (Rob: "I approve", on R1-R9 as
-recommended). BUILD AUTHORISED 2026-10-16 (Rob: "Build item 88.").**
+recommended). BUILD AUTHORISED 2026-10-16 (Rob: "Build item 88."). ACCEPTED + CLOSED 2026-10-16 (Rob: "I accept merge and push").**
 
 ## Summary
 

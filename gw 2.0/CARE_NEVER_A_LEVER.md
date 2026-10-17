@@ -2,7 +2,7 @@
 
 **OPENED 2026-10-16 (Rob: "Yes, open the two gaps as item 89 for ruling"), from an outside review of item 45 that
 Rob pasted. RULED 2026-10-16 (Rob: "I approve C1-C4 and U1-U5 as recommended for item 89.") and BUILD
-AUTHORISED 2026-10-16 (Rob: "Build item 89.").**
+AUTHORISED 2026-10-16 (Rob: "Build item 89."). ACCEPTED + CLOSED 2026-10-16 (Rob: "I accept merge and push").**
 
 ## Summary
 

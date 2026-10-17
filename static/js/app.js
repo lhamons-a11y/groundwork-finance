@@ -22675,7 +22675,9 @@ async function renderHealthReserveCard() {
 async function _reserveSave(kind) {
   const body = kind === 'target' ? { basis: g('resBasis').value, amount: g('resTarget').value }
                                  : { amount: g('resAmount').value, account_id: g('resAccount').value };
-  try { await API.post('/api/accounts/health-reserve/' + kind, body); }
+  // Each address written out, so the route check can see both are called.
+  try { await (kind === 'target' ? API.post('/api/accounts/health-reserve/target', body)
+                                 : API.post('/api/accounts/health-reserve/reserved', body)); }
   catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
   _engineSims = {};            // item 90: the gap changed, so the dates did
   renderHealthReserveCard();

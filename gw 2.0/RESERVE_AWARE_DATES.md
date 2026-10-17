@@ -1,7 +1,7 @@
 # Item 90 — Payoff dates that follow the health reserve choice (item 88 follow-up)
 
 **OPENED 2026-10-16 (Rob: "Do this task here: Make payoff dates reserve-aware (item 88 follow-up)"). RULED + BUILD
-AUTHORISED 2026-10-16 (Rob: "I approve D1-D7 as recommended. Build item 90.").**
+AUTHORISED 2026-10-16 (Rob: "I approve D1-D7 as recommended. Build item 90."). ACCEPTED + CLOSED 2026-10-16 (Rob: "I accept merge and push").**
 
 ## Summary
 
