@@ -179,7 +179,7 @@ HEALTH_SINKS = {
     ('server.py', '*', 'log'): LOG, ('launch.py', '*', 'log'): LOG, ('migrate.py', '*', 'log'): LOG,
     ('core/engine.py', '*', 'log'): LOG, ('utility_price.py', '*', 'log'): LOG, ('price_engine.py', '*', 'log'): LOG,
     ('gas_price.py', '*', 'log'): LOG, ('core/airfare.py', '*', 'log'): LOG, ('core/per_diem.py', '*', 'log'): LOG,
-    ('trip_distance.py', '*', 'log'): LOG,
+    ('trip_distance.py', '*', 'log'): LOG, ('core/engine_fit.py', '*', 'log'): LOG,
 }
 
 
@@ -195,6 +195,8 @@ for _f, _fn in (('bank_agent_window.py', 'child_main'), ('bank_agent_window.py',
                 ('utility_price.py', '_fetch_natural_gas')):
     HEALTH_SINKS[(_f, _fn, 'network')] = _NO_HEALTH_INPUT
 HEALTH_SINKS.update({
+    ('core/engine_fit.py', 'write_fit', 'file'): ('item 95: device timings, R8 figure lists from the fixed voice cases '
+                                                  'and graphics chip names - no transaction or health record'),
     ('core/airfare.py', '_write', 'file'): 'public fare tables only (DOT), no personal data',
     ('core/airfare.py', 'refresh', 'file'): 'public fare tables only (DOT), no personal data',
     ('core/per_diem.py', 'refresh', 'file'): 'public per-diem tables only (GSA), no personal data',

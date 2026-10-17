@@ -13129,10 +13129,14 @@ def ai_status():
     """The engine's state for Settings -> AI: off / loading / ready / unavailable, with an honest message."""
     from core import engine
     st = engine.status()
+    dev = st.get('device') or {}
+    # Item 95 G7: where the AI runs and how that was measured - shown, never a control (G0: the software chooses).
     return ok({'enabled': _ai_is_enabled(), 'engine': st['state'], 'reason': st['reason'],
                'message': st['message'], 'model_file': st['model_file'],
-               'ready': st['state'] == 'ready', 'available': st['state'] in ('loading', 'ready'),
-               'load_seconds': st['load_seconds']})
+               'ready': st['state'] == 'ready', 'available': st['state'] in ('loading', 'fitting', 'ready'),
+               'load_seconds': st['load_seconds'],
+               'device_line': dev.get('line', '') if st['state'] == 'ready' else '',
+               'device_tried': dev.get('tried', []) if st['state'] == 'ready' else []})
 
 
 # 8 GB is the minimum for Groundwork AI, not for Groundwork (R-d). An "8 GB" machine reports a little under 8 to

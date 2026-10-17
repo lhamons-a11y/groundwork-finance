@@ -53,6 +53,14 @@ except Exception as _e:
     raise SystemExit('groundwork.spec: llama-cpp-python is not installed in the build environment (%s). Install the '
                      'CPU wheel: pip install llama-cpp-python==0.3.35 --only-binary=:all: '
                      '--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu' % _e)
+# Item 95 (GPU_ENGINE.md G1/G2): on Windows the shipped engine is the Vulkan build with run-time backends, made by
+# build_engine_wheel.bat - the processor always works, a graphics chip when fitting chooses it. The CPU-index wheel has
+# no graphics backend, so a Windows build made with it would quietly never use the graphics chip: refused here.
+if sys.platform == 'win32':
+    import pathlib as _pl
+    if not any(_pl.Path(llama_cpp.__file__).parent.joinpath('lib').glob('ggml-vulkan*.dll')):
+        raise SystemExit('groundwork.spec: this llama-cpp-python has no Vulkan backend. Build and install the item 95 '
+                         'engine wheel first: build_engine_wheel.bat (GPU_ENGINE.md "G1 proven").')
 _engine_binaries = collect_dynamic_libs('llama_cpp')
 _engine_datas = collect_data_files('llama_cpp')
 _engine_imports = collect_submodules('llama_cpp')
@@ -80,6 +88,9 @@ a = Analysis(
         # inside core/bank_vault.py's functions, and its backend is chosen at runtime, so both are named here.
         'keyring', 'keyring.backends', 'keyring.backends.Windows',
         *_engine_imports,
+        # Item 95 (GPU_ENGINE.md G3/G4'): the fitting test runs in a child process started as this executable with
+        # --engine-probe, imported inside launch.main(); its R8 check reads the voice cases from voice_discipline_test.
+        'core.engine_fit', 'voice_discipline_test',
         # waitress — the WSGI server every launch path now uses. Imported
         # inside server.serve() rather than at module scope, which is exactly
         # the import style PyInstaller's static analysis is least likely to
