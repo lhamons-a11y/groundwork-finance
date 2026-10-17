@@ -26,7 +26,7 @@ import tempfile
 from pathlib import Path
 
 _KEYS = {'file_name', 'content_sha256', 'origin', 'account_id', 'account_name', 'records', 'created',
-         'duplicates', 'errors', 'first_date', 'last_date'}
+         'duplicates', 'held', 'errors', 'first_date', 'last_date'}     # 'held': item 93 B5
 _RUN = [0]
 
 
@@ -71,8 +71,9 @@ def _cases(c, HJ, dbs):
     c.post('/api/import/commit', headers=HJ,
            data=body(recs, {'name': 'chase_sept.qfx', 'sha256': good, 'origin': 'watcher'}))
     ev = _events(dbs)
-    out['a commit of all duplicates is still an import, and is recorded'] = (
-        len(ev) == before + 1 and ev[-1].get('created') == 0 and ev[-1].get('duplicates') == 2)
+    # Item 93 B5: lines that only look alike (no bank id) are held for the person, never dropped - and counted.
+    out['a commit of all look-alikes is still an import, and is recorded with what it held'] = (
+        len(ev) == before + 1 and ev[-1].get('created') == 0 and ev[-1].get('held') == 2)
 
     before = len(_events(dbs))
     c.post('/api/import/commit', headers=HJ, data=body([], {'name': 'empty.csv'}))

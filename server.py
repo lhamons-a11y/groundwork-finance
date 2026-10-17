@@ -15016,7 +15016,7 @@ def _import_source_file(raw):
 
 
 def _log_import_committed(session, source, account_id, account_name, records,
-                          created, duplicates, errors):
+                          created, duplicates, errors, held=0):
     """H1: one 'import_committed' Historian event per commit. The context is a fixed set of
     keys - what was imported, from which file, into which account - and never the file's
     content. Read by nothing that builds a model prompt (s127 pins it)."""
@@ -15031,6 +15031,7 @@ def _log_import_committed(session, source, account_id, account_name, records,
         'records':        len(records),
         'created':        created,
         'duplicates':     duplicates,
+        'held':           held,          # item 93 B5: look-alikes held for the person, never dropped
         'errors':         errors,
         'first_date':     dates[0] if dates else None,
         'last_date':      dates[-1] if dates else None,
@@ -15287,7 +15288,7 @@ def bank_import_commit():
         # Inside this transaction, so it exists exactly when the import does.
         # A fact ABOUT the file - never its bytes, never an Artefact (C3).
         _log_import_committed(session, source, account_id, acct_name, records,
-                              created, duplicates, errors)
+                              created, duplicates, errors, held=len(held_rows))
         if _tidy_unmatched:                              # item 83 T4: asked about on the tidy card, never silent
             _kept = _setting_json(session, 'import_unmatched_json', []) or []
             for _n, _ids in _tidy_unmatched.items():
