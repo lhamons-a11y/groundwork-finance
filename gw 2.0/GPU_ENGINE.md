@@ -257,3 +257,8 @@ R8 is different. The processor's rate is **0 of 120**, so a single R8 violation 
   trusts what wasn't measured.
 
 *Recommended: (a).* G3, G5-G8 are unaffected. Fitting code waits on this ruling.
+
+### G4′ ruled — Rob, 2026-10-17
+
+*"I rule G4′ (a): fitting checks R8 only, on all six voice cases; the other rules are judged in the pre-release A/B.
+Continue the build."*
