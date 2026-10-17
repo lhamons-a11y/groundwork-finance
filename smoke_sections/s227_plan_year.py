@@ -62,7 +62,7 @@ def run(ctx):
     check('s227 P2 a correction keeps the old figure and names it',
           any('it was deductible $3,000.00 before' in n for n in cur['notes']))
     check('s227 P5 per-person amounts in a family plan are named as not tracked',
-          'Per-person amounts inside a family plan aren\'t tracked yet.' in cur['notes'])
+          'Per-person amounts: none entered yet. Your insurer shows them member by member.' in cur['notes'])   # item 92 N5b
 
     # ── P1 / P3: readings ─────────────────────────────────────────────────────
     with db_session() as s:

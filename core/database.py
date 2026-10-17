@@ -5392,6 +5392,20 @@ class CareAnswer(Base):
     created_at  = Column(DateTime, default=datetime.utcnow)
 
 
+class CareFor(Base):
+    """Whom a health payment was for, as the household said it (gw 2.0/NAMED_PEOPLE.md N2/N4, item 92). A 1.x
+    record of the household's answer on a ledger row, NOT an expense identity (N8, Rob 2026-10-17: "tag now, absorb
+    later"); when the bank side of the 2.0 records is ruled, each row becomes the household's statement there.
+    Kept, never edited: the newest row for a transaction is current. person_id NULL = "Household", not said.
+    Never inferred - only the person's answer writes a row."""
+    __tablename__ = 'care_for'
+    id             = Column(Integer, primary_key=True)
+    transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
+    person_id      = Column(Integer, ForeignKey('people.id'), nullable=True)
+    mode           = Column(String(12), nullable=False)        # initial | correction
+    created_at     = Column(DateTime, default=datetime.utcnow)
+
+
 class HealthPlanReading(Base):
     """What the insurer reports as applied so far, as the person typed it, with the date it was as of
     (gw 2.0/PLAN_YEAR_TRACKING.md P1/P3, item 87). Never derived from spending: a payment shows what was paid, not
@@ -5402,6 +5416,7 @@ class HealthPlanReading(Base):
     deductible_met = Column(Float, nullable=True)
     oop_met        = Column(Float, nullable=True)
     as_of          = Column(String(10), nullable=False)
+    person_id      = Column(Integer, ForeignKey('people.id'), nullable=True)   # item 92 N5b: NULL = the plan's own
     created_at     = Column(DateTime, default=datetime.utcnow)
 
 

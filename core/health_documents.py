@@ -48,7 +48,7 @@ def providers(session):
     return sorted(found.values(), key=lambda x: (x['last'] or ''), reverse=True)
 
 
-def visit_report(session, names, anchor_fn, balance_fn, today=None):
+def visit_report(session, names, anchor_fn, balance_fn, today=None, person_id=None):
     """V1-V4: what the person has paid the picked provider, the plan year's figures, the HSA / FSA and the reserve.
     `names` are exact payee names; nothing is stored (V4)."""
     from core import health_boundary as hb, health_plan, health_reserve, hsa_fsa
@@ -62,18 +62,35 @@ def visit_report(session, names, anchor_fn, balance_fn, today=None):
     accts = {a.id: a.name for a in session.query(Account).all()}
     rows = sorted((t for t in session.query(Transaction).filter(Transaction.type == 'debit').all()
                    if is_health(t) and _name(t) in picked and t.date), key=lambda t: t.date)
+    # Item 92 N5a: one person's payments; those not said (or "Household") listed apart, never split or guessed.
+    who, not_said = None, []
+    if person_id not in (None, ''):
+        from core import people as _people
+        from core.database import Person
+        p = session.get(Person, int(person_id))
+        if not p:
+            return None, 'That person was not found.'
+        who = p.display_name
+        cur = _people.currents(session)
+        not_said = [t for t in rows if cur.get(t.id) is None]
+        rows = [t for t in rows if cur.get(t.id) == p.id]
     pays = [{'date': t.date.isoformat(), 'amount': round(float(t.amount or 0), 2), 'account': accts.get(t.account_id, ''),
              'line': f'{day(t.date.isoformat())}: {money(float(t.amount or 0))}'
                      + (f' from {accts[t.account_id]}' if t.account_id in accts else '') + '.'} for t in rows]
     total = round(sum(p['amount'] for p in pays), 2)
-    summary = (f'{len(pays)} payment{"s" if len(pays) != 1 else ""} to {", ".join(picked)}, {money(total)} in all, '
+    summary = (f'{len(pays)} payment{"s" if len(pays) != 1 else ""} to {", ".join(picked)}'
+               + (f' for {who}' if who else '') + f', {money(total)} in all, '
                f'from {day(pays[0]["date"])} to {day(pays[-1]["date"])}.') if pays else 'No payments on record.'
     plan = health_plan.states(session, today).get('current')
     plan_lines = (plan['lines'] + plan['notes']) if plan else ['No health plan is entered for today.']
     accounts = [f'{r["name"]}: {r["balance"]["working"]}' for r in hsa_fsa.states(session, anchor_fn, today)]
     res = health_reserve.state(session, anchor_fn, balance_fn)
     reserve = res['lines'] if (res.get('target') is not None or res.get('reserved')) else []
-    return {'provider': picked, 'as_of': today.isoformat(), 'summary': summary, 'payments': pays, 'total': total,
+    apart = [f'{day(t.date.isoformat())}: {money(float(t.amount or 0))}' for t in not_said]
+    return {'provider': picked, 'person': who, 'not_said': (
+                {'lines': apart, 'note': f'{len(apart)} more payment{"s" if len(apart) != 1 else ""} to this provider '
+                                          'with no person said (or "Household"). Not counted for anyone.'} if apart else None),
+            'as_of': today.isoformat(), 'summary': summary, 'payments': pays, 'total': total,
             'plan': plan_lines, 'accounts': accounts, 'reserve': reserve,
             'not_a_price': NOT_A_PRICE, 'not_included': NOT_IN_VISIT}, None
 
@@ -146,6 +163,18 @@ def schedule_a(session, year, complete=True, today=None):
                 refunds.append(item(t))
     s = lambda xs: round(sum(x['amount'] for x in xs), 2)
     total = round(s(counted) - s(refunds), 2)
+    # Item 92 N5c: the per-person split, as supporting detail under the household total - it never changes the total.
+    from core import people as _people
+    from core.database import Person
+    cur = _people.currents(session)
+    pnames = {p.id: p.display_name for p in session.query(Person).all()}
+    split = {}
+    for t in rows:
+        if t.category_id in hids and t.account_id not in aids and not _is_premium(cats.get(t.category_id)) \
+                and t.type in ('debit', 'credit'):
+            k = pnames.get(cur.get(t.id), 'Not said')
+            split[k] = round(split.get(k, 0.0) + (float(t.amount or 0) if t.type == 'debit' else -float(t.amount or 0)), 2)
+    by_person = [{'name': k, 'total': v} for k, v in sorted(split.items(), key=lambda x: (x[0] == 'Not said', x[0].lower()))]
     a = agi(session, year)
     if a is None:
         floor_line = (f'Whether this clears the 7.5% floor can\'t be known without your adjusted gross income (AGI) '
@@ -175,6 +204,7 @@ def schedule_a(session, year, complete=True, today=None):
         lines.append('Months or accounts are missing from the record (listed above), so this total may be low.')
     lines += [floor_line, ITEMISE, CANT_SEE, NO_MILEAGE]
     return {'year': year, 'total': total, 'counted': counted, 'refunds': refunds, 'agi': a, 'floor': floor,
+            'by_person': by_person if any(b['name'] != 'Not said' for b in by_person) else [],
             'set_aside': [{'reason': 'Paid from an HSA or FSA: already tax-advantaged, so not counted.', 'rows': from_hsa,
                            'total': s(from_hsa)},
                           {'reason': 'Health insurance premiums: they count only if paid with after-tax money, which '

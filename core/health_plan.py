@@ -166,6 +166,13 @@ def add_reading(session, plan, body, today=None):
         vals[k], problem = _num(body.get(k), k.replace('_', ' '))
         if problem:
             return None, problem
+    pid = body.get('person_id')            # item 92 N5b: one person's figures in a family plan, or the plan's own
+    if pid not in (None, ''):
+        from core.database import Person
+        p = session.get(Person, int(pid))
+        if not p or not p.active:
+            return None, 'That person was not found.'
+        vals['person_id'] = p.id
     if vals['deductible_met'] is None and vals['oop_met'] is None:
         return None, 'enter at least one figure'
     r = HealthPlanReading(plan_id=plan.id, as_of=as_of, **vals)
@@ -207,7 +214,9 @@ def _last_health_payment(session):
 def plan_state(session, plan, today=None):
     today = today or date.today()
     v = current_terms(session, plan.id)
-    reads = _readings(session, plan.id)
+    allreads = _readings(session, plan.id)
+    reads = [r for r in allreads if r.person_id is None]           # the plan's own figures
+    mine = [r for r in allreads if r.person_id is not None]        # item 92 N5b: per person, in a family plan
     # The newest reading of each figure: a later reading may give only one of the two.
     ded = next(((r.deductible_met, r.as_of) for r in reads if r.deductible_met is not None), (None, None))
     oop = next(((r.oop_met, r.as_of) for r in reads if r.oop_met is not None), (None, None))
@@ -228,8 +237,20 @@ def plan_state(session, plan, today=None):
     if newest and last_paid and last_paid > newest:
         notes.append(f'Your last reading is from {day(newest)}; you\'ve paid health bills since then, on or before '
                      f'{day(last_paid)}. Groundwork doesn\'t guess how they changed these figures.')
-    if v and v.tier == 'family':
-        notes.append('Per-person amounts inside a family plan aren\'t tracked yet.')
+    people = []
+    if mine:
+        from core.database import Person
+        names = {p.id: p.display_name for p in session.query(Person).all()}
+        for pid in sorted({r.person_id for r in mine}, key=lambda i: names.get(i, '').lower()):
+            rs = [r for r in mine if r.person_id == pid]
+            pd = next(((r.deductible_met, r.as_of) for r in rs if r.deductible_met is not None), (None, None))
+            po = next(((r.oop_met, r.as_of) for r in rs if r.oop_met is not None), (None, None))
+            bits = ([f'{money(pd[0])} toward the deductible as of {day(pd[1])}'] if pd[0] is not None else []) \
+                + ([f'{money(po[0])} toward the out-of-pocket maximum as of {day(po[1])}'] if po[0] is not None else [])
+            people.append({'person_id': pid, 'name': names.get(pid, ''), 'deductible_met': pd[0], 'oop_met': po[0],
+                           'line': f'{names.get(pid, "")}: ' + ', '.join(bits) + ' (from your insurer).'})
+    if v and v.tier == 'family' and not people:
+        notes.append('Per-person amounts: none entered yet. Your insurer shows them member by member.')
     if plan.effective_to:
         reset = date.fromisoformat(plan.effective_to) + timedelta(days=1)
         days = (reset - today).days
@@ -239,7 +260,8 @@ def plan_state(session, plan, today=None):
         notes.append('The plan year\'s end isn\'t entered, so when these figures start over isn\'t known.')
     return {'id': plan.id, 'name': plan.name, 'from': plan.effective_from, 'to': plan.effective_to,
             'tier': v.tier if v else '', 'deductible': v.deductible if v else None, 'oop_max': v.oop_max if v else None,
-            'deductible_met': ded[0], 'oop_met': oop[0], 'lines': lines, 'notes': notes,
+            'deductible_met': ded[0], 'oop_met': oop[0], 'lines': lines + [p['line'] for p in people], 'notes': notes,
+            'people': people,
             'readings': [{'deductible_met': r.deductible_met, 'oop_met': r.oop_met, 'as_of': r.as_of} for r in reads],
             'current': plan.effective_from <= today.isoformat() <= (plan.effective_to or '9999-12-31')}
 

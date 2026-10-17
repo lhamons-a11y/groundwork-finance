@@ -4685,6 +4685,8 @@ function _openEditBloom(row) {
       ${t.mcc ? `<span><b>mcc</b>${esc(t.mcc)}</span>` : ''}
     </div>
 
+    <div class="bloom-care"></div>
+
     <div class="bloom-actions">
       <button class="danger" data-act="delete">Delete transaction</button>
       <div class="bloom-actions-right">
@@ -4720,6 +4722,7 @@ function _openEditBloom(row) {
   `;
 
   row.parentNode.insertBefore(bloom, row.nextSibling);
+  _careForSlot(bloom, id);     // item 92 N4: a health payment can say whom it was for
 
   bloom.querySelector('[data-act=cancel]').addEventListener('click', e => { e.stopPropagation(); cancelRowEdit(); });
   bloom.querySelector('[data-act=save]'  ).addEventListener('click', e => { e.stopPropagation(); saveRowEdit(id); });
@@ -22430,8 +22433,10 @@ function _drawAccountManager() {
     ${_accountsCache.length ? rows : empty}
     <div id="accountFormSlot"></div>
     <button class="btn-add" onclick="showAddAccountForm()">+ Add account</button>
-    <div id="healthPlanCard" style="margin-top:12px"></div>
+    <div id="healthPeopleCard" style="margin-top:12px"></div>
+    <div id="healthPlanCard"></div>
     <div id="healthReserveCard"></div>`;
+  renderPeopleCard();          // item 92: the people, above the plan (N1, N3)
   renderHealthPlanCard();      // item 87: the health plan, beside the HSA and FSA (P6)
   renderHealthReserveCard();   // item 88: the reserve, under the plan (R8)
 }
@@ -22541,10 +22546,11 @@ async function saveHsaFsaTerms(id) {
 // ── Item 87: the health plan (gw 2.0/PLAN_YEAR_TRACKING.md, P1-P9 ruled 2026-10-15) ───────────────────────────
 // The figures are what the insurer reports, entered with their date (P1); every sentence comes from the server with
 // its working. Teaches the terms and gives no advice about care or timing (P7).
-let _hpState = null;
+let _hpState = null, _hpPeople = [];
 async function renderHealthPlanCard() {
   const host = g('healthPlanCard');
   if (!host) return;
+  try { _hpPeople = (((await API.get('/api/accounts/people')) || {}).people || []).filter(x => x.active); } catch (e) { _hpPeople = []; }
   try { _hpState = await API.get('/api/accounts/health-plans'); }
   catch (e) { host.innerHTML = '<div style="font-size:12px;color:var(--slate)">Could not load the health plan.</div>'; return; }
   const cur = _hpState.current;
@@ -22592,7 +22598,8 @@ function showHealthPlanForm(kind, id) {
       + row('Deductible', num('deductible')) + row('Out-of-pocket maximum', num('oop_max'));
     note = 'Leave anything you don\'t know blank. A plan can\'t share dates with another one.';
   } else if (kind === 'reading') {
-    fields = row('Deductible met so far', num('deductible_met')) + row('Out-of-pocket so far', num('oop_met'))
+    fields = (p.tier === 'family' ? row('Whose figures', `<select id="hp-person_id" style="font-size:12px;padding:3px 6px"><option value="">The plan's own</option>${(_hpPeople || []).map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>`) : '')
+      + row('Deductible met so far', num('deductible_met')) + row('Out-of-pocket so far', num('oop_met'))
       + row('As of', dt('as_of', new Date().toISOString().slice(0, 10)));
     note = 'From your insurer\'s website or your latest statement. Earlier readings are kept.';
   } else {
@@ -22618,7 +22625,7 @@ async function saveHealthPlanForm(kind, id) {
              deductible: v('deductible'), oop_max: v('oop_max') };
   } else if (kind === 'reading') {
     path = `/api/accounts/health-plans/${id}/readings`;
-    body = { deductible_met: v('deductible_met'), oop_met: v('oop_met'), as_of: v('as_of') };
+    body = { deductible_met: v('deductible_met'), oop_met: v('oop_met'), as_of: v('as_of'), person_id: v('person_id') || null };
   } else {
     const mode = (document.querySelector('input[name="hp-mode"]:checked') || {}).value;
     path = `/api/accounts/health-plans/${id}/terms`;
@@ -28111,6 +28118,7 @@ function _yeHealthSection(p, sec, money) {
       <div style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--slate)">
         Your AGI for ${p.year}: <input id="yeAgi" type="number" step="1" min="0" value="${sa.agi != null ? sa.agi : ''}" placeholder="from your return" class="field-input" style="width:130px;font-size:12px;padding:3px 6px">
         <button class="btn btn-secondary btn-sm" onclick="_yeSaveAgi()">Save</button></div>
+      ${(sa.by_person || []).length ? `<div style="margin-top:8px;font-size:12px;color:var(--ink)">By person (detail; the household total above is the figure)</div>${sa.by_person.map(b => `<div style="font-size:12px;display:flex;justify-content:space-between"><span>${esc(b.name)}</span>${money(b.total)}</div>`).join('')}` : ''}
       <div style="margin-top:10px;font-size:12px;color:var(--ink)">Counted</div>${rows(sa.counted)}
       ${sa.refunds.length ? `<div style="margin-top:10px;font-size:12px;color:var(--ink)">Refunds, taken off the total</div>${rows(sa.refunds)}` : ''}
       ${sa.set_aside.map(gp => `<div style="margin-top:10px;font-size:12px;color:var(--ink)">Set aside: ${esc(gp.reason)}</div>${rows(gp.rows)}`).join('')}
@@ -28127,6 +28135,95 @@ async function _yeSaveAgi() {
   _rcRenderYearEnd();
 }
 
+// ── Item 92: named people (gw 2.0/NAMED_PEOPLE.md, N1-N8 ruled 2026-10-16) ────────────────────────────────────
+// A person is a name (N1). Whom care was for is said payment by payment, never inferred (N2), and an answer is kept
+// (N4). Names are labels, not locks - said here, where a person is added (N3).
+async function renderPeopleCard() {
+  const host = g('healthPeopleCard');
+  if (!host) return;
+  let st;
+  try { st = await API.get('/api/accounts/people'); } catch (e) { _gwErr('people')(e); host.innerHTML = ''; return; }
+  const ppl = st.people || [];
+  host.innerHTML = `
+    <div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)">
+      <div class="card-label" style="margin-bottom:4px">People</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:6px">${esc(st.visibility)}</div>
+      ${ppl.length ? ppl.map(p => `<div data-person-row="${p.id}" style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;color:${p.active ? 'var(--ink)' : 'var(--slate)'}">
+          <span style="flex:1">${esc(p.name)}${p.active ? '' : ' (inactive)'}</span>
+          ${p.active ? `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_peopleRename(${p.id})">Rename</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_peopleRemove(${p.id}, ${p.used})">${p.used ? 'Make inactive' : 'Remove'}</button>` : ''}
+        </div>`).join('') : '<div style="font-size:12px;color:var(--slate)">No one added yet. Health payments stay "Household" until you say whom they were for.</div>'}
+      ${(st.offer || []).length ? `<div style="font-size:12px;margin-top:6px;padding:6px 8px;background:var(--mist);border-radius:var(--r-sm)">
+          Household mode has ${st.offer.map(esc).join(' and ')}. Add ${st.offer.length === 1 ? 'them' : 'them both'} as people?
+          <button class="btn btn-sm btn-secondary" style="margin-left:6px" onclick='_peopleAddMany(${JSON.stringify(st.offer)})'>Yes, add</button></div>` : ''}
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <input id="peopleNew" type="text" placeholder="A name" class="field-input" style="width:180px;font-size:12px;padding:3px 6px">
+        <button class="btn btn-sm btn-secondary" onclick="_peopleAddMany([g('peopleNew').value])">Add person</button>
+      </div>
+    </div>`;
+}
+
+async function _peopleAddMany(names) {
+  for (const n of names) {
+    try { await API.post('/api/accounts/people', { name: n }); }
+    catch (e) { showToast('Not added', e.message || '', 'warning'); }
+  }
+  renderPeopleCard();
+}
+
+// Inline, because the browser's own name prompt does nothing in the app's window.
+function _peopleRename(id) {
+  const row = document.querySelector(`[data-person-row="${id}"]`);
+  if (!row) return;
+  row.innerHTML = `<input data-person-name type="text" class="field-input" style="width:160px;font-size:12px;padding:3px 6px">
+    <button class="btn btn-sm btn-secondary" data-person-save>Save</button>
+    <button class="btn btn-ghost btn-sm" onclick="renderPeopleCard()">Cancel</button>`;
+  row.querySelector('[data-person-save]').addEventListener('click', async () => {
+    const name = row.querySelector('[data-person-name]').value;
+    try { await API.post(`/api/accounts/people/${id}/rename`, { name }); } catch (e) { showToast('Not renamed', e.message || '', 'warning'); return; }
+    renderPeopleCard();
+  });
+  row.querySelector('[data-person-name]').focus();
+}
+
+async function _peopleRemove(id, used) {
+  try { await API.post(`/api/accounts/people/${id}/remove`, {}); } catch (e) { showToast('Not changed', e.message || '', 'warning'); return; }
+  if (used) showToast('Made inactive', 'They have payments or readings on record, so their history stays theirs.', 'success');
+  renderPeopleCard();
+}
+
+// N4: "Who was this for?" on a health payment, in the Ledger's edit panel. Saved when chosen; nothing is assigned by itself.
+async function _careForSlot(bloom, id) {
+  const slot = bloom.querySelector('.bloom-care');
+  if (!slot) return;
+  let st;
+  try { st = await API.get(`/api/accounts/care-for/${id}`); } catch (e) { return; }
+  if (!st.health) return;
+  const opts = [['household', 'Household (not said)']].concat((st.people || []).map(p => [String(p.id), p.name]));
+  const cur = st.person_id == null ? 'household' : String(st.person_id);
+  slot.innerHTML = `<div style="padding:8px 18px;border-top:1px solid var(--mist-2);font-size:12px;color:var(--slate)">
+      <label>Who was this for?
+        <select data-care-sel style="font-size:12px;padding:3px 6px;margin-left:6px">${opts.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+      ${(st.people || []).length ? '' : ' <span>Add people in Settings, Accounts.</span>'}
+      ${st.history.length > 1 ? `<div style="font-size:11px;margin-top:3px">Earlier: ${st.history.slice(0, -1).map(h => esc(h.person) + ' (' + esc(h.on || '') + ')').join(', ')}</div>` : ''}
+      <div data-care-offer></div></div>`;
+  slot.querySelector('[data-care-sel]').addEventListener('change', async e => {
+    e.stopPropagation();
+    let r;
+    try { r = await API.post('/api/accounts/care-for', { transaction_id: id, person_id: e.target.value }); }
+    catch (err) { showToast('Not saved', err.message || '', 'warning'); return; }
+    const box = slot.querySelector('[data-care-offer]');
+    const o = r.offer;
+    box.innerHTML = o ? `<div style="margin-top:4px">Mark the other ${o.ids.length === 1 ? 'payment' : o.ids.length + ' payments'} to ${esc(o.payee)} as for ${esc(e.target.selectedOptions[0].textContent)} too?
+        <button class="btn btn-sm btn-secondary" data-care-yes>Yes</button></div>` : '';
+    box.querySelector('[data-care-yes]')?.addEventListener('click', async ev => {
+      ev.stopPropagation();
+      try { await API.post('/api/accounts/care-for', { ids: o.ids, person_id: e.target.value }); box.innerHTML = '<div style="margin-top:4px">Done.</div>'; }
+      catch (err2) { showToast('Not saved', err2.message || '', 'warning'); }
+    });
+  });
+}
+
 let _vrPicked = [];
 async function _rcRenderVisitReport() {
   const body = g('rcReportBody');
@@ -28140,10 +28237,16 @@ async function _rcRenderVisitReport() {
     ${ps.length ? `<div style="margin-top:10px;max-height:220px;overflow:auto;border:1px solid var(--steel);border-radius:var(--r-sm);padding:6px 10px">
       ${ps.map((p, i) => `<label style="display:block;font-size:12px;padding:2px 0"><input type="checkbox" data-vr="${i}" ${_vrPicked.includes(p.name) ? 'checked' : ''}> ${esc(p.name)} <span style="color:var(--slate)">(${p.payments} payment${p.payments === 1 ? '' : 's'}, last ${esc(p.last || '')})</span></label>`).join('')}
     </div>
+    <div style="margin-top:8px;font-size:12px;color:var(--slate)">For <select id="vrPerson" style="font-size:12px;padding:3px 6px"><option value="">everyone (the household)</option></select></div>
     <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="_vrMake()">Make the report</button>`
     : '<div style="font-size:12px;color:var(--slate);margin-top:10px">No health payments on your record yet.</div>'}
     <div id="vrOut" style="margin-top:16px"></div>`;
   body._vrProviders = ps;
+  try {                         // item 92 N5a: the report for one person
+    const pp = ((await API.get('/api/accounts/people')) || {}).people || [];
+    const sel = g('vrPerson');
+    if (sel) pp.filter(x => x.active).forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.name; sel.appendChild(o); });
+  } catch (e) { _gwErr('visit people')(e); }
 }
 
 async function _vrMake() {
@@ -28151,7 +28254,7 @@ async function _vrMake() {
   const ps = body._vrProviders || [];
   _vrPicked = [...body.querySelectorAll('input[data-vr]:checked')].map(x => ps[+x.dataset.vr].name);
   let r;
-  try { r = await API.post('/api/accounts/visit-report', { names: _vrPicked }); }
+  try { r = await API.post('/api/accounts/visit-report', { names: _vrPicked, person_id: (g('vrPerson') || {}).value || null }); }
   catch (e) { showToast('No report', e.message || '', 'warning'); return; }
   const list = (title, xs) => xs && xs.length ? `<div class="card mb-4"><div class="card-label">${title}</div>${xs.map(x => `<div style="font-size:12px;line-height:1.6">${esc(x)}</div>`).join('')}</div>` : '';
   g('vrOut').innerHTML = `
@@ -28159,6 +28262,7 @@ async function _vrMake() {
       <div style="font-size:13px;color:var(--ink);margin-bottom:6px">${esc(r.summary)}</div>
       ${r.payments.map(p => `<div style="font-size:12px">${esc(p.line)}</div>`).join('')}
       <div style="font-size:11px;color:var(--slate);margin-top:6px">${esc(r.not_a_price)}</div></div>
+    ${r.not_said ? `<div class="card mb-4"><div class="card-label">Not said</div><div style="font-size:12px;color:var(--slate)">${esc(r.not_said.note)}</div>${r.not_said.lines.map(l => `<div style="font-size:12px">${esc(l)}</div>`).join('')}</div>` : ''}
     ${list('Your plan year', r.plan)}
     ${list('HSA and FSA', r.accounts)}
     ${list('Health reserve', r.reserve)}

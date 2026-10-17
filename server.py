@@ -1029,6 +1029,87 @@ def archive_account(account_id):
 
 # ── Item 91 (VISIT_REPORT_YEAR_REVIEW.md V1-V4): the visit report - per provider, templated, nothing stored ───────
 
+# ── Item 92 (NAMED_PEOPLE.md N1-N8): named people, and whom a health payment was for ────────────────────────────
+# Names are labels, not locks (N3). Whom care was for is said, never inferred (N2); an answer is kept (N4). The tag is
+# a 1.x record of the household's answer (N8 decided 2026-10-17). Names never reach the model or an untickable export.
+
+@accounts_bp.route('/people', methods=['GET'])
+def people_list():
+    from core import people
+    with db_session() as session:
+        return ok(people.listing(session))
+
+
+@accounts_bp.route('/people', methods=['POST'])
+@require_json
+def people_add():
+    from core import people
+    with db_session() as session:
+        p, problem = people.add(session, (request.json or {}).get('name'))
+        if problem:
+            return err(problem)
+        session.commit()
+        return ok(people.listing(session))
+
+
+@accounts_bp.route('/people/<int:person_id>/rename', methods=['POST'])
+@require_json
+def people_rename(person_id):
+    from core import people
+    with db_session() as session:
+        _p, problem = people.rename(session, person_id, (request.json or {}).get('name'))
+        if problem:
+            return err(problem)
+        session.commit()
+        return ok(people.listing(session))
+
+
+@accounts_bp.route('/people/<int:person_id>/remove', methods=['POST'])
+def people_remove(person_id):
+    from core import people
+    with db_session() as session:
+        what, problem = people.remove(session, person_id)
+        if problem:
+            return err(problem, 404)
+        session.commit()
+        return ok(dict(people.listing(session), done=what))
+
+
+@accounts_bp.route('/care-for/<int:transaction_id>', methods=['GET'])
+def care_for_get(transaction_id):
+    """The Ledger's slot: whether this payment is health, whom it was for now, and the earlier answers."""
+    from core import health_boundary, people
+    with db_session() as session:
+        t = session.get(Transaction, transaction_id)
+        health = bool(t) and t.type == 'debit' and health_boundary.health_rows(session)(t)
+        return ok({'health': health, 'person_id': people.current(session, transaction_id) if health else None,
+                   'answered': bool(health and people.history(session, transaction_id)),
+                   'history': people.history(session, transaction_id) if health else [],
+                   'people': [x for x in people.listing(session)['people'] if x['active']] if health else []})
+
+
+@accounts_bp.route('/care-for', methods=['POST'])
+@require_json
+def care_for_set():
+    """N4: {transaction_id, person_id | 'household'} - or {ids: [...], person_id} for the payee offer, on a yes."""
+    from core import people
+    body = request.json or {}
+    with db_session() as session:
+        if body.get('ids') is not None:
+            n, problem = people.assign_many(session, body.get('ids'), body.get('person_id'))
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok({'assigned': n})
+        row, problem = people.assign(session, body.get('transaction_id'), body.get('person_id'))
+        if problem:
+            return err(problem)
+        session.commit()
+        tid = int(body.get('transaction_id'))
+        return ok({'person_id': people.current(session, tid), 'history': people.history(session, tid),
+                   'offer': people.same_payee_offer(session, tid) if body.get('person_id') not in (None, '', 'household') else None})
+
+
 @accounts_bp.route('/health-providers', methods=['GET'])
 def health_providers():
     from core import health_documents as hd
@@ -1042,8 +1123,9 @@ def visit_report():
     """V1: {names: [exact payee names]} -> the report. Q3: it leaves only by the person's own print or save."""
     from core import health_documents as hd
     with db_session() as session:
-        rep, problem = hd.visit_report(session, (request.json or {}).get('names') or [], _resolve_bank_anchor,
-                                       _reserve_balance)
+        body = request.json or {}
+        rep, problem = hd.visit_report(session, body.get('names') or [], _resolve_bank_anchor, _reserve_balance,
+                                       person_id=body.get('person_id'))     # item 92 N5a
         if problem:
             return err(problem)
         return ok(rep)

@@ -134,3 +134,52 @@ where it matters.
   carries its Party anchor. But **a bank row → payment link does not exist**: "A bank line ... can produce a candidate
   but cannot mint it", and a statement line's about-ness (Ab7) is a separate, unruled question.
 - So N4's "Who was this for?" on a bank row has no faithful place to land. The options are put to Rob before any code.
+
+### N8 decided — Rob, 2026-10-17
+
+The 2.0 path was explored first (Rob's first pick). Its household side is ruled (expense, payment, `incurred_by`,
+`payment_in_respect_of`, `proposition_concerns`). Its bank side is not: the bank as a party, the statement as a held
+artefact (item 20's store, not authorised) and the importer contract are all fenced. So Rob chose **"tag now, absorb
+later"**:
+- **The tag.** "Whom this payment was for" is stored as dated, kept versions on the ledger row (`care_for`), named
+  for what it is: a 1.x record of the household's answer, not an expense identity.
+- **The absorption.** When the bank side is ruled, each tag becomes the household's statement in the 2.0 records:
+  an expense minted by that answer, `incurred_by(person, expense)`, and the bank line concerning the payment. The
+  tag's date and answer carry over unchanged. That migration is owed by whichever item rules the bank side.
+
+
+## Built 2026-10-17 (s232; SCHEMA 20261017-named-people)
+
+- **N1 / N3:** a **People** card at the top of the health section in Settings → Accounts.
+  - Add, rename (inline: the app's window ignores the browser's own prompt, caught by the gate) and remove.
+  - A person with payments or readings is made inactive, never deleted. One without is removed with their party
+    anchor. A person named in any 2.0 record counts as having history.
+  - The notice: *"Anyone who opens Groundwork on this computer can see everything here, including each person's
+    health spending. Names are labels, not locks."*
+- **N2 / N4 / N8:** "Who was this for?" appears in the Ledger's edit panel on health payments only, offering your
+  people or "Household (not said)".
+  - The answer is a tag on the ledger row (`care_for`, kept, newest current). A change is a correction and the
+    earlier answer stays. The same answer again writes nothing.
+  - Nothing is inferred: s232 proves one answer touches only its own payment, even with the same payee, card and
+    account.
+  - The offer *"Mark the other payment to MILLBROOK MAPLE CLINIC as for Sam too?"* acts only on its Yes.
+  - No expense or payment is minted; that waits on the bank side (N8 decided).
+- **N5:**
+  - **(a)** the visit report has a "For" choice. One person's payments are shown, and the rest are listed apart as
+    not said.
+  - **(b)** a family plan's reading can be one person's (`health_plan_readings.person_id`), shown as *"Sam: $600.00
+    toward the deductible as of … (from your insurer)."*. The old "not tracked yet" note now says the amounts can be
+    entered.
+  - **(c)** the Schedule A section shows "By person" under the household total. s232 proves moving a payment
+    between people never changes the total.
+- **N6:** household mode's names are offered (*"Add them as people?"*), only those not already people, and never
+  copied.
+- **N7:**
+  - Names appear only on health screens and in the health-ticked packet.
+  - No function that reaches the model or the AI log reads a name (AST-checked).
+  - Names are not in the log scrubber ("S232 Robert's Income" stays whole).
+- **Verified in the running app (dev database):**
+  - adding Sam showed the notice;
+  - choosing Sam on a MILLBROOK MAPLE CLINIC payment brought the offer for the other one, applied on Yes;
+  - the visit report for Sam read "2 payments to MILLBROOK MAPLE CLINIC for Sam, $440.00 in all…".
+- **Fixed in the app:** "the other 1 payment" now reads "the other payment".
