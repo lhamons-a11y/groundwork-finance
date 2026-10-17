@@ -197,3 +197,63 @@ proofs that close it need hardware this laptop isn't: no Vulkan driver, 8 GB, an
 - **G9:** 2048 everywhere. The 4096 question stays with item 31's 8 GB test.
 
 The build is not yet authorised.
+
+## G1 proven — 2026-10-17 (build authorised by Rob: "Build item 93. Start with G1")
+
+**The build.** llama-cpp-python 0.3.35 from source:
+`CMAKE_ARGS=-DGGML_VULKAN=ON -DGGML_BACKEND_DL=ON -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON
+-DGGML_F16C=ON -DGGML_AVX512=OFF`, built with VS 2022 Build Tools, CMake 4.4.4 and Vulkan SDK 1.4.363.0, and
+`TMP=C:\gwb`. The wheel is 46 MB.
+- `dumpbin /dependents`: `ggml.dll` now needs only `ggml-base.dll`.
+- Only `ggml-vulkan.dll` needs `vulkan-1.dll`, and it is loaded at run time.
+- The CPU backend is loaded at run time too.
+
+**What 0.3.35 does and doesn't do.** It never loads run-time backends itself. With only the import, there are zero
+devices, and `Llama()` fails ("Failed to load model"). So Groundwork loads them itself through `ggml.dll`'s
+`ggml_backend_load(path)`:
+- the CPU backend always;
+- the Vulkan backend only if it loads.
+
+That puts the choice in the engine's hands, which G3 needs anyway.
+
+**The four cases** (`n_gpu_layers=-1` asked for every time, with the engine's shipped settings):
+
+| case | Vulkan backend | devices found | model loads and answers |
+|---|---|---|---|
+| normal | loaded | CPU, Iris Xe, RTX A1000 | yes, `llama_supports_gpu_offload` true |
+| `ggml-vulkan.dll` missing | not loaded | CPU | yes, on the processor |
+| no Vulkan driver DLL (the import renamed to a `vulkan-9.dll` that doesn't exist) | not loaded | CPU | yes, on the processor |
+| Vulkan loader present but no drivers (`VK_DRIVER_FILES` pointing nowhere) | not loaded | CPU | yes, on the processor |
+
+**The processor path is unchanged.** The six voice cases × two seeds on the processor are **12 of 12 identical** to
+the shipped CPU wheel (abetlen's CPU index). So item 31's voice A/B (R8 0/120) carries over to the processor path of
+this build unchanged.
+
+**Learned for G3:** with two graphics chips and `n_gpu_layers=-1`, llama.cpp splits the model across both by
+default. Fitting has to test, and use, one chip at a time. The chip is chosen in the fitting process before the
+Vulkan backend loads, with `GGML_VK_VISIBLE_DEVICES`.
+
+**Still owed for R-c:** this proves the fallback on this laptop by simulation. The real proof, a machine with no
+Vulkan driver at all, needs that machine (§6.4).
+
+## G4 brought back before any code — the ruled check would reject every device
+
+G4 as ruled says: during fitting, *"if R8 or any gate rule fails, that device is out."* The measured baseline makes
+that unworkable. On the processor, the reference configuration, the full gate passes **38 of 120** (item 31 §7, 20
+seeds × 6 cases). A single answer fails some non-cardinal rule (R1-R7, R9, R11) more often than not, on any device.
+Requiring every rule to pass on one sample would send nearly every graphics chip back to the processor by chance.
+That's the null-model trap again: the threshold would be a coin flip.
+
+R8 is different. The processor's rate is **0 of 120**, so a single R8 violation on a candidate device is a real signal.
+
+**G4′ (for ruling):**
+- **(a) Fitting checks R8 only, on all six voice cases**, one seed, at the shipped temperature. Any R8 violation and
+  that device is out. The other rules are judged where they can be judged, in the pre-release A/B: each backend
+  family's gate pass rate must be within noise of the processor's 38/120, and R8 must be 0. It costs six short
+  answers per graphics chip: about 30-45 s on a separate card, perhaps 2 minutes on built-in graphics. The processor
+  isn't re-tested, because it is the reference.
+- (b) R8 on one case only. Cheaper, but one case sees few figures.
+- (c) No check on the user's machine; rely on the pre-release A/B alone. Driver versions vary by machine, so this
+  trusts what wasn't measured.
+
+*Recommended: (a).* G3, G5-G8 are unaffected. Fitting code waits on this ruling.
