@@ -1,7 +1,7 @@
 # Item 88 — The health reserve (item 45 H7 stage 3)
 
-**OPENED 2026-10-16 (Rob: "Continue"; the next stage in H7's ruled order). For ruling; no code, no schema, no
-authorisation.**
+**OPENED 2026-10-16 (Rob: "Continue"; the next stage in H7's ruled order). RULED 2026-10-16 (Rob: "I approve", on R1-R9 as
+recommended); build not yet authorised.**
 
 ## Summary
 
