@@ -2,7 +2,7 @@
 
 Rob, 2026-10-02: Ollama is gone from both lines. llama-cpp-python and the exact tested quantized phi3.5 file are the
 one engine. The model ships inside Groundwork, loads at launch only when AI is enabled (R-a), and is released when
-Groundwork closes. CPU always; acceleration is a later, separate test (R-c). A machine that cannot run the model gets
+Groundwork closes. CPU always; a graphics chip only when fitting chose it (item 93, core/engine_fit.py). A machine that cannot run the model gets
 AI unavailable, said honestly - never a fallback service, never a crash of the rest of the app.
 
     Groundwork -> local engine -> model          (no port, no second process, no network)
@@ -80,6 +80,8 @@ LOADING_WAIT_SECONDS = 60       # a call made while the model is still loading w
 MESSAGES = {
     'off':         'Local AI is not running. Turn on AI features in Settings to start it.',
     'loading':     'The local AI model is still loading. Try again in a moment.',
+    'fitting':     ("Groundwork is fitting the local AI to this computer - it does this once, and it takes a few "
+                    "minutes. Try again shortly."),
     'cpu':         ("This computer's processor doesn't have the instructions Groundwork's local AI needs (AVX2), so AI "
                     "features are unavailable here. Everything else in Groundwork works normally."),
     'missing':     ("Groundwork's local AI model file is missing from this installation. Reinstalling Groundwork "
@@ -96,7 +98,8 @@ MESSAGES = {
 _lock = threading.RLock()          # guards _model and every call into it: one call at a time
 _ready = threading.Event()         # set when a load attempt has finished, whatever its outcome
 _model = None
-_state = {'state': 'off', 'reason': '', 'detail': '', 'load_seconds': None, 'verify_seconds': None}
+_state = {'state': 'off', 'reason': '', 'detail': '', 'load_seconds': None, 'verify_seconds': None,
+          'device': None}
 _generation = 0                    # bumped by stop(), so a load that finishes after a stop is discarded
 _allow_load = False                # only the launcher (and opt-in tests) may load the real model
 
@@ -190,7 +193,7 @@ def start():
     if not _allow_load:
         return False
     with _lock:
-        if _state['state'] in ('loading', 'ready'):
+        if _state['state'] in ('loading', 'fitting', 'ready'):
             return True
         _ready.clear()
         _set('loading')
@@ -218,17 +221,88 @@ def _load(gen):
             kv = getattr(llama_cpp, KV_CACHE_TYPE)
         except Exception as e:                  # the native library failed to import
             return _finish(gen, None, 'runtime', repr(e))
+        choice, rec = _fitted_choice(gen)
+        if gen != _generation:                  # AI switched off while fitting (G8): nothing more is loaded
+            return _finish(gen, None)
         t1 = time.time()
-        try:
-            model = Llama(model_path=str(path), n_ctx=N_CTX, n_batch=N_BATCH, n_ubatch=N_BATCH, use_mmap=USE_MMAP,
-                          flash_attn=FLASH_ATTN, type_k=kv, type_v=kv, verbose=False)
-        except Exception as e:
-            return _finish(gen, None, 'load_failed', repr(e))
+        model = None
+        if choice['device'] != 'cpu':
+            model = _load_on_graphics(path, kv, choice, rec)
+        if model is None:
+            try:
+                from core import engine_fit
+                engine_fit.load_backends(graphics=False)
+            except Exception:
+                logging.exception('engine: loading the processor backend')
+            try:
+                model = Llama(model_path=str(path), n_ctx=N_CTX, n_batch=N_BATCH, n_ubatch=N_BATCH,
+                              use_mmap=USE_MMAP, flash_attn=FLASH_ATTN, type_k=kv, type_v=kv, verbose=False)
+            except Exception as e:
+                return _finish(gen, None, 'load_failed', repr(e))
         _state['load_seconds'] = round(time.time() - t1, 2)
         _finish(gen, model)
     except Exception as e:
         logging.exception('engine load failed')
         _finish(gen, None, 'load_failed', repr(e))
+
+
+def _fitted_choice(gen):
+    """Item 93: the device to load on - fitting first when needed (G5 (a): visible, as the 'fitting' state). The
+    processor whenever this build has no graphics backend, and for this launch only when the chosen graphics chip
+    failed to start at the last one (G6). Returns (choice, the fit record or None)."""
+    cpu = {'device': 'cpu', 'name': "this computer's processor", 'kind': 'cpu', 'layers': 0}
+    try:
+        from core import engine_fit as ef
+        if not ef.has_graphics_backend():
+            _state['device'] = {'running': 'cpu', **ef.describe(None)}
+            return cpu, None
+        rec = ef.read_fit()
+        if rec and rec.get('pending_launch'):   # the last launch died starting the graphics chip
+            rec.update(pending_launch=False, refit=True)
+            ef.write_fit(rec)
+            _state['device'] = {'running': 'cpu', **ef.describe(rec, running='cpu')}
+            return cpu, rec
+        fp = ef.fingerprint()
+        if ef.needs_fit(rec, fp):
+            _set('fitting')
+            rec = ef.fit(should_stop=lambda: gen != _generation)
+            if gen != _generation:
+                return cpu, None
+            rec['fingerprint'] = fp
+            ef.write_fit(rec)
+            _set('loading')
+        _state['device'] = {'running': rec['choice']['device'], **ef.describe(rec)}
+        return rec['choice'], rec
+    except Exception:
+        logging.exception('engine fit failed; the processor is used')
+        return cpu, None
+
+
+def _load_on_graphics(path, kv, choice, rec):
+    """Load on the fitted graphics chip, or None (the caller loads on the processor). The record is marked before
+    the load and cleared after it, so a launch that dies inside the driver is caught by the next one (G6)."""
+    from core import engine_fit as ef
+    from llama_cpp import Llama
+    os.environ['GGML_VK_VISIBLE_DEVICES'] = str(int(choice['device']))
+    try:
+        rec.update(pending_launch=True)
+        ef.write_fit(rec)
+        devs = ef.load_backends(graphics=True)
+        gpu = [d for d in devs if d['name'].lower().startswith('vulkan')]
+        if not gpu or gpu[0]['description'] != choice['name']:
+            raise RuntimeError(f'the fitted graphics chip is not the one found: {gpu[:1]}')
+        model = Llama(model_path=str(path), n_ctx=N_CTX, n_batch=N_BATCH, n_ubatch=N_BATCH, use_mmap=USE_MMAP,
+                      flash_attn=FLASH_ATTN, type_k=kv, type_v=kv, verbose=False,
+                      n_gpu_layers=int(choice.get('layers', -1)))
+        rec.update(pending_launch=False)
+        ef.write_fit(rec)
+        return model
+    except Exception:
+        logging.exception('engine: the fitted graphics chip did not start; the processor is used')
+        rec.update(pending_launch=False, refit=True)
+        ef.write_fit(rec)
+        _state['device'] = {'running': 'cpu', **ef.describe(rec, running='cpu')}
+        return None
 
 
 def _finish(gen, model, reason='', detail=''):
@@ -301,7 +375,7 @@ def chat_stream(system, messages, max_tokens=1000, temperature=0.3):
     ('error', {'reason', 'message'}). The engine's lock is held for the whole generation - one at a time, as chat() -
     and released when the generator finishes or is closed (a dropped connection closes it).
     """
-    if _state['state'] == 'loading':
+    if _state['state'] in ('loading', 'fitting'):
         _ready.wait(LOADING_WAIT_SECONDS)
     with _lock:
         if _model is None:
@@ -350,7 +424,7 @@ def choose(system, question, options):
     grammar should make impossible - is refused, never salvaged (capable is not admissible)."""
     from llama_cpp import LlamaGrammar
     grammar = LlamaGrammar.from_string(choice_grammar(options), verbose=False)
-    if _state['state'] == 'loading':
+    if _state['state'] in ('loading', 'fitting'):
         _ready.wait(LOADING_WAIT_SECONDS)
     with _lock:
         if _model is None:
@@ -367,7 +441,7 @@ def choose(system, question, options):
 
 def chat(system, messages, max_tokens=1000, temperature=0.3):
     """One completion. {'ok': True, 'text', 'finish', 'tokens'} or {'ok': False, 'reason', 'message'}."""
-    if _state['state'] == 'loading':
+    if _state['state'] in ('loading', 'fitting'):
         _ready.wait(LOADING_WAIT_SECONDS)
     with _lock:
         if _model is None:

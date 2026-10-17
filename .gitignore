@@ -52,3 +52,6 @@ llm_runtime_spike_results.json
 llm_model_eval_results.json
 # The pinned model, fetched by fetch_model.py for a build (item 33 Q5) - never committed
 model_dl/
+
+# item 93: build_engine_wheel.bat output
+engine_wheel/

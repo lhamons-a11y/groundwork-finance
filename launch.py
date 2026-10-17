@@ -368,6 +368,11 @@ def main():
         sys.exit(child_main())
     # The bank agent's window (BANK_AGENT.md, item 57): the same kind of process, dispatched just as early, with its
     # mode on the command line and the account's link on stdin. Everything it may do to a page is in bank_agent_window.py.
+    # The engine's fitting test (GPU_ENGINE.md G3, item 93): one device, in its own process, so a graphics driver
+    # that crashes ends only that test. Dispatched as early as the bank windows: no Flask, no window, no database.
+    if '--engine-probe' in sys.argv[1:]:
+        from core.engine_fit import probe_main
+        sys.exit(probe_main(sys.argv[sys.argv.index('--engine-probe') + 1:]))
     if '--bank-agent' in sys.argv[1:]:
         from bank_agent_window import child_main as agent_main
         args = sys.argv[sys.argv.index('--bank-agent') + 1:]

@@ -25087,8 +25087,12 @@ async function _loadGateHealth() {
 
 function _aiEngineLine(data) {
   if (!data.enabled) return `<span style="color:var(--slate-2)">●</span> AI features are off. Nothing is loaded.`;
-  if (data.engine === 'ready') return `<span style="color:var(--pine-text)">●</span> Local AI is running inside Groundwork${data.load_seconds ? ` (loaded in ${data.load_seconds}s)` : ''}.`;
+  if (data.engine === 'ready') return `<span style="color:var(--pine-text)">●</span> Local AI is running inside Groundwork${data.load_seconds ? ` (loaded in ${data.load_seconds}s)` : ''}.`
+    + (data.device_line ? `<div style="margin-top:6px">${esc(data.device_line)}</div>` : '')
+    + (data.device_tried || []).map(t => `<div style="margin-top:2px;color:var(--slate)">${esc(t)}</div>`).join('');
   if (data.engine === 'loading') return `<span style="color:var(--gold-text)">●</span> Local AI is loading…`;
+  // Item 93 G5 (a): fitting is a visible step, once per computer; the result is shown when it finishes (G7).
+  if (data.engine === 'fitting') return `<span style="color:var(--gold-text)">●</span> ${esc(data.message || 'Fitting the local AI to this computer…')}`;
   return `<span style="color:var(--ember-text)">●</span> ${esc(data.message || 'Local AI is not running.')}`;
 }
 
@@ -25099,7 +25103,7 @@ async function _loadAiLocalStatus() {
     const data = await API.get('/api/ai/status');
     if (statusEl) statusEl.innerHTML = _aiEngineLine(data);
     // A load in progress finishes in seconds: check back until it settles.
-    if (data.enabled && data.engine === 'loading') setTimeout(_loadAiLocalStatus, 1500);
+    if (data.enabled && (data.engine === 'loading' || data.engine === 'fitting')) setTimeout(_loadAiLocalStatus, data.engine === 'fitting' ? 5000 : 1500);
   } catch (e) {
     if (statusEl) statusEl.innerHTML = `<span style="color:var(--ember-text)">●</span> Could not reach the server.`;
     _gwErr('_loadAiLocalStatus')(e);
