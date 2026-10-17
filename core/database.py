@@ -9,6 +9,7 @@ from sqlalchemy import (
     create_engine, Column, Integer, Float, String,
     Boolean, DateTime, Text, ForeignKey, Date, Index, UniqueConstraint
 )
+from sqlalchemy import event as _sa_event
 from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session, relationship
 from sqlalchemy.pool import NullPool
 
@@ -102,6 +103,7 @@ class Transaction(Base):
     card_last4     = Column(String(4), default='')
     source         = Column(String(10), default='')
     check_number   = Column(String(20), default='')
+    import_batch   = Column(String(36), nullable=True)    # item 93 B7: one import's lines, so a mistaken one can be set aside together
     account     = relationship('Account', back_populates='transactions')
     category    = relationship('Category', back_populates='transactions')
     # Match _PERFORMANCE_INDEXES in migrate.py — models cover fresh installs
@@ -242,6 +244,36 @@ class RecurringDebtPayment(Base):
         Index('ix_rdp_account_active',  'debt_account_id', 'is_active'),
         Index('ix_rdp_schedule_active', 'scheduled_date_of_month', 'is_active'),
     )
+
+
+class SetAsideTransaction(Base):
+    """A deleted transaction, kept whole (gw 2.0/BANK_SIDE_RECORDS.md B7, item 93; a 1.x data-loss fix under L1).
+    Out of every total, restorable with its own id - so anything that pointed at it points at it again."""
+    __tablename__ = 'set_aside_transactions'
+    id           = Column(Integer, primary_key=True)
+    original_id  = Column(Integer, nullable=False)
+    account_id   = Column(Integer, nullable=True)
+    row_json     = Column(Text, nullable=False)        # every column, as the ledger held it
+    links_json   = Column(Text, default='[]')          # its debt links, to reconnect on restore
+    reason       = Column(String(200), default='')
+    batch        = Column(String(36), nullable=True)
+    set_aside_at = Column(DateTime, default=datetime.utcnow)
+    restored_at  = Column(DateTime, nullable=True)
+
+
+class ImportHeldLine(Base):
+    """A line an import held back because it only LOOKED like one already here (gw 2.0/BANK_SIDE_RECORDS.md B5,
+    item 93): never dropped - brought in or kept as "the same" only on the person's yes, and the decision kept."""
+    __tablename__ = 'import_held_lines'
+    id            = Column(Integer, primary_key=True)
+    account_id    = Column(Integer, nullable=True)
+    record_json   = Column(Text, nullable=False)       # the line as the import read it
+    matched_id    = Column(Integer, nullable=True)     # the ledger line it looked like
+    batch         = Column(String(36), nullable=True)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+    resolved      = Column(String(10), default='')     # '' | bring_in | same
+    resolved_at   = Column(DateTime, nullable=True)
+    brought_in_id = Column(Integer, nullable=True)
 
 
 class CheckingTransactionLink(Base):
@@ -800,3 +832,26 @@ def _seed_categories(session):
                        is_enabled=not is_opt)
         session.add(cat)
     session.commit()
+
+
+
+# ── Item 93 B7: a set-aside transaction keeps its id ──────────────────────────────────────────────────────────────
+# SQLite hands a new row max(id) + 1, so setting aside the newest transaction would let the next import take its id,
+# and a restore would then find it taken. A new transaction's id is chosen above every id ever set aside.
+@_sa_event.listens_for(Transaction, 'before_insert')
+def _txn_id_above_set_aside(mapper, connection, target):
+    if target.id is not None:
+        return
+    from sqlalchemy import text as _t
+    try:
+        hi = connection.execute(_t('SELECT MAX(original_id) FROM set_aside_transactions')).scalar() or 0
+    except Exception:             # a database from before the table existed
+        return
+    if hi:
+        cur = connection.execute(_t('SELECT MAX(id) FROM transactions')).scalar() or 0
+        # Rows inserted in one batch are not in the table yet when the next asks, so the last id handed out on this
+        # connection is remembered and counted too - or a batch would be given one id for every row.
+        last = connection.info.get('_gw_last_txn_id', 0)
+        if hi >= cur or last > cur:
+            target.id = max(hi, cur, last) + 1
+            connection.info['_gw_last_txn_id'] = target.id

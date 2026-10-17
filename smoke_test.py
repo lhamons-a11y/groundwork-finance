@@ -1977,9 +1977,10 @@ def main():
     check('CSV-then-QFX import of the same real transaction: first commit creates it',
           r1.status_code == 200 and r1.get_json()['data']['created'] == 1)
     check('CSV-then-QFX import of the same real transaction: second commit recognizes '
-          'the duplicate (regression: used to silently create a second row)',
+          'the look-alike (regression: used to silently create a second row) and holds it for the person '
+          '(item 93 B5: held and shown, never dropped)',
           r2.status_code == 200 and r2.get_json()['data']['created'] == 0
-          and r2.get_json()['data']['duplicates'] == 1)
+          and len(r2.get_json()['data'].get('held') or []) == 1)
 
     with _dbs() as session:
         count = session.query(_Txn).filter_by(account_id=dedup_acct_id).count()

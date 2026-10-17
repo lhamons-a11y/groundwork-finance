@@ -12,19 +12,20 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261002-lts-household-facts'   # the household_facts table + carrying existing answers over (ONBOARDING_REVISIT.md)
+SCHEMA_VERSION = '20261017-lts-import-custody'   # item 93 stage 1 (BANK_SIDE_RECORDS.md B5/B7): set_aside_transactions + import_held_lines (create_all) + transactions.import_batch
+# Before it, '20261002-lts-household-facts'   # the household_facts table + carrying existing answers over (ONBOARDING_REVISIT.md)
 # The previous version, '20260927-lts-cloud-ai-removed', removed cloud AI. A new MODEL table is created by init_db's
 # create_all only when the stored version differs, so a new table needs a bump exactly as a column does - and s51's
 # fingerprint cannot see that, so s62 proves the upgrade (item 24's gap). Distinct from every 2.0 value as well.
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = 'a7fbe60d84347954228a4eff02bc3b243d761c5cf0dd2370d134b62edf8b9d5f'
+SCHEMA_SPEC_SHA256 = 'a04635d73acbc8a99428b14e9afc0baeda50593f78464bcbe90bd72e79e83737'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = 'bd1418d08e5a7502cd53bea2dbed77c4b3dceaaa7268da3a3059c83a0603449a'
+SCHEMA_MODELS_SHA256 = '058fcac9478a08b85221e43263f9e612e884eb869dcdd2f0a5e42ba98dbf1373'
 
 
 def _stored_schema_version():
@@ -48,6 +49,7 @@ _NEW_TRANSACTION_COLUMNS = [
     ('source',          "VARCHAR(10) DEFAULT ''"),
     ('import_id',       "VARCHAR(64)  DEFAULT ''"),
     ('check_number',    "VARCHAR(20)  DEFAULT ''"),
+    ('import_batch',    "VARCHAR(36)"),          # item 93 B7
 ]
 
 _NEW_DEBT_COLUMNS = [
