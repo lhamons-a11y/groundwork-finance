@@ -335,3 +335,15 @@ show the wrong time.
 
 **Fixed:** a graphics probe now runs a short, untimed warm-up answer (a prompt longer than one batch, 8 tokens) before
 the timed one. s233 checks the order.
+
+**Gate 3593 / 0 at 2597220** (one more check, the warm-up order). **Installers built 2026-10-17** (Rob: "Push and
+build"):
+- **Where:** `C:\rw-gpu\installer_output\` holds `Groundwork_Setup.exe`, `_Offline` and `_Store`. They are
+  identical, SHA-256 `676ae93f1a435d0e…`, 2.2 GB each.
+- **How:** built from 2597220 with `build.bat`, in a build venv that holds the system packages plus the item 95
+  Vulkan wheel (`ggml-vulkan.dll` is in the bundle). The first Inno Setup pass was blocked by an antivirus lock on the
+  2.2 GB output and was rerun.
+- **Checked:** on the rebuilt `Groundwork.exe`, the first probe after the build answered in 0.77 s to the first word
+  and 9.5 s whole, R8 clean.
+- **Still owed:** not installed on a clean machine, and the R-c proofs (§ "Not done") still stand. Users don't have
+  these installers.
