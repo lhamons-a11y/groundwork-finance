@@ -1,7 +1,8 @@
 # Item 89 — Care is never a lever: one rule over every conclusion, and "uncertain" as an outcome
 
 **OPENED 2026-10-16 (Rob: "Yes, open the two gaps as item 89 for ruling"), from an outside review of item 45 that
-Rob pasted. For ruling; no code, no schema, no authorisation.**
+Rob pasted. RULED 2026-10-16 (Rob: "I approve C1-C4 and U1-U5 as recommended for item 89.") and BUILD
+AUTHORISED 2026-10-16 (Rob: "Build item 89.").**
 
 ## Summary
 
