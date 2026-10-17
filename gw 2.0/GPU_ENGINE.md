@@ -262,3 +262,62 @@ R8 is different. The processor's rate is **0 of 120**, so a single R8 violation 
 
 *"I rule G4′ (a): fitting checks R8 only, on all six voice cases; the other rules are judged in the pre-release A/B.
 Continue the build."*
+
+## Built 2026-10-17 (s233; no schema change)
+
+**What was built:**
+- **`core/engine_fit.py`** does the fitting. It tries the processor and each Vulkan graphics chip, one per child
+  process, through `launch.py --engine-probe list | cpu | gpu <n>`. That entry is dispatched before logging, Flask and
+  the engine, the way the bank windows are.
+  - Each probe loads the model with the shipped settings and times one fixed answer: about 1,000 tokens of facts and a
+    300-token cap, at temperature 0.
+  - A graphics chip also answers the six voice cases, one seed at the shipped 0.3, and R8 is read on each (G4′ (a)).
+  - A card that can't hold the whole model is tried with 24, 16, then 8 layers on it.
+  - A probe that crashes, hangs (15-minute limit) or says nothing marks that device as failed, and the fit goes on.
+- **The choice:** the shortest whole-answer time. A chip with any R8 figure is never chosen.
+- **The stored result:** `engine_fit.json` beside the database, a property of the computer rather than the household's
+  record. It carries a fingerprint: the graphics chips and their driver versions as Windows lists them (read without
+  loading any graphics code), the engine version, the model's SHA-256 and `FIT_VERSION`.
+- **`core/engine.py`:**
+  - `_load` asks `_fitted_choice()` first. That fits when needed, as the visible `fitting` state, and AI switched off
+    mid-fit tests nothing more.
+  - It then loads on the chosen chip (`GGML_VK_VISIBLE_DEVICES`, the stored layer count). The record is marked before
+    that load and cleared after it, so a launch that dies inside the driver is caught by the next one. That launch runs
+    on the processor and the one after it fits again (G6).
+  - A chip that raises, or isn't the one fitted, falls back to the processor at once.
+  - A build with no graphics backend (the CPU wheel: dev, the gate, macOS/Linux under item 33) runs no fitting at all.
+- **Settings → AI** shows the sentence under "Local AI is running", with every other device tried accounted for. There
+  is no control (G0).
+- **The build:**
+  - `build_engine_wheel.bat` is the G1 recipe.
+  - `groundwork.spec` refuses a Windows build whose engine has no Vulkan backend, and bundles `core.engine_fit` and
+    `voice_discipline_test` for the probe.
+
+**Measured on this laptop, the real thing end to end** (the Vulkan wheel, `engine.start()`, fitting, then the load):
+
+| device | first word | whole test answer | R8 on six cases | verdict |
+|---|---:|---:|---|---|
+| processor | 14.7 s | 32.4 s | (reference) | ran |
+| Intel Iris Xe | 3.5 s | 21.6 s | **"50" in `mixed_movement`, a figure not in its facts** | not used |
+| NVIDIA RTX A1000 | 0.8 s | 9.1 s | clean | **chosen** |
+
+- **The time it took:** fitting took 2.5 minutes, the model then loaded on the card in 1.9 s, and a test chat answered.
+  The second launch reused the result, ready in 8 s with no fitting.
+- **What Settings said:** *"AI runs on NVIDIA RTX A1000 Laptop GPU - answers in about 9 s on Groundwork's test answer,
+  3.6x faster than this computer's processor (about 32 s) (checked 17 Oct 2026)."* Then: *"Intel(R) Iris(R) Xe
+  Graphics was tried and wrote a figure that wasn't in the facts it was given, so Groundwork doesn't use it."*
+- **The Intel rejection is G4′ (a) working as ruled.** The processor's R8 rate is 0/120, so an invented figure on a
+  chip is a real signal. It also means built-in graphics can lose here on correctness, not just on speed. Whether that
+  holds across seeds, and on other built-in chips, is what the pre-release A/B measures.
+
+**Not done, and what closes each:**
+1. **The pre-release voice A/B per backend family (G4):** 20 seeds × 6 cases through `CASES` + `check()` on NVIDIA,
+   Intel and AMD (where one can be borrowed). Closes when each family is R8 0/120 with a gate pass rate within noise of
+   the processor's 38/120, or is named as excluded.
+2. **The R-c proofs:** a real machine with **no Vulkan driver** loads on the processor; a real **8 GB** machine with
+   built-in graphics either gains or correctly picks the processor; ideally a **GTX 10-series**. These need Rob's
+   machines. The 34 GB laptop can't stand in (R-d).
+3. **A packaged build:** the installer with this engine, on a clean machine. Installer builds are on hold until asked
+   (Rob, 2026-10-09).
+4. **The dev environment** still has the CPU wheel, so `python launch.py` here runs as before. Running
+   `build_engine_wheel.bat` installs the Vulkan engine into the Python it's given.
