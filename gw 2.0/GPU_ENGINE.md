@@ -263,7 +263,7 @@ R8 is different. The processor's rate is **0 of 120**, so a single R8 violation 
 *"I rule G4′ (a): fitting checks R8 only, on all six voice cases; the other rules are judged in the pre-release A/B.
 Continue the build."*
 
-## Built 2026-10-17 (s233; no schema change)
+## Built 2026-10-17 (s233; no schema change; gate 3592 / 0 at a7397f2, awaiting acceptance)
 
 **What was built:**
 - **`core/engine_fit.py`** does the fitting. It tries the processor and each Vulkan graphics chip, one per child
