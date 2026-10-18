@@ -152,7 +152,7 @@ first word. The cause is seeding, not the stops. The harness passed `seed=` on e
 write identical text under the same seeding. So `install_stops` doesn't change the prompt, and this A/B is a fresh
 sample of the app's own path.
 
-**Gate:** 3645 / 0 at 743ce64, and 3671 / 0 on the merge with master (a1cb515). PUSHED 2026-10-18; awaiting acceptance.
+**Gate:** 3645 / 0 at 743ce64, and 3671 / 0 on the merge with master (a1cb515). PUSHED 2026-10-18. ACCEPTED + CLOSED 2026-10-18 (Rob: "Accept item 97 and rebuild the installers from master.").
 
 **Not done:**
 - **The installers** built yesterday (from 2597220) don't have this change. They need rebuilding when you ask for a
