@@ -98,3 +98,7 @@ This one is small and well measured. The runaway is one behaviour on every devic
 and stopping at that marker removed all 9 runaway-caused R8 violations across the three devices (10 became 1)
 without changing any answer that didn't run away. It also settles the oddity behind item 95's Intel exclusion: that was a runaway, not
 something about the chip. Nothing here is authorised to build.
+
+## U1-U7 ruled — Rob, 2026-10-18
+
+*"I approve"* (U1-U7 as recommended). The build is not yet authorised.
