@@ -13,7 +13,7 @@ import sys
 import json
 import logging
 import threading
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from functools import wraps
 from typing import Any
@@ -3996,6 +3996,7 @@ def checkin_get():
         f['price_changes'] = [{'sentence': x['sentence'], 'payee': x['payee']} for x in _price_changes(session, today)
                               if w0.isoformat() <= x['seen_on'] <= w1.isoformat()]
         key = today.isoformat()
+        f['last_import'] = _last_import_state(_newest_import(session), datetime.utcnow())
         return ok({**f, 'date': key, 'is_sunday': today.weekday() == 6,
                    'written': _setting_json(session, f'checkin_text_{key}'),
                    'closed': bool(_setting_json(session, f'checkin_closed_{key}')),
@@ -4043,6 +4044,17 @@ def checkin_whose():
         _set_setting(session, 'payer_people', json.dumps(people))
         session.commit()
         return ok({'payer_people': people})
+
+
+def _last_import_state(newest, now):
+    """The check-in names when the newest records were downloaded, and says so when that is 48 hours or more ago -
+    the same line S1 draws for narration. More than 4 days, or none at all, and there is too little data for a review:
+    the check-in says only that (Rob 2026-10-18). newest/now are UTC; 'at' is local time, for showing."""
+    if not newest:
+        return {'at': None, 'hours': None, 'stale': True, 'too_old': True}
+    local = newest.replace(tzinfo=timezone.utc).astimezone().replace(tzinfo=None)
+    hours = (now - newest).total_seconds() / 3600
+    return {'at': local.isoformat(timespec='minutes'), 'hours': round(hours, 1), 'stale': hours >= 48, 'too_old': hours > 96}
 
 
 def _narration_rule(newest, last, now):

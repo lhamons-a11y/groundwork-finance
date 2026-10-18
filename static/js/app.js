@@ -12716,6 +12716,23 @@ function _checkinLines(f) {
   return lines;
 }
 
+// When the newest records were downloaded, and - at 48 hours or more, the line S1 draws - that the figures below may
+// be out of date. Kept apart from _checkinLines so the written part is never handed it as a figure to teach with.
+function _checkinImportLine(f) {
+  const li = f.last_import || {};
+  // more than 4 days (or never): too little data for a review - the check-in says only this (Rob 2026-10-18)
+  const none = 'Groundwork can\'t process this week\'s review because there is too little recent data. Download your transactions and the check-in will fill in.';
+  if (!li.at) return { stale: true, too_old: true, text: `No transactions have been downloaded yet. ${none}` };
+  const at = new Date(li.at);
+  const when = at.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' at '
+    + at.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  if (!li.stale) return { stale: false, too_old: false, text: `Last download: ${when}.` };
+  const days = Math.floor(li.hours / 24);
+  const ago = `Last download: ${when}, ${days} day${days !== 1 ? 's' : ''} ago.`;
+  if (li.too_old) return { stale: true, too_old: true, text: `${ago} ${none}` };
+  return { stale: true, too_old: false, text: `${ago} Nothing has been downloaded in the past 48 hours, so these figures may be out of date.` };
+}
+
 async function renderSundayCard() {
   const card    = g('dashSundayCard');
   const content = g('dashSundayContent');
@@ -12733,7 +12750,13 @@ async function renderSundayCard() {
   const whose = (f.ask_whose || []).slice(0, 1).map(p => `<div style="font-size:12px;color:var(--slate);margin-top:8px">Whose pay is ${esc(p.replace(/\b\w/g, c => c.toUpperCase()))}?
       ${(f.people || []).map(n => `<button class="btn btn-ghost btn-sm" onclick="checkinWhose('${esc(p)}', '${esc(n)}')">${esc(n)}</button>`).join('')}
       <button class="btn btn-ghost btn-sm" onclick="checkinWhose('${esc(p)}', 'Someone else')">Someone else</button></div>`).join('');
-  content.innerHTML = (written ? `<div style="margin-bottom:10px">${esc(written)}</div>` : '')
+  const imp = _checkinImportLine(f);
+  const notice = `<div style="font-size:12px;margin-bottom:8px;${imp.stale
+      ? 'color:var(--gold-text);background:var(--gold-bg);border:0.5px solid var(--gold-border);border-radius:6px;padding:6px 10px'
+      : 'color:var(--slate)'}">${esc(imp.text)}</div>`;
+  if (imp.too_old) { if (badge) badge.textContent = ''; content.innerHTML = notice; return; }   // too little data: only the notice
+  content.innerHTML = notice
+    + (written ? `<div style="margin-bottom:10px">${esc(written)}</div>` : '')
     + `<div style="${written ? 'font-size:12px;color:var(--slate);border-top:0.5px solid var(--steel);padding-top:8px' : ''}">${facts.map(l => `<div>${esc(l)}</div>`).join('')}</div>`
     + whose
     + (!written && aiEnabled() ? `<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="writeSundayCheckin(true)">Write it now</button>

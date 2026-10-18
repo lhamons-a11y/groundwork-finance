@@ -102,6 +102,35 @@ def run(ctx):
           'now.getHours() < 1 || now.getHours() > 4' in night and 'writeSundayCheckin(false)' in night
           and 'monthlyReviewAfterImport()' in night and 'monthlyReviewAfterImport()' not in ci)
 
+    # the last download, and the 48-hour notice (Rob 2026-10-18: a week with no download read as current)
+    li = [server._last_import_state(n, now) for n in (now - timedelta(hours=10), now - timedelta(hours=48), now - timedelta(days=4), None, now - timedelta(days=5))]
+    route = c.get('/api/checkin', headers=H).get_json()['data']['last_import']
+    check(f's195 the check-in carries the last download, stale at 48 hours or more and when there is none; past 4 days too old for a review ({li}, {route})',
+          [x['stale'] for x in li] == [False, True, True, True, True] and [x['too_old'] for x in li] == [False, False, False, True, True]
+          and li[3]['at'] is None and li[2]['hours'] == 96.0 and route['too_old'] is False
+          and route['stale'] is False and route['at'])
+    imp = None
+    if node:
+        js = ('function esc(s){return s}\n' + re.search(r'\nfunction _checkinImportLine\(.*?\n\}\n', app, re.S).group(0) +
+              'console.log(JSON.stringify([' + ','.join('_checkinImportLine(' + json.dumps({'last_import': x}) + ')' for x in li) + ']));')
+        fd, p = tempfile.mkstemp(suffix='.js')
+        with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+            fh.write(js)
+        try:
+            imp = json.loads(subprocess.run([node, p], capture_output=True, text=True, encoding='utf-8', timeout=60).stdout or 'null')
+        except Exception:                      # noqa: BLE001
+            imp = None
+        finally:
+            os.remove(p)
+    check(f's195 the card names the last download, and past 48 hours says the figures may be out of date, run in Node ({imp})',
+          imp is not None and imp[0]['text'].startswith('Last download: ') and 'out of date' not in imp[0]['text']
+          and '4 days ago' in imp[2]['text'] and 'past 48 hours, so these figures may be out of date' in imp[2]['text']
+          and not imp[2]['too_old'] and imp[3]['too_old'] and 'No transactions have been downloaded yet' in imp[3]['text']
+          and imp[4]['too_old'] and '5 days ago' in imp[4]['text'] and "can't process this week's review because there is too little recent data" in imp[4]['text']
+          and 'if (imp.too_old) {' in app.split('async function renderSundayCard() {')[1].split('\n}\n')[0]
+          and '_checkinImportLine(f)' in app.split('async function renderSundayCard() {')[1].split('\n}\n')[0]
+          and '_checkinImportLine' not in app.split('async function writeSundayCheckin(show) {')[1].split('\n}\n')[0])
+
     # S7 whose pay; S12 done
     w = c.post('/api/checkin/whose', headers=HJ, data=json.dumps({'payer': 'S195 Shop', 'person': 'Partner'})).get_json()['data']
     k = date.today().isoformat()
