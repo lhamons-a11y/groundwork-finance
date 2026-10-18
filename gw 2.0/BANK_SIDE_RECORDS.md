@@ -272,7 +272,7 @@ existing rulings forbid inventing one ("the implementation may not invent histor
   were mine"*, which becomes their statement today, and each answer keeps the date it was first given. Nothing is
   credited to anyone without that yes.
 
-## Stages 3 and 4 built — 2026-10-18 (B2, B3, B4, B8, B11; s236; master only) — awaiting acceptance
+## Stages 3 and 4 built — 2026-10-18 (B2, B3, B4, B8, B11; s236; master only) — ACCEPTED 2026-10-18 (Rob: "Permission granted")
 
 Rob: "go ahead stage 3 and 4". SCHEMA `20261018-household-statements` (new tables `account_banks`,
 `standing_statements`, `ledger_line_records`, `earlier_answers`, `reversal_answers`). These are the first production
