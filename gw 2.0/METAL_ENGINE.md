@@ -90,3 +90,7 @@ needs Rob's go-ahead, and M6 puts it after item 33 Q6.
   - fitting's timing test on each.
 
   That gives item 33 Q6 its processor run and M4 its evidence. It touches no app code.
+- **The kit is written** (2026-10-18): `scripts/mac_kit/` (`setup.sh`, `run.sh`, `mac_measure.py`, `README.md`) for
+  Rob's **M2 Mac mini, 8 GB**. The same Mac is item 33 Q6's 8 GB test. It calls the shipped engine's settings and stops
+  (`engine.STOP`, `install_stops`), and it was dry-run on the Windows processor: 6 of 6 answers word for word the same as
+  the measured harness. It ends in a `REPORT.txt` with no financial data, to paste back.
