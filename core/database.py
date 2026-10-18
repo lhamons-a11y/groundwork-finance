@@ -368,6 +368,77 @@ class PendingPosted(Base):
     decided_at     = Column(DateTime, nullable=True)
 
 
+class AccountBank(Base):
+    """Which bank holds an account, by the household's word (gw 2.0/BANK_SIDE_RECORDS.md B2, item 93 stage 3). A 1.x
+    index onto the 2.0 records: the bank is an institution party minted by the answering person's utterance (or the
+    one already minted, when the person names it again). Kept, never edited: the newest row is current."""
+    __tablename__ = 'account_banks'
+    id           = Column(Integer, primary_key=True)
+    account_id   = Column(Integer, nullable=False, index=True)
+    party_id     = Column(Integer, ForeignKey('parties.id'), nullable=True)   # NULL: "not a bank account"
+    utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=False)
+    name         = Column(String(120), default='')      # as the person named it - the utterance's content, repeated
+    said_at      = Column(DateTime, default=datetime.utcnow)
+
+
+class StandingStatement(Base):
+    """The importer contract (B3): the household says once, explicitly, that every debit from one account to one payee
+    as the household names it is its payment. Dated, listed, withdrawable; never invented - Groundwork may suggest one
+    after three answers, and makes it only on a yes. Withdrawing stops new lines; payments already recorded under it
+    stay, with the statement they came from."""
+    __tablename__ = 'standing_statements'
+    id                     = Column(Integer, primary_key=True)
+    account_id             = Column(Integer, nullable=False)
+    payee                  = Column(String(120), nullable=False)    # as the person named it, matched in the line
+    payee_party_id         = Column(Integer, ForeignKey('parties.id'), nullable=True)
+    utterance_id           = Column(Integer, ForeignKey('utterances.id'), nullable=False)
+    said_at                = Column(DateTime, default=datetime.utcnow)
+    withdrawn_at           = Column(DateTime, nullable=True)
+    withdrawn_utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+
+
+class LedgerLineRecord(Base):
+    """What the household has said a ledger line is, in the 2.0 records (B3, B4, B8, B11; item 93 stages 3-4). A 1.x
+    index, never an identity: the line's movement proposition (the bank's line as the household relayed it), the
+    payment the household's statement minted, and the expense when one was named. One payment per line."""
+    __tablename__ = 'ledger_line_records'
+    id             = Column(Integer, primary_key=True)
+    transaction_id = Column(Integer, nullable=False, index=True)    # no foreign key: a set-aside line keeps its record
+    movement_id    = Column(Integer, ForeignKey('propositions.id'), nullable=True)
+    payment_id     = Column(Integer, ForeignKey('payments.id'), nullable=True)
+    expense_id     = Column(Integer, ForeignKey('expenses.id'), nullable=True)
+    utterance_id   = Column(Integer, ForeignKey('utterances.id'), nullable=False)
+    via            = Column(String(20), default='line')   # line | standing | care | debt | reimburse | reversal
+    standing_id    = Column(Integer, nullable=True)
+    created_at     = Column(DateTime, default=datetime.utcnow)
+
+
+class EarlierAnswer(Base):
+    """A kept 1.x answer (care-for, "attach as debt payment", a reimbursement match) carried into the 2.0 records (B11).
+    An answer given before Groundwork recorded who gave it is carried only once a person confirms it was theirs (Rob
+    2026-10-18: confirm them once) - their statement today, with the answer's own date kept as when it was first said;
+    one given while someone is answering is carried at once as theirs. Nothing is credited to anyone without that."""
+    __tablename__ = 'earlier_answers'
+    id           = Column(Integer, primary_key=True)
+    source       = Column(String(20), nullable=False)        # care | debt | reimburse
+    source_id    = Column(Integer, nullable=False)
+    utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=False)
+    first_said   = Column(String(19), nullable=True)
+    confirmed_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ReversalAnswer(Base):
+    """A money-in line Groundwork suggested may undo an earlier charge (B8), and the person's answer. A yes is the
+    household's claim (payment_counteracts); a no is kept so the pair isn't asked again. Nothing is netted off."""
+    __tablename__ = 'reversal_answers'
+    id           = Column(Integer, primary_key=True)
+    credit_id    = Column(Integer, nullable=False)
+    debit_id     = Column(Integer, nullable=False)
+    answer       = Column(String(4), nullable=False)        # yes | no
+    utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+    answered_at  = Column(DateTime, default=datetime.utcnow)
+
+
 class CheckingTransactionLink(Base):
     """
     Explicit link between a checking-account payment (Transaction) and a debt

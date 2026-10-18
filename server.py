@@ -1139,6 +1139,192 @@ def care_for_get(transaction_id):
                    'people': [x for x in people.listing(session)['people'] if x['active']] if health else []})
 
 
+# ── Item 93 stages 3-4 (BANK_SIDE_RECORDS.md B2-B4, B8, B11): the household's statements in the 2.0 records ──────
+# Every route that mints answers `need_speaker` (409) when no one has said who is answering; the page asks once and
+# tries again (Rob 2026-10-18). Nothing here changes a total.
+
+def _statement(fn):
+    """Run a statement. NeedSpeaker and NeedBank become 409s the page answers by asking (who is answering; which bank
+    holds the line's account) and trying again. Nothing is kept from the attempt: its session is never committed."""
+    from core import household_statements as hs
+    try:
+        return fn()
+    except hs.NeedSpeaker:
+        return err(hs.NEED_SPEAKER_TEXT, 409)
+    except hs.NeedBank as e:
+        return jsonify({'ok': False, 'error': str(e), 'need_bank': {'account_id': e.account_id, 'account': e.account,
+                                                                    'candidate': e.candidate}}), 409
+
+
+@accounts_bp.route('/speaker', methods=['GET'])
+def speaker_get():
+    from core import household_statements as hs, people
+    with db_session() as session:
+        return ok({**hs.speaker_view(session), 'people': [x for x in people.listing(session)['people'] if x['active']],
+                   'offer': people.listing(session)['offer']})
+
+
+@accounts_bp.route('/speaker', methods=['POST'])
+@require_json
+def speaker_set():
+    """{person_id} or {name}: who is answering on this computer, remembered until changed."""
+    from core import household_statements as hs, people
+    body = request.json or {}
+    with db_session() as session:
+        pid = body.get('person_id')
+        if not pid and (body.get('name') or '').strip():
+            p, problem = people.add(session, body.get('name'))
+            if problem:
+                return err(problem)
+            pid = p.id
+        p, problem = hs.set_speaker(session, pid)
+        if problem:
+            return err(problem)
+        session.commit()
+        return ok(hs.speaker_view(session))
+
+
+@accounts_bp.route('/banks', methods=['GET'])
+def banks_get():
+    from core import household_statements as hs
+    with db_session() as session:
+        return ok(hs.bank_questions(session))
+
+
+@accounts_bp.route('/banks/<int:account_id>', methods=['POST'])
+@require_json
+def banks_say(account_id):
+    """B2: {name} - "this account is at NAME" - or {not_a_bank: true}."""
+    from core import household_statements as hs
+    body = request.json or {}
+
+    def go():
+        with db_session() as session:
+            row, problem = hs.say_bank(session, account_id, body.get('name'), bool(body.get('not_a_bank')))
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok(hs.bank_questions(session))
+    return _statement(go)
+
+
+@accounts_bp.route('/line-statement/<int:txn_id>', methods=['GET'])
+def line_statement_get(txn_id):
+    from core import household_statements as hs
+    with db_session() as session:
+        return ok(hs.line_view(session, txn_id))
+
+
+@accounts_bp.route('/line-statement/<int:txn_id>', methods=['POST'])
+@require_json
+def line_statement_say(txn_id):
+    """B3, one line at a time: {payee} - "that was my payment to PAYEE"."""
+    from core import household_statements as hs
+    body = request.json or {}
+
+    def go():
+        with db_session() as session:
+            rec, problem = hs.say_payment(session, txn_id, body.get('payee'))
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok(hs.line_view(session, txn_id))
+    return _statement(go)
+
+
+@accounts_bp.route('/standing', methods=['GET'])
+def standing_get():
+    from core import household_statements as hs
+    with db_session() as session:
+        args = request.args
+        preview = None
+        if args.get('account_id') and args.get('payee'):
+            preview = len(hs.covered_lines(session, int(args['account_id']), args['payee']))
+        return ok({'standing': hs.standing_list(session), 'covers': preview})
+
+
+@accounts_bp.route('/standing', methods=['POST'])
+@require_json
+def standing_say():
+    """B3, the importer contract: {account_id, payee} - "treat every debit from this account to PAYEE as my payment"."""
+    from core import household_statements as hs
+    body = request.json or {}
+
+    def go():
+        with db_session() as session:
+            st, n, problem = hs.say_standing(session, body.get('account_id'), body.get('payee'))
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok({'id': st.id, 'payments': n, 'standing': hs.standing_list(session)})
+    return _statement(go)
+
+
+@accounts_bp.route('/standing/<int:sid>/withdraw', methods=['POST'])
+def standing_withdraw(sid):
+    from core import household_statements as hs
+
+    def go():
+        with db_session() as session:
+            st, problem = hs.withdraw_standing(session, sid)
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok({'standing': hs.standing_list(session)})
+    return _statement(go)
+
+
+@accounts_bp.route('/reversals', methods=['GET'])
+def reversals_get():
+    from core import household_statements as hs
+    with db_session() as session:
+        return ok({'candidates': hs.reversal_candidates(session)})
+
+
+@accounts_bp.route('/reversals', methods=['POST'])
+@require_json
+def reversals_answer():
+    """B8: {credit_id, debit_id, answer: yes | no}. A yes is the household's claim that the money-in line undoes the
+    charge; nothing is netted off. A no is kept so the pair isn't asked again."""
+    from core import household_statements as hs
+    body = request.json or {}
+    if body.get('answer') not in ('yes', 'no'):
+        return err('answer yes or no')
+
+    def go():
+        with db_session() as session:
+            row, problem = hs.answer_reversal(session, body.get('credit_id'), body.get('debit_id'), body['answer'] == 'yes')
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok({'candidates': hs.reversal_candidates(session)})
+    return _statement(go)
+
+
+@accounts_bp.route('/earlier-answers', methods=['GET'])
+def earlier_answers_get():
+    from core import household_statements as hs
+    with db_session() as session:
+        return ok({'answers': hs.earlier(session), **hs.speaker_view(session)})
+
+
+@accounts_bp.route('/earlier-answers', methods=['POST'])
+@require_json
+def earlier_answers_confirm():
+    """B11 (Rob 2026-10-18: confirm them once): {items: [{source, source_id}]} - "these were mine"."""
+    from core import household_statements as hs
+    body = request.json or {}
+
+    def go():
+        with db_session() as session:
+            n, problem = hs.confirm_earlier(session, body.get('items') or [])
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok({'confirmed': n, 'answers': hs.earlier(session)})
+    return _statement(go)
+
+
 @accounts_bp.route('/care-for', methods=['POST'])
 @require_json
 def care_for_set():
@@ -1150,15 +1336,28 @@ def care_for_set():
             n, problem = people.assign_many(session, body.get('ids'), body.get('person_id'))
             if problem:
                 return err(problem)
+            _carry_care(session, body.get('ids') or [])
             session.commit()
             return ok({'assigned': n})
         row, problem = people.assign(session, body.get('transaction_id'), body.get('person_id'))
         if problem:
             return err(problem)
+        _carry_care(session, [body.get('transaction_id')])
         session.commit()
         tid = int(body.get('transaction_id'))
         return ok({'person_id': people.current(session, tid), 'history': people.history(session, tid),
                    'offer': people.same_payee_offer(session, tid) if body.get('person_id') not in (None, '', 'household') else None})
+
+
+def _carry_care(session, ids):
+    """Item 93 B11: a care-for answer given while someone is answering is their statement at once; otherwise it waits
+    among the earlier answers to confirm."""
+    from core import household_statements as hs
+    from core.database import CareFor
+    for tid in ids:
+        row = session.query(CareFor).filter_by(transaction_id=int(tid or 0)).order_by(CareFor.id.desc()).first()
+        if row is not None and row.person_id is not None:
+            hs.carry_new(session, 'care', row.id)
 
 
 @accounts_bp.route('/health-providers', methods=['GET'])
@@ -4236,6 +4435,9 @@ def _reimburse_do(fn, *args):
         if problem:
             session.rollback()
             return err(problem, 400)
+        if fn == 'match' and isinstance(res, dict) and res.get('match'):
+            from core import household_statements as _hs
+            _hs.carry_new(session, 'reimburse', res['match'])     # item 93 B11, when someone is answering
         session.commit()
         return ok({'result': res if isinstance(res, dict) else {'id': getattr(res, 'id', None)},
                    'items': reimburse.state(session)})
@@ -8041,12 +8243,17 @@ def create_debt_ledger_entry(debt_id):
                 session.rollback()
                 return err('That checking transaction is already linked to a debt entry')
             entry.linked_checking_transaction_id = linked_txn_id
-            session.add(CheckingTransactionLink(
+            _new_link = CheckingTransactionLink(
                 checking_transaction_id=linked_txn_id,
                 debt_ledger_entry_id=entry.id,
                 link_indicator='payment_to_card' if entry_type == 'payment' else 'charge_from_card',
                 user_confirmed_at=datetime.utcnow(),
-            ))
+            )
+            session.add(_new_link)
+            if entry_type == 'payment':                  # item 93 B11: the household's statement, when someone is answering
+                session.flush()
+                from core import household_statements as _hs
+                _hs.carry_new(session, 'debt', _new_link.id)
 
         _apply_ledger_balance_effect(debt, entry, sign=1)
         if entry_type == 'charge':
@@ -8447,12 +8654,16 @@ def link_checking_txn_to_debt(txn_id):
         )
         session.add(entry)
         session.flush()
-        session.add(CheckingTransactionLink(
+        _new_link = CheckingTransactionLink(
             checking_transaction_id=txn_id,
             debt_ledger_entry_id=entry.id,
             link_indicator='payment_to_card',
             user_confirmed_at=datetime.utcnow(),
-        ))
+        )
+        session.add(_new_link)
+        session.flush()
+        from core import household_statements as _hs
+        _hs.carry_new(session, 'debt', _new_link.id)     # item 93 B11: the household's statement, when someone is answering
         _apply_ledger_balance_effect(debt, entry, sign=1)
         session.commit()
         return ok(serialize_debt_ledger_entry(entry), status=201)
@@ -15372,6 +15583,11 @@ def bank_import_commit():
         # historical event, recorded whether or not its source is ever kept.
         # Inside this transaction, so it exists exactly when the import does.
         # A fact ABOUT the file - never its bytes, never an Artefact (C3).
+        # Item 93 B3: each new debit a standing statement covers becomes a payment by that statement.
+        from core import household_statements as _hs
+        session.flush()
+        standing_paid = _hs.apply_standing(session, session.query(Transaction).filter(
+            Transaction.import_batch == batch, Transaction.type == 'debit').all())
         _log_import_committed(session, source, account_id, acct_name, records,
                               created, duplicates, errors, held=len(held_rows))
         if _tidy_unmatched:                              # item 83 T4: asked about on the tidy card, never silent
@@ -15637,6 +15853,7 @@ def bank_import_commit():
         'errors':     errors,
         'batch':      batch,
         'pending_paired': pairs_made,    # item 93 B9
+        'standing_payments': standing_paid,   # item 93 B3
     }
     if pairs_asked:                      # item 93 B9
         with db_session() as session:
