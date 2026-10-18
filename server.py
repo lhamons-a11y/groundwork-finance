@@ -909,10 +909,39 @@ def delete_transaction(txn_id):
         txn = session.get(Transaction, txn_id)
         if not txn:
             return err('Transaction not found', 404)
-        _unlink_debt_for_deleted_transaction(session, txn_id)
-        session.delete(txn)
+        # Item 93 B7: deleting hides; it never destroys. Set aside whole, debt link remembered, restorable.
+        from core import import_custody as ic
+        sa = ic.set_aside(session, txn, reason=str((request.get_json(silent=True) or {}).get('reason') or ''))
         session.commit()
-        return ok({'deleted': txn_id})
+        return ok({'deleted': txn_id, 'set_aside': sa.id})
+
+
+@transactions_bp.route('/set-aside', methods=['GET'])
+def set_aside_get():
+    from core import import_custody as ic
+    with db_session() as session:
+        return ok({'set_aside': ic.set_aside_list(session), 'batches': ic.batches(session)})
+
+
+@transactions_bp.route('/set-aside/<int:sa_id>/restore', methods=['POST'])
+def set_aside_restore(sa_id):
+    from core import import_custody as ic
+    with db_session() as session:
+        txn, problem = ic.restore(session, sa_id)
+        if problem:
+            return err(problem)
+        session.commit()
+        return ok({'restored': txn.id})
+
+
+@transactions_bp.route('/import-batches/<batch>/set-aside', methods=['POST'])
+def import_batch_set_aside(batch):
+    """Item 93 B7: a mistaken import, set aside as a batch - every line restorable."""
+    from core import import_custody as ic
+    with db_session() as session:
+        n = ic.set_aside_batch(session, batch)
+        session.commit()
+        return ok({'set_aside': n})
 
 
 @transactions_bp.route('/bulk-clear', methods=['POST'])
@@ -14991,7 +15020,7 @@ def _import_source_file(raw):
 
 
 def _log_import_committed(session, source, account_id, account_name, records,
-                          created, duplicates, errors):
+                          created, duplicates, errors, held=0):
     """H1: one 'import_committed' Historian event per commit. The context is a fixed set of
     keys - what was imported, from which file, into which account - and never the file's
     content. Read by nothing that builds a model prompt (s127 pins it)."""
@@ -15006,10 +15035,71 @@ def _log_import_committed(session, source, account_id, account_name, records,
         'records':        len(records),
         'created':        created,
         'duplicates':     duplicates,
+        'held':           held,          # item 93 B5: look-alikes held for the person, never dropped
         'errors':         errors,
         'first_date':     dates[0] if dates else None,
         'last_date':      dates[-1] if dates else None,
     })
+
+
+def _import_insert(session, account_id, rec, batch):
+    """One line, inserted exactly as the import commit does - used for a held line brought in on a yes (item 93 B5)."""
+    try:
+        txn_date = date.fromisoformat(rec['date'])
+        amount = abs(float(rec.get('amount', 0)))
+        description = (rec.get('description') or '').strip()
+        cat_name = rec.get('category', 'Other')
+        cat = session.query(Category).filter(func.lower(Category.name) == cat_name.lower()).first() \
+            or session.query(Category).filter(func.lower(Category.name) == 'other').first()
+        posted_raw = rec.get('posted_date')
+        t = Transaction(account_id=account_id, category_id=cat.id if cat else None, date=txn_date,
+                        description=description, amount=amount, type=rec.get('type', 'debit'),
+                        cleared=bool(rec.get('cleared', True)), memo=rec.get('memo', ''),
+                        merchant=rec.get('merchant', '') or description,
+                        posted_date=date.fromisoformat(posted_raw) if posted_raw else txn_date,
+                        running_balance=rec.get('running_balance'), mcc=rec.get('mcc', ''),
+                        card_last4=rec.get('card_last4', ''), import_id=(rec.get('fitid') or '').strip(),
+                        source=rec.get('source', 'csv'), check_number=rec.get('check_number', ''), import_batch=batch)
+        session.add(t)
+        session.flush()
+        return t
+    except Exception:
+        return None
+
+
+@bank_import_bp.route('/held', methods=['GET'])
+def import_held_list():
+    """Item 93 B5: lines imports held back because they only looked like ones already here."""
+    from core import import_custody as ic
+    with db_session() as session:
+        return ok({'held': ic.held_list(session)})
+
+
+@bank_import_bp.route('/held/batch', methods=['POST'])
+@require_json
+def import_held_resolve_batch():
+    """{batch, answer} - one decision for every line one import held back (the listed set, on the person's yes)."""
+    from core import import_custody as ic
+    body = request.json or {}
+    with db_session() as session:
+        n, problem = ic.resolve_batch(session, str(body.get('batch') or ''), body.get('answer'), _import_insert)
+        if problem:
+            return err(problem)
+        session.commit()
+        return ok({'resolved': n, 'held': ic.held_list(session)})
+
+
+@bank_import_bp.route('/held/<int:held_id>', methods=['POST'])
+@require_json
+def import_held_resolve(held_id):
+    """{answer: 'bring_in' | 'same'} - only the person decides; the held line stays on record with the decision."""
+    from core import import_custody as ic
+    with db_session() as session:
+        h, problem = ic.resolve(session, held_id, (request.json or {}).get('answer'), _import_insert)
+        if problem:
+            return err(problem)
+        session.commit()
+        return ok({'resolved': h.resolved, 'brought_in_id': h.brought_in_id, 'held': ic.held_list(session)})
 
 
 @bank_import_bp.route('/commit', methods=['POST'])
@@ -15043,6 +15133,10 @@ def bank_import_commit():
     records = _normalize_record_order(records)
 
     created = duplicates = errors = 0
+    import uuid as _uuid
+    from core import import_custody as _ic
+    batch = _uuid.uuid4().hex          # item 93 B7: this import's lines, together
+    held_rows = []                     # item 93 B5: look-alikes held back, never dropped
     # BUG FIX (July 6): tracks (amount, type) for every transaction actually
     # created in THIS import batch — needed below because the debt-balance
     # auto-update only ever trusted the bank's own reported running_balance
@@ -15115,20 +15209,24 @@ def bank_import_commit():
                         Transaction.account_id == account_id,
                         Transaction.import_id  == fitid,
                     ).first()
-                if not existing:
-                    candidates = session.query(Transaction).filter(
-                        Transaction.account_id == account_id,
-                        Transaction.date       == txn_date,
-                        Transaction.type       == txn_type,
-                        Transaction.amount.between(amount - 0.005, amount + 0.005),
-                    ).all()
-                    existing = next(
-                        (c for c in candidates if _descriptions_match_fuzzy(c.description, description)),
-                        None,
-                    )
-
                 if existing:
+                    # The bank's own id: the bank says this is the same line, imported again.
                     duplicates += 1
+                    continue
+                candidates = session.query(Transaction).filter(
+                    Transaction.account_id == account_id,
+                    Transaction.date       == txn_date,
+                    Transaction.type       == txn_type,
+                    Transaction.amount.between(amount - 0.005, amount + 0.005),
+                ).all()
+                look_alike = next(
+                    (c for c in candidates if _descriptions_match_fuzzy(c.description, description)
+                     and not _ic.bank_says_different(c, fitid)),
+                    None,
+                )
+                if look_alike:
+                    # Item 93 B5: similarity proposes, it never decides - held back and shown, never dropped.
+                    held_rows.append(_ic.hold(session, account_id, rec, look_alike, batch).id)
                     continue
 
                 # Category — resolve against the existing taxonomy, NEVER
@@ -15176,6 +15274,7 @@ def bank_import_commit():
                     import_id=fitid,   # FITID from QFX — enables exact dedup on reimport
                     source=rec.get('source', 'csv'),
                     check_number=rec.get('check_number', ''),
+                    import_batch=batch,          # item 93 B7
                 )
                 session.add(_new_txn)
                 if cat_name and cat_name.strip() in _tidy_unmatched:
@@ -15193,7 +15292,7 @@ def bank_import_commit():
         # Inside this transaction, so it exists exactly when the import does.
         # A fact ABOUT the file - never its bytes, never an Artefact (C3).
         _log_import_committed(session, source, account_id, acct_name, records,
-                              created, duplicates, errors)
+                              created, duplicates, errors, held=len(held_rows))
         if _tidy_unmatched:                              # item 83 T4: asked about on the tidy card, never silent
             _kept = _setting_json(session, 'import_unmatched_json', []) or []
             for _n, _ids in _tidy_unmatched.items():
@@ -15455,7 +15554,12 @@ def bank_import_commit():
         'created':    created,
         'duplicates': duplicates,
         'errors':     errors,
+        'batch':      batch,
     }
+    if held_rows:                      # item 93 B5
+        with db_session() as session:
+            from core.database import ImportHeldLine
+            result['held'] = _ic.held_views(session, [session.get(ImportHeldLine, i) for i in held_rows])
     if apr_alerts:
         result['apr_alerts'] = apr_alerts
     if balance_updates:

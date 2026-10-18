@@ -12,7 +12,8 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261017-named-people'   # item 92: the care_for table (create_all) + health_plan_readings.person_id
+SCHEMA_VERSION = '20261017-import-custody'   # item 93 stage 1 (BANK_SIDE_RECORDS.md B5/B7): set_aside_transactions + import_held_lines (create_all) + transactions.import_batch
+# Before it, '20261017-named-people'   # item 92: the care_for table (create_all) + health_plan_readings.person_id
 # Before it, '20261016-care-answers' (item 89: the care_answers table, through init_db's create_all).
 # Before it, '20261015-plan-year' (item 87: health_plan_readings + health_plan_term_versions.tier).
 # Before it, '20261014-hsa-fsa' (item 86: the health_account_terms table, through init_db's create_all).
@@ -42,12 +43,12 @@ SCHEMA_VERSION = '20261017-named-people'   # item 92: the care_for table (create
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = '1fc2524edea123c356f760e31cce9501c83a9f37aaa3f47aeac74579bd60693f'
+SCHEMA_SPEC_SHA256 = '2ee77f6da23aab10610ad7ae0e3e940a10157d186e94ddaf4f10e92b54b31aed'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = '8deadd98fcaf119aad078b62ef1205c6373ff6fcbd92c5f4fee00b92eee90b50'
+SCHEMA_MODELS_SHA256 = 'f4397ad04bf3dd48367d61a810687831741b7b740f3d0635ebc8bdf2aa210b99'
 
 
 def _stored_schema_version():
@@ -71,6 +72,7 @@ _NEW_TRANSACTION_COLUMNS = [
     ('source',          "VARCHAR(10) DEFAULT ''"),
     ('import_id',       "VARCHAR(64)  DEFAULT ''"),
     ('check_number',    "VARCHAR(20)  DEFAULT ''"),
+    ('import_batch',    "VARCHAR(36)"),          # item 93 B7
 ]
 
 _NEW_DEBT_COLUMNS = [
