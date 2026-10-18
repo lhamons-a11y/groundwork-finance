@@ -347,3 +347,108 @@ build"):
   and 9.5 s whole, R8 clean.
 - **Still owed:** not installed on a clean machine, and the R-c proofs (§ "Not done") still stand. Users don't have
   these installers.
+
+## The pre-release voice A/B, 2026-10-17 ("Not done" 1, G4 / G4′ (a)) — measured, and brought back for ruling
+
+**Summary.** Both graphics chips on this laptop were run through the voice A/B: 20 seeds × 6 cases through `CASES` and
+`check()`, at the shipped settings (2048 context, batch 256, f16 cache, no mmap, flash off, temperature 0.3,
+`n_gpu_layers=-1`, one chip per process by `GGML_VK_VISIBLE_DEVICES`, the run-time backends loaded first, one untimed
+warm-up). Read against the rule as written (R8 0/120, gate pass within noise of 38/120), **both families fail on R8 at
+512 tokens and pass at item 31's 300**. But the processor control, run on the same harness in the same session, fails
+R8 too: 4/120 at 512 tokens and 2/120 at 300. The processor's 0/120 reference doesn't reproduce on today's tree, under
+any setting tried. So the rule can't be applied as written, because it would exclude the processor as well. The
+verdict is brought back to Rob (G4″ below). No engine code was changed.
+
+Every graphics chip's R8 failure is the same thing the processor does: **the answer doesn't end.** The model writes
+a clean narration, then carries on past it into a made-up new instruction ("You write a comprehensive…", "Craft a
+detailed…", a second "GROUNDWORK VOICE —" answer, new "Computed facts:"), and the invented figures are in that tail.
+The graphics chips don't invent figures inside the narration itself. One processor failure is in the narration: a
+"~$3,000" total interest it worked out itself, seed 4 at 512 and call 14 at 300.
+
+**At 512 tokens** (the brief's harness: `voice_discipline_test.py`'s `max_tokens=512`, `set_seed(seed)` with seeds
+1–20 per case; also exactly fitting's R8 check, `R8_MAX_TOKENS = 512`, seed 1):
+
+| device | gate pass | R8 violations | z vs 38/120 | time |
+|---|---:|---:|---:|---:|
+| processor (same harness, control) | 39/120 | **4/120** | +0.1 | 942 s |
+| NVIDIA RTX A1000 | 37/120 | **2/120** | −0.1 | 347 s |
+| Intel Iris Xe | 33/120 | **4/120** | −0.7 | 792 s |
+
+The invented figures, each with its seed, its case and where it sits:
+- **NVIDIA:**
+  - seed 3, `mixed_movement`: 1, 1.2, 5, 5.5, 500, 550, 6, 6.5, 6.7, 600, 650, 660, 7, 7.5, 700, 750. The tail: an
+    "Atlas Investments" quarterly-revenue prompt with Q1 $5M … Q4 $5.7M.
+  - seed 14, `verified_debt_progress`: 15, 500. The tail: "You write a comprehensive, empathetic…".
+- **Intel:**
+  - seed 1, `mixed_movement`: 50. The tail: "You are a meticulous, compassionate, yet stern financial counselor…". This is
+    the exact figure fitting found, reproduced.
+  - seed 2, `verified_debt_progress`: 200, 5, 5000. The tail: a second "GROUNDWORK VOICE —" answer, then "You write
+    an intricate…".
+  - seed 11, `verified_debt_progress`: 10, 2. The tail: "You write a comprehensive, data-driven narrative…".
+  - seed 11, `mixed_movement`: 10000, 20, 200, 5. The tail: "You write an in-depth… narrative for Prosperity".
+- **Processor:**
+  - seed 4, `verified_debt_progress`: 3000. In the answer: "the total interest paid over the six-month period
+    (~$3,000)".
+  - seed 6, `mixed_movement`: 100. The tail: "You write an in-depth, warm…".
+  - seed 7, `verified_debt_progress`: 2. The tail repeats the answer as "GROUNDWORK VOICE —" twice with an invented
+    "COMPUTED FACTS" between, and the cap cuts the last "$2,400" to "$2".
+  - seed 9, `verified_debt_progress`: 0.75, 5, 5000. The tail: invented new "Computed facts:" lines.
+
+**At 300 tokens** (item 31's harness, `llm_model_eval.py`: `max_tokens=300`, a new seed per call, 1–120):
+
+| device | gate pass | R8 violations | z vs 38/120 | stopped at the cap |
+|---|---:|---:|---:|---:|
+| processor (same harness, control) | 36/120 | **2/120** | −0.3 | 7 |
+| NVIDIA RTX A1000 | 37/120 | 0/120 | −0.1 | 6 |
+| Intel Iris Xe | 35/120 | 0/120 | −0.4 | 1 |
+
+- The processor's two:
+  - call 14, `verified_debt_progress`: 3000, the same "~$3,000" in the answer;
+  - call 17, `verified_debt_progress`: 20, from a tail with "a hypothetical average interest rate of 20%".
+- The runaways still happen at 300 tokens. The cap just cuts most of them off before a figure appears.
+
+**Gate pass is within noise on every device and both harnesses** (|z| ≤ 0.7 against 38/120; one standard deviation
+of a 120-answer rate here is about 5 answers). The rules that fail are the same everywhere, in about the same numbers:
+R3 (smuggled inference, 62–73) and R4 (command or cheer, 38–46). `verified_debt_progress` and `spending_jargon_trap`
+almost never pass on any device (0–1/20), and `unverified_balance` almost always does (15–20/20).
+
+**Why the processor's 0/120 doesn't reproduce.** Every difference I could name was ruled out by running it:
+- **Context:** 4096 and 2048 give the same 120 answers, word for word.
+- **Batch:** 512 and 256 give the same 120 answers.
+- **Build:** the published CPU wheel and the item 95 Vulkan wheel, run on the processor, give the same 120 answers.
+- **Prompt:** `GW_VOICE` is unchanged since item 31 (`voice_rules.json` has only gained R11's research list, which R8
+  doesn't read).
+
+So the 2026-10-02 run must have differed in something not recorded, most likely its seeding. The reference should be
+taken as **the processor control measured beside each A/B**, not the number in `core/engine.py`'s comment.
+
+**What this means for fitting (G4′ (a)).** Fitting reads R8 on six answers from a chip and none from the processor.
+At the rates measured here, a single six-case check flags **any** device, the processor included, about **18%** of the
+time at 4/120 (1 − (29/30)⁶) and about 10% at 2/120. The Intel exclusion on this laptop came from that kind of
+check: its seed-1 `mixed_movement` tail is one of its four in 120, and the processor runs away at the same kind of
+rate on other seeds. So fitting's check isn't telling a worse chip from a better one; it's a draw on the runaway.
+This is the null-model trap the earlier heuristics fell into.
+
+**What a user sees.** `server.py` passes no stop strings, so a runaway reaches the app. The narration path
+(`app.js`, the per-sentence `_voiceGateCheck`) withdraws the answer at the first sentence that fails. The invented
+figures are caught before they're shown, but a runaway is a rewritten answer, and sentences before the figure (some of
+them the made-up instruction) may already be on screen. Callers send caps from 80 to 1000 tokens, so most get the
+512-token behaviour, not the 300.
+
+**AMD is not measured.** No AMD chip here. A Radeon card or a Ryzen built-in chip goes through the same Vulkan path
+and needs its own A/B (Rob, 2026-10-17: a tester's machine once the health work and 2.0 are done).
+
+**G4″ (for ruling):**
+- **(a)** Judge each graphics family **against the processor measured beside it**, on the same harness at 512 tokens:
+  R8 no worse than the processor's, and gate pass within noise. On that reading, NVIDIA (2 vs 4) and Intel (4 vs 4)
+  both pass, and both families are admissible. *Recommended*, together with (c).
+- **(b)** Keep R8 0/120 as an absolute bar. Then no device qualifies, the processor included, and the narrator itself
+  fails its own release bar.
+- **(c)** Treat the runaway as its own defect, on every device. Stop the answer at the model's end of turn and at a
+  line that starts a new instruction, then rerun this A/B on all three. That is engine code and needs authorising; it
+  is not done here.
+- With (a), fitting's six-case R8 read should either compare against the processor's own six or be dropped in favour
+  of the pre-release A/B. As it stands it excludes chips at random.
+
+Raw answers (every seed, case, text, rule failures and finish reason) are kept with the session notes:
+`side-session-notes/local_d42ec9c4-…/gpu_ab_2026-10-17/`.
