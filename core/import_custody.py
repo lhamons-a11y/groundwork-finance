@@ -81,6 +81,8 @@ def restore(session, set_aside_id):
             link = _unrow(CheckingTransactionLink, dict(ln, id=None, checking_transaction_id=txn.id))
             session.add(link)
     sa.restored_at = datetime.utcnow()
+    from core import bank_versions
+    bank_versions.undone_by_restore(session, sa.id)     # item 93 B9: a restored pending line counts again
     session.flush()
     return txn, None
 

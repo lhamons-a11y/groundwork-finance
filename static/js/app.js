@@ -4574,7 +4574,7 @@ function _ledgerRowHTML(t) {
     <div class="row-check"><input type="checkbox" class="txn-check" data-id="${t.id}" onclick="event.stopPropagation();_onTxnCheckChange()"></div>
     <div><div class="cat-icon" style="background:${iconBg};border-color:${iconBorder};color:${catStyle.color}">${_renderCatIcon(catStyle.icon, catStyle.color, 18)}</div></div>
     <div class="cell-date">${fmtDate(t.date)}</div>
-    <div class="cell-desc" title="${esc(fullDesc)}">${esc(primary)}${debtLinkIcon}${sub ? `<div class="merchant-sub">${esc(sub)}</div>` : ''}</div>
+    <div class="cell-desc" title="${esc(fullDesc)}">${t.pending ? '<span class="badge" style="margin-right:6px;font-size:10px;color:var(--slate);border:0.5px solid var(--steel-2);border-radius:var(--r-sm);padding:0 4px" title="The bank\'s file said this line was still pending">pending</span>' : ''}${t.corrected || t.was_pending ? `<span style="margin-right:5px;color:var(--slate);font-size:11px" title="${t.corrected ? 'You corrected this line. Double-click to see the earlier versions.' : 'This line was pending first. Double-click to see both.'}">✎</span>` : ''}${esc(primary)}${debtLinkIcon}${sub ? `<div class="merchant-sub">${esc(sub)}</div>` : ''}</div>
     <div class="cell-account">${esc(acctMain)}${acctTail ? `<span class="acct-suffix">${esc(acctTail)}</span>` : ''}</div>
     <div class="cell-cat"><span class="cat-dot" style="background:${catStyle.color}"></span><span class="cat-name">${esc(t.category||'Other')}</span></div>
     <div class="cell-amount ${sign}">${prefix}${fmtD(t.amount)}</div>
@@ -4698,6 +4698,7 @@ function _openEditBloom(row) {
     </div>
 
     <div class="bloom-care"></div>
+    <div class="bloom-versions"></div>
 
     <div class="bloom-actions">
       <button class="danger" data-act="delete">Delete transaction</button>
@@ -4735,6 +4736,7 @@ function _openEditBloom(row) {
 
   row.parentNode.insertBefore(bloom, row.nextSibling);
   _careForSlot(bloom, id);     // item 92 N4: a health payment can say whom it was for
+  _versionsSlot(bloom, id);    // item 93 B6/B9: the bank's version and every correction, kept beside it
 
   bloom.querySelector('[data-act=cancel]').addEventListener('click', e => { e.stopPropagation(); cancelRowEdit(); });
   bloom.querySelector('[data-act=save]'  ).addEventListener('click', e => { e.stopPropagation(); saveRowEdit(id); });
@@ -6574,6 +6576,7 @@ async function confirmImport() {
     // toggle-cleared afterward.
     const refreshed = await _refreshTransactionsFromServer();
     _showHeldAfterImport(data && data.held);   // item 93 B5: held back, never dropped
+    _showPendingAfterImport(data);             // item 93 B9: pending and posted, both kept
     if (refreshed) {
       // Auto-run dedup bot silently after every import — catches any
       // duplicates that slipped through the server-side dedup check
@@ -23854,9 +23857,12 @@ async function renderImportCustody() {
   let held = [], st = { set_aside: [], batches: [] };
   try { held = ((await API.get('/api/import/held')) || {}).held || []; } catch (e) { _gwErr('held lines')(e); }
   try { st = (await API.get('/api/transactions/set-aside')) || st; } catch (e) { _gwErr('set aside')(e); }
+  let pairs = [];
+  try { pairs = ((await API.get('/api/import/pending-pairs')) || {}).pairs || []; } catch (e) { _gwErr('pending pairs')(e); }
   const line = (x, btns) => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--steel-2);font-size:12px">
       <span style="flex:1;color:var(--ink)">${esc(x.date || '')} · ${esc(x.description || '')} <span style="font-family:var(--font-mono)">${fmt(x.amount || 0)}</span>
         ${x.account ? `<span style="color:var(--slate)"> · ${esc(x.account)}</span>` : ''}
+        ${x.reason ? `<div style="font-size:11px;color:var(--slate)">${esc(x.reason)}</div>` : ''}
         ${x.looks_like ? `<div style="font-size:11px;color:var(--slate)">Looks like: ${esc(x.looks_like.date || '')} · ${esc(x.looks_like.description || '')} ${fmt(x.looks_like.amount || 0)}</div>` : ''}</span>${btns}</div>`;
   host.innerHTML = `<div class="card mb-4">
       <div class="card-label">Lines kept safe</div>
@@ -23871,6 +23877,8 @@ async function renderImportCustody() {
       ${held.length ? held.map(h => line(h, `<button class="btn btn-sm btn-secondary" onclick="_heldResolve(${h.id}, 'bring_in')">Bring it in</button>
           <button class="btn btn-sm btn-ghost" onclick="_heldResolve(${h.id}, 'same')">It's the same</button>`)).join('')
         : '<div style="font-size:12px;color:var(--slate)">None.</div>'}
+      <div style="font-size:12px;color:var(--ink);margin-top:12px">Pending lines that may have posted (${pairs.length})</div>
+      ${_pendingPairsHtml(pairs)}
       <div style="font-size:12px;color:var(--ink);margin-top:12px">Set aside (${(st.set_aside || []).length})</div>
       ${(st.set_aside || []).length ? st.set_aside.map(x => line(x, `<button class="btn btn-sm btn-secondary" onclick="_setAsideRestore(${x.id})">Restore</button>`)).join('')
         : '<div style="font-size:12px;color:var(--slate)">None.</div>'}
@@ -23907,6 +23915,66 @@ function _batchSetAside(batch, n) {
     await _refreshTransactionsFromServer(); renderLedger(); updateLedgerStats();
     renderImportCustody();
   });
+}
+
+// ── Item 93 stage 2 (BANK_SIDE_RECORDS.md B6/B9): the bank's statement, and what you say beside it ─────────────────
+// A correction is kept beside the bank's version, never over it: the line shows your correction (and every total
+// uses it), and its earlier versions stay readable here. A pending line and its posted line are both kept.
+const _VERSION_FIELD = { date: 'Date', description: 'Description', amount: 'Amount', category: 'Category', type: 'Kind' };
+
+function _versionValue(field, v) {
+  if (v == null || v === '') return '—';
+  if (field === 'amount') return fmt(Number(v));
+  if (field === 'date') return fmtDate(v);
+  if (field === 'type') return v === 'credit' ? 'money in' : 'money out';
+  return v;
+}
+
+async function _versionsSlot(bloom, id) {
+  const host = bloom.querySelector('.bloom-versions');
+  if (!host) return;
+  let v;
+  try { v = await API.get(`/api/transactions/${id}/versions`); } catch (e) { return; }
+  if (!v || (!(v.corrections || []).length && !v.pending)) return;
+  const first = v.first || {};
+  const firstLine = ['date', 'description', 'amount', 'category'].map(f => _versionValue(f, first[f])).join(' · ');
+  const changes = (v.corrections || []).map(x => `<div style="padding:2px 0">${esc(fmtDate(x.on))}: ${esc(_VERSION_FIELD[x.field] || x.field)}
+      ${esc(_versionValue(x.field, x.before))} → ${esc(_versionValue(x.field, x.after))}</div>`).join('');
+  const p = v.pending;
+  const pend = p ? `<div style="margin-top:6px">Pending ${fmt(p.pending_amount)} on ${esc(fmtDate(p.pending_date))};
+      posted ${fmt(p.posted_amount)} on ${esc(fmtDate(p.posted_date))}.${p.changed ? ' The amount changed when it posted.' : ''}
+      ${p.how === 'bank_id' ? "The bank's own id says they are the same charge." : 'You said they are the same charge.'}
+      The pending line is kept in Settings, Data.</div>` : '';
+  host.innerHTML = `<details style="margin:8px 18px 0;font-size:12px;color:var(--slate)">
+      <summary style="cursor:pointer;color:var(--ink)">Earlier versions${(v.corrections || []).length ? ` (${v.corrections.length} change${v.corrections.length === 1 ? '' : 's'})` : ''}</summary>
+      ${(v.corrections || []).length ? `<div style="margin-top:6px">${esc(v.first_label)}: ${esc(firstLine)}</div>
+      <div style="margin-top:4px">${changes}</div>
+      <div style="margin-top:4px">Every total uses the line as it is now.</div>` : ''}
+      ${pend}</details>`;
+}
+
+async function _pendingPairAnswer(id, answer) {
+  try { await API.post(`/api/import/pending-pairs/${id}`, { answer }); } catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  if (answer === 'yes') { await _refreshTransactionsFromServer(); renderLedger(); updateLedgerStats(); }
+  renderImportCustody();
+}
+
+function _pendingPairsHtml(pairs) {
+  if (!pairs.length) return '<div style="font-size:12px;color:var(--slate)">None.</div>';
+  return pairs.map(p => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--steel-2);font-size:12px">
+      <span style="flex:1;color:var(--ink)">Posted ${esc(fmtDate(p.posted_date))} · ${esc(p.posted_description || '')} <span style="font-family:var(--font-mono)">${fmt(p.posted_amount)}</span>
+        ${p.account ? `<span style="color:var(--slate)"> · ${esc(p.account)}</span>` : ''}
+        <div style="font-size:11px;color:var(--slate)">Pending ${esc(fmtDate(p.pending_date))} · ${esc(p.pending_description || '')} ${fmt(p.pending_amount)}</div></span>
+      <button class="btn btn-sm btn-secondary" onclick="_pendingPairAnswer(${p.id}, 'yes')">Same charge</button>
+      <button class="btn btn-sm btn-ghost" onclick="_pendingPairAnswer(${p.id}, 'no')">Different charges</button></div>`).join('');
+}
+
+function _showPendingAfterImport(data) {
+  const asked = (data && data.pending_pairs) || [], paired = (data && data.pending_paired) || 0;
+  if (paired) showToast(`${paired} pending line${paired === 1 ? '' : 's'} posted`,
+    "The bank's own id matched each to its posted line. Both are kept; the posted one counts.", 'info');
+  if (asked.length) showToast(`${asked.length} posted line${asked.length === 1 ? '' : 's'} may be a pending one`,
+    'Both count until you say. Decide in Settings, Data.', 'info');
 }
 
 function _showHeldAfterImport(held) {

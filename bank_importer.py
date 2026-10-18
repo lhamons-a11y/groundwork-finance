@@ -838,6 +838,7 @@ BANK_SIGNATURES = [
         'headers': {'status', 'date', 'description', 'debit', 'credit'},
         'date': 'date', 'description': 'description',
         'debit': 'debit', 'credit': 'credit', 'category': None,
+        'status': 'status',      # Cleared | Pending (item 93 B9)
     },
     {
         'name': 'US Bank',
@@ -931,12 +932,29 @@ def _col_index(header_row, name):
     return lower.index(name) if name in lower else -1
 
 
+# Item 93 B9: a bank file that says which lines are still pending. Only a column that is plainly a status column is
+# read, and only the word "pending" in it - anything else is the line as posted, as before.
+_STATUS_HEADERS = ('status', 'transaction status')
+
+
+def _status_col(header_row):
+    lower = [h.strip().lower() for h in header_row]
+    return next((i for i, h in enumerate(lower) if h in _STATUS_HEADERS), -1)
+
+
+def _says_pending(row, st_i):
+    if st_i < 0 or st_i >= len(row):
+        return False
+    return (row[st_i] or '').strip().lower().startswith('pending')
+
+
 def _parse_with_signature(data_rows, header_row, sig, warnings):
     records = []
     date_i  = _col_index(header_row, sig['date'])
     desc_i  = _col_index(header_row, sig['description'])
     cat_i   = _col_index(header_row, sig['category']) if sig.get('category') else -1
     bal_i   = _col_index(header_row, sig['balance'])  if sig.get('balance')  else -1
+    st_i    = _col_index(header_row, sig['status'])   if sig.get('status')   else _status_col(header_row)
 
     amt_i   = _col_index(header_row, sig['amount']) if sig.get('amount') else -1
     dbt_i   = _col_index(header_row, sig['debit'])  if sig.get('debit')  else -1
@@ -1024,6 +1042,9 @@ def _parse_with_signature(data_rows, header_row, sig, warnings):
             record['mcc'] = mcc
         if card_last4:
             record['card_last4'] = card_last4
+        if _says_pending(row, st_i):
+            record['pending'] = True        # item 93 B9: kept as pending; its posted line is kept beside it
+            record['cleared'] = False
         if bal_i >= 0 and bal_i < len(row):
             bal = _parse_amount(row[bal_i])
             if bal is not None:
@@ -1069,6 +1090,7 @@ def _parse_generic(data_rows, header_row, warnings):
     dbt_i  = next((i for i, h in enumerate(headers) if 'debit' in h or 'withdrawal' in h), -1)
     crd_i  = next((i for i, h in enumerate(headers) if 'credit' in h or 'deposit' in h), -1)
     cat_i  = next((i for i, h in enumerate(headers) if 'category' in h), -1)
+    st_i   = _status_col(header_row)
 
     if date_i < 0:
         date_i = 0
@@ -1124,6 +1146,8 @@ def _parse_generic(data_rows, header_row, warnings):
             'raw_category': raw_cat,
             'cleared':      True,
         })
+        if _says_pending(row, st_i):
+            records[-1].update(pending=True, cleared=False)     # item 93 B9
 
     if skipped:
         warnings.append(f'{skipped} row(s) skipped (missing date, description, or amount)')

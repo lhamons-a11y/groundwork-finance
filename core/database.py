@@ -12,6 +12,7 @@ from sqlalchemy import (
     Boolean, DateTime, Text, ForeignKey, Date, Index, UniqueConstraint
 )
 from sqlalchemy import event as _sa_event
+from sqlalchemy.orm import Session as _sa_session_cls
 from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session, relationship
 from sqlalchemy import event
 from sqlalchemy.pool import NullPool
@@ -111,6 +112,7 @@ class Transaction(Base):
     source         = Column(String(10), default='')
     check_number   = Column(String(20), default='')
     import_batch   = Column(String(36), nullable=True)    # item 93 B7: one import's lines, so a mistaken one can be set aside together
+    pending        = Column(Boolean, default=False)       # item 93 B9: the bank's file said this line was still pending
     account     = relationship('Account', back_populates='transactions')
     category    = relationship('Category', back_populates='transactions')
     # Match _PERFORMANCE_INDEXES in migrate.py — models cover fresh installs
@@ -329,6 +331,41 @@ class ImportHeldLine(Base):
     resolved      = Column(String(10), default='')     # '' | bring_in | same
     resolved_at   = Column(DateTime, nullable=True)
     brought_in_id = Column(Integer, nullable=True)
+
+
+class TransactionCorrection(Base):
+    """One change to a ledger line's date, description, amount, category or type (gw 2.0/BANK_SIDE_RECORDS.md B6,
+    item 93 stage 2): the household's correction sits beside the bank's statement, never over it. The line holds the
+    current value, so every total uses the correction; the value it replaced is kept here, dated, so the bank's version
+    and every earlier one stay visible. Written by a flush listener, so no path that changes a line can skip it."""
+    __tablename__ = 'transaction_corrections'
+    id             = Column(Integer, primary_key=True)
+    transaction_id = Column(Integer, nullable=False, index=True)   # no foreign key: a set-aside line keeps its history
+    field          = Column(String(20), nullable=False)            # date | description | amount | category | type
+    before         = Column(Text, default='')
+    after          = Column(Text, default='')
+    corrected_at   = Column(DateTime, default=datetime.utcnow)
+    via            = Column(String(120), default='')               # the page route that made it, when there was one
+
+
+class PendingPosted(Base):
+    """A pending line and the posted line that followed it (gw 2.0/BANK_SIDE_RECORDS.md B9, item 93 stage 2): both
+    kept. The posted line is current for totals; the pending one is set aside whole, with its own date and amount.
+    The pair is established by the bank's own id, or by the person's yes - similarity only suggests it (B5)."""
+    __tablename__ = 'pending_posted'
+    id             = Column(Integer, primary_key=True)
+    pending_id     = Column(Integer, nullable=False)                # the pending line's own transaction id
+    posted_id      = Column(Integer, nullable=False)
+    account_id     = Column(Integer, nullable=True)
+    pending_date   = Column(Date, nullable=True)
+    pending_amount = Column(Float, nullable=True)
+    posted_date    = Column(Date, nullable=True)
+    posted_amount  = Column(Float, nullable=True)
+    how            = Column(String(10), default='')     # bank_id | your_yes | '' while only suggested
+    state          = Column(String(10), default='suggested')   # suggested | paired | declined | undone
+    set_aside_id   = Column(Integer, nullable=True)     # the pending line, set aside whole once paired
+    created_at     = Column(DateTime, default=datetime.utcnow)
+    decided_at     = Column(DateTime, nullable=True)
 
 
 class CheckingTransactionLink(Base):
@@ -5856,6 +5893,54 @@ def _seed_categories(session):
         session.add(cat)
     session.commit()
 
+
+
+# ── Item 93 B6: a correction sits beside the bank's statement, never over it ───────────────────────────────────────
+# Every change to these fields of an existing line is kept, whatever path made it (the Ledger's edit, a category
+# move on a yes, a split). The line keeps the current value, so totals use the correction.
+CORRECTED_FIELDS = ('date', 'description', 'amount', 'category_id', 'type')
+
+
+def _correction_text(session, field, v):
+    if v is None:
+        return ''
+    if field == 'category_id':
+        with session.no_autoflush:
+            c = session.get(Category, v)
+        return c.name if c else ''
+    if field == 'amount':
+        return f'{float(v):.2f}'
+    if hasattr(v, 'isoformat'):
+        return v.isoformat()
+    return str(v)
+
+
+@_sa_event.listens_for(_sa_session_cls, 'before_flush')
+def _keep_corrections(session, flush_context, instances):
+    from sqlalchemy import inspect as _insp
+    via = ''
+    try:
+        from flask import has_request_context, request
+        if has_request_context():
+            via = f'{request.method} {request.path}'[:120]
+    except Exception:
+        pass
+    for obj in list(session.dirty):
+        if not isinstance(obj, Transaction) or obj.id is None:
+            continue
+        st = _insp(obj)
+        for f in CORRECTED_FIELDS:
+            h = st.attrs[f].history
+            if not h.deleted or not h.added:
+                continue
+            old, new = h.deleted[0], h.added[0]
+            if f == 'amount' and old is not None and new is not None and abs(float(old) - float(new)) < 0.005:
+                continue
+            if old == new:
+                continue
+            session.add(TransactionCorrection(transaction_id=obj.id, field=('category' if f == 'category_id' else f),
+                                              before=_correction_text(session, f, old),
+                                              after=_correction_text(session, f, new), via=via))
 
 
 # ── Item 93 B7: a set-aside transaction keeps its id ──────────────────────────────────────────────────────────────
