@@ -75,3 +75,18 @@ A/B that a backend has to be cleared on 120 answers, not 6.
 - **The Mac:** Rob has a Mac mini he can install and test on (2026-10-17). Its chip and memory are not yet
   confirmed, and it must be Apple Silicon. A measurement kit for it would touch no app code.
 - **Nothing here is authorised to build.**
+
+## M1-M6 ruled — Rob, 2026-10-18
+
+*"i accept item 96"*: M1-M6 are ruled as recommended. That is a ruling, not authorisation to build. Code still
+needs Rob's go-ahead, and M6 puts it after item 33 Q6.
+- **M4 now has its bar.** G4″ (a) was ruled the same day: a backend passes when its R8 count is no worse than the
+  processor's on the same harness in the same run, and its gate pass is within noise. Item 97's stops
+  (`engine.STOP` and the role tokens) apply to every model call, Metal included, so the Mac A/B runs on the stopped
+  engine.
+- **What comes next is measurement, not code.** A kit for Rob's Mac mini, once its chip and memory are confirmed:
+  - the pinned 0.3.35 engine built twice, CPU and Metal;
+  - the 20-seed × 6-case A/B at 512 tokens on each;
+  - fitting's timing test on each.
+
+  That gives item 33 Q6 its processor run and M4 its evidence. It touches no app code.
