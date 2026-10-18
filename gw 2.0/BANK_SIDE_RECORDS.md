@@ -256,3 +256,87 @@ SCHEMA `20261018-bank-versions` (tables `transaction_corrections`, `pending_post
     migration, not a household change.
   - The Ledger's *Delete all transactions* still destroys, behind its full backup. It's untouched by item 93 so
     far.
+
+## Two rulings for stages 3–4 — Rob, 2026-10-18
+
+Building stage 3 surfaced a question no ruling had answered. A payment, an expense, an obligation and an institution are
+minted only by an utterance from a **Person**. Groundwork had no way to know which person was answering, and the
+existing rulings forbid inventing one ("the implementation may not invent historical facts", OBLIGATION_IDENTITY §9).
+
+- **B13. Who is answering: asked once, remembered, with a switch.** The first time a statement needs a person,
+  Groundwork asks *"Who's answering?"* and lists the household's People, or lets you add yourself. It remembers the
+  answer on this computer. Settings → Accounts shows who is answering and has a **Change** button. Each statement is
+  recorded as that person's.
+- **B14. Earlier answers: confirmed once.** Answers given before Groundwork recorded who gave them (care-for tags,
+  "attach as debt payment" links, work reimbursement matches) are listed in Settings → Data. A person says *"These
+  were mine"*, which becomes their statement today, and each answer keeps the date it was first given. Nothing is
+  credited to anyone without that yes.
+
+## Stages 3 and 4 built — 2026-10-18 (B2, B3, B4, B8, B11; s236; master only) — ACCEPTED 2026-10-18 (Rob: "Permission granted")
+
+Rob: "go ahead stage 3 and 4". SCHEMA `20261018-household-statements` (new tables `account_banks`,
+`standing_statements`, `ledger_line_records`, `earlier_answers`, `reversal_answers`). These are the first production
+writes to the 2.0 records (`utterances`, `parties`, `payments`, `expenses`, `obligations`, `propositions`,
+`evidence`). **No total changes**, because nothing reads these records for a figure yet.
+
+- **How a line is recorded.** The ledger line never becomes an identity (Pm2, Tx12). When you say something about a
+  line, Groundwork records:
+  - a `movement` proposition: the line as the bank stated it, with the bank's party as its subject;
+  - the payment your statement minted;
+  - a `proposition_concerns` claim tying the two, plus `amount`, `occurred_on` and `paid_to` claims.
+
+  All of these are evidenced by your utterance. 1.x rows are only indexed (`LedgerLineRecord`, `AccountBank`) and
+  are never presumed to be the 2.0 thing.
+- **B2, banks:**
+  - Settings → Accounts asks *"Is it at SUPERIOR CU?"* for each account. The account's institution text is offered as
+    the candidate, never taken as the answer.
+  - A yes mints the bank as an institution party by the answering person's statement. Naming the same bank for a
+    second account points to the same party. *"Not a bank account"* mints nothing, and that account's lines are the
+    household's own record.
+  - Found while building: the ruled `movement` kind requires an established subject. So a line can't be said to be
+    anything until its account's bank is named. Groundwork asks *"Which bank holds Superior Checking?"* first, then
+    carries on.
+- **B3, payments:**
+  - **One line at a time:** the Ledger's edit panel asks *"Was this your payment? To [payee]"* for money out. Money
+    in is never "my payment", and a line has one payment at most.
+  - **Standing statements:** after three answers for one payee on one account, the panel offers *"Say it once for
+    every debit to AEP OHIO from this account?"*. It's only made on a yes. Settings → Accounts lists each standing
+    statement (account, payee, how many payments, said when and by whom) with a **Withdraw** button, and has a form
+    to make one.
+  - The yes is informed: it says how many lines already here it covers. New imports are covered as they arrive. A
+    statement matches when the payee text appears in the line's text.
+  - Withdrawing stops new lines and leaves every payment already recorded under the statement.
+- **B4, expenses:** a care-for answer ("for Sam") now mints an expense from that answer: `incurred_by` Sam, with the
+  payment toward it (`payment_in_respect_of`). Changing the person adds a new `incurred_by` claim on the same
+  expense, and the earlier one stays. No other payment is ever assumed to be an expense.
+- **B8, reversals:**
+  - Settings → Data lists money-in lines that may undo a charge, each with the charge. The rule: same account, within
+    90 days after the charge, no more than it, at least half of the money-in line's merchant words (4+ letters) in
+    the charge, and income lines excluded.
+  - *"It undoes that charge"* records the money back as another payment, plus your `payment_counteracts` claim.
+    Nothing is netted off.
+  - *"No"* is kept, and that pair isn't asked about again.
+  - The first rule offered a paycheck as a "refund" on one shared three-letter word. It was tightened before the
+    gate.
+- **B11, the 1.x answers:**
+  - With someone answering, a new care-for answer, debt-payment link or reimbursement match becomes their statement
+    at once:
+    - care-for → payment + expense + `incurred_by`;
+    - debt link → payment + `payment_in_respect_of_obligation`, with the debt's obligation minted once by the
+      statement that first names it;
+    - reimbursement → both payments + `paid_by` the employer + `payment_counteracts`.
+  - With no one answering, or no bank named for the account, the answer is kept exactly as before and waits among
+    the earlier answers. It's all or nothing (a savepoint), so nothing is ever half-written.
+- **Tests:** s236 (25 checks); full gate 3658 / 0. Every audit of the minting rule stays empty: payments, expenses, obligations, and
+  parties with one anchor. Every new claim passes the participant guard, and totals are unchanged. Mutation check:
+  with a standing statement's payee scope removed, the "others do not" check fails.
+- **Named limits:**
+  - Unlinking a debt payment or unmatching a reimbursement later leaves the 2.0 statement in place. A retraction
+    (`utterance_retraction`) isn't offered yet.
+  - The reversal rule was measured on dev data only. Measuring it on a copy of the live database was blocked by this
+    session's permissions, so the first look at real candidates will be yours.
+  - The payee box is prefilled with the line's merchant text as a candidate. You edit it before saying yes.
+  - Naming a different bank later doesn't rewrite lines already relayed under the earlier answer. Both answers stay
+    on record, and the newest is current.
+  - Nothing reads the 2.0 records for any figure yet. Item 94 (the bill that lands) can now build on them, once its
+    L1–L10 are ruled.

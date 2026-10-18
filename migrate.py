@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261018-bank-versions'   # item 93 stage 2 (BANK_SIDE_RECORDS.md B6/B9): transaction_corrections + pending_posted (create_all) + transactions.pending
+SCHEMA_VERSION = '20261018-household-statements'   # item 93 stages 3-4 (BANK_SIDE_RECORDS.md B2-B4, B8, B11): account_banks, standing_statements, ledger_line_records, earlier_answers, reversal_answers (create_all)
 # Before it, '20261017-named-people'   # item 92: the care_for table (create_all) + health_plan_readings.person_id
 # Before it, '20261016-care-answers' (item 89: the care_answers table, through init_db's create_all).
 # Before it, '20261015-plan-year' (item 87: health_plan_readings + health_plan_term_versions.tier).
@@ -48,7 +48,7 @@ SCHEMA_SPEC_SHA256 = '24769963e965d47667173b4d13aaad556671736b980665eddd7bad9b2b
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = '58bd1900ab2fdca3a220f4ce47483fcdb10bfb6fcd63f1ec2ad306c6e5606a6f'
+SCHEMA_MODELS_SHA256 = '5a5ae618060c7987da18189eb94c41f8562bfd493b9f34e9b6cc3899c4cf279c'
 
 
 def _stored_schema_version():

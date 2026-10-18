@@ -54,7 +54,11 @@ const API = {
       body: JSON.stringify(body),
     });
     const j = await r.json();
-    if (!r.ok) throw new Error(j.error || `${r.status} ${path}`);
+    if (!r.ok) {
+      const e = new Error(j.error || `${r.status} ${path}`);
+      if (j.need_bank) e.needBank = j.need_bank;     // item 93 B2: the page asks which bank, then tries again
+      throw e;
+    }
     return j.data !== undefined ? j.data : j;
   },
   async patch(path, body = {}) {
@@ -4699,6 +4703,7 @@ function _openEditBloom(row) {
 
     <div class="bloom-care"></div>
     <div class="bloom-versions"></div>
+    <div class="bloom-payment"></div>
 
     <div class="bloom-actions">
       <button class="danger" data-act="delete">Delete transaction</button>
@@ -4737,6 +4742,7 @@ function _openEditBloom(row) {
   row.parentNode.insertBefore(bloom, row.nextSibling);
   _careForSlot(bloom, id);     // item 92 N4: a health payment can say whom it was for
   _versionsSlot(bloom, id);    // item 93 B6/B9: the bank's version and every correction, kept beside it
+  _paymentSlot(bloom, id);     // item 93 B3: a line is your payment only when you say so
 
   bloom.querySelector('[data-act=cancel]').addEventListener('click', e => { e.stopPropagation(); cancelRowEdit(); });
   bloom.querySelector('[data-act=save]'  ).addEventListener('click', e => { e.stopPropagation(); saveRowEdit(id); });
@@ -22450,9 +22456,11 @@ function _drawAccountManager() {
     <div id="accountFormSlot"></div>
     <button class="btn-add" onclick="showAddAccountForm()">+ Add account</button>
     <div id="healthPeopleCard" style="margin-top:12px"></div>
+    <div id="bankStatementsCard"></div>
     <div id="healthPlanCard"></div>
     <div id="healthReserveCard"></div>`;
   renderPeopleCard();          // item 92: the people, above the plan (N1, N3)
+  renderBankStatementsCard();  // item 93 B2/B3: who is answering, each account's bank, standing statements
   renderHealthPlanCard();      // item 87: the health plan, beside the HSA and FSA (P6)
   renderHealthReserveCard();   // item 88: the reserve, under the plan (R8)
 }
@@ -23859,6 +23867,9 @@ async function renderImportCustody() {
   try { st = (await API.get('/api/transactions/set-aside')) || st; } catch (e) { _gwErr('set aside')(e); }
   let pairs = [];
   try { pairs = ((await API.get('/api/import/pending-pairs')) || {}).pairs || []; } catch (e) { _gwErr('pending pairs')(e); }
+  let rev = [], early = [];
+  try { rev = ((await API.get('/api/accounts/reversals')) || {}).candidates || []; } catch (e) { _gwErr('reversals')(e); }
+  try { early = ((await API.get('/api/accounts/earlier-answers')) || {}).answers || []; } catch (e) { _gwErr('earlier answers')(e); }
   const line = (x, btns) => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--steel-2);font-size:12px">
       <span style="flex:1;color:var(--ink)">${esc(x.date || '')} · ${esc(x.description || '')} <span style="font-family:var(--font-mono)">${fmt(x.amount || 0)}</span>
         ${x.account ? `<span style="color:var(--slate)"> · ${esc(x.account)}</span>` : ''}
@@ -23879,6 +23890,7 @@ async function renderImportCustody() {
         : '<div style="font-size:12px;color:var(--slate)">None.</div>'}
       <div style="font-size:12px;color:var(--ink);margin-top:12px">Pending lines that may have posted (${pairs.length})</div>
       ${_pendingPairsHtml(pairs)}
+      ${_statementsDataHtml(rev, early)}
       <div style="font-size:12px;color:var(--ink);margin-top:12px">Set aside (${(st.set_aside || []).length})</div>
       ${(st.set_aside || []).length ? st.set_aside.map(x => line(x, `<button class="btn btn-sm btn-secondary" onclick="_setAsideRestore(${x.id})">Restore</button>`)).join('')
         : '<div style="font-size:12px;color:var(--slate)">None.</div>'}
@@ -23975,6 +23987,223 @@ function _showPendingAfterImport(data) {
     "The bank's own id matched each to its posted line. Both are kept; the posted one counts.", 'info');
   if (asked.length) showToast(`${asked.length} posted line${asked.length === 1 ? '' : 's'} may be a pending one`,
     'Both count until you say. Decide in Settings, Data.', 'info');
+}
+
+// ── Item 93 stages 3-4 (BANK_SIDE_RECORDS.md B2-B4, B8, B11): your statements about your bank lines ─────────────────
+// A payment, an expense or a bank is recorded only by a person's statement, so Groundwork asks once who is answering
+// and remembers it (Rob 2026-10-18), with a switch. Nothing here changes a total.
+const NEED_SPEAKER_TEXT = "Who is answering? Groundwork records each statement as a person's.";
+
+// Run a statement; when it needs to know who is answering, or which bank holds a line's account, ask and try again.
+// A statement over several accounts may ask once for each.
+async function _asSpeaker(fn) {
+  for (let tries = 0; tries < 8; tries++) {
+    try { return await fn(); }
+    catch (e) {
+      let ok;
+      if ((e && e.message) === NEED_SPEAKER_TEXT) ok = await _speakerAsk();
+      else if (e && e.needBank) ok = await _bankAskModal(e.needBank);
+      else throw e;
+      if (!ok) return null;
+    }
+  }
+  return null;
+}
+
+// "Which bank holds Superior Checking?" - asked before a line from it can be said to be anything (B2).
+function _bankAskModal(nb) {
+  return new Promise(resolve => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9999;display:flex;align-items:center;justify-content:center';
+    wrap.innerHTML = `<div style="background:var(--white, #fff);border-radius:var(--r-md);padding:18px 20px;max-width:380px;width:calc(100% - 32px);box-shadow:0 8px 30px rgba(0,0,0,.2)">
+        <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px">Which bank holds ${esc(nb.account)}?</div>
+        <div style="font-size:12px;color:var(--slate);margin-bottom:10px">A line from this account is that bank's statement, so Groundwork records it as theirs. You only answer this once for each account.</div>
+        <input data-name type="text" class="field-input" style="width:100%;font-size:12px;padding:4px 6px" value="${esc(nb.candidate || '')}" placeholder="The bank's name">
+        <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" data-cancel>Not now</button>
+          <button class="btn btn-ghost btn-sm" data-none>Not a bank account</button>
+          <button class="btn btn-sm btn-primary" data-yes>Yes, that bank</button></div></div>`;
+    document.body.appendChild(wrap);
+    const send = async body => {
+      const r = await _asSpeaker(() => API.post(`/api/accounts/banks/${nb.account_id}`, body))
+        .catch(err => { showToast('Not saved', err.message || '', 'warning'); return null; });
+      wrap.remove(); resolve(!!r);
+    };
+    wrap.querySelector('[data-yes]').addEventListener('click', () => {
+      const v = wrap.querySelector('[data-name]').value.trim();
+      if (v) send({ name: v });
+    });
+    wrap.querySelector('[data-none]').addEventListener('click', () => send({ not_a_bank: true }));
+    wrap.querySelector('[data-cancel]').addEventListener('click', () => { wrap.remove(); resolve(false); });
+  });
+}
+
+// "Who's answering?" - your people, or add yourself. Remembered on this computer until changed.
+function _speakerAsk() {
+  return new Promise(async resolve => {
+    let st = { people: [], offer: [] };
+    try { st = await API.get('/api/accounts/speaker'); } catch (e) { _gwErr('speaker')(e); }
+    const names = [...(st.people || []).map(p => ({ id: p.id, name: p.name })), ...(st.offer || []).map(n => ({ id: null, name: n }))];
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9999;display:flex;align-items:center;justify-content:center';
+    wrap.innerHTML = `<div style="background:var(--white, #fff);border-radius:var(--r-md);padding:18px 20px;max-width:380px;width:calc(100% - 32px);box-shadow:0 8px 30px rgba(0,0,0,.2)">
+        <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px">Who's answering?</div>
+        <div style="font-size:12px;color:var(--slate);margin-bottom:10px">Groundwork records each statement you make, like "this was my payment", as a person's. It remembers who's answering on this computer until you change it (Settings, Accounts).</div>
+        <div data-names style="display:flex;flex-direction:column;gap:6px">${names.map((n, i) =>
+          `<button class="btn btn-secondary" data-i="${i}" style="text-align:left">${esc(n.name)}</button>`).join('')}</div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <input data-new type="text" placeholder="${names.length ? 'Someone else: a name' : 'Your name'}" class="field-input" style="flex:1;font-size:12px;padding:4px 6px">
+          <button class="btn btn-sm btn-primary" data-add>That's me</button></div>
+        <div style="text-align:right;margin-top:10px"><button class="btn btn-ghost btn-sm" data-cancel>Not now</button></div></div>`;
+    document.body.appendChild(wrap);
+    const done = async body => {
+      try { await API.post('/api/accounts/speaker', body); } catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+      wrap.remove(); resolve(true);
+      if (typeof renderBankStatementsCard === 'function') renderBankStatementsCard();
+    };
+    wrap.querySelectorAll('[data-i]').forEach(b => b.addEventListener('click', () => {
+      const n = names[Number(b.dataset.i)];
+      done(n.id ? { person_id: n.id } : { name: n.name });
+    }));
+    wrap.querySelector('[data-add]').addEventListener('click', () => {
+      const v = wrap.querySelector('[data-new]').value.trim();
+      if (v) done({ name: v });
+    });
+    wrap.querySelector('[data-cancel]').addEventListener('click', () => { wrap.remove(); resolve(false); });
+  });
+}
+
+// Settings, Accounts: who is answering, each account's bank (B2), and standing statements (B3)
+async function renderBankStatementsCard() {
+  const host = g('bankStatementsCard');
+  if (!host) return;
+  let sp = {}, banks = { accounts: [], known: [] }, st = { standing: [] };
+  try { [sp, banks, st] = await Promise.all([API.get('/api/accounts/speaker'), API.get('/api/accounts/banks'),
+                                             API.get('/api/accounts/standing')]); }
+  catch (e) { _gwErr('statements card')(e); return; }
+  const acctOpts = (banks.accounts || []).map(a => `<option value="${a.account_id}">${esc(a.account)}</option>`).join('');
+  host.innerHTML = `
+    <div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)">
+      <div class="card-label" style="margin-bottom:4px">Your statements</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:6px">A bank line is the bank's statement. It becomes your payment only when you say so, and every statement is recorded as the person's who made it.</div>
+      <div style="font-size:12px;color:var(--ink)">Answering on this computer: <b>${sp.name ? esc(sp.name) : 'no one yet'}</b>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_speakerAsk()">${sp.name ? 'Change' : 'Choose'}</button></div>
+
+      <div style="font-size:12px;color:var(--ink);margin-top:12px">Which bank holds each account</div>
+      ${(banks.accounts || []).map(a => `<div data-bank-row="${a.account_id}" style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;border-bottom:0.5px solid var(--steel-2)">
+          <span style="flex:1">${esc(a.account)}${a.said ? `<span style="color:var(--slate)"> · ${a.said.not_a_bank ? 'not a bank account' : esc(a.said.name)}, said ${esc(fmtDate(a.said.on))}</span>` : ''}</span>
+          ${a.said ? `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_bankAsk(${a.account_id}, '')">Change</button>`
+                   : `<span style="color:var(--slate)">${a.candidate ? `Is it at ${esc(a.candidate)}?` : 'Which bank?'}</span>
+                      <button class="btn btn-sm btn-secondary" style="font-size:11px" onclick="_bankAsk(${a.account_id}, ${esc(JSON.stringify(a.candidate || ''))})">Answer</button>`}
+        </div>`).join('') || '<div style="font-size:12px;color:var(--slate)">No accounts.</div>'}
+
+      <div style="font-size:12px;color:var(--ink);margin-top:12px">Standing statements</div>
+      <div style="font-size:11px;color:var(--slate);margin-bottom:4px">"Treat every debit from this account to this payee as my payment." Said once, listed here, and you can withdraw it. Withdrawing stops new lines; payments already recorded stay.</div>
+      ${(st.standing || []).map(x => `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;border-bottom:0.5px solid var(--steel-2)">
+          <span style="flex:1;${x.withdrawn_on ? 'color:var(--slate)' : ''}">${esc(x.account)} → ${esc(x.payee)} · ${x.payments} payment${x.payments === 1 ? '' : 's'}
+            <span style="color:var(--slate)"> · said ${esc(fmtDate(x.said_on))}${x.by ? ` by ${esc(x.by)}` : ''}${x.withdrawn_on ? ` · withdrawn ${esc(fmtDate(x.withdrawn_on))}` : ''}</span></span>
+          ${x.withdrawn_on ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_standingWithdraw(${x.id})">Withdraw</button>`}</div>`).join('')
+        || '<div style="font-size:12px;color:var(--slate)">None.</div>'}
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <select id="standingAcct" class="field-input" style="font-size:12px;padding:3px 6px">${acctOpts}</select>
+        <input id="standingPayee" type="text" placeholder="Payee, as it appears in the line" class="field-input" style="width:200px;font-size:12px;padding:3px 6px">
+        <button class="btn btn-sm btn-secondary" onclick="_standingSay(g('standingAcct').value, g('standingPayee').value)">Say this</button>
+      </div>
+    </div>`;
+}
+
+function _bankAsk(accountId, candidate) {
+  const row = document.querySelector(`[data-bank-row="${accountId}"]`);
+  if (!row) return;
+  row.innerHTML = `<span style="flex:1">This account is at</span>
+    <input data-bank-name type="text" class="field-input" style="width:200px;font-size:12px;padding:3px 6px" value="${esc(candidate || '')}" placeholder="The bank's name">
+    <button class="btn btn-sm btn-secondary" data-bank-yes>Yes</button>
+    <button class="btn btn-ghost btn-sm" data-bank-none>Not a bank account</button>
+    <button class="btn btn-ghost btn-sm" onclick="renderBankStatementsCard()">Cancel</button>`;
+  const send = async body => {
+    const r = await _asSpeaker(() => API.post(`/api/accounts/banks/${accountId}`, body)).catch(e => { showToast('Not saved', e.message || '', 'warning'); });
+    if (r) renderBankStatementsCard();
+  };
+  row.querySelector('[data-bank-yes]').addEventListener('click', () => send({ name: row.querySelector('[data-bank-name]').value }));
+  row.querySelector('[data-bank-none]').addEventListener('click', () => send({ not_a_bank: true }));
+}
+
+async function _standingSay(accountId, payee) {
+  payee = (payee || '').trim();
+  if (!accountId || payee.length < 3) { showToast('A payee, please', 'At least three letters, as it appears in the line.', 'warning'); return; }
+  let n = 0;
+  try { n = (await API.get(`/api/accounts/standing?account_id=${encodeURIComponent(accountId)}&payee=${encodeURIComponent(payee)}`)).covers || 0; }
+  catch (e) { _gwErr('standing preview')(e); }
+  confirmAction(`Treat every debit to ${esc(payee)} as your payment?`,
+    `This covers the ${n} line${n === 1 ? '' : 's'} already here that aren't yet your payment, and each new one as it arrives. You can withdraw it in Settings, Accounts.`,
+    async () => {
+      const r = await _asSpeaker(() => API.post('/api/accounts/standing', { account_id: Number(accountId), payee })).catch(e => { showToast('Not saved', e.message || '', 'warning'); });
+      if (r) { showToast('Said', `${r.payments} payment${r.payments === 1 ? '' : 's'} recorded.`, 'success'); renderBankStatementsCard(); }
+    }, 'Yes, my payments', false);
+}
+
+function _standingWithdraw(id) {
+  confirmAction('Withdraw this statement?', 'New lines stop becoming payments. Payments already recorded stay, with the statement they came from.', async () => {
+    const r = await _asSpeaker(() => API.post(`/api/accounts/standing/${id}/withdraw`, {})).catch(e => { showToast('Not saved', e.message || '', 'warning'); });
+    if (r) renderBankStatementsCard();
+  }, 'Withdraw', false);
+}
+
+// The Ledger's edit panel: what you've said this line is (B3), and the offer of a standing statement after three
+async function _paymentSlot(bloom, id) {
+  const host = bloom.querySelector('.bloom-payment');
+  if (!host) return;
+  const t = (S.transactions || []).find(x => x.id === id);
+  let v;
+  try { v = await API.get(`/api/accounts/line-statement/${id}`); } catch (e) { return; }
+  const p = v.payment;
+  if (!p && (!t || t.type !== 'debit')) { host.innerHTML = ''; return; }
+  const sug = v.suggest_standing;
+  host.innerHTML = `<div style="margin:8px 18px 0;font-size:12px;color:var(--slate)">
+    ${p ? `Your payment${p.payee ? ` to ${esc(p.payee)}` : ''}, said ${esc(fmtDate(p.said_on))}${p.by ? ` by ${esc(p.by)}` : ''}${p.standing ? ` (under your standing statement for ${esc(p.standing.payee)})` : ''}.${p.counteract ? ' You linked it with a reversal.' : ''}`
+        : `<span>Was this your payment? To</span>
+           <input data-payee type="text" class="field-input" style="width:180px;font-size:12px;padding:2px 6px" value="${esc((t && (t.merchant || t.description)) || '')}">
+           <button class="btn btn-sm btn-secondary" data-say>Yes, my payment</button>`}
+    ${sug ? `<div style="margin-top:6px;padding:6px 8px;background:var(--mist);border-radius:var(--r-sm);color:var(--ink)">You've said ${sug.answers} lines to ${esc(sug.payee)} were your payments.
+        Say it once for every debit to ${esc(sug.payee)} from this account?
+        <button class="btn btn-sm btn-secondary" style="margin-left:6px" data-standing>Yes, every one</button></div>` : ''}</div>`;
+  host.querySelector('[data-say]')?.addEventListener('click', async e => {
+    e.stopPropagation();
+    const payee = host.querySelector('[data-payee]').value;
+    const r = await _asSpeaker(() => API.post(`/api/accounts/line-statement/${id}`, { payee })).catch(err => { showToast('Not saved', err.message || '', 'warning'); });
+    if (r) _paymentSlot(bloom, id);
+  });
+  host.querySelector('[data-standing]')?.addEventListener('click', e => { e.stopPropagation(); _standingSay(sug.account_id, sug.payee); });
+}
+
+// Settings, Data: reversals asked about (B8), and earlier answers to confirm (B11)
+function _statementsDataHtml(rev, early) {
+  const line = x => `${esc(fmtDate(x.date))} · ${esc(x.description || '')} <span style="font-family:var(--font-mono)">${fmt(x.amount || 0)}</span>`;
+  return `
+    <div style="font-size:12px;color:var(--ink);margin-top:12px">Money back that may undo a charge (${rev.length})</div>
+    ${rev.length ? rev.map(x => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--steel-2);font-size:12px">
+        <span style="flex:1;color:var(--ink)">${line(x.credit)}<div style="font-size:11px;color:var(--slate)">The charge: ${line(x.debit)}</div></span>
+        <button class="btn btn-sm btn-secondary" onclick="_reversalAnswer(${x.credit.id}, ${x.debit.id}, 'yes')">It undoes that charge</button>
+        <button class="btn btn-sm btn-ghost" onclick="_reversalAnswer(${x.credit.id}, ${x.debit.id}, 'no')">No</button></div>`).join('')
+      : '<div style="font-size:12px;color:var(--slate)">None.</div>'}
+    <div style="font-size:11px;color:var(--slate);margin-top:2px">Saying so links the two in your records. Nothing is netted off: both lines stay as the bank said them.</div>
+    <div style="font-size:12px;color:var(--ink);margin-top:12px">Earlier answers to confirm (${early.length})</div>
+    <div style="font-size:11px;color:var(--slate);margin-bottom:4px">These were given before Groundwork recorded who gave them. Each keeps the date it was first given.</div>
+    ${early.length ? early.map(x => `<div style="font-size:12px;padding:3px 0;border-bottom:0.5px solid var(--steel-2)">${line(x.line)} · ${esc(x.says)}
+        <span style="color:var(--slate)"> · first said ${esc(fmtDate(x.first_said))}</span></div>`).join('')
+        + `<button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick='_earlierConfirm(${JSON.stringify(early.map(x => ({ source: x.source, source_id: x.source_id })))})'>These were mine</button>`
+      : '<div style="font-size:12px;color:var(--slate)">None.</div>'}`;
+}
+
+async function _reversalAnswer(creditId, debitId, answer) {
+  const r = await _asSpeaker(() => API.post('/api/accounts/reversals', { credit_id: creditId, debit_id: debitId, answer }))
+    .catch(e => { showToast('Not saved', e.message || '', 'warning'); });
+  if (r) renderImportCustody();
+}
+
+async function _earlierConfirm(items) {
+  const r = await _asSpeaker(() => API.post('/api/accounts/earlier-answers', { items })).catch(e => { showToast('Not saved', e.message || '', 'warning'); });
+  if (r) { showToast('Confirmed', `${r.confirmed} answer${r.confirmed === 1 ? '' : 's'} recorded as yours.`, 'success'); renderImportCustody(); }
 }
 
 function _showHeldAfterImport(held) {
