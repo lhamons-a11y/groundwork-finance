@@ -214,3 +214,45 @@ the item makes the import keep those rules, starting with the two places it lose
 
 Note 2026-10-17: on master the section is **s234** (`s234_import_custody.py`), because item 95 (the GPU engine,
 pushed by another session the same day) took s233. On 1.x it stays s233. Same checks.
+
+## Stage 2 built — 2026-10-18 (B6 + B9; s235; master only) — ACCEPTED 2026-10-18 (Rob: "push")
+
+Rob: "go ahead on stage 2". Master only: under item 32 L1 only B5 and B7 were ruled data-loss fixes for 1.x.
+SCHEMA `20261018-bank-versions` (tables `transaction_corrections`, `pending_posted`; column `transactions.pending`).
+
+- **B6, corrections beside the bank's version:**
+  - A change to a line's date, description, amount, category or kind (money in / money out) is kept, dated, with
+    the value it replaced. The line holds the corrected value, so every total uses your correction.
+  - It's kept by a listener under every database write, not by the Ledger's edit route, so a category move on a
+    yes, a split or any other path that changes a line can't skip it. Kind (debit/credit) is kept too, because
+    flipping it changes every total the same way an amount does.
+  - The edit panel shows **Earlier versions**: the earliest version kept, then each change. The earliest version is
+    called *"What the bank's file said"* only for lines imported after this build. For older lines it says
+    *"The earliest version kept (changes made before Oct 18, 2026 were not kept)"*, because an edit made before
+    today left no trace and Groundwork can't claim to know the bank's original.
+  - A line set aside and restored keeps its history.
+- **B9, pending and posted both kept:**
+  - Measured before building: no import read a pending marker at all. Every line came in as cleared. So a Citi
+    file's pending charge counted, and when it posted at a new amount the posted line either came in as a second
+    charge (counted twice) or, with the same bank id, was **skipped as a duplicate**, leaving the pending amount
+    standing for good. The doc's "the posted line replaces the pending one in place" was not what the code did.
+  - A bank file's Status column saying *Pending* (Citi's export, or any CSV with a plain Status column) now
+    marks the line pending and uncleared. Nothing else is read as pending.
+  - **The bank's own id** on a pending line and a posted line says they are the same charge: the posted line
+    comes in and counts, and the pending one is set aside whole with its own date and amount. A linked card's
+    balance moves by the difference, not twice.
+  - **Similarity only asks.** A posted line that looks like a pending one (same account and kind, within 10 days,
+    a shared merchant word) comes in, and Settings → Data asks *Same charge / Different charges*. Both count
+    until you answer. A yes sets the pending one aside; a no leaves both and isn't asked again.
+  - The edit panel of a paired posted line says: *"Pending $48.20 on Mar 12; posted $51.90 on Mar 14. The
+    amount changed when it posted."*, and whether the bank's id or you paired them.
+  - Restoring a paired pending line undoes the pair (it counts again).
+- **Tests:** s235 (20 checks); full gate 3632 / 0. Mutation-checked: with the listener's write removed, five B6 checks fail; with the
+  bank-id pairing removed, the posted line is skipped and the B9 checks fail.
+- **Named limits:**
+  - A pair confirmed by your yes doesn't adjust a linked card's balance figure. The next statement balance sets it.
+  - The pairing window (10 days) and the merchant-word match are only what triggers the question, never a decision.
+  - Bulk SQL in `migrate.py` that merges duplicate category names moves rows without a correction. It's a
+    migration, not a household change.
+  - The Ledger's *Delete all transactions* still destroys, behind its full backup. It's untouched by item 93 so
+    far.
