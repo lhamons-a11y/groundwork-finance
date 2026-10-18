@@ -88,7 +88,7 @@ def chat(model, system, user):
     with engine._lock:
         out = engine._model.create_chat_completion(
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-            max_tokens=300, temperature=0.3, seed=_SEED[0])
+            max_tokens=300, temperature=0.3, seed=_SEED[0], stop=engine.STOP)   # item 97 U2: what ships
     return {"message": {"content": out["choices"][0]["message"]["content"]},
             "eval_count": (out.get("usage") or {}).get("completion_tokens") or 0,
             "eval_duration": int((time.time() - t) * 1e9)}

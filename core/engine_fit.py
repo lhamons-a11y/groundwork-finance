@@ -7,8 +7,9 @@ depends on the computer, so Groundwork measures it here, once, and uses the resu
     G1  the graphics backend is a separate library loaded at run time, only if it loads; the processor always works
     G3  each device is tried in its OWN short-lived process (a driver that crashes takes down only its test), and the
         device with the shortest whole-answer time wins
-    G4' a graphics device is used only if it wrote no figure that wasn't in its facts (R8) on all six voice cases;
-        the processor is the reference (R8 0/120 in item 31's A/B) and is only timed
+    G4' a graphics device's answers to the six voice cases are read for figures not in their facts (R8); G4'' (a) and
+        item 97 U4: the processor reads the same six, and a chip is out only when it has MORE such answers than the
+        processor had on the same test (a single read flagged any device ~5-18% of the time - a draw, not a signal)
     G5  (a) a visible step, the first time AI starts on a computer
     G6  fitted again only when the hardware, a driver, the engine or the model changes - or when the chosen device
         failed at a launch (that launch uses the processor)
@@ -187,37 +188,40 @@ def _probe(mode):
             errors.append(repr(e)[:120])
     if model is None:
         return {'ok': False, 'error': 'the model did not load: ' + '; '.join(errors)}
+    engine.install_stops(model)             # item 97 U2: what fitting measures is what ships
     if mode == 'gpu':
         # The driver compiles its shaders the first time a program uses the chip: measured on the packaged build,
         # first word 17.9 s on that first run, 0.83 s on every run after. Timed cold, a chip would be charged a cost
         # paid once per install (and could lose to the processor for it). So a short warm-up first, with a prompt
         # longer than one batch so the reading and the writing paths are both compiled; it is not timed.
         model.create_chat_completion(messages=[{'role': 'user', 'content': TIMING_USER[:1500]}],
-                                     max_tokens=8, temperature=0.0, seed=R8_SEED)
+                                     max_tokens=8, temperature=0.0, seed=R8_SEED, stop=engine.STOP)
     t = time.time()
     first = None
     for ch in model.create_chat_completion(messages=[{'role': 'system', 'content': TIMING_SYSTEM},
                                                      {'role': 'user', 'content': TIMING_USER}],
-                                           max_tokens=TIMING_MAX_TOKENS, temperature=0.0, seed=R8_SEED, stream=True):
+                                           max_tokens=TIMING_MAX_TOKENS, temperature=0.0, seed=R8_SEED, stream=True,
+                                           stop=engine.STOP):
         if first is None and (ch['choices'][0].get('delta') or {}).get('content'):
             first = time.time() - t
     answer = time.time() - t
     out = {'ok': True, 'mode': mode, 'layers': layers, 'first_word_s': round(first or answer, 2),
            'answer_s': round(answer, 2), 'device': gpus[0]['description'] if gpus else 'processor'}
-    if mode == 'gpu':
-        out['r8'] = r8_on_voice_cases(model)
+    out['r8'] = r8_on_voice_cases(model)     # U4: the processor too - it is what a chip is compared with
     return out
 
 
 def r8_on_voice_cases(model):
     """G4' (a): the six voice cases, one seed, the shipped temperature; {case: [figures not in its facts]}."""
     import voice_discipline_test as v
+    from core import engine
     found = {}
     for c in v.CASES:
         model.set_seed(R8_SEED)
         out = model.create_chat_completion(messages=[{'role': 'system', 'content': v.SYSTEM_PROMPT},
                                                      {'role': 'user', 'content': c.findings}],
-                                           max_tokens=R8_MAX_TOKENS, temperature=R8_TEMPERATURE, seed=R8_SEED)
+                                           max_tokens=R8_MAX_TOKENS, temperature=R8_TEMPERATURE, seed=R8_SEED,
+                                           stop=engine.STOP)
         text = out['choices'][0]['message']['content']
         ok, note = v.check(text, c).get('R8_number_provenance', (True, ''))
         found[c.name] = [] if ok else sorted(n for n in v._financial_numbers(text) if n not in
@@ -282,15 +286,23 @@ def needs_fit(rec, fp):
     return not rec or rec.get('fingerprint') != fp or bool(rec.get('refit'))
 
 
+def r8_count(probe):
+    """How many of the six voice answers held a figure not in their facts."""
+    return sum(1 for v in ((probe or {}).get('r8') or {}).values() if v)
+
+
 def choose(results):
-    """G3 + G4': the shortest whole-answer time among devices that ran, a graphics device only with no R8 figure.
+    """G3 + G4'' (a) / item 97 U4: the shortest whole-answer time among devices that ran; a graphics device only when
+    it had no more R8 answers than the processor on the same six (none, if the processor's test didn't run).
     `results` = [{'device': 'cpu' | int, 'name', 'kind', 'probe': {...}}]. Returns (choice, results with 'verdict')."""
     best = None
+    cpu = next((r.get('probe') for r in results if r['device'] == 'cpu'), None) or {}
+    bar = r8_count(cpu) if cpu.get('ok') else 0
     for r in results:
         p = r.get('probe') or {}
         if not p.get('ok'):
             r['verdict'] = 'failed'
-        elif r['device'] != 'cpu' and any((p.get('r8') or {}).values()):
+        elif r['device'] != 'cpu' and r8_count(p) > bar:
             r['verdict'] = 'r8'
         else:
             r['verdict'] = 'ran'
@@ -372,8 +384,8 @@ def describe(rec, running=None):
         if r.get('verdict') == 'failed':
             tried.append(f"{r['name']} was tried and could not run the model.")
         elif r.get('verdict') == 'r8':
-            tried.append(f"{r['name']} was tried and wrote a figure that wasn't in the facts it was given, so "
-                         f"Groundwork doesn't use it.")
+            tried.append(f"{r['name']} was tried and, on the same test answers, wrote more figures that weren't in the "
+                         f"facts it was given than this computer's processor did, so Groundwork doesn't use it.")
         else:
             tried.append(f"{r['name']} was tried: answers in {_secs(p['answer_s'])}.")
     return {'line': line, 'tried': tried}

@@ -180,8 +180,9 @@ def run(ctx):
           d['line'] == ("AI runs on NVIDIA RTX A1000 Laptop GPU - answers in about 9 s on Groundwork's test answer, "
                         "3.6x faster than this computer's processor (about 32 s) (checked 17 Oct 2026)."))
     check('s233 G7 every other device tried is accounted for: the invented figure, the failure, the slower time',
-          d['tried'] == ["Intel(R) Iris(R) Xe Graphics was tried and wrote a figure that wasn't in the facts it was "
-                         "given, so Groundwork doesn't use it.",
+          d['tried'] == ["Intel(R) Iris(R) Xe Graphics was tried and, on the same test answers, wrote more figures "
+                         "that weren't in the facts it was given than this computer's processor did, so Groundwork "
+                         "doesn't use it.",
                          'Old Card was tried and could not run the model.',
                          'Slow Chip was tried: answers in about 40 s.'])
     part = ef.describe(dict(measured, choice=dict(measured['choice'], layers=16)))

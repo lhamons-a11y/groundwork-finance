@@ -39,9 +39,14 @@ MODEL_SHA256 = 'b5374915da534cb93df39f03bd4f2cd5a0c533df0d5e21957dc9556c260be9eb
 # Context window and cache: the configuration the voice was validated on, chosen by measurement (2026-10-02,
 # llama-cpp-python 0.3.35, CPU, ENGINE_REPLACEMENT.md s7):
 #   memory (process private, model loaded)   4096 f16 cache 4.53 GB | 2048 f16 3.63 GB | 4096 q8_0 + flash 3.61 GB
-#   voice A/B, 20 seeds x 6 real cases        f16 cache: gate pass 38/120, R8 violations 0
+#   voice A/B, 20 seeds x 6 real cases        f16 cache: gate pass 38/120, R8 violations 0   (as recorded then)
 #                                             q8_0 + flash: gate pass 30/120, R8 violations 2   <- disqualified
 # R8 (a figure not in the findings) is the cardinal rule, so the 8-bit cache is out even though it saves ~0.9 GB.
+# Item 97 U5 (RUNAWAY_ANSWERS.md, 2026-10-18): the 0/120 above does not reproduce. Re-measured on the processor, the
+# voice_discipline_test.py harness (20 seeds x 6 cases, 512 tokens, temperature 0.3, this configuration): gate pass
+# 39/120 with R8 4/120 before the item 97 stops, 40/120 with R8 1/120 after them. Context, batch and both wheels give
+# the same 120 answers, so the 2026-10-02 run differed in something unrecorded. The reference for any A/B is the
+# processor measured beside it, on the same harness, never this comment.
 # The largest measured prompt + answer is ~1,720 tokens (STREAMING.md s3), so 4096 keeps headroom; 2048 gives the
 # same output for anything that fits, at 3.63 GB, and is the measured fallback the real 8 GB test may choose (R-d).
 # The runtime library itself is ~0.64 GB once imported - never, with AI off.
@@ -58,7 +63,7 @@ MODEL_SHA256 = 'b5374915da534cb93df39f03bd4f2cd5a0c533df0d5e21957dc9556c260be9eb
 #     with the model loaded fell from 4.55 GB to 2.77 GB, same speed, load 1.44 s.
 #   (2048 ctx, q8_0 cache: 3.19 GB before the OpenBLAS fix - still R8-disqualified, 2 violations in 120)
 # The shipped configuration writes WORD FOR WORD the same text as the validated 4096 one: 12 of 12 voice cases over
-# two seeds identical, so the voice A/B (R8 0/120) carries over unchanged. 2048 holds the largest measured prompt
+# two seeds identical (and item 97 measured 4096 and 2048 as the same 120 answers). 2048 holds the largest measured prompt
 # plus answer (~1,720 tokens, STREAMING.md s3); a longer request is refused plainly ('too_long'), never cut silently.
 N_CTX = 2048
 N_BATCH = 256          # prompt-processing batch: smaller compute buffers; measured not to change the output
@@ -76,6 +81,35 @@ KV_CACHE_TYPE = _T('GROUNDWORK_TEST_ENGINE_KV', KV_CACHE_TYPE)
 FLASH_ATTN = _T('GROUNDWORK_TEST_ENGINE_FLASH', '1' if FLASH_ATTN else '') == '1'
 USE_MMAP = _T('GROUNDWORK_TEST_ENGINE_MMAP', '1' if USE_MMAP else '') == '1'
 LOADING_WAIT_SECONDS = 60       # a call made while the model is still loading waits this long for it
+
+# Item 97 U1 (RUNAWAY_ANSWERS.md; Rob 2026-10-18): an answer that doesn't end. The model sometimes finishes and keeps
+# writing - a made-up new instruction, a second copy, new "Computed facts:" - and nearly every invented figure in item
+# 95's A/B was in that tail, on every device. It never writes its end of turn there: it writes three or more newlines
+# and carries on in plain text (once, a <|user|> token instead). So every call stops at a run of three newlines, and
+# at the model's role tokens. Measured (20 seeds x 6 cases, 512 tokens): R8 4 -> 1 of 120 on the processor, 2 -> 0 on
+# NVIDIA, 4 -> 0 on Intel; only tails were cut, every other answer word for word the same. A cut answer reports
+# 'stop', not 'length', so item 12's R10 and K3 are unaffected. U2: every call into the model passes STOP, and every
+# model is given the role-token stops by install_stops() - s237 scans for both.
+STOP = ['\n\n\n']
+ROLE_TOKENS = ('<|end|>', '<|user|>', '<|system|>', '<|assistant|>')
+
+
+def install_stops(model):
+    """Item 97 U1: make the model's role tokens end an answer, alongside its own end of turn. The chat template is the
+    model file's own, so the prompt is unchanged (measured: 1 answer in 360 differed - the one that ran into <|user|>).
+    Returns the stop token ids."""
+    from llama_cpp.llama_chat_format import Jinja2ChatFormatter
+    ids = [model.token_eos()]
+    for t in ROLE_TOKENS:
+        toks = model.tokenize(t.encode(), add_bos=False, special=True)
+        if len(toks) == 1 and toks[0] not in ids:
+            ids.append(toks[0])
+    inner = model._model
+    model.chat_handler = Jinja2ChatFormatter(
+        template=model.metadata['tokenizer.chat_template'],
+        eos_token=inner.token_get_text(model.token_eos()), bos_token=inner.token_get_text(model.token_bos()),
+        stop_token_ids=ids).to_chat_handler()
+    return ids
 
 MESSAGES = {
     'off':         'Local AI is not running. Turn on AI features in Settings to start it.',
@@ -237,6 +271,7 @@ def _load(gen):
             try:
                 model = Llama(model_path=str(path), n_ctx=N_CTX, n_batch=N_BATCH, n_ubatch=N_BATCH,
                               use_mmap=USE_MMAP, flash_attn=FLASH_ATTN, type_k=kv, type_v=kv, verbose=False)
+                install_stops(model)
             except Exception as e:
                 return _finish(gen, None, 'load_failed', repr(e))
         _state['load_seconds'] = round(time.time() - t1, 2)
@@ -294,6 +329,7 @@ def _load_on_graphics(path, kv, choice, rec):
         model = Llama(model_path=str(path), n_ctx=N_CTX, n_batch=N_BATCH, n_ubatch=N_BATCH, use_mmap=USE_MMAP,
                       flash_attn=FLASH_ATTN, type_k=kv, type_v=kv, verbose=False,
                       n_gpu_layers=int(choice.get('layers', -1)))
+        install_stops(model)
         rec.update(pending_launch=False)
         ef.write_fit(rec)
         return model
@@ -388,7 +424,7 @@ def chat_stream(system, messages, max_tokens=1000, temperature=0.3):
             {'role': m.get('role', 'user'), 'content': _text_of(m.get('content'))} for m in (messages or [])]
         try:
             pieces = _model.create_chat_completion(messages=msgs, max_tokens=int(max_tokens),
-                                                   temperature=float(temperature), stream=True)
+                                                   temperature=float(temperature), stream=True, stop=STOP)
         except ValueError as e:
             if 'context' in str(e).lower() or 'exceed' in str(e).lower():
                 yield ('error', {'reason': 'too_long', 'message': MESSAGES['too_long']})
@@ -432,7 +468,8 @@ def choose(system, question, options):
             reason = _state['reason'] if st == 'unavailable' else st
             return {'ok': False, 'reason': reason, 'message': MESSAGES.get(reason, MESSAGES['off'])}
         msgs = ([{'role': 'system', 'content': system}] if system else []) + [{'role': 'user', 'content': question}]
-        out = _model.create_chat_completion(messages=msgs, max_tokens=16, temperature=0.0, grammar=grammar)
+        out = _model.create_chat_completion(messages=msgs, max_tokens=16, temperature=0.0, grammar=grammar,
+                                            stop=STOP)
     raw = (((out.get('choices') or [{}])[0].get('message') or {}).get('content') or '').strip()
     if raw not in options:
         return {'ok': False, 'reason': 'refused', 'message': 'The answer was not one of the choices.', 'raw': raw}
@@ -452,7 +489,7 @@ def chat(system, messages, max_tokens=1000, temperature=0.3):
             {'role': m.get('role', 'user'), 'content': _text_of(m.get('content'))} for m in (messages or [])]
         try:
             out = _model.create_chat_completion(messages=msgs, max_tokens=int(max_tokens),
-                                                temperature=float(temperature))
+                                                temperature=float(temperature), stop=STOP)
         except ValueError as e:                 # the prompt does not fit the context window
             if 'context' in str(e).lower() or 'exceed' in str(e).lower():
                 return {'ok': False, 'reason': 'too_long', 'message': MESSAGES['too_long']}
