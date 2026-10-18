@@ -452,3 +452,18 @@ and needs its own A/B (Rob, 2026-10-17: a tester's machine once the health work 
 
 Raw answers (every seed, case, text, rule failures and finish reason) are kept with the session notes:
 `side-session-notes/local_d42ec9c4-…/gpu_ab_2026-10-17/`.
+
+### G4″ ruled — Rob, 2026-10-18
+
+*"I rule G4″ (a) and (c): judge each graphics family against the processor measured beside it, and fix the runaway
+answer as its own item."*
+- **(a) stands.** A graphics family is admissible when its R8 count is no worse than the processor's on the same
+  harness in the same run, and its gate pass is within noise. On the A/B above, **NVIDIA and Intel are both
+  admissible**, so "Not done" 1 is closed for those two families. AMD and Metal are still owed.
+- **(c) is item 97,** `RUNAWAY_ANSWERS.md`, opened the same day with what was measured. One correction to (c) as
+  written above: the engine already stops at the model's end of turn. A runaway never writes it, but writes three
+  newlines and carries on. Stopping there (measured, harness only) takes R8 to 1/120 on the processor and 0/120 on
+  both chips.
+- **Fitting's six-case R8 read** is the part of (a) not yet built. It still excludes a chip on a single runaway and
+  never reads the processor. Item 97 carries it, because once the runaway is fixed the read may have nothing left to
+  find.
