@@ -582,6 +582,7 @@ def serialize_transaction(t: Transaction, linked_debt_entry_id=None) -> dict:
         'card_last4':      t.card_last4 or '',
         'source':          t.source or 'manual',
         'check_number':    t.check_number or '',
+        'pending':         bool(getattr(t, 'pending', False)),   # item 93 B9: the bank's file said still pending
         # Debt Reconciliation Phase D — which debt_ledger_entries row this
         # checking transaction is linked to (payment/charge), if any. None
         # here means "not linked", not "unknown" — every call site that
@@ -759,8 +760,17 @@ def list_transactions():
             ).filter(CheckingTransactionLink.checking_transaction_id.in_(txn_ids)).all():
                 linked_map[row[0]] = row[1]
 
-        return ok([serialize_transaction(t, linked_map.get(t.id)) for t in txns],
-                  total=total, page=page, per_page=per_page)
+        # Item 93 stage 2: which lines carry corrections (B6), and which posted lines followed a pending one (B9).
+        from core import bank_versions as _bv
+        corrected = _bv.corrected_ids(session, txn_ids)
+        was_pending = _bv.paired_ids(session, txn_ids)
+        out = []
+        for t in txns:
+            d = serialize_transaction(t, linked_map.get(t.id))
+            d['corrected'] = t.id in corrected
+            d['was_pending'] = was_pending.get(t.id)
+            out.append(d)
+        return ok(out, total=total, page=page, per_page=per_page)
 
 
 @transactions_bp.route('', methods=['DELETE'])
@@ -884,6 +894,18 @@ def update_transaction(txn_id):
 
         session.commit()
         return ok(serialize_transaction(txn))
+
+
+@transactions_bp.route('/<int:txn_id>/versions', methods=['GET'])
+def transaction_versions(txn_id):
+    """Item 93 B6/B9: the line now, the earliest version kept, every correction between, and the pending line it
+    followed. Every total uses the line as it is now."""
+    from core import bank_versions
+    with db_session() as session:
+        txn = session.get(Transaction, txn_id)
+        if not txn:
+            return err('Transaction not found', 404)
+        return ok(bank_versions.versions(session, txn))
 
 
 def _unlink_debt_for_deleted_transaction(session, txn_id: int):
@@ -15059,12 +15081,40 @@ def _import_insert(session, account_id, rec, batch):
                         posted_date=date.fromisoformat(posted_raw) if posted_raw else txn_date,
                         running_balance=rec.get('running_balance'), mcc=rec.get('mcc', ''),
                         card_last4=rec.get('card_last4', ''), import_id=(rec.get('fitid') or '').strip(),
-                        source=rec.get('source', 'csv'), check_number=rec.get('check_number', ''), import_batch=batch)
+                        source=rec.get('source', 'csv'), check_number=rec.get('check_number', ''), import_batch=batch,
+                        pending=bool(rec.get('pending')))
+        if t.pending:
+            t.cleared = False
         session.add(t)
         session.flush()
         return t
     except Exception:
         return None
+
+
+@bank_import_bp.route('/pending-pairs', methods=['GET'])
+def import_pending_pairs():
+    """Item 93 B9: posted lines that may be a pending line already here - each waits for the person's answer."""
+    from core import bank_versions
+    with db_session() as session:
+        return ok({'pairs': bank_versions.suggestions(session)})
+
+
+@bank_import_bp.route('/pending-pairs/<int:pair_id>', methods=['POST'])
+@require_json
+def import_pending_pair_answer(pair_id):
+    """{answer: 'yes' | 'no'}. Yes: both kept, the pending line set aside with its own date and amount, the posted one
+    current for totals. No: both stay in the ledger, and this pair is not asked again."""
+    from core import bank_versions
+    ans = (request.json or {}).get('answer')
+    if ans not in ('yes', 'no'):
+        return err('answer yes or no')
+    with db_session() as session:
+        p, problem = bank_versions.answer(session, pair_id, ans == 'yes')
+        if problem:
+            return err(problem)
+        session.commit()
+        return ok({'state': p.state, 'pairs': bank_versions.suggestions(session)})
 
 
 @bank_import_bp.route('/held', methods=['GET'])
@@ -15137,6 +15187,9 @@ def bank_import_commit():
     from core import import_custody as _ic
     batch = _uuid.uuid4().hex          # item 93 B7: this import's lines, together
     held_rows = []                     # item 93 B5: look-alikes held back, never dropped
+    from core import bank_versions as _bv
+    pairs_asked = []                   # item 93 B9: posted lines that may be a pending one - asked, never decided
+    pairs_made = 0                     # item 93 B9: posted lines the bank's own id paired with their pending line
     # BUG FIX (July 6): tracks (amount, type) for every transaction actually
     # created in THIS import batch — needed below because the debt-balance
     # auto-update only ever trusted the bank's own reported running_balance
@@ -15203,12 +15256,19 @@ def bank_import_commit():
                 # different (and not merely truncated) description — e.g. two
                 # Clark Gas fill-ups — still both import; see the 20-char
                 # shared-prefix floor in _descriptions_match_fuzzy.
+                is_pending  = bool(rec.get('pending'))
                 existing = None
                 if fitid:
                     existing = session.query(Transaction).filter(
                         Transaction.account_id == account_id,
                         Transaction.import_id  == fitid,
                     ).first()
+                posts_pending = None
+                if existing and existing.pending and not is_pending:
+                    # Item 93 B9: the bank's own id, once pending and now posted - the bank's statement changed.
+                    # Both are kept: this posted line comes in, and the pending one is set aside with its own date
+                    # and amount once the posted line has an id (below).
+                    posts_pending, existing = existing, None
                 if existing:
                     # The bank's own id: the bank says this is the same line, imported again.
                     duplicates += 1
@@ -15224,6 +15284,13 @@ def bank_import_commit():
                      and not _ic.bank_says_different(c, fitid)),
                     None,
                 )
+                pending_alike = None
+                if look_alike is not None and look_alike.pending and not is_pending:
+                    # Item 93 B9: it looks like a pending line here - the posted version, probably. It comes in, and
+                    # whether it is that pending line is asked, never decided.
+                    pending_alike, look_alike = look_alike, None
+                if posts_pending is not None:
+                    look_alike = None
                 if look_alike:
                     # Item 93 B5: similarity proposes, it never decides - held back and shown, never dropped.
                     held_rows.append(_ic.hold(session, account_id, rec, look_alike, batch).id)
@@ -15275,12 +15342,26 @@ def bank_import_commit():
                     source=rec.get('source', 'csv'),
                     check_number=rec.get('check_number', ''),
                     import_batch=batch,          # item 93 B7
+                    pending=is_pending,          # item 93 B9
                 )
+                if is_pending:
+                    _new_txn.cleared = False
                 session.add(_new_txn)
+                if posts_pending is not None:
+                    session.flush()
+                    _bv.pair_by_bank_id(session, posts_pending, _new_txn)
+                    pairs_made += 1
+                elif not is_pending and (pending_alike is not None or session.query(Transaction.id).filter(
+                        Transaction.account_id == account_id, Transaction.pending.is_(True)).first()):
+                    session.flush()
+                    _pp = _bv.suggest(session, _new_txn, prefer=pending_alike)
+                    if _pp is not None:
+                        pairs_asked.append(_pp.id)
                 if cat_name and cat_name.strip() in _tidy_unmatched:
                     session.flush()
                     _tidy_unmatched[cat_name.strip()].append(_new_txn.id)
-                new_txn_deltas.append((amount, txn_type))
+                # B9: a posted line paired by the bank's id moves a linked card by what changed, not twice
+                new_txn_deltas.append((amount - (posts_pending.amount if posts_pending is not None else 0), txn_type))
                 created += 1
 
             except Exception as e:
@@ -15555,7 +15636,11 @@ def bank_import_commit():
         'duplicates': duplicates,
         'errors':     errors,
         'batch':      batch,
+        'pending_paired': pairs_made,    # item 93 B9
     }
+    if pairs_asked:                      # item 93 B9
+        with db_session() as session:
+            result['pending_pairs'] = [x for x in _bv.suggestions(session) if x['id'] in pairs_asked]
     if held_rows:                      # item 93 B5
         with db_session() as session:
             from core.database import ImportHeldLine

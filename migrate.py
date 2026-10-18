@@ -12,7 +12,7 @@ logger = logging.getLogger('groundwork.migrate')
 # no index churn — making every post-first-boot launch effectively instant.
 # The version is written ONLY after a fully successful run, so a failed
 # migration retries on next boot instead of being silently skipped forever.
-SCHEMA_VERSION = '20261017-import-custody'   # item 93 stage 1 (BANK_SIDE_RECORDS.md B5/B7): set_aside_transactions + import_held_lines (create_all) + transactions.import_batch
+SCHEMA_VERSION = '20261018-bank-versions'   # item 93 stage 2 (BANK_SIDE_RECORDS.md B6/B9): transaction_corrections + pending_posted (create_all) + transactions.pending
 # Before it, '20261017-named-people'   # item 92: the care_for table (create_all) + health_plan_readings.person_id
 # Before it, '20261016-care-answers' (item 89: the care_answers table, through init_db's create_all).
 # Before it, '20261015-plan-year' (item 87: health_plan_readings + health_plan_term_versions.tier).
@@ -43,12 +43,12 @@ SCHEMA_VERSION = '20261017-import-custody'   # item 93 stage 1 (BANK_SIDE_RECORD
 # The fingerprint of this file's code at this SCHEMA_VERSION (smoke section s51). Change anything the
 # migration does and s51 fails until BOTH lines above and below are updated - the version first, then
 # the fingerprint s51 prints. A change without a bump is skipped on every existing database.
-SCHEMA_SPEC_SHA256 = '2ee77f6da23aab10610ad7ae0e3e940a10157d186e94ddaf4f10e92b54b31aed'
+SCHEMA_SPEC_SHA256 = '24769963e965d47667173b4d13aaad556671736b980665eddd7bad9b2b58740c'
 # The models' fingerprint (item 24, SCHEMA_PIN_MODELS.md P1): every table and column in core/database.py. A model
 # change - a new table, a new column - moves it, and s51 fails until SCHEMA_VERSION is bumped, any new column on an
 # existing table is listed in its _NEW_*_COLUMNS list, this pin is updated, and `python schema_fixture.py` has saved
 # the new version's schema (s67 upgrades every saved schema).
-SCHEMA_MODELS_SHA256 = 'f4397ad04bf3dd48367d61a810687831741b7b740f3d0635ebc8bdf2aa210b99'
+SCHEMA_MODELS_SHA256 = '58bd1900ab2fdca3a220f4ce47483fcdb10bfb6fcd63f1ec2ad306c6e5606a6f'
 
 
 def _stored_schema_version():
@@ -73,6 +73,7 @@ _NEW_TRANSACTION_COLUMNS = [
     ('import_id',       "VARCHAR(64)  DEFAULT ''"),
     ('check_number',    "VARCHAR(20)  DEFAULT ''"),
     ('import_batch',    "VARCHAR(36)"),          # item 93 B7
+    ('pending',         "BOOLEAN DEFAULT 0"),    # item 93 B9
 ]
 
 _NEW_DEBT_COLUMNS = [
@@ -537,6 +538,17 @@ def _remove_cloud_ai(session):
     _mark_migration_done(session, flag)
 
 
+def _corrections_kept_since():
+    """Item 93 B6: from when every correction is kept. A line imported before this may have been edited with no
+    history, so its earliest kept version is only called the bank's when the line came in after this moment."""
+    from datetime import datetime
+    from core.database import AppSetting, db_session
+    with db_session() as session:
+        if not session.query(AppSetting).filter_by(key='corrections_kept_since').first():
+            session.add(AppSetting(key='corrections_kept_since', value=datetime.utcnow().isoformat(timespec='seconds')))
+            session.commit()
+
+
 def run_migration_if_needed():
     # Schema version gate — skip everything when this DB is already current.
     if _stored_schema_version() == SCHEMA_VERSION:
@@ -560,6 +572,7 @@ def run_migration_if_needed():
     _add_missing_columns('parties',              _NEW_PARTY_COLUMNS)
     _drop_reserve_contributions()
     _fuel_names_v84()
+    _corrections_kept_since()
     _ensure_indexes()
 
     # Audit note (d20 deferred → d21): debt_balance_history used to be defined
