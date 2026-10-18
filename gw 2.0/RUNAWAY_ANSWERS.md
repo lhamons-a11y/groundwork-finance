@@ -158,3 +158,14 @@ sample of the app's own path.
 - **The installers** built yesterday (from 2597220) don't have this change. They need rebuilding when you ask for a
   build.
 - **AMD and Metal** are still owed (items 95 and 96).
+
+**Installers rebuilt 2026-10-18 from 23c5001** (Rob: "rebuild the installers from master"):
+- **Where:** `C:\rw-gpu\installer_output\` holds `Groundwork_Setup.exe`, `_Offline` and `_Store`. They are
+  identical, SHA-256 `0a6996af04c77e77…`, 2.2 GB each, with the Vulkan engine.
+- **How:** Inno Setup again hit the antivirus lock on the 2.2 GB output, twice. Each failed installer was rebuilt
+  from the same bundle.
+- **Checked:** the packaged `Groundwork.exe --engine-probe` ran with `install_stops` and `STOP` inside the bundle:
+  - NVIDIA: 0.72 s to the first word, 9.1 s whole;
+  - processor: 18.4 s / 36.9 s, with the six voice answers it now reads;
+  - neither found an invented figure.
+- **Still owed:** not yet installed on a clean machine. Users don't have these.
