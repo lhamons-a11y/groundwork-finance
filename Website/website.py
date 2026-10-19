@@ -967,7 +967,7 @@ def download():
       macOS 12 Monterey or later (a version Apple still updates is suggested)<br>
       ~2.2GB disk space (includes the built-in local AI model)<br>
       4GB RAM (8GB+ for the optional local AI)<br>
-      Local AI: built in, on macOS 26 Tahoe or later. On earlier versions Groundwork runs fully, without local AI.
+      Local AI: built in, on Apple's graphics (Metal). Groundwork runs fully without it.
     </div>
     <div class="callout" style="margin-top:12px;font-size:13.5px">
       <strong>One extra step the first time you open it.</strong> Groundwork isn't notarized by Apple yet, so macOS
@@ -1122,7 +1122,7 @@ python3 launch.py</pre>
       </ol>
       <p>You only need to do this once for each copy you download, so a new version may ask again. On macOS 14 Sonoma or earlier you can instead Control-click Groundwork in Applications, choose <strong>Open</strong>, then click <strong>Open</strong> again.</p>
       <div class="kb-tip">💡 No Open Anyway button? Open Groundwork once more so the warning appears again, click Done, then look in Privacy &amp; Security again. macOS shows the button for about an hour after the warning.</div>
-      <div class="kb-tip">💡 Groundwork for Mac needs Apple Silicon (M1 or later). Its built-in local AI needs macOS 26 Tahoe or later. On earlier versions everything else works.</div>
+      <div class="kb-tip">💡 Groundwork for Mac needs Apple Silicon (M1 or later) and macOS 12 Monterey or later. Its local AI is built in and runs on the Mac's graphics (Metal).</div>
     </div>
 
     <div class="kb-article" id="budget">

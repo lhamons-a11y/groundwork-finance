@@ -281,5 +281,6 @@ def run(ctx):
         check(f'33 Q5 {wf} fetches and verifies the pinned model before packaging (any failure fails the build)',
               'fetch_model.py' in text and text.index('fetch_model.py') < text.index('pyinstaller groundwork_'))
     site = ctx.BASE.joinpath('Website', 'website.py').read_text(encoding='utf-8')
-    check('33 Q7 the website says what is true: macOS and Linux local AI is coming; Intel Macs run fully without it',
-          'Intel Macs run Groundwork fully, without local AI.' in site and 'Local AI: coming to Linux.' in site)
+    check('33 Q7 the website says what is true: Mac local AI is built in on Metal from macOS 12; Linux local AI is coming',
+          "Local AI: built in, on Apple's graphics (Metal)." in site and 'macOS 12 Monterey or later' in site
+          and 'Tahoe' not in site and 'Local AI: coming to Linux.' in site)
