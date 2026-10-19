@@ -133,3 +133,5 @@ strain before any code exists:
 - a bill is the provider's word until you take it on.
 
 What's left is arithmetic with its working shown, and a plain "can't tell" wherever the record runs out.
+
+**RULED 2026-10-19 (Rob): "I accept item 94 as written" - L1-L10 as written. Build not yet started.**

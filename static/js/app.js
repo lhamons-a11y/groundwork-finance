@@ -21546,10 +21546,19 @@ const _byb = {
 
 // ── Entry / exit ──────────────────────────────────────────────────────────────
 
+// Item 99 (BYB_LAYOUT.md L1): the question lives on the page, not in a pop-up. "Evaluate a purchase" from anywhere opens
+// the page on a fresh question, with the name box ready.
 function openBYBWizard() {
-  const overlay = g('bybOverlay');
-  if (!overlay) return;
+  if (!g('view-byb')?.classList.contains('active')) showView('byb');
+  _bybResetQuestion();
+  bybShowTab('before');
+  g('bybAsk')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setTimeout(() => g('bybItemName')?.focus(), 250);
+}
 
+function _bybResetQuestion() {
+  _byb.started = true;
+  _byb.sandboxKey = '';
   // Reset state
   _byb.type        = 'vehicle';
   _byb.subtype     = 'lease';
@@ -21607,16 +21616,16 @@ function openBYBWizard() {
   _bybImpactKey  = '';
   _maybeLoadBYBImpact();
 
-  // Show step 1
+  // Show step 1, on the first kind again
+  const vehicleBtn = document.querySelector('.byb-type-btn[data-type="vehicle"]');
+  if (vehicleBtn) _bybSelectType('vehicle', vehicleBtn);
   _bybGoStep(1, true);
-
-  overlay.classList.remove('hidden');
-  overlay.style.display = '';
+  if (g('bybStep1Preview')) g('bybStep1Preview').style.display = 'none';
 }
 
+// "Ask about something else" (and the old close): a fresh question, on the same page
 function closeBYBWizard() {
-  const overlay = g('bybOverlay');
-  if (overlay) { overlay.classList.add('hidden'); overlay.style.display = 'none'; }
+  _bybResetQuestion();
 }
 
 // Backward compat
@@ -21624,10 +21633,18 @@ function closeBYBWizard() {
 
 // ── Step navigation ───────────────────────────────────────────────────────────
 
+// Item 99: a class added again restarts its animation (reflow between)
+function _bybAnimate(el, cls = 'byb-in') {
+  if (!el) return;
+  el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+}
+function _bybPulse(el) { _bybAnimate(el, 'byb-pulse'); }
+
 function _bybGoStep(n, force = false) {
   [1, 2, 3, 4].forEach(i => {
     const el = g(`bybStep${i}`);
     if (el) el.style.display = i === n ? '' : 'none';
+    if (el && i === n && !force) _bybAnimate(el);
   });
 
   // Update step dots
@@ -21637,8 +21654,13 @@ function _bybGoStep(n, force = false) {
     d.style.background = s < n ? 'var(--pine)' : s === n ? 'var(--ink)' : 'var(--steel)';
   });
 
-  if (n === 2) _bybBuildSandbox();
+  const key = `${(g('bybItemName')?.value || '').trim()}|${parseFloat(g('bybMonthlyAmount')?.value) || 0}`;
+  if (n === 2) { _bybBuildSandbox(); _byb.sandboxKey = key; }
+  // Item 99 L4: deciding needs no stop in the sandbox. Arriving from the question, it is the real budget as it is
+  // (built quietly, so the decision records true figures); arriving from the sandbox, its edits are kept.
+  if (n === 3 && _byb.sandboxKey !== key) { _bybBuildSandbox(); _byb.sandboxKey = key; }
   if (n === 3) { _bybBuildComparison(); _maybeLoadBYBImpact(); _bybRefreshCommitGate(); }
+  if (!force && g('view-byb')?.classList.contains('active')) g('bybAsk')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ── Type / subtype selectors ──────────────────────────────────────────────────
@@ -21731,6 +21753,7 @@ function _bybLiveUpdate() {
 
   const prev = g('bybStep1Preview');
   if (!prev || mo <= 0) { if (prev) prev.style.display = 'none'; return; }
+  if (prev.style.display === 'none') _bybAnimate(prev);      // item 99: the answer arrives
   prev.style.display = '';
 
   // Replace scenario: subtract freed minimum from cost
@@ -22294,11 +22317,11 @@ async function _bybCommit(decision) {
 
   // Show done screen
   const icons  = { commit: '🎉', track: '📋', walkaway: '✓' };
-  const titles = { commit: 'Budget updated.', track: 'Added to history.', walkaway: 'Decision logged.' };
+  const titles = { commit: 'Budget updated.', track: 'Waiting and watching.', walkaway: 'Not buying it.' };
   const notes  = {
     commit:   `${_byb.name} has been added to your budget${_byb.replaceCardId ? ', and the old vehicle removed' : ''}. Your debt page and dashboard will reflect the change.`,
-    track:    `${_byb.name} saved to your Before You Buy history. Nothing in your budget changed.`,
-    walkaway: `Good call — or come back anytime. Your debt-free date stays on track.`,
+    track:    `${_byb.name} waits on the After you buy tab, where Groundwork asks how it turned out. Nothing in your budget changed.`,
+    walkaway: `Noted in your decisions. Nothing in your budget changed, and your debt-free date stays where it was.`,
   };
   const doneIcon  = g('bybDoneIcon');
   const doneTitle = g('bybDoneTitle');
@@ -31450,10 +31473,11 @@ async function renderBybFromRecord() {
   let d;
   try { d = await API.get('/api/byb/offers'); } catch (e) { _gwErr('renderBybFromRecord')(e); el.innerHTML = ''; return; }
   const offers = (d && d.offers) || [];
+  _bybAfterCount('offers', offers.length);
   if (!offers.length) { el.innerHTML = ''; return; }
   const when = n => n == null ? 'not priced' : `${n} month${n !== 1 ? 's' : ''}`;
-  el.innerHTML = `<div class="card mb-5"><div class="card-label">From your records</div>
-    <div style="font-size:12px;color:var(--slate);margin-bottom:6px">Purchases that didn't come through here, shown as if you had asked first. Nothing changes unless you change it.</div>
+  el.innerHTML = `<div class="card mb-5"><div class="card-label">Purchases you didn't ask about</div>
+    <div style="font-size:12px;color:var(--slate);margin-bottom:6px">Found in your records, not asked here first - shown as if you had asked. Nothing changes unless you change it.</div>
     ${offers.map(o => {
       const im = o.impact || {};
       const head = o.kind === 'new_recurring'
@@ -31494,7 +31518,8 @@ async function renderBybReceipts() {
   let kept = [];
   try { kept = ((await API.get('/api/byb/receipt-dates')) || {}).dates || []; } catch (e) { _gwErr('renderBybReceipts')(e); }
   const open = kept.filter(r => !r.done);
-  el.innerHTML = `<div class="card mb-5"><div class="card-label">Trials and return windows</div>
+  _bybAfterCount('receipts', open.length);
+  el.innerHTML = `<div class="card mb-5"><div class="card-label">Return windows and free trials</div>
     <div style="font-size:12px;color:var(--slate);margin-bottom:8px">Paste a confirmation, or choose its PDF or saved email. Groundwork reads the dates it states, and shows each on your dashboard a week before. The receipt is read on this computer and not kept.</div>
     <textarea id="bybReceiptText" rows="3" placeholder="Paste the receipt or confirmation" style="width:100%;padding:8px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:12px;background:var(--paper);color:var(--ink)"></textarea>
     <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
@@ -31562,14 +31587,18 @@ function renderBybCost() {
   if (!el) return;
   const f = (id, label, ph) => `<label style="font-size:12px;display:inline-flex;flex-direction:column;margin:0 10px 6px 0">${label}
     <input id="${id}" type="number" step="0.01" placeholder="${ph || ''}" style="width:120px;font-size:12px"></label>`;
-  el.innerHTML = `<div class="card mb-5"><div class="card-label">The full cost, and financing</div>
+  // Item 99 L2/L3: these live inside the question now ("Not sure what it costs a month?", "Paying over time?"), and
+  // each answer can become the question's monthly figure with one tap - the same figures, now one flow.
+  el.innerHTML = `<div style="background:var(--mist);border-radius:var(--r-md);padding:12px 14px">
     <div style="font-size:12px;color:var(--slate);margin-bottom:6px">What a car, a phone or a yearly charge costs each month, built from your own figures and what Groundwork already knows - each part with its source.</div>
     <select id="bybCostKind" onchange="bybCostFields()" style="font-size:12px;margin-bottom:6px">
       <option value="car">A car</option><option value="phone">A phone on a plan</option><option value="annual">A yearly charge</option></select>
     <div id="bybCostFields"></div>
     <button class="btn btn-secondary btn-sm" onclick="bybFullCost()">Work out the monthly cost</button>
-    <div id="bybCostResult" style="margin-top:8px"></div>
-    <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:10px;font-size:12px;color:var(--slate)">Paste a financing offer (a store card, a car loan, "no interest for 12 months"). Its rate, term, payment, fees and any deferred-interest terms are read - each figure must be in the offer.</div>
+    <div id="bybCostResult" style="margin-top:8px"></div></div>`;
+  const offerEl = g('bybOffer');
+  if (offerEl) offerEl.innerHTML = `<div style="background:var(--mist);border-radius:var(--r-md);padding:12px 14px">
+    <div style="font-size:12px;color:var(--slate)">Paste a financing offer (a store card, a car loan, "no interest for 12 months"). Its rate, term, payment, fees and any deferred-interest terms are read - each figure must be in the offer.</div>
     <textarea id="bybOfferText" rows="3" style="width:100%;padding:8px;border:1px solid var(--steel);border-radius:var(--r-md);font-size:12px;background:var(--paper);color:var(--ink);margin-top:6px"></textarea>
     <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="bybReadOffer()">Read the offer</button>
     <div id="bybOfferResult" style="margin-top:8px"></div></div>`;
@@ -31595,7 +31624,22 @@ async function bybFullCost() {
   try { d = await API.post('/api/byb/full-cost', { kind: k, inputs }); } catch (e) { out.innerHTML = `<div style="font-size:12px;color:var(--ember-text)">${esc(e.message)}</div>`; return; }
   out.innerHTML = `<div style="font-size:12px;line-height:1.7">${d.parts.map(p => `<div><b>${esc(p.label)}</b>: ${fmt(p.monthly)} a month <span style="color:var(--slate-2)">(${esc(p.source)})</span></div>`).join('')}
     <div style="margin-top:4px"><b>About ${fmt(d.monthly)} a month, ${fmt(d.yearly)} a year</b>, counting only the parts above.</div>
-    ${d.left_out.length ? `<div style="color:var(--slate-2);margin-top:2px">Not included: ${d.left_out.map(esc).join('; ')}.</div>` : ''}</div>`;
+    ${d.left_out.length ? `<div style="color:var(--slate-2);margin-top:2px">Not included: ${d.left_out.map(esc).join('; ')}.</div>` : ''}
+    ${d.monthly > 0 ? `<button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="bybUseFigure(${Number(d.monthly)}, '${k === 'car' ? 'vehicle' : k === 'phone' ? 'subscription' : 'other'}')">Use ${fmt(d.monthly)} a month above</button>` : ''}</div>`;
+}
+
+// Item 99 L2/L3: a worked-out figure becomes the question's monthly cost, and the answer moves with it
+function bybUseFigure(monthly, type, credit) {
+  const btn = document.querySelector(`.byb-type-btn[data-type="${type}"]`);
+  if (btn && _byb.type !== type) _bybSelectType(type, btn);
+  if (credit) {
+    [['bybCreditAmount', credit.amount], ['bybCreditAPR', credit.apr], ['bybCreditTerm', credit.term]].forEach(([id, v]) => {
+      if (g(id) && v != null) g(id).value = v;
+    });
+  }
+  const m = g('bybMonthlyAmount');
+  if (m) { m.value = (Math.round(monthly * 100) / 100).toFixed(2); _bybLiveUpdate(); _bybPulse(m); }
+  g('bybHelpCost')?.removeAttribute('open'); g('bybHelpOffer')?.removeAttribute('open');
 }
 
 async function bybReadOffer() {
@@ -31616,16 +31660,40 @@ async function bybReadOffer() {
     ${o.deferred ? `<div style="margin-top:6px;padding:6px 10px;border-left:2px solid var(--gold);background:var(--gold-bg)"><b>Deferred interest.</b> The offer says: "${esc(o.deferred_phrase || '')}"${c.deferred ? `<br>${esc(c.deferred.how)}.` : ''}</div>` : ''}
     ${c.own_debt ? `<div style="margin-top:6px">Your ${esc(c.own_debt.name)} balance (${fmt(c.own_debt.balance)}) costs ${c.own_debt.rate}%${c.own_debt.offer_apr != null ? `; this offer's rate is ${c.own_debt.offer_apr}%` : ''}.${c.own_debt.year_interest_on_cash ? ` The same cash on that balance would save about ${fmt(c.own_debt.year_interest_on_cash)} of interest in a year (worked out by Groundwork).` : ''}</div>` : ''}
     ${o.warnings.length ? `<div style="font-size:11px;color:var(--gold-text);margin-top:4px">${o.warnings.map(esc).join(' · ')}</div>` : ''}
-    <div style="font-size:11px;color:var(--slate-2);margin-top:4px">Side by side, so you can weigh them. Nothing is saved.</div></div>`;
+    <div style="font-size:11px;color:var(--slate-2);margin-top:4px">Side by side, so you can weigh them. Nothing is saved.</div>
+    ${o.payment != null && o.payment > 0 ? `<button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick='bybUseFigure(${Number(o.payment)}, "purchase", ${JSON.stringify({ amount: o.price ?? null, apr: o.apr ?? null, term: o.term_months ?? null })})'>Use ${fmt(o.payment)} a month above</button>` : ''}</div>`;
 }
 
 function renderBYB() {
   const cont = g('bybContent');
   if (!cont) return;
+  // The question on screen is kept while you move around the app; a finished one starts fresh
+  if (!_byb.started || (g('bybStep4') && g('bybStep4').style.display !== 'none')) _bybResetQuestion();
   _loadBYBItems();
   renderBybFromRecord();
   renderBybReceipts();
   renderBybCost();
+}
+
+// Item 99 L6: the page's two jobs in two tabs (the Budget page's pattern). "After you buy" shows how many wait there.
+function bybShowTab(id) {
+  ['before', 'after'].forEach(t => {
+    const on = t === id, b = g('bybTab-' + t), p = g('bybPanel-' + t);
+    if (b) {
+      b.setAttribute('aria-selected', String(on));
+      b.style.color = on ? 'var(--pine-text)' : 'var(--slate)';
+      b.style.borderBottomColor = on ? 'var(--pine)' : 'transparent';
+      b.style.fontWeight = on ? '500' : 'normal';
+    }
+    if (p) p.style.display = on ? '' : 'none';
+    if (p && on) _bybAnimate(p);
+  });
+}
+const _bybAfter = { receipts: 0, offers: 0, tracked: 0 };
+function _bybAfterCount(part, n) {
+  _bybAfter[part] = n || 0;
+  const total = _bybAfter.receipts + _bybAfter.offers + _bybAfter.tracked, el = g('bybAfterCount');
+  if (el) el.textContent = total ? `(${total})` : '';
 }
 
 async function _loadBYBItems() {
@@ -31656,16 +31724,9 @@ function _renderBYBList() {
   const cont = g('bybContent');
   if (!cont) return;
 
-  if (!S.bybItems.length) {
-    cont.innerHTML = `
-      <div class="empty-guide">
-        <div class="empty-guide-icon">◷</div>
-        <div class="empty-guide-title">Nothing evaluated yet</div>
-        <div class="empty-guide-text">Open Before You Buy before making a major purchase. See exactly what it costs your budget, your DTI, and your debt-free date.</div>
-        <button class="btn btn-secondary btn-sm" onclick="openBYBWizard()">Evaluate a purchase →</button>
-      </div>`;
-    return;
-  }
+  _renderBYBFollowUps();
+  // Item 99 L7: with nothing decided yet, the question above is the whole page - no card pointing at a button
+  if (!S.bybItems.some(b => b.decision !== 'track')) { cont.innerHTML = ''; return; }
 
   const committed   = S.bybItems.filter(b => b.decision === 'commit');
   const tracked     = S.bybItems.filter(b => b.decision === 'track');
@@ -31679,9 +31740,9 @@ function _renderBYBList() {
   const dtiNow           = calcDTI() || 0;
 
   const decisionBadge = d => {
-    if (d === 'commit')   return `<span style="font-size:10px;background:var(--pine-bg);color:var(--pine-text);border:1px solid var(--pine-border);border-radius:20px;padding:2px 8px;font-weight:600">Committed</span>`;
+    if (d === 'commit')   return `<span style="font-size:10px;background:var(--pine-bg);color:var(--pine-text);border:1px solid var(--pine-border);border-radius:20px;padding:2px 8px;font-weight:600">Bought</span>`;
     if (d === 'track')    return `<span style="font-size:10px;background:var(--mist);color:var(--slate);border:1px solid var(--steel);border-radius:20px;padding:2px 8px">Tracking</span>`;
-    if (d === 'walkaway') return `<span style="font-size:10px;background:var(--ember-bg);color:var(--ember-text);border:1px solid var(--ember-border);border-radius:20px;padding:2px 8px">Walked away</span>`;
+    if (d === 'walkaway') return `<span style="font-size:10px;background:var(--ember-bg);color:var(--ember-text);border:1px solid var(--ember-border);border-radius:20px;padding:2px 8px">Not buying</span>`;
     return '';
   };
 
@@ -31731,7 +31792,7 @@ function _renderBYBList() {
 
   const summaryBar = committed.length ? `
     <div style="background:var(--mist);border-radius:var(--r-md);padding:12px 14px;margin-bottom:18px">
-      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:8px">Committed purchases — cumulative impact</div>
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:8px">What you bought, together</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
         <div><div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--ember-text)">${fmt(totalMonthly)}/mo</div><div style="font-size:10px;color:var(--slate-2)">added</div></div>
         <div><div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:${dtiNow>20?'var(--ember-text)':dtiNow>15?'var(--gold-text)':'var(--pine-text)'}">${dtiNow.toFixed(1)}%</div><div style="font-size:10px;color:var(--slate-2)">DTI now</div></div>
@@ -31744,14 +31805,23 @@ function _renderBYBList() {
     ${items.map(itemCard).join('')}` : '';
 
   cont.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="font-size:13px;color:var(--slate)">${S.bybItems.length} evaluation${S.bybItems.length!==1?'s':''}</div>
-      <button class="btn btn-secondary btn-sm" onclick="openBYBWizard()">+ Evaluate purchase</button>
-    </div>
+    <div class="card-label" style="margin:4px 0 10px">Your decisions</div>
     ${summaryBar}
-    ${section('Committed', committed)}
-    ${section('Tracking', tracked)}
-    ${section('Walked away', walkedAway)}`;
+    ${section('Bought', committed)}
+    ${section('Not buying', walkedAway)}`;
+}
+
+// Item 99 L6: what you said you'd wait on, asked on the After tab - "Did you buy it?"
+function _renderBYBFollowUps() {
+  const el = g('bybFollowUps');
+  const tracked = (S.bybItems || []).filter(b => b.decision === 'track');
+  _bybAfterCount('tracked', tracked.length);
+  if (!el) return;
+  el.innerHTML = tracked.length ? `<div class="card mb-5"><div class="card-label">Did you buy it?</div>
+    <div style="font-size:12px;color:var(--slate);margin-bottom:6px">What you said you'd wait and watch. Tell Groundwork how it turned out, and what it really cost.</div>
+    ${tracked.map(b => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--steel)">
+      <div style="font-size:13px;color:var(--ink)"><b>${esc(b.name || '')}</b> <span style="font-family:var(--font-mono);color:var(--slate)">${b.monthly > 0 ? fmt(b.monthly) + '/mo' : ''}</span></div>
+      <button class="btn btn-secondary btn-sm" onclick="_bybResolveTracked(${b._dbId}, '${esc(b.name).replace(/'/g, "\\'")}', ${b.monthly || 0})">Tell it</button></div>`).join('')}</div>` : '';
 }
 
 // Tracker — adapt to existing HTML IDs (monthSelect, trackerProgress etc)
