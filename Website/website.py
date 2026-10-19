@@ -420,7 +420,8 @@ footer a { overflow-wrap: anywhere; }
 .kb-article h3 { font-family: 'Inter', sans-serif; letter-spacing: -.01em; font-size: 16px; font-weight: 700; margin: 20px 0 8px; }
 .kb-article h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
 .kb-article p { color: var(--slate); line-height: 1.8; margin-bottom: 12px; }
-.kb-article ul { color: var(--slate); padding-left: 20px; line-height: 1.9; }
+.kb-article ul, .kb-article ol { color: var(--slate); padding-left: 20px; line-height: 1.9; }
+.kb-article ol { margin-bottom: 12px; }
 .kb-tip { background: #e3f3ec; border-left: 3px solid var(--pine); padding: 12px 16px; color: var(--ink);
           border-radius: 0 10px 10px 0; font-size: 14.5px; margin: 16px 0; }
 
@@ -967,6 +968,13 @@ def download():
       4GB RAM<br>
       Local AI: coming to Apple Silicon Macs. Intel Macs run Groundwork fully, without local AI.
     </div>
+    <div class="callout" style="margin-top:12px;font-size:13.5px">
+      <strong>One extra step the first time you open it.</strong> Groundwork isn't notarized by Apple yet, so macOS
+      will say Apple could not verify it and offer <strong>Move to Trash</strong> or <strong>Done</strong>. Click
+      <strong>Done</strong>, then go to <strong>System Settings → Privacy &amp; Security</strong>, scroll down to
+      Security and click <strong>Open Anyway</strong>.
+      <a href="/knowledge-base#macos">Step by step →</a>
+    </div>
   </div>
 
   <div class="download-card">
@@ -1104,7 +1112,15 @@ python3 launch.py</pre>
     <div class="kb-article" id="macos">
       <h2>Installing on macOS</h2>
       <p>Download the .zip from the <a href="/download">Download page</a>, unzip it, and drag <strong>Groundwork.app</strong> into your Applications folder.</p>
-      <p>macOS may show a Gatekeeper warning — "Groundwork can't be opened because it is from an unidentified developer." This happens because the app isn't yet code-signed. Right-click the app, choose <strong>Open</strong>, then confirm <strong>Open</strong> again in the dialog. You only need to do this once.</p>
+      <p>The first time you open Groundwork, macOS shows a warning: <strong>"Groundwork" Not Opened</strong> — "Apple could not verify "Groundwork" is free of malware that may harm your Mac or compromise your privacy." It shows because Groundwork isn't notarized by Apple yet, not because macOS found anything in it. To open it:</p>
+      <ol>
+        <li>Click <strong>Done</strong>. Don't click Move to Trash.</li>
+        <li>Open the Apple menu → <strong>System Settings</strong> → <strong>Privacy &amp; Security</strong>.</li>
+        <li>Scroll down to <strong>Security</strong>. Next to "Groundwork" was blocked to protect your Mac, click <strong>Open Anyway</strong>.</li>
+        <li>Enter your Mac password, then click <strong>Open</strong>.</li>
+      </ol>
+      <p>You only need to do this once for each copy you download, so a new version may ask again. On macOS 14 Sonoma or earlier you can instead Control-click Groundwork in Applications, choose <strong>Open</strong>, then click <strong>Open</strong> again.</p>
+      <div class="kb-tip">💡 No Open Anyway button? Open Groundwork once more so the warning appears again, click Done, then look in Privacy &amp; Security again. macOS shows the button for about an hour after the warning.</div>
       <div class="kb-tip">💡 Apple Silicon and Intel Macs are both supported.</div>
     </div>
 
