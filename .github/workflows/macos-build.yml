@@ -28,14 +28,17 @@ jobs:
       # The engine, built here from its official source (Rob 2026-10-08, option (a)). Every published macOS arm64
       # wheel of llama-cpp-python is corrupt - 0.3.35 CPU and Metal, 0.3.34, 0.3.33 all fail their zip CRC on a
       # bundled .dylib (measured 2026-10-08) - so the same pinned version is compiled from the PyPI source instead.
-      # CPU only (GGML_METAL=OFF), the configuration Windows and Linux ship; Metal would be a different, untested one.
-      - name: Build the pinned engine from source (llama-cpp-python 0.3.35, CPU)
+      # With Metal, always (Rob 2026-10-19: "always use metal"). It can't be otherwise here: the source's CMakeLists.txt
+      # FORCE-sets GGML_METAL and GGML_METAL_EMBED_LIBRARY ON for every Apple build, so a -DGGML_METAL=OFF is ignored
+      # (1.1.1's comment said "CPU only" and shipped libggml-metal anyway). The step fails if Metal is ever missing.
+      - name: Build the pinned engine from source (llama-cpp-python 0.3.35, Metal)
         env:
-          CMAKE_ARGS: -DGGML_METAL=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+          CMAKE_ARGS: -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
         run: |
           python3 -m pip install --upgrade pip
           pip install --no-binary llama-cpp-python --index-url https://pypi.org/simple "llama-cpp-python==0.3.35"
           python3 -c "import llama_cpp, sys; print('engine', llama_cpp.__version__); sys.exit(llama_cpp.__version__ != '0.3.35')"
+          python3 -c "import llama_cpp, sys; ok = llama_cpp.llama_supports_gpu_offload(); print('Metal', ok); sys.exit(not ok)"
 
       - name: Install Python dependencies
         run: |
@@ -71,6 +74,7 @@ jobs:
       - name: The engine and the model are inside the app (packaging only - not inference)
         run: |
           find dist/Groundwork.app -name 'libllama*' | grep -q .
+          find dist/Groundwork.app -name 'libggml-metal*' | grep -q .
           find dist/Groundwork.app -name 'phi3.5-mini-instruct-q4.gguf' | grep -q .
 
       # Every executable and library in the app must load on the oldest macOS we promise. Reads each Mach-O's minimum

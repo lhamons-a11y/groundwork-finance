@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Item 96 / item 33 Q6: measure the in-app engine on this Mac, on the processor or on Metal. Measurement only.
 
-    python mac_measure.py cpu   <out.jsonl>       the CPU build (venv-cpu), n_gpu_layers=0
-    python mac_measure.py metal <out.jsonl>       the Metal build (venv-metal), every layer on the graphics
+    python mac_measure.py cpu   <out.jsonl>       the Metal build (venv-metal), n_gpu_layers=0: the processor
+    python mac_measure.py metal <out.jsonl>       the same build, every layer on the graphics
 
 Loads the model with the shipped settings (core/engine.py: context, batch, f16 cache, no mmap, flash off) and the
 shipped stops (engine.STOP, install_stops - item 97). Then it runs:

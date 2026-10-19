@@ -262,6 +262,8 @@ def _load(gen):
         model = None
         if choice['device'] != 'cpu':
             model = _load_on_graphics(path, kv, choice, rec)
+        elif sys.platform == 'darwin':
+            model = _load_on_metal(path, kv)
         if model is None:
             try:
                 from core import engine_fit
@@ -339,6 +341,24 @@ def _load_on_graphics(path, kv, choice, rec):
         ef.write_fit(rec)
         _state['device'] = {'running': 'cpu', **ef.describe(rec, running='cpu')}
         return None
+
+
+def _load_on_metal(path, kv):
+    """The Mac: every layer on Apple's graphics through Metal, always (Rob 2026-10-19: "always use metal"), with no
+    fitting. Without this the Mac build initialises Metal and gives it nothing (n_gpu_layers 0). None (the caller
+    loads on the processor) when this build has no Metal or the load raises."""
+    from llama_cpp import Llama, llama_supports_gpu_offload
+    if not llama_supports_gpu_offload():
+        return None
+    try:
+        model = Llama(model_path=str(path), n_ctx=N_CTX, n_batch=N_BATCH, n_ubatch=N_BATCH, use_mmap=USE_MMAP,
+                      flash_attn=FLASH_ATTN, type_k=kv, type_v=kv, verbose=False, n_gpu_layers=-1)
+        install_stops(model)
+    except Exception:
+        logging.exception('engine: Metal did not start; the processor is used')
+        return None
+    _state['device'] = {'running': 'metal', 'line': "AI runs on this Mac's graphics (Metal).", 'tried': []}
+    return model
 
 
 def _finish(gen, model, reason='', detail=''):
