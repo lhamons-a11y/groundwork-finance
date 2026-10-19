@@ -3757,6 +3757,35 @@ def tidy_unmatched():
         return ok({'moved': len(moved), 'into': target.name})
 
 
+@tidy_bp.route('/new-vendors', methods=['GET'])
+def new_vendors_get():
+    """Item 98: the new vendors the bank's own label filed, waiting to be asked about (the Ledger shows the first)."""
+    from core import new_vendor as nv
+    with db_session() as session:
+        return ok({'waiting': nv.waiting(session, nv.load(session))})
+
+
+@tidy_bp.route('/new-vendors/answer', methods=['POST'])
+@require_json
+def new_vendors_answer():
+    """Item 98 N5: {key, answer: 'yes' | 'no'}. Recorded, so the vendor is never asked about again. Nothing about the
+    transaction changes here: Yes opens it for the person to change; No leaves it."""
+    from core import new_vendor as nv
+    b = request.get_json() or {}
+    if b.get('answer') not in ('yes', 'no'):
+        return err("Answer 'yes' or 'no'.")
+    with db_session() as session:
+        items = nv.load(session)
+        e = next((x for x in items if x.get('key') == b.get('key') and not x.get('answer')), None)
+        if not e:
+            return err('That vendor is not asked about now.', 404)
+        e['answer'] = b['answer']
+        e['answered_at'] = datetime.now().isoformat(timespec='seconds')
+        _set_setting(session, nv.SETTING, json.dumps(items))
+        session.commit()
+        return ok({'key': e['key'], 'answer': e['answer']})
+
+
 @tidy_bp.route('/undo', methods=['POST'])
 def tidy_undo():
     """Undo puts back exactly what the last tidy tap changed."""
@@ -15429,6 +15458,12 @@ def bank_import_commit():
         _tidy_names = [c.name for c in session.query(Category).all()]
         _tidy_aliases = _setting_json(session, 'category_aliases_json', {}) or {}
         _tidy_unmatched = {}
+        # Item 98 (core/new_vendor.py): a vendor never seen before, filed by the bank's own label, is asked about once.
+        # Never on an account's first import (N3): its whole history is new.
+        from core import new_vendor as _nv
+        _nv_on = _nv.account_had_rows(session, account_id)
+        _nv_rules = _setting_json(session, 'import_rules_json', []) or []
+        _nv_found, _nv_new = {}, {}
 
         for rec in records:
             try:
@@ -15571,6 +15606,15 @@ def bank_import_commit():
                 if cat_name and cat_name.strip() in _tidy_unmatched:
                     session.flush()
                     _tidy_unmatched[cat_name.strip()].append(_new_txn.id)
+                _nv_label = (rec.get('bank_category') or '').strip()
+                if _nv_on and _nv_label:
+                    _nv_k = _nv.key(_new_txn.merchant, description)
+                    if _nv_k and _nv_k not in _nv_new:
+                        _nv_new[_nv_k] = not _nv.ruled(_nv_rules, _nv_k) and not _nv.seen_before(session, _nv_k, batch)
+                    if _nv_k and _nv_new[_nv_k]:
+                        session.flush()
+                        _nv_found.setdefault(_nv_k, {'merchant': _new_txn.merchant or description, 'label': _nv_label,
+                                                     'category': cat.name, 'ids': []})['ids'].append(_new_txn.id)
                 # B9: a posted line paired by the bank's id moves a linked card by what changed, not twice
                 new_txn_deltas.append((amount - (posts_pending.amount if posts_pending is not None else 0), txn_type))
                 created += 1
@@ -15599,6 +15643,8 @@ def bank_import_commit():
                 elif _ids:
                     _kept.append({'name': _n, 'ids': _ids, 'at': datetime.now().isoformat(timespec='seconds')})
             _set_setting(session, 'import_unmatched_json', json.dumps(_kept))
+        if _nv_found:                                    # item 98 N4: waits on the Ledger, one vendor at a time
+            _set_setting(session, _nv.SETTING, json.dumps(_nv.queue(_nv.load(session), _nv_found)))
         session.commit()
 
     # B3.5: Auto-update linked debt card current_balance from the most recent
@@ -15854,6 +15900,7 @@ def bank_import_commit():
         'batch':      batch,
         'pending_paired': pairs_made,    # item 93 B9
         'standing_payments': standing_paid,   # item 93 B3
+        'new_vendors': len(_nv_found),        # item 98: asked about on the Ledger
     }
     if pairs_asked:                      # item 93 B9
         with db_session() as session:

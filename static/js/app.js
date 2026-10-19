@@ -1768,7 +1768,7 @@ function showView(name) {
 
   // Lazy init each view
   if (name === 'dashboard') renderDashboard();
-  if (name === 'ledger')    { renderLedger(); updateLedgerStats(); renderRecentWin('ledger','ledgerRecentWin'); loadRecurringDetection(); }
+  if (name === 'ledger')    { renderLedger(); updateLedgerStats(); renderRecentWin('ledger','ledgerRecentWin'); loadRecurringDetection(); renderNewVendorCard(); }
   if (name === 'budget')    { renderBudget(); renderRecentWin('budget','budgetRecentWin'); loadSinkingFunds(); renderSubscriptionAudit(); renderPriceChanges();
                               // Historian: user opened the budget page (a navigation, not
                               // a re-render — renderBudget() is called directly elsewhere).
@@ -5057,7 +5057,7 @@ function _maybePromptRecurringRule(merchant, prevCategory, newCategory) {
 // broke the inline-string version).
 let _recurringPromptCtx = null;
 
-function _showRecurringPrompt(merchant, category, recurHint = null, alreadyHasRule = false) {
+function _showRecurringPrompt(merchant, category, recurHint = null, alreadyHasRule = false, question = null) {
   // Remove any existing prompt first
   document.getElementById('recurringRulePrompt')?.remove();
   _recurringPromptCtx = { merchant, category, hint: recurHint };
@@ -5076,9 +5076,9 @@ function _showRecurringPrompt(merchant, category, recurHint = null, alreadyHasRu
 
   const ruleSection = alreadyHasRule ? '' : `<div id="rrpRule" style="display:flex;flex-direction:column;gap:10px">
     <div style="font-size:13px;color:var(--ink);line-height:1.5">
-      <b style="font-weight:600">${esc(merchant)}</b> was changed to
+      ${question || `<b style="font-weight:600">${esc(merchant)}</b> was changed to
       <b style="font-weight:600">${esc(category)}</b>.
-      Always categorize this merchant this way on future imports?
+      Always categorize this merchant this way on future imports?`}
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button onclick="_promptAcceptRule()"
@@ -5213,6 +5213,75 @@ async function _promptAcceptBill() {
   renderDashboard(); // Upcoming card picks it up immediately
   showToast(`${c.merchant} added as recurring`,
     `${fmt(c.hint.amount)} around day ${c.hint.day} each month`, 'success');
+}
+
+// ── Item 98 (core/new_vendor.py): a new vendor the bank's own label filed ────────────────────────────────────────
+// Asked on the Ledger, one vendor at a time, until answered. Yes opens the transaction to change its category (the
+// usual "always categorize" prompt follows a change); No keeps it and offers that same rule for the bank's category.
+// Groundwork never changes the transaction or makes a rule itself.
+let _newVendors = [];
+async function renderNewVendorCard() {
+  const box = g('newVendorCard');
+  if (!box) return;
+  try { _newVendors = (await API.get('/api/tidy/new-vendors')).waiting || []; }
+  catch (e) { _gwErr('renderNewVendorCard')(e); box.innerHTML = ''; return; }
+  const v = _newVendors[0];
+  if (!v) { box.innerHTML = ''; return; }
+  const n = _newVendors.length;
+  box.innerHTML = `<div class="card mb-4" style="border-left:3px solid var(--pine)">
+    <div class="card-label">New vendor${n > 1 ? ` · 1 of ${n}` : ''}</div>
+    <div style="font-size:13px;color:var(--ink);line-height:1.6">
+      Groundwork found a new transaction from <b style="font-weight:600">${esc(v.merchant)}</b>, a vendor it hasn't seen
+      before: ${fmt(v.txn.amount)} on ${fmtDate(v.txn.date)}${v.count > 1 ? ` (and ${v.count - 1} more)` : ''}.
+      Your bank labelled it <b style="font-weight:600">${esc(v.label)}</b>, so it's filed under
+      <b style="font-weight:600">${esc(v.category)}</b>. Would you like to change it?
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-primary btn-sm" onclick="newVendorAnswer('yes')">Yes</button>
+      <button class="btn btn-secondary btn-sm" onclick="newVendorAnswer('no')">No</button>
+    </div></div>`;
+}
+
+async function newVendorAnswer(answer) {
+  const v = _newVendors[0];
+  if (!v) return;
+  try { await API.post('/api/tidy/new-vendors/answer', { key: v.key, answer }); }
+  catch (e) { showToast('Could not save the answer', e.message || '', 'error'); return; }
+  await renderNewVendorCard();
+  if (answer === 'yes') _openTxnToEdit(v.txn.id);
+  else _offerVendorRule(v.merchant, v.category);
+}
+
+// Yes: the Ledger shows the transaction's month, and its edit view opens with the category picker focused.
+function _openTxnToEdit(id) {
+  const t = S.transactions.find(x => x.id === id);
+  if (!t) { showToast('That transaction is no longer in the Ledger', '', 'info'); return; }
+  showView('ledger');
+  _ledgerMonthKey = (t.date || '').slice(0, 7) || _ledgerMonthKey;
+  const rowOf = () => document.querySelector(`#ledgerBody .row[data-id="${id}"]`);
+  renderLedger(); updateLedgerStats(); _renderLedgerMonthSwitcher();
+  if (!rowOf()) {                       // a search, filter or account choice hides it: show everything for this month
+    ['ledgerSearch', 'ledgerCatFilter', 'ledgerTypeFilter', 'ledgerAccountFilter'].forEach(f => { if (g(f)) g(f).value = ''; });
+    _ledgerShowUnclearedOnly = false;
+    renderLedger(); updateLedgerStats(); _renderLedgerMonthSwitcher();
+  }
+  setTimeout(() => {
+    const row = rowOf();
+    if (!row) return;
+    _flashHighlight(row);
+    ledgerRowDblClick(id);
+    row.nextElementSibling?.querySelector('[data-f="category"]')?.focus();
+  }, 150);
+}
+
+// No: the category stays, and the usual rule is offered for it (not when the person said never ask, or a rule exists).
+function _offerVendorRule(merchant, category) {
+  const k = (merchant || '').toLowerCase().trim();
+  if (!k || !category || category === 'Other' || category === 'Uncategorized') return;
+  if (_recurringRuleSuppressions.has(k)) return;
+  if (_importRules.some(r => r.value && k.includes(r.value.toLowerCase().trim()))) return;
+  _showRecurringPrompt(merchant, category, null, false,
+    `Always categorize <b style="font-weight:600">${esc(merchant)}</b> as <b style="font-weight:600">${esc(category)}</b> on future imports?`);
 }
 
 // Click outside bloom → save
@@ -5773,8 +5842,9 @@ function _applyImportIntelligence(records) {
       if (rule.direction && t.type && rule.direction !== t.type) continue;   // item 72: a rule for deposits only (or charges)
       const val      = (rule.value || '').toLowerCase();
       const merchant = (t.merchant || t.description || '').toLowerCase();
-      if (rule.type === 'contains'   && merchant.includes(val))    { t.category = rule.category; return; }
-      if (rule.type === 'startsWith' && merchant.startsWith(val))  { t.category = rule.category; return; }
+      // item 98 N1: a row the person's own rule files is theirs, not the bank's
+      if (rule.type === 'contains'   && merchant.includes(val))    { t.category = rule.category; delete t.bank_category; return; }
+      if (rule.type === 'startsWith' && merchant.startsWith(val))  { t.category = rule.category; delete t.bank_category; return; }
     }
     // 2. Category map (bank category → budget category)
     if (t.category && _categoryMap[t.category]) {
@@ -6453,7 +6523,7 @@ function renderImportPreviewLocal(records, filename) {
 function updateImportCategory(sel) {
   // User changed a category in the preview — update the record
   const idx = parseInt(sel.dataset.idx);
-  if (_importRecords[idx]) _importRecords[idx].category = sel.value;
+  if (_importRecords[idx]) { _importRecords[idx].category = sel.value; delete _importRecords[idx].bank_category; }   // item 98 N1
 }
 
 // ── H2: the user's Downloads copy, after a successful import ─────────────
@@ -6716,6 +6786,7 @@ async function confirmImport() {
 
   _offerLookThrough();   // item 65 W1: a long enough history is offered one look-through
   _offerRecordTidy();    // item 83 T5
+  renderNewVendorCard(); // item 98: a new vendor the bank's label filed is asked about on the Ledger
   _importRecords = []; _importBank = ''; _importFile = null;
   _importIsPdf = false; _importPdfSummary = null; _importPdfSourceHash = ''; _importPdfWarnings = [];
 }
@@ -6791,6 +6862,7 @@ function clientParseCSV(text) {
         category,
         cleared:     true,
         merchant:    merchant || undefined,
+        bank_category: appleCategory || undefined,   // item 98 N1: Apple's own label filed this row
       }];
     });
   }
