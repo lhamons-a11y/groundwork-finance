@@ -37,7 +37,7 @@ now, call 911"*, then the other lines, then the money help.
 **K2. Stress and anger get the calmer message.** Hopeless, overwhelmed, drowning, panic, "I can't do this", "this
 debt is killing me", angry: *"Take a breath. You're not alone in this."* - the feeling makes sense; it will be okay;
 money trouble is temporary and fixable, one step at a time; NFCC and 211 first; 988 if it is ever more than money;
-and a softer close - "There's no rush. Whenever you feel up to it, Groundwork can help you map out a way through, one small step at a time." with "Take a gentle look" (Debt Payoff; Rob 2026-10-19 asked it softer).
+and a softer close - "There's no rush. Whenever you feel up to it, Groundwork can help you map out a way through, one small step at a time." (Rob 2026-10-19 asked it softer, and no button).
 
 **K3. Everyday money talk is left alone.** "Kill a subscription", "give up coffee", "hurt my credit score", "when I
 die" about a debt, "life insurance" on its own: none of these trigger it (s247 holds a list both ways).

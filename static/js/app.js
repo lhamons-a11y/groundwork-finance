@@ -27277,8 +27277,7 @@ function careHTML(level) {
     ${CARE_MONEY.map(l => _careLine(l)).join('')}
     <div style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:12px">If it ever feels like more than money, you can call or text <strong>988</strong> any time, day or night.</div>
     ${_careLine(CARE_988)}
-    <div style="font-size:13px;color:var(--slate);line-height:1.7;margin-top:12px">There's no rush. Whenever you feel up to it, Groundwork can help you map out a way through, one small step at a time.
-      <div><button class="btn btn-ghost btn-sm" style="margin-top:4px" onclick="closeAsk(); closeHelpOverlay(); showView('debt')">Take a gentle look</button></div></div>
+    <div style="font-size:13px;color:var(--slate);line-height:1.7;margin-top:12px">There's no rush. Whenever you feel up to it, Groundwork can help you map out a way through, one small step at a time.</div>
     ${CARE_NOTE}</div>`;
 }
 

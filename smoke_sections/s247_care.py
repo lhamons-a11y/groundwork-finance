@@ -65,7 +65,7 @@ def run(ctx):
           care.count('It will be okay.') == 2 and care.count('Money trouble is temporary, and it can be fixed') == 2
           and "You're not alone in this." in care and "You don't have to carry this alone." in care
           and 'You matter more than any bill.' in care
-          and "There's no rush. Whenever you feel up to it" in care and 'plan my debts' not in care)
+          and "There's no rush. Whenever you feel up to it" in care and 'plan my debts' not in care and 'Take a gentle look' not in care)
     check('s247 K4 the lines as their services publish them (checked 2026-10-19)',
           all(x in care for x in ("'tel:988'", "'sms:988'", 'https://988lifeline.org/chat/', 'Text HOME to 741741',
                                   'Dial 988 then press 1, or text 838255', '1-866-488-7386', 'text START to 678-678',
