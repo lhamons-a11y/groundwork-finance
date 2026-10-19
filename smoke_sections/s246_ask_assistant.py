@@ -57,8 +57,8 @@ def run(ctx):
     import shutil, subprocess, tempfile, os
     nav = app[app.index('const ASK_PLACES = ['):app.index('function askGo(')]
     check('s246 A6 "view", "see", "show me", "open", "go to", "take me to" a page or tab goes straight there; "show me how" is a question',
-          "if (place) { askGo(place); return; }" in ask and 'picture' not in nav
-          and ask.index('askPlace(q)') < ask.index('callAI(') and 'show me how to... is a question' in nav.replace('"', '')
+          'if (askIntent(q, p, head)) return;' in ask and 'picture' not in nav
+          and ask.index('askIntent(q, p, head)') < ask.index('callAI(') and 'show me how to... is a question' in nav.replace('"', '')
           or ("show me how to..." in nav and 'askGo(place)' in ask))
     node = shutil.which('node')
     if node:
@@ -75,3 +75,38 @@ def run(ctx):
         out = json.loads(subprocess.run([node, f], capture_output=True, text=True, timeout=30).stdout or '[]')
         wrong = [q for q, got, want in out if got != want]
         check(f's246 A6 the phrases land where they mean, and questions are not navigated ({wrong})', out and not wrong)
+
+    # Rob 2026-10-19: "get my accounts, fetch my accounts, download my accounts all should start the get my accounts"
+    fetch = app[app.index('const ASK_FETCH = '):app.index('function askPlace(')]
+    rx = re.search(r"const ASK_FETCH = /(.+)/i;", fetch).group(1).replace('\\\\', '\\')
+    pyrx = re.compile(rx.replace('(?!', '(?!'), re.I)
+    yes = ['get my accounts', 'fetch my accounts', 'download my accounts', 'please get all my accounts', 'refresh my bank accounts']
+    no = ['how do I get my accounts from my bank', 'where are my accounts settings', 'get my accounts page']
+    check('s246 A7 "get / fetch / download my accounts" presses Get my accounts; a question about it is answered',
+          all(pyrx.search(q) for q in yes) and not any(pyrx.search(q) for q in no)
+          and "if (btn && btn.style.display !== 'none') { startFetchAll(); return true; }" in fetch
+          and "showView('automation');" in fetch)
+
+    # Rob 2026-10-19: "add those four and anything else that you can think of" - what people actually type
+    layer = app[app.index('const _ASK_SHORT = '):app.index('async function askGroundwork(question) {')]
+    check('s246 A8 shorthand and lead-ins are tidied first ("acct", "txn", "cc"; "I need to", "can you", "please")',
+          "acct: 'account'" in layer and "txn: 'transaction'" in layer and "cc: 'credit card'" in layer
+          and 'i need to' in layer and 'can you' in layer)
+    do = layer[layer.index('const ASK_DO = ['):layer.index('const ASK_RECORD = [')]
+    check('s246 A8 commands open exactly what their own buttons open - import, add a transaction, back up, add a bill, '
+          'add a card, report a problem, the AI switch (never flipped), the monthly report - and save nothing',
+          all(f in do for f in ('showImportModal', 'openAddModal', 'openBackupModal', 'Bring in a bill', 'addCard()',
+                                'openFeedbackModal', "_askReveal('settingsAiToggle')", "_rcOpenReport('monthly')"))
+          and "Groundwork doesn't change it for you" in do and 'API.' not in do and 'toggleAI' not in do)
+    rec = layer[layer.index('const ASK_RECORD = ['):layer.index('function _askSpend(')]
+    check('s246 A8 a question about your own figures opens where Groundwork works them out - the assistant states no figure',
+          all(w in rec for w in ('owe', 'debt.?free', 'net worth', '(?:budget|track)', '(?:due|coming)', 'hsa', 'income', 'balance'))
+          and '${' not in rec and 'fmt(' not in rec and 'money(' not in rec and 'never as a guess' in layer)
+    check('s246 A8 "how much did I spend on X": the category report set to X, or the Ledger searched for it; '
+          '"find X" and "X transactions" search the Ledger',
+          "sel.value = spend.cat; _rcUpdateCategoryDeepDive();" in layer and 'askLedgerSearch(spend.term)' in layer
+          and 'askLedgerSearch(term)' in layer and "\"my transactions\" is the Ledger" in layer)
+    check('s246 A8 a greeting, "help", "what\'s new" and "undo" get their own reply; undo is never done for you',
+          "You're welcome." in layer and 'The whole guide' in layer and 'groundworkfinance.app/changelog' in layer
+          and 'Groundwork never undoes anything by itself' in layer)
+    check('s246 A8 just a page\'s name opens it', "const named = ASK_PLACES.find(pl => pl.names.includes(bare));" in layer)

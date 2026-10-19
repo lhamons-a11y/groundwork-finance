@@ -32,6 +32,28 @@ straight away, with no answer to read - about thirty pages and tabs, by their na
 direct question ("how do I...", "where is...", "show me how to...") is a question, and is answered (A2). Checked in the
 browser on 14 phrases: every page phrase landed on its page and tab, and the two questions were left to be answered.
 
+**A7. "Get my accounts" is the button** (Rob 2026-10-19: *"get my accounts, fetch my accounts, download my accounts all
+should start the get my accounts"*). Those words - and get/fetch/download/refresh/sync "(all) my (bank) accounts" - start
+Get my accounts exactly as its button does; with no bank set up yet they open the Assistant page, where one is set up
+once. A question about it ("how do I get my accounts from my bank") is answered, not run.
+
+**A8. What people actually type** (Rob 2026-10-19: *"add those four and anything else that you can think of. You are
+an expert in this field not me"*). Before any guide answer, in order:
+- shorthand and lead-ins are tidied ("acct", "txn", "cc", "bal", "pmt"; "I need to", "can you", "help me", "please");
+- a greeting, "help" (what can I ask), "what's new" (the release notes) and "undo" (where each undo lives - never done
+  for the person) get their own reply;
+- "get / fetch / download my accounts" presses Get my accounts (A7);
+- a command opens exactly what its own button opens, and saves nothing: import a statement, add a transaction, back
+  up, add a (medical) bill, add a card or loan, add a person or gift, report a problem, turn AI on or off (the switch is
+  shown, never flipped), the monthly report, the year in review;
+- a question about the person's own figures - what they owe, the debt-free date, net worth, on budget, what's due,
+  the HSA / FSA / reserve, income, a balance - opens where Groundwork works that figure out ("Show me"); the
+  assistant never states a figure;
+- "how much did I spend on groceries" opens the category report set to that category; on a store, or "find Kroger" /
+  "Amazon transactions", the Ledger already searched;
+- a page or tab by name - with or without "view / see / open / take me to" - opens it.
+Checked in the browser on 37 phrases.
+
 ## Measured
 
 On Rob's M2 with the shipped model (Phi-3.5, on Metal), real questions in loose wording ("how do i put my bank stuff

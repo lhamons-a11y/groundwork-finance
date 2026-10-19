@@ -17,9 +17,11 @@ import threading
 
 
 def _only_clicks(app, html):
-    """Every call of startFetchAll is its definition, an onclick, or inside openLedgerBank (the Bank button's click)."""
+    """Every call of startFetchAll is its definition, an onclick, inside openLedgerBank (the Bank button's click), or
+    askFetch - the person typing "get my accounts" in the Ask box (Rob 2026-10-19, item 102 A7), the same as pressing it."""
     ledger = app.split('async function openLedgerBank(')[1].split('\nfunction ')[0]
-    rest = app.replace(ledger, '')
+    typed = app.split('function askFetch(')[1].split('\nfunction ')[0]
+    rest = app.replace(ledger, '').replace(typed, '')
     lines = [ln for ln in (rest + html).splitlines() if 'startFetchAll(' in ln]
     return all('async function startFetchAll(' in ln or 'onclick=' in ln for ln in lines)
 

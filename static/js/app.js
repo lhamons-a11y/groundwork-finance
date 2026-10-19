@@ -26854,7 +26854,7 @@ const _HELP_SAME = {
   amex: 'card', discover: 'card', doctor: 'medical', hospital: 'medical', dentist: 'medical', pharmacy: 'medical',
   clinic: 'medical', prescription: 'medical', er: 'medical', collector: 'collection', agency: 'collection',
   owe: 'debt', loan: 'debt', paycheck: 'income', salary: 'income', wage: 'income', upload: 'import',
-  download: 'import', statement: 'import', csv: 'import', change: 'edit', fix: 'edit', rename: 'edit',
+  download: 'import', csv: 'import', change: 'edit', fix: 'edit', rename: 'edit',
   categorize: 'category', recategorize: 'category', schedule: 'calendar', upcoming: 'calendar', gift: 'gifts',
   present: 'gifts', restore: 'backup'};
 
@@ -26961,9 +26961,9 @@ const ASK_PLACES = [
   { label: 'the Month Tracker', names: ['month tracker', 'tracker'], view: 'debt', tab: ['debt', 'tracker'] },
   { label: 'the debt Advisor', names: ['advisor'], view: 'debt', tab: ['debt', 'advisor'] },
   { label: 'Debt Payoff', names: ['debt payoff', 'debts', 'debt', 'payoff', 'loans', 'cards'], view: 'debt', tab: ['debt', 'setup'] },
-  { label: 'Get my accounts', names: ['bank logins', 'get my accounts', 'automation', 'assistant'], view: 'automation' },
+  { label: 'the Assistant page', names: ['bank logins', 'automation', 'assistant'], view: 'automation' },
   { label: 'Reports', names: ['reports', 'report', 'report center', 'monthly report'], view: 'reports' },
-  { label: 'the Ledger', names: ['ledger', 'transactions', 'transaction'], view: 'ledger' },
+  { label: 'the Ledger', names: ['ledger', 'transactions', 'transaction', 'recent transactions', 'all transactions', 'spending'], view: 'ledger' },
   { label: 'the Budget', names: ['budget', 'my budget'], view: 'budget', tab: ['bud', 'plan'] },
   { label: 'the Trip Planner', names: ['trip planner', 'trips', 'trip', 'travel'], view: 'trip' },
   { label: 'Investments', names: ['investments', 'investment', 'portfolio', 'stocks'], view: 'investments' },
@@ -26977,6 +26977,22 @@ const ASK_PLACES = [
   { label: 'Settings', names: ['settings', 'preferences'], view: 'settings', tab: ['settings', 'general'] },
 ];
 const ASK_GO = /^\s*(?:please\s+)?(?:can\s+you\s+|could\s+you\s+)?(?:view|see|show(?:\s+me)?|open|go\s+to|goto|take\s+me\s+to|bring\s+up|pull\s+up|display|navigate\s+to|let\s+me\s+see|i\s+want\s+to\s+see|jump\s+to)\b\s*(.*)$/i;
+
+// Rob 2026-10-19: "get my accounts, fetch my accounts, download my accounts all should start the get my accounts" -
+// a command, the same as pressing the button; with no bank set up yet, the page where one is set up.
+const ASK_FETCH = /^\s*(?:please\s+)?(?:can\s+you\s+|could\s+you\s+)?(?:get|fetch|download|pull|grab|refresh|update|sync)\s+(?:all\s+(?:of\s+)?)?(?:my\s+)?(?:bank\s+)?accounts?\b(?!\s+(?:page|tab|settings))/i;
+
+function askFetch(question) {
+  if (!ASK_FETCH.test(String(question || ''))) return false;
+  closeAsk();
+  const box = g('gwAskBox');
+  if (box) box.value = '';
+  const btn = g('gwFetchAllBtn');
+  if (btn && btn.style.display !== 'none') { startFetchAll(); return true; }
+  showView('automation');
+  showToast('No bank is set up for Get my accounts yet', 'Set one up here, once - then "get my accounts" starts it.', 'info');
+  return true;
+}
 
 function askPlace(question) {
   const m = String(question || '').match(ASK_GO);
@@ -27002,6 +27018,171 @@ function askGo(pl) {
   showToast(`Opened ${pl.label}`, '', 'info');
 }
 
+// ── Item 102 (Rob 2026-10-19: "add those four and anything else that you can think of"): what people actually type ──
+// Most of what people put in a box like this is not a how-to question. In order: shorthand and lead-ins are tidied; a
+// greeting, "help" and "what's new" get their own reply; "get my accounts" presses that button; a command opens the form
+// or screen its button opens (nothing is saved until the person presses Save there); a question about their own figures
+// is answered by showing where Groundwork shows that figure with its working - the assistant never states a figure; a
+// search opens the Ledger already searched; a page or tab name opens it. Anything else is a question, answered from
+// the guide.
+const _ASK_SHORT = { acct: 'account', accts: 'accounts', acc: 'account', txn: 'transaction', txns: 'transactions',
+  trans: 'transactions', cc: 'credit card', bal: 'balance', pmt: 'payment', pmts: 'payments', nw: 'net worth',
+  stmt: 'statement', stmts: 'statements', w: 'with', thru: 'through', u: 'you', pls: 'please', plz: 'please' };
+const _ASK_LEAD = /^(?:please|hey|ok|okay|so|um|uh|can you|could you|would you|will you|i need to|i'd like to|i would like to|i want to|i wanna|let me|help me|is there a way to|groundwork)[,\s]+/i;
+
+function _askNorm(q) {
+  let t = String(q || '').toLowerCase().replace(/[’`]/g, "'").replace(/[?!.]+\s*$/, '').trim();
+  t = t.split(/\s+/).map(w => _ASK_SHORT[w] || w).join(' ');
+  for (let i = 0; i < 4 && _ASK_LEAD.test(t); i++) t = t.replace(_ASK_LEAD, '');
+  return t.replace(/\s+please$/, '').trim();
+}
+
+function _askSay(p, head, html) { p.innerHTML = head + `<div class="byb-in" style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:8px">${html}</div>`; }
+function _askDone(label) { closeAsk(); const box = g('gwAskBox'); if (box) box.value = ''; if (label) showToast(label, '', 'info'); }
+function _askReveal(id) {
+  setTimeout(() => {
+    const el = g(id);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const was = el.style.outline;
+    el.style.outline = '2px solid var(--sky)';
+    setTimeout(() => { el.style.outline = was; }, 2200);
+  }, 300);
+}
+
+// Commands: each opens exactly what its own button opens. Nothing is saved here.
+const ASK_DO = [
+  { re: /^(?:import|upload|bring in)(?: a| an| my| the| new)? (?:file|statement|statements|bank file|transactions|csv|qfx|ofx|download|bank statement)s?\b/,
+    run: () => { showView('ledger'); setTimeout(showImportModal, 80); }, said: 'Opened Import' },
+  { re: /^(?:add|enter|record|new|log)(?: a| an| new| my)? (?:transaction|expense|purchase|entry|charge|payment)\b/,
+    run: () => { showView('ledger'); setTimeout(openAddModal, 80); }, said: 'Opened Add transaction' },
+  { re: /^(?:back ?up|make a back ?up|backup now|save a backup|create a back ?up|back up my (?:data|records))\b/,
+    run: () => openBackupModal(), said: 'Opened Backup' },
+  { re: /^(?:add|enter|bring in|record|new|log)(?: a| an| new| my)? (?:medical |hospital |doctor |doctor's |dental |lab )?(?:bill|eob|explanation of benefits)\b/,
+    run: () => { showView('health'); setTimeout(() => { healthShowTab('bills'); const d = [...document.querySelectorAll('#medicalBillsCard details')].find(x => /Bring in a bill/.test(x.textContent)); if (d) d.open = true; g('mbProvider')?.focus(); }, 400); },
+    said: 'Opened Bring in a bill' },
+  { re: /^(?:add|enter|new|record)(?: a| an| new| my)? (?:debt|credit card|card|loan|lease|car loan|student loan|mortgage)\b/,
+    run: () => { showView('debt'); setTimeout(() => { _debtShowTab('setup'); addCard(); }, 120); }, said: 'Added a new card or loan to fill in' },
+  { re: /^(?:add|new)(?: a| an)? (?:person|gift|occasion|birthday)\b/,
+    run: () => { showView('gifts'); }, said: 'Opened Gifts' },
+  { re: /^(?:report (?:a |an )?(?:problem|bug|issue|error)|send (?:a )?(?:feedback|bug report)|feedback|something(?:'s| is) broken)\b/,
+    run: () => openFeedbackModal(), said: '' },
+  { re: /^(?:(?:turn|switch) (?:off|on) (?:the )?ai|(?:disable|enable) (?:the )?ai|(?:turn|switch) (?:the )?ai (?:off|on))\b/,
+    run: () => { showView('settings'); setTimeout(() => _settingsShowTab('general'), 60); _askReveal('settingsAiToggle'); },
+    said: "Here's the AI switch - Groundwork doesn't change it for you" },
+  { re: /^(?:run|open|show|print|make|see|view)(?: me)?(?: my| the| this)? (?:monthly|month's|months|month) (?:report|review|summary)\b/,
+    run: () => { showView('reports'); setTimeout(() => _rcOpenReport('monthly'), 80); }, said: 'Opened the monthly report' },
+  { re: /^(?:run|open|show|print|make|see|view)(?: me)?(?: my| the)? (?:year.?end|year in review|tax) (?:report|packet|summary|review)?\b/,
+    run: () => { showView('reports'); setTimeout(() => _rcOpenReport('year_end'), 80); }, said: 'Opened the year in review' },
+  { re: /^(?:reconcile|balance my (?:checkbook|account))\b/,
+    run: () => { showView('ledger'); }, said: 'Reconcile is on the Ledger, beside Dedup' },
+];
+
+// Questions about the person's own figures: shown where Groundwork works them out - never a figure from the AI.
+const ASK_RECORD = [
+  { re: /\b(?:how much (?:do|does) (?:i|we) owe|what do (?:i|we) owe|total debt|how much debt|my debt total)\b/,
+    say: 'What each debt owes, and the total, are on Debt Payoff.', place: { view: 'debt', tab: ['debt', 'setup'], label: 'Debt Payoff' } },
+  { re: /\b(?:debt.?free|pay ?off date|(?:when|what date) (?:will|can|do) (?:i|we) (?:be )?(?:pay|paid|done))\b/,
+    say: 'Your debt-free date, and how it is worked out, are on Debt Payoff.', place: { view: 'debt', tab: ['debt', 'setup'], label: 'Debt Payoff' } },
+  { re: /\b(?:what(?:'s| is) my net worth|how much am i worth|what am i worth|my net worth)\b/,
+    say: 'Your net worth, with what goes into it, is on Net Worth.', place: { view: 'networth', label: 'Net Worth' } },
+  { re: /\b(?:am i|are we) (?:on|over|under|within|ahead|behind)(?: my| our| the)? (?:budget|track)\b|\bhow(?:'s| is) my budget\b|\bhow am i doing\b/,
+    say: "This month's budget against what you have spent is on the Budget page.", place: { view: 'budget', tab: ['bud', 'plan'], label: 'the Budget' } },
+  { re: /\b(?:(?:what|which) (?:bills?|payments?) (?:are |is )?(?:due|coming)|what(?:'s| is) (?:due|coming up)|upcoming (?:bills|payments))\b/,
+    say: "What's coming, by week, is on the Budget page's Calendar.", place: { view: 'budget', tab: ['bud', 'calendar'], label: 'the Calendar' } },
+  { re: /\b(?:(?:how much|what)(?: money)? (?:is )?(?:in|left in) (?:my |the )?(?:hsa|fsa|health reserve|reserve)|(?:hsa|fsa|reserve) balance)\b/,
+    say: 'Your HSA, FSA and health reserve are on Health, under Plan and reserve.', place: { view: 'health', tab: ['health', 'plan'], label: 'Plan and reserve' } },
+  { re: /\b(?:how much (?:do|did) (?:i|we) (?:make|earn)|what(?:'s| is) my (?:income|pay)|my income)\b/,
+    say: 'Your pay, as your record shows it, is on the Budget page.', place: { view: 'budget', tab: ['bud', 'plan'], label: 'the Budget' } },
+  { re: /\b(?:what(?:'s| is) (?:my |the )?(?:balance|checking balance|savings balance)|how much (?:money )?(?:do i have|is in my (?:checking|savings|account)))\b/,
+    say: 'Each account and its balance are in Settings, Accounts.', place: { view: 'settings', tab: ['settings', 'accounts'], label: 'Accounts' } },
+  { re: /\b(?:how much (?:do|did) (?:i|we) owe (?:on|for) (?:medical|hospital|doctor)|medical (?:bills|debt) (?:total|owed))\b/,
+    say: 'What you owe on medical bills, with the working, is on Health.', place: { view: 'health', tab: ['health', 'bills'], label: 'Medical bills' } },
+];
+
+function _askSpend(n) {         // "how much did I spend on groceries (last month)" - the category report, set to it
+  const m = n.match(/\bhow much (?:did|have|do) (?:i|we) (?:spend|spent|pay|paid)(?: on| at| for| in)? (.+?)(?: (?:last|this) (?:month|year|week)| in \w+)?$/);
+  if (!m) return null;
+  const what = m[1].replace(/^(?:the|my|our)\s+/, '').trim();
+  if (!what || /^(?:this|last) (?:month|year|week)$/.test(what)) return { kind: 'month' };
+  const cat = (S.categories || []).find(c => c.name && c.name.toLowerCase() === what) ||
+              (S.categories || []).find(c => c.name && c.name.toLowerCase().startsWith(what));
+  return cat ? { kind: 'category', cat: cat.name } : { kind: 'search', term: what };
+}
+
+function _askSearchTerm(n) {
+  if (/^(?:view|see|show|open|go|take|bring|pull|display|navigate|jump)\b/.test(n) && !/\b(?:transactions|purchases|charges|payments) (?:at|from|to|for|with)\b/.test(n)) return null;
+  let m = n.match(/^(?:find|search(?: for)?|look ?up|lookup)\s+(?:all\s+)?(?:my\s+)?(?:the\s+)?(?:(?:transactions|purchases|charges|payments)\s+(?:at|from|for|to|with)\s+)?(.+)$/)
+       || n.match(/^(?:show|view|see)(?: me)? (?:all )?(?:my )?(?:transactions|purchases|charges|payments) (?:at|from|to|for|with) (.+)$/)
+       || n.match(/^(?!how|what|why|where|when|which|who)(.+?) (?:transactions|purchases|charges)$/);
+  const term = m ? m[1].replace(/^(?:the|my|all|our)\s+/, '').trim() : '';
+  return term && !/^(?:my|all|the|recent|new|latest|our|last|every)$/.test(term) ? term : null;   // "my transactions" is the Ledger
+}
+
+function askLedgerSearch(term) {
+  _askDone(`Searched the Ledger for "${term}"`);
+  showView('ledger');
+  ['ledgerCatFilter', 'ledgerTypeFilter'].forEach(f => { if (g(f)) g(f).value = ''; });
+  const box = g('ledgerSearch');
+  if (box) { box.value = term; renderLedger(); updateLedgerStats(); }
+}
+
+function askIntent(q, p, head) {
+  const n = _askNorm(q);
+  if (!n) return false;
+  if (/^(?:hi|hello|hey there|hey|good (?:morning|afternoon|evening)|yo)$/.test(n)) {
+    _askSay(p, head, `Hi! Ask how to do something, or tell me where to go - "view my budget", "see collections", "get my accounts".`);
+    return true;
+  }
+  if (/^(?:thanks|thank you|thx|ty|cheers|great|perfect|ok thanks)$/.test(n)) { _askSay(p, head, "You're welcome."); return true; }
+  if (/^(?:help|\?|what can you do|what can i ask|what can i say|commands)$/.test(n)) {
+    _askSay(p, head, `Ask how to do something ("how do I split a transaction?"), or say where to go ("view the calendar", "see my medical bills"),
+      or what to do ("get my accounts", "import a statement", "add a bill", "back up"). Questions about your own numbers
+      ("how much do I owe?") open the page that shows them, with the working.
+      <div style="margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); showHelpOverlay()">The whole guide</button></div>`);
+    return true;
+  }
+  if (/^(?:what'?s new|whats new|release notes|changelog|change log|what changed|new features)$/.test(n)) {
+    _askDone('Opened the release notes');
+    window.pywebview?.api?.open_external('https://groundworkfinance.app/changelog') || window.open('https://groundworkfinance.app/changelog', '_blank');
+    return true;
+  }
+  if (/^undo(?: that| it| the last (?:change|thing))?$/.test(n)) {
+    _askSay(p, head, `Undo is where the change was made - Groundwork never undoes anything by itself:
+      <div style="margin-top:6px">• A change from a toast: its Undo, for a few seconds.<br>• A fix from "Check my records": Undo in its panel.<br>
+      • Tidy your categories: "Undo the last change" on its card.<br>• A deleted transaction: Restore, in "Lines kept safe" (Settings, Data).</div>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); openWhy('records')">Check my records</button>
+      <button class="btn btn-secondary btn-sm" onclick="closeAsk(); showView('settings'); setTimeout(() => _settingsShowTab('data'), 60)">Lines kept safe</button></div>`);
+    return true;
+  }
+  if (askFetch(n)) return true;
+  for (const d of ASK_DO) if (d.re.test(n)) { _askDone(d.said); d.run(); return true; }
+  for (const r of ASK_RECORD) if (r.re.test(n)) {
+    window._askPlace = r.place;
+    _askSay(p, head, `${esc(r.say)}<div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="askGo(window._askPlace)">Show me</button></div>
+      <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Groundwork shows your figures where it works them out, never as a guess.</div>`);
+    return true;
+  }
+  const spend = _askSpend(n);
+  if (spend) {
+    if (spend.kind === 'category') {
+      _askDone(`Opened ${spend.cat} in the category report`);
+      showView('reports');
+      setTimeout(() => { _rcOpenReport('category'); setTimeout(() => { const sel = g('rcCatSelect'); if (sel) { sel.value = spend.cat; _rcUpdateCategoryDeepDive(); } }, 250); }, 80);
+    } else if (spend.kind === 'search') askLedgerSearch(spend.term);
+    else { _askDone("Opened this month's budget"); showView('budget'); setTimeout(() => _budShowTab('plan'), 60); }
+    return true;
+  }
+  const term = _askSearchTerm(n);
+  if (term) { askLedgerSearch(term); return true; }
+  const place = askPlace(n);
+  if (place) { askGo(place); return true; }
+  const bare = n.replace(/^(?:my|the|our|all)\s+/, '');          // just a page's name ("calendar", "my transactions") opens it
+  const named = ASK_PLACES.find(pl => pl.names.includes(bare));
+  if (named) { askGo(named); return true; }
+  return false;
+}
+
 async function askGroundwork(question) {
   const q = String(question || '').trim().slice(0, 300);
   if (!q) return;
@@ -27010,8 +27191,7 @@ async function askGroundwork(question) {
       <div style="font-size:11px;color:var(--slate-2)">You asked: ${esc(q)}</div>
       <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>`;
   window._askHead = head;
-  const place = askPlace(q);                 // "view my budget" means the page, now - not what the page does
-  if (place) { askGo(place); return; }
+  if (askIntent(q, p, head)) return;         // commands, pages, searches, your own figures - before any guide answer
   if (!aiEnabled()) {                         // the box is hidden with AI off; a question already typed gets the guide
     const hit = helpMatch(q);
     p.innerHTML = hit && !hit.choices ? _askEntryHTML(hit, head)

@@ -68,6 +68,7 @@ def run(ctx):
         fns = ''.join(re.search(r'\n(?:const|function) ' + n + r'\b.*?\n(?:\}|\]\);|\]\)?;)\n', app, re.S).group(0)
                       for n in ('_helpWords', 'helpMatch'))
         stop = re.search(r'\nconst _HELP_STOP = new Set\(\[.*?\]\);\n', app, re.S).group(0)
+        stop += re.search(r'\nconst _HELP_SAME = \{.*?\};\n', app, re.S).group(0)      # item 102: other ways of saying it
         js = (block + stop + fns + 'const asks = ' + json.dumps(list(asks) + outside) + ';\n'
               'const r = asks.map(q => { const h = helpMatch(q); return h ? (h.choices ? "CHOICES:" + h.choices.map(c => c.q).join("|") : h.q) : null; });'
               'const amb = helpMatch("what was sent to the AI");'
