@@ -30,6 +30,8 @@ def _kind(call):
         return 'download'
     if name in NET_NAMES or (base, name) in NET_ATTRS:
         return 'network'
+    if base == 'egress' and name in ('get', 'get_json'):     # item 8: the one door out - its callers are still sinks
+        return 'network'
     if name == '_ai_log_write':
         return 'ai_log'
     return None

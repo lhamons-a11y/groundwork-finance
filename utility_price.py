@@ -69,10 +69,9 @@ def _fetch_natural_gas(api_key: str, area: str):
     (a duoarea code, e.g. 'SOH' or 'NUS'), or None on any failure. Never
     raises."""
     try:
+        from core import egress                    # item 8: the one door out
         url = NG_URL.format(key=urllib.parse.quote(api_key), area=urllib.parse.quote(area))
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
-            data = json.loads(r.read().decode('utf-8'))
+        data = egress.get_json(url, timeout=REQUEST_TIMEOUT)
         row = _latest_published(((data.get('response') or {}).get('data')) or [], 'value')
         if not row:
             return None
@@ -87,10 +86,9 @@ def _fetch_electricity(api_key: str, state_code: str):
     """One monthly residential electricity price point for `state_code`
     (a 2-letter USPS code or 'US'), or None on any failure. Never raises."""
     try:
+        from core import egress                    # item 8: the one door out
         url = ELEC_URL.format(key=urllib.parse.quote(api_key), state=urllib.parse.quote(state_code))
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
-            data = json.loads(r.read().decode('utf-8'))
+        data = egress.get_json(url, timeout=REQUEST_TIMEOUT)
         row = _latest_published(((data.get('response') or {}).get('data')) or [], 'price')
         if not row:
             return None

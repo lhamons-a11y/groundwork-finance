@@ -183,8 +183,9 @@ def run_terms(ctx):
           and re.search(r'^Version 1\.([2-9]|\d\d)$', eula, re.M) is not None)
     check('s156 R6 the Terms say the price is Google\'s and the airline\'s may be higher, everywhere they say it is read',
           all("airline's final price may be higher" in flat(t) for t in (eula, terms_site, terms_app)))
-    check('s156 R6 the privacy policy has the section on websites opened inside Groundwork, with the one exception',
+    check('s156 R6 the privacy policy has the section on websites opened inside Groundwork, with what is read on a click '
+          '(item 8, 2026-10-19: the Flights and Hotels reads and bank runs, one section)',
           'Websites opened inside Groundwork' in privacy
-          and 'Groundwork reads the price on that button and asks whether to use it' in flat(privacy))
+          and 'Groundwork reads the price on that row and asks whether to use it in your trip budget' in flat(privacy))
     check('s156 R6 the privacy policy no longer says the AI runs via Ollama (untrue since item 31)',
           'Ollama' not in privacy)

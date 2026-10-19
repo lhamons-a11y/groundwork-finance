@@ -416,3 +416,54 @@ S9–S12 are the Assistant safety inventory. The concerns may sit adjacent in th
 and S12 do not enter the 9A build.
 
 Then stop. The safety work stays measured and does not become speculative architecture.
+
+---
+
+## 9. Re-measured on `master`, 2026-10-19, and the five provisions — Rob: "approve"
+
+The code §8 waited for now exists: the in-app engine (cloud AI and Ollama are gone), bank and bill runs that drive a
+website (items 57, 67, 68, 70), and the Google Flights and Hotels windows that read one price. Measured first, then
+built.
+
+### What changed since §3–§5
+
+- **Gone:** S2 (Travel's pretend web search), S4 and S6 (cloud AI), S8 (the Ollama installer run unverified), S12
+  (`pull-model`). Nothing in the app downloads and runs a program: the update check only shows a link, and only to
+  `groundworkfinance.app/`.
+- **S1, "the model has no hands", was still true by absence:** six calls into the model, none passing tools. Two
+  general routes (`/api/ai/chat`, its stream) take any prompt from the page.
+- **S7, no chokepoint:** 13 requests to the internet in 8 files, each its own authority (2 more go to this
+  computer's own server). Hosts: groundworkfinance.app, Yahoo Finance, the EIA, OpenStreetMap - and four the Privacy
+  page did not name: data.transportation.gov, data.bts.gov, www.transtats.bts.gov (fare and airport tables) and
+  www.gsa.gov (per-diem rates). Those carry nothing about the person (whole public tables) and run when the trip
+  planner opens, at most weekly / monthly.
+- **The Privacy page was behind the code twice more:** it did not mention the Google Hotels window's price read, and
+  it said Groundwork "does not read" bank pages, while bank and bill runs find each button by its words, type the
+  vault's sign-in into the sign-in step, and read a bill's amount due.
+- **S10, model output written as a record:** four surfaces save the model's words (the Sunday check-in, evidence
+  introductions, the monthly review, the reports' narrative), each as written text after the checks. The trip
+  quote, itinerary and past-trip readings hold the model's figures for a yes. The trip budget is no longer written
+  from a model.
+- **S11, outside text reaching the model:** a past trip's bank descriptions, a pasted quote and a pasted itinerary
+  (all three strict-JSON, ungated). Gated surfaces already refuse free transaction text (`_findingsKindsRefusal`).
+- **S13** (a right figure on the wrong noun) is unchanged: recorded, not solved.
+
+### The five provisions, built — s240 (13 checks; two mutations planted and caught)
+
+1. **One door out** (`core/egress.py`): every internet request goes through `egress.get`, to the eight hosts the
+   Privacy page names. Refused before anything leaves: another host or a look-alike, plain http, a port,
+   credentials in the URL, and a redirect that would end elsewhere. s240 fails if any app code opens a connection
+   anywhere else, or if a host is missing from the Privacy page. The page now names all of them, the Hotels read,
+   and what bank and bill runs do.
+2. **The AI has no hands:** no call into the model may pass tools, functions or open-ended arguments, and
+   `/api/ai/chat` refuses a request that offers tools (AI on or off).
+3. **No silent writing:** every function that calls the model is registered in s240. Only the four text surfaces
+   may save its output, each to its own route; a new caller fails the gate until it is reviewed and registered.
+4. **Outside text is data:** the three surfaces fence it (`_asData`). A fence inside the text is removed so it can't
+   be faked, and `callAI` tells the model that fenced text is material, never instructions. With provision 2, this is
+   the second wall, not the only one.
+5. **Bank runs on a leash:** the password only into the sign-in step (s174 A4) and never a payment button (s179 B9)
+   were already held; s240 now fails if either check disappears.
+
+Still a known limit, not a provision: S13. The website's Privacy page changes describe 2.0; deploy it with 2.0.
+

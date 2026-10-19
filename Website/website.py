@@ -1335,7 +1335,7 @@ def privacy():
   <p>What stays on your computer, what leaves it, and why.</p>
 </section>
 <div class="narrow prose">
-  <p style="color:var(--muted)">Last updated: October 12, 2026. This page describes Groundwork """ + SITE_VERSION + """, the version offered for download.</p>
+  <p style="color:var(--muted)">Last updated: October 19, 2026. This page describes Groundwork """ + SITE_VERSION + """, the version offered for download.</p>
 
   <h2>Your data stays on your machine</h2>
   <p>Groundwork is a desktop application. Your financial data — transactions, balances,
@@ -1354,15 +1354,30 @@ def privacy():
       publishes the prices. Groundwork asks for your state; it never looks up your location.</li>
     <li><strong>Trip distances</strong> send the places you type into the trip planner to OpenStreetMap, to work out
       the driving distance.</li>
+    <li><strong>Flight and travel-cost tables</strong> are whole public tables, downloaded when you open the trip
+      planner: average fares and airports from the U.S. Department of Transportation (at most once a week), and
+      travel per-diem rates from the U.S. General Services Administration (at most once a month). Nothing about you
+      or your trip is sent.</li>
   </ul>
+  <p>These are the only services the app itself contacts. Every request goes through one place in Groundwork's code,
+    which refuses any other address, and the app's tests fail if a request is ever made anywhere else.</p>
 
   <h2>Websites opened inside Groundwork</h2>
-  <p>Groundwork can open your bank's website, and Google Flights, in a separate private window. That
-    window keeps no sign-in after it closes, and anything you type there goes to that website under
-    its own privacy policy, not to us. Groundwork does not read those pages, with one exception: in
-    the Google Flights window, when you click <em>Continue</em> to choose a fare, Groundwork reads the
-    price on that button and asks whether to use it in your trip budget. Nothing else on the page is
-    read or kept, the price stays on your computer, and it is used only if you say yes.</p>
+  <p>Groundwork can open your bank's website, a bill's website, Google Flights and Google Hotels in a separate
+    window. Anything you type there goes to that website under its own privacy policy, not to us. The window keeps
+    no sign-in after it closes, unless you choose to remember that device for that account. Groundwork reads those
+    pages only in these ways, each on your click:</p>
+  <ul>
+    <li><strong>Google Flights and Google Hotels:</strong> when you click <em>Continue</em> on a fare, or a hotel's
+      <em>Visit site</em>, Groundwork reads the price on that row and asks whether to use it in your trip budget.</li>
+    <li><strong>Getting your accounts and bills:</strong> when you press <em>Get my accounts</em>, Groundwork repeats
+      the steps you recorded once on your bank's or bill's site. It finds each button by its words, types your saved
+      sign-in only into the sign-in step (the password stays in your computer's own password vault), and saves the
+      file your bank offers to download, or reads a bill's amount due and due date from the places you marked. It
+      never presses a payment button.</li>
+  </ul>
+  <p>Nothing else on those pages is read or kept, what is read stays on your computer, and it is used only if you
+    say yes.</p>
 
   <h2>AI features</h2>
   <p>Groundwork's AI features are optional and run <strong>only on your own machine</strong>: the

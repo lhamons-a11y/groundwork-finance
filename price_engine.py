@@ -66,9 +66,8 @@ YAHOO_CHART_URL = 'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}'
 def _http_get_json(url: str) -> dict:
     """GET a URL and parse JSON. Raises on failure — callers decide whether
     that's fatal (skip this ticker) or total (skip the whole batch)."""
-    req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
-    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
-        return json.loads(r.read().decode('utf-8'))
+    from core import egress                        # item 8: the one door out
+    return egress.get_json(url, headers={'User-Agent': USER_AGENT}, timeout=REQUEST_TIMEOUT)
 
 
 # ── Quote fetching ────────────────────────────────────────────────────────

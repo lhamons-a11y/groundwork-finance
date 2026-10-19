@@ -68,9 +68,8 @@ def _geocode(place: str):
 
     try:
         url = NOMINATIM_URL.format(q=urllib.parse.quote(place.strip()))
-        req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
-            results = json.loads(r.read().decode('utf-8'))
+        from core import egress                    # item 8: the one door out
+        results = egress.get_json(url, headers={'User-Agent': USER_AGENT}, timeout=REQUEST_TIMEOUT)
         if not results:
             return None
         coords = {'lat': float(results[0]['lat']), 'lon': float(results[0]['lon'])}

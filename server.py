@@ -161,10 +161,9 @@ def create_app(static_folder: str = None) -> Flask:
         if _update_cache['data'] is not None and now - _update_cache['ts'] < ttl:
             return ok(_update_cache['data'])
         try:
-            req = urllib.request.Request(UPDATE_MANIFEST_URL,
-                                         headers={'User-Agent': 'Groundwork'})
-            with urllib.request.urlopen(req, timeout=4) as r:
-                info = json.loads(r.read(65536).decode('utf-8'))
+            from core import egress                # item 8: the one door out
+            info = json.loads(egress.get(UPDATE_MANIFEST_URL, headers={'User-Agent': 'Groundwork'}, timeout=4,
+                                         limit=65536).decode('utf-8'))
             latest = str(info.get('latest', '')).strip()
             url    = str(info.get('url', '')).strip()
             # Never hand the client a download link pointing anywhere but the
@@ -5307,9 +5306,9 @@ def _steo(session, series, fetch=True):
         import urllib.request
         import urllib.parse
         start = f'{date.today().year - 3}-01'
+        from core import egress                    # item 8: the one door out
         url = STEO_URL.format(key=urllib.parse.quote(api_key), series=urllib.parse.quote(series), start=start)
-        with urllib.request.urlopen(url, timeout=30) as r:
-            data = json.loads(r.read().decode('utf-8'))
+        data = egress.get_json(url, timeout=30)
         rows = {x['period']: float(x['value']) for x in ((data.get('response') or {}).get('data') or [])
                 if x.get('period') and x.get('value') not in (None, '')}
         if rows:
@@ -5443,9 +5442,9 @@ def _eia_weekly_gas(session, area, fetch=True, product='EPMR'):
     try:
         import urllib.request
         import urllib.parse
+        from core import egress                    # item 8: the one door out
         url = EIA_WEEKLY_GAS_URL.format(key=urllib.parse.quote(api_key), area=urllib.parse.quote(area), product=product)
-        with urllib.request.urlopen(url, timeout=30) as r:
-            data = json.loads(r.read().decode('utf-8'))
+        data = egress.get_json(url, timeout=30)
         rows = {x['period']: float(x['value']) for x in ((data.get('response') or {}).get('data') or [])
                 if x.get('period') and x.get('value') not in (None, '')}
         if rows:
@@ -5512,9 +5511,9 @@ def _eia_weekly_heating(session, area, product, fetch=True):
     try:
         import urllib.request
         import urllib.parse
+        from core import egress                    # item 8: the one door out
         url = EIA_WEEKLY_RES_URL.format(key=urllib.parse.quote(api_key), area=urllib.parse.quote(area), product=product)
-        with urllib.request.urlopen(url, timeout=30) as r:
-            data = json.loads(r.read().decode('utf-8'))
+        data = egress.get_json(url, timeout=30)
         rows = {x['period']: float(x['value']) for x in ((data.get('response') or {}).get('data') or [])
                 if x.get('period') and x.get('value') not in (None, '') and x.get('process') in (None, 'PRS')}
         if rows:
@@ -13209,6 +13208,10 @@ def ai_chat():
     ({content:[{type:'text', text:...}]}), an application-internal contract
     with callAI(), not a network format (ruling 2).
     """
+    # Item 8 provision 2: the model has no hands - it writes text and nothing else. A request that offers it tools or
+    # functions is refused, and no call into the engine passes any (s240).
+    if any(k in (request.json or {}) for k in ('tools', 'tool_choice', 'functions', 'function_call')):
+        return err('The AI writes text only; it is given no tools.', 400)
     # Respect the user's AI toggle — return a friendly message, not an error code
     if not _ai_is_enabled():
         return ok({
