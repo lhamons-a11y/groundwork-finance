@@ -13154,6 +13154,7 @@ const HELP_FAQ = [
   {"q": "How do I split one transaction across categories?", "a": "Open the transaction (click its row), then choose Split. Divide the amount across categories — a Walmart run can be part Groceries, part Household. The pieces must add up to the original amount, and the app shows the running total as you type.", "keys": ["split", "transaction", "categories", "divide"]},
   {"q": "How do I recategorize many transactions at once?", "a": "Tick the checkbox on each transaction row — a toolbar appears. Pick the new category and apply it to everything selected in one move. Handy after a first big import.", "keys": ["many", "bulk", "several", "recategorize", "select", "once"]},
   {"q": "How do I delete a transaction?", "a": "In the Ledger, click the transaction to open it, then \"Delete transaction\". It is set aside, never destroyed: you have a few seconds to undo, and \"Lines kept safe\" in Settings, Data lists everything set aside, each with Restore. A transaction set aside is left out of every total.", "keys": ["delete", "remove", "transaction", "erase", "get rid", "restore", "undo"], "labels": ["Delete transaction", "Lines kept safe"], "open": {"view": "ledger"}},
+  {"q": "Money worries feel like too much. Who can I talk to?", "a": "You're not alone, and money trouble is temporary - it can be fixed. For help with the money: NFCC nonprofit credit counseling, 1-800-388-2227 (nfcc.org), free or low cost; or call or text 211 for help with rent, utilities and bills where you live. If it ever feels like more than money, call or text 988 (the Suicide & Crisis Lifeline), any time, free and private - veterans press 1. In danger right now: call 911. Outside the US: findahelpline.com.", "keys": ["worried", "stress", "stressed", "overwhelmed", "depressed", "hopeless", "talk", "crisis", "help line", "counseling", "counselor", "988"]},
   {"q": "What does Reconcile do?", "a": "It walks you through matching Groundwork against your bank statement. Open the Reconcile panel in the Ledger, enter your statement's ending balance, and the app checks off transactions and flags anything missing or doubled. A green check marks the reconciled anchor point.", "keys": ["reconcile", "statement", "match", "balance"], "open": {"view": "ledger"}, "labels": ["Reconcile"]},
   {"q": "Why does the Ledger say \"Showing the most recent 300\"?", "a": "With years of history, drawing every row at once would make the page sluggish, so Groundwork shows the newest 300 that match your filters. Click \"Show all\" to load the rest, or narrow the search — the cap resets each time you change filters.", "keys": ["300", "most", "recent", "showing", "rows"]},
   {"h": "Budget & spending"},
@@ -13234,6 +13235,8 @@ function _renderHelpFaq(filter) {
       style="width:100%;font-family:inherit;font-size:13px;border:1px solid var(--steel);
              border-radius:var(--r-sm);padding:8px 12px;margin-bottom:18px;
              background:var(--paper);color:var(--ink)">`;
+  const care = careLevel(f);                  // item 104: typed into the guide's search, the same words come first
+  if (care) html += careHTML(care) + '<div style="height:18px"></div>';
   let shown = 0, pendingHeader = null;
   for (const item of HELP_FAQ) {
     if (item.h) { pendingHeader = item.h; continue; }
@@ -13259,7 +13262,7 @@ function _renderHelpFaq(filter) {
       </div>`;
     shown++;
   }
-  if (!shown) html += `<div style="font-size:12px;color:var(--slate-2)">No matches — try a different word.</div>`;
+  if (!shown && !care) html += `<div style="font-size:12px;color:var(--slate-2)">No matches — try a different word.</div>`;
   content.innerHTML = html;
   // Restore focus + cursor after re-render while typing
   const box = g('helpFaqSearch');
@@ -27183,6 +27186,111 @@ function askIntent(q, p, head) {
   return false;
 }
 
+// ─── Item 104: when money feels like too much (gw 2.0/CARE.md; Rob 2026-10-19) ───────────────────────────────────
+// "a calming voice that tells them it will be ok and that finances are only temporary but fixable and let them know
+// their are crisis help lines out there and link them to it." These are fixed words, written once and checked against
+// the safe-messaging guidance - never the AI's. They are checked before anything else the Ask box or the guide's search
+// does; what was typed is not saved, logged, or sent anywhere, and the AI never sees it.
+const CARE_DANGER = new RegExp([
+  String.raw`\bsuicid`, String.raw`\bkill(?:ing)?\s+my\s*self\b`, String.raw`\bkms\b`, String.raw`\boff\s+my\s*self\b`,
+  String.raw`\b(?:end|ending|take|taking)\s+my\s+(?:own\s+)?life\b`, String.raw`\bend\s+it\s+all\b`,
+  String.raw`\b(?:want|wanna|going|ready)\s+(?:to\s+)?die\b`, String.raw`\bi\s+should\s+(?:just\s+)?die\b`,
+  String.raw`\bwish\s+i\s+(?:was|were)\s+(?:dead|never\s+born|gone)\b`,
+  String.raw`\bwish\s+i\s+(?:wasn't|weren't|was\s+not|were\s+not)\s+(?:alive|here|around|born)\b`,
+  String.raw`\bbetter\s+off\s+(?:dead|gone|without\s+me)\b`, String.raw`\bworth\s+more\s+dead\b`,
+  String.raw`\b(?:no|not\s+any)\s+(?:reason|point)\s+(?:to|in)\s+(?:live|living|going\s+on|go\s+on)\b`,
+  String.raw`\bnothing\s+(?:left\s+)?to\s+live\s+for\b`,
+  String.raw`\b(?:don't|do\s+not|dont)\s+want\s+to\s+(?:live|be\s+alive|be\s+here|wake\s+up|exist)\b`,
+  String.raw`\bcan't\s+go\s+on\b`, String.raw`\bnot\s+be\s+(?:here|around)\s+(?:anymore|much\s+longer)\b`,
+  String.raw`\b(?:hurt|harm|hurting|harming)\s+my\s*self\b`, String.raw`\bself[\s-]?harm`, String.raw`\boverdos`,
+  // money is where this is often said: a life policy as the way out
+  String.raw`\blife\s+insurance\b.{0,60}\b(?:if|when|once)\s+i(?:'m|\s+am)?\s+(?:die|dead|gone)\b`,
+  String.raw`\b(?:if|when|once)\s+i(?:'m|\s+am)?\s+(?:die|dead|gone)\b.{0,60}\blife\s+insurance\b`,
+  // and harm to someone else
+  String.raw`\b(?:kill|hurt|shoot|stab)\s+(?:him|her|them|someone|somebody|people|everyone|my\s+(?:wife|husband|partner|boss|family|kids?))\b`,
+].join('|'), 'i');
+const CARE_STRAIN = new RegExp([
+  String.raw`\bhopeless`, String.raw`\bhelpless`, String.raw`\bworthless`, String.raw`\bdepress(?:ed|ing|ion)\b`,
+  String.raw`\banxi(?:ety|ous)\b`, String.raw`\bpanic`, String.raw`\boverwhelm`, String.raw`\bdrowning\b`, String.raw`\bdesperate\b`,
+  String.raw`\b(?:scared|terrified)\b`, String.raw`\bashamed\b`, String.raw`\bso\s+stressed\b`, String.raw`\bstressed\s+out\b`,
+  String.raw`\bcan't\s+(?:cope|take\s+(?:it|this|any\s*more)|do\s+this|handle\s+(?:it|this))\b`,
+  String.raw`\b(?:i|to)\s+give\s+up\s*(?:$|[.!,?]|on\s+(?:everything|life|myself|this))`, String.raw`\bgiving\s+up\s*(?:$|[.!,?]|on\s+(?:everything|life|myself|this))`, String.raw`\b(?:angry|furious|so\s+mad|pissed)\b`,
+  String.raw`\bi\s+hate\s+(?:my\s+life|this|myself|everything|money)\b`, String.raw`\bcrying\b`, String.raw`\blost\s+everything\b`,
+  String.raw`\b(?:i'm|i\s+am|we're|we\s+are)\s+(?:ruined|screwed|done\s+for|finished|broke\s+and)\b`, String.raw`\bfalling\s+apart\b`,
+  String.raw`\bwits'?\s+end\b`, String.raw`\bcan't\s+sleep\b`, String.raw`\bkilling\s+me\b`, String.raw`\bno\s+way\s+out\b`,
+].join('|'), 'i');
+
+function careLevel(text) {
+  const t = String(text || '').toLowerCase().replace(/[‘’ʼ`]/g, "'").replace(/\bcant\b/g, "can't")
+    .replace(/\bwasnt\b/g, "wasn't").replace(/\bwerent\b/g, "weren't").replace(/\bim\b/g, "i'm").replace(/\s+/g, ' ');
+  if (CARE_DANGER.test(t)) return 'danger';
+  if (CARE_STRAIN.test(t)) return 'strain';
+  return null;
+}
+
+// Each line as its own service publishes it (checked 2026-10-19: 988lifeline.org, crisistextline.org,
+// veteranscrisisline.net, thetrevorproject.org, nfcc.org, 211.org, findahelpline.com). Links open outside Groundwork.
+const CARE_988 = { name: '988 Suicide & Crisis Lifeline', how: 'Call or text 988, or chat online - free, private, any hour',
+  links: [['Call 988', 'tel:988'], ['Text 988', 'sms:988'], ['Chat', 'https://988lifeline.org/chat/'], ['En español', 'https://988lifeline.org/es/inicio/']] };
+const CARE_LINES = [
+  { name: 'Crisis Text Line', how: 'Text HOME to 741741', links: [['Text 741741', 'sms:741741'], ['crisistextline.org', 'https://www.crisistextline.org/']] },
+  { name: 'Veterans Crisis Line', how: 'Dial 988 then press 1, or text 838255', links: [['Text 838255', 'sms:838255'], ['Chat', 'https://www.veteranscrisisline.net/get-help-now/chat/']] },
+  { name: 'The Trevor Project (LGBTQ+ young people)', how: 'Call 1-866-488-7386, or text START to 678-678', links: [['Call', 'tel:18664887386'], ['thetrevorproject.org', 'https://www.thetrevorproject.org/get-help/']] },
+  { name: 'Deaf or hard of hearing', how: '988 by videophone (ASL), or through your relay service', links: [['988 for Deaf & HoH', 'https://988lifeline.org/deaf-hard-of-hearing-hearing-loss/']] },
+  { name: 'Outside the United States', how: 'Free helplines in your country', links: [['findahelpline.com', 'https://findahelpline.com/']] },
+];
+const CARE_MONEY = [
+  { name: 'NFCC nonprofit credit counseling', how: 'Call 1-800-388-2227 - a certified counselor goes through your debts with you, free or low cost', links: [['Call', 'tel:18003882227'], ['nfcc.org', 'https://www.nfcc.org/']] },
+  { name: '211', how: 'Call or text 211 - help with rent, utilities, food and bills where you live', links: [['Call 211', 'tel:211'], ['211.org', 'https://www.211.org/']] },
+];
+
+function careOpen(url) {
+  if (!/^(?:https:\/\/[\w.-]+\/[\w./-]*|tel:\d{3,11}|sms:\d{3,11})$/.test(url)) return;
+  if (window.pywebview?.api?.open_external) window.pywebview.api.open_external(url);
+  else window.open(url, '_blank');
+}
+function _careLine(l, big) {
+  const btns = l.links.map(([t, u]) => `<button class="btn ${big ? 'btn-primary' : 'btn-ghost'} btn-sm" style="margin:4px 6px 0 0" onclick="careOpen('${u}')">${esc(t)}</button>`).join('');
+  return `<div style="margin-top:${big ? 10 : 9}px"><div style="font-size:${big ? 14 : 13}px;font-weight:600;color:var(--ink)">${esc(l.name)}</div>
+    <div style="font-size:12px;color:var(--slate)">${esc(l.how)}</div><div>${btns}</div></div>`;
+}
+const CARE_NOTE = `<div style="font-size:11px;color:var(--slate-2);margin-top:12px;line-height:1.6">Groundwork is a program, not a person, and can't call anyone for you. Nothing you typed here was saved or sent anywhere.</div>`;
+
+function careHTML(level) {
+  if (level === 'danger') {
+    return `<div class="care" role="alert" aria-live="assertive">
+      <div style="font-size:16px;font-weight:600;color:var(--ink)">You matter more than any bill.</div>
+      <div style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:6px">It sounds like things feel really heavy right now, and I'm glad you said it. You don't have to carry this alone. Please reach out to a person now - they're there for exactly this, any hour, and it's free and private.</div>
+      <div style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:6px">It will be okay. Money trouble is temporary, and it can be fixed - people come back from debt, collections and lost jobs every day. How you feel right now can change too.</div>
+      ${_careLine(CARE_988, true)}
+      <div style="font-size:13px;font-weight:600;color:var(--danger,#b42318);margin-top:10px">If you or someone else is in danger right now, call 911.</div>
+      <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">More people ready to listen</div>
+      ${CARE_LINES.map(l => _careLine(l)).join('')}
+      <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">When you're ready: help with the money</div>
+      ${CARE_MONEY.map(l => _careLine(l)).join('')}
+      ${CARE_NOTE}</div>`;
+  }
+  return `<div class="care" role="status">
+    <div style="font-size:16px;font-weight:600;color:var(--ink)">Take a breath. You're not alone in this.</div>
+    <div style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:6px">Money stress is real, and feeling this way makes sense. It will be okay. Money trouble is temporary, and it can be fixed - one step at a time, the way many people have worked through it before you. You don't have to sort it all out today.</div>
+    <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">Free help from real people</div>
+    ${CARE_MONEY.map(l => _careLine(l)).join('')}
+    <div style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:12px">If it ever feels like more than money, you can call or text <strong>988</strong> any time, day or night.</div>
+    ${_careLine(CARE_988)}
+    <div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="closeAsk(); closeHelpOverlay(); showView('debt')">When you're ready: plan my debts</button></div>
+    ${CARE_NOTE}</div>`;
+}
+
+// Shown in the Ask panel, first, in place of any answer
+function careAsk(q, p, head) {
+  const level = careLevel(q);
+  if (!level) return false;
+  const box = g('gwAskBox');
+  if (box) box.value = '';                     // not left on screen, not kept
+  p.innerHTML = head.replace(/You asked: [^<]*/, '') + careHTML(level);
+  return true;
+}
+
 async function askGroundwork(question) {
   const q = String(question || '').trim().slice(0, 300);
   if (!q) return;
@@ -27191,6 +27299,7 @@ async function askGroundwork(question) {
       <div style="font-size:11px;color:var(--slate-2)">You asked: ${esc(q)}</div>
       <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>`;
   window._askHead = head;
+  if (careAsk(q, p, head)) return;            // item 104: someone struggling hears this first, from fixed words
   if (askIntent(q, p, head)) return;         // commands, pages, searches, your own figures - before any guide answer
   if (!aiEnabled()) {                         // the box is hidden with AI off; a question already typed gets the guide
     const hit = helpMatch(q);

@@ -4,6 +4,7 @@ Groundwork — Cross-platform launcher
 
 import sys
 import os
+import re
 # Before anything can import numpy: OpenBLAS reserves memory per processor thread (620 MB measured on 20 threads) and
 # Groundwork does no numpy maths. See core/engine.py (the 8 GB floor, ENGINE_REPLACEMENT.md s9).
 os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
@@ -153,7 +154,9 @@ def _flash_taskbar(w):
 
 class GroundworkAPI:
     def open_external(self, url: str):
-        if not url or not url.startswith(('http://', 'https://')):
+        # Item 104: a crisis or help line's "Call" / "Text" button is tel: or sms: with digits only - the Mac hands it
+        # to FaceTime or Messages (an iPhone nearby places it); nothing else but a web link opens
+        if not url or not (url.startswith(('http://', 'https://')) or re.fullmatch(r'(?:tel|sms):\d{3,11}', url)):
             return
         try:
             if sys.platform == 'win32':
