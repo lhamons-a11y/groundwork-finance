@@ -1405,28 +1405,28 @@ def terms():
   <p>The licence for Groundwork, the same text the installer and the app show.</p>
 </section>
 <div class="container" style="max-width:760px;padding:60px 24px">
-  <p style="color:var(--slate);margin-bottom:8px">End User License Agreement · Version 1.2 · Effective October 8, 2026</p>
+  <p style="color:var(--slate);margin-bottom:8px">End User License Agreement · Version 1.3 · Effective October 19, 2026</p>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:32px">
     By installing, accessing, or using Groundwork (the "Software"), you agree to this
     End User License Agreement and Terms of Use (the "Agreement"). If you do not agree,
     do not install or use the Software.
   </p>
 
-  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">1. License grant</h2>
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">1. License</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
-    Groundwork is free software provided at no charge. Subject to your compliance with this
-    Agreement, you are granted a personal, non-exclusive, non-transferable, revocable license
-    to install and use the Software for your own personal or internal purposes. You may not
-    sell, rent, lease, sublicense, or charge a fee for the Software; redistribute a modified
-    version; remove or alter any proprietary notices; or represent a modified copy as the
-    official Software. All rights not expressly granted are reserved by the publisher.
+    Groundwork is free software: you can redistribute it and/or modify it under the terms of
+    the GNU General Public License, version 3 (the "GPL"), as published by the Free Software
+    Foundation. The full text is in the LICENSE file that comes with the Software. Nothing in
+    this Agreement limits any right the GPL gives you to copy, modify or share the Software;
+    where the two conflict, the GPL governs. This Agreement covers your use of the Software and
+    of what it shows you. The name "Groundwork" and its logo are not licensed under the GPL, and
+    a modified copy must not be presented as the official Software.
   </p>
 
   <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">2. Ownership</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
-    The Software is licensed, not sold. The publisher retains all right, title, and interest
-    in the Software, including all intellectual property rights. The data you enter or import
-    remains yours.
+    The publisher keeps the copyright in the Software, which you receive under the GPL. The
+    data you enter or import remains yours.
   </p>
 
   <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">3. Your responsibility — verify all figures</h2>
@@ -1505,9 +1505,9 @@ def terms():
 
   <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">9. Termination</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
-    This license is effective until terminated and terminates automatically if you breach it. You
-    may terminate it at any time by uninstalling and deleting the Software. Sections 3 through 6
-    and 10 survive termination.
+    You may stop using the Software at any time by uninstalling and deleting it. Your rights to
+    copy, modify and share the Software end only as the GPL says. Sections 3 through 6 and 10
+    survive.
   </p>
 
   <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">10. Governing law</h2>

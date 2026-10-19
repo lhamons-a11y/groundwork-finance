@@ -103,12 +103,12 @@ def run(ctx):
           and 'monthlyReviewAfterImport()' in night and 'monthlyReviewAfterImport()' not in ci)
 
     # S7 whose pay; S12 done
-    w = c.post('/api/checkin/whose', headers=HJ, data=json.dumps({'payer': 'S195 Shop', 'person': 'Partner'})).get_json()['data']
+    w = c.post('/api/checkin/whose', headers=HJ, data=json.dumps({'payer': 'S195 Shop', 'person': 'Sam'})).get_json()['data']
     k = date.today().isoformat()
     c.post('/api/checkin/close', headers=HJ, data=json.dumps({'date': k}))
     got = c.get('/api/checkin', headers=H).get_json()['data']
     check('s195 S7/S12 whose pay is kept; Done closes the check-in for the day',
-          w['payer_people'].get('s195 shop') == 'Partner' and got['closed'] is True)
+          w['payer_people'].get('s195 shop') == 'Sam' and got['closed'] is True)
     top = html.index('id="dashSundayCard"')
     check('s195 S12 the check-in sits at the top of the dashboard, before everything but the greeting, with Done',
           top < html.index('id="dashRecordStatus"') and top < html.index('id="dashWhatChanged"')

@@ -42,6 +42,7 @@ a = Analysis(
         ('static', 'static'),
         ('core', 'core'),
         ('bank_importer.py', '.'),
+        ('LICENSE', '.'), ('THIRD_PARTY_NOTICES.md', '.'), ('EULA.txt', '.'),   # GPL v3: the license ships with the app
         *( [(str(webview_path / 'js'), 'webview/js')] if webview_path and (webview_path / 'js').exists() else [] ),
     ],
     hiddenimports=[

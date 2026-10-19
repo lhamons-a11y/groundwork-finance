@@ -176,11 +176,11 @@ def run_terms(ctx):
     terms_site = site.split("@app.route('/terms')", 1)[1].split('@app.route', 1)[0]
     privacy = site.split("@app.route('/privacy')", 1)[1].split('@app.route', 1)[0]
     flat = lambda s: ' '.join(s.split())
-    check('s156 R6 the Terms say what the Google Flights window reads, in all three places, at version 1.2',
+    check('s156 R6 the Terms say what the Google Flights window reads, in all three places, from version 1.2',
           "the Software reads the price shown on that button" in flat(eula)
           and "the Software reads the price shown on that button" in flat(terms_site)
           and 'reads the price on the Continue button you click' in flat(terms_app)
-          and re.search(r'^Version 1\.2$', eula, re.M) is not None)
+          and re.search(r'^Version 1\.([2-9]|\d\d)$', eula, re.M) is not None)
     check('s156 R6 the Terms say the price is Google\'s and the airline\'s may be higher, everywhere they say it is read',
           all("airline's final price may be higher" in flat(t) for t in (eula, terms_site, terms_app)))
     check('s156 R6 the privacy policy has the section on websites opened inside Groundwork, with the one exception',

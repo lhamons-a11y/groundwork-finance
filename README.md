@@ -59,6 +59,15 @@ with your error log and system info pre-filled.
 ## Notes
 
 - The app runs entirely on your machine. No account needed, no subscription.
-- AI reports run only on your own computer (via Ollama). There is no cloud AI and no API key.
+- AI reports run only on your own computer, on the engine built into the app. There is no cloud AI and no API key.
 - Backups: Settings → Data & Backup → Back up now.
 - The server runs on port 8765 and only accepts connections from this machine.
+
+## Contributing and security
+
+See `CONTRIBUTING.md` for bugs, ideas and pull requests, and `SECURITY.md` to report a security problem privately.
+
+## License
+
+Groundwork is free software under the GNU General Public License, version 3 (`LICENSE`). The name "Groundwork" and
+its logo are not covered by the license. It is built on the open-source software listed in `THIRD_PARTY_NOTICES.md`.

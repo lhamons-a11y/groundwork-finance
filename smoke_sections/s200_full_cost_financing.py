@@ -16,14 +16,14 @@ def run(ctx):
     from core.purchase_cost import full_cost, read_offer, compare
     from core.database import BillReading, BudgetItem, DebtAccount, db_session
 
-    ins = {'name': 'GEICO', 'amount': 187.50, 'date': '2026-10-01'}
+    ins = {'name': 'GEICO', 'amount': 180.00, 'date': '2026-10-01'}
     gas = {'price': 3.19, 'period': '2026-10-06', 'live': True}
     car = full_cost('car', {'payment': 474.10, 'miles_per_month': 1000, 'mpg': 28, 'registration_yearly': 120}, ins, gas)
     parts = {p['label']: p for p in car['parts']}
     check(f'Y3 a car: payment, insurance from the bill reading, fuel from EIA, registration - each with its source ({car["monthly"]})',
           parts['Insurance']['kind'] == 'observed' and 'GEICO bill reading' in parts['Insurance']['source']
           and parts['Fuel']['kind'] == 'published' and abs(parts['Fuel']['monthly'] - 1000 / 28 * 3.19) < 0.01
-          and parts['Registration']['monthly'] == 10.0 and abs(car['monthly'] - (474.10 + 187.50 + 113.93 + 10.0)) < 0.02)
+          and parts['Registration']['monthly'] == 10.0 and abs(car['monthly'] - (474.10 + 180.00 + 113.93 + 10.0)) < 0.02)
     check('Y3 what Groundwork has no source for is left out and named, never guessed (repairs, an unpublished gas price)',
           any('Repairs' in x for x in car['left_out'])
           and 'Fuel' not in {p['label'] for p in full_cost('car', {'miles_per_month': 1000, 'mpg': 28}, None, {'price': 3.4, 'live': False})['parts']}
@@ -53,7 +53,7 @@ def run(ctx):
 
     # the routes, on the record
     with db_session() as s:
-        b = BudgetItem(name='s200 GEICO', category='Insurance', amount=187.50, type='expense', is_active=True)
+        b = BudgetItem(name='s200 GEICO', category='Insurance', amount=180.00, type='expense', is_active=True)
         s.add(b); s.flush()
         s.add(BillReading(budget_item_id=b.id, amount=251.40, read_at=datetime(2026, 10, 2, 9, 0), source_host='geico.com'))
         s.add(DebtAccount(name='s200 Card', current_balance=1800.0, interest_rate=22.0, minimum_payment=60.0, is_active=True))

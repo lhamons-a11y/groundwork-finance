@@ -13317,19 +13317,22 @@ async function _ollamaNotice() {
 // 1.1 (2026-09-27): section 7 rewritten when cloud AI was removed (CLOUD_AI_REMOVAL.md). A changed
 // version shows the terms again to every user whose stored terms_accepted differs.
 // 1.2 (2026-10-08): section 8 says what the Google Flights window reads (FLIGHT_FARE_READ.md R6, item 44).
-const GW_TERMS_VERSION = '1.2';
+// 1.3 (2026-10-19): sections 1, 2 and 9 - Groundwork is free software under the GPL v3 (Rob: open-source cleanup).
+const GW_TERMS_VERSION = '1.3';
 
 const _TERMS_HTML = `
   <p style="margin-bottom:14px"><strong>In short:</strong> Groundwork is a planning aid, not your bank.
   You are responsible for verifying every figure against your bank or financial institution before
   relying on it, and Groundwork is provided free, as-is, with no warranty.</p>
   <h4 style="margin:16px 0 4px;color:var(--ink)">1. License</h4>
-  <p>Groundwork is free software provided at no charge. You may install and use it for your own
-  personal or internal purposes. You may not sell it, charge a fee for it, redistribute a modified
-  version, or remove its proprietary notices. All rights not expressly granted are reserved.</p>
+  <p>Groundwork is free software: you can redistribute it and/or modify it under the terms of the GNU
+  General Public License, version 3 (the "GPL"). The full text is in the LICENSE file that comes with it.
+  Nothing here limits any right the GPL gives you; where the two conflict, the GPL governs. The name
+  "Groundwork" and its logo are not licensed under the GPL, and a modified copy must not be presented as
+  the official Software.</p>
   <h4 style="margin:16px 0 4px;color:var(--ink)">2. Ownership</h4>
-  <p>The Software is licensed, not sold. The publisher retains all rights in it. The data you enter
-  or import remains yours.</p>
+  <p>The publisher keeps the copyright in the Software, which you receive under the GPL. The data you
+  enter or import remains yours.</p>
   <h4 style="margin:16px 0 4px;color:var(--ink)">3. Your responsibility — verify all figures</h4>
   <p>Groundwork performs calculations and organizes information you enter or import, but it is
   <strong>not a system of record</strong> and is not a substitute for your bank or lender.
