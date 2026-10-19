@@ -137,10 +137,10 @@ def _target(session):
     cur = health_plan.states(session).get('current')
     if not cur or cur.get('oop_max') is None:
         if row is None:
-            return None, 'none', ('No target yet. Enter your health plan\'s out-of-pocket maximum (Settings, Accounts, '
-                                  'Health plan), or set a figure of your own.')
+            return None, 'none', ('No target yet. Enter your health plan\'s out-of-pocket maximum (Health, Plan and '
+                                  'reserve), or set a figure of your own.')
         return None, 'oop_max', ('The target is your plan\'s out-of-pocket maximum, but no current plan has one '
-                                 'entered (Settings, Accounts, Health plan).')
+                                 'entered (Health, Plan and reserve).')
     return cur['oop_max'], 'oop_max', (f'{money(cur["oop_max"])}, the out-of-pocket maximum of {cur["name"]} - the most '
                                        'a covered year can cost. Read from the plan, so a corrected maximum moves it.')
 

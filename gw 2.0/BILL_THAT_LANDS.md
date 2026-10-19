@@ -134,4 +134,21 @@ strain before any code exists:
 
 What's left is arithmetic with its working shown, and a plain "can't tell" wherever the record runs out.
 
-**RULED 2026-10-19 (Rob): "I accept item 94 as written" - L1-L10 as written. Build not yet started.**
+**RULED 2026-10-19 (Rob): "I accept item 94 as written" - L1-L10 as written.**
+
+**BUILT 2026-10-19 (Rob: "Build item 94, the bill that lands, as ruled"); master only. SCHEMA 20261019-medical-bills; s243.**
+- `core/medical_bills.py`: every sentence templated; no log, no model, no network. Three tables: `medical_providers`
+  (the non-profit answer is the household's word), `medical_bill_accounts` (the obligation minted only by "mine to
+  pay"; claim and arrangement kept as dated history), `medical_bill_statements` (provider bills and insurer EOBs as
+  typed, kept, never edited).
+- A payment toward a bill is item 93's payment plus `payment_in_respect_of_obligation`, each the answering person's
+  utterance; a card charge is linked the same way, so it is one payment toward the bill (L5).
+- L6 `bill_due` joins the ruled attention kinds, from 30 days before the due date.
+- L8's working, as built: the leanest of the last twelve complete months (money in by the one income definition,
+  money out less transfers), less the reserve's monthly fill when the person chose before/alongside.
+- L9, as built: the later of the card-free date and each agreed arrangement's last payment; none when any owed
+  obligation has no arrangement, a pending claim or disagreeing statements, and those are named.
+- L10: providers' names and account numbers join the H6 scrubber's markers. Bills are in no export today, so none
+  carries them without the health tick.
+- Not built here (as ruled): reading a held bill or EOB (item 18 stage 3), collections (stage 7).
+- Checked in a browser: the Settings card with a non-profit provider, and the dashboard's Needs attention item.

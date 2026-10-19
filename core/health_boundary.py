@@ -107,7 +107,8 @@ def refresh(session):
                 if len(k) >= MIN_MARKER or (k and k.isalpha() and len(k) >= 3):
                     found.setdefault(k, '[health: HSA/FSA]')
     for table, cols in (('health_plans', ('name',)), ('person_assignments', ('reason', 'source')),
-                        ('health_plan_term_versions', ('reason', 'source'))):
+                        ('health_plan_term_versions', ('reason', 'source')),
+                        ('medical_providers', ('name',)), ('medical_bill_accounts', ('account_number',))):   # item 94 L10
         try:
             from sqlalchemy import text as _t
             for row in session.execute(_t(f'SELECT {", ".join(cols)} FROM {table}')).fetchall():

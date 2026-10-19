@@ -230,6 +230,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(evidence_bp,       url_prefix='/api/evidence')
     app.register_blueprint(why_bp,            url_prefix='/api/why')
     app.register_blueprint(reimburse_bp,      url_prefix='/api/reimburse')
+    app.register_blueprint(medical_bp,        url_prefix='/api/medical-bills')   # item 94
     app.register_blueprint(help_bp,           url_prefix='/api/help')
     app.register_blueprint(review_bp,         url_prefix='/api/reports/review')
     app.register_blueprint(checkin_bp,        url_prefix='/api/checkin')
@@ -1439,6 +1440,169 @@ def _reserve_payload(session):
     st['options'] = hr.options(cards, budget, strategy, st['gap'], monthly=ch.get('monthly'))
     st['applied'] = hr.applied(hr.request_plan(session, _resolve_bank_anchor), cards, budget)   # item 90 D4
     return st
+
+
+# ── Item 94 (BILL_THAT_LANDS.md, L1-L10 ruled 2026-10-19): the bill that lands ────────────────────────────────────────
+# The provider's statements as the household typed them, the amount owed now with its working, and every fact the record
+# supports - templated in core/medical_bills.py, no model, nothing contacting anyone. Statements go through _statement:
+# each is the answering person's utterance (item 93).
+medical_bp = Blueprint('medical', __name__)
+
+
+def _bills_ctx(session):
+    """What the alarm (L6) and the capacity (L8) are measured against: savings on record, the reserve as allocated,
+    the stability floor (one month of recorded expenses, C.5), and the leanest complete month on record."""
+    from core import medical_bills as mb
+    from core.database import ReserveAllocation
+    from core.income_def import income_category_ids
+
+    def setting(key):
+        row = session.query(AppSetting).filter_by(key=key).first()
+        try:
+            return (float(row.value), True) if row and row.value not in (None, '') else (0.0, False)
+        except (TypeError, ValueError):
+            return 0.0, False
+    (sav, k1), (cash, k2) = setting('savings_balance'), setting('cash_balance')
+    alloc = session.query(ReserveAllocation).order_by(ReserveAllocation.seq.desc()).first()
+    reserve = float(alloc.amount) if alloc else 0.0
+    floor = sum(v['month_amount'] for v in budget_month_amounts(session).values())
+    # L8: the leanest of the last twelve complete months - money in by the one income definition, money out less transfers
+    month_start = date.today().replace(day=1)
+    since = (month_start - timedelta(days=366)).replace(day=1)
+    inc_ids, tr_ids = income_category_ids(session), _transfer_category_ids(session)
+    months = {}
+    for t in session.query(Transaction).filter(Transaction.date >= since, Transaction.date < month_start).all():
+        m = months.setdefault(t.date.strftime('%Y-%m'), [0.0, 0.0])
+        if t.type == 'credit' and t.category_id in inc_ids:
+            m[0] += float(t.amount or 0)
+        elif t.type == 'debit' and t.category_id not in tr_ids:
+            m[1] += float(t.amount or 0)
+    from core.health_reserve import _setting as _hr_setting
+    choice = (_hr_setting(session, 'reserve_order_json', []) or [None])[-1] or {}
+    fill = float(choice.get('monthly') or 0) if choice.get('choice') in ('before', 'alongside') else 0.0
+    if len(months) < MIN_MONTHS_OBSERVED:
+        cap = {'thin': True, 'months': len(months)}
+    else:
+        key = min(months, key=lambda k: months[k][0] - months[k][1])
+        left = round(months[key][0] - months[key][1], 2)
+        cap = {'thin': False, 'months': len(months), 'leanest': date.fromisoformat(key + '-01').strftime('%B %Y'),
+               'left': left, 'reserve_monthly': fill, 'monthly': round(left - fill, 2)}
+    return {'liquid': sav + cash, 'liquid_known': k1 or k2, 'reserve': reserve, 'floor': round(floor, 2), 'capacity': cap}
+
+
+@medical_bp.route('', methods=['GET'])
+def medical_bills_get():
+    """Every bill account, the dates (L9) and the attention items (L6)."""
+    from core import medical_bills as mb
+    from core.database import MedicalBillAccount
+    with db_session() as session:
+        ctx = _bills_ctx(session)
+        views = [mb.view(session, a, ctx) for a in session.query(MedicalBillAccount).order_by(MedicalBillAccount.id).all()]
+        cards, budget, strategy, _undated = _consequence_inputs(session)
+        today = date.today().strftime('%Y-%m')
+        sim = simulate_payoff(cards, budget, strategy, today_key=today, start_month=today) if cards else {'months': 0}
+        card_free = None if sim is None or sim.get('capped') else int(sim.get('months') or 0)   # None: not reached at this budget
+        return ok({'bills': views, 'dates': mb.obligations_date(views, card_free),
+                   'attention': [v['attention'] for v in views if v.get('attention')], 'never_directs': mb.NEVER_DIRECTS})
+
+
+@medical_bp.route('/statement', methods=['POST'])
+@require_json
+def medical_bill_statement():
+    """L1: a provider's bill or an insurer's explanation of benefits, as the household typed it."""
+    from core import medical_bills as mb
+
+    def go():
+        with db_session() as session:
+            a, problem = mb.add_statement(session, request.json or {})
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok({'id': a.id})
+    return _statement(go)
+
+
+@medical_bp.route('/<int:account_id>/<what>', methods=['POST'])
+@require_json
+def medical_bill_say(account_id, what):
+    """mine | claim {pending} | arrangement {monthly, first_date, payments} or {none} | payment {transaction_id}"""
+    from core import medical_bills as mb
+    body = request.json or {}
+    fns = {'mine': lambda s: mb.say_mine(s, account_id),
+           'claim': lambda s: mb.say_claim(s, account_id, bool(body.get('pending'))),
+           'arrangement': lambda s: mb.say_arrangement(s, account_id, body),
+           'payment': lambda s: mb.link_payment(s, account_id, body.get('transaction_id'))}
+    if what not in fns:
+        return err('Not a statement about a bill.', 404)
+
+    def go():
+        with db_session() as session:
+            _x, problem = fns[what](session)
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok({'id': account_id})
+    return _statement(go)
+
+
+@medical_bp.route('/providers/<int:provider_id>/kind', methods=['POST'])
+@require_json
+def medical_provider_nonprofit(provider_id):
+    """L7: {value: true | false | null} - the household's word on whether the provider is a non-profit hospital."""
+    from core import medical_bills as mb
+    v = (request.json or {}).get('value')
+
+    def go():
+        with db_session() as session:
+            _p, problem = mb.say_nonprofit(session, provider_id, v if v in (True, False) else None)
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok({'id': provider_id})
+    return _statement(go)
+
+
+@medical_bp.route('/<int:account_id>/lines', methods=['GET'])
+def medical_bill_lines(account_id):
+    """L2/L5: recent money-out lines the household may say were toward this bill (the last 120 days)."""
+    from core.database import Account
+    with db_session() as session:
+        since = date.today() - timedelta(days=120)
+        rows = session.query(Transaction).filter(Transaction.type == 'debit', Transaction.date >= since) \
+            .order_by(Transaction.date.desc()).limit(60).all()
+        accts = {a.id: a.name for a in session.query(Account).all()}
+        return ok({'lines': [{'id': t.id, 'date': t.date.isoformat() if t.date else '', 'amount': round(float(t.amount or 0), 2),
+                              'what': (t.merchant or t.description or '')[:60], 'account': accts.get(t.account_id, '')}
+                             for t in rows]})
+
+
+@medical_bp.route('/<int:account_id>/budget', methods=['POST'])
+def medical_bill_budget(account_id):
+    """L4, on the household's tap: the agreed arrangement as a budget line (a bill on the Budget page, item 68)."""
+    import json as _j
+    from core.database import MedicalBillAccount, MedicalProvider
+    from core.health_boundary import is_health_category
+    with db_session() as session:
+        a = session.get(MedicalBillAccount, account_id)
+        arr = ((_j.loads(a.arrangement_json or '[]') or [{}])[-1]) if a else {}
+        if not a or not arr.get('monthly'):
+            return err('Record the arrangement the provider agreed first.')
+        prov = session.get(MedicalProvider, a.provider_id)
+        cat = next((c for c in session.query(Category).order_by(Category.id).all()
+                    if c.parent_id is None and is_health_category(c.name)), None)
+        item = BudgetItem(name=f'{prov.name if prov else "Medical bill"} - payment arrangement', amount=arr['monthly'],
+                          type='expense', category=cat.name if cat else 'Other', is_active=True)
+        session.add(item)
+        session.commit()
+        return ok({'budget_item_id': item.id, 'category': item.category, 'name': item.name, 'amount': item.amount})
+
+
+@accounts_bp.route('/health-summary', methods=['GET'])
+def health_summary_get():
+    """Item 100 HP5: health money out by month and by person, as recorded (core/health_page.py). Never a lever."""
+    from core import health_page
+    with db_session() as session:
+        return ok(health_page.summary(session))
 
 
 @accounts_bp.route('/health-reserve', methods=['GET'])
@@ -4828,7 +4992,7 @@ def dashboard_dismiss():
     """
     fp = (request.json or {}).get('fingerprint')
     if not isinstance(fp, str) or not fp or len(fp) > 300 or fp.split('|', 1)[0] not in (
-            'payment_due', 'import_stale', 'blocked_conclusion', 'date_ends', 'fsa_deadline'):   # item 86 F5
+            'payment_due', 'import_stale', 'blocked_conclusion', 'date_ends', 'fsa_deadline', 'bill_due'):   # item 86 F5, item 94 L6
         return err('a fingerprint of a ruled attention kind is required')
     with db_session() as session:
         dismissed = [d for d in _dashboard_json(session, 'dashboard_dismissed', []) if d != fp]

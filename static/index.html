@@ -815,8 +815,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="nav-item" data-view="budget" onclick="showView('budget')">
           <span class="nav-item-icon">◎</span>Budget
         </div>
-        <div class="nav-item" data-view="calendar" onclick="showView('calendar')">
-          <span class="nav-item-icon">▦</span>Calendar
+        <div class="nav-item" data-view="health" id="navHealth" onclick="showView('health')">
+          <span class="nav-item-icon">✚</span>Health
         </div>
       </div>
 
@@ -1550,6 +1550,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Possible futures</button>
           <button id="budTab-bills" role="tab" aria-selected="false" aria-controls="budPanel-bills" onclick="_budShowTab('bills')"
             style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Bills and charges</button>
+          <!-- Rob 2026-10-19: "lets also move Calendar as a tab to budget" - what's coming sits with the plan that pays for it -->
+          <button id="budTab-calendar" role="tab" aria-selected="false" aria-controls="budPanel-calendar" onclick="_budShowTab('calendar')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Calendar</button>
         </div>
         <div id="budPanel-plan" role="tabpanel" aria-labelledby="budTab-plan">
         <!-- Item 71: when recorded income drops - the scenarios, and the budget that would follow, on the person's tap -->
@@ -1627,6 +1630,45 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           </div>
         </div>
         </div><!-- end budPanel-bills -->
+        <div id="budPanel-calendar" role="tabpanel" aria-labelledby="budTab-calendar" style="display:none">
+          <div style="font-size:12px;color:var(--slate);margin-bottom:12px">What's coming, from your own record. Nothing here reminds or pushes; it's here when you look.</div>
+          <!-- Item 65 W1: yearly bills and heavy months a long history shows - asked about, on the person's tap -->
+          <div id="calendarLookThrough"></div>
+          <div id="calendarContent"></div>
+        </div>
+      </div>
+
+      <!-- HEALTH - item 100 (HEALTH_PAGE.md, Rob 2026-10-19): what was scattered across Settings, Accounts and Reports, on
+           one page. Tracking only - never a lever (item 89): no budget to beat, nothing about spending less on care. -->
+      <div id="view-health" class="view">
+        <div class="section-header">
+          <div class="section-title">Health</div>
+          <div class="section-sub">Your medical bills, your plan year, the reserve and what care has cost - recorded, never judged.</div>
+        </div>
+        <div id="healthFacts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin-bottom:16px"></div>
+        <div role="tablist" aria-label="Health" style="display:flex;border-bottom:1px solid var(--steel);margin:4px 0 16px;flex-wrap:wrap">
+          <button id="hlTab-bills" role="tab" aria-selected="true" aria-controls="hlPanel-bills" onclick="healthShowTab('bills')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid var(--pine);color:var(--pine-text);font-weight:500">Bills</button>
+          <button id="hlTab-plan" role="tab" aria-selected="false" aria-controls="hlPanel-plan" onclick="healthShowTab('plan')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Plan and reserve</button>
+          <button id="hlTab-spending" role="tab" aria-selected="false" aria-controls="hlPanel-spending" onclick="healthShowTab('spending')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Spending</button>
+          <button id="hlTab-people" role="tab" aria-selected="false" aria-controls="hlPanel-people" onclick="healthShowTab('people')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">People</button>
+        </div>
+        <div id="hlPanel-bills" role="tabpanel" aria-labelledby="hlTab-bills">
+          <div class="card mb-5"><div id="medicalBillsCard"></div></div>
+        </div>
+        <div id="hlPanel-plan" role="tabpanel" aria-labelledby="hlTab-plan" style="display:none">
+          <div class="card mb-5"><div id="healthPlanCard"></div><div id="healthReserveCard"></div></div>
+          <div class="card mb-5" id="healthHsaFsa"></div>
+        </div>
+        <div id="hlPanel-spending" role="tabpanel" aria-labelledby="hlTab-spending" style="display:none">
+          <div class="card mb-5" id="healthSpending"></div>
+        </div>
+        <div id="hlPanel-people" role="tabpanel" aria-labelledby="hlTab-people" style="display:none">
+          <div class="card mb-5"><div id="healthPeopleCard"></div></div>
+        </div>
       </div>
 
       <!-- DEBT -->
@@ -2776,15 +2818,6 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
       </div>
 
       <!-- CALENDAR (item 65 W3): every upcoming date, confirmed / expected / possible -->
-      <div id="view-calendar" class="view">
-        <div class="section-header">
-          <div class="section-title">Calendar</div>
-          <div class="section-sub">What's coming, from your own record. Nothing here reminds or pushes; it's here when you look.</div>
-        </div>
-        <!-- Item 65 W1: yearly bills and heavy months a long history shows - asked about, on the person's tap -->
-        <div id="calendarLookThrough"></div>
-        <div id="calendarContent"></div>
-      </div>
 
       <!-- GIFT BUDGET -->
       <div id="view-gifts" class="view">

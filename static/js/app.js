@@ -1726,7 +1726,7 @@ const VIEW_LABELS = {
   networth: 'Net Worth', trophy: 'Trophy Room', settings: 'Settings', trip: 'Trip Planner', automation: 'Assistant',
   reports: 'Reports',
   gifts: 'Gift Budget',
-  calendar: 'Calendar',
+  calendar: 'Calendar', health: 'Health',
 };
 
 // Stops the investment price auto-refresh timer when leaving the investments view
@@ -1758,6 +1758,13 @@ function showView(name) {
   if (name === 'tracker') {
     showView('debt');
     setTimeout(() => _debtShowTab('tracker'), 50);
+    return;
+  }
+  if (name === 'health') setTimeout(() => renderHealthPage(), 0);     // item 100
+  // Rob 2026-10-19: the Calendar is a tab on the Budget page now - every "open the Calendar" lands there
+  if (name === 'calendar') {
+    showView('budget');
+    setTimeout(() => _budShowTab('calendar'), 50);
     return;
   }
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -18268,7 +18275,7 @@ function updateNetWorth() {
       </div>`).join('')
       // Item 86: counted from the HSA / FSA accounts, so a figure typed into Savings above must not include it too.
       + (hsaFsa > 0 ? `
-      <div style="font-size:11px;color:var(--slate);padding:4px 0">HSA / FSA: the balances shown in Settings, Accounts. If your Savings figure above already includes them, take them out there so they are counted once.</div>` : '')
+      <div style="font-size:11px;color:var(--slate);padding:4px 0">HSA / FSA: the balances shown on the Health page and in Settings, Accounts. If your Savings figure above already includes them, take them out there so they are counted once.</div>` : '')
       // V9: equity is information, not a second asset - the value and the mortgage are already counted.
       + (homeValue > 0 ? `
       <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:12px;color:var(--slate)">
@@ -22556,14 +22563,13 @@ function _drawAccountManager() {
     ${_accountsCache.length ? rows : empty}
     <div id="accountFormSlot"></div>
     <button class="btn-add" onclick="showAddAccountForm()">+ Add account</button>
-    <div id="healthPeopleCard" style="margin-top:12px"></div>
-    <div id="bankStatementsCard"></div>
-    <div id="healthPlanCard"></div>
-    <div id="healthReserveCard"></div>`;
-  renderPeopleCard();          // item 92: the people, above the plan (N1, N3)
+    <div id="bankStatementsCard" style="margin-top:12px"></div>
+    <div style="padding:12px 0;border-top:0.5px solid var(--steel-2);margin-top:8px;font-size:12px;color:var(--slate)">
+      People, your health plan, the reserve and medical bills are on the <a href="#" onclick="showView('health');return false" style="color:var(--sky)">Health page →</a>
+      <label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="setShowHealth" onchange="_setHealthNav(this.checked)" ${_healthNavShown ? 'checked' : ''}> Show Health in the sidebar</label>
+    </div>`;
   renderBankStatementsCard();  // item 93 B2/B3: who is answering, each account's bank, standing statements
-  renderHealthPlanCard();      // item 87: the health plan, beside the HSA and FSA (P6)
-  renderHealthReserveCard();   // item 88: the reserve, under the plan (R8)
+  // Item 100 HP4: people (item 92), the plan (87), the reserve (88) and medical bills (94) live on the Health page now
 }
 
 function _accountRowHTML(a) {
@@ -22769,6 +22775,231 @@ let _resState = null;
 async function _loadReserve() {
   try { _resState = await API.get('/api/accounts/health-reserve'); } catch (e) { _gwErr('reserve load')(e); _resState = null; }
   return _resState;
+}
+
+// ── Item 100 (HEALTH_PAGE.md, Rob 2026-10-19): the Health page ───────────────────────────────────────────────────────
+// Everything health on one page, built from what exists: the bills (item 94), the plan year (87), the reserve (88),
+// the HSA and FSA (86), whom care was for (92), the records (91). HP6, never a lever: tracking only.
+let _healthTab = 'bills';
+function healthShowTab(id) {
+  _healthTab = id;
+  ['bills', 'plan', 'spending', 'people'].forEach(t => {
+    const on = t === id, b = g('hlTab-' + t), p = g('hlPanel-' + t);
+    if (b) {
+      b.setAttribute('aria-selected', String(on));
+      b.style.color = on ? 'var(--pine-text)' : 'var(--slate)';
+      b.style.borderBottomColor = on ? 'var(--pine)' : 'transparent';
+      b.style.fontWeight = on ? '500' : 'normal';
+    }
+    if (p) p.style.display = on ? '' : 'none';
+    if (p && on && typeof _bybAnimate === 'function') _bybAnimate(p);
+  });
+  if (id === 'spending') _renderHealthSpending();
+}
+
+async function renderHealthPage() {
+  healthShowTab(_healthTab);
+  _healthFacts();
+  renderMedicalBillsCard();
+  renderHealthPlanCard();
+  renderHealthReserveCard();
+  renderPeopleCard();
+  if (!(S.hsaFsa || []).length && (S.accounts || []).some(a => a.type === 'hsa' || a.type === 'fsa')) await _loadHsaFsa();
+  _renderHealthHsaFsa();
+}
+
+// HP3: four facts, each the working's own figure - or what the record doesn't have, said plainly
+async function _healthFacts() {
+  const host = g('healthFacts');
+  if (!host) return;
+  const [bills, res, plans] = await Promise.all([
+    API.get('/api/medical-bills').catch(() => null), API.get('/api/accounts/health-reserve').catch(() => null),
+    API.get('/api/accounts/health-plans').catch(() => null)]);
+  const owing = ((bills && bills.bills) || []).filter(b => b.mine && (b.owed || 0) > 0);
+  const owed = owing.reduce((s, b) => s + b.owed, 0);
+  const cur = plans && plans.current;
+  const ded = cur ? (cur.lines || []).find(l => /deductible/i.test(l)) : null;
+  const hsa = (S.hsaFsa || []).filter(a => a.balance && a.balance.amount != null);
+  const tile = (label, big, small) => `<div class="card byb-in" style="padding:12px 14px;margin:0">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2)">${label}</div>
+      <div style="font-family:var(--font-mono);font-size:17px;font-weight:600;color:var(--ink);margin-top:4px">${big}</div>
+      <div style="font-size:11px;color:var(--slate);margin-top:2px;line-height:1.5">${small}</div></div>`;
+  host.innerHTML = [
+    tile('Owed on bills', owing.length ? fmt(owed) : '—',
+         owing.length ? `${owing.length} bill${owing.length === 1 ? '' : 's'} you said ${owing.length === 1 ? 'is' : 'are'} yours` : 'No bill you said is yours'),
+    tile('Plan year', cur ? esc(cur.name) : '—', ded ? esc(ded) : cur ? 'Enter what your insurer shows' : 'No plan entered'),
+    tile('Reserve', res && res.target != null ? `${fmt(res.covered || 0)}` : res && res.covered ? fmt(res.covered) : '—',
+         res && res.target != null ? `of ${fmt(res.target)}${res.gap === 0 ? ', full' : ''}` : 'No target set'),
+    tile('HSA and FSA', hsa.length ? fmt(hsa.reduce((s, a) => s + a.balance.amount, 0)) : '—',
+         hsa.length ? hsa.map(a => esc(a.account || a.name || '')).join(', ') : 'No HSA or FSA account'),
+  ].join('');
+}
+
+// HP4: each HSA / FSA panel's sentence and balance; its terms are managed in its account row
+function _renderHealthHsaFsa() {
+  const host = g('healthHsaFsa');
+  if (!host) return;
+  const list = S.hsaFsa || [];
+  host.innerHTML = `<div class="card-label" style="margin-bottom:6px">HSA and FSA</div>` + (list.length
+    ? list.map(s => `<div style="padding:6px 0;border-top:0.5px solid var(--steel-2);font-size:12px;color:var(--slate)">
+        <div style="font-size:13px;color:var(--ink);font-weight:500">${esc(s.account || s.name || (s.kind || '').toUpperCase())}</div>
+        ${s.sentence ? `<div style="font-size:13px;color:var(--ink)">${esc(s.sentence)}</div>` : ''}
+        <div>Balance: ${esc((s.balance || {}).working || '')}</div></div>`).join('')
+      + `<a href="#" onclick="showView('settings');_settingsShowTab('accounts');return false" style="font-size:12px;color:var(--sky)">Manage in Accounts →</a>`
+    : `<div style="font-size:12px;color:var(--slate)">No HSA or FSA account. Add one in <a href="#" onclick="showView('settings');_settingsShowTab('accounts');return false" style="color:var(--sky)">Accounts</a> with its type set to HSA or FSA.</div>`);
+}
+
+// HP5: spending as recorded - by month, by person, the year so far - and the records
+async function _renderHealthSpending() {
+  const host = g('healthSpending');
+  if (!host) return;
+  let d;
+  try { d = await API.get('/api/accounts/health-summary'); } catch (e) { _gwErr('health summary')(e); host.innerHTML = ''; return; }
+  const top = Math.max(1, ...d.months.map(m => m.amount));
+  host.innerHTML = `<div class="card-label" style="margin-bottom:4px">Health spending, as recorded</div>
+    <div style="font-size:12px;color:var(--slate);margin-bottom:10px">${esc(d.what)}</div>
+    <div style="font-size:13px;color:var(--ink);margin-bottom:10px">${esc(d.year_line)}</div>
+    <div style="display:grid;gap:4px">${d.months.map(m => `<div style="display:grid;grid-template-columns:80px 1fr 90px;gap:8px;align-items:center;font-size:12px">
+        <span style="color:var(--slate)">${esc(m.label)}${m.so_far ? ' *' : ''}</span>
+        <span style="background:var(--mist);border-radius:3px;height:10px;overflow:hidden"><span class="byb-in" style="display:block;height:100%;width:${(m.amount / top * 100).toFixed(1)}%;background:var(--sky)"></span></span>
+        <span style="font-family:var(--font-mono);text-align:right;color:var(--ink)">${fmt(m.amount)}</span></div>`).join('')}</div>
+    <div style="font-size:11px;color:var(--slate-2);margin-top:4px">* this month so far.</div>
+    <div class="card-label" style="margin:16px 0 6px">Whom it was for, ${esc(d.year)}</div>
+    ${d.by_person.length ? d.by_person.map(r => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${esc(r.who)}</span><span style="font-family:var(--font-mono)">${fmt(r.amount)}</span></div>`).join('')
+      : '<div style="font-size:12px;color:var(--slate)">Nothing recorded this year.</div>'}
+    <div style="font-size:11px;color:var(--slate-2);margin-top:4px">As you said it, payment by payment - never guessed. Say whom a payment was for from the Ledger's edit panel.</div>
+    <div class="card-label" style="margin:16px 0 6px">Records</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-sm btn-secondary" onclick="showView('reports');setTimeout(() => _rcOpenReport('visit_report'), 80)">Visit report</button>
+      <button class="btn btn-sm btn-secondary" onclick="showView('reports');setTimeout(() => _rcOpenReport('year_end'), 80)">Year in review</button></div>`;
+}
+
+// HP7: the page in the sidebar unless the person turned it off (its data stays either way)
+let _healthNavShown = true;
+async function _applyHealthNav() {
+  try { const st = await API.get('/api/settings'); _healthNavShown = (st || {}).show_health_nav !== 'false'; } catch (e) { _healthNavShown = true; }
+  const nav = g('navHealth');
+  if (nav) nav.style.display = _healthNavShown ? '' : 'none';
+}
+async function _setHealthNav(on) {
+  try { await API.patch('/api/settings', { show_health_nav: on ? 'true' : 'false' }); } catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  _applyHealthNav();
+}
+
+// ── Item 94 (BILL_THAT_LANDS.md, L1-L10 ruled 2026-10-19): the bill that lands ────────────────────────────────────────
+// Every sentence comes from the server (core/medical_bills.py, templated). The page adds only the buttons, and each
+// button is the household's statement, made as the person answering (item 93).
+let _mbState = null;
+async function renderMedicalBillsCard() {
+  const host = g('medicalBillsCard');
+  if (!host) return;
+  try { _mbState = await API.get('/api/medical-bills'); } catch (e) { _gwErr('medical bills')(e); host.innerHTML = ''; return; }
+  const st = _mbState, d = st.dates || {};
+  const row = (t, cls = 'var(--ink)') => `<div style="font-size:13px;color:${cls};margin-top:3px">${esc(t)}</div>`;
+  const note = t => `<div style="font-size:12px;color:var(--slate);margin-top:3px;padding-left:8px;border-left:2px solid var(--gold-border)">${esc(t)}</div>`;
+  const bill = b => {
+    const yn = b.nonprofit_hospital;
+    return `<div style="padding:10px 0;border-top:0.5px solid var(--steel-2)" data-mb="${b.id}">
+      <div style="font-size:13px;font-weight:600;color:var(--ink)">${esc(b.provider)}${b.account_number ? ` <span style="font-weight:400;color:var(--slate-2);font-family:var(--font-mono);font-size:11px">account ${esc(b.account_number)}</span>` : ''}</div>
+      ${b.statements.map(x => `<div style="font-size:12px;color:var(--slate);margin-top:2px">${esc(x.line)}</div>`).join('')}
+      ${b.lines.map(l => row(l)).join('')}
+      ${b.notes.map(note).join('')}
+      ${!b.mine ? `<button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="_mbSay(${b.id}, 'mine')">This bill is mine to pay</button>` : ''}
+      ${b.mine && (b.owed || 0) > 0 ? `
+        ${b.candidates.map(c => `<div style="font-size:12px;color:var(--ink);margin-top:6px">${esc(c.sentence)}
+            <button class="btn btn-sm btn-ghost" onclick="_mbSay(${b.id}, 'payment', {transaction_id: ${c.transaction_id}})">That's this bill</button></div>`).join('')}
+        <details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">A payment toward it, or the provider's terms</summary>
+          <div style="margin-top:6px;font-size:12px;color:var(--slate)">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select id="mbLine-${b.id}" style="font-size:12px;padding:3px 6px;max-width:320px" onfocus="_mbLines(${b.id})"><option value="">Choose the payment…</option></select>
+              <button class="btn btn-sm btn-secondary" onclick="_mbLinkChosen(${b.id})">It was toward this bill</button></div>
+            <label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" ${b.claim_pending ? 'checked' : ''} onchange="_mbSay(${b.id}, 'claim', {pending: this.checked})"> The insurer's claim is still pending</label>
+            <div style="margin-top:8px">Payment arrangement, as the provider agreed it:</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+              <input id="mbArrM-${b.id}" type="number" step="0.01" min="0" placeholder="a month" value="${b.arrangement ? b.arrangement.monthly : ''}" style="width:90px;font-size:12px;padding:3px 6px">
+              <input id="mbArrF-${b.id}" type="date" value="${b.arrangement ? b.arrangement.first_date : ''}" style="font-size:12px;padding:3px 6px" title="First payment">
+              <input id="mbArrN-${b.id}" type="number" step="1" min="1" placeholder="payments" value="${b.arrangement ? b.arrangement.payments : ''}" style="width:80px;font-size:12px;padding:3px 6px">
+              <button class="btn btn-sm btn-secondary" onclick="_mbArrangement(${b.id})">Record it</button>
+              ${b.arrangement ? `<button class="btn btn-sm btn-ghost" onclick="_mbSay(${b.id}, 'arrangement', {none: true})">No arrangement now</button>
+                <button class="btn btn-sm btn-ghost" onclick="_mbBudget(${b.id})">Add it to my budget</button>` : ''}</div>
+          </div></details>
+        <div style="font-size:12px;color:var(--slate);margin-top:8px">Is ${esc(b.provider)} a non-profit hospital?
+          ${[['Yes', true], ['No', false], ['Not sure', null]].map(([l, v]) => `<button class="btn btn-sm ${yn === v ? 'btn-secondary' : 'btn-ghost'}" onclick="_mbNonprofit(${b.provider_id}, ${v})">${l}</button>`).join('')}</div>
+        ${b.facts.length ? `<div style="margin-top:6px;padding:8px 10px;background:var(--mist);border-radius:var(--r-sm)">${b.facts.map(f => `<div style="font-size:12px;color:var(--ink);margin-top:2px">${esc(f)}</div>`).join('')}</div>` : ''}
+        ${b.capacity ? `<div style="margin-top:8px"><div style="font-size:12px;color:var(--ink)">${esc(b.capacity.sentence)}</div>
+          ${(b.capacity.rows || []).map(r => `<div style="font-size:12px;color:${r.sustained ? 'var(--pine-text)' : 'var(--slate)'};margin-top:2px">${esc(r.line)}</div>`).join('')}</div>` : ''}
+      ` : ''}
+    </div>`;
+  };
+  host.innerHTML = `
+    <div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)">
+      <div class="card-label" style="margin-bottom:4px">Medical bills</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:6px">A bill is the provider's statement. It becomes something you owe only when you say so. ${esc(st.never_directs || '')}</div>
+      ${(st.bills || []).some(b => b.mine && (b.owed || 0) > 0) ? `<div style="margin:6px 0 4px">${row(d.card_free || '')}${row(d.sentence || '', d.all ? 'var(--ink)' : 'var(--slate)')}</div>` : ''}
+      ${(st.bills || []).map(bill).join('')}
+      <details style="margin-top:8px"${(st.bills || []).length ? '' : ' open'}><summary style="cursor:pointer;font-size:12px">Bring in a bill</summary>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;margin-top:6px;font-size:12px;color:var(--slate)">
+          <label>From<select id="mbSource" style="width:100%;font-size:12px;padding:3px 6px"><option value="provider">The provider's bill</option><option value="insurer">The insurer's explanation of benefits</option></select></label>
+          <label>Provider<input id="mbProvider" type="text" style="width:100%;font-size:12px;padding:3px 6px" placeholder="as the bill names it"></label>
+          <label>Account number<input id="mbAcct" type="text" style="width:100%;font-size:12px;padding:3px 6px" placeholder="on the bill"></label>
+          <label>Statement date<input id="mbDate" type="date" style="width:100%;font-size:12px;padding:3px 6px"></label>
+          <label>Amount due (or yours, on an EOB)<input id="mbAmount" type="number" step="0.01" min="0" style="width:100%;font-size:12px;padding:3px 6px"></label>
+          <label>Due date<input id="mbDue" type="date" style="width:100%;font-size:12px;padding:3px 6px"></label>
+          <label>Service from<input id="mbSvcFrom" type="date" style="width:100%;font-size:12px;padding:3px 6px"></label>
+          <label>Service to<input id="mbSvcTo" type="date" style="width:100%;font-size:12px;padding:3px 6px"></label>
+        </div>
+        <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="_mbAdd()">Add the statement</button>
+        <div style="font-size:11px;color:var(--slate-2);margin-top:4px">Kept on this computer as health information: never sent to the AI, never in an export unless you tick health.</div>
+      </details>
+    </div>`;
+}
+
+async function _mbDo(fn, done) {
+  let r;
+  try { r = await _asSpeaker(fn); } catch (e) { showToast('Not saved', e.message || '', 'warning'); return; }
+  if (r === null) return;
+  if (done) showToast(done, '', 'success');
+  renderMedicalBillsCard();
+  _healthFacts();
+  if (typeof renderDashboard === 'function') renderDashboard();
+}
+function _mbSay(id, what, body = {}) {
+  const done = { mine: 'Recorded: yours to pay', payment: 'Recorded as a payment toward the bill', claim: 'Noted',
+                 arrangement: 'Arrangement recorded' }[what];
+  return _mbDo(() => API.post(`/api/medical-bills/${id}/${what}`, body), done);
+}
+function _mbAdd() {
+  const v = id => (g(id)?.value || '').trim();
+  const body = { source: v('mbSource'), provider: v('mbProvider'), account_number: v('mbAcct'), statement_date: v('mbDate'),
+                 amount: v('mbAmount'), due_date: v('mbDue'), service_from: v('mbSvcFrom'), service_to: v('mbSvcTo') };
+  return _mbDo(() => API.post('/api/medical-bills/statement', body), 'Statement added');
+}
+function _mbArrangement(id) {
+  const body = { monthly: g(`mbArrM-${id}`)?.value, first_date: g(`mbArrF-${id}`)?.value, payments: g(`mbArrN-${id}`)?.value };
+  return _mbSay(id, 'arrangement', body);
+}
+function _mbNonprofit(providerId, value) {
+  return _mbDo(() => API.post(`/api/medical-bills/providers/${providerId}/kind`, { value }), 'Noted');
+}
+async function _mbLines(id) {
+  const sel = g(`mbLine-${id}`);
+  if (!sel || sel.dataset.loaded) return;
+  let r;
+  try { r = await API.get(`/api/medical-bills/${id}/lines`); } catch (e) { _gwErr('medical bill lines')(e); return; }
+  sel.dataset.loaded = '1';
+  sel.innerHTML = '<option value="">Choose the payment…</option>' + (r.lines || []).map(l =>
+    `<option value="${l.id}">${esc(l.date)} · ${fmt(l.amount)} · ${esc(l.what)}${l.account ? ' (' + esc(l.account) + ')' : ''}</option>`).join('');
+}
+function _mbLinkChosen(id) {
+  const t = g(`mbLine-${id}`)?.value;
+  if (!t) { showToast('Choose the payment first', '', 'warning'); return; }
+  return _mbSay(id, 'payment', { transaction_id: parseInt(t, 10) });
+}
+async function _mbBudget(id) {
+  let r;
+  try { r = await API.post(`/api/medical-bills/${id}/budget`, {}); } catch (e) { showToast('Not added', e.message || '', 'warning'); return; }
+  S.expenses.push({ id: r.budget_item_id, name: r.name, amount: r.amount, cat: r.category });
+  showToast('Added to your budget', `${r.name}, ${fmt(r.amount)} a month, under ${r.category}`, 'success');
+  _refreshBudgetIfActive();
 }
 
 async function renderHealthReserveCard() {
@@ -26718,7 +26949,7 @@ function askGroundworkPick(i) {
 let _budTab = 'plan';
 function _budShowTab(id) {
   _budTab = id;
-  ['plan', 'futures', 'bills'].forEach(t => {
+  ['plan', 'futures', 'bills', 'calendar'].forEach(t => {
     const on = t === id, b = g('budTab-' + t), p = g('budPanel-' + t);
     if (b) {
       b.setAttribute('aria-selected', String(on));
@@ -26728,6 +26959,7 @@ function _budShowTab(id) {
     }
     if (p) p.style.display = on ? '' : 'none';
   });
+  if (id === 'calendar') { try { renderCalendar(); } catch (e) { console.error('Calendar render:', e); } }
 }
 function _budReveal(el) {
   const panel = el && el.closest && el.closest('[id^="budPanel-"]');
@@ -31011,6 +31243,7 @@ async function boot() {
     });
     _startHeartbeat(); // detect server restarts → auto-reload for fresh token
     _startAutoImportPolling(); // Downloads watcher bridge — offer detected bank files
+    _applyHealthNav();         // item 100 HP7: the Health page in the sidebar, unless the person turned it off
     setTimeout(refreshFetchAll, 2500);              // item 67: the header button, if any account has saved steps
     setTimeout(_checkForUpdates, 4000);             // update banner, off the boot path
     setInterval(_checkForUpdates, 6 * 3600 * 1000); // re-check twice a day

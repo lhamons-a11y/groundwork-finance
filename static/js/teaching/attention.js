@@ -15,7 +15,8 @@
   'use strict';
 
   var KINDS = ['payment_due', 'import_stale', 'blocked_conclusion', 'date_ends',    // date_ends: item 73 Y2, ruled 2026-10-10
-               'fsa_deadline'];                                                    // item 86 F5, ruled 2026-10-14
+               'fsa_deadline',                                                     // item 86 F5, ruled 2026-10-14
+               'bill_due'];                                                        // item 94 L6, ruled 2026-10-19
   var DUE_WITHIN_DAYS = 7;                                  // ruling 4
 
   function _iso(d) {
@@ -105,6 +106,16 @@
     });
   }
 
+  /* Kind 6 (item 94 L6): a medical bill whose payment in full would leave savings below the reserve or the stability
+   * floor, or that can't be paid in full from what's on record - never because of its size. `rows` - the server's
+   * /api/medical-bills `attention` list, from the statements the person typed in. */
+  function billsDue(rows) {
+    return (rows || []).map(function (r) {
+      return { kind: 'bill_due', subject: String(r.subject), title: r.title, due: r.due, days: r.days, owed: r.owed,
+               sentence: r.sentence, fact: r.fact };
+    });
+  }
+
   function fingerprint(item) {
     return item.kind + '|' + item.subject + '|' + item.fact;
   }
@@ -115,21 +126,21 @@
     var gone = {};
     (dismissed || []).forEach(function (f) { gone[f] = true; });
     var items = [].concat(parts.payments || [], parts.imports || [], parts.blocked || [], parts.dates || [],
-                          parts.fsa || []);
+                          parts.fsa || [], parts.bills || []);
     items.forEach(function (i) {
       if (KINDS.indexOf(i.kind) < 0) throw new Error('attention: "' + i.kind + '" is not a ruled kind');
     });
     return items.filter(function (i) { return !gone[fingerprint(i)]; }).sort(function (a, b) {
       var k = KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind);
       if (k) return k;
-      if (a.kind === 'payment_due' || a.kind === 'date_ends' || a.kind === 'fsa_deadline') return a.days - b.days;
+      if (a.kind === 'payment_due' || a.kind === 'date_ends' || a.kind === 'fsa_deadline' || a.kind === 'bill_due') return a.days - b.days;
       if (a.kind === 'import_stale') return b.days - a.days;
       return 0;
     });
   }
 
   var api = { KINDS: KINDS, DUE_WITHIN_DAYS: DUE_WITHIN_DAYS, paymentsDue: paymentsDue, datesEnding: datesEnding,
-              importsStale: importsStale, blockedConclusions: blockedConclusions, fsaDeadlines: fsaDeadlines,
+              importsStale: importsStale, blockedConclusions: blockedConclusions, fsaDeadlines: fsaDeadlines, billsDue: billsDue,
               fingerprint: fingerprint, build: build };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root && root.GWTeaching) root.GWTeaching.register('attention', api);

@@ -5546,6 +5546,52 @@ class CareFor(Base):
     created_at     = Column(DateTime, default=datetime.utcnow)
 
 
+class MedicalProvider(Base):
+    """A provider whose bills the household brings in (gw 2.0/BILL_THAT_LANDS.md, item 94 = item 45 H7 stage 6). L7:
+    `nonprofit_hospital` is the household's word - None until said, never guessed from a name."""
+    __tablename__ = 'medical_providers'
+    id                 = Column(Integer, primary_key=True)
+    name               = Column(String(160), nullable=False)
+    nonprofit_hospital = Column(Boolean, nullable=True)
+    said_utterance_id  = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+    created_at         = Column(DateTime, default=datetime.utcnow)
+
+
+class MedicalBillAccount(Base):
+    """One account at a provider: the bills that come about one thing (item 94 L1). Its obligation exists only once the
+    household says "this bill is mine to pay" (an Obligation minted by that utterance, item 93 B4); a bill arriving
+    creates none. `claim_pending` (L3) and the arrangement (L4) are the household's word, kept as dated JSON history:
+    the newest entry is current, the earlier ones stay."""
+    __tablename__ = 'medical_bill_accounts'
+    id                = Column(Integer, primary_key=True)
+    provider_id       = Column(Integer, ForeignKey('medical_providers.id'), nullable=False)
+    account_number    = Column(String(60), default='')
+    obligation_id     = Column(Integer, ForeignKey('obligations.id'), nullable=True)
+    mine_utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+    claim_json        = Column(Text, default='[]')
+    arrangement_json  = Column(Text, default='[]')
+    created_at        = Column(DateTime, default=datetime.utcnow)
+
+
+class MedicalBillStatement(Base):
+    """A statement BY a provider (amount due) or an insurer (the patient's responsibility, from an EOB), as the
+    household typed it in (item 94 L1-L3). Kept, never edited: a newer statement is the issuer's current position,
+    and the older one stays beside it with its date."""
+    __tablename__ = 'medical_bill_statements'
+    id                 = Column(Integer, primary_key=True)
+    account_id         = Column(Integer, ForeignKey('medical_bill_accounts.id'), nullable=False)
+    source             = Column(String(10), nullable=False)          # provider | insurer
+    statement_date     = Column(String(10), nullable=False)
+    amount             = Column(Float, nullable=False)
+    due_date           = Column(String(10), nullable=True)
+    service_from       = Column(String(10), nullable=True)
+    service_to         = Column(String(10), nullable=True)
+    typed_utterance_id = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+    recorded_at        = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (Index('ix_mbs_account', 'account_id'),)
+
+
 class HealthPlanReading(Base):
     """What the insurer reports as applied so far, as the person typed it, with the date it was as of
     (gw 2.0/PLAN_YEAR_TRACKING.md P1/P3, item 87). Never derived from spending: a payment shows what was paid, not

@@ -172,6 +172,11 @@
       fact = '<strong>' + esc(i.title) + '</strong>: ' + esc(i.sentence) + left;
       source = 'From this FSA\'s balance and the plan terms you entered. Groundwork doesn\'t spend or claim anything; you decide.';
       action = '<button class="btn btn-sm btn-secondary" onclick="showView(\'settings\');_settingsShowTab(\'accounts\')">Open Accounts</button>';
+    } else if (i.kind === 'bill_due') {
+      var by = i.days < 0 ? ' It was due ' + _date(i.due) + '.' : ' Due ' + _date(i.due) + (i.days === 0 ? ' (today).' : i.days === 1 ? ' (tomorrow).' : ' (in ' + i.days + ' days).');
+      fact = '<strong>' + esc(i.title) + '</strong>: ' + esc(i.sentence) + by;
+      source = 'From the bill you typed in, your savings on record and your reserve. Groundwork never contacts anyone or pays anything.';
+      action = '<button class="btn btn-sm btn-secondary" onclick="showView(\'settings\');_settingsShowTab(\'accounts\')">Open Medical bills</button>';
     } else if (i.kind === 'import_stale') {
       fact = '<strong>' + esc(i.title) + '</strong>: last imported ' + _date(i.last_import) + ', ' + i.days + ' days ago.';
       source = 'From when this account\'s transactions were last imported. An account kept by hand is never listed.';
@@ -263,12 +268,15 @@
     if ((S.accounts || []).some(function (a) { return a.type === 'fsa'; })) {
       try { fsa = ((await API.get('/api/accounts/hsa-fsa')) || {}).attention || []; } catch (e) { _gwErr('dashboard fsa')(e); }
     }
+    var bills = [];                                          // item 94 L6: only what the bills you typed in establish
+    try { bills = ((await API.get('/api/medical-bills')) || {}).attention || []; } catch (e) { _gwErr('dashboard bills')(e); }
     var items = A.build({
       payments: payments,
       imports: A.importsStale(stale),
       blocked: A.blockedConclusions(conf, hasRecord),
       dates: A.datesEnding(kept, new Date()),
-      fsa: A.fsaDeadlines(fsa)
+      fsa: A.fsaDeadlines(fsa),
+      bills: A.billsDue(bills)
     }, (_prefs && _prefs.dismissed) || []);
     var head = '<div class="card-label" style="margin-bottom:4px">Needs attention</div>';
     try { _tiles(imports, items, payments); } catch (e) { _gwErr('dashboard tiles')(e); }
