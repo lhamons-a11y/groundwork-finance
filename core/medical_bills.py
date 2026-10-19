@@ -30,7 +30,7 @@ from datetime import date, timedelta
 
 from core.hsa_fsa import money
 
-SOURCES = ('provider', 'insurer')
+SOURCES = ('provider', 'insurer', 'collector')       # collector: item 101
 DURATIONS = (6, 12, 24)                           # L8: three durations, each with its monthly amount
 ATTENTION_DAYS = 30                               # L6: from a month before the due date
 CANDIDATE_DAYS = 120                              # L5: how far back a look-alike charge is named
@@ -44,6 +44,9 @@ NONPROFIT_FACTS = (
 )
 NO_ASSISTANCE_SHOWN = "The bill doesn't show whether financial assistance was applied."
 NEVER_DIRECTS = 'Groundwork states what the bills show. It never contacts anyone, and it never says what to do.'
+# Item 101 C6 (Rob 2026-10-19): the one step Groundwork names, on every collection
+LEGAL_NOTE = ("If you believe this debt isn't correct, or is no longer valid, consider getting legal advice before you "
+              "pay or agree to anything.")
 
 _NOISE = {'the', 'and', 'inc', 'llc', 'health', 'medical', 'center', 'hospital', 'clinic', 'group', 'services', 'care',
           'system', 'physicians', 'associates', 'of', 'for', 'at'}
@@ -106,6 +109,9 @@ def add_statement(session, body):
             acct = session.get(MedicalBillAccount, int(body['account_id']))
     utt = hs.utter(session, {'statement': 'typed_bill', 'from': source, 'provider': name, 'account_number': acct_no,
                              'statement_date': sd, 'amount': f'{amount:.2f}'})
+    if source == 'collector' and (acct is None or _collection_of(session, acct.id) is None):
+        return None, ('Record that the bill went to collections first (on the bill), with this collector\'s name and '
+                      'account number; its statements then come in here.')
     if prov is None:
         prov = MedicalProvider(name=name)
         session.add(prov)
@@ -219,6 +225,85 @@ def link_payment(session, account_id, transaction_id):
     return a, None
 
 
+# ── Item 101 (COLLECTIONS.md C1-C6): a bill sent to collections ───────────────────────────────────────────────────────
+
+def _collection_of(session, account_id):
+    """The link that makes this account a collection, or None."""
+    from core.database import MedicalCollection
+    return session.query(MedicalCollection).filter_by(collection_account_id=account_id).first()
+
+
+def _sent_of(session, account_id):
+    """The link that sent this bill to collections, or None."""
+    from core.database import MedicalCollection
+    return session.query(MedicalCollection).filter_by(of_account_id=account_id).order_by(MedicalCollection.id.desc()).first()
+
+
+def send_to_collections(session, account_id, body):
+    """C2: "this bill went to collections with X" - {collector, account_number, sent_on, amount, statement_date}. The
+    household's statement: the collector's account carries the bill's obligation (one debt that changed hands; minted
+    now if the bill wasn't yet said to be theirs), and the collector's stated balance is its first statement."""
+    from core import household_statements as hs
+    from core.database import MedicalBillAccount, MedicalBillStatement, MedicalCollection, MedicalProvider, Obligation
+    a = session.get(MedicalBillAccount, int(account_id or 0))
+    if a is None:
+        return None, 'That bill was not found.'
+    if _collection_of(session, a.id) is not None:
+        return None, 'This is already a collection.'
+    name = ' '.join(str(body.get('collector') or '').split())[:160]
+    sent = _iso_or_none(body.get('sent_on'))
+    try:
+        amount = round(float(body.get('amount')), 2)
+    except (TypeError, ValueError):
+        amount = None
+    if not name or not sent or amount is None or amount < 0:
+        return None, 'The collector\'s name, the date and the balance the collector states are needed.'
+    acct_no = ' '.join(str(body.get('account_number') or '').split())[:60]
+    utt = hs.utter(session, {'statement': 'went_to_collections', 'medical_bill_account_id': a.id, 'collector': name,
+                             'account_number': acct_no, 'sent_on': sent, 'stated_balance': f'{amount:.2f}'})
+    if not a.obligation_id:                                   # sending it on is the household saying it is theirs
+        ob = Obligation(minted_by_id=utt.id)
+        session.add(ob)
+        session.flush()
+        a.obligation_id, a.mine_utterance_id = ob.id, utt.id
+    prov = next((p for p in session.query(MedicalProvider).all() if p.name.lower() == name.lower()), None)
+    if prov is None:
+        prov = MedicalProvider(name=name)
+        session.add(prov)
+        session.flush()
+    col = MedicalBillAccount(provider_id=prov.id, account_number=acct_no, obligation_id=a.obligation_id,
+                             mine_utterance_id=utt.id)
+    session.add(col)
+    session.flush()
+    session.add(MedicalCollection(collection_account_id=col.id, of_account_id=a.id, sent_on=sent, said_utterance_id=utt.id))
+    session.add(MedicalBillStatement(account_id=col.id, source='collector',
+                                     statement_date=_iso_or_none(body.get('statement_date')) or sent, amount=amount,
+                                     due_date=_iso_or_none(body.get('due_date')), typed_utterance_id=utt.id))
+    session.flush()
+    return col, None
+
+
+def running_balance(sts, paid):
+    """C4: the collector's statements and the payments after each, oldest first, with the balance after each line.
+    A statement sets the balance as of its date (whatever fees it adds are in it, C5); a payment after it lowers it;
+    a payment on or before the newest statement may already be in it, and is said so, never subtracted twice."""
+    events = [(s.statement_date, 0, 'statement', s) for s in sts] + [(p['date'], 1, 'payment', p) for p in paid]
+    rows, bal, last = [], None, ''
+    for d_, _o, kind, x in sorted(events, key=lambda e: (e[0], e[1])):
+        if kind == 'statement':
+            bal, last = x.amount, x.statement_date
+            rows.append({'date': d_, 'what': f'The collector states {money(x.amount)}', 'balance': round(bal, 2)})
+        elif bal is not None and d_ > last:
+            bal = max(0.0, bal - x['amount'])
+            rows.append({'date': d_, 'what': f'You paid {money(x["amount"])}' + (' by card' if x['card'] else ''),
+                         'balance': round(bal, 2)})
+        else:
+            rows.append({'date': d_, 'what': f'You paid {money(x["amount"])} - on or before the collector\'s statement '
+                                             f'of {_says(last) if last else "its first statement"}, so it may already be in it',
+                         'balance': round(bal, 2) if bal is not None else None})
+    return rows
+
+
 def payments(session, obligation_id):
     """The payments the household said were toward this obligation, each with its line: [{transaction_id, amount, date,
     account, card}] oldest first."""
@@ -279,7 +364,7 @@ def _arrangement_end(arr):
 
 
 def _statement_line(s):
-    what = 'Bill' if s.source == 'provider' else "Insurer's explanation of benefits"
+    what = {'provider': 'Bill', 'insurer': "Insurer's explanation of benefits", 'collector': "Collector's statement"}[s.source]
     due = ' due ' + _says(s.due_date) if s.due_date else ''
     mine = ' (your responsibility)' if s.source == 'insurer' else ''
     return f'{what} dated {_says(s.statement_date)}: {money(s.amount)}{due}{mine}.'
@@ -294,6 +379,11 @@ def view(session, a, ctx, today=None):
     sts = session.query(MedicalBillStatement).filter_by(account_id=a.id).order_by(
         MedicalBillStatement.statement_date, MedicalBillStatement.id).all()
     paid = payments(session, a.obligation_id)
+    col_link, sent_link = _collection_of(session, a.id), _sent_of(session, a.id)
+    if col_link is not None:                 # item 101: one debt that changed hands - from the hand-off on, the collector's
+        paid = [p for p in paid if p['date'] >= (col_link.sent_on or '')]
+    elif sent_link is not None:
+        paid = [p for p in paid if p['date'] < (sent_link.sent_on or '9999')]
     claim = (_hist(a.claim_json) or [{}])[-1]
     arr = (_hist(a.arrangement_json) or [{}])[-1]
     arr = arr if arr.get('monthly') else None
@@ -305,15 +395,33 @@ def view(session, a, ctx, today=None):
            'account_number': a.account_number or '', 'mine': bool(a.obligation_id), 'statements': statements,
            'payments': paid, 'claim_pending': pending, 'arrangement': arr, 'nonprofit_hospital': prov.nonprofit_hospital
            if prov else None, 'owed': None, 'datable': False, 'lines': lines, 'notes': notes, 'candidates': [],
-           'facts': [], 'capacity': None, 'attention': None, 'never_directs': NEVER_DIRECTS}
+           'facts': [], 'capacity': None, 'attention': None, 'never_directs': NEVER_DIRECTS,
+           'collection': None, 'sent_to': None}
+    if sent_link is not None:                # C2: the amount now lives under the collection - counted once, there
+        from core.database import MedicalBillAccount as _MBA
+        ca = session.get(_MBA, sent_link.collection_account_id)
+        cp = session.get(MedicalProvider, ca.provider_id) if ca else None
+        out['sent_to'] = {'collection_id': sent_link.collection_account_id, 'collector': cp.name if cp else '',
+                          'sent_on': sent_link.sent_on}
+        out['owed'] = 0.0
+        notes.append(f'Sent to collections with {cp.name if cp else "a collector"} on {_says(sent_link.sent_on)}. '
+                     'Its balance is kept there, so it is counted once.')
+        return out
+    if col_link is not None:
+        from core.database import MedicalBillAccount as _MBA
+        oa = session.get(_MBA, col_link.of_account_id)
+        op = session.get(MedicalProvider, oa.provider_id) if oa else None
+        out['collection'] = {'of_provider': op.name if op else '', 'sent_on': col_link.sent_on,
+                             'running': running_balance(sts, paid), 'legal_note': LEGAL_NOTE}
+        out['nonprofit_hospital'] = None    # L7's facts are about the hospital, not the collector
     if not sts:
         return out
     cur = sts[-1]                                                            # the newest statement is the current position
     after = [p for p in paid if p['date'] > cur.statement_date]
     owed = round(max(0.0, cur.amount - sum(p['amount'] for p in after)), 2)
     out['owed'] = owed
-    lines.append(f'{"The bill" if cur.source == "provider" else "The insurer"} dated {_says(cur.statement_date)} gives '
-                 f'{money(cur.amount)}.')
+    who = {'provider': 'The bill', 'insurer': 'The insurer', 'collector': "The collector's statement"}[cur.source]
+    lines.append(f'{who} dated {_says(cur.statement_date)} gives {money(cur.amount)}.')
     for p in after:
         lines.append(f'Less {money(p["amount"])} you said you paid toward it on {_says(p["date"])}'
                      f'{" by card (" + p["account"] + ")" if p["card"] else ""}.')
@@ -352,7 +460,7 @@ def view(session, a, ctx, today=None):
         since = (_day(cur.service_from) or _day(cur.statement_date)) - timedelta(days=CANDIDATE_DAYS // 4)
         out['candidates'] = _candidates(session, prov.name if prov else '', {p['transaction_id'] for p in paid},
                                         min(since, today - timedelta(days=CANDIDATE_DAYS)), cur.amount)
-    if prov is not None and prov.nonprofit_hospital:                          # L7
+    if prov is not None and prov.nonprofit_hospital and col_link is None:     # L7 (the hospital, never the collector)
         out['facts'] = list(NONPROFIT_FACTS) + [NO_ASSISTANCE_SHOWN]
     if a.obligation_id and owed > 0:
         out['capacity'] = sustains(owed, ctx.get('capacity'))                # L8

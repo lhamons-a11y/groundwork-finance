@@ -796,6 +796,10 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="nav-item active" data-view="dashboard" onclick="showView('dashboard')">
           <span class="nav-item-icon">◈</span>Dashboard
         </div>
+        <!-- Rob 2026-10-19: reports are the record, not achievements - beside the Dashboard -->
+        <div class="nav-item" data-view="reports" onclick="showView('reports')">
+          <span class="nav-item-icon">◫</span>Reports
+        </div>
       </div>
 
       <!-- Item 69 P1, renamed (Rob 2026-10-10: "combined they are a financial coach, Coach it is"): the Coach group -
@@ -828,21 +832,15 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="nav-item" data-view="trip" onclick="showView('trip')">
           <span class="nav-item-icon">✈</span>Trip Planner
         </div>
-        <div class="nav-item" data-view="gifts" onclick="showView('gifts')">
-          <span class="nav-item-icon">❖</span>Gift Budget
-        </div>
       </div>
 
+      <!-- Rob 2026-10-19: paying down debt and building worth are one arc - one section -->
       <div class="nav-section">
-        <div class="nav-section-label">Debt</div>
+        <div class="nav-section-label">Build</div>
         <div class="nav-item" data-view="debt" onclick="showView('debt')">
           <span class="nav-item-icon">⬡</span>Debt Payoff
           <span class="nav-badge hidden" id="debtAlertBadge">!</span>
         </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-section-label">Build</div>
         <div class="nav-item" data-view="investments" onclick="showView('investments')">
           <span class="nav-item-icon">◱</span>Investments
         </div>
@@ -855,9 +853,6 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="nav-section-label">Achievements</div>
         <div class="nav-item" data-view="trophy" onclick="showView('trophy')">
           <span class="nav-item-icon">✦</span>Trophy Room
-        </div>
-        <div class="nav-item" data-view="reports" onclick="showView('reports')">
-          <span class="nav-item-icon">◫</span>Reports
         </div>
       </div>
 
@@ -1553,6 +1548,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <!-- Rob 2026-10-19: "lets also move Calendar as a tab to budget" - what's coming sits with the plan that pays for it -->
           <button id="budTab-calendar" role="tab" aria-selected="false" aria-controls="budPanel-calendar" onclick="_budShowTab('calendar')"
             style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Calendar</button>
+          <!-- Rob 2026-10-19: Gift Budget's set-aside is a budget line - its planning sits beside it -->
+          <button id="budTab-gifts" role="tab" aria-selected="false" aria-controls="budPanel-gifts" onclick="_budShowTab('gifts')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Gifts</button>
         </div>
         <div id="budPanel-plan" role="tabpanel" aria-labelledby="budTab-plan">
         <!-- Item 71: when recorded income drops - the scenarios, and the budget that would follow, on the person's tap -->
@@ -1635,6 +1633,11 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <!-- Item 65 W1: yearly bills and heavy months a long history shows - asked about, on the person's tap -->
           <div id="calendarLookThrough"></div>
           <div id="calendarContent"></div>
+        </div>
+        <div id="budPanel-gifts" role="tabpanel" aria-labelledby="budTab-gifts" style="display:none">
+          <div style="font-size:12px;color:var(--slate);margin-bottom:12px">Everyone you buy for, every occasion — planned and funded.</div>
+          <div id="giftContent"><!-- Rendered by renderGiftBudget() --></div>
+          <div id="giftAdvisorCard" class="card mt-5" style="display:none"></div>
         </div>
       </div>
 
@@ -2820,15 +2823,6 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
       <!-- CALENDAR (item 65 W3): every upcoming date, confirmed / expected / possible -->
 
       <!-- GIFT BUDGET -->
-      <div id="view-gifts" class="view">
-        <div id="fvb-gifts"></div>
-        <div class="section-header">
-          <div class="section-title">Gift Budget</div>
-          <div class="section-sub">Everyone you buy for, every occasion — planned and funded.</div>
-        </div>
-        <div id="giftContent"><!-- Rendered by renderGiftBudget() --></div>
-        <div id="giftAdvisorCard" class="card mt-5" style="display:none"></div>
-      </div>
 
       <!-- SETTINGS -->
       <div id="view-settings" class="view">

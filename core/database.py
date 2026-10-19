@@ -5592,6 +5592,20 @@ class MedicalBillStatement(Base):
     __table_args__ = (Index('ix_mbs_account', 'account_id'),)
 
 
+class MedicalCollection(Base):
+    """Item 101 (gw 2.0/COLLECTIONS.md, C1-C6, ruled 2026-10-19): a medical bill sent to collections, by the household's
+    word. The collection is a bill account of its own whose issuer is the collector (its statements, payments and
+    arrangement work exactly as a bill's); this row links it to the bill it came from, so the amount is counted once,
+    under the collection. Kept on the Health page - never a Debt Payoff card (C1)."""
+    __tablename__ = 'medical_collections'
+    id                    = Column(Integer, primary_key=True)
+    collection_account_id = Column(Integer, ForeignKey('medical_bill_accounts.id'), nullable=False)
+    of_account_id         = Column(Integer, ForeignKey('medical_bill_accounts.id'), nullable=False)
+    sent_on               = Column(String(10), nullable=True)
+    said_utterance_id     = Column(Integer, ForeignKey('utterances.id'), nullable=True)
+    created_at            = Column(DateTime, default=datetime.utcnow)
+
+
 class HealthPlanReading(Base):
     """What the insurer reports as applied so far, as the person typed it, with the date it was as of
     (gw 2.0/PLAN_YEAR_TRACKING.md P1/P3, item 87). Never derived from spending: a payment shows what was paid, not

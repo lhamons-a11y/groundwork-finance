@@ -1761,10 +1761,10 @@ function showView(name) {
     return;
   }
   if (name === 'health') setTimeout(() => renderHealthPage(), 0);     // item 100
-  // Rob 2026-10-19: the Calendar is a tab on the Budget page now - every "open the Calendar" lands there
-  if (name === 'calendar') {
+  // Rob 2026-10-19: the Calendar and Gift Budget are tabs on the Budget page now - every "open" lands there
+  if (name === 'calendar' || name === 'gifts') {
     showView('budget');
-    setTimeout(() => _budShowTab('calendar'), 50);
+    setTimeout(() => _budShowTab(name), 50);
     return;
   }
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -13167,7 +13167,7 @@ const HELP_FAQ = [
   {"h": "Tools"},
   {"q": "How does the Before You Buy tool work?", "a": "Enter the name and cost of something you're considering. The app shows what that purchase does to your monthly budget and your debt-free date. Not there to say no — there to make sure you know the real cost before you decide.", "keys": ["before", "buy", "purchase", "afford", "cost"], "open": {"view": "byb"}},
   {"q": "What are sinking funds?", "a": "Money set aside monthly for a known future expense — car maintenance, vacation, holiday gifts. You set a monthly contribution and a target. When the expense arrives, the money is already there. Prevents irregular expenses from derailing your budget.", "keys": ["sinking", "fund", "funds", "goal", "goals", "save", "saving"], "open": {"view": "budget", "el": "sinkingFundsCard"}},
-  {"q": "How does Gift Budget work?", "a": "Add the people you give gifts to with \"+ Person\", then open each one to add their occasions - a birthday, an anniversary, Christmas and others - with a date and a budget for each. \"The year's gifts\" adds up the next 12 months and shows what that takes a month; \"Set aside for gifts\" puts that in your budget as one line. \"Coming up\" lists the next 90 days. The \"$\" on an occasion records what it actually cost, or the receipt button offers the charges filed under Gifts in the weeks before it, for you to pick from. \"+ Shared occasion\" is one total for many people, with fixed amounts for some and the rest split. \"Gift funds\" save toward a date and add their monthly amount themselves; \"Mark spent\" keeps what was spent beside the target.", "keys": ["gift", "gifts", "christmas", "birthday", "present", "pool", "shared"], "open": {"view": "gifts"}, "labels": ["+ Person", "+ Fund", "Gift funds", "Coming up", "+ Shared occasion"]},
+  {"q": "How does Gift Budget work?", "a": "Add the people you give gifts to with \"+ Person\", then open each one to add their occasions - a birthday, an anniversary, Christmas and others - with a date and a budget for each. \"The year's gifts\" adds up the next 12 months and shows what that takes a month; \"Set aside for gifts\" puts that in your budget as one line. \"Coming up\" lists the next 90 days. The \"$\" on an occasion records what it actually cost, or the receipt button offers the charges filed under Gifts in the weeks before it, for you to pick from. \"+ Shared occasion\" is one total for many people, with fixed amounts for some and the rest split. \"Gift funds\" save toward a date and add their monthly amount themselves; \"Mark spent\" keeps what was spent beside the target.", "keys": ["gift", "gifts", "christmas", "birthday", "present", "pool", "shared"], "open": {"view": "budget", "el": "giftContent"}, "labels": ["+ Person", "+ Fund", "Gift funds", "Coming up", "+ Shared occasion"]},
   {"q": "What is the Sunday check-in?", "a": "Every Sunday a two-sentence summary appears on the dashboard: what happened financially this week, and one thing worth reflecting on. In household mode it's written for two people reading together.", "keys": ["sunday", "check", "weekly", "summary"]},
   {"q": "What does the Trip Planner calculate?", "a": "Getting there: for a drive, your car's mpg and the national gas price; for a flight, the government's average fare for the route, or the fare you enter or read from Google Flights. Lodging and meals: a quote you enter, your own past trips, or the federal travel rate for the place and month - said as such, never as a quote. Activities: your own figure. \"Look up hotels (Google Hotels)\" opens real prices in Groundwork's window, and a whole itinerary can be pasted, chosen or dropped in. Every line says where its figure came from.", "keys": ["trip", "travel", "vacation", "planner", "flight", "hotel", "cost", "budget"], "open": {"view": "trip"}, "labels": ["Look up hotels (Google Hotels)"]},
   {"h": "Net worth & retirement"},
@@ -22898,10 +22898,19 @@ async function renderMedicalBillsCard() {
   const row = (t, cls = 'var(--ink)') => `<div style="font-size:13px;color:${cls};margin-top:3px">${esc(t)}</div>`;
   const note = t => `<div style="font-size:12px;color:var(--slate);margin-top:3px;padding-left:8px;border-left:2px solid var(--gold-border)">${esc(t)}</div>`;
   const bill = b => {
-    const yn = b.nonprofit_hospital;
-    return `<div style="padding:10px 0;border-top:0.5px solid var(--steel-2)" data-mb="${b.id}">
+    const yn = b.nonprofit_hospital, col = b.collection;
+    if (b.sent_to) return `<div style="padding:10px 0;border-top:0.5px solid var(--steel-2);opacity:.8" data-mb="${b.id}">
       <div style="font-size:13px;font-weight:600;color:var(--ink)">${esc(b.provider)}${b.account_number ? ` <span style="font-weight:400;color:var(--slate-2);font-family:var(--font-mono);font-size:11px">account ${esc(b.account_number)}</span>` : ''}</div>
       ${b.statements.map(x => `<div style="font-size:12px;color:var(--slate);margin-top:2px">${esc(x.line)}</div>`).join('')}
+      ${b.notes.map(note).join('')}</div>`;
+    return `<div style="padding:10px 0;border-top:0.5px solid var(--steel-2)" data-mb="${b.id}">
+      <div style="font-size:13px;font-weight:600;color:var(--ink)">${col ? 'Collection · ' : ''}${esc(b.provider)}${b.account_number ? ` <span style="font-weight:400;color:var(--slate-2);font-family:var(--font-mono);font-size:11px">account ${esc(b.account_number)}</span>` : ''}</div>
+      ${col ? `<div style="font-size:12px;color:var(--slate)">The ${esc(col.of_provider)} bill, sent to collections on ${esc(_billDate(col.sent_on))}. A debt kept here, not in Debt Payoff.</div>
+        <div style="margin:8px 0;font-size:12px">${col.running.map(r => `<div style="display:grid;grid-template-columns:90px 1fr 100px;gap:8px;padding:2px 0;border-bottom:0.5px solid var(--steel-2)">
+          <span style="color:var(--slate)">${esc(_billDate(r.date))}</span><span style="color:var(--ink)">${esc(r.what)}</span>
+          <span style="font-family:var(--font-mono);text-align:right;color:var(--ink)">${r.balance == null ? '' : fmt(r.balance)}</span></div>`).join('')}</div>
+        <div style="font-size:12px;color:var(--ink);padding:8px 10px;border-left:3px solid var(--gold-text);background:var(--gold-bg);border-radius:var(--r-sm)">${esc(col.legal_note)}</div>`
+        : b.statements.map(x => `<div style="font-size:12px;color:var(--slate);margin-top:2px">${esc(x.line)}</div>`).join('')}
       ${b.lines.map(l => row(l)).join('')}
       ${b.notes.map(note).join('')}
       ${!b.mine ? `<button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="_mbSay(${b.id}, 'mine')">This bill is mine to pay</button>` : ''}
@@ -22912,7 +22921,7 @@ async function renderMedicalBillsCard() {
           <div style="margin-top:6px;font-size:12px;color:var(--slate)">
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select id="mbLine-${b.id}" style="font-size:12px;padding:3px 6px;max-width:320px" onfocus="_mbLines(${b.id})"><option value="">Choose the payment…</option></select>
               <button class="btn btn-sm btn-secondary" onclick="_mbLinkChosen(${b.id})">It was toward this bill</button></div>
-            <label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" ${b.claim_pending ? 'checked' : ''} onchange="_mbSay(${b.id}, 'claim', {pending: this.checked})"> The insurer's claim is still pending</label>
+            ${col ? '' : `<label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" ${b.claim_pending ? 'checked' : ''} onchange="_mbSay(${b.id}, 'claim', {pending: this.checked})"> The insurer's claim is still pending</label>`}
             <div style="margin-top:8px">Payment arrangement, as the provider agreed it:</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
               <input id="mbArrM-${b.id}" type="number" step="0.01" min="0" placeholder="a month" value="${b.arrangement ? b.arrangement.monthly : ''}" style="width:90px;font-size:12px;padding:3px 6px">
@@ -22922,23 +22931,33 @@ async function renderMedicalBillsCard() {
               ${b.arrangement ? `<button class="btn btn-sm btn-ghost" onclick="_mbSay(${b.id}, 'arrangement', {none: true})">No arrangement now</button>
                 <button class="btn btn-sm btn-ghost" onclick="_mbBudget(${b.id})">Add it to my budget</button>` : ''}</div>
           </div></details>
-        <div style="font-size:12px;color:var(--slate);margin-top:8px">Is ${esc(b.provider)} a non-profit hospital?
-          ${[['Yes', true], ['No', false], ['Not sure', null]].map(([l, v]) => `<button class="btn btn-sm ${yn === v ? 'btn-secondary' : 'btn-ghost'}" onclick="_mbNonprofit(${b.provider_id}, ${v})">${l}</button>`).join('')}</div>
+        ${col ? '' : `<div style="font-size:12px;color:var(--slate);margin-top:8px">Is ${esc(b.provider)} a non-profit hospital?
+          ${[['Yes', true], ['No', false], ['Not sure', null]].map(([l, v]) => `<button class="btn btn-sm ${yn === v ? 'btn-secondary' : 'btn-ghost'}" onclick="_mbNonprofit(${b.provider_id}, ${v})">${l}</button>`).join('')}</div>`}
         ${b.facts.length ? `<div style="margin-top:6px;padding:8px 10px;background:var(--mist);border-radius:var(--r-sm)">${b.facts.map(f => `<div style="font-size:12px;color:var(--ink);margin-top:2px">${esc(f)}</div>`).join('')}</div>` : ''}
         ${b.capacity ? `<div style="margin-top:8px"><div style="font-size:12px;color:var(--ink)">${esc(b.capacity.sentence)}</div>
           ${(b.capacity.rows || []).map(r => `<div style="font-size:12px;color:${r.sustained ? 'var(--pine-text)' : 'var(--slate)'};margin-top:2px">${esc(r.line)}</div>`).join('')}</div>` : ''}
       ` : ''}
+      ${col ? '' : `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">This bill went to collections</summary>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;font-size:12px">
+          <input id="mbColName-${b.id}" type="text" placeholder="the collector's name" style="font-size:12px;padding:3px 6px">
+          <input id="mbColAcct-${b.id}" type="text" placeholder="its account number" style="width:130px;font-size:12px;padding:3px 6px">
+          <input id="mbColDate-${b.id}" type="date" title="When it went to collections" style="font-size:12px;padding:3px 6px">
+          <input id="mbColAmt-${b.id}" type="number" step="0.01" min="0" placeholder="balance they state" style="width:130px;font-size:12px;padding:3px 6px">
+          <button class="btn btn-sm btn-secondary" onclick="_mbCollections(${b.id})">Record it</button></div>
+        <div style="font-size:11px;color:var(--slate-2);margin-top:4px">It's then kept as a collection on this page, with a running balance - never in Debt Payoff.</div></details>`}
     </div>`;
   };
+  const isCol = b => !!b.collection;
   host.innerHTML = `
     <div style="padding:12px 0;border-bottom:0.5px solid var(--steel-2)">
       <div class="card-label" style="margin-bottom:4px">Medical bills</div>
       <div style="font-size:12px;color:var(--slate);margin-bottom:6px">A bill is the provider's statement. It becomes something you owe only when you say so. ${esc(st.never_directs || '')}</div>
       ${(st.bills || []).some(b => b.mine && (b.owed || 0) > 0) ? `<div style="margin:6px 0 4px">${row(d.card_free || '')}${row(d.sentence || '', d.all ? 'var(--ink)' : 'var(--slate)')}</div>` : ''}
-      ${(st.bills || []).map(bill).join('')}
+      ${(st.bills || []).filter(b => !isCol(b)).map(bill).join('')}
+      ${(st.bills || []).some(isCol) ? `<div class="card-label" style="margin:14px 0 4px">Collections</div>${(st.bills || []).filter(isCol).map(bill).join('')}` : ''}
       <details style="margin-top:8px"${(st.bills || []).length ? '' : ' open'}><summary style="cursor:pointer;font-size:12px">Bring in a bill</summary>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;margin-top:6px;font-size:12px;color:var(--slate)">
-          <label>From<select id="mbSource" style="width:100%;font-size:12px;padding:3px 6px"><option value="provider">The provider's bill</option><option value="insurer">The insurer's explanation of benefits</option></select></label>
+          <label>From<select id="mbSource" style="width:100%;font-size:12px;padding:3px 6px"><option value="provider">The provider's bill</option><option value="insurer">The insurer's explanation of benefits</option><option value="collector">A collector's statement</option></select></label>
           <label>Provider<input id="mbProvider" type="text" style="width:100%;font-size:12px;padding:3px 6px" placeholder="as the bill names it"></label>
           <label>Account number<input id="mbAcct" type="text" style="width:100%;font-size:12px;padding:3px 6px" placeholder="on the bill"></label>
           <label>Statement date<input id="mbDate" type="date" style="width:100%;font-size:12px;padding:3px 6px"></label>
@@ -22972,6 +22991,11 @@ function _mbAdd() {
   const body = { source: v('mbSource'), provider: v('mbProvider'), account_number: v('mbAcct'), statement_date: v('mbDate'),
                  amount: v('mbAmount'), due_date: v('mbDue'), service_from: v('mbSvcFrom'), service_to: v('mbSvcTo') };
   return _mbDo(() => API.post('/api/medical-bills/statement', body), 'Statement added');
+}
+function _mbCollections(id) {       // item 101 C2
+  const v = k => (g(`mbCol${k}-${id}`)?.value || '').trim();
+  return _mbDo(() => API.post(`/api/medical-bills/${id}/collections`, { collector: v('Name'), account_number: v('Acct'),
+    sent_on: v('Date'), amount: v('Amt') }), 'Recorded: the bill is now kept as a collection');
 }
 function _mbArrangement(id) {
   const body = { monthly: g(`mbArrM-${id}`)?.value, first_date: g(`mbArrF-${id}`)?.value, payments: g(`mbArrN-${id}`)?.value };
@@ -26949,7 +26973,7 @@ function askGroundworkPick(i) {
 let _budTab = 'plan';
 function _budShowTab(id) {
   _budTab = id;
-  ['plan', 'futures', 'bills', 'calendar'].forEach(t => {
+  ['plan', 'futures', 'bills', 'calendar', 'gifts'].forEach(t => {
     const on = t === id, b = g('budTab-' + t), p = g('budPanel-' + t);
     if (b) {
       b.setAttribute('aria-selected', String(on));
@@ -26960,6 +26984,7 @@ function _budShowTab(id) {
     if (p) p.style.display = on ? '' : 'none';
   });
   if (id === 'calendar') { try { renderCalendar(); } catch (e) { console.error('Calendar render:', e); } }
+  if (id === 'gifts') { try { renderGiftBudget(); } catch (e) { console.error('Gift Budget render:', e); } }
 }
 function _budReveal(el) {
   const panel = el && el.closest && el.closest('[id^="budPanel-"]');

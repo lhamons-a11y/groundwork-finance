@@ -82,11 +82,23 @@ def run(ctx):
           and "nav.style.display = _healthNavShown ? '' : 'none'" in app and '_applyHealthNav();' in app)
 
     # the Calendar, a Budget tab
-    bud = html[html.index('<div id="view-budget" class="view">'):html.index('<!-- end budPanel-bills -->') + 900]
+    bud = html[html.index('<div id="view-budget" class="view">'):html.index('<!-- end budPanel-bills -->') + 1600]
     sv = app[app.index('function showView(name) {'):app.index('function showView(name) {') + 900]
     check('s244 the Calendar is the fourth Budget tab, with its content; the old page is gone',
           bud.index('id="budTab-bills"') < bud.index('id="budTab-calendar"')
           and 'id="budPanel-calendar"' in bud and 'id="calendarContent"' in bud and 'id="view-calendar"' not in html
-          and "['plan', 'futures', 'bills', 'calendar']" in app and "if (id === 'calendar') { try { renderCalendar();" in app)
+          and "['plan', 'futures', 'bills', 'calendar', 'gifts']" in app and "if (id === 'calendar') { try { renderCalendar();" in app)
     check('s244 every "open the Calendar" lands on the Budget page\'s Calendar tab',
-          "if (name === 'calendar') {\n    showView('budget');\n    setTimeout(() => _budShowTab('calendar'), 50);" in sv)
+          "if (name === 'calendar' || name === 'gifts') {\n    showView('budget');\n    setTimeout(() => _budShowTab(name), 50);" in sv)
+
+    # Rob 2026-10-19: "Lets do move these items" - Gift Budget a Budget tab, Reports beside the Dashboard, Debt in Build
+    nav = html[html.index('<div class="nav-section-label">Overview</div>'):html.index('<div class="nav-section-label">Preferences</div>')]
+    sec = lambda label, nxt: nav[nav.index(f'<div class="nav-section-label">{label}</div>'):nav.index(f'<div class="nav-section-label">{nxt}</div>')]
+    check('s244 the sidebar: Reports beside the Dashboard, Debt Payoff in Build, no Debt section, no Gift Budget page',
+          'data-view="reports"' in sec('Overview', 'Coach') and 'data-view="debt"' in sec('Build', 'Achievements')
+          and '<div class="nav-section-label">Debt</div>' not in nav and 'data-view="gifts"' not in html
+          and 'data-view="reports"' not in nav[nav.index('<div class="nav-section-label">Achievements</div>'):])
+    check('s244 Gift Budget is the fifth Budget tab, with its content; every "open Gift Budget" lands there',
+          bud.index('id="budTab-calendar"') < bud.index('id="budTab-gifts"') and 'id="view-gifts"' not in html
+          and 'id="giftContent"' in html[html.index('id="budPanel-gifts"'):html.index('id="budPanel-gifts"') + 600]
+          and "['plan', 'futures', 'bills', 'calendar', 'gifts']" in app and "if (id === 'gifts') { try { renderGiftBudget();" in app)

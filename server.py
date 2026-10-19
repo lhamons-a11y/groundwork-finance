@@ -1523,15 +1523,18 @@ def medical_bill_statement():
 
 
 @medical_bp.route('/<int:account_id>/<what>', methods=['POST'])
+@medical_bp.route('/<int:account_id>/collections', methods=['POST'], defaults={'what': 'collections'})   # item 101
 @require_json
 def medical_bill_say(account_id, what):
-    """mine | claim {pending} | arrangement {monthly, first_date, payments} or {none} | payment {transaction_id}"""
+    """mine | claim {pending} | arrangement {monthly, first_date, payments} or {none} | payment {transaction_id} |
+    collections {collector, account_number, sent_on, amount, statement_date} (item 101)"""
     from core import medical_bills as mb
     body = request.json or {}
     fns = {'mine': lambda s: mb.say_mine(s, account_id),
            'claim': lambda s: mb.say_claim(s, account_id, bool(body.get('pending'))),
            'arrangement': lambda s: mb.say_arrangement(s, account_id, body),
-           'payment': lambda s: mb.link_payment(s, account_id, body.get('transaction_id'))}
+           'payment': lambda s: mb.link_payment(s, account_id, body.get('transaction_id')),
+           'collections': lambda s: mb.send_to_collections(s, account_id, body)}       # item 101 C2
     if what not in fns:
         return err('Not a statement about a bill.', 404)
 
