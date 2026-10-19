@@ -1032,6 +1032,7 @@ def knowledge_base():
     <a href="#ledger">Ledger</a>
     <a href="#networth">Net worth</a>
     <a href="#gifts">Gift budget</a>
+    <a href="#health">Health</a>
     <a href="#investments">Investments</a>
     <a href="#reports">Reports</a>
     <a href="#byb">Before You Buy</a>
@@ -1132,6 +1133,8 @@ python3 launch.py</pre>
       <p>Click <strong>+ Add expense</strong> and type the name and amount. Groundwork automatically matches it to your transactions.</p>
       <h3>Sinking funds</h3>
       <p>Sinking funds are savings goals you contribute to monthly — like a car repair fund or vacation savings. Add one from the Budget page and Groundwork tracks your progress automatically.</p>
+      <h3>The Budget tabs</h3>
+      <p>The Budget page has five tabs: <strong>Your budget</strong>, <strong>Possible futures</strong>, <strong>Bills and charges</strong>, <strong>Calendar</strong> (what's coming from your own record — due days, recurring bills, gift occasions, trips) and <strong>Gifts</strong> (the Gift budget).</p>
     </div>
 
     <div class="kb-article" id="debt">
@@ -1174,7 +1177,7 @@ python3 launch.py</pre>
 
     <div class="kb-article" id="gifts">
       <h2>Gift budget</h2>
-      <p>The Gift page helps you plan gifts for everyone in your life without getting blindsided.</p>
+      <p>The Gift budget, the <strong>Gifts</strong> tab on the Budget page, helps you plan gifts for everyone in your life without getting blindsided.</p>
       <h3>Adding people</h3>
       <p>Click <strong>+ Person</strong> and add the people you buy gifts for. Tag them as Family, Friend, Coworker, or Other.</p>
       <h3>Adding occasions</h3>
@@ -1183,6 +1186,17 @@ python3 launch.py</pre>
       <p>The top of the page shows everyone with an occasion in the next 90 days. Click <strong>Budget it</strong> to add their gift to this month's budget automatically.</p>
       <h3>Seasonal funds</h3>
       <p>For Christmas, vacations, or any recurring occasion, create a Seasonal Fund with a target amount and a funded-by date. Groundwork tells you how much to save each month to hit it.</p>
+    </div>
+
+    <div class="kb-article" id="health">
+      <h2>Health</h2>
+      <p>The Health page keeps your medical bills, your plan year, the health reserve, your HSA and FSA, and what care has cost in one place. It records and never judges: nothing on it suggests spending less on care.</p>
+      <h3>Medical bills</h3>
+      <p>Type in what a bill says — the provider, the statement date, the amount due. A bill becomes something you owe only when you say <strong>This bill is mine to pay</strong>. Link the payments you made toward it, note a pending insurance claim, or record a payment arrangement the provider agreed; Groundwork shows the amount owed now with its working, and never contacts anyone.</p>
+      <h3>Collections</h3>
+      <p>If a bill goes to collections, record it on the bill. It's then kept on the Health page — not in Debt Payoff — with a running balance from the collector's own statements and the payments you link. Groundwork adds no interest or fees. If you believe the debt isn't correct or is no longer valid, consider getting legal advice before you pay or agree to anything.</p>
+      <h3>Spending and people</h3>
+      <p>Health spending by month and by person, as you said it, with the visit report and the year in review. Names are labels, not locks: anyone who opens Groundwork on that computer can see them. You can hide Health from the sidebar in Settings.</p>
     </div>
 
     <div class="kb-article" id="investments">
@@ -1213,7 +1227,9 @@ python3 launch.py</pre>
 
     <div class="kb-article" id="byb">
       <h2>Before You Buy</h2>
-      <p>Thinking about a big purchase? Enter its name and cost on the Before You Buy page, and Groundwork shows exactly what it does to your monthly budget and your debt-free date.</p>
+      <p>Thinking about a purchase? The Before You Buy page starts with one question: <strong>What are you thinking of buying?</strong> Pick what kind it is, name it and give what it costs a month, and the answer appears as you type — what's left each month and your debt-free date.</p>
+      <p>Not sure what it really costs? Work out a car, a phone or a yearly charge, or read a financing offer, and use the figure with one tap. Then decide: <strong>Buy it</strong>, <strong>Wait and watch</strong>, or <strong>Not buying</strong>. If it doesn't fit, <strong>Make room in my budget</strong> opens your budget to adjust first.</p>
+      <p>The <strong>After you buy</strong> tab keeps return windows and free trials, purchases that didn't come through here, and asks how the ones you waited on turned out.</p>
       <p>It isn't there to talk you out of anything — it's there to make sure you know the real cost, in dollars and in time, before you decide.</p>
     </div>
 
@@ -1241,6 +1257,8 @@ python3 launch.py</pre>
       <p>Groundwork can write a plain-English monthly report and other narrative insights. AI is completely optional, and it runs <strong>only on your own machine</strong>.</p>
       <h3>Local AI (free, fully private)</h3>
       <p>Groundwork runs AI <strong>on your own machine</strong>, with a language model that comes inside the installer and runs inside Groundwork itself: there is no separate program to install, nothing ever leaves your computer, there's no API key, and there's no cost. Turn it on when Groundwork first asks, or later under <strong>Settings → AI features</strong>. Local AI needs at least 8 GB of memory; on a smaller computer AI stays off, and every other feature of Groundwork works fully either way.</p>
+      <h3>Ask</h3>
+      <p>With AI on, the <strong>Ask how to…</strong> box at the top answers questions about using Groundwork in plain words, written only from Groundwork's own guide, and shows which guide answer it used. With AI off the box goes away; the <strong>?</strong> button's guide has the same answers either way.</p>
       <h3>No cloud AI</h3>
       <p>Groundwork has no cloud AI option. <strong>Nothing is sent to an AI service, ever.</strong> If a computer can't comfortably run a local model, AI features simply stay off; budgets, debt payoff and reports all work the same. Reading PDF statements needs the local model too; without it, import your bank's CSV or QFX download instead.</p>
     </div>

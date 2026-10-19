@@ -13153,6 +13153,7 @@ const HELP_FAQ = [
   {"q": "What is the \"Add recurring bill\" offer that pops up?", "a": "When you recategorize a merchant that shows a monthly pattern — similar amount, around the same day each month — Groundwork offers to add it as a recurring bill. Accept, and it appears in the Upcoming card on your dashboard so due dates never sneak up on you. \"Never ask for this merchant\" makes the offer stop for that one.", "keys": ["recurring", "bill", "offer", "popup", "upcoming"]},
   {"q": "How do I split one transaction across categories?", "a": "Open the transaction (click its row), then choose Split. Divide the amount across categories — a Walmart run can be part Groceries, part Household. The pieces must add up to the original amount, and the app shows the running total as you type.", "keys": ["split", "transaction", "categories", "divide"]},
   {"q": "How do I recategorize many transactions at once?", "a": "Tick the checkbox on each transaction row — a toolbar appears. Pick the new category and apply it to everything selected in one move. Handy after a first big import.", "keys": ["many", "bulk", "several", "recategorize", "select", "once"]},
+  {"q": "How do I delete a transaction?", "a": "In the Ledger, click the transaction to open it, then \"Delete transaction\". It is set aside, never destroyed: you have a few seconds to undo, and \"Lines kept safe\" in Settings, Data lists everything set aside, each with Restore. A transaction set aside is left out of every total.", "keys": ["delete", "remove", "transaction", "erase", "get rid", "restore", "undo"], "labels": ["Delete transaction", "Lines kept safe"], "open": {"view": "ledger"}},
   {"q": "What does Reconcile do?", "a": "It walks you through matching Groundwork against your bank statement. Open the Reconcile panel in the Ledger, enter your statement's ending balance, and the app checks off transactions and flags anything missing or doubled. A green check marks the reconciled anchor point.", "keys": ["reconcile", "statement", "match", "balance"], "open": {"view": "ledger"}, "labels": ["Reconcile"]},
   {"q": "Why does the Ledger say \"Showing the most recent 300\"?", "a": "With years of history, drawing every row at once would make the page sluggish, so Groundwork shows the newest 300 that match your filters. Click \"Show all\" to load the rest, or narrow the search — the cap resets each time you change filters.", "keys": ["300", "most", "recent", "showing", "rows"]},
   {"h": "Budget & spending"},
@@ -13165,9 +13166,9 @@ const HELP_FAQ = [
   {"q": "How does the AI know my patterns?", "a": "It doesn't learn on its own. Groundwork's engines work out every figure from your records each time - income, spending by category, debt pace, net worth - and the AI is handed those figures to explain. It never adds a number of its own: a written part with a figure that isn't in what it was given is held back.", "keys": ["ai", "patterns", "profile", "know", "learn"]},
   {"q": "Is my financial data sent to AI servers?", "a": "No. Groundwork's AI runs only on your own computer (inside Groundwork itself), and nothing is ever sent to an AI service. There is no cloud mode. If your computer can't run a local model, AI features are simply off, and everything else works the same.", "keys": ["ai", "data", "sent", "servers", "cloud", "private", "privacy", "online"]},
   {"h": "Tools"},
-  {"q": "How does the Before You Buy tool work?", "a": "Enter the name and cost of something you're considering. The app shows what that purchase does to your monthly budget and your debt-free date. Not there to say no — there to make sure you know the real cost before you decide.", "keys": ["before", "buy", "purchase", "afford", "cost"], "open": {"view": "byb"}},
+  {"q": "How does the Before You Buy tool work?", "a": "On Before You Buy, answer \"What are you thinking of buying?\": pick what kind it is, name it and give what it costs a month. The answer shows as you type - what is left each month, your debt ratio and your debt-free date. Not sure of the monthly cost? Open \"Not sure what it costs a month?\" to work out a car, a phone or a yearly charge, or \"Paying over time? Read the financing offer\", and use the figure with one tap. Then \"See the full picture and decide\": Buy it, Wait and watch, or Not buying. \"Doesn't fit? Make room in my budget\" opens your budget to adjust first. Return windows, free trials and purchases you didn't ask about are on the \"After you buy\" tab.", "keys": ["afford", "before", "buy", "cost", "decide", "financing", "purchase", "return", "trial"], "open": {"view": "byb"}, "labels": ["What are you thinking of buying?", "See the full picture and decide", "After you buy"]},
   {"q": "What are sinking funds?", "a": "Money set aside monthly for a known future expense — car maintenance, vacation, holiday gifts. You set a monthly contribution and a target. When the expense arrives, the money is already there. Prevents irregular expenses from derailing your budget.", "keys": ["sinking", "fund", "funds", "goal", "goals", "save", "saving"], "open": {"view": "budget", "el": "sinkingFundsCard"}},
-  {"q": "How does Gift Budget work?", "a": "Add the people you give gifts to with \"+ Person\", then open each one to add their occasions - a birthday, an anniversary, Christmas and others - with a date and a budget for each. \"The year's gifts\" adds up the next 12 months and shows what that takes a month; \"Set aside for gifts\" puts that in your budget as one line. \"Coming up\" lists the next 90 days. The \"$\" on an occasion records what it actually cost, or the receipt button offers the charges filed under Gifts in the weeks before it, for you to pick from. \"+ Shared occasion\" is one total for many people, with fixed amounts for some and the rest split. \"Gift funds\" save toward a date and add their monthly amount themselves; \"Mark spent\" keeps what was spent beside the target.", "keys": ["gift", "gifts", "christmas", "birthday", "present", "pool", "shared"], "open": {"view": "budget", "el": "giftContent"}, "labels": ["+ Person", "+ Fund", "Gift funds", "Coming up", "+ Shared occasion"]},
+  {"q": "How does Gift Budget work?", "a": "Gift Budget is the Gifts tab on the Budget page. Add the people you give gifts to with \"+ Person\", then open each one to add their occasions - a birthday, an anniversary, Christmas and others - with a date and a budget for each. \"The year's gifts\" adds up the next 12 months and shows what that takes a month; \"Set aside for gifts\" puts that in your budget as one line. \"Coming up\" lists the next 90 days. The \"$\" on an occasion records what it actually cost, or the receipt button offers the charges filed under Gifts in the weeks before it, for you to pick from. \"+ Shared occasion\" is one total for many people, with fixed amounts for some and the rest split. \"Gift funds\" save toward a date and add their monthly amount themselves; \"Mark spent\" keeps what was spent beside the target.", "keys": ["gift", "gifts", "christmas", "birthday", "present", "pool", "shared"], "open": {"view": "budget", "el": "giftContent"}, "labels": ["+ Person", "+ Fund", "Gift funds", "Coming up", "+ Shared occasion"]},
   {"q": "What is the Sunday check-in?", "a": "Every Sunday a two-sentence summary appears on the dashboard: what happened financially this week, and one thing worth reflecting on. In household mode it's written for two people reading together.", "keys": ["sunday", "check", "weekly", "summary"]},
   {"q": "What does the Trip Planner calculate?", "a": "Getting there: for a drive, your car's mpg and the national gas price; for a flight, the government's average fare for the route, or the fare you enter or read from Google Flights. Lodging and meals: a quote you enter, your own past trips, or the federal travel rate for the place and month - said as such, never as a quote. Activities: your own figure. \"Look up hotels (Google Hotels)\" opens real prices in Groundwork's window, and a whole itinerary can be pasted, chosen or dropped in. Every line says where its figure came from.", "keys": ["trip", "travel", "vacation", "planner", "flight", "hotel", "cost", "budget"], "open": {"view": "trip"}, "labels": ["Look up hotels (Google Hotels)"]},
   {"h": "Net worth & retirement"},
@@ -13200,10 +13201,17 @@ const HELP_FAQ = [
   {"q": "What is \"Possible futures\" on the Budget page?", "a": "Your next 12 months worked out from your record, side by side: as things are, and futures such as your costliest months coming again, a month without income, minimum payments only, or known costs landing. Each one says what it assumes and is compared on your goal. \"Does this reflect your situation?\" lets you correct it: \"Partly\" asks what's missing (another income, a known cost, hours being cut), and \"Unlikely for me\" hides it. Nothing you say there becomes a transaction or a budget line, and nothing changes your plan unless you tap to set it. \"A starting budget from your record\" lists what your record already commits each month.", "keys": ["future", "futures", "scenario", "scenarios", "what if", "simulation", "possible", "starting budget"], "open": {"view": "budget", "el": "budgetFutures"}, "labels": ["Possible futures", "A starting budget from your record"]},
   {"q": "What does \"Make this my budget\" on the income card do?", "a": "It changes the budget lines shown in that option, and only on your tap. It never cuts the necessity floor, a category you protected, or a payment set by a contract (a loan, lease, debt or insurance payment). \"Undo\" right there puts every line back.", "keys": ["make", "budget", "income", "card", "changed", "lines", "undo", "follows"], "open": {"view": "budget", "el": "budgetIncomeChange"}, "labels": ["Make this my budget"]},
   {"h": "AI and privacy"},
-  {"q": "How do I turn the AI features on or off?", "a": "Settings → General → AI features. Everything in Groundwork works with AI off; with it on, reports and some cards add a written explanation.", "keys": ["ai", "turn", "off", "on", "disable", "enable", "features"], "open": {"view": "settings", "tab": "general"}, "labels": ["AI features"]},
+  {"q": "How do I turn the AI features on or off?", "a": "Settings → General → AI features. Everything in Groundwork works with AI off; with it on, reports and some cards add a written explanation. The Ask box at the top is AI help, so it appears only while AI is on; the ? button's guide works either way.", "keys": ["ai", "ask", "assistant", "box", "disable", "enable", "features", "off", "on", "turn"], "open": {"view": "settings", "tab": "general"}, "labels": ["AI features"]},
   {"q": "Where can I see what was sent to the AI?", "a": "Settings → General → AI log. It lists every request made to the AI on this computer, what came back, and whether the voice check passed it. You can clear it.", "keys": ["ai", "log", "sent", "history", "requests", "what"], "open": {"view": "settings", "tab": "general", "el": "settingsAiLog"}, "labels": ["AI log", "Clear the log"]},
   {"h": "Trips"},
   {"q": "How do I bring in a whole trip itinerary?", "a": "In the Trip Planner, the card \"Have a quote, or just want to describe the trip?\" takes a pasted itinerary (\"Read as a whole itinerary\") or a PDF or saved email (\"Choose an itinerary file\", or drop it on the card). It is read on this computer and never kept. Tick the parts you want, then \"Use the ticked parts for this trip\".", "keys": ["itinerary", "expedia", "booking", "confirmation", "trip", "import", "pdf", "email"], "open": {"view": "trip", "el": "tripQuoteCard"}, "labels": ["Read as a whole itinerary", "Have a quote"]},
+  {"h": "Health"},
+  {"q": "Where are my medical bills, health plan and reserve?", "a": "On the Health page in the sidebar. Its tabs: Bills (what you owe on medical bills and collections, with the working), Plan and reserve (your plan year, the health reserve, your HSA and FSA), Spending (health spending by month and by person, and the visit report and year in review) and People (whom care was for). It records and never judges: nothing there suggests spending less on care. You can hide it from the sidebar in Settings, Accounts.", "keys": ["health", "medical", "doctor", "hospital", "bill", "bills", "plan", "deductible", "reserve", "hsa", "fsa", "care"], "open": {"view": "health"}},
+  {"q": "How do I add a medical bill?", "a": "On the Health page, Bills tab, open \"Bring in a bill\" and type what the bill says: the provider, its account number, the statement date, the amount due and the due date (an insurer's explanation of benefits goes in the same way). A bill is the provider's statement; it becomes something you owe only when you tap \"This bill is mine to pay\". Then you can link the payments you made toward it, note a pending insurance claim, and record a payment arrangement the provider agreed.", "keys": ["medical", "bill", "hospital", "doctor", "statement", "eob", "add", "enter", "owe"], "labels": ["Bring in a bill", "This bill is mine to pay"], "open": {"view": "health", "el": "medicalBillsCard"}},
+  {"q": "A medical bill went to collections. How do I track it?", "a": "On the bill, open \"This bill went to collections\" and enter the collector, its account number, the date and the balance the collector states. It is then kept under Collections on the Health page - never in Debt Payoff - with a running balance: each collector statement sets the balance and each payment you link lowers it. Groundwork adds no interest or fees; whatever the collector adds shows in its next statement. If you believe the debt isn't correct or is no longer valid, consider getting legal advice before you pay or agree to anything.", "keys": ["collection", "collections", "collector", "agency", "medical", "debt", "track"], "labels": ["This bill went to collections"], "open": {"view": "health", "el": "medicalBillsCard"}},
+  {"h": "Where things are"},
+  {"q": "Where is the Calendar?", "a": "The Calendar is a tab on the Budget page: what's coming from your own record - due days, recurring bills, gift occasions, trips and fund dates - by week, then folded by month.", "keys": ["calendar", "upcoming", "due", "dates", "coming"], "open": {"view": "budget", "el": "calendarContent"}},
+  {"q": "Why does the Ledger ask about a new vendor?", "a": "When an import brings a vendor you haven't bought from before, and your bank's own category label decided where it was filed (Apple Card and Quicken files do this), the Ledger asks whether you'd like to change it. Yes opens that transaction so you can pick the category; No keeps it. Either way it then offers to always categorize that vendor that way on future imports. It asks once per vendor, and never on an account's first import.", "keys": ["vendor", "new", "merchant", "bank", "category", "label", "ledger", "import"], "open": {"view": "ledger", "el": "newVendorCard"}},
 ];
 
 
@@ -26840,10 +26848,34 @@ const _HELP_STOP = new Set(['a', 'an', 'the', 'i', 'my', 'me', 'do', 'does', 'di
   'by', 'if', 'so', 'up', 'out', 'into', 'than', 'then', 'please', 'tell', 'show', 'find', 'use', 'make', 'have', 'has']);
 const HELP_WHY_WORDS = new Set(['why', 'wrong', 'off', 'drop', 'dropped', 'lower', 'missing']);
 
+// Item 102: the same thing said other ways finds the same answer
+const _HELP_SAME = {
+  delete: 'remove', erase: 'remove', rid: 'remove', undo: 'revert', visa: 'card', mastercard: 'card',
+  amex: 'card', discover: 'card', doctor: 'medical', hospital: 'medical', dentist: 'medical', pharmacy: 'medical',
+  clinic: 'medical', prescription: 'medical', er: 'medical', collector: 'collection', agency: 'collection',
+  owe: 'debt', loan: 'debt', paycheck: 'income', salary: 'income', wage: 'income', upload: 'import',
+  download: 'import', statement: 'import', csv: 'import', change: 'edit', fix: 'edit', rename: 'edit',
+  categorize: 'category', recategorize: 'category', schedule: 'calendar', upcoming: 'calendar', gift: 'gifts',
+  present: 'gifts', restore: 'backup'};
+
 function _helpWords(s) {
   return String(s || '').toLowerCase().replace(/[^a-z0-9$ ]/g, ' ').split(/\s+/)
     .filter(w => w && !_HELP_STOP.has(w))
-    .map(w => (w.length > 4 ? w.replace(/(ing|ed|es|s)$/, '') : w));
+    .map(w => (w.length > 4 ? w.replace(/(ing|ed|es|s)$/, '') : w))
+    .map(w => _HELP_SAME[w] || w);
+}
+
+// Item 102: every guide entry with its score for a question, best first (the assistant reads the top few)
+function helpRank(question) {
+  const qw = [...new Set(_helpWords(question))];
+  return HELP_FAQ.filter(it => it.q).map(it => {
+    const keys = new Set((it.keys || []).flatMap(_helpWords));
+    const title = new Set(_helpWords(it.q));
+    const body = new Set(_helpWords(it.a));
+    let score = 0;
+    for (const w of qw) score += (keys.has(w) ? 2 : 0) + (title.has(w) ? 1 : 0) + (body.has(w) ? 0.5 : 0);
+    return { it, score };
+  }).sort((a, b) => b.score - a.score);
 }
 
 // The best guide entry for a question, or null. Keywords count double; a match must be clear (C11: no stretching).
@@ -26880,63 +26912,171 @@ function _askPanel() {
 
 function closeAsk() { const p = g('askPanel'); if (p) p.remove(); }
 
+// ── Item 102 (Rob 2026-10-19: "Lets try real assistant and if the user selects no AI it goes away") ───────────────────
+// With AI on, the Ask box is an assistant that answers in its own words - from Groundwork's guide and nothing else.
+// The few guide entries closest to the question go to the local model with the question; it must answer from them,
+// name the entry it used, or say the guide doesn't cover it. Every number it writes must be in that entry. Anything
+// else - no AI answer, no entry named, a number from nowhere - shows the closest guide answers instead, in the guide's
+// own words. With AI off the box is gone (ai-feature); the ? button's guide is the same answers, always there.
+const ASK_SYSTEM = 'You are the help inside Groundwork, a personal finance app. Answer the person\'s question about how to '
+  + 'use Groundwork in two to four plain, friendly sentences, using ONLY the numbered guide entries you are given. Do not '
+  + 'add screens, buttons, steps or features the entries do not mention. Do not give financial advice and do not state '
+  + 'money figures. Write button and screen names exactly as the entry writes them. End with the number of the entry '
+  + 'you used, like [2]. If none of the entries answers the question, reply with exactly: NOT IN GUIDE';
+const ASK_GUIDE_SIZE = 4;
+
+function _askNumbersOk(text, entry) {
+  const nums = String(text).match(/\d[\d,.]*/g) || [];
+  return nums.every(n => String(entry.q + ' ' + entry.a).includes(n.replace(/[.,]$/, '')));
+}
+
+function _askEntryHTML(it, head) {
+  window._askOpen = it.open || null;
+  return head + `<div style="font-size:14px;font-weight:600;color:var(--ink);margin-top:6px">${esc(it.q)}</div>
+    <div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">${esc(it.a)}</div>
+    ${it.open ? `<button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="helpOpen(window._askOpen)">Open it for me</button>` : ''}
+    <div style="font-size:11px;color:var(--slate-2);margin-top:10px">From Groundwork's guide - the same answers as the ? button.</div>`;
+}
+
+function askShowEntry(i) {
+  const it = (window._askClosest || [])[i];
+  if (it) _askPanel().innerHTML = _askEntryHTML(it, window._askHead || '');
+}
+
+// Item 102 (Rob 2026-10-19: "when someone say's view they ... want the page, not what the page does"): "view the
+// calendar", "show me collections", "open settings", "take me to my budget" go straight there. Anything else is a
+// question, and is answered. Most specific names first; a phrase is matched on whole words.
+const ASK_PLACES = [
+  { label: 'the Calendar', names: ['calendar', 'upcoming', 'schedule'], view: 'budget', tab: ['bud', 'calendar'] },
+  { label: 'Gifts', names: ['gift budget', 'gifts', 'gift'], view: 'budget', tab: ['bud', 'gifts'] },
+  { label: 'Possible futures', names: ['possible futures', 'futures', 'what if'], view: 'budget', tab: ['bud', 'futures'] },
+  { label: 'Bills and charges', names: ['bills and charges', 'recurring charges', 'subscriptions', 'sinking funds'], view: 'budget', tab: ['bud', 'bills'] },
+  { label: 'Medical bills', names: ['medical bills', 'medical bill', 'collections', 'collection', 'hospital bills', 'doctor bills'], view: 'health', tab: ['health', 'bills'] },
+  { label: 'Plan and reserve', names: ['health plan', 'plan year', 'deductible', 'health reserve', 'reserve', 'hsa', 'fsa'], view: 'health', tab: ['health', 'plan'] },
+  { label: 'Health spending', names: ['health spending', 'medical spending', 'medical expenses', 'health expenses'], view: 'health', tab: ['health', 'spending'] },
+  { label: 'People', names: ['people'], view: 'health', tab: ['health', 'people'] },
+  { label: 'Health', names: ['health', 'medical'], view: 'health', tab: ['health', 'bills'] },
+  { label: 'After you buy', names: ['after you buy', 'return windows', 'returns', 'free trials', 'trials', 'receipts'], view: 'byb', tab: ['byb', 'after'] },
+  { label: 'Before You Buy', names: ['before you buy', 'byb', 'purchase'], view: 'byb', tab: ['byb', 'before'] },
+  { label: 'the Month Tracker', names: ['month tracker', 'tracker'], view: 'debt', tab: ['debt', 'tracker'] },
+  { label: 'the debt Advisor', names: ['advisor'], view: 'debt', tab: ['debt', 'advisor'] },
+  { label: 'Debt Payoff', names: ['debt payoff', 'debts', 'debt', 'payoff', 'loans', 'cards'], view: 'debt', tab: ['debt', 'setup'] },
+  { label: 'Get my accounts', names: ['bank logins', 'get my accounts', 'automation', 'assistant'], view: 'automation' },
+  { label: 'Reports', names: ['reports', 'report', 'report center', 'monthly report'], view: 'reports' },
+  { label: 'the Ledger', names: ['ledger', 'transactions', 'transaction'], view: 'ledger' },
+  { label: 'the Budget', names: ['budget', 'my budget'], view: 'budget', tab: ['bud', 'plan'] },
+  { label: 'the Trip Planner', names: ['trip planner', 'trips', 'trip', 'travel'], view: 'trip' },
+  { label: 'Investments', names: ['investments', 'investment', 'portfolio', 'stocks'], view: 'investments' },
+  { label: 'Net Worth', names: ['net worth', 'networth'], view: 'networth' },
+  { label: 'the Trophy Room', names: ['trophy room', 'trophies', 'achievements'], view: 'trophy' },
+  { label: 'Categories', names: ['categories', 'category settings'], view: 'settings', tab: ['settings', 'categories'] },
+  { label: 'Import rules', names: ['import rules', 'rules'], view: 'settings', tab: ['settings', 'automation'] },
+  { label: 'Backups', names: ['backups', 'backup', 'data'], view: 'settings', tab: ['settings', 'data'] },
+  { label: 'Accounts', names: ['accounts', 'account settings'], view: 'settings', tab: ['settings', 'accounts'] },
+  { label: 'the Dashboard', names: ['dashboard', 'home', 'overview'], view: 'dashboard' },
+  { label: 'Settings', names: ['settings', 'preferences'], view: 'settings', tab: ['settings', 'general'] },
+];
+const ASK_GO = /^\s*(?:please\s+)?(?:can\s+you\s+|could\s+you\s+)?(?:view|see|show(?:\s+me)?|open|go\s+to|goto|take\s+me\s+to|bring\s+up|pull\s+up|display|navigate\s+to|let\s+me\s+see|i\s+want\s+to\s+see|jump\s+to)\b\s*(.*)$/i;
+
+function askPlace(question) {
+  const m = String(question || '').match(ASK_GO);
+  if (!m) return null;
+  if (/^\s*(how|what|why|where|when|which|who|if|whether|to)\b/i.test(m[1])) return null;   // "show me how to..." is a question
+  const rest = ' ' + m[1].toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\b(the|my|page|tab|screen|section|for me|please|area|list)\b/g, ' ')
+    .replace(/\s+/g, ' ').trim() + ' ';
+  if (!rest.trim()) return null;
+  let best = null;
+  for (const pl of ASK_PLACES) for (const n of pl.names) {
+    if (rest.includes(' ' + n + ' ') && (!best || n.length > best.n.length)) best = { pl, n };
+  }
+  return best ? best.pl : null;
+}
+
+function askGo(pl) {
+  closeAsk();
+  const box = g('gwAskBox');
+  if (box) box.value = '';
+  showView(pl.view);
+  const tabs = { bud: _budShowTab, health: healthShowTab, byb: bybShowTab, debt: _debtShowTab, settings: _settingsShowTab };
+  if (pl.tab && tabs[pl.tab[0]]) setTimeout(() => tabs[pl.tab[0]](pl.tab[1]), 80);
+  showToast(`Opened ${pl.label}`, '', 'info');
+}
+
 async function askGroundwork(question) {
   const q = String(question || '').trim().slice(0, 300);
   if (!q) return;
-  const hit = helpMatch(q);
   const p = _askPanel();
-  if (hit && hit.choices) {
-    window._askChoices = hit.choices;
-    p.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div style="font-size:11px;color:var(--slate-2)">You asked: ${esc(q)}</div>
-        <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>
-      <div style="font-size:13px;color:var(--ink);margin-top:6px">Which of these did you mean?</div>
-      ${hit.choices.map((c, i) => `<div style="margin-top:6px"><button class="btn btn-secondary btn-sm" onclick="askGroundworkPick(${i})">${esc(c.q)}</button></div>`).join('')}`;
-    return;
-  }
   const head = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
       <div style="font-size:11px;color:var(--slate-2)">You asked: ${esc(q)}</div>
       <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>`;
-  if (hit) {
-    window._askOpen = hit.open || null;
-    p.innerHTML = head + `<div style="font-size:14px;font-weight:600;color:var(--ink);margin-top:6px">${esc(hit.q)}</div>
-      <div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">${esc(hit.a)}</div>
-      ${hit.open ? `<button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="helpOpen(window._askOpen)">Open it for me</button>` : ''}
-      <div style="font-size:11px;color:var(--slate-2);margin-top:10px">From Groundwork's guide - the same answers as the ? button.</div>`;
+  window._askHead = head;
+  const place = askPlace(q);                 // "view my budget" means the page, now - not what the page does
+  if (place) { askGo(place); return; }
+  if (!aiEnabled()) {                         // the box is hidden with AI off; a question already typed gets the guide
+    const hit = helpMatch(q);
+    p.innerHTML = hit && !hit.choices ? _askEntryHTML(hit, head)
+      : head + `<div style="font-size:13px;color:var(--ink);margin-top:6px">Ask is AI help, and AI is off. The ? button has the whole guide.</div>`;
     return;
   }
-  // Item 72 stage 3 (C2): with AI on, a question about the person's records may fit one of the fixed checks. The
-  // model only names one (it cannot write anything else); the person taps to run it. Unsure: they choose.
-  // AI-off audit F6: with AI off or unable to run, the server never asks a model; a question about the records is
-  // answered with the same fixed list to choose from.
-  {
+  // A question about your records (why a figure looks off) goes to Groundwork's fixed checks, as before (item 72 C2)
+  if (_helpWords(q).some(w => HELP_WHY_WORDS.has(w))) {
     let route = null;
     try { route = await API.post('/api/why/route', { question: q }); } catch (e) { _gwErr('askGroundwork route')(e); }
-    if (route && route.state === 'off' && (route.checks || []).length) {
-      window._askWhyChecks = route.checks;
-      p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);margin-top:6px">If this is about your records, Groundwork has these checks. Which one?</div>${_askWhyChoicesHTML()}
-        <div style="font-size:11px;color:var(--slate-2);margin-top:8px">With AI ${_aiCannotRun ? 'unavailable on this computer' : 'off'}, you choose the check. The answer comes from your records either way.</div>`;
-      return;
-    }
     if (route && route.state === 'picked') {
+      window._askWhyChecks = route.checks || [];
       p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">This looks like a question for one of Groundwork's checks on your records:</div>
         <div style="margin-top:8px"><button class="btn btn-primary btn-sm" onclick="closeAsk(); openWhyCheck('${esc(route.check)}')">${esc(route.title)}</button></div>
         <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Picked by the AI from Groundwork's fixed list - the answer comes from your records, not from the AI.
           <button class="btn btn-ghost btn-sm" onclick="askWhyChoose()">Choose a different check</button></div>`;
-      window._askWhyChecks = route.checks || [];
       return;
     }
-    if (route && route.state === 'unsure') {
-      window._askWhyChecks = route.checks || [];
-      p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);margin-top:6px">More than one check could fit. Which one?</div>${_askWhyChoicesHTML()}`;
+    if (route && (route.state === 'unsure' || route.state === 'off') && (route.checks || []).length) {
+      window._askWhyChecks = route.checks;
+      p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);margin-top:6px">If this is about your records, Groundwork has these checks. Which one?</div>${_askWhyChoicesHTML()}`;
       return;
     }
   }
+  const closest = helpRank(q).filter(x => x.score > 0).slice(0, ASK_GUIDE_SIZE).map(x => x.it);
+  window._askClosest = closest;
+  if (!closest.length) {
+    try { await API.post('/api/help/unanswered', { text: q }); } catch (e) { _gwErr('askGroundwork')(e); }
+    p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">${esc(HELP_OUTSIDE)}</div>
+      <div style="font-size:11px;color:var(--slate-2);margin-top:10px">Your question is kept in your own list of questions Groundwork couldn't answer.
+        <button class="btn btn-ghost btn-sm" onclick="showUnanswered()">See the list</button></div>`;
+    return;
+  }
+  p.innerHTML = head + `<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--slate);margin-top:10px"><div class="spinner"></div>Looking it up in the guide…</div>`;
+  const guide = closest.map((it, i) => `[${i + 1}] ${it.q}\n${it.a}`).join('\n\n');
+  let r = null;
+  try {
+    r = await callAI({ system: ASK_SYSTEM, messages: [{ role: 'user', content: `Guide entries:\n\n${guide}\n\nQuestion: ${q}` }],
+                       max_tokens: 260, skipGate: true, surface: 'ask_howto' });
+  } catch (e) { _gwErr('askGroundwork ai')(e); }
+  if (!g('askPanel')) return;                                     // closed while the AI was answering
+  const raw = String((r && r.ok && r.text) || '').trim();
+  // "NOT IN GUIDE" is a refusal when it is the reply; tacked onto a cited answer it is noise, and is dropped
+  const refused = /^\[?\s*NOT IN GUIDE/i.test(raw) || (/NOT IN GUIDE/i.test(raw) && !/\[\d\]/.test(raw));
+  const text = refused ? '' : raw.replace(/\[?\s*NOT IN GUIDE\s*\]?\.?/gi, '').trim();
+  const cite = text.match(/\[(\d)\]\s*\.?\s*$/) || text.match(/\[(\d)\]/);
+  const used = cite ? closest[parseInt(cite[1], 10) - 1] : null;
+  const answer = text.replace(/\s*\[\d\]\s*\.?/g, ' ').split('\n').map(l => l.replace(/^\s*(\d+[.)]|[-*•])\s+/, '• ').trim())
+    .filter(Boolean).join('\n');
+  const checked = answer.replace(/^• /gm, '');                     // list markers aren't figures
+  if (used && answer && _askNumbersOk(checked, used)) {
+    window._askOpen = used.open || null;
+    window._askClosest = [used, ...closest.filter(x => x !== used)];
+    p.innerHTML = head + `<div class="byb-in" style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:8px;white-space:pre-line">${esc(answer)}</div>
+      ${used.open ? `<button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="helpOpen(window._askOpen)">Open it for me</button>` : ''}
+      <details style="margin-top:10px;font-size:12px;color:var(--slate)"><summary style="cursor:pointer">From the guide: ${esc(used.q)}</summary>
+        <div style="margin-top:6px;line-height:1.6">${esc(used.a)}</div></details>
+      <div style="font-size:11px;color:var(--slate-2);margin-top:8px">Written by the AI on this computer, only from Groundwork's guide.</div>`;
+    return;
+  }
   try { await API.post('/api/help/unanswered', { text: q }); } catch (e) { _gwErr('askGroundwork')(e); }
-  p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:6px">${esc(HELP_OUTSIDE)}</div>
-    ${_helpWords(q).some(w => HELP_WHY_WORDS.has(w)) ? `<div style="margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); openWhy('records')">Check my records</button></div>` : ''}
-    <div style="font-size:11px;color:var(--slate-2);margin-top:10px">Your question is kept in your own list of questions Groundwork couldn't answer.
-      <button class="btn btn-ghost btn-sm" onclick="showUnanswered()">See the list</button></div>`;
+  p.innerHTML = head + `<div style="font-size:13px;color:var(--ink);margin-top:6px">The guide doesn't answer that exactly. These are the closest:</div>
+    ${closest.slice(0, 3).map((it, i) => `<div style="margin-top:6px"><button class="btn btn-secondary btn-sm" style="text-align:left" onclick="askShowEntry(${i})">${esc(it.q)}</button></div>`).join('')}
+    <div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="closeAsk(); showHelpOverlay()">Browse the whole guide</button>
+      <button class="btn btn-ghost btn-sm" onclick="showUnanswered()">Your unanswered questions</button></div>`;
 }
 
 function _askWhyChoicesHTML() {
@@ -27005,6 +27145,8 @@ function helpOpen(open) {
   if (open.tab) _settingsShowTab(open.tab);
   if (open.el === 'autoTab-bills') _autoShowTab('bills');
   _budReveal(open.el && g(open.el));   // item 79 U1
+  const _hp = open.el && g(open.el) && g(open.el).closest('[id^="hlPanel-"]');            // item 102: the Health tabs
+  if (_hp) healthShowTab(_hp.id.slice('hlPanel-'.length));
   setTimeout(() => {
     const el = open.el && g(open.el);
     if (!el) return;

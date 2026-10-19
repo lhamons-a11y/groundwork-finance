@@ -1223,7 +1223,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           title="Visit each bank you showed Groundwork, one at a time. Each file still waits for your review.">⟳ Get my accounts</button>
         <button class="btn btn-sm btn-secondary" onclick="showView('reports')">◫ Reports</button>
         <button class="btn btn-sm btn-secondary" onclick="openBackupModal()">Backup</button>
-        <input id="gwAskBox" type="search" placeholder="Ask how to…" aria-label="Ask Groundwork how to do something"
+        <!-- Item 102 (Rob 2026-10-19): the Ask box is AI help - shown only while AI is on and able to run (ai-feature) -->
+        <input id="gwAskBox" class="ai-feature" type="search" placeholder="Ask how to…" aria-label="Ask Groundwork how to do something"
           onkeydown="if (event.key === 'Enter') { askGroundwork(this.value); }"
           style="font-size:12px;padding:5px 10px;border:1px solid var(--steel);border-radius:var(--r-sm);width:170px;background:var(--paper);color:var(--ink)">
         <button class="btn btn-sm btn-secondary" onclick="showHelpOverlay()" title="Help">?</button>

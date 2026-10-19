@@ -116,8 +116,9 @@ def run(ctx):
     ask = app.split('async function askGroundwork(')[1].split('\n}\n')[0] + app.split('function helpMatch(')[1].split('\n}\n')[0]
     match = app.split('function helpMatch(')[1].split('\n}\n')[0]
     body = app.split('async function askGroundwork(')[1].split('\n}\n')[0]
-    check('s193 C1 a how-to answer never involves the AI: the guide match uses no model, the Ask box never writes AI text, and '
-          'stage 3\'s check-picking is asked only after the guide found no answer',
-          'callAI(' not in ask and 'aiEnabled' not in match
-          and body.index('if (hit) {') < body.index("'/api/why/route'"))     # AI-off audit F6: the route itself says off
+    # Item 102 (Rob 2026-10-19: "Lets try real assistant") replaces C1: with AI on, the answer is the model's words - from
+    # the guide entries it is given and nothing else, naming the one it used; the ? button's guide uses no model.
+    check('s193 C1 (item 102) the guide match itself uses no model; the assistant is the only AI in the Ask box, and only with AI on',
+          'aiEnabled' not in match and 'callAI(' not in match and body.count('callAI(') == 1
+          and body.index('if (!aiEnabled()) {') < body.index('callAI('))
     check('s193 C1 the Ask box sits in the top bar, beside the ? button', 'id="gwAskBox"' in html and 'askGroundwork(this.value)' in html)
