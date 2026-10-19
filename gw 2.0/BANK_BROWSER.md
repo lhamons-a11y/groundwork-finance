@@ -664,7 +664,11 @@ stays open until these are measured, each by name:
 5. ~~the foreground fix in the real app~~ **MEASURED 2026-09-25, see below**
 
 The observation against Rob's criterion (the import offer can sit behind the bank window) is
-recorded, not ruled.
+recorded, not ruled. **RULED 2026-10-19 (Rob: "B, user may also need to download another file ie savings or credit
+card"): the main window comes forward when the offer appears; the bank window stays open for the next download and is
+sent nothing. BUILT the same day (`launch.py` `bring_to_front`, s241): restore, show, raise without staying on top;
+on Windows the taskbar button flashes if the system refuses the front. Measured with a stand-in window only; the real
+OS behaviour is measured in the packaged app (with R5).**
 
 ### Items 4 and 5 measured — 2026-09-25, Windows, the packaged app
 

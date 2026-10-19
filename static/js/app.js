@@ -1175,6 +1175,9 @@ function _offerAutoImport(item) {
       </button>
     </div>`;
   document.body.appendChild(el);
+  // Item 19 choice 5 (Rob 2026-10-19): the offer comes to the person - the main window comes forward over the bank
+  // window, which stays open for the next download. In a browser (no app window) there is nothing to raise.
+  try { window.pywebview?.api?.bring_to_front?.()?.catch?.(_gwErr('bring_to_front')); } catch (e) { _gwErr('bring_to_front')(e); }
   // Sticks around 60s — a download prompt shouldn't vanish while the user
   // is still looking at their browser.
   setTimeout(() => {

@@ -132,6 +132,25 @@ def _wait_for_flask(host='127.0.0.1', port=8765, timeout=30):
     return False
 
 
+def _flash_taskbar(w):
+    """Windows only: flash the main window's taskbar button until it is clicked, if it could not take the front."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        hwnd = int(w.native.Handle.ToInt64())
+
+        class FLASHWINFO(ctypes.Structure):
+            _fields_ = [('cbSize', wintypes.UINT), ('hwnd', wintypes.HWND), ('dwFlags', wintypes.DWORD),
+                        ('uCount', wintypes.UINT), ('dwTimeout', wintypes.DWORD)]
+        if ctypes.windll.user32.GetForegroundWindow() == hwnd:
+            return
+        FLASHW_ALL, FLASHW_TIMERNOFG = 0x3, 0xC
+        info = FLASHWINFO(ctypes.sizeof(FLASHWINFO), hwnd, FLASHW_ALL | FLASHW_TIMERNOFG, 0, 0)
+        ctypes.windll.user32.FlashWindowEx(ctypes.byref(info))
+    except Exception as e:
+        logging.info('flash_taskbar: %s', e)
+
+
 class GroundworkAPI:
     def open_external(self, url: str):
         if not url or not url.startswith(('http://', 'https://')):
@@ -147,6 +166,31 @@ class GroundworkAPI:
                 subprocess.run(['xdg-open', url], check=False)
         except Exception as e:
             logging.warning('open_external failed: %s', e)
+
+    def bring_to_front(self):
+        """Item 19 choice 5 (BANK_BROWSER.md section 9; Rob 2026-10-19: "B, user may also need to download another
+        file"): when an import offer appears, Groundwork's main window comes forward over the bank window. The bank
+        window stays open for the next download (savings, a card...), and nothing is sent to it. Where the system
+        will not let a window take the front (Windows can refuse), the taskbar button flashes instead."""
+        try:
+            import webview
+            windows = getattr(webview, 'windows', None) or []
+            if not windows:
+                return False
+            w = windows[0]
+            try:
+                w.restore()                             # un-minimise; harmless when it isn't
+            except Exception:
+                pass
+            w.show()
+            w.on_top = True                             # raise over the bank window...
+            w.on_top = False                            # ...without staying on top of everything after
+            if sys.platform == 'win32':
+                _flash_taskbar(w)
+            return True
+        except Exception as e:
+            logging.warning('bring_to_front failed: %s', e)
+            return False
 
     def pick_folder(self):
         """Folder picker via pywebview, the window layer the app already has.
