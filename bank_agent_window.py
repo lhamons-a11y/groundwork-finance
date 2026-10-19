@@ -315,7 +315,8 @@ def unique_path(folder, name):
     """Where a download lands: the Downloads folder, under the bank's own file name - with " (2)", " (3)" ... when that
     name is taken, so an earlier file is never overwritten."""
     import os
-    base = os.path.basename(name or '') or 'download'
+    import re
+    base = re.split(r'[\\/]', name or '')[-1] or 'download'     # a Windows path's name on any system, not its folders
     stem, ext = os.path.splitext(base)
     path, n = os.path.join(folder, base), 2
     while os.path.exists(path):

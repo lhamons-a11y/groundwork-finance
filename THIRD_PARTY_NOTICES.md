@@ -53,4 +53,6 @@ Versions are the ones current builds use; `requirements.txt` and the build workf
 
 ## Fonts
 
-The app and the website use Inter, DM Mono, Playfair Display and Fraunces, all under the SIL Open Font License 1.1.
+The app bundles Inter, DM Mono and Playfair Display (Latin and Latin Extended) in `static/fonts/`, each under the
+SIL Open Font License 1.1, with its license text beside it (`OFL-inter.txt`, `OFL-dmmono.txt`,
+`OFL-playfairdisplay.txt`). The website (not the app) loads Inter, DM Mono and Fraunces from Google Fonts.
