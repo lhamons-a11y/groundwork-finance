@@ -12256,17 +12256,17 @@ function tripUpdateBudget() {
     cells.innerHTML = `
       <div class="trip-cell">
         <div class="trip-cell-label">Trip length</div>
-        <div class="trip-cell-value">${nights} night${nights!==1?'s':''}</div>
+        <div class="trip-cell-value">${gwFig('trip.nights', `${nights} night${nights!==1?'s':''}`)}</div>
         <div class="trip-cell-sub">${days} day${days!==1?'s':''} · ${travelers} traveler${travelers!==1?'s':''}</div>
       </div>
       <div class="trip-cell">
         <div class="trip-cell-label">Estimated total</div>
-        <div class="trip-cell-value">${fmt(total)}</div>
+        <div class="trip-cell-value">${gwFig('trip.total', fmt(total))}</div>
         <div class="trip-cell-sub">each line's source is shown below</div>
       </div>
       <div class="trip-cell">
         <div class="trip-cell-label">Monthly surplus</div>
-        <div class="trip-cell-value" style="color:${surplus>=total?'var(--pine-text)':'var(--ember-text)'}">${fmt(surplus)}</div>
+        <div class="trip-cell-value" style="color:${surplus>=total?'var(--pine-text)':'var(--ember-text)'}">${gwFig('trip.surplus', fmt(surplus))}</div>
         <div class="trip-cell-sub">after debt payment</div>
       </div>`;
   }
@@ -12491,16 +12491,16 @@ function _renderTripBudgetFallback(content, badge, d) {
 }
 
 function _tripBudgetFallbackHTML(d) {
-  const line = (cat, amt, src) => `<div class="trip-budget-row"><span class="trip-budget-cat">${cat}</span>
-    <span><span class="trip-budget-amt">${amt ? fmt(amt) : '-'}</span><span class="trip-budget-note">${esc(src || '')}</span></span></div>`;
+  const line = (cat, amt, src, key) => `<div class="trip-budget-row"><span class="trip-budget-cat">${cat}</span>
+    <span><span class="trip-budget-amt">${amt ? gwFig(key, fmt(amt)) : '-'}</span><span class="trip-budget-note">${esc(src || '')}</span></span></div>`;
   return `
-    ${line(_tripMode==='drive'?'🚗 Transport':'✈ Flights', d.transport, d.transportNote)}
-    ${line('🏨 Hotel', d.hotel, d.hotelSource)}
-    ${line('🍽 Dining', d.dining, d.diningSource)}
-    ${line('🎯 Activities', d.activities, d.activitiesSource)}
-    ${d.other ? line('🧾 Other', d.other, d.otherSource) : ''}
-    ${line('🛡 Cushion', d.buffer, "10% of the lines above (Groundwork's rule of thumb)")}
-    <div class="trip-budget-row"><span class="trip-budget-cat">Total</span><span class="trip-budget-amt">${fmt(d.total)}</span></div>
+    ${line(_tripMode==='drive'?'🚗 Transport':'✈ Flights', d.transport, d.transportNote, 'trip.transport')}
+    ${line('🏨 Hotel', d.hotel, d.hotelSource, 'trip.lodging')}
+    ${line('🍽 Dining', d.dining, d.diningSource, 'trip.dining')}
+    ${line('🎯 Activities', d.activities, d.activitiesSource, 'trip.activities')}
+    ${d.other ? line('🧾 Other', d.other, d.otherSource, 'trip.other') : ''}
+    ${line('🛡 Cushion', d.buffer, "10% of the lines above (Groundwork's rule of thumb)", 'trip.cushion')}
+    <div class="trip-budget-row"><span class="trip-budget-cat">Total</span><span class="trip-budget-amt">${gwFig('trip.total', fmt(d.total))}</span></div>
     <div style="margin-top:12px;font-size:12px;color:var(--slate);line-height:1.6">The total counts only lines with a source. Your monthly surplus after debt is ${fmt(d.surplus)}.</div>
     <div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="tripImGoing()">I'm going on this trip</button>
       <span style="font-size:11px;color:var(--slate);margin-left:6px">Then say where the money comes from and see the way back. Nothing is booked or paid.</span></div>`;
@@ -17422,7 +17422,7 @@ function _renderInvPositions() {
     const gainPct   = gained ? p.unrealized_pct : 0;
     const gainColor = !gained ? 'var(--slate)' : gain >= 0 ? 'var(--pine-text)' : 'var(--ember-text)';
     const priceLine = valued
-      ? `${fmt(p.current_price)}/share \u00b7 ${p.price_manual ? 'set by you' : 'as of'} ${_invDate(p.price_date)}`
+      ? `${gwFig('inv.pos_price', fmt(p.current_price) + '/share', p.ticker)} \u00b7 ${p.price_manual ? 'set by you' : 'as of'} ${esc(_invDate(p.price_date))}`
       : 'No price on record \u2014 set a price';
     const ac        = p.asset_class;
     const acLabel   = ac ? ASSET_CLASSES[ac] : null;
@@ -17470,17 +17470,17 @@ function _renderInvPositions() {
              style="font-size:11px;color:${p.price_stale?'var(--gold-text)':'var(--slate-2)'};margin-top:3px;cursor:pointer;
                     display:inline-flex;align-items:center;gap:3px"
              title="Click to set price manually">
-          ${esc(priceLine)} <span style="opacity:.6">✎</span>
+          ${priceLine} <span style="opacity:.6">✎</span>
         </div>
       </td>
       <td style="text-align:right;padding:12px 16px">
-        <div class="text-mono" style="font-weight:500">${valued ? fmt(p.market_value) : 'Not valued'}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:1px">${valued ? allocPct.toFixed(1) + '%' : 'no price on record'}</div>
+        <div class="text-mono" style="font-weight:500">${valued ? gwFig('inv.pos_value', fmt(p.market_value), p.ticker) : 'Not valued'}</div>
+        <div style="font-size:11px;color:var(--slate);margin-top:1px">${valued ? gwFig('inv.pos_alloc', allocPct.toFixed(1) + '%', p.ticker) : 'no price on record'}</div>
       </td>
       <td style="text-align:right;padding:12px 16px">
-        <div class="text-mono" style="color:${gainColor}">${gained ? (gain >= 0 ? '+' : '') + fmt(gain) : 'Not shown'}</div>
+        <div class="text-mono" style="color:${gainColor}">${gained ? gwFig('inv.pos_gain', (gain >= 0 ? '+' : '') + fmt(gain), p.ticker) : 'Not shown'}</div>
         <div style="font-size:11px;color:${gainColor};opacity:.8;margin-top:1px">${gained
-          ? (gainPct >= 0 ? '+' : '') + gainPct.toFixed(1) + '%' + (p.no_basis_shares ? ' \u00b7 leaves out ' + _invShares(p.no_basis_shares) + ' with no cost basis' : '')
+          ? gwFig('inv.pos_gain_pct', (gainPct >= 0 ? '+' : '') + gainPct.toFixed(1) + '%', p.ticker) + (p.no_basis_shares ? ' \u00b7 leaves out ' + _invShares(p.no_basis_shares) + ' with no cost basis' : '')
           : valued ? 'no cost basis on record' : 'no price on record'}</div>
       </td>
     </tr>`;
@@ -21365,7 +21365,7 @@ function _renderTrophyContent(cont, earnedN, total, pct) {
   cont.innerHTML = `
     <div style="margin-bottom:24px">
       <div class="prog-track" style="height:6px;margin-bottom:8px"><div class="prog-fill" style="width:${pct}%"></div></div>
-      <div style="font-size:12px;color:var(--slate-2)">${pct}% complete${latestDate?' · Last earned '+latestDate:''}</div>
+      <div style="font-size:12px;color:var(--slate-2)">${gwFig('trophy.pct', `${pct}% complete`)}${latestDate?' · Last earned '+gwFig('trophy.last_date', latestDate):''}</div>
     </div>
     ${sections.map(sec => {
       const achs = ACHIEVEMENTS.filter(a => a.section === sec.id);
@@ -21382,7 +21382,7 @@ function _renderTrophyContent(cont, earnedN, total, pct) {
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
           <span style="font-size:16px">${sec.icon}</span>
           <div style="font-size:13px;font-weight:600">${sec.label}</div>
-          <div style="font-size:11px;color:var(--slate-2);margin-left:4px">${secEarned} of ${achs.length} earned</div>
+          <div style="font-size:11px;color:var(--slate-2);margin-left:4px">${gwFig('trophy.section', `${secEarned} of ${achs.length} earned`, sec.label)}</div>
         </div>
         ${typeGroups.map(tg => {
           const group = achs.filter(a => a.type === tg.type);
@@ -21431,7 +21431,7 @@ function _renderAchCard(a) {
         <div style="font-size:13px;font-weight:600;color:${earned?'var(--ink)':'var(--slate)'}">${a.name}</div>
         ${bodyText}
         ${dateStr ? `
-          <div style="font-size:10px;color:var(--pine-text);margin-top:4px">✓ Earned ${dateStr}</div>
+          <div style="font-size:10px;color:var(--pine-text);margin-top:4px">✓ Earned ${gwFig('trophy.earned_on', esc(dateStr), a.name)}</div>
           ${a.behavior ? `<div style="font-size:11px;color:var(--slate);margin-top:5px;font-style:italic;line-height:1.5">${esc(a.behavior)}</div>` : ''}
         ` : ''}
         ${!earned && prog !== null ? `
@@ -21439,7 +21439,7 @@ function _renderAchCard(a) {
             <div style="height:3px;background:var(--steel);border-radius:99px;overflow:hidden">
               <div style="height:100%;width:${Math.min(99,Math.round(prog))}%;background:var(--sky);border-radius:99px"></div>
             </div>
-            <div style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);margin-top:3px">${esc(progLbl)}</div>
+            <div style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);margin-top:3px">${gwFig('trophy.progress', esc(progLbl), a.name)}</div>
           </div>` : ''}
       </div>
     </div>
@@ -22186,9 +22186,9 @@ function _bybBuildComparison() {
 
     <!-- Main numbers grid -->
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--steel);border-radius:var(--r-md);overflow:hidden;margin-bottom:14px">
-      ${_bybCompCell("What's Left", (whatsLeft<0?'−':'')+fmt(Math.abs(whatsLeft)), whatsLeft < 0 ? 'var(--ember-text)' : 'var(--pine-text)')}
-      ${_bybCompCell("DTI", dti.toFixed(1) + '%', dti > 20 ? 'var(--ember-text)' : dti > 15 ? 'var(--gold-text)' : 'var(--pine-text)')}
-      ${_bybCompCell("Debt-free", budgetInsufficient ? 'Not affordable' : (pending ? '—' : (payoff?.freeDate || '—')), budgetInsufficient ? 'var(--ember-text)' : (pending || _byb.origInsufficient ? 'var(--slate)' : (moDiff > 0 ? 'var(--ember-text)' : 'var(--pine-text)')))}
+      ${_bybCompCell("What's Left", gwFig('byb.left_with', (whatsLeft<0?'−':'')+fmt(Math.abs(whatsLeft))), whatsLeft < 0 ? 'var(--ember-text)' : 'var(--pine-text)')}
+      ${_bybCompCell("DTI", gwFig('byb.dti_with', dti.toFixed(1) + '%'), dti > 20 ? 'var(--ember-text)' : dti > 15 ? 'var(--gold-text)' : 'var(--pine-text)')}
+      ${_bybCompCell("Debt-free", budgetInsufficient ? 'Not affordable' : (pending ? '—' : (payoff?.freeDate ? gwFig('byb.free_with', payoff.freeDate) : '—')), budgetInsufficient ? 'var(--ember-text)' : (pending || _byb.origInsufficient ? 'var(--slate)' : (moDiff > 0 ? 'var(--ember-text)' : 'var(--pine-text)')))}
     </div>
 
     <!-- Change from original -->
@@ -22196,8 +22196,8 @@ function _bybBuildComparison() {
       ${_byb.monthly > 0 ? `<div>Monthly cost: <span style="font-family:var(--font-mono);color:var(--ember-text)">+${fmt(_byb.monthly)}/mo</span>${replCard ? ` (replacing ${fmt(replMin)}/mo → net <span style="font-family:var(--font-mono)">${fmt(_byb.monthly - replMin)}/mo more</span>)` : ''}</div>` : ''}
       ${budgetInsufficient ? `<div style="color:var(--ember-text);font-weight:500">This payment would leave you unable to cover your current minimum debt payments. The numbers above reflect that — this isn't a "sooner" outcome, it's not affordable at these amounts.</div>` : ''}
       ${!budgetInsufficient && _byb.origInsufficient ? `<div style="color:var(--gold-text);font-weight:500">Your current budget doesn't cover your minimum debt payments, so there's no valid before-and-after comparison to show. The date above is what this plan produces on its own.</div>` : ''}
-      ${!budgetInsufficient && !_byb.origInsufficient && moDiff > 0  ? `<div>Debt-free date: <span style="color:var(--ember-text)">${moDiff} month${moDiff!==1?'s':''} later</span></div>` : ''}
-      ${!budgetInsufficient && !_byb.origInsufficient && moDiff < 0  ? `<div>Debt-free date: <span style="color:var(--pine-text)">${Math.abs(moDiff)} months sooner</span></div>` : ''}
+      ${!budgetInsufficient && !_byb.origInsufficient && moDiff > 0  ? `<div>Debt-free date: <span style="color:var(--ember-text)">${gwFig('byb.payoff_change', `${moDiff} month${moDiff!==1?'s':''} later`)}</span></div>` : ''}
+      ${!budgetInsufficient && !_byb.origInsufficient && moDiff < 0  ? `<div>Debt-free date: <span style="color:var(--pine-text)">${gwFig('byb.payoff_change', `${Math.abs(moDiff)} months sooner`)}</span></div>` : ''}
       ${!budgetInsufficient && !_byb.origInsufficient && moDiff === 0 && orig ? `<div>Debt-free date: <span style="color:var(--pine-text)">unchanged</span></div>` : ''}
       ${loanPayoffNote}
     </div>
@@ -27172,7 +27172,8 @@ function askIntent(q, p, head) {
     return true;
   }
   // Item 103: "explain this page", "what am I looking at", "explain my budget" - the page, then what it works out
-  if (/^(?:explain|describe)(?: this| the)? (?:page|screen)(?: to me)?$|^what (?:does|is) this (?:page|screen)(?: mean| show| for| about)?$|^what am i looking at$|^what do (?:these|the|my) (?:numbers|figures) mean$/.test(n)) {
+  // Rob 2026-10-20: "explain these numbers to me" opens Explain too
+  if (/^(?:explain|describe|break down)(?: this| the| these| my| all)? (?:page|screen|numbers|figures|totals)(?: on (?:this|the) (?:page|screen))?(?: for me| to me)?$|^explain (?:this|it|that|everything)(?: for me| to me)?$|^what (?:does|is) this (?:page|screen)(?: mean| show| for| about)?$|^what am i looking at$|^what (?:do|are) (?:these|the|my|all these|all the) (?:numbers|figures)(?: mean| for)?(?: on (?:this|the) (?:page|screen))?$|^(?:help me )?understand(?: this| the| these| my)?(?: page| screen| numbers| figures)?$|^i (?:don't|do not|dont) understand(?: this| these| the| my)?(?: page| screen| numbers| figures)?$/.test(n)) {
     explainPage(); return true;
   }
   const exp = n.match(/^explain (?:the |my |this )?(.+?)(?: page| tab)?(?: to me)?$/);
@@ -27310,6 +27311,46 @@ const FIGS = {
   'debt.card_apr':        { label: 'Interest rate (APR)', means: 'the yearly interest rate on this debt', record: 'app_settings → app_snapshot.debtCards; changes in historian_entries (apr_correction)' },
   'debt.card_min':        { label: 'Minimum payment', means: 'the least you must pay on this debt each month', record: 'app_settings → app_snapshot.debtCards' },
   'debt.card_paid_off':   { label: 'Paid off around', means: 'the month this debt reaches zero under the current plan', record: 'worked out on this page, not stored' },
+  'inv.value':            { label: 'Portfolio value', means: 'each holding\'s shares times its latest price, for holdings with a price on record', record: 'investment_lots (shares); price_cache (latest prices); investment_transactions' },
+  'inv.cost':             { label: 'Amount invested', means: 'what you paid for the holdings, from their cost basis', record: 'investment_lots (cost basis); investment_transactions' },
+  'inv.gain':             { label: 'Unrealized gain', means: 'value less what you paid, for holdings with both a price and a cost basis', record: 'investment_lots; price_cache' },
+  'inv.gain_pct':         { label: 'Unrealized gain as a share of what you paid', means: 'the unrealized gain divided by the cost of those same holdings', record: 'investment_lots; price_cache' },
+  'inv.day':              { label: 'Today\'s change', means: 'each holding\'s price change today times its shares', record: 'price_cache (today\'s change); investment_lots' },
+  'inv.day_pct':          { label: 'Today\'s change as a share of yesterday\'s value', means: 'today\'s change divided by the value before it', record: 'price_cache; investment_lots' },
+  'inv.positions':        { label: 'Holdings', means: 'how many different securities you hold', record: 'investment_lots' },
+  'inv.pos_value':        { label: 'Value', means: 'this holding\'s shares times its latest price', record: 'investment_lots; price_cache' },
+  'inv.pos_alloc':        { label: 'Share of the portfolio', means: 'this holding\'s value as a share of the portfolio value', record: 'investment_lots; price_cache' },
+  'inv.pos_price':        { label: 'Latest price', means: 'the latest price on record for one share, from the price service or set by you', record: 'price_cache' },
+  'inv.pos_gain':         { label: 'Gain or loss', means: 'this holding\'s value less what you paid for it', record: 'investment_lots (cost basis); price_cache' },
+  'inv.pos_gain_pct':     { label: 'Gain or loss as a share of what you paid', means: 'the gain divided by this holding\'s cost', record: 'investment_lots; price_cache' },
+  'trophy.earned':        { label: 'Achievements earned', means: 'how many of Groundwork\'s achievements you have reached', record: 'achievements (each one earned, with its date)' },
+  'trophy.pct':           { label: 'Share of achievements earned', means: 'achievements earned as a share of all of them', record: 'achievements' },
+  'trophy.last_date':     { label: 'Last earned', means: 'the date of the most recent achievement', record: 'achievements (earned_at)' },
+  'trophy.section':       { label: 'Earned in this section', means: 'achievements earned out of this section\'s', record: 'achievements' },
+  'trophy.earned_on':     { label: 'Earned on', means: 'the date this achievement was reached', record: 'achievements (earned_at)' },
+  'trophy.progress':      { label: 'Progress toward it', means: 'how far your records are toward this achievement\'s mark', record: 'worked out from your records each time; nothing stored until it is earned' },
+  'byb.left_after':       { label: 'Left each month with it (and what it costs a month)', means: 'your budget\'s What\'s Left less this purchase\'s monthly cost', record: 'app_settings → app_snapshot (your budget); what you typed here, not saved until you decide' },
+  'byb.dti_change':       { label: 'Debt-to-income ratio, now and with it', means: 'monthly debt payments divided by monthly income, before and after adding this payment', record: 'app_settings → app_snapshot.debtCards and .incomes; what you typed here' },
+  'byb.payoff_change':    { label: 'How the debt-free date moves', means: 'the months the payoff plan gains or loses with this payment in the budget', record: 'worked out here from app_settings → app_snapshot.debtCards; not stored' },
+  'byb.left_with':        { label: 'What\'s Left with it', means: 'income less expenses, debt payments and this purchase, with the budget changes made here', record: 'app_settings → app_snapshot; the changes made here, not saved until you decide' },
+  'byb.dti_with':         { label: 'Debt-to-income ratio with it', means: 'monthly debt payments, including this one if it is a debt, divided by monthly income', record: 'app_settings → app_snapshot' },
+  'byb.free_with':        { label: 'Debt-free date with it', means: 'when the last debt reaches zero with this purchase in the budget', record: 'worked out here; not stored' },
+  'trip.nights':          { label: 'Trip length', means: 'the nights between the dates you entered', record: 'what you typed on this page; saved with the trip (trips) once you say you are going' },
+  'trip.total':           { label: 'Estimated trip total', means: 'every line with a source, plus a 10% cushion', record: 'worked out here; saved with the trip (trips) once you say you are going' },
+  'trip.surplus':         { label: 'Monthly surplus after debt', means: 'income less expense lines less your monthly debt payment budget', record: 'app_settings → app_snapshot (income, expenses, debt budget)' },
+  'trip.transport':       { label: 'Getting there', means: 'for a drive, the distance at your car\'s mpg and the national gas price; for a flight, the fare - its source is shown beside it', record: 'your car (app_settings); EIA gas price or the published fare (flight_price_cache); what you entered' },
+  'trip.lodging':         { label: 'Lodging', means: 'a quote you entered, your past trips, or the federal travel rate a night times the nights - its source is shown beside it', record: 'what you entered; trip_history; the GSA rate' },
+  'trip.dining':          { label: 'Meals', means: 'a quote, your past trips, or the federal meal rate a day times the days and travelers - its source is shown beside it', record: 'what you entered; trip_history; the GSA rate' },
+  'trip.activities':      { label: 'Activities', means: 'the amount you entered for things to do', record: 'what you typed on this page' },
+  'trip.other':           { label: 'Other costs', means: 'a car, transfers, insurance or fees read from an itinerary you chose', record: 'the itinerary you chose; read on this computer, not kept' },
+  'trip.cushion':         { label: 'Cushion', means: '10% of the lines above, Groundwork\'s rule of thumb', record: 'worked out here' },
+  'report.line':          { label: 'Figure in this report', means: 'worked out by this report from your records for its period - the same figure the report\'s written part is given', record: 'the report\'s own working from transactions, app_settings → app_snapshot and the records each report names' },
+  'rc.cat_total':         { label: 'Total spent in the range', means: 'every charge filed under this category (and its subcategories) in the months chosen', record: 'transactions (by category, the months chosen)' },
+  'rc.cat_avg':           { label: 'Monthly average', means: 'the total divided by the months that had any spending in this category', record: 'transactions (by category, the months chosen)' },
+  'rc.cat_high':          { label: 'Highest month', means: 'the most spent in this category in one month of the range', record: 'transactions (by category, by month)' },
+  'rc.cat_high_month':    { label: 'Month of the highest', means: 'the month with the most spent in this category', record: 'transactions (by category, by month)' },
+  'rc.cat_low':           { label: 'Lowest month', means: 'the least spent in this category in a month that had any', record: 'transactions (by category, by month)' },
+  'rc.cat_low_month':     { label: 'Month of the lowest', means: 'the month with the least spent, among months with any', record: 'transactions (by category, by month)' },
   'nw.total':             { label: 'Current net worth', means: 'total assets less total liabilities', record: 'worked out from the balances below; each month saved in net_worth_snapshots' },
   'nw.assets':            { label: 'Total assets', means: 'savings, investments, retirement, cash, home value, pensions and HSA / FSA, as you recorded them', record: 'app_settings → app_snapshot.netWorth; net_worth_snapshots' },
   'nw.liabilities':       { label: 'Total liabilities', means: 'your debts\' balances plus the mortgage, counted once', record: 'app_settings → app_snapshot.debtCards; net_worth_snapshots' },
@@ -27319,8 +27360,13 @@ const FIGS = {
   'dash.debt_free_date':  { label: 'Debt-free date', means: 'the month the last debt reaches zero on your current plan', record: 'app_settings → app_snapshot.debtCards; worked out, not stored' },
   'dash.interest_saved':  { label: 'Interest saved compared with minimums only', means: 'the interest your plan avoids compared with paying only the minimums', record: 'app_settings → app_snapshot (payoff data); worked out, not stored' },
 };
-function gwFig(key, html, of, cat) {
-  return `<span data-fig="${key}"${of ? ` data-fig-of="${esc(of)}"` : ''}${cat ? ` data-fig-cat="${esc(cat)}" data-fig-month="${esc(_budgetMonthKey)}" role="button" tabindex="0"` : ''}>${html}</span>`;
+function _figGridAttr(gr) {
+  if (!gr || !gr.cat) return '';
+  return ` data-fig-cat="${esc(gr.cat)}"` + (gr.from ? ` data-fig-from="${esc(gr.from)}" data-fig-to="${esc(gr.to || gr.from)}"` : ` data-fig-month="${esc(gr.month || _budgetMonthKey)}"`)
+    + (gr.merchant ? ` data-fig-merchant="${esc(gr.merchant)}"` : '') + ' role="button" tabindex="0"';
+}
+function gwFig(key, html, of, cat, grid) {
+  return `<span data-fig="${key}"${of ? ` data-fig-of="${esc(of)}"` : ''}${_figGridAttr(grid || (cat ? { cat } : null))}>${html}</span>`;
 }
 function _figSet(el, key, of) {
   if (!el) return;
@@ -27336,24 +27382,33 @@ function figWhere(el) {
 // The transactions behind a spent figure, as a grid (Rob 2026-10-20: "someone see Restaurants $500.00 they don't
 // think that is right it should show the transactions that is in the category ... in a grid like a spreadsheet").
 // '@Food' is a group header (the category and every subcategory, as its figure counts it); 'Groceries' a budget line.
-function figTxns(cat, month) {
+function figTxns(d) {
+  const cat = d && d.figCat;
   if (!cat) return [];
+  const byDate = rows => rows.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  if (d.figFrom) {                               // the category report: its range, and a merchant within it
+    const rows = _rcCatTxns(cat, _rcMonthRange(d.figFrom, d.figTo || d.figFrom));
+    return byDate(d.figMerchant ? rows.filter(t => (t.merchant || t.description || 'Unknown') === d.figMerchant) : rows);
+  }
   const prev = _budgetMonthKey;
   try {
-    _budgetMonthKey = month || prev;
-    return (cat.startsWith('@') ? _catTxnsInMonth(cat.slice(1), _budgetMonthKey) : _budgetTxnsForCat(cat)).slice()
-      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    _budgetMonthKey = d.figMonth || prev;
+    return byDate(cat.startsWith('@') ? _catTxnsInMonth(cat.slice(1), _budgetMonthKey) : _budgetTxnsForCat(cat));
   } finally { _budgetMonthKey = prev; }
+}
+function _figMonthName(m) {
+  try { return new Date(m + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); } catch (e) { return m; }
 }
 function showFigTxns(el) {
   if (!el || !el.dataset.figCat) return;
-  const cat = el.dataset.figCat, month = el.dataset.figMonth, name = cat.replace(/^@/, '');
-  const rows = figTxns(cat, month);
+  const d = el.dataset, cat = d.figCat, name = (d.figMerchant ? d.figMerchant + ' in ' : '') + cat.replace(/^@/, '');
+  const month = d.figFrom ? (d.figFrom === d.figTo ? d.figFrom : null) : d.figMonth;
+  const rows = figTxns(d);
   const total = rows.reduce((s, t) => s + t.amount, 0);
   const shown = (el.innerText || '').replace(/\s+/g, ' ').trim();
   const fig = _explainNums(shown)[0];
   const same = fig != null && _explainNums(fmt(total))[0] === fig;
-  const monthName = (() => { try { return new Date(month + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); } catch (e) { return month; } })();
+  const monthName = month ? _figMonthName(month) : `${_figMonthName(d.figFrom)} to ${_figMonthName(d.figTo)}`;
   window._figTxnRows = rows;
   let ov = g('figTxnsOverlay');
   if (!ov) {
@@ -27367,7 +27422,7 @@ function showFigTxns(el) {
   const td = 'padding:7px 10px;border-bottom:1px solid var(--steel);font-size:12px;vertical-align:top';
   ov.innerHTML = `<div style="background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-lg);box-shadow:0 8px 24px rgba(0,0,0,.18);width:min(820px,100%);padding:18px 20px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-      <div><div style="font-size:15px;font-weight:600;color:var(--ink)">${esc(name)}${cat.startsWith('@') ? ' and its subcategories' : ''} - ${esc(monthName)}</div>
+      <div><div style="font-size:15px;font-weight:600;color:var(--ink)">${esc(name)}${cat.startsWith('@') || (d.figFrom && !d.figMerchant && _catIsParent(cat)) ? ' and its subcategories' : ''} - ${esc(monthName)}</div>
         <div style="font-size:12px;color:var(--slate);margin-top:3px">${rows.length} transaction${rows.length === 1 ? '' : 's'} came through your accounts, adding up to <strong>${fmt(total)}</strong>.</div></div>
       <button class="btn btn-ghost btn-sm" onclick="g('figTxnsOverlay').remove()" aria-label="Close">✕</button></div>
     ${rows.length ? `<div style="overflow-x:auto;margin-top:12px"><table style="width:100%;border-collapse:collapse;min-width:560px">
@@ -27430,7 +27485,7 @@ function _explainFigures(view) {
   for (const el of view ? view.querySelectorAll('[data-fig]') : []) {
     const f = FIGS[el.dataset.fig];
     const value = (el.innerText || '').replace(/\s+/g, ' ').trim();
-    if (!f || !el.offsetParent || !/\d/.test(value) || value.length > 40) continue;
+    if (!f || !el.offsetParent || !/\d/.test(value) || value.length > 60) continue;
     const id = `${el.dataset.fig}|${el.dataset.figOf || ''}`;
     if (seen.has(id)) continue;
     seen.add(id);
@@ -27487,34 +27542,50 @@ async function explainPage() {
   const whatHTML = `<div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:10px">What this page works out</div>
     <div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:4px">${esc(what)}</div>`;
   const foot = note => `<div style="font-size:11px;color:var(--slate-2);margin-top:12px;line-height:1.6">${note}</div>`;
-  if (EXPLAIN_FIXED_ONLY[name] || !EXPLAIN_KINDS[name] || !aiEnabled()) {
-    p.innerHTML = head + whatHTML + foot(esc(EXPLAIN_FIXED_ONLY[name] || (aiEnabled() ? '' : 'With AI on, Groundwork also says what your figures mean.')) + ' Nothing here is saved.');
+  const sectionHead = t => `<div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">${t}</div>`;
+  // a report's summary line is named by the report itself ("Total spent"), not "Figure in this report"
+  const figName = (f, i) => `<a href="#" onclick="event.preventDefault();explainShowFig(${i})" style="font-size:12px;font-weight:600;color:var(--pine-text);text-decoration:none">${esc(f.key === 'report.line' ? f.of : (f.of ? f.of + ' - ' : '') + f.label)}: ${esc(f.value)}</a>`;
+  const txLink = i => (window._explainFigs[i] && window._explainFigs[i].el.dataset.figCat)
+    ? ` <a href="#" onclick="event.preventDefault();showFigTxns(window._explainFigs[${i}].el)" style="font-size:12px;color:var(--pine-text)">See the transactions</a>` : '';
+  // Each figure in Groundwork's own words, from its tag: what it is, and where it is kept - always right, AI or not
+  const ownWords = idx => idx.map(i => { const f = window._explainFigs[i]; return `<div style="margin-top:8px">${figName(f, i)}
+      <div style="font-size:13px;color:var(--ink);line-height:1.6">${esc(f.means.charAt(0).toUpperCase() + f.means.slice(1))}.${txLink(i)}</div>
+      <div style="font-size:11px;color:var(--slate-2)">Kept in: ${esc(f.record)}</div></div>`; }).join('');
+  if (EXPLAIN_FIXED_ONLY[name]) {
+    p.innerHTML = head + whatHTML + foot(esc(EXPLAIN_FIXED_ONLY[name]) + ' Nothing here is saved.');
     return;
   }
   const figs = _explainFigures(view);
   window._explainFigs = figs;
   if (!figs.length) {
-    p.innerHTML = head + whatHTML + foot("The figures on this page aren't labelled for explaining yet, so only Groundwork's own description is shown. Hover a labelled figure on another page to see where it comes from. Nothing here is saved.");
+    p.innerHTML = head + whatHTML + foot("There are no figures showing on this page right now. Nothing here is saved.");
+    return;
+  }
+  const all = figs.map((f, i) => i);
+  if (!EXPLAIN_KINDS[name] || !aiEnabled()) {
+    p.innerHTML = head + whatHTML + sectionHead('Your numbers, in Groundwork\'s words') + ownWords(all)
+      + foot((aiEnabled() ? '' : 'With AI on, the AI also says what they mean for you, in plain words. ') + 'Nothing here is saved.');
     return;
   }
   p.innerHTML = head + whatHTML + `<div id="explainNums" style="font-size:13px;color:var(--slate);margin-top:12px">Reading the figures on this page…</div>`;
-  const list = figs.map((f, i) => `[${i + 1}] ${f.of ? f.of + ' - ' : ''}${f.label}: ${f.value} (${f.means})`).join('\n');
+  const list = figs.map((f, i) => `[${i + 1}] ${f.key === 'report.line' ? f.of : (f.of ? f.of + ' - ' : '') + f.label}: ${f.value} (${f.means})`).join('\n');
   const r = await callAI({
     system: EXPLAIN_SYSTEM, surface: 'explain_page', findings_kinds: EXPLAIN_KINDS[name], max_sentences: 5, max_tokens: 320,
     messages: [{ role: 'user', content: `Page: ${title}${tabName ? ' - ' + tabName : ''}\nWhat the page works out: ${what}\nThe figures on their screen:\n${_asData(list)}` }],
   });
   if (!g('explainNums')) return;                 // closed while it was writing
   const kept = r && r.ok ? _explainLines(r.text, figs) : [];
-  const where = `<details style="margin-top:10px"><summary style="font-size:12px;color:var(--slate);cursor:pointer">Where these figures come from</summary>
-      ${figs.map((f, i) => `<div style="font-size:11px;color:var(--slate);line-height:1.55;margin-top:6px"><a href="#" onclick="event.preventDefault();explainShowFig(${i})" style="color:var(--pine-text)">[${i + 1}]</a>
-        <strong style="color:var(--ink)">${esc((f.of ? f.of + ' - ' : '') + f.label)}: ${esc(f.value)}</strong> - ${esc(f.means)}.<br><span style="color:var(--slate-2)">Kept in: ${esc(f.record)}</span>${f.el.dataset.figCat ? ` <a href="#" onclick="event.preventDefault();showFigTxns(window._explainFigs[${i}].el)" style="color:var(--pine-text)">See the transactions</a>` : ''}</div>`).join('')}</details>`;
+  const rest = all.filter(i => !kept.some(k => k.i === i));
   if (kept.length) {
-    g('explainNums').outerHTML = `<div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">Your numbers, in plain words</div>
-      ${kept.map(k => `<div style="margin-top:8px"><a href="#" onclick="event.preventDefault();explainShowFig(${k.i})" style="font-size:12px;font-weight:600;color:var(--pine-text);text-decoration:none">${esc((k.f.of ? k.f.of + ' - ' : '') + k.f.label)}: ${esc(k.f.value)}</a>
-        <div style="font-size:13px;color:var(--ink);line-height:1.65">${esc(k.body)}${k.f.el.dataset.figCat ? ` <a href="#" onclick="event.preventDefault();showFigTxns(window._explainFigs[${k.i}].el)" style="font-size:12px;color:var(--pine-text)">See the transactions</a>` : ''}</div></div>`).join('')}${where}
-      ${foot("Each figure's name and value are Groundwork's; the sentence under it is the AI's, written on this computer and checked against that figure only. Tap a figure to see it on the page. Nothing is saved and nothing is changed.")}`;
+    g('explainNums').outerHTML = sectionHead('Your numbers, in plain words')
+      + kept.map(k => `<div style="margin-top:8px">${figName(k.f, k.i)}
+        <div style="font-size:13px;color:var(--ink);line-height:1.65">${esc(k.body)}${txLink(k.i)}</div></div>`).join('')
+      + (rest.length ? `<details style="margin-top:10px"><summary style="font-size:12px;color:var(--slate);cursor:pointer">The other ${rest.length} figure${rest.length === 1 ? '' : 's'} on this page, in Groundwork's words</summary>${ownWords(rest)}</details>` : '')
+      + foot("Each figure's name and value are Groundwork's; the sentence under it is the AI's, written on this computer and checked against that figure only. Tap a figure to see it on the page. Nothing is saved and nothing is changed.");
   } else {
-    g('explainNums').outerHTML = foot("The AI couldn't explain these figures without a number that doesn't belong to the figure it named, so only Groundwork's own description is shown. Nothing here is saved.") + where;
+    g('explainNums').outerHTML = sectionHead('Your numbers, in Groundwork\'s words') + ownWords(all)
+      + foot((r && r.ok ? "The AI's wording didn't pass Groundwork's check this time" : "The AI on this computer didn't answer this time")
+        + ", so each figure is explained in Groundwork's own words. Nothing here is saved.");
   }
 }
 
@@ -28631,7 +28702,7 @@ function _rcRenderSummary(reportId, dataLines, target) {
   box.style.cssText = 'margin-top:24px;border:1px solid var(--steel-2);border-radius:var(--r-md);padding:12px 14px';
   box.innerHTML = `<div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Summary</div>
     ${rows.map(r => `<div style="display:flex;gap:10px;justify-content:space-between;font-size:12px;line-height:1.8;border-top:1px solid var(--mist)">
-      <span style="color:var(--slate)">${esc(r.label)}</span><span style="color:var(--ink);text-align:right">${esc(r.value)}</span></div>`).join('')}${slow}`;
+      <span style="color:var(--slate)">${esc(r.label)}</span><span style="color:var(--ink);text-align:right">${r.label && /\d/.test(r.value) ? gwFig('report.line', esc(r.value), r.label) : esc(r.value)}</span></div>`).join('')}${slow}`;
   target.appendChild(box);
 }
 
@@ -29400,6 +29471,27 @@ function _rcRenderCategoryDeepDive() {
   _rcUpdateCategoryDeepDive();
 }
 
+// Item 103 (Rob 2026-10-20): the category report's transactions - its figures and the grid behind them read this list
+function _rcMonthRange(from, to) {
+  const [fy, fm] = String(from).split('-').map(Number), [ty, tm] = String(to).split('-').map(Number);
+  const out = [];
+  let cy = fy, cm = fm;
+  while (cy < ty || (cy === ty && cm <= tm)) {
+    out.push(`${cy}-${String(cm).padStart(2,'0')}`);
+    cm++; if (cm > 12) { cm = 1; cy++; }
+  }
+  return out;
+}
+function _rcCatTxns(cat, moRange) {
+  const catRow   = _catByName(cat);
+  const childIds = catRow && _catIsParent(cat) ? _catChildIds(cat) : [];
+  const matchIds = catRow ? [catRow.id, ...childIds] : [];
+  return (S.transactions || []).filter(t =>
+    t.type === 'debit' &&
+    (matchIds.length ? matchIds.includes(t.category_id) : t.category === cat) &&
+    moRange.some(m => (t.date||'').startsWith(m))
+  );
+}
 function _rcUpdateCategoryDeepDive() {
   const cat  = g('rcCatSelect')?.value;
   const from = g('rcCatFrom')?.value;
@@ -29409,14 +29501,7 @@ function _rcUpdateCategoryDeepDive() {
 
   const [fy,fm] = from.split('-').map(Number);
   const [ty,tm] = to.split('-').map(Number);
-
-  // Build month range
-  const moRange = [];
-  let cy = fy, cm = fm;
-  while (cy < ty || (cy === ty && cm <= tm)) {
-    moRange.push(`${cy}-${String(cm).padStart(2,'0')}`);
-    cm++; if (cm > 12) { cm = 1; cy++; }
-  }
+  const moRange = _rcMonthRange(from, to);
 
   // Transactions in range for this category. The dropdown only lists
   // parent categories, but real transactions carry their CHILD category
@@ -29424,14 +29509,7 @@ function _rcUpdateCategoryDeepDive() {
   // _catSpentInMonth, or every parent with children would show "no
   // transactions" here. Falls back to a plain name match if categories
   // haven't loaded (defensive — S.categories should always be populated).
-  const catRow   = _catByName(cat);
-  const childIds = catRow && _catIsParent(cat) ? _catChildIds(cat) : [];
-  const matchIds = catRow ? [catRow.id, ...childIds] : [];
-  const txns = S.transactions.filter(t =>
-    t.type === 'debit' &&
-    (matchIds.length ? matchIds.includes(t.category_id) : t.category === cat) &&
-    moRange.some(m => (t.date||'').startsWith(m))
-  );
+  const txns = _rcCatTxns(cat, moRange);
 
   if (!txns.length) {
     res.innerHTML = `<div style="color:var(--slate);font-size:13px">No transactions in ${esc(cat)} for this range.</div>`;
@@ -29484,21 +29562,21 @@ function _rcUpdateCategoryDeepDive() {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px">
       <div class="card" style="padding:14px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Total</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ink)">${fmt(total)}</div>
+        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ink)">${gwFig('rc.cat_total', fmt(total), cat, null, { cat, from, to })}</div>
       </div>
       <div class="card" style="padding:14px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Monthly avg</div>
-        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ink)">${fmt(avg)}</div>
+        <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--ink)">${gwFig('rc.cat_avg', fmt(avg), cat)}</div>
       </div>
       <div class="card" style="padding:14px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Highest month</div>
-        <div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--ember-text)">${fmt(highest.amt)}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">${highLbl}</div>
+        <div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--ember-text)">${gwFig('rc.cat_high', fmt(highest.amt), cat, null, { cat, from: highest.mo, to: highest.mo })}</div>
+        <div style="font-size:11px;color:var(--slate);margin-top:2px">${gwFig('rc.cat_high_month', esc(highLbl), cat)}</div>
       </div>
       <div class="card" style="padding:14px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--slate-2);margin-bottom:4px">Lowest month</div>
-        <div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine-text)">${lowest ? fmt(lowest.amt) : '—'}</div>
-        <div style="font-size:11px;color:var(--slate);margin-top:2px">${lowLbl}</div>
+        <div style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine-text)">${lowest ? gwFig('rc.cat_low', fmt(lowest.amt), cat, null, { cat, from: lowest.mo, to: lowest.mo }) : '—'}</div>
+        <div style="font-size:11px;color:var(--slate);margin-top:2px">${lowest ? gwFig('rc.cat_low_month', esc(lowLbl), cat) : esc(lowLbl)}</div>
       </div>
     </div>
     ${priceCtxList.length ? `
@@ -29517,7 +29595,7 @@ function _rcUpdateCategoryDeepDive() {
       ${topMerchants.map(([name,amt]) => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--steel)">
           <span style="font-size:13px;color:var(--ink)">${esc(name)}</span>
-          <span style="font-family:var(--font-mono);font-size:13px;color:var(--slate)">${fmt(amt)}</span>
+          <span style="font-family:var(--font-mono);font-size:13px;color:var(--slate)"${_figGridAttr({ cat, from, to, merchant: name })}>${fmt(amt)}</span>
         </div>`).join('')}
     </div>
   `;

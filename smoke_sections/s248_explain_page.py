@@ -28,6 +28,7 @@ def run(ctx):
     intent = intent[:intent.index('if (askFetch(n)) return true;')]
     check('s248 E1 the Ask box: "explain this page", "what am I looking at", "explain my budget" (the page, then explained)',
           'explainPage(); return true;' in intent and 'what am i looking at' in intent
+          and '^(?:explain|describe|break down)(?: this| the| these| my| all)? (?:page|screen|numbers|figures|totals)' in intent   # "explain these numbers to me" (Rob 2026-10-20)
           and 'askGo(expPlace); setTimeout(explainPage, 450)' in intent)
 
     views = set(re.findall(r'id="view-([a-z]+)"', html))
@@ -56,9 +57,13 @@ def run(ctx):
           len(rows) == len(keys) >= 30 and all(r for _, r in rows))
     pages = {'budget': ['wl-left', 'wl-income', 'bhs-out', 'budget.line_spent', 'budget.group_spent'],
              'debt': ['debt.free_date', 'debt.total_owed', 'debt.card_balance', 'debt.card_min'],
-             'networth': ['nw.total', 'nw.assets', 'nw.liabilities'], 'dashboard': ['dash.debt_free_date', 'dash.interest_saved']}
+             'networth': ['nw.total', 'nw.assets', 'nw.liabilities'], 'dashboard': ['dash.debt_free_date', 'dash.interest_saved'],
+             # Rob 2026-10-20: "Tag the figures on the remaining pages ... with transaction grids where a figure is spending"
+             'investments': ['inv.value', 'inv.gain', 'inv.pos_value', 'inv.pos_gain'], 'trophy': ['trophy.earned', 'trophy.progress'],
+             'byb': ['byb.left_after', 'byb.dti_with', 'byb.free_with'], 'trip': ['trip.total', 'trip.lodging', 'trip.surplus'],
+             'reports': ['report.line', 'rc.cat_total', 'rc.cat_high']}
     absent = [k for ks in pages.values() for k in ks if k not in whole]
-    check(f's248 E3 Budget, Debt Payoff, Net Worth and the Dashboard tag their figures ({absent})', not absent)
+    check(f's248 E3 every page with figures tags them - Budget, Debt Payoff, Net Worth, the Dashboard, Investments, the Trophy Room, Before You Buy, the Trip Planner, Reports ({absent})', not absent)
     check('s248 E3 hovering a figure shows what it is and where it is kept',
           "document.addEventListener('mouseover'" in ex and 'el.title = figWhere(el)' in ex and 'Kept in: ${f.record}' in ex)
     reader = ex[ex.index('function _explainFigures(view) {'):ex.index('const _explainNums')]
@@ -97,8 +102,14 @@ def run(ctx):
     check(f's248 E4 a line is kept only with its own figure\'s numbers: a wrong pairing, a garbled value, a missing figure '
           f'and a summary are dropped ({got})', got == ['Income this month'])
     check('s248 E4 the shown name and value are Groundwork\'s; the AI\'s sentence sits under them',
-          'kept.push({ f, i: figs.indexOf(f), body:' in ex and '${esc((k.f.of ? k.f.of + \' - \' : \'\') + k.f.label)}: ${esc(k.f.value)}' in fn
-          and "the sentence under it is the AI's" in fn and "only Groundwork's own description is shown" in fn)
+          'kept.push({ f, i: figs.indexOf(f), body:' in ex and '${esc(f.key === \'report.line\' ? f.of : (f.of ? f.of + \' - \' : \'\') + f.label)}: ${esc(f.value)}' in fn
+          and '${figName(k.f, k.i)}' in fn
+          and "the sentence under it is the AI's" in fn)
+    check('s248 E4 when the AI doesn\'t answer, or its wording fails the check, every figure is still explained - in '
+          'Groundwork\'s own words from its tag (what it is, where it is kept) - and the note says which happened',
+          "sectionHead('Your numbers, in Groundwork\\'s words') + ownWords(all)" in fn
+          and "The AI on this computer didn't answer this time" in fn and "The AI's wording didn't pass Groundwork's check this time" in fn
+          and 'in Groundwork\'s words</summary>${ownWords(rest)}' in fn and "doesn't belong to the figure it named" not in fn)
 
     # E5 - the transactions behind a spent figure
     check('s248 E5 the spent figure and its grid read one list: the figure is that list\'s sum',
@@ -110,6 +121,12 @@ def run(ctx):
           "gwFig('budget.line_spent', `${fmt(spent)} spent`, exp.name || catName, catName)" in app
           and "'@' + parentName)" in app and "ev.target.closest('[data-fig-cat]')" in ex
           and 'See the transactions' in fn and 'showFigTxns(el)' in intent and 'function _askBudgetCat(' in app)
+    check('s248 E5 the category report\'s total, highest and lowest months and each merchant open their grid, from the '
+          'list the report adds up; a merchant\'s name (the bank\'s words) opens a grid but never reaches the AI',
+          'const txns = _rcCatTxns(cat, moRange);' in app and "gwFig('rc.cat_total', fmt(total), cat, null, { cat, from, to })" in app
+          and "_figGridAttr({ cat, from, to, merchant: name })" in app and 'data-fig="${key}"' in ex
+          and "gwFig('rc.cat_total'" in app and 'merchant: name' in app
+          and not re.search(r"gwFig\([^)]*merchant", app))
     grid = ex[ex.index('function showFigTxns(el) {'):ex.index("document.addEventListener('click'")]
     check('s248 E5 the grid lists each transaction - date, where, account, category, amount - with the count and total, '
           'and says whether that total is the page\'s figure',
@@ -120,6 +137,6 @@ def run(ctx):
     fixed = ex[ex.index('const EXPLAIN_FIXED_ONLY = {'):ex.index('const EXPLAIN_KINDS = {')]
     check('s248 E6 Health and the Ledger get the fixed words only (health stays out of the AI; the Ledger is bank wording)',
           'health:' in fixed and 'ledger:' in fixed and 'health:' not in ex[ex.index('const EXPLAIN_KINDS = {'):ex.index('const EXPLAIN_SYSTEM')]
-          and 'if (EXPLAIN_FIXED_ONLY[name] || !EXPLAIN_KINDS[name] || !aiEnabled()) {' in fn)
+          and 'if (EXPLAIN_FIXED_ONLY[name]) {' in fn and 'if (!EXPLAIN_KINDS[name] || !aiEnabled()) {' in fn)
     check('s248 E6 nothing is saved or changed: no write, no storage',
           not re.search(r'API\.(post|put|patch|delete)\(', ex) and 'localStorage' not in ex)

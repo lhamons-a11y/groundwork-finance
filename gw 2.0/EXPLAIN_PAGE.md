@@ -72,6 +72,35 @@ line shown had the right figure. The model's habit of garbling some values ("Jan
 that one line. Budget, three runs: "Left to save or spend (planned): $2,279.41 - the amount left for saving or additional
 spending after accounting for your planned expenses, debt payments, and savings contributions."
 
+## Stage two, 2026-10-20: the remaining pages
+
+**RULED by Rob:** *"Tag the figures on the remaining pages (Reports, Investments, Trip Planner, Before You Buy, Trophy
+Room) the same way, with transaction grids where a figure is spending."*
+
+- **Investments:** portfolio value, amount invested, unrealized gain and its share, today's change and its share, the
+  number of holdings; each holding's value, share of the portfolio, latest price, gain and gain share (`investment_lots`,
+  `price_cache`, `investment_transactions`).
+- **Trophy Room:** achievements earned, the share earned, the last date, each section's count, each achievement's
+  earned date and progress (`achievements`; progress worked out from the records, nothing stored until earned).
+- **Before You Buy:** what is left with it, the debt-to-income ratio before and with it, how the debt-free date moves -
+  in the first answer, the make-room scoreboard and the full picture (nothing saved until you decide).
+- **Trip Planner:** trip length, the estimated total, the monthly surplus, and each cost line - getting there, lodging,
+  meals, activities, other, the cushion - each beside the source the page already names.
+- **Reports:** every figure line in a report's Summary (the same figures its written part is given), and the category
+  report's total, monthly average, highest and lowest months. **Grids:** the category report's total opens every
+  transaction in the range, the highest and lowest months open that month's, and each Top merchants row opens that
+  merchant's charges - from the same list the report adds up (`_rcCatTxns`). A merchant's name is the bank's wording,
+  so its row opens a grid but is never given to the AI.
+
+Explain reads a figure's value up to 60 characters (a report's lines are longer than a page's).
+
+**Every figure is explained, AI or not** (Rob 2026-10-20: *"The tags should help the ai tell the user what these
+numbers are and assist the user."*). When the AI doesn't answer - not running, or off - or its wording fails the check,
+"Your numbers, in Groundwork's words" shows every figure on the page with what its tag says it is, where it is kept, and
+"See the transactions" for a spending figure; the note says which happened. When the AI does answer, its checked lines
+come first and the other figures follow in Groundwork's words. A report's summary line is named by the report's own
+label ("Total spent"), not "Figure in this report".
+
 ## Status
 
 Ruled and built 2026-10-19; amended and built 2026-10-20 (s248; s240 registers the model surface, s25 reads its per-page declarations).

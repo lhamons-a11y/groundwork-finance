@@ -1966,15 +1966,15 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div id="bybStep1Preview" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:10px 14px;margin-bottom:16px;font-size:12px">
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">
             <span style="color:var(--slate)">What's Left change</span>
-            <span id="bybPrevWL" style="font-family:var(--font-mono);color:var(--ember-text)"></span>
+            <span id="bybPrevWL" data-fig="byb.left_after" style="font-family:var(--font-mono);color:var(--ember-text)"></span>
           </div>
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">
             <span style="color:var(--slate)">DTI</span>
-            <span id="bybPrevDTI" style="font-family:var(--font-mono)"></span>
+            <span id="bybPrevDTI" data-fig="byb.dti_change" style="font-family:var(--font-mono)"></span>
           </div>
           <div style="display:flex;justify-content:space-between">
             <span style="color:var(--slate)">Debt-free date</span>
-            <span id="bybPrevPayoff" style="font-family:var(--font-mono)"></span>
+            <span id="bybPrevPayoff" data-fig="byb.payoff_change" style="font-family:var(--font-mono)"></span>
           </div>
         </div>
         <!-- Item 99 L2/L3: help with the figure itself, folded into the question -->
@@ -2004,15 +2004,15 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
             <div>
               <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">What's Left</div>
-              <div id="bybScoreWL" style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine-text)">—</div>
+              <div id="bybScoreWL" data-fig="byb.left_with" style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine-text)">—</div>
             </div>
             <div>
               <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">DTI</div>
-              <div id="bybScoreDTI" style="font-family:var(--font-mono);font-size:16px;font-weight:600">—</div>
+              <div id="bybScoreDTI" data-fig="byb.dti_with" style="font-family:var(--font-mono);font-size:16px;font-weight:600">—</div>
             </div>
             <div>
               <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">Debt-free</div>
-              <div id="bybScorePayoff" style="font-family:var(--font-mono);font-size:13px;font-weight:600">—</div>
+              <div id="bybScorePayoff" data-fig="byb.free_with" style="font-family:var(--font-mono);font-size:13px;font-weight:600">—</div>
             </div>
           </div>
           <button id="bybMakeItWorkBtn" onclick="_bybMakeItWork()" style="width:100%;margin-top:10px;background:var(--ink);color:var(--paper);border:none;border-radius:var(--r-md);padding:11px;font-size:13px;font-weight:600;cursor:pointer">✦ Make It Work</button>
@@ -2079,22 +2079,22 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="grid-4 mb-5">
           <div class="stat-card accent">
             <div class="stat-label">Portfolio value</div>
-            <div class="stat-value text-mono" id="invTotalValue" style="font-size:22px">$0</div>
-            <div class="stat-delta" id="invTotalCost">$0 invested</div>
+            <div class="stat-value text-mono" id="invTotalValue" data-fig="inv.value" style="font-size:22px">$0</div>
+            <div class="stat-delta" id="invTotalCost" data-fig="inv.cost">$0 invested</div>
           </div>
           <div class="stat-card" id="invGainCard">
             <div class="stat-label">Unrealized gain</div>
-            <div class="stat-value" id="invTotalGain">$0</div>
-            <div class="stat-delta" id="invTotalGainPct">0.0%</div>
+            <div class="stat-value" id="invTotalGain" data-fig="inv.gain">$0</div>
+            <div class="stat-delta" id="invTotalGainPct" data-fig="inv.gain_pct">0.0%</div>
           </div>
           <div class="stat-card" id="invDayCard">
             <div class="stat-label">Today's change</div>
-            <div class="stat-value" id="invDayChange">$0</div>
-            <div class="stat-delta" id="invDayChangePct">0.0%</div>
+            <div class="stat-value" id="invDayChange" data-fig="inv.day">$0</div>
+            <div class="stat-delta" id="invDayChangePct" data-fig="inv.day_pct">0.0%</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">Positions</div>
-            <div class="stat-value" id="invPositionCount">0</div>
+            <div class="stat-value" id="invPositionCount" data-fig="inv.positions">0</div>
             <div class="stat-delta">across all accounts</div>
           </div>
         </div>
@@ -2568,7 +2568,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
       <!-- TROPHY ROOM -->
       <div id="view-trophy" class="view">
-        <div class="section-header"><div class="section-title">Trophy Room</div><div class="section-sub" id="trophyProgress">Your financial achievements.</div></div>
+        <div class="section-header"><div class="section-title">Trophy Room</div><div class="section-sub" id="trophyProgress" data-fig="trophy.earned">Your financial achievements.</div></div>
         <div id="trophyContent"></div>
         <div id="trophyAdvisorCard" class="card mt-5" style="display:none"></div>
       </div>
