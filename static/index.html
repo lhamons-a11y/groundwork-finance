@@ -1227,6 +1227,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <input id="gwAskBox" class="ai-feature" type="search" placeholder="Ask how to…" aria-label="Ask Groundwork how to do something"
           onkeydown="if (event.key === 'Enter') { askGroundwork(this.value); }"
           style="font-size:12px;padding:5px 10px;border:1px solid var(--steel);border-radius:var(--r-sm);width:170px;background:var(--paper);color:var(--ink)">
+        <!-- Item 103 (Rob 2026-10-19): what this page works out, and with AI on what its figures mean -->
+        <button class="btn btn-sm btn-secondary ai-feature" onclick="explainPage()" title="Explain this page: what it works out, and what your figures on it mean" aria-label="Explain this page">Explain</button>
         <button class="btn btn-sm btn-secondary" onclick="showHelpOverlay()" title="Help">?</button>
       </div>
     </div>

@@ -27158,6 +27158,13 @@ function askIntent(q, p, head) {
       <button class="btn btn-secondary btn-sm" onclick="closeAsk(); showView('settings'); setTimeout(() => _settingsShowTab('data'), 60)">Lines kept safe</button></div>`);
     return true;
   }
+  // Item 103: "explain this page", "what am I looking at", "explain my budget" - the page, then what it works out
+  if (/^(?:explain|describe)(?: this| the)? (?:page|screen)(?: to me)?$|^what (?:does|is) this (?:page|screen)(?: mean| show| for| about)?$|^what am i looking at$|^what do (?:these|the|my) (?:numbers|figures) mean$/.test(n)) {
+    explainPage(); return true;
+  }
+  const exp = n.match(/^explain (?:the |my |this )?(.+?)(?: page| tab)?(?: to me)?$/);
+  const expPlace = exp && ASK_PLACES.find(pl => pl.names.includes(exp[1]));
+  if (expPlace) { askGo(expPlace); setTimeout(explainPage, 450); return true; }
   if (askFetch(n)) return true;
   for (const d of ASK_DO) if (d.re.test(n)) { _askDone(d.said); d.run(); return true; }
   for (const r of ASK_RECORD) if (r.re.test(n)) {
@@ -27184,6 +27191,177 @@ function askIntent(q, p, head) {
   const named = ASK_PLACES.find(pl => pl.names.includes(bare));
   if (named) { askGo(named); return true; }
   return false;
+}
+
+// ─── Item 103: Explain this page (gw 2.0/EXPLAIN_PAGE.md; Rob 2026-10-19) ──────────────────────────────────────────
+// "the search feature reads the page and explains what the page is calculating in simple words and what the numbers
+// mean." Two parts: what the page works out - Groundwork's own fixed words for each page and tab - and, with AI on,
+// what the figures on screen mean, in plain words, from those figures only. Only Groundwork's own labels and the
+// figures cross to the model (a line in anyone else's words - a bank's description - is left out, item 8 / H5); every
+// number in the answer must be on the page; Health and the Ledger get the fixed words only; nothing is saved.
+const PAGE_EXPLAIN = {
+  dashboard: { what: 'A summary of this month from your own records: what needs your attention, what you have spent so far against your budget, and your spending by category. Each figure says where it comes from.' },
+  ledger: { what: 'Every transaction you have imported or added, as your bank and you recorded it. Totals here count every line that is not set aside, and the filters change only what is shown, never your records.' },
+  budget: { what: 'Your monthly plan: income, then what goes out (expenses, debt payments and saving), and what is left when the plan is followed.',
+    tabs: {
+      plan: 'Income is what you set or what your paychecks show. Expenses, debt payments and saving are your budget lines. "What\'s left" is income less all of them - the room in the plan, not money in an account.',
+      futures: 'Your next 12 months worked out from your record, side by side: as things are, and other futures such as your costliest months coming again or a month without income. Each says what it assumes. Nothing here changes your budget unless you tap to set it.',
+      bills: 'Your recurring bills and when each is due, from what you set up and what your imports show repeating.',
+      calendar: 'What is coming from your own record - due days, recurring bills, gift occasions, trips and fund dates - by week, then folded by month.',
+      gifts: 'The people you give gifts to and their occasions. "The year\'s gifts" adds up the next 12 months and shows what that takes a month.',
+    } },
+  byb: { what: 'Checks a purchase against your own plan before you buy it.',
+    tabs: {
+      before: 'Enter what it costs a month and the answer shows what would be left each month, your debt-to-income ratio, and how your debt-free date would move.',
+      after: 'What you bought or decided: return windows, free trials and the offers you are watching.',
+    } },
+  debt: { what: 'Your cards and loans, and when the last one reaches zero.',
+    tabs: {
+      setup: 'Each debt\'s balance, interest rate and minimum payment. Your monthly payment budget goes to every minimum first; the rest goes to one debt at a time by the strategy you pick (avalanche: highest rate first; snowball: smallest balance first). The debt-free date is when the last balance reaches zero at that pace, with interest added each month.',
+      tracker: 'This month\'s payments against the plan, debt by debt, from what you recorded.',
+      advisor: 'A written look at your payoff plan, from the same figures as the Setup tab.',
+    } },
+  networth: { what: 'Net worth is everything you own (assets) less everything you owe (liabilities), from the balances you record. Each month you record makes a point on the trend; milestones mark the levels you have passed.' },
+  investments: { what: 'Your holdings: portfolio value is each position\'s shares times its latest price; unrealized gain is that value less what you paid; realized gains come from the sales you recorded.' },
+  trip: { what: 'A trip\'s cost, line by line: getting there, lodging, meals and activities. Each line says where its figure came from - your quote, your past trips, or a published average - and the total is their sum.' },
+  trophy: { what: 'The milestones you have reached, from your own records - each one a fact about what you did, never a score.' },
+  reports: { what: 'Reports work out figures from your records for a period - income, spending by category, debt progress, net worth. Every figure is shown as a plain line first; with AI on, a written part explains them.' },
+  health: { what: 'Your medical bills, collections, health plan and reserve. It records and never judges: nothing here suggests spending less on care.',
+    tabs: {
+      bills: 'What you owe on each medical bill: the provider\'s statement, less the payments you linked. Collections keep their own running balance - each collector statement sets it, each payment you link lowers it - and are never in Debt Payoff.',
+      plan: 'Your plan year, the health reserve you set aside, and your HSA and FSA balances as you recorded them.',
+      spending: 'Health spending by month and by person, from the transactions in your health categories.',
+      people: 'Whom each bill and visit was for.',
+    } },
+  automation: { what: 'Where Groundwork is set up to fetch statements and read bills from your bank\'s and billers\' own websites, only when you ask, and where "Check my records" looks for things that look off.' },
+  settings: { what: 'Your choices for how Groundwork works: household, AI, categories, accounts and your data. Nothing here is a figure about your money.' },
+};
+const EXPLAIN_FIXED_ONLY = {
+  health: 'Health figures stay out of the AI, so this page gets Groundwork\'s own description only.',
+  ledger: 'The Ledger\'s lines are in your bank\'s own words, which never go to the AI, so this page gets Groundwork\'s own description only.',
+  automation: 'This page has no figures about your money to explain.',
+  settings: 'This page has no figures about your money to explain.',
+};
+const EXPLAIN_KINDS = {
+  dashboard: ['total', 'category', 'budget', 'date', 'achievement'], budget: ['income', 'total', 'category', 'budget', 'date', 'person', 'goal', 'achievement'],
+  byb: ['total', 'budget', 'debt', 'date', 'income', 'achievement'], debt: ['debt', 'total', 'date', 'achievement'], networth: ['net_worth', 'total', 'date', 'achievement'],
+  investments: ['investment', 'total', 'date', 'achievement'], trip: ['trip', 'total', 'date', 'achievement'], trophy: ['achievement', 'total', 'date'],
+  reports: ['income', 'total', 'category', 'budget', 'debt', 'net_worth', 'date', 'achievement'],
+};
+const EXPLAIN_SYSTEM = 'You explain a page of a personal finance app to the person looking at it, in plain everyday words. '
+  + 'You are given what the page works out and the lines on their screen; each line is a label and its figures, separated by dots. '
+  + 'Write one short paragraph of 3 sentences, with no numbering or list. Each sentence takes one line from the screen and says what its figure means, using the label '
+  + 'written in that same line and what the page works out. Copy each figure exactly as written. Never connect, compare, '
+  + 'add or subtract figures from different lines, and never work out a new number. Never say what they should, could or '
+  + 'might do, and do not judge.';
+
+function _explainWhere() {
+  const view = document.querySelector('.view.active');
+  const name = view ? view.id.replace(/^view-/, '') : '';
+  let tab = '', tabName = '';
+  if (view) for (const p of view.querySelectorAll('[id*="Panel-"]')) {
+    if (p.offsetParent && /^(?:bud|debt|hl|settings|byb)Panel-/.test(p.id)) {
+      const [pre, id] = p.id.split('Panel-');
+      tab = id; tabName = (g(`${pre}Tab-${id}`)?.innerText || '').replace(/\s+/g, ' ').trim();
+      break;
+    }
+  }
+  return { view, name, tab, tabName };
+}
+
+let _explainWords = null;                       // Groundwork's own words: its page and its code
+async function _explainVocab() {
+  if (_explainWords) return _explainWords;
+  const words = new Set();
+  for (const url of ['/js/app.js', location.pathname || '/']) {
+    try { (await (await fetch(url)).text()).toLowerCase().split(/[^a-z']+/).forEach(w => w && words.add(w.replace(/^'+|'+$/g, ''))); }
+    catch (e) { _gwErr('explainPage vocab')(e); }
+  }
+  (_categoriesCache || []).forEach(c => String(c.name || c || '').toLowerCase().split(/[^a-z']+/).forEach(w => w && words.add(w)));
+  return (_explainWords = words);
+}
+const _EXPLAIN_FIG = /^(?:\(?[-−+]?\$?\d[\d,]*(?:\.\d+)?[%kKmM]?\)?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{4}-\d{2}(?:-\d{2})?)$/;
+// A line crosses only when it carries a figure and every other word in it is Groundwork's own (a label, a category)
+function _explainLine(text, vocab) {
+  const t = text.replace(/\s+/g, ' ').trim();
+  if (!t || t.length > 120 || !/\d/.test(t)) return null;
+  if (!/^[^\d$−+-]*[a-z]/i.test(t.split(' · ')[0])) return null;   // a figure is read only with its label in front of it
+  for (const tok of t.split(' ')) {
+    const bare = tok.replace(/^[("'“‘·•→←↑↓–—-]+|[)"'”’.,:;!?·→]+$/g, '');
+    if (!bare || /^[-–—·•|/&+=×]+$/.test(bare)) continue;
+    if (/\d/.test(bare)) { if (!_EXPLAIN_FIG.test(bare)) return null; continue; }
+    for (const w of bare.toLowerCase().split(/[^a-z']+/)) if (w && !vocab.has(w.replace(/^'+|'+$/g, ''))) return null;
+  }
+  return t;
+}
+// Groundwork's own short labels, said in full for the model (a "min" was read as interest)
+const EXPLAIN_SAY = [[/(\$[\d,.]+) min\b/g, 'minimum payment $1'], [/(\$[\d,.]+) proj\./g, 'projected $1'],
+  [/\bDTI ([\d.]+%)/g, 'debt-to-income ratio $1'], [/(\$[\d,.]+) remaining\b/g, 'total still owed $1'],
+  [/(\$[\d,.]+) interest\b/g, 'total interest to pay $1'], [/ · ▾ Show| · ×| · Use this| · Save snapshot now/g, ''], [/^~|· ~/g, '· about ']];
+function _explainSay(line) { return EXPLAIN_SAY.reduce((t, [re, w]) => t.replace(re, w), line); }
+function _explainFigures(view, vocab) {
+  // A figure is read with its label: from each figure on screen, the widest box around it that is still one short line
+  // of the page (a card's row, a stat with its caption)
+  const rows = [], seen = new Set();
+  const leaf = el => el.offsetParent && !el.closest('#askPanel') && ![...el.children].some(c => c.offsetParent && (c.innerText || '').trim());
+  for (const el of view ? view.querySelectorAll('*') : []) {
+    if (!leaf(el) || !/\d/.test(el.innerText || '')) continue;
+    let box = el;
+    while (box.parentElement && box.parentElement !== view && (box.parentElement.innerText || '').replace(/\s+/g, ' ').trim().length <= 90) box = box.parentElement;
+    if (seen.has(box)) continue;
+    seen.add(box);
+    const line = _explainLine((box.innerText || '').split(/\n+/).map(x => x.trim()).filter(Boolean).join(' · '), vocab);
+    const said = line && _explainSay(line);
+    if (said && !rows.includes(said)) rows.push(said);
+  }
+  return rows.slice(0, 40);
+}
+function _explainNumbersOk(text, lines) {
+  // every number in the answer is a whole figure on the page ("2" in "2026" is not "2"); "$4,200" is "$4,200.00"
+  const fig = n => n.replace(/[.,]+$/, '').replace(/\.00$/, '');
+  const page = new Set((lines.join(' ').match(/\d[\d,.]*/g) || []).map(fig));
+  return (String(text).match(/\d[\d,.]*/g) || []).every(n => page.has(fig(n)));
+}
+
+async function explainPage() {
+  closeAsk();
+  const box = g('gwAskBox');
+  if (box) box.value = '';
+  const { view, name, tab, tabName } = _explainWhere();
+  const page = PAGE_EXPLAIN[name];
+  const p = _askPanel();
+  const title = (VIEW_LABELS[name] || (view && view.querySelector('h1,h2')?.innerText) || 'This page');
+  const what = page ? [page.what, page.tabs && page.tabs[tab]].filter(Boolean).join(' ') : 'Groundwork has no description of this page yet.';
+  const head = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div style="font-size:11px;color:var(--slate-2)">Explain this page: ${esc(title)}${tabName ? ' - ' + esc(tabName) : ''}</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAsk()" aria-label="Close">✕</button></div>`;
+  const whatHTML = `<div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:10px">What this page works out</div>
+    <div style="font-size:13px;color:var(--ink);line-height:1.65;margin-top:4px">${esc(what)}</div>`;
+  const foot = note => `<div style="font-size:11px;color:var(--slate-2);margin-top:12px;line-height:1.6">${note}</div>`;
+  if (EXPLAIN_FIXED_ONLY[name] || !EXPLAIN_KINDS[name] || !aiEnabled()) {
+    p.innerHTML = head + whatHTML + foot(esc(EXPLAIN_FIXED_ONLY[name] || (aiEnabled() ? '' : 'With AI on, Groundwork also says what your figures mean.')) + ' Nothing here is saved.');
+    return;
+  }
+  p.innerHTML = head + whatHTML + `<div id="explainNums" style="font-size:13px;color:var(--slate);margin-top:12px">Reading the figures on this page…</div>`;
+  const lines = _explainFigures(view, await _explainVocab());
+  const host = () => g('explainNums');
+  if (!lines.length) {
+    if (host()) host().outerHTML = foot('There are no figures on this page to explain yet. Nothing here is saved.');
+    return;
+  }
+  const r = await callAI({
+    system: EXPLAIN_SYSTEM, surface: 'explain_page', findings_kinds: EXPLAIN_KINDS[name], max_sentences: 5, max_tokens: 320,
+    messages: [{ role: 'user', content: `Page: ${title}${tabName ? ' - ' + tabName : ''}\nWhat the page works out: ${what}\nThe figures on their screen:\n${_asData(lines.join('\n'))}` }],
+  });
+  if (!host()) return;                          // closed while it was writing
+  const text = r && r.ok ? String(r.text || '').replace(/^\s*(?:\d+[.)]|[-*•])\s+/gm, '').replace(/\s*\n\s*/g, ' ').trim() : '';
+  if (text && _explainNumbersOk(text, lines)) {
+    host().outerHTML = `<div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">Your numbers, in plain words</div>
+      <div style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:4px">${esc(text)}</div>
+      ${foot("Figures as shown on this page. Written by the AI on this computer from what's on screen - it can mix up which figure is which, and the page itself is always right. Nothing is saved and nothing is changed.")}`;
+  } else {
+    host().outerHTML = foot('The AI couldn\'t explain these figures without adding something that isn\'t on the page, so only Groundwork\'s own description is shown. Nothing here is saved.');
+  }
 }
 
 // ─── Item 104: when money feels like too much (gw 2.0/CARE.md; Rob 2026-10-19) ───────────────────────────────────

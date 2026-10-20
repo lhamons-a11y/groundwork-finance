@@ -112,7 +112,8 @@ def run(ctx):
     CHECKS_ONLY = {'_readTripItineraryWithModel': "/api/trip/itinerary/check",   # validated, then held for a yes
                    'askGroundwork': "/api/help/unanswered"}                      # item 102: the person's own question, never the AI's words
     KNOWN = set(TEXT_SAVES) | set(CHECKS_ONLY) | {'_learnFromPastTrip', '_readTripQuote', '_renderProjectionAI',
-                                                  '_rcFollowUp', 'askGroundwork'}       # item 102: shows, saves nothing
+                                                  '_rcFollowUp', 'askGroundwork',      # item 102: shows, saves nothing
+                                                  'explainPage'}                     # item 103: shows, saves nothing
     check(f's240 P3 every surface that calls the model is registered here, so a new one is reviewed (new: {sorted(callers - KNOWN)})',
           callers == KNOWN)
     silent = [n for n in callers if writes.search(fns[n]) and n not in TEXT_SAVES and n not in CHECKS_ONLY]
