@@ -325,29 +325,29 @@ function _catTree(type = 'expense') {
 // If the category is a PARENT, sums all its children.
 // If it's a CHILD, sums only that child's transactions.
 // This is the core budget spent-so-far function.
-function _catSpentInMonth(catName, monthKey) {
-  if (!catName || !monthKey) return 0;
-  if (!S.transactions || !S.transactions.length) return 0;
+// Item 103 (Rob 2026-10-20): the transactions behind a category's month - the spent figure is their sum, and the
+// grid that shows them reads this same list, so the two can never disagree
+function _catTxnsInMonth(catName, monthKey) {
+  if (!catName || !monthKey) return [];
+  if (!S.transactions || !S.transactions.length) return [];
   const txns = S.transactions.filter(t =>
     t.type === 'debit' && (t.date || '').startsWith(monthKey)
   );
 
   const cat = _catByName(catName);
-  if (!cat) return 0;
+  if (!cat) return [];
 
   if (_catIsParent(catName)) {
     // Roll up all children
     const childIds = _catChildIds(catName);
     // Also include transactions directly on the parent (legacy)
-    return txns
-      .filter(t => t.category_id === cat.id || childIds.includes(t.category_id))
-      .reduce((s, t) => s + t.amount, 0);
-  } else {
-    // Child category — exact match
-    return txns
-      .filter(t => t.category_id === cat.id)
-      .reduce((s, t) => s + t.amount, 0);
+    return txns.filter(t => t.category_id === cat.id || childIds.includes(t.category_id));
   }
+  // Child category — exact match
+  return txns.filter(t => t.category_id === cat.id);
+}
+function _catSpentInMonth(catName, monthKey) {
+  return _catTxnsInMonth(catName, monthKey).reduce((s, t) => s + t.amount, 0);
 }
 
 // 6-month average for a category (parent or child)
@@ -2606,13 +2606,13 @@ function _renderDashHeroCard(totalDebt) {
       const freeDate = payoffResult?.freeDate || '';
 
       html = `
-      <div style="font-family:var(--font-mono);font-size:32px;font-weight:600;color:var(--pine-text);line-height:1">${months} months</div>
+      <div style="font-family:var(--font-mono);font-size:32px;font-weight:600;color:var(--pine-text);line-height:1">${gwFig('dash.debt_months', `${months} months`)}</div>
       <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:14px;color:var(--slate);margin:4px 0 12px">
-        ${freeDate ? `Debt-free by ${freeDate}` : 'to debt-free'}
+        ${freeDate ? `Debt-free by ${gwFig('dash.debt_free_date', freeDate)}` : 'to debt-free'}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--slate)">
         ${nwDeltaHTML}
-        ${interestSaved >= 50 ? `<span style="color:var(--pine-text)">✓ ${fmt(interestSaved)} saved vs minimums</span>` : ''}
+        ${interestSaved >= 50 ? `<span style="color:var(--pine-text)">✓ ${gwFig('dash.interest_saved', fmt(interestSaved))} saved vs minimums</span>` : ''}
       </div>`;
     }
 
@@ -7593,8 +7593,8 @@ function _budgetRenderGroupedExpenses() {
           <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px">
             <span style="font-size:13px;font-weight:600;color:var(--ink)">${esc(parentName)}</span>
             <div style="display:flex;gap:10px;align-items:baseline;flex-shrink:0">
-              ${totalSpent > 0 ? `<span style="font-family:var(--font-mono);font-size:11px;color:var(--slate)">${fmt(totalSpent)} spent</span>` : ''}
-              <span style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(totalBudget)}</span>
+              ${totalSpent > 0 ? `<span style="font-family:var(--font-mono);font-size:11px;color:var(--slate)">${gwFig('budget.group_spent', `${fmt(totalSpent)} spent`, parentName, '@' + parentName)}</span>` : ''}
+              <span style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${gwFig('budget.group_budget', fmt(totalBudget), parentName)}</span>
               <span style="font-size:11px;color:var(--slate-2)">${isExpanded ? '▴' : '▾'} ${items.length}</span>
             </div>
           </div>
@@ -7669,7 +7669,7 @@ function _buildBudgetExpenseRowEl(exp, idx) {
   if (proj) {
     const trendIcon = proj.trending === 'over' ? '↑' : proj.trending === 'warn' ? '↗' : '';
     const trendClr  = proj.trending === 'over' ? 'var(--ember-text)' : proj.trending === 'warn' ? 'var(--gold-text)' : 'var(--pine-text)';
-    projLabel = `<span style="font-family:var(--font-mono);font-size:11px;color:${trendClr}">${trendIcon} ${fmt(proj.projected)} proj.</span>`;
+    projLabel = `<span style="font-family:var(--font-mono);font-size:11px;color:${trendClr}">${trendIcon} ${gwFig('budget.line_projected', `${fmt(proj.projected)} proj.`, exp.name || catName)}</span>`;
   }
 
   const row = document.createElement('div');
@@ -7685,9 +7685,9 @@ function _buildBudgetExpenseRowEl(exp, idx) {
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px">
           <span style="font-size:12px;font-weight:500;color:var(--ink)">${esc(exp.name||catName)}</span>
           <div style="display:flex;gap:8px;align-items:baseline;flex-shrink:0">
-            ${spent > 0 ? `<span style="font-family:var(--font-mono);font-size:11px;color:var(--slate)">${fmt(spent)}</span>` : ''}
+            ${spent > 0 ? `<span style="font-family:var(--font-mono);font-size:11px;color:var(--slate)">${gwFig('budget.line_spent', fmt(spent), exp.name || catName, catName)}</span>` : ''}
             ${projLabel}
-            <span style="font-family:var(--font-mono);font-size:12px;color:var(--ink)">${fmt(budget)}</span>
+            <span style="font-family:var(--font-mono);font-size:12px;color:var(--ink)">${gwFig('budget.line_budget', fmt(budget), exp.name || catName)}</span>
           </div>
         </div>
         ${budget > 0 ? `
@@ -8011,15 +8011,15 @@ function renderBudget() {
       <div class="ph-right">
         <div class="ledger-head-stat">
           <div class="lbl">Income</div>
-          <div class="val pos" id="bhs-income">${totalIncome > 0 ? fmt(totalIncome) : '—'}</div>
+          <div class="val pos" id="bhs-income" data-fig="budget.income">${totalIncome > 0 ? fmt(totalIncome) : '—'}</div>
         </div>
         <div class="ledger-head-stat">
           <div class="lbl">Out</div>
-          <div class="val neg" id="bhs-out">${totalOut > 0 ? fmt(totalOut) : '—'}</div>
+          <div class="val neg" id="bhs-out" data-fig="budget.out_planned">${totalOut > 0 ? fmt(totalOut) : '—'}</div>
         </div>
         <div class="ledger-head-stat">
           <div class="lbl">Left</div>
-          <div class="val ${left >= 0 ? 'pos' : 'neg'}" id="bhs-left">${totalIncome > 0 ? fmt(left) : '—'}</div>
+          <div class="val ${left >= 0 ? 'pos' : 'neg'}" id="bhs-left" data-fig="budget.left_header_planned">${totalIncome > 0 ? fmt(left) : '—'}</div>
         </div>
       </div>
     </div>
@@ -8087,25 +8087,25 @@ function renderBudget() {
       <div style="display:flex;flex-direction:column;gap:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
           <span style="color:var(--slate)">Income</span>
-          <span style="font-family:var(--font-mono);color:var(--pine-text)" id="wl-income">${fmt(totalIncome)}</span>
+          <span style="font-family:var(--font-mono);color:var(--pine-text)" id="wl-income" data-fig="budget.income">${fmt(totalIncome)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
           <span style="color:var(--slate)">Expenses</span>
-          <span style="font-family:var(--font-mono);color:var(--ember-text)" id="wl-expenses">− ${fmt(totalExpenses)}</span>
+          <span style="font-family:var(--font-mono);color:var(--ember-text)" id="wl-expenses" data-fig="budget.expenses">− ${fmt(totalExpenses)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
           <span style="color:var(--slate)">Debt payments</span>
-          <span style="font-family:var(--font-mono);color:var(--ember-text)" id="wl-debt">− ${fmt(totalDebt)}</span>
+          <span style="font-family:var(--font-mono);color:var(--ember-text)" id="wl-debt" data-fig="budget.debt_payments">− ${fmt(totalDebt)}</span>
         </div>
         ${totalSinking > 0 ? `
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
           <span style="color:var(--slate)">Sinking funds</span>
-          <span style="font-family:var(--font-mono);color:var(--ember-text)" id="wl-sinking">− ${fmt(totalSinking)}</span>
+          <span style="font-family:var(--font-mono);color:var(--ember-text)" id="wl-sinking" data-fig="budget.sinking">− ${fmt(totalSinking)}</span>
         </div>` : '<div id="wl-sinking" style="display:none"></div>'}
         <div style="border-top:1px solid var(--steel);padding-top:12px;display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:14px;font-weight:600;color:var(--ink)">Left to save or spend</span>
           <div style="text-align:right">
-            <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--ink)" id="wl-left">${fmt(left)}</div>
+            <div style="font-family:var(--font-mono);font-size:18px;font-weight:600;color:var(--ink)" id="wl-left" data-fig="budget.left">${fmt(left)}</div>
             <div style="font-size:10px;color:var(--slate-2);margin-top:1px">planned</div>
           </div>
         </div>
@@ -8113,7 +8113,7 @@ function renderBudget() {
         <div id="wl-left-projected" style="display:none;justify-content:space-between;align-items:center;padding-top:6px">
           <span style="font-size:12px;color:var(--slate)">Projected at this rate</span>
           <div style="text-align:right">
-            <span class="wl-proj-val" style="font-family:var(--font-mono);font-size:15px;font-weight:600"></span>
+            <span class="wl-proj-val" data-fig="budget.left_projected" style="font-family:var(--font-mono);font-size:15px;font-weight:600"></span>
           </div>
         </div>
       </div>
@@ -8399,7 +8399,9 @@ function _budgetUpdateWhatsLeft() {
   const leftForHeader = hasProjection ? leftProjected : leftPlanned;
   setText('bhs-income', totalIncome > 0 ? fmt(totalIncome) : '—');
   setText('bhs-out',    totalOut > 0    ? fmt(hasProjection ? projExpenses + totalDebt + totalSinking : totalOut) : '—');
+  _figSet(g('bhs-out'), hasProjection ? 'budget.out_projected' : 'budget.out_planned');   // item 103: what this figure is
   const bhsLeft = g('bhs-left');
+  _figSet(bhsLeft, hasProjection ? 'budget.left_header_projected' : 'budget.left_header_planned');
   if (bhsLeft) {
     bhsLeft.textContent = totalIncome > 0 ? fmt(leftForHeader) : '—';
     bhsLeft.className   = `val ${leftForHeader >= 0 ? 'pos' : 'neg'}`;
@@ -8547,20 +8549,22 @@ function _budgetSpentForCat(catName) {
   //   - Parent category → sums all children (rollup)
   //   - Child category  → exact match only
   //   - Falls back to t.category string match for legacy rows
-  if (!catName) return 0;
+  return _budgetTxnsForCat(catName).reduce((sum, t) => sum + t.amount, 0);
+}
+function _budgetTxnsForCat(catName) {
+  if (!catName) return [];
 
   // Try hierarchy-aware lookup first (uses category_id)
-  const hierarchyTotal = _catSpentInMonth(catName, _budgetMonthKey);
-  if (hierarchyTotal > 0) return hierarchyTotal;
+  const hierarchy = _catTxnsInMonth(catName, _budgetMonthKey);
+  if (hierarchy.reduce((s, t) => s + t.amount, 0) > 0) return hierarchy;
 
   // Legacy fallback: match on t.category string (old imports)
   const children = _catChildren(catName);
   const matchNames = children.length > 0 ? [catName, ...children] : [catName];
-  return S.transactions
+  return (S.transactions || [])
     .filter(t => t.type === 'debit'
               && (t.date || '').startsWith(_budgetMonthKey)
-              && matchNames.includes(t.category))
-    .reduce((sum, t) => sum + t.amount, 0);
+              && matchNames.includes(t.category));
 }
 
 function _budgetProjection(catName, budgetedAmt) {
@@ -8625,7 +8629,7 @@ function _budgetRenderExpenseRow(exp, idx) {
     const trendClr  = proj.trending === 'over' ? 'var(--ember-text)'
                     : proj.trending === 'warn' ? 'var(--gold-text)'
                     : 'var(--pine-text)';
-    projLabel = `<span style="font-family:var(--font-mono);font-size:11px;color:${trendClr}" title="Projected end-of-month">${trendIcon} ${fmt(proj.projected)} proj.</span>`;
+    projLabel = `<span style="font-family:var(--font-mono);font-size:11px;color:${trendClr}">${trendIcon} ${gwFig('budget.line_projected', `${fmt(proj.projected)} proj.`, exp.name || catName)}</span>`;
   }
 
   const row = document.createElement('div');
@@ -8641,9 +8645,9 @@ function _budgetRenderExpenseRow(exp, idx) {
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:5px">
           <span style="font-size:13px;font-weight:500;color:var(--ink)">${esc(exp.name||catName)}</span>
           <div style="display:flex;gap:10px;align-items:baseline;flex-shrink:0">
-            ${spent > 0 ? `<span style="font-family:var(--font-mono);font-size:12px;color:var(--slate)">${fmt(spent)} spent</span>` : ''}
+            ${spent > 0 ? `<span style="font-family:var(--font-mono);font-size:12px;color:var(--slate)">${gwFig('budget.line_spent', `${fmt(spent)} spent`, exp.name || catName, catName)}</span>` : ''}
             ${projLabel}
-            <span style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${fmt(budget)}</span>
+            <span style="font-family:var(--font-mono);font-size:13px;color:var(--ink)">${gwFig('budget.line_budget', fmt(budget), exp.name || catName)}</span>
           </div>
         </div>
         ${budget > 0 ? `
@@ -8651,7 +8655,7 @@ function _budgetRenderExpenseRow(exp, idx) {
           <div style="position:absolute;inset:0 auto 0 0;width:${Math.min(100, barPct)}%;background:${barColor};border-radius:2px;transition:width .4s ease"></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:var(--slate-2)">
-          <span>${barPct}%${proj ? ' projected' : spent > 0 ? ' spent' : ''}</span>
+          <span>${gwFig('budget.line_pct', `${barPct}%${proj ? ' projected' : spent > 0 ? ' spent' : ''}`, exp.name || catName)}</span>
           <span style="color:var(--slate-2)">${esc(exp.cat||'')}</span>
         </div>` : ''}
         ${_utilityBenchmarkNote(catName)}
@@ -15257,8 +15261,8 @@ function _debtCardRowHTML(c, opts={}) {
              <s style="color:var(--slate-2);opacity:.65">${fmt(_cardBal(c))}</s>
              <span style="font-size:10px;font-weight:600;color:var(--pine-text);margin-left:6px">Paid in full</span>
            </div>`
-        : `<div class="text-mono" style="font-size:13px;color:var(--slate);flex-shrink:0">${fmt(_cardBal(c))}</div>`}
-      ${c.paidInFull ? '' : `<span style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);flex-shrink:0;white-space:nowrap">${c.rate !== '' && c.rate != null ? `${c.rate}% APR` : 'APR ?'} · ${c.minimum !== '' && c.minimum != null ? `${fmt(parseFloat(c.minimum) || 0)} min` : 'min ?'}</span>`}
+        : `<div class="text-mono" style="font-size:13px;color:var(--slate);flex-shrink:0">${gwFig('debt.card_balance', fmt(_cardBal(c)), c.name || 'Card')}</div>`}
+      ${c.paidInFull ? '' : `<span style="font-size:10px;font-family:var(--font-mono);color:var(--slate-2);flex-shrink:0;white-space:nowrap">${c.rate !== '' && c.rate != null ? gwFig('debt.card_apr', `${c.rate}% APR`, c.name || 'Card') : 'APR ?'} · ${c.minimum !== '' && c.minimum != null ? gwFig('debt.card_min', `${fmt(parseFloat(c.minimum) || 0)} min`, c.name || 'Card') : 'min ?'}</span>`}
       ${(!c.paidInFull && _dds) ? `<span style="font-size:10px;font-family:var(--font-mono);color:${_dds.color};flex-shrink:0">${_dds.label}</span>` : ''}
       ${(() => {
         // Lease / loan end date countdown
@@ -15304,7 +15308,7 @@ function _debtCardRowHTML(c, opts={}) {
         const _u = _debtUnknowns(c);
         const assumed = _u.includes('APR') ? ' · 0% APR assumed' : _u.includes('minimum payment') ? ' · minimum estimated'
                       : _u.includes('maturity date') ? ' · whole payment assumed' : '';
-        return lowChip + `<span style="font-size:10px;font-family:var(--font-mono);color:${color};flex-shrink:0" title="Under ${_planScenario()}${assumed}">~${label}${assumed}</span>`;
+        return lowChip + `<span style="font-size:10px;font-family:var(--font-mono);color:${color};flex-shrink:0" title="Under ${_planScenario()}${assumed}">${gwFig('debt.card_paid_off', `~${label}`, c.name || 'Card')}${assumed}</span>`;
       })()}
       ${(() => {
         const _u = _debtUnknowns(c);
@@ -16305,11 +16309,13 @@ function _debtWriteHero(result, data, budget, totalMin, intSaved) {
   const budgetBelowMin = totalMin && budget < totalMin;
   heroDate.style.color = budgetBelowMin ? 'var(--ember-text)' : 'var(--pine-text)';
   heroDate.textContent = budgetBelowMin ? 'Increase budget' : result.freeDate;
+  if (budgetBelowMin) delete heroDate.dataset.fig; else _figSet(heroDate, 'debt.free_date');
 
   // Duration
   if (!budgetBelowMin && result.months) {
     const yrs = Math.floor(result.months / 12);
     const mos = result.months % 12;
+    _figSet(heroDuration, 'debt.time_left');
     heroDuration.textContent = yrs > 0
       ? `${yrs} yr${yrs !== 1 ? 's' : ''} ${mos > 0 ? mos + ' mo' : ''} from today`.trim()
       : `${mos} month${mos !== 1 ? 's' : ''} from today`;
@@ -16321,10 +16327,10 @@ function _debtWriteHero(result, data, budget, totalMin, intSaved) {
   const strategy = (S.debtMethod === 'avalanche') ? 'Avalanche' : 'Snowball';
   const totalBal = data.reduce((s,c) => s + c.balance, 0);
   const dti = _debtCalcDTI();
-  const statsparts = [strategy, fmt(totalBal) + ' remaining'];
-  if (result.totalInterest) statsparts.push(fmt(result.totalInterest) + ' interest');
-  if (dti)                  statsparts.push('DTI ' + dti.toFixed(1) + '%');
-  heroStats.textContent = statsparts.join(' · ');
+  const statsparts = [strategy, gwFig('debt.total_owed', fmt(totalBal) + ' remaining')];   // item 103: each figure tagged
+  if (result.totalInterest) statsparts.push(gwFig('debt.total_interest', fmt(result.totalInterest) + ' interest'));
+  if (dti)                  statsparts.push(gwFig('debt.dti', 'DTI ' + dti.toFixed(1) + '%'));
+  heroStats.innerHTML = statsparts.join(' · ');
 
   // Progress bar
   const totalBegin = data.reduce((s,c) => s + (c.beginBal || c.balance), 0);
@@ -16416,7 +16422,7 @@ function _debtMaybeSuggestCommitment() {
   const sugEl = g('debtSuggestedCommitment');
   if (!sugEl) return;
   sugEl.style.display = '';
-  sugEl.innerHTML = `Suggested <b style="font-family:var(--font-mono)">${fmt(sug.suggestedMonthlyBudget)}</b> — keeps you in a healthy 50/30/20 split.
+  sugEl.innerHTML = `Suggested <b style="font-family:var(--font-mono)">${gwFig('debt.suggested', fmt(sug.suggestedMonthlyBudget))}</b> — keeps you in a healthy 50/30/20 split.
     <span onclick="g('monthlyBudget').value=${sug.suggestedMonthlyBudget};g('monthlyBudget').dataset.userSet='1';g('debtSuggestedCommitment').style.display='none';calculate()"
       style="color:var(--pine-text);cursor:pointer;text-decoration:underline;margin-left:4px">Use this</span>`;
 
@@ -18497,7 +18503,7 @@ function _updateNWDelta() {
   const diff = last.net_worth - prev.net_worth;
   const pos  = diff >= 0;
   el.innerHTML = `<span style="color:${pos?'var(--pine-text)':'var(--ember-text)'}">
-    ${pos?'▲':'▼'} ${fmt(Math.abs(diff))} vs ${prev.month_label}</span>`;
+    ${pos?'▲':'▼'} ${gwFig('nw.change', `${pos ? '+' : '−'}${fmt(Math.abs(diff))}`)} vs ${esc(prev.month_label)}</span>`;
 }
 
 // ── Life stage flag functions ──────────────────────────────────────────────────
@@ -27130,6 +27136,13 @@ function askLedgerSearch(term) {
   if (box) { box.value = term; renderLedger(); updateLedgerStats(); }
 }
 
+// A budget line or category the person named, as they named it (Rob 2026-10-20: the transactions behind a figure)
+function _askBudgetCat(text) {
+  const t = String(text || '').trim().toLowerCase();
+  if (!t) return null;
+  const names = [...(S.expenses || []).flatMap(e => [e.name, e.cat]), ...(_categoriesCache || []).map(c => c && (c.name || c))].filter(Boolean);
+  return names.find(nm => String(nm).toLowerCase() === t) || null;
+}
 function askIntent(q, p, head) {
   const n = _askNorm(q);
   if (!n) return false;
@@ -27165,6 +27178,23 @@ function askIntent(q, p, head) {
   const exp = n.match(/^explain (?:the |my |this )?(.+?)(?: page| tab)?(?: to me)?$/);
   const expPlace = exp && ASK_PLACES.find(pl => pl.names.includes(exp[1]));
   if (expPlace) { askGo(expPlace); setTimeout(explainPage, 450); return true; }
+  // "explain restaurants", "why is restaurants so high", "what's in groceries": the transactions behind that spending
+  const spentQ = n.match(/^(?:explain|break down|what'?s in|what is in|why is|why are|check) (?:my |the )?(.+?)(?: so high| so much| that much| wrong| this month| spending| spent| budget| line| category)*$/);
+  const spentCat = spentQ && _askBudgetCat(spentQ[1]);
+  if (spentCat) {
+    _askDone();
+    showView('budget');
+    setTimeout(() => {
+      _budShowTab('plan');
+      setTimeout(() => {
+        const el = [...document.querySelectorAll('#view-budget [data-fig-cat]')].find(e => e.dataset.figCat.replace(/^@/, '').toLowerCase() === spentCat.toLowerCase()
+          || (e.dataset.figOf || '').toLowerCase() === spentCat.toLowerCase());
+        if (el) showFigTxns(el);
+        else showToast(`No ${spentCat} spending this month yet`, 'The Budget page shows each line\'s spending as it comes in.', 'info');
+      }, 250);
+    }, 80);
+    return true;
+  }
   if (askFetch(n)) return true;
   for (const d of ASK_DO) if (d.re.test(n)) { _askDone(d.said); d.run(); return true; }
   for (const r of ASK_RECORD) if (r.re.test(n)) {
@@ -27248,12 +27278,137 @@ const EXPLAIN_KINDS = {
   investments: ['investment', 'total', 'date', 'achievement'], trip: ['trip', 'total', 'date', 'achievement'], trophy: ['achievement', 'total', 'date'],
   reports: ['income', 'total', 'category', 'budget', 'debt', 'net_worth', 'date', 'achievement'],
 };
+// ─── Item 103 amendment (Rob 2026-10-20): every figure knows what it is and where it comes from ─────────────────────
+// "meta data that the user can see but is attached behind the values that tells the agent where in the historian and
+// database these values are located and then the result is only reading the same way that the report is." A figure
+// drawn on a page carries data-fig (its key here) and, for a line or a card, data-fig-of (whose it is). Hovering it
+// shows what it is, how it is worked out and the record it is read from; Explain reads only these, never page text.
+const FIGS = {
+  'budget.income':        { label: 'Income this month', means: 'the total of your income lines on the Budget page', record: 'app_settings → app_snapshot.incomes' },
+  'budget.out_planned':   { label: 'Going out this month (planned)', means: 'your expense lines, plus debt minimum payments, plus sinking-fund contributions', record: 'app_settings → app_snapshot.expenses and .debtCards; sinking_funds' },
+  'budget.out_projected': { label: 'Going out this month (at this month\'s pace)', means: 'what your expense categories will reach by month-end if spending continues at this month\'s daily pace, plus debt minimum payments and sinking-fund contributions', record: 'transactions (this month) for the pace; app_settings → app_snapshot.debtCards; sinking_funds' },
+  'budget.left_header_planned':   { label: 'Left this month (planned)', means: 'income less everything planned to go out', record: 'app_settings → app_snapshot' },
+  'budget.left_header_projected': { label: 'Left this month (at this month\'s pace)', means: 'income less what will go out if spending continues at this month\'s pace', record: 'app_settings → app_snapshot; transactions (this month)' },
+  'budget.expenses':      { label: 'Expenses (planned)', means: 'the total of your expense budget lines for the month', record: 'budget_items; app_settings → app_snapshot.expenses' },
+  'budget.debt_payments': { label: 'Debt payments (planned)', means: 'the total of the minimum payments on your active debts', record: 'app_settings → app_snapshot.debtCards (minimum)' },
+  'budget.sinking':       { label: 'Sinking funds (planned)', means: 'the total of your monthly sinking-fund contributions', record: 'sinking_funds (monthly contribution)' },
+  'budget.left':          { label: 'Left to save or spend (planned)', means: 'income less expenses, debt payments and sinking funds - the room in the plan, not money in an account', record: 'app_settings → app_snapshot; sinking_funds' },
+  'budget.left_projected':{ label: 'Left at this month\'s pace', means: 'income less what your expense categories will reach by month-end at this month\'s daily pace, debt payments and sinking funds', record: 'transactions (this month); app_settings → app_snapshot' },
+  'budget.group_budget':  { label: 'Budgeted for the group', means: 'the total of the budget lines under this category group', record: 'budget_items; app_settings → app_snapshot.expenses' },
+  'budget.group_spent':   { label: 'Spent so far this month in the group', means: 'the charges filed under this category and its subcategories this month', record: 'transactions (this month, by category)' },
+  'budget.line_budget':   { label: 'Budgeted for the month', means: 'the amount set on this budget line', record: 'budget_items; app_settings → app_snapshot.expenses' },
+  'budget.line_spent':    { label: 'Spent so far this month', means: 'the charges filed under this line\'s category (and its subcategories) this month', record: 'transactions (this month, by category)' },
+  'budget.line_projected':{ label: 'Projected by month-end', means: 'spent so far, divided by the days gone, times the days in the month', record: 'transactions (this month, by category)' },
+  'budget.line_pct':      { label: 'Share of the line used', means: 'projected (or spent) as a share of the amount budgeted', record: 'transactions; budget_items' },
+  'debt.free_date':       { label: 'Debt-free date', means: 'the month the last balance reaches zero, paying your monthly payment budget by your strategy, with each card\'s interest added monthly', record: 'app_settings → app_snapshot.debtCards; worked out on this page, not stored' },
+  'debt.time_left':       { label: 'Time until debt-free', means: 'the months from today to the debt-free date', record: 'worked out on this page, not stored' },
+  'debt.total_owed':      { label: 'Total still owed', means: 'the sum of every active debt\'s current balance', record: 'app_settings → app_snapshot.debtCards; debt_accounts; balance changes in historian_entries (balance_correction) and debt_balance_history' },
+  'debt.total_interest':  { label: 'Interest still to pay', means: 'the interest the plan adds before the last balance reaches zero', record: 'worked out on this page from the cards\' balances and rates, not stored' },
+  'debt.dti':             { label: 'Debt-to-income ratio', means: 'monthly minimum payments divided by monthly income', record: 'app_settings → app_snapshot.debtCards and .incomes' },
+  'debt.suggested':       { label: 'Suggested monthly payment budget', means: 'your debt minimums plus up to 20% of your income, from what is left after needs - your expense lines and minimums, or half your income if that is more', record: 'app_settings → app_snapshot.incomes, .expenses and .debtCards' },
+  'debt.card_balance':    { label: 'Balance', means: 'this debt\'s current balance as you or your bank last recorded it', record: 'app_settings → app_snapshot.debtCards; debt_accounts; changes in historian_entries (balance_correction) and debt_balance_history' },
+  'debt.card_apr':        { label: 'Interest rate (APR)', means: 'the yearly interest rate on this debt', record: 'app_settings → app_snapshot.debtCards; changes in historian_entries (apr_correction)' },
+  'debt.card_min':        { label: 'Minimum payment', means: 'the least you must pay on this debt each month', record: 'app_settings → app_snapshot.debtCards' },
+  'debt.card_paid_off':   { label: 'Paid off around', means: 'the month this debt reaches zero under the current plan', record: 'worked out on this page, not stored' },
+  'nw.total':             { label: 'Current net worth', means: 'total assets less total liabilities', record: 'worked out from the balances below; each month saved in net_worth_snapshots' },
+  'nw.assets':            { label: 'Total assets', means: 'savings, investments, retirement, cash, home value, pensions and HSA / FSA, as you recorded them', record: 'app_settings → app_snapshot.netWorth; net_worth_snapshots' },
+  'nw.liabilities':       { label: 'Total liabilities', means: 'your debts\' balances plus the mortgage, counted once', record: 'app_settings → app_snapshot.debtCards; net_worth_snapshots' },
+  'nw.card_debt':         { label: 'Credit card and loan debt', means: 'the balances of your debts from Debt Payoff, not counting the mortgage', record: 'app_settings → app_snapshot.debtCards; debt_accounts' },
+  'nw.change':            { label: 'Change since the last saved month', means: 'this month\'s saved net worth less the month before', record: 'net_worth_snapshots (the last two months)' },
+  'dash.debt_months':     { label: 'Months to debt-free', means: 'the months until the last debt reaches zero on your current plan', record: 'app_settings → app_snapshot.debtCards; worked out, not stored' },
+  'dash.debt_free_date':  { label: 'Debt-free date', means: 'the month the last debt reaches zero on your current plan', record: 'app_settings → app_snapshot.debtCards; worked out, not stored' },
+  'dash.interest_saved':  { label: 'Interest saved compared with minimums only', means: 'the interest your plan avoids compared with paying only the minimums', record: 'app_settings → app_snapshot (payoff data); worked out, not stored' },
+};
+function gwFig(key, html, of, cat) {
+  return `<span data-fig="${key}"${of ? ` data-fig-of="${esc(of)}"` : ''}${cat ? ` data-fig-cat="${esc(cat)}" data-fig-month="${esc(_budgetMonthKey)}" role="button" tabindex="0"` : ''}>${html}</span>`;
+}
+function _figSet(el, key, of) {
+  if (!el) return;
+  el.dataset.fig = key;
+  if (of) el.dataset.figOf = of; else delete el.dataset.figOf;
+}
+function figWhere(el) {
+  const f = FIGS[el.dataset.fig];
+  if (!f) return '';
+  return `${el.dataset.figOf ? el.dataset.figOf + ' - ' : ''}${f.label}: ${f.means}.\nKept in: ${f.record}`
+    + (el.dataset.figCat ? '\nClick to see each transaction behind it.' : '');
+}
+// The transactions behind a spent figure, as a grid (Rob 2026-10-20: "someone see Restaurants $500.00 they don't
+// think that is right it should show the transactions that is in the category ... in a grid like a spreadsheet").
+// '@Food' is a group header (the category and every subcategory, as its figure counts it); 'Groceries' a budget line.
+function figTxns(cat, month) {
+  if (!cat) return [];
+  const prev = _budgetMonthKey;
+  try {
+    _budgetMonthKey = month || prev;
+    return (cat.startsWith('@') ? _catTxnsInMonth(cat.slice(1), _budgetMonthKey) : _budgetTxnsForCat(cat)).slice()
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  } finally { _budgetMonthKey = prev; }
+}
+function showFigTxns(el) {
+  if (!el || !el.dataset.figCat) return;
+  const cat = el.dataset.figCat, month = el.dataset.figMonth, name = cat.replace(/^@/, '');
+  const rows = figTxns(cat, month);
+  const total = rows.reduce((s, t) => s + t.amount, 0);
+  const shown = (el.innerText || '').replace(/\s+/g, ' ').trim();
+  const fig = _explainNums(shown)[0];
+  const same = fig != null && _explainNums(fmt(total))[0] === fig;
+  const monthName = (() => { try { return new Date(month + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); } catch (e) { return month; } })();
+  window._figTxnRows = rows;
+  let ov = g('figTxnsOverlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'figTxnsOverlay';
+    ov.setAttribute('role', 'dialog');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:900;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px;overflow:auto';
+    ov.onclick = e => { if (e.target === ov) ov.remove(); };
+    document.body.appendChild(ov);
+  }
+  const td = 'padding:7px 10px;border-bottom:1px solid var(--steel);font-size:12px;vertical-align:top';
+  ov.innerHTML = `<div style="background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-lg);box-shadow:0 8px 24px rgba(0,0,0,.18);width:min(820px,100%);padding:18px 20px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div><div style="font-size:15px;font-weight:600;color:var(--ink)">${esc(name)}${cat.startsWith('@') ? ' and its subcategories' : ''} - ${esc(monthName)}</div>
+        <div style="font-size:12px;color:var(--slate);margin-top:3px">${rows.length} transaction${rows.length === 1 ? '' : 's'} came through your accounts, adding up to <strong>${fmt(total)}</strong>.</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="g('figTxnsOverlay').remove()" aria-label="Close">✕</button></div>
+    ${rows.length ? `<div style="overflow-x:auto;margin-top:12px"><table style="width:100%;border-collapse:collapse;min-width:560px">
+      <thead><tr style="text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2)">
+        <th style="${td}">Date</th><th style="${td}">Where</th><th style="${td}">Account</th><th style="${td}">Category</th><th style="${td};text-align:right">Amount</th></tr></thead>
+      <tbody>${rows.map((t, i) => `<tr style="cursor:pointer" title="Open it in the Ledger" onclick="g('figTxnsOverlay').remove();askLedgerSearch(window._figTxnRows[${i}].description)">
+        <td style="${td};white-space:nowrap;font-family:var(--font-mono)">${esc(t.date || '')}${t.posted_date && t.posted_date !== t.date ? `<div style="font-size:10px;color:var(--slate-2)">posted ${esc(t.posted_date)}</div>` : ''}</td>
+        <td style="${td}">${esc(t.merchant || t.description || '')}${t.merchant && t.description && t.merchant.toLowerCase() !== t.description.toLowerCase() ? `<div style="font-size:10px;color:var(--slate-2)">Bank says: ${esc(t.description)}</div>` : ''}${t.pending ? '<div style="font-size:10px;color:var(--gold-text)">Pending</div>' : ''}</td>
+        <td style="${td}">${esc(t.account || '')}${t.card_last4 ? ` ····${esc(t.card_last4)}` : ''}</td>
+        <td style="${td}">${esc(t.category || '')}</td>
+        <td style="${td};text-align:right;font-family:var(--font-mono)">${fmt(t.amount)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td style="${td};font-weight:600" colspan="4">Total - ${rows.length} transaction${rows.length === 1 ? '' : 's'}</td>
+        <td style="${td};text-align:right;font-family:var(--font-mono);font-weight:600">${fmt(total)}</td></tr></tfoot></table></div>`
+      : `<div style="font-size:13px;color:var(--slate);margin-top:12px">No transactions are filed under ${esc(name)} for ${esc(monthName)}.</div>`}
+    <div style="font-size:11px;color:var(--slate-2);margin-top:12px;line-height:1.6">${same ? `The same ${fmt(total)} the page shows - these are the transactions it adds up.` : `The page shows ${esc(shown)}; these add up to ${fmt(total)}.`}
+      Only charges are counted, by the category each is filed under; a transaction set aside is left out. One in the wrong category? Tap it to open it in the Ledger and change it there.</div></div>`;
+}
+document.addEventListener('click', ev => {
+  const el = ev.target && ev.target.closest && ev.target.closest('[data-fig-cat]');
+  if (!el) return;
+  ev.stopPropagation(); ev.preventDefault();
+  showFigTxns(el);
+}, true);
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape') g('figTxnsOverlay')?.remove();
+  const el = (ev.key === 'Enter' || ev.key === ' ') && ev.target && ev.target.closest && ev.target.closest('[data-fig-cat]');
+  if (el) { ev.preventDefault(); showFigTxns(el); }
+});
+
+// "Where this comes from", on hover - set when the pointer reaches a figure, so a figure redrawn later still has it
+document.addEventListener('mouseover', ev => {
+  const el = ev.target && ev.target.closest && ev.target.closest('[data-fig]');
+  if (el) el.title = figWhere(el);
+});
+
 const EXPLAIN_SYSTEM = 'You explain a page of a personal finance app to the person looking at it, in plain everyday words. '
-  + 'You are given what the page works out and the lines on their screen; each line is a label and its figures, separated by dots. '
-  + 'Write one short paragraph of 3 sentences, with no numbering or list. Each sentence takes one line from the screen and says what its figure means, using the label '
-  + 'written in that same line and what the page works out. Copy each figure exactly as written. Never connect, compare, '
-  + 'add or subtract figures from different lines, and never work out a new number. Never say what they should, could or '
-  + 'might do, and do not judge.';
+  + 'You are given what the page works out and the figures on their screen. Each figure has a number in square brackets, '
+  + 'its name, its value, and what it means. Pick the 3 most important figures. Write 3 lines. Each line starts with that '
+  + 'figure\'s number in square brackets, like [2], then one plain sentence about that figure only, using its name, its value '
+  + 'copied exactly, and what it means. Never work out a new number, and never mention another figure\'s value. Never say '
+  + 'what they should, could or might do, and do not judge.';
 
 function _explainWhere() {
   const view = document.querySelector('.view.active');
@@ -27269,58 +27424,52 @@ function _explainWhere() {
   return { view, name, tab, tabName };
 }
 
-let _explainWords = null;                       // Groundwork's own words: its page and its code
-async function _explainVocab() {
-  if (_explainWords) return _explainWords;
-  const words = new Set();
-  for (const url of ['/js/app.js', location.pathname || '/']) {
-    try { (await (await fetch(url)).text()).toLowerCase().split(/[^a-z']+/).forEach(w => w && words.add(w.replace(/^'+|'+$/g, ''))); }
-    catch (e) { _gwErr('explainPage vocab')(e); }
+// The tagged figures on screen, each with what its key says it is - never the page's own text
+function _explainFigures(view) {
+  const out = [], seen = new Set();
+  for (const el of view ? view.querySelectorAll('[data-fig]') : []) {
+    const f = FIGS[el.dataset.fig];
+    const value = (el.innerText || '').replace(/\s+/g, ' ').trim();
+    if (!f || !el.offsetParent || !/\d/.test(value) || value.length > 40) continue;
+    const id = `${el.dataset.fig}|${el.dataset.figOf || ''}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({ key: el.dataset.fig, of: el.dataset.figOf || '', label: f.label, means: f.means, record: f.record, value, el });
   }
-  (_categoriesCache || []).forEach(c => String(c.name || c || '').toLowerCase().split(/[^a-z']+/).forEach(w => w && words.add(w)));
-  return (_explainWords = words);
+  return out.slice(0, 30);
 }
-const _EXPLAIN_FIG = /^(?:\(?[-−+]?\$?\d[\d,]*(?:\.\d+)?[%kKmM]?\)?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{4}-\d{2}(?:-\d{2})?)$/;
-// A line crosses only when it carries a figure and every other word in it is Groundwork's own (a label, a category)
-function _explainLine(text, vocab) {
-  const t = text.replace(/\s+/g, ' ').trim();
-  if (!t || t.length > 120 || !/\d/.test(t)) return null;
-  if (!/^[^\d$−+-]*[a-z]/i.test(t.split(' · ')[0])) return null;   // a figure is read only with its label in front of it
-  for (const tok of t.split(' ')) {
-    const bare = tok.replace(/^[("'“‘·•→←↑↓–—-]+|[)"'”’.,:;!?·→]+$/g, '');
-    if (!bare || /^[-–—·•|/&+=×]+$/.test(bare)) continue;
-    if (/\d/.test(bare)) { if (!_EXPLAIN_FIG.test(bare)) return null; continue; }
-    for (const w of bare.toLowerCase().split(/[^a-z']+/)) if (w && !vocab.has(w.replace(/^'+|'+$/g, ''))) return null;
+const _explainNums = t => (String(t).match(/\d[\d,.]*/g) || []).map(n => n.replace(/[.,]+$/, '').replace(/\.00$/, ''));
+// One line per figure, each starting with its number: a line is kept only when every number in it is that figure's own
+// value ("$600.00 is your expenses" under a [n] whose value is $2,459.99 fails). A line with a number and no figure, a
+// figure that isn't on screen, or a garbled value ("Jan 2dict") is dropped; so is a line with no figure (a closing
+// summary). What's left is shown, each under the figure's own name and value, which are Groundwork's.
+function _explainLines(text, figs) {
+  const kept = [];
+  for (const line of String(text).split(/\n+/).map(l => l.trim()).filter(Boolean)) {
+    const m = line.match(/^\[(\d+)\]\s*(.+)$/);
+    const f = m && figs[+m[1] - 1];
+    if (!f || kept.some(k => k.f === f)) continue;
+    let body = m[2];
+    // a leading echo of the figure's own name and value is Groundwork's to show, not the sentence
+    for (const e of [f.of && f.of + ' - ' + f.label, f.label, f.value]) {
+      if (e && body.toLowerCase().startsWith(e.toLowerCase())) body = body.slice(e.length).replace(/^[\s:–—-]+/, '');
+    }
+    const own = new Set(_explainNums(f.value + ' ' + f.of));
+    const lead = body.match(/^[-−]?\$?(\d[\d,.]*)\s*[:–—-]\s*/);       // the value said again ("$4,200.00 - ...")
+    if (lead && own.has(_explainNums(lead[1])[0])) body = body.slice(lead[0].length);
+    body = body.replace(/\[\d+\]/g, '').trim().replace(/^\((.*)\)\.?$/, '$1');
+    if (!body || !_explainNums(body).every(n => own.has(n))) continue;
+    kept.push({ f, i: figs.indexOf(f), body: body.charAt(0).toUpperCase() + body.slice(1) });
   }
-  return t;
+  return kept.slice(0, 5);
 }
-// Groundwork's own short labels, said in full for the model (a "min" was read as interest)
-const EXPLAIN_SAY = [[/(\$[\d,.]+) min\b/g, 'minimum payment $1'], [/(\$[\d,.]+) proj\./g, 'projected $1'],
-  [/\bDTI ([\d.]+%)/g, 'debt-to-income ratio $1'], [/(\$[\d,.]+) remaining\b/g, 'total still owed $1'],
-  [/(\$[\d,.]+) interest\b/g, 'total interest to pay $1'], [/ · ▾ Show| · ×| · Use this| · Save snapshot now/g, ''], [/^~|· ~/g, '· about ']];
-function _explainSay(line) { return EXPLAIN_SAY.reduce((t, [re, w]) => t.replace(re, w), line); }
-function _explainFigures(view, vocab) {
-  // A figure is read with its label: from each figure on screen, the widest box around it that is still one short line
-  // of the page (a card's row, a stat with its caption)
-  const rows = [], seen = new Set();
-  const leaf = el => el.offsetParent && !el.closest('#askPanel') && ![...el.children].some(c => c.offsetParent && (c.innerText || '').trim());
-  for (const el of view ? view.querySelectorAll('*') : []) {
-    if (!leaf(el) || !/\d/.test(el.innerText || '')) continue;
-    let box = el;
-    while (box.parentElement && box.parentElement !== view && (box.parentElement.innerText || '').replace(/\s+/g, ' ').trim().length <= 90) box = box.parentElement;
-    if (seen.has(box)) continue;
-    seen.add(box);
-    const line = _explainLine((box.innerText || '').split(/\n+/).map(x => x.trim()).filter(Boolean).join(' · '), vocab);
-    const said = line && _explainSay(line);
-    if (said && !rows.includes(said)) rows.push(said);
-  }
-  return rows.slice(0, 40);
-}
-function _explainNumbersOk(text, lines) {
-  // every number in the answer is a whole figure on the page ("2" in "2026" is not "2"); "$4,200" is "$4,200.00"
-  const fig = n => n.replace(/[.,]+$/, '').replace(/\.00$/, '');
-  const page = new Set((lines.join(' ').match(/\d[\d,.]*/g) || []).map(fig));
-  return (String(text).match(/\d[\d,.]*/g) || []).every(n => page.has(fig(n)));
+function explainShowFig(i) {
+  const f = (window._explainFigs || [])[i];
+  if (!f || !f.el.isConnected) return;
+  f.el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  f.el.style.outline = '2px solid var(--pine)';
+  f.el.style.outlineOffset = '2px';
+  setTimeout(() => { f.el.style.outline = ''; }, 2200);
 }
 
 async function explainPage() {
@@ -27342,25 +27491,30 @@ async function explainPage() {
     p.innerHTML = head + whatHTML + foot(esc(EXPLAIN_FIXED_ONLY[name] || (aiEnabled() ? '' : 'With AI on, Groundwork also says what your figures mean.')) + ' Nothing here is saved.');
     return;
   }
-  p.innerHTML = head + whatHTML + `<div id="explainNums" style="font-size:13px;color:var(--slate);margin-top:12px">Reading the figures on this page…</div>`;
-  const lines = _explainFigures(view, await _explainVocab());
-  const host = () => g('explainNums');
-  if (!lines.length) {
-    if (host()) host().outerHTML = foot('There are no figures on this page to explain yet. Nothing here is saved.');
+  const figs = _explainFigures(view);
+  window._explainFigs = figs;
+  if (!figs.length) {
+    p.innerHTML = head + whatHTML + foot("The figures on this page aren't labelled for explaining yet, so only Groundwork's own description is shown. Hover a labelled figure on another page to see where it comes from. Nothing here is saved.");
     return;
   }
+  p.innerHTML = head + whatHTML + `<div id="explainNums" style="font-size:13px;color:var(--slate);margin-top:12px">Reading the figures on this page…</div>`;
+  const list = figs.map((f, i) => `[${i + 1}] ${f.of ? f.of + ' - ' : ''}${f.label}: ${f.value} (${f.means})`).join('\n');
   const r = await callAI({
     system: EXPLAIN_SYSTEM, surface: 'explain_page', findings_kinds: EXPLAIN_KINDS[name], max_sentences: 5, max_tokens: 320,
-    messages: [{ role: 'user', content: `Page: ${title}${tabName ? ' - ' + tabName : ''}\nWhat the page works out: ${what}\nThe figures on their screen:\n${_asData(lines.join('\n'))}` }],
+    messages: [{ role: 'user', content: `Page: ${title}${tabName ? ' - ' + tabName : ''}\nWhat the page works out: ${what}\nThe figures on their screen:\n${_asData(list)}` }],
   });
-  if (!host()) return;                          // closed while it was writing
-  const text = r && r.ok ? String(r.text || '').replace(/^\s*(?:\d+[.)]|[-*•])\s+/gm, '').replace(/\s*\n\s*/g, ' ').trim() : '';
-  if (text && _explainNumbersOk(text, lines)) {
-    host().outerHTML = `<div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">Your numbers, in plain words</div>
-      <div style="font-size:13px;color:var(--ink);line-height:1.7;margin-top:4px">${esc(text)}</div>
-      ${foot("Figures as shown on this page. Written by the AI on this computer from what's on screen - it can mix up which figure is which, and the page itself is always right. Nothing is saved and nothing is changed.")}`;
+  if (!g('explainNums')) return;                 // closed while it was writing
+  const kept = r && r.ok ? _explainLines(r.text, figs) : [];
+  const where = `<details style="margin-top:10px"><summary style="font-size:12px;color:var(--slate);cursor:pointer">Where these figures come from</summary>
+      ${figs.map((f, i) => `<div style="font-size:11px;color:var(--slate);line-height:1.55;margin-top:6px"><a href="#" onclick="event.preventDefault();explainShowFig(${i})" style="color:var(--pine-text)">[${i + 1}]</a>
+        <strong style="color:var(--ink)">${esc((f.of ? f.of + ' - ' : '') + f.label)}: ${esc(f.value)}</strong> - ${esc(f.means)}.<br><span style="color:var(--slate-2)">Kept in: ${esc(f.record)}</span>${f.el.dataset.figCat ? ` <a href="#" onclick="event.preventDefault();showFigTxns(window._explainFigs[${i}].el)" style="color:var(--pine-text)">See the transactions</a>` : ''}</div>`).join('')}</details>`;
+  if (kept.length) {
+    g('explainNums').outerHTML = `<div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--slate-2);margin-top:14px">Your numbers, in plain words</div>
+      ${kept.map(k => `<div style="margin-top:8px"><a href="#" onclick="event.preventDefault();explainShowFig(${k.i})" style="font-size:12px;font-weight:600;color:var(--pine-text);text-decoration:none">${esc((k.f.of ? k.f.of + ' - ' : '') + k.f.label)}: ${esc(k.f.value)}</a>
+        <div style="font-size:13px;color:var(--ink);line-height:1.65">${esc(k.body)}${k.f.el.dataset.figCat ? ` <a href="#" onclick="event.preventDefault();showFigTxns(window._explainFigs[${k.i}].el)" style="font-size:12px;color:var(--pine-text)">See the transactions</a>` : ''}</div></div>`).join('')}${where}
+      ${foot("Each figure's name and value are Groundwork's; the sentence under it is the AI's, written on this computer and checked against that figure only. Tap a figure to see it on the page. Nothing is saved and nothing is changed.")}`;
   } else {
-    host().outerHTML = foot('The AI couldn\'t explain these figures without adding something that isn\'t on the page, so only Groundwork\'s own description is shown. Nothing here is saved.');
+    g('explainNums').outerHTML = foot("The AI couldn't explain these figures without a number that doesn't belong to the figure it named, so only Groundwork's own description is shown. Nothing here is saved.") + where;
   }
 }
 

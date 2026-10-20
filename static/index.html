@@ -743,6 +743,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
   font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
   color:var(--slate-2);padding:10px 0 4px;
 }
+/* Item 103 (Rob 2026-10-20): a spent figure opens the transactions behind it */
+[data-fig-cat] { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+[data-fig-cat]:hover, [data-fig-cat]:focus-visible { color: var(--pine-text); }
 </style>
 </head>
 <body>
@@ -2242,7 +2245,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="card mb-5">
           <div class="nw-hero">
             <div class="card-label nw-label" style="margin-bottom:8px">Current net worth</div>
-            <div class="nw-value" id="nwTotal">$0</div>
+            <div class="nw-value" id="nwTotal" data-fig="nw.total">$0</div>
             <div class="nw-delta" id="nwDelta"></div>
           </div>
           <!-- Trend chart — _renderNWChart() draws history + projection here.
@@ -2254,12 +2257,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div class="card">
             <div class="card-label">Assets</div>
             <div id="nwAssetRows"></div>
-            <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;font-weight:600"><span>Total assets</span><span class="text-mono text-pine" id="nwTotalAssets">$0</span></div>
+            <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;font-weight:600"><span>Total assets</span><span class="text-mono text-pine" id="nwTotalAssets" data-fig="nw.assets">$0</span></div>
           </div>
           <div class="card">
             <div class="card-label">Liabilities</div>
             <div id="nwLiabilityRows"></div>
-            <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;font-weight:600"><span>Total liabilities</span><span class="text-mono text-ember" id="nwTotalLiabilities">$0</span></div>
+            <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;font-weight:600"><span>Total liabilities</span><span class="text-mono text-ember" id="nwTotalLiabilities" data-fig="nw.liabilities">$0</span></div>
           </div>
         </div>
         <div class="card">
@@ -2294,7 +2297,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div class="field mb-4"><label>Mortgage balance ($)</label><input type="number" step="0.01" id="nwMortgage" placeholder="0" oninput="updateNetWorth()"></div>
               <div class="card mb-4" style="background:var(--mist);border-color:var(--steel)">
                 <div class="text-xs text-muted mb-3" style="letter-spacing:.06em;text-transform:uppercase">Credit card &amp; loan debt</div>
-                <div class="text-mono" style="font-size:20px;color:var(--ember-text)" id="nwDebtFromCards">$0</div>
+                <div class="text-mono" style="font-size:20px;color:var(--ember-text)" id="nwDebtFromCards" data-fig="nw.card_debt">$0</div>
                 <div class="text-xs text-muted mt-3">Auto-calculated from Debt Payoff</div>
               </div>
             </div>
