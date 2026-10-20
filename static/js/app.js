@@ -1447,6 +1447,9 @@ async function bootFromDB() {
   const data = bootstrapRes.data || bootstrapRes;
   if (!data) throw new Error('Empty bootstrap response');
   restoreFromBootstrap(data);
+  // The debts' balance history is what tells the Dashboard the balances are kept up - read at boot, not only when the
+  // Budget page opens (until then the Dashboard said "balances unverified" whatever the history held)
+  await _budgetLoadDebtHistory();
 
   // Populate S.transactions from DB — this was missing from the DB-first boot path
   const txnPayload = txnRes.data || txnRes;
@@ -13158,6 +13161,7 @@ const HELP_FAQ = [
   {"q": "How do I split one transaction across categories?", "a": "Open the transaction (click its row), then choose Split. Divide the amount across categories — a Walmart run can be part Groceries, part Household. The pieces must add up to the original amount, and the app shows the running total as you type.", "keys": ["split", "transaction", "categories", "divide"]},
   {"q": "How do I recategorize many transactions at once?", "a": "Tick the checkbox on each transaction row — a toolbar appears. Pick the new category and apply it to everything selected in one move. Handy after a first big import.", "keys": ["many", "bulk", "several", "recategorize", "select", "once"]},
   {"q": "How do I delete a transaction?", "a": "In the Ledger, click the transaction to open it, then \"Delete transaction\". It is set aside, never destroyed: you have a few seconds to undo, and \"Lines kept safe\" in Settings, Data lists everything set aside, each with Restore. A transaction set aside is left out of every total.", "keys": ["delete", "remove", "transaction", "erase", "get rid", "restore", "undo"], "labels": ["Delete transaction", "Lines kept safe"], "open": {"view": "ledger"}},
+  {"q": "Can I try Groundwork with sample data first?", "a": "Yes. On the welcome screen, \"Let's begin.\" offers \"Look around with a sample household first\": the Morgans, a made-up household with six months of spending, a card, a car loan, a student loan, savings and investments. It is offered only while Groundwork is empty, and a notice on every page says you are looking at the sample. \"Start with my own\" clears it - and anything you added while looking around - and brings the welcome screen back; your accepted terms and AI setting stay.", "keys": ["sample", "demo", "test data", "example", "try", "explore", "morgans", "start with my own"]},
   {"q": "Money worries feel like too much. Who can I talk to?", "a": "You're not alone, and money trouble is temporary - it can be fixed. For help with the money: NFCC nonprofit credit counseling, 1-800-388-2227 (nfcc.org), free or low cost; or call or text 211 for help with rent, utilities and bills where you live. If it ever feels like more than money, call or text 988 (the Suicide & Crisis Lifeline), any time, free and private - veterans press 1. In danger right now: call 911. Outside the US: findahelpline.com.", "keys": ["worried", "stress", "stressed", "overwhelmed", "depressed", "hopeless", "talk", "crisis", "help line", "counseling", "counselor", "988"]},
   {"q": "What does Reconcile do?", "a": "It walks you through matching Groundwork against your bank statement. Open the Reconcile panel in the Ledger, enter your statement's ending balance, and the app checks off transactions and flags anything missing or doubled. A green check marks the reconciled anchor point.", "keys": ["reconcile", "statement", "match", "balance"], "open": {"view": "ledger"}, "labels": ["Reconcile"]},
   {"q": "Why does the Ledger say \"Showing the most recent 300\"?", "a": "With years of history, drawing every row at once would make the page sluggish, so Groundwork shows the newest 300 that match your filters. Click \"Show all\" to load the rest, or narrow the search — the cap resets each time you change filters.", "keys": ["300", "most", "recent", "showing", "rows"]},
@@ -13451,6 +13455,52 @@ async function acceptTerms() {
 // ─── Phase 9A: Onboarding (restored) ─────────────────────────────────────────
 
 const OB_KEY = 'onboarding_complete';
+
+// ── Item 105: a sample household to look around in (gw 2.0/SAMPLE_HOUSEHOLD.md; Rob 2026-10-20) ──────────────────────
+// The welcome screen offers it; it goes only into an empty Groundwork. While it is here a notice says so on every page,
+// with "Start with my own", which clears the sample (and anything added to it) and goes back to the welcome screen.
+async function sampleLoad() {
+  if (_obTestMode) { showToast('Not while testing the welcome screen', 'Exit the test first.', 'info'); return; }
+  const btn = g('obSampleOption');
+  if (btn) { btn.disabled = true; btn.querySelector('.ob-start-title').textContent = 'Setting up the Morgans…'; }
+  try {
+    await API.post('/api/sample/load', {});
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.querySelector('.ob-start-title').textContent = 'Look around with a sample household first'; }
+    showToast("The sample household couldn't be set up", String(e.message || e), 'warning');
+    return;
+  }
+  g('onboardingOverlay')?.classList.add('hidden');
+  await bootFromDB().catch(_gwErr('sampleLoad'));
+  renderDashboard();
+  sampleNotice();
+}
+async function sampleNotice() {
+  let st = null;
+  try { st = await API.get('/api/sample'); } catch (e) { return; }
+  const on = !!(st && (st.data || st).sample);
+  let el = g('gwSampleNotice');
+  if (!on) { el?.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'gwSampleNotice';
+    el.setAttribute('role', 'status');
+    el.style.cssText = 'position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:850;background:var(--ink);color:var(--paper);'
+      + 'border-radius:999px;padding:7px 8px 7px 16px;font-size:12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 18px rgba(0,0,0,.25);max-width:calc(100% - 32px)';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<span style="white-space:nowrap">Sample household (made up)</span>
+    <button class="btn btn-sm" style="background:var(--paper);color:var(--ink);border:none;border-radius:999px;white-space:nowrap" onclick="sampleClear()">Start with my own</button>`;
+}
+function sampleClear() {
+  confirmAction('Start with your own?',
+    `<div style="font-size:13px;color:var(--slate);line-height:1.6">This clears the sample household - and anything you added while looking around - and takes you to the welcome screen to set up your own. The terms you accepted and your AI setting stay.</div>`,
+    async () => {
+      try { await API.post('/api/sample/clear', {}); }
+      catch (e) { showToast("The sample couldn't be cleared", String(e.message || e), 'warning'); return; }
+      location.reload();
+    }, 'Clear the sample', true);
+}
 
 async function checkFirstRun() {
   const hasIncome = S.incomes.length > 0;
@@ -27147,12 +27197,12 @@ function askIntent(q, p, head) {
   const n = _askNorm(q);
   if (!n) return false;
   if (/^(?:hi|hello|hey there|hey|good (?:morning|afternoon|evening)|yo)$/.test(n)) {
-    _askSay(p, head, `Hi! Ask how to do something, or tell me where to go - "view my budget", "see collections", "get my accounts".`);
+    _askSay(p, head, `Hi! Ask a question, or tell me what to do - "how do I split a transaction?", "view my budget", "explain these numbers", "why is restaurants so high", "get my accounts".`);
     return true;
   }
   if (/^(?:thanks|thank you|thx|ty|cheers|great|perfect|ok thanks)$/.test(n)) { _askSay(p, head, "You're welcome."); return true; }
   if (/^(?:help|\?|what can you do|what can i ask|what can i say|commands)$/.test(n)) {
-    _askSay(p, head, `Ask how to do something ("how do I split a transaction?"), or say where to go ("view the calendar", "see my medical bills"),
+    _askSay(p, head, `Ask how to do something ("how do I split a transaction?"), ask what a page means ("explain these numbers"), see what's behind a figure ("why is restaurants so high"), or say where to go ("view the calendar", "see my medical bills"),
       or what to do ("get my accounts", "import a statement", "add a bill", "back up"). Questions about your own numbers
       ("how much do I owe?") open the page that shows them, with the working.
       <div style="margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="closeAsk(); showHelpOverlay()">The whole guide</button></div>`);
@@ -32114,6 +32164,7 @@ async function boot() {
     setTimeout(_checkForUpdates, 4000);             // update banner, off the boot path
     setInterval(_checkForUpdates, 6 * 3600 * 1000); // re-check twice a day
     if (typeof checkFirstRun === 'function') checkFirstRun().catch(_gwErr('boot'));
+    if (typeof sampleNotice === 'function') sampleNotice().catch(_gwErr('sampleNotice'));
     if (typeof checkTermsAcceptance === 'function') checkTermsAcceptance().catch(_gwErr('boot'));
   } catch(e) {
     console.error('Boot error:', e);

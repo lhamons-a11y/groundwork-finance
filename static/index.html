@@ -927,6 +927,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">Let's begin.</div>
           <div id="obStep0Sub" style="font-size:13px;color:var(--slate);margin-bottom:24px;line-height:1.6">The fastest start is bringing in your recent spending — Groundwork organizes it for you and shows you what it found. You can also set things up by hand.</div>
 
+          <!-- Item 105 (Rob 2026-10-20): look around first, in a made-up household - only into an empty Groundwork -->
+          <button class="ob-start-option" id="obSampleOption" onclick="sampleLoad()">
+            <div class="ob-start-title">Look around with a sample household first</div>
+            <div class="ob-start-sub">The Morgans - made up for exploring: six months of spending, a card, a car loan, a student loan, savings and investments. Nothing of yours. "Start with my own" clears it any time.</div>
+          </button>
+
           <button class="ob-start-option" onclick="obChooseMigrate()">
             <div class="ob-start-title">Bring in my spending history</div>
             <div class="ob-start-sub">Import a bank export (CSV, TXT, OFX, QFX, QIF) or a Quicken/Mint file — under two minutes, and you'll see a snapshot right away.</div>
@@ -1227,7 +1233,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <button class="btn btn-sm btn-secondary" onclick="showView('reports')">◫ Reports</button>
         <button class="btn btn-sm btn-secondary" onclick="openBackupModal()">Backup</button>
         <!-- Item 102 (Rob 2026-10-19): the Ask box is AI help - shown only while AI is on and able to run (ai-feature) -->
-        <input id="gwAskBox" class="ai-feature" type="search" placeholder="Ask how to…" aria-label="Ask Groundwork how to do something"
+        <input id="gwAskBox" class="ai-feature" type="search" placeholder="Ask or tell Groundwork…" aria-label="Ask Groundwork a question, or tell it what to do"
           onkeydown="if (event.key === 'Enter') { askGroundwork(this.value); }"
           style="font-size:12px;padding:5px 10px;border:1px solid var(--steel);border-radius:var(--r-sm);width:170px;background:var(--paper);color:var(--ink)">
         <!-- Item 103 (Rob 2026-10-19): what this page works out, and with AI on what its figures mean -->

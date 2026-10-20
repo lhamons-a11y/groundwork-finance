@@ -17,8 +17,9 @@ import re
 def run(ctx):
     check, app, html = ctx.check, ctx.app_src, ctx.html_src
     ask = app[app.index('async function askGroundwork(question) {'):app.index('\nfunction _askWhyChoicesHTML() {')]
-    check('s246 A1 the Ask box is AI help, shown only with AI on and able to run',
-          'id="gwAskBox" class="ai-feature"' in html and "document.querySelectorAll('.ai-feature')" in app
+    check('s246 A1 the Ask box is AI help, shown only with AI on and able to run, named for what it does (Rob 2026-10-20: '
+          '"lets change the phrase ask how to ... to something else since the text window can do more")',
+          'id="gwAskBox" class="ai-feature"' in html and 'placeholder="Ask or tell Groundwork…"' in html and "document.querySelectorAll('.ai-feature')" in app
           and 'if (!aiEnabled()) {' in ask)
     sysmsg = app[app.index('const ASK_SYSTEM = '):app.index('const ASK_GUIDE_SIZE')]
     check('s246 A2 the model is told to answer only from the numbered guide entries, name the one it used, and say when none fits',
@@ -51,7 +52,7 @@ def run(ctx):
     check('s246 A5 the website\'s knowledge base matches: Health, the Budget tabs, the new Before You Buy, Ask',
           '<div class="kb-article" id="health">' in kb and '<a href="#health">Health</a>' in kb
           and '<strong>Calendar</strong>' in kb and 'What are you thinking of buying?' in kb
-          and '<strong>Ask how to…</strong>' in kb and 'Gifts</strong> tab on the Budget page' in kb)
+          and '<strong>Ask or tell Groundwork…</strong>' in kb and 'Gifts</strong> tab on the Budget page' in kb)
 
     # "view X" means the page, now (Rob 2026-10-19); a question is answered - run in Node when it is available
     import shutil, subprocess, tempfile, os

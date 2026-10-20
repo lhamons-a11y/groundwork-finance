@@ -208,6 +208,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(achievements_bp,  url_prefix='/api/achievements')
     app.register_blueprint(settings_bp,      url_prefix='/api/settings')
     app.register_blueprint(ai_bp,            url_prefix='/api/ai')
+    app.register_blueprint(sample_bp,        url_prefix='/api/sample')
     app.register_blueprint(backup_bp,        url_prefix='/api/backup')
     app.register_blueprint(import_bp,        url_prefix='/api/import')
     app.register_blueprint(bank_import_bp,   url_prefix='/api/import')
@@ -9513,6 +9514,8 @@ def get_settings():
 def update_settings():
     """Update one or more app settings."""
     body = request.json
+    # Item 105: only the sample household's own load marks the records as the sample (which lets them be cleared)
+    body.pop('sample_household', None)
     # Cloud AI is gone (CLOUD_AI_REMOVAL.md): there is no provider to choose and
     # no key to store, so neither setting is ever written.
     body.pop('api_key', None)
@@ -13076,7 +13079,9 @@ def create_snapshot():
         # Item 35 V7: history is never rewritten; the first snapshot after valuation changed says so, so a step in the
         # line is explained rather than read as a loss. Once, and only for a household that has held investments.
         if not _get_setting(session, 'inv_valuation_v35_noted'):
-            if session.query(InvestmentLot.id).first():
+            # ... and only where there is an earlier snapshot whose line the change would step (a new household has none)
+            earlier = session.query(NetWorthSnapshot.id).filter(NetWorthSnapshot.snapshot_date < month_key).first()
+            if earlier and session.query(InvestmentLot.id).first():
                 notes.append('Investment valuation changed on ' + date.today().isoformat() + ': holdings with no '
                              'price on record are no longer counted at cost, and lots with no cost basis are left '
                              'out of the gain.')
@@ -13968,6 +13973,69 @@ def auto_import_statement_bytes():
 
 
 # ── Backup ────────────────────────────────────────────────────────────────────
+
+# ── Item 105: a sample household to look around in (gw 2.0/SAMPLE_HOUSEHOLD.md, Rob 2026-10-20) ─────────────────────
+# Offered on the welcome screen. It goes only into an empty Groundwork, and only the sample can be cleared this way.
+sample_bp = Blueprint('sample', __name__)
+
+
+@sample_bp.route('', methods=['GET'])
+def sample_status():
+    from core import sample_household as sh
+    with db_session() as session:
+        flag = _get_setting(session, sh.SAMPLE_FLAG)
+        reason = sh.empty_reason(session)
+        return ok({'sample': bool(flag and flag.value == 'true'), 'can_load': reason is None, 'why_not': reason})
+
+
+@sample_bp.route('/load', methods=['POST'])
+def sample_load():
+    from flask import current_app
+    from core import sample_household as sh
+    with db_session() as session:
+        reason = sh.empty_reason(session)
+    if reason:
+        return err(f'The sample household goes only into an empty Groundwork - {reason}.', 409)
+    db_session.remove()
+    try:
+        made = sh.build(current_app.test_client(), {'X-GW-Token': _GW_TOKEN})
+    except Exception as e:
+        logging.exception('sample household')
+        return err(f'The sample household could not be built: {e}', 500)
+    return ok({'loaded': True, **made})
+
+
+@sample_bp.route('/clear', methods=['POST'])
+def sample_clear():
+    """Back to a first launch: the sample's records go, the terms accepted and the AI and backup choices stay."""
+    from core import sample_household as sh
+    from core.database import DB_PATH, AppSetting, engine
+    with db_session() as session:
+        flag = _get_setting(session, sh.SAMPLE_FLAG)
+        if not (flag and flag.value == 'true'):
+            return err('Only the sample household can be cleared this way. Your own records are never cleared here.', 403)
+        kept = {r.key: r.value for r in session.query(AppSetting).all() if r.key.startswith(sh.KEEP_PREFIXES)}
+    try:
+        db_session.remove()
+        engine.dispose()
+        for suffix in ('', '-wal', '-shm', '-journal'):
+            f = DB_PATH.with_name(DB_PATH.name + suffix)
+            if f.exists():
+                f.unlink()
+        run_migration_if_needed()
+        with db_session() as session:
+            for k, v in kept.items():
+                setting = _get_setting(session, k)
+                if setting:
+                    setting.value = v
+                else:
+                    session.add(AppSetting(key=k, value=v))
+            session.commit()
+    except Exception as e:
+        logging.exception('sample clear')
+        return err(f'Clearing the sample failed: {e}', 500)
+    return ok({'cleared': True})
+
 
 backup_bp = Blueprint('backup', __name__)
 

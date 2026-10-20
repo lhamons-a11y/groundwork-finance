@@ -54,6 +54,10 @@ an expert in this field not me"*). Before any guide answer, in order:
 - a page or tab by name - with or without "view / see / open / take me to" - opens it.
 Checked in the browser on 37 phrases.
 
+**A9. Named for what it does** (Rob 2026-10-20: *"lets change the phrase ask how to ... to something else since the
+text window can do more than answer help questions"*). The box reads *Ask or tell Groundwork…*; its greeting and its
+"help" reply name the four things it does - answer, open a page, explain the numbers, show what is behind a figure.
+
 ## Measured
 
 On Rob's M2 with the shipped model (Phi-3.5, on Metal), real questions in loose wording ("how do i put my bank stuff
