@@ -10,7 +10,7 @@
 import json
 import subprocess
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 
 def _months_back(d, k):
@@ -145,8 +145,7 @@ def run(ctx):
           bad.status_code == 400 and none.status_code == 404 and yes.status_code == 200
           and after_yes == new_price and y.get('change', {}).get('from') == price(1)
           and not mine2.get('question') and mine2['steps'][-1]['source'] == 'answer'
-          and step and step['certainty'] == 'expected'
-          and datetime.strptime(step['date'], '%a, %d %b %Y %H:%M:%S GMT').strftime('%Y-%m') == f'{pdate.year + 1}-{pdate.month:02d}')
+          and step and step['certainty'] == 'expected' and step['date'][:7] == f'{pdate.year + 1}-{pdate.month:02d}')
     un = c.post('/api/yearly-steps/undo', headers=HJ, data=json.dumps({'payee': 'S250 FIBERNET', 'month': y['recorded']['month'],
                                                                         'change': y.get('change')}))
     mine3 = next((x for x in items() if x['payee'] == 'S250 FIBERNET'), {})

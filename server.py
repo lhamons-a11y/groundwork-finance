@@ -4225,11 +4225,11 @@ def _calendar_entries(session, start, end, include_detected=True):
         if not start <= when <= end:
             continue
         three = len(x['steps']) >= ys.MIN_PROJECT
-        out.append({'date': when, 'kind': 'step', 'title': f"{x['payee']}: its yearly price step month",
+        out.append({'date': when.isoformat(), 'kind': 'step', 'title': f"{x['payee']}: its yearly price step month",
                     'amount': x['projection']['amount'] if x['projection'] else None,
                     'certainty': upcoming.EXPECTED if three else upcoming.POSSIBLE,
                     'source': 'its price steps a year apart' + ('' if three else ' (two so far)'), 'view': 'budget'})
-    return sorted(out, key=lambda e: (e['date'], e['kind'], e['title']))
+    return sorted(out, key=lambda e: (e['date'], e['kind'], e['title']))       # upcoming's dates are ISO strings
 
 
 @calendar_bp.route('/recurring', methods=['GET'])
