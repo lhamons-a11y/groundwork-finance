@@ -8610,6 +8610,14 @@ function _paceProjection(txns, daysElapsed, daysInMonth) {
   txns.forEach(t => { if (_isMonthlyBill(t)) bills += t.amount; else daily += t.amount; });
   return bills + (daily / daysElapsed) * daysInMonth;
 }
+// This period's spending and how much of it was monthly bills, for the Dashboard's "so far" tile.
+function _monthSpendSplit() {
+  const spend = getTxnsForPeriod().filter(_isSpend);
+  return {
+    spent: spend.reduce((s, t) => s + t.amount, 0),
+    bills: spend.filter(_isMonthlyBill).reduce((s, t) => s + t.amount, 0),
+  };
+}
 
 function _budgetProjection(catName, budgetedAmt) {
   // Blueprint §9 — verbatim algorithm. Returns null before 5 days elapsed
