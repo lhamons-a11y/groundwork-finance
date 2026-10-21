@@ -172,7 +172,7 @@ Windows machine (this Mac holds only the sample household).
 
 ---
 
-## 7. Built (2026-10-21), awaiting acceptance
+## 7. Built (2026-10-21), ACCEPTED 2026-10-21
 
 **The null model first** (`scripts/y106_null_model.py`, seeded; run in s250 on every gate):
 
@@ -243,3 +243,7 @@ stands. Two steps are said as a fact and asked about when the new price lands.
 
 **Y5(b): gas and electric left to item 26.** Rob: *"leave the gas and electric to item 26"*. Gas, electric, propane
 and heating oil appear nowhere in yearly steps; item 26's EIA-priced estimate carries their rate changes.
+
+## 9. Acceptance: Rob, 2026-10-21
+
+**Accepted** (Rob: *"accept item 106"*). The live read on Rob's own ledger is still owed, on the Windows machine.
