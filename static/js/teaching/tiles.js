@@ -72,7 +72,9 @@
     // This month (T1, T2, T4).
     var txns = getTxnsForPeriod();
     var spent = txns.filter(_isSpend).reduce(function (s, t) { return s + t.amount; }, 0);
-    var m = T.month({ spent: spent, daysGone: now.getDate(),
+    var bills = txns.filter(function (t) { return _isSpend(t) && _isMonthlyBill(t); })
+                    .reduce(function (s, t) { return s + t.amount; }, 0);
+    var m = T.month({ spent: spent, bills: bills, daysGone: now.getDate(),
                       daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
                       budget: _effectiveIncome(), behind: behind, monthName: monthName }, F);
     var v = g('dashHealthVerdict'), hs = g('dashHealthSub'), card = g('dashHealthCard');

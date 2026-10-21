@@ -2261,7 +2261,7 @@ function renderDashboard() {
   const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
   const daysGone    = now.getDate();
   const daysLeft    = daysInMonth - daysGone;
-  const projected   = daysGone > 0 ? (spent / daysGone) * daysInMonth : 0;
+  const projected   = _paceProjection(txns.filter(_isSpend), daysGone, daysInMonth);
   const totalDebt   = _activeDebtCards().reduce((s,c) => s + (_cardBal(c)), 0);
   const streak      = _calcStreakFromData();
 
@@ -8543,7 +8543,7 @@ function _budgetDeleteIncome(idx) {
 // ── Expense bloom ─────────────────────────────────────────────────────────────
 // ── Budget CP1+CP2: Live spend + Projection engine ────────────────────────────
 // CP1: spent-so-far is pulled from S.transactions by category, current month.
-// CP2: projection = (spent / days_elapsed) * days_in_month, needs 5+ days.
+// CP2: projection = monthly bills paid + (other spent / days_elapsed) * days_in_month, needs 5+ days.
 // Blueprint §6, §9.
 
 function _budgetSpentForCat(catName) {
@@ -8570,6 +8570,47 @@ function _budgetTxnsForCat(catName) {
               && matchNames.includes(t.category));
 }
 
+// A once-a-month bill (rent, a car payment, insurance) is paid once, not spent a little each day, so projecting it
+// at the daily pace made $1,650 rent paid on the 1st read "$2,550 proj." by the 20th. A debit is a monthly bill when
+// its merchant is a recurring transaction, or was charged exactly once in each of 2+ earlier months.
+let _monthlyBillMemo = { txns: null, len: -1, month: '', keys: null };
+function _monthlyBillMerchants() {
+  const txns = S.transactions || [];
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const m = _monthlyBillMemo;
+  if (m.txns === txns && m.len === txns.length && m.month === thisMonth) return m.keys;
+  const perMonth = new Map();   // merchant -> Map(month -> charges)
+  txns.forEach(t => {
+    if (t.type !== 'debit') return;
+    const key = (t.merchant || t.description || '').toLowerCase().trim();
+    const mo  = (t.date || '').slice(0, 7);
+    if (!key || !mo || mo >= thisMonth) return;
+    if (!perMonth.has(key)) perMonth.set(key, new Map());
+    const c = perMonth.get(key);
+    c.set(mo, (c.get(mo) || 0) + 1);
+  });
+  const keys = new Set();
+  perMonth.forEach((c, key) => {
+    if (c.size >= 2 && [...c.values()].every(n => n === 1)) keys.add(key);
+  });
+  (_recurringItems || []).forEach(i => {
+    if (i.type !== 'credit' && i.name) keys.add(i.name.toLowerCase().trim());
+  });
+  _monthlyBillMemo = { txns, len: txns.length, month: thisMonth, keys };
+  return keys;
+}
+function _isMonthlyBill(t) {
+  return _monthlyBillMerchants().has((t.merchant || t.description || '').toLowerCase().trim());
+}
+// Month-end projection: monthly bills at what was paid, everything else at the daily pace.
+function _paceProjection(txns, daysElapsed, daysInMonth) {
+  if (!(daysElapsed > 0)) return 0;
+  let bills = 0, daily = 0;
+  txns.forEach(t => { if (_isMonthlyBill(t)) bills += t.amount; else daily += t.amount; });
+  return bills + (daily / daysElapsed) * daysInMonth;
+}
+
 function _budgetProjection(catName, budgetedAmt) {
   // Blueprint §9 — verbatim algorithm. Returns null before 5 days elapsed
   // or when not in the current calendar month (no projection for past months).
@@ -8582,7 +8623,7 @@ function _budgetProjection(catName, budgetedAmt) {
   if (daysElapsed < 5) return null;
 
   const spent     = _budgetSpentForCat(catName);
-  const projected = (spent / daysElapsed) * daysInMonth;
+  const projected = _paceProjection(_budgetTxnsForCat(catName), daysElapsed, daysInMonth);
 
   return {
     spent:     Math.round(spent * 100) / 100,
@@ -27349,7 +27390,7 @@ const FIGS = {
   'budget.group_spent':   { label: 'Spent so far this month in the group', means: 'the charges filed under this category and its subcategories this month', record: 'transactions (this month, by category)' },
   'budget.line_budget':   { label: 'Budgeted for the month', means: 'the amount set on this budget line', record: 'budget_items; app_settings → app_snapshot.expenses' },
   'budget.line_spent':    { label: 'Spent so far this month', means: 'the charges filed under this line\'s category (and its subcategories) this month', record: 'transactions (this month, by category)' },
-  'budget.line_projected':{ label: 'Projected by month-end', means: 'spent so far, divided by the days gone, times the days in the month', record: 'transactions (this month, by category)' },
+  'budget.line_projected':{ label: 'Projected by month-end', means: 'once-a-month bills (a recurring transaction, or a merchant charged once in each of two or more earlier months) at what was paid, plus the rest of what was spent so far divided by the days gone, times the days in the month', record: 'transactions (this month, by category); recurring transactions' },
   'budget.line_pct':      { label: 'Share of the line used', means: 'projected (or spent) as a share of the amount budgeted', record: 'transactions; budget_items' },
   'debt.free_date':       { label: 'Debt-free date', means: 'the month the last balance reaches zero, paying your monthly payment budget by your strategy, with each card\'s interest added monthly', record: 'app_settings → app_snapshot.debtCards; worked out on this page, not stored' },
   'debt.time_left':       { label: 'Time until debt-free', means: 'the months from today to the debt-free date', record: 'worked out on this page, not stored' },
