@@ -239,5 +239,7 @@ charge at $125.58):
 ## 8. Ruling on the departures: Rob, 2026-10-21
 
 **Y2 as measured: projections from three steps.** Rob: *"keep projections from three steps"*. `MIN_PROJECT = 3`
-stands. Two steps are said as a fact and asked about when the new price lands. Y5(b) left to item 26 was not
-reversed.
+stands. Two steps are said as a fact and asked about when the new price lands.
+
+**Y5(b): gas and electric left to item 26.** Rob: *"leave the gas and electric to item 26"*. Gas, electric, propane
+and heating oil appear nowhere in yearly steps; item 26's EIA-priced estimate carries their rate changes.
