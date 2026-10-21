@@ -2730,7 +2730,7 @@ async function renderPriceChanges() {
   const box = g('budgetPriceChanges');
   if (!box) return;
   try { _priceChanges = (await API.get('/api/price-changes')).changes || []; } catch (e) { _gwErr('renderPriceChanges')(e); box.innerHTML = ''; return; }
-  _budTabCount('bills', _priceChanges.filter(c => c.line && !c.line_matches).length);   // item 79 U1
+  _budTabCount('bills', _priceChanges.filter(c => c.line && !c.line_matches).length, 'price');   // item 79 U1
   if (!_priceChanges.length) { box.innerHTML = ''; return; }
   const day = iso => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   box.innerHTML = `<div class="card mt-5"><div class="card-label">Price changes</div>
@@ -2745,13 +2745,27 @@ async function renderPriceChanges() {
       </div>`).join('') + '</div>';
 }
 
+// A line the server just changed (a price-change tap, a yearly answer, either Undo) is changed in the page's own copy
+// too. Saving any budget row sends every row's amount (_syncBudgetItemsToDb), and the recurring list is saved whole,
+// so a stale copy would quietly put the old amount back the next time anything on the page was saved.
+function _setLocalLineAmount(kind, id, amount) {
+  const list = kind === 'budget' ? (S.expenses || []) : kind === 'recurring' ? _recurringItems : [];
+  const row = list.find(x => String(x.id) === String(id));
+  if (row) row.amount = amount;
+}
+
 async function applyPriceChange(i) {
   const c = _priceChanges[i];
   if (!c) return;
   try {
     const r = await API.post('/api/price-changes/apply', { payee: c.payee });
+    _setLocalLineAmount(r.kind, r.id, r.to);
     showToast(`${r.line}: ${fmt(r.from)} to ${fmt(r.to)}`, '', 'success', async () => {
-      try { await API.post('/api/price-changes/undo', { kind: r.kind, id: r.id, amount: r.from }); showToast(`${r.line} is back to ${fmt(r.from)}`, '', 'info'); }
+      try {
+        await API.post('/api/price-changes/undo', { kind: r.kind, id: r.id, amount: r.from });
+        _setLocalLineAmount(r.kind, r.id, r.from);
+        showToast(`${r.line} is back to ${fmt(r.from)}`, '', 'info');
+      }
       catch (e) { showToast('Undo failed', e.message || '', 'error'); }
       renderBudget(); renderPriceChanges();
     });
@@ -2760,7 +2774,7 @@ async function applyPriceChange(i) {
 }
 
 // ── Item 65 W3 (AGENT_W_ITEMS.md): the Calendar page - one source for every upcoming date ─────────────────────
-const _CAL_KIND = { debt: '💳', recurring: '📋', bill: '🧾', gift: '🎁', trip: '✈', fund: '◎', pay: '💵', charge: '🔁', yearly: '📅' };
+const _CAL_KIND = { debt: '💳', recurring: '📋', bill: '🧾', gift: '🎁', trip: '✈', fund: '◎', pay: '💵', charge: '🔁', yearly: '📅', step: '📈' };
 const _CAL_CERT = { confirmed: 'Confirmed', expected: 'Expected', possible: 'Possible' };
 
 // ── Item 65 W1 (AGENT_W_ITEMS.md): patterns a long history shows - each one asked about, nothing assumed ────────
@@ -12847,6 +12861,10 @@ function _checkinLines(f) {
     (gl.deadline ? ` by ${day(gl.deadline)}` : '') + (gl.monthly ? ` (${fmt(gl.monthly)} a month gets there)` : '')).join('; ') + '.');
   // W2-c: a price that changed this week, named once, here - the Budget page keeps the list
   (f.price_changes || []).forEach(p => lines.push(p.sentence + ' The Budget page can update the line.'));
+  // Item 106 Y10: a yearly step's month beginning, or its question opening, named once here
+  (f.yearly_steps || []).forEach(y => lines.push(y.question
+    ? `${y.question} The Budget page's Bills tab has the question.`
+    : `${y.sentence} The figure for ${new Date(y.projection.month + '-15').toLocaleDateString('en-US', { month: 'long' })} is ${fmt(y.projection.amount)}, on the Budget page.`));
   if (f.pay && f.pay.length) {
     const names = [...new Set(f.pay.map(_checkinWho))];
     lines.push(`Groundwork expects ${names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0]} this week, from ${f.pay.length > 1 ? 'each one\'s' : 'its'} usual schedule.`);
@@ -27922,9 +27940,16 @@ function _budReveal(el) {
   if (panel) _budShowTab(panel.id.slice('budPanel-'.length));
 }
 // U1: something waiting on the person shows as a plain count on its tab, as "Needs you" does - no badge, no motion
-function _budTabCount(id, n) {
+// A tab's count can come from more than one list (price changes and yearly steps both open questions on Bills):
+// each source keeps its own count and the tab shows the sum.
+const _budTabSources = {};
+function _budTabCount(id, n, source) {
   const b = g('budTab-' + id);
   if (!b) return;
+  if (source) {
+    _budTabSources[id] = { ...(_budTabSources[id] || {}), [source]: n };
+    n = Object.values(_budTabSources[id]).reduce((s, v) => s + v, 0);
+  }
   const base = { plan: 'Your budget', futures: 'Possible futures', bills: 'Bills and charges' }[id];
   b.textContent = n ? `${base} (${n})` : base;
 }

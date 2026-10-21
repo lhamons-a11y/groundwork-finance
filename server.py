@@ -223,6 +223,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(calendar_bp,       url_prefix='/api/calendar')
     app.register_blueprint(tidy_bp,           url_prefix='/api/tidy')
     app.register_blueprint(price_changes_bp,  url_prefix='/api/price-changes')
+    app.register_blueprint(yearly_steps_bp,   url_prefix='/api/yearly-steps')
     app.register_blueprint(first_import_bp,   url_prefix='/api/first-import')
     app.register_blueprint(year_end_bp,       url_prefix='/api/year-end')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
@@ -3359,6 +3360,204 @@ def price_changes_undo():
         return ok({'restored': amount})
 
 
+# ── Item 106 (YEARLY_PRICE_STEPS.md): a bill that steps at the same time each year - said, projected, asked ───────
+yearly_steps_bp = Blueprint('yearly_steps', __name__)
+# Y5: usage bills item 26 already estimates from EIA's regional price - a yearly rate step is in that figure already,
+# so a household step on top would count it twice (section 7). The rest are asked about (Y5(c)).
+_ITEM26_USAGE = {'electric', 'electricity', 'natural gas', 'propane', 'heating oil'}
+
+
+def _yearly_answers(session):
+    return _setting_json(session, 'yearly_step_answers', {}) or {}
+
+
+def _yearly_steps(session, today=None):
+    """Item 106: every payee's yearly price steps, from the whole ledger and the household's answers (Y1-Y8).
+    Derived on every read; only the answers and the person's taps are stored."""
+    from core import yearly_steps as ys
+    from core.price_change import USAGE_CATEGORIES
+    today = today or date.today()
+    rows = session.query(Transaction.merchant, Transaction.date, Transaction.amount, Category.name).outerjoin(
+        Category, Category.id == Transaction.category_id).filter(
+        Transaction.type == 'debit', Transaction.merchant != '', Transaction.date <= today).all()
+    by, cat = {}, {}
+    for m, d, a, c in rows:
+        if m and d:
+            by.setdefault(m, []).append((d, a))
+            cat[m] = c or ''
+    answers = _yearly_answers(session)
+    follow = set(_setting_json(session, 'yearly_step_follow', []) or [])
+    out = []
+    for m, xs in by.items():
+        c = cat[m].strip().lower()
+        mine = answers.get(m, [])
+        answered = [a['month'] for a in mine]
+        line = None
+        if c in USAGE_CATEGORIES:
+            if c in _ITEM26_USAGE:
+                continue
+            steps = ys.apply_answers([], mine)                           # Y5(c): only the household's word
+            pat = ys.pattern(steps)
+            sm = ys.same_month(xs, today)
+            q = None
+            if sm and (today.year * 12 + today.month) - (int(sm['month'][:4]) * 12 + int(sm['month'][5:7])) <= 1 \
+                    and abs(sm['pct']) >= ys.FLOOR and not any(
+                    abs((int(sm['month'][:4]) * 12 + int(sm['month'][5:7])) - (int(a[:4]) * 12 + int(a[5:7]))) <= 11
+                    for a in answered):
+                way = 'higher' if sm['pct'] > 0 else 'lower'
+                mon = date(int(sm['month'][:4]), int(sm['month'][5:7]), 1).strftime('%B')
+                q = {'kind': 'rate', 'month': sm['month'],
+                     'text': f"Your {mon} bill from {m} was {abs(sm['pct']) * 100:.1f}% {way} than last {mon}'s "
+                             f"(${sm['this']:,.2f} against ${sm['last_year']:,.2f}). A usage bill follows what is used "
+                             f"as well as the rate. Did your rate change?"}
+            if not pat and not q:
+                continue
+            line = _price_line(session, m)
+            level = line['amount'] if line else None
+            proj = ys.projection(pat, level, today) if pat else None
+            out.append({'payee': m, 'category': cat[m], 'kind': 'usage', 'sentence': ys.sentence(m, pat),
+                        'steps': (pat or {}).get('steps', []), 'pattern': bool(pat and pat['pattern']),
+                        'projection': proj, 'question': q, 'line': line,
+                        'followed': bool(line and line['kind'] == 'budget' and line['id'] in follow and proj)})
+            continue
+        info = ys.read(xs, cat[m])
+        if not info:
+            continue
+        steps = ys.apply_answers(info['steps'], mine)
+        pat = ys.pattern(steps)
+        if not pat:
+            continue
+        q = ys.question(info, pat, today, answered)
+        if q:
+            q = {'kind': 'price', **q, 'text': f"Is your {m} bill now ${q['amount']:,.2f}?"}
+        line = _price_line(session, m)
+        proj = ys.projection(pat, info['level'], today)
+        out.append({'payee': m, 'category': cat[m], 'kind': info['kind'], 'sentence': ys.sentence(m, pat),
+                    'steps': pat['steps'], 'pattern': pat['pattern'], 'level': info['level'],
+                    'projection': proj, 'question': q, 'line': line,
+                    'followed': bool(line and line['kind'] == 'budget' and line['id'] in follow and proj)})
+    out.sort(key=lambda x: (not x['question'], not x['projection'], x['payee'].lower()))
+    return out
+
+
+def _yearly_follow_amounts(session, today=None):
+    """Y6: {budget item id: projection} for rows the household follows, from the expected month on. A row not
+    followed keeps its saved amount (M1); nothing is read when nothing is followed."""
+    if not (_setting_json(session, 'yearly_step_follow', []) or []):
+        return {}
+    this_month = (today or date.today()).strftime('%Y-%m')
+    return {x['line']['id']: {**x['projection'], 'payee': x['payee']} for x in _yearly_steps(session, today)
+            if x['followed'] and x['projection']['month'] <= this_month}
+
+
+@yearly_steps_bp.route('', methods=['GET'])
+def yearly_steps_get():
+    with db_session() as session:
+        return ok({'items': _yearly_steps(session)})
+
+
+@yearly_steps_bp.route('/answer', methods=['POST'])
+@require_json
+def yearly_steps_answer():
+    """Y7: the household's answer - the only write, besides the line it changes (shown first, with Undo). Every
+    figure but the person's own is worked out again here, never taken from the page."""
+    b = request.get_json() or {}
+    payee, answer = b.get('payee'), b.get('answer')
+    if answer not in ('yes', 'amount', 'rate', 'no_change', 'not_sure'):
+        return err('That is not an answer Groundwork asks for.', 400)
+    with db_session() as session:
+        x = next((i for i in _yearly_steps(session) if i['payee'] == payee and i['question']), None)
+        if not x:
+            return err('There is no question open for that payee.', 404)
+        q = x['question']
+        rec = {'month': q['month'], 'answer': answer, 'at': datetime.utcnow().isoformat(timespec='seconds')}
+        new_amount = None
+        if q['kind'] == 'price':
+            if answer not in ('yes', 'amount', 'not_sure'):
+                return err('That answer is for a usage bill.', 400)
+            rec['before'] = q['before']
+            if answer == 'yes':
+                rec['amount'] = new_amount = q['amount']
+            elif answer == 'amount':
+                try:
+                    rec['amount'] = new_amount = round(float(b.get('amount')), 2)
+                except (TypeError, ValueError):
+                    return err('An amount is needed.', 400)
+                if new_amount <= 0:
+                    return err('An amount is needed.', 400)
+        else:
+            if answer not in ('rate', 'no_change', 'not_sure'):
+                return err('That answer is for a fixed price.', 400)
+            if answer == 'rate':
+                try:
+                    pct = float(b.get('pct')) / 100.0
+                except (TypeError, ValueError):
+                    return err('The change, as a percent, is needed.', 400)
+                if not -0.5 < pct < 1.0 or pct == 0:
+                    return err('That percent is outside what a rate change would be.', 400)
+                rec['pct'] = pct
+                if x['line']:
+                    new_amount = round(x['line']['amount'] * (1 + pct), 2)
+        answers = _yearly_answers(session)
+        answers.setdefault(payee, []).append(rec)
+        _set_setting(session, 'yearly_step_answers', json.dumps(answers))
+        change = None
+        if new_amount is not None and x['line'] and abs(new_amount - x['line']['amount']) >= 0.01:
+            old = _set_line_amount(session, x['line']['kind'], x['line']['id'], new_amount)
+            if old is not None:
+                change = {'line': x['line']['name'], 'kind': x['line']['kind'], 'id': x['line']['id'],
+                          'from': old, 'to': new_amount}
+        session.commit()
+        return ok({'recorded': rec, 'change': change})
+
+
+@yearly_steps_bp.route('/undo', methods=['POST'])
+@require_json
+def yearly_steps_undo():
+    """Undo an answer: the answer is removed and the line, if it changed, goes back."""
+    b = request.get_json() or {}
+    payee, month = b.get('payee'), b.get('month')
+    with db_session() as session:
+        answers = _yearly_answers(session)
+        mine = answers.get(payee, [])
+        keep = [a for a in mine if a.get('month') != month]
+        if len(keep) == len(mine):
+            return err('There is no answer for that month to undo.', 404)
+        answers[payee] = keep
+        _set_setting(session, 'yearly_step_answers', json.dumps(answers))
+        ch = b.get('change')
+        if isinstance(ch, dict) and ch.get('kind') in ('budget', 'recurring'):
+            try:
+                amount = round(float(ch.get('from')), 2)
+            except (TypeError, ValueError):
+                amount = None
+            if amount is not None and amount >= 0:
+                _set_line_amount(session, ch['kind'], ch.get('id'), amount)
+        session.commit()
+        return ok({'undone': month})
+
+
+@yearly_steps_bp.route('/follow', methods=['POST'])
+@require_json
+def yearly_steps_follow():
+    """Y6: the household chooses whether a budget row's totals follow its yearly projection (M1); the saved amount
+    is never changed by following."""
+    b = request.get_json() or {}
+    try:
+        item_id = int(b.get('item_id'))
+    except (TypeError, ValueError):
+        return err('A budget row is needed.', 400)
+    with db_session() as session:
+        if not session.get(BudgetItem, item_id):
+            return err('That budget row is gone.', 404)
+        follow = [i for i in (_setting_json(session, 'yearly_step_follow', []) or []) if i != item_id]
+        if b.get('on'):
+            follow.append(item_id)
+        _set_setting(session, 'yearly_step_follow', json.dumps(follow))
+        session.commit()
+        return ok({'following': follow})
+
+
 # ── Item 65 W1 (AGENT_W_ITEMS.md): patterns a long history shows - asked about, never assumed ────────────────────
 first_import_bp = Blueprint('first_import', __name__)
 _MONTH_NAMES = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
@@ -4012,10 +4211,25 @@ calendar_bp = Blueprint('calendar', __name__)
 
 def _calendar_entries(session, start, end, include_detected=True):
     from core import upcoming
+    from core import yearly_steps as ys
     recurring = _setting_json(session, 'recurring_items_json', []) or []
-    return upcoming.entries(session, start, end, pay=_pay_state(session, start)['payers'],
-                            recurring=recurring if isinstance(recurring, list) else [],
-                            people=_setting_json(session, 'payer_people', {}) or {}, include_detected=include_detected)
+    out = upcoming.entries(session, start, end, pay=_pay_state(session, start)['payers'],
+                           recurring=recurring if isinstance(recurring, list) else [],
+                           people=_setting_json(session, 'payer_people', {}) or {}, include_detected=include_detected)
+    # item 106 Y10: the month a yearly price step would fall in - expected from three steps, possible from two
+    for x in _yearly_steps(session, start):
+        nxt = x['pattern'] and ys.next_expected({'pattern': True, 'steps': x['steps']})
+        if not nxt:
+            continue
+        when = date(int(nxt[:4]), int(nxt[5:7]), 1)
+        if not start <= when <= end:
+            continue
+        three = len(x['steps']) >= ys.MIN_PROJECT
+        out.append({'date': when, 'kind': 'step', 'title': f"{x['payee']}: its yearly price step month",
+                    'amount': x['projection']['amount'] if x['projection'] else None,
+                    'certainty': upcoming.EXPECTED if three else upcoming.POSSIBLE,
+                    'source': 'its price steps a year apart' + ('' if three else ' (two so far)'), 'view': 'budget'})
+    return sorted(out, key=lambda e: (e['date'], e['kind'], e['title']))
 
 
 @calendar_bp.route('/recurring', methods=['GET'])
@@ -4191,6 +4405,16 @@ def checkin_get():
         w0, w1 = ck.week_bounds(today)
         f['price_changes'] = [{'sentence': x['sentence'], 'payee': x['payee']} for x in _price_changes(session, today)
                               if w0.isoformat() <= x['seen_on'] <= w1.isoformat()]
+        # item 106 Y10: a yearly projection the week its month begins; a question the week its new price landed
+        f['yearly_steps'] = []
+        for x in _yearly_steps(session, today):
+            q, p = x['question'], x['projection']
+            begins = lambda m: w0.isoformat() <= m + '-01' <= w1.isoformat()
+            if q and w0.isoformat() <= (q.get('charge_date') or q['month'] + '-01') <= w1.isoformat():
+                f['yearly_steps'].append({'payee': x['payee'], 'sentence': x['sentence'], 'question': q['text']})
+            elif p and begins(p['month']):
+                f['yearly_steps'].append({'payee': x['payee'], 'sentence': x['sentence'],
+                                          'projection': {'month': p['month'], 'amount': p['amount']}})
         key = today.isoformat()
         return ok({**f, 'date': key, 'is_sunday': today.weekday() == 6,
                    'written': _setting_json(session, f'checkin_text_{key}'),
@@ -5883,6 +6107,7 @@ def budget_month_amounts(session, fetch=False, today=None):
     for kind in UTILITY_KINDS:
         if (prefs.get(kind) or {}).get('on'):
             picked[kind] = bm.pick_estimate(_estimate_for(session, kind, fetch), kind, this_month)
+    yearly = _yearly_follow_amounts(session, today)                # item 106 Y6: followed yearly projections
     out = {}
     for item in session.query(BudgetItem).filter_by(is_active=True, type='expense').all():
         kind = next((k for k, c in _UTILITY_CATEGORY.items() if (item.category or '').lower() == c), None)
@@ -5898,6 +6123,13 @@ def budget_month_amounts(session, fetch=False, today=None):
         if bill and bill.due_date.strftime('%Y-%m') == this_month:
             out[item.id] = {'month_amount': round(bill.amount, 2), 'month_source': 'bill', 'kind': None, 'month_why': None,
                             'month_from': f"the bill read from {bill.source_host or 'its website'} on {bill.read_at:%b} {bill.read_at.day}",
+                            'month_for': None}
+            continue
+        if not followed and item.id in yearly:
+            y = yearly[item.id]
+            out[item.id] = {'month_amount': y['amount'], 'month_source': 'yearly', 'kind': None, 'month_why': None,
+                            'month_from': f"{y['payee']}'s yearly step, about {y['pct'] * 100:.1f}% from "
+                                          f"{date(int(y['month'][:4]), int(y['month'][5:7]), 1):%B %Y}",
                             'month_for': None}
             continue
         out[item.id] = {'month_amount': amt, 'month_source': src, 'kind': kind if followed else None,

@@ -161,3 +161,77 @@ Expected to be few until 2027 unless older history is imported.
    of the expected month, the answer the only write, with Undo?
 5. **Y8-Y11:** answers win over the ledger for their year; facts-only words; the four places it shows; 2.0 only?
 6. **Order:** the null model and the live read first, then the build?
+
+---
+
+## 6. Ruling: Rob, 2026-10-21
+
+**Y1-Y11 as recommended, and the build authorised** (Rob, asked "Item 106, as recommended" and chose it). The null
+model runs first and sets Y2's "steps disagree" line and Y3's floor; the live read waits for the ledger on Rob's
+Windows machine (this Mac holds only the sample household).
+
+---
+
+## 7. Built (2026-10-21), awaiting acceptance
+
+**The null model first** (`scripts/y106_null_model.py`, seeded; run in s250 on every gate):
+
+| row | result | bar |
+|---|---|---|
+| steady charge, no step: a pattern said | 0.0% | <= 2% |
+| steps at random times: projected | 0.2% | <= 2% |
+| ... two of them a year apart by chance: said, then asked | 4.0% | (shown) |
+| yearly 2-8%, 2 steps in the history: said and asked | 98.7% | >= 95% |
+| yearly 2-8%, 3 steps: projected | 97.0% | >= 95% |
+| yearly 1-2%, 2 steps (Y3's floor) | 78.7% | (shown) |
+| paid once a year, 2-8% | 100% | >= 95% |
+| a usage bill read from the ledger | 0% | = 0% |
+
+Projections land a median 0.5% from the true next price.
+
+**Two departures from the ruling, both measured. Rob to confirm or reverse.**
+- **Y2: projected from three steps, not two** (`MIN_PROJECT = 3`). Two unrelated price changes land a year apart
+  by chance on 4.3-7.0% of series (a change every 30 or 18 months), over the 2% bar however tightly the "steps
+  disagree" line was set: at the 2% mark it kept only about 75% of true patterns. Three such steps by chance: 0.2-0.45%.
+  So two steps are **said** as a fact (*"has gone up about 3.0% the last two Octobers"*), and when the new price
+  lands in the expected month Groundwork **asks**. The household's yes is the third step. One constant to change back.
+- **Y5(b) not built: item 26's estimate already includes it.** Gas, electric, propane and heating oil rows that
+  follow item 26 are priced each month from EIA's forecast for the region, so a yearly rate step is already in the
+  figure. A household step on top would count it twice. Those four are left to item 26 and appear nowhere here.
+  Y5(c) is built for the rest (water / sewer, municipal, utilities): the same month a year earlier prompts *"Did your
+  rate change?"*, at most once a year per payee, and only the household's answer is a step.
+
+**Fixed in the measuring:** the gap between steps is counted in days (365 +/- 40), not calendar months. A bill charged on the
+30th that slips to the 1st is still a year on. A price level is recognised by nearness to the old or the new one, so cents of noise and a
+prorated or odd charge beside a step can't hide or misdate it.
+
+**What was built.**
+- **`core/yearly_steps.py`:** arithmetic only. `read` (every step, Y1/Y3/Y4), `apply_answers` (Y8), `pattern`,
+  `projection`, `question`, `same_month` (Y5(a)), `sentence` (Y9).
+- **Server:**
+  - `/api/yearly-steps` (GET), `/answer`, `/undo` and `/follow`. Every figure but the person's own is worked out
+    again on the server.
+  - The answers are stored in `yearly_step_answers` and the follow choices in `yearly_step_follow`. Nothing else is
+    stored.
+  - `budget_month_amounts` takes a followed projection from its month on (`month_source: 'yearly'`). A bill read from
+    the biller still wins.
+- **The page** (`static/js/teaching/yearly.js`, 2.0 only):
+  - A *Yearly price steps* card on the Bills tab: the sentence, *The years* (each marked *you told us* where it was
+    answered), the projection with its follow box, and the question (Yes / it is $__ / Not sure, or a percent for a
+    usage bill). The result is shown first, and the toast has Undo.
+  - A note on the plan row beside the saved amount, and the Bills tab count.
+- **The check-in** names a question the week its new price landed, and a projection the week its month begins.
+- **The calendar** marks the expected month: Expected from three steps, Possible from two.
+
+**Found building it, fixed (W2 had it too):** a line the server changed (W2's one tap, a yearly answer, either Undo)
+kept its old amount in the page's own copy. Saving any budget row sends every row's amount, so the next save would
+quietly put the old price back. `_setLocalLineAmount` now updates the page's copy at each of those points.
+
+**Checked in a browser** on the sample household plus a seeded insurance bill (3% each October since 2023, last week's
+charge at $125.58):
+- the card, the projection ($125.34) and the question;
+- Yes moving the line from $121.69 to $125.58, on the server and the page;
+- Undo putting both back and reopening the question;
+- following updating the totals without a reload.
+
+**Tests:** s250, 18 checks. The live read waits for Rob's ledger on the Windows machine.
