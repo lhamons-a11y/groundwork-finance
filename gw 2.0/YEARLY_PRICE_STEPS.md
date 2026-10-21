@@ -235,3 +235,9 @@ charge at $125.58):
 - following updating the totals without a reload.
 
 **Tests:** s250, 18 checks. The live read waits for Rob's ledger on the Windows machine.
+
+## 8. Ruling on the departures: Rob, 2026-10-21
+
+**Y2 as measured: projections from three steps.** Rob: *"keep projections from three steps"*. `MIN_PROJECT = 3`
+stands. Two steps are said as a fact and asked about when the new price lands. Y5(b) left to item 26 was not
+reversed.
