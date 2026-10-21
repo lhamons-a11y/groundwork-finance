@@ -345,3 +345,38 @@ designed or ruled yet, so it is **not** part of this build. It is opened as its 
 - The saved amount still setting the totals.
 
 **Gate: 2131 passed, 0 failed** (8e7087c, pushed 2026-10-01). Awaiting Rob's acceptance. The totals follow-up pass is opened as `BUDGET_MONTH_AMOUNT.md` (seven points, no code).
+
+---
+
+## 10. Daylight as a weather term: measured, not proposed (2026-10-21)
+
+Rob, 2026-10-21: *"look at the user say natural gas and or electric bill, see the weather, sun light set times and
+then the average cost of said electric bill. Use that calculation to figure out the user average usage for their home
+and then use that as the next month budget"*. Everything but daylight is already built (sections 6-7): the bills fit
+to degree days and EIA's price, and the row followed as next month's amount. So daylight was tested on its own,
+before any build: `scripts/daylight_null_model.py`, seeded, 1,000 synthetic homes per row.
+
+**Method.** Dark waking hours per month (sunset to 23:00 plus 06:30 to sunrise, from latitude, with DST). The shipped
+electric fit, against the same fit allowed darkness as one more term, kept only on the shipped rule (a positive
+slope, and leave-one-out error cut by `EXTRA_TERM_MARGIN`). Both scored on the **next 12 bills**, which neither saw.
+Ohio, Texas and Minnesota shapes; gas or electric heat; 12 or 24 bills of history; lighting of none, LED-typical
+(0.15 kW lit while dark) or heavy (0.8 kW).
+
+**Darkness is mostly winter by another name.** Its correlation with heating degree days is +0.84 to +0.89 in all
+three climates, and -0.69 to -0.83 with cooling. With 12-24 bills the fit can barely tell them apart.
+
+| lighting in the home | darkness kept | next-year error | homes worse by 5%+ | homes better by 5%+ |
+|---|---|---|---|---|
+| no lighting effect | 3.3% | +0.6% | 1.9% | 0.8% |
+| LED-typical | 7.1% | +0.4% | 3.3% | 2.6% |
+| heavy (incandescent-era) | 47.9% | -9.2% | 8.4% | 35.2% |
+
+**Reading.**
+- On a home with no lighting effect, darkness was kept 3.3% of the time: over W2's 2% false-alarm bar.
+- On an LED-lit home, the typical case now, it helped no one on balance: the estimate got slightly worse.
+- Only a heavily lit home gains: about 9% of a miss that is already $4-7, so under $1 a month, while about 1 home in
+  12 of those gets worse.
+
+**Conclusion: not proposed.** Sunset times don't earn a place in the estimate. Temperature already carries the
+season, and a modern home's lighting is too small a share of the bill to separate from it. The script stays, so the
+question can be re-run if the fit ever reads daily data rather than monthly bills.
