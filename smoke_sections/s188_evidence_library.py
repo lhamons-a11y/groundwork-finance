@@ -79,6 +79,9 @@ def run(ctx):
         check('s188 E2/E6 an accepted entry appears only once its facts hold (a goal; two debts); a draft never does',
               none == [] and [e['id'] for e in goal] == [accepted['id']] and debt1 == [] and [e['id'] for e in debt2] == ['t_debt']
               and ids == sorted([accepted['id'], 't_debt']))
+        check(f"s188 (Rob 2026-10-21) each card carries the person's own record beside the finding ({goal[0].get('yours')}, {debt2[0].get('yours')})",
+              goal[0]['yours'] == ['s188 trip: 11% of the way, $100.00 of $900.00.']
+              and debt2[0]['yours'] == ['Your debts with a balance: s188 card $500.00, s188 loan $800.00 - $1,300.00 in all.'])
 
         # E5: the answer
         r1 = c.post('/api/evidence/answer', headers=HJ, data=json.dumps({'id': accepted['id'], 'answer': 'yes'}))
@@ -98,6 +101,44 @@ def run(ctx):
             s.query(AppSetting).filter_by(key='evidence_answers').delete()
             s.commit()
 
+    # ── Rob 2026-10-21: one card per question; the shipped library, no savings goal on record ──
+    wl_cards = c.get('/api/evidence?surface=willingness', headers=H).get_json()['data']['entries']
+    weekly = next((e for e in wl_cards if e['id'] == 'karlsson2009_ostrich'), {})
+    c.post('/api/evidence/answer', headers=HJ, data=json.dumps({'id': 'sicherman2016_attention', 'answer': 'yes'}))
+    after = next((e for e in c.get('/api/evidence?surface=willingness', headers=H).get_json()['data']['entries']
+                  if e['id'] == 'karlsson2009_ostrich'), {})
+    fund = next((e for e in wl_cards if e['id'] == 'gjertson2016_emergency'), {})
+    with db_session() as s:
+        s.query(AppSetting).filter_by(key='evidence_answers').delete(); s.commit()
+    offers = [e['offer'] for e in wl_cards]
+    check(f"s188 (Rob 2026-10-21) one card per question: the two weekly-reminder studies are one card, one answer covers it ({offers})",
+          len(offers) == len(set(offers)) and [x['id'] for x in weekly.get('also', [])] == ['sicherman2016_attention']
+          and (after.get('answer') or {}).get('answer') == 'yes'
+          and (fund.get('yours') or [''])[0] == 'You have no savings fund set up in Groundwork yet.')
+
+    # ── Rob 2026-10-21: "give each card the one figure its study is about" ──
+    from datetime import date as _d
+    by_id = {e['id']: e for e in lib['entries']}
+    with db_session() as s:
+        s.add(SinkingFund(name='s188 car', target_amount=1200, current_amount=640, deadline='2027-06-30', is_active=True))
+        s.add(DebtAccount(name='s188 visa', current_balance=3840, interest_rate=24.0, minimum_payment=115, is_active=True))
+        s.add(DebtAccount(name='s188 auto', current_balance=14200, interest_rate=6.0, minimum_payment=300, is_active=True, debt_type='loan'))
+        s.commit()
+        fig = {i: ev.yours(s, by_id[i], today=_d(2026, 10, 21)) for i in ('harkin2016_monitoring', 'karlan2016_reminders',
+               'madrian2001_defaults', 'ashraf2006_commitment', 'thaler2004_smart', 'gal2012_small_wins', 'stewart2009_anchor')}
+        s.query(SinkingFund).filter(SinkingFund.name.like('s188%')).delete(synchronize_session=False)
+        s.query(DebtAccount).filter(DebtAccount.name.like('s188%')).delete(synchronize_session=False)
+        s.commit()
+    check(f"s188 (Rob 2026-10-21) each card shows the one figure its study is about ({fig})",
+          fig['harkin2016_monitoring'] == ['s188 car: 53% of the way, $640.00 of $1,200.00.']
+          and fig['karlan2016_reminders'] == ['s188 car: $560.00 to go by 2027-06-30.']
+          and fig['madrian2001_defaults'] == ['s188 car: $70.00 a month reaches $1,200.00 by 2027-06-30.']
+          and fig['ashraf2006_commitment'] == ['s188 car: $1,200.00 by 2027-06-30.']
+          and fig['thaler2004_smart'] == ['Your goal needs $70.00 a month to reach its date.']
+          and fig['gal2012_small_wins'] == ['Your smallest balance: s188 visa, $3,840.00, of your 2 debts with a balance.']
+          and len(fig['stewart2009_anchor']) == 1 and fig['stewart2009_anchor'][0].startswith(
+              's188 visa: $3,840.00 owed, minimum $115.00 a month. Paying only the minimum, which falls as the balance does: '))
+
     # ── E2 / ruling 6: usage is never read ──
     evsrc = (BASE / 'core' / 'evidence.py').read_text(encoding='utf-8')
     reads_usage = lambda src: bool(re.search(r"app_opens|usage|AiLog|last_seen|page_view", src))
@@ -114,27 +155,37 @@ def run(ctx):
     with db_session() as s:
         s.query(AppSetting).filter_by(key='app_opens').delete(); s.commit()
     c.post('/api/usage/open', headers=HJ, data='{}')
-    one = c.get('/api/usage/rhythm', headers=H).get_json()['data']
+    import server as _srv
+    with db_session() as s:
+        one = _srv.usage_rhythm(s)
     now = datetime.now()
     sun = now - timedelta(days=(now.weekday() + 1) % 7 or 7)
     opens = [(sun - timedelta(days=7 * k)).replace(hour=19, minute=30).isoformat(timespec='seconds') for k in range(4)]
     opens += [(now - timedelta(days=1)).replace(hour=9).isoformat(timespec='seconds'), (now - timedelta(days=90)).isoformat(timespec='seconds')]
     with db_session() as s:
         s.query(AppSetting).filter_by(key='app_opens').first().value = json.dumps(sorted(opens)); s.commit()
-    many = c.get('/api/usage/rhythm', headers=H).get_json()['data']
+    with db_session() as s:
+        many = _srv.usage_rhythm(s)
     with db_session() as s:
         s.query(AppSetting).filter_by(key='app_opens').delete(); s.commit()
     check(f's188 E8 opens are counted for the last 30 days, and "mostly" named only when one time clearly leads ({one}, {many})',
           one == {'opens_30d': 1, 'mostly': None} and many == {'opens_30d': 5, 'mostly': 'Sunday evenings'})
-    check('s188 E8 the line is the fact and says nothing reads it',
-          'You opened Groundwork ' in app and 'Nothing in Groundwork reads it or draws anything from it.' in app
-          and "API.post('/api/usage/open', {})" in app)
+    teach = ''.join(p.read_text(encoding='utf-8') for p in (BASE / 'static' / 'js' / 'teaching').glob('*.js'))
+    check('s188 E8 (Rob 2026-10-21) the opens are still recorded at each start, and the working picture no longer shows the count',
+          "API.post('/api/usage/open', {})" in app and 'You opened Groundwork' not in app + teach
+          and '/api/usage/rhythm' not in app + teach and 'data-evidence-rhythm' not in app + teach)
 
     # ── E3 / A10 / E9 ──
-    rend = app.split('async function renderEvidence(')[1].split('\n}')[0] + app.split('function _evidenceHTML(')[1].split('\n}')[0]
+    rend = (app.split('async function renderEvidence(')[1].split('\n}')[0] + app.split('function _evidenceHTML(')[1].split('\n}')[0]
+            + app.split('function _evidenceSource(')[1].split('\n}')[0])
     check('s188 E3/A10 an entry shows as written, with its limits and source, and no model is involved',
           'callAI(' not in rend and 'aiEnabled' not in rend and 'esc(e.finding)' in rend and 'esc(e.limits)' in rend
           and "What it doesn't show:" in rend and 'esc(s.journal' in rend)
+    card = app.split('function _evidenceHTML(')[1].split('\n}')[0]
+    yours_fn = app.split('function _evidenceYours(')[1].split('\n}')[0]
+    check('s188 (Rob 2026-10-21) "In your record" is the top of the card, then what research has found',
+          '<div class="card mt-5" data-evidence="${esc(e.id)}">${_evidenceYours(e)}' in card
+          and yours_fn.index('In your record') < yours_fn.index('What research has found'))
     wl = (BASE / 'static' / 'js' / 'teaching' / 'willingness.js').read_text(encoding='utf-8')
     check('s188 E9 the goal card, the debt plan and the working picture carry the library',
           'id="evidenceGoal" data-evidence-surface="goal"' in html and 'id="evidenceDebt" data-evidence-surface="debt_plan"' in html

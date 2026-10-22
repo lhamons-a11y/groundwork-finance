@@ -40,3 +40,18 @@ up)", with *Start with my own*.
 
 Ruled and built 2026-10-20 (s249). Checked in the browser from a fresh install: terms, the AI choice, "Let's begin.",
 the sample, every page without an error, Health showing the bill as owed, the notice.
+
+## The working picture (Rob 2026-10-21: "lets add enough data to show a full page in working picture")
+
+The Morgans now give every working-picture tab something, each made through the app's own route and then dated to
+when it happened:
+- **Their budget edits:** Coffee cut from $60 to $40 in the second month and kept under it since (Coffee spending runs
+  about $50 a month before the cut and under $40 after); the Gym cut to $25 and put back to $45; Streaming cut to $20
+  and put back to $27.
+- **What Sam said on decision screens:** Groceries protect (first month), Streaming flexible (second month),
+  Restaurants flexible (nine days ago).
+- **So the page shows:** a question under *Needs you* (Streaming: said flexible, then cut and put back); *What your
+  record shows*: Gym kept, Streaming kept, and Coffee - read flexible, or, when a three-paycheck month sits beside the
+  cut, shown with the income change and left for the person to classify (E.2a); *What you've said*: the three
+  statements; and the research cards with their figures.
+- s249 checks that each tab has its part.

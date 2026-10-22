@@ -276,3 +276,30 @@ working paper should be read against the full paper before it is accepted. Accep
 - **Strength:** field study. **Applies when:** no savings goal. **Shown on:** goal, willingness.
 - **Offer:** Want to start a small fund for emergencies?
 - **Checked against:** the abstract (IDEAS/RePEc record); the full text is paywalled and was not read.
+
+## 8. The cards, with the person's own record (Rob 2026-10-21)
+
+Rob, looking at the working picture: "we only need one suggestion per question type", "I want the card to show the user
+data with the text in the same card", "Flip the in your record to be on top then what the research had found", "give
+each card the one figure its study is about", and on the count of opens: "let's bail" - "We can keep tracking it ...
+we will need it in other areas".
+
+- **One card per question.** Entries that ask the same question are one card: the first leads, the rest follow with
+  their own finding, limits and source (`also`), and one answer covers the card. Karlsson and Sicherman are one
+  weekly-reminder card.
+- **In your record, on top.** Each card opens with the person's own figure, then *What research has found*. The
+  figure is plain fact from their goals and debts (`core/evidence.py` `yours()`), never a why or a should:
+  - Harkin (watching progress): each goal's share of the way, saved of target;
+  - Karlan (a reminder naming the goal): what is left, and by when;
+  - Madrian (one monthly amount): the monthly amount that reaches the target by its date;
+  - Ashraf (a date and an amount): each goal's target and date, or that it has no date;
+  - Thaler & Benartzi (a share of a raise): what the dated goals need a month together;
+  - Gal & McShane (small wins): the smallest balance among the debts;
+  - Stewart (the minimum anchor): each card's balance and minimum, and paying only the minimum (as V11 means it,
+    falling with the balance) - how long and the interest, when the card's rate is known;
+  - Gjertson (emergency savings): no savings fund yet, and the cash above the person's floors.
+  A card about no fact of the person's (the weekly reminder) has no record line.
+- **E8, the count of opens: no longer shown.** The working picture's *"You opened Groundwork ..."* line is gone. The
+  opens are still recorded at each start (`/api/usage/open`), and `usage_rhythm(session)` still counts them, for other
+  areas to use; no route serves the count now, and still nothing selects or ranks on it (ruling 6).
+- s188 checks each of these.

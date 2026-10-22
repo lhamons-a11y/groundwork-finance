@@ -11,7 +11,7 @@ Groundwork's own routes so every record is shaped exactly as the app shapes it, 
 """
 import json
 import random
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
 SAMPLE_FLAG = 'sample_household'
 # Kept when the sample is cleared: the terms the person accepted, their AI choice, where backups go
@@ -147,8 +147,9 @@ def build(c, headers, today=None):
                 place = rnd.choice([('BAYSIDE GRILL #12', 'Bayside Grill'), ('LUNA TAQUERIA', 'Luna Taqueria'),
                                     ('PINE STREET PIZZA', 'Pine Street Pizza'), ('GOLDEN WOK', 'Golden Wok')])
                 tx(visa, _day(y, m, rnd.randint(1, 28)), place[0], place[1], rnd.uniform(24, 96), cat('Restaurants'))
-        for _ in range(rnd.randint(4, 6)):
-            tx(visa, _day(y, m, rnd.randint(1, 28)), 'LANTERN CAFE', 'Lantern Cafe', rnd.uniform(4.75, 7.9), cat('Coffee Shops'))
+        # Coffee: about $50 a month until they cut its line from $60 to $40 in the second month, and under $40 since
+        for _ in range(rnd.randint(7, 9) if i <= 1 else rnd.randint(4, 5)):
+            tx(visa, _day(y, m, rnd.randint(1, 28)), 'LANTERN CAFE', 'Lantern Cafe', rnd.uniform(4.75, 7.9 if i <= 1 else 7.5), cat('Coffee Shops'))
         for _ in range(rnd.randint(3, 4)):
             tx(visa, _day(y, m, rnd.randint(1, 28)), 'QUICKFUEL #214', 'QuickFuel', rnd.uniform(38, 62), cat('Gasoline / Diesel'))
         for _ in range(rnd.randint(1, 2)):
@@ -190,13 +191,14 @@ def build(c, headers, today=None):
     # the budget: its lines (budget_items), the debt payment budget and the net worth fields, as the app keeps them
     post('/api/budget/items', {'type': 'income', 'name': "Sam's paycheck", 'amount': 4658, 'category': cat('Paycheck / Salary'), 'sort_order': 0})
     post('/api/budget/items', {'type': 'income', 'name': "Jordan's paycheck", 'amount': 3857, 'category': cat('Paycheck / Salary'), 'sort_order': 1})
+    lines = {}
     for k, (name, catname, amount) in enumerate([
             ('Rent', 'Rent / Mortgage', 1650), ('Groceries', 'Groceries', 650), ('Restaurants', 'Restaurants', 300),
-            ('Coffee', 'Coffee Shops', 40), ('Electric', 'Electric', 120), ('Internet', 'Internet', 70),
+            ('Coffee', 'Coffee Shops', 60), ('Electric', 'Electric', 120), ('Internet', 'Internet', 70),
             ('Phones', 'Phone / Cell', 94), ('Car insurance', 'Auto Insurance', 139), ('Gas', 'Gasoline / Diesel', 180),
             ('Streaming', 'Streaming Video', 27), ('Gym', 'Gym / Fitness', 45), ('Pet supplies', 'Pet Food / Supplies', 80),
             ('Household', 'Household Supplies', 60), ('Clothing', 'Clothing', 75)]):
-        post('/api/budget/items', {'type': 'expense', 'name': name, 'amount': amount, 'category': cat(catname), 'sort_order': k})
+        lines[name] = post('/api/budget/items', {'type': 'expense', 'name': name, 'amount': amount, 'category': cat(catname), 'sort_order': k})['id']
     post('/api/settings', {'monthly_budget': '900', 'debt_method': 'avalanche', 'savings_balance': '6700',
                            'retirement_401k': '38500', 'retirement_ira': '9200'}, 'patch')
 
@@ -209,10 +211,40 @@ def build(c, headers, today=None):
             {'debt_id': d['_dbId'], 'balance': d['current_balance'] + steps[d['name']][0] * back, 'payment': steps[d['name']][1],
              'min_payment': d['minimum_payment'], 'apr': d['interest_rate']} for d in debts]})
 
+    # the Working picture's record (Rob 2026-10-21: "add enough data to show a full page in working picture"): what
+    # they did to their budget, and what Sam said on the decision screens. Each goes through the app's own route, as
+    # the app records it, and is then dated to when it happened - the routes stamp "now".
+    from core.database import HistorianEntry, NetWorthSnapshot, WillingnessDeclaration, db_session
+
+    def edit(name, amount, when):
+        post(f'/api/budget/items/{lines[name]}', {'amount': amount}, 'patch')
+        with db_session() as session:
+            e = session.query(HistorianEntry).filter_by(event_category='budget_adjusted').order_by(HistorianEntry.id.desc()).first()
+            e.created_at = datetime.combine(when, time(20, 15))
+            session.commit()
+
+    def said(category, stance, proposal, when):
+        post('/api/willingness/declarations', {'category': category, 'stance': stance,
+                                               'answer': {'kind': 'proposal', 'text': proposal}})
+        with db_session() as session:
+            d = session.query(WillingnessDeclaration).order_by(WillingnessDeclaration.id.desc()).first()
+            d.said_at = datetime.combine(when, time(20, 40))
+            session.commit()
+
+    m0, m1, m2, m3 = months[:4]
+    groceries, streaming, coffee, gym = (cat(n) for n in ('Groceries', 'Streaming Video', 'Coffee Shops', 'Gym / Fitness'))
+    said(groceries, 'protect', f'Move $50 a month from {groceries} to Car repairs', _day(*m0, 18))
+    edit('Coffee', 40, _day(*m1, 4))                  # a cut that held: three months under $40 since
+    said(streaming, 'flexible', f'Trim {streaming} by $7 a month toward Holidays', _day(*m1, 20))
+    edit('Gym', 25, _day(*m1, 9))                     # a cut, then put back: kept
+    edit('Gym', 45, _day(*m3, 6))
+    edit('Streaming', 20, _day(*m2, 5))               # flexible, they said - then cut and put back: "which do you mean?"
+    edit('Streaming', 27, _day(*m3, 12))
+    said(cat('Restaurants'), 'flexible', f'Spend $50 less on {cat("Restaurants")} each month toward Car repairs', today - timedelta(days=9))
+
     # the valuation change item 35 notes on a snapshot is history this household never had
     post('/api/settings', {'inv_valuation_v35_noted': today.isoformat()}, 'patch')
     # net worth: the months before this one, then this month's own snapshot through the app
-    from core.database import NetWorthSnapshot, db_session
     with db_session() as session:
         for k, (y, m) in enumerate(months[:-1]):
             back = len(months) - 1 - k

@@ -318,7 +318,7 @@
       + panel('needs', needs.join('<div class="mt-5"></div>'), 'Nothing is waiting for your answer.')
       + panel('record', record, 'Nothing concluded from your record yet.')
       + panel('said', saidHtml, 'You haven\'t told Groundwork anything here yet.')
-      + panel('research', '<div id="evidenceWillingness" data-evidence-surface="willingness" data-evidence-rhythm></div>', '');
+      + panel('research', '<div id="evidenceWillingness" data-evidence-surface="willingness"></div>', '');
   }
 
   async function render() {
@@ -330,7 +330,7 @@
       try { s.planRepair = ((await API.get('/api/willingness/plan-repair')) || {}).pairs || []; } catch (e) { s.planRepair = []; }
       var html = _pictureHTML(s || {});
       view.innerHTML = html.indexOf('id="evidenceWillingness"') !== -1 ? html
-        : html + '<div id="evidenceWillingness" data-evidence-surface="willingness" data-evidence-rhythm></div>';
+        : html + '<div id="evidenceWillingness" data-evidence-surface="willingness"></div>';
       renderEvidence('willingness', g('evidenceWillingness'));   // item 58 E8/E9
     } catch (e) {
       _gwErr('willingness render')(e);

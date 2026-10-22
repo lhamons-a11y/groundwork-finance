@@ -48,6 +48,9 @@ out['funds'] = len(c.get('/api/sinking-funds', headers=H).get_json().get('data')
 mb = c.get('/api/medical-bills', headers=H).get_json().get('data') or {}
 out['medical'] = json.dumps(mb)[:4000]
 out['snapshots'] = len(c.get('/api/net-worth/snapshots?months=24', headers=H).get_json().get('data') or [])
+w = c.get('/api/willingness', headers=H).get_json()['data']
+out['picture'] = {'record': sorted(r['category'] for r in w['readings'] if r['stance'] in ('flexible', 'sacred') or r['reason'] == 'probation'),
+                  'said': sorted(d['category'] for d in w['current']), 'asks': [x['category'] for x in w['contradictions']]}
 out['again'] = c.post('/api/sample/load', headers=H).get_json()
 out['clear'] = c.post('/api/sample/clear', headers=H).get_json()
 st = c.get('/api/settings', headers=H).get_json(); st = st.get('data', st)
@@ -95,6 +98,10 @@ def run(ctx):
           o['clear'].get('ok') and o['after'] == {'can_load': True, 'sample': False, 'why_not': None} and o['after_txns'] == 0
           and o['kept'][0] == 'v-test' and o['kept'][1] == 'false' and o['kept'][2] in (None, '', 'false')
           and o['clear_again'].get('ok') is False)
+    check(f's249 (Rob 2026-10-21) the Working picture has something in each tab: conclusions from their budget edits, what Sam '
+          f'said, and a question about it ({o.get("picture")})',
+          o.get('picture') == {'record': ['Coffee Shops', 'Gym / Fitness', 'Streaming Video'],
+                               'said': ['Groceries', 'Restaurants', 'Streaming Video'], 'asks': ['Streaming Video']})
     check('s249 S5 while the sample is here every page says so, with "Start with my own"',
           'async function sampleNotice()' in app and 'Sample household (made up)' in app and 'onclick="sampleClear()">Start with my own' in app
           and "sampleNotice().catch(_gwErr('sampleNotice'))" in app and "location.reload();" in app[app.index('function sampleClear()'):])

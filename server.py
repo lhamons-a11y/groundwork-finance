@@ -4261,16 +4261,29 @@ usage_bp = Blueprint('usage', __name__)
 @evidence_bp.route('', methods=['GET'])
 def evidence_for_surface():
     """E2/E3/E9: the accepted entries that apply on one surface, chosen from the person's goals and debts only,
-    each with the person's own answer to its offer, if they gave one."""
+    each with the person's own answer to its offer, if they gave one.
+    Rob 2026-10-21: one card per question - entries that ask the same thing are one card, the first leading and the
+    rest in 'also', and one answer covers the card; and each card carries the person's own record ('yours')."""
     from core import evidence as ev
     surface = (request.args.get('surface') or '').strip()
     with db_session() as session:
         answers = _setting_json(session, 'evidence_answers', []) or []
-        out = []
-        for e in ev.select(session, surface):
-            last = next((a for a in reversed(answers) if a.get('id') == e['id']), None)
+        chosen = ev.select(session, surface)
+        cushion = _cash_above_floors(session) if any('no_savings_goal' in e['applies_when'] for e in chosen) else None
+        out, by_offer = [], {}
+        for e in chosen:
+            lead = by_offer.get(e['offer'])
+            if lead is not None:
+                lead['also'].append({k: e[k] for k in ('id', 'finding', 'limits', 'source', 'strength')})
+                lead['ids'].append(e['id'])
+                continue
             intro = _setting_json(session, f"evidence_intro_{e['id']}_{surface}")
-            out.append({**e, 'answer': last, 'intro': intro.get('text') if isinstance(intro, dict) else None})
+            card = {**e, 'also': [], 'ids': [e['id']], 'yours': ev.yours(session, e, cushion),
+                    'intro': intro.get('text') if isinstance(intro, dict) else None}
+            by_offer[e['offer']] = card
+            out.append(card)
+        for card in out:
+            card['answer'] = next((a for a in reversed(answers) if a.get('id') in card['ids']), None)
         return ok({'surface': surface, 'surface_words': ev.SURFACE_WORDS.get(surface), 'entries': out})
 
 
@@ -4316,7 +4329,8 @@ def evidence_answer():
         return ok({'answers': [a for a in answers if a['id'] == eid]})
 
 
-# E8: the person's own rhythm. Recorded and shown to them; no engine, selection, ranking or tile reads it (ruling 6).
+# E8: the person's own rhythm. Recorded; no engine, selection, ranking or tile reads it (ruling 6). Not shown on the
+# working picture since Rob 2026-10-21 ("let's bail" on the count there), and kept: "we will need it in other areas".
 # usage_open and usage_rhythm are the only code that touches the list of opens (s188).
 @usage_bp.route('/open', methods=['POST'])
 def usage_open():
@@ -4330,12 +4344,10 @@ def usage_open():
         return ok({'recorded': True})
 
 
-@usage_bp.route('/rhythm', methods=['GET'])
-def usage_rhythm():
-    """E8: "You opened Groundwork 9 times in the last 30 days, mostly Sunday evenings." The 'mostly' is named only
-    when one day-and-time holds at least 40% of at least 4 opens."""
-    with db_session() as session:
-        opens = _setting_json(session, 'app_opens', []) or []
+def usage_rhythm(session):
+    """E8: the opens of the last 30 days, and the 'mostly' (a day-and-time named only when it holds at least 40% of at
+    least 4 opens) - {'opens_30d', 'mostly'}. Kept for other areas to use (Rob 2026-10-21); no route serves it now."""
+    opens = _setting_json(session, 'app_opens', []) or []
     cutoff = (datetime.now() - timedelta(days=30)).isoformat(timespec='seconds')
     recent = []
     for o in opens:
@@ -4355,7 +4367,7 @@ def usage_rhythm():
         top, n = max(tally.items(), key=lambda kv: kv[1])
         if n / len(recent) >= 0.4:
             mostly = top
-    return ok({'opens_30d': len(recent), 'mostly': mostly})
+    return {'opens_30d': len(recent), 'mostly': mostly}
 
 
 checkin_bp = Blueprint('checkin', __name__)

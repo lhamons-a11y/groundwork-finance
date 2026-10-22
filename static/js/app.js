@@ -26754,13 +26754,10 @@ function _voiceGateCheck(text, findings, truncated = false) {
 // ever arrive here (E6).
 async function renderEvidence(surface, el) {
   if (!el) return;
-  let d = null, rhythm = null;
+  let d = null;
   try { d = await API.get('/api/evidence?surface=' + encodeURIComponent(surface)); }
   catch (e) { _gwErr('renderEvidence')(e); }
-  if (el.hasAttribute('data-evidence-rhythm')) {   // E8: the container asks for the person's own rhythm
-    try { rhythm = await API.get('/api/usage/rhythm'); } catch (e) { _gwErr('renderEvidence rhythm')(e); }
-  }
-  el.innerHTML = _rhythmHTML(rhythm) + ((d && d.entries) || []).map(_evidenceHTML).join('');
+  el.innerHTML = ((d && d.entries) || []).map(_evidenceHTML).join('');
   ((d && d.entries) || []).forEach(e => { if (!e.intro) _evidenceIntro(e, surface, d.surface_words); });   // E3, AI on only
 }
 
@@ -26798,17 +26795,20 @@ function _evidenceFollow(e) {
   return " Groundwork can't act on this one for you yet; your answer is kept.";
 }
 
-// E8: the person's own rhythm, as a fact. Shown here; nothing in Groundwork reads it (ruling 6).
-function _rhythmHTML(r) {
-  if (!r || !r.opens_30d) return '';
-  return '<div class="card mt-5"><div class="card-label">When you open Groundwork</div>'
-    + '<div style="font-size:13px;color:var(--ink);margin:4px 0">You opened Groundwork ' + r.opens_30d + ' time'
-    + (r.opens_30d !== 1 ? 's' : '') + ' in the last 30 days' + (r.mostly ? ', mostly ' + esc(r.mostly) : '') + '.</div>'
-    + '<div style="font-size:11px;color:var(--slate-2)">Shown to you only. Nothing in Groundwork reads it or draws anything from it.</div></div>';
+// Rob 2026-10-21: what the person's own record shows, on top of the card it bears on, so their own figures are read
+// first and the finding after - facts only, from the engine
+function _evidenceYours(e) {
+  const lines = (e.yours || []).map(t => `<div style="font-size:13px;color:var(--ink);line-height:1.6">${esc(t)}</div>`).join('');
+  return lines ? `<div class="card-label">In your record</div>${lines}
+    <div class="card-label" style="margin-top:14px">What research has found</div>` : '<div class="card-label">What research has found</div>';
+}
+
+function _evidenceSource(x) {
+  const s = x.source || {};
+  return `<div style="font-size:11px;color:var(--slate-2);margin-top:6px">${esc(s.authors || '')} (${esc(String(s.year || ''))}). ${esc(s.title || '')}. ${esc(s.journal || '')}. ${esc(x.strength || '')}.${s.url ? ' ' + esc(s.url) : ''}</div>`;
 }
 
 function _evidenceHTML(e) {
-  const s = e.source || {};
   const ans = e.answer;
   const offer = ans
     ? `<div style="font-size:12px;color:var(--slate);margin-top:8px">You said ${ans.answer === 'yes' ? 'yes' : 'no thanks'} on ${esc(String(ans.said_at || '').slice(0, 10))}.${ans.answer === 'yes' ? _evidenceFollow(e) : ''}
@@ -26816,11 +26816,15 @@ function _evidenceHTML(e) {
     : `<div style="font-size:12px;color:var(--ink);margin-top:8px">${esc(e.offer)}
         <button class="btn btn-secondary btn-sm" style="margin-left:6px" onclick="evidenceAnswer('${esc(e.id)}', 'yes')">Yes</button>
         <button class="btn btn-ghost btn-sm" onclick="evidenceAnswer('${esc(e.id)}', 'no')">No thanks</button></div>`;
-  return `<div class="card mt-5" data-evidence="${esc(e.id)}"><div class="card-label">What research has found</div>
+  return `<div class="card mt-5" data-evidence="${esc(e.id)}">${_evidenceYours(e)}
     <div class="gw-ev-intro" style="font-size:12px;color:var(--slate);font-style:italic;margin-bottom:4px">${esc(_evStripTags(e.intro || ''))}</div>
     <div style="font-size:13px;color:var(--ink);line-height:1.6;margin:4px 0">${esc(e.finding)}</div>
     <div style="font-size:12px;color:var(--slate);line-height:1.6"><strong>What it doesn't show:</strong> ${esc(e.limits)}</div>
-    <div style="font-size:11px;color:var(--slate-2);margin-top:6px">${esc(s.authors || '')} (${esc(String(s.year || ''))}). ${esc(s.title || '')}. ${esc(s.journal || '')}. ${esc(e.strength || '')}.${s.url ? ' ' + esc(s.url) : ''}</div>
+    ${_evidenceSource(e)}
+    ${(e.also || []).map(x => `<div style="margin-top:10px">
+    <div style="font-size:13px;color:var(--ink);line-height:1.6;margin:4px 0">${esc(x.finding)}</div>
+    <div style="font-size:12px;color:var(--slate);line-height:1.6"><strong>What it doesn't show:</strong> ${esc(x.limits)}</div>
+    ${_evidenceSource(x)}</div>`).join('')}
     ${offer}</div>`;
 }
 
@@ -32178,7 +32182,7 @@ async function boot() {
     splashMsg('Loading your data…');
     try {
       await bootFromDB();
-      API.post('/api/usage/open', {}).catch(_gwErr('usageOpen'));   // item 58 E8: shown to you, read by nothing
+      API.post('/api/usage/open', {}).catch(_gwErr('usageOpen'));   // item 58 E8: recorded, read by nothing; not shown since 2026-10-21
       splashMsg('Building dashboard…');
     } catch(e) {
       console.error('bootFromDB failed:', e);
