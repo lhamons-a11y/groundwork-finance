@@ -183,8 +183,8 @@ def run(ctx):
     bad = [b for b in BARRED if b in said_words.replace('you said one of these should stop', '')]
     check(f's251 D7 none of the barred words in the fixed words ({bad})', not bad)
     check('s251 D6 (a) Needs attention takes the seventh kind, with its answers, Show the charges and a 60-day Dismiss',
-          "'two_accounts'];" in (root / 'static/js/teaching/attention.js').read_text(encoding='utf-8')
-          and 'twoAccounts: A.twoAccounts(two)' in dash and 'data-gw-two-show' in branch
+          "'two_accounts'," in (root / 'static/js/teaching/attention.js').read_text(encoding='utf-8')   # (the backup
+          and 'twoAccounts: A.twoAccounts(two),' in dash                                                     # reminder's kind follows) and 'data-gw-two-show' in branch
           and all(f'data-gw-two-answer="{a}"' in branch for a in ('both_meant', 'should_stop', 'not_same', 'not_now'))
           and 'e.g. one is for someone else' in branch and 'data-gw-dismiss=' not in branch)
     if shutil.which('node'):
