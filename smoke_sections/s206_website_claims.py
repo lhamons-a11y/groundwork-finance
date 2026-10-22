@@ -56,7 +56,7 @@ def run(ctx):
           and 'your state' in privacy and 'places you type' in privacy)
     check('s206 W9 the Privacy page names the site\'s own counters, the one-click unsubscribe and the Report button as it behaves',
           'one count per page per day' in ' '.join(privacy.split()) and 'one-click unsubscribe' in privacy
-          and 'The Report button' in privacy and 'Nothing is sent unless' in privacy
+          and 'Report a problem' in privacy and 'Nothing is sent unless' in privacy
           and re.search(r'Last updated: [A-Z][a-z]+ \d{1,2}, 2026', privacy))
     check('s206 W6 the site\'s AI wording agrees with the app and the EULA: local only, no cloud option',
           'There is no cloud AI option.' in privacy and 'No cloud AI' in src

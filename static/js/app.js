@@ -13268,7 +13268,7 @@ const HELP_FAQ = [
   {"q": "What file types can I import?", "a": "CSV, QIF, QFX, OFX, and QBO — every format banks commonly offer under \"Download\" or \"Export\" on their website. If your bank offers a choice, QFX/OFX carries the most detail (including the bank's own running balance); CSV works fine too.", "keys": ["file", "types", "csv", "ofx", "qfx", "qif", "qbo", "format"]},
   {"q": "How do I back up my data — and get it back?", "a": "Settings → Create backup now saves a complete copy of your database to your backup folder (changeable in Settings). To recover, use \"Restore from a file\" and pick any backup. Groundwork also makes an automatic safety backup before anything destructive, like deleting all transactions.", "keys": ["backup", "back", "restore", "recover", "copy", "data"], "open": {"view": "settings", "tab": "data"}, "labels": ["Create backup now", "Restore from a file"]},
   {"q": "What is the \"Update available\" popup?", "a": "Groundwork checks the official website for new versions — nothing about you or your data is sent, it just reads a version file. When a newer build exists you get a popup with what changed; Download opens your browser to fetch the installer, or Remind me later brings it back next launch.", "keys": ["update", "available", "version", "new"]},
-  {"q": "Something looks broken. How do I report it?", "a": "Click the ⚑ Report button in the top bar. It opens an email to the developer pre-filled with your version, system info, and recent error details — the technical context that makes bugs fixable. Add a sentence about what you were doing and send. If email doesn't open, \"Copy report\" puts the same text on your clipboard.", "keys": ["broken", "bug", "report", "problem", "error"]},
+  {"q": "Something looks broken. How do I report it?", "a": "Click ? in the top bar, then ⚑ Report a problem at the top of the help. It opens an email to the developer pre-filled with your version, system info, and recent error details — the technical context that makes bugs fixable. Add a sentence about what you were doing and send. If email doesn't open, \"Copy report\" puts the same text on your clipboard.", "keys": ["broken", "bug", "report", "problem", "error"]},
   {"q": "What is household mode?", "a": "Enable it in Settings → Household and enter both names. Add each person's income as its own row in Budget's Income card — the budget total combines them automatically. The dashboard greets both of you and the Sunday check-in is written for two people. Data stays shared — household mode adds dual-identity awareness without splitting the account.", "keys": ["household", "partner", "spouse", "two", "couple"], "open": {"view": "settings", "tab": "general"}},
   {"q": "How does auto-import from Downloads work?", "a": "Save a bank statement (.csv, .txt, .ofx, .qfx, .qif) to your Downloads folder. Groundwork detects it and shows a 12-second notification: \"File detected — import now?\" One tap imports it.", "keys": ["auto", "import", "downloads", "folder", "detect"]},
   {"q": "Does Groundwork connect to my bank?", "a": "Not through a third-party service - those ask for your bank login and keep your data. Instead, when you ask, Groundwork visits your bank's website itself, in its own window on this computer, and downloads the statement you showed it how to get. Nothing runs on a schedule, and the file still waits for your review before anything is imported. Set it up on the Assistant page.", "keys": ["connect", "bank", "directly", "plaid", "link", "sync", "automatic"], "open": {"view": "automation"}},
@@ -13316,7 +13316,10 @@ function _renderHelpFaq(filter) {
       oninput="_renderHelpFaq(this.value)"
       style="width:100%;font-family:inherit;font-size:13px;border:1px solid var(--steel);
              border-radius:var(--r-sm);padding:8px 12px;margin-bottom:18px;
-             background:var(--paper);color:var(--ink)">`;
+             background:var(--paper);color:var(--ink)">
+    <div style="font-size:12px;color:var(--slate);margin:-8px 0 18px">Something not right?
+      <button class="btn btn-ghost btn-sm" onclick="g('helpOverlay').classList.add('hidden'); openFeedbackModal()">⚑ Report a problem</button></div>`;
+  // (Rob 2026-10-22: the top bar's Report button moved here)
   const care = careLevel(f);                  // item 104: typed into the guide's search, the same words come first
   if (care) html += careHTML(care) + '<div style="height:18px"></div>';
   let shown = 0, pendingHeader = null;
@@ -32185,7 +32188,7 @@ function splashMsg(msg) {
 
 async function boot() {
   try {
-    setText('topbarDate', new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}));
+    _topbarClockTick();
     splashMsg('Loading your data…');
     try {
       await bootFromDB();
@@ -32269,10 +32272,25 @@ function hideSplash() {
 setTimeout(() => hideSplash(), 6000);
 
 document.addEventListener('DOMContentLoaded', boot);
-// Topbar date refresh
-setInterval(() => {
-  setText('topbarDate', new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}));
-}, 10000);
+// Topbar date refresh - and while the Ask bar is open, the time above the date, as Windows shows its clock
+// (Rob 2026-10-22: "10/22/2026 10:57am ... the date and time could sit on top of each other")
+let _topbarClockOpen = false;
+function _topbarClockTick() {
+  const el = g('topbarDate');
+  if (!el) return;
+  const n = new Date();
+  if (!_topbarClockOpen) {
+    el.classList.remove('gw-clock');
+    el.textContent = n.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    return;
+  }
+  const time = n.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(' ', '').toLowerCase();
+  const day = `${String(n.getMonth() + 1).padStart(2, '0')}/${String(n.getDate()).padStart(2, '0')}/${n.getFullYear()}`;
+  el.classList.add('gw-clock');
+  el.innerHTML = `<b>${time}</b><span>${day}</span>`;
+}
+function _topbarClock(open) { _topbarClockOpen = open; _topbarClockTick(); }
+setInterval(_topbarClockTick, 10000);
 
 
 // ─── Investment view stubs & BYB/Tracker fixes ────────────────────────────────

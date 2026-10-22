@@ -1279,7 +1279,7 @@ python3 launch.py</pre>
     <div class="kb-article" id="report-bug">
       <h2>Reporting a bug</h2>
       <p>Groundwork is actively maintained. If something breaks:</p>
-      <p>1. In the app, click <strong>⚑ Report</strong> in the top bar.</p>
+      <p>1. In the app, click <strong>?</strong> in the top bar, then <strong>⚑ Report a problem</strong> at the top of the help.</p>
       <p>2. Describe what you were doing when it broke.</p>
       <p>3. Click <strong>Open in mail app</strong>. Your email app opens with the report filled in, addressed to support@groundworkfinance.app. Read it over and send it yourself: nothing is sent without you.</p>
       <p>Or just email <a href="mailto:support@groundworkfinance.app">support@groundworkfinance.app</a> directly.</p>
@@ -1328,8 +1328,8 @@ def about():
     account, no subscription and no ads. Your data stays on your computer.</p>
 
   <h2>Telling us something's wrong</h2>
-  <p>Groundwork sends no telemetry, so we only hear about a problem if you tell us. In the app, the
-    <strong>⚑ Report</strong> button opens your own email app with a report filled in; you read it over and send it
+  <p>Groundwork sends no telemetry, so we only hear about a problem if you tell us. In the app,
+    <strong>⚑ Report a problem</strong> (under <strong>?</strong> in the top bar) opens your own email app with a report filled in; you read it over and send it
     yourself. Nothing is sent without you. You can also email
     <a href="mailto:support@groundworkfinance.app">support@groundworkfinance.app</a> directly.</p>
   <p>We read every one.</p>
@@ -1402,8 +1402,8 @@ def privacy():
     model comes with Groundwork and runs inside it, so nothing is sent to an AI service and no API
     key exists. There is no cloud AI option.</p>
 
-  <h2>The Report button</h2>
-  <p>The <strong>⚑ Report</strong> button opens your own email app with a report filled in. Nothing is sent unless
+  <h2>Report a problem</h2>
+  <p><strong>⚑ Report a problem</strong>, under <strong>?</strong> in the top bar, opens your own email app with a report filled in. Nothing is sent unless
     you send that email yourself.</p>
 
   <h2>This website</h2>

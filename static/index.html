@@ -110,6 +110,15 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .topbar-title{font-size:15px;font-weight:600;color:var(--ink)}
 .topbar-right{display:flex;align-items:center;gap:12px}
 .topbar-date{font-family:var(--font-mono);font-size:11px;color:var(--slate-2)}
+/* The Ask bar (Rob 2026-10-22): a pill at rest that springs open when clicked, like the Mac's Dynamic Island, and
+   stays white; while it is open the date beside it becomes the time above the date, as Windows shows its clock */
+#gwAskBox{font-size:12px;height:28px;padding:0 14px;border:1px solid var(--steel);border-radius:999px;width:170px;
+  background:var(--paper);color:var(--ink);transition:width .5s cubic-bezier(.34,1.56,.64,1),height .5s cubic-bezier(.34,1.56,.64,1),box-shadow .3s}
+#gwAskBox:focus{width:460px;height:36px;font-size:14px;outline:none;box-shadow:0 6px 24px rgba(13,17,23,.16)}
+.topbar-date.gw-clock{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25;white-space:nowrap}
+.topbar-date.gw-clock b{font-weight:600;font-size:12px;color:var(--ink)}
+@media (max-width:900px){#gwAskBox:focus{width:300px}}
+@media (prefers-reduced-motion:reduce){#gwAskBox{transition:none}}
 /* Trip Planner — Phase 10 */
 .trip-mode-btn.active{background:var(--sky);color:#fff;border-color:var(--sky)}
 .trip-fund-btn.active{background:var(--pine-text);color:#fff;border-color:var(--pine)}
@@ -1223,19 +1232,18 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
       <div class="topbar-title" id="topbarTitle">Dashboard</div>
       <div class="topbar-right">
         <div class="topbar-date" id="topbarDate"></div>
-        <button class="btn btn-ghost btn-sm" onclick="openFeedbackModal()" style="font-size:11px;color:var(--slate);border-color:var(--steel)" title="Report a problem">⚑ Report</button>
         <span id="gwSaveIndicator" style="display:none;font-size:11px;color:var(--ember-text);padding:3px 8px"></span>
         <span id="gwErrorIndicator" onclick="showGwErrors()" title="JS errors detected — click to view"
           style="display:none;font-size:11px;color:var(--ember-text);cursor:pointer;padding:3px 8px;
                  border:1px solid var(--ember-border);border-radius:20px;background:var(--ember-bg)"></span>
         <button id="gwFetchAllBtn" class="btn btn-sm btn-secondary" style="display:none" onclick="startFetchAll()"
           title="Visit each bank you showed Groundwork, one at a time. Each file still waits for your review.">⟳ Get my accounts</button>
-        <button class="btn btn-sm btn-secondary" onclick="showView('reports')">◫ Reports</button>
-        <button class="btn btn-sm btn-secondary" onclick="openBackupModal()">Backup</button>
+        <!-- Rob 2026-10-22: Reports is in the menu, Report a problem in the ? help, and Backup in Settings - the bar
+             keeps the date, the Ask bar, Explain and ? -->
         <!-- Item 102 (Rob 2026-10-19): the Ask box is AI help - shown only while AI is on and able to run (ai-feature) -->
         <input id="gwAskBox" class="ai-feature" type="search" placeholder="Ask or tell Groundwork…" aria-label="Ask Groundwork a question, or tell it what to do"
           onkeydown="if (event.key === 'Enter') { askGroundwork(this.value); }"
-          style="font-size:12px;padding:5px 10px;border:1px solid var(--steel);border-radius:var(--r-sm);width:170px;background:var(--paper);color:var(--ink)">
+          onfocus="_topbarClock(true)" onblur="_topbarClock(false)">
         <!-- Item 103 (Rob 2026-10-19): what this page works out, and with AI on what its figures mean -->
         <button class="btn btn-sm btn-secondary ai-feature" onclick="explainPage()" title="Explain this page: what it works out, and what your figures on it mean" aria-label="Explain this page">Explain</button>
         <button class="btn btn-sm btn-secondary" onclick="showHelpOverlay()" title="Help">?</button>
