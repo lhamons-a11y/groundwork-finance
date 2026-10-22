@@ -32310,7 +32310,7 @@ function _topbarClockTick() {
   const time = n.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(' ', '').toLowerCase();
   const day = `${String(n.getMonth() + 1).padStart(2, '0')}/${String(n.getDate()).padStart(2, '0')}/${n.getFullYear()}`;
   el.classList.add('gw-clock');
-  el.innerHTML = `<b>${time}</b><span>${day}</span>`;
+  el.innerHTML = `<span>${time}</span><span>${day}</span>`;     // the time looks like the date: not bolded (Rob 2026-10-22)
 }
 function _topbarClock(open) { _topbarClockOpen = open; _topbarClockTick(); }
 setInterval(_topbarClockTick, 10000);

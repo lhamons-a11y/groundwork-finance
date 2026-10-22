@@ -21,6 +21,7 @@ def run(ctx):
           and 'cubic-bezier(.34,1.56,.64,1)' in html and '#gwAskBox{transition:none}' in html
           and 'onfocus="_topbarClock(true)" onblur="_topbarClock(false)"' in bar)
     tick = app.split('function _topbarClockTick() {')[1].split('\n}\n')[0]
-    check('s253 while the Ask bar is open, the time sits above the date (10:57am over 10/22/2026); closed, the date',
-          "classList.add('gw-clock')" in tick and '<b>${time}</b><span>${day}</span>' in tick
+    check('s253 while the Ask bar is open, the time sits above the date (10:57am over 10/22/2026), in the same type as the date, not bolded; closed, the date',
+          "classList.add('gw-clock')" in tick and '<span>${time}</span><span>${day}</span>' in tick and '<b>' not in tick
+          and '.topbar-date.gw-clock b{' not in ctx.html_src
           and "weekday: 'short'" in tick and 'setInterval(_topbarClockTick, 10000);' in app)
