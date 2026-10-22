@@ -26013,8 +26013,11 @@ async function _preUpgradeNotice() {
        <div style="font-family:var(--font-mono);font-size:12px;margin:8px 0;word-break:break-all">${esc(r.folder)}<br>${esc(r.name)}</div>
        <div style="font-size:12px;color:var(--slate);line-height:1.6">${r.sealed ? 'It is protected like your other backups.' : 'It is not protected yet: set up backup protection in Backups, and it can be re-saved protected.'}
          Groundwork never deletes it. The update only goes one way, so this copy is how to go back.</div>`
+      + (r.after_name ? `<div style="font-size:13px;line-height:1.6;color:var(--ink);margin-top:10px">And a backup of your records as they are now, after the update:</div>
+       <div style="font-family:var(--font-mono);font-size:12px;margin:8px 0;word-break:break-all">${esc(r.after_name)}</div>` : '')
     : `<div style="font-size:13px;line-height:1.6;color:var(--ember-text)">Groundwork tried to save a copy of your records before updating them, and could not (${esc(r.error)}). Your records were updated. Make a backup now from Backups.</div>`;
-  confirmAction(r.name ? 'A copy was saved before this update' : 'The copy before this update could not be saved', body,
+  confirmAction(r.name ? (r.after_name ? 'Your records were backed up before and after this update' : 'A copy was saved before this update')
+    : 'The copy before this update could not be saved', body,
     () => {}, 'OK', false);
   API.post('/api/backup/pre-upgrade', {}).catch(_gwErr('_preUpgradeNotice:shown'));
 }
@@ -26175,7 +26178,8 @@ async function renderSettingsBackupStatus() {
   const box = g('settingsBackupStatus');
   if (!box) return;
   try {
-    const [st, items] = await Promise.all([API.get('/api/backup/protect'), API.get('/api/backup/list')]);
+    const [st, items, rem] = await Promise.all([API.get('/api/backup/protect'), API.get('/api/backup/list'),
+                                                API.get('/api/backup/reminder').catch(() => null)]);
     const list = (items.data || items || []);
     const newest = list[0] ? (list[0].filename || list[0]) : null;
     const m = newest && newest.match(/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})/);
@@ -26185,8 +26189,26 @@ async function renderSettingsBackupStatus() {
         ? '🔒 <b style="color:var(--ink)">Your backups are protected.</b>'
         : '<b style="color:var(--ink)">Backups are not protected yet.</b> Set up a password and recovery key once, in Manage backups, before the first backup.')
       + `<br>${list.length ? `${list.length} backup${list.length === 1 ? '' : 's'} here; the newest ${when ? 'from ' + when : newest}.` : 'No backups on this computer yet.'}`
-      + (plain ? ` ${plain} older one${plain === 1 ? ' is' : 's are'} not protected; Manage backups can re-save ${plain === 1 ? 'it' : 'them'}.` : '');
+      + (plain ? ` ${plain} older one${plain === 1 ? ' is' : 's are'} not protected; Manage backups can re-save ${plain === 1 ? 'it' : 'them'}.` : '')
+      + (rem ? _backupReminderLine(rem) : '');
   } catch (e) { _gwErr('renderSettingsBackupStatus')(e); box.textContent = ''; }
+}
+
+// The backup reminder (Rob 2026-10-22): when the last backup was - recorded at each backup, so one on a drive that is
+// unplugged still counts - and how often to be reminded. The reminder itself is a Needs attention item on the Dashboard.
+function _backupReminderLine(r) {
+  const last = r.last ? new Date(r.last.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;
+  const ago = r.days_since == null ? '' : r.days_since === 0 ? ', today' : r.days_since === 1 ? ', yesterday' : `, ${r.days_since} days ago`;
+  return `<br><b style="color:var(--ink)">Last backup:</b> ${last ? esc(last) + ago : 'none yet'}.`
+    + `<br>Remind me after <select onchange="_backupRemindEvery(this.value)" aria-label="Days between backup reminders" style="font-size:12px">`
+    + r.choices.map(d => `<option value="${d}"${d === r.every ? ' selected' : ''}>${d} days</option>`).join('')
+    + `</select> without a backup, when something was added since.`
+    + (r.snoozed_until ? ` (Resting until ${esc(new Date(r.snoozed_until + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}.)` : '');
+}
+async function _backupRemindEvery(days) {
+  try { await API.post('/api/backup/reminder/every', { days: +days }); showToast(`Backup reminder: after ${days} days`, '', 'success'); }
+  catch (e) { showToast('Could not change the reminder', e.message || '', 'error'); }
+  renderSettingsBackupStatus();
 }
 
 async function chooseBackupFolder() {
@@ -26276,6 +26298,7 @@ async function createBackup(password) {
     const res = await API.post('/api/backup/create', { include_ai_log: !!g('backupIncludeAiLog')?.checked, ...(password ? { password } : {}) });
     showToast('Backup created', `${(res.data||res).filename||''}. ${(res.data||res).statement||''}`, 'success');
     loadBackupList();
+    renderSettingsBackupStatus();                 // the last backup's date, and the Dashboard's reminder, follow at once
   } catch(e) {
     // Item 81 B1: a backup is protected, always - set protection up first, or give the password on a computer without the key
     if (/Set up backup protection/i.test(e.message || '')) { showToast('Set up protection first', 'A password and a recovery key, once.', 'info'); openBackupModal(); setTimeout(() => g('backupProtect')?.scrollIntoView({ behavior: 'smooth' }), 150); return; }

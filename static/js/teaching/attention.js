@@ -17,7 +17,8 @@
   var KINDS = ['payment_due', 'import_stale', 'blocked_conclusion', 'date_ends',    // date_ends: item 73 Y2, ruled 2026-10-10
                'fsa_deadline',                                                     // item 86 F5, ruled 2026-10-14
                'bill_due',                                                         // item 94 L6, ruled 2026-10-19
-               'two_accounts'];                                                    // item 107 D6 (a), ruled 2026-10-21
+               'two_accounts',                                                     // item 107 D6 (a), ruled 2026-10-21
+               'backup_due'];                                                      // the backup reminder, Rob 2026-10-22
   var DUE_WITHIN_DAYS = 7;                                  // ruling 4
 
   function _iso(d) {
@@ -128,6 +129,17 @@
     });
   }
 
+  /* Kind 8 (Rob 2026-10-22, after Quicken's): a backup is due - the last one is as old as the person chose (7 days unless
+   * they changed it) and records were added since, or there has never been one and the record holds transactions.
+   * `rows` - the server's /api/backup/reminder `attention` list. Its "Remind me later" rests it for three days, kept by
+   * the server, so it has no Dismiss of its own. */
+  function backupDue(rows) {
+    return (rows || []).map(function (r) {
+      return { kind: 'backup_due', subject: 'backup', last: r.last, days: r.days, transactions: r.transactions,
+               other: r.other, fact: r.fact };
+    });
+  }
+
   function fingerprint(item) {
     return item.kind + '|' + item.subject + '|' + item.fact;
   }
@@ -138,7 +150,7 @@
     var gone = {};
     (dismissed || []).forEach(function (f) { gone[f] = true; });
     var items = [].concat(parts.payments || [], parts.imports || [], parts.blocked || [], parts.dates || [],
-                          parts.fsa || [], parts.bills || [], parts.twoAccounts || []);
+                          parts.fsa || [], parts.bills || [], parts.twoAccounts || [], parts.backup || []);
     items.forEach(function (i) {
       if (KINDS.indexOf(i.kind) < 0) throw new Error('attention: "' + i.kind + '" is not a ruled kind');
     });
@@ -153,7 +165,7 @@
 
   var api = { KINDS: KINDS, DUE_WITHIN_DAYS: DUE_WITHIN_DAYS, paymentsDue: paymentsDue, datesEnding: datesEnding,
               importsStale: importsStale, blockedConclusions: blockedConclusions, fsaDeadlines: fsaDeadlines, billsDue: billsDue,
-              twoAccounts: twoAccounts,
+              twoAccounts: twoAccounts, backupDue: backupDue,
               fingerprint: fingerprint, build: build };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root && root.GWTeaching) root.GWTeaching.register('attention', api);

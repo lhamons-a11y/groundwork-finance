@@ -191,6 +191,16 @@
         + '<button class="btn btn-sm btn-secondary" data-gw-two-answer="not_same" data-gw-two-pair="' + esc(i.pair) + '">These aren\'t the same</button>'
         + '<button class="btn btn-sm btn-secondary" data-gw-two-answer="not_now" data-gw-two-pair="' + esc(i.pair) + '">Dismiss</button>'
         + '</div></div>';
+    } else if (i.kind === 'backup_due') {                   // the backup reminder (Rob 2026-10-22)
+      var n = i.transactions, added = n ? n + ' transaction' + (n === 1 ? '' : 's') + ' added' : 'records added';
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.7">'
+        + (i.last
+          ? '<strong>Backup</strong>: your last backup was ' + _date(i.last) + ', ' + i.days + ' day' + (i.days === 1 ? '' : 's') + ' ago, with ' + added + ' since.'
+          : '<strong>Backup</strong>: your records haven\'t been backed up yet' + (n ? ' (' + n + ' transaction' + (n === 1 ? '' : 's') + ')' : '') + '.')
+        + '<div style="font-size:11px;color:var(--slate-2)">' + (i.last ? 'From the date of your last backup and what was added since.' : 'There is no backup of your records on record yet.')
+        + ' How often to be reminded is yours to change in Settings.</div>'
+        + '<div style="margin-top:4px"><button class="btn btn-sm btn-secondary" onclick="showView(\'settings\');_settingsShowTab(\'data\')">Back up now</button>'
+        + ' <button class="btn btn-sm btn-secondary" data-gw-backup-later>Remind me later</button></div></div>';
     } else if (i.kind === 'import_stale') {
       fact = '<strong>' + esc(i.title) + '</strong>: last imported ' + _date(i.last_import) + ', ' + i.days + ' days ago.';
       source = 'From when this account\'s transactions were last imported. An account kept by hand is never listed.';
@@ -286,6 +296,8 @@
     try { bills = ((await API.get('/api/medical-bills')) || {}).attention || []; } catch (e) { _gwErr('dashboard bills')(e); }
     var two = [];                                            // item 107 D6 (a): from the second month within three
     try { two = ((await API.get('/api/two-accounts')) || {}).attention || []; } catch (e) { _gwErr('dashboard two accounts')(e); }
+    var backup = [];                                         // the backup reminder (Rob 2026-10-22)
+    try { backup = ((await API.get('/api/backup/reminder')) || {}).attention || []; } catch (e) { _gwErr('dashboard backup')(e); }
     var items = A.build({
       payments: payments,
       imports: A.importsStale(stale),
@@ -293,7 +305,8 @@
       dates: A.datesEnding(kept, new Date()),
       fsa: A.fsaDeadlines(fsa),
       bills: A.billsDue(bills),
-      twoAccounts: A.twoAccounts(two)
+      twoAccounts: A.twoAccounts(two),
+      backup: A.backupDue(backup)
     }, (_prefs && _prefs.dismissed) || []);
     var head = '<div class="card-label" style="margin-bottom:4px">Needs attention</div>';
     try { _tiles(imports, items, payments); } catch (e) { _gwErr('dashboard tiles')(e); }
@@ -321,6 +334,11 @@
     if (d) { ev.preventDefault(); _dismiss(d.getAttribute('data-gw-dismiss')); return; }
     var da = t.closest('[data-gw-dismiss-all]');
     if (da) { ev.preventDefault(); try { _dismiss(JSON.parse(da.getAttribute('data-gw-dismiss-all'))); } catch (e) { _gwErr('dashboard dismiss all')(e); } return; }
+    if (t.closest('[data-gw-backup-later]')) {             // "Remind me later": three days, kept by the server
+      ev.preventDefault();
+      API.post('/api/backup/reminder/snooze', {}).then(_renderAttention).catch(_gwErr('dashboard backup later'));
+      return;
+    }
     var ts = t.closest('[data-gw-two-show]');               // item 107: the Ledger, that payee, every account
     if (ts) {
       ev.preventDefault();

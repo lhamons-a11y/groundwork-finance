@@ -13,6 +13,7 @@ import sys
 import json
 import logging
 import threading
+import time
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from functools import wraps
@@ -191,8 +192,12 @@ def create_app(static_folder: str = None) -> Flask:
     # this called bare init_db(), which only creates tables that don't
     # exist yet and silently never alters a table that's already on disk.
     # Item 82 R3 (L3b): a dated copy first, whenever the database is about to be migrated.
-    _backup_before_migration()
+    _pre = _backup_before_migration()
     run_migration_if_needed()
+    # ... and the migrated database backed up as well (Rob 2026-10-22): the person has a backup of what they now have,
+    # and it counts as their latest for the backup reminder
+    if _pre and not _pre.get('error'):
+        _backup_after_migration(_pre)
 
     # Register all blueprints
     app.register_blueprint(transactions_bp,  url_prefix='/api/transactions')
@@ -14454,6 +14459,22 @@ def _backup_before_migration():
     return rec
 
 
+def _backup_after_migration(rec):
+    """After a migration that had a before-upgrade copy (so there were records to keep), the migrated database is
+    backed up too, sealed or plain on the same terms, and recorded as the person's latest backup (Rob 2026-10-22: "after
+    the migration it does a backup of the new database so we have a backup"). A failure is logged and noted on the
+    upgrade's record; it never stops the app opening."""
+    try:
+        name = _write_backup(f"groundwork_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}_after_upgrade")
+        rec.update(after_name=name)
+        with db_session() as session:
+            _set_setting(session, 'pre_upgrade_backup', json.dumps(rec))
+            _set_setting(session, 'backup_last', json.dumps({**_backup_stamp(name), 'after_upgrade': True}))
+            session.commit()
+    except Exception:                                     # noqa: BLE001 - said, never silent; the app still opens
+        logging.getLogger('groundwork').exception('after-upgrade backup failed')
+
+
 def _write_backup(stem, include_ai_log=True, key=None):
     """Copy the live database to the backups folder - sealed when protection is set up and a key is at hand (B1),
     plain only when it is not (a safety copy before a delete is never blocked for want of a key). Returns the name."""
@@ -14574,6 +14595,9 @@ def create_backup():
     try:
         backup_name = _write_backup(f'groundwork_backup_{ts}', include_ai_log=bool(body.get('include_ai_log')), key=key)
         backup_path = _backups_dir() / backup_name
+        with db_session() as session:                       # the backup reminder reads this, not the folder (Rob 2026-10-22)
+            _set_setting(session, 'backup_last', json.dumps(_backup_stamp(backup_name)))
+            session.commit()
         return ok({'filename': backup_name, 'size': backup_path.stat().st_size, 'statement': BACKUP_STATEMENT,
                    'encrypted': backup_name.endswith('.gwbk')})
     except Exception as e:
@@ -14703,6 +14727,112 @@ def restore_backup_upload():
         return ok({'restored': True, 'filename': safe_name})
     except Exception as e:
         return err(f'Restore failed: {e}', 500)
+
+
+# ── The backup reminder (Rob 2026-10-22, after Quicken's): "you have not backed up since <date>" ─────────────────────
+# Every backup the person makes records its date ('backup_last'), so a backup on a drive that is unplugged still counts.
+# A reminder is due when the last one is BACKUP_REMIND_DAYS old (the person's choice of 3, 7, 14 or 30) AND records were
+# added since - with nothing new there is nothing more to lose, and a reminder would only be noise. Never backed up:
+# due once the record holds transactions. The copy of a database just upgraded counts (it is all of it, as it now
+# is); the safety copies of what was there before a migration or a delete don't. "Remind me later" hides it for BACKUP_SNOOZE_DAYS. Not for the sample.
+BACKUP_REMIND_DAYS = 7
+BACKUP_REMIND_CHOICES = (3, 7, 14, 30)
+BACKUP_SNOOZE_DAYS = 3
+_OWN_BACKUP = re.compile(r'^groundwork_backup_\d{8}_\d{6}(_after_upgrade)?\.(gwbk|db)$')   # the person's, and the
+                                                                                         # copy of an upgraded database
+
+
+def _backup_stamp(name, when=None):
+    """The record of a backup: `at` local time, for saying when; `utc`, for comparing with created_at (which is UTC -
+    compared with local time, a record made hours before the backup would count as added since)."""
+    ts = when if when is not None else time.time()
+    return {'at': datetime.fromtimestamp(ts).isoformat(timespec='seconds'),
+            'utc': datetime.utcfromtimestamp(ts).isoformat(), 'file': name, 'folder': str(_backups_dir())}   # to the
+                                                    # microsecond: a record saved earlier in the same second is before it
+
+
+def _backup_last(session):
+    """When the person last backed up: the recorded date, or - the first time, for backups made before it was recorded
+    - the newest of their own backup files Groundwork can see, recorded then. None when there is neither."""
+    rec = _setting_json(session, 'backup_last', None)
+    if rec and rec.get('at'):
+        return rec
+    try:
+        own = [f for f in _backups_dir().iterdir() if _OWN_BACKUP.match(f.name)]
+    except OSError:
+        own = []
+    if not own:
+        return None
+    f = max(own, key=lambda x: x.stat().st_mtime)
+    rec = {**_backup_stamp(f.name, f.stat().st_mtime), 'folder': str(f.parent), 'from_file': True}
+    _set_setting(session, 'backup_last', json.dumps(rec))
+    session.commit()
+    return rec
+
+
+def _backup_reminder(session, now=None):
+    from core import sample_household as sh
+    now = now or datetime.now()
+    try:
+        days = int(_setting_json(session, 'backup_remind_days', BACKUP_REMIND_DAYS))
+    except (TypeError, ValueError):
+        days = BACKUP_REMIND_DAYS
+    days = days if days in BACKUP_REMIND_CHOICES else BACKUP_REMIND_DAYS
+    snooze = _setting_json(session, 'backup_remind_snooze', None)
+    last = _backup_last(session)
+    since = datetime.fromisoformat(last['at']) if last else None
+    since_utc = datetime.fromisoformat(last.get('utc') or last['at']) if last else None
+    added = {'transactions': 0, 'other': 0}
+    q = lambda model: session.query(func.count(model.id)).filter(model.created_at > since_utc).scalar() or 0
+    if since:
+        added['transactions'] = q(Transaction)
+        added['other'] = q(Account) + q(DebtAccount) + q(BudgetItem)
+    else:
+        added['transactions'] = session.query(func.count(Transaction.id)).scalar() or 0
+    age = (now - since).days if since else None
+    flag = _get_setting(session, sh.SAMPLE_FLAG)
+    sample = bool(flag and flag.value == 'true')
+    snoozed = bool(snooze and now.date().isoformat() < snooze)
+    changed = added['transactions'] + added['other'] > 0
+    due = not sample and not snoozed and changed and (since is None or age >= days)
+    out = {'every': days, 'choices': list(BACKUP_REMIND_CHOICES), 'last': last, 'days_since': age, 'added': added,
+           'snoozed_until': snooze if snoozed else None, 'due': due, 'attention': []}
+    if due:
+        out['attention'] = [{'subject': 'backup', 'last': last['at'][:10] if last else None, 'days': age,
+                             'transactions': added['transactions'], 'other': added['other'],
+                             'fact': (last['at'][:10] if last else 'never')}]
+    return out
+
+
+@backup_bp.route('/reminder', methods=['GET'])
+def backup_reminder_get():
+    with db_session() as session:
+        return ok(_backup_reminder(session))
+
+
+@backup_bp.route('/reminder/snooze', methods=['POST'])
+def backup_reminder_snooze():
+    """"Remind me later": the reminder rests for BACKUP_SNOOZE_DAYS, then comes back if a backup is still due."""
+    until = (date.today() + timedelta(days=BACKUP_SNOOZE_DAYS)).isoformat()
+    with db_session() as session:
+        _set_setting(session, 'backup_remind_snooze', json.dumps(until))
+        session.commit()
+        return ok({'snoozed_until': until})
+
+
+@backup_bp.route('/reminder/every', methods=['POST'])
+@require_json
+def backup_reminder_every():
+    try:
+        days = int((request.get_json() or {}).get('days'))
+    except (TypeError, ValueError):
+        days = None
+    if days not in BACKUP_REMIND_CHOICES:
+        return err('Choose 3, 7, 14 or 30 days.', 400)
+    with db_session() as session:
+        _set_setting(session, 'backup_remind_days', json.dumps(days))
+        session.commit()
+        return ok({'every': days})
 
 
 @backup_bp.route('', methods=['GET'])
