@@ -5,7 +5,7 @@ Opened 2026-10-21. Rob:
 > *"Netflix $17.99 from Checking Account and Netflix $17.99 from Harbor Visa in the same month ... the user may know
 > this because they are funding one for another person but I think those things we should alert the user."*
 
-**RULED 2026-10-21 (Rob: "D1-D12 as recommended, build it") and BUILT 2026-10-21 (§7), awaiting acceptance; the
+**ACCEPTED and CLOSED 2026-10-21 (Rob: "accept item 107"); §8.** **RULED 2026-10-21 (Rob: "D1-D12 as recommended, build it") and BUILT 2026-10-21 (§7); the
 measured departure (§7, the null model) confirmed by Rob: "keep the one-charge-a-month rule, commit it".** D1 (a), D4 (b), D6 (a) + (b) only (not the optional Ledger line, no proactive card), D8 with (a), D11 (a); the rest as written. §6.
 
 ---
@@ -281,7 +281,7 @@ charge on the 9th. Then Needs attention shows the D7 item on first look.
   later, then never.
 - **D11** (a): StreamBox on Everyday Checking for the Morgans.
 
-## 7. Built (2026-10-21), awaiting acceptance
+## 7. Built (2026-10-21), ACCEPTED 2026-10-21
 
 **One measured departure, for Rob.** D12's null model ran before anything shipped, as D12 asked.
 - **What it modelled:** households where each subscription is paid from one account, and the same stores are
@@ -359,3 +359,9 @@ reads the kinds list rather than its last line.
 
 **The full suite** (this Mac, no node and no llama_cpp): 3,604 passed and 69 failed. Two were this change's (s30's limit on what one module borrows from app.js, and s243's kinds line), fixed above and rerun green. Every other failure is a run-in-Node
 check, the llama_cpp engine sections (s233, s237), or s189 C4, which failed before this change too. CI has node.
+
+## 8. Acceptance: Rob, 2026-10-21
+
+> *"accept item 107"*
+
+Accepted as built at `ede6d33`, with the one-charge-a-month rule (§7). Closed.
