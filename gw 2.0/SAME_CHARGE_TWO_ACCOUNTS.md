@@ -5,7 +5,8 @@ Opened 2026-10-21. Rob:
 > *"Netflix $17.99 from Checking Account and Netflix $17.99 from Harbor Visa in the same month ... the user may know
 > this because they are funding one for another person but I think those things we should alert the user."*
 
-**No code.** D1-D12 for ruling.
+**RULED 2026-10-21 (Rob: "D1-D12 as recommended, build it") and BUILT 2026-10-21 (§7), awaiting acceptance; the
+measured departure (§7, the null model) confirmed by Rob: "keep the one-charge-a-month rule, commit it".** D1 (a), D4 (b), D6 (a) + (b) only (not the optional Ledger line, no proactive card), D8 with (a), D11 (a); the rest as written. §6.
 
 ---
 
@@ -267,3 +268,94 @@ charge on the 9th. Then Needs attention shows the D7 item on first look.
 - **A.4's dismissal rule** is kept by D8's 60-day Dismiss.
 - **No silent learning:** the answer is a statement the person made, kept where they can see and undo it, and it
   feeds nothing else (D9).
+
+## 6. Ruling: Rob, 2026-10-21
+
+> *"D1-D12 as recommended, build it"*
+
+- **D1** (a): the same payee by containment, 4+ characters.
+- **D2, D3, D5, D7, D9, D10, D12:** as written.
+- **D4** (b): said from the second such month within three.
+- **D6** (a) Needs attention and (b) Ask why. Not (c), the Ledger line, and not (d), a proactive card.
+- **D8** with (a): after *"One of these should stop"*, said once more if both accounts still pay it two months
+  later, then never.
+- **D11** (a): StreamBox on Everyday Checking for the Morgans.
+
+## 7. Built (2026-10-21), awaiting acceptance
+
+**One measured departure, for Rob.** D12's null model ran before anything shipped, as D12 asked.
+- **What it modelled:** households where each subscription is paid from one account, and the same stores are
+  shopped at from two (one to six visits a month on each).
+- **What it found:** D1-D4 as written said something in **299 of 300** households. Every one was shopping: Starbucks,
+  Shell, McDonald's and grocery stores, where two visits a few dollars apart land within 5% in two months out of three.
+  None was a subscription.
+- **What D12 says:** a rate above zero *"changes D1 or D4 before any build."*
+- **What changed:**
+  - a charge pairs only when it is that payee's **one charge on that account that month** (a subscription charges
+    once);
+  - each month's pair is within 5% of the latest month's, so it is the same charge again.
+- **Measured after the change:** 0 in 1,000 households at one to six visits, at none to two, and at none to one.
+  Rob's own example, with two spellings on two accounts, still says it.
+- **What it gives up:** a payee charged twice on one account in a month (a posting that slips from the 31st to the
+  1st, or a second purchase there) isn't paired that month.
+- **Confirmed** by Rob, 2026-10-21: *"keep the one-charge-a-month rule, commit it"*.
+
+**A second, smaller departure.** D3 also leaves out a row whose own bank text says it is a payment (*payment*,
+*pmt*, *autopay*, *epay*). Otherwise a card payment filed under no payment category, such as *TARGET CARD PMT* in
+*Other*, would pair with the store card's purchase. That is D3's own case, made to hold when the row isn't filed as
+a payment.
+
+**What was built (master):**
+- **The engine.** `core/two_accounts.py` covers D1-D5, D7's words and D8's states. Nothing is stored about a finding;
+  only what the person says is kept.
+- **The routes.**
+  - `/api/two-accounts` gives the Needs attention items and what was said.
+  - `/answer` appends the person's answer.
+  - `/undo` appends a withdrawal.
+  - The general settings route can't write `two_accounts_said_json`.
+  - Each answer and Undo is in the Historian as `two_accounts_answered`, with the payee key, the two account ids and
+    the answer, and no bank text.
+- **Needs attention** has a seventh kind, `two_accounts` (`attention.js`, `dashboard.js`). It shows:
+  - the label, the D7 sentence and the source line;
+  - *Show the charges*, which opens the Ledger searched to the payee, every account and month (through the Ask box's
+    own `askLedgerSearch`, so the Dashboard module borrows no more of app.js than s30 allows);
+  - *Both are meant* (*e.g. one is for someone else*), *One of these should stop*, *These aren't the same*;
+  - *Dismiss*, which is *not now* for 60 days, kept by the server.
+- **Ask why.** The `two_accounts` check is on *Your records* and on the model's routing list, and lists single months
+  as *One month only*. There is no *Why?* on a spending figure today, so *Your records* and the Ask box are how it
+  is reached.
+- **Settings** lists each answer under *Speaking up*, with Undo (`teaching/twoaccounts.js`).
+- **The Morgans.** StreamBox $15.49 is on Everyday Checking on the 3rd of the last three months, beside the Visa's
+  on the 9th. That is three months, not D11's two, so the item shows on any day of the month: before the 9th, this
+  month has only one charge. Their Needs attention shows:
+
+  > **StreamBox**: $15.49 from Everyday Checking on Oct 3 and $15.49 from Cashback Visa on Oct 9. Both accounts paid
+  > it in August and September too.
+
+  s249's Working-picture expectation **did not move**, and s249 is unchanged.
+
+**Checked in the browser** (the Morgans, AI off):
+- Needs attention shows the item with the D7 words.
+- *Show the charges* opens the Ledger on StreamBox from both accounts, 9 rows.
+- *One of these should stop* removes the item and lists it in Settings. Undo there brings it back.
+- *Dismiss* removes it and lists nothing.
+- *Both are meant* and *These aren't the same* each remove it and are listed.
+- No console errors.
+
+**Tests.** s251 covers:
+- Rob's example and the words;
+- one month, a card switch, a card payment with the store-name collision, Transfer, pending and refund rows, 6%
+  apart, and two cards on one account;
+- shopping, and the null model (0 of 200);
+- each D8 answer, *again* once and then never, Undo, and Dismiss for 60 days;
+- the barred words;
+- the routes, the Ask why check and the routing list;
+- nothing else moving after an answer (spending, budget, recurring items, the recurring detection);
+- the Historian event without bank text;
+- the Morgans with AI off.
+
+s131's list of the dashboard's endpoints now includes the two routes, and s243's check that `bill_due` is a ruled kind
+reads the kinds list rather than its last line.
+
+**The full suite** (this Mac, no node and no llama_cpp): 3,604 passed and 69 failed. Two were this change's (s30's limit on what one module borrows from app.js, and s243's kinds line), fixed above and rerun green. Every other failure is a run-in-Node
+check, the llama_cpp engine sections (s233, s237), or s189 C4, which failed before this change too. CI has node.

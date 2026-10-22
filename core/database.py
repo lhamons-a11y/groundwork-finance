@@ -497,6 +497,8 @@ class HistorianEntry(Base):
       'college_fund_contribution_variance'— college funds (contribution, actual $ vs. fund's own monthlyContrib)
       'recurring_pattern_confirm'         — a detected recurring merchant added to the budget
       'recurring_pattern_reject'          — a detected recurring merchant dismissed
+      'two_accounts_answered'             — item 107 D8: the person's answer about one payee paid from two
+                                             accounts (payee key, the two account ids, the answer; no bank text)
       'proactive_shown'                   — an insight promoted past the A.2 gauntlet and shown
                                              unprompted. Context carries its key and budget class;
                                              this IS the frequency cap's ledger (A.3).

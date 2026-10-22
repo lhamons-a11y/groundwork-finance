@@ -135,6 +135,8 @@ def build(c, headers, today=None):
         tx(checking, _day(y, m, 22), 'CASHBACK VISA PAYMENT', 'Cashback Visa payment', 600.00, debt_pay)
         tx(visa, _day(y, m, 4), 'IRONWORKS GYM', 'Ironworks Gym', 45.00, cat('Gym / Fitness'))
         tx(visa, _day(y, m, 9), 'STREAMBOX', 'StreamBox', 15.49, cat('Streaming Video'))
+        if i >= len(months) - 3:                     # item 107 D11: StreamBox from checking too, so the review sees one
+            tx(checking, _day(y, m, 3), 'STREAMBOX.COM', 'StreamBox', 15.49, cat('Streaming Video'))
         tx(visa, _day(y, m, 14), 'TUNEFLOW', 'TuneFlow', 10.99, cat('Streaming Music', 'Streaming Video'))
         for _ in range(rnd.randint(6, 8)):
             store = rnd.choice([('FRESH FARM MARKET', 'Fresh Farm Market'), ('VALLEY FOODS #31', 'Valley Foods'), ('CORNER MARKET', 'Corner Market')])

@@ -224,6 +224,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(tidy_bp,           url_prefix='/api/tidy')
     app.register_blueprint(price_changes_bp,  url_prefix='/api/price-changes')
     app.register_blueprint(yearly_steps_bp,   url_prefix='/api/yearly-steps')
+    app.register_blueprint(two_accounts_bp,   url_prefix='/api/two-accounts')   # item 107
     app.register_blueprint(first_import_bp,   url_prefix='/api/first-import')
     app.register_blueprint(year_end_bp,       url_prefix='/api/year-end')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
@@ -3360,6 +3361,79 @@ def price_changes_undo():
         return ok({'restored': amount})
 
 
+# ── Item 107 (SAME_CHARGE_TWO_ACCOUNTS.md): the same charge paid from two accounts in the same month ─────────────
+two_accounts_bp = Blueprint('two_accounts', __name__)
+
+
+def _two_accounts(session, today=None):
+    """D1-D5 on the record, and what each pair shows now under D8. Derived on every read."""
+    from core import two_accounts as ta
+    today = today or date.today()
+    cats = {c.id: c for c in session.query(Category).all()}
+    accounts = {a.id: a.name for a in session.query(Account).all()}
+    since = date(today.year, today.month, 1) - timedelta(days=31 * (ta.WINDOW - 1) + 1)
+    rows = session.query(Transaction).filter(Transaction.type == 'debit', Transaction.date >= since,
+                                             Transaction.date <= today).all()
+    said = _setting_json(session, ta.SETTING, []) or []
+    found = ta.pairs(rows, accounts, ta.payment_category_ids(cats), today)
+    return found, said, accounts
+
+
+@two_accounts_bp.route('', methods=['GET'])
+def two_accounts_get():
+    """D6 (a): Needs attention's items; D6 (b)'s single months stay in Ask why. D8: what the person said, for Settings."""
+    from core import two_accounts as ta
+    with db_session() as session:
+        found, said, accounts = _two_accounts(session)
+        today = date.today()
+        out = [ta.item(p, st, said, accounts) for p in found for st in [ta.state(p, said, today)] if st]
+        return ok({'attention': out, 'said': ta.listed(said)})
+
+
+@two_accounts_bp.route('/answer', methods=['POST'])
+@require_json
+def two_accounts_answer():
+    """D8: the person's answer, appended as their statement. It changes nothing else (D9)."""
+    from core import two_accounts as ta
+    b = request.get_json() or {}
+    answer = b.get('answer')
+    if answer not in ta.ANSWERS:
+        return err('That is not one of the answers.', 400)
+    with db_session() as session:
+        found, said, _ = _two_accounts(session)
+        p = next((x for x in found if x['key'] == b.get('pair')), None)
+        st = p and ta.state(p, said, date.today())
+        if not st:
+            return err('Groundwork is not asking about that pair now.', 404)
+        said = ta.append(said, p, answer, again=(st == 'again'))
+        _set_setting(session, ta.SETTING, json.dumps(said))
+        log_historian_event(session, 'two_accounts_answered',
+                            context={'payee_key': p['canon'], 'accounts': p['accounts'], 'answer': answer,
+                                     'again': st == 'again'})
+        session.commit()
+        return ok({'said': said[-1]})
+
+
+@two_accounts_bp.route('/undo', methods=['POST'])
+@require_json
+def two_accounts_undo():
+    """D8: Undo adds a withdrawal of one statement; it removes nothing."""
+    from core import two_accounts as ta
+    n = (request.get_json() or {}).get('n')
+    with db_session() as session:
+        said = _setting_json(session, ta.SETTING, []) or []
+        out = ta.withdraw(said, n) if isinstance(n, int) else None
+        if out is None:
+            return err('There is no such answer to undo.', 404)
+        gone = next(s for s in said if s.get('n') == n)
+        _set_setting(session, ta.SETTING, json.dumps(out))
+        log_historian_event(session, 'two_accounts_answered',
+                            context={'payee_key': gone['key'].split('|')[0], 'accounts': gone.get('accounts'),
+                                     'answer': 'withdrawn', 'withdraws': gone.get('answer')})
+        session.commit()
+        return ok({'withdrawn': n})
+
+
 # ── Item 106 (YEARLY_PRICE_STEPS.md): a bill that steps at the same time each year - said, projected, asked ───────
 yearly_steps_bp = Blueprint('yearly_steps', __name__)
 # Y5: usage bills item 26 already estimates from EIA's regional price - a yearly rate step is in that figure already,
@@ -4679,6 +4753,7 @@ WHY_ROUTE_SYSTEM = (
     'wrong_kind: deposits filed as spending, or charges filed as income.\n'
     'stopped: a regular paycheck or deposit that has not come in.\n'
     'duplicates: the same transaction showing twice.\n'
+    'two_accounts: the same charge or subscription paid from two different accounts.\n'
     'own_transfers: money moved between their own accounts counted as income.\n'
     'empty_months: months or accounts with no records.\n'
     'unsure: about their records, and two or more checks fit equally.\n'
@@ -4691,6 +4766,7 @@ WHY_ROUTE_SYSTEM = (
     '"Why are my paychecks counted as spending?" -> wrong_kind\n'
     '"My paycheck did not come in" -> stopped\n'
     '"The same charge shows up twice" -> duplicates\n'
+    '"Am I paying for Netflix from two accounts?" -> two_accounts\n'
     '"Is my savings transfer counted as income?" -> own_transfers\n'
     '"Why are there no transactions in April?" -> empty_months\n'
     '"Something looks off" -> unsure\n'
@@ -4713,8 +4789,8 @@ def why_route_outside(q):
     return not WHY_ROUTE_WORDS.search(q) or bool(WHY_ACT_WORDS.search(q))
 
 
-WHY_ROUTE_OPTIONS = ('inputs_income', 'payer_switch', 'wrong_kind', 'stopped', 'duplicates', 'own_transfers',
-                     'empty_months', 'unsure', 'none')
+WHY_ROUTE_OPTIONS = ('inputs_income', 'payer_switch', 'wrong_kind', 'stopped', 'duplicates', 'two_accounts',
+                     'own_transfers', 'empty_months', 'unsure', 'none')
 
 
 @why_bp.route('/route', methods=['POST'])
@@ -9760,6 +9836,8 @@ def update_settings():
     body = request.json
     # Item 105: only the sample household's own load marks the records as the sample (which lets them be cleared)
     body.pop('sample_household', None)
+    # Item 107 D8: what the person said about a pair of accounts is appended by its own route, never written over
+    body.pop('two_accounts_said_json', None)
     # Cloud AI is gone (CLOUD_AI_REMOVAL.md): there is no provider to choose and
     # no key to store, so neither setting is ever written.
     body.pop('api_key', None)

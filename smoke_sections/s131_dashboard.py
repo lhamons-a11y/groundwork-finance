@@ -154,10 +154,10 @@ def run(ctx):
     check('s131 mutation caught: a view counter added to the dashboard',
           bool(re.search(_USAGE, code + '\nlocalStorage.setItem("views", n); viewCount++')))
     apis = set(re.findall(r"API\.(?:get|put|post)\('([^']+)'", code))
-    check("s131 the dashboard calls only its own prefs, layout, dismissal and import-fact endpoints, the person's kept receipt dates (item 73 Y2), their FSA terms (item 86 F5) and the bills they typed in (item 94 L6)",
+    check("s131 the dashboard calls only its own prefs, layout, dismissal and import-fact endpoints, the person's kept receipt dates (item 73 Y2), their FSA terms (item 86 F5) the bills they typed in (item 94 L6) and a payee paid from two accounts with the person's answer (item 107 D6/D8)",
           apis == {'/api/dashboard/prefs', '/api/dashboard/layout', '/api/dashboard/dismiss',
                    '/api/dashboard/attention/imports', '/api/byb/receipt-dates', '/api/byb/receipt-dates/',
-                   '/api/accounts/hsa-fsa', '/api/medical-bills'})
+                   '/api/accounts/hsa-fsa', '/api/medical-bills', '/api/two-accounts', '/api/two-accounts/answer'})
     check('s131 Da8 ruling 2: attention reads nothing of Speaking up (no dial, no Appendix A caps)',
           not re.search(r'proactive|speaking|dial', code, re.I))
     check('s131 ruling 5: Current priority is retired in 2.0 (hidden by the teaching layer, not deleted from 1.x)',

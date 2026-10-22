@@ -170,7 +170,7 @@ def run(ctx):
         att = (BASE / 'static' / 'js' / 'teaching' / 'attention.js').read_text(encoding='utf-8')
         dash = (BASE / 'static' / 'js' / 'teaching' / 'dashboard.js').read_text(encoding='utf-8')
         check('s243 L6 bill_due is a ruled attention kind, shown with its source and no action that pays',
-              "'bill_due'];" in att and 'billsDue: billsDue' in att and "i.kind === 'bill_due'" in dash
+              "'bill_due'" in att[att.index('var KINDS'):att.index('];', att.index('var KINDS'))] and 'billsDue: billsDue' in att and "i.kind === 'bill_due'" in dash
               and 'Groundwork never contacts anyone or pays anything.' in dash and 'bill_due' in ctx.server_src)
         check('s243 the card lives on the Health page (item 100), every sentence from the server',
               'renderMedicalBillsCard();' in ctx.app_src.split('async function renderHealthPage()')[1][:400]

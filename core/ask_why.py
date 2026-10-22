@@ -20,6 +20,8 @@ import statistics
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
+from core import two_accounts
+
 PERIOD_MONTHS = 12
 STALE_DAYS = 45
 SWITCH_MIN = 2            # rows on each side of a category switch
@@ -54,6 +56,9 @@ CHECKS = {
         'establishes': 'A deposit counted as income with the same amount leaving another of your accounts within two '
                        'days.',
         'cannot': 'Whether the two are the same money - a matching amount can be chance.'},
+    'two_accounts': {                                       # item 107 D6 (b)
+        'title': 'The same charge paid from two accounts',
+        'establishes': two_accounts.ESTABLISHES, 'cannot': two_accounts.CANNOT},
     'empty_months': {
         'title': 'Months with no records',
         'establishes': 'Accounts with no rows in a month between their first and last rows, and accounts whose records '
@@ -65,7 +70,8 @@ FIGURES = {
     'income_month': {'label': 'Your monthly income',
                      'checks': ['inputs_income', 'payer_switch', 'wrong_kind', 'stopped', 'own_transfers', 'empty_months']},
     'records': {'label': 'Your records',
-                'checks': ['payer_switch', 'wrong_kind', 'stopped', 'duplicates', 'own_transfers', 'empty_months']},
+                'checks': ['payer_switch', 'wrong_kind', 'stopped', 'duplicates', 'two_accounts', 'own_transfers',
+                           'empty_months']},
 }
 
 
@@ -336,8 +342,24 @@ def check_empty_months(session, today, data):
     return out
 
 
+def check_two_accounts(session, today, data):
+    """Item 107 D6 (b): every pair of accounts paying the same payee at the same amount in the same month, over the
+    last three months - single months too, marked as one month. The words are core/two_accounts.py's (D7)."""
+    ta = two_accounts
+    cats, accts, rows = data
+    names = {aid: a.name for aid, a in accts.items()}
+    out = []
+    for p in ta.pairs(rows, names, ta.payment_category_ids(cats), today):
+        single = len(p['months']) == 1
+        out.append(_finding('two_accounts', f'{p["payee"]}: ' + ta.sentence(p),
+                            [_row(t, cats, accts) for m in p['months'] for t in m['rows']], [],
+                            {'single_month': single, 'months': [m['month'] for m in p['months']]}))
+    return out
+
+
 RUN = {'inputs_income': check_inputs_income, 'payer_switch': check_payer_switch, 'wrong_kind': check_wrong_kind,
-       'stopped': check_stopped, 'duplicates': check_duplicates, 'own_transfers': check_own_transfers,
+       'stopped': check_stopped, 'duplicates': check_duplicates, 'two_accounts': check_two_accounts,
+       'own_transfers': check_own_transfers,
        'empty_months': check_empty_months}
 
 
