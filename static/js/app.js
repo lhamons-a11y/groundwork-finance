@@ -32211,7 +32211,7 @@ function splashMsg(msg) {
 
 async function boot() {
   try {
-    _topbarClockTick();
+    setText('topbarDate', new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}));
     splashMsg('Loading your data…');
     try {
       await bootFromDB();
@@ -32295,25 +32295,11 @@ function hideSplash() {
 setTimeout(() => hideSplash(), 6000);
 
 document.addEventListener('DOMContentLoaded', boot);
-// Topbar date refresh - and while the Ask bar is open, the time above the date, as Windows shows its clock
-// (Rob 2026-10-22: "10/22/2026 10:57am ... the date and time could sit on top of each other")
-let _topbarClockOpen = false;
-function _topbarClockTick() {
-  const el = g('topbarDate');
-  if (!el) return;
-  const n = new Date();
-  if (!_topbarClockOpen) {
-    el.classList.remove('gw-clock');
-    el.textContent = n.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-    return;
-  }
-  const time = n.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(' ', '').toLowerCase();
-  const day = `${String(n.getMonth() + 1).padStart(2, '0')}/${String(n.getDate()).padStart(2, '0')}/${n.getFullYear()}`;
-  el.classList.add('gw-clock');
-  el.innerHTML = `<span>${time}</span><span>${day}</span>`;     // the time looks like the date: not bolded (Rob 2026-10-22)
-}
-function _topbarClock(open) { _topbarClockOpen = open; _topbarClockTick(); }
-setInterval(_topbarClockTick, 10000);
+// Topbar date refresh. The Ask bar opening leaves it as it is (Rob 2026-10-22: "remove the clock .. its not there
+// before so it should not just appear")
+setInterval(() => {
+  setText('topbarDate', new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}));
+}, 10000);
 
 
 // ─── Investment view stubs & BYB/Tracker fixes ────────────────────────────────

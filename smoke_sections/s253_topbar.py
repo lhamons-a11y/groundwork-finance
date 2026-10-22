@@ -2,7 +2,7 @@
 
     Reports is in the menu, Report a problem in the ? help, Backup in Settings
     the Ask bar is a white pill that springs open when clicked (Dynamic Island), and closes again
-    while it is open, the date beside it is the time above the date, as Windows shows its clock
+    the date beside it stays the date while the Ask bar is open - no clock appears (Rob: "remove the clock")
 """
 
 
@@ -18,10 +18,7 @@ def run(ctx):
           and 'openBackupModal();' in app)
     check('s253 the Ask bar is a white pill that springs open on a click and closes on leaving, motion off when asked',
           '#gwAskBox{' in html and 'border-radius:999px' in html and '#gwAskBox:focus{width:460px' in html
-          and 'cubic-bezier(.34,1.56,.64,1)' in html and '#gwAskBox{transition:none}' in html
-          and 'onfocus="_topbarClock(true)" onblur="_topbarClock(false)"' in bar)
-    tick = app.split('function _topbarClockTick() {')[1].split('\n}\n')[0]
-    check('s253 while the Ask bar is open, the time sits above the date (10:57am over 10/22/2026), in the same type as the date, not bolded; closed, the date',
-          "classList.add('gw-clock')" in tick and '<span>${time}</span><span>${day}</span>' in tick and '<b>' not in tick
-          and '.topbar-date.gw-clock b{' not in ctx.html_src
-          and "weekday: 'short'" in tick and 'setInterval(_topbarClockTick, 10000);' in app)
+          and 'cubic-bezier(.34,1.56,.64,1)' in html and '#gwAskBox{transition:none}' in html)
+    check('s253 the date stays the date while the Ask bar is open: no clock, nothing on focus or leaving (Rob: "remove the clock")',
+          '_topbarClock' not in app and '_topbarClock' not in html and 'gw-clock' not in html and 'gw-clock' not in app
+          and "setText('topbarDate', new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}));" in app)
