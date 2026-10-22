@@ -3263,17 +3263,62 @@ function _renderLedgerMonthSwitcher() {
   });
 }
 
+// The rows the Ledger shows: every month while a search or filter is on, else the selected month; then the search,
+// category, type, account and uncleared-only filters. renderLedger() lists these rows and updateLedgerStats() counts and
+// totals the same ones - the header once counted every row while a search showed nine.
+function _ledgerFilteredTxns() {
+  let txns = _ledgerHasActiveFilter() ? S.transactions.slice() : _ledgerTxnsForSelectedMonth().slice();
+  const search = (g('ledgerSearch')?.value||'').toLowerCase();
+  const cat    = g('ledgerCatFilter')?.value||'';
+  const type   = g('ledgerTypeFilter')?.value||'';
+  const acct   = g('ledgerAccountFilter')?.value||'';
+
+  // Search: check merchant (canonical clean name) first, then description,
+  // then category. Normalize special chars so "at&t" matches "AT&T",
+  // "att", "at & t" — the & is the common failure case.
+  if (search) {
+    const normalize = s => (s||'').toLowerCase()
+      .replace(/&/g, 'and')      // at&t → atand t; also accept "and" version
+      .replace(/[^a-z0-9 ]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const normSearch = normalize(search);
+    // Also try the raw search for exact-match users who type the & themselves
+    const rawSearch  = search.toLowerCase();
+    txns = txns.filter(t => {
+      const merchant = normalize(t.merchant || '');
+      const desc     = normalize(t.description || '');
+      const cat      = (t.category||'').toLowerCase();
+      return merchant.includes(normSearch)
+          || desc.includes(normSearch)
+          || cat.includes(normSearch)
+          || (t.merchant||'').toLowerCase().includes(rawSearch)
+          || (t.description||'').toLowerCase().includes(rawSearch);
+    });
+  }
+  if (cat) {
+    // If filtering by a parent category, include all its child categories
+    const children = _catChildren(cat);
+    if (children.length > 0) {
+      const allNames = [cat, ...children];
+      txns = txns.filter(t => allNames.includes(t.category));
+    } else {
+      txns = txns.filter(t => t.category === cat);
+    }
+  }
+  if (type)   txns = txns.filter(t => t.type === type);
+  if (acct)   txns = txns.filter(t => t.account === acct);
+  if (_ledgerShowUnclearedOnly) txns = txns.filter(t => !t.cleared);
+  return txns;
+}
+
 function updateLedgerStats() {
   // Filters span all months when active (you're searching/finding, not
-  // browsing) — otherwise scoped to the selected month only.
+  // browsing) — otherwise scoped to the selected month only. The same rows
+  // renderLedger() shows: search, category, type, account and uncleared-only.
   const filtered = _ledgerHasActiveFilter();
-  let txns = filtered ? S.transactions.slice() : _ledgerTxnsForSelectedMonth().slice();
-
-  // Apply the account filter — same as renderLedger() does for rows.
-  // Without this, stats sum all accounts even when one is selected in the
-  // switcher, inflating In/Out with transactions from other accounts.
+  let txns = _ledgerFilteredTxns();
   const acct = g('ledgerAccountFilter')?.value || '';
-  if (acct) txns = txns.filter(t => t.account === acct);
 
   // When viewing all accounts, exclude credits landing on debt card accounts —
   // these are payments from checking to a credit card, which show as a debit
@@ -3947,59 +3992,21 @@ function renderLedger() {
   const countEl  = g('ledgerCount');
   if (!body) return;
 
-  let txns = _ledgerHasActiveFilter() ? S.transactions.slice() : _ledgerTxnsForSelectedMonth();
-
-  // Filters
+  let txns = _ledgerFilteredTxns();
   const search = (g('ledgerSearch')?.value||'').toLowerCase();
   const cat    = g('ledgerCatFilter')?.value||'';
   const type   = g('ledgerTypeFilter')?.value||'';
   const acct   = g('ledgerAccountFilter')?.value||'';
-
-  // Search: check merchant (canonical clean name) first, then description,
-  // then category. Normalize special chars so "at&t" matches "AT&T",
-  // "att", "at & t" — the & is the common failure case.
-  if (search) {
-    const normalize = s => (s||'').toLowerCase()
-      .replace(/&/g, 'and')      // at&t → atand t; also accept "and" version
-      .replace(/[^a-z0-9 ]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    const normSearch = normalize(search);
-    // Also try the raw search for exact-match users who type the & themselves
-    const rawSearch  = search.toLowerCase();
-    txns = txns.filter(t => {
-      const merchant = normalize(t.merchant || '');
-      const desc     = normalize(t.description || '');
-      const cat      = (t.category||'').toLowerCase();
-      return merchant.includes(normSearch)
-          || desc.includes(normSearch)
-          || cat.includes(normSearch)
-          || (t.merchant||'').toLowerCase().includes(rawSearch)
-          || (t.description||'').toLowerCase().includes(rawSearch);
-    });
-  }
-  if (cat) {
-    // If filtering by a parent category, include all its child categories
-    const children = _catChildren(cat);
-    if (children.length > 0) {
-      const allNames = [cat, ...children];
-      txns = txns.filter(t => allNames.includes(t.category));
-    } else {
-      txns = txns.filter(t => t.category === cat);
-    }
-  }
-  if (type)   txns = txns.filter(t => t.type === type);
-  if (acct)   txns = txns.filter(t => t.account === acct);
-  if (_ledgerShowUnclearedOnly) txns = txns.filter(t => !t.cleared);
-
   _saveLedgerFilters({ search, cat, type, acct });
 
-  // Keep the month label/arrows in sync with whatever just changed the
-  // visible rows — search, the uncleared toggle, and the (hidden-shim)
-  // category/type filters all call renderLedger() directly without also
-  // calling updateLedgerStats(), which is where this used to live exclusively.
-  // Called here (before any early return below) so it never goes stale.
-  _renderLedgerMonthSwitcher();
+  // Keep the month label/arrows, and the count and In/Out/Net over the rows,
+  // in sync with whatever just changed the visible rows — search, the
+  // uncleared toggle, and the (hidden-shim) category/type filters all call
+  // renderLedger() directly without also calling updateLedgerStats(). It
+  // renders the month switcher too. Called here (before any early return
+  // below) so neither goes stale: typing a search once left the header at
+  // the month's 36 transactions while it showed 6.
+  updateLedgerStats();
 
   // Sort. _ledgerSortDir of -1 means descending (newest/largest first),
   // +1 means ascending. The comparator returns negative when a should
