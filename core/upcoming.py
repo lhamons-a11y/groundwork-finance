@@ -153,22 +153,25 @@ def _yearly_dates(y, start, end):
 
 def recurring_charges(session, start, include_budgeted=False):
     """The one rule for "a recurring charge" (item 79 U6, ruled 2026-10-13: the Budget page and the Calendar never
-    disagree about what recurs): 3+ charges in the 6 months before `start`, each within 5% of their average, in 3+
-    different months, about a month apart. [{merchant, amount, day, months, budgeted}], biggest first."""
-    from core.database import BudgetItem, Category, Transaction
+    disagree about what recurs), one payee from one account (item 108): 3+ charges in the 6 months before `start`,
+    each within 5% of their average, in 3+ different months, about a month apart.
+    [{merchant, label, account, amount, day, months, budgeted}], biggest first."""
+    from core.database import Account, BudgetItem, Category, Transaction
     from core.price_change import NOT_PRICES       # interest, fees, debt, transfers, savings: not a recurring bill
+    from core import recurring_groups as rg
     cutoff = start - timedelta(days=183)
-    rows = session.query(Transaction.merchant, Transaction.amount, Transaction.date, Category.name).outerjoin(
-        Category, Category.id == Transaction.category_id).filter(
+    rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
+                         Category.name).outerjoin(Category, Category.id == Transaction.category_id).filter(
         Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.date < start, Transaction.merchant != '').all()
-    by = {}
-    for m, a, d, cat in rows:
-        # a debt's payment is on the calendar already, from its own due day; interest follows a balance
-        if m and d and (cat or '').strip().lower() not in NOT_PRICES:
-            by.setdefault(m, []).append((abs(float(a or 0)), d))
+    # a debt's payment is on the calendar already, from its own due day; interest follows a balance
+    rows = [r for r in rows if r[0] and r[2] and (r[4] or '').strip().lower() not in NOT_PRICES]
+    names = {a.id: a.name for a in session.query(Account).all()}
     budgeted = {(b.name or '').strip().lower() for b in session.query(BudgetItem).filter_by(is_active=True).all()}
     out = []
-    for m, xs in by.items():
+    # item 108 R1/R3/R4: one payee from one account; `merchant` stays the payee (R5), `label` names the account when
+    # the payee recurs from more than one
+    for grp in rg.groups(rows, names):
+        m, xs = grp['payee'], [(abs(float(a or 0)), d) for d, a, _ in grp['rows']]
         is_budgeted = m.strip().lower() in budgeted
         if len(xs) < 3 or (is_budgeted and not include_budgeted):
             continue
@@ -181,8 +184,8 @@ def recurring_charges(session, start, include_budgeted=False):
         months = len({(d.year, d.month) for d in ds})
         if months < 3 or not 25 <= median(gaps) <= 35:
             continue                                    # monthly means about a month apart: a weekly coffee is not a bill
-        out.append({'merchant': m, 'amount': round(avg, 2), 'day': int(median(d.day for _, d in xs)),
-                    'months': months, 'budgeted': is_budgeted})
+        out.append({'merchant': m, 'label': grp['label'], 'account': grp['account'], 'amount': round(avg, 2),
+                    'day': int(median(d.day for _, d in xs)), 'months': months, 'budgeted': is_budgeted})
     return sorted(out, key=lambda r: -r['amount'])
 
 
@@ -192,7 +195,7 @@ def _detected(session, start, end):
     out = []
     for r in recurring_charges(session, start):
         for when in monthly_dates(r['day'], start, end):
-            out.append({'date': when, 'kind': 'charge', 'title': r['merchant'], 'amount': r['amount'], 'certainty': EXPECTED,
+            out.append({'date': when, 'kind': 'charge', 'title': r['label'], 'amount': r['amount'], 'certainty': EXPECTED,
                         'source': f"about the {_ordinal(r['day'])}, from the last 6 months", 'view': 'ledger'})
     return out
 

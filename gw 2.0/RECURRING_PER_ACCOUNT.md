@@ -3,8 +3,8 @@
 Opened 2026-10-22. Rob: *"read recurring charges per account"*.
 
 This was named in item 107's §4 (`SAME_CHARGE_TWO_ACCOUNTS.md`): every engine that reads a recurring charge groups by
-payee across all the person's accounts, so one payee paid from two accounts reads wrong. **No code.** R1-R10 for
-ruling.
+payee across all the person's accounts, so one payee paid from two accounts reads wrong. **BUILT 2026-10-22 (§6), awaiting acceptance. RULED 2026-10-22 (Rob: "R1-R10 as recommended, build it"):** R4 (a), R5 (a), the rest as
+written. §5.
 
 ---
 
@@ -141,3 +141,57 @@ On Lever 4 it becomes two candidates at $15.49, and the Ledger's patterns list s
 - **Asking the person which account a budget line is paid from.** Budget lines stay without an account (R5).
 - **Merging spellings of a payee across banks** (*NETFLIX.COM* and *Netflix*). Item 107's D1 containment is used
   there only. Each reading here keeps its own payee key, as today. That would be its own point.
+
+## 5. Ruling: Rob, 2026-10-22
+
+> *"R1-R10 as recommended, build it"*
+
+- **R4** (a): a card switch is read as one charge that moved.
+- **R5** (a): answers stay by payee.
+- **R1-R3 and R6-R10:** as written.
+
+## 6. Built (2026-10-22), awaiting acceptance
+
+**One grouping for all seven readings.** `core/recurring_groups.py` groups a payee's charges by account.
+- **R4 (a), card switches:** where one account's charges start within 31 days of another's last, after it, at amounts
+  within 5%, the two are one charge that moved. It is named with the account it is on now, and keeps its history.
+- **R3, labels:** a payee from more than one account gets the label *payee (account)*. From one account, the label is
+  the payee.
+- **R5 (a):** every reading keeps the payee as its identity (`merchant` / `payee`, `name` for Lever 4), so budget lines,
+  the Ledger's Add and Dismiss, the BYB offer's key and every stored answer still match by payee. Each reading adds
+  `label` and `account`.
+
+**What uses the label:**
+- the Ledger's patterns list and the Budget page's recurring card show it;
+- Calendar entries are titled with it;
+- the price-change, yearly-step and yearly-bill sentences and questions use it;
+- a price-change tap and a yearly answer send it, so the right account's line is meant;
+- a Lever 4 candidate is named with it.
+
+**One answer stored differently, for R5 (a).** A yearly-bill answer (W1) is kept once for each account's renewal of
+that payee, in the same shape as before. A yes then puts each renewal on the calendar in its own months; before, only
+one entry per payee was kept.
+
+**Measured:**
+- **The one-account null model:** every reading in §1 gives **byte-identical output** before and after, apart from
+  the new `label` and `account` fields and Lever 4's added `payee`. That held on the Morgans without the checking
+  StreamBox, and on a synthetic household with six subscriptions on three accounts, two price steps, two yearly bills
+  and shopping from all three.
+- **The Morgans:**
+  - The Ledger's patterns list shows *StreamBox (Cashback Visa) $15.49, seen 6 times* and *StreamBox (Everyday
+    Checking) $15.49, seen 3 times*.
+  - Lever 4 has two candidates at $15.49 (it was one at $20.21).
+  - The Budget card lists both StreamBox lines (it had dropped StreamBox).
+  - The Calendar shows the checking line from November, once it has three months before the month starts, as the one
+    rule requires.
+  - BYB now offers *StreamBox (Everyday Checking)* as a new repeating charge, since it started in August. That follows
+    from R1, and answering it answers StreamBox (R5).
+- **Checked in the browser:** the Ledger's patterns list and the Budget card, with no script errors.
+
+**Tests.** s255 covers:
+- the grouping: two accounts, one account, a switch, and not-a-switch (a 6% amount difference, or both still paying);
+- on the database: the Ledger's patterns, Lever 4 at $13.37 per account, the one rule and the Calendar on each
+  account's day, the switch staying on the Budget card and the Calendar, a price step on one account, and a yearly
+  bill from each of two accounts;
+- R5: a yes kept for both renewals in the same stored shape, and a budget line covering the payee from every account;
+- that the pages show the label and send it when answering.

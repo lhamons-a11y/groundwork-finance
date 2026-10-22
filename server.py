@@ -2173,6 +2173,40 @@ def budget_pressure_route():
     return ok(result)
 
 
+def _recurring_pattern_groups(session, months: int = 6, min_occurrences: int = 3, tolerance_pct: float = 5.0):
+    """The patterns and the rows behind each: [(pattern, [(date, amount, category)])]. Item 108 R1: one payee from
+    one account (core/recurring_groups.py), a card switch read as one charge (R4)."""
+    from core import recurring_groups as rg
+    cutoff = date.today() - timedelta(days=30 * months)
+    rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
+                         Category.name).outerjoin(Category, Transaction.category_id == Category.id).filter(
+        Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.merchant != ''
+    ).order_by(Transaction.id).all()
+    names = {a.id: a.name for a in session.query(Account).all()}
+
+    existing_budgeted = {
+        b[0] for b in session.query(BudgetItem.name).filter_by(is_active=True).all()
+    }
+
+    patterns = []
+    for grp in rg.groups(rows, names):
+        amounts = [a for _, a, _ in grp['rows']]
+        if len(amounts) < min_occurrences or grp['payee'] in existing_budgeted:
+            continue
+        avg = sum(amounts) / len(amounts)
+        if avg <= 0:
+            continue
+        max_deviation_pct = max(abs(a - avg) / avg * 100 for a in amounts)
+        if max_deviation_pct <= tolerance_pct:
+            patterns.append(({
+                'merchant': grp['payee'], 'label': grp['label'], 'account': grp['account'],
+                'avg_amount': round(avg, 2), 'frequency': len(amounts),
+                'max_deviation_pct': round(max_deviation_pct, 1),
+            }, grp['rows']))
+    patterns.sort(key=lambda p: -p[0]['frequency'])
+    return patterns
+
+
 def detect_recurring_patterns(session, months: int = 6, min_occurrences: int = 3, tolerance_pct: float = 5.0) -> list:
     """
     Phase H2 Feature 4 (adaptive learning — recurring transaction
@@ -2181,35 +2215,11 @@ def detect_recurring_patterns(session, months: int = 6, min_occurrences: int = 3
     the "Netflix $15.99 every month" pattern. Skips merchants that already
     have an active budget item, since flagging something the user already
     budgets for isn't a suggestion, it's noise.
+
+    Item 108: read per account. `merchant` is the payee (what a budget line and an answer match, R5); `label` names
+    the account when the payee recurs from more than one (R3).
     """
-    cutoff = date.today() - timedelta(days=30 * months)
-    rows = session.query(Transaction.merchant, Transaction.amount).filter(
-        Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.merchant != ''
-    ).all()
-
-    by_merchant = {}
-    for merchant, amount in rows:
-        by_merchant.setdefault(merchant, []).append(amount)
-
-    existing_budgeted = {
-        b[0] for b in session.query(BudgetItem.name).filter_by(is_active=True).all()
-    }
-
-    patterns = []
-    for merchant, amounts in by_merchant.items():
-        if len(amounts) < min_occurrences or merchant in existing_budgeted:
-            continue
-        avg = sum(amounts) / len(amounts)
-        if avg <= 0:
-            continue
-        max_deviation_pct = max(abs(a - avg) / avg * 100 for a in amounts)
-        if max_deviation_pct <= tolerance_pct:
-            patterns.append({
-                'merchant': merchant, 'avg_amount': round(avg, 2), 'frequency': len(amounts),
-                'max_deviation_pct': round(max_deviation_pct, 1),
-            })
-    patterns.sort(key=lambda p: -p['frequency'])
-    return patterns
+    return [p for p, _ in _recurring_pattern_groups(session, months, min_occurrences, tolerance_pct)]
 
 
 def reallocation_candidates(session, months: int = 6) -> list:
@@ -2308,16 +2318,9 @@ def trim_candidates(session, months: int = 6, limit: int = 12) -> list:
     the solution engine treats an unknown category as protected.
     """
     today = date.today()
-    cutoff = today - timedelta(days=30 * months)
     out = []
-    for pattern in detect_recurring_patterns(session, months=months)[:limit]:
-        merchant = pattern['merchant']
-        rows = session.query(
-            Transaction.date, Transaction.amount, Category.name
-        ).outerjoin(Category, Transaction.category_id == Category.id).filter(
-            Transaction.merchant == merchant, Transaction.type == 'debit',
-            Transaction.date >= cutoff
-        ).all()
+    # Item 108 R6: each account's charge is its own candidate, at its own monthly cost
+    for pattern, rows in _recurring_pattern_groups(session, months=months)[:limit]:
         if not rows:
             continue
         dates = [r[0] for r in rows if r[0]]
@@ -2331,7 +2334,8 @@ def trim_candidates(session, months: int = 6, limit: int = 12) -> list:
             continue
         names = [r[2] for r in rows if r[2]]
         out.append({
-            'name': merchant,
+            'name': pattern['label'],
+            'payee': pattern['merchant'],
             'monthly': round(sum(float(r[1] or 0) for r in rows) / span, 2),
             'category': max(set(names), key=names.count) if names else None,
         })
@@ -3283,27 +3287,29 @@ def _price_changes(session, today=None):
     """W2: every recurring charge whose price stepped in the last 13 months, from the ledger (core/price_change.py).
     Derived on every read - nothing about a finding is stored (no silent learning)."""
     from core import price_change as pc
+    from core import recurring_groups as rg
     today = today or date.today()
-    rows = session.query(Transaction.merchant, Transaction.date, Transaction.amount, Category.name).outerjoin(
-        Category, Category.id == Transaction.category_id).filter(
+    rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
+                         Category.name).outerjoin(Category, Category.id == Transaction.category_id).filter(
         Transaction.type == 'debit', Transaction.merchant != '', Transaction.date >= today - timedelta(days=396),
         Transaction.date <= today).all()
-    by, cat = {}, {}
-    for m, d, a, c in rows:
-        if m and d:
-            by.setdefault(m, []).append((d, a))
-            cat[m] = c or ''
+    names = {a.id: a.name for a in session.query(Account).all()}
     out = []
-    for m, xs in by.items():
+    # item 108: a price steps on one account's charges; `payee` matches the budget line and the tap (R5), `label`
+    # names the account when the payee recurs from more than one (R3)
+    for grp in rg.groups(rows, names):
+        m, xs = grp['payee'], [(d, a) for d, a, _ in grp['rows']]
+        cat = {m: grp['rows'][-1][2] or ''}
         s = pc.step(xs, cat[m])
         if not s:
             continue
         after = sorted(d for d, _ in xs if d >= s['first_after'])
         line = _price_line(session, m)
-        out.append({'payee': m, 'category': cat[m], 'before': s['before'], 'after': s['after'],
+        out.append({'payee': m, 'label': grp['label'], 'account': grp['account'], 'category': cat[m],
+                    'before': s['before'], 'after': s['after'],
                     'last_before': s['last_before'].isoformat(), 'first_after': s['first_after'].isoformat(),
                     'seen_on': after[pc.MIN_AFTER - 1].isoformat(),   # the charge that made it a step (W2-a)
-                    'after_count': s['after_count'], 'kind': s['kind'], 'sentence': pc.sentence(m, s),
+                    'after_count': s['after_count'], 'kind': s['kind'], 'sentence': pc.sentence(grp['label'], s),
                     'records': s['records'], 'line': line,
                     'line_matches': bool(line and abs(line['amount'] - s['after']) < 0.01)})
     out.sort(key=lambda x: x['seen_on'], reverse=True)
@@ -3338,8 +3344,9 @@ def price_changes_apply():
     """W2: the person's one tap - the budget line takes the new price. The amount is the record's, worked out again
     here, never the page's; the reply carries the old amount for Undo."""
     payee = (request.get_json() or {}).get('payee')
+    label = (request.get_json() or {}).get('label') or payee          # item 108: which account's change, by its label
     with db_session() as session:
-        f = next((x for x in _price_changes(session) if x['payee'] == payee), None)
+        f = next((x for x in _price_changes(session) if x['payee'] == payee and x['label'] == label), None)
         if not f or not f['line']:
             return err('No price change with a budget line was found for that payee.', 404)
         old = _set_line_amount(session, f['line']['kind'], f['line']['id'], f['after'])
@@ -3454,20 +3461,21 @@ def _yearly_steps(session, today=None):
     """Item 106: every payee's yearly price steps, from the whole ledger and the household's answers (Y1-Y8).
     Derived on every read; only the answers and the person's taps are stored."""
     from core import yearly_steps as ys
+    from core import recurring_groups as rg
     from core.price_change import USAGE_CATEGORIES
     today = today or date.today()
-    rows = session.query(Transaction.merchant, Transaction.date, Transaction.amount, Category.name).outerjoin(
-        Category, Category.id == Transaction.category_id).filter(
+    rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
+                         Category.name).outerjoin(Category, Category.id == Transaction.category_id).filter(
         Transaction.type == 'debit', Transaction.merchant != '', Transaction.date <= today).all()
-    by, cat = {}, {}
-    for m, d, a, c in rows:
-        if m and d:
-            by.setdefault(m, []).append((d, a))
-            cat[m] = c or ''
+    names = {a.id: a.name for a in session.query(Account).all()}
     answers = _yearly_answers(session)
     follow = set(_setting_json(session, 'yearly_step_follow', []) or [])
     out = []
-    for m, xs in by.items():
+    # item 108: one payee from one account; the household's answers and the budget line are the payee's (R5), the
+    # words name the account when the payee recurs from more than one (R3)
+    for grp in rg.groups(rows, names):
+        m, label, xs = grp['payee'], grp['label'], [(d, a) for d, a, _ in grp['rows']]
+        cat = {m: grp['rows'][-1][2] or ''}
         c = cat[m].strip().lower()
         mine = answers.get(m, [])
         answered = [a['month'] for a in mine]
@@ -3486,7 +3494,7 @@ def _yearly_steps(session, today=None):
                 way = 'higher' if sm['pct'] > 0 else 'lower'
                 mon = date(int(sm['month'][:4]), int(sm['month'][5:7]), 1).strftime('%B')
                 q = {'kind': 'rate', 'month': sm['month'],
-                     'text': f"Your {mon} bill from {m} was {abs(sm['pct']) * 100:.1f}% {way} than last {mon}'s "
+                     'text': f"Your {mon} bill from {label} was {abs(sm['pct']) * 100:.1f}% {way} than last {mon}'s "
                              f"(${sm['this']:,.2f} against ${sm['last_year']:,.2f}). A usage bill follows what is used "
                              f"as well as the rate. Did your rate change?"}
             if not pat and not q:
@@ -3494,7 +3502,8 @@ def _yearly_steps(session, today=None):
             line = _price_line(session, m)
             level = line['amount'] if line else None
             proj = ys.projection(pat, level, today) if pat else None
-            out.append({'payee': m, 'category': cat[m], 'kind': 'usage', 'sentence': ys.sentence(m, pat),
+            out.append({'payee': m, 'label': label, 'account': grp['account'], 'category': cat[m], 'kind': 'usage',
+                        'sentence': ys.sentence(label, pat),
                         'steps': (pat or {}).get('steps', []), 'pattern': bool(pat and pat['pattern']),
                         'projection': proj, 'question': q, 'line': line,
                         'followed': bool(line and line['kind'] == 'budget' and line['id'] in follow and proj)})
@@ -3508,14 +3517,15 @@ def _yearly_steps(session, today=None):
             continue
         q = ys.question(info, pat, today, answered)
         if q:
-            q = {'kind': 'price', **q, 'text': f"Is your {m} bill now ${q['amount']:,.2f}?"}
+            q = {'kind': 'price', **q, 'text': f"Is your {label} bill now ${q['amount']:,.2f}?"}
         line = _price_line(session, m)
         proj = ys.projection(pat, info['level'], today)
-        out.append({'payee': m, 'category': cat[m], 'kind': info['kind'], 'sentence': ys.sentence(m, pat),
+        out.append({'payee': m, 'label': label, 'account': grp['account'], 'category': cat[m], 'kind': info['kind'],
+                    'sentence': ys.sentence(label, pat),
                     'steps': pat['steps'], 'pattern': pat['pattern'], 'level': info['level'],
                     'projection': proj, 'question': q, 'line': line,
                     'followed': bool(line and line['kind'] == 'budget' and line['id'] in follow and proj)})
-    out.sort(key=lambda x: (not x['question'], not x['projection'], x['payee'].lower()))
+    out.sort(key=lambda x: (not x['question'], not x['projection'], x['label'].lower()))
     return out
 
 
@@ -3545,7 +3555,8 @@ def yearly_steps_answer():
     if answer not in ('yes', 'amount', 'rate', 'no_change', 'not_sure'):
         return err('That is not an answer Groundwork asks for.', 400)
     with db_session() as session:
-        x = next((i for i in _yearly_steps(session) if i['payee'] == payee and i['question']), None)
+        label = b.get('label') or payee                              # item 108: which account's question
+        x = next((i for i in _yearly_steps(session) if i['payee'] == payee and i['label'] == label and i['question']), None)
         if not x:
             return err('There is no question open for that payee.', 404)
         q = x['question']
@@ -3650,9 +3661,10 @@ def _first_import_findings(session):
     from core import checkin as ck
     from statistics import median
     from core import first_import as fi
+    from core import recurring_groups as rg
     rows = session.query(Transaction.merchant, Transaction.date, Transaction.amount, Transaction.category_id,
-                         Category.name).outerjoin(Category, Category.id == Transaction.category_id).filter(
-        Transaction.type == 'debit').all()
+                         Category.name, Transaction.account_id).outerjoin(
+        Category, Category.id == Transaction.category_id).filter(Transaction.type == 'debit').all()
     dates = [r[1] for r in rows if r[1]]
     months = fi.complete_months(dates)
     if len(months) < fi.MIN_MONTHS:
@@ -3661,22 +3673,26 @@ def _first_import_findings(session):
                            f'{len(months)} full month{"s" if len(months) != 1 else ""} so far.'}
     said_b = [e for e in _setting_json(session, 'yearly_bills_json', []) or [] if isinstance(e, dict)]
     said_h = [e for e in _setting_json(session, 'heavy_months_json', []) or [] if isinstance(e, dict)]
-    by, cat = {}, {}
-    for m, d, a, _, c in rows:
-        if m and d:
-            by.setdefault(m, []).append((d, a))
-            cat[m] = c or ''
+    # item 108: a renewal is one payee from one account, named by its label; the answer is the payee's (R5)
+    names = {a.id: a.name for a in session.query(Account).all()}
+    by, cat, of = {}, {}, {}
+    for grp in rg.groups([(m, acct, d, a, c) for m, d, a, _, c, acct in rows], names):
+        by[grp['label']] = [(d, a) for d, a, _ in grp['rows']]
+        cat[grp['label']] = grp['rows'][-1][2] or ''
+        of[grp['label']] = grp
     answered = {_norm_payee(e.get('payee')): e.get('answer') for e in said_b}
     ren = []
     for f in fi.renewals(by, cat, (min(dates), max(dates))):
         f['sentence'] = fi.sentence(f)
+        grp = of[f['payee']]
+        f['label'], f['payee'], f['account'] = f['payee'], grp['payee'], grp['account']
         f['answer'] = answered.get(_norm_payee(f['payee']))
         ren.append(f)
     # heavy months: spending by complete month (transfers are not spending), and each category's usual month
     tr = ck._transfer_ids(session)
     keep = set(months)
     totals, cats = {k: 0.0 for k in months}, {}
-    for _, d, a, cid, c in rows:
+    for _, d, a, cid, c, _acct in rows:
         k = d.strftime('%Y-%m') if d else None
         if k in keep and cid not in tr:
             totals[k] += abs(float(a or 0))
@@ -3747,8 +3763,12 @@ def first_import_answer():
                 return err('That finding is not in the record.', 404)
             said = [e for e in _setting_json(session, 'yearly_bills_json', []) or []
                     if isinstance(e, dict) and _norm_payee(e.get('payee')) != _norm_payee(hit['payee'])]
-            said.append({'payee': hit['payee'], 'amount': hit['amount'], 'months': hit['months'], 'day': hit['day'],
-                         'rhythm': hit['rhythm'], 'answer': answer, 'at': now})
+            # item 108 R5 (a): the answer is the payee's - kept for each account's renewal of it, so a yes puts every
+            # one in its own months on the calendar; the stored shape is unchanged
+            for x in f['renewals']:
+                if _norm_payee(x['payee']) == _norm_payee(hit['payee']):
+                    said.append({'payee': x['payee'], 'amount': x['amount'], 'months': x['months'], 'day': x['day'],
+                                 'rhythm': x['rhythm'], 'answer': answer, 'at': now})
             _set_setting(session, 'yearly_bills_json', json.dumps(said))
         elif b.get('kind') == 'heavy':
             hit = next((x for x in f['heavy'] if x['month'] == b.get('month')), None)
@@ -12325,12 +12345,23 @@ def byb_offers():
     window = today - timedelta(days=365)
     with db_session() as session:
         said = _byb_offers_said(session)
-        rows = session.query(Transaction.id, Transaction.date, Transaction.amount, Transaction.merchant).filter(
-            Transaction.type == 'debit', Transaction.date >= window).all()
+        from core import recurring_groups as rg
+        rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
+                             Transaction.id).filter(Transaction.type == 'debit', Transaction.date >= window).all()
         budgeted = [b.name for b in session.query(BudgetItem).filter_by(is_active=True).all()]
         cards, budget, strategy, _undated = _consequence_inputs(session)
+        # item 108: a new repeating charge is one payee from one account, offered under its label; it is matched to
+        # budget lines and answered by payee (R5), so its key stays the payee's
+        names = {a.id: a.name for a in session.query(Account).all()}
+        payee_of, per_account = {}, []
+        for grp in rg.groups([r for r in rows if r[0]], names):
+            payee_of[grp['label']] = grp['payee']
+            if grp['payee'] in budgeted:
+                budgeted.append(grp['label'])
+            per_account += [(tid, d, a, grp['label']) for d, a, tid in grp['rows']]
         offers = []
-        for o in byb_offer.new_recurring(rows, budgeted, today, window):
+        for o in byb_offer.new_recurring(per_account, budgeted, today, window):
+            o['key'] = f"recurring:{byb_offer._norm(payee_of[o['name']])}"
             if o['key'] in said:
                 continue
             offers.append({**o, 'impact': _byb_impact(session, monthly=o['monthly'], cards=cards, budget=budget,

@@ -66,7 +66,7 @@
       + 'asks when the new price arrives. It shows what the charges say, not why a price changed.</div>'
       + _items.map(function (x, i) {
         var rows = '<div style="padding:8px 0;border-bottom:0.5px solid var(--steel-2)">'
-          + '<div style="font-size:13px;color:var(--ink)">' + esc(x.sentence || (x.payee + ': no step on record yet.')) + '</div>';
+          + '<div style="font-size:13px;color:var(--ink)">' + esc(x.sentence || ((x.label || x.payee) + ': no step on record yet.')) + '</div>';
         if (x.steps && x.steps.length) {
           rows += '<details style="font-size:11px;color:var(--slate);margin-top:4px"><summary style="cursor:pointer">The years</summary>'
             + x.steps.map(function (s) {
@@ -140,7 +140,7 @@
   async function _answer(i, answer) {
     var x = _items[i];
     if (!x || !x.question) return;
-    var body = { payee: x.payee, answer: answer };
+    var body = { payee: x.payee, label: x.label, answer: answer };    // item 108: the account's line
     if (answer === 'amount') {
       var a = parseFloat((document.querySelector('[data-gw-ys-amount="' + i + '"]') || {}).value);
       if (!(a > 0)) { showToast('Type the bill\'s amount first', '', 'info'); return; }
@@ -155,7 +155,7 @@
       var r = await API.post('/api/yearly-steps/answer', body);
       var ch = r.change;
       if (ch) _setLocalLineAmount(ch.kind, ch.id, ch.to);
-      var title = ch ? ch.line + ': ' + fmt(ch.from) + ' to ' + fmt(ch.to) : 'Answer kept for ' + x.payee;
+      var title = ch ? ch.line + ': ' + fmt(ch.from) + ' to ' + fmt(ch.to) : 'Answer kept for ' + (x.label || x.payee);
       showToast(title, '', 'success', async function () {
         try {
           await API.post('/api/yearly-steps/undo', { payee: x.payee, month: r.recorded.month, change: ch });

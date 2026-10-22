@@ -2758,7 +2758,7 @@ async function applyPriceChange(i) {
   const c = _priceChanges[i];
   if (!c) return;
   try {
-    const r = await API.post('/api/price-changes/apply', { payee: c.payee });
+    const r = await API.post('/api/price-changes/apply', { payee: c.payee, label: c.label });
     _setLocalLineAmount(r.kind, r.id, r.to);
     showToast(`${r.line}: ${fmt(r.from)} to ${fmt(r.to)}`, '', 'success', async () => {
       try {
@@ -16006,7 +16006,7 @@ async function loadRecurringDetection() {
         <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--slate-2);margin-bottom:6px">Recurring patterns spotted</div>
         ${patterns.map(p => `
           <div style="display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px">
-            <div style="flex:1;color:var(--ink)">${esc(p.merchant)} ${fmt(p.avg_amount)} — seen ${p.frequency} times, consistently</div>
+            <div style="flex:1;color:var(--ink)">${esc(p.label || p.merchant)} ${fmt(p.avg_amount)} — seen ${p.frequency} times, consistently</div>
             <button class="btn btn-secondary btn-sm" onclick="acceptRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}', ${p.avg_amount})">Add to budget</button>
             <button class="btn btn-ghost btn-sm" onclick="dismissRecurringDetection('${esc(p.merchant).replace(/'/g,"\\'")}', ${p.avg_amount})">Dismiss</button>
           </div>`).join('')}
@@ -18986,7 +18986,8 @@ async function renderSubscriptionAudit() {
   if (!card || !list) return;
 
   let subs = [];
-  try { subs = ((await API.get('/api/calendar/recurring')).charges || []).map(r => ({ merchant: r.merchant, amount: r.amount, monthsActive: r.months, budgeted: r.budgeted })); }
+  // item 108: one payee from one account - the label names the account when the payee recurs from more than one
+  try { subs = ((await API.get('/api/calendar/recurring')).charges || []).map(r => ({ merchant: r.label || r.merchant, amount: r.amount, monthsActive: r.months, budgeted: r.budgeted })); }
   catch (e) { _gwErr('renderSubscriptionAudit')(e); card.style.display = 'none'; return; }
   if (subs.length < 2) { card.style.display = 'none'; return; }
 
