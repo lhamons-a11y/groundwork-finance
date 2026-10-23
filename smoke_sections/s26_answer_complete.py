@@ -83,7 +83,9 @@ def run(ctx):
         prog = (
             'const _VOICE_RULES = null;\n' + app_src[i:j + 3] + '\n'
             + 'const _FIN_NUM_RE = ' + re.search(r'const _FIN_NUM_RE = (.+);', app_src).group(1) + ';\n'
-            + fn('_financialNumbers') + '\n' + fn('_voiceGateCheck') + '\n'
+            # item 110 V4: R8 reads months and dates through _monthFigures too
+            + 'const _MONTH_WORDS = ' + re.search(r'const _MONTH_WORDS = (.+);', app_src).group(1) + ';\n'
+            + fn('_monthFigures') + '\n' + fn('_financialNumbers') + '\n' + fn('_voiceGateCheck') + '\n'
             + 'const clean = "Income was $4,280.00 this month.";\n'
             + 'const findings = "Income: $4,280.00";\n'
             + 'const out = {\n'
