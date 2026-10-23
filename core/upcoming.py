@@ -110,7 +110,7 @@ def entries(session, start, end, pay=None, recurring=None, people=None, include_
         while n < start:
             n += timedelta(days=p['every'])
         while n <= end:
-            out.append({'date': n, 'kind': 'pay', 'title': p['payer'], 'person': (people or {}).get(p['payer']),
+            out.append({'date': n, 'kind': 'pay', 'title': p.get('name') or p['payer'], 'person': (people or {}).get(p['payer']),
                         'amount': None, 'certainty': EXPECTED, 'source': f"every {p['every']} days, from its last check",
                         'payer': p['payer'], 'view': 'budget'})
             n += timedelta(days=p['every'])

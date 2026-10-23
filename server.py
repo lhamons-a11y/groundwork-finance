@@ -2540,7 +2540,17 @@ def _pay_state(session, today=None):
     ends = dict(session.query(Transaction.account_id, func.max(Transaction.date)).group_by(Transaction.account_id).all())
     deposits = [{'date': t.date, 'amount': t.amount or 0, 'payer': payer_key(t), 'account_id': t.account_id}
                 for t in rows if (t.amount or 0) > 0 and payer_key(t)]
-    return ic.detect_pay(deposits, _pay_kinds(session), ends, today)
+    from collections import Counter
+    out = ic.detect_pay(deposits, _pay_kinds(session), ends, today)
+    # `payer` is the matching key (lower-cased); `name` is the payer as their deposits spell it, for what is shown
+    spelled = {}
+    for t in rows:
+        k = payer_key(t)
+        if k and (t.merchant or '').strip():
+            spelled.setdefault(k, Counter())[t.merchant.strip()] += 1
+    for p in out.get('payers') or []:
+        p['name'] = spelled[p['payer']].most_common(1)[0][0] if p['payer'] in spelled else p['payer'].title()
+    return out
 
 
 def _income_change_state(session):

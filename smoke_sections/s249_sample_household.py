@@ -51,6 +51,8 @@ out['snapshots'] = len(c.get('/api/net-worth/snapshots?months=24', headers=H).ge
 w = c.get('/api/willingness', headers=H).get_json()['data']
 out['picture'] = {'record': sorted(r['category'] for r in w['readings'] if r['stance'] in ('flexible', 'sacred') or r['reason'] == 'probation'),
                   'said': sorted(d['category'] for d in w['current']), 'asks': [x['category'] for x in w['contradictions']]}
+cal = c.get('/api/calendar?days=31', headers=H).get_json()['data']['entries']
+out['pay_titles'] = sorted({e['title'] for e in cal if e['kind'] == 'pay'})
 out['again'] = c.post('/api/sample/load', headers=H).get_json()
 out['clear'] = c.post('/api/sample/clear', headers=H).get_json()
 st = c.get('/api/settings', headers=H).get_json(); st = st.get('data', st)
@@ -102,6 +104,8 @@ def run(ctx):
           f'said, and a question about it ({o.get("picture")})',
           o.get('picture') == {'record': ['Coffee Shops', 'Gym / Fitness', 'Streaming Video'],
                                'said': ['Groceries', 'Restaurants', 'Streaming Video'], 'asks': ['Streaming Video']})
+    check(f"s249 the Calendar names each paycheck as its deposits spell it, not the lower-cased matching key ({o.get('pay_titles')})",
+          o.get('pay_titles') == ['Northwind Logistics', 'Riverside Schools'])
     check('s249 S5 while the sample is here every page says so, with "Start with my own"',
           'async function sampleNotice()' in app and 'Sample household (made up)' in app and 'onclick="sampleClear()">Start with my own' in app
           and "sampleNotice().catch(_gwErr('sampleNotice'))" in app and "location.reload();" in app[app.index('function sampleClear()'):])
