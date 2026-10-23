@@ -2,7 +2,8 @@
 
 Opened 2026-10-22, from the review pack's screenshots (`screenshot/review-2026-10-22/BRIEF.md`, known issues 1-3).
 Rob asked whether each was the model or the guardrails. On the proposals, he said *"I agree with 1-3"*: one item,
-written up, then built. **No code.** V1-V8 for ruling.
+written up, then built. **RULED and BUILD AUTHORISED 2026-10-22 (Rob: "I approve push, build"): V1-V8 as recommended.
+BUILT 2026-10-22 (§6), awaiting acceptance.**
 
 ---
 
@@ -40,7 +41,7 @@ and the crisis-care words (`CARE.md`, fixed on purpose):
 - the Trip Planner's *"…worth it with your eyes open"* (`app.js:13169`);
 - a savings goal's *"you need to"* (`app.js:14221`).
 
-The lists have no *consider* or *healthy*, so neither of Rob's two examples is caught.
+*Consider* is on the command list but the sweep isn't run on fixed words, and *healthy* is on no list, so neither of Rob's two examples is caught.
 
 ## 2. What it would do
 
@@ -74,7 +75,7 @@ record doesn't hold: *a credit card*, *a new card*, *a cashback card*, *a balanc
 *a loan* (unless one of their own debts is named). This is blueprint §3 #3, checked. *Recommended.*
 
 **V6. Fixed words meet the same rules.** A smoke section sweeps every sentence the app shows with the voice word
-lists, plus *consider*, *healthy* and *unhealthy* (added to the lists, for the model too).
+lists, plus *healthy* and *unhealthy* (added to the lists, for the model too; *consider* was already on them).
 - **Set aside:** the AI prompts, the word lists, and the crisis-care words. Each is named in the test with its
   reason.
 - **Reworded now:**
@@ -108,3 +109,75 @@ lists, plus *consider*, *healthy* and *unhealthy* (added to the lists, for the m
   prompt's wording is its own point.
 - **What a suggestion is.** The 50/30/20 figure stays a suggestion (V7). Whether Groundwork should suggest a debt
   budget at all is not asked.
+
+## 5. Ruling: Rob, 2026-10-22
+
+> *"I approve push, build"*
+
+V1-V8, as recommended.
+
+## 6. Built (2026-10-22), awaiting acceptance
+
+**V1, one payment.**
+- `_simulatePayoffOnce(amount, card)` takes this month's amount off the highest-rate debt's balance once and runs the
+  same engine. The Projection's facts, the lines under it and the no-AI text all say *once*.
+- **Measured on the sample household:** *"If this month's $287 went once to Cashback Visa: payoff Aug 2030→Aug 2030,
+  0 months sooner, saves $160 interest."* Before, it said 12 months sooner and $1,303.
+
+**V2, asked once.**
+- The Projection waits until the engine has answered, and keeps its answer by the facts it was given.
+- **Measured:** one call per Dashboard load, against 4-5 before.
+
+**V3, the prompt.** *"Keep all advice focused on…"* is now *"State only the facts given about debt payoff and spending;
+no advice."* The Projection's prompt also says *one payment, not every month*, and to use every account name exactly as
+written.
+
+**V4, months and dates.**
+- `_monthFigures` (page) and `_month_figures` (harness) read *"12 months"*, *"one month"* and *"Aug 2029"* /
+  *"August 2029"*. R8 fails one not in the facts.
+
+**V5, R12.**
+- `NEW_BORROWING` is a new list in `voice_rules.json`, mirrored in the page's fallback. An answer naming *a cashback
+  credit card*, *a balance transfer*, *a personal loan* and the like fails, unless the facts hold it.
+
+**V6, the fixed words.**
+- **s258 sweeps every string the page shows,** including multi-line ones, plus `index.html`, against the verdict,
+  advice, cheer, label, borrowing and editorialising lists, with word boundaries.
+- **What it leaves out:** the word lists themselves, text sent to the model, and *stop* (a verb in the interface).
+- **Named exceptions, each with its reason:**
+  - the crisis lines (CARE.md);
+  - Rob's collections wording;
+  - the CFPB's own steps;
+  - the trip planner's oil check, by design;
+  - *a credit card* as the name of a kind of debt;
+  - the delete confirmation;
+  - *something you keep* (the Working picture's word);
+  - *no reading of what you tend to do*;
+  - the minimum payment's *the least you must pay*.
+- **Reworded:**
+  - the concentration line: *"VTI is 67% of your portfolio."*;
+  - the Overachiever badge: *"Counts a month that saved more than its target."*;
+  - the trip planner: *"…so you can decide with the cost in front of you."*;
+  - the savings goal: *"…takes net worth growing by $X/month…"*;
+  - the dashboard's lean-month line: *"No emergency buffer is on record yet."* (it said *"Consider saving $500…"*);
+  - Before You Buy: *"so you know the real cost"*;
+  - two help answers without *significantly*;
+  - the Roth help answer: *"Shows how much of your retirement money is in each, as a share of the whole."* (it gave
+    tax advice);
+  - the RMD note: *"The extra withdrawal is taxable income."* (it sent the person to an advisor);
+  - the withdrawal card's two lines: now the years only (they advised cutting spending, delaying Social Security, and
+    an advisor).
+
+**V7.** *"Suggested $2,102.79: your minimums plus 20% of your income, from the 50/30/20 split."*
+
+**Checked with the real model (phi3.5 on Metal), on the sample household:**
+- one Projection call per load;
+- the facts true (one payment, $160).
+
+The model's sentence still drops the $160, calls the overspend *a one-time expense*, and invents what the *Unbreakable*
+badge means. None of that is a number, so no word list can catch it. It is the small model's limit, stated: the facts
+under the answer are right, and they show beside it.
+
+**Found on the way:** an edit to the trip planner's line left `app.js` unable to parse. The page's own parse check
+needs node, which this Mac doesn't have, so it was caught in the browser. It was fixed, and every script was checked
+with Apple's JavaScriptCore (`checkSyntax`), which caught the same error when planted.

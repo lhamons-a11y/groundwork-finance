@@ -30,7 +30,9 @@ def run(ctx):
     check(f's188 E1 every entry has all its fields, a full source and a question for its offer ({bad})',
           len(lib['entries']) >= 9 and not bad and len({e['id'] for e in lib['entries']}) == len(lib['entries']))
     rules = json.loads((BASE / 'static' / 'voice_rules.json').read_text(encoding='utf-8'))['wordlists']
-    banned = [w for k, ws in rules.items() if k != 'RESEARCH_CLAIMS' for w in ws]
+    # NEW_BORROWING (item 110 R12) is checked against a person's own facts; a study's words about a credit card bill
+    # name no borrowing for the person
+    banned = [w for k, ws in rules.items() if k not in ('RESEARCH_CLAIMS', 'NEW_BORROWING') for w in ws]
     hits = {e['id']: [w for w in banned if w in ' ' + ' '.join((e['finding'], e['limits'], e['offer'])).lower() + ' ']
             for e in lib['entries']}
     hits = {k: v for k, v in hits.items() if v}

@@ -1903,7 +1903,7 @@ const ACHIEVEMENTS = [
     desc:'Saved more than your goal in a single month.',
     section:'budget', type:'mastery', icon:'⭐',
     unlockHint:'Exceed your monthly savings target.',
-    behavior:'Rewards intentional overage, not just luck.',
+    behavior:'Counts a month that saved more than its target.',   // item 110 V6
   },
 
   // ── Debt Freedom ───────────────────────────────────────────────────────────
@@ -10508,7 +10508,7 @@ a plain fact — not a command or suggestion, and never a number you calculate y
       `User is in the debt payoff phase. ${pctPaid}% of starting debt paid. ` +
       `Debt-free date: ${freeDate?.freeDate||'unknown'}. ` +
       `Interest burning: ${fmt(daily)}/day ($${Math.round(monthly)}/month) — estimated from each card's APR × current balance, NOT posted interest charges; if you cite it, say "roughly" or "an estimated", never present it as a billed figure. ` +
-      `Keep all advice focused on debt payoff, spending habits, and momentum. ` +
+      `State only the facts given about debt payoff and spending; no advice. ` +   // item 110 V3
       `Do not discuss investments yet. Mention wealth building only as a future reward.` +
       debtContextNote + pslfNote + commNote + payFreqNote,
     transition:
@@ -10696,7 +10696,7 @@ function _renderReportFallback(content, ctx, spent, income, under, streak, topCa
     : `Net worth: ${fmt(ctx.netWorth||0)}. Keep building.`;
 
   const p4 = ctx.lean && !ctx.hasBuffer
-    ? `Consider saving $500 as an emergency buffer before accelerating debt payments.`
+    ? `No emergency buffer is on record yet.`   // item 110 V6: the fact, no advice
     : '';
 
   const paragraphs = [p1, p2, p3, p4].filter(Boolean);
@@ -13163,7 +13163,7 @@ const FIRST_VISIT_BANNERS = {
   byb: {
     icon:  '◷',
     title: 'Before You Buy',
-    text:  'Thinking about a purchase? Enter the cost here and the app calculates exactly what it does to your debt-free date. Not to stop you — to make sure you know the real cost before you decide.',
+    text:  'Thinking about a purchase? Enter the cost here and the app calculates exactly what it does to your debt-free date. Not to stop you — so you know the real cost before you decide.',
     action: null,
     actionLabel: null,
   },
@@ -13184,7 +13184,7 @@ const FIRST_VISIT_BANNERS = {
   trip: {
     icon:  '✈',
     title: 'Trip Planner',
-    text:  'Plan a trip that fits your finances. Enter your destination, dates, and whether you\'re flying or driving. The app calculates what the trip costs in debt-free days — so you can decide if it\'s worth it with your eyes open.',
+    text:  'Plan a trip that fits your finances. Enter your destination, dates, and whether you\'re flying or driving. The app calculates what the trip costs in debt-free days — so you can decide with the cost in front of you.',   // item 110 V6
     action: null,
     actionLabel: null,
   },
@@ -13272,12 +13272,12 @@ const HELP_FAQ = [
   {"h": "Net worth & retirement"},
   {"q": "What is DTI and why does it matter?", "a": "Debt-to-Income ratio — total monthly debt payments divided by gross income. Below 36% qualifies you for most mortgages. Below 43% is the maximum most lenders accept. One of the first numbers a bank looks at.", "keys": ["dti", "debt", "income", "ratio"]},
   {"q": "Why is my net worth negative?", "a": "If your total debt is larger than your total assets, net worth will be negative. That's expected and normal early in the debt payoff journey. What matters is that the number moves upward month over month — enter a snapshot each month in the Net Worth view to track the trend.", "keys": ["net", "worth", "negative"]},
-  {"q": "How do I add a pension to my net worth?", "a": "In the Net Worth view, open \"Retirement & planning tools\" and find the pension section. Enter the name, projected monthly benefit, retirement age, and sex. The app estimates present value using SSA life expectancy tables and a 3% discount rate — significantly more accurate than a simple multiplication.", "keys": ["pension", "net", "worth", "add"], "open": {"view": "networth", "el": "retirementToolsToggle"}, "labels": ["Retirement &amp; planning tools"]},
+  {"q": "How do I add a pension to my net worth?", "a": "In the Net Worth view, open \"Retirement & planning tools\" and find the pension section. Enter the name, projected monthly benefit, retirement age, and sex. The app estimates present value using SSA life expectancy tables and a 3% discount rate, rather than a simple multiplication.", "keys": ["pension", "net", "worth", "add"], "open": {"view": "networth", "el": "retirementToolsToggle"}, "labels": ["Retirement &amp; planning tools"]},
   {"q": "What is the retirement readiness card?", "a": "Found under Net Worth → Retirement & planning tools. It shows years of portfolio coverage at the 4% safe withdrawal rate, monthly portfolio coverage, and total guaranteed income from SS and pensions. Enter your retirement age and Social Security estimate to personalize it.", "keys": ["retirement", "readiness"], "open": {"view": "networth", "el": "retirementToolsToggle"}},
   {"q": "What is an RMD?", "a": "Required Minimum Distribution. The IRS requires annual withdrawals from tax-deferred accounts starting at age 73 (SECURE 2.0). The app calculates your amount using the IRS Uniform Lifetime Table. Failing to take the full RMD triggers a 25% penalty on the shortfall.", "keys": ["rmd", "required", "minimum", "distribution"]},
-  {"q": "What does the withdrawal sustainability card show?", "a": "How long your portfolio lasts at your current spending, assuming 6% nominal growth. Green = 30+ years sustainable, amber = 20–29 years, red = under 20. Social Security and pension income reduces how much the portfolio needs to cover, extending runway significantly.", "keys": ["withdrawal", "sustainability", "portfolio", "last"]},
+  {"q": "What does the withdrawal sustainability card show?", "a": "How long your portfolio lasts at your current spending, assuming 6% nominal growth. Green = 30+ years sustainable, amber = 20–29 years, red = under 20. Social Security and pension income reduce how much the portfolio needs to cover, so it lasts longer.", "keys": ["withdrawal", "sustainability", "portfolio", "last"]},
   {"q": "How does the Social Security timing card work?", "a": "Enter your estimated benefit at full retirement age and your birth year. The app shows the correct benefit at 62, full retirement age, and 70 — using the actual SSA schedule for your birth year. It includes a breakeven analysis showing when delaying starts to pay off.", "keys": ["social", "security", "timing", "benefit"]},
-  {"q": "What is the Roth vs Traditional section?", "a": "Tracks your pre-tax (traditional) and post-tax (Roth) retirement account split. Tells you whether you're well-diversified for tax purposes, heavily pre-tax (consider Roth conversions), or heavily Roth (consider traditional contributions if you're in a high bracket now).", "keys": ["roth", "traditional", "ira", "tax"]},
+  {"q": "What is the Roth vs Traditional section?", "a": "Tracks your pre-tax (traditional) and post-tax (Roth) retirement account split. Shows how much of your retirement money is in each, as a share of the whole.", "keys": ["roth", "traditional", "ira", "tax"]},
   {"q": "How does the 529 college savings tracker work?", "a": "Add a fund with the child's name, college year, target, monthly contribution, and assumed return (default 6%). The app calculates required monthly contributions using a future-value formula that accounts for investment growth — not just raw savings. Shows whether you're on track.", "keys": ["529", "college", "savings", "child"]},
   {"h": "Household & settings"},
   {"q": "What file types can I import?", "a": "CSV, QIF, QFX, OFX, and QBO — every format banks commonly offer under \"Download\" or \"Export\" on their website. If your bank offers a choice, QFX/OFX carries the most detail (including the bank's own running balance); CSV works fine too.", "keys": ["file", "types", "csv", "ofx", "qfx", "qif", "qbo", "format"]},
@@ -14126,6 +14126,21 @@ function _simulatePayoff(extraPerMonth = 0) {
   return undefined;                       // asked, not yet answered
 }
 
+// Item 110 V1 (WORDS_CHECKED.md): what ONE payment does - `amount` paid to one card now, the plan unchanged after.
+// This month's overspend is a one-month amount; adding it every month (_simulatePayoff's `extraPerMonth`) claimed a
+// year sooner for $287. Asked of the same engine, keyed by the lowered balance.
+function _simulatePayoffOnce(amount, cardId) {
+  const cards = _simCards().map(c => String(c.id) === String(cardId) ? { ...c, balance: Math.max(0, c.balance - amount) } : c)
+    .filter(c => c.balance > 0);
+  if (!cards.length) return null;
+  const budget = _getMonthlyBudget();
+  const strategy = S.debtMethod === 'snowball' ? 'snowball' : 'avalanche';
+  const key = _simKey(cards, budget, 0, strategy);
+  if (key in _engineSims) return _engineSims[key];
+  _simAsk(cards, budget, 0, strategy, key);
+  return undefined;                       // asked, not yet answered
+}
+
 function _simulatePayoffStrategy(cardList, budget, strategy) {
   const todayKey = _localISODate().slice(0, 7);
   const cards = (cardList || [])
@@ -14236,7 +14251,7 @@ function obUpdateGoal() {
   if (months<=0) { prev.style.display='none'; return; }
   const needed = Math.round(amount/months);
   prev.style.display='';
-  prev.innerHTML=`To reach <strong>${fmt(amount)}</strong> by <strong>${new Date(yr,mo-1).toLocaleDateString('en-US',{month:'long',year:'numeric'})}</strong> you need to grow net worth by <strong>${fmt(needed)}/month</strong> on average.`;
+  prev.innerHTML=`To reach <strong>${fmt(amount)}</strong> by <strong>${new Date(yr,mo-1).toLocaleDateString('en-US',{month:'long',year:'numeric'})}</strong> takes net worth growing by <strong>${fmt(needed)}/month</strong> on average.`;   // item 110 V6
 }
 
 async function obNext(step) {
@@ -16564,7 +16579,8 @@ function _debtMaybeSuggestCommitment() {
   const sugEl = g('debtSuggestedCommitment');
   if (!sugEl) return;
   sugEl.style.display = '';
-  sugEl.innerHTML = `Suggested <b style="font-family:var(--font-mono)">${gwFig('debt.suggested', fmt(sug.suggestedMonthlyBudget))}</b> — keeps you in a healthy 50/30/20 split.
+  // item 110 V7: the suggestion keeps its number and says where it comes from - no "healthy" verdict
+  sugEl.innerHTML = `Suggested <b style="font-family:var(--font-mono)">${gwFig('debt.suggested', fmt(sug.suggestedMonthlyBudget))}</b>: your minimums plus 20% of your income, from the 50/30/20 split.
     <span onclick="g('monthlyBudget').value=${sug.suggestedMonthlyBudget};g('monthlyBudget').dataset.userSet='1';g('debtSuggestedCommitment').style.display='none';calculate()"
       style="color:var(--pine-text);cursor:pointer;text-decoration:underline;margin-left:4px">Use this</span>`;
 
@@ -17749,9 +17765,9 @@ function _renderInvAnalytics() {
       concentrationNote = `<div style="padding:7px 0;font-size:11px;color:var(--slate)">
         Concentration needs every holding priced. ${esc(unpricedC)}.
       </div>`;
-    else if (concentrated30)
+    else if (concentrated30)   // item 110 V6: the fact, no advice
       concentrationNote = `<div style="padding:7px 0;font-size:11px;color:var(--gold-text)">
-        ⚠ ${esc(largest.ticker)} is ${largestPct.toFixed(0)}% of your portfolio — consider diversifying.
+        ⚠ ${esc(largest.ticker)} is ${largestPct.toFixed(0)}% of your portfolio.
       </div>`;
     else if (concentrated50)
       concentrationNote = `<div style="padding:7px 0;font-size:11px;color:var(--gold-text)">
@@ -20088,7 +20104,7 @@ async function renderRMDTracker() {
                 border:0.5px solid var(--gold);font-size:12px;color:var(--gold-text);line-height:1.6">
       ⚠ Your RMD (${fmt(rmdAmount)}) exceeds the traditional 4% safe withdrawal amount (${fmt(swrAmount)})
       by <strong>${fmt(rmdVsSWR)}</strong>. This is normal as balances grow relative to age.
-      The extra withdrawal is taxable income — consider tax-efficient spending strategies with your advisor.
+      The extra withdrawal is taxable income.
     </div>` : ''}
 
     <div style="margin-top:12px;font-size:11px;color:var(--slate)">
@@ -20224,12 +20240,9 @@ async function renderWithdrawalSustainability() {
            sustainably.`
         : isCaution
         ? `At your current spending, your portfolio is projected to last approximately
-           <strong>${yearsToDepletion} years</strong>. This is within an acceptable range
-           but worth monitoring. Consider whether expenses can be reduced in slow market years.`
+           <strong>${yearsToDepletion} years</strong>.`
         : `At your current spending, your portfolio may be depleted in approximately
-           <strong>${yearsToDepletion} years</strong>. Consider reducing discretionary spending,
-           delaying Social Security if not yet claimed, or consulting a financial advisor about
-           sequence-of-returns strategies.`}
+           <strong>${yearsToDepletion} years</strong>.`}
     </div>
 
     <div style="margin-top:12px;font-size:11px;color:var(--slate);line-height:1.6">
@@ -26629,7 +26642,10 @@ GROUNDWORK VOICE — applies to every sentence:
 
 const _VOICE_RULES_FALLBACK = {
   JUDGMENT_JARGON: ["volatile", "lumpy", "overage", "problem account", "problem category",
-    "reckless", "irresponsible", "out of control", "bad habit"],
+    "reckless", "irresponsible", "out of control", "bad habit", "unhealthy", "healthy"],
+  NEW_BORROWING: ["a credit card", "new credit card", "a new card", "a cashback card", "cashback credit card",
+    "a rewards card", "balance transfer", "a personal loan", "a new loan", "take out a loan", "consolidation loan",
+    "open a card", "open a new card", "buy now, pay later", "buy now pay later"],
   COMMAND_PHRASES: ["you need to", "you should", "you must", "you have to", "stop ",
     "make sure you", "it's time to", "you ought to", "crucial for", "important to", "consider "],
   INTENT_PHRASES: ["because you", "driving your debt", "causing your", "you chose to",
@@ -26687,6 +26703,17 @@ async function _loadVoiceRules() {
 // strings for comparison. Mirrors _FIN_NUM_RE / _financial_numbers() in
 // voice_discipline_test.py exactly.
 const _FIN_NUM_RE = /\$\s?\d[\d,]*(?:\.\d+)?|\b\d{1,3}(?:,\d{3})+\b|\b\d+(?:\.\d+)?%/g;
+// Item 110 V4: "N months" / "one month" -> "Nmo", and "Aug 2029" / "August 2029" -> "aug2029", for R8.
+const _MONTH_WORDS = ['one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve'];
+function _monthFigures(s) {
+  const out = new Set(), t = String(s || '').toLowerCase();
+  for (const m of t.matchAll(/\b(\d{1,3}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+months?\b/g)) {
+    const i = _MONTH_WORDS.indexOf(m[1]);
+    out.add((i >= 0 ? String(i + 1) : m[1]) + 'mo');
+  }
+  for (const m of t.matchAll(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{4})\b/g)) out.add(m[1] + m[2]);
+  return out;
+}
 function _financialNumbers(s) {
   const out = new Set();
   const matches = String(s || '').match(_FIN_NUM_RE) || [];
@@ -26763,8 +26790,18 @@ function _voiceGateCheck(text, findings, truncated = false) {
   if (findings) {
     const finNums = _financialNumbers(findings);
     const invented = [..._financialNumbers(text)].filter(n => !finNums.has(n)).sort();
+    // Item 110 V4: month counts ("12 months", "one month") and months with a year ("August 2029") are figures too.
+    // The Projection said "a month later" and "August 2029" from facts that held neither, and passed.
+    const finSpans = _monthFigures(findings);
+    invented.push(...[..._monthFigures(text)].filter(n => !finSpans.has(n)).sort());
     record('R8_number_provenance', invented,
       'invented figure(s) not in the findings given');
+    // Item 110 V5 (blueprint §3 #3, no new debt): no kind of borrowing the facts don't hold - the Projection called
+    // the person's Cashback Visa "a cashback credit card", which reads as a new card.
+    const lf = ' ' + String(findings).toLowerCase() + ' ';
+    record('R12_no_new_borrowing',
+      (rules.NEW_BORROWING || []).filter(p => t.includes(p) && !lf.includes(p)),
+      'named a kind of borrowing the record does not hold');
   }
 
   // R10 (item 12, STREAMING.md T7): an answer the model did not finish is not
@@ -28555,16 +28592,22 @@ async function _loadDashProjection(totalIncome, spent, projected, txns, totalDeb
   const leverage = _findHighLeverageCategory(txns);
   if (!leverage) { card.style.display='none'; return; }
   card.style.display='';
+  const topDebt      = [...S.debtCards.filter(c=>!c.paidInFull)].sort((a,b)=>(parseFloat(b.rate)||0)-(parseFloat(a.rate)||0))[0];
   const baseline     = _simulatePayoff(0);
-  const withRedirect = leverage.surplus>0 ? _simulatePayoff(leverage.surplus) : null;
-  const monthsSooner = withRedirect ? baseline.months-withRedirect.months : 0;
-  const intSaved     = withRedirect ? Math.max(0,baseline.totalInterest-withRedirect.totalInterest) : 0;
+  // Item 110 V1: this month's amount paid once to the highest-rate debt, not added every month
+  const withRedirect = leverage.surplus>0 && topDebt ? _simulatePayoffOnce(leverage.surplus, topDebt._dbId || topDebt.id) : null;
+  // Item 110 V2: asked only once the engine has answered both; the re-render that follows its answer asks then
+  if (baseline === undefined || withRedirect === undefined) {
+    content.innerHTML=`<div style="display:flex;align-items:center;gap:10px;color:var(--slate-2)"><div class="spinner"></div><span style="font-size:12px">Working out the figures…</span></div>`;
+    return;
+  }
+  const monthsSooner = withRedirect && baseline ? baseline.months-withRedirect.months : 0;
+  const intSaved     = withRedirect && baseline ? Math.max(0,baseline.totalInterest-withRedirect.totalInterest) : 0;
   const nextAch      = _findProjectionAchievement(leverage.surplus, intSaved, totalDebt);
   const projData     = {
     category:leverage.category, currentSpend:leverage.currentSpend,
     avgSpend:leverage.avgSpend, over:leverage.over, surplus:leverage.surplus,
-    baseline, withRedirect, monthsSooner, intSaved, nextAch,
-    topDebt:[...S.debtCards.filter(c=>!c.paidInFull)].sort((a,b)=>(parseFloat(b.rate)||0)-(parseFloat(a.rate)||0))[0],
+    baseline, withRedirect, monthsSooner, intSaved, nextAch, topDebt,
     dti:calcDTI(),
     daysLeft:new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate()-new Date().getDate(),
   };
@@ -28626,21 +28669,27 @@ function _findProjectionAchievement(surplus, intSaved, totalDebt) {
   return candidates[0]?.a||null;
 }
 
+// Item 110 V2: the same facts get the saved answer, and the model is asked once per change of facts - it was asked
+// 4-5 times a Dashboard load, once for every re-render after the engine answered.
+let _projLast = null, _projAsking = null;
 async function _renderProjectionAI(content, badge, d) {
-  content.innerHTML=`<div style="display:flex;align-items:center;gap:10px;color:var(--slate-2)"><div class="spinner"></div><span style="font-size:12px">Building your projection…</span></div>`;
   if(badge)badge.textContent='✦ AI';
   const stageCtx=_buildStageContext();
   const dtiNote=d.dti&&d.dti>36?`DTI is ${d.dti.toFixed(0)}% — above 36%.`:'';
   const achNote=d.nextAch?`Nearest achievement: "${d.nextAch.name}"`:'' ;
-  const prompt=`${stageCtx.leanContext?stageCtx.leanContext+'\n\n':''}${stageCtx.stageNote}\n\nSpending: ${d.category} is $${d.over>0?d.over+' over':''+d.surplus+' opportunity'} with ${d.daysLeft} days left.\nRedirect $${d.surplus} → ${d.topDebt?.name||'highest-rate debt'}: payoff ${d.baseline?.freeDate}→${d.withRedirect?.freeDate||'same'}, ${d.monthsSooner} months sooner, saves $${d.intSaved}.\n${dtiNote} ${achNote}\nWrite 2 sentences. Sentence 1: category, amount, payoff impact. Sentence 2: next milestone or achievement. Second person. No greeting.`;
+  const prompt=`${stageCtx.leanContext?stageCtx.leanContext+'\n\n':''}${stageCtx.stageNote}\n\nSpending: ${d.category} is $${d.over>0?d.over+' over':''+d.surplus+' opportunity'} with ${d.daysLeft} days left.\nIf this month's $${d.surplus} went once to ${d.topDebt?.name||'the highest-rate debt'}: payoff ${d.baseline?.freeDate}→${d.withRedirect?.freeDate||'same'}, ${d.monthsSooner} months sooner, saves $${d.intSaved} interest. It is one payment, not every month.\n${dtiNote} ${achNote}\nWrite 2 sentences. Sentence 1: category, amount, payoff impact. Sentence 2: next milestone or achievement. State only the facts given. Use every account name exactly as written. Second person. No greeting.`;
+  if (_projLast && _projLast.fp === prompt) { content.innerHTML = _projLast.html; return; }
+  if (_projAsking === prompt) return;
+  _projAsking = prompt;
+  content.innerHTML=`<div style="display:flex;align-items:center;gap:10px;color:var(--slate-2)"><div class="spinner"></div><span style="font-size:12px">Building your projection…</span></div>`;
   try {
     const result=await callAI({max_tokens:280,max_sentences:2,system:'Direct financial projection. Two sentences, about 40 words. Exact numbers.',messages:[{role:'user',content:prompt}],surface:'projection',findings_kinds:['category','total','debt','date','achievement']});
     if(result.ok){
       // d21: unified renderer
       const projDataLines=[
         `Category: ${d.category} — ${d.over>0?`$${d.over} over 3-month average`:`$${d.surplus} redirect opportunity`}, ${d.daysLeft} days left in month`,
-        ...(d.topDebt?[`Redirect target: ${d.topDebt.name}`]:[]),
-        ...(d.baseline?[`Payoff: ${d.baseline.freeDate} → ${d.withRedirect?.freeDate||'same'} (${d.monthsSooner} months sooner, saves $${d.intSaved} interest — projected)`]:[]),
+        ...(d.topDebt?[`This month's $${d.surplus}, paid once to: ${d.topDebt.name}`]:[]),
+        ...(d.baseline?[`Payoff: ${d.baseline.freeDate} → ${d.withRedirect?.freeDate||'same'} (${d.monthsSooner} months sooner, saves $${d.intSaved} interest — projected, one payment)`]:[]),
       ];
       _rcRenderAIPanel('projection', result.text, content, projDataLines, null,
         { compact:true, replace:true, payload:result.payload, title:'Projection',
@@ -28648,6 +28697,8 @@ async function _renderProjectionAI(content, badge, d) {
     }
     else _renderProjectionFallback(content,badge,d);
   } catch(e){_renderProjectionFallback(content,badge,d);}
+  finally { if (_projAsking === prompt) _projAsking = null; }
+  _projLast = { fp: prompt, html: content.innerHTML };
 }
 
 function _renderProjectionFallback(content, badge, d) {
@@ -28658,7 +28709,7 @@ function _renderProjectionFallback(content, badge, d) {
 
 function _renderProjectionHTML(content, leadText, isAI, d, payload) {
   const hasChain=d.withRedirect&&d.monthsSooner>0;
-  const chainHTML=hasChain?`<div class="dash-proj-chain">Redirect <strong>$${d.surplus} → ${esc(d.topDebt?.name||'highest-rate debt')}</strong><br>→ payoff moves <strong>${d.baseline.freeDate} → ${d.withRedirect.freeDate}</strong> (${d.monthsSooner} month${d.monthsSooner!==1?'s':''} sooner)<br>${d.intSaved>0?`→ saves <strong>${fmt(d.intSaved)} in interest</strong><br>`:'' }${d.nextAch?`→ unlocks <strong>${d.nextAch.icon} ${esc(d.nextAch.name)}</strong>`:'' }</div>`:'';
+  const chainHTML=hasChain?`<div class="dash-proj-chain">This month's <strong>$${d.surplus}, once → ${esc(d.topDebt?.name||'highest-rate debt')}</strong><br>→ payoff moves <strong>${d.baseline.freeDate} → ${d.withRedirect.freeDate}</strong> (${d.monthsSooner} month${d.monthsSooner!==1?'s':''} sooner)<br>${d.intSaved>0?`→ saves <strong>${fmt(d.intSaved)} in interest</strong><br>`:'' }${d.nextAch?`→ unlocks <strong>${d.nextAch.icon} ${esc(d.nextAch.name)}</strong>`:'' }</div>`:'';
   content.innerHTML=`<p style="margin:0;font-size:13px;line-height:1.75">${esc(leadText)}</p>${chainHTML}${!isAI?`<div style="font-size:10px;color:var(--slate-2);margin-top:8px">Based on actual spending averages and debt schedule</div>`:''}${isAI?_renderAIDisclosure(payload):''}`;
 }
 
