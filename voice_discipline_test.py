@@ -145,6 +145,19 @@ CASES = [
 # ─────────────────────────────────────────────────────────────────────────────
 _FIN_NUM_RE = re.compile(r'\$\s?\d[\d,]*(?:\.\d+)?|\b\d{1,3}(?:,\d{3})+\b|\b\d+(?:\.\d+)?%')
 
+_MONTH_WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve']
+
+
+def _month_figures(s):
+    """Item 110 V4: "N months" / "one month" -> "Nmo", "Aug 2029" / "August 2029" -> "aug2029" (app.js _monthFigures)."""
+    out, t = set(), (s or '').lower()
+    for m in re.finditer(r'\b(\d{1,3}|' + '|'.join(_MONTH_WORDS) + r')\s+months?\b', t):
+        out.add((str(_MONTH_WORDS.index(m.group(1)) + 1) if m.group(1) in _MONTH_WORDS else m.group(1)) + 'mo')
+    for m in re.finditer(r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{4})\b', t):
+        out.add(m.group(1) + m.group(2))
+    return out
+
+
 def _financial_numbers(s):
     """Extract financial figures (currency, thousands-grouped, percentages) and
     normalize to bare numeric strings. Bare small integers like '6 months' are
@@ -231,9 +244,17 @@ def check(text, case=None):
     if case and getattr(case, "findings", None):
         fin_nums = _financial_numbers(case.findings)
         invented = sorted(n for n in _financial_numbers(text) if n not in fin_nums)
+        # Item 110 V4: month counts and months with a year are figures too (app.js _monthFigures, the same rule)
+        fin_spans = _month_figures(case.findings)
+        invented += sorted(n for n in _month_figures(text) if n not in fin_spans)
         r8 = not invented
         results["R8_number_provenance"] = (r8,
             f"invented figure(s) not in findings: {invented}" if not r8 else "")
+        # Item 110 V5 (blueprint section 3 #3): no kind of borrowing the facts don't hold
+        lf = ' ' + case.findings.lower() + ' '
+        borrowing = [p for p in _WL.get('NEW_BORROWING', []) if p in t and p not in lf]
+        results["R12_no_new_borrowing"] = (not borrowing,
+            f"named a kind of borrowing the record does not hold: {borrowing}" if borrowing else "")
 
     return results
 

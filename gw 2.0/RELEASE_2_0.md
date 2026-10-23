@@ -50,3 +50,16 @@ Found while measuring. Not on the checklist unless Rob adds them.
 ## 4. Status
 
 Opened 2026-10-12. R1 built (awaiting acceptance). R3 is the next build, if Rob agrees.
+
+**Rulings 2026-10-19 (Rob):**
+- **P1 ADDED and DONE:** both wrong figures were fixed and accepted 2026-10-13 (`a2f290c`, s221).
+- **P2 ADDED:** the security key (item 81 B10) is tested last, before release.
+- **P3 RULED:** the Mac is measured (Rob's M2, 8 GB: engine on Metal, macOS 12 floor, CI build `19135a3` passed).
+  Linux is tested on Ubuntu under WSL on Windows (Rob: "Linux in WSL is a fair test its ubuntu ... we can't test every
+  flavor of Linux"). The bank window on Linux is recorded as measured on WSL only. Other distributions are left to the
+  open-source community after 2.0 - one of Rob's reasons for opening the code.
+- **P4 ADDED:** the model download is checked before release, when the installers are built.
+- Item 98 is tried during the beta; nothing needed now.
+- The open-source release (the cleaned public copy, `scripts/export_public.py`) waits for the 2.0 release.
+- Order: s174 A8 fixed (2026-10-19), then the release-day lines.
+

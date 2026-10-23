@@ -13,7 +13,7 @@ B9  A pending line and its posted line are both kept. The posted line is current
 Nothing here logs a transaction's text.
 """
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 FIELDS = ('date', 'description', 'amount', 'category', 'type')
 PAIR_WINDOW_DAYS = 10          # a pending line posts within days, not weeks
@@ -25,10 +25,10 @@ _NOISE = {'pending', 'purchase', 'pos', 'debit', 'credit', 'card', 'withdrawal',
 
 
 def _local_day(dt):
-    """recorded times are UTC; the day shown is the person's own."""
+    """The day of a recorded time - recorded in the computer's own local time (item 109)."""
     if not dt:
         return None
-    return dt.replace(tzinfo=timezone.utc).astimezone().date().isoformat()
+    return dt.date().isoformat()
 
 
 def _say_day(d):
@@ -129,7 +129,7 @@ def _pair(session, p, pending, how):
     from core import import_custody as ic
     sa = ic.set_aside(session, pending, reason=f'Pending. Posted {_say_day(p.posted_date)} '
                                                f'as ${p.posted_amount:,.2f}; the posted line counts.')
-    p.set_aside_id, p.how, p.state, p.decided_at = sa.id, how, 'paired', datetime.utcnow()
+    p.set_aside_id, p.how, p.state, p.decided_at = sa.id, how, 'paired', datetime.now()
     session.flush()
     return p
 
@@ -189,7 +189,7 @@ def answer(session, pair_id, yes):
         return None, 'That pending line was not found.'
     pending = session.get(Transaction, p.pending_id)
     if not yes:
-        p.state, p.decided_at = 'declined', datetime.utcnow()
+        p.state, p.decided_at = 'declined', datetime.now()
         session.flush()
         return p, None
     if pending is None or session.get(Transaction, p.posted_id) is None:
@@ -201,4 +201,4 @@ def undone_by_restore(session, set_aside_id):
     """A restored pending line counts again, so the pair it was set aside for no longer holds."""
     from core.database import PendingPosted
     for p in session.query(PendingPosted).filter_by(set_aside_id=set_aside_id, state='paired').all():
-        p.state, p.decided_at = 'undone', datetime.utcnow()
+        p.state, p.decided_at = 'undone', datetime.now()

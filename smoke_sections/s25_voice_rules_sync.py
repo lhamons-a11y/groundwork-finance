@@ -69,7 +69,8 @@ def run(ctx):
             continue
         m = re.search(r"findings_kinds\s*:\s*\[([^\]]*)\]", block)
         via_registry = 'findings_kinds: _reportFindingsKinds(' in block or \
-                       'findings_kinds: (_reportFindingsKinds(' in block
+                       'findings_kinds: (_reportFindingsKinds(' in block or \
+                       'findings_kinds: EXPLAIN_KINDS[name]' in block      # item 103: a row per page, read below
         surface = re.search(r"surface\s*:\s*[`']([^`']+)[`']", block)
         name = surface.group(1) if surface else f'@{start}'
         if not m and not via_registry:
@@ -83,6 +84,10 @@ def run(ctx):
     for row in re.finditer(r"^\s*'?([A-Za-z_*]+)'?\s*:\s*\[([^\]]*)\]", reg, re.M):
         registry[row.group(1)] = re.findall(r"'([a-z_]+)'", row.group(2))
         declared_kinds.update(registry[row.group(1)])
+    # Item 103: Explain this page declares per page; its rows are declarations too
+    ereg = src[src.find('const EXPLAIN_KINDS = {'):src.find('const EXPLAIN_SYSTEM')]
+    for row in re.finditer(r"([a-z]+): \[([^\]]*)\]", ereg):
+        declared_kinds.update(re.findall(r"'([a-z_]+)'", row.group(2)))
     check('the generic report path has a declaration registry', bool(registry))
     check('the declaration vocabulary is present in app.js', bool(allowed) and bool(prohibited))
     check('every gated callAI declares its findings kinds', not undeclared)

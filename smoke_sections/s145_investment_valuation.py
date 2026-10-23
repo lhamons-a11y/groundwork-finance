@@ -22,7 +22,7 @@ def run(ctx):
     import server
     from core.database import Account, AppSetting, HistorianEntry, InvestmentLot, NetWorthSnapshot, PriceCache
 
-    now = datetime.utcnow()
+    now = datetime.now()
     made = {'accounts': [], 'tickers': ['S145VOO', 'S145VXUS', 'S145NEW', 'S145MIX', 'S145MAN']}
 
     def wipe():

@@ -34,6 +34,7 @@ out.gap = T.month({{spent: 0, daysGone: 30, daysInMonth: 30, budget: 4000, month
                     behind: [{{account: 'Checking', last_import: '2026-09-04'}}]}}, F);
 out.under = T.month({{spent: 1240, daysGone: 12, daysInMonth: 30, budget: 4000, monthName: 'September', behind: []}}, F);
 out.over = T.month({{spent: 3000, daysGone: 12, daysInMonth: 30, budget: 4000, monthName: 'September', behind: []}}, F);
+out.rent = T.month({{spent: 2890, bills: 1650, daysGone: 20, daysInMonth: 30, budget: 4000, monthName: 'September', behind: []}}, F);
 out.nobudget = T.month({{spent: 300, daysGone: 12, daysInMonth: 30, budget: 0, monthName: 'September', behind: []}}, F);
 out.dti = T.dti(41.4);
 out.dti_none = T.dti(null);
@@ -69,6 +70,10 @@ def run(ctx):
                                     'the month ends near $3100.00 against $4000.00 budgeted.')
         check('s132 St3 T2 the same sentence above budget - no verdict, just the numbers',
               'ends near $7500.00 against $4000.00 budgeted' in o['over']['body'])
+        check('s132 once-a-month bills are counted once, not at the daily rate ($1,650 rent + $1,240 over 20 of 30 days)',
+              o['rent']['body'] == 'Spent $2890.00 in 20 of 30 days, $1650.00 of it once-a-month bills. Counting those once '
+                                   'and the rest at that rate - a straight line, not a forecast - the month ends near '
+                                   '$3510.00 against $4000.00 budgeted.')
         check('s132 no budgeted income: the spending is stated, and the absence of a comparison said plainly',
               'no budgeted income yet' in o['nobudget']['body'])
         check('s132 St7 T4 the ratio and the question it answers',
@@ -87,7 +92,7 @@ def run(ctx):
     import server
     _RUN[0] += 1
     n = _RUN[0]
-    now = datetime.utcnow()
+    now = datetime.now()
     start = datetime(now.year, now.month, 1)
     with ctx.dbs() as s:
         old, cur, hand = Account(name=f'S132 Old {n}'), Account(name=f'S132 Current {n}'), Account(name=f'S132 Hand {n}')

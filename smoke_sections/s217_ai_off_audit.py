@@ -68,6 +68,8 @@ def run(ctx):
           "${aiEnabled() ? '(AI reads this)' : '(kept with this report)'}" in app
           and '<span class="ai-feature" style="font-size:10px;color:rgba(255,255,255,.62)">AI reads this</span>' in html)
     ask = app.split('async function askGroundwork(question) {')[1].split('\nfunction ')[0]
-    check('s217 F6 the Ask box asks the server even with AI off, and offers the fixed checks when no model answers',
-          "route.state === 'off' && (route.checks || []).length" in ask and 'you choose the check' in ask
-          and 'if (aiEnabled()) {\n    let route' not in ask)
+    # Item 102 (Rob 2026-10-19: "if the user selects no AI it goes away") supersedes F6's Ask box: the box is AI help, hidden
+    # with AI off or unable to run; the record checks stay reachable without AI from "Check my records" (Assistant page).
+    check('s217 F6 (item 102) with AI off the Ask box is gone, and the record checks are still one tap away without AI',
+          'id="gwAskBox" class="ai-feature"' in html and "onclick=\"openWhy('records')\">Check my records</button>" in html
+          and "if (!aiEnabled()) {" in ask and "route.state === 'off'" in ask)

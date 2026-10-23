@@ -119,7 +119,7 @@ def match(session, item_id, credit_id):
         c.category_id = category(session).id
         moved = True
     if item.amount - paid_back(session, item) <= CENT:
-        item.status, item.closed_at = 'paid', datetime.utcnow()
+        item.status, item.closed_at = 'paid', datetime.now()
     _note(session, 'reimbursement_matched', item=item.id, credit=c.id, amount=amt, deposit_moved=moved)
     return {'match': m.id, 'amount': amt, 'deposit_moved': moved, 'status': item.status}, None
 
@@ -156,7 +156,7 @@ def write_off(session, item_id):
         t.category_id = item.original_category_id
     for m in session.query(ReimbursementMatch).filter_by(item_id=item.id).all():
         _restore_credit(session, m)
-    item.status, item.closed_at = 'written_off', datetime.utcnow()
+    item.status, item.closed_at = 'written_off', datetime.now()
     _note(session, 'reimbursement_written_off', item=item.id, transaction=item.transaction_id)
     return {'ok': True}, None
 

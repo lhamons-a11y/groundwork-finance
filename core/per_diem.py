@@ -176,9 +176,8 @@ def _checked_path():
 
 
 def _get(url):
-    req = urllib.request.Request(url, headers={'User-Agent': 'Groundwork (personal finance app)'})
-    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
-        return r.read()
+    from core import egress                        # item 8: the one door out (a file link off gsa.gov is refused)
+    return egress.get(url, headers={'User-Agent': 'Groundwork (personal finance app)'}, timeout=REQUEST_TIMEOUT)
 
 
 def current_fy(today=None):

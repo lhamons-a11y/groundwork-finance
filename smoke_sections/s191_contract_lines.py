@@ -14,14 +14,14 @@ def run(ctx):
     from core.database import AppSetting, BudgetItem, Category, DebtAccount, Transaction, db_session
 
     lines = [{'id': 1, 'name': 'Debt', 'category': 'Debt', 'amount': 1500.0},
-             {'id': 2, 'name': 'Ford Lease', 'category': 'Car Lease Payment', 'amount': 512.40},
-             {'id': 3, 'name': 'Stellantis Lease', 'category': '', 'amount': 498.20},
-             {'id': 4, 'name': 'GEICO', 'category': '', 'amount': 187.50},
-             {'id': 5, 'name': 'OneMain Financial', 'category': '', 'amount': 72.15},
-             {'id': 6, 'name': 'Restaurants', 'category': 'Restaurants', 'amount': 1450.0},
+             {'id': 2, 'name': 'Ford Lease', 'category': 'Car Lease Payment', 'amount': 450.00},
+             {'id': 3, 'name': 'Stellantis Lease', 'category': '', 'amount': 425.00},
+             {'id': 4, 'name': 'GEICO', 'category': '', 'amount': 180.00},
+             {'id': 5, 'name': 'OneMain Financial', 'category': '', 'amount': 75.00},
+             {'id': 6, 'name': 'Restaurants', 'category': 'Restaurants', 'amount': 600.0},
              {'id': 7, 'name': 'Apple', 'category': '', 'amount': 19.85},
              {'id': 8, 'name': 'Kohls card', 'category': '', 'amount': 40.0}]
-    k = classify(lines, ['Apple Master Card Partner', 'Kohls'])
+    k = classify(lines, ['Apple Master Card Sam', 'Kohls'])
     check('s191 D11 contract payments are known by name or category, or by naming a debt account; a lender\'s name alone is asked',
           {i: k[i]['kind'] for i in k} == {1: 'contract', 2: 'contract', 3: 'contract', 4: 'ask', 5: 'contract', 8: 'contract'})
     check('s191 D11 a line inside a debt account\'s name is not that account ("Apple" is not "Apple Master Card")', 7 not in k)

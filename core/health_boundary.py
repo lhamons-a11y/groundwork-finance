@@ -107,7 +107,8 @@ def refresh(session):
                 if len(k) >= MIN_MARKER or (k and k.isalpha() and len(k) >= 3):
                     found.setdefault(k, '[health: HSA/FSA]')
     for table, cols in (('health_plans', ('name',)), ('person_assignments', ('reason', 'source')),
-                        ('health_plan_term_versions', ('reason', 'source'))):
+                        ('health_plan_term_versions', ('reason', 'source')),
+                        ('medical_providers', ('name',)), ('medical_bill_accounts', ('account_number',))):   # item 94 L10
         try:
             from sqlalchemy import text as _t
             for row in session.execute(_t(f'SELECT {", ".join(cols)} FROM {table}')).fetchall():
@@ -192,7 +193,7 @@ for _f, _fn in (('bank_agent_window.py', 'child_main'), ('bank_agent_window.py',
                 ('launch.py', 'main'), ('price_engine.py', '_http_get_json'), ('server.py', '_eia_weekly_gas'),
                 ('server.py', '_eia_weekly_heating'), ('server.py', '_steo'), ('server.py', 'create_app'),
                 ('trip_distance.py', '_geocode'), ('utility_price.py', '_fetch_electricity'),
-                ('utility_price.py', '_fetch_natural_gas')):
+                ('utility_price.py', '_fetch_natural_gas'), ('core/egress.py', 'get')):
     HEALTH_SINKS[(_f, _fn, 'network')] = _NO_HEALTH_INPUT
 HEALTH_SINKS.update({
     ('core/engine_fit.py', 'write_fit', 'file'): ('item 95: device timings, R8 figure lists from the fixed voice cases '

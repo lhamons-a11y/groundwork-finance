@@ -1041,7 +1041,7 @@ def main():
     # budget is counted in. That made those checks pass in the afternoon and
     # fail before noon UTC, which is a fixture generating flakes rather than a
     # fixture. Clamping keeps the same calendar days for every offset.
-    _now_se = _dtse.utcnow()
+    _now_se = _dtse.now()
     _noon = min(_now_se.replace(hour=12, minute=0, second=0, microsecond=0), _now_se)
     with _dbs() as session:
         for _off in (0, 1, 2, 5):   # the 5-day-ago cluster must NOT extend today's run
@@ -1076,7 +1076,7 @@ def main():
     miss_log_path = Path(_TMP) / 'voice_miss_log.jsonl'
     with open(miss_log_path, 'a', encoding='utf-8') as f:
         f.write(json.dumps({
-            'ts': _dt.utcnow().isoformat() + 'Z', 'surface': 'distance_traveled',
+            'ts': _dt.now().isoformat(), 'surface': 'distance_traveled',
             'model': 'phi3.5', 'rules': ['R8_number_provenance'], 'text': 'fabricated test line',
         }) + '\n')
     miss = get_llm_miss_log(time_range_days=30)
@@ -1928,8 +1928,9 @@ def main():
     # long ACH memo/trace-number text to a fixed max length while CSV does
     # not. The old exact-string dedup match missed these every time — an
     # entire QFX re-import of already-CSV-imported data went through as
-    # ~880 new "duplicate" rows. These two real descriptions (trace number
-    # truncated by exactly one digit) are taken directly from that database.
+    # ~880 new "duplicate" rows. These two descriptions have the shape of the
+    # ones found there (trace number truncated by exactly one digit); the name
+    # and numbers are made up.
     with _dbs() as session:
         dedup_acct = _Acct(name='Smoke Dedup Checking', type='checking')
         session.add(dedup_acct)
@@ -1937,9 +1938,9 @@ def main():
         dedup_acct_id = dedup_acct.id
 
     csv_desc = ('Withdrawal ACH CAPITAL ONE TYPE: CRCARDPMT CO: CAPITAL ONE NAME: '
-                'Pat Sample Entry Class Code: WEB ACH Trace Number: 000000000000001')
+                'Jordan A Sample Entry Class Code: WEB ACH Trace Number: 012345678901234')
     qfx_desc = ('ACH CAPITAL ONE TYPE: CRCARDPMT CO: CAPITAL ONE NAME: '
-                'Pat Sample Entry Class Code: WEB ACH Trace Number: 00000000000000')
+                'Jordan A Sample Entry Class Code: WEB ACH Trace Number: 01234567890123')
 
     r1 = c.post('/api/import/commit', headers=HJ, json={
         'account_id': dedup_acct_id,

@@ -5,11 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Groundwork — Personal Finance</title>
 <link rel="icon" href="data:,">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@1,700&display=swap">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet"></noscript>
+<!-- The fonts ship with the app (static/fonts, SIL OFL 1.1), so drawing the page asks Google for nothing -->
+<link rel="stylesheet" href="/fonts/fonts.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 button{cursor:pointer;font-family:inherit}
@@ -113,6 +110,13 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .topbar-title{font-size:15px;font-weight:600;color:var(--ink)}
 .topbar-right{display:flex;align-items:center;gap:12px}
 .topbar-date{font-family:var(--font-mono);font-size:11px;color:var(--slate-2)}
+/* The Ask bar (Rob 2026-10-22): a pill at rest that springs open when clicked, like the Mac's Dynamic Island, and
+   stays white; the date beside it stays as it is */
+#gwAskBox{font-size:12px;height:28px;padding:0 14px;border:1px solid var(--steel);border-radius:999px;width:170px;
+  background:var(--paper);color:var(--ink);transition:width .5s cubic-bezier(.34,1.56,.64,1),height .5s cubic-bezier(.34,1.56,.64,1),box-shadow .3s}
+#gwAskBox:focus{width:460px;height:36px;font-size:14px;outline:none;box-shadow:0 6px 24px rgba(13,17,23,.16)}
+@media (max-width:900px){#gwAskBox:focus{width:300px}}
+@media (prefers-reduced-motion:reduce){#gwAskBox{transition:none}}
 /* Trip Planner — Phase 10 */
 .trip-mode-btn.active{background:var(--sky);color:#fff;border-color:var(--sky)}
 .trip-fund-btn.active{background:var(--pine-text);color:#fff;border-color:var(--pine)}
@@ -352,6 +356,18 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 .range-tab{font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.04em;padding:3px 7px;border:1px solid var(--steel);border-radius:20px;background:none;color:var(--slate);cursor:pointer;transition:all .12s}
 .range-tab:hover{border-color:var(--slate-2);color:var(--ink)}
 .range-tab.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+/* Item 99: Before You Buy moves gently - a step or tab eases in, the answer arrives, a figure pulled in pulses once */
+@keyframes bybIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes bybPulse{0%{box-shadow:0 0 0 0 rgba(46,125,92,.45)}100%{box-shadow:0 0 0 10px rgba(46,125,92,0)}}
+.byb-in{animation:bybIn .26s cubic-bezier(.2,.7,.2,1) both}
+.byb-pulse{animation:bybPulse .9s ease-out 1}
+#bybAsk details>summary{list-style:none;transition:color .15s}
+#bybAsk details>summary::before{content:'▸';display:inline-block;margin-right:6px;transition:transform .2s ease}
+#bybAsk details[open]>summary::before{transform:rotate(90deg)}
+#bybAsk details[open]>div{animation:bybIn .22s ease both}
+#bybAsk .byb-type-btn{transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+#bybAsk .byb-type-btn:hover{transform:translateY(-1px)}
+@media (prefers-reduced-motion:reduce){.byb-in,.byb-pulse,#bybAsk details[open]>div{animation:none}#bybAsk .byb-type-btn:hover{transform:none}}
 .ledger-bar-left{display:flex;align-items:center;gap:10px}
 .ledger-bar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .month-nav{display:flex;align-items:center;gap:2px;background:var(--paper);border:1px solid var(--steel);border-radius:var(--r-md);padding:2px}
@@ -734,6 +750,9 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
   font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
   color:var(--slate-2);padding:10px 0 4px;
 }
+/* Item 103 (Rob 2026-10-20): a spent figure opens the transactions behind it */
+[data-fig-cat] { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+[data-fig-cat]:hover, [data-fig-cat]:focus-visible { color: var(--pine-text); }
 </style>
 </head>
 <body>
@@ -787,6 +806,10 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="nav-item active" data-view="dashboard" onclick="showView('dashboard')">
           <span class="nav-item-icon">◈</span>Dashboard
         </div>
+        <!-- Rob 2026-10-19: reports are the record, not achievements - beside the Dashboard -->
+        <div class="nav-item" data-view="reports" onclick="showView('reports')">
+          <span class="nav-item-icon">◫</span>Reports
+        </div>
       </div>
 
       <!-- Item 69 P1, renamed (Rob 2026-10-10: "combined they are a financial coach, Coach it is"): the Coach group -
@@ -806,8 +829,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="nav-item" data-view="budget" onclick="showView('budget')">
           <span class="nav-item-icon">◎</span>Budget
         </div>
-        <div class="nav-item" data-view="calendar" onclick="showView('calendar')">
-          <span class="nav-item-icon">▦</span>Calendar
+        <div class="nav-item" data-view="health" id="navHealth" onclick="showView('health')">
+          <span class="nav-item-icon">✚</span>Health
         </div>
       </div>
 
@@ -819,21 +842,15 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="nav-item" data-view="trip" onclick="showView('trip')">
           <span class="nav-item-icon">✈</span>Trip Planner
         </div>
-        <div class="nav-item" data-view="gifts" onclick="showView('gifts')">
-          <span class="nav-item-icon">❖</span>Gift Budget
-        </div>
       </div>
 
+      <!-- Rob 2026-10-19: paying down debt and building worth are one arc - one section -->
       <div class="nav-section">
-        <div class="nav-section-label">Debt</div>
+        <div class="nav-section-label">Build</div>
         <div class="nav-item" data-view="debt" onclick="showView('debt')">
           <span class="nav-item-icon">⬡</span>Debt Payoff
           <span class="nav-badge hidden" id="debtAlertBadge">!</span>
         </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-section-label">Build</div>
         <div class="nav-item" data-view="investments" onclick="showView('investments')">
           <span class="nav-item-icon">◱</span>Investments
         </div>
@@ -846,9 +863,6 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="nav-section-label">Achievements</div>
         <div class="nav-item" data-view="trophy" onclick="showView('trophy')">
           <span class="nav-item-icon">✦</span>Trophy Room
-        </div>
-        <div class="nav-item" data-view="reports" onclick="showView('reports')">
-          <span class="nav-item-icon">◫</span>Reports
         </div>
       </div>
 
@@ -919,6 +933,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div id="obStep0" class="hidden">
           <div style="font-family:var(--font-display);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px">Let's begin.</div>
           <div id="obStep0Sub" style="font-size:13px;color:var(--slate);margin-bottom:24px;line-height:1.6">The fastest start is bringing in your recent spending — Groundwork organizes it for you and shows you what it found. You can also set things up by hand.</div>
+
+          <!-- Item 105 (Rob 2026-10-20): look around first, in a made-up household - only into an empty Groundwork -->
+          <button class="ob-start-option" id="obSampleOption" onclick="sampleLoad()">
+            <div class="ob-start-title">Look around with a sample household first</div>
+            <div class="ob-start-sub">The Morgans - made up for exploring: six months of spending, a card, a car loan, a student loan, savings and investments. Nothing of yours. "Start with my own" clears it any time.</div>
+          </button>
 
           <button class="ob-start-option" onclick="obChooseMigrate()">
             <div class="ob-start-title">Bring in my spending history</div>
@@ -1210,18 +1230,19 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
       <div class="topbar-title" id="topbarTitle">Dashboard</div>
       <div class="topbar-right">
         <div class="topbar-date" id="topbarDate"></div>
-        <button class="btn btn-ghost btn-sm" onclick="openFeedbackModal()" style="font-size:11px;color:var(--slate);border-color:var(--steel)" title="Report a problem">⚑ Report</button>
         <span id="gwSaveIndicator" style="display:none;font-size:11px;color:var(--ember-text);padding:3px 8px"></span>
         <span id="gwErrorIndicator" onclick="showGwErrors()" title="JS errors detected — click to view"
           style="display:none;font-size:11px;color:var(--ember-text);cursor:pointer;padding:3px 8px;
                  border:1px solid var(--ember-border);border-radius:20px;background:var(--ember-bg)"></span>
         <button id="gwFetchAllBtn" class="btn btn-sm btn-secondary" style="display:none" onclick="startFetchAll()"
           title="Visit each bank you showed Groundwork, one at a time. Each file still waits for your review.">⟳ Get my accounts</button>
-        <button class="btn btn-sm btn-secondary" onclick="showView('reports')">◫ Reports</button>
-        <button class="btn btn-sm btn-secondary" onclick="openBackupModal()">Backup</button>
-        <input id="gwAskBox" type="search" placeholder="Ask how to…" aria-label="Ask Groundwork how to do something"
-          onkeydown="if (event.key === 'Enter') { askGroundwork(this.value); }"
-          style="font-size:12px;padding:5px 10px;border:1px solid var(--steel);border-radius:var(--r-sm);width:170px;background:var(--paper);color:var(--ink)">
+        <!-- Rob 2026-10-22: Reports is in the menu, Report a problem in the ? help, and Backup in Settings - the bar
+             keeps the date, the Ask bar, Explain and ? -->
+        <!-- Item 102 (Rob 2026-10-19): the Ask box is AI help - shown only while AI is on and able to run (ai-feature) -->
+        <input id="gwAskBox" class="ai-feature" type="search" placeholder="Ask or tell Groundwork…" aria-label="Ask Groundwork a question, or tell it what to do"
+          onkeydown="if (event.key === 'Enter') { askGroundwork(this.value); }">
+        <!-- Item 103 (Rob 2026-10-19): what this page works out, and with AI on what its figures mean -->
+        <button class="btn btn-sm btn-secondary ai-feature" onclick="explainPage()" title="Explain this page: what it works out, and what your figures on it mean" aria-label="Explain this page">Explain</button>
         <button class="btn btn-sm btn-secondary" onclick="showHelpOverlay()" title="Help">?</button>
       </div>
     </div>
@@ -1411,6 +1432,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div id="ledgerLessonSlot"></div>
         <!-- Phase H2 Feature 4: recurring-transaction auto-detection -->
         <div id="recurringDetectedBanner" style="display:none;margin-bottom:12px"></div>
+        <!-- Item 98: a vendor never seen before, filed by the bank's own label - asked about, one at a time -->
+        <div id="newVendorCard"></div>
 
         <!-- Page head: title + sub + In/Out/Net summary -->
         <div class="ledger-page-head">
@@ -1539,6 +1562,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
             style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Possible futures</button>
           <button id="budTab-bills" role="tab" aria-selected="false" aria-controls="budPanel-bills" onclick="_budShowTab('bills')"
             style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Bills and charges</button>
+          <!-- Rob 2026-10-19: "lets also move Calendar as a tab to budget" - what's coming sits with the plan that pays for it -->
+          <button id="budTab-calendar" role="tab" aria-selected="false" aria-controls="budPanel-calendar" onclick="_budShowTab('calendar')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Calendar</button>
+          <!-- Rob 2026-10-19: Gift Budget's set-aside is a budget line - its planning sits beside it -->
+          <button id="budTab-gifts" role="tab" aria-selected="false" aria-controls="budPanel-gifts" onclick="_budShowTab('gifts')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Gifts</button>
         </div>
         <div id="budPanel-plan" role="tabpanel" aria-labelledby="budTab-plan">
         <!-- Item 71: when recorded income drops - the scenarios, and the budget that would follow, on the person's tap -->
@@ -1556,6 +1585,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div id="budgetBillsCard"></div>
         <!-- Item 65 W2: recurring charges whose price stepped, from the ledger - a fact, and a tap to update the line -->
         <div id="budgetPriceChanges"></div>
+        <!-- Item 106: bills whose price steps at the same time each year - said, projected from three, asked about -->
+        <div id="budgetYearlySteps"></div>
 
         <!-- Subscription audit — only shown when profile has detected recurring charges -->
         <div class="card mt-5" id="subscriptionAuditCard" style="display:none">
@@ -1616,6 +1647,50 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           </div>
         </div>
         </div><!-- end budPanel-bills -->
+        <div id="budPanel-calendar" role="tabpanel" aria-labelledby="budTab-calendar" style="display:none">
+          <div style="font-size:12px;color:var(--slate);margin-bottom:12px">What's coming, from your own record. Nothing here reminds or pushes; it's here when you look.</div>
+          <!-- Item 65 W1: yearly bills and heavy months a long history shows - asked about, on the person's tap -->
+          <div id="calendarLookThrough"></div>
+          <div id="calendarContent"></div>
+        </div>
+        <div id="budPanel-gifts" role="tabpanel" aria-labelledby="budTab-gifts" style="display:none">
+          <div style="font-size:12px;color:var(--slate);margin-bottom:12px">Everyone you buy for, every occasion — planned and funded.</div>
+          <div id="giftContent"><!-- Rendered by renderGiftBudget() --></div>
+          <div id="giftAdvisorCard" class="card mt-5" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- HEALTH - item 100 (HEALTH_PAGE.md, Rob 2026-10-19): what was scattered across Settings, Accounts and Reports, on
+           one page. Tracking only - never a lever (item 89): no budget to beat, nothing about spending less on care. -->
+      <div id="view-health" class="view">
+        <div class="section-header">
+          <div class="section-title">Health</div>
+          <div class="section-sub">Your medical bills, your plan year, the reserve and what care has cost - recorded, never judged.</div>
+        </div>
+        <div id="healthFacts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin-bottom:16px"></div>
+        <div role="tablist" aria-label="Health" style="display:flex;border-bottom:1px solid var(--steel);margin:4px 0 16px;flex-wrap:wrap">
+          <button id="hlTab-bills" role="tab" aria-selected="true" aria-controls="hlPanel-bills" onclick="healthShowTab('bills')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid var(--pine);color:var(--pine-text);font-weight:500">Bills</button>
+          <button id="hlTab-plan" role="tab" aria-selected="false" aria-controls="hlPanel-plan" onclick="healthShowTab('plan')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Plan and reserve</button>
+          <button id="hlTab-spending" role="tab" aria-selected="false" aria-controls="hlPanel-spending" onclick="healthShowTab('spending')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">Spending</button>
+          <button id="hlTab-people" role="tab" aria-selected="false" aria-controls="hlPanel-people" onclick="healthShowTab('people')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">People</button>
+        </div>
+        <div id="hlPanel-bills" role="tabpanel" aria-labelledby="hlTab-bills">
+          <div class="card mb-5"><div id="medicalBillsCard"></div></div>
+        </div>
+        <div id="hlPanel-plan" role="tabpanel" aria-labelledby="hlTab-plan" style="display:none">
+          <div class="card mb-5"><div id="healthPlanCard"></div><div id="healthReserveCard"></div></div>
+          <div class="card mb-5" id="healthHsaFsa"></div>
+        </div>
+        <div id="hlPanel-spending" role="tabpanel" aria-labelledby="hlTab-spending" style="display:none">
+          <div class="card mb-5" id="healthSpending"></div>
+        </div>
+        <div id="hlPanel-people" role="tabpanel" aria-labelledby="hlTab-people" style="display:none">
+          <div class="card mb-5"><div id="healthPeopleCard"></div></div>
+        </div>
       </div>
 
       <!-- DEBT -->
@@ -1805,17 +1880,194 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
       <!-- TRACKER -->
       <!-- BEFORE YOU BUY -->
+      <!-- Item 99 (BYB_LAYOUT.md, Rob 2026-10-19): one flow instead of five tools. Thinking of buying: the question on the
+           page, the answer as you type, help with the figure folded in, make room only if it doesn't fit, then a decision.
+           After you buy: return windows, purchases that didn't come through here, and "did you buy it?". -->
       <div id="view-byb" class="view">
         <div class="section-header">
           <div class="section-title">Before You Buy</div>
-          <div class="section-sub">See what a purchase really costs your debt-free date before you decide.</div>
+          <div class="section-sub">What a purchase really does to your month and your debt-free date, before you decide.</div>
         </div>
-        <div id="fvb-byb"></div>
         <div id="bybRecentWin"></div>
-        <div id="bybFromRecord"></div>
-        <div id="bybReceipts"></div>
-        <div id="bybCost"></div>
-        <div id="bybContent"></div>
+        <div role="tablist" aria-label="Before You Buy" style="display:flex;border-bottom:1px solid var(--steel);margin:4px 0 16px">
+          <button id="bybTab-before" role="tab" aria-selected="true" aria-controls="bybPanel-before" onclick="bybShowTab('before')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid var(--pine);color:var(--pine-text);font-weight:500">Thinking of buying</button>
+          <button id="bybTab-after" role="tab" aria-selected="false" aria-controls="bybPanel-after" onclick="bybShowTab('after')"
+            style="font-size:13px;padding:8px 18px;background:none;border:none;cursor:pointer;margin-bottom:-1px;font-family:var(--font-sans);border-bottom:2px solid transparent;color:var(--slate)">After you buy <span id="bybAfterCount" style="font-family:var(--font-mono);font-size:11px"></span></button>
+        </div>
+        <div id="bybPanel-before" role="tabpanel" aria-labelledby="bybTab-before">
+          <div class="card mb-5" id="bybAsk">
+      <!-- Step 1: What and How Much -->
+      <div id="bybStep1">
+        <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:4px">What are you thinking of buying?</div>
+        <div style="font-size:12px;color:var(--slate);margin-bottom:16px;line-height:1.6">Pick what kind it is, name it, and give what it costs a month. The answer shows as you type.</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:18px">
+          <button class="byb-type-btn active" data-type="vehicle" onclick="_bybSelectType('vehicle',this)">
+            <span style="font-size:20px">🚗</span>
+            <span style="font-weight:600;font-size:13px">Vehicle</span>
+            <span style="font-size:10px;color:var(--slate)">Lease or loan</span>
+          </button>
+          <button class="byb-type-btn" data-type="subscription" onclick="_bybSelectType('subscription',this)">
+            <span style="font-size:20px">🔄</span>
+            <span style="font-weight:600;font-size:13px">Subscription</span>
+            <span style="font-size:10px;color:var(--slate)">Monthly recurring</span>
+          </button>
+          <button class="byb-type-btn" data-type="purchase" onclick="_bybSelectType('purchase',this)">
+            <span style="font-size:20px">💳</span>
+            <span style="font-weight:600;font-size:13px">Credit purchase</span>
+            <span style="font-size:10px;color:var(--slate)">Pay over time</span>
+          </button>
+          <button class="byb-type-btn" data-type="other" onclick="_bybSelectType('other',this)">
+            <span style="font-size:20px">📦</span>
+            <span style="font-weight:600;font-size:13px">Other</span>
+            <span style="font-size:10px;color:var(--slate)">Any monthly cost</span>
+          </button>
+        </div>
+        <div class="field mb-3">
+          <label>What are you considering?</label>
+          <input type="text" id="bybItemName" class="field-input" placeholder="e.g. Honda CR-V Lease, Netflix, New laptop">
+        </div>
+        <div class="field mb-3">
+          <label>Monthly payment ($)</label>
+          <input type="number" id="bybMonthlyAmount" class="field-input" placeholder="0.00" min="0" step="0.01" oninput="_bybLiveUpdate()">
+        </div>
+        <div id="bybVehicleFields" style="margin-bottom:16px">
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button id="bybSubLease" class="byb-sub-btn active" onclick="_bybSelectSubtype('lease')">Lease</button>
+            <button id="bybSubLoan"  class="byb-sub-btn"        onclick="_bybSelectSubtype('loan')">Loan</button>
+          </div>
+          <div id="bybLoanFields" style="display:none;margin-bottom:12px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+              <div class="field" style="margin:0">
+                <label>Amount financed ($)</label>
+                <input type="number" id="bybLoanAmount" class="field-input" placeholder="0.00" min="0" step="0.01" oninput="_bybRefreshCommitGate()">
+              </div>
+              <div class="field" style="margin:0">
+                <label>APR (%)</label>
+                <input type="number" id="bybLoanAPR" class="field-input" placeholder="0.00" min="0" step=".01" oninput="_bybRefreshCommitGate()">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Term (months)</label>
+                <input type="number" id="bybLoanTerm" class="field-input" placeholder="60" min="1" step="1">
+              </div>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label style="margin-bottom:6px;display:block">Replacing an existing vehicle?</label>
+            <select id="bybReplaceCard" class="field-input" onchange="_bybLiveUpdate()">
+              <option value="">No — adding to current obligations</option>
+            </select>
+          </div>
+        </div>
+        <div id="bybCreditFields" style="display:none;margin-bottom:16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            <div class="field" style="margin:0">
+              <label>Amount financed ($)</label>
+              <input type="number" id="bybCreditAmount" class="field-input" placeholder="0.00" min="0" step="0.01" oninput="_bybComputeCreditPayment()">
+            </div>
+            <div class="field" style="margin:0">
+              <label>APR (%)</label>
+              <input type="number" id="bybCreditAPR" class="field-input" placeholder="0.00" step=".01" oninput="_bybComputeCreditPayment()">
+            </div>
+            <div class="field" style="margin:0">
+              <label>Term (months)</label>
+              <input type="number" id="bybCreditTerm" class="field-input" placeholder="60" step="1" oninput="_bybComputeCreditPayment()">
+            </div>
+          </div>
+          <div id="bybCreditPaymentPreview" style="font-size:12px;color:var(--pine-text);margin-top:6px;min-height:16px"></div>
+        </div>
+        <div id="bybStep1Preview" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:10px 14px;margin-bottom:16px;font-size:12px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--slate)">What's Left change</span>
+            <span id="bybPrevWL" data-fig="byb.left_after" style="font-family:var(--font-mono);color:var(--ember-text)"></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--slate)">DTI</span>
+            <span id="bybPrevDTI" data-fig="byb.dti_change" style="font-family:var(--font-mono)"></span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--slate)">Debt-free date</span>
+            <span id="bybPrevPayoff" data-fig="byb.payoff_change" style="font-family:var(--font-mono)"></span>
+          </div>
+        </div>
+        <!-- Item 99 L2/L3: help with the figure itself, folded into the question -->
+        <details id="bybHelpCost" style="margin-bottom:8px;font-size:12px"><summary style="cursor:pointer;color:var(--sky-text,var(--ink))">Not sure what it costs a month? A car, a phone or a yearly charge, worked out</summary>
+          <div id="bybCost" style="margin-top:8px"></div></details>
+        <details id="bybHelpOffer" style="margin-bottom:14px;font-size:12px"><summary style="cursor:pointer;color:var(--sky-text,var(--ink))">Paying over time? Read the financing offer</summary>
+          <div id="bybOffer" style="margin-top:8px"></div></details>
+        <button class="btn btn-primary" onclick="_bybGoStep(3)" style="width:100%">See the full picture and decide →</button>
+        <button onclick="_bybGoStep(2)" style="width:100%;margin-top:8px;background:none;border:none;font-size:12px;color:var(--slate);cursor:pointer;padding:8px">Doesn't fit? Make room in my budget</button>
+      </div>
+
+      <!-- Step 2: Budget Sandbox -->
+      <div id="bybStep2" style="display:none">
+        <div style="margin-bottom:14px">
+          <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:2px" id="bybSandboxTitle">Adjust your budget to make room</div>
+          <div style="font-size:12px;color:var(--slate);line-height:1.5">Your real budget below. Adjust any row — nothing saves until you commit.</div>
+        </div>
+        <div style="background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--ink)" id="bybSandboxNewName">New purchase</div>
+            <div style="font-size:10px;color:var(--slate-2)">The item you're evaluating</div>
+          </div>
+          <div style="font-family:var(--font-mono);font-size:14px;color:var(--gold-text);font-weight:600" id="bybSandboxNewAmt"></div>
+        </div>
+        <div id="bybSandboxRows" style="margin-bottom:14px"></div>
+        <div style="position:sticky;bottom:0;background:var(--paper);padding:10px 0;border-top:1px solid var(--steel)">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+            <div>
+              <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">What's Left</div>
+              <div id="bybScoreWL" data-fig="byb.left_with" style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine-text)">—</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">DTI</div>
+              <div id="bybScoreDTI" data-fig="byb.dti_with" style="font-family:var(--font-mono);font-size:16px;font-weight:600">—</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">Debt-free</div>
+              <div id="bybScorePayoff" data-fig="byb.free_with" style="font-family:var(--font-mono);font-size:13px;font-weight:600">—</div>
+            </div>
+          </div>
+          <button id="bybMakeItWorkBtn" onclick="_bybMakeItWork()" style="width:100%;margin-top:10px;background:var(--ink);color:var(--paper);border:none;border-radius:var(--r-md);padding:11px;font-size:13px;font-weight:600;cursor:pointer">✦ Make It Work</button>
+          <div id="bybMakeItWorkNote" style="font-size:11px;color:var(--slate);text-align:center;margin-top:5px;min-height:14px"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-secondary" onclick="_bybGoStep(1)" style="flex:1">← Back</button>
+          <button class="btn btn-primary" onclick="_bybGoStep(3)" style="flex:2">See the full picture →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Side-by-side comparison -->
+      <div id="bybStep3" style="display:none">
+        <div id="bybComparisonContent"></div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button class="btn btn-secondary" onclick="_bybGoStep(1)" style="flex:1">← Change it</button>
+          <button class="btn btn-secondary" onclick="_bybGoStep(2)" style="flex:1">Make room in my budget</button>
+        </div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+          <div id="bybCommitNeeds" style="display:none;font-size:12px;color:var(--ember-text);line-height:1.5"></div>
+          <button class="btn btn-primary" id="bybCommitBtn" onclick="_bybCommit('commit')" style="width:100%">Buy it — add it to my budget</button>
+          <button class="btn btn-secondary" onclick="_bybCommit('track')" style="width:100%">Wait and watch — nothing changes yet</button>
+          <button onclick="_bybCommit('walkaway')" style="width:100%;background:none;border:none;font-size:12px;color:var(--slate);cursor:pointer;padding:8px">Not buying it</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Done -->
+      <div id="bybStep4" style="display:none;text-align:center;padding:20px 0">
+        <div style="font-size:36px;margin-bottom:12px" id="bybDoneIcon">✓</div>
+        <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:18px;color:var(--ink);margin-bottom:8px" id="bybDoneTitle">Decision saved.</div>
+        <div style="font-size:13px;color:var(--slate);line-height:1.6;margin-bottom:20px" id="bybDoneNote"></div>
+        <button class="btn btn-secondary" onclick="closeBYBWizard()" style="width:100%">Ask about something else</button>
+      </div>
+
+          </div>
+          <div id="bybContent"></div>
+        </div>
+        <div id="bybPanel-after" role="tabpanel" aria-labelledby="bybTab-after" style="display:none">
+          <div id="bybFollowUps"></div>
+          <div id="bybReceipts"></div>
+          <div id="bybFromRecord"></div>
+        </div>
       </div>
 
       <!-- INVESTMENTS -->
@@ -1840,22 +2092,22 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="grid-4 mb-5">
           <div class="stat-card accent">
             <div class="stat-label">Portfolio value</div>
-            <div class="stat-value text-mono" id="invTotalValue" style="font-size:22px">$0</div>
-            <div class="stat-delta" id="invTotalCost">$0 invested</div>
+            <div class="stat-value text-mono" id="invTotalValue" data-fig="inv.value" style="font-size:22px">$0</div>
+            <div class="stat-delta" id="invTotalCost" data-fig="inv.cost">$0 invested</div>
           </div>
           <div class="stat-card" id="invGainCard">
             <div class="stat-label">Unrealized gain</div>
-            <div class="stat-value" id="invTotalGain">$0</div>
-            <div class="stat-delta" id="invTotalGainPct">0.0%</div>
+            <div class="stat-value" id="invTotalGain" data-fig="inv.gain">$0</div>
+            <div class="stat-delta" id="invTotalGainPct" data-fig="inv.gain_pct">0.0%</div>
           </div>
           <div class="stat-card" id="invDayCard">
             <div class="stat-label">Today's change</div>
-            <div class="stat-value" id="invDayChange">$0</div>
-            <div class="stat-delta" id="invDayChangePct">0.0%</div>
+            <div class="stat-value" id="invDayChange" data-fig="inv.day">$0</div>
+            <div class="stat-delta" id="invDayChangePct" data-fig="inv.day_pct">0.0%</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">Positions</div>
-            <div class="stat-value" id="invPositionCount">0</div>
+            <div class="stat-value" id="invPositionCount" data-fig="inv.positions">0</div>
             <div class="stat-delta">across all accounts</div>
           </div>
         </div>
@@ -2006,7 +2258,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
         <div class="card mb-5">
           <div class="nw-hero">
             <div class="card-label nw-label" style="margin-bottom:8px">Current net worth</div>
-            <div class="nw-value" id="nwTotal">$0</div>
+            <div class="nw-value" id="nwTotal" data-fig="nw.total">$0</div>
             <div class="nw-delta" id="nwDelta"></div>
           </div>
           <!-- Trend chart — _renderNWChart() draws history + projection here.
@@ -2018,12 +2270,12 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
           <div class="card">
             <div class="card-label">Assets</div>
             <div id="nwAssetRows"></div>
-            <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;font-weight:600"><span>Total assets</span><span class="text-mono text-pine" id="nwTotalAssets">$0</span></div>
+            <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;font-weight:600"><span>Total assets</span><span class="text-mono text-pine" id="nwTotalAssets" data-fig="nw.assets">$0</span></div>
           </div>
           <div class="card">
             <div class="card-label">Liabilities</div>
             <div id="nwLiabilityRows"></div>
-            <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;font-weight:600"><span>Total liabilities</span><span class="text-mono text-ember" id="nwTotalLiabilities">$0</span></div>
+            <div style="border-top:1px solid var(--steel);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;font-weight:600"><span>Total liabilities</span><span class="text-mono text-ember" id="nwTotalLiabilities" data-fig="nw.liabilities">$0</span></div>
           </div>
         </div>
         <div class="card">
@@ -2058,7 +2310,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
               <div class="field mb-4"><label>Mortgage balance ($)</label><input type="number" step="0.01" id="nwMortgage" placeholder="0" oninput="updateNetWorth()"></div>
               <div class="card mb-4" style="background:var(--mist);border-color:var(--steel)">
                 <div class="text-xs text-muted mb-3" style="letter-spacing:.06em;text-transform:uppercase">Credit card &amp; loan debt</div>
-                <div class="text-mono" style="font-size:20px;color:var(--ember-text)" id="nwDebtFromCards">$0</div>
+                <div class="text-mono" style="font-size:20px;color:var(--ember-text)" id="nwDebtFromCards" data-fig="nw.card_debt">$0</div>
                 <div class="text-xs text-muted mt-3">Auto-calculated from Debt Payoff</div>
               </div>
             </div>
@@ -2329,7 +2581,7 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
 
       <!-- TROPHY ROOM -->
       <div id="view-trophy" class="view">
-        <div class="section-header"><div class="section-title">Trophy Room</div><div class="section-sub" id="trophyProgress">Your financial achievements.</div></div>
+        <div class="section-header"><div class="section-title">Trophy Room</div><div class="section-sub" id="trophyProgress" data-fig="trophy.earned">Your financial achievements.</div></div>
         <div id="trophyContent"></div>
         <div id="trophyAdvisorCard" class="card mt-5" style="display:none"></div>
       </div>
@@ -2588,26 +2840,8 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
       </div>
 
       <!-- CALENDAR (item 65 W3): every upcoming date, confirmed / expected / possible -->
-      <div id="view-calendar" class="view">
-        <div class="section-header">
-          <div class="section-title">Calendar</div>
-          <div class="section-sub">What's coming, from your own record. Nothing here reminds or pushes; it's here when you look.</div>
-        </div>
-        <!-- Item 65 W1: yearly bills and heavy months a long history shows - asked about, on the person's tap -->
-        <div id="calendarLookThrough"></div>
-        <div id="calendarContent"></div>
-      </div>
 
       <!-- GIFT BUDGET -->
-      <div id="view-gifts" class="view">
-        <div id="fvb-gifts"></div>
-        <div class="section-header">
-          <div class="section-title">Gift Budget</div>
-          <div class="section-sub">Everyone you buy for, every occasion — planned and funded.</div>
-        </div>
-        <div id="giftContent"><!-- Rendered by renderGiftBudget() --></div>
-        <div id="giftAdvisorCard" class="card mt-5" style="display:none"></div>
-      </div>
 
       <!-- SETTINGS -->
       <div id="view-settings" class="view">
@@ -3017,187 +3251,6 @@ input:checked + .toggle-track::before{transform:translateX(18px)}
   </div><!-- /main -->
 </div><!-- /app -->
 
-<!-- BEFORE YOU BUY — Wizard overlay -->
-<div id="bybOverlay" class="modal-overlay hidden">
-  <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
-    <div class="modal-header" style="position:sticky;top:0;background:var(--paper);z-index:2;border-bottom:1px solid var(--steel)">
-      <div style="display:flex;align-items:center;gap:12px;flex:1">
-        <button onclick="closeBYBWizard()" style="background:none;border:none;font-size:18px;color:var(--slate);cursor:pointer;padding:0">←</button>
-        <div>
-          <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:17px;font-weight:700;color:var(--ink)" id="bybModalTitle">Before You Buy</div>
-          <div style="display:flex;gap:5px;margin-top:4px" id="bybStepDots">
-            <span class="byb-dot active" data-step="1"></span>
-            <span class="byb-dot" data-step="2"></span>
-            <span class="byb-dot" data-step="3"></span>
-            <span class="byb-dot" data-step="4"></span>
-          </div>
-        </div>
-      </div>
-      <button class="modal-close" onclick="closeBYBWizard()">×</button>
-    </div>
-    <div class="modal-body" style="padding:20px">
-
-      <!-- Step 1: What and How Much -->
-      <div id="bybStep1">
-        <div style="font-size:13px;color:var(--slate);margin-bottom:20px;line-height:1.6">
-          Enter what you're considering. We'll load your real budget so you can see what has to move to make it work.
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px">
-          <button class="byb-type-btn active" data-type="vehicle" onclick="_bybSelectType('vehicle',this)">
-            <span style="font-size:20px">🚗</span>
-            <span style="font-weight:600;font-size:13px">Vehicle</span>
-            <span style="font-size:10px;color:var(--slate)">Lease or loan</span>
-          </button>
-          <button class="byb-type-btn" data-type="subscription" onclick="_bybSelectType('subscription',this)">
-            <span style="font-size:20px">🔄</span>
-            <span style="font-weight:600;font-size:13px">Subscription</span>
-            <span style="font-size:10px;color:var(--slate)">Monthly recurring</span>
-          </button>
-          <button class="byb-type-btn" data-type="purchase" onclick="_bybSelectType('purchase',this)">
-            <span style="font-size:20px">💳</span>
-            <span style="font-weight:600;font-size:13px">Credit purchase</span>
-            <span style="font-size:10px;color:var(--slate)">Pay over time</span>
-          </button>
-          <button class="byb-type-btn" data-type="other" onclick="_bybSelectType('other',this)">
-            <span style="font-size:20px">📦</span>
-            <span style="font-weight:600;font-size:13px">Other</span>
-            <span style="font-size:10px;color:var(--slate)">Any monthly cost</span>
-          </button>
-        </div>
-        <div class="field mb-3">
-          <label>What are you considering?</label>
-          <input type="text" id="bybItemName" class="field-input" placeholder="e.g. Honda CR-V Lease, Netflix, New laptop">
-        </div>
-        <div class="field mb-3">
-          <label>Monthly payment ($)</label>
-          <input type="number" id="bybMonthlyAmount" class="field-input" placeholder="0.00" min="0" step="0.01" oninput="_bybLiveUpdate()">
-        </div>
-        <div id="bybVehicleFields" style="margin-bottom:16px">
-          <div style="display:flex;gap:8px;margin-bottom:12px">
-            <button id="bybSubLease" class="byb-sub-btn active" onclick="_bybSelectSubtype('lease')">Lease</button>
-            <button id="bybSubLoan"  class="byb-sub-btn"        onclick="_bybSelectSubtype('loan')">Loan</button>
-          </div>
-          <div id="bybLoanFields" style="display:none;margin-bottom:12px">
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-              <div class="field" style="margin:0">
-                <label>Amount financed ($)</label>
-                <input type="number" id="bybLoanAmount" class="field-input" placeholder="0.00" min="0" step="0.01" oninput="_bybRefreshCommitGate()">
-              </div>
-              <div class="field" style="margin:0">
-                <label>APR (%)</label>
-                <input type="number" id="bybLoanAPR" class="field-input" placeholder="0.00" min="0" step=".01" oninput="_bybRefreshCommitGate()">
-              </div>
-              <div class="field" style="margin:0">
-                <label>Term (months)</label>
-                <input type="number" id="bybLoanTerm" class="field-input" placeholder="60" min="1" step="1">
-              </div>
-            </div>
-          </div>
-          <div class="field" style="margin-bottom:0">
-            <label style="margin-bottom:6px;display:block">Replacing an existing vehicle?</label>
-            <select id="bybReplaceCard" class="field-input" onchange="_bybLiveUpdate()">
-              <option value="">No — adding to current obligations</option>
-            </select>
-          </div>
-        </div>
-        <div id="bybCreditFields" style="display:none;margin-bottom:16px">
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-            <div class="field" style="margin:0">
-              <label>Amount financed ($)</label>
-              <input type="number" id="bybCreditAmount" class="field-input" placeholder="0.00" min="0" step="0.01" oninput="_bybComputeCreditPayment()">
-            </div>
-            <div class="field" style="margin:0">
-              <label>APR (%)</label>
-              <input type="number" id="bybCreditAPR" class="field-input" placeholder="0.00" step=".01" oninput="_bybComputeCreditPayment()">
-            </div>
-            <div class="field" style="margin:0">
-              <label>Term (months)</label>
-              <input type="number" id="bybCreditTerm" class="field-input" placeholder="60" step="1" oninput="_bybComputeCreditPayment()">
-            </div>
-          </div>
-          <div id="bybCreditPaymentPreview" style="font-size:12px;color:var(--pine-text);margin-top:6px;min-height:16px"></div>
-        </div>
-        <div id="bybStep1Preview" style="display:none;background:var(--mist);border-radius:var(--r-md);padding:10px 14px;margin-bottom:16px;font-size:12px">
-          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-            <span style="color:var(--slate)">What's Left change</span>
-            <span id="bybPrevWL" style="font-family:var(--font-mono);color:var(--ember-text)"></span>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-            <span style="color:var(--slate)">DTI</span>
-            <span id="bybPrevDTI" style="font-family:var(--font-mono)"></span>
-          </div>
-          <div style="display:flex;justify-content:space-between">
-            <span style="color:var(--slate)">Debt-free date</span>
-            <span id="bybPrevPayoff" style="font-family:var(--font-mono)"></span>
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="_bybGoStep(2)" style="width:100%">Open budget sandbox →</button>
-        <button onclick="closeBYBWizard()" style="width:100%;margin-top:8px;background:none;border:none;font-size:12px;color:var(--slate);cursor:pointer;padding:8px">Walk away</button>
-      </div>
-
-      <!-- Step 2: Budget Sandbox -->
-      <div id="bybStep2" style="display:none">
-        <div style="margin-bottom:14px">
-          <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:2px" id="bybSandboxTitle">Adjust your budget to make room</div>
-          <div style="font-size:12px;color:var(--slate);line-height:1.5">Your real budget below. Adjust any row — nothing saves until you commit.</div>
-        </div>
-        <div style="background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-size:12px;font-weight:600;color:var(--ink)" id="bybSandboxNewName">New purchase</div>
-            <div style="font-size:10px;color:var(--slate-2)">The item you're evaluating</div>
-          </div>
-          <div style="font-family:var(--font-mono);font-size:14px;color:var(--gold-text);font-weight:600" id="bybSandboxNewAmt"></div>
-        </div>
-        <div id="bybSandboxRows" style="margin-bottom:14px"></div>
-        <div style="position:sticky;bottom:0;background:var(--paper);padding:10px 0;border-top:1px solid var(--steel)">
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
-            <div>
-              <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">What's Left</div>
-              <div id="bybScoreWL" style="font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--pine-text)">—</div>
-            </div>
-            <div>
-              <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">DTI</div>
-              <div id="bybScoreDTI" style="font-family:var(--font-mono);font-size:16px;font-weight:600">—</div>
-            </div>
-            <div>
-              <div style="font-size:10px;color:var(--slate-2);text-transform:uppercase;letter-spacing:.06em">Debt-free</div>
-              <div id="bybScorePayoff" style="font-family:var(--font-mono);font-size:13px;font-weight:600">—</div>
-            </div>
-          </div>
-          <button id="bybMakeItWorkBtn" onclick="_bybMakeItWork()" style="width:100%;margin-top:10px;background:var(--ink);color:var(--paper);border:none;border-radius:var(--r-md);padding:11px;font-size:13px;font-weight:600;cursor:pointer">✦ Make It Work</button>
-          <div id="bybMakeItWorkNote" style="font-size:11px;color:var(--slate);text-align:center;margin-top:5px;min-height:14px"></div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn btn-secondary" onclick="_bybGoStep(1)" style="flex:1">← Back</button>
-          <button class="btn btn-primary" onclick="_bybGoStep(3)" style="flex:2">See comparison →</button>
-        </div>
-      </div>
-
-      <!-- Step 3: Side-by-side comparison -->
-      <div id="bybStep3" style="display:none">
-        <div id="bybComparisonContent"></div>
-        <div style="display:flex;gap:8px;margin-top:16px">
-          <button class="btn btn-secondary" onclick="_bybGoStep(2)" style="flex:1">← Adjust</button>
-        </div>
-        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
-          <div id="bybCommitNeeds" style="display:none;font-size:12px;color:var(--ember-text);line-height:1.5"></div>
-          <button class="btn btn-primary" id="bybCommitBtn" onclick="_bybCommit('commit')" style="width:100%">Commit — update my budget</button>
-          <button class="btn btn-secondary" onclick="_bybCommit('track')" style="width:100%">Track it — add to history only</button>
-          <button onclick="_bybCommit('walkaway')" style="width:100%;background:none;border:none;font-size:12px;color:var(--slate);cursor:pointer;padding:8px">Walk away — not buying it</button>
-        </div>
-      </div>
-
-      <!-- Step 4: Done -->
-      <div id="bybStep4" style="display:none;text-align:center;padding:20px 0">
-        <div style="font-size:36px;margin-bottom:12px" id="bybDoneIcon">✓</div>
-        <div style="font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:18px;color:var(--ink);margin-bottom:8px" id="bybDoneTitle">Decision saved.</div>
-        <div style="font-size:13px;color:var(--slate);line-height:1.6;margin-bottom:20px" id="bybDoneNote"></div>
-        <button class="btn btn-secondary" onclick="closeBYBWizard()" style="width:100%">Done</button>
-      </div>
-
-    </div>
-  </div>
-</div>
 <!-- MODALS -->
 <div class="modal-overlay hidden" id="confirmDialog">
   <div class="modal" style="max-width:400px">

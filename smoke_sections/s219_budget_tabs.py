@@ -32,5 +32,5 @@ def run(ctx):
           and "el.closest('[id^=\"budPanel-\"]')" in app)
     pc = app.split('async function renderPriceChanges() {')[1].split('\n}\n')[0]
     check('s219 U1 a price change waiting for a tap is a plain count on Bills and charges - no badge, no motion',
-          "_budTabCount('bills', _priceChanges.filter(c => c.line && !c.line_matches).length);" in pc
+          "_budTabCount('bills', _priceChanges.filter(c => c.line && !c.line_matches).length, 'price');" in pc
           and "b.textContent = n ? `${base} (${n})` : base;" in app)

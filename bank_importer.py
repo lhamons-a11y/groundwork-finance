@@ -1548,6 +1548,7 @@ def _parse_qif(text: str, warnings: list):
                         'type':         ttype,
                         'category':     mapped_cat or auto_category(description, rich.get('mcc', '') or ''),
                         'raw_category': raw_cat,
+                        'bank_category': raw_cat if mapped_cat else '',   # item 98 N1: the file's label filed it
                         'cleared':      cleared,
                         'merchant':     rich['merchant'],
                         'mcc':          rich['mcc'],

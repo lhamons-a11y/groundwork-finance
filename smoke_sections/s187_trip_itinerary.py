@@ -130,7 +130,7 @@ def run(ctx):
     check('s187 I4 the used parts become the trip\'s lines, each sourced "from your <sender> itinerary"; car, transfers, insurance and fees are their own line',
           'transportNote = `${fmt(transportCost)} total (from ${itin.label})`' in up and 'hotelSource = `from ${itin.label}`' in up
           and 'activitiesSource = `from ${itin.label}`' in up and '+ activitiesCost + otherCost' in up
-          and "line('🧾 Other', d.other, d.otherSource)" in app)
+          and "line('🧾 Other', d.other, d.otherSource, 'trip.other')" in app)   # item 103: the line carries its figure key
     node = shutil.which('node')
     out = {}
     if node:

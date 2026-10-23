@@ -5,7 +5,7 @@ One definition, used by every reader: a deposit counts as income when its catego
 
   - income-type, or
   - a child (at any depth) of the category named Income, or
-  - named like one of the budget's income lines ("Rob's Income", "Partner's income").
+  - named like one of the budget's income lines ("Alex's Income", "Sam's income").
 
 Before this, readers matched the name "Income" exactly, so pay filed under a category named for the person was
 invisible to the income figure while other pages, matching any name containing "income", counted it.

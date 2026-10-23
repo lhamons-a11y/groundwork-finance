@@ -13,6 +13,7 @@ import sys
 import json
 import logging
 import threading
+import time
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from functools import wraps
@@ -161,10 +162,9 @@ def create_app(static_folder: str = None) -> Flask:
         if _update_cache['data'] is not None and now - _update_cache['ts'] < ttl:
             return ok(_update_cache['data'])
         try:
-            req = urllib.request.Request(UPDATE_MANIFEST_URL,
-                                         headers={'User-Agent': 'Groundwork'})
-            with urllib.request.urlopen(req, timeout=4) as r:
-                info = json.loads(r.read(65536).decode('utf-8'))
+            from core import egress                # item 8: the one door out
+            info = json.loads(egress.get(UPDATE_MANIFEST_URL, headers={'User-Agent': 'Groundwork'}, timeout=4,
+                                         limit=65536).decode('utf-8'))
             latest = str(info.get('latest', '')).strip()
             url    = str(info.get('url', '')).strip()
             # Never hand the client a download link pointing anywhere but the
@@ -192,8 +192,12 @@ def create_app(static_folder: str = None) -> Flask:
     # this called bare init_db(), which only creates tables that don't
     # exist yet and silently never alters a table that's already on disk.
     # Item 82 R3 (L3b): a dated copy first, whenever the database is about to be migrated.
-    _backup_before_migration()
+    _pre = _backup_before_migration()
     run_migration_if_needed()
+    # ... and the migrated database backed up as well (Rob 2026-10-22): the person has a backup of what they now have,
+    # and it counts as their latest for the backup reminder
+    if _pre and not _pre.get('error'):
+        _backup_after_migration(_pre)
 
     # Register all blueprints
     app.register_blueprint(transactions_bp,  url_prefix='/api/transactions')
@@ -209,6 +213,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(achievements_bp,  url_prefix='/api/achievements')
     app.register_blueprint(settings_bp,      url_prefix='/api/settings')
     app.register_blueprint(ai_bp,            url_prefix='/api/ai')
+    app.register_blueprint(sample_bp,        url_prefix='/api/sample')
     app.register_blueprint(backup_bp,        url_prefix='/api/backup')
     app.register_blueprint(import_bp,        url_prefix='/api/import')
     app.register_blueprint(bank_import_bp,   url_prefix='/api/import')
@@ -223,6 +228,8 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(calendar_bp,       url_prefix='/api/calendar')
     app.register_blueprint(tidy_bp,           url_prefix='/api/tidy')
     app.register_blueprint(price_changes_bp,  url_prefix='/api/price-changes')
+    app.register_blueprint(yearly_steps_bp,   url_prefix='/api/yearly-steps')
+    app.register_blueprint(two_accounts_bp,   url_prefix='/api/two-accounts')   # item 107
     app.register_blueprint(first_import_bp,   url_prefix='/api/first-import')
     app.register_blueprint(year_end_bp,       url_prefix='/api/year-end')
     app.register_blueprint(historian_bp,      url_prefix='/api/historian')
@@ -231,6 +238,7 @@ def create_app(static_folder: str = None) -> Flask:
     app.register_blueprint(evidence_bp,       url_prefix='/api/evidence')
     app.register_blueprint(why_bp,            url_prefix='/api/why')
     app.register_blueprint(reimburse_bp,      url_prefix='/api/reimburse')
+    app.register_blueprint(medical_bp,        url_prefix='/api/medical-bills')   # item 94
     app.register_blueprint(help_bp,           url_prefix='/api/help')
     app.register_blueprint(review_bp,         url_prefix='/api/reports/review')
     app.register_blueprint(checkin_bp,        url_prefix='/api/checkin')
@@ -245,7 +253,7 @@ def create_app(static_folder: str = None) -> Flask:
         except ImportError:
             VERSION = '1.0.0.0'
         return jsonify({'status': 'ok', 'version': VERSION,
-                        'timestamp': datetime.utcnow().isoformat()})
+                        'timestamp': datetime.now().isoformat()})
 
     @app.route('/api/save', methods=['GET', 'POST'])
     def save_snapshot():
@@ -261,7 +269,7 @@ def create_app(static_folder: str = None) -> Flask:
                 payload = json.dumps(snapshot)
                 if setting:
                     setting.value      = payload
-                    setting.updated_at = datetime.utcnow()
+                    setting.updated_at = datetime.now()
                 else:
                     session.add(AppSetting(key='app_snapshot', value=payload))
                 session.commit()
@@ -1442,6 +1450,172 @@ def _reserve_payload(session):
     return st
 
 
+# ── Item 94 (BILL_THAT_LANDS.md, L1-L10 ruled 2026-10-19): the bill that lands ────────────────────────────────────────
+# The provider's statements as the household typed them, the amount owed now with its working, and every fact the record
+# supports - templated in core/medical_bills.py, no model, nothing contacting anyone. Statements go through _statement:
+# each is the answering person's utterance (item 93).
+medical_bp = Blueprint('medical', __name__)
+
+
+def _bills_ctx(session):
+    """What the alarm (L6) and the capacity (L8) are measured against: savings on record, the reserve as allocated,
+    the stability floor (one month of recorded expenses, C.5), and the leanest complete month on record."""
+    from core import medical_bills as mb
+    from core.database import ReserveAllocation
+    from core.income_def import income_category_ids
+
+    def setting(key):
+        row = session.query(AppSetting).filter_by(key=key).first()
+        try:
+            return (float(row.value), True) if row and row.value not in (None, '') else (0.0, False)
+        except (TypeError, ValueError):
+            return 0.0, False
+    (sav, k1), (cash, k2) = setting('savings_balance'), setting('cash_balance')
+    alloc = session.query(ReserveAllocation).order_by(ReserveAllocation.seq.desc()).first()
+    reserve = float(alloc.amount) if alloc else 0.0
+    floor = sum(v['month_amount'] for v in budget_month_amounts(session).values())
+    # L8: the leanest of the last twelve complete months - money in by the one income definition, money out less transfers
+    month_start = date.today().replace(day=1)
+    since = (month_start - timedelta(days=366)).replace(day=1)
+    inc_ids, tr_ids = income_category_ids(session), _transfer_category_ids(session)
+    months = {}
+    for t in session.query(Transaction).filter(Transaction.date >= since, Transaction.date < month_start).all():
+        m = months.setdefault(t.date.strftime('%Y-%m'), [0.0, 0.0])
+        if t.type == 'credit' and t.category_id in inc_ids:
+            m[0] += float(t.amount or 0)
+        elif t.type == 'debit' and t.category_id not in tr_ids:
+            m[1] += float(t.amount or 0)
+    from core.health_reserve import _setting as _hr_setting
+    choice = (_hr_setting(session, 'reserve_order_json', []) or [None])[-1] or {}
+    fill = float(choice.get('monthly') or 0) if choice.get('choice') in ('before', 'alongside') else 0.0
+    if len(months) < MIN_MONTHS_OBSERVED:
+        cap = {'thin': True, 'months': len(months)}
+    else:
+        key = min(months, key=lambda k: months[k][0] - months[k][1])
+        left = round(months[key][0] - months[key][1], 2)
+        cap = {'thin': False, 'months': len(months), 'leanest': date.fromisoformat(key + '-01').strftime('%B %Y'),
+               'left': left, 'reserve_monthly': fill, 'monthly': round(left - fill, 2)}
+    return {'liquid': sav + cash, 'liquid_known': k1 or k2, 'reserve': reserve, 'floor': round(floor, 2), 'capacity': cap}
+
+
+@medical_bp.route('', methods=['GET'])
+def medical_bills_get():
+    """Every bill account, the dates (L9) and the attention items (L6)."""
+    from core import medical_bills as mb
+    from core.database import MedicalBillAccount
+    with db_session() as session:
+        ctx = _bills_ctx(session)
+        views = [mb.view(session, a, ctx) for a in session.query(MedicalBillAccount).order_by(MedicalBillAccount.id).all()]
+        cards, budget, strategy, _undated = _consequence_inputs(session)
+        today = date.today().strftime('%Y-%m')
+        sim = simulate_payoff(cards, budget, strategy, today_key=today, start_month=today) if cards else {'months': 0}
+        card_free = None if sim is None or sim.get('capped') else int(sim.get('months') or 0)   # None: not reached at this budget
+        return ok({'bills': views, 'dates': mb.obligations_date(views, card_free),
+                   'attention': [v['attention'] for v in views if v.get('attention')], 'never_directs': mb.NEVER_DIRECTS})
+
+
+@medical_bp.route('/statement', methods=['POST'])
+@require_json
+def medical_bill_statement():
+    """L1: a provider's bill or an insurer's explanation of benefits, as the household typed it."""
+    from core import medical_bills as mb
+
+    def go():
+        with db_session() as session:
+            a, problem = mb.add_statement(session, request.json or {})
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok({'id': a.id})
+    return _statement(go)
+
+
+@medical_bp.route('/<int:account_id>/<what>', methods=['POST'])
+@medical_bp.route('/<int:account_id>/collections', methods=['POST'], defaults={'what': 'collections'})   # item 101
+@require_json
+def medical_bill_say(account_id, what):
+    """mine | claim {pending} | arrangement {monthly, first_date, payments} or {none} | payment {transaction_id} |
+    collections {collector, account_number, sent_on, amount, statement_date} (item 101)"""
+    from core import medical_bills as mb
+    body = request.json or {}
+    fns = {'mine': lambda s: mb.say_mine(s, account_id),
+           'claim': lambda s: mb.say_claim(s, account_id, bool(body.get('pending'))),
+           'arrangement': lambda s: mb.say_arrangement(s, account_id, body),
+           'payment': lambda s: mb.link_payment(s, account_id, body.get('transaction_id')),
+           'collections': lambda s: mb.send_to_collections(s, account_id, body)}       # item 101 C2
+    if what not in fns:
+        return err('Not a statement about a bill.', 404)
+
+    def go():
+        with db_session() as session:
+            _x, problem = fns[what](session)
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok({'id': account_id})
+    return _statement(go)
+
+
+@medical_bp.route('/providers/<int:provider_id>/kind', methods=['POST'])
+@require_json
+def medical_provider_nonprofit(provider_id):
+    """L7: {value: true | false | null} - the household's word on whether the provider is a non-profit hospital."""
+    from core import medical_bills as mb
+    v = (request.json or {}).get('value')
+
+    def go():
+        with db_session() as session:
+            _p, problem = mb.say_nonprofit(session, provider_id, v if v in (True, False) else None)
+            if problem:
+                return err(problem)
+            session.commit()
+            return ok({'id': provider_id})
+    return _statement(go)
+
+
+@medical_bp.route('/<int:account_id>/lines', methods=['GET'])
+def medical_bill_lines(account_id):
+    """L2/L5: recent money-out lines the household may say were toward this bill (the last 120 days)."""
+    from core.database import Account
+    with db_session() as session:
+        since = date.today() - timedelta(days=120)
+        rows = session.query(Transaction).filter(Transaction.type == 'debit', Transaction.date >= since) \
+            .order_by(Transaction.date.desc()).limit(60).all()
+        accts = {a.id: a.name for a in session.query(Account).all()}
+        return ok({'lines': [{'id': t.id, 'date': t.date.isoformat() if t.date else '', 'amount': round(float(t.amount or 0), 2),
+                              'what': (t.merchant or t.description or '')[:60], 'account': accts.get(t.account_id, '')}
+                             for t in rows]})
+
+
+@medical_bp.route('/<int:account_id>/budget', methods=['POST'])
+def medical_bill_budget(account_id):
+    """L4, on the household's tap: the agreed arrangement as a budget line (a bill on the Budget page, item 68)."""
+    import json as _j
+    from core.database import MedicalBillAccount, MedicalProvider
+    from core.health_boundary import is_health_category
+    with db_session() as session:
+        a = session.get(MedicalBillAccount, account_id)
+        arr = ((_j.loads(a.arrangement_json or '[]') or [{}])[-1]) if a else {}
+        if not a or not arr.get('monthly'):
+            return err('Record the arrangement the provider agreed first.')
+        prov = session.get(MedicalProvider, a.provider_id)
+        cat = next((c for c in session.query(Category).order_by(Category.id).all()
+                    if c.parent_id is None and is_health_category(c.name)), None)
+        item = BudgetItem(name=f'{prov.name if prov else "Medical bill"} - payment arrangement', amount=arr['monthly'],
+                          type='expense', category=cat.name if cat else 'Other', is_active=True)
+        session.add(item)
+        session.commit()
+        return ok({'budget_item_id': item.id, 'category': item.category, 'name': item.name, 'amount': item.amount})
+
+
+@accounts_bp.route('/health-summary', methods=['GET'])
+def health_summary_get():
+    """Item 100 HP5: health money out by month and by person, as recorded (core/health_page.py). Never a lever."""
+    from core import health_page
+    with db_session() as session:
+        return ok(health_page.summary(session))
+
+
 @accounts_bp.route('/health-reserve', methods=['GET'])
 def health_reserve_get():
     with db_session() as session:
@@ -1999,6 +2173,40 @@ def budget_pressure_route():
     return ok(result)
 
 
+def _recurring_pattern_groups(session, months: int = 6, min_occurrences: int = 3, tolerance_pct: float = 5.0):
+    """The patterns and the rows behind each: [(pattern, [(date, amount, category)])]. Item 108 R1: one payee from
+    one account (core/recurring_groups.py), a card switch read as one charge (R4)."""
+    from core import recurring_groups as rg
+    cutoff = date.today() - timedelta(days=30 * months)
+    rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
+                         Category.name).outerjoin(Category, Transaction.category_id == Category.id).filter(
+        Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.merchant != ''
+    ).order_by(Transaction.id).all()
+    names = {a.id: a.name for a in session.query(Account).all()}
+
+    existing_budgeted = {
+        b[0] for b in session.query(BudgetItem.name).filter_by(is_active=True).all()
+    }
+
+    patterns = []
+    for grp in rg.groups(rows, names):
+        amounts = [a for _, a, _ in grp['rows']]
+        if len(amounts) < min_occurrences or grp['payee'] in existing_budgeted:
+            continue
+        avg = sum(amounts) / len(amounts)
+        if avg <= 0:
+            continue
+        max_deviation_pct = max(abs(a - avg) / avg * 100 for a in amounts)
+        if max_deviation_pct <= tolerance_pct:
+            patterns.append(({
+                'merchant': grp['payee'], 'label': grp['label'], 'account': grp['account'],
+                'avg_amount': round(avg, 2), 'frequency': len(amounts),
+                'max_deviation_pct': round(max_deviation_pct, 1),
+            }, grp['rows']))
+    patterns.sort(key=lambda p: -p[0]['frequency'])
+    return patterns
+
+
 def detect_recurring_patterns(session, months: int = 6, min_occurrences: int = 3, tolerance_pct: float = 5.0) -> list:
     """
     Phase H2 Feature 4 (adaptive learning — recurring transaction
@@ -2007,35 +2215,11 @@ def detect_recurring_patterns(session, months: int = 6, min_occurrences: int = 3
     the "Netflix $15.99 every month" pattern. Skips merchants that already
     have an active budget item, since flagging something the user already
     budgets for isn't a suggestion, it's noise.
+
+    Item 108: read per account. `merchant` is the payee (what a budget line and an answer match, R5); `label` names
+    the account when the payee recurs from more than one (R3).
     """
-    cutoff = date.today() - timedelta(days=30 * months)
-    rows = session.query(Transaction.merchant, Transaction.amount).filter(
-        Transaction.type == 'debit', Transaction.date >= cutoff, Transaction.merchant != ''
-    ).all()
-
-    by_merchant = {}
-    for merchant, amount in rows:
-        by_merchant.setdefault(merchant, []).append(amount)
-
-    existing_budgeted = {
-        b[0] for b in session.query(BudgetItem.name).filter_by(is_active=True).all()
-    }
-
-    patterns = []
-    for merchant, amounts in by_merchant.items():
-        if len(amounts) < min_occurrences or merchant in existing_budgeted:
-            continue
-        avg = sum(amounts) / len(amounts)
-        if avg <= 0:
-            continue
-        max_deviation_pct = max(abs(a - avg) / avg * 100 for a in amounts)
-        if max_deviation_pct <= tolerance_pct:
-            patterns.append({
-                'merchant': merchant, 'avg_amount': round(avg, 2), 'frequency': len(amounts),
-                'max_deviation_pct': round(max_deviation_pct, 1),
-            })
-    patterns.sort(key=lambda p: -p['frequency'])
-    return patterns
+    return [p for p, _ in _recurring_pattern_groups(session, months, min_occurrences, tolerance_pct)]
 
 
 def reallocation_candidates(session, months: int = 6) -> list:
@@ -2134,16 +2318,9 @@ def trim_candidates(session, months: int = 6, limit: int = 12) -> list:
     the solution engine treats an unknown category as protected.
     """
     today = date.today()
-    cutoff = today - timedelta(days=30 * months)
     out = []
-    for pattern in detect_recurring_patterns(session, months=months)[:limit]:
-        merchant = pattern['merchant']
-        rows = session.query(
-            Transaction.date, Transaction.amount, Category.name
-        ).outerjoin(Category, Transaction.category_id == Category.id).filter(
-            Transaction.merchant == merchant, Transaction.type == 'debit',
-            Transaction.date >= cutoff
-        ).all()
+    # Item 108 R6: each account's charge is its own candidate, at its own monthly cost
+    for pattern, rows in _recurring_pattern_groups(session, months=months)[:limit]:
         if not rows:
             continue
         dates = [r[0] for r in rows if r[0]]
@@ -2157,7 +2334,8 @@ def trim_candidates(session, months: int = 6, limit: int = 12) -> list:
             continue
         names = [r[2] for r in rows if r[2]]
         out.append({
-            'name': merchant,
+            'name': pattern['label'],
+            'payee': pattern['merchant'],
             'monthly': round(sum(float(r[1] or 0) for r in rows) / span, 2),
             'category': max(set(names), key=names.count) if names else None,
         })
@@ -2362,7 +2540,17 @@ def _pay_state(session, today=None):
     ends = dict(session.query(Transaction.account_id, func.max(Transaction.date)).group_by(Transaction.account_id).all())
     deposits = [{'date': t.date, 'amount': t.amount or 0, 'payer': payer_key(t), 'account_id': t.account_id}
                 for t in rows if (t.amount or 0) > 0 and payer_key(t)]
-    return ic.detect_pay(deposits, _pay_kinds(session), ends, today)
+    from collections import Counter
+    out = ic.detect_pay(deposits, _pay_kinds(session), ends, today)
+    # `payer` is the matching key (lower-cased); `name` is the payer as their deposits spell it, for what is shown
+    spelled = {}
+    for t in rows:
+        k = payer_key(t)
+        if k and (t.merchant or '').strip():
+            spelled.setdefault(k, Counter())[t.merchant.strip()] += 1
+    for p in out.get('payers') or []:
+        p['name'] = spelled[p['payer']].most_common(1)[0][0] if p['payer'] in spelled else p['payer'].title()
+    return out
 
 
 def _income_change_state(session):
@@ -2939,7 +3127,7 @@ def trips_commit():
     with db_session() as session:
         tr.carry_setting(session)
         t = Trip(label=label, depart=(b.get('depart') or '')[:10] or None, ret=(b.get('ret') or '')[:10] or None,
-                 total=total, lines_json=json.dumps(tr.lines_from_budget(b)), status='going', going_at=datetime.utcnow())
+                 total=total, lines_json=json.dumps(tr.lines_from_budget(b)), status='going', going_at=datetime.now())
         session.add(t)
         session.commit()
         return ok(_trip_json(session, t, plan=True))
@@ -2961,7 +3149,7 @@ def trips_edit(tid):
                 return err('A trip can be going, planning or cancelled here; "done" comes after it, on a yes.')
             t.status = b['status']
             if b['status'] == 'going' and not t.going_at:
-                t.going_at = datetime.utcnow()
+                t.going_at = datetime.now()
         if 'sources' in b:
             clean = []
             for s in b.get('sources') or []:
@@ -3062,7 +3250,7 @@ def trips_use_charges(tid):
         t.actual_spent = round(sum(offered[p]['amount'] for p in picked), 2)
         t.actual_txn_ids = ','.join(picked)
         t.status = 'done'
-        t.done_at = datetime.utcnow()
+        t.done_at = datetime.now()
         log_historian_event(session, 'trip_actual', expected_value=round(float(t.total or 0), 2),
                             actual_value=t.actual_spent, context={'trip_id': t.id})
         session.commit()
@@ -3109,27 +3297,29 @@ def _price_changes(session, today=None):
     """W2: every recurring charge whose price stepped in the last 13 months, from the ledger (core/price_change.py).
     Derived on every read - nothing about a finding is stored (no silent learning)."""
     from core import price_change as pc
+    from core import recurring_groups as rg
     today = today or date.today()
-    rows = session.query(Transaction.merchant, Transaction.date, Transaction.amount, Category.name).outerjoin(
-        Category, Category.id == Transaction.category_id).filter(
+    rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
+                         Category.name).outerjoin(Category, Category.id == Transaction.category_id).filter(
         Transaction.type == 'debit', Transaction.merchant != '', Transaction.date >= today - timedelta(days=396),
         Transaction.date <= today).all()
-    by, cat = {}, {}
-    for m, d, a, c in rows:
-        if m and d:
-            by.setdefault(m, []).append((d, a))
-            cat[m] = c or ''
+    names = {a.id: a.name for a in session.query(Account).all()}
     out = []
-    for m, xs in by.items():
+    # item 108: a price steps on one account's charges; `payee` matches the budget line and the tap (R5), `label`
+    # names the account when the payee recurs from more than one (R3)
+    for grp in rg.groups(rows, names):
+        m, xs = grp['payee'], [(d, a) for d, a, _ in grp['rows']]
+        cat = {m: grp['rows'][-1][2] or ''}
         s = pc.step(xs, cat[m])
         if not s:
             continue
         after = sorted(d for d, _ in xs if d >= s['first_after'])
         line = _price_line(session, m)
-        out.append({'payee': m, 'category': cat[m], 'before': s['before'], 'after': s['after'],
+        out.append({'payee': m, 'label': grp['label'], 'account': grp['account'], 'category': cat[m],
+                    'before': s['before'], 'after': s['after'],
                     'last_before': s['last_before'].isoformat(), 'first_after': s['first_after'].isoformat(),
                     'seen_on': after[pc.MIN_AFTER - 1].isoformat(),   # the charge that made it a step (W2-a)
-                    'after_count': s['after_count'], 'kind': s['kind'], 'sentence': pc.sentence(m, s),
+                    'after_count': s['after_count'], 'kind': s['kind'], 'sentence': pc.sentence(grp['label'], s),
                     'records': s['records'], 'line': line,
                     'line_matches': bool(line and abs(line['amount'] - s['after']) < 0.01)})
     out.sort(key=lambda x: x['seen_on'], reverse=True)
@@ -3164,8 +3354,9 @@ def price_changes_apply():
     """W2: the person's one tap - the budget line takes the new price. The amount is the record's, worked out again
     here, never the page's; the reply carries the old amount for Undo."""
     payee = (request.get_json() or {}).get('payee')
+    label = (request.get_json() or {}).get('label') or payee          # item 108: which account's change, by its label
     with db_session() as session:
-        f = next((x for x in _price_changes(session) if x['payee'] == payee), None)
+        f = next((x for x in _price_changes(session) if x['payee'] == payee and x['label'] == label), None)
         if not f or not f['line']:
             return err('No price change with a budget line was found for that payee.', 404)
         old = _set_line_amount(session, f['line']['kind'], f['line']['id'], f['after'])
@@ -3192,6 +3383,281 @@ def price_changes_undo():
         return ok({'restored': amount})
 
 
+# ── Item 107 (SAME_CHARGE_TWO_ACCOUNTS.md): the same charge paid from two accounts in the same month ─────────────
+two_accounts_bp = Blueprint('two_accounts', __name__)
+
+
+def _two_accounts(session, today=None):
+    """D1-D5 on the record, and what each pair shows now under D8. Derived on every read."""
+    from core import two_accounts as ta
+    today = today or date.today()
+    cats = {c.id: c for c in session.query(Category).all()}
+    accounts = {a.id: a.name for a in session.query(Account).all()}
+    since = date(today.year, today.month, 1) - timedelta(days=31 * (ta.WINDOW - 1) + 1)
+    rows = session.query(Transaction).filter(Transaction.type == 'debit', Transaction.date >= since,
+                                             Transaction.date <= today).all()
+    said = _setting_json(session, ta.SETTING, []) or []
+    found = ta.pairs(rows, accounts, ta.payment_category_ids(cats), today)
+    return found, said, accounts
+
+
+@two_accounts_bp.route('', methods=['GET'])
+def two_accounts_get():
+    """D6 (a): Needs attention's items; D6 (b)'s single months stay in Ask why. D8: what the person said, for Settings."""
+    from core import two_accounts as ta
+    with db_session() as session:
+        found, said, accounts = _two_accounts(session)
+        today = date.today()
+        out = [ta.item(p, st, said, accounts) for p in found for st in [ta.state(p, said, today)] if st]
+        return ok({'attention': out, 'said': ta.listed(said)})
+
+
+@two_accounts_bp.route('/answer', methods=['POST'])
+@require_json
+def two_accounts_answer():
+    """D8: the person's answer, appended as their statement. It changes nothing else (D9)."""
+    from core import two_accounts as ta
+    b = request.get_json() or {}
+    answer = b.get('answer')
+    if answer not in ta.ANSWERS:
+        return err('That is not one of the answers.', 400)
+    with db_session() as session:
+        found, said, _ = _two_accounts(session)
+        p = next((x for x in found if x['key'] == b.get('pair')), None)
+        st = p and ta.state(p, said, date.today())
+        if not st:
+            return err('Groundwork is not asking about that pair now.', 404)
+        said = ta.append(said, p, answer, again=(st == 'again'))
+        _set_setting(session, ta.SETTING, json.dumps(said))
+        log_historian_event(session, 'two_accounts_answered',
+                            context={'payee_key': p['canon'], 'accounts': p['accounts'], 'answer': answer,
+                                     'again': st == 'again'})
+        session.commit()
+        return ok({'said': said[-1]})
+
+
+@two_accounts_bp.route('/undo', methods=['POST'])
+@require_json
+def two_accounts_undo():
+    """D8: Undo adds a withdrawal of one statement; it removes nothing."""
+    from core import two_accounts as ta
+    n = (request.get_json() or {}).get('n')
+    with db_session() as session:
+        said = _setting_json(session, ta.SETTING, []) or []
+        out = ta.withdraw(said, n) if isinstance(n, int) else None
+        if out is None:
+            return err('There is no such answer to undo.', 404)
+        gone = next(s for s in said if s.get('n') == n)
+        _set_setting(session, ta.SETTING, json.dumps(out))
+        log_historian_event(session, 'two_accounts_answered',
+                            context={'payee_key': gone['key'].split('|')[0], 'accounts': gone.get('accounts'),
+                                     'answer': 'withdrawn', 'withdraws': gone.get('answer')})
+        session.commit()
+        return ok({'withdrawn': n})
+
+
+# ── Item 106 (YEARLY_PRICE_STEPS.md): a bill that steps at the same time each year - said, projected, asked ───────
+yearly_steps_bp = Blueprint('yearly_steps', __name__)
+# Y5: usage bills item 26 already estimates from EIA's regional price - a yearly rate step is in that figure already,
+# so a household step on top would count it twice (section 7). The rest are asked about (Y5(c)).
+_ITEM26_USAGE = {'electric', 'electricity', 'natural gas', 'propane', 'heating oil'}
+
+
+def _yearly_answers(session):
+    return _setting_json(session, 'yearly_step_answers', {}) or {}
+
+
+def _yearly_steps(session, today=None):
+    """Item 106: every payee's yearly price steps, from the whole ledger and the household's answers (Y1-Y8).
+    Derived on every read; only the answers and the person's taps are stored."""
+    from core import yearly_steps as ys
+    from core import recurring_groups as rg
+    from core.price_change import USAGE_CATEGORIES
+    today = today or date.today()
+    rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
+                         Category.name).outerjoin(Category, Category.id == Transaction.category_id).filter(
+        Transaction.type == 'debit', Transaction.merchant != '', Transaction.date <= today).all()
+    names = {a.id: a.name for a in session.query(Account).all()}
+    answers = _yearly_answers(session)
+    follow = set(_setting_json(session, 'yearly_step_follow', []) or [])
+    out = []
+    # item 108: one payee from one account; the household's answers and the budget line are the payee's (R5), the
+    # words name the account when the payee recurs from more than one (R3)
+    for grp in rg.groups(rows, names):
+        m, label, xs = grp['payee'], grp['label'], [(d, a) for d, a, _ in grp['rows']]
+        cat = {m: grp['rows'][-1][2] or ''}
+        c = cat[m].strip().lower()
+        mine = answers.get(m, [])
+        answered = [a['month'] for a in mine]
+        line = None
+        if c in USAGE_CATEGORIES:
+            if c in _ITEM26_USAGE:
+                continue
+            steps = ys.apply_answers([], mine)                           # Y5(c): only the household's word
+            pat = ys.pattern(steps)
+            sm = ys.same_month(xs, today)
+            q = None
+            if sm and (today.year * 12 + today.month) - (int(sm['month'][:4]) * 12 + int(sm['month'][5:7])) <= 1 \
+                    and abs(sm['pct']) >= ys.FLOOR and not any(
+                    abs((int(sm['month'][:4]) * 12 + int(sm['month'][5:7])) - (int(a[:4]) * 12 + int(a[5:7]))) <= 11
+                    for a in answered):
+                way = 'higher' if sm['pct'] > 0 else 'lower'
+                mon = date(int(sm['month'][:4]), int(sm['month'][5:7]), 1).strftime('%B')
+                q = {'kind': 'rate', 'month': sm['month'],
+                     'text': f"Your {mon} bill from {label} was {abs(sm['pct']) * 100:.1f}% {way} than last {mon}'s "
+                             f"(${sm['this']:,.2f} against ${sm['last_year']:,.2f}). A usage bill follows what is used "
+                             f"as well as the rate. Did your rate change?"}
+            if not pat and not q:
+                continue
+            line = _price_line(session, m)
+            level = line['amount'] if line else None
+            proj = ys.projection(pat, level, today) if pat else None
+            out.append({'payee': m, 'label': label, 'account': grp['account'], 'category': cat[m], 'kind': 'usage',
+                        'sentence': ys.sentence(label, pat),
+                        'steps': (pat or {}).get('steps', []), 'pattern': bool(pat and pat['pattern']),
+                        'projection': proj, 'question': q, 'line': line,
+                        'followed': bool(line and line['kind'] == 'budget' and line['id'] in follow and proj)})
+            continue
+        info = ys.read(xs, cat[m])
+        if not info:
+            continue
+        steps = ys.apply_answers(info['steps'], mine)
+        pat = ys.pattern(steps)
+        if not pat:
+            continue
+        q = ys.question(info, pat, today, answered)
+        if q:
+            q = {'kind': 'price', **q, 'text': f"Is your {label} bill now ${q['amount']:,.2f}?"}
+        line = _price_line(session, m)
+        proj = ys.projection(pat, info['level'], today)
+        out.append({'payee': m, 'label': label, 'account': grp['account'], 'category': cat[m], 'kind': info['kind'],
+                    'sentence': ys.sentence(label, pat),
+                    'steps': pat['steps'], 'pattern': pat['pattern'], 'level': info['level'],
+                    'projection': proj, 'question': q, 'line': line,
+                    'followed': bool(line and line['kind'] == 'budget' and line['id'] in follow and proj)})
+    out.sort(key=lambda x: (not x['question'], not x['projection'], x['label'].lower()))
+    return out
+
+
+def _yearly_follow_amounts(session, today=None):
+    """Y6: {budget item id: projection} for rows the household follows, from the expected month on. A row not
+    followed keeps its saved amount (M1); nothing is read when nothing is followed."""
+    if not (_setting_json(session, 'yearly_step_follow', []) or []):
+        return {}
+    this_month = (today or date.today()).strftime('%Y-%m')
+    return {x['line']['id']: {**x['projection'], 'payee': x['payee']} for x in _yearly_steps(session, today)
+            if x['followed'] and x['projection']['month'] <= this_month}
+
+
+@yearly_steps_bp.route('', methods=['GET'])
+def yearly_steps_get():
+    with db_session() as session:
+        return ok({'items': _yearly_steps(session)})
+
+
+@yearly_steps_bp.route('/answer', methods=['POST'])
+@require_json
+def yearly_steps_answer():
+    """Y7: the household's answer - the only write, besides the line it changes (shown first, with Undo). Every
+    figure but the person's own is worked out again here, never taken from the page."""
+    b = request.get_json() or {}
+    payee, answer = b.get('payee'), b.get('answer')
+    if answer not in ('yes', 'amount', 'rate', 'no_change', 'not_sure'):
+        return err('That is not an answer Groundwork asks for.', 400)
+    with db_session() as session:
+        label = b.get('label') or payee                              # item 108: which account's question
+        x = next((i for i in _yearly_steps(session) if i['payee'] == payee and i['label'] == label and i['question']), None)
+        if not x:
+            return err('There is no question open for that payee.', 404)
+        q = x['question']
+        rec = {'month': q['month'], 'answer': answer, 'at': datetime.now().isoformat(timespec='seconds')}
+        new_amount = None
+        if q['kind'] == 'price':
+            if answer not in ('yes', 'amount', 'not_sure'):
+                return err('That answer is for a usage bill.', 400)
+            rec['before'] = q['before']
+            if answer == 'yes':
+                rec['amount'] = new_amount = q['amount']
+            elif answer == 'amount':
+                try:
+                    rec['amount'] = new_amount = round(float(b.get('amount')), 2)
+                except (TypeError, ValueError):
+                    return err('An amount is needed.', 400)
+                if new_amount <= 0:
+                    return err('An amount is needed.', 400)
+        else:
+            if answer not in ('rate', 'no_change', 'not_sure'):
+                return err('That answer is for a fixed price.', 400)
+            if answer == 'rate':
+                try:
+                    pct = float(b.get('pct')) / 100.0
+                except (TypeError, ValueError):
+                    return err('The change, as a percent, is needed.', 400)
+                if not -0.5 < pct < 1.0 or pct == 0:
+                    return err('That percent is outside what a rate change would be.', 400)
+                rec['pct'] = pct
+                if x['line']:
+                    new_amount = round(x['line']['amount'] * (1 + pct), 2)
+        answers = _yearly_answers(session)
+        answers.setdefault(payee, []).append(rec)
+        _set_setting(session, 'yearly_step_answers', json.dumps(answers))
+        change = None
+        if new_amount is not None and x['line'] and abs(new_amount - x['line']['amount']) >= 0.01:
+            old = _set_line_amount(session, x['line']['kind'], x['line']['id'], new_amount)
+            if old is not None:
+                change = {'line': x['line']['name'], 'kind': x['line']['kind'], 'id': x['line']['id'],
+                          'from': old, 'to': new_amount}
+        session.commit()
+        return ok({'recorded': rec, 'change': change})
+
+
+@yearly_steps_bp.route('/undo', methods=['POST'])
+@require_json
+def yearly_steps_undo():
+    """Undo an answer: the answer is removed and the line, if it changed, goes back."""
+    b = request.get_json() or {}
+    payee, month = b.get('payee'), b.get('month')
+    with db_session() as session:
+        answers = _yearly_answers(session)
+        mine = answers.get(payee, [])
+        keep = [a for a in mine if a.get('month') != month]
+        if len(keep) == len(mine):
+            return err('There is no answer for that month to undo.', 404)
+        answers[payee] = keep
+        _set_setting(session, 'yearly_step_answers', json.dumps(answers))
+        ch = b.get('change')
+        if isinstance(ch, dict) and ch.get('kind') in ('budget', 'recurring'):
+            try:
+                amount = round(float(ch.get('from')), 2)
+            except (TypeError, ValueError):
+                amount = None
+            if amount is not None and amount >= 0:
+                _set_line_amount(session, ch['kind'], ch.get('id'), amount)
+        session.commit()
+        return ok({'undone': month})
+
+
+@yearly_steps_bp.route('/follow', methods=['POST'])
+@require_json
+def yearly_steps_follow():
+    """Y6: the household chooses whether a budget row's totals follow its yearly projection (M1); the saved amount
+    is never changed by following."""
+    b = request.get_json() or {}
+    try:
+        item_id = int(b.get('item_id'))
+    except (TypeError, ValueError):
+        return err('A budget row is needed.', 400)
+    with db_session() as session:
+        if not session.get(BudgetItem, item_id):
+            return err('That budget row is gone.', 404)
+        follow = [i for i in (_setting_json(session, 'yearly_step_follow', []) or []) if i != item_id]
+        if b.get('on'):
+            follow.append(item_id)
+        _set_setting(session, 'yearly_step_follow', json.dumps(follow))
+        session.commit()
+        return ok({'following': follow})
+
+
 # ── Item 65 W1 (AGENT_W_ITEMS.md): patterns a long history shows - asked about, never assumed ────────────────────
 first_import_bp = Blueprint('first_import', __name__)
 _MONTH_NAMES = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
@@ -3205,9 +3671,10 @@ def _first_import_findings(session):
     from core import checkin as ck
     from statistics import median
     from core import first_import as fi
+    from core import recurring_groups as rg
     rows = session.query(Transaction.merchant, Transaction.date, Transaction.amount, Transaction.category_id,
-                         Category.name).outerjoin(Category, Category.id == Transaction.category_id).filter(
-        Transaction.type == 'debit').all()
+                         Category.name, Transaction.account_id).outerjoin(
+        Category, Category.id == Transaction.category_id).filter(Transaction.type == 'debit').all()
     dates = [r[1] for r in rows if r[1]]
     months = fi.complete_months(dates)
     if len(months) < fi.MIN_MONTHS:
@@ -3216,22 +3683,26 @@ def _first_import_findings(session):
                            f'{len(months)} full month{"s" if len(months) != 1 else ""} so far.'}
     said_b = [e for e in _setting_json(session, 'yearly_bills_json', []) or [] if isinstance(e, dict)]
     said_h = [e for e in _setting_json(session, 'heavy_months_json', []) or [] if isinstance(e, dict)]
-    by, cat = {}, {}
-    for m, d, a, _, c in rows:
-        if m and d:
-            by.setdefault(m, []).append((d, a))
-            cat[m] = c or ''
+    # item 108: a renewal is one payee from one account, named by its label; the answer is the payee's (R5)
+    names = {a.id: a.name for a in session.query(Account).all()}
+    by, cat, of = {}, {}, {}
+    for grp in rg.groups([(m, acct, d, a, c) for m, d, a, _, c, acct in rows], names):
+        by[grp['label']] = [(d, a) for d, a, _ in grp['rows']]
+        cat[grp['label']] = grp['rows'][-1][2] or ''
+        of[grp['label']] = grp
     answered = {_norm_payee(e.get('payee')): e.get('answer') for e in said_b}
     ren = []
     for f in fi.renewals(by, cat, (min(dates), max(dates))):
         f['sentence'] = fi.sentence(f)
+        grp = of[f['payee']]
+        f['label'], f['payee'], f['account'] = f['payee'], grp['payee'], grp['account']
         f['answer'] = answered.get(_norm_payee(f['payee']))
         ren.append(f)
     # heavy months: spending by complete month (transfers are not spending), and each category's usual month
     tr = ck._transfer_ids(session)
     keep = set(months)
     totals, cats = {k: 0.0 for k in months}, {}
-    for _, d, a, cid, c in rows:
+    for _, d, a, cid, c, _acct in rows:
         k = d.strftime('%Y-%m') if d else None
         if k in keep and cid not in tr:
             totals[k] += abs(float(a or 0))
@@ -3302,8 +3773,12 @@ def first_import_answer():
                 return err('That finding is not in the record.', 404)
             said = [e for e in _setting_json(session, 'yearly_bills_json', []) or []
                     if isinstance(e, dict) and _norm_payee(e.get('payee')) != _norm_payee(hit['payee'])]
-            said.append({'payee': hit['payee'], 'amount': hit['amount'], 'months': hit['months'], 'day': hit['day'],
-                         'rhythm': hit['rhythm'], 'answer': answer, 'at': now})
+            # item 108 R5 (a): the answer is the payee's - kept for each account's renewal of it, so a yes puts every
+            # one in its own months on the calendar; the stored shape is unchanged
+            for x in f['renewals']:
+                if _norm_payee(x['payee']) == _norm_payee(hit['payee']):
+                    said.append({'payee': x['payee'], 'amount': x['amount'], 'months': x['months'], 'day': x['day'],
+                                 'rhythm': x['rhythm'], 'answer': answer, 'at': now})
             _set_setting(session, 'yearly_bills_json', json.dumps(said))
         elif b.get('kind') == 'heavy':
             hit = next((x for x in f['heavy'] if x['month'] == b.get('month')), None)
@@ -3757,6 +4232,35 @@ def tidy_unmatched():
         return ok({'moved': len(moved), 'into': target.name})
 
 
+@tidy_bp.route('/new-vendors', methods=['GET'])
+def new_vendors_get():
+    """Item 98: the new vendors the bank's own label filed, waiting to be asked about (the Ledger shows the first)."""
+    from core import new_vendor as nv
+    with db_session() as session:
+        return ok({'waiting': nv.waiting(session, nv.load(session))})
+
+
+@tidy_bp.route('/new-vendors/answer', methods=['POST'])
+@require_json
+def new_vendors_answer():
+    """Item 98 N5: {key, answer: 'yes' | 'no'}. Recorded, so the vendor is never asked about again. Nothing about the
+    transaction changes here: Yes opens it for the person to change; No leaves it."""
+    from core import new_vendor as nv
+    b = request.get_json() or {}
+    if b.get('answer') not in ('yes', 'no'):
+        return err("Answer 'yes' or 'no'.")
+    with db_session() as session:
+        items = nv.load(session)
+        e = next((x for x in items if x.get('key') == b.get('key') and not x.get('answer')), None)
+        if not e:
+            return err('That vendor is not asked about now.', 404)
+        e['answer'] = b['answer']
+        e['answered_at'] = datetime.now().isoformat(timespec='seconds')
+        _set_setting(session, nv.SETTING, json.dumps(items))
+        session.commit()
+        return ok({'key': e['key'], 'answer': e['answer']})
+
+
 @tidy_bp.route('/undo', methods=['POST'])
 def tidy_undo():
     """Undo puts back exactly what the last tidy tap changed."""
@@ -3816,10 +4320,25 @@ calendar_bp = Blueprint('calendar', __name__)
 
 def _calendar_entries(session, start, end, include_detected=True):
     from core import upcoming
+    from core import yearly_steps as ys
     recurring = _setting_json(session, 'recurring_items_json', []) or []
-    return upcoming.entries(session, start, end, pay=_pay_state(session, start)['payers'],
-                            recurring=recurring if isinstance(recurring, list) else [],
-                            people=_setting_json(session, 'payer_people', {}) or {}, include_detected=include_detected)
+    out = upcoming.entries(session, start, end, pay=_pay_state(session, start)['payers'],
+                           recurring=recurring if isinstance(recurring, list) else [],
+                           people=_setting_json(session, 'payer_people', {}) or {}, include_detected=include_detected)
+    # item 106 Y10: the month a yearly price step would fall in - expected from three steps, possible from two
+    for x in _yearly_steps(session, start):
+        nxt = x['pattern'] and ys.next_expected({'pattern': True, 'steps': x['steps']})
+        if not nxt:
+            continue
+        when = date(int(nxt[:4]), int(nxt[5:7]), 1)
+        if not start <= when <= end:
+            continue
+        three = len(x['steps']) >= ys.MIN_PROJECT
+        out.append({'date': when.isoformat(), 'kind': 'step', 'title': f"{x['payee']}: its yearly price step month",
+                    'amount': x['projection']['amount'] if x['projection'] else None,
+                    'certainty': upcoming.EXPECTED if three else upcoming.POSSIBLE,
+                    'source': 'its price steps a year apart' + ('' if three else ' (two so far)'), 'view': 'budget'})
+    return sorted(out, key=lambda e: (e['date'], e['kind'], e['title']))       # upcoming's dates are ISO strings
 
 
 @calendar_bp.route('/recurring', methods=['GET'])
@@ -3851,16 +4370,29 @@ usage_bp = Blueprint('usage', __name__)
 @evidence_bp.route('', methods=['GET'])
 def evidence_for_surface():
     """E2/E3/E9: the accepted entries that apply on one surface, chosen from the person's goals and debts only,
-    each with the person's own answer to its offer, if they gave one."""
+    each with the person's own answer to its offer, if they gave one.
+    Rob 2026-10-21: one card per question - entries that ask the same thing are one card, the first leading and the
+    rest in 'also', and one answer covers the card; and each card carries the person's own record ('yours')."""
     from core import evidence as ev
     surface = (request.args.get('surface') or '').strip()
     with db_session() as session:
         answers = _setting_json(session, 'evidence_answers', []) or []
-        out = []
-        for e in ev.select(session, surface):
-            last = next((a for a in reversed(answers) if a.get('id') == e['id']), None)
+        chosen = ev.select(session, surface)
+        cushion = _cash_above_floors(session) if any('no_savings_goal' in e['applies_when'] for e in chosen) else None
+        out, by_offer = [], {}
+        for e in chosen:
+            lead = by_offer.get(e['offer'])
+            if lead is not None:
+                lead['also'].append({k: e[k] for k in ('id', 'finding', 'limits', 'source', 'strength')})
+                lead['ids'].append(e['id'])
+                continue
             intro = _setting_json(session, f"evidence_intro_{e['id']}_{surface}")
-            out.append({**e, 'answer': last, 'intro': intro.get('text') if isinstance(intro, dict) else None})
+            card = {**e, 'also': [], 'ids': [e['id']], 'yours': ev.yours(session, e, cushion),
+                    'intro': intro.get('text') if isinstance(intro, dict) else None}
+            by_offer[e['offer']] = card
+            out.append(card)
+        for card in out:
+            card['answer'] = next((a for a in reversed(answers) if a.get('id') in card['ids']), None)
         return ok({'surface': surface, 'surface_words': ev.SURFACE_WORDS.get(surface), 'entries': out})
 
 
@@ -3906,7 +4438,8 @@ def evidence_answer():
         return ok({'answers': [a for a in answers if a['id'] == eid]})
 
 
-# E8: the person's own rhythm. Recorded and shown to them; no engine, selection, ranking or tile reads it (ruling 6).
+# E8: the person's own rhythm. Recorded; no engine, selection, ranking or tile reads it (ruling 6). Not shown on the
+# working picture since Rob 2026-10-21 ("let's bail" on the count there), and kept: "we will need it in other areas".
 # usage_open and usage_rhythm are the only code that touches the list of opens (s188).
 @usage_bp.route('/open', methods=['POST'])
 def usage_open():
@@ -3920,12 +4453,10 @@ def usage_open():
         return ok({'recorded': True})
 
 
-@usage_bp.route('/rhythm', methods=['GET'])
-def usage_rhythm():
-    """E8: "You opened Groundwork 9 times in the last 30 days, mostly Sunday evenings." The 'mostly' is named only
-    when one day-and-time holds at least 40% of at least 4 opens."""
-    with db_session() as session:
-        opens = _setting_json(session, 'app_opens', []) or []
+def usage_rhythm(session):
+    """E8: the opens of the last 30 days, and the 'mostly' (a day-and-time named only when it holds at least 40% of at
+    least 4 opens) - {'opens_30d', 'mostly'}. Kept for other areas to use (Rob 2026-10-21); no route serves it now."""
+    opens = _setting_json(session, 'app_opens', []) or []
     cutoff = (datetime.now() - timedelta(days=30)).isoformat(timespec='seconds')
     recent = []
     for o in opens:
@@ -3945,7 +4476,7 @@ def usage_rhythm():
         top, n = max(tally.items(), key=lambda kv: kv[1])
         if n / len(recent) >= 0.4:
             mostly = top
-    return ok({'opens_30d': len(recent), 'mostly': mostly})
+    return {'opens_30d': len(recent), 'mostly': mostly}
 
 
 checkin_bp = Blueprint('checkin', __name__)
@@ -3953,7 +4484,7 @@ checkin_bp = Blueprint('checkin', __name__)
 
 # ── Item 76 - the Sunday check-in (SUNDAY_CHECKIN.md S1-S12) and the overnight narration rule (S1/S2) ───────────
 def _newest_import(session):
-    """When the newest imported records arrived (UTC) - hand-kept and Groundwork-written records never count."""
+    """When the newest imported records arrived (local time, item 109) - hand-kept and Groundwork-written records never count."""
     return session.query(func.max(Transaction.created_at)).filter(
         Transaction.source.isnot(None), Transaction.source != '', Transaction.source != 'manual').scalar()
 
@@ -3995,6 +4526,16 @@ def checkin_get():
         w0, w1 = ck.week_bounds(today)
         f['price_changes'] = [{'sentence': x['sentence'], 'payee': x['payee']} for x in _price_changes(session, today)
                               if w0.isoformat() <= x['seen_on'] <= w1.isoformat()]
+        # item 106 Y10: a yearly projection the week its month begins; a question the week its new price landed
+        f['yearly_steps'] = []
+        for x in _yearly_steps(session, today):
+            q, p = x['question'], x['projection']
+            begins = lambda m: w0.isoformat() <= m + '-01' <= w1.isoformat()
+            if q and w0.isoformat() <= (q.get('charge_date') or q['month'] + '-01') <= w1.isoformat():
+                f['yearly_steps'].append({'payee': x['payee'], 'sentence': x['sentence'], 'question': q['text']})
+            elif p and begins(p['month']):
+                f['yearly_steps'].append({'payee': x['payee'], 'sentence': x['sentence'],
+                                          'projection': {'month': p['month'], 'amount': p['amount']}})
         key = today.isoformat()
         f['last_import'] = _last_import_state(_newest_import(session), datetime.utcnow())
         return ok({**f, 'date': key, 'is_sunday': today.weekday() == 6,
@@ -4078,7 +4619,7 @@ def narration_due():
             last_dt = datetime.fromisoformat(last) if last else None
         except (TypeError, ValueError):
             last_dt = None
-        fresh, unwritten = _narration_rule(newest, last_dt, datetime.utcnow())
+        fresh, unwritten = _narration_rule(newest, last_dt, datetime.now())
         ok_to_run = fresh and unwritten
         today = date.today()
         return ok({'run': ok_to_run, 'fresh': fresh, 'unwritten': unwritten,
@@ -4091,7 +4632,7 @@ def narration_done():
     """S1: the night's narration is written - nothing more runs until a newer import arrives."""
     with db_session() as session:
         # full precision: an import in the same second as this must not read as newer than it
-        _set_setting(session, 'narration_last_at', json.dumps(datetime.utcnow().isoformat()))
+        _set_setting(session, 'narration_last_at', json.dumps(datetime.now().isoformat()))
         session.commit()
         return ok({'done': True})
 
@@ -4259,6 +4800,7 @@ WHY_ROUTE_SYSTEM = (
     'wrong_kind: deposits filed as spending, or charges filed as income.\n'
     'stopped: a regular paycheck or deposit that has not come in.\n'
     'duplicates: the same transaction showing twice.\n'
+    'two_accounts: the same charge or subscription paid from two different accounts.\n'
     'own_transfers: money moved between their own accounts counted as income.\n'
     'empty_months: months or accounts with no records.\n'
     'unsure: about their records, and two or more checks fit equally.\n'
@@ -4271,6 +4813,7 @@ WHY_ROUTE_SYSTEM = (
     '"Why are my paychecks counted as spending?" -> wrong_kind\n'
     '"My paycheck did not come in" -> stopped\n'
     '"The same charge shows up twice" -> duplicates\n'
+    '"Am I paying for Netflix from two accounts?" -> two_accounts\n'
     '"Is my savings transfer counted as income?" -> own_transfers\n'
     '"Why are there no transactions in April?" -> empty_months\n'
     '"Something looks off" -> unsure\n'
@@ -4293,8 +4836,8 @@ def why_route_outside(q):
     return not WHY_ROUTE_WORDS.search(q) or bool(WHY_ACT_WORDS.search(q))
 
 
-WHY_ROUTE_OPTIONS = ('inputs_income', 'payer_switch', 'wrong_kind', 'stopped', 'duplicates', 'own_transfers',
-                     'empty_months', 'unsure', 'none')
+WHY_ROUTE_OPTIONS = ('inputs_income', 'payer_switch', 'wrong_kind', 'stopped', 'duplicates', 'two_accounts',
+                     'own_transfers', 'empty_months', 'unsure', 'none')
 
 
 @why_bp.route('/route', methods=['POST'])
@@ -4712,7 +5255,7 @@ def stale_imports(session, today=None):
     The fact is the date the last import landed (its transactions' created_at), not the latest
     transaction date: a quiet account imported yesterday is up to date.
     """
-    now = today or datetime.utcnow()
+    now = today or datetime.now()
     rows = session.query(
         Transaction.account_id, func.max(Transaction.created_at)
     ).filter(
@@ -4742,7 +5285,7 @@ def imports_behind_this_month(session, today=None):
     The imported accounts (hand-kept ones never count) with nothing imported since the month began. While
     any is listed, the month's spending is not known, and a tile says so instead of stating a pace.
     """
-    now = today or datetime.utcnow()
+    now = today or datetime.now()
     start = datetime(now.year, now.month, 1)
     rows = session.query(Transaction.account_id, func.max(Transaction.created_at)).filter(
         Transaction.account_id.isnot(None),
@@ -4812,7 +5355,7 @@ def dashboard_dismiss():
     """
     fp = (request.json or {}).get('fingerprint')
     if not isinstance(fp, str) or not fp or len(fp) > 300 or fp.split('|', 1)[0] not in (
-            'payment_due', 'import_stale', 'blocked_conclusion', 'date_ends', 'fsa_deadline'):   # item 86 F5
+            'payment_due', 'import_stale', 'blocked_conclusion', 'date_ends', 'fsa_deadline', 'bill_due'):   # item 86 F5, item 94 L6
         return err('a fingerprint of a ruled attention kind is required')
     with db_session() as session:
         dismissed = [d for d in _dashboard_json(session, 'dashboard_dismissed', []) if d != fp]
@@ -5128,7 +5671,7 @@ def dashboard_ask():
             shown = e['id'] in _user_tiles(_layout(session)) and e['id'] not in _layout(session)['hidden']
             return ok({'match': {'id': e['id'], 'title': e['title'], 'shown': shown}, 'backed': ok_, 'needs': needs})
         reqs = _dashboard_json(session, 'dashboard_tile_requests', [])
-        reqs.append({'text': text, 'at': datetime.utcnow().isoformat(timespec='seconds')})
+        reqs.append({'text': text, 'at': datetime.now().isoformat(timespec='seconds')})
         reqs = reqs[-_REQUEST_MAX_COUNT:]
         _dashboard_store(session, 'dashboard_tile_requests', reqs)
         session.commit()
@@ -5263,7 +5806,7 @@ def _cache_rows(session, key, rows):
     same series (degree days) on a cold cache: the second insert of the key fails. The rows are still good - this
     request returns them - and its session is rolled back, never left failed for the next query."""
     try:
-        _dashboard_store(session, key, {'fetched_at': datetime.utcnow().isoformat(), 'rows': rows})
+        _dashboard_store(session, key, {'fetched_at': datetime.now().isoformat(), 'rows': rows})
         session.commit()
     except Exception as e:                       # noqa: BLE001 - another request cached the same rows first
         session.rollback()
@@ -5276,7 +5819,7 @@ def _steo(session, series, fetch=True):
     cached = _dashboard_json(session, key, None)
     if cached and cached.get('rows'):
         try:
-            age = datetime.utcnow() - datetime.fromisoformat(cached['fetched_at'])
+            age = datetime.now() - datetime.fromisoformat(cached['fetched_at'])
         except (KeyError, ValueError, TypeError):
             age = timedelta(days=999)
         if age < timedelta(days=STEO_FRESH_DAYS) or not fetch:
@@ -5290,9 +5833,9 @@ def _steo(session, series, fetch=True):
         import urllib.request
         import urllib.parse
         start = f'{date.today().year - 3}-01'
+        from core import egress                    # item 8: the one door out
         url = STEO_URL.format(key=urllib.parse.quote(api_key), series=urllib.parse.quote(series), start=start)
-        with urllib.request.urlopen(url, timeout=30) as r:
-            data = json.loads(r.read().decode('utf-8'))
+        data = egress.get_json(url, timeout=30)
         rows = {x['period']: float(x['value']) for x in ((data.get('response') or {}).get('data') or [])
                 if x.get('period') and x.get('value') not in (None, '')}
         if rows:
@@ -5413,7 +5956,7 @@ def _eia_weekly_gas(session, area, fetch=True, product='EPMR'):
     cached = _dashboard_json(session, key, None)
     if cached and cached.get('rows'):
         try:
-            age = datetime.utcnow() - datetime.fromisoformat(cached['fetched_at'])
+            age = datetime.now() - datetime.fromisoformat(cached['fetched_at'])
         except (KeyError, ValueError, TypeError):
             age = timedelta(days=999)
         if age < timedelta(days=WEEKLY_FRESH_DAYS) or not fetch:
@@ -5426,9 +5969,9 @@ def _eia_weekly_gas(session, area, fetch=True, product='EPMR'):
     try:
         import urllib.request
         import urllib.parse
+        from core import egress                    # item 8: the one door out
         url = EIA_WEEKLY_GAS_URL.format(key=urllib.parse.quote(api_key), area=urllib.parse.quote(area), product=product)
-        with urllib.request.urlopen(url, timeout=30) as r:
-            data = json.loads(r.read().decode('utf-8'))
+        data = egress.get_json(url, timeout=30)
         rows = {x['period']: float(x['value']) for x in ((data.get('response') or {}).get('data') or [])
                 if x.get('period') and x.get('value') not in (None, '')}
         if rows:
@@ -5482,7 +6025,7 @@ def _eia_weekly_heating(session, area, product, fetch=True):
     cached = _dashboard_json(session, key, None)
     if cached and cached.get('rows'):
         try:
-            age = datetime.utcnow() - datetime.fromisoformat(cached['fetched_at'])
+            age = datetime.now() - datetime.fromisoformat(cached['fetched_at'])
         except (KeyError, ValueError, TypeError):
             age = timedelta(days=999)
         if age < timedelta(days=WEEKLY_FRESH_DAYS) or not fetch:
@@ -5495,9 +6038,9 @@ def _eia_weekly_heating(session, area, product, fetch=True):
     try:
         import urllib.request
         import urllib.parse
+        from core import egress                    # item 8: the one door out
         url = EIA_WEEKLY_RES_URL.format(key=urllib.parse.quote(api_key), area=urllib.parse.quote(area), product=product)
-        with urllib.request.urlopen(url, timeout=30) as r:
-            data = json.loads(r.read().decode('utf-8'))
+        data = egress.get_json(url, timeout=30)
         rows = {x['period']: float(x['value']) for x in ((data.get('response') or {}).get('data') or [])
                 if x.get('period') and x.get('value') not in (None, '') and x.get('process') in (None, 'PRS')}
         if rows:
@@ -5699,6 +6242,7 @@ def budget_month_amounts(session, fetch=False, today=None):
     for kind in UTILITY_KINDS:
         if (prefs.get(kind) or {}).get('on'):
             picked[kind] = bm.pick_estimate(_estimate_for(session, kind, fetch), kind, this_month)
+    yearly = _yearly_follow_amounts(session, today)                # item 106 Y6: followed yearly projections
     out = {}
     for item in session.query(BudgetItem).filter_by(is_active=True, type='expense').all():
         kind = next((k for k, c in _UTILITY_CATEGORY.items() if (item.category or '').lower() == c), None)
@@ -5714,6 +6258,13 @@ def budget_month_amounts(session, fetch=False, today=None):
         if bill and bill.due_date.strftime('%Y-%m') == this_month:
             out[item.id] = {'month_amount': round(bill.amount, 2), 'month_source': 'bill', 'kind': None, 'month_why': None,
                             'month_from': f"the bill read from {bill.source_host or 'its website'} on {bill.read_at:%b} {bill.read_at.day}",
+                            'month_for': None}
+            continue
+        if not followed and item.id in yearly:
+            y = yearly[item.id]
+            out[item.id] = {'month_amount': y['amount'], 'month_source': 'yearly', 'kind': None, 'month_why': None,
+                            'month_from': f"{y['payee']}'s yearly step, about {y['pct'] * 100:.1f}% from "
+                                          f"{date(int(y['month'][:4]), int(y['month'][5:7]), 1):%B %Y}",
                             'month_for': None}
             continue
         out[item.id] = {'month_amount': amt, 'month_source': src, 'kind': kind if followed else None,
@@ -6637,7 +7188,7 @@ def _proactive_state(session):
     to survive a restart. `proactive_shown` and `proactive_dismissed` are that
     ledger; nothing else here is state.
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     week = now - timedelta(days=7)
     last_session = session.query(HistorianEntry).filter(
         HistorianEntry.event_category == 'session_start'
@@ -6767,7 +7318,7 @@ def _proactive_candidates(session, cards, budget, strategy):
         })
 
     drivers = []
-    window_start = datetime.utcnow() - timedelta(days=365)
+    window_start = datetime.now() - timedelta(days=365)
     for acct in session.query(DebtAccount).filter(
             DebtAccount.paid_off_at.isnot(None),
             DebtAccount.paid_off_at >= window_start).all():
@@ -6780,8 +7331,8 @@ def _proactive_candidates(session, cards, budget, strategy):
             DebtLedgerEntry.amount > minimum + 1.0).first() is not None
         drivers.append({'name': acct.name, 'monthly': round(minimum, 2),
                         'deliberate': deliberate,
-                        'months_ago': ((datetime.utcnow().year - acct.paid_off_at.year) * 12
-                                       + (datetime.utcnow().month - acct.paid_off_at.month))})
+                        'months_ago': ((datetime.now().year - acct.paid_off_at.year) * 12
+                                       + (datetime.now().month - acct.paid_off_at.month))})
     # Appendix G's checkpoints. G.3b is emphatic that these are not a
     # separate alert channel: same voice, same gate, same budget as every
     # other brake. Materiality is instantiated at G's own timescale rather
@@ -7143,7 +7694,7 @@ def debt_green_light():
     """
     from core.solution import green_light
 
-    window_start = datetime.utcnow() - timedelta(days=365)
+    window_start = datetime.now() - timedelta(days=365)
     today = date.today().strftime('%Y-%m')
     with db_session() as session:
         cards, budget, strategy, undated = _consequence_inputs(session)
@@ -7164,8 +7715,8 @@ def debt_green_light():
                 DebtLedgerEntry.debt_account_id == acct.id,
                 DebtLedgerEntry.entry_type == 'payment',
                 DebtLedgerEntry.amount > minimum + 1.0).first() is not None
-            months_ago = ((datetime.utcnow().year - acct.paid_off_at.year) * 12
-                          + (datetime.utcnow().month - acct.paid_off_at.month))
+            months_ago = ((datetime.now().year - acct.paid_off_at.year) * 12
+                          + (datetime.now().month - acct.paid_off_at.month))
             drivers.append({'name': acct.name, 'monthly': round(minimum, 2),
                             'deliberate': deliberate, 'months_ago': months_ago})
 
@@ -8259,7 +8810,7 @@ def create_debt_ledger_entry(debt_id):
                 checking_transaction_id=linked_txn_id,
                 debt_ledger_entry_id=entry.id,
                 link_indicator='payment_to_card' if entry_type == 'payment' else 'charge_from_card',
-                user_confirmed_at=datetime.utcnow(),
+                user_confirmed_at=datetime.now(),
             )
             session.add(_new_link)
             if entry_type == 'payment':                  # item 93 B11: the household's statement, when someone is answering
@@ -8551,8 +9102,8 @@ def confirm_debt_draft(entry_id):
         if entry.linked_recurring_payment_id:
             rp = session.get(RecurringDebtPayment, entry.linked_recurring_payment_id)
             if rp:
-                rp.last_confirmed_at = datetime.utcnow()
-                rp.last_executed_at = datetime.utcnow()
+                rp.last_confirmed_at = datetime.now()
+                rp.last_executed_at = datetime.now()
 
         debt = session.get(DebtAccount, entry.debt_account_id)
         if debt:
@@ -8670,7 +9221,7 @@ def link_checking_txn_to_debt(txn_id):
             checking_transaction_id=txn_id,
             debt_ledger_entry_id=entry.id,
             link_indicator='payment_to_card',
-            user_confirmed_at=datetime.utcnow(),
+            user_confirmed_at=datetime.now(),
         )
         session.add(_new_link)
         session.flush()
@@ -8751,14 +9302,14 @@ def get_engagement_streak(session) -> dict:
     """The historian's first *engagement* reader — a habit signal, not a pace
     score like the confidence readers. Consecutive-day check-in streak from
     session_start events (distinct days, so many launches/refreshes in one day
-    count once), plus this month's budget_reviewed count. UTC day boundaries,
-    matching how created_at is stored. Honest zero shape when there's no
+    count once), plus this month's budget_reviewed count. Local day boundaries,
+    matching how created_at is stored (item 109). Honest zero shape when there's no
     history yet — the UI self-gates on streak_days the same way the confidence
     cards gate on a null score."""
     starts = session.query(HistorianEntry.created_at).filter(
         HistorianEntry.event_category == 'session_start').all()
     days = sorted({c.date() for (c,) in starts if c is not None}, reverse=True)
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     streak = 0
     # A streak stays alive if the most recent check-in was today or yesterday;
     # not opening the app *yet today* shouldn't read as broken until a full day
@@ -8843,7 +9394,7 @@ def get_net_worth_milestone_confidence(session, milestone_id, months: int = 12) 
     confidence=None (not a fabricated number) when there's no snapshot
     history yet for this milestone, rather than guessing from the static
     linear projection the UI already shows without any history at all."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     entries = session.query(HistorianEntry).filter(
         HistorianEntry.event_category == 'net_worth_milestone_variance',
         HistorianEntry.created_at >= cutoff,
@@ -8938,7 +9489,7 @@ def get_investment_allocation_confidence(session, asset_class: str, months: int 
     drift history logged by _log_investment_allocation_drift. Mirrors
     get_net_worth_milestone_confidence's shape and honesty rule: returns
     confidence=None (not fabricated) when there's no refresh history yet."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     entries = session.query(HistorianEntry).filter(
         HistorianEntry.event_category == 'investment_allocation_drift',
         HistorianEntry.created_at >= cutoff,
@@ -8998,7 +9549,7 @@ def get_sinking_fund_confidence(session, fund_id: int, months: int = 12) -> dict
     """0-100 pace confidence for a sinking fund, from real contribution
     variance history. Mirrors get_net_worth_milestone_confidence's scoring
     (running ahead of a savings pace is never bad, only behind is)."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     entries = session.query(HistorianEntry).filter(
         HistorianEntry.event_category == 'sinking_fund_contribution_variance',
         HistorianEntry.created_at >= cutoff,
@@ -9048,7 +9599,7 @@ def _log_college_fund_contribution_variance(session, fund_id, expected: float, a
 def get_college_fund_confidence(session, fund_id, months: int = 12) -> dict:
     """0-100 pace confidence for a college fund — identical shape and
     scoring to get_sinking_fund_confidence."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     entries = session.query(HistorianEntry).filter(
         HistorianEntry.event_category == 'college_fund_contribution_variance',
         HistorianEntry.created_at >= cutoff,
@@ -9085,7 +9636,7 @@ def get_payment_variance_for_account(session, debt_account_id: int, months: int 
     which reads current ledger state per recurring pattern — this reads the
     historian's point-in-time record of what happened at confirm time,
     which survives even if the underlying ledger entry is later edited."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     entries = session.query(HistorianEntry).filter(
         HistorianEntry.debt_account_id == debt_account_id,
         HistorianEntry.event_category.in_(['payment_confirmed', 'payment_amount_variance']),
@@ -9166,7 +9717,7 @@ def get_category_patterns(session, merchant_name: str) -> dict:
 def get_budget_variance_by_category(session, category_id: int, months: int = 12) -> dict:
     """Budget vs. actual variance for a category. Scaffold for Phase H2
     Feature 2 — budget_variance_observed isn't written anywhere yet."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     entries = session.query(HistorianEntry).filter(
         HistorianEntry.category_id == category_id,
         HistorianEntry.event_category == 'budget_variance_observed',
@@ -9228,7 +9779,7 @@ def get_llm_miss_log(time_range_days: int = 30) -> dict:
     log_path = DATA_DIR / 'voice_miss_log.jsonl'
     if not log_path.exists():
         return {'gate_flag_count_by_type': {}, 'most_recent_flags': []}
-    cutoff = datetime.utcnow() - timedelta(days=time_range_days)
+    cutoff = datetime.now() - timedelta(days=time_range_days)
     counts, recent = {}, []
     try:
         with open(log_path, 'r', encoding='utf-8') as f:
@@ -9330,6 +9881,10 @@ def get_settings():
 def update_settings():
     """Update one or more app settings."""
     body = request.json
+    # Item 105: only the sample household's own load marks the records as the sample (which lets them be cleared)
+    body.pop('sample_household', None)
+    # Item 107 D8: what the person said about a pair of accounts is appended by its own route, never written over
+    body.pop('two_accounts_said_json', None)
     # Cloud AI is gone (CLOUD_AI_REMOVAL.md): there is no provider to choose and
     # no key to store, so neither setting is ever written.
     body.pop('api_key', None)
@@ -9607,7 +10162,7 @@ def bank_agent_recipe_save():
     with db_session() as session:
         if not _bank_agent_url(session, key):
             return err('That account has no bank link.', 400)
-        _set_setting(session, f'bank_recipe:{key}', json.dumps({'steps': clean, 'saved': datetime.utcnow().isoformat()}))
+        _set_setting(session, f'bank_recipe:{key}', json.dumps({'steps': clean, 'saved': datetime.now().isoformat()}))
         session.commit()
     return ok({'key': key, 'steps': clean, 'words': [bank_agent_window.step_words(x) for x in clean]})
 
@@ -10115,7 +10670,7 @@ def bank_agent_bill_checks():
     """B6/B7 for every bill with a confirmed reading: the paying account, the check against the floor (with the
     24-hour notice), and whether its payment has been seen. Computed on every read; nothing is written."""
     from core import bill_check
-    now = datetime.utcnow()            # the Historian's times are UTC (HistorianEntry.created_at)
+    now = datetime.now()            # the Historian's times are local, as every time is (item 109)
     out, accounts = [], []
     with db_session() as session:
         for a in session.query(Account).filter_by(is_active=True).order_by(Account.sort_order, Account.name).all():
@@ -10158,7 +10713,7 @@ def bank_agent_bill_checks():
                 buf = next((x['buffer'] for x in accounts if x['id'] == acct_id), None)
                 chk = bill_check.pay_check(balance, as_of, last, buf, r.amount, earlier, now)
                 row['check'] = chk
-                row['last_download'] = last.isoformat(timespec='minutes') + 'Z' if last else None   # UTC, said so
+                row['last_download'] = last.isoformat(timespec='minutes') if last else None   # local time (item 109)
                 t = paid['txn']
                 row['paid'] = {'state': paid['state'],
                                'txn': ({'id': t['id'], 'date': t['date'].isoformat(), 'amount': t['amount'],
@@ -10199,7 +10754,7 @@ def bank_agent_pay_open():
         r = session.query(BillReading).filter_by(budget_item_id=bid).order_by(BillReading.id.desc()).first()
         balance, as_of, last, _tx = _account_balance_facts(session, acct.id)
         buf = (_setting_json(session, f'bank_buffer:account:{acct.id}') or {}).get('amount')
-        chk = bill_check.pay_check(balance, as_of, last, buf, r.amount if r else None, [], datetime.utcnow())
+        chk = bill_check.pay_check(balance, as_of, last, buf, r.amount if r else None, [], datetime.now())
         name, acct_name = b.name, acct.name
     if not bank_vault.has_login(login_key):
         return err(f'Save a login for {acct_name} first.', 400)
@@ -11387,13 +11942,13 @@ def set_manual_price():
             row.day_change   = price - (row.previous_close or price)
             row.day_change_pct = ((price - (row.previous_close or price)) / (row.previous_close or price) * 100) if row.previous_close else 0
             row.is_manual    = True
-            row.last_updated = datetime.utcnow()
+            row.last_updated = datetime.now()
         else:
             session.add(PriceCache(
                 ticker       = ticker,
                 price        = price,
                 is_manual    = True,
-                last_updated = datetime.utcnow(),
+                last_updated = datetime.now(),
                 source       = 'manual',
             ))
         session.commit()
@@ -11627,7 +12182,7 @@ def manage_asset_classes():
         payload = json.dumps(current)
         if existing:
             existing.value      = payload
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now()
         else:
             session.add(AppSetting(key='inv_asset_classes_json', value=payload))
         session.commit()
@@ -11666,7 +12221,7 @@ def manage_expense_ratios():
             row = _get_setting(session, key)
             if row:
                 row.value      = json.dumps(value)
-                row.updated_at = datetime.utcnow()
+                row.updated_at = datetime.now()
             elif value or key == 'inv_expense_ratios_pct_json':
                 session.add(AppSetting(key=key, value=json.dumps(value)))
         session.commit()
@@ -11812,12 +12367,23 @@ def byb_offers():
     window = today - timedelta(days=365)
     with db_session() as session:
         said = _byb_offers_said(session)
-        rows = session.query(Transaction.id, Transaction.date, Transaction.amount, Transaction.merchant).filter(
-            Transaction.type == 'debit', Transaction.date >= window).all()
+        from core import recurring_groups as rg
+        rows = session.query(Transaction.merchant, Transaction.account_id, Transaction.date, Transaction.amount,
+                             Transaction.id).filter(Transaction.type == 'debit', Transaction.date >= window).all()
         budgeted = [b.name for b in session.query(BudgetItem).filter_by(is_active=True).all()]
         cards, budget, strategy, _undated = _consequence_inputs(session)
+        # item 108: a new repeating charge is one payee from one account, offered under its label; it is matched to
+        # budget lines and answered by payee (R5), so its key stays the payee's
+        names = {a.id: a.name for a in session.query(Account).all()}
+        payee_of, per_account = {}, []
+        for grp in rg.groups([r for r in rows if r[0]], names):
+            payee_of[grp['label']] = grp['payee']
+            if grp['payee'] in budgeted:
+                budgeted.append(grp['label'])
+            per_account += [(tid, d, a, grp['label']) for d, a, tid in grp['rows']]
         offers = []
-        for o in byb_offer.new_recurring(rows, budgeted, today, window):
+        for o in byb_offer.new_recurring(per_account, budgeted, today, window):
+            o['key'] = f"recurring:{byb_offer._norm(payee_of[o['name']])}"
             if o['key'] in said:
                 continue
             offers.append({**o, 'impact': _byb_impact(session, monthly=o['monthly'], cards=cards, budget=budget,
@@ -12032,7 +12598,7 @@ def create_byb_item():
             payoff_impact    = body.get('payoff_impact'),
             whats_left_before = body.get('whats_left_before'),
             whats_left_after  = body.get('whats_left_after'),
-            decided_at       = datetime.utcnow() if decision in ('commit', 'walkaway') else None,
+            decided_at       = datetime.now() if decision in ('commit', 'walkaway') else None,
         )
         session.add(item)
         session.flush()
@@ -12062,7 +12628,7 @@ def resolve_byb_item(item_id):
             return err('Item not found', 404)
         item.decision    = decision
         item.actual_cost = float(body['actual_cost']) if body.get('actual_cost') is not None else None
-        item.decided_at  = datetime.utcnow()
+        item.decided_at  = datetime.now()
         _log_byb_decision(session, item)
         session.commit()
         return ok(_serialize_byb(item))
@@ -12614,7 +13180,7 @@ def trip_bookings_update(booking_id):
         if body.get('status') == 'cancelled' and b.status in ('booked', 'charged'):
             b.status = 'cancelled'
             b.refund_expected = bool(body.get('refund_expected'))
-        b.updated_at = datetime.utcnow()
+        b.updated_at = datetime.now()
         session.commit()
         return ok(_booking_json(b))
 
@@ -12670,7 +13236,7 @@ def trip_bookings_match(booking_id):
                 b.matched_debt_entry_id = row_id
             b.charged_amount = row['amount']
             b.status = 'charged'
-        b.updated_at = datetime.utcnow()
+        b.updated_at = datetime.now()
         session.commit()
         return ok(_booking_json(b))
 
@@ -12893,7 +13459,9 @@ def create_snapshot():
         # Item 35 V7: history is never rewritten; the first snapshot after valuation changed says so, so a step in the
         # line is explained rather than read as a loss. Once, and only for a household that has held investments.
         if not _get_setting(session, 'inv_valuation_v35_noted'):
-            if session.query(InvestmentLot.id).first():
+            # ... and only where there is an earlier snapshot whose line the change would step (a new household has none)
+            earlier = session.query(NetWorthSnapshot.id).filter(NetWorthSnapshot.snapshot_date < month_key).first()
+            if earlier and session.query(InvestmentLot.id).first():
                 notes.append('Investment valuation changed on ' + date.today().isoformat() + ': holdings with no '
                              'price on record are no longer counted at cost, and lots with no cost basis are left '
                              'out of the gain.')
@@ -13149,7 +13717,7 @@ def export_to_file():
                 dest.write_text(output.getvalue(), encoding='utf-8')
             else:
                 payload = {
-                    'exported_at':   datetime.utcnow().isoformat(),
+                    'exported_at':   datetime.now().isoformat(),
                     'health_left_out': (f'{health_left_out} health spending transaction(s) left out; tick "Include '
                                         'health spending" to include them') if health_left_out else None,
                     'transactions':  txn_rows,
@@ -13192,6 +13760,10 @@ def ai_chat():
     ({content:[{type:'text', text:...}]}), an application-internal contract
     with callAI(), not a network format (ruling 2).
     """
+    # Item 8 provision 2: the model has no hands - it writes text and nothing else. A request that offers it tools or
+    # functions is refused, and no call into the engine passes any (s240).
+    if any(k in (request.json or {}) for k in ('tools', 'tool_choice', 'functions', 'function_call')):
+        return err('The AI writes text only; it is given no tools.', 400)
     # Respect the user's AI toggle — return a friendly message, not an error code
     if not _ai_is_enabled():
         return ok({
@@ -13276,7 +13848,7 @@ def _ai_log_write(body, response='', stop_reason='', model='', stopped=False):
         with db_session() as session:
             if (_get_setting(session, 'ai_log_keep') or AppSetting(value='')).value == 'off':
                 return None
-            session.query(AiLog).filter(AiLog.created_at < datetime.utcnow() - timedelta(days=AI_LOG_DAYS)) \
+            session.query(AiLog).filter(AiLog.created_at < datetime.now() - timedelta(days=AI_LOG_DAYS)) \
                 .delete(synchronize_session=False)
             from core import health_boundary as _hb      # item 45 H6 P6: scrubbed again, whoever called
             row = AiLog(call_id=str(body.get('log_call') or '')[:64], attempt=int(body.get('log_attempt') or 1),
@@ -13482,7 +14054,7 @@ def _ai_log_json(r, full=False):
         v = json.loads(r.voice) if r.voice else None
     except (TypeError, ValueError):
         v = None
-    out = {'id': r.id, 'at': r.created_at.isoformat(timespec='seconds') + 'Z' if r.created_at else None,
+    out = {'id': r.id, 'at': r.created_at.isoformat(timespec='seconds') if r.created_at else None,
            'call_id': r.call_id, 'attempt': r.attempt, 'surface': r.surface, 'stop_reason': r.stop_reason,
            'stopped': bool(r.stopped), 'voice': v, 'model': r.model}
     if full:
@@ -13499,7 +14071,7 @@ def ai_log_list():
     """G1: the log, newest first - one line per attempt (the page groups a request's attempts). G3: this route and
     the four below are the only readers of the table."""
     with db_session() as session:
-        session.query(AiLog).filter(AiLog.created_at < datetime.utcnow() - timedelta(days=AI_LOG_DAYS)) \
+        session.query(AiLog).filter(AiLog.created_at < datetime.now() - timedelta(days=AI_LOG_DAYS)) \
             .delete(synchronize_session=False)
         session.commit()
         rows = session.query(AiLog).order_by(AiLog.id.desc()).limit(300).all()
@@ -13584,7 +14156,7 @@ def ai_voice_miss():
     """
     body = request.get_json(silent=True) or {}
     entry = {
-        'ts':      datetime.utcnow().isoformat() + 'Z',
+        'ts':      datetime.now().isoformat(),
         'surface': str(body.get('surface', 'unknown'))[:80],
         'model':   str(body.get('model', ''))[:80],
         'rules':   body.get('rules') if isinstance(body.get('rules'), list) else [],
@@ -13782,6 +14354,69 @@ def auto_import_statement_bytes():
 
 # ── Backup ────────────────────────────────────────────────────────────────────
 
+# ── Item 105: a sample household to look around in (gw 2.0/SAMPLE_HOUSEHOLD.md, Rob 2026-10-20) ─────────────────────
+# Offered on the welcome screen. It goes only into an empty Groundwork, and only the sample can be cleared this way.
+sample_bp = Blueprint('sample', __name__)
+
+
+@sample_bp.route('', methods=['GET'])
+def sample_status():
+    from core import sample_household as sh
+    with db_session() as session:
+        flag = _get_setting(session, sh.SAMPLE_FLAG)
+        reason = sh.empty_reason(session)
+        return ok({'sample': bool(flag and flag.value == 'true'), 'can_load': reason is None, 'why_not': reason})
+
+
+@sample_bp.route('/load', methods=['POST'])
+def sample_load():
+    from flask import current_app
+    from core import sample_household as sh
+    with db_session() as session:
+        reason = sh.empty_reason(session)
+    if reason:
+        return err(f'The sample household goes only into an empty Groundwork - {reason}.', 409)
+    db_session.remove()
+    try:
+        made = sh.build(current_app.test_client(), {'X-GW-Token': _GW_TOKEN})
+    except Exception as e:
+        logging.exception('sample household')
+        return err(f'The sample household could not be built: {e}', 500)
+    return ok({'loaded': True, **made})
+
+
+@sample_bp.route('/clear', methods=['POST'])
+def sample_clear():
+    """Back to a first launch: the sample's records go, the terms accepted and the AI and backup choices stay."""
+    from core import sample_household as sh
+    from core.database import DB_PATH, AppSetting, engine
+    with db_session() as session:
+        flag = _get_setting(session, sh.SAMPLE_FLAG)
+        if not (flag and flag.value == 'true'):
+            return err('Only the sample household can be cleared this way. Your own records are never cleared here.', 403)
+        kept = {r.key: r.value for r in session.query(AppSetting).all() if r.key.startswith(sh.KEEP_PREFIXES)}
+    try:
+        db_session.remove()
+        engine.dispose()
+        for suffix in ('', '-wal', '-shm', '-journal'):
+            f = DB_PATH.with_name(DB_PATH.name + suffix)
+            if f.exists():
+                f.unlink()
+        run_migration_if_needed()
+        with db_session() as session:
+            for k, v in kept.items():
+                setting = _get_setting(session, k)
+                if setting:
+                    setting.value = v
+                else:
+                    session.add(AppSetting(key=k, value=v))
+            session.commit()
+    except Exception as e:
+        logging.exception('sample clear')
+        return err(f'Clearing the sample failed: {e}', 500)
+    return ok({'cleared': True})
+
+
 backup_bp = Blueprint('backup', __name__)
 
 
@@ -13875,6 +14510,22 @@ def _backup_before_migration():
     except Exception:                                     # noqa: BLE001
         logging.getLogger('groundwork').warning('pre-upgrade backup: the note of it could not be saved')
     return rec
+
+
+def _backup_after_migration(rec):
+    """After a migration that had a before-upgrade copy (so there were records to keep), the migrated database is
+    backed up too, sealed or plain on the same terms, and recorded as the person's latest backup (Rob 2026-10-22: "after
+    the migration it does a backup of the new database so we have a backup"). A failure is logged and noted on the
+    upgrade's record; it never stops the app opening."""
+    try:
+        name = _write_backup(f"groundwork_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}_after_upgrade")
+        rec.update(after_name=name)
+        with db_session() as session:
+            _set_setting(session, 'pre_upgrade_backup', json.dumps(rec))
+            _set_setting(session, 'backup_last', json.dumps({**_backup_stamp(name), 'after_upgrade': True}))
+            session.commit()
+    except Exception:                                     # noqa: BLE001 - said, never silent; the app still opens
+        logging.getLogger('groundwork').exception('after-upgrade backup failed')
 
 
 def _write_backup(stem, include_ai_log=True, key=None):
@@ -13997,6 +14648,9 @@ def create_backup():
     try:
         backup_name = _write_backup(f'groundwork_backup_{ts}', include_ai_log=bool(body.get('include_ai_log')), key=key)
         backup_path = _backups_dir() / backup_name
+        with db_session() as session:                       # the backup reminder reads this, not the folder (Rob 2026-10-22)
+            _set_setting(session, 'backup_last', json.dumps(_backup_stamp(backup_name)))
+            session.commit()
         return ok({'filename': backup_name, 'size': backup_path.stat().st_size, 'statement': BACKUP_STATEMENT,
                    'encrypted': backup_name.endswith('.gwbk')})
     except Exception as e:
@@ -14126,6 +14780,110 @@ def restore_backup_upload():
         return ok({'restored': True, 'filename': safe_name})
     except Exception as e:
         return err(f'Restore failed: {e}', 500)
+
+
+# ── The backup reminder (Rob 2026-10-22, after Quicken's): "you have not backed up since <date>" ─────────────────────
+# Every backup the person makes records its date ('backup_last'), so a backup on a drive that is unplugged still counts.
+# A reminder is due when the last one is BACKUP_REMIND_DAYS old (the person's choice of 3, 7, 14 or 30) AND records were
+# added since - with nothing new there is nothing more to lose, and a reminder would only be noise. Never backed up:
+# due once the record holds transactions. The copy of a database just upgraded counts (it is all of it, as it now
+# is); the safety copies of what was there before a migration or a delete don't. "Remind me later" hides it for BACKUP_SNOOZE_DAYS. Not for the sample.
+BACKUP_REMIND_DAYS = 7
+BACKUP_REMIND_CHOICES = (3, 7, 14, 30)
+BACKUP_SNOOZE_DAYS = 3
+_OWN_BACKUP = re.compile(r'^groundwork_backup_\d{8}_\d{6}(_after_upgrade)?\.(gwbk|db)$')   # the person's, and the
+                                                                                         # copy of an upgraded database
+
+
+def _backup_stamp(name, when=None):
+    """The record of a backup: `at`, local time to the microsecond - for saying when, and for comparing with
+    created_at, which is local time too (item 109); a record saved earlier in the same second is before it. A record
+    from before item 109 also carries `utc`, which nothing reads now."""
+    ts = when if when is not None else time.time()
+    return {'at': datetime.fromtimestamp(ts).isoformat(), 'file': name, 'folder': str(_backups_dir())}
+
+
+def _backup_last(session):
+    """When the person last backed up: the recorded date, or - the first time, for backups made before it was recorded
+    - the newest of their own backup files Groundwork can see, recorded then. None when there is neither."""
+    rec = _setting_json(session, 'backup_last', None)
+    if rec and rec.get('at'):
+        return rec
+    try:
+        own = [f for f in _backups_dir().iterdir() if _OWN_BACKUP.match(f.name)]
+    except OSError:
+        own = []
+    if not own:
+        return None
+    f = max(own, key=lambda x: x.stat().st_mtime)
+    rec = {**_backup_stamp(f.name, f.stat().st_mtime), 'folder': str(f.parent), 'from_file': True}
+    _set_setting(session, 'backup_last', json.dumps(rec))
+    session.commit()
+    return rec
+
+
+def _backup_reminder(session, now=None):
+    from core import sample_household as sh
+    now = now or datetime.now()
+    try:
+        days = int(_setting_json(session, 'backup_remind_days', BACKUP_REMIND_DAYS))
+    except (TypeError, ValueError):
+        days = BACKUP_REMIND_DAYS
+    days = days if days in BACKUP_REMIND_CHOICES else BACKUP_REMIND_DAYS
+    snooze = _setting_json(session, 'backup_remind_snooze', None)
+    last = _backup_last(session)
+    since = datetime.fromisoformat(last['at']) if last else None
+    added = {'transactions': 0, 'other': 0}
+    q = lambda model: session.query(func.count(model.id)).filter(model.created_at > since).scalar() or 0
+    if since:
+        added['transactions'] = q(Transaction)
+        added['other'] = q(Account) + q(DebtAccount) + q(BudgetItem)
+    else:
+        added['transactions'] = session.query(func.count(Transaction.id)).scalar() or 0
+    age = (now - since).days if since else None
+    flag = _get_setting(session, sh.SAMPLE_FLAG)
+    sample = bool(flag and flag.value == 'true')
+    snoozed = bool(snooze and now.date().isoformat() < snooze)
+    changed = added['transactions'] + added['other'] > 0
+    due = not sample and not snoozed and changed and (since is None or age >= days)
+    out = {'every': days, 'choices': list(BACKUP_REMIND_CHOICES), 'last': last, 'days_since': age, 'added': added,
+           'snoozed_until': snooze if snoozed else None, 'due': due, 'attention': []}
+    if due:
+        out['attention'] = [{'subject': 'backup', 'last': last['at'][:10] if last else None, 'days': age,
+                             'transactions': added['transactions'], 'other': added['other'],
+                             'fact': (last['at'][:10] if last else 'never')}]
+    return out
+
+
+@backup_bp.route('/reminder', methods=['GET'])
+def backup_reminder_get():
+    with db_session() as session:
+        return ok(_backup_reminder(session))
+
+
+@backup_bp.route('/reminder/snooze', methods=['POST'])
+def backup_reminder_snooze():
+    """"Remind me later": the reminder rests for BACKUP_SNOOZE_DAYS, then comes back if a backup is still due."""
+    until = (date.today() + timedelta(days=BACKUP_SNOOZE_DAYS)).isoformat()
+    with db_session() as session:
+        _set_setting(session, 'backup_remind_snooze', json.dumps(until))
+        session.commit()
+        return ok({'snoozed_until': until})
+
+
+@backup_bp.route('/reminder/every', methods=['POST'])
+@require_json
+def backup_reminder_every():
+    try:
+        days = int((request.get_json() or {}).get('days'))
+    except (TypeError, ValueError):
+        days = None
+    if days not in BACKUP_REMIND_CHOICES:
+        return err('Choose 3, 7, 14 or 30 days.', 400)
+    with db_session() as session:
+        _set_setting(session, 'backup_remind_days', json.dumps(days))
+        session.commit()
+        return ok({'every': days})
 
 
 @backup_bp.route('', methods=['GET'])
@@ -14399,7 +15157,7 @@ def _serialize_sinking_fund(f) -> dict:
 
 def _fund_contributions(session, fund_id: int, months: int = 12):
     """The Historian's contribution events for one fund, inside the window."""
-    cutoff = datetime.utcnow() - timedelta(days=30 * months)
+    cutoff = datetime.now() - timedelta(days=30 * months)
     matched = []
     for e in session.query(HistorianEntry).filter(
             HistorianEntry.event_category == 'sinking_fund_contribution_variance',
@@ -14426,7 +15184,7 @@ def fund_contribution_break(session, fund_id: int, months: int = 12):
     if not matched:
         return None
     first = min(e.created_at for e in matched)
-    now = datetime.utcnow()
+    now = datetime.now()
     by_month = {}
     for e in matched:
         k = e.created_at.strftime('%Y-%m')
@@ -14466,7 +15224,7 @@ def fund_observed_monthly(session, fund_id: int, months: int = 12, since: str = 
     first = min(e.created_at for e in matched)
     if since:
         first = datetime(int(since[:4]), int(since[5:7]), 1)
-    now = datetime.utcnow()
+    now = datetime.now()
     span = max(1, (now.year - first.year) * 12 + (now.month - first.month) + 1)
     total = sum(float(e.actual_value or 0) for e in matched)
     return round(total / span, 2), len(matched)
@@ -15441,6 +16199,12 @@ def bank_import_commit():
         _tidy_names = [c.name for c in session.query(Category).all()]
         _tidy_aliases = _setting_json(session, 'category_aliases_json', {}) or {}
         _tidy_unmatched = {}
+        # Item 98 (core/new_vendor.py): a vendor never seen before, filed by the bank's own label, is asked about once.
+        # Never on an account's first import (N3): its whole history is new.
+        from core import new_vendor as _nv
+        _nv_on = _nv.account_had_rows(session, account_id)
+        _nv_rules = _setting_json(session, 'import_rules_json', []) or []
+        _nv_found, _nv_new = {}, {}
 
         for rec in records:
             try:
@@ -15583,6 +16347,15 @@ def bank_import_commit():
                 if cat_name and cat_name.strip() in _tidy_unmatched:
                     session.flush()
                     _tidy_unmatched[cat_name.strip()].append(_new_txn.id)
+                _nv_label = (rec.get('bank_category') or '').strip()
+                if _nv_on and _nv_label:
+                    _nv_k = _nv.key(_new_txn.merchant, description)
+                    if _nv_k and _nv_k not in _nv_new:
+                        _nv_new[_nv_k] = not _nv.ruled(_nv_rules, _nv_k) and not _nv.seen_before(session, _nv_k, batch)
+                    if _nv_k and _nv_new[_nv_k]:
+                        session.flush()
+                        _nv_found.setdefault(_nv_k, {'merchant': _new_txn.merchant or description, 'label': _nv_label,
+                                                     'category': cat.name, 'ids': []})['ids'].append(_new_txn.id)
                 # B9: a posted line paired by the bank's id moves a linked card by what changed, not twice
                 new_txn_deltas.append((amount - (posts_pending.amount if posts_pending is not None else 0), txn_type))
                 created += 1
@@ -15611,6 +16384,8 @@ def bank_import_commit():
                 elif _ids:
                     _kept.append({'name': _n, 'ids': _ids, 'at': datetime.now().isoformat(timespec='seconds')})
             _set_setting(session, 'import_unmatched_json', json.dumps(_kept))
+        if _nv_found:                                    # item 98 N4: waits on the Ledger, one vendor at a time
+            _set_setting(session, _nv.SETTING, json.dumps(_nv.queue(_nv.load(session), _nv_found)))
         session.commit()
 
     # B3.5: Auto-update linked debt card current_balance from the most recent
@@ -15866,6 +16641,7 @@ def bank_import_commit():
         'batch':      batch,
         'pending_paired': pairs_made,    # item 93 B9
         'standing_payments': standing_paid,   # item 93 B3
+        'new_vendors': len(_nv_found),        # item 98: asked about on the Ledger
     }
     if pairs_asked:                      # item 93 B9
         with db_session() as session:

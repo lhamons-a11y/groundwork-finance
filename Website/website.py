@@ -420,7 +420,8 @@ footer a { overflow-wrap: anywhere; }
 .kb-article h3 { font-family: 'Inter', sans-serif; letter-spacing: -.01em; font-size: 16px; font-weight: 700; margin: 20px 0 8px; }
 .kb-article h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
 .kb-article p { color: var(--slate); line-height: 1.8; margin-bottom: 12px; }
-.kb-article ul { color: var(--slate); padding-left: 20px; line-height: 1.9; }
+.kb-article ul, .kb-article ol { color: var(--slate); padding-left: 20px; line-height: 1.9; }
+.kb-article ol { margin-bottom: 12px; }
 .kb-tip { background: #e3f3ec; border-left: 3px solid var(--pine); padding: 12px 16px; color: var(--ink);
           border-radius: 0 10px 10px 0; font-size: 14.5px; margin: 16px 0; }
 
@@ -958,14 +959,22 @@ def download():
   <div class="download-card">
     <div class="os-icon">🍎</div>
     <h3>macOS</h3>
-    <p>Apple Silicon and Intel Macs. Unzip and drag Groundwork into Applications.</p>
+    <p>Apple Silicon Macs (M1 or later). Unzip and drag Groundwork into Applications.</p>
     <a href="/dl/macos" class="btn btn-primary">⬇ Download for macOS</a>
     <div class="requirements">
       <strong>Requirements:</strong><br>
+      A Mac with Apple Silicon (M1 or later)<br>
       macOS 12 Monterey or later (a version Apple still updates is suggested)<br>
-      ~150MB disk space<br>
-      4GB RAM<br>
-      Local AI: coming to Apple Silicon Macs. Intel Macs run Groundwork fully, without local AI.
+      ~2.2GB disk space (includes the built-in local AI model)<br>
+      4GB RAM (8GB+ for the optional local AI)<br>
+      Local AI: built in, on Apple's graphics (Metal). Groundwork runs fully without it.
+    </div>
+    <div class="callout" style="margin-top:12px;font-size:13.5px">
+      <strong>One extra step the first time you open it.</strong> Groundwork isn't notarized by Apple yet, so macOS
+      will say Apple could not verify it and offer <strong>Move to Trash</strong> or <strong>Done</strong>. Click
+      <strong>Done</strong>, then go to <strong>System Settings → Privacy &amp; Security</strong>, scroll down to
+      Security and click <strong>Open Anyway</strong>.
+      <a href="/knowledge-base#macos">Step by step →</a>
     </div>
   </div>
 
@@ -1023,6 +1032,7 @@ def knowledge_base():
     <a href="#ledger">Ledger</a>
     <a href="#networth">Net worth</a>
     <a href="#gifts">Gift budget</a>
+    <a href="#health">Health</a>
     <a href="#investments">Investments</a>
     <a href="#reports">Reports</a>
     <a href="#byb">Before You Buy</a>
@@ -1104,8 +1114,16 @@ python3 launch.py</pre>
     <div class="kb-article" id="macos">
       <h2>Installing on macOS</h2>
       <p>Download the .zip from the <a href="/download">Download page</a>, unzip it, and drag <strong>Groundwork.app</strong> into your Applications folder.</p>
-      <p>macOS may show a Gatekeeper warning — "Groundwork can't be opened because it is from an unidentified developer." This happens because the app isn't yet code-signed. Right-click the app, choose <strong>Open</strong>, then confirm <strong>Open</strong> again in the dialog. You only need to do this once.</p>
-      <div class="kb-tip">💡 Apple Silicon and Intel Macs are both supported.</div>
+      <p>The first time you open Groundwork, macOS shows a warning: <strong>"Groundwork" Not Opened</strong> — "Apple could not verify "Groundwork" is free of malware that may harm your Mac or compromise your privacy." It shows because Groundwork isn't notarized by Apple yet, not because macOS found anything in it. To open it:</p>
+      <ol>
+        <li>Click <strong>Done</strong>. Don't click Move to Trash.</li>
+        <li>Open the Apple menu → <strong>System Settings</strong> → <strong>Privacy &amp; Security</strong>.</li>
+        <li>Scroll down to <strong>Security</strong>. Next to "Groundwork" was blocked to protect your Mac, click <strong>Open Anyway</strong>.</li>
+        <li>Enter your Mac password, then click <strong>Open</strong>.</li>
+      </ol>
+      <p>You only need to do this once for each copy you download, so a new version may ask again. On macOS 14 Sonoma or earlier you can instead Control-click Groundwork in Applications, choose <strong>Open</strong>, then click <strong>Open</strong> again.</p>
+      <div class="kb-tip">💡 No Open Anyway button? Open Groundwork once more so the warning appears again, click Done, then look in Privacy &amp; Security again. macOS shows the button for about an hour after the warning.</div>
+      <div class="kb-tip">💡 Groundwork for Mac needs Apple Silicon (M1 or later) and macOS 12 Monterey or later. Its local AI is built in and runs on the Mac's graphics (Metal).</div>
     </div>
 
     <div class="kb-article" id="budget">
@@ -1115,6 +1133,8 @@ python3 launch.py</pre>
       <p>Click <strong>+ Add expense</strong> and type the name and amount. Groundwork automatically matches it to your transactions.</p>
       <h3>Sinking funds</h3>
       <p>Sinking funds are savings goals you contribute to monthly — like a car repair fund or vacation savings. Add one from the Budget page and Groundwork tracks your progress automatically.</p>
+      <h3>The Budget tabs</h3>
+      <p>The Budget page has five tabs: <strong>Your budget</strong>, <strong>Possible futures</strong>, <strong>Bills and charges</strong>, <strong>Calendar</strong> (what's coming from your own record — due days, recurring bills, gift occasions, trips) and <strong>Gifts</strong> (the Gift budget).</p>
     </div>
 
     <div class="kb-article" id="debt">
@@ -1157,7 +1177,7 @@ python3 launch.py</pre>
 
     <div class="kb-article" id="gifts">
       <h2>Gift budget</h2>
-      <p>The Gift page helps you plan gifts for everyone in your life without getting blindsided.</p>
+      <p>The Gift budget, the <strong>Gifts</strong> tab on the Budget page, helps you plan gifts for everyone in your life without getting blindsided.</p>
       <h3>Adding people</h3>
       <p>Click <strong>+ Person</strong> and add the people you buy gifts for. Tag them as Family, Friend, Coworker, or Other.</p>
       <h3>Adding occasions</h3>
@@ -1166,6 +1186,17 @@ python3 launch.py</pre>
       <p>The top of the page shows everyone with an occasion in the next 90 days. Click <strong>Budget it</strong> to add their gift to this month's budget automatically.</p>
       <h3>Seasonal funds</h3>
       <p>For Christmas, vacations, or any recurring occasion, create a Seasonal Fund with a target amount and a funded-by date. Groundwork tells you how much to save each month to hit it.</p>
+    </div>
+
+    <div class="kb-article" id="health">
+      <h2>Health</h2>
+      <p>The Health page keeps your medical bills, your plan year, the health reserve, your HSA and FSA, and what care has cost in one place. It records and never judges: nothing on it suggests spending less on care.</p>
+      <h3>Medical bills</h3>
+      <p>Type in what a bill says — the provider, the statement date, the amount due. A bill becomes something you owe only when you say <strong>This bill is mine to pay</strong>. Link the payments you made toward it, note a pending insurance claim, or record a payment arrangement the provider agreed; Groundwork shows the amount owed now with its working, and never contacts anyone.</p>
+      <h3>Collections</h3>
+      <p>If a bill goes to collections, record it on the bill. It's then kept on the Health page — not in Debt Payoff — with a running balance from the collector's own statements and the payments you link. Groundwork adds no interest or fees. If you believe the debt isn't correct or is no longer valid, consider getting legal advice before you pay or agree to anything.</p>
+      <h3>Spending and people</h3>
+      <p>Health spending by month and by person, as you said it, with the visit report and the year in review. Names are labels, not locks: anyone who opens Groundwork on that computer can see them. You can hide Health from the sidebar in Settings.</p>
     </div>
 
     <div class="kb-article" id="investments">
@@ -1196,7 +1227,9 @@ python3 launch.py</pre>
 
     <div class="kb-article" id="byb">
       <h2>Before You Buy</h2>
-      <p>Thinking about a big purchase? Enter its name and cost on the Before You Buy page, and Groundwork shows exactly what it does to your monthly budget and your debt-free date.</p>
+      <p>Thinking about a purchase? The Before You Buy page starts with one question: <strong>What are you thinking of buying?</strong> Pick what kind it is, name it and give what it costs a month, and the answer appears as you type — what's left each month and your debt-free date.</p>
+      <p>Not sure what it really costs? Work out a car, a phone or a yearly charge, or read a financing offer, and use the figure with one tap. Then decide: <strong>Buy it</strong>, <strong>Wait and watch</strong>, or <strong>Not buying</strong>. If it doesn't fit, <strong>Make room in my budget</strong> opens your budget to adjust first.</p>
+      <p>The <strong>After you buy</strong> tab keeps return windows and free trials, purchases that didn't come through here, and asks how the ones you waited on turned out.</p>
       <p>It isn't there to talk you out of anything — it's there to make sure you know the real cost, in dollars and in time, before you decide.</p>
     </div>
 
@@ -1224,6 +1257,8 @@ python3 launch.py</pre>
       <p>Groundwork can write a plain-English monthly report and other narrative insights. AI is completely optional, and it runs <strong>only on your own machine</strong>.</p>
       <h3>Local AI (free, fully private)</h3>
       <p>Groundwork runs AI <strong>on your own machine</strong>, with a language model that comes inside the installer and runs inside Groundwork itself: there is no separate program to install, nothing ever leaves your computer, there's no API key, and there's no cost. Turn it on when Groundwork first asks, or later under <strong>Settings → AI features</strong>. Local AI needs at least 8 GB of memory; on a smaller computer AI stays off, and every other feature of Groundwork works fully either way.</p>
+      <h3>Ask</h3>
+      <p>With AI on, the <strong>Ask or tell Groundwork…</strong> box at the top does more than answer questions. Ask how to do something and it answers in plain words, written only from Groundwork's own guide, and shows which guide answer it used. Tell it where to go (<em>view my budget</em>, <em>see collections</em>) and it opens the page; tell it what to do (<em>get my accounts</em>, <em>import a statement</em>) and it opens exactly what that button opens. <em>Explain these numbers</em> says what the figures on the page mean, and <em>why is restaurants so high</em> lists the transactions behind that figure. With AI off the box goes away; the <strong>?</strong> button's guide has the same answers either way.</p>
       <h3>No cloud AI</h3>
       <p>Groundwork has no cloud AI option. <strong>Nothing is sent to an AI service, ever.</strong> If a computer can't comfortably run a local model, AI features simply stay off; budgets, debt payoff and reports all work the same. Reading PDF statements needs the local model too; without it, import your bank's CSV or QFX download instead.</p>
     </div>
@@ -1244,7 +1279,7 @@ python3 launch.py</pre>
     <div class="kb-article" id="report-bug">
       <h2>Reporting a bug</h2>
       <p>Groundwork is actively maintained. If something breaks:</p>
-      <p>1. In the app, click <strong>⚑ Report</strong> in the top bar.</p>
+      <p>1. In the app, click <strong>?</strong> in the top bar, then <strong>⚑ Report a problem</strong> at the top of the help.</p>
       <p>2. Describe what you were doing when it broke.</p>
       <p>3. Click <strong>Open in mail app</strong>. Your email app opens with the report filled in, addressed to support@groundworkfinance.app. Read it over and send it yourself: nothing is sent without you.</p>
       <p>Or just email <a href="mailto:support@groundworkfinance.app">support@groundworkfinance.app</a> directly.</p>
@@ -1293,8 +1328,8 @@ def about():
     account, no subscription and no ads. Your data stays on your computer.</p>
 
   <h2>Telling us something's wrong</h2>
-  <p>Groundwork sends no telemetry, so we only hear about a problem if you tell us. In the app, the
-    <strong>⚑ Report</strong> button opens your own email app with a report filled in; you read it over and send it
+  <p>Groundwork sends no telemetry, so we only hear about a problem if you tell us. In the app,
+    <strong>⚑ Report a problem</strong> (under <strong>?</strong> in the top bar) opens your own email app with a report filled in; you read it over and send it
     yourself. Nothing is sent without you. You can also email
     <a href="mailto:support@groundworkfinance.app">support@groundworkfinance.app</a> directly.</p>
   <p>We read every one.</p>
@@ -1318,7 +1353,7 @@ def privacy():
   <p>What stays on your computer, what leaves it, and why.</p>
 </section>
 <div class="narrow prose">
-  <p style="color:var(--muted)">Last updated: October 12, 2026. This page describes Groundwork """ + SITE_VERSION + """, the version offered for download.</p>
+  <p style="color:var(--muted)">Last updated: October 19, 2026. This page describes Groundwork """ + SITE_VERSION + """, the version offered for download.</p>
 
   <h2>Your data stays on your machine</h2>
   <p>Groundwork is a desktop application. Your financial data — transactions, balances,
@@ -1337,23 +1372,38 @@ def privacy():
       publishes the prices. Groundwork asks for your state; it never looks up your location.</li>
     <li><strong>Trip distances</strong> send the places you type into the trip planner to OpenStreetMap, to work out
       the driving distance.</li>
+    <li><strong>Flight and travel-cost tables</strong> are whole public tables, downloaded when you open the trip
+      planner: average fares and airports from the U.S. Department of Transportation (at most once a week), and
+      travel per-diem rates from the U.S. General Services Administration (at most once a month). Nothing about you
+      or your trip is sent.</li>
   </ul>
+  <p>These are the only services the app itself contacts. Every request goes through one place in Groundwork's code,
+    which refuses any other address, and the app's tests fail if a request is ever made anywhere else.</p>
 
   <h2>Websites opened inside Groundwork</h2>
-  <p>Groundwork can open your bank's website, and Google Flights, in a separate private window. That
-    window keeps no sign-in after it closes, and anything you type there goes to that website under
-    its own privacy policy, not to us. Groundwork does not read those pages, with one exception: in
-    the Google Flights window, when you click <em>Continue</em> to choose a fare, Groundwork reads the
-    price on that button and asks whether to use it in your trip budget. Nothing else on the page is
-    read or kept, the price stays on your computer, and it is used only if you say yes.</p>
+  <p>Groundwork can open your bank's website, a bill's website, Google Flights and Google Hotels in a separate
+    window. Anything you type there goes to that website under its own privacy policy, not to us. The window keeps
+    no sign-in after it closes, unless you choose to remember that device for that account. Groundwork reads those
+    pages only in these ways, each on your click:</p>
+  <ul>
+    <li><strong>Google Flights and Google Hotels:</strong> when you click <em>Continue</em> on a fare, or a hotel's
+      <em>Visit site</em>, Groundwork reads the price on that row and asks whether to use it in your trip budget.</li>
+    <li><strong>Getting your accounts and bills:</strong> when you press <em>Get my accounts</em>, Groundwork repeats
+      the steps you recorded once on your bank's or bill's site. It finds each button by its words, types your saved
+      sign-in only into the sign-in step (the password stays in your computer's own password vault), and saves the
+      file your bank offers to download, or reads a bill's amount due and due date from the places you marked. It
+      never presses a payment button.</li>
+  </ul>
+  <p>Nothing else on those pages is read or kept, what is read stays on your computer, and it is used only if you
+    say yes.</p>
 
   <h2>AI features</h2>
   <p>Groundwork's AI features are optional and run <strong>only on your own machine</strong>: the
     model comes with Groundwork and runs inside it, so nothing is sent to an AI service and no API
     key exists. There is no cloud AI option.</p>
 
-  <h2>The Report button</h2>
-  <p>The <strong>⚑ Report</strong> button opens your own email app with a report filled in. Nothing is sent unless
+  <h2>Report a problem</h2>
+  <p><strong>⚑ Report a problem</strong>, under <strong>?</strong> in the top bar, opens your own email app with a report filled in. Nothing is sent unless
     you send that email yourself.</p>
 
   <h2>This website</h2>
@@ -1388,28 +1438,28 @@ def terms():
   <p>The licence for Groundwork, the same text the installer and the app show.</p>
 </section>
 <div class="container" style="max-width:760px;padding:60px 24px">
-  <p style="color:var(--slate);margin-bottom:8px">End User License Agreement · Version 1.2 · Effective October 8, 2026</p>
+  <p style="color:var(--slate);margin-bottom:8px">End User License Agreement · Version 1.3 · Effective October 19, 2026</p>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:32px">
     By installing, accessing, or using Groundwork (the "Software"), you agree to this
     End User License Agreement and Terms of Use (the "Agreement"). If you do not agree,
     do not install or use the Software.
   </p>
 
-  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">1. License grant</h2>
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">1. License</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
-    Groundwork is free software provided at no charge. Subject to your compliance with this
-    Agreement, you are granted a personal, non-exclusive, non-transferable, revocable license
-    to install and use the Software for your own personal or internal purposes. You may not
-    sell, rent, lease, sublicense, or charge a fee for the Software; redistribute a modified
-    version; remove or alter any proprietary notices; or represent a modified copy as the
-    official Software. All rights not expressly granted are reserved by the publisher.
+    Groundwork is free software: you can redistribute it and/or modify it under the terms of
+    the GNU General Public License, version 3 (the "GPL"), as published by the Free Software
+    Foundation. The full text is in the LICENSE file that comes with the Software. Nothing in
+    this Agreement limits any right the GPL gives you to copy, modify or share the Software;
+    where the two conflict, the GPL governs. This Agreement covers your use of the Software and
+    of what it shows you. The name "Groundwork" and its logo are not licensed under the GPL, and
+    a modified copy must not be presented as the official Software.
   </p>
 
   <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">2. Ownership</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
-    The Software is licensed, not sold. The publisher retains all right, title, and interest
-    in the Software, including all intellectual property rights. The data you enter or import
-    remains yours.
+    The publisher keeps the copyright in the Software, which you receive under the GPL. The
+    data you enter or import remains yours.
   </p>
 
   <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">3. Your responsibility — verify all figures</h2>
@@ -1488,9 +1538,9 @@ def terms():
 
   <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">9. Termination</h2>
   <p style="color:var(--slate);line-height:1.9;margin-bottom:24px">
-    This license is effective until terminated and terminates automatically if you breach it. You
-    may terminate it at any time by uninstalling and deleting the Software. Sections 3 through 6
-    and 10 survive termination.
+    You may stop using the Software at any time by uninstalling and deleting it. Your rights to
+    copy, modify and share the Software end only as the GPL says. Sections 3 through 6 and 10
+    survive.
   </p>
 
   <h2 style="font-size:20px;font-weight:700;margin-bottom:10px">10. Governing law</h2>

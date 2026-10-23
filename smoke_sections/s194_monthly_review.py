@@ -105,6 +105,7 @@ def run(ctx):
     node = shutil.which('node')
     out = None
     if node:
+        # item 109: _localISODate and _localStamp, the page's local clock, come in with the functions that use them
         fn = lambda name, pre='function ': re.search(r'\n(?:async )?' + pre + name + r'\(.*?\n\}\n', app, re.S).group(0)
         js = ('const posts = []; let due = "2019-03", ai = false, aiResult = null, calls = 0;\n'
               'const S = {transactions: [{date: "2019-03-05", amount: 40, type: "debit", category: "Food"}], incomes: [{amount: 2000}]};\n'
@@ -113,7 +114,7 @@ def run(ctx):
               'const aiEnabled = () => ai; const callAI = async () => { calls++; return aiResult; };\n'
               'const API = { get: async () => ({ month: due }), post: async (u, b) => { posts.push(b); return {}; } };\n'
               'let _monthlyReviewBusy = false;\n'
-              + fn('_rcMonthlyFallbackText') + fn('_rcMonthFacts') + re.search(r'\nasync function monthlyReviewAfterImport\(.*?\n\}\n', app, re.S).group(0) +
+              + fn('_localISODate') + fn('_localStamp') + fn('_rcMonthlyFallbackText') + fn('_rcMonthFacts') + re.search(r'\nasync function monthlyReviewAfterImport\(.*?\n\}\n', app, re.S).group(0) +
               '(async () => {\n'
               ' await monthlyReviewAfterImport();\n'
               ' ai = true; aiResult = {ok: true, text: "Written."}; await monthlyReviewAfterImport();\n'

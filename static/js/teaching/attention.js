@@ -15,7 +15,10 @@
   'use strict';
 
   var KINDS = ['payment_due', 'import_stale', 'blocked_conclusion', 'date_ends',    // date_ends: item 73 Y2, ruled 2026-10-10
-               'fsa_deadline'];                                                    // item 86 F5, ruled 2026-10-14
+               'fsa_deadline',                                                     // item 86 F5, ruled 2026-10-14
+               'bill_due',                                                         // item 94 L6, ruled 2026-10-19
+               'two_accounts',                                                     // item 107 D6 (a), ruled 2026-10-21
+               'backup_due'];                                                      // the backup reminder, Rob 2026-10-22
   var DUE_WITHIN_DAYS = 7;                                  // ruling 4
 
   function _iso(d) {
@@ -105,6 +108,38 @@
     });
   }
 
+  /* Kind 6 (item 94 L6): a medical bill whose payment in full would leave savings below the reserve or the stability
+   * floor, or that can't be paid in full from what's on record - never because of its size. `rows` - the server's
+   * /api/medical-bills `attention` list, from the statements the person typed in. */
+  function billsDue(rows) {
+    return (rows || []).map(function (r) {
+      return { kind: 'bill_due', subject: String(r.subject), title: r.title, due: r.due, days: r.days, owed: r.owed,
+               sentence: r.sentence, fact: r.fact };
+    });
+  }
+
+  /* Kind 7 (item 107 D6 (a)): the same payee at the same amount paid from two of the person's accounts in the same
+   * month, from the second such month within three. `rows` - the server's /api/two-accounts `attention` list; its words
+   * are the server's fixed words (D7). Its Dismiss is "not now" for 60 days, kept by the server (D8), so the
+   * fingerprint is the pair, not the month. */
+  function twoAccounts(rows) {
+    return (rows || []).map(function (r) {
+      return { kind: 'two_accounts', subject: String(r.pair), title: r.title, pair: r.pair, state: r.state,
+               sentence: r.sentence, source: r.source, label: r.label, search: r.search, fact: r.fact };
+    });
+  }
+
+  /* Kind 8 (Rob 2026-10-22, after Quicken's): a backup is due - the last one is as old as the person chose (7 days unless
+   * they changed it) and records were added since, or there has never been one and the record holds transactions.
+   * `rows` - the server's /api/backup/reminder `attention` list. Its "Remind me later" rests it for three days, kept by
+   * the server, so it has no Dismiss of its own. */
+  function backupDue(rows) {
+    return (rows || []).map(function (r) {
+      return { kind: 'backup_due', subject: 'backup', last: r.last, days: r.days, transactions: r.transactions,
+               other: r.other, fact: r.fact };
+    });
+  }
+
   function fingerprint(item) {
     return item.kind + '|' + item.subject + '|' + item.fact;
   }
@@ -115,21 +150,22 @@
     var gone = {};
     (dismissed || []).forEach(function (f) { gone[f] = true; });
     var items = [].concat(parts.payments || [], parts.imports || [], parts.blocked || [], parts.dates || [],
-                          parts.fsa || []);
+                          parts.fsa || [], parts.bills || [], parts.twoAccounts || [], parts.backup || []);
     items.forEach(function (i) {
       if (KINDS.indexOf(i.kind) < 0) throw new Error('attention: "' + i.kind + '" is not a ruled kind');
     });
     return items.filter(function (i) { return !gone[fingerprint(i)]; }).sort(function (a, b) {
       var k = KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind);
       if (k) return k;
-      if (a.kind === 'payment_due' || a.kind === 'date_ends' || a.kind === 'fsa_deadline') return a.days - b.days;
+      if (a.kind === 'payment_due' || a.kind === 'date_ends' || a.kind === 'fsa_deadline' || a.kind === 'bill_due') return a.days - b.days;
       if (a.kind === 'import_stale') return b.days - a.days;
       return 0;
     });
   }
 
   var api = { KINDS: KINDS, DUE_WITHIN_DAYS: DUE_WITHIN_DAYS, paymentsDue: paymentsDue, datesEnding: datesEnding,
-              importsStale: importsStale, blockedConclusions: blockedConclusions, fsaDeadlines: fsaDeadlines,
+              importsStale: importsStale, blockedConclusions: blockedConclusions, fsaDeadlines: fsaDeadlines, billsDue: billsDue,
+              twoAccounts: twoAccounts, backupDue: backupDue,
               fingerprint: fingerprint, build: build };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root && root.GWTeaching) root.GWTeaching.register('attention', api);

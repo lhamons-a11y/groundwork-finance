@@ -172,6 +172,35 @@
       fact = '<strong>' + esc(i.title) + '</strong>: ' + esc(i.sentence) + left;
       source = 'From this FSA\'s balance and the plan terms you entered. Groundwork doesn\'t spend or claim anything; you decide.';
       action = '<button class="btn btn-sm btn-secondary" onclick="showView(\'settings\');_settingsShowTab(\'accounts\')">Open Accounts</button>';
+    } else if (i.kind === 'bill_due') {
+      var by = i.days < 0 ? ' It was due ' + _date(i.due) + '.' : ' Due ' + _date(i.due) + (i.days === 0 ? ' (today).' : i.days === 1 ? ' (tomorrow).' : ' (in ' + i.days + ' days).');
+      fact = '<strong>' + esc(i.title) + '</strong>: ' + esc(i.sentence) + by;
+      source = 'From the bill you typed in, your savings on record and your reserve. Groundwork never contacts anyone or pays anything.';
+      action = '<button class="btn btn-sm btn-secondary" onclick="showView(\'settings\');_settingsShowTab(\'accounts\')">Open Medical bills</button>';
+    } else if (i.kind === 'two_accounts') {                 // item 107 D7: the server's fixed words, D8: the answers
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.7"'
+        + ' data-gw-two-item="' + esc(i.pair) + '">'
+        + '<div style="font-size:11px;color:var(--slate-2)">' + esc(i.label) + '</div>'
+        + '<strong>' + esc(i.title) + '</strong>: ' + esc(i.sentence)
+        + '<div style="font-size:11px;color:var(--slate-2)">' + esc(i.source) + '</div>'
+        + '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start">'
+        + '<button class="btn btn-sm btn-secondary" data-gw-two-show="' + esc(i.search) + '">Show the charges</button>'
+        + '<span style="display:inline-flex;flex-direction:column"><button class="btn btn-sm btn-secondary" data-gw-two-answer="both_meant" data-gw-two-pair="' + esc(i.pair) + '">Both are meant</button>'
+        + '<span style="font-size:10px;color:var(--slate-2);padding-left:2px">e.g. one is for someone else</span></span>'
+        + '<button class="btn btn-sm btn-secondary" data-gw-two-answer="should_stop" data-gw-two-pair="' + esc(i.pair) + '">One of these should stop</button>'
+        + '<button class="btn btn-sm btn-secondary" data-gw-two-answer="not_same" data-gw-two-pair="' + esc(i.pair) + '">These aren\'t the same</button>'
+        + '<button class="btn btn-sm btn-secondary" data-gw-two-answer="not_now" data-gw-two-pair="' + esc(i.pair) + '">Dismiss</button>'
+        + '</div></div>';
+    } else if (i.kind === 'backup_due') {                   // the backup reminder (Rob 2026-10-22)
+      var n = i.transactions, added = n ? n + ' transaction' + (n === 1 ? '' : 's') + ' added' : 'records added';
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--steel);font-size:12px;color:var(--slate);line-height:1.7">'
+        + (i.last
+          ? '<strong>Backup</strong>: your last backup was ' + _date(i.last) + ', ' + i.days + ' day' + (i.days === 1 ? '' : 's') + ' ago, with ' + added + ' since.'
+          : '<strong>Backup</strong>: your records haven\'t been backed up yet' + (n ? ' (' + n + ' transaction' + (n === 1 ? '' : 's') + ')' : '') + '.')
+        + '<div style="font-size:11px;color:var(--slate-2)">' + (i.last ? 'From the date of your last backup and what was added since.' : 'There is no backup of your records on record yet.')
+        + ' How often to be reminded is yours to change in Settings.</div>'
+        + '<div style="margin-top:4px"><button class="btn btn-sm btn-secondary" onclick="showView(\'settings\');_settingsShowTab(\'data\')">Back up now</button>'
+        + ' <button class="btn btn-sm btn-secondary" data-gw-backup-later>Remind me later</button></div></div>';
     } else if (i.kind === 'import_stale') {
       fact = '<strong>' + esc(i.title) + '</strong>: last imported ' + _date(i.last_import) + ', ' + i.days + ' days ago.';
       source = 'From when this account\'s transactions were last imported. An account kept by hand is never listed.';
@@ -263,12 +292,21 @@
     if ((S.accounts || []).some(function (a) { return a.type === 'fsa'; })) {
       try { fsa = ((await API.get('/api/accounts/hsa-fsa')) || {}).attention || []; } catch (e) { _gwErr('dashboard fsa')(e); }
     }
+    var bills = [];                                          // item 94 L6: only what the bills you typed in establish
+    try { bills = ((await API.get('/api/medical-bills')) || {}).attention || []; } catch (e) { _gwErr('dashboard bills')(e); }
+    var two = [];                                            // item 107 D6 (a): from the second month within three
+    try { two = ((await API.get('/api/two-accounts')) || {}).attention || []; } catch (e) { _gwErr('dashboard two accounts')(e); }
+    var backup = [];                                         // the backup reminder (Rob 2026-10-22)
+    try { backup = ((await API.get('/api/backup/reminder')) || {}).attention || []; } catch (e) { _gwErr('dashboard backup')(e); }
     var items = A.build({
       payments: payments,
       imports: A.importsStale(stale),
       blocked: A.blockedConclusions(conf, hasRecord),
       dates: A.datesEnding(kept, new Date()),
-      fsa: A.fsaDeadlines(fsa)
+      fsa: A.fsaDeadlines(fsa),
+      bills: A.billsDue(bills),
+      twoAccounts: A.twoAccounts(two),
+      backup: A.backupDue(backup)
     }, (_prefs && _prefs.dismissed) || []);
     var head = '<div class="card-label" style="margin-bottom:4px">Needs attention</div>';
     try { _tiles(imports, items, payments); } catch (e) { _gwErr('dashboard tiles')(e); }
@@ -296,6 +334,25 @@
     if (d) { ev.preventDefault(); _dismiss(d.getAttribute('data-gw-dismiss')); return; }
     var da = t.closest('[data-gw-dismiss-all]');
     if (da) { ev.preventDefault(); try { _dismiss(JSON.parse(da.getAttribute('data-gw-dismiss-all'))); } catch (e) { _gwErr('dashboard dismiss all')(e); } return; }
+    if (t.closest('[data-gw-backup-later]')) {             // "Remind me later": three days, kept by the server
+      ev.preventDefault();
+      API.post('/api/backup/reminder/snooze', {}).then(_renderAttention).catch(_gwErr('dashboard backup later'));
+      return;
+    }
+    var ts = t.closest('[data-gw-two-show]');               // item 107: the Ledger, that payee, every account
+    if (ts) {
+      ev.preventDefault();
+      if (g('ledgerAccountFilter')) g('ledgerAccountFilter').value = '';     // both accounts' rows, whatever was chosen
+      askLedgerSearch(ts.getAttribute('data-gw-two-show'));                  // the Ask box's own Ledger search
+      return;
+    }
+    var ta = t.closest('[data-gw-two-answer]');             // item 107 D8: the person's answer, kept as theirs
+    if (ta) {
+      ev.preventDefault();
+      API.post('/api/two-accounts/answer', { pair: ta.getAttribute('data-gw-two-pair'), answer: ta.getAttribute('data-gw-two-answer') })
+        .then(_renderAttention).catch(_gwErr('dashboard two accounts answer'));
+      return;
+    }
     var rd = t.closest('[data-gw-receipt-done]');            // item 73 Y2: the person handled a trial or return date
     if (rd) {
       ev.preventDefault();

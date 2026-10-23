@@ -68,7 +68,7 @@ def run(ctx):
             server.log_historian_event(s, 'import_committed', context={'account_id': a.id, 'file_name': 'x.csv'})
             s.commit()
             ev = s.query(HistorianEntry).filter(HistorianEntry.event_category == 'import_committed').order_by(HistorianEntry.id.desc()).first()
-            ev.created_at = datetime.utcnow() - timedelta(days=2)
+            ev.created_at = datetime.now() - timedelta(days=2)
             made['h'].append(ev.id)
             rd = BillReading(budget_item_id=b.id, amount=142.37, due_date=today + timedelta(days=10), read_at=datetime.now(), source_host='aep.example.com')
             s.add(rd); s.commit(); made['r'].append(rd.id)
@@ -87,7 +87,7 @@ def run(ctx):
         mine = next(x for x in k['bills'] if x['id'] == bid)
         check('s178 B6 the route: the bank\'s balance, the floor, the answer, and the 24-hour notice for a 2-day-old download',
               mine['check']['state'] == 'fits' and mine['check']['after'] == 3707.63 and mine['check']['stale'] is True
-              and mine['last_download'].endswith('Z') and mine['paid']['state'] == 'not_seen'
+              and not mine['last_download'].endswith('Z') and mine['paid']['state'] == 'not_seen'
               and next(x for x in k['accounts'] if x['id'] == aid)['buffer'] == 2000.0)
         with db_session() as s:
             buf = json.loads(s.query(AppSetting).filter_by(key=f'bank_buffer:account:{aid}').first().value)

@@ -174,8 +174,9 @@ def run(ctx):
           # item 71: the income check compares this month's budgeted spending with the new income
           # item 76: the Sunday check-in compares this month's spending so far with this month's budgeted spending
           # item 66: possible futures start from this month's budgeted spending
+          # item 94 L6: a bill's stability floor is one month of this month's budgeted spending (as debt_capacity's buffer)
           calls <= {'budget_month_amounts_route', 'budget_utility_estimate', 'debt_capacity', 'bootstrap', '_income_change_state', '_byb_impact',
-                    'checkin_get', '_futures_inputs'}
+                    'checkin_get', '_futures_inputs', '_bills_ctx'}
           and 'debt_capacity' in calls and 'bootstrap' in calls)
 
     # ── M4 / M6 / M7 in Node ─────────────────────────────────────────────────

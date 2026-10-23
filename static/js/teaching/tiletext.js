@@ -37,10 +37,15 @@
                body: 'Spent ' + f.money(o.spent) + ' in ' + o.daysGone + ' of ' + o.daysInMonth + ' days. There is no budgeted'
                      + ' income yet to compare it with.' };
     }
-    var projected = o.daysGone > 0 ? (o.spent / o.daysGone) * o.daysInMonth : 0;
+    // Once-a-month bills (rent, loan payments) are counted once, not stretched across the month at the daily rate.
+    var bills = o.bills > 0 ? Math.min(o.bills, o.spent) : 0;
+    var projected = o.daysGone > 0 ? bills + ((o.spent - bills) / o.daysGone) * o.daysInMonth : 0;
+    var rate = bills > 0
+      ? ', ' + f.money(bills) + ' of it once-a-month bills. Counting those once and the rest at that rate'
+      : '. At that rate';
     return {
       head: o.monthName + ' so far',
-      body: 'Spent ' + f.money(o.spent) + ' in ' + o.daysGone + ' of ' + o.daysInMonth + ' days. At that rate - a straight'
+      body: 'Spent ' + f.money(o.spent) + ' in ' + o.daysGone + ' of ' + o.daysInMonth + ' days' + rate + ' - a straight'
             + ' line, not a forecast - the month ends near ' + f.money(projected) + ' against ' + f.money(o.budget) + ' budgeted.'
     };
   }

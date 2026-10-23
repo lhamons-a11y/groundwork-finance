@@ -14,17 +14,6 @@ import re
 from datetime import date, datetime, timedelta
 
 
-def _months(n, end=None):
-    end = end or date.today().replace(day=1) - timedelta(days=1)
-    out, y, m = [], end.year, end.month
-    for _ in range(n):
-        out.append(f'{y}-{m:02d}')
-        m -= 1
-        if m == 0:
-            y, m = y - 1, 12
-    return list(reversed(out))
-
-
 def run(ctx):
     check, c, H, HJ, BASE = ctx.check, ctx.c, ctx.H, ctx.HJ, ctx.BASE
     from core import income_change as ic
@@ -157,9 +146,10 @@ def run(ctx):
             cat = s.query(Category).filter(Category.name == 'Income').first()
             if not cat:
                 cat = Category(name='Income', type='income'); s.add(cat); s.commit(); made['cat'] = cat.id
-            for i, m in enumerate(_months(10)):
-                t = Transaction(date=date(int(m[:4]), int(m[5:]), 15), description='PAYROLL s183', amount=(4600.0 if i < 6 else 3900.0),
-                                type='credit', category_id=cat.id)
+            # monthly pay dated from today, as series() is: pinned to the 15th of past months, the last check fell
+            # due + grace (D7) around the 20th, and from then on the route rightly said "not on record yet", not a drop
+            for i, (dd, amt) in enumerate(series(30, 10, lambda k: 4600.0 if k < 6 else 3900.0)):
+                t = Transaction(date=dd, description='PAYROLL s183', amount=amt, type='credit', category_id=cat.id)
                 s.add(t); s.flush(); made['t'].append(t.id)
             b1 = BudgetItem(name='s183 Dining', category='s183 Dining', amount=900.0, type='expense', is_active=True)
             b2 = BudgetItem(name='s183 Rent', category='Rent', amount=4000.0, type='expense', is_active=True)

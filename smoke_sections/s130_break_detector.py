@@ -155,7 +155,7 @@ def _fund_cases(dbs):
 
     # End to end: seven months of $200, then two of $60, in the Historian.
     _RUN[0] += 1
-    now = datetime.utcnow()
+    now = datetime.now()
     first_of = datetime(now.year, now.month, 1)
 
     def month_back(k):

@@ -30,12 +30,13 @@ bash scripts/mac_kit/setup.sh
 bash scripts/mac_kit/run.sh ~/Downloads/phi3.5-mini-instruct-q4.gguf
 ```
 
-- **`setup.sh`** builds the pinned engine (llama-cpp-python 0.3.35) twice from its official source: once for the
-  processor, once with Metal. It takes about 10–20 minutes, mostly compiling.
-- **`run.sh`** checks the model's fingerprint, then measures each build in turn. Close other apps and keep the Mac
+- **`setup.sh`** builds the pinned engine (llama-cpp-python 0.3.35) once from its official source, with Metal - the
+  only Mac build there is (its CMakeLists.txt forces Metal on for Apple). It takes about 5–10 minutes, mostly compiling.
+- **`run.sh`** checks the model's fingerprint, then measures that build twice: on the processor (no layers on the
+  graphics) and on Metal (every layer). Close other apps and keep the Mac
   plugged in first. It takes about 30–60 minutes and keeps the Mac awake.
 
-Each build gets:
+Each run gets:
 - the load time and the free memory before and after;
 - one untimed warm-up answer;
 - fitting's timing answer (first word, whole answer);

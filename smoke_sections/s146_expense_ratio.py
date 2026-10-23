@@ -34,7 +34,7 @@ def run(ctx):
         s.add(acct)
         s.flush()
         made['acct'] = acct.id
-        s.add(PriceCache(ticker='VOO', price=512.30, last_updated=datetime.utcnow())) if not s.get(PriceCache, 'VOO') else None
+        s.add(PriceCache(ticker='VOO', price=512.30, last_updated=datetime.now())) if not s.get(PriceCache, 'VOO') else None
         s.add(InvestmentLot(account_id=acct.id, ticker='VOO', shares_original=40, shares_remaining=40,
                             cost_basis_per_share=410.0, purchase_date=date(2024, 3, 1)))
         s.add(InvestmentLot(account_id=acct.id, ticker='S146AMB', shares_original=1, shares_remaining=1,

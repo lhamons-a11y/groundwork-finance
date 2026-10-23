@@ -59,9 +59,8 @@ def _fetch_from_eia(api_key: str):
     raises — the caller treats None exactly like "nothing new right now"."""
     try:
         url = EIA_URL.format(key=urllib.parse.quote(api_key))
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
-            data = json.loads(r.read().decode('utf-8'))
+        from core import egress                    # item 8: the one door out
+        data = egress.get_json(url, timeout=REQUEST_TIMEOUT)
         rows = ((data.get('response') or {}).get('data')) or []
         if not rows:
             return None

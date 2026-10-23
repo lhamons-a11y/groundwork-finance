@@ -72,6 +72,8 @@ const API = { _n: 0, post: async (url, body) => { if (url === '/api/ai/chat') { 
 const _gwErr = () => () => {};
 const _GW_AUTH_HEADER = () => ({});
 const esc = s => String(s);
+// the page's top-level listeners (item 103's figure clicks, keys and hovers) register on a document node has not got
+const document = { addEventListener: () => {} };
 globalThis.fetch = async (url) => {
   if (url === 'voice_rules.json') return new Response('', { status: 404 });
   const enc = new TextEncoder();

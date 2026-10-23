@@ -95,8 +95,9 @@ def run(ctx):
     # The AI-off audit (2026-10-12, AI_OFF_AUDIT.md F6) moved "only with AI on" to the server: the page now asks the route
     # with AI off too, and the route answers 'off' with the fixed checks BEFORE any model is asked (s217 runs it).
     _route = ctx.server_src.split('def why_route():')[1].split('\n@')[0]
-    check('C2 / A10 the model is asked only with AI on (the route says off before any model), only after the guide found no how-to answer, and a check runs only on a tap',
-          ask.index('const hit = helpMatch(q);') < ask.index("'/api/why/route'")
+    # Item 102: a "why" question goes to the checks first; any other question goes to the guide assistant
+    check('C2 / A10 the model is asked only with AI on (the route says off before any model), a "why" question goes to the checks, and a check runs only on a tap',
+          ask.index('if (!aiEnabled()) {') < ask.index("_helpWords(q).some(w => HELP_WHY_WORDS.has(w))") < ask.index("'/api/why/route'")
           and _route.index("return ok({'state': 'off', 'checks': every})") < _route.index('engine.choose(')
           and "onclick=\"closeAsk(); openWhyCheck(" in ask)
     check('C8 the page says the answer comes from the records, not from the AI', 'the answer comes from your records, not from the AI' in ask)

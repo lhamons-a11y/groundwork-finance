@@ -254,10 +254,9 @@ def google_flights_url(origin, dest, depart, ret=None, travelers=1):
 
 def _get(url, params):
     """One GET against DOT's open-data API. Separate so the gate can stand in for the network."""
+    from core import egress                        # item 8: the one door out
     q = urllib.parse.urlencode(params)
-    req = urllib.request.Request(f'{url}?{q}', headers={'User-Agent': 'Groundwork'})
-    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
-        return json.loads(r.read().decode('utf-8'))
+    return egress.get_json(f'{url}?{q}', headers={'User-Agent': 'Groundwork'}, timeout=REQUEST_TIMEOUT)
 
 
 def latest_quarter():
@@ -351,9 +350,9 @@ def build_airports(t, lookup_csv, passengers):
 
 
 def _fetch_airports(t):
-    req = urllib.request.Request(BTS_AIRPORTS, headers={'User-Agent': 'Mozilla/5.0 (Groundwork release build)'})
-    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
-        lookup_csv = r.read().decode('latin-1')
+    from core import egress                        # item 8: the one door out
+    lookup_csv = egress.get(BTS_AIRPORTS, headers={'User-Agent': 'Mozilla/5.0 (Groundwork release build)'},
+                            timeout=REQUEST_TIMEOUT).decode('latin-1')
     since = f'{datetime.now().year - 1}-{datetime.now().month:02d}-01'
     rows = _get(BTS_T100, {'$select': 'origin_airport_code,sum(domestic_passengers) as pax',
                            '$where': f"reporting_month >= '{since}'", '$group': 'origin_airport_code', '$limit': 10000})

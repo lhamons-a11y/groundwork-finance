@@ -72,7 +72,7 @@ def run(ctx):
 
     # E4 through the routes: legacy entries (no source), shown then marked, never deleted
     with db_session() as s:
-        now = datetime.utcnow().replace(microsecond=0) - timedelta(hours=2)
+        now = datetime.now().replace(microsecond=0) - timedelta(hours=2)
         for n, i in enumerate(ids):
             s.add(HistorianEntry(event_category='budget_adjusted', expected_value=200.0, actual_value=120.0, created_at=now,
                                  context_json=json.dumps({'budget_item_id': i, 'name': f's206 Line {n}', 'item_type': 'expense'})))

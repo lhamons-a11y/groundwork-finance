@@ -216,7 +216,7 @@ class Classification:
 
 
 def _now():
-    return datetime.utcnow().isoformat(timespec='seconds')
+    return datetime.now().isoformat(timespec='seconds')
 
 
 def _matches(text, terms):

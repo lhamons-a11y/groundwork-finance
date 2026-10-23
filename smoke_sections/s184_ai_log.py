@@ -56,7 +56,7 @@ def run(ctx):
         c.post('/api/ai/log/keep', headers=HJ, data=json.dumps({'keep': True}))
         check('s184 G4 Keep the log off writes nothing', off == 0)
         with db_session() as s:
-            s.add(AiLog(call_id='call-old', surface='x', created_at=datetime.utcnow() - timedelta(days=91))); s.commit()
+            s.add(AiLog(call_id='call-old', surface='x', created_at=datetime.now() - timedelta(days=91))); s.commit()
         c.get('/api/ai/log', headers=H)
         with db_session() as s:
             old = s.query(AiLog).filter_by(call_id='call-old').count()

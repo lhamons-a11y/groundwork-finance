@@ -11,7 +11,9 @@
       "reckless",
       "irresponsible",
       "out of control",
-      "bad habit"
+      "bad habit",
+      "unhealthy",
+      "healthy"
     ],
     "COMMAND_PHRASES": [
       "you need to",
@@ -180,6 +182,23 @@
       "most people",
       " experts",
       " scientists"
+    ],
+    "NEW_BORROWING": [
+      "a credit card",
+      "new credit card",
+      "a new card",
+      "a cashback card",
+      "cashback credit card",
+      "a rewards card",
+      "balance transfer",
+      "a personal loan",
+      "a new loan",
+      "take out a loan",
+      "consolidation loan",
+      "open a card",
+      "open a new card",
+      "buy now, pay later",
+      "buy now pay later"
     ]
   }
 }
