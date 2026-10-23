@@ -31,6 +31,8 @@ def run(ctx):
           "(t.date||'').slice(0,7)===thisMonth" in fn and 'txns.filter' not in fn and 'if (!_notLevers) return null;' in fn
           and 'if(!lever(cat))continue;' in fn)
     node = shutil.which('node')
+    # item 109: the page's day comes from its local-clock helper, carried in with the function that uses it
+    _local = re.search(r'^function _localISODate\(.*?^\}', app, re.M | re.S).group(0) + '\n'
     if node:
         prog = ("const S={transactions:[" +
                 "{type:'debit',date:'2026-10-03',category:'Debt',amount:18000}," +
@@ -38,7 +40,7 @@ def run(ctx):
                 "{type:'debit',date:'2026-10-04',category:'Restaurants',amount:400}," +
                 "{type:'debit',date:'2026-09-04',category:'Restaurants',amount:150}," +
                 "{type:'debit',date:'2025-10-04',category:'Restaurants',amount:9999}],expenses:[]};\n"
-                "const _notLevers=new Set(['debt']);\n" + fn.replace('const now=new Date()', "const now=new Date('2026-10-13T12:00:00')") +
+                "const _notLevers=new Set(['debt']);\n" + _local + fn.replace('const now=new Date()', "const now=new Date('2026-10-13T12:00:00')") +
                 "\nconsole.log(JSON.stringify(_findHighLeverageCategory([])));")
         out = subprocess.run([node, '-e', prog], capture_output=True, text=True, encoding='utf-8', timeout=30)
         got = json.loads(out.stdout.strip() or 'null') if out.returncode == 0 else out.stderr[-200:]
