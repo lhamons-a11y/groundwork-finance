@@ -8,6 +8,7 @@ times now lets fully fix it throughout the program"): one clock - the computer's
         migration, and no toISOString() picking a day or month in the page
 """
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -119,7 +120,7 @@ def run(ctx):
         body = app[app.index('function _localISODate('):app.index('function today()')]
         js_src = (body + "\nconst d = new Date(2026, 9, 31, 23, 30);"
                   "console.log(JSON.stringify([_localISODate(d), _localISODate(d).slice(0, 7), _localStamp(d)]));")
-        r = subprocess.run(['node', '-e', js_src], capture_output=True, text=True, env={'TZ': 'America/New_York', 'PATH': '/usr/bin:/bin:/usr/local/bin'})
+        r = subprocess.run(['node', '-e', js_src], capture_output=True, text=True, env={**os.environ, 'TZ': 'America/New_York'})
         out = json.loads(r.stdout or 'null')
         check(f's256 T1 in Node (TZ America/New_York): 11:30 pm on Oct 31 is Oct 31 and October ({out})',
               out == ['2026-10-31', '2026-10', '2026-10-31T23:30:00'])
